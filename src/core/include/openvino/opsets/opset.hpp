@@ -21,14 +21,14 @@ namespace ov {
  * @ingroup ov_opset_cpp_api
  */
 class OPENVINO_API OpSet {
-    static std::mutex& get_mutex();
-
 public:
     OpSet() = default;
     OpSet(const std::string& name);
+    OpSet(const OpSet& opset);
     virtual ~OpSet() = default;
+    OpSet& operator=(const OpSet& opset);
     std::set<NodeTypeInfo>::size_type size() const {
-        std::lock_guard<std::mutex> guard(get_mutex());
+        std::lock_guard<std::mutex> guard(opset_mutex);
         return m_op_types.size();
     }
 
@@ -67,7 +67,7 @@ public:
 
     /// \brief Return true if OP_TYPE is in the opset
     bool contains_type(const NodeTypeInfo& type_info) const {
-        std::lock_guard<std::mutex> guard(get_mutex());
+        std::lock_guard<std::mutex> guard(opset_mutex);
         return m_op_types.find(type_info) != m_op_types.end();
     }
 
@@ -85,19 +85,19 @@ public:
 
     /// \brief Return true if name is in the opset
     bool contains_type(const std::string& name) const {
-        std::lock_guard<std::mutex> guard(get_mutex());
+        std::lock_guard<std::mutex> guard(opset_mutex);
         return m_name_type_info_map.find(name) != m_name_type_info_map.end();
     }
 
     /// \brief Return true if name is in the opset
     bool contains_type_insensitive(const std::string& name) const {
-        std::lock_guard<std::mutex> guard(get_mutex());
+        std::lock_guard<std::mutex> guard(opset_mutex);
         return m_case_insensitive_type_info_map.find(to_upper_name(name)) != m_case_insensitive_type_info_map.end();
     }
 
     /// \brief Return true if node's type is in the opset
     bool contains_op_type(const Node* node) const {
-        std::lock_guard<std::mutex> guard(get_mutex());
+        std::lock_guard<std::mutex> guard(opset_mutex);
         return m_op_types.find(node->get_type_info()) != m_op_types.end();
     }
 
@@ -106,6 +106,19 @@ public:
     }
 
 protected:
+    /// \brief Insert an op into the opset with a particular name and factory
+    void insert(const std::string& name,
+                const NodeTypeInfo& type_info,
+                ngraph::FactoryRegistry<Node>::Factory factory) {
+        std::lock_guard<std::mutex> guard(opset_mutex);
+        m_op_types.insert(type_info);
+        m_name_type_info_map[name] = type_info;
+        m_case_insensitive_type_info_map[to_upper_name(name)] = type_info;
+        m_factory_registry.register_factory(type_info, std::move(factory));
+    }
+    ngraph::FactoryRegistry<ov::Node> m_factory_registry;
+
+private:
     static std::string to_upper_name(const std::string& name) {
         std::string upper_name = name;
         std::locale loc;
@@ -115,22 +128,11 @@ protected:
         return upper_name;
     }
 
-    ngraph::FactoryRegistry<ov::Node> m_factory_registry;
     std::string m_name;
     std::set<NodeTypeInfo> m_op_types;
     std::map<std::string, NodeTypeInfo> m_name_type_info_map;
     std::map<std::string, NodeTypeInfo> m_case_insensitive_type_info_map;
-
-    /// \brief Insert an op into the opset with a particular name and factory
-    void insert(const std::string& name,
-                const NodeTypeInfo& type_info,
-                ngraph::FactoryRegistry<Node>::Factory factory) {
-        std::lock_guard<std::mutex> guard(get_mutex());
-        m_op_types.insert(type_info);
-        m_name_type_info_map[name] = type_info;
-        m_case_insensitive_type_info_map[to_upper_name(name)] = type_info;
-        m_factory_registry.register_factory(type_info, std::move(factory));
-    }
+    mutable std::mutex opset_mutex;
 };
 
 /**
