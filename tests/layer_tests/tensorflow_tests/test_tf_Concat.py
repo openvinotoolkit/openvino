@@ -16,10 +16,6 @@ class TestConcat(CommonTFLayerTest):
 
         """
 
-        #
-        #   Create Tensorflow model
-        #
-
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
@@ -80,9 +76,9 @@ class TestConcat(CommonTFLayerTest):
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_3D = [
-        pytest.param(dict(shape=[1, 3, 224], axis=0), marks=pytest.mark.xfail(reason="*-19053")),
-        pytest.param(dict(shape=[1, 3, 224], axis=-1), marks=pytest.mark.xfail(reason="*-19053")),
-        pytest.param(dict(shape=[1, 3, 224], axis=2), marks=pytest.mark.xfail(reason="*-19053"))]
+        dict(shape=[1, 3, 224], axis=0),
+        pytest.param(dict(shape=[1, 3, 224], axis=-1), marks=pytest.mark.precommit_tf_fe),
+        dict(shape=[1, 3, 224], axis=2)]
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly

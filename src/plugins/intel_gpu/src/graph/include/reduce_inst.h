@@ -27,6 +27,8 @@ class typed_primitive_inst<reduce> : public typed_primitive_inst_base<reduce> {
     using parent = typed_primitive_inst_base<reduce>;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(reduce_node const& node, const kernel_impl_params& impl_param);
     static layout calc_output_layout(reduce_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(reduce_node const& node);
 

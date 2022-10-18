@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cinttypes>
+
 #include "jitter.h"
 #include "tensor_type.h"
 #include <string>
@@ -11,7 +13,6 @@
 #include <quantize/quantize_kernel_params.h>
 #include <eltwise/eltwise_kernel_base.h>
 #include <activation/activation_kernel_base.h>
-#include <inttypes.h>
 
 namespace {
 class JitTerm {
@@ -339,6 +340,7 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                        layout == DataLayout::b_fs_yx_fsv4 ||
                        layout == DataLayout::fs_b_yx_fsv32 ||
                        layout == DataLayout::bs_fs_yx_bsv16_fsv16 ||
+                       layout == DataLayout::bs_fs_yx_bsv16_fsv32 ||
                        layout == DataLayout::bs_fs_yx_bsv4_fsv4 ||
                        layout == DataLayout::bs_fs_yx_bsv16_fsv4 ||
                        layout == DataLayout::bs_fs_yx_bsv16_fsv2 ||

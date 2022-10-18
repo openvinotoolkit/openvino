@@ -84,19 +84,19 @@ inline float bilinear_interpolation(const inputType* data,
 
     float value11 = 0;
     if (y1 >= 0 && x1 >= 0)
-        value11 = data[y1 * x_size + x1];
+        value11 = static_cast<float>(data[y1 * x_size + x1]);
 
     float value21 = 0;
     if (y1 >= 0 && x2 < x_size)
-        value21 = data[y1 * x_size + x2];
+        value21 = static_cast<float>(data[y1 * x_size + x2]);
 
     float value12 = 0;
     if (y2 < y_size && x1 >= 0)
-        value12 = data[y2 * x_size + x1];
+        value12 = static_cast<float>(data[y2 * x_size + x1]);
 
     float value22 = 0;
     if (y2 < y_size && x2 < x_size)
-        value22 = data[y2 * x_size + x2];
+        value22 = static_cast<float>(data[y2 * x_size + x2]);
 
     const float value = (1 - distX) * (1 - distY) * value11 + (1 - distX) * distY * value12 +
                         distX * (1 - distY) * value21 + distX * distY * value22;
@@ -118,26 +118,28 @@ void convolve_2D_channels(const ConvolutionParams& p,
                           int64_t groups,
                           int64_t deformable_groups,
                           bool bilinear_interpolation_pad) {
-    const int input_size_y = batch_shape[1];
-    const int input_size_x = batch_shape[2];
-    const int filter_size_y = filter_shape[1];
-    const int filter_size_x = filter_shape[2];
-    const int dilated_filter_size_y = filter_size_y + (filter_size_y - 1) * (p.dilation[0] - 1);
-    const int dilated_filter_size_x = filter_size_x + (filter_size_x - 1) * (p.dilation[1] - 1);
+    const int input_size_y = static_cast<int>(batch_shape[1]);
+    const int input_size_x = static_cast<int>(batch_shape[2]);
+    const int filter_size_y = static_cast<int>(filter_shape[1]);
+    const int filter_size_x = static_cast<int>(filter_shape[2]);
+    const int dilated_filter_size_y = filter_size_y + (filter_size_y - 1) * (static_cast<int>(p.dilation[0]) - 1);
+    const int dilated_filter_size_x = filter_size_x + (filter_size_x - 1) * (static_cast<int>(p.dilation[1]) - 1);
 
-    const int input_channel_size = shape_size(shape_reduce(batch_shape));
-    const int filter_channel_size = shape_size(shape_reduce(filter_shape));
-    const int offsets_size = shape_size(offset_shape);
-    const int offsets_spatial_size = shape_size(shape_reduce(offset_shape));
-    const int filter_channels_count = filter_shape[0];
-    const int mask_size = shape_size(mask_shape);
-    const int mask_spatial_size = shape_size(shape_reduce(mask_shape));
+    const int input_channel_size = static_cast<int>(shape_size(shape_reduce(batch_shape)));
+    const int filter_channel_size = static_cast<int>(shape_size(shape_reduce(filter_shape)));
+    const int offsets_size = static_cast<int>(shape_size(offset_shape));
+    const int offsets_spatial_size = static_cast<int>(shape_size(shape_reduce(offset_shape)));
+    const int filter_channels_count = static_cast<int>(filter_shape[0]);
+    const int mask_size = static_cast<int>(shape_size(mask_shape));
+    const int mask_spatial_size = static_cast<int>(shape_size(shape_reduce(mask_shape)));
 
     int out_idx = 0;
-    for (int i_y = -p.pads_begin[0]; i_y <= (p.pads_end[0] + input_size_y - dilated_filter_size_y);
-         i_y += p.strides[0]) {
-        for (int i_x = -p.pads_begin[1]; i_x <= (p.pads_end[1] + input_size_x - dilated_filter_size_x);
-             i_x += p.strides[1]) {
+    for (int i_y = static_cast<int>(-p.pads_begin[0]);
+         i_y <= static_cast<int>(p.pads_end[0] + input_size_y - dilated_filter_size_y);
+         i_y += static_cast<int>(p.strides[0])) {
+        for (int i_x = static_cast<int>(-p.pads_begin[1]);
+             i_x <= static_cast<int>(p.pads_end[1] + input_size_x - dilated_filter_size_x);
+             i_x += static_cast<int>(p.strides[1])) {
             auto input_channel = batch;
             auto filter_channel = filter;
             T sum = 0;
@@ -151,15 +153,16 @@ void convolve_2D_channels(const ConvolutionParams& p,
                                              f_buf_idx * 2 * offsets_spatial_size + out_idx];
                         T x_offset = offsets[deformable_group_idx * offsets_size +
                                              (f_buf_idx * 2 + 1) * offsets_spatial_size + out_idx];
-                        T rel_i_y = i_y + (f_y * p.dilation[0]) + y_offset;
-                        T rel_i_x = i_x + (f_x * p.dilation[1]) + x_offset;
+                        T rel_i_y = static_cast<T>(i_y + (f_y * p.dilation[0]) + y_offset);
+                        T rel_i_x = static_cast<T>(i_x + (f_x * p.dilation[1]) + x_offset);
 
                         bool padding;
                         if (bilinear_interpolation_pad) {
                             padding = !((static_cast<int>(rel_i_x) > -1 && static_cast<int>(rel_i_x) < input_size_x) &&
                                         (static_cast<int>(rel_i_y) > -1 && static_cast<int>(rel_i_y) < input_size_y));
                         } else {
-                            padding = !(in_range(rel_i_x, {0, input_size_x}) && in_range(rel_i_y, {0, input_size_y}));
+                            padding = !(in_range(rel_i_x, {T(0), T(input_size_x)}) &&
+                                        in_range(rel_i_y, {T(0), T(input_size_y)}));
                         }
 
                         if (padding)
@@ -167,12 +170,12 @@ void convolve_2D_channels(const ConvolutionParams& p,
 
                         T mask_scalar =
                             mask[deformable_group_idx * mask_size + f_buf_idx * mask_spatial_size + out_idx];
-                        sum += bilinear_interpolation(input_channel,
-                                                      rel_i_x,
-                                                      rel_i_y,
-                                                      input_size_x,
-                                                      input_size_y,
-                                                      bilinear_interpolation_pad) *
+                        sum += static_cast<T>(bilinear_interpolation(input_channel,
+                                                                     static_cast<float>(rel_i_x),
+                                                                     static_cast<float>(rel_i_y),
+                                                                     input_size_x,
+                                                                     input_size_y,
+                                                                     bilinear_interpolation_pad)) *
                                filter_channel[f_buf_idx] * mask_scalar;
                     }
                 }

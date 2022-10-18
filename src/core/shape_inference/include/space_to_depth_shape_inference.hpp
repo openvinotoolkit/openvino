@@ -33,7 +33,7 @@ void shape_infer(const ov::op::v0::SpaceToDepth* op,
 
         const auto& block_size = op->get_block_size();
         NODE_VALIDATION_CHECK(op, block_size > 0, "The block size must begreater then 0 ", block_size);
-        const ValType multiplier = std::pow(block_size, data_shape.size() - 2);
+        const ValType multiplier = static_cast<ValType>(std::pow(block_size, data_shape.size() - 2));
 
         auto& out_shape = output_shapes[0];
         out_shape.resize(data_shape.size());

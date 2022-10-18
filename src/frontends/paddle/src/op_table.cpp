@@ -15,6 +15,7 @@ OP_CONVERTER(batch_norm);
 OP_CONVERTER(bicubic_interp_v2);
 OP_CONVERTER(bilinear_interp_v2);
 OP_CONVERTER(cast);
+OP_CONVERTER(ceil);
 OP_CONVERTER(clip);
 OP_CONVERTER(concat);
 OP_CONVERTER(conv2d);
@@ -28,6 +29,7 @@ OP_CONVERTER(elementwise_equal);
 OP_CONVERTER(elementwise_greater_equal);
 OP_CONVERTER(elementwise_max);
 OP_CONVERTER(elementwise_min);
+OP_CONVERTER(elementwise_mod);
 OP_CONVERTER(elementwise_mul);
 OP_CONVERTER(elementwise_pow);
 OP_CONVERTER(elementwise_sub);
@@ -111,6 +113,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"bilinear_interp", op::bilinear_interp_v2},
             {"bmm", op::matmul},
             {"cast", op::cast},
+            {"ceil", op::ceil},
             {"clip", op::clip},
             {"concat", op::concat},
             {"conv2d", op::conv2d},
@@ -125,6 +128,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"elementwise_div", op::elementwise_div},
             {"elementwise_max", op::elementwise_max},
             {"elementwise_min", op::elementwise_min},
+            {"elementwise_mod", op::elementwise_mod},
             {"elementwise_mul", op::elementwise_mul},
             {"elementwise_pow", op::elementwise_pow},
             {"elementwise_sub", op::elementwise_sub},
