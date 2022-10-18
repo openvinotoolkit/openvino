@@ -465,10 +465,10 @@ def test_serialize_rt_info():
         assert model.has_rt_info(["test"]) is False
         assert model.has_rt_info(["optimization"]) is True
         assert model.has_rt_info(["optimization", "test"]) is False
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError):
             assert model.get_rt_info(["test"])
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError):
             assert model.get_rt_info(["optimization", "test"])
 
     core = Core()
