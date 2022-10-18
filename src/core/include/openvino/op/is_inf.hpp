@@ -17,10 +17,10 @@ public:
 
     /// \brief A Structure which contains all IsInf attributes
     struct Attributes {
-        // A flag which specifies whether to map negative invinities to true.
+        // A flag which specifies whether to map negative infinities to true.
         // If set to false, negative infinite will be mapped to false.
         bool detect_negative = true;
-        // A flag which specifies whether to map positive invinities to true.
+        // A flag which specifies whether to map positive infinities to true.
         // If set to false, positive infinite will be mapped to false.
         bool detect_positive = true;
 

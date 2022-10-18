@@ -91,7 +91,7 @@ def is_inf(
     attributes: Optional[dict] = None,
     name: Optional[str] = None,
 ) -> Node:
-    """Return a node which perform IsInf operation.
+    """Return a node which performs IsInf operation.
 
     :param data: The input tensor.
     :param attributes: Optional dictionary containing IsInf attributes.
@@ -100,11 +100,11 @@ def is_inf(
     Available attributes:
 
     * detect_negative   Specifies whether to map negative infinities to true in output map.
-                        Range od values: true, false
+                        Range of values: true, false
                         Default value: true
                         Required: no
     * detect_positive   Specifies whether to map positive infinities to true in output map.
-                        Range od values: true, false
+                        Range of values: true, false
                         Default value: true
                         Required: no
 
