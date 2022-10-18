@@ -853,9 +853,9 @@ PartialShape ngraph::infer_slice_shape(const Node* node,
 void ov::normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes) {
     const auto& min_value = -tensor_rank;
     const auto& max_value = tensor_rank ? (tensor_rank - 1) : 0;
-    transform(axes.begin(), axes.end(), axes.begin(), [=](int64_t& axis) {
+    std::for_each(axes.begin(), axes.end(), [&](int64_t& axis) {
         NODE_VALIDATION_CHECK(node,
-                              ((axis >= min_value) && (axis <= max_value)),
+                              (min_value <= axis) && (axis <= max_value),
                               " Parameter axis ",
                               axis,
                               " out of the tensor rank range [",
@@ -863,7 +863,9 @@ void ov::normalize_axes(const Node* node, const int64_t& tensor_rank, std::vecto
                               ", ",
                               max_value,
                               "].");
-        return axis < 0 ? axis + tensor_rank : axis;
+        if (axis < 0) {
+            axis += tensor_rank;
+        }
     });
 }
 
@@ -917,21 +919,17 @@ int64_t ov::normalize_axis(const std::string& node_description,
                            std::int64_t axis_range_min,
                            std::int64_t axis_range_max) {
     // Accepted range of value for axis is [axis_range_min, axis_range_max].
-    NGRAPH_CHECK(((axis >= axis_range_min) && (axis <= axis_range_max)),
-                 node_description,
-                 " Parameter axis ",
-                 axis,
-                 " out of the tensor rank range [",
-                 axis_range_min,
-                 ", ",
-                 axis_range_max,
-                 "].");
+    OPENVINO_ASSERT((axis_range_min <= axis) && (axis <= axis_range_max),
+                    node_description,
+                    " Parameter axis ",
+                    axis,
+                    " out of the tensor rank range [",
+                    axis_range_min,
+                    ", ",
+                    axis_range_max,
+                    "].");
 
-    if (axis < 0) {
-        axis = axis + tensor_rank;
-    }
-
-    return int64_t(axis);
+    return (axis < 0) ? (axis + tensor_rank) : axis;
 }
 
 void ngraph::opset1::infer_conv_backprop_auto_padding(const Shape& input_data_shape,
@@ -1651,4 +1649,13 @@ void ov::generate_transpose_default_order(std::vector<int64_t>& axes_order, cons
 bool ov::is_valid_axes_order(const std::vector<int64_t>& axes_order, const size_t size) {
     return (std::unordered_set<size_t>(axes_order.cbegin(), axes_order.cend()).size() == size) &&
            std::all_of(axes_order.cbegin(), axes_order.cend(), ov::cmp::Between<int64_t, ov::cmp::LOWER>(0, size));
+}
+
+std::vector<PartialShape> ov::get_node_input_partial_shapes(const ov::Node& node) {
+    std::vector<PartialShape> out;
+    out.reserve(node.get_input_size());
+    for (size_t i = 0; i < node.get_input_size(); ++i) {
+        out.emplace_back(node.get_input_partial_shape(i));
+    }
+    return out;
 }

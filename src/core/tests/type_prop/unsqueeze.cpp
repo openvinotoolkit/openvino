@@ -43,8 +43,8 @@ TEST(type_prop, unsqueeze_positive_axis_gt_ouput_rank) {
     try {
         auto unsqueeze = make_shared<op::v0::Unsqueeze>(param, axes_node);
         FAIL() << "Unsqueeze axes invalid rank not detected";
-    } catch (const ov::AssertFailure& error) {
-        const auto exp_msg = "Unsqueeze Parameter axis " + std::to_string(bad_axis) + " out of the tensor rank range";
+    } catch (const NodeValidationFailure& error) {
+        const auto exp_msg = "Parameter axis " + std::to_string(bad_axis) + " out of the tensor rank range";
         EXPECT_HAS_SUBSTRING(error.what(), exp_msg);
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
@@ -59,8 +59,8 @@ TEST(type_prop, unsqueeze_negative_axis_gt_ouput_rank) {
     try {
         auto unsqueeze = make_shared<op::v0::Unsqueeze>(param, axes_node);
         FAIL() << "Unsqueeze axes invalid rank not detected";
-    } catch (const ov::AssertFailure& error) {
-        const auto exp_msg = "Unsqueeze Parameter axis " + std::to_string(bad_axis) + " out of the tensor rank range";
+    } catch (const NodeValidationFailure& error) {
+        const auto exp_msg = "Parameter axis " + std::to_string(bad_axis) + " out of the tensor rank range";
         EXPECT_HAS_SUBSTRING(error.what(), exp_msg);
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";

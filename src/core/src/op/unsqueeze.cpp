@@ -18,17 +18,6 @@ using namespace ngraph;
 
 BWDCMP_RTTI_DEFINITION(op::v0::Unsqueeze);
 
-namespace {
-std::vector<PartialShape> get_node_input_partial_shapes(const ov::Node& node) {
-    std::vector<PartialShape> out;
-    out.reserve(node.get_input_size());
-    for (size_t i = 0; i < node.get_input_size(); ++i) {
-        out.emplace_back(node.get_input_partial_shape(i));
-    }
-    return out;
-}
-}  // namespace
-
 op::v0::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes) : Op({data, axes}) {
     constructor_validate_and_infer_types();
 }
@@ -73,29 +62,30 @@ bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     return true;
 }
 
-bool evaluate_unsqueeze(const HostTensorPtr& arg0, const HostTensorPtr& arg1, const HostTensorPtr& out) {
+bool evaluate_unsqueeze(const Node* node,
+                        const HostTensorPtr& arg0,
+                        const HostTensorPtr& arg1,
+                        const HostTensorPtr& out) {
     auto element_type = arg0->get_element_type();
     out->set_element_type(element_type);
 
-    auto data_shape = arg0->get_shape();
-    int64_t data_rank = static_cast<int64_t>(data_shape.size());
-    auto axes_shape = arg1->get_shape();
-    NGRAPH_CHECK(axes_shape.size() == 1 || axes_shape.empty(),
-                 "Axes to add must be a scalar or 1D tensor with 1 element");
+    const auto& axes_shape = arg1->get_shape();
+    OPENVINO_ASSERT(ov::is_scalar(axes_shape) || ov::is_vector(axes_shape),
+                    "Axes to add must be a scalar or 1D tensor with 1 element");
+
+    const auto& data_shape = arg0->get_shape();
+    const auto out_rank = static_cast<int64_t>(data_shape.size() + shape_size(axes_shape));
+
+    // Get axes and normalize
+    auto axes = read_index_vector(arg1);
+    normalize_axes(node, out_rank, axes);
+
+    // Sort in increasing order
+    std::set<int64_t> axes_set(std::make_move_iterator(axes.begin()), std::make_move_iterator(axes.end()));
+    NGRAPH_CHECK(axes.size() == axes_set.size(), "Axes has duplicate axis.");
 
     auto out_shape = data_shape;
-    int64_t out_rank = data_rank + static_cast<int64_t>(shape_size(axes_shape));
-    // Get axes
-    vector<int64_t> axes = read_index_vector(arg1);
-    // Normalize axes
-    std::transform(axes.begin(), axes.end(), axes.begin(), [out_rank](int64_t i) -> int64_t {
-        return i < 0 ? out_rank + i : i;
-    });
-    // Sort in increasing order
-    std::set<int64_t, less<int64_t>> axes_set(axes.begin(), axes.end());
-    NGRAPH_CHECK(axes.size() == axes_set.size(), "Axes has duplicate axis.");
     for (int64_t axis : axes_set) {
-        NGRAPH_CHECK(axis >= 0 && axis < out_rank, "Axis is out of bounds: ", axis);
         out_shape.insert(out_shape.begin() + axis, 1);
     }
     out->set_shape(out_shape);
@@ -121,7 +111,7 @@ bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs, const HostTens
     OV_OP_SCOPE(v0_Unsqueeze_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, IN_COUNT));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, OUT_COUNT));
-    return unsqueeze::evaluate_unsqueeze(inputs[ARG], inputs[AXES], outputs[OUT]);
+    return unsqueeze::evaluate_unsqueeze(this, inputs[ARG], inputs[AXES], outputs[OUT]);
 }
 
 bool op::v0::Unsqueeze::has_evaluate() const {
@@ -159,11 +149,11 @@ bool op::v0::Unsqueeze::evaluate_label(TensorLabelVector& output_labels) const {
 }
 
 bool op::v0::Unsqueeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
-    if (get_output_partial_shape(ARG).is_dynamic() || is_const_fold_disabled()) {
+    if (get_output_partial_shape(OUT).is_dynamic() || is_const_fold_disabled()) {
         return false;
     }
 
-    const auto& shape = get_output_shape(ARG);
+    const auto& shape = get_output_shape(OUT);
 
     if (auto data_const = std::dynamic_pointer_cast<op::v0::Constant>(inputs_values[ARG].get_node_shared_ptr())) {
         output_values[OUT] = std::make_shared<op::v0::Constant>(*data_const, shape);
