@@ -55,7 +55,7 @@ TEST(type_prop, isfinite_bad_input_type) {
         auto isfinite = std::make_shared<IsFinite>(data);
         FAIL() << "IsFinite invalid input type not detected";
     } catch (const ov::AssertFailure& error) {
-        const auto exp_msg = "The element type of the input tensor must be a floating point number.";
+        const auto exp_msg = "The element type of the input tensor must be a floating point number or dynamic";
         EXPECT_HAS_SUBSTRING(error.what(), exp_msg);
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
