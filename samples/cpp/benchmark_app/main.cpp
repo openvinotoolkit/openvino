@@ -36,31 +36,29 @@
 
 static const size_t progressBarDefaultTotalCount = 1000;
 
-void get_console_command(int argc, char* argv[]){
+std::string get_console_command(int argc, char* argv[]) {
     std::stringstream args_string;
 
-
-    std::stringstream args_string;
-
-    #if defined(_WIN32) || defined(WIN32)
-        uint32_t len = 1024;
-        std::string p(argv[0]);
-        std::string buf;
-        do
-        {
-            buf.resize(len);
-            len = GetFullPathNameA(p.data(), len, buf.data(), nullptr);
-        } while(len > buf.size());
-        args_string << buf;
-    #else
-        args_string << realpath(argv[0], nullptr);
-    #endif
+#if defined(_WIN32) || defined(WIN32)
+    uint32_t len = 1024;
+    std::string p(argv[0]);
+    std::string buf;
+    do
+    {
+        buf.resize(len);
+        len = GetFullPathNameA(p.data(), len, buf.data(), nullptr);
+    } while(len > buf.size());
+    args_string << buf;
+#else
+    args_string << realpath(argv[0], nullptr);
+#endif
     args_string << " ";
 
     for (int i = 1; i < argc; i++) {
         args_string << argv[i] << " ";
     }
 
+    return args_string.str();
 }
 
 bool parse_and_check_command_line(int argc, char* argv[]) {
