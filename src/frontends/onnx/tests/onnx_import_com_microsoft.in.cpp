@@ -1162,9 +1162,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fusedgemm_abc) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_hard_sigmoid) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
-                                                                              SERIALIZED_ZOO,
-                                                                              "onnx/com.microsoft/fused_conv_hard_sigmoid.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/com.microsoft/fused_conv_hard_sigmoid.onnx"));
     auto test_case = test::TestCase(function, s_device);
 
     const std::vector<float> X{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
@@ -1178,9 +1179,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_hard_sigmoid) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_relu) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
-                                                                              SERIALIZED_ZOO,
-                                                                              "onnx/com.microsoft/fused_conv_relu.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/com.microsoft/fused_conv_relu.onnx"));
     auto test_case = test::TestCase(function, s_device);
 
     const std::vector<float> X{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
@@ -1194,9 +1196,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_relu) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_tanh) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
-                                                                              SERIALIZED_ZOO,
-                                                                              "onnx/com.microsoft/fused_conv_tanh.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/com.microsoft/fused_conv_tanh.onnx"));
     auto test_case = test::TestCase(function, s_device);
 
     const std::vector<float> X{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
@@ -1210,9 +1213,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_tanh) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_sigmoid) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
-                                                                              SERIALIZED_ZOO,
-                                                                              "onnx/com.microsoft/fused_conv_sigmoid.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/com.microsoft/fused_conv_sigmoid.onnx"));
     auto test_case = test::TestCase(function, s_device);
 
     const std::vector<float> X{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
@@ -1226,9 +1230,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_sigmoid) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_clip) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
-                                                                              SERIALIZED_ZOO,
-                                                                              "onnx/com.microsoft/fused_conv_clip.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/com.microsoft/fused_conv_clip.onnx"));
     auto test_case = test::TestCase(function, s_device);
 
     const std::vector<float> X{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
@@ -1242,9 +1247,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_clip) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_leaky_relu) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
-                                                                              SERIALIZED_ZOO,
-                                                                              "onnx/com.microsoft/fused_conv_leaky_relu.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/com.microsoft/fused_conv_leaky_relu.onnx"));
     auto test_case = test::TestCase(function, s_device);
 
     const std::vector<float> X{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
