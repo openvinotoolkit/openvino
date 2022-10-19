@@ -1984,6 +1984,61 @@ TEST_P(CachingTest, LoadAUTO_OneDevice) {
     }
     std::cout << "Caching LoadAuto Test completed. Tried " << index << " times" << std::endl;
 }
+//AUTO-DEVICE test
+//load network with config
+TEST_P(CachingTest, LoadAUTOWithConfig) {
+    const auto TEST_COUNT = 2;
+    EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
+    if (m_remoteContext) {
+        return; // skip the remote Context test for Auto plugin
+    }
+    int index = 0;
+    m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
+        EXPECT_CALL(net, Export(_)).Times(1);
+    });
+    std::string cacheDir = m_cacheDir;
+    MkDirGuard guard(cacheDir);
+    for (index; index < TEST_COUNT; index++) {
+        deviceToLoad = CommonTestUtils::DEVICE_AUTO;
+        deviceToLoad += ":mock.0";
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(TEST_COUNT - index - 1);
+        EXPECT_CALL(*mockPlugin, ImportNetwork(_, _)).Times(index);
+        ASSERT_NO_THROW(testLoad([&](Core &ie) {
+            m_testFunctionWithCfg(ie, {{CONFIG_KEY(CACHE_DIR), cacheDir}});
+        }));
+    }
+    std::cout << "Caching LoadAuto Test completed. Tried " << index << " times" << std::endl;
+}
+
+//BATCH-DEVICE test
+//load network with config
+TEST_P(CachingTest, LoadBATCHWithConfig) {
+    const auto TEST_COUNT = 2;
+    EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
+    if (m_remoteContext) {
+        return; // skip the remote Context test for Auto plugin
+    }
+    int index = 0;
+    m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
+        EXPECT_CALL(net, Export(_)).Times(1);
+    });
+    std::string cacheDir = m_cacheDir;
+    MkDirGuard guard(cacheDir);
+    for (index; index < TEST_COUNT; index++) {
+        deviceToLoad = CommonTestUtils::DEVICE_BATCH;
+        deviceToLoad += ":mock.0";
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(TEST_COUNT - index - 1);
+        EXPECT_CALL(*mockPlugin, ImportNetwork(_, _)).Times(index);
+        ASSERT_NO_THROW(testLoad([&](Core &ie) {
+            m_testFunctionWithCfg(ie, {{CONFIG_KEY(CACHE_DIR), cacheDir}});
+        }));
+    }
+    std::cout << "Caching LoadAuto Test completed. Tried " << index << " times" << std::endl;
+}
 //Single device not support import/export
 TEST_P(CachingTest, LoadAUTO_OneDeviceNoImportExport) {
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
@@ -2051,6 +2106,45 @@ TEST_P(CachingTest, LoadMulti_race) {
         testLoad([&](Core &ie) {
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), cacheDir}});
             ASSERT_NO_THROW(m_testFunction(ie));
+        });
+        index++;
+    } while (duration_cast<milliseconds>(high_resolution_clock::now() - start).count() < TEST_DURATION_MS);
+    std::cout << "Caching LoadMulti Test completed. Tried " << index << " times" << std::endl;
+}
+
+// MULTI-DEVICE test
+// Test that it is safe to load multiple devices through loadNetwork
+// In case of sporadic failures - increase 'TEST_DURATION_MS' 100x times for better reproducibility
+TEST_P(CachingTest, LoadMultiWithConfig_race) {
+    const auto TEST_DURATION_MS = 2000;
+    const auto TEST_DEVICE_MAX_COUNT = 10;
+    EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
+    if (m_remoteContext) {
+        return; // skip the remote Context test for Multi plugin
+    }
+    int index = 0;
+    auto start = high_resolution_clock::now();
+    m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
+        EXPECT_CALL(net, Export(_)).Times(1);
+    });
+    do {
+        std::string cacheDir = m_cacheDir + std::to_string(index);
+        MkDirGuard guard(cacheDir);
+        int devCount = 1 + index % (TEST_DEVICE_MAX_COUNT - 1); // try dynamic number of devices from 1 to max
+        deviceToLoad = CommonTestUtils::DEVICE_MULTI;
+        deviceToLoad += ":mock.0";
+        for (int i = 1; i < devCount; i++) {
+            deviceToLoad += ",mock." + std::to_string(i);
+        }
+
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(1);
+        EXPECT_CALL(*mockPlugin, ImportNetwork(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetwork(_, _)).Times(devCount - 1);
+        testLoad([&](Core &ie) {
+            ASSERT_NO_THROW(m_testFunctionWithCfg(ie, {{CONFIG_KEY(CACHE_DIR), cacheDir}}));
         });
         index++;
     } while (duration_cast<milliseconds>(high_resolution_clock::now() - start).count() < TEST_DURATION_MS);
