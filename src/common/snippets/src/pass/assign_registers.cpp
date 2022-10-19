@@ -5,14 +5,9 @@
 // #include <openvino/cc/selective_build.h>
 #include <snippets/itt.hpp>
 #include "snippets/remarks.hpp"
-
 #include "snippets/pass/assign_registers.hpp"
 #include "snippets/snippets_isa.hpp"
-
-#include <ngraph/opsets/opset1.hpp>
-
 #include <iterator>
-#include <limits.h>
 
 bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_MODEL_SCOPE(AssignRegistersNew);
@@ -21,7 +16,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
     using tensor = std::shared_ptr<descriptor::Tensor>;
     auto ops = f->get_ordered_ops();
     // Note that currently there are 3 types of ops:
-    //  * gpr->gpr: (Parameter, Result, TileBegin, TileEnd) will also be Buffer?
+    //  * gpr->gpr: (Parameter, Result, LoopBegin, LoopEnd) will also be Buffer?
     //  * gpr->vec: or vec->gpr Load/LoadConvert, Store/StoreConvert, BroadcastLoad etc.
     //  * vec->vec: all other "normal" operations that perform calculations on vector registers: Add, BroadcastMove, Power, etc.
     enum op_reg_type {gpr2gpr, gpr2vec, vec2gpr, vec2vec};
@@ -29,8 +24,8 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
     auto get_op_reg_type = [](const std::shared_ptr<Node>& op) {
         if (std::dynamic_pointer_cast<opset1::Parameter>(op) ||
                 std::dynamic_pointer_cast<opset1::Result>(op) ||
-                std::dynamic_pointer_cast<op::TileBegin>(op) ||
-                std::dynamic_pointer_cast<op::TileEnd>(op))
+                std::dynamic_pointer_cast<op::LoopBegin>(op) ||
+                std::dynamic_pointer_cast<op::LoopEnd>(op))
             return gpr2gpr;
         else if (std::dynamic_pointer_cast<snippets::op::Load>(op) ||
                  std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(op))
@@ -137,7 +132,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
     std::vector<std::set<Reg>> life_in_gpr(std::move(used_gpr));
     std::vector<std::set<Reg>> life_out_gpr(typed_ops.size(), std::set<Reg>());
 
-    // todo: this part if O(N*N), so it's slow for large subgraphs. Can we simplify it?
+    // todo: this part if O(N*N), so it's slow for large subgraphs. Can we simplify it? At least add an early stopping criteria
     for (size_t i = 0; i < typed_ops.size(); i++) {
         for (size_t n = 0; n < typed_ops.size(); n++) {
             // Regs that are live on entering the operation = regs used by the op + (all other regs alive - regs defined by the op)
@@ -245,7 +240,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
             }
             // allocate
             if (active.size() == reg_pool.size()) {
-                // todo: if it is TileBegin or TileEnd that requires gpr, and we don't have any in the pool,
+                // todo: if it is LoopBegin or LoopEnd that requires gpr, and we don't have any in the pool,
                 //  then assign SIZE_MAX-1 as a flag to spill a reg inside emitter
                 throw ngraph::ngraph_error("can't allocate registers for a snippet ");
             } else {

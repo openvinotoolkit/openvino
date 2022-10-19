@@ -56,13 +56,13 @@ void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  
         std::vector<size_t> in_physical_regs, out_physical_regs;
         switch (std::dynamic_pointer_cast<jit_emitter>(emitter)->get_in_out_type()) {
             case gpr_to_gpr:
-                // Note that gpr_to_gpr is used for high-level utility operations like Kernel/TileScheduler/Tile.
+                // Note that gpr_to_gpr is used for high-level utility operations like Kernel/Loop.
                 // Input registers are not mapped in this case, since they contain utility info
-                // (num_params, tile increment, etc.), but not reg indexes.
-                // todo: Note that TileBeginEmitter and TileEndEmitter demonstrate new paradigm,
+                // (num_params, loop increment, etc.), but not reg indexes.
+                // todo: Note that LoopBeginEmitter and LoopEndEmitter demonstrate new paradigm,
                 //  where all utility emitters align with conventional Op emitters
-                if (std::dynamic_pointer_cast<TileBeginEmitter>(emitter) ||
-                        std::dynamic_pointer_cast<TileEndEmitter>(emitter))
+                if (std::dynamic_pointer_cast<LoopBeginEmitter>(emitter) ||
+                        std::dynamic_pointer_cast<LoopEndEmitter>(emitter))
                     in_physical_regs = std::move(map_regs(in_abstract_regs, gpr_map_pool));
                 else
                     in_physical_regs = std::move(in_abstract_regs);
@@ -159,7 +159,7 @@ void KernelEmitter::validate_arguments(const std::vector<size_t> &in,
     if (!out.empty())
         IE_THROW() << "KernelEmitter got invalid number of outputs. Expected 0, got " << out.size();
     const auto num_params = in[0] + in[1];
-    // The number of used gpr may be >= num_params since TileBegin+TileEnd could also use gpr to store work_amount
+    // The number of used gpr may be >= num_params since LoopBegin+LoopEnd could also use gpr to store work_amount
     if (data_ptr_regs_idx.size() != num_params)
         IE_THROW() << "KernelEmitter arguments are inconsistent with the gpr_regs_used size: in[0] + in[1] = "
         << num_params << " data_ptr_regs_idx.size() = " << data_ptr_regs_idx.size();
@@ -197,7 +197,7 @@ void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params,
     // a rare case when num_params is maximal, so we have no spare gprs
     // * Static case: we can use reg_const_params as the last reg_tmp for the last iteration (and corrupt it), since
     //     it won't be used anymore
-    // * Dynamic case: we will need reg_const_params to pass runtime args to TileScheduler, so we have to
+    // * Dynamic case: we will need reg_const_params to pass runtime args to LoopScheduler, so we have to
     //     push a reg on the stack, and restore it value afterwards
     if (last_iter_explicitly) {
         h->mov(data_ptr_regs[i], h->ptr[reg_const_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
@@ -232,26 +232,26 @@ void KernelEmitter::emit_impl(const std::vector<size_t>& in,
 }
 
 
-TileBeginEmitter::TileBeginEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
+LoopBeginEmitter::LoopBeginEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                          const std::shared_ptr<ov::Node>& n) : jit_emitter(h, isa, n) {
-    tile_begin = ov::as_type_ptr<ngraph::snippets::op::TileBegin>(n);
-    if (!tile_begin)
-        IE_THROW() << "TileBeginEmitter invoked with invalid op argument";
-    const auto& target_inputs = tile_begin->output(tile_begin->get_output_size() - 1).get_target_inputs();
+    loop_begin = ov::as_type_ptr<ngraph::snippets::op::LoopBegin>(n);
+    if (!loop_begin)
+        IE_THROW() << "LoopBeginEmitter invoked with invalid op argument";
+    const auto& target_inputs = loop_begin->output(loop_begin->get_output_size() - 1).get_target_inputs();
     // todo: this check could be excessive, since we check for it in validate_and_infer_types()
     if (target_inputs.size() != 1)
-        IE_THROW() << "TileBeginEmitter invoked with invalid configuration: the last output must have exactly one input attached";
-    const auto tile_end = ov::as_type_ptr<ngraph::snippets::op::TileEnd>(target_inputs.begin()->get_node()->shared_from_this());
-    if (!tile_end)
-        IE_THROW() << "TileBeginEmitter invoked with invalid configuration: the last output must be TileEnd";
-    work_amount = tile_begin->get_work_amount();
-    evaluate_once = tile_begin->get_evaluate_once();
-    reuse_work_amount_reg = tile_begin->reuse_work_amount_reg;
-    num_inputs = tile_begin->get_output_size() - 1;
+        IE_THROW() << "LoopBeginEmitter invoked with invalid configuration: the last output must have exactly one input attached";
+    const auto loop_end = ov::as_type_ptr<ngraph::snippets::op::LoopEnd>(target_inputs.begin()->get_node()->shared_from_this());
+    if (!loop_end)
+        IE_THROW() << "LoopBeginEmitter invoked with invalid configuration: the last output must be LoopEnd";
+    work_amount = loop_begin->get_work_amount();
+    evaluate_once = loop_begin->get_evaluate_once();
+    reuse_work_amount_reg = loop_begin->reuse_work_amount_reg;
+    num_inputs = loop_begin->get_output_size() - 1;
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
-void TileBeginEmitter::emit_code(const std::vector<size_t> &in,
+void LoopBeginEmitter::emit_code(const std::vector<size_t> &in,
                                  const std::vector<size_t> &out,
                                  const std::vector<size_t> &pool,
                                  const std::vector<size_t> &gpr) const {
@@ -259,7 +259,7 @@ void TileBeginEmitter::emit_code(const std::vector<size_t> &in,
     emit_impl(in, out, pool, gpr, nullptr);
 }
 
-void TileBeginEmitter::validate_arguments(const std::vector<size_t> &in,
+void LoopBeginEmitter::validate_arguments(const std::vector<size_t> &in,
                                         const std::vector<size_t> &out,
                                         const std::vector<size_t> &pool,
                                         const std::vector<size_t> &gpr) const {
@@ -269,7 +269,7 @@ void TileBeginEmitter::validate_arguments(const std::vector<size_t> &in,
         IE_THROW() << "Invalid outputs size: expected " << num_inputs + 1 << " got " << out.size();
 }
 
-void TileBeginEmitter::emit_impl(const std::vector<size_t>& in,
+void LoopBeginEmitter::emit_impl(const std::vector<size_t>& in,
                                  const std::vector<size_t>& out,
                                  const std::vector<size_t>& pool,
                                  const std::vector<size_t>& gpr,
@@ -287,36 +287,36 @@ void TileBeginEmitter::emit_impl(const std::vector<size_t>& in,
     // Note: loop address is not calculated at this point, so need to call calcJmpAddress() which is protected
     // or ready(), but they both set internal flags and that's not a desired way to use them.
     // So the most obvious WA is just to use current address manually
-    tile_begin->begin_address = h->getCurr();
-    tile_begin->input_regs = in;
+    loop_begin->begin_address = h->getCurr();
+    loop_begin->input_regs = in;
 }
 
-TileEndEmitter::TileEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
+LoopEndEmitter::LoopEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                                    const std::shared_ptr<ov::Node>& n) : jit_emitter(h, isa, n) {
-    tile_end = ov::as_type_ptr<ngraph::snippets::op::TileEnd>(n);
-    if (!tile_end)
-        IE_THROW() << "TileEndEmitter invoked with invalid op argument";
-    tile_begin = tile_end->get_tile_begin();
+    loop_end = ov::as_type_ptr<ngraph::snippets::op::LoopEnd>(n);
+    if (!loop_end)
+        IE_THROW() << "LoopEndEmitter invoked with invalid op argument";
+    loop_begin = loop_end->get_loop_begin();
     // todo: this check could be excessive, since we check for it in validate_and_infer_types()
-    if (!tile_begin)
-        IE_THROW() << "TileEndEmitter invoked with invalid configuration: the last arg must be TileBegin";
-    // Note that 1 edge connects TileBegin and TileEnd
-    num_inputs = tile_begin->get_output_size() - 1;
-    num_outputs = tile_end->get_input_size() - 1;
-    increment = tile_end->get_increment();
-    work_amount = tile_end->get_work_amount();
-    apply_increments = tile_end->get_apply_increment();
-    finalization_offsets = tile_end->get_finalization_offsets();
-    evaluate_once = tile_end->get_evaluate_once();
-    reuse_work_amount_reg = tile_end->reuse_work_amount_reg;
+    if (!loop_begin)
+        IE_THROW() << "LoopEndEmitter invoked with invalid configuration: the last arg must be LoopBegin";
+    // Note that 1 edge connects LoopBegin and LoopEnd
+    num_inputs = loop_begin->get_output_size() - 1;
+    num_outputs = loop_end->get_input_size() - 1;
+    increment = loop_end->get_increment();
+    work_amount = loop_end->get_work_amount();
+    apply_increments = loop_end->get_apply_increment();
+    finalization_offsets = loop_end->get_finalization_offsets();
+    evaluate_once = loop_end->get_evaluate_once();
+    reuse_work_amount_reg = loop_end->reuse_work_amount_reg;
     for (int i = 0; i < num_inputs; i++)
-        io_data_size.push_back(tile_begin->get_input_element_type(i).size());
+        io_data_size.push_back(loop_begin->get_input_element_type(i).size());
     for (int i = 0; i < num_outputs; i++)
-        io_data_size.push_back(tile_end->get_input_element_type(i).size());
+        io_data_size.push_back(loop_end->get_input_element_type(i).size());
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
-void TileEndEmitter::emit_code(const std::vector<size_t> &in,
+void LoopEndEmitter::emit_code(const std::vector<size_t> &in,
                                  const std::vector<size_t> &out,
                                  const std::vector<size_t> &pool,
                                  const std::vector<size_t> &gpr) const {
@@ -325,12 +325,12 @@ void TileEndEmitter::emit_code(const std::vector<size_t> &in,
 }
 
 
-void TileEndEmitter::validate_arguments(const std::vector<size_t> &in,
+void LoopEndEmitter::validate_arguments(const std::vector<size_t> &in,
                                        const std::vector<size_t> &out,
                                        const std::vector<size_t> &pool,
                                        const std::vector<size_t> &gpr) const {
-    if (tile_begin->input_regs.size() != num_inputs)
-        IE_THROW() << "Invalid tile_begin->input_regs size: expected " << num_inputs << " got " << tile_begin->input_regs.size();
+    if (loop_begin->input_regs.size() != num_inputs)
+        IE_THROW() << "Invalid loop_begin->input_regs size: expected " << num_inputs << " got " << loop_begin->input_regs.size();
     if (out.size() != num_outputs)
         IE_THROW() << "Invalid number of out arguments: expected " << num_outputs << " got " << out.size();
     if (in.size() != num_outputs + 1)
@@ -342,12 +342,12 @@ void TileEndEmitter::validate_arguments(const std::vector<size_t> &in,
         IE_THROW() << "Invalid finalization_offsets size: expected: " << io_size << " got " << finalization_offsets.size();
 }
 
-void TileEndEmitter::emit_impl(const std::vector<size_t>& in,
+void LoopEndEmitter::emit_impl(const std::vector<size_t>& in,
                                  const std::vector<size_t>& out,
                                  const std::vector<size_t>& pool,
                                  const std::vector<size_t>& gpr,
                                  const ov::intel_cpu::emitter_context *emit_context) const {
-    std::vector<size_t> data_ptr_reg_idxs(tile_begin->input_regs);
+    std::vector<size_t> data_ptr_reg_idxs(loop_begin->input_regs);
     data_ptr_reg_idxs.reserve(num_inputs + num_outputs);
     std::copy(out.begin(), out.end(), std::back_inserter(data_ptr_reg_idxs));
     std::vector<Reg64> data_ptr_regs;
@@ -360,7 +360,7 @@ void TileEndEmitter::emit_impl(const std::vector<size_t>& in,
         }
         h->sub(reg_work_amount, increment);
         h->cmp(reg_work_amount, increment);
-        h->jge(tile_begin->begin_address);
+        h->jge(loop_begin->begin_address);
     }
 
     for (int idx = 0; idx < data_ptr_regs.size(); idx++) {

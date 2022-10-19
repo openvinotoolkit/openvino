@@ -35,8 +35,8 @@ struct jit_snippets_compile_args {
     int64_t data_offsets[SNIPPETS_MAX_SNIPPETS_DIMS * SNIPPETS_MAX_HARNESS_DIMS] = {};
 };
 ///
-/// \brief jit_container_emitter designed to wrap Emitters that contain other Emitters (presently KernelEmitter,
-/// TileSchedulerEmitter and TileEmitter). This is needed to provide common interface for register mapping
+/// \brief jit_container_emitter designed to wrap Emitters that contain other Emitters (for example, KernelEmitter)
+///  This is needed to provide common interface for register mapping
 /// (abstract to physical) and nested code access.
 ///
 class jit_container_emitter: public jit_emitter {
@@ -54,17 +54,17 @@ protected:
 };
 ///
 /// \brief    Kernel is the only entry point to Codogen Jit compilation. Kernel perform abstract-to-physical register
-/// mapping and creates pools of available gpr and vec registers. Kernel is expected to contain (at least one)
-/// TileSchedulerEmitter. In general the enclosed emitters should be organized in the following way:
-/// KernelEmitter {          /* entry point, maps registers, creates pools of available registers */
-///     TileSchedulerEmitter { /* executes required inner, avoids emitting code that won't be executed */
-///         TileEmitter {    /* inner vector tile */
-///             ...          /* All the necessary Load/Strore/elementwise emitters */
-///         }
-///         TileEmitter {    /* inner scalar tile for tail processing */
-///             ...          /* All the necessary Load/Strore/elementwise emitters */
-///         }
-///     }
+/// mapping and creates pools of available gpr and vec registers. Kernel usually to contains (at least one)
+/// LoopBeginEmitter and LoopEndEmitter pair. In general the enclosed emitters should be organized in the following way:
+/// KernelEmitter {                 /* entry point, maps registers, creates pools of available registers */
+///     1.S LoopBeginEmitter        /* Scalar Loop over the outer dimension [START] */
+///         2.S LoopBeginEmitter    /* inner vector loop [START] */
+///             ...                 /* All the necessary Load/Strore/elementwise emitters */
+///         2.E LoopEndEmitter      /* inner vector loop [END] */
+///         3.S LoopBeginEmitter    /* inner scalar loop for tail processing [START]*/
+///             ...                 /* All the necessary Load/Strore/elementwise emitters */
+///         3.E LoopEndEmitter      /* inner scalar loop for tail processing [END]*/
+///     1.E LoopEndEmitter          /* Scalar Loop over the outer dimension [END] */
 /// }
 /// Note that Kernel doesn't accept any input arguments.
 ///
@@ -100,9 +100,9 @@ private:
     const size_t reg_const_params_idx = abi_param2.getIdx();
 };
 
-class TileBeginEmitter : public jit_emitter {
+class LoopBeginEmitter : public jit_emitter {
 public:
-    TileBeginEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
+    LoopBeginEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
     void emit_code(const std::vector<size_t> &in,
                    const std::vector<size_t> &out,
                    const std::vector<size_t> &pool,
@@ -121,16 +121,16 @@ private:
                    const std::vector<size_t>& gpr,
                    const ov::intel_cpu::emitter_context *emit_context) const override;
 
-    std::shared_ptr<ngraph::snippets::op::TileBegin> tile_begin;
+    std::shared_ptr<ngraph::snippets::op::LoopBegin> loop_begin;
     bool reuse_work_amount_reg = false;
     size_t num_inputs = 0;
     bool evaluate_once = false;
-    size_t work_amount = 0; // need to store work_amount explicitly, since two tiles can work on the same dim (e.g. vector + scalar)
+    size_t work_amount = 0; // need to store work_amount explicitly, since two loops can work on the same dim (e.g. vector + scalar)
 };
 
-class TileEndEmitter : public jit_emitter {
+class LoopEndEmitter : public jit_emitter {
 public:
-    TileEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
+    LoopEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
     void emit_code(const std::vector<size_t> &in,
                    const std::vector<size_t> &out,
                    const std::vector<size_t> &pool,
@@ -150,8 +150,8 @@ private:
                    const std::vector<size_t>& gpr,
                    const ov::intel_cpu::emitter_context *emit_context) const override;
 
-    std::shared_ptr<ngraph::snippets::op::TileBegin> tile_begin;
-    std::shared_ptr<ngraph::snippets::op::TileEnd> tile_end;
+    std::shared_ptr<ngraph::snippets::op::LoopBegin> loop_begin;
+    std::shared_ptr<ngraph::snippets::op::LoopEnd> loop_end;
 
     size_t num_inputs = 0;
     size_t num_outputs = 0;
@@ -232,7 +232,7 @@ private:
 /// it's illigal to load/store to the same address multiple times
 /// Typical application can be if Load and BroadcastLoad are performed from the same pointer.
 /// If Load goes before BroadcastLoad topologicaly the resilt will be incorrect
-/// For scalar loads we can use different tiles. Tiling indeed can be arbitrary and post increment should be somehow coded into ISA.
+/// For scalar loads we can use different loops. Tiling indeed can be arbitrary and post increment should be somehow coded into ISA.
 /// Blocked parameter to tell if input is actually blocked. Broadcast means broadcast by W in other cases no need to substitute load.
 class MemoryEmitter : public jit_emitter  {
 public:

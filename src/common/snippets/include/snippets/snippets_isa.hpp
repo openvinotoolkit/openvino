@@ -17,8 +17,7 @@
 #include "op/scalar.hpp"
 #include "op/powerstatic.hpp"
 #include "op/store.hpp"
-#include "op/tile.hpp"
-#include "op/tile_scheduler.hpp"
+#include "op/loop.hpp"
 
 namespace ngraph {
 namespace snippets {

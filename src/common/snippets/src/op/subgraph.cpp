@@ -26,7 +26,7 @@
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph_ops/type_relaxed.hpp"
 #include <openvino/pass/serialize.hpp>
-#include "snippets/op/tile_helpers.hpp"
+#include "snippets/op/loop_helpers.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -377,8 +377,6 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     //  should be passed as run-time args, so it's a mixed regime: kernel is shape-aware, but some additional runtime args are required
     // Presently Broadcasting is organized in the following way:
     // * ALL last dims are static => broadcasting is handled via MoveBroadcast and pointer arithmetics (even for dynamic upper dims)
-    // * AT LEAST ONE one dim is dynamic => broadcasting is handled dynamically inside the TileScheduler based on runtime
-    //   info, since we can't tell if the `1` dim should be broadcasted beforehand
     if (!inputs_has_dynamic_last_dims) {
         manager.register_pass<snippets::pass::InsertMoveBroadcast>();
         manager.register_pass<snippets::pass::LoadMoveBroadcastToBroadcastLoad>();
@@ -386,7 +384,7 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
         // simple subgraphs where one of the ngraph::op's inputs is broadcasted to match the larger one. However, BroadcastMove
         // could also be inserted after the ngraph::op, if the op input don't need broadcasting, but the output does
         // (for example, to match the larger output of a child node). In such cases, Loads (and Stores) should be replaced
-        // with ScalarLoads (ScalarStores) to avoid invalid read in vector Tile. Graph example:
+        // with ScalarLoads (ScalarStores) to avoid invalid read in vector Loop. Graph example:
         // Parameter_0    Parameter_1        Parameter_2
         // [1,2,5,16]      [1,2,5,1]          [1,2,5,1]
         //   Load        BroadcastLoad         Load*       Scalar
@@ -396,7 +394,7 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
         //                       Multiply
         //                         Store
         //                        Result
-        // Note: Load* should be replaced with ScalarLoad in this example to avoid invalid read in vector Tile.
+        // Note: Load* should be replaced with ScalarLoad in this example to avoid invalid read in vector Loop.
         if (master_shape.size() != 0 && master_shape[master_shape.size() - 1] != 1) {
             manager.register_pass<snippets::pass::SetScalarCountForLoad>();
             manager.register_pass<snippets::pass::SetScalarCountForStore>();
@@ -437,7 +435,7 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
 
     convert_to_snippet_dialect();
     opt.run_passes(m_body);
-    // DEBUG:
+    // todo: DEBUG print, remove before merge
     auto print_reg_info = [this](const std::string& key) {
         const auto& ops = m_body->get_ordered_ops();
         for (int i = 0; i < ops.size(); i++) {
@@ -466,9 +464,6 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
         }
     };
 
-    // generation flow
-    // todo: move AssignRegistersNew --> AssignRegisters
-//    snippets::pass::AssignRegisters().run_on_model(m_body);
     if (master_shape.is_static()) {
         const auto inner_dim = master_shape.size() - 1;
         // Note: outer_dim could overflow if master_shape.size() < 2
@@ -480,7 +475,7 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
 
         ParameterVector commonParams = m_body->get_parameters();
         // Note that topological sort parses node arguments in reversed order, but results are added  - in direct order
-        // So ve need to pass the reversed results to TileEnd to keep the original traversal order in topological sorter
+        // So ve need to pass the reversed results to LoopEnd to keep the original traversal order in topological sorter
         const auto& orig_results = m_body->get_results();
         ResultVector commonResults(orig_results.rbegin(), orig_results.rend());
         std::vector<PartialShape> ioShapes;
@@ -493,7 +488,7 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
         if (inner_WA > 0) {
             std::vector<bool> apply_increments;
             apply_increments.reserve(ioShapes.size());
-            // Inner Tile applies increments if a dimension is not broadcasted
+            // Inner Loop applies increments if a dimension is not broadcasted
             std::transform(ioShapes.begin(), ioShapes.end(), std::back_inserter(apply_increments),
                             [=](const PartialShape& ps) {
                                 return ps[inner_dim] != 1 && master_shape[inner_dim] != 1;
@@ -506,20 +501,20 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
                                    return ps[outer_dim] == 1 && ps[inner_dim] != 1 ? -inner_WA : 0;
                                });
             }
-                const auto& innerTileBegin = insertTileBegin(commonParams);
-                const auto& innerTileEnd = insertTileEnd(commonResults, innerTileBegin, inner_dim, inner_WA, vector_size, apply_increments,
+                const auto& inner_loop_begin = insertLoopBegin(commonParams);
+                const auto& inner_loop_end = insertLoopEnd(commonResults, inner_loop_begin, inner_dim, inner_WA, vector_size, apply_increments,
                               inner_finalization_offsets);
-                // set internal flag to enable scalar vs vector tile optimizations
-                innerTileEnd->has_outer_tile = outer_WA > 1;
+                // set internal flag to enable scalar vs vector loop optimizations
+                inner_loop_end->has_outer_loop = outer_WA > 1;
                 // Due to features of topological sort, some Constants (Scalars) may appear right after Parameters in
-                // sorted ops (so it's between Parameters and TileBegin). Consequently, ScalarEmitters would be called
-                // outside the Tile Loop, and only the first Tile iteration would yield correct data (assuming the vector reg
-                // assigned to scalar will get corrupted inside the tile body). To avoid such cases, we add control dependency
-                // on TileBegin to guarantee that the constants are executed inside the tile loop.
+                // sorted ops (so it's between Parameters and LoopBegin). Consequently, ScalarEmitters would be called
+                // outside the Loop, and only the first Loop iteration would yield correct data (assuming the vector reg
+                // assigned to scalar will get corrupted inside the loop body). To avoid such cases, we add control dependency
+                // on LoopBegin to guarantee that the constants are executed inside the Loop.
                 for (const auto& n : m_body->get_ordered_ops()) {
                     if (auto c = std::dynamic_pointer_cast<ov::op::v0::Constant>(n))
-                        c->add_control_dependency(innerTileBegin);
-                    else if (n == innerTileBegin)
+                        c->add_control_dependency(inner_loop_begin);
+                    else if (n == inner_loop_begin)
                         break;
                 }
         }
@@ -527,13 +522,13 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
         if (outer_WA > 1) {
             std::vector<bool> apply_increments;
             apply_increments.reserve(ioShapes.size());
-            // Outer Tile applies increments only if a corresponding lower dim was broadcasted (or all lower dims == 1)
+            // Outer Loop applies increments only if a corresponding lower dim was broadcasted (or all lower dims == 1)
             std::transform(ioShapes.begin(), ioShapes.end(), std::back_inserter(apply_increments),
                            [=](const PartialShape& ps) {
                                return ps[outer_dim] != 1 && ps[inner_dim] == 1;
                            });
-            const auto& outerTileBegin = insertTileBegin(commonParams);
-            insertTileEnd(commonResults, outerTileBegin, outer_dim, outer_WA, 1, apply_increments);
+            const auto& outer_loop_begin = insertLoopBegin(commonParams);
+            insertLoopEnd(commonResults, outer_loop_begin, outer_dim, outer_WA, 1, apply_increments);
         }
         m_body->validate_nodes_and_infer_types();
     } else {
@@ -547,8 +542,8 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
 //    std::cerr << "##############################################\n";
 //    std::cerr << "NEW reg map:\n";
 //    print_reg_info("reginfo");
-//    std::cerr << "Tile after is dumped";
-//    ov::pass::Serialize("tile_after.xml", "tile_after.bin").run_on_model(m_body);
+//    std::cerr << "Loop after is dumped";
+//    ov::pass::Serialize("loop_after.xml", "loop_after.bin").run_on_model(m_body);
 
     // schedule generation should go here and be target agnostic
     // actual code emission
