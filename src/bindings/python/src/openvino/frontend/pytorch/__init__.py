@@ -239,9 +239,18 @@ try:
             # So only tensor-type constants are supported
             ovshape = PartialShape(pt_value.type().sizes())
             ovtype = pt_to_ov_type_map[str(pt_value.type().dtype())]
-            #TODO Check strides and pass them somehow
-            raw_pointer = pt_value.toIValue().detach().cpu().data_ptr()
-            ov_const = make_constant(ovtype, ovshape.get_shape(), raw_pointer)
+
+            # TODO: try-except here is a temporary WA for issues with data_ptr that we currently cannot predict; provide better solution
+            try:
+                # this is only possible with adding a new ctor for Constant Python binding
+                #TODO Check strides and pass them somehow
+                values = pt_value.toIValue().detach().cpu().data_ptr()
+                ov_const = make_constant(ovtype, ovshape.get_shape(), values)
+            except:
+                # old variant that makes a slow data copying
+                values = pt_value.toIValue().detach().cpu().flatten().tolist()
+                ov_const = make_constant(ovtype, ovshape.get_shape(), values)
+
             return ov_const.outputs()
 
         def as_constant_list(self, pt_value):
