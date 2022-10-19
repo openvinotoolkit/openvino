@@ -10,14 +10,15 @@
 namespace ov {
 namespace pass {
 
-class TRANSFORMATIONS_API EliminatePad;
+class TRANSFORMATIONS_API EliminateConcat;
 class TRANSFORMATIONS_API EliminateConvert;
 class TRANSFORMATIONS_API EliminateConvertNonZero;
-class TRANSFORMATIONS_API EliminateConcat;
+class TRANSFORMATIONS_API EliminateEltwise;
+class TRANSFORMATIONS_API EliminatePad;
 class TRANSFORMATIONS_API EliminateSplit;
+class TRANSFORMATIONS_API EliminateSplitConcat;
 class TRANSFORMATIONS_API EliminateSqueeze;
 class TRANSFORMATIONS_API EliminateTranspose;
-class TRANSFORMATIONS_API EliminateEltwise;
 class TRANSFORMATIONS_API NopElimination;
 
 }  // namespace pass
@@ -109,6 +110,16 @@ public:
     NopElimination(bool use_shape_for_elimination = true);
 };
 
+/**
+ * @ingroup ie_transformation_comm on_api
+ * @brief EliminateSplit eliminates split+concat pairs which do nothing
+ */
+class ov::pass::EliminateSplitConcat : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("EliminateSplitConcat", "0");
+    EliminateSplitConcat();
+};
+
 namespace ngraph {
 namespace pass {
 using ov::pass::EliminateConcat;
@@ -117,6 +128,7 @@ using ov::pass::EliminateConvertNonZero;
 using ov::pass::EliminateEltwise;
 using ov::pass::EliminatePad;
 using ov::pass::EliminateSplit;
+using ov::pass::EliminateSplitConcat;
 using ov::pass::EliminateSqueeze;
 using ov::pass::EliminateTranspose;
 using ov::pass::NopElimination;

@@ -10,6 +10,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "convolution_inst.h"
+#include "deconvolution_inst.h"
 #include "quantize_inst.h"
 #include "reorder_inst.h"
 #include "pooling_inst.h"
@@ -352,7 +353,7 @@ std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
 void program_node::invalidate_users() const {
     for (auto& user : users) {
         if (user->valid_output_layout) {
-            if (user->is_type<convolution>() && user->as<convolution>().get_required_output() != format::any)
+            if (user->get_required_output() != format::any)
                 continue;
             user->valid_output_layout = false;
             user->invalidate_users();
