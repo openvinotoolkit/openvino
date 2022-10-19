@@ -12,11 +12,10 @@ namespace frontend {
 namespace pytorch {
 int COUNTER = 0;
 
-Output<Node> make_optional_bias(Output<Node> base_op,
+Output<Node> make_optional_bias(const Output<Node>& base_op,
                                 const NodeContext& context,
                                 size_t bias_input_idx,
-                                std::vector<int> unsqueeze_dims) {
-    using namespace ngraph;
+                                const std::vector<int>& unsqueeze_dims) {
     using std::make_shared;
 
     if (!context.input_is_none(bias_input_idx)) {
@@ -33,16 +32,15 @@ Output<Node> make_optional_bias(Output<Node> base_op,
     }
 }
 
-std::shared_ptr<ov::Node> get_rank_node(ov::Output<ov::Node> node) {
+std::shared_ptr<Node> get_rank_node(const Output<Node>& node) {
     auto shape = std::make_shared<opset8::ShapeOf>(node);
     return std::make_shared<opset8::ShapeOf>(shape);
 }
 
 Output<Node> reshape_kernel_for_group(const NodeContext& context,
-                                      Output<Node> input,
-                                      Output<Node> kernel,
+                                      const Output<Node>& input,
+                                      const Output<Node>& kernel,
                                       int64_t groups) {
-    using namespace ngraph;
     using std::make_shared;
 
     auto in_shape = std::make_shared<opset8::ShapeOf>(input);
@@ -84,6 +82,51 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context,
                         remaining_shape,
                         new_kernel_shape});
     return make_shared<opset8::Reshape>(kernel, new_kernel_shape, false);
+}
+
+OutputVector make_framework_node(NodeContext* context) {
+    auto fw_node = std::make_shared<PtFrameworkNode>(context->get_decoder(),
+                                                     context->inputs(),
+                                                     context->get_decoder()->num_of_outputs());
+    fw_node->set_friendly_name(context->get_op_type() + ":" + std::to_string(COUNTER++));
+
+    std::map<size_t, ParameterVector> inputs_map;
+    std::map<size_t, ResultVector> outputs_map;
+    std::set<size_t> input_idxs;
+    for (size_t i = 0; i < context->get_decoder()->get_subgraph_size(); ++i) {
+        auto subgraph_decoder = context->get_decoder()->get_subgraph_decoder(i);
+        auto inputs = subgraph_decoder->inputs();
+        input_idxs.insert(inputs.begin(), inputs.end());
+        auto body = context->convert_subgraph(i);
+        fw_node->set_function(i, body);
+        for (const auto& param : body->get_parameters()) {
+            auto name = param->get_output_tensor(0).get_any_name();
+            size_t input_idx = (size_t)std::stoll(name);
+            inputs_map[input_idx].push_back(param);
+        }
+        for (const auto& result : body->get_results()) {
+            auto name = result->input(0).get_tensor().get_any_name();
+            size_t out_idx = (size_t)std::stoll(name);
+            FRONT_END_OP_CONVERSION_CHECK(outputs_map.count(out_idx) == 0,
+                                          "More then one body output with same tensor name.");
+            outputs_map[out_idx].push_back(result);
+        }
+    }
+    for (const auto& input : inputs_map) {
+        if (!input_idxs.count(input.first)) {
+            auto external_output = context->get_tensor_from_model_or_create_input(input.first);
+            fw_node->set_invariant_inputs(external_output, input.second);
+        } else {
+            auto external_output = context->get_tensor_from_model(input.first);
+            if (external_output.get_node()) {
+                fw_node->set_invariant_inputs(external_output, input.second);
+            }
+        }
+    }
+    for (const auto& output : outputs_map) {
+        context->add_tensor_to_context(output.first, fw_node->set_body_outputs(output.second));
+    }
+    return context->get_decoder()->mark_node(fw_node)->outputs();
 }
 
 OutputVector convert_node(NodeContext* context) {
@@ -131,48 +174,8 @@ OutputVector convert_node(NodeContext* context) {
         context->get_decoder()->mark_node(fw_node);
         return outputs;
     }
-    auto fw_node = std::make_shared<PtFrameworkNode>(context->get_decoder(),
-                                                     context->inputs(),
-                                                     context->get_decoder()->num_of_outputs());
-    fw_node->set_friendly_name(context->get_op_type() + ":" + std::to_string(COUNTER++));
-
-    std::map<size_t, ParameterVector> inputs_map;
-    std::map<size_t, ResultVector> outputs_map;
-    std::set<size_t> input_idxs;
-    for (size_t i = 0; i < context->get_decoder()->get_subgraph_size(); ++i) {
-        auto subgraph_decoder = context->get_decoder()->get_subgraph_decoder(i);
-        auto inputs = subgraph_decoder->inputs();
-        input_idxs.insert(inputs.begin(), inputs.end());
-        auto body = context->convert_subgraph(i);
-        fw_node->set_function(i, body);
-        for (auto param : body->get_parameters()) {
-            auto name = param->get_output_tensor(0).get_any_name();
-            size_t input_idx = (size_t)std::stoll(name);
-            inputs_map[input_idx].push_back(param);
-        }
-        for (auto result : body->get_results()) {
-            auto name = result->input(0).get_tensor().get_any_name();
-            size_t out_idx = (size_t)std::stoll(name);
-            FRONT_END_OP_CONVERSION_CHECK(outputs_map.count(out_idx) == 0,
-                                          "More then one body output with same tensor name.");
-            outputs_map[out_idx].push_back(result);
-        }
-    }
-    for (auto input : inputs_map) {
-        if (!input_idxs.count(input.first)) {
-            auto external_output = context->get_tensor_from_model_or_create_input(input.first);
-            fw_node->set_invariant_inputs(external_output, input.second);
-        } else {
-            auto external_output = context->get_tensor_from_model(input.first);
-            if (external_output.get_node()) {
-                fw_node->set_invariant_inputs(external_output, input.second);
-            }
-        }
-    }
-    for (auto output : outputs_map) {
-        context->add_tensor_to_context(output.first, fw_node->set_body_outputs(output.second));
-    }
-    return context->get_decoder()->mark_node(fw_node)->outputs();
+    
+    return make_framework_node(context);
 }
 
 std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorch_model,
@@ -295,12 +298,12 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
 
         // Since parameters can be added we need to list all current parameters
         std::set<size_t> param_names;
-        for (auto param : parameters) {
+        for (const auto& param : parameters) {
             auto name = param->get_output_tensor(0).get_any_name();
             size_t input_idx = (size_t)std::stoll(name);
             param_names.insert(input_idx);
         }
-        for (auto tensor : mutated_tensors) {
+        for (const auto& tensor : mutated_tensors) {
             if (param_names.count(tensor)) {
                 OV_FRONTEND_REQUIRE(tensor_map.count(tensor));
                 // model input was mutated we need to make a result for it

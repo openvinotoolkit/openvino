@@ -37,7 +37,7 @@ OutputVector translate_loop(NodeContext& context) {
             inputs_map[input_idx].push_back(param);
         }
     }
-    for (auto input : inputs_map) {
+    for (const auto& input : inputs_map) {
         if (!input_idxs.count(input.first)) {
             auto external_output = context.get_tensor_from_model_or_create_input(input.first);
             loop->set_invariant_inputs(external_output, input.second);

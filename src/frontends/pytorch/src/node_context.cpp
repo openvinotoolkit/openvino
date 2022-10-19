@@ -37,11 +37,8 @@ std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) {
     // Extend external context with internal tensors except Parameter nodes, because internal Parameters are created to
     // link internal context with external
     TensorMap ext_map(m_ext_tensor_map);
-    for (auto tensor : *m_tensor_map) {
-        auto node = tensor.second.get_node_shared_ptr();
-        if (!std::dynamic_pointer_cast<opset8::Parameter>(node))
-            ext_map[tensor.first] = tensor.second;
-    }
+    // map::insert does not update elements if their key is already in map; so if we have real tensors in outter scope we will not add Parameters we creeated in inner scope.
+    ext_map.insert(m_tensor_map->begin(), m_tensor_map->end());
 
     auto model = convert_pytorch_model(subgraph_decoder, ext_map);
     // Remove unused parameters, they could be created as inputs to the parts of graph that weren't
