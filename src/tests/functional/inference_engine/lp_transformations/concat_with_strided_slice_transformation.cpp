@@ -94,8 +94,8 @@ public:
 
         auto supportedPrecisions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
            ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::Convolution>({
-               {0, testValues.params.precisionsOnActivations},
-               {1, testValues.params.precisionsOnWeights},
+               {{0}, testValues.params.precisionsOnActivations},
+               {{1}, testValues.params.precisionsOnWeights},
            })
        });
 

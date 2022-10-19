@@ -18,36 +18,52 @@
 namespace ngraph {
 namespace pass {
 namespace low_precision {
-
+/**
+* @brief PrecisionsRestriction defines a set of precision restrictions for each input port
+* Common precision restriction can be also set for several ports. In this case, an operation will have
+* the same precision for mentioned
+*
+* // One restriction for each port
+* PrecisionsRestriction::create<ngraph::opset1::Convolution>({
+*      {{0}, {ngraph::element::u8}},
+*      {{1}, {ngraph::element::i8}},
+*  }),
+*
+* // Common precision restriction for several ports:
+* // both inputs will have the same precision
+* PrecisionsRestriction::create<ngraph::opset5::LSTMSequence>({
+*      {{0, 1}, {ngraph::element::u8, ngraph::element::i8}}
+*  }),
+*/
 class PrecisionsRestriction {
 public:
-    using PrecisionsByPort = std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>>;
+    using PrecisionsByPorts = std::vector<std::pair<std::vector<size_t>, std::vector<ngraph::element::Type>>>;
 
     ngraph::Node::type_info_t operationType;
     bool specifyVersion;
-    std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>> precisionsByPort;
+    PrecisionsByPorts precisionsByPorts;
 
     PrecisionsRestriction() = default;
     PrecisionsRestriction(
         const ngraph::Node::type_info_t operationType,
         const bool specifyVersion,
-        const PrecisionsByPort& precisionsByPort) :
+        const PrecisionsByPorts& precisionsByPorts) :
         operationType(operationType),
         specifyVersion(specifyVersion),
-        precisionsByPort(precisionsByPort) {}
+        precisionsByPorts(precisionsByPorts) {}
 
     template <typename T>
     static PrecisionsRestriction create(
-        const PrecisionsByPort& precisionsByPort,
+        const PrecisionsByPorts& precisionsByPorts,
         const bool specifyVersion = false) {
-        return PrecisionsRestriction(T::get_type_info_static(), specifyVersion, precisionsByPort);
+        return PrecisionsRestriction(T::get_type_info_static(), specifyVersion, precisionsByPorts);
     }
 
     template <typename T>
-    static PrecisionsByPort getPrecisionsByOperationType(std::vector<PrecisionsRestriction>& restrictions) {
+    static PrecisionsByPorts getPrecisionsByOperationType(std::vector<PrecisionsRestriction>& restrictions) {
         for (const auto& restriction : restrictions) {
             if (restriction.operationType == T::get_type_info_static()) {
-                return restriction.precisionsByPort;
+                return restriction.precisionsByPorts;
             }
         }
         return {};
