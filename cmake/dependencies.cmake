@@ -92,7 +92,8 @@ function(ov_download_tbb)
                 ARCHIVE_WIN "tbb2020_617e9a71_win.zip"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "815fbe709a8ad55ed65549c643526c0257547e82ae150c7b015b3ceec0bd6bff")
+                SHA256 "815fbe709a8ad55ed65549c643526c0257547e82ae150c7b015b3ceec0bd6bff"
+                USE_NEW_LOCATION TRUE)
     elseif(ANDROID AND X86_64)  # Should be before LINUX due LINUX is detected as well
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
