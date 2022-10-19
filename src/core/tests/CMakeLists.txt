@@ -263,6 +263,7 @@ set(SRC
     visitors/dimension.cpp
     visitors/user_op.cpp
     visitors/value_map.cpp
+    visitors/op/abs.cpp
     visitors/op/acos.cpp
     visitors/op/acosh.cpp
     visitors/op/adaptive_avg_pool.cpp

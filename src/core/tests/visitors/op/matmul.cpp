@@ -89,3 +89,16 @@ TEST(attributes, matmul_op5) {
     EXPECT_EQ(g_matmul->get_transpose_a(), matmul->get_transpose_a());
     EXPECT_EQ(g_matmul->get_transpose_b(), matmul->get_transpose_b());
 }
+
+TEST(attributes, matmul_op6) {
+    NodeBuilder::get_ops().register_factory<opset1::MatMul>();
+    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 2048});
+    auto B = make_shared<op::Parameter>(element::f32, Shape{2048, 1000});
+
+    auto matmul = make_shared<opset1::MatMul>(A, B);
+    NodeBuilder builder(matmul);
+    auto g_matmul = ov::as_type_ptr<opset1::MatMul>(builder.create());
+
+    EXPECT_EQ(g_matmul->get_transpose_a(), matmul->get_transpose_a());
+    EXPECT_EQ(g_matmul->get_transpose_b(), matmul->get_transpose_b());
+}
