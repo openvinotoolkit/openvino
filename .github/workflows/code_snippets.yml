@@ -34,14 +34,11 @@ jobs:
           cd build
           cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -DCMAKE_BUILD_TYPE=Release ..
 
+      - name: Get number of CPU cores
+        uses: SimenB/github-actions-cpu-cores@v1
+        id: cpu-cores
+
       - name: Build snippets
         run: |
-          cmake --build . --target ie_docs_snippets -j`nproc`
+          cmake --build . --target ie_docs_snippets -j${{ steps.cpu-cores.outputs.count }}
         working-directory: build
-        if: matrix.os != 'windows-latest'
-
-      - name: Build snippets (windows)
-        run: |
-          cmake --build . --target ie_docs_snippets -j%NUMBER_OF_PROCESSORS%
-        working-directory: build
-        if: matrix.os == 'windows-latest'
