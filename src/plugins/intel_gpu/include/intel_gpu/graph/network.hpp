@@ -78,11 +78,8 @@ public:
 
     network(program::ptr program, stream::ptr stream, uint16_t stream_id);
 
-    network(cldnn::BinaryInputBuffer& ifs, stream::ptr stream, engine& engine, uint16_t stream_id = 0);
-
     ~network();
 
-    void save(cldnn::BinaryOutputBuffer& ob);
 
     static ptr build_network(engine& engine,
                              const topology& topology,
@@ -104,7 +101,7 @@ public:
                                 bool is_primary_stream = false);
     program::cptr get_program() const { return _program; }
     program::ptr get_program() { return _program; }
-    engine& get_engine() const { return *_engine; }
+    engine& get_engine() const { return _program->get_engine(); }
 
     void reset_execution(bool wait = true);
     void set_input_data(const primitive_id& id, memory::ptr data);
@@ -223,7 +220,6 @@ private:
     using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;
     uint32_t net_id = 0;
     program::ptr _program;
-    engine* _engine;
     stream::ptr _stream;
     std::unique_ptr<memory_pool> _memory_pool;
     bool _internal;

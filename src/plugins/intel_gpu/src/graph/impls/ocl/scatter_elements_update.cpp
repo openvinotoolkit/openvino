@@ -43,8 +43,6 @@ struct scatter_elements_update_impl : typed_primitive_impl_ocl<scatter_elements_
     using parent = typed_primitive_impl_ocl<scatter_elements_update>;
     using parent::parent;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<scatter_elements_update_impl>(*this);
     }
@@ -103,6 +101,3 @@ attach_scatter_elements_update_impl::attach_scatter_elements_update_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
-
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::scatter_elements_update_impl,
-                             cldnn::object_type::SCATTER_ELEMENTS_UPDATE_IMPL)

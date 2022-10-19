@@ -45,9 +45,6 @@ public:
     memory::ptr location_memory() const { return dep_memory_ptr(0); }
     memory::ptr confidence_memory() const { return dep_memory_ptr(1); }
     memory::ptr prior_box_memory() const { return dep_memory_ptr(2); }
-
-    void save(cldnn::BinaryOutputBuffer& buffer) const override;
-    void load(cldnn::BinaryInputBuffer& buffer) override;
 };
 
 using detection_output_inst = typed_primitive_inst<detection_output>;

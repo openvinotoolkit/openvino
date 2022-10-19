@@ -24,8 +24,8 @@ memory_record::memory_record(memory_set users,
                              allocation_type type)
     : _users(users), _memory(memory), _network_id(net_id), _type(type) {}
 
-memory::ptr memory_pool::alloc_memory(const layout& layout, allocation_type type, bool reset) {
-    return _engine->allocate_memory(layout, type, reset);
+memory::ptr memory_pool::alloc_memory(const layout& layout, allocation_type type) {
+    return _engine->allocate_memory(layout, type);
 }
 
 memory_pool::~memory_pool() {}
@@ -33,23 +33,20 @@ memory_pool::~memory_pool() {}
 bool memory_pool::has_conflict(const memory_set& a,
                                const std::set<primitive_id>& b,
                                uint32_t b_network_id) {
-    // std::set<primitive_id> a_same_network;
+    std::set<primitive_id> a_same_network;
     for (auto const& mem_usr : a) {
         if (mem_usr._network_id == b_network_id) {
-            // a_same_network.insert(mem_usr._id);
-            if (b.find(mem_usr._id) != b.end())
-                return true;
+            a_same_network.insert(mem_usr._id);
         }
     }
-    return false;
-    // std::vector<primitive_id> intersection;
-    // intersection.reserve(std::min(a_same_network.size(), b.size()));
-    // set_intersection(a_same_network.begin(),
-    //                  a_same_network.end(),
-    //                  b.begin(),
-    //                  b.end(),
-    //                  std::back_inserter(intersection));
-    // return !intersection.empty();
+    std::vector<primitive_id> intersection;
+    intersection.reserve(std::min(a_same_network.size(), b.size()));
+    set_intersection(a_same_network.begin(),
+                     a_same_network.end(),
+                     b.begin(),
+                     b.end(),
+                     std::back_inserter(intersection));
+    return !intersection.empty();
 }
 
 void memory_pool::release_memory(memory* mem, const primitive_id& id, uint32_t network_id) {
@@ -221,8 +218,8 @@ memory::ptr memory_pool::get_from_across_networks_pool(const layout& layout,
     return mem;
 }
 
-memory::ptr memory_pool::get_memory(const layout& layout, allocation_type type, bool reset) {
-    return alloc_memory(layout, type, reset);
+memory::ptr memory_pool::get_memory(const layout& layout, allocation_type type) {
+    return alloc_memory(layout, type);
 }
 
 memory::ptr memory_pool::get_memory(const layout& layout,

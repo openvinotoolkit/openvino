@@ -25,8 +25,6 @@ namespace cldnn {
 // checks if any user in a list is a cpu primitive
 bool is_any_user_cpu(const std::list<const program_node*>& users);
 
-primitive_type_id get_type_id(std::string type_str);
-
 class primitive_inst;
 
 template <class PType>
@@ -43,10 +41,7 @@ struct primitive_impl {
 
     virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
     virtual void set_node_params(const program_node&) {}
-    virtual object_type get_type() const { return object_type::NONE; }
     virtual void set_arguments(primitive_inst& instance) = 0;
-    virtual void set_arguments(kernel_arguments_data_idx& args_idx) = 0;
-    virtual kernel_arguments_data get_arguments(const primitive_inst& instance) const = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
     virtual bool validate(const primitive_inst& instance) const = 0;
     std::string get_kernel_name() const { return _kernel_name; }
@@ -78,7 +73,6 @@ class primitive_inst {
     friend class typed_primitive_inst;
 
 public:
-    primitive_inst(network& network);
     virtual ~primitive_inst() = default;
 
     const std::vector<std::shared_ptr<const primitive_inst>>& dependencies() const {
@@ -105,7 +99,7 @@ public:
     }
     memory& output_memory(size_t index = 0) const { return *_outputs[index]; }
     memory::ptr output_memory_ptr(size_t index = 0) const { return _outputs[index]; }
-    size_t inputs_memory_count() const { return (_node == nullptr) ? _input_size : _node->get_primitive()->input_size(); }
+    size_t inputs_memory_count() const { return _node->get_primitive()->input_size(); }
     size_t outputs_memory_count() const { return _node->get_primitive()->output_size(); }
     bool outputs_allocated() const {
         if (_outputs.empty()) return false;
@@ -114,11 +108,10 @@ public:
         }
         return true;
     }
-    primitive_type_id type() const { return (_node == nullptr) ? get_type_id(_type_str) : _node->type(); }
-    primitive_id id() const { return (_node == nullptr) ? _prim_id : _node->id(); }
-    primitive_id org_id() const { return (_node == nullptr) ? _prim_id : _node->get_org_primitive_id(); }
-    bool can_be_optimized() const { return (_node == nullptr) ? _can_be_optimized : _node->can_be_optimized(); }
-    bool can_share_buffer() const { return (_node == nullptr) ? _can_share_buffer : _node->can_share_buffer(); }
+    primitive_type_id type() const { return _node->type(); }
+    primitive_id id() const { return _node->id(); }
+    primitive_id org_id() const { return _node->get_org_primitive_id(); }
+    bool can_be_optimized() const { return _node->can_be_optimized(); }
     std::shared_ptr<const primitive> desc() const { return _node->get_primitive(); }
     program_node const& get_node() const { return *_node; }
     network& get_network() const { return _network; }
@@ -143,9 +136,7 @@ public:
     }
 
     event::ptr execute(const std::vector<event::ptr>& events);
-    void init_kernels(const kernels_cache& kernels_cache) {
-        _impl->init_kernels(kernels_cache);
-    }
+    void init_kernels();
     void set_arguments();
 
     bool validate() const {
@@ -168,9 +159,9 @@ public:
         return dep_memory_ptr(get_fused_mem_offset() + dep_id);
     }
 
-    bool has_fused_primitives() const { return (_node == nullptr) ? _has_fused_primitives : !_node->get_fused_primitives().empty(); }
-    size_t get_fused_mem_count() const { return (_node == nullptr) ? _fused_mem_count : _node->get_fused_inputs_count(); }
-    size_t get_fused_mem_offset() const { return (_node == nullptr) ? _fused_mem_offset : _node->get_fused_primitives()[0].dep_start_idx; }
+    bool has_fused_primitives() const { return !_node->get_fused_primitives().empty(); }
+    size_t get_fused_mem_count() const { return _node->get_fused_inputs_count(); }
+    size_t get_fused_mem_offset() const { return _node->get_fused_primitives()[0].dep_start_idx; }
 
     bool has_mutable_input() const {
         return _has_mutable_input;
@@ -180,12 +171,8 @@ public:
         _has_mutable_input = val;
     }
 
-    bool is_input() const {
-        return (_node == nullptr) ? _is_input : _node->is_input();
-    }
-
     bool is_output() const {
-        return (_node == nullptr) ? _is_output : _node->is_output();
+        return _node->is_output();
     }
 
     bool mem_allocated() const {
@@ -202,15 +189,6 @@ public:
 
     std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
 
-    virtual void save(cldnn::BinaryOutputBuffer& buffer) const;
-    virtual void load(cldnn::BinaryInputBuffer& buffer);
-    void rebuild_deps(
-        std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> const& primitives);
-    void rebuild_exec_deps(
-        std::list<std::shared_ptr<primitive_inst>> const& primitives);
-    primitive_id get_id() const { return this->_prim_id; }
-    void set_id(primitive_id& prim_id) { this->_prim_id = prim_id; }
-
     std::string get_implementation_name() const;
 
     void add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, int64_t time);
@@ -224,10 +202,7 @@ protected:
 
     network& _network;
     program_node const* _node;
-    layout _node_output_layout;
-
-    primitive_id _prim_id;
-    std::string _type_str;
+    const layout _node_output_layout;
 
     std::unique_ptr<kernel_impl_params> _impl_params;
     std::unique_ptr<primitive_impl> _impl;
@@ -236,7 +211,6 @@ protected:
     // it should be added to this set
     std::vector<std::shared_ptr<primitive_inst>> _deps;
     std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> _deps_new;
-    std::vector<cldnn::primitive_id> _dep_ids;
 
     // this is a set of dependencies in terms of execution
     // execution of all primitives from this set should be enough to guarantee that all memory deps (see _deps)
@@ -246,7 +220,6 @@ protected:
     // manner) in general - this member is introduced to relax logical connection between primitives which have to be
     // executed and memories which are used by this primitive
     std::vector<std::shared_ptr<primitive_inst>> _exec_deps;
-    std::vector<cldnn::primitive_id> _exec_dep_ids;
 
     // This is sub-network generated on demand to execute unfused primitives sequence instead of single fused primitive
     // Needed for dynamic path only, as fusion in some cases may be illegal, but it can't be checked on program build phase,
@@ -267,22 +240,12 @@ protected:
     bool _has_mutable_input = false;
     bool _mem_allocated = false;
     bool _is_dynamic = false;
-    bool _is_input = false;
-    bool _is_output = false;
-    size_t _input_size = 0;
-    bool _has_fused_primitives = false;
-    size_t _fused_mem_count = 0;
-    size_t _fused_mem_offset = 0;
-    bool _can_be_optimized = false;
-    bool _can_share_buffer = true;
 
     size_t max_output_layout_size = 0;
 
     std::vector<memory::ptr> allocate_outputs();
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
         std::vector<std::shared_ptr<primitive_inst>> const& mem_deps);
-    void convert_args(const kernel_arguments_data& args, kernel_arguments_data_idx& args_idx) const;
-    int32_t get_index_in_deps(memory::cptr arg) const;
 
     // event function called by primitive_inst::execute after checking if primitive should rerun and before calling
     // _impl->execute() mainly for reshape (to update output memory if reshape_node.is_in_place() == true)
@@ -361,20 +324,7 @@ private:
         return set_arguments_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
 
-    void set_arguments(kernel_arguments_data_idx& args_idx) override {
-        return set_arguments_impl(args_idx);
-    }
-
-    kernel_arguments_data get_arguments(const primitive_inst& instance) const override {
-        return get_arguments_impl(reinterpret_cast<const typed_primitive_inst<PType>&>(instance));
-    }
-
     virtual void set_arguments_impl(typed_primitive_inst<PType>& /*instance*/) {}
-    virtual void set_arguments_impl(kernel_arguments_data_idx& /*args_idx*/) {}
-    virtual kernel_arguments_data get_arguments_impl(const typed_primitive_inst<PType>& /*instance*/) const {
-        kernel_arguments_data args;
-        return args;
-    }
     virtual event::ptr execute_impl(const std::vector<event::ptr>& event,
                                          typed_primitive_inst<PType>& instance) = 0;
 
@@ -404,9 +354,6 @@ public:
 
     typed_primitive_inst_base(network& network, typed_node const* node)
         : typed_primitive_inst_base(network, node, do_allocate_memory(node)) {}
-
-    typed_primitive_inst_base(network& network)
-        : primitive_inst(network), node(nullptr), argument(nullptr) {}
 
 protected:
     typed_primitive_inst_base(network& network, typed_node const* node, bool allocate_memory)

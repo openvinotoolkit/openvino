@@ -24,11 +24,6 @@ namespace cldnn {
 namespace ocl {
 
 struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
-    using parent = typed_primitive_impl<custom_gpu_primitive>;
-    using parent::parent;
-
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     std::shared_ptr<kernel_selector::cl_kernel_data> cl_kernel;
     std::vector<kernel::ptr> _kernels;
     kernel_id _kernel_id;
@@ -36,9 +31,6 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<custom_gpu_primitive_impl>(*this);
     }
-
-    custom_gpu_primitive_impl()
-    : _kernels() {}
 
     custom_gpu_primitive_impl(const custom_gpu_primitive_impl& other)
     : cl_kernel(other.cl_kernel)
@@ -83,17 +75,6 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
 
     std::vector<std::string> get_kernel_ids() override {
         return {_kernel_id};
-    }
-
-    template <typename BufferType>
-    void save(BufferType& buffer) const {
-        buffer(*cl_kernel, _kernel_id);
-    }
-
-    template <typename BufferType>
-    void load(BufferType& buffer) {
-        cl_kernel = std::make_shared<kernel_selector::cl_kernel_data>();
-        buffer(*cl_kernel, _kernel_id);
     }
 };
 
@@ -257,5 +238,3 @@ attach_custom_gpu_primitive_impl::attach_custom_gpu_primitive_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
-
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::custom_gpu_primitive_impl, cldnn::object_type::CUSTOM_GPU_PRIMITIVE_IMPL)

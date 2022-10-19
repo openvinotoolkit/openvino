@@ -114,65 +114,6 @@ struct kernel_arguments_data {
     const scalars_desc* scalars = nullptr;
 };
 
-struct kernel_arguments_data_idx {
-    std::vector<int32_t> inputs;
-    std::vector<int32_t> intermediates;
-    // std::vector<int32_t> outputs;
-    int32_t weights;
-    int32_t recurrent;
-    int32_t hidden;
-    int32_t cell;
-    int32_t bias;
-    int32_t weights_zero_points;
-    int32_t activations_zero_points;
-    int32_t compensation;
-    int32_t lookup_table;
-    int32_t scale_table;
-    int32_t slope;
-
-    std::vector<int32_t> fused_op_inputs;
-    int32_t split = 0;
-    scalars_desc scalars;
-
-    template <typename BufferType>
-    void save(BufferType& buffer) const {
-        buffer << inputs;
-        buffer << intermediates;
-        buffer << weights;
-        buffer << recurrent;
-        buffer << hidden;
-        buffer << cell;
-        buffer << bias;
-        buffer << weights_zero_points;
-        buffer << activations_zero_points;
-        buffer << compensation;
-        buffer << lookup_table;
-        buffer << scale_table;
-        buffer << slope;
-        buffer << fused_op_inputs;
-        buffer << split;
-    }
-
-    template <typename BufferType>
-    void load(BufferType& buffer) {
-        buffer >> inputs;
-        buffer >> intermediates;
-        buffer >> weights;
-        buffer >> recurrent;
-        buffer >> hidden;
-        buffer >> cell;
-        buffer >> bias;
-        buffer >> weights_zero_points;
-        buffer >> activations_zero_points;
-        buffer >> compensation;
-        buffer >> lookup_table;
-        buffer >> scale_table;
-        buffer >> slope;
-        buffer >> fused_op_inputs;
-        buffer >> split;
-    }
-};
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // KernelString
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

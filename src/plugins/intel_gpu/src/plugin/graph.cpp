@@ -53,30 +53,6 @@ Graph::Graph(InferenceEngine::CNNNetwork& network, gpu::ClContext::Ptr context, 
     Build();
 }
 
-Graph::Graph(cldnn::BinaryInputBuffer &ib, gpu::ClContext::Ptr context, Config config, uint16_t stream_id)
-    : m_context(context)
-    , m_config(config)
-    , m_stream_id(stream_id)
-    , m_state(0) {
-    auto startTime = std::chrono::high_resolution_clock::now();
-    m_program = std::make_shared<Program>(GetEngine(), m_config);
-    if (m_program->m_max_batch > 1)
-        m_config.max_dynamic_batch = m_program->m_max_batch;
-    auto endTime = std::chrono::high_resolution_clock::now();
-    std::cout << "[Graph ctor part 2-1]: " <<
-                 (std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count() * 0.000001)
-                 << std::endl;
-
-    ib >> m_program->inputLayouts;
-    ib >> primitiveIDs;
-    ib >> outputDims;
-
-    m_networks.emplace_back(std::make_shared<cldnn::network>(ib, GetEngine()->create_stream(), *GetEngine(), m_stream_id));
-
-    startTime = std::chrono::high_resolution_clock::now();
-    std::cout << "[Graph ctor part 2-2]: " << (std::chrono::duration_cast<std::chrono::nanoseconds>(startTime - endTime).count() * 0.000001) << std::endl;
-}
-
 Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
         : m_context(graph->m_context)
         , m_program(graph->m_program)
@@ -469,16 +445,6 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
     }
 
     return std::make_shared<ngraph::Function>(results, params, "runtime_gpu_graph");
-}
-
-void Graph::Export(cldnn::BinaryOutputBuffer &ob) {
-    ob << m_program->inputLayouts;
-    ob << primitiveIDs;
-    ob << outputDims;
-
-    auto m_network = m_networks.back();
-
-    m_network->save(ob);
 }
 
 std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfo() {

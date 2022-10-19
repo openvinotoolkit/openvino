@@ -14,8 +14,6 @@ struct roll_impl : typed_primitive_impl_ocl<roll> {
     using parent = typed_primitive_impl_ocl<roll>;
     using parent::parent;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<roll_impl>(*this);
     }
@@ -75,5 +73,3 @@ attach_roll_impl::attach_roll_impl() {
 
 }  // namespace ocl
 }  // namespace cldnn
-
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::roll_impl, cldnn::object_type::ROLL_IMPL)

@@ -22,8 +22,6 @@ struct eye_impl : typed_primitive_impl_ocl<eye> {
     using parent = typed_primitive_impl_ocl<eye>;
     using parent::parent;
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION
-
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<eye_impl>(*this);
     }
@@ -79,5 +77,3 @@ attach_eye_impl::attach_eye_impl() {
 
 }  // namespace ocl
 }  // namespace cldnn
-
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::eye_impl, cldnn::object_type::EYE_IMPL)

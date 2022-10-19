@@ -213,21 +213,21 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
         }
     }
 
-    // std::string cached_bin_name = get_cache_path() + std::to_string(batch.hash_value) + ".cl_cache";
+    std::string cached_bin_name = get_cache_path() + std::to_string(batch.hash_value) + ".cl_cache";
     cl::Program::Binaries precompiled_kernels = {};
 
-    // if (is_cache_enabled()) {
-    //     // Try to load file with name ${hash_value}.cl_cache which contains precompiled kernels for current bucket
-    //     // If read is successful, then remove kernels from compilation bucket
-    //     std::vector<uint8_t> bin;
-    //     {
-    //         std::lock_guard<std::mutex> lock(cacheAccessMutex);
-    //         bin = ov::util::load_binary(cached_bin_name);
-    //     }
-    //     if (!bin.empty()) {
-    //         precompiled_kernels.push_back(bin);
-    //     }
-    // }
+    if (is_cache_enabled()) {
+        // Try to load file with name ${hash_value}.cl_cache which contains precompiled kernels for current bucket
+        // If read is successful, then remove kernels from compilation bucket
+        std::vector<uint8_t> bin;
+        {
+            std::lock_guard<std::mutex> lock(cacheAccessMutex);
+            bin = ov::util::load_binary(cached_bin_name);
+        }
+        if (!bin.empty()) {
+            precompiled_kernels.push_back(bin);
+        }
+    }
     try {
         cl::vector<cl::Kernel> kernels;
 
@@ -249,22 +249,13 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
 
             program.createKernels(&kernels);
 
-            // if (is_cache_enabled()) {
-            //     // If kernels caching is enabled, then we save compiled bucket to binary file with name ${code_hash_value}.cl_cache
-            //     // Note: Bin file contains full bucket, not separate kernels, so kernels reuse across different models is quite limited
-            //     // Bucket size can be changed in get_max_kernels_per_batch() method, but forcing it to 1 will lead to much longer
-            //     // compile time.
-            //     std::lock_guard<std::mutex> lock(cacheAccessMutex);
-            //     ov::util::save_binary(cached_bin_name, getProgramBinaries(program));
-            // }
-
-            if (need_serialize) {
+            if (is_cache_enabled()) {
+                // If kernels caching is enabled, then we save compiled bucket to binary file with name ${code_hash_value}.cl_cache
+                // Note: Bin file contains full bucket, not separate kernels, so kernels reuse across different models is quite limited
+                // Bucket size can be changed in get_max_kernels_per_batch() method, but forcing it to 1 will lead to much longer
+                // compile time.
                 std::lock_guard<std::mutex> lock(cacheAccessMutex);
-                serialize_info si;
-                si.build_options = batch.options;
-                si.entry_point_to_id = batch.entry_point_to_id;
-                si.precompiled_kernels = getProgramBinaries(program);
-                serialize_info_container.push_back(std::move(si));
+                ov::util::save_binary(cached_bin_name, getProgramBinaries(program));
             }
         } else {
             cl::Program program(cl_build_engine.get_cl_context(), {cl_build_engine.get_cl_device()}, precompiled_kernels);

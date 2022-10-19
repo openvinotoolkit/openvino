@@ -130,8 +130,6 @@ struct kernel_impl_params {
 
     memory::ptr reordered_weights = nullptr;
 
-    kernel_impl_params() {}
-
     kernel_impl_params(program& _prog,
                        std::shared_ptr<const primitive> _desc,
                        size_t _uid,
@@ -176,22 +174,6 @@ struct kernel_impl_params {
 
     template <class PType>
     std::shared_ptr<const PType> typed_desc() const { return std::static_pointer_cast<const PType>(desc); }
-
-    void save(BinaryOutputBuffer& buffer) const {
-        buffer << has_runtime_layouts;
-        buffer << unique_id;
-        buffer << input_layouts;
-        buffer << output_layout;
-        buffer << primary_input_idx;
-    }
-
-    void load(BinaryInputBuffer& buffer) {
-        buffer >> has_runtime_layouts;
-        buffer >> unique_id;
-        buffer >> input_layouts;
-        buffer >> output_layout;
-        buffer >> primary_input_idx;
-    }
 };
 
 template <typename T = std::uint32_t>
