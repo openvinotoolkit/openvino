@@ -61,11 +61,11 @@ std::vector<layout> border_inst::calc_output_layouts(border_node const& /*node*/
 
     if (memory_deps.count(1) && memory_deps.count(2)) {
         auto pads_begin_mem = memory_deps.at(1);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> pads_begin_lock(pads_begin_mem, impl_param.prog.get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> pads_begin_lock(pads_begin_mem, impl_param.prog->get_stream());
         const_data.emplace(1, make_host_tensor(pads_begin_mem->get_layout(), pads_begin_lock.data()));
 
         auto pads_end_mem = memory_deps.at(2);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> pads_end_lock(pads_end_mem, impl_param.prog.get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> pads_end_lock(pads_end_mem, impl_param.prog->get_stream());
         const_data.emplace(2, make_host_tensor(pads_end_mem->get_layout(), pads_end_lock.data()));
 
         ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);

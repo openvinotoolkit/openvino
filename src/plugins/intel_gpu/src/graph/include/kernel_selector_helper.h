@@ -17,6 +17,9 @@
 #include "kernel_selector_common.h"
 #include "tensor_type.h"
 #include "fused_primitive_desc.h"
+#include "serialization/binary_buffer.hpp"
+#include "serialization/layout_serializer.hpp"
+#include "serialization/vector_serializer.hpp"
 
 #include <cstdint>
 #include <string>
@@ -108,7 +111,7 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
 
 struct kernel_impl_params {
     bool has_runtime_layouts = false;
-    const program& prog;
+    const program *prog;
     std::shared_ptr<const primitive> desc;
     size_t unique_id;
     std::vector<layout> input_layouts;
@@ -130,6 +133,8 @@ struct kernel_impl_params {
 
     memory::ptr reordered_weights = nullptr;
 
+    kernel_impl_params() {}
+
     kernel_impl_params(program& _prog,
                        std::shared_ptr<const primitive> _desc,
                        size_t _uid,
@@ -139,7 +144,7 @@ struct kernel_impl_params {
                        const std::vector<activation_func>& _fused_act_funcs,
                        const std::vector<activation_additional_params>& _act_params)
                        : has_runtime_layouts(true)
-                       , prog(_prog)
+                       , prog(&_prog)
                        , desc(_desc)
                        , unique_id(_uid)
                        , input_layouts(_in_layouts)
@@ -174,6 +179,22 @@ struct kernel_impl_params {
 
     template <class PType>
     std::shared_ptr<const PType> typed_desc() const { return std::static_pointer_cast<const PType>(desc); }
+
+    void save(BinaryOutputBuffer& buffer) const {
+        buffer << has_runtime_layouts;
+        buffer << unique_id;
+        buffer << input_layouts;
+        buffer << output_layout;
+        buffer << primary_input_idx;
+    }
+
+    void load(BinaryInputBuffer& buffer) {
+        buffer >> has_runtime_layouts;
+        buffer >> unique_id;
+        buffer >> input_layouts;
+        buffer >> output_layout;
+        buffer >> primary_input_idx;
+    }
 };
 
 template <typename T = std::uint32_t>

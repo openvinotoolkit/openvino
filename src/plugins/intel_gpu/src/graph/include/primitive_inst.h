@@ -231,7 +231,7 @@ protected:
 
     network& _network;
     program_node const* _node;
-    const layout _node_output_layout;
+    layout _node_output_layout;
 
     primitive_id _prim_id;
     std::string _type_str;

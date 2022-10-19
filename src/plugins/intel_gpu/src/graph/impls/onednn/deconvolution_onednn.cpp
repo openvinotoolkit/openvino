@@ -103,7 +103,7 @@ protected:
 
 public:
     static primitive_impl* create(const deconvolution_node& arg, const kernel_impl_params& impl_params) {
-        auto& engine = impl_params.prog.get_engine();
+        auto& engine = impl_params.prog->get_engine();
         auto desc = get_deconvolution_descriptor(impl_params);
         auto attr = get_primitive_attributes(arg);
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};

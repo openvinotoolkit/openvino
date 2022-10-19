@@ -69,7 +69,7 @@ layout gather_nonzero_inst::calc_output_layout(gather_nonzero_node const& node, 
     assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
            "Output data type forcing is not supported for gather_nonzero_node!");
     if (impl_param.memory_deps.count(1)) {
-        auto out_size = read_vector<int64_t>(impl_param.memory_deps.at(1), impl_param.prog.get_stream());
+        auto out_size = read_vector<int64_t>(impl_param.memory_deps.at(1), impl_param.prog->get_stream());
         ov::Shape output_shape(out_size.begin(), out_size.end());
         ov::PartialShape output_pshape(output_shape);
         return layout{output_pshape, cldnn::data_types::i32, cldnn::format::bfyx};
