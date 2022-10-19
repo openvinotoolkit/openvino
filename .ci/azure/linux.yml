@@ -343,10 +343,6 @@ jobs:
     displayName: 'Build c samples'
     continueOnError: false
 
-  - script: rm -fr $(BUILD_DIR)
-    displayName: 'Clean build dir'
-    continueOnError: false
-
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-NGraphUT.xml
     displayName: 'OV Core UT'
     continueOnError: false
@@ -435,8 +431,13 @@ jobs:
       export CCACHE_BASEDIR=$(Pipeline.Workspace)
       export CCACHE_MAXSIZE=50G
       cmake --build $(BUILD_DIR) --target ov_coverage -- -C $(BUILD_DIR)
+      condition: and(succeeded(), eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON'))
     displayName: 'Build coverage'
 
+  - script: rm -fr $(BUILD_DIR)
+    displayName: 'Clean build dir'
+    continueOnError: false
+    
   - task: CMake@1
     inputs:
       cmakeArgs: >
