@@ -425,6 +425,7 @@ set(SRC
     visitors/op/tan.cpp
     visitors/op/tanh.cpp
     visitors/op/tensor_iterator.cpp
+    visitors/op/tile.cpp
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
     visitors/op/unsqueeze.cpp

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+//TODO: need to decide wrete to mve these tests
+
 #include <string>
 #include "ngraph_reader_tests.hpp"
 TEST_F(NGraphReaderTests, ReduceMeanToAvgPool) {
