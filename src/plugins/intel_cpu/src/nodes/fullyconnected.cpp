@@ -380,10 +380,30 @@ bool FullyConnected::canFuse(const NodePtr& node) const {
     return canFuseSimpleOperation(node);
 }
 
-void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims, bool initWeights) {
+void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims_ext, bool initWeights) {
     dnnl::post_ops ops;
 
-    DEBUG_LOG(getName());
+    // accoridng to https://oneapi-src.github.io/oneDNN/dev_guide_inner_product.html
+    // oneDNN inner product primitive's input & output tensors are always 2D:
+    //   input: [N, IC]  weight: [OC, IC]   bias: [OC]   output:[N,OC]
+    //
+    // when input output tensors have spatial dimensions, they are flattened to 2D.
+    // and following type of MatMul will be converted into FullyConnected inside CPU plugin:
+    //    2D:   [X,Y] [Y,Z] =>   [X,Z]   with    N=X,IC=Y,OC=Z
+    //    3D: [B,X,Y] [Y,Z] => [B,X,Z]   with  N=B*X,IC=Y,OC=Z
+
+    VectorDims dims;
+    if (dims_ext.size() == 2) {
+        // 2D
+        dims = dims_ext;
+    } else {
+        // 3D
+        assert(dims_ext.size() == 3);
+        dims.push_back(dims_ext[0] * dims_ext[1]);
+        dims.push_back(dims_ext[2]);
+    }
+
+    DEBUG_LOG(getName(), " dims_ext=", dims_ext, " dims=", dims, ", initWeights=", initWeights);
 
     bool isINT8 = getOriginalInputPrecisionAtPort(WEIGHTS_ID) == Precision::U8 ||
                   getOriginalInputPrecisionAtPort(WEIGHTS_ID) == Precision::I8;

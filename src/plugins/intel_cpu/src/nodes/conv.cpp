@@ -627,6 +627,8 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
         }
 
         if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get())) {
+            // drop rounding one special residual pattern
+            // TODO: validate this unsafe optimization
             bool do_rounding = true;
             if (i == 0) {
                 bool hasSubsequentSum = false;
@@ -645,8 +647,6 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
                     }
                 }
                 if (hasSubsequentSum && hasSubsequentFQ) {
-                    // drop rounding since sum will be done using FP32 anyway
-                    // TODO: validate this unsafe optimization
                     do_rounding = false;
                 }
             }
