@@ -28,6 +28,7 @@ flowchart BT
 ```
 
 Currently, it is only used by [OpenVINO Integration with TensorFlow](https://github.com/openvinotoolkit/openvino_tensorflow).
+This is an internal API for OpenVINO that is used to implement user facing API such as Model Optimizer, `read_model` function, and OpenVINO Integration with TensorFlow. Regular users should not use the frontend directly.
 Model Optimizer for now relies on the legacy [TensorFlow Frontend](https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html) developed in Python.
 
 ## Key contacts
