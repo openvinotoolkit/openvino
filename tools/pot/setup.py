@@ -65,23 +65,21 @@ if '--install-dev-extras' in sys.argv:
     sys.argv.remove('--install-dev-extras')
 
 INSTALL_REQUIRES = [
-    "scipy~=1.5.4",
-    "jstyleson~=0.0.2",
+    "scipy>=1.5.4",
+    "jstyleson>=0.0.2",
     "numpy>=1.16.6,<=1.23.1",
     "addict>=2.4.0",
     "networkx~=2.5;python_version<='3.6'",
     "networkx<2.8.1;python_version>'3.6'",
     "tqdm>=4.54.1",
-    "texttable~=1.6.3",
+    "texttable>=1.6.3",
     "pandas~=1.1.5",
     "openvino-telemetry>=2022.1.0"
 ]
 
-ALGO_EXTRAS = [
-    #'hyperopt~=0.1.2',
-]
+ALGO_EXTRAS = []
 
-DEV_EXTRAS = ['pytest==4.5.0', 'openpyxl==2.6.4', 'pytest-mock==3.1.1']
+DEV_EXTRAS = ['pytest>=5.0,<=7.0.1', 'openpyxl==2.6.4', 'pytest-mock==3.1.1']
 
 DEPENDENCY_LINKS = []
 
