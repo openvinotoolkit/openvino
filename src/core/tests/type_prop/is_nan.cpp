@@ -33,6 +33,14 @@ TEST(type_prop, isnan_sample_dynamic_shape) {
         << "The output shape of IsNaN is incorrect";
 }
 
+TEST(type_prop, isnan_sample_dynamic_rank) {
+    const auto data = make_shared<Parameter>(element::f16, PartialShape::dynamic());
+    const auto isnan = make_shared<IsNaN>(data);
+
+    EXPECT_EQ(isnan->get_output_partial_shape(0), (PartialShape::dynamic()))
+        << "The output shape of IsNaN is incorrect";
+}
+
 TEST(type_prop, isnan_sample_interval_dimension) {
     const auto data = make_shared<Parameter>(element::f16, (PartialShape{Dimension(2, 4), 73, 12}));
     const auto isnan = make_shared<IsNaN>(data);
