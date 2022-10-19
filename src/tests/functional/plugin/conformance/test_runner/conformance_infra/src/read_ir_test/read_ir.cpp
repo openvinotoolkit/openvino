@@ -93,6 +93,10 @@ void ReadIRTest::query_model() {
     }
 }
 
+uint64_t clip(uint64_t n, uint64_t lower, uint64_t upper) {
+    return std::max(lower, std::min(n, upper));
+}
+
 void ReadIRTest::SetUp() {
     // in case of crash jump will be made and work will be continued
     auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
@@ -208,13 +212,14 @@ void ReadIRTest::SetUp() {
                 staticShapes[1] = midShape;
 
                 // Shape validation to avoid large values
-                for (auto& shape : staticShapes) {
-                    for (auto& dim : shape) {
-                        if (dim == 0) {
-                            dim = 1;
-                        } else if (dim > std::numeric_limits<char>::max()) {
-                            dim = std::numeric_limits<char>::max();
-                        }
+                uint64_t dimMin = 1;
+                uint64_t dimMax = std::numeric_limits<char>::max();
+                for (int i = 0; i < staticShapes[0].size(); ++i) {
+                    auto& dim0 = staticShapes[0][i];
+                    auto& dim2 = staticShapes[2][i];
+                    if (dim0 != dim2) {
+                        dim0 = clip(dim0, dimMin, dimMax);
+                        dim2 = clip(dim2, dimMin, dimMax);
                     }
                 }
                 inputShapes.push_back(InputShape{param->get_partial_shape(), staticShapes});
