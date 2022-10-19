@@ -99,7 +99,9 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
    ```
    > **NOTE**: If you have already installed a previous release of OpenVINO 2022, a symbolic link to the `openvino_2022` folder may already exist. Remove the previous link with `sudo rm openvino_2022`, and then re-run the command above.
 
-Congratulations, you finished installation! The `/opt/intel/openvino_2022` folder now contains the core components for OpenVINO™. When other pages in OpenVINO™ documentation refer to the `<INSTALL_DIR>` directory, this is the folder they're referring to. If you installed OpenVINO™ in a different location (such as `/home/<USER>/Intel/openvino_2022`), make sure to use that instead.
+Congratulations, you finished the installation! The `/opt/intel/openvino_2022` folder now contains the core components for OpenVINO. If you used a different path in Step 2, for example, `/home/<USER>/Intel/`, OpenVINO is then installed in `/home/<USER>/Intel/openvino_2022`.
+
+The installation directory above is also referred as <INSTALL_DIR> throughout the documentation.
 
 ### <a name="set-the-environment-variables"></a>Step 2: Configure the Environment
 
