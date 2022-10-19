@@ -39,10 +39,14 @@ void shape_infer(const Unsqueeze* op,
 
         out_shape = arg_shape;
         for (const auto& axis : axes) {
-            NODE_VALIDATION_CHECK(op, axis <= out_shape.size() + 1, "provided 'axes' value ", axis, " is not valid.");
+            NODE_VALIDATION_CHECK(op,
+                                  static_cast<size_t>(axis) <= out_shape.size() + 1,
+                                  "provided 'axes' value ",
+                                  axis,
+                                  " is not valid.");
             // As shape not throw exception on repeated axis it has to be check if insert or append dimension.
             // This will be not required if this op has same behaviour as numpy expand_dims.
-            if (axis <= out_shape.size()) {
+            if (static_cast<size_t>(axis) <= out_shape.size()) {
                 out_shape.insert(std::next(std::begin(out_shape), axis), 1);
             } else {
                 // Append dimension at end when there is difference in size of input axes and after normalization

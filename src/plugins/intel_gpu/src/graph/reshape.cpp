@@ -3,14 +3,15 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include "reshape_inst.h"
-#include "primitive_type_base.h"
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "json_object.h"
 #include <string>
 
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "json_object.h"
+#include "primitive_type_base.h"
+#include "reshape_inst.h"
 #include "shape_nodes.hpp"
+#include "unsqueeze_shape_inference.hpp"
 
 namespace cldnn {
 
