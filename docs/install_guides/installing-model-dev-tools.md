@@ -82,7 +82,9 @@ python -m pip install --upgrade pip
 
 ### Step 4. Install the Package
 
-To install and configure the components of the development package for working with specific frameworks, use the commands below. Note the commands are different for a Python installation and a C++ installation. If you want to develop with Python only, follow the instructions in the "Python" tab. If you want to develop with C++, first make sure you have installed OpenVINO Runtime using archive files as stated in the <a href="openvino_docs_install_guides_install_dev_tools.html#cpp-developers">For C++ Developers</a> section at the top of this page, then follow the instructions in the "C++" tab.
+To install and configure the components of the development package for working with specific frameworks, use the commands below.
+
+Note that the commands are different for a Python installation and a C++ installation. If you want to develop with Python only, follow the instructions in the **Python** tab. If you want to develop with C++, first make sure you have installed OpenVINO Runtime using archive files as stated in the <a href="#cpp-developers">For C++ Developers</a> section, then follow the instructions in the **C++** tab.
 
 
 @sphinxdirective
