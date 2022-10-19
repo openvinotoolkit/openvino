@@ -148,16 +148,25 @@ protected:
         tensor = ov::test::utils::create_and_fill_tensor(funcInputs[0].get_element_type(), shape);
         size_t size = tensor.get_size();
 
-        if (netPrecision == ElementType::f32) {
+        if (netPrecision == ElementType::f32 || netPrecision == ElementType::i32) {
             std::vector<int> data(size);
-            int start = - static_cast<int>(size / 2);
+
+            // For int32, deliberately set big numbers which are not accurately representable in fp32
+            int start = netPrecision == ElementType::i32 ? pow(2, 30) + 1 : - static_cast<int>(size / 2);
             std::iota(data.begin(), data.end(), start);
             std::mt19937 gen(0);
             std::shuffle(data.begin(), data.end(), gen);
 
-            auto *rawBlobDataPtr = static_cast<float *>(tensor.data());
-            for (size_t i = 0; i < size; ++i) {
-                rawBlobDataPtr[i] = static_cast<float>(data[i]);
+            if (netPrecision == ElementType::f32) {
+                auto *rawBlobDataPtr = static_cast<float *>(tensor.data());
+                for (size_t i = 0; i < size; ++i) {
+                    rawBlobDataPtr[i] = static_cast<float>(data[i]);
+                }
+            } else {
+                auto *rawBlobDataPtr = static_cast<int32_t *>(tensor.data());
+                for (size_t i = 0; i < size; ++i) {
+                    rawBlobDataPtr[i] = static_cast<int32_t>(data[i]);
+                }
             }
         } else if (netPrecision == ElementType::bf16) {
             size_t O = 1, A = 1, I = 1;
@@ -281,6 +290,46 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK_dynamic, TopKLayerCPUTest,
             ::testing::ValuesIn(inputShapesDynamic)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams)),
         ::testing::ValuesIn(additionalConfig)),
+    TopKLayerCPUTest::getTestCaseName);
+
+const std::vector<int64_t> k_int32 = {1, 5, 7, 9};
+
+std::vector<ov::test::InputShape> inputShapes_int32 = {
+    {{}, {{9, 9, 9, 9}}},
+};
+
+std::vector<ov::test::InputShape> inputShapesDynamic_int32 = {
+    {{9, {5, 10}, 9, {5, 10}}, {{9, 9, 9, 9}, {9, 10, 9, 10}}}
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_TopK_int32, TopKLayerCPUTest,
+    ::testing::Combine(
+        ::testing::Combine(
+            ::testing::ValuesIn(k_int32),
+            ::testing::ValuesIn(axes),
+            ::testing::ValuesIn(modes),
+            ::testing::ValuesIn(sortTypes),
+            ::testing::Values(ElementType::i32),
+            ::testing::Values(ElementType::undefined),
+            ::testing::Values(ElementType::undefined),
+            ::testing::ValuesIn(inputShapes_int32)),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams)),
+        ::testing::Values(additionalConfig[0])),
+    TopKLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_TopK_int32_dynamic, TopKLayerCPUTest,
+    ::testing::Combine(
+        ::testing::Combine(
+            ::testing::Values(1),
+            ::testing::ValuesIn(axes),
+            ::testing::ValuesIn(modes),
+            ::testing::ValuesIn(sortTypes),
+            ::testing::Values(ElementType::i32),
+            ::testing::Values(ElementType::undefined),
+            ::testing::Values(ElementType::undefined),
+            ::testing::ValuesIn(inputShapesDynamic_int32)),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams)),
+        ::testing::Values(additionalConfig[0])),
     TopKLayerCPUTest::getTestCaseName);
 
 std::vector<ov::test::InputShape> inputShapes_bubble_BLK_on_channel_horiz = {
