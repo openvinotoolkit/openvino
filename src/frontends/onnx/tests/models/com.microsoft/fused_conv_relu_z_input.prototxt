@@ -4,12 +4,14 @@ graph {
   node {
     input: "X"
     input: "W"
+    input: "B"
+    input: "Z"
     output: "Y"
     name: "node1"
     op_type: "FusedConv"
     attribute {
       name: "activation"
-      s: "Tanh"
+      s: "Relu"
       type: STRING
     }
     attribute {
@@ -43,6 +45,7 @@ graph {
       i: 1
       type: INT
     }
+    doc_string: "FusedConv"
     domain: "com.microsoft"
   }
   input {
@@ -78,6 +81,41 @@ graph {
           }
           dim {
             dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "B"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "Z"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
           }
           dim {
             dim_value: 2

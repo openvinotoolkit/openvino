@@ -16,7 +16,12 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 OutputVector fused_conv(const Node& node) {
-    const auto conv_res = conv(node).at(0);
+    auto conv_res = conv(node).at(0);
+
+    if (node.get_ng_inputs().size() == 4) {  // Z input provided
+        conv_res = std::make_shared<default_opset::Add>(conv_res, node.get_ng_inputs()[3]);
+    }
+
     const auto activation_type = node.get_attribute_value<std::string>("activation");
     const auto activation_params = node.get_attribute_value<std::vector<float>>("activation_params", {});
 
