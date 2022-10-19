@@ -76,7 +76,6 @@ function(register_extra_modules)
     set(OpenVINODeveloperPackage_DIR "${CMAKE_BINARY_DIR}/runtime")
     set(OpenVINO_DIR ${CMAKE_BINARY_DIR})
 
-
     function(generate_fake_dev_package NS)
         if(NS STREQUAL "openvino")
             set(devconfig_file "${OpenVINODeveloperPackage_DIR}/OpenVINODeveloperPackageConfig.cmake")
@@ -90,7 +89,9 @@ function(register_extra_modules)
 
         foreach(target IN LISTS ${openvino_export_components})
             if(target)
-                file(APPEND "${devconfig_file}" "add_library(${NS}::${target} ALIAS ${target})\n")
+                file(APPEND "${devconfig_file}" "if(NOT TARGET ${NS}::${target})
+    add_library(${NS}::${target} ALIAS ${target})
+endif()\n")
             endif()
         endforeach()
     endfunction()
