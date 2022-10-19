@@ -41,6 +41,11 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, ke
 
     int32_t number_of_features = weights_layout.group() * weights_layout.ofm();
 
+    format out_fmt = input_layout.format;
+    if (node.get_preferred_impl_type() == impl_types::onednn && node.get_required_output() != format::any) {
+        out_fmt = node.get_required_output();
+    }
+
     if (desc->with_output_size) {
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                        "User-defined output spatial X",
@@ -66,7 +71,7 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, ke
                            desc->output_size.spatial[0],
                            desc->output_size.spatial[1],
                            desc->output_size.spatial[2]);
-        return {data_type, input_layout.format, output_size};
+        return {data_type, out_fmt, output_size};
     }
 
     int32_t off_factor = -2;
@@ -90,7 +95,7 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, ke
 
     tensor output_size(input_layout.batch(),
                        number_of_features, x, y, z);
-    return {data_type, input_layout.format, output_size};
+    return {data_type, out_fmt, output_size};
 }
 
 std::string deconvolution_inst::to_string(deconvolution_node const& node) {

@@ -8,28 +8,38 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "base_reference_test.hpp"
+#include "util/type_prop.hpp"
 
 using namespace reference_tests;
 using namespace ov;
 
 namespace {
 struct TransposeParams {
-    TransposeParams(const PartialShape& dynamicDataShape, const reference_tests::Tensor& dataTensor, const reference_tests::Tensor& axisTensor,
-                const reference_tests::Tensor& expectedTensor, const std::string& testcaseName = "") :
-                dynamicDataShape(dynamicDataShape), dataTensor(dataTensor), axisTensor(axisTensor),
-                expectedTensor(expectedTensor), testcaseName(testcaseName) {}
+    TransposeParams(const PartialShape& dynamicDataShape,
+                    const reference_tests::Tensor& dataTensor,
+                    const reference_tests::Tensor& axisTensor,
+                    const reference_tests::Tensor& expectedTensor,
+                    const std::string& testcaseName,
+                    const std::pair<std::string, std::string>& expectedException = {})
+        : dynamicDataShape(dynamicDataShape),
+          dataTensor(dataTensor),
+          axisTensor(axisTensor),
+          expectedTensor(expectedTensor),
+          testcaseName(testcaseName),
+          expectedException(expectedException) {}
 
     PartialShape dynamicDataShape;
     reference_tests::Tensor dataTensor;
     reference_tests::Tensor axisTensor;
     reference_tests::Tensor expectedTensor;
     std::string testcaseName;
+    std::pair<std::string,std::string> expectedException;
 };
 
 class ReferenceTransposeLayerTest : public testing::TestWithParam<TransposeParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params);
         if (params.dynamicDataShape.is_static()) {
             inputData = {params.dataTensor.data};
@@ -40,7 +50,7 @@ public:
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<TransposeParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "ddShape=" << param.dynamicDataShape;
         result << "_dType=" << param.dataTensor.type;
@@ -48,12 +58,8 @@ public:
         result << "_aType=" << param.axisTensor.type;
         result << "_aShape=" << param.axisTensor.shape;
         result << "_eType=" << param.expectedTensor.type;
-        if (param.testcaseName != "") {
-            result << "_eShape=" << param.expectedTensor.shape;
-            result << "_=" << param.testcaseName;
-        } else {
-            result << "_eShape=" << param.expectedTensor.shape;
-        }
+        result << "_eShape=" << param.expectedTensor.shape;
+        result << "_=" << param.testcaseName;
         return result.str();
     }
 
@@ -79,7 +85,21 @@ private:
 };
 
 TEST_P(ReferenceTransposeLayerTest, CompareWithRefs) {
-    Exec();
+    const auto& params = GetParam();
+    if (params.expectedException.first.empty()) {
+        Exec();
+    } else {
+        try {
+            Exec();
+            FAIL() << params.expectedException.second;
+        } catch (const ov::Exception& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), params.expectedException.first);
+        } catch (const std::exception& error) {
+            FAIL() << "Failed for unexpected reason: " << error.what();
+        } catch (...) {
+            FAIL() << "Failed for unknown reason";
+        }
+    }
 }
 
 template <element::Type_t IN_ET>
@@ -146,6 +166,31 @@ std::vector<TransposeParams> generateTransposeParams() {
     return transposeParams;
 }
 
+template <element::Type_t IN_ET>
+std::vector<TransposeParams> generateThrowingTransposeParams() {
+    using T = typename element_type_traits<IN_ET>::value_type;
+    return std::vector<TransposeParams>{
+        TransposeParams(PartialShape::dynamic(),
+                        reference_tests::Tensor(IN_ET, {2, 3, 1}, std::vector<T>{1, 2, 3, 4, 5, 6}),
+                        reference_tests::Tensor(element::i64, {3}, std::vector<int64_t>{2, 1, 2}),
+                        reference_tests::Tensor(IN_ET, {2, 3, 1}, std::vector<T>{1, 2, 3, 4, 5, 6}),
+                        "duplicated_axes_values",
+                        {"not valid for input shape", "Duplicated axes values not detected"}),
+        TransposeParams(PartialShape::dynamic(),
+                        reference_tests::Tensor(IN_ET, {2, 3, 1}, std::vector<T>{1, 2, 3, 4, 5, 6}),
+                        reference_tests::Tensor(element::i64, {3}, std::vector<int64_t>{0, 1, 3}),
+                        reference_tests::Tensor(IN_ET, {2, 3, 1}, std::vector<T>{1, 2, 3, 4, 5, 6}),
+                        "out_of_shape_axes_values",
+                        {"not valid for input shape", "Out of shape axes not detected"}),
+        TransposeParams(PartialShape::dynamic(),
+                        reference_tests::Tensor(IN_ET, {2, 3, 1}, std::vector<T>{1, 2, 3, 4, 5, 6}),
+                        reference_tests::Tensor(element::i64, {3}, std::vector<int64_t>{-1, -2, -3}),
+                        reference_tests::Tensor(IN_ET, {2, 3, 1}, std::vector<T>{1, 4, 2, 5, 3, 6}),
+                        "negative_axes_values",
+                        {"not valid for input shape", "Negative axes for Transpose were not supported before"}),
+    };
+}
+
 std::vector<TransposeParams> generateTransposeCombinedParams() {
     const std::vector<std::vector<TransposeParams>> transposeTypeParams {
         generateTransposeParams<element::Type_t::i8>(),
@@ -158,6 +203,8 @@ std::vector<TransposeParams> generateTransposeCombinedParams() {
         generateTransposeParams<element::Type_t::u64>(),
         generateTransposeParams<element::Type_t::f16>(),
         generateTransposeParams<element::Type_t::f32>(),
+        generateThrowingTransposeParams<element::Type_t::f32>(),
+        generateThrowingTransposeParams<element::Type_t::i32>(),
     };
     std::vector<TransposeParams> combinedParams;
 

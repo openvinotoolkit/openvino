@@ -36,6 +36,12 @@ Include next files to work with OpenVINO™ Runtime:
 
 @endsphinxtab
 
+@sphinxtab{C}
+
+@snippet docs/snippets/src/main.c include
+
+@endsphinxtab
+
 @endsphinxtabset
 
 Use the following code to create OpenVINO™ Core to manage available devices and read model objects:
@@ -51,6 +57,12 @@ Use the following code to create OpenVINO™ Core to manage available devices an
 @sphinxtab{Python}
 
 @snippet docs/snippets/src/main.py part1
+
+@endsphinxtab
+
+@sphinxtab{C}
+
+@snippet docs/snippets/src/main.c part1
 
 @endsphinxtab
 
@@ -128,6 +140,38 @@ Compile the model for a specific device using `ov::Core::compile_model()`:
 
 @endsphinxtab
 
+@sphinxtab{C}
+
+@sphinxtabset
+
+@sphinxtab{IR}
+
+@snippet docs/snippets/src/main.c part2_1
+
+@endsphinxtab
+
+@sphinxtab{ONNX}
+
+@snippet docs/snippets/src/main.c part2_2
+
+@endsphinxtab
+
+@sphinxtab{PaddlePaddle}
+
+@snippet docs/snippets/src/main.c part2_3
+
+@endsphinxtab
+
+@sphinxtab{ov::Model}
+
+@snippet docs/snippets/src/main.c part2_4
+
+@endsphinxtab
+
+@endsphinxtabset
+
+@endsphinxtab
+
 @endsphinxtabset
 
 The `ov::Model` object represents any models inside the OpenVINO™ Runtime.
@@ -155,6 +199,12 @@ To learn how to change the device configuration, read the [Query device properti
 
 @endsphinxtab
 
+@sphinxtab{C}
+
+@snippet docs/snippets/src/main.c part3
+
+@endsphinxtab
+
 @endsphinxtabset
 
 ## Step 4. Set Inputs
@@ -175,6 +225,12 @@ You can use external memory to create `ov::Tensor` and use the `ov::InferRequest
 
 @endsphinxtab
 
+@sphinxtab{C}
+
+@snippet docs/snippets/src/main.c part4
+
+@endsphinxtab
+
 @endsphinxtabset
 
 ## Step 5. Start Inference
@@ -192,6 +248,12 @@ OpenVINO™ Runtime supports inference in either synchronous or asynchronous mod
 @sphinxtab{Python}
 
 @snippet docs/snippets/src/main.py part5
+
+@endsphinxtab
+
+@sphinxtab{C}
+
+@snippet docs/snippets/src/main.c part5
 
 @endsphinxtab
 
@@ -217,28 +279,72 @@ Go over the output tensors and process the inference results.
 
 @endsphinxtab
 
+@sphinxtab{C}
+
+@snippet docs/snippets/src/main.c part6
+
+@endsphinxtab
+
 @endsphinxtabset
 
-## Step 7. Link and Build Your Application with OpenVINO™ Runtime (example)
+## Step 7. Release the allocated objects (only for C)
 
-This step may differ for different projects. In this example, a C++ application is used, together with CMake for project configuration.
+To avoid memory leak, applications developed with C API need to release the allocated objects in order.
+
+@sphinxtabset
+
+@sphinxtab{C}
+
+@snippet docs/snippets/src/main.c part8
+
+@endsphinxtab
+
+@endsphinxtabset
+
+## Step 8. Link and Build Your Application with OpenVINO™ Runtime (example)
+
+This step may differ for different projects. In this example, a C++ & C application is used, together with CMake for project configuration.
+
+### Create Structure for project:
+
+@sphinxtabset
+
+@sphinxtab{C++}
+
+@snippet docs/snippets/src/main.cpp part7
+
+@endsphinxtab
+
+@sphinxtab{C}
+
+@snippet docs/snippets/src/main.c part7
+
+@endsphinxtab
+
+@endsphinxtabset
+
+### Create Cmake Script
 
 For details on additional CMake build options, refer to the [CMake page](https://cmake.org/cmake/help/latest/manual/cmake.1.html#manual:cmake(1)).
 
-### Create a structure for the project:
-   ``` sh
-   project/
-       ├── CMakeLists.txt  - CMake file to build
-       ├── ...             - Additional folders like includes/
-       └── src/            - source folder
-           └── main.cpp
-   build/                  - build directory
-       ...      
-   ```
+@sphinxtabset
 
-### Include OpenVINO™ Runtime libraries in `project/CMakeLists.txt`
+@sphinxtab{C++}
 
-   @snippet snippets/CMakeLists.txt cmake:integration_example
+@snippet snippets/CMakeLists.txt cmake:integration_example_cpp
+
+@endsphinxtab
+
+@sphinxtab{C}
+
+@snippet snippets/CMakeLists.txt cmake:integration_example_c
+
+@endsphinxtab
+
+@endsphinxtabset
+
+
+### Build Project
 
 To build your project using CMake with the default build tools currently available on your machine, execute the following commands:
 
@@ -250,11 +356,11 @@ cmake --build .
 
 ## Additional Resources
 
- - See the [OpenVINO Samples](Samples_Overview.md) page or the [Open Model Zoo Demos](https://docs.openvino.ai/latest/omz_demos.html) page for specific examples of how OpenVINO pipelines are implemented for applications like image classification, text prediction, and many others.
+ - See the [OpenVINO Samples](Samples_Overview.md) page or the [Open Model Zoo Demos](https://docs.openvino.ai/nightly/omz_demos.html) page for specific examples of how OpenVINO pipelines are implemented for applications like image classification, text prediction, and many others.
  - [OpenVINO™ Runtime Preprocessing](./preprocessing_overview.md)
  - [Using Encrypted Models with OpenVINO&trade;](./protecting_model_guide.md)
  - [OpenVINO Samples](Samples_Overview.md)
- - [Open Model Zoo Demos](https://docs.openvino.ai/latest/omz_demos.html)
+ - [Open Model Zoo Demos](https://docs.openvino.ai/nightly/omz_demos.html)
 
 [ie_api_flow_cpp]: img/BASIC_IE_API_workflow_Cpp.svg
 [ie_api_use_cpp]: img/IMPLEMENT_PIPELINE_with_API_C.svg
