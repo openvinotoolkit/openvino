@@ -44,6 +44,14 @@ void op::Concat::validate_and_infer_types() {
                               "Argument element types are inconsistent.");
         input_shapes.push_back(get_input_partial_shape(i));
     }
+    auto output_pshape = input_shapes[0];
+    const auto& output_rank = output_pshape.rank();
+    if (output_rank.is_static()) {
+        int64_t axis = get_axis();
+        if (get_concatenation_axis() < 0) {
+            set_concatenation_axis(ov::normalize_axis(this, axis, output_rank));
+        }
+    }
     shape_infer(this, input_shapes, output_shapes);
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }

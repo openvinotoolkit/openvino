@@ -27,6 +27,7 @@ TEST(StaticShapeInferenceTest, ConcatNegativeAxisTest) {
     // Test StaticShape
     std::vector<StaticShape> static_input_shapes = {StaticShape{3, 4, 5}, StaticShape{2, 4, 5}},
                              static_output_shapes = {StaticShape{}};
+    concat->set_concatenation_axis(0);
     shape_inference(concat.get(), static_input_shapes, static_output_shapes);
     ASSERT_EQ(static_output_shapes[0], StaticShape({5, 4, 5}));
 }

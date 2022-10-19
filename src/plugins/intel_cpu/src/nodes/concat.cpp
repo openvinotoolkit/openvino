@@ -58,6 +58,9 @@ Concat::Concat(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
     }
 
     const auto inRank = getInputShapeAtPort(0).getRank();
+    if (inRank > 6) {
+        IE_THROW() << "Concat node with name '" << getName() << "' has rank greater than " << axis;
+    }
     auto concatOp = ngraph::as_type_ptr<ngraph::op::v0::Concat>(op);
     auto axis = concatOp->get_axis();
     if (axis < 0) {
@@ -367,12 +370,8 @@ void Concat::prepareParams() {
         IE_THROW() << "Destination memory didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
-
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
-        inputStrides[i] = srcMemPtr->getDescPtr()->as<BlockedMemoryDesc>()->getStrides();
-    }
-
+    auto outputStride = dstMemPtr->getDescPtr()->as<BlockedMemoryDesc>()->getStrides();
+    size_t curConcatOffset = 0;
     const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemPtr->GetDataType());
     const auto& outputOrder = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getDescPtr()->as<BlockedMemoryDesc>()->getOrder();
     for (int64_t i = 0; i < outputOrder.size(); i++) {
@@ -381,11 +380,16 @@ void Concat::prepareParams() {
             break;
         }
     }
-    auto outputStride = dstMemPtr->getDescPtr()->as<BlockedMemoryDesc>()->getStrides();
-    size_t curConcatOffset = 0;
+
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
         const auto& inputShape = srcMemPtr->getDescPtr()->as<BlockedMemoryDesc>()->getBlockDims();
+        inputStrides[i] = srcMemPtr->getDescPtr()->as<BlockedMemoryDesc>()->getStrides();
+        if (!srcMemPtr || !srcMemPtr->isAllocated()) {
+            auto parent = getParentEdgeAt(i)->getParent();
+            IE_THROW() << "Source memory from " << parent->getName() << " didn't allocate for node "
+                       << getName() << ".";
+        }
         size_t nElem = 1;
         for (size_t j = reorderedAxis; j < inputShape.size(); j++) {
             nElem *= inputShape[j];
@@ -395,7 +399,7 @@ void Concat::prepareParams() {
         curConcatOffset += inputShape[reorderedAxis];
         auto desc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
         srcsOffset[i] = desc.data.offset0;
-     }
+    }
 }
 
 size_t Concat::inverseOrder(const SizeVector& order, size_t axis) {
