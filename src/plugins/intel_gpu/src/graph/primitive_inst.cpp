@@ -10,10 +10,13 @@
 #include "arg_max_min_inst.h"
 #include "fully_connected_inst.h"
 #include "convolution_inst.h"
+#include "strided_slice_inst.h"
+#include "crop_inst.h"
 #include "deconvolution_inst.h"
 #include "shape_of_inst.h"
 #include "strided_slice_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -119,10 +122,10 @@ void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout
     }
 }
 
-void primitive_inst::set_output_memory(memory::ptr mem_new, bool check) {
+void primitive_inst::set_output_memory(memory::ptr mem_new, bool check, size_t idx) {
     auto& eng = _network.get_engine();
     // skip all the buzz if no action actually required
-    if (_output && eng.is_the_same_buffer(*mem_new, *_output)) {
+    if (_outputs[idx] && eng.is_the_same_buffer(*mem_new, *_outputs[idx])) {
         return;
     }
 
@@ -132,9 +135,9 @@ void primitive_inst::set_output_memory(memory::ptr mem_new, bool check) {
         check_memory_to_set(*mem_new, ol);
 
     if (_node.is_constant()) {
-        mem_new->copy_from(_network.get_stream(), *_output);
+        mem_new->copy_from(_network.get_stream(), *_outputs[idx]);
     } else {
-        _output = mem_new;
+        _outputs[idx] = mem_new;
     }
 }
 
@@ -151,12 +154,18 @@ void primitive_inst::update_shape() {
         }
     }
 
-    if (input_shape_changed)
-        set_shape_change();
-
     // We assume that tensor ranks are static, thus shape_of doesn't need to update anything even if input shape is dynamic
-    if (_node.is_type<shape_of>())
+    if (_node.is_type<shape_of>() && !input_shape_changed)
         return;
+
+    // Even though the predecessors' shapes are not changed, the output shape might be udpated by the mem_dep
+    auto memory_deps = _node.get_const_memory_deps();
+    for (auto& i : _node.get_shape_infer_dependencies()) {
+        if (memory_deps.count(i) > 0) {
+            continue;
+        }
+        input_shape_changed = true;
+    }
 
     // Strided slice loads data from {1,2,3} dependencies in impl::create method.
     // It means that this data must be put into impl_params map
@@ -173,7 +182,9 @@ void primitive_inst::update_shape() {
     if (!strided_slice_wa && !input_shape_changed && !_node.generates_dynamic_output() && _impl_params->output_layout.is_static())
         return;
 
-    auto memory_deps = _node.get_const_memory_deps();
+    if (input_shape_changed)
+        set_shape_change();
+
     std::vector<event::ptr> dependencies_events;
     auto queue_type = get_network().get_stream().get_queue_type();
     bool has_runtime_deps = false;
@@ -205,6 +216,7 @@ void primitive_inst::update_shape() {
     }
 
     _impl_params->memory_deps = memory_deps;
+
     auto new_layouts = _node.type()->calc_output_layouts(_node, *_impl_params);
     auto new_layout = new_layouts.empty() ? _node.type()->calc_output_layout(_node, *_impl_params) : new_layouts[0];
     new_layout.data_padding = padding::max(_node.get_primitive()->output_padding, new_layout.data_padding);
@@ -236,21 +248,21 @@ void primitive_inst::realloc_if_needed() {
     if (_node.is_type<input_layout>())
         return;
 
-    bool can_reuse_buffer = _output && actual_layout.count() <= max_output_layout_size;
+    bool can_reuse_buffer = _outputs[0] && actual_layout.count() <= max_output_layout_size;
 
     if (can_reuse_buffer) {
         GPU_DEBUG_IF(debug_config->verbose >= 4) {
             GPU_DEBUG_COUT << id() << ": reuse previously allocated output buffer" << std::endl;
         }
-        _output = _network.get_engine().reinterpret_buffer(*_output, actual_layout);
+        _outputs[0] = _network.get_engine().reinterpret_buffer(*_outputs[0], actual_layout);
     } else {
         GPU_DEBUG_IF(debug_config->verbose >= 4) {
             GPU_DEBUG_COUT << id() << ": realloc output memory. "
                            <<  " Current buffer_size=" << max_output_layout_size
                            <<  " Requested buffer_size=" << actual_layout.count() << std::endl;
         }
-        _output = allocate_output();
-        max_output_layout_size = _output->get_layout().count();
+        _outputs = allocate_outputs();
+        max_output_layout_size = _outputs[0]->get_layout().count();
     }
 }
 
@@ -327,9 +339,9 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
 
             OPENVINO_ASSERT(outputs.find(last_prim_id) != outputs.end(), "[GPU] Can't find output primitive ", last_prim_id, " for unfused subgraph");
 
-            _output = outputs.at(last_prim_id).get_memory();
+            _outputs[0] = outputs.at(last_prim_id).get_memory();
 
-            _impl_params->output_layout = _output->get_layout();
+            _impl_params->output_layout = _outputs[0]->get_layout();
             return outputs.at(last_prim_id).get_event();
         }
 
@@ -418,6 +430,9 @@ void primitive_inst::build_deps() {
         _deps = _network.get_primitives(_node.get_dependencies());
         _exec_deps = build_exec_deps(_deps);
     }
+    if (_deps_new.empty() && !_node.get_dependencies_new().empty()) {
+        _deps_new = _network.get_primitives(_node.get_dependencies_new());
+    }
 }
 
 primitive_inst::primitive_inst(network& network, program_node const& node, bool allocate_memory)
@@ -425,7 +440,7 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     , _node(node)
     , _impl_params(node.get_kernel_impl_params())
     , _impl(node.get_selected_impl() ? node.get_selected_impl()->clone() : nullptr)
-    , _output()
+    , _outputs({memory::ptr()})
     , _output_changed(false)
     , _mem_allocated(allocate_memory)
     , _is_dynamic(_node.is_dynamic() || _node.generates_dynamic_output()) {
@@ -449,16 +464,16 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
                                                        && !node.is_type<experimental_detectron_roi_feature_extractor>()) {
             for (auto& user : node.get_users())
                 if (user->is_type<mutable_data>())
-                    _output = user->as<mutable_data>().get_attached_memory_ptr();
+                    _outputs[0] = user->as<mutable_data>().get_attached_memory_ptr();
         } else {
-            _output = allocate_output();
+            _outputs = allocate_outputs();
         }
     }
     if (_impl)
         _impl->set_node_params(node);
 
-    if (_output)
-        max_output_layout_size = _output->get_layout().count();
+    if (_outputs[0])
+        max_output_layout_size = _outputs[0]->get_layout().count();
 }
 
 void primitive_inst::allocate_internal_buffers(void) {
@@ -470,11 +485,13 @@ void primitive_inst::allocate_internal_buffers(void) {
 
     auto device_mem_acc = [&](size_t a, std::shared_ptr<primitive_inst> b) {
         if (!b->mem_allocated()) return a;
-        if (b->output_memory().get_allocation_type() == allocation_type::usm_device ||
-            b->output_memory().get_allocation_type() == allocation_type::cl_mem)
-            return a + b->output_memory().size();
-        else
-            return a;
+        auto res = a;
+        for (size_t i = 0; i < b->outputs_memory_count(); ++i) {
+            if (b->output_memory(i).get_allocation_type() == allocation_type::usm_device ||
+                b->output_memory(i).get_allocation_type() == allocation_type::cl_mem)
+                return a + b->output_memory().size();
+        }
+        return res;
     };
 
     auto& engine = get_network().get_engine();
@@ -484,9 +501,10 @@ void primitive_inst::allocate_internal_buffers(void) {
     // Decided the limitation as 85 % empirically, but still it needs further investigation.
     const auto& inst_deps = _network.get_primitives(_node.get_dependencies());
 
-    auto total_device_mem_size = std::accumulate(inst_deps.begin(), inst_deps.end(), 0, device_mem_acc);
-    if (_output->get_allocation_type() ==  allocation_type::usm_device) {
-        total_device_mem_size += _output->size();
+    auto total_device_mem_size = std::accumulate(inst_deps.begin(), inst_deps.end(), size_t(0), device_mem_acc);
+    for (const auto& output : _outputs) {
+        if (output->get_allocation_type() ==  allocation_type::usm_device)
+            total_device_mem_size += output->size();
     }
 
     int64_t available_device_mem_size = engine.get_device_info().max_global_mem_size - total_device_mem_size;
@@ -687,8 +705,13 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     }
 }
 
-memory::ptr primitive_inst::allocate_output() {
-    return allocate_output(get_network().get_engine(), _network.get_memory_pool(), _node, *_impl_params, get_network_id(), _network.is_internal());
+std::vector<memory::ptr> primitive_inst::allocate_outputs() {
+    std::vector<memory::ptr> outputs;
+    for (size_t i = 0; i < get_node().get_outputs_count() ; ++i) {
+        outputs.push_back(allocate_output(get_network().get_engine(), _network.get_memory_pool(), _node, *_impl_params,
+                          get_network_id(), _network.is_internal()));
+    }
+    return outputs;
 }
 
 std::vector<std::shared_ptr<primitive_inst>> primitive_inst::build_exec_deps(

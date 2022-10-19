@@ -11,8 +11,9 @@ project(OpenVINOPython DESCRIPTION "OpenVINO Runtime Python bindings")
 #
 
 if(NOT DEFINED OpenVINO_SOURCE_DIR)
-    find_package(InferenceEngineDeveloperPackage REQUIRED)
-    set(OpenVINO_BINARY_DIR "${InferenceEngineDeveloperPackage_DIR}")
+    find_package(OpenVINODeveloperPackage REQUIRED
+                 PATHS "${InferenceEngineDeveloperPackage_DIR}")
+    set(OpenVINO_BINARY_DIR "${OpenVINODeveloperPackage_DIR}")
 endif()
 
 #
@@ -36,15 +37,23 @@ function(ov_check_python_build_conditions)
     find_host_package(PythonInterp 3 ${find_package_mode})
     if(PYTHONINTERP_FOUND)
         function(_ov_find_python_libs_new)
-            set(PYBIND11_PYTHON_VERSION ${PYTHON_VERSION_STRING})
-            list(APPEND CMAKE_MODULE_PATH "${OpenVINOPython_SOURCE_DIR}/thirdparty/pybind11/tools")
+            set(pybind11_tools_dir "${OpenVINOPython_SOURCE_DIR}/thirdparty/pybind11/tools")
+            if(EXISTS ${pybind11_tools_dir})
+                list(APPEND CMAKE_MODULE_PATH ${pybind11_tools_dir})
+            else()
+                find_package(pybind11 QUIET)
+                list(APPEND CMAKE_MODULE_PATH "${pybind11_DIR}")
+            endif()
             # use libraries with the same version as python itself
+            set(PYBIND11_PYTHON_VERSION ${PYTHON_VERSION_STRING})
             find_package(PythonLibsNew ${PYBIND11_PYTHON_VERSION} EXACT ${find_package_mode})
             set(PYTHONLIBSNEW_FOUND ${PYTHONLIBS_FOUND} PARENT_SCOPE)
         endfunction()
         # try to find python libraries
         _ov_find_python_libs_new()
         if(PYTHONLIBSNEW_FOUND)
+            # clear Python_ADDITIONAL_VERSIONS to find only python library matching PYTHON_EXECUTABLE
+            unset(Python_ADDITIONAL_VERSIONS CACHE)
             find_package(PythonLibs ${PYTHON_VERSION_STRING} EXACT ${find_package_mode})
         endif()
         if(NOT PYTHONLIBS_FOUND)
@@ -103,14 +112,6 @@ ov_check_python_build_conditions()
 
 ie_option(ENABLE_PYTHON "Enables OpenVINO Python API build" ${ENABLE_PYTHON_DEFAULT})
 
-if(NOT ENABLE_PYTHON)
-    if(CMAKE_SOURCE_DIR STREQUAL OpenVINOPython_SOURCE_DIR)
-        message(FATAL_ERROR "Python OpenVINO API requirements are not satisfied. Please, install ${ie_python_req} and ${ov_python_req}")
-    else()
-        return()
-    endif()
-endif()
-
 #
 # Check for wheel package
 #
@@ -139,15 +140,28 @@ if(LINUX)
     endif()
 endif()
 
-# this option should not be a part of InferenceEngineDeveloperPackage
+# this option should not be a part of OpenVINODeveloperPackage
 # since wheels can be built only together with main OV build
 ie_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ${ENABLE_WHEEL_DEFAULT} "ENABLE_PYTHON" OFF)
+
+if(NOT ENABLE_PYTHON)
+    if(CMAKE_SOURCE_DIR STREQUAL OpenVINOPython_SOURCE_DIR)
+        message(FATAL_ERROR "Python OpenVINO API requirements are not satisfied. Please, install ${ie_python_req} and ${ov_python_req}")
+    else()
+        return()
+    endif()
+endif()
 
 #
 # Build the code
 #
 
-add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
+find_package(pybind11 QUIET)
+
+if(NOT pybind11_FOUND)
+    add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
+endif()
+
 add_subdirectory(src/compatibility/pyngraph)
 add_subdirectory(src/pyopenvino)
 
@@ -166,6 +180,6 @@ if(ENABLE_TESTS)
     add_subdirectory(tests/mock/pyngraph_fe_mock_api)
 endif()
 
-if(InferenceEngineDeveloperPackage_FOUND)
+if(OpenVINODeveloperPackage_FOUND)
     ie_cpack(${IE_CPACK_COMPONENTS_ALL})
 endif()

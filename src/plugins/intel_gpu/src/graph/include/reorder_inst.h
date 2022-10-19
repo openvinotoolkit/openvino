@@ -7,8 +7,8 @@
 
 #include "intel_gpu/primitives/reorder.hpp"
 #include "primitive_inst.h"
-#include "kernel_selector/core/actual_kernels/reorder/reorder_kernel_base.h"
-#include "kernel_selector/common/tensor_type.h"
+#include "kernel_selector/kernels/reorder/reorder_kernel_base.h"
+#include "kernel_selector/tensor_type.h"
 
 #include <string>
 #include <memory>
@@ -55,6 +55,8 @@ class typed_primitive_inst<reorder> : public typed_primitive_inst_base<reorder> 
     using parent = typed_primitive_inst_base<reorder>;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(reorder_node const& /*node*/, const kernel_impl_params& impl_param);
     static layout calc_output_layout(reorder_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(reorder_node const& node);
 
