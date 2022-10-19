@@ -4,7 +4,6 @@
 import pytest
 
 from common.tf_layer_test_class import CommonTFLayerTest
-from common.utils.tf_utils import permute_nchw_to_nhwc
 
 
 class TestConcat(CommonTFLayerTest):
@@ -16,8 +15,7 @@ class TestConcat(CommonTFLayerTest):
         with tf.compat.v1.Session() as sess:
             placeholders = []
             for ind, input_shape in enumerate(input_shapes):
-                tf_shape = permute_nchw_to_nhwc(input_shape, use_new_frontend)
-                placeholders.append(tf.compat.v1.placeholder(tf.float32, tf_shape, 'input_{}'.format(ind)))
+                placeholders.append(tf.compat.v1.placeholder(tf.float32, input_shape, 'input_{}'.format(ind)))
             if len(input_shapes) == 1:
                 tf.concat(values=placeholders, axis=axis, name='concat')
             elif is_v2:
