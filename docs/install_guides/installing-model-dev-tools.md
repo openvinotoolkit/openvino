@@ -14,7 +14,7 @@ In both cases, Python 3.6 - 3.10 need be installed on your machine before starti
 
 > **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. 
 
-### <a name="python-developers"></a>For Python Developers
+## <a name="python-developers"></a>For Python Developers
 
 If you are a Python developer, follow the steps in the <a href="openvino_docs_install_guides_install_dev_tools.html#install-dev-tools">Installing OpenVINO Development Tools</a> section on this page to install it. Installing OpenVINO Development Tools will also install OpenVINO Runtime as a dependency, so you don’t need to install OpenVINO Runtime separately. This option is recommended for new users.
    
