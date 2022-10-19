@@ -45,6 +45,7 @@ Compared to the batching, the parallelism is somewhat transposed (performed over
 
 @endsphinxdirective
 
+
 Keep in mind that [high-level performance hints](../OV_Runtime_UG/performance_hints.md) allow the implementation to select the optimal number of streams depending on model's compute demands and CPU capabilities, including [int8 inference](@ref openvino_docs_model_optimization_guide) hardware acceleration, number of cores, etc.
 
 ## Automatic Batching Internals
