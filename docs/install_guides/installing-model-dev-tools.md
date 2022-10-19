@@ -8,7 +8,9 @@ OpenVINO Development Tools is a set of utilities that make it easy to develop an
 * Post-Training Optimization Tool
 * Model Downloader and other Open Model Zoo tools
 
-The instructions on this page show how to install OpenVINO Development Tools. If you are a Python developer, it only takes a few simple steps to install the tools with PyPI: see the <a href="openvino_docs_install_guides_install_dev_tools.html#python-developers">For Python Developers</a> section for more information. If you are developing in C++, OpenVINO Runtime must be installed separately before installing OpenVINO Development Tools: see the <a href="openvino_docs_install_guides_install_dev_tools.html#cpp-developers">For C++ Developers</a> section for more information. In both cases, you will need to have Python 3.6 - 3.9 installed on your machine before starting.
+The instructions on this page show how to install OpenVINO Development Tools. If you are a Python developer, it only takes a few simple steps to install the tools with PyPI: see the <a href="openvino_docs_install_guides_install_dev_tools.html#python-developers">For Python Developers</a> section for more information. If you are developing in C++, OpenVINO Runtime must be installed separately before installing OpenVINO Development Tools: see the <a href="openvino_docs_install_guides_install_dev_tools.html#cpp-developers">For C++ Developers</a> section for more information.
+
+In both cases, Python 3.6 - 3.10 need be installed on your machine before starting.
 
 > **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. 
 
