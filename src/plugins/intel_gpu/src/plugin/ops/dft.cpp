@@ -5,6 +5,7 @@
 #include <intel_gpu/plugin/common_utils.hpp>
 #include <intel_gpu/plugin/program.hpp>
 #include <intel_gpu/primitives/dft.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
 #include <ngraph/op/constant.hpp>
 #include <ngraph/op/dft.hpp>
 
@@ -45,6 +46,15 @@ void createDft(Program& p,
     }
 
     const cldnn::dft prim(layer_name, inputs.front(), axes, signal_size, out_shape, direction, mode);
+
+    // We should add reorder for IRDFT case to make output rank equal input rank - 1
+    if (direction == cldnn::dft_direction::inverse || mode == cldnn::dft_mode::real) {
+        const cldnn::reorder reorder(layer_name + "_cldnn_in_reorder",
+                                     layer_name,
+                                     cldnn::format::get_default_format(out_shape.size()),
+                                     cldnn::element_type_to_data_type(op->get_output_element_type(0)));
+        p.add_primitive(*op, reorder);
+    }
 
     p.add_primitive(*op, prim);
 }
