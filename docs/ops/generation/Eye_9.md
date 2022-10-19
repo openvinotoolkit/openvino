@@ -1,4 +1,4 @@
-## Eye <a name="Eye"></a> {#openvino_docs_ops_generation_Eye_9}
+## Eye {#openvino_docs_ops_generation_Eye_9}
 
 **Versioned name**: *Eye-9*
 
@@ -13,7 +13,7 @@
 
 Example 1. *Eye* output with `output_type` = `i32`:
 
-``` 
+```
 num_rows = 3
 
 num_columns = 4
@@ -27,7 +27,7 @@ output  = [[0 0 1 0]
 
 Example 2. *Eye* output with `output_type` = `i32`:
 
-``` 
+```
 num_rows = 3
 
 num_columns = 4
@@ -41,7 +41,7 @@ output  = [[0 0 0 0]
 
 Example 3. *Eye* output with `output_type` = `f16`:
 
-``` 
+```
 num_rows = 2
 
 diagonal_index = 5
