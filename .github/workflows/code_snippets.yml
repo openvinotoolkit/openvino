@@ -32,7 +32,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake -DCMAKE_BUILD_TYPE=Release ..
+          cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -DCMAKE_BUILD_TYPE=Release ..
       
       - name: Build snippets
         run: |
