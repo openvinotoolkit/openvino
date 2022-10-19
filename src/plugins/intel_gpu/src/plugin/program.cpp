@@ -320,7 +320,6 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
     for (const auto& op : ops) {
         if (op->is_dynamic()) {
             allow_new_shape_infer = true;
-            options.set_option(cldnn::build_option::is_dynamic(true));
             break;
         }
     }

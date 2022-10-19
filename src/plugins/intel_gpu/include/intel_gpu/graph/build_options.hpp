@@ -61,8 +61,7 @@ enum class build_option_type {
     load_program,
     force_implementations,
     partial_build_program,
-    allow_new_shape_infer,
-    is_dynamic
+    allow_new_shape_infer
 };
 
 /// @brief Tuning mode.
@@ -147,9 +146,6 @@ struct build_option {
     static std::shared_ptr<const build_option> partial_build_program(bool set = false);
 
     static std::shared_ptr<const build_option> allow_new_shape_infer(bool set = false);
-
-    /// @brief Specifies the program is to be built for dynamic shape execution
-    static std::shared_ptr<const build_option> is_dynamic(bool set = false);
 
     virtual ~build_option() = default;
 
@@ -382,12 +378,6 @@ struct build_option_traits<build_option_type::allow_new_shape_infer> {
     static std::shared_ptr<const build_option> make_default() { return build_option::allow_new_shape_infer(); }
 };
 
-template <>
-struct build_option_traits<build_option_type::is_dynamic> {
-    typedef build_option_bool<build_option_type::is_dynamic> object_type;
-    static std::shared_ptr<const build_option> make_default() { return build_option::is_dynamic(); }
-};
-
 #endif
 }  // namespace detail
 
@@ -443,10 +433,6 @@ inline std::shared_ptr<const build_option> build_option::partial_build_program(b
 
 inline std::shared_ptr<const build_option> build_option::allow_new_shape_infer(bool enable) {
     return std::make_shared<build_option_bool<build_option_type::allow_new_shape_infer>>(enable);
-}
-
-inline std::shared_ptr<const build_option> build_option::is_dynamic(bool enable) {
-    return std::make_shared<build_option_bool<build_option_type::is_dynamic>>(enable);
 }
 
 #endif
