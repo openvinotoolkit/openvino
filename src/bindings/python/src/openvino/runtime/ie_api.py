@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from functools import singledispatch
-from typing import Any, Union, Dict
+from typing import Any, Iterable, Union, Dict
 from pathlib import Path
 
 import numpy as np
@@ -280,6 +280,14 @@ class AsyncInferQueue(AsyncInferQueueBase):
     InferRequests and provides synchronization functions to control flow of
     a simple pipeline.
     """
+    def __iter__(self) -> Iterable[InferRequest]:
+        """Allows to iterate over AsyncInferQueue.
+
+        :return: a map object (which is an iterator) that yields InferRequests.
+        :rtype: Iterable[openvino.runtime.InferRequest]
+        """
+        return map(lambda x: InferRequest(x), super().__iter__())
+
     def __getitem__(self, i: int) -> InferRequest:
         """Gets InferRequest from the pool with given i id.
 
