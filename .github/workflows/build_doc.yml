@@ -45,11 +45,6 @@ jobs:
           cd build
           cmake -DENABLE_DOCS=ON -DENABLE_PYTHON=ON -DCMAKE_BUILD_TYPE=Release ..
       
-      - name: Build snippets
-        run: |
-          cmake --build . --target ie_docs_snippets -j`nproc`
-        working-directory: build
-
       - name: Build doc
         run: |
           cmake --build . --target sphinx_docs -j`nproc`
