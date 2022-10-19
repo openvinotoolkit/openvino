@@ -3,6 +3,7 @@
 //
 
 #include "concat_shape_inference.hpp"
+
 #include "gtest/gtest.h"
 #include "openvino/op/parameter.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
