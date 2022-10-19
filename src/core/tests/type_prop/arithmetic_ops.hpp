@@ -29,6 +29,30 @@ class ArithmeticOperator : public testing::Test {};
 
 TYPED_TEST_SUITE_P(ArithmeticOperator);
 
+TYPED_TEST_P(ArithmeticOperator, default_constructor) {
+    auto A = std::make_shared<op::Parameter>(element::f32, PartialShape{-1, 4, 1, 6, Dimension(1, 6), Dimension(2, 6)});
+    auto B = std::make_shared<op::Parameter>(element::f32, PartialShape{-1, 1, 5, 6, Dimension(5, 8), Dimension(5, 8)});
+
+    const auto op = std::make_shared<TypeParam>();
+
+    op->set_argument(0, A);
+    op->set_argument(1, B);
+
+    auto autob = op::AutoBroadcastSpec(op::AutoBroadcastType::NONE);
+    op->set_autob(autob);
+    EXPECT_EQ(op->get_autob(), op::AutoBroadcastType::NONE);
+    ASSERT_THROW(op->validate_and_infer_types(), NodeValidationFailure);
+
+    autob = op::AutoBroadcastSpec(op::AutoBroadcastType::NUMPY);
+    op->set_autob(autob);
+    EXPECT_EQ(op->get_autob(), op::AutoBroadcastType::NUMPY);
+
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 4, 5, 6, Dimension(5, 8), Dimension(5, 6)}));
+}
+
 TYPED_TEST_P(ArithmeticOperator, shape_inference_2D) {
     auto A = std::make_shared<op::Parameter>(element::f32, Shape{2, 2});
     auto B = std::make_shared<op::Parameter>(element::f32, Shape{2, 2});
@@ -786,6 +810,8 @@ TYPED_TEST_P(ArithmeticOperator, labels_equal_dynamic_shape_broadcast_none) {
 }
 
 REGISTER_TYPED_TEST_SUITE_P(ArithmeticOperator,
+                            default_constructor,
+
                             // Static shapes
                             shape_inference_2D,
                             shape_inference_4D,
