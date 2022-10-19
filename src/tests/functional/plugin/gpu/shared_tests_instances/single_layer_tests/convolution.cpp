@@ -16,7 +16,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 /* ============= 2D Convolution ============= */
-const std::vector<std::vector<size_t >> kernels = {{3, 3},
+const std::vector<std::vector<size_t >> kernels = {{4, 4},
                                                    {3, 5}};
 const std::vector<std::vector<size_t >> strides = {{1, 1},
                                                    {1, 3}};
@@ -29,7 +29,8 @@ const std::vector<std::vector<size_t >> dilations = {{1, 1},
 const std::vector<size_t> numOutChannels = {1, 5};
 const std::vector<ngraph::op::PadType> padTypes = {
         ngraph::op::PadType::EXPLICIT,
-        ngraph::op::PadType::VALID
+        ngraph::op::PadType::VALID,
+        ngraph::op::PadType::SAME_UPPER
 };
 const auto conv2DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(kernels),
@@ -48,6 +49,16 @@ const auto conv2DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(dilations),
         ::testing::ValuesIn(numOutChannels),
         ::testing::Values(ngraph::op::PadType::VALID)
+);
+
+const auto conv2DParams_AutoPadSameUpper = ::testing::Combine(
+        ::testing::ValuesIn(kernels),
+        ::testing::ValuesIn(strides),
+        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+        ::testing::ValuesIn(dilations),
+        ::testing::ValuesIn(numOutChannels),
+        ::testing::Values(ngraph::op::PadType::SAME_UPPER)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_ExplicitPadding, ConvolutionLayerTest,
@@ -73,6 +84,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid, ConvolutionLayerTest,
                                  ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
                                  ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                          ConvolutionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadSameUppertaylor, ConvolutionLayerTest,
+                         ::testing::Combine(
+                                 conv2DParams_AutoPadSameUpper,
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::Values(InferenceEngine::Layout::ANY),
+                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
+                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         ConvolutionLayerTest::getTestCaseName);
+
 /* ============= 3D Convolution ============= */
 const std::vector<std::vector<size_t >> kernels3d = {{3, 3, 3},
                                                      {3, 5, 3}};

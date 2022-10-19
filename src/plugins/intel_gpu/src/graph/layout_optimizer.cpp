@@ -1032,6 +1032,9 @@ bool layout_optimizer::is_mixed_layout(program_node& prev, program_node& next, b
 layout layout_optimizer::get_expected_layout(layout const& current_layout,
                                              convolution_node const& node,
                                              layout const& weights_layout) {
+    if (node.is_dynamic()) {
+        return current_layout;
+    }
     auto prim = node.get_primitive();
     auto expected_tensor = current_layout.get_tensor();
     auto expected_data_type = current_layout.data_type;
@@ -1863,6 +1866,8 @@ bool layout_optimizer::is_format_optimized(const convolution_node& node, const f
     auto weights_layout = node.weights().get_output_layout();
     auto output_layout = node.calc_output_layout();
     auto prim = node.get_primitive();
+    if (node.is_dynamic())
+        return false;
 
     switch (format) {
         case format::b_fs_yx_fsv16:
