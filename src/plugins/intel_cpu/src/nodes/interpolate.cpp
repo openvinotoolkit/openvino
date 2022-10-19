@@ -1822,14 +1822,14 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
 
     const bool isPlanarApplied = allowPlanarFp32 || allowPlanarI8OrU8;
     const bool isBlkApplied = !isOneChannel || enforceAllSupportedLayouts;
-    const bool isChannelFirstApplied = !isOneChannel || !isPlanarApplied || enforceAllSupportedLayouts;
+    const bool isByChannelApplied = !isOneChannel || !isPlanarApplied || enforceAllSupportedLayouts;
 
     if (implType == impl_desc_type::ref || interpAttrs.mode == InterpolateMode::linear) {
         pushDesc(LayoutType::ncsp, implType);
     } else {
         // blk and by_channel JIT kernel on sse41 or above machine
         if (getInputShapeAtPort(DATA_ID).getRank() == 4 || (getInputShapeAtPort(DATA_ID).getRank() == 5 && interpAttrs.mode != InterpolateMode::cubic)) {
-            if (isChannelFirstApplied) {
+            if (isByChannelApplied) {
                 pushDesc(LayoutType::nspc, implType);
             }
             if (isBlkApplied) {
@@ -1837,6 +1837,9 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
             }
         }
         if (isPlanarApplied) {
+            if (allowPlanarFp32) {
+                implType = impl_desc_type::jit_avx2;
+            }
             pushDesc(LayoutType::ncsp, implType);
         }
     }
