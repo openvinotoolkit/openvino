@@ -15,16 +15,16 @@ class FrameworkNode;
 namespace frontend {
 namespace pytorch {
 
-Output<Node> make_optional_bias(Output<Node> base_op,
+Output<Node> make_optional_bias(const Output<Node>& base_op,
                                 const NodeContext& context,
                                 size_t bias_input_idx,
-                                std::vector<int> unsqueeze_dims = {});
+                                const std::vector<int>& unsqueeze_dims = {});
 
-std::shared_ptr<ov::Node> get_rank_node(ov::Output<ov::Node> node);
+std::shared_ptr<ov::Node> get_rank_node(const Output<Node>& node);
 
 Output<Node> reshape_kernel_for_group(const NodeContext& context,
-                                      Output<Node> input,
-                                      Output<Node> kernel,
+                                      const Output<Node>& input,
+                                      const Output<Node>& kernel,
                                       int64_t groups);
 
 std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorch_model,

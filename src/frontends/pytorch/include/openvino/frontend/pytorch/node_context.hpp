@@ -11,7 +11,7 @@ namespace ov {
 namespace frontend {
 namespace pytorch {
 
-typedef std::map<size_t, Output<Node>> TensorMap;
+typedef std::unordered_map<size_t, Output<Node>> TensorMap;
 
 class NodeContext : public frontend::NodeContext {
 public:
