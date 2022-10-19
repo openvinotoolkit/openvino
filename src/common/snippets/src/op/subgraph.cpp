@@ -11,7 +11,6 @@
 #include "snippets/pass/insert_movebroadcast.hpp"
 #include "snippets/pass/load_movebroadcast_to_broadcastload.hpp"
 #include "snippets/pass/assign_registers.hpp"
-#include "snippets/pass/assign_registers_old.hpp"
 #include "snippets/pass/convert_constants.hpp"
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
 #include "snippets/pass/vector_to_scalar.hpp"
