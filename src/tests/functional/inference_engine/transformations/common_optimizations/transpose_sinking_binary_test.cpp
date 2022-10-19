@@ -953,7 +953,6 @@ INSTANTIATE_TEST_SUITE_P(
 
 // --------------------------------------------------------------------------------------
 
-  
 using CreateGraphBinaryTwoTransposeInputsF = std::function<
     std::shared_ptr<ov::Model>(BinaryFactoryPtr unary_factory, size_t num_binary_ops, ov::element::Type input_type)>;
 
@@ -1087,7 +1086,7 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(size_t num_concat_ops,
     return std::make_shared<ov::Model>(ov::OutputVector{transpose0}, ov::ParameterVector{X});
 }
 
-}  // namespace one_input_tranpose 
+}  // namespace one_input_tranpose
 
 namespace double_transpose {
 
@@ -1152,7 +1151,8 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(size_t num_concat_ops,
 
     return std::make_shared<ov::Model>(ov::OutputVector{transpose0}, ov::ParameterVector{X});
 }
-}
+
+} // namespace double_transpose
 
 } // namespace forward
 
@@ -1162,14 +1162,12 @@ std::shared_ptr<ov::Model> CreateFunction(size_t num_concat_ops,
                                           ov::element::Type input_type,
                                           size_t concat_transpose_input_idx,
                                           size_t num_concat_inputs) {
-
         const ov::Shape input_shape{1, 96, 55, 55};
 
         auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
 
         NodePtr in_op = X;
         for (size_t i = 0; i < num_concat_ops; ++i) {
-
             ov::OutputVector concat_inputs;
             for (size_t j = 0; j < num_concat_inputs; ++j) {
                 if (j == concat_transpose_input_idx)
@@ -1190,7 +1188,6 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(size_t num_concat_ops,
                                                    ov::element::Type input_type,
                                                    size_t concat_transpose_input_idx,
                                                    size_t num_concat_inputs) {
-
         const ov::Shape input_shape{1, 96, 55, 55};
 
         auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
