@@ -92,7 +92,7 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
       
 @endsphinxdirective
 
-3. Create a symbolic link to the folder by issuing:
+4. For simplicity, it is useful to create a symbolic link as below:
 
    ```
    sudo ln -s openvino_2022.2.0.7713 openvino_2022
