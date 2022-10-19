@@ -431,7 +431,7 @@ jobs:
       export CCACHE_BASEDIR=$(Pipeline.Workspace)
       export CCACHE_MAXSIZE=50G
       cmake --build $(BUILD_DIR) --target ov_coverage -- -C $(BUILD_DIR)
-      condition: and(succeeded(), eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON'))
+    condition: and(succeeded(), eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON'))
     displayName: 'Build coverage'
 
   - script: rm -fr $(BUILD_DIR)
