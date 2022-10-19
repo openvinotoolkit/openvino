@@ -17,11 +17,10 @@ namespace intel_gna {
  * To use it need to set log level then just call one of the logging methods:
  *      GnaLog::Gnalog(ov::log::Level::DEBUG);
  *      GnaLog::info()  << "log message"; // this message will be printed
- *      GnaLog::trace() << "log message"; // this message shoudl not be printed 
+ *      GnaLog::trace() << "log message"; // this message shoudl not be printed
  */
 class GnaLog {
- private :
-    GnaLog() {}
+    GnaLog() = default;
 
     static GnaLog& log(ov::log::Level log_level) {
         GnaLog& obj = get_instance();
