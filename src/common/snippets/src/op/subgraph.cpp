@@ -435,34 +435,6 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
 
     convert_to_snippet_dialect();
     opt.run_passes(m_body);
-    // todo: DEBUG print, remove before merge
-    auto print_reg_info = [this](const std::string& key) {
-        const auto& ops = m_body->get_ordered_ops();
-        for (int i = 0; i < ops.size(); i++) {
-            const auto& op = ops[i];
-            std::cerr << op->get_friendly_name() << " : ";
-            for (int in_idx = 0; in_idx < op->get_input_size(); in_idx++) {
-                const auto& input = op->input(in_idx).get_source_output();
-                const auto& rt = input.get_tensor_ptr()->get_rt_info();
-                auto it_rt = rt.find(key);
-                if (it_rt != rt.end()) {
-                    const auto reg_id = it_rt->second.as<size_t>();
-                    std::cerr << reg_id << ",";
-                }
-            }
-            std::cerr << " : ";
-            for (int out_idx = 0; out_idx < op->get_output_size(); out_idx++) {
-                const auto& output = op->output(out_idx);
-                const auto& rt = output.get_tensor_ptr()->get_rt_info();
-                auto it_rt = rt.find(key);
-                if (it_rt != rt.end()) {
-                    const auto reg_id = it_rt->second.as<size_t>();
-                    std::cerr << reg_id << ",";
-                }
-            }
-            std::cerr << "\n";
-        }
-    };
 
     if (master_shape.is_static()) {
         const auto inner_dim = master_shape.size() - 1;
@@ -536,14 +508,6 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     }
 
     snippets::pass::AssignRegisters().run_on_model(m_body);
-// todo: Debug prints. remove before merge
-//    std::cerr << "OLD reg map:\n";
-//    print_reg_info("reginfo_old");
-//    std::cerr << "##############################################\n";
-//    std::cerr << "NEW reg map:\n";
-//    print_reg_info("reginfo");
-//    std::cerr << "Loop after is dumped";
-//    ov::pass::Serialize("loop_after.xml", "loop_after.bin").run_on_model(m_body);
 
     // schedule generation should go here and be target agnostic
     // actual code emission

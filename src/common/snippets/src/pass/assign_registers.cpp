@@ -2,15 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// #include <openvino/cc/selective_build.h>
 #include <snippets/itt.hpp>
-#include "snippets/remarks.hpp"
 #include "snippets/pass/assign_registers.hpp"
 #include "snippets/snippets_isa.hpp"
-#include <iterator>
 
 bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr<ov::Model>& f) {
-    RUN_ON_MODEL_SCOPE(AssignRegistersNew);
+    RUN_ON_MODEL_SCOPE(AssignRegisters);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::AssignRegisters")
     using Reg = size_t;
     using tensor = std::shared_ptr<descriptor::Tensor>;
@@ -198,19 +195,6 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
         for (const auto& def : defined_gpr[i])
             live_intervals_gpr[std::make_pair(i, find_last_use(life_in_gpr, static_cast<int>(def)))] = def;
     }
-    // todo: remove debug print before merge
-    auto print_live_intervals = [] (decltype(live_intervals_vec) live_intervals) {
-        std::pair<int, int> interval;
-        Reg reg_id;
-        for (const auto& interval_reg : live_intervals) {
-            std::tie(interval, reg_id) = interval_reg;
-            std::cerr << "Reg# : " << reg_id << " : " << interval.first << " : " << interval.second << "\n";
-        }
-    };
-//    std::cerr << "NEW live_intervals (VEC):\n";
-//    print_live_intervals(live_intervals_vec);
-//    std::cerr << "NEW live_intervals (GPR):\n";
-//    print_live_intervals(live_intervals_gpr);
 
     auto linescan_assign_registers = [](const decltype(live_intervals_vec)& live_intervals,
                                         const std::set<Reg>& reg_pool) {
@@ -260,13 +244,6 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
     for (const auto& t_reg : manually_assigned_regs)
         gpr_pool.erase(t_reg.second);
     auto unique2reused_map_gpr = linescan_assign_registers(live_intervals_gpr, gpr_pool);
-//      todo: remove debug prints before merge
-//    std::cerr << "Register map dump (VEC):\n";
-//    for (auto p : unique2reused_map_vec)
-//        std::cerr << p.first << " => " << p.second << "\n";
-//    std::cerr << "Register map dump (GPR):\n";
-//    for (auto p : unique2reused_map_gpr)
-//        std::cerr << p.first << " => " << p.second << "\n";
 
     std::map<tensor, Reg> assigned_regs(std::move(manually_assigned_regs));
     auto register_assigned_regs = [IS_MANUALLY_ALLOCATED_REG, &assigned_regs](const std::map<tensor, Reg>& unique_regs,
