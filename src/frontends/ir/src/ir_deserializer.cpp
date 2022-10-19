@@ -595,6 +595,7 @@ private:
         const std::string node_name = node.name();
         for (const auto& data : node.children()) {
             const std::string data_name = data.name();
+            // WA for legacy POT config
             if (data_name == "config" && node_name == "quantization_parameters") {
                 // Read legacy pot config
                 std::stringstream stream;
@@ -637,6 +638,7 @@ void XmlDeserializer::read_meta_data(const std::shared_ptr<ov::Model>& model, co
         if (!data.attribute("value").empty()) {
             rt_info[data.name()] = XMLParseUtils::GetStrAttr(data, "value");
         } else {
+            // Use meta data for set of parameters
             std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>(data.name(), data);
             rt_info[data.name()] = meta;
         }
@@ -653,6 +655,7 @@ void XmlDeserializer::read_legacy_meta_data(const std::shared_ptr<ov::Model>& mo
         if (name == "meta_data") {
             for (const auto& data : meta_section.children()) {
                 const std::string& section_name = data.name();
+                // Rename cli_parameters to conversion_parameters
                 if (section_name == "cli_parameters") {
                     std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>("cli_parameters", data);
                     rt_info["conversion_parameters"] = meta;
@@ -663,6 +666,7 @@ void XmlDeserializer::read_legacy_meta_data(const std::shared_ptr<ov::Model>& mo
                 }
             }
         } else if (name == "quantization_parameters") {
+            // Rename quantization_parameters to optimization
             std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>("quantization_parameters", meta_section);
             rt_info["optimization"] = meta;
         }
