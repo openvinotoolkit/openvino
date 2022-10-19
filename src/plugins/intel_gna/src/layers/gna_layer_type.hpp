@@ -50,6 +50,7 @@ enum class LayerType {
     FakeQuantize,
     Gemm,
     Pwl,
+    Identity,
     NO_TYPE
 };
 
@@ -89,6 +90,7 @@ static const InferenceEngine::details::caseless_map<std::string, GNAPluginNS::La
         { "SoftSign", LayerType::SoftSign },
         { "FakeQuantize", LayerType::FakeQuantize },
         { "Pwl", LayerType::Pwl },
+        { "Identity", LayerType::Identity },
         {"Gemm", LayerType::Gemm},
 };
 

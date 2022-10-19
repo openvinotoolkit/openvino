@@ -40,10 +40,6 @@ ReorderActivationAndPooling::ReorderActivationAndPooling() {
         auto pool = std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(pool_node);
         IE_ASSERT(pool != nullptr);
         auto kernel_shape = pool->get_kernel();
-        if (kernel_shape.size() > 1 && kernel_shape[0] > 1 && kernel_shape[1] > 1) {
-            return false;
-        }
-
         auto act = pool_node->input_value(0).get_node_shared_ptr();
         IE_ASSERT(act != nullptr);
 

@@ -93,6 +93,7 @@
 #include "transformations/insert_copy_layer.hpp"
 #include "transformations/split_eltwise.hpp"
 #include "transformations/markup_fusable_transpose.hpp"
+#include "transformations/insert_identity_layer.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -740,6 +741,16 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
             input is doing
         */
         manager.register_pass<ov::intel_gna::pass::SplitEltwise>();
+        /* The following transformations perform insertion of Identity layer in 3 steps:
+           1. Mark inputs with rt_info attribute where precision change from i32 to i16/i8 is happened
+           2. Insert Identity after operation which have consumers marked with precision change
+           3. Cleanup appropriate attribute from rt_info
+        */
+        manager.register_pass<ov::intel_gna::pass::MarkIdentityCandidates>(config.gnaFlags.input_low_precision);
+        manager.register_pass<ov::intel_gna::pass::InsertIdentity>();
+        manager.register_pass<ov::intel_gna::pass::IdentityCandidatesCleanup>();
+        // Breaks fusing of layers before result
+        manager.register_pass<ov::intel_gna::pass::BreakFusingOfOutputLayers>();
         if (!config.gnaFlags.sw_fp32 && !config.gnaFlags.uniformPwlDesign) {
             manager.register_pass<ov::intel_gna::pass::PWLApproximationWithFq>(config.gnaFlags.pwlMaxErrorPercent);
             manager.register_pass<ov::intel_gna::pass::PWLApproximation>(config.gnaFlags.pwlMaxErrorPercent);
@@ -843,6 +854,8 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         passes->registerPass<InsertConcatAligningFilterPass>();
         passes->registerPass<ReorderConcatInputsPass>();
         passes->registerPass<RemovePermutationsNHWCToNCHWPass>();
+        // Keep legacy inserting of Identity layer here
+        // because concat and split aliging passes are not moved to ngraph yet
         passes->registerPass<InsertIdentityLayerPass>();
         passes->registerPass<BreakFusingOfOutputLayersPass>();
         passes->registerPass<InsertDiagonalLayerPass>();
@@ -999,7 +1012,6 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         }
         portId++;
     }
-
     // TODO: how active list will work in multioutput case
     // make room for active list
     gnamem->getQueue(REGION_OUTPUTS)
