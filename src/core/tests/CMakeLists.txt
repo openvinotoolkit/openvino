@@ -50,6 +50,7 @@ set(SRC
     dimension.cpp
     element_type.cpp
     eval.cpp
+    evaluate_bound/concat.cpp
     evaluate_bound/transpose.cpp
     extension.cpp
     file_util.cpp
@@ -131,6 +132,7 @@ set(SRC
     type_prop/detection_output.cpp
     type_prop/depth_to_space.cpp
     type_prop/dft.cpp
+    type_prop/divide.cpp
     type_prop/dyn_reshape.cpp
     type_prop/einsum.cpp
     type_prop/erf.cpp
@@ -187,6 +189,7 @@ set(SRC
     type_prop/mish.cpp
     type_prop/mod.cpp
     type_prop/multiclass_nms.cpp
+    type_prop/multiply.cpp
     type_prop/mvn.cpp
     type_prop/negative.cpp
     type_prop/non_max_suppression.cpp
@@ -249,6 +252,7 @@ set(SRC
     type_prop/sqrt.cpp
     type_prop/squared_difference.cpp
     type_prop/squeeze.cpp
+    type_prop/subtract.cpp
     type_prop/swish.cpp
     type_prop/tan.cpp
     type_prop/tanh.cpp

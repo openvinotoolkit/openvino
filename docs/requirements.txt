@@ -1,7 +1,7 @@
 alabaster==0.7.12
 atomicwrites==1.4.0
 attrs==20.3.0
-Babel==2.9.0
+Babel==2.9.1
 beautifulsoup4==4.9.3
 certifi==2020.12.5
 colorama==0.4.4
@@ -41,5 +41,5 @@ sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-serializinghtml==1.1.4
 toml==0.10.2
-urllib3==1.26.4
+urllib3==1.26.5
 zipp==3.4.1
