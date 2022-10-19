@@ -37,8 +37,7 @@ struct RangeArgs {
         start.addTo(topology);
         stop.addTo(topology);
         step.addTo(topology);
-        topology.add(range { "range", { start.name, stop.name, step.name }, { dt, format::bfyx,
-            tensor { spatial(outLen) } } });
+        topology.add(range("range", { start.name, stop.name, step.name }, tensor(spatial(outLen)), dt));
 
         network network { tests::get_test_engine(), topology };
 
