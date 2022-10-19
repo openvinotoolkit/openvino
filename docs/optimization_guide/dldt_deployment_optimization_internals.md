@@ -4,28 +4,46 @@ As explained in the [throughput-related section](./dldt_deployment_optimization_
 In order to best serve multiple inference requests executed simultaneously, the inference threads are grouped/pinned to the particular CPU cores, constituting the "CPU" streams.
 This provides much better performance for the networks than batching, especially for the multiple-core systems:
 
-<div class="two-col-table">
+@sphinxdirective
 
-| **Conventional Approach** | **Streams** |
-| --- | --- |
-| Every CNN op is internally parallelized over a full number of CPU cores and it is detrimental for non-scalable ops.<br> A lot of synchronization between many threads results in overhead.<br> Batching is an only option to improve efficiency. | CPU cores are evenly distributed between execution streams (each 1-4 threads).<br> Less threads per stream mean less synchronization, better locality, and finer granularity. |
-| ![](../img/cpu_execution_conventional_approach.svg) | ![](../img/cpu_execution_streams.svg) |
-| | Requests are executed in parallel with a small number of threads. ||
-| | **Layer-wise, the streams imply much less synchronization.** ||
+.. container:: two-col-table
 
-</div>
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+
+   | **Conventional Approach**                                                                                                     | **Streams**                                                                                                                                |
+   +===============================================================================================================================+============================================================================================================================================+
+   | | Every CNN op is internally parallelized over a full number of CPU cores and it is detrimental for non-scalable ops.         | | CPU cores are evenly distributed between execution streams (each 1-4 threads).                                                           |
+   | | A lot of synchronization between many threads results in overhead.                                                          | | Less threads per stream means less synchronization, better locality, and finer granularity.                                              |
+   | | An only option to improve efficiency is batching.                                                                           | |                                                                                                                                          |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+
+   | .. image:: ../img/cpu_execution_conventional_approach.svg                                                                     | .. image:: ../img/cpu_execution_streams.svg                                                                                                |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+
+   | |                                                                                                                             | | Requests are executed in parallel with a small number of threads.                                                                        |
+   | |                                                                                                                             | | **Layer-wise, the streams imply much less synchronization.**                                                                             |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+
+
+
+@endsphinxdirective
+
 
 Compared to the batching, the parallelism is somewhat transposed (performed over inputs with much less synchronization within CNN ops):
 
-<div class="two-col-table">
+@sphinxdirective
 
-| **Large Batch Approach** | **Streams** |
-| --- | --- |
-| All threads process all inputs at once.<br> All layers are assumed to be parallelized well.<br> "Fat" requests are executed one by one. | CPU cores are evenly distributed between execution streams. <br> "Parallelize the outermost loop" rule of thumb is applied.<br> Individual requests are executed in parallel. |
-| ![](../img/large_batch_approach.svg) | ![](../img/cpu_execution_streams_2.svg) |
-| | **Inputs-wise the streams are the "transposed" batch.** |
+.. container:: two-col-table
 
-</div>
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+
+   | **Large Batch Approach**                                                                                                      | **Streams**                                                                                                                                |
+   +===============================================================================================================================+============================================================================================================================================+
+   | | All threads process all inputs at once.                                                                                     | | CPU cores are evenly distributed between execution streams.                                                                              |
+   | | Assumes all layers are parallelized well.                                                                                   | | "Parallelize the outermost loop" rule of thumb.                                                                                          |
+   | | "Fat" requests are executed one by one.                                                                                     | | Individual requests are executed in parallel.                                                                                            |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+
+   | .. image:: ../img/large_batch_approach.svg                                                                                    | .. image:: ../img/cpu_execution_streams_2.svg                                                                                              |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+
+   |                                                                                                                               | **Inputs-wise the streams are the "transposed" batch.**                                                                                    |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+
+
+@endsphinxdirective
 
 Keep in mind that [high-level performance hints](../OV_Runtime_UG/performance_hints.md) allow the implementation to select the optimal number of streams depending on model's compute demands and CPU capabilities, including [int8 inference](@ref openvino_docs_model_optimization_guide) hardware acceleration, number of cores, etc.
 
