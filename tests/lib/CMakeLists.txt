@@ -5,7 +5,7 @@
 # Search OpenVINO Runtime installed
 find_package(PkgConfig QUIET)
 # TODO: fix cross-compilation later
-if(PkgConfig_FOUND AND NOT CMAKE_CROSSCOMPILING)
+if(PkgConfig_FOUND AND NOT CMAKE_CROSSCOMPILING AND CMAKE_BUILD_TYPE STREQUAL "Release")
     pkg_search_module(openvino REQUIRED
                       IMPORTED_TARGET
                       openvino)
