@@ -64,7 +64,7 @@ jobs:
     maxParallel: 2
 
   # About 150% of total time
-  timeoutInMinutes: 240
+  timeoutInMinutes: 120
 
   pool:
     name: LIN_VMSS_VENV_F16S_U20_WU2
@@ -413,6 +413,7 @@ jobs:
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_cpu_func_tests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_func_tests.xml
     displayName: 'CPU FuncTests'
     continueOnError: false
+    condition: and(succeeded(), eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF'))
 
   - script: |
       export DATA_PATH=$(MODELS_PATH)
@@ -427,6 +428,14 @@ jobs:
       $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_capi_test --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_capi_test.xml
     displayName: 'OV CAPITests'
     continueOnError: false
+
+  - script: |
+      export CCACHE_DIR=$(CCACHE_DIR)
+      export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
+      export CCACHE_BASEDIR=$(Pipeline.Workspace)
+      export CCACHE_MAXSIZE=50G
+      cmake --build $(BUILD_DIR) --target ov_coverage -- -C $(BUILD_DIR)
+    displayName: 'Build coverage'
 
   - task: CMake@1
     inputs:
