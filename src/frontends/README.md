@@ -4,10 +4,10 @@ OpenVINO Frontends allow converting models from the native framework to OpenVINO
 
 Below is the full list of supported frontends:
 
- * [ir](./ir/README.md)
- * [onnx](./onnx)
- * [paddle](./paddle)
- * [tensorflow](./tensorflow)
+ * [IR](./ir/README.md)
+ * [ONNX](./onnx)
+ * [Paddle](./paddle)
+ * [TensorFlow](./tensorflow/README.md)
 
 ## See also
  * [OpenVINO™ README](../../README.md)
