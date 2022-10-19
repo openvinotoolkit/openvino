@@ -28,9 +28,40 @@
 #include "remote_tensors_filling.hpp"
 #include "statistics_report.hpp"
 #include "utils.hpp"
+
+#if defined(_WIN32) || defined(WIN32)
+# include <windows.h>
+#endif
 // clang-format on
 
 static const size_t progressBarDefaultTotalCount = 1000;
+
+void get_console_command(int argc, char* argv[]){
+    std::stringstream args_string;
+
+
+    std::stringstream args_string;
+
+    #if defined(_WIN32) || defined(WIN32)
+        uint32_t len = 1024;
+        std::string p(argv[0]);
+        std::string buf;
+        do
+        {
+            buf.resize(len);
+            len = GetFullPathNameA(p.data(), len, buf.data(), nullptr);
+        } while(len > buf.size());
+        args_string << buf;
+    #else
+        args_string << realpath(argv[0], nullptr);
+    #endif
+    args_string << " ";
+
+    for (int i = 1; i < argc; i++) {
+        args_string << argv[i] << " ";
+    }
+
+}
 
 bool parse_and_check_command_line(int argc, char* argv[]) {
     // ---------------------------Parsing and validating input
@@ -161,19 +192,15 @@ int main(int argc, char* argv[]) {
 
         // ----------------- 1. Parsing and validating input arguments
         // -------------------------------------------------
-        std::stringstream args_string;
-        args_string << realpath(argv[0], nullptr) << " ";
-        for (int i = 1; i < argc; i++) {
-            args_string << argv[i] << " ";
-        }
-
+        auto args_string = get_console_command(argc, argv);
+        
         next_step();
 
         if (!parse_and_check_command_line(argc, argv)) {
             return 0;
         }
 
-        slog::info << "Input command: " << args_string.str() << slog::endl;
+        slog::info << "Input command: " << args_string << slog::endl;
 
         bool isNetworkCompiled = fileExt(FLAGS_m) == "blob";
         if (isNetworkCompiled) {
