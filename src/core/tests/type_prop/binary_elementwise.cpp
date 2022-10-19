@@ -39,7 +39,7 @@ void test_binary(std::string /* node_type */,
             // Should have thrown, so fail if it didn't
             FAIL() << "Incompatible view arguments not detected.";
         } catch (const NodeValidationFailure& error) {
-            EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument element types are inconsistent"));
+            EXPECT_HAS_SUBSTRING(error.what(), std::string("Arguments do not have the same element type"));
         } catch (...) {
             FAIL() << "Deduced type check failed for unexpected reason";
         }
@@ -91,7 +91,7 @@ void test_binary_logical(std::string /* node_type */,
             // Should have thrown, so fail if it didn't
             FAIL() << "Incompatible view arguments not detected.";
         } catch (const NodeValidationFailure& error) {
-            EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument element types are inconsistent"));
+            EXPECT_HAS_SUBSTRING(error.what(), std::string("Arguments do not have the same element type"));
         } catch (...) {
             FAIL() << "Deduced type check failed for unexpected reason";
         }

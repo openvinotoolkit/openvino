@@ -23,7 +23,7 @@ ov::op::util::BinaryElementwiseComparison::BinaryElementwiseComparison(const Out
 
 void ov::op::util::BinaryElementwiseComparison::validate_and_infer_types() {
     OV_OP_SCOPE(v0_util_BinaryElementwiseComparison_validate_and_infer_types);
-    auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this, m_autob);
+    auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this);
     PartialShape& args_pshape = std::get<1>(args_et_pshape);
 
     set_output_type(0, element::boolean, args_pshape);

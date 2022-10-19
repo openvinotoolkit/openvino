@@ -66,7 +66,7 @@ public:
 
 private:
     AutoBroadcastSpec m_autob;
-    void validate_and_infer_elementwise_arithmetic(const op::AutoBroadcastSpec& autob);
+    void validate_and_infer_elementwise_arithmetic();
 };
 }  // namespace util
 }  // namespace op
