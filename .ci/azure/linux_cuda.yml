@@ -123,7 +123,7 @@ jobs:
       cmake -GNinja
       -DCMAKE_VERBOSE_MAKEFILE=ON
       -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
-      -DIE_EXTRA_MODULES=/root/repos/openvino_contrib/modules
+      -DOPENVINO_EXTRA_MODULES=/root/repos/openvino_contrib/modules
       -DENABLE_INTEL_CPU=OFF
       -DENABLE_INTEL_GPU=OFF
       -DENABLE_INTEL_GNA=OFF
