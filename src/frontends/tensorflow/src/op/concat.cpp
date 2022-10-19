@@ -15,12 +15,6 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
-OutputVector translate_concat_base(const NodeContext& node, const OutputVector& inputs, int64_t axis) {
-    auto concat = make_shared<Concat>(inputs, axis);
-    set_node_name(node.get_name(), concat);
-    return {concat};
-}
-
 OutputVector translate_concat_op(const NodeContext& node) {
     // The difference between Concat and ConcatV2 is that
     // axis is the first input for Concat
@@ -34,9 +28,10 @@ OutputVector translate_concat_op(const NodeContext& node) {
     if (node.get_op_type() == "Concat") {
         std::vector<int64_t> axis_vector;
         get_const_input(node, 0, &axis_vector);
-        TENSORFLOW_OP_VALIDATION(node,
-                                 axis_vector.size() > 0,
-                                 "Input model is incorrect: axis input for Concat operation must not be empty.");
+        TENSORFLOW_OP_VALIDATION(
+            node,
+            axis_vector.size() == 1,
+            "Input model is incorrect: axis input for Concat operation must have exactly one element.");
         axis = axis_vector[0];
         for (size_t input_idx = 1; input_idx < input_size; ++input_idx) {
             inputs.push_back(node.get_input(input_idx));
@@ -44,9 +39,10 @@ OutputVector translate_concat_op(const NodeContext& node) {
     } else if (node.get_op_type() == "ConcatV2") {
         std::vector<int64_t> axis_vector;
         get_const_input(node, input_size - 1, &axis_vector);
-        TENSORFLOW_OP_VALIDATION(node,
-                                 axis_vector.size() > 0,
-                                 "Input model is incorrect: axis input for Concat operation must not be empty.");
+        TENSORFLOW_OP_VALIDATION(
+            node,
+            axis_vector.size() == 1,
+            "Input model is incorrect: axis input for Concat operation must have exactly one element.");
         axis = axis_vector[0];
         for (size_t input_idx = 0; input_idx < input_size - 1; ++input_idx) {
             inputs.push_back(node.get_input(input_idx));
@@ -58,7 +54,9 @@ OutputVector translate_concat_op(const NodeContext& node) {
                                  "translate_concat_op function.");
     }
 
-    return translate_concat_base(node, inputs, axis);
+    auto concat = make_shared<Concat>(inputs, axis);
+    set_node_name(node.get_name(), concat);
+    return {concat};
 }
 }  // namespace op
 }  // namespace tensorflow
