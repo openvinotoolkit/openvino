@@ -1944,7 +1944,9 @@ TEST(model, set_meta_information) {
     auto f = std::make_shared<ov::Model>(relu, ov::ParameterVector{arg0});
 
     std::string key = "data";
+    EXPECT_FALSE(f->has_rt_info<std::string>(key, "test"));
     EXPECT_THROW(f->get_rt_info<std::string>(key, "test"), ov::Exception);
     f->set_rt_info("test", key, "test");
+    EXPECT_TRUE(f->has_rt_info<std::string>(key, "test"));
     EXPECT_NO_THROW(f->get_rt_info<std::string>(key, "test"));
 }
