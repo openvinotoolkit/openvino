@@ -33,8 +33,15 @@ jobs:
           mkdir build
           cd build
           cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -DCMAKE_BUILD_TYPE=Release ..
-      
+
       - name: Build snippets
         run: |
           cmake --build . --target ie_docs_snippets -j`nproc`
         working-directory: build
+        if: matrix.os != 'windows-latest'
+
+      - name: Build snippets (windows)
+        run: |
+          cmake --build . --target ie_docs_snippets -j%NUMBER_OF_PROCESSORS%
+        working-directory: build
+        if: matrix.os == 'windows-latest'
