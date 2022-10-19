@@ -7,7 +7,7 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 
 class TestConcat(CommonTFLayerTest):
-    def create_concatv2_net(self, input_shapes, axis, is_v2, ir_version, use_new_frontend):
+    def create_concat_net(self, input_shapes, axis, is_v2, ir_version, use_new_frontend):
         # tf.concat is equivalent to tf.raw_ops.ConcatV2
         # only tf.concat accepts one input
         import tensorflow as tf
@@ -35,7 +35,7 @@ class TestConcat(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_concat_1D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
                        use_old_api):
-        self._test(*self.create_concatv2_net(**params, ir_version=ir_version,
+        self._test(*self.create_concat_net(**params, ir_version=ir_version,
                                              use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
@@ -47,7 +47,7 @@ class TestConcat(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_concat_2D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
                        use_old_api):
-        self._test(*self.create_concatv2_net(**params, ir_version=ir_version,
+        self._test(*self.create_concat_net(**params, ir_version=ir_version,
                                              use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
@@ -62,7 +62,7 @@ class TestConcat(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     def test_concat_3D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
                        use_old_api):
-        self._test(*self.create_concatv2_net(**params, ir_version=ir_version,
+        self._test(*self.create_concat_net(**params, ir_version=ir_version,
                                              use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
@@ -76,7 +76,7 @@ class TestConcat(CommonTFLayerTest):
     @pytest.mark.precommit
     def test_concat_4D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
                        use_old_api):
-        self._test(*self.create_concatv2_net(**params, ir_version=ir_version,
+        self._test(*self.create_concat_net(**params, ir_version=ir_version,
                                              use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
@@ -90,7 +90,7 @@ class TestConcat(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_concat_5D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
                        use_old_api):
-        self._test(*self.create_concatv2_net(**params, ir_version=ir_version,
+        self._test(*self.create_concat_net(**params, ir_version=ir_version,
                                              use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
