@@ -22,6 +22,7 @@
 static constexpr char noCntReport[] = "no_counters";
 static constexpr char averageCntReport[] = "average_counters";
 static constexpr char detailedCntReport[] = "detailed_counters";
+static constexpr char sortDetailedCntReport[] = "sort_detailed_counters";
 
 /// @brief Responsible for calculating different latency metrics
 class LatencyMetrics {
@@ -143,6 +144,10 @@ public:
 
 private:
     void dump_performance_counters_request(CsvDumper& dumper, const PerformanceCounters& perfCounts);
+    void dump_sort_performance_counters_request(CsvDumper& dumper, const PerformanceCounters& perfCounts);
+    static bool sort_profiling_descend(const ov::ProfilingInfo& profiling1, const ov::ProfilingInfo& profiling2) {
+        return profiling1.real_time > profiling2.real_time;
+    }
 
 protected:
     // configuration of current benchmark execution
@@ -168,4 +173,8 @@ public:
 private:
     void dump_parameters(nlohmann::json& js, const StatisticsReport::Parameters& parameters);
     const nlohmann::json perf_counters_to_json(const StatisticsReport::PerformanceCounters& perfCounts);
+    const nlohmann::json sort_perf_counters_to_json(const StatisticsReport::PerformanceCounters& perfCounts);
+    static bool sort_profiling_descend(const ov::ProfilingInfo& profiling1, const ov::ProfilingInfo& profiling2) {
+        return profiling1.real_time > profiling2.real_time;
+    }
 };

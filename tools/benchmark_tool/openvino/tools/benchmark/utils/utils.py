@@ -309,6 +309,68 @@ def process_help_inference_string(benchmark_app, device_number_streams):
 def dump_exec_graph(compiled_model, model_path):
     serialize(compiled_model.get_runtime_model(), model_path)
 
+def print_perf_counters_sort(perf_counts_list,sort_flag="sort"):
+    """ Print opts time cost and can be sorted according by each opts time cost
+    """
+    for ni in range(len(perf_counts_list)):
+        perf_counts = perf_counts_list[ni]
+        total_time = datetime.timedelta()
+        total_time_cpu = datetime.timedelta()
+        logger.info(f"Performance counts sorted for {ni}-th infer request")
+        for pi in perf_counts:
+            total_time += pi.real_time
+            total_time_cpu += pi.cpu_time
+
+        total_time = total_time.microseconds
+        total_time_cpu = total_time_cpu.microseconds
+        total_real_time_proportion = 0
+        total_detail_data=[]
+        for pi in perf_counts:
+            node_name = pi.node_name
+            layerStatus = pi.status
+            layerType = pi.node_type
+            real_time = pi.real_time.microseconds
+            cpu_time = pi.cpu_time.microseconds
+            real_proportion = round(real_time/total_time,4)
+            execType = pi.exec_type
+            tmp_data=[node_name,layerStatus,layerType,real_time,cpu_time,real_proportion,execType]
+            total_detail_data.append(tmp_data)
+            total_real_time_proportion += real_proportion
+        total_detail_data = np.array(total_detail_data)
+        if sort_flag=="sort":
+            total_detail_data = sorted(total_detail_data,key=lambda tmp_data:tmp_data[-4],reverse=True)
+        elif sort_flag=="no_sort":
+            total_detail_data = total_detail_data
+        elif sort_flag=="simple_sort":
+            total_detail_data = sorted(total_detail_data,key=lambda tmp_data:tmp_data[-4],reverse=True)
+            total_detail_data = [tmp_data for tmp_data in total_detail_data if str(tmp_data[1])!="Status.NOT_RUN"]
+        print_detail_result(total_detail_data)        
+        print(f'Total time:       {total_time} microseconds')
+        print(f'Total CPU time:   {total_time_cpu} microseconds')
+        print(f'Total proportion: {"%.2f"%(round(total_real_time_proportion)*100)} % \n')
+    return total_detail_data
+
+def print_detail_result(result_list):
+    """ Print_perf_counters_sort result 
+    """
+    max_layer_name = 30
+    for tmp_result in result_list:
+        node_name = tmp_result[0]
+        layerStatus = tmp_result[1]
+        layerType = tmp_result[2]
+        real_time = tmp_result[3]
+        cpu_time = tmp_result[4]
+        real_proportion = "%.2f"%(tmp_result[5]*100)
+        if real_proportion == "0.00":
+            real_proportion = "-nan"
+        execType = tmp_result[6]
+        print(f"{node_name[:max_layer_name - 4] + '...' if (len(node_name) >= max_layer_name) else node_name:<30}"
+            f"{str(layerStatus):<20}"
+            f"{'layerType: ' + layerType:<30}"
+            f"{'realTime: ' + str(real_time):<20}"
+            f"{'cpu: ' +  str(cpu_time):<15}"
+            f"{'proportion: '+ str(real_proportion)+'%':<20}"
+            f"{'execType: ' + execType:<20}")
 
 def print_perf_counters(perf_counts_list):
     max_layer_name = 30

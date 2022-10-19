@@ -93,11 +93,61 @@ void StatisticsReport::dump_performance_counters_request(CsvDumper& dumper, cons
         total_cpu += layer.cpu_time;
         dumper.endLine();
     }
+
     dumper << "Total"
            << ""
            << ""
            << "";
     dumper << total.count() / 1000.0 << total_cpu.count() / 1000.0;
+    dumper.endLine();
+    dumper.endLine();
+}
+
+void StatisticsReport::dump_sort_performance_counters_request(CsvDumper& dumper,
+                                                              const PerformanceCounters& perfCounts) {
+    std::chrono::microseconds total = std::chrono::microseconds::zero();
+    std::chrono::microseconds total_cpu = std::chrono::microseconds::zero();
+    int layersize = 0;
+
+    dumper << "layerName"
+           << "execStatus"
+           << "layerType"
+           << "execType";
+    dumper << "realTime (ms)"
+           << "cpuTime (ms)"
+           << " %";
+    dumper.endLine();
+
+    for (const auto& layer : perfCounts) {
+        if (status_names[(int)layer.status] == "EXECUTED") {
+            total += layer.real_time;
+            total_cpu += layer.cpu_time;
+        }
+    }
+
+    // sort perfcounter
+    std::vector<ov::ProfilingInfo> profiling{std::begin(perfCounts), std::end(perfCounts)};
+    std::sort(profiling.begin(), profiling.end(), sort_profiling_descend);
+    for (const auto& layer : profiling) {
+        if (status_names[(int)layer.status] == "EXECUTED") {
+            dumper << layer.node_name;  // layer name
+            dumper << ((int)layer.status < (sizeof(status_names) / sizeof(status_names[0]))
+                           ? status_names[(int)layer.status]
+                           : "INVALID_STATUS");
+            dumper << layer.node_type << layer.exec_type;
+            dumper << std::to_string(layer.real_time.count() / 1000.0)
+                   << std::to_string(layer.cpu_time.count() / 1000.0);
+            dumper << (layer.real_time * 1.0 / total) * 100;
+            dumper.endLine();
+            layersize += 1;
+        }
+    }
+
+    dumper << "Total"
+           << ""
+           << ""
+           << "";
+    dumper << total.count() / 1000.0 << total_cpu.count() / 1000.0 << 100.0;
     dumper.endLine();
     dumper.endLine();
 }
@@ -148,6 +198,10 @@ void StatisticsReport::dump_performance_counters(const std::vector<PerformanceCo
         }
     } else if (_config.report_type == averageCntReport) {
         dump_performance_counters_request(dumper, get_average_performance_counters(perfCounts));
+    } else if (_config.report_type == sortDetailedCntReport) {
+        for (auto& pc : perfCounts) {
+            dump_sort_performance_counters_request(dumper, pc);
+        }
     } else {
         throw std::logic_error("PM data can only be collected for average or detailed report types");
     }
@@ -206,6 +260,10 @@ void StatisticsReportJSON::dump_performance_counters(const std::vector<Performan
     } else if (_config.report_type == averageCntReport) {
         js["report_type"] = "average";
         js["avg_performance"] = perf_counters_to_json(get_average_performance_counters(perfCounts));
+    } else if (_config.report_type == sortDetailedCntReport) {
+        for (auto& pc : perfCounts) {
+            js["detailed_performance"].push_back(sort_perf_counters_to_json(pc));
+        }
     } else {
         throw std::logic_error("PM data can only be collected for average or detailed report types");
     }
@@ -237,6 +295,42 @@ const nlohmann::json StatisticsReportJSON::perf_counters_to_json(
         total_cpu += layer.cpu_time;
         js["nodes"].push_back(item);
     }
+    js["total_real_time"] = total.count() / 1000.0;
+    js["total_cpu_time"] = total_cpu.count() / 1000.0;
+    return js;
+}
+
+const nlohmann::json StatisticsReportJSON::sort_perf_counters_to_json(
+    const StatisticsReport::PerformanceCounters& perfCounts) {
+    std::chrono::microseconds total = std::chrono::microseconds::zero();
+    std::chrono::microseconds total_cpu = std::chrono::microseconds::zero();
+
+    nlohmann::json js;
+    js["nodes"] = nlohmann::json::array();
+
+    for (const auto& layer : perfCounts) {
+        total += layer.real_time;
+        total_cpu += layer.cpu_time;
+    }
+
+    // sort perfcounter
+    std::vector<ov::ProfilingInfo> sortPerfCounts{std::begin(perfCounts), std::end(perfCounts)};
+    std::sort(sortPerfCounts.begin(), sortPerfCounts.end(), sort_profiling_descend);
+
+    for (const auto& layer : sortPerfCounts) {
+        nlohmann::json item;
+        item["name"] = layer.node_name;  // layer name
+        item["status"] =
+            ((int)layer.status < (sizeof(status_names) / sizeof(status_names[0])) ? status_names[(int)layer.status]
+                                                                                  : "INVALID_STATUS");
+        item["node_type"] = layer.node_type;
+        item["exec_type"] = layer.exec_type;
+        item["real_time"] = layer.real_time.count() / 1000.0;
+        item["cpu_time"] = layer.cpu_time.count() / 1000.0;
+        item["%"] = std::round(layer.real_time * 10000.0 / total) / 100;
+        js["nodes"].push_back(item);
+    }
+
     js["total_real_time"] = total.count() / 1000.0;
     js["total_cpu_time"] = total_cpu.count() / 1000.0;
     return js;

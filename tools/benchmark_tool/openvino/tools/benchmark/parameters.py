@@ -114,6 +114,12 @@ def parse_args():
                       help='Optional. Path to a file where to store executable graph information serialized.')
     args.add_argument('-pc', '--perf_counts', type=str2bool, required=False, default=False, nargs='?', const=True,
                       help='Optional. Report performance counters.', )
+    args.add_argument('-pcsort', '--perf_counts_sort', type=str, required=False, default="",
+                      choices=['no_sort', 'sort', 'simple_sort'],
+                      help='Optional. Report performance counters and analysis the sort hotpoint opts.'
+                           '  sort: Analysis opts time cost, print by hotpoint order'
+                           '  no_sort: Analysis opts time cost, print by normal order'
+                           '  simple_sort: Analysis opts time cost, only print EXECUTED opts by normal order', )
     args.add_argument('-pcseq', '--pcseq', type=str2bool, required=False, default=False, nargs='?', const=True,
                       help='Optional. Report latencies for each shape in -data_shape sequence.', )
     args.add_argument('-inference_only', '--inference_only', type=str2bool, required=False, default=None, nargs='?', const=True,
