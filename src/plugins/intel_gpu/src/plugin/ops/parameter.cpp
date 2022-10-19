@@ -28,12 +28,14 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
     auto inputInfo = networkInputs.at(op->get_friendly_name());
     // first create and add the input layout
     const auto inputDesc = inputInfo->getTensorDesc();
-    auto inputDims = op->get_partial_shape();
+    auto input_pshape = op->get_partial_shape();
     InferenceEngine::Layout l = inputDesc.getLayout();
     InferenceEngine::Precision ip = inputDesc.getPrecision();
 
     cldnn::format inputFormat = cldnn::format::bfyx;
-    if (InferenceEngine::Layout::BLOCKED == l && 6 == inputDims.size()) {
+    if (input_pshape.is_dynamic()) {
+        inputFormat = cldnn::format::get_default_format(input_pshape.size());
+    } else if (InferenceEngine::Layout::BLOCKED == l && 6 == input_pshape.size()) {
         inputFormat = cldnn::format::bfwzyx;
     } else {
         inputFormat = FormatFromLayout(l);
@@ -43,7 +45,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
     auto inputName = layer_type_name_ID(op);
     auto preProcess = inputInfo->getPreProcess();
     size_t meanChannels = preProcess.getNumberOfChannels();
-    cldnn::layout networkInputLayout(inputDims,
+    cldnn::layout networkInputLayout(input_pshape,
                                      cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                      inputFormat);
     cldnn::primitive_id meanBlobID = inputName + Program::m_meanValuesTag;
@@ -70,7 +72,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         IE_ASSERT(meanChannels);
         // first merge all mean values to a single blob
         // todo make sure mean blob precision is the same as the input precision
-        auto meanDims = inputDims;
+        auto meanDims = input_pshape;
         // overwrite batches with 1
         switch (meanDims.size()) {
         case 4: meanDims[0] = 1;
@@ -155,10 +157,10 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         }
 
         if (networkInputLayout.format == cldnn::format::nv12 && networkInputLayout.get_tensor().batch[0] > 1) {
-            networkInputLayout.set_partial_shape({ 1, inputDims[3], inputDims[1], inputDims[2] });
+            networkInputLayout.set_partial_shape({ 1, input_pshape[3], input_pshape[1], input_pshape[2] });
 
             std::vector<cldnn::primitive_id> inputs;
-            for (int64_t i = 0; i < inputDims[0].get_length(); ++i) {
+            for (int64_t i = 0; i < input_pshape[0].get_length(); ++i) {
                 std::string batched_name = inputName + "_" + std::to_string(i);
                 p.inputLayouts.insert({ inputInfo->name() + "_" + std::to_string(i), networkInputLayout });
                 inputs.emplace_back(batched_name);
@@ -166,7 +168,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
             }
             p.primitive_ids[inputName] = inputName;
         } else {
-            networkInputLayout.set_partial_shape({ inputDims[0], inputDims[3], inputDims[1], inputDims[2] });
+            networkInputLayout.set_partial_shape({ input_pshape[0], input_pshape[3], input_pshape[1], input_pshape[2] });
 
             p.inputLayouts.insert({ inputInfo->name(), networkInputLayout });
             p.add_primitive(*op, cldnn::input_layout(inputName, networkInputLayout));
@@ -180,9 +182,9 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                 IE_THROW() << "Unsupported layout (" << l << ") or precision "
                                    << ip.name() << ") for NV12 input " + inputInfo->name();
             }
-            int height = inputDims[2].get_length();
-            int width = inputDims[3].get_length();
-            size_t batch = inputDims[0].get_length();
+            int height = input_pshape[2].get_length();
+            int width = input_pshape[3].get_length();
+            size_t batch = input_pshape[0].get_length();
             std::vector<cldnn::primitive_id> reorders;
 
             for (size_t i = 0; i < batch; i++) {
@@ -228,7 +230,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                 reorders.push_back(preprocessPrimID);
             }
 
-            if (inputDims[0].get_length() > 1) {
+            if (input_pshape[0].get_length() > 1) {
                 auto concatPrimID = "concat:" + inputName + Program::m_preProcessTag;
                 p.add_primitive(*op, cldnn::concatenation(concatPrimID, reorders, 0));
             }

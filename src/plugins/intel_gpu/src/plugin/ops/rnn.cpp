@@ -261,8 +261,7 @@ static void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v
 
         hiddenStr = crop_id + ":hidden";
         cellStr = crop_id + ":cell";
-        cldnn::primitive_id outputHiddenID = layerName + ".out1";
-        p.add_primitive(*op, cldnn::crop(hiddenStr, lstm_elt_id, hiddenSz, cldnn::tensor{ 0, 0, 0, 0 }), {outputHiddenID});
+        p.add_primitive(*op, cldnn::crop(hiddenStr, lstm_elt_id, hiddenSz, cldnn::tensor{ 0, 0, 0, 0 }));
         output_ids_offsets.push_back(hiddenStr);
 
         if (i < lstm_sequence_len - 1) {
@@ -271,16 +270,18 @@ static void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v
             // last hidden state crop (output 2)
 
             // last cell state crop (output 3)
-            cldnn::primitive_id outputCellID = layerName + ".out2";
-            p.add_primitive(*op, cldnn::crop(cellStr, lstm_elt_id, hiddenSz, cellCropSz), {outputCellID});
+            p.add_primitive(*op, cldnn::crop(cellStr, lstm_elt_id, hiddenSz, cellCropSz));
         }
     }
 
     if (!isForward) std::reverse(output_ids_offsets.begin(), output_ids_offsets.end());
     // concatenated hidden state (output 1)
-    cldnn::primitive_id outputConcatID = layerName + ".out0";
     cldnn::primitive_id concatStr = layerName + ":hiddenConcat";
-    p.add_primitive(*op, cldnn::concatenation(concatStr, output_ids_offsets, 1), {outputConcatID, layerName});
+    p.add_primitive(*op, cldnn::concatenation(concatStr, output_ids_offsets, 1));
+
+    p.add_primitive(*op, cldnn::reshape(layerName + ".out0", concatStr, tensor_from_dims(op->get_output_shape(0))), {layerName});
+    p.add_primitive(*op, cldnn::reshape(layerName + ".out1", hiddenStr, tensor_from_dims(op->get_output_shape(1))));
+    p.add_primitive(*op, cldnn::reshape(layerName + ".out2", cellStr, tensor_from_dims(op->get_output_shape(2))));
 }
 
 REGISTER_FACTORY_IMPL(v4, LSTMCell);

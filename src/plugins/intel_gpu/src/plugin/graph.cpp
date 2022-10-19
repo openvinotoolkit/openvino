@@ -135,6 +135,7 @@ std::shared_ptr<cldnn::network> Graph::BuildNetwork(std::shared_ptr<cldnn::progr
 Graph::variable_states_map Graph::AllocateVariablesMemories() {
     Graph::variable_states_map states {};
     const auto& memStatesInfo = m_program->GetVariablesStatesInfo();
+    OPENVINO_ASSERT(memStatesInfo.empty() || !GetNetwork()->is_dynamic(), "[GPU] Dynamic shapes are not supported yet for stateful models");
     for (const auto& memStateInfo : memStatesInfo) {
         std::vector<cldnn::layout> orderedLayouts {memStateInfo.second.begin(), memStateInfo.second.end()};
         std::sort(orderedLayouts.begin(), orderedLayouts.end(), [](cldnn::layout& first, cldnn::layout& second) {

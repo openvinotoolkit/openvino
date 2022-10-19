@@ -80,12 +80,14 @@ std::vector<std::string> disabledTestPatterns() {
             // Issue: CVS-66778
             R"(.*smoke_Auto_BehaviorTests.*DynamicOutputToDynamicInput.*)",
             R"(.*smoke_Auto_BehaviorTests.*DynamicInputToDynamicOutput.*)",
-            R"(.*smoke_Auto_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
+            // Dynamic batch allocates output using upper bound
+            R"(.*smoke_BehaviorTests.*InferUpperBoundNetworkWithGetTensor.*)",
             // need dynamic shapes
             R"(.*RangeLayerTest.*)",
-            R"(.*smoke_BehaviorTests_1/OVInferRequestDynamicTests.GetSameTensor2times.*)",
-            R"(.*smoke_BehaviorTests_1/OVInferRequestDynamicTests.Infer(Upper|Fully).*)",
-            R"(.*smoke_BehaviorTests_1/OVInferRequestDynamicTests.InferDynamicNetwork(Set|With).*)",
+            // need dynamic rank
+            R"(.*smoke.*BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
+            R"(.*smoke.*BehaviorTests.*DynamicOutputToDynamicInput.*)",
+            R"(.*smoke.*BehaviorTests.*DynamicInputToDynamicOutput.*)",
             // Issue: 76197
             R"(.*registerPluginsXMLUnicodePath.*)",
             // Not supported yet
