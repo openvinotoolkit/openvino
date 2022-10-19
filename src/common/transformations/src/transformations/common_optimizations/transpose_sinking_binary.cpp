@@ -327,6 +327,16 @@ ov::element::Type GetTransposeElementType(NodePtr node)
 
 }
 
+void SwapNames(NodePtr node1, NodePtr node2) {
+    const std::string node2_name = node2->get_friendly_name();
+    node2->set_friendly_name(node1->get_friendly_name());
+    node1->set_friendly_name(node2_name);
+
+    const auto node2_output_names = node2->output(0).get_names();
+    node2->output(0).set_names(node1->output(0).get_names());
+    node1->output(0).set_names(node2_output_names);
+}
+
 // --------------------------------------------------------------------------------------
 
 ngraph::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
@@ -350,27 +360,43 @@ ngraph::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
         const size_t tranpose_input_index = GetNodeInputIndex(binary, transpose);
         const ov::element::Type transpose_element_type = GetTransposeElementType(transpose);
 
-        // Graph build strategy
-        auto insert_reversed_transpose = InsertTranspose(reversed_traspose_axis_order, transpose_element_type);
-        auto append_input_transposes = AppendTransposes(std::move(insert_reversed_transpose), IfNotIndex(tranpose_input_index));
+        for (size_t i = 0; i < 2; ++i) {
+            auto input_node = binary->input_value(i);
+            if (i == tranpose_input_index) {
+                auto transpose_parent = input_node.get_node()->input_value(0);
+                binary->input(i).replace_source_output(transpose_parent);
+            }
+            else {
+                auto new_transpose_const = std::make_shared<ov::opset9::Constant>(transpose_element_type,
+                                                                              ov::Shape{reversed_traspose_axis_order.size()},
+                                                                              reversed_traspose_axis_order);
+                auto new_transpose = std::make_shared<ov::opset9::Transpose>(input_node, new_transpose_const);
 
-        auto clone_binary = AppendClonedNode(binary, std::move(append_input_transposes));
+                binary->input(i).replace_source_output(new_transpose->output(0));
 
-        auto insert_transpose = InsertTranspose(transpose_axis_order, transpose_element_type);
-        auto append_output_transpose = AppendTransposes(std::move(insert_transpose), AnyIndex(), std::move(clone_binary));
-        append_output_transpose.SetNewNodesCollected();
-        //
-        Nodes input_nodes = GetNodes(binary->input_values());
-        input_nodes[tranpose_input_index] = transpose->input_value(0).get_node_shared_ptr();
-
-        for (auto & new_node: DoTransformation(binary, input_nodes, std::move(append_output_transpose))) {
-            register_new_node(new_node);
+                ov::copy_runtime_info(input_node.get_node_shared_ptr(), {new_transpose, new_transpose_const});
+            }
         }
+
+        auto binary_consumers = binary->output(0).get_target_inputs();
+
+        auto new_transpose_const = std::make_shared<ov::opset9::Constant>(transpose_element_type,
+                                                                      ov::Shape{transpose_axis_order.size()},
+                                                                      transpose_axis_order);
+        auto new_transpose = std::make_shared<ov::opset9::Transpose>(binary, new_transpose_const);
+
+        for (auto consumer: binary_consumers) {
+            consumer.replace_source_output(new_transpose);
+        }
+
+        ov::copy_runtime_info(binary, {new_transpose, new_transpose_const});
+
+        SwapNames(new_transpose, binary);
 
         return true;
     };
 
-    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(binary_label,matcher_name);
+    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(binary_label, matcher_name);
     register_matcher(matcher, matcher_pass_callback);
 }
 
