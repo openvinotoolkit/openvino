@@ -15,7 +15,7 @@
 #include "gna_upstream_iterator.hpp"
 #include "layers/gna_layer_info.hpp"
 #include "layers/gna_convolution_layer.hpp"
-#include "log/gna_plugin_log.hpp"
+#include "log/debug.hpp"
 #include "gna_slope_scale.h"
 #include "runtime/pwl.h"
 #include "gna_data_types.hpp"

@@ -25,9 +25,9 @@
 #include <layers/gna_copy_layer.hpp>
 
 #include "backend/dnn_types.h"
-#include "log/gna_plugin_log.hpp"
+#include "log/debug.hpp"
 #include "log/log.hpp"
-#include "frontend/quantization.h"
+#include "frontend/quantization.hpp"
 #include "frontend/quantized_layer_params.hpp"
 #include <layers/gna_copy_layer.hpp>
 #include <layers/gna_fake_quantize_layer.hpp>

@@ -4,31 +4,21 @@
 
 #pragma once
 
-#include <ostream>
 #include <ie_common.h>
 
 // #define GNA_DEBUG
+
 #ifdef  GNA_DEBUG
-#include <iostream>
+
 /**
  * @brief used for creating graphviz charts, and layers dump
  */
 #define PLOT
-#define GNA_HEAP_PROFILER
-#define MODEL_DUMP
-#else
 
-#ifdef VERBOSE
-#define VERBOSE_LEVEL (1)
-#else
-#define VERBOSE_LEVEL (0)
-#endif
-
-#ifdef PLOT
-#define PLOT_LEVEL (1)
-#else
-#define PLOT_LEVEL (0)
-#endif
+/**
+ * @brief used for dumping allocated memory
+ */
+#define GNA_MEMORY_DUMP
 
 #endif
 
@@ -48,7 +38,7 @@
 if (!(expr)) { \
     THROW_GNA_LAYER_EXCEPTION(layer) << ": " << #expr; \
 }
-#define THROW_GNA_EXCEPTION IE_THROW() << "[GNAPlugin] in function " << __PRETTY_FUNCTION__<< ": "
+#define THROW_GNA_EXCEPTION IE_THROW() << "[openvino_intel_gna_plugin] in function " << __PRETTY_FUNCTION__<< ": "
 #define THROW_GNA_LAYER_EXCEPTION(layer) THROW_GNA_EXCEPTION << LAYER_NAME(layer)
 #define LAYER_NAME(layer) (layer)->type << " layer : \"" << (layer)->name << "\" "
 

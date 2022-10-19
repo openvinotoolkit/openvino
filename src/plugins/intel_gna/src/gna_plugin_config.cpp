@@ -8,6 +8,7 @@
 #include <gna/gna_config.hpp>
 #include "gna_plugin.hpp"
 #include "gna_plugin_config.hpp"
+#include "log/log.hpp"
 #include "common/gna_target.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "ie_common.h"
@@ -17,6 +18,7 @@
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
+using namespace ov::intel_gna;
 
 namespace GNAPluginNS {
 const uint8_t Config::max_num_requests;
@@ -169,7 +171,7 @@ OPENVINO_SUPPRESS_DEPRECATED_END
             } else if (value == PluginConfigParams::NO) {
                 gnaFlags.compact_mode = false;
             } else {
-                ov::intel_gna::log::error() << "GNA compact mode should be true/false (YES/NO), but not " << value;
+                log::error() << "GNA compact mode should be true/false (YES/NO), but not " << value;
                 THROW_GNA_EXCEPTION << "GNA compact mode should be true/false (YES/NO), but not " << value;
             }
         } else if (key == CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)) {
@@ -178,7 +180,7 @@ OPENVINO_SUPPRESS_DEPRECATED_END
             } else if (value == PluginConfigParams::NO) {
                 gnaFlags.exclusive_async_requests = false;
             } else {
-                ov::intel_gna::log::error() << "EXCLUSIVE_ASYNC_REQUESTS should be YES/NO, but not" << value;
+                log::error() << "EXCLUSIVE_ASYNC_REQUESTS should be YES/NO, but not" << value;
                 THROW_GNA_EXCEPTION << "EXCLUSIVE_ASYNC_REQUESTS should be YES/NO, but not" << value;
             }
         } else if (key == ov::hint::performance_mode) {
@@ -195,7 +197,7 @@ OPENVINO_SUPPRESS_DEPRECATED_END
             check_compatibility(ov::hint::inference_precision.name());
             auto precision = Precision::FromStr(value);
             if (precision != Precision::I8 && precision != Precision::I16) {
-                ov::intel_gna::log::error() << "Unsupported precision of GNA hardware, should be Int16 or Int8, but was: " << value;
+                log::error() << "Unsupported precision of GNA hardware, should be Int16 or Int8, but was: " << value;
                 THROW_GNA_EXCEPTION << "Unsupported precision of GNA hardware, should be Int16 or Int8, but was: "
                                     << value;
             }
@@ -212,7 +214,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
             } else if (value == PluginConfigParams::NO) {
                 gnaFlags.uniformPwlDesign = false;
             } else {
-                ov::intel_gna::log::error() << "GNA pwl uniform algorithm parameter "
+                log::error() << "GNA pwl uniform algorithm parameter "
                     << "should be equal to YES/NO, but not" << value;
                 THROW_GNA_EXCEPTION << "GNA pwl uniform algorithm parameter "
                                     << "should be equal to YES/NO, but not" << value;
@@ -229,7 +231,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
                 THROW_GNA_EXCEPTION << "Invalid value of PWL max error percent";
             }
             catch (std::out_of_range&) {
-                ov::intel_gna::log::error() << "Unsupported PWL error percent value: " << value
+                log::error() << "Unsupported PWL error percent value: " << value
                     << ", should be greater than 0 and less than 100";
                 THROW_GNA_EXCEPTION << "Unsupported PWL error percent value: " << value
                     << ", should be greater than 0 and less than 100";
@@ -242,7 +244,7 @@ OPENVINO_SUPPRESS_DEPRECATED_END
             } else if (value == PluginConfigParams::NO) {
                 gnaFlags.performance_counting = false;
             } else {
-                ov::intel_gna::log::error() << "GNA performance counter enabling parameter "
+                log::error() << "GNA performance counter enabling parameter "
                     << "should be equal to YES/NO, but not" << value;
                 THROW_GNA_EXCEPTION << "GNA performance counter enabling parameter "
                                     << "should be equal to YES/NO, but not" << value;
@@ -259,7 +261,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
             try {
                 gnaFlags.num_requests = get_max_num_requests();
             } catch (std::out_of_range&) {
-                ov::intel_gna::log::error() << "Unsupported accelerator lib number of threads: " << value
+                log::error() << "Unsupported accelerator lib number of threads: " << value
                     << ", should be greater than 0 and less than " << Config::max_num_requests;
                 THROW_GNA_EXCEPTION << "Unsupported accelerator lib number of threads: " << value
                                     << ", should be greater than 0 and less than" << Config::max_num_requests;
@@ -270,7 +272,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
             } else if (value == PluginConfigParams::NO) {
                 gnaFlags.gna_openmp_multithreading = true;
             } else {
-                ov::intel_gna::log::error() << "SINGLE_THREAD should be YES/NO, but not" << value;
+                log::error() << "SINGLE_THREAD should be YES/NO, but not" << value;
                 THROW_GNA_EXCEPTION << "SINGLE_THREAD should be YES/NO, but not" << value;
             }
 OPENVINO_SUPPRESS_DEPRECATED_END

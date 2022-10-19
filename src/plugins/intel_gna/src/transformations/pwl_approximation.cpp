@@ -18,8 +18,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 
-#include "log/gna_plugin_log.hpp"
-
 static constexpr double EXP_BREAK = 0.045;
 
 using namespace ov::intel_gna;

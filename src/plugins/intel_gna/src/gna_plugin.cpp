@@ -353,7 +353,7 @@ GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) {
     Init();
     SetConfig(configMap);
     InitGNADevice();
-    ov::intel_gna::log(gnaFlags->log_level);
+    GnaLog(gnaFlags->log_level);
 }
 
 void GNAPlugin::Init() {
@@ -421,10 +421,10 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network
             auto scaleInput = frontend::CalculateScaleFactorFromStats(levels, inputRange.first[0], inputRange.second[0]);
 
             if (!config.inputScaleFactorsPerInput.empty() || !config.inputScaleFactors.empty()) {
-                ov::intel_gna::log::warning() << "Scale factor calculated during model quantization (" << scaleInput
+                log::warning() << "Scale factor calculated during model quantization (" << scaleInput
                     << ") will be used instead of user input (" << (*inputs_ptr_)[input.first].scale_factor << ").\n";
                 if ((*inputs_ptr_)[input.first].scale_factor < scaleInput) {
-                    ov::intel_gna::log::warning() << "Scale factor calculated based on input values (" << (*inputs_ptr_)[input.first].scale_factor
+                    log::warning() << "Scale factor calculated based on input values (" << (*inputs_ptr_)[input.first].scale_factor
                         << ") is smaller than scale factor used to quantize model (" << scaleInput << "). "
                         << "Input values will be clamped.\n";
                 }
@@ -565,7 +565,7 @@ void GNAPlugin::FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNN
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "FillInputsAndOutputsTranspositionInfo");
     auto printTranspositionInfo = [](const std::vector<TranspositionInfo> &transpositionInfo) {
         for (const auto &transpositionInfoPart : transpositionInfo) {
-            ov::intel_gna::log::debug() << "transpose=" << transpositionInfoPart.transpose << " rows_num=" << transpositionInfoPart.num_transpose_rows
+            log::debug() << "transpose=" << transpositionInfoPart.transpose << " rows_num=" << transpositionInfoPart.num_transpose_rows
                      << " columns_num=" << transpositionInfoPart.num_transpose_columns << "\n";
         }
     };
@@ -578,7 +578,7 @@ void GNAPlugin::FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNN
         if (transpositionInfo.empty()) continue;
 
         transpose_inputs_info.insert({inputLayer->name, transpositionInfo});
-        ov::intel_gna::log::debug() << "Input " << inputLayer->name << " transposition info: \n";
+        log::debug() << "Input " << inputLayer->name << " transposition info: \n";
         printTranspositionInfo(transpositionInfo);
     }
 
@@ -597,7 +597,7 @@ void GNAPlugin::FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNN
             }
         }
         transpose_outputs_info.insert({outLayer->name, transpositionInfo});
-        ov::intel_gna::log::debug() << "Output " << outLayer->name << " transposition info: \n";
+        log::debug() << "Output " << outLayer->name << " transposition info: \n";
         printTranspositionInfo(transpositionInfo);
     }
 }
@@ -944,7 +944,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     // keep inputs information and create input primitives
     inputs_data_map_ = newNet.getInputsInfo();
     if (inputs_data_map_.empty()) {
-        ov::intel_gna::log::warning() << "No inputs for the topology\n";
+        log::warning() << "No inputs for the topology\n";
     }
 
     // keep output dims
@@ -970,7 +970,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     }
 
     if (graphCompiler.dnnComponents.components.empty()) {
-        ov::intel_gna::log::warning() << "No GNA primitives created based on topology. This might indicate trivial topology\n";
+        log::warning() << "No GNA primitives created based on topology. This might indicate trivial topology\n";
         trivialTopology = true;
     }
 
@@ -994,13 +994,13 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
 
         // searching for outData represented in GNA blob
         // using ufs - upper first search
-        ov::intel_gna::log::debug() << "[UFS] searching for : " << outPort.first << " representation in GNA\n";
+        log::debug() << "[UFS] searching for : " << outPort.first << " representation in GNA\n";
         bool stopSearching = false;
 
         CNNNetDFS(
             outLayer,
             [this, &outPort, &stopSearching](CNNLayerPtr layer) {
-                ov::intel_gna::log::debug() << "[UFS] from : " << outPort.first << " reached: " << layer->name << "\n";
+                log::debug() << "[UFS] from : " << outPort.first << " reached: " << layer->name << "\n";
                 stopSearching = TryToInitOutput(outPort.first, layer);
             },
             true,
@@ -1634,7 +1634,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
         IE_ASSERT(config.inputScaleFactorsPerInput.size() <= inputs_ptr_->size());
         for (auto&& sf : config.inputScaleFactorsPerInput) {
             if (sf.second != GNAPluginNS::kScaleFactorDefault) {
-                ov::intel_gna::log::debug() << "[Import Network] Using input scale factor defined in configuration for input " << sf.first
+                log::debug() << "[Import Network] Using input scale factor defined in configuration for input " << sf.first
                          << std::endl;
                 (*inputs_ptr_)[sf.first].scale_factor = sf.second;
             }
@@ -1643,7 +1643,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
         IE_ASSERT(config.inputScaleFactors.size() <= inputs_ptr_->size());
         for (size_t id = 0; id < config.inputScaleFactors.size(); ++id) {
             if (id < inputs_ptr_->size() && config.inputScaleFactors[id] != GNAPluginNS::kScaleFactorDefault) {
-                ov::intel_gna::log::debug() << "[Import Network] Using input scale factor defined in configuration for input " << id
+                log::debug() << "[Import Network] Using input scale factor defined in configuration for input " << id
                          << std::endl;
                 inputs_ptr_->Get().at(id).scale_factor = config.inputScaleFactors[id];
             }
@@ -1707,7 +1707,7 @@ void GNAPlugin::Export(std::ostream &outStream) {
 
     for (auto && memoryConnection : graphCompiler.memory_connection) {
         auto state = std::make_shared<memory::GNAVariableState>(memoryConnection.first, std::make_shared <GNAMemoryLayer>(memoryConnection.second));
-        ov::intel_gna::log::debug() << "Scale factor Memory layer " << state->GetScaleFactor() << std::endl;
+        log::debug() << "Scale factor Memory layer " << state->GetScaleFactor() << std::endl;
         serial.AddState(memoryConnection.second.gna_ptr, memoryConnection.second.reserved_size, memoryConnection.first, state->GetScaleFactor());
     }
 

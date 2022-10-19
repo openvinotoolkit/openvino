@@ -16,9 +16,9 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ie/ie_common.h>
 
-#include "log/gna_plugin_log.hpp"
 #include "log/log.hpp"
 
+using namespace ov::intel_gna;
 using namespace ov::intel_gna::pass;
 
 static void SwapAndTransposeInputs(
@@ -58,7 +58,7 @@ static void SwapAndTransposeInputs(
         return matmul_input;
     };
 
-    ov::intel_gna::log::debug() << "Swap and transpose inputs for " << matmul_node->get_friendly_name() << "\n";
+    log::debug() << "Swap and transpose inputs for " << matmul_node->get_friendly_name() << "\n";
 
     bool first_input_const = false;
     bool second_input_const = false;

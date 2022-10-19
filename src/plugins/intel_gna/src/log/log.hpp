@@ -37,7 +37,7 @@ class GnaLog {
     ov::log::Level message_level_ = ov::log::Level::NO;
 
  public :
-    GnaLog(GnaLog const&) = delete;
+    GnaLog(const GnaLog&) = delete;
     void operator = (const GnaLog&) = delete;
 
     GnaLog(ov::log::Level log_level) {
@@ -112,6 +112,13 @@ class GnaLog {
         return *this;
     }
 };
+
+template <class T>
+std::string toHexString(T t) {
+    std::ostringstream o;
+    o << std::hex << t;
+    return o.str();
+}
 
 // alias for GnaLog class to make it aligned with snake style code
 using log = GnaLog;

@@ -5,7 +5,7 @@
 #pragma once
 
 #include <legacy/graph_tools.hpp>
-#include "log/gna_plugin_log.hpp"
+#include "log/debug.hpp"
 #include "log/log.hpp"
 #include "frontend/quantized_layer_params.hpp"
 #include <utility>
@@ -13,6 +13,8 @@
 #include <vector>
 #include <limits>
 #include <memory>
+
+using namespace ov::intel_gna;
 
 namespace InferenceEngine {
 
@@ -658,7 +660,7 @@ inline void CNNNetworkRemoveLayer(CNNLayerPtr layer, bool checkDims = true) {
     if (!layer) {
         IE_THROW() << "Cannot remove layer pointed to NULL";
     }
-    ov::intel_gna::log::debug() << "Removing " << layer->name << " layer\n";
+    log::debug() << "Removing " << layer->name << " layer\n";
     if (layer->insData.size() != 1) {
         IE_THROW() << "Cannot remove layer : "<< layer->name <<" that has different number of inputs than 1";
     }
@@ -736,7 +738,7 @@ inline void CNNNetworkReconnectLayer(CNNLayerPtr old_prev_layer, CNNLayerPtr new
         IE_THROW() << "Cannot reconnect layer new parent is NULL";
     }
 
-    ov::intel_gna::log::debug() << "Reconnecting " << old_prev_layer->name << " --> " << layer->name << " layer to "
+    log::debug() << "Reconnecting " << old_prev_layer->name << " --> " << layer->name << " layer to "
         << new_prev_layer->name << " -- > " << layer->name << "layer\n";
 
     if (layer->insData.size() < 1) {

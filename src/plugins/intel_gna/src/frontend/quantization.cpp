@@ -4,12 +4,13 @@
 
 #include <cstring>
 #include <limits>
-#include "log/gna_plugin_log.hpp"
+#include "log/debug.hpp"
 #include "log/log.hpp"
 #include "backend/gna_types.h"
 #include "quantization.hpp"
 #include <algorithm>
 
+using namespace ov::intel_gna;
 
 std::pair<float, float> FindMinMaxValues(void* ptr_float_memory, size_t num_elements) {
     float* ptr_float_feat = reinterpret_cast<float*>(ptr_float_memory);

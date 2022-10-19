@@ -19,6 +19,8 @@
 #include <fstream>
 #include <numeric>
 
+using namespace ov::intel_gna;
+
 void * ExportSueLegacyUsingGnaApi2(
     uint32_t modelId,
     uint32_t deviceIndex,
@@ -124,7 +126,7 @@ std::string WriteAllEndpoints(std::ostream& outStream,
         outStream.write(scaleFactorTlv.data(), scaleFactorTlv.size());
     }
     if (allEndpoints.size() != 1) {
-        ov::intel_gna::log::warning() << "Number of endpoints: " << allEndpoints.size() << " for " << endPointType << "\n";
+        log::warning() << "Number of endpoints: " << allEndpoints.size() << " for " << endPointType << "\n";
     }
 
     std::stringstream stream;

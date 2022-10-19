@@ -12,11 +12,12 @@
 
 #include <ie_api.h>
 #include <legacy/ie_layers.h>
-#include "log/gna_plugin_log.hpp"
 #include "log/log.hpp"
 #include "gna_mem_requests.hpp"
 #include "gna_lib_ver_selector.hpp"
 #include "memory_solver.hpp"
+
+using namespace ov::intel_gna;
 
 namespace GNAPluginNS {
 namespace memory {
@@ -202,7 +203,7 @@ public:
     void iterate_binded(GNAPluginNS::memory::MemRequest & reference, const T & visitor) {
         for (auto &re : _mem_requests) {
             if ((re._type & REQUEST_BIND) && (re._ptr_in == reference._ptr_out)) {
-                ov::intel_gna::log::trace() << "  [binded=" << re._type << ", ptr=" << re._ptr_out <<"]\n";
+                log::trace() << "  [binded=" << re._type << ", ptr=" << re._ptr_out <<"]\n";
                 visitor(reference, re);
                 // primitive loop check
                 if (re._ptr_in == re._ptr_out) continue;

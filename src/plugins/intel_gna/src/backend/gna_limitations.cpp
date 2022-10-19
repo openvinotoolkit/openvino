@@ -1,13 +1,9 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include "gna_limitations.hpp"
-
-#include "gna/gna_config.hpp"
-
 #include <cstdint>
 #include <unordered_set>
+
 #include <legacy/ie_layers.h>
 #include <legacy/graph_tools.hpp>
 #include <layers/gna_layer_type.hpp>
@@ -15,6 +11,11 @@
 #include "gna_graph_tools.hpp"
 #include "gna_lib_ver_selector.hpp"
 #include "common/gna_target.hpp"
+#include "log/log.hpp"
+#include "gna_limitations.hpp"
+#include "gna/gna_config.hpp"
+
+using namespace ov::intel_gna;
 
 namespace GNAPluginNS {
 namespace GNALimitations {
@@ -478,7 +479,7 @@ bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMe
                                                    }
                                                } else if (info.isConcat()) {
                                                    if (userWarning && !ValidateConcatAxis(layer, errMessage)) {
-                                                       ov::intel_gna::log::error() << errMessage;
+                                                       log::error() << errMessage;
                                                    }
                                                }
                                            }, false);

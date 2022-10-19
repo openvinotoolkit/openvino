@@ -9,7 +9,7 @@
 
 using namespace ov::intel_gna;
 
-using GnaLogTestParams = std::tuple<ov::log::Level, ov::log::Level>;                  
+using GnaLogTestParams = std::tuple<ov::log::Level, ov::log::Level>;
 
 class GnaLogTest : public ::testing::TestWithParam<GnaLogTestParams> {
     protected:
@@ -33,38 +33,37 @@ TEST_P(GnaLogTest, LogLevel) {
     std::streambuf *ebuf = std::cerr.rdbuf();
     std::cout.rdbuf(buffer.rdbuf());
     std::cerr.rdbuf(buffer.rdbuf());
-    
+
     ov::log::Level log_level, message_level;
     std::tie(log_level, message_level) = GetParam();
-    
-    GnaLog::GnaLog(log_level);;
 
-    switch (message_level)
-    {
+    GnaLog::GnaLog(log_level);
+
+    switch (message_level) {
     case ov::log::Level::ERR :
-        ov::intel_gna::log::error()  << test_message << std::endl;
+        log::error()  << test_message << std::endl;
         break;
 
     case ov::log::Level::WARNING :
-        ov::intel_gna::log::warning()  << test_message << std::endl;
+        log::warning()  << test_message << std::endl;
         break;
 
     case ov::log::Level::INFO :
-        ov::intel_gna::log::info()  << test_message << std::endl;
+        log::info()  << test_message << std::endl;
         break;
 
     case ov::log::Level::DEBUG :
-        ov::intel_gna::log::debug()  << test_message << std::endl;
+        log::debug()  << test_message << std::endl;
         break;
 
     case ov::log::Level::TRACE :
-        ov::intel_gna::log::trace()  << test_message << std::endl;
+        log::trace()  << test_message << std::endl;
     break;
-    
+
     default:
         break;
     }
-    
+
     expected_message << "[" << message_level << "] " << test_message << std::endl;
     if (message_level <= log_level) {
         EXPECT_TRUE(buffer.str() == expected_message.str());
@@ -76,9 +75,18 @@ TEST_P(GnaLogTest, LogLevel) {
     std::cerr.rdbuf(ebuf);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_GnaLogTest, 
-                         GnaLogTest, 
+INSTANTIATE_TEST_SUITE_P(smoke_GnaLogTest,
+                         GnaLogTest,
                          ::testing::Combine(
-                            ::testing::ValuesIn({ov::log::Level::NO, ov::log::Level::ERR, ov::log::Level::WARNING, ov::log::Level::INFO, ov::log::Level::DEBUG, ov::log::Level::TRACE}),
-                            ::testing::ValuesIn({ov::log::Level::ERR, ov::log::Level::WARNING, ov::log::Level::INFO, ov::log::Level::DEBUG, ov::log::Level::TRACE})),
+                            ::testing::ValuesIn({ov::log::Level::NO,
+                                                 ov::log::Level::ERR,
+                                                 ov::log::Level::WARNING,
+                                                 ov::log::Level::INFO,
+                                                 ov::log::Level::DEBUG,
+                                                 ov::log::Level::TRACE}),
+                            ::testing::ValuesIn({ov::log::Level::ERR,
+                                                 ov::log::Level::WARNING,
+                                                 ov::log::Level::INFO,
+                                                 ov::log::Level::DEBUG,
+                                                 ov::log::Level::TRACE})),
                         GnaLogTest::GetTestCaseName);
