@@ -26,6 +26,14 @@ class TRANSFORMATIONS_API NopElimination;
 }  // namespace pass
 }  // namespace ngraph
 
+namespace ov {
+namespace pass {
+
+class TRANSFORMATIONS_API EliminateSplitConcat;
+
+}
+}  // namespace ov
+
 /**
  * @ingroup ie_transformation_common_api
  * @brief EliminatePad eliminates pad that does nothing
@@ -110,4 +118,14 @@ class ngraph::pass::NopElimination : public GraphRewrite {
 public:
     OPENVINO_RTTI("NopElimination", "0");
     NopElimination(bool use_shape_for_elimination = true);
+};
+
+/**
+ * @ingroup ie_transformation_comm on_api
+ * @brief EliminateSplit eliminates split+concat pairs which do nothing
+ */
+class ov::pass::EliminateSplitConcat : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("EliminateSplitConcat", "0");
+    EliminateSplitConcat();
 };

@@ -58,6 +58,7 @@ std::vector<std::string> parse_devices(const std::string& device_string);
 uint32_t device_default_device_duration_in_seconds(const std::string& device);
 std::map<std::string, std::string> parse_value_per_device(const std::vector<std::string>& devices,
                                                           const std::string& values_string);
+void parse_value_for_virtual_device(const std::string& device, std::map<std::string, std::string>& values_string);
 std::string get_shape_string(const ov::Shape& shape);
 std::string get_shapes_string(const benchmark_app::PartialShapes& shapes);
 size_t get_batch_size(const benchmark_app::InputsInfo& inputs_info);

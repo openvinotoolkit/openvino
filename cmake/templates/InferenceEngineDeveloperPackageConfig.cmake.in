@@ -14,7 +14,8 @@ set_and_check(OpenVINO_MAIN_SOURCE_DIR "@OpenVINO_SOURCE_DIR@") # KMB
 
 set(ie_options "@IE_OPTIONS@")
 list(APPEND ie_options CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER
-                       CMAKE_BUILD_TYPE CMAKE_SKIP_RPATH CMAKE_INSTALL_PREFIX)
+                       CMAKE_BUILD_TYPE CMAKE_SKIP_RPATH CMAKE_INSTALL_PREFIX
+                       CMAKE_OSX_ARCHITECTURES)
 file(TO_CMAKE_PATH "${CMAKE_CURRENT_LIST_DIR}" cache_path)
 
 message(STATUS "The following CMake options are exported from Inference Engine Developer package")
@@ -29,6 +30,11 @@ message(" ")
 
 # for samples in 3rd party projects
 set_and_check(gflags_DIR "@gflags_BINARY_DIR@")
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # Disable warning as error for private components
+    set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
+endif()
 
 #
 # Content

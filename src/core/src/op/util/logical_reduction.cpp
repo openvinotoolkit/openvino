@@ -44,7 +44,7 @@ void op::util::LogicalReduction::set_reduction_axes(const AxisSet& reduction_axe
 }
 
 void op::util::LogicalReduction::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(util_LogicalReduction_validate_and_infer_types);
+    OV_OP_SCOPE(util_LogicalReduction_validate_and_infer_types);
 
     const element::Type& data_et = get_input_element_type(0);
     const PartialShape& axes_shape = get_input_partial_shape(1);

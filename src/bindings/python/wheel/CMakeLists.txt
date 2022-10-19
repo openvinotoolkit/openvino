@@ -10,8 +10,7 @@ set(pyversion python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
 set(WHEEL_VERSION "${OpenVINO_VERSION}" CACHE STRING "Version of this release" FORCE)
 set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
 
-set(PYTHON_BRIDGE_CPACK_PATH "${OV_CPACK_PYTHONDIR}")
-set(PY_PACKAGES_DIR ${PYTHON_BRIDGE_CPACK_PATH}/${pyversion})
+set(PY_PACKAGES_DIR ${OV_CPACK_PYTHONDIR})
 set(TBB_LIBS_DIR runtime/3rdparty/tbb/lib)
 if(WIN32)
     set(TBB_LIBS_DIR runtime/3rdparty/tbb/bin)
@@ -45,19 +44,20 @@ set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 
 add_custom_command(OUTPUT ${openvino_wheel_path}
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/licensing" "${CMAKE_BINARY_DIR}/licensing"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${OpenVINO_SOURCE_DIR}/licensing" "${CMAKE_BINARY_DIR}/licensing"
     COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/site-packages"
     COMMAND ${CMAKE_COMMAND} -E env WHEEL_VERSION=${WHEEL_VERSION}
-        WHEEL_BUILD=${WHEEL_BUILD}
-        CMAKE_BUILD_DIR=${CMAKE_BINARY_DIR}
-        OV_RUNTIME_LIBS_DIR=${OV_CPACK_RUNTIMEDIR}
-        TBB_LIBS_DIR=${TBB_LIBS_DIR}
-        PUGIXML_LIBS_DIR=${PUGIXML_LIBS_DIR}
-        PY_PACKAGES_DIR=${PY_PACKAGES_DIR}
+            WHEEL_BUILD=${WHEEL_BUILD}
+            OPENVINO_BUILD_DIR=${OpenVINO_BINARY_DIR}
+            OPENVINO_PYTHON_BUILD_DIR=${OpenVINOPython_BINARY_DIR}
+            OV_RUNTIME_LIBS_DIR=${OV_WHEEL_RUNTIMEDIR}
+            TBB_LIBS_DIR=${TBB_LIBS_DIR}
+            PUGIXML_LIBS_DIR=${PUGIXML_LIBS_DIR}
+            PY_PACKAGES_DIR=${PY_PACKAGES_DIR}
         ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py" clean bdist_wheel
-        --dist-dir ${openvino_wheels_output_dir}
-        --build=${WHEEL_BUILD}
-        --plat-name=${WHEEL_PLATFORM}
+            --dist-dir ${openvino_wheels_output_dir}
+            --build=${WHEEL_BUILD}
+            --plat-name=${WHEEL_PLATFORM}
     DEPENDS ${openvino_wheel_deps}
            "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
