@@ -2,16 +2,15 @@ name: Code snippets
 on:
   push:
     paths:
-      - 'openvino/.github/workflows/code_snippets.yml'
-      - 'openvino/docs/snippets/**'
+      - '.github/workflows/code_snippets.yml'
+      - 'docs/snippets/**'
   pull_request:
     paths:
-      - 'openvino/.github/workflows/code_snippets.yml'
-      - 'openvino/docs/snippets/**'
+      - '.github/workflows/code_snippets.yml'
+      - 'docs/snippets/**'
 
 jobs:
-  Build_Snippets:
-    if: github.repository == 'openvinotoolkit/openvino'
+  Build:
     strategy:
       fail-fast: false
       matrix:
