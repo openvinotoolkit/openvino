@@ -16,7 +16,7 @@ using namespace testing;
 class UnsqueezeStaticShapeInferenceAssertTest : public OpStaticShapeInferenceTest<op::v0::Unsqueeze> {
 protected:
     void SetUp() override {
-        output_shapes = ShapeVector(op::v0::Unsqueeze::OUT_COUNT);
+        output_shapes = ShapeVector(1);
     }
 };
 
@@ -63,7 +63,7 @@ protected:
         UnsqueezeStaticShapeInferenceAssertTest::SetUp();
         std::tie(input_shapes, axes, exp_shape) = GetParam();
 
-        output_shapes = ShapeVector(op::v0::Unsqueeze::OUT_COUNT);
+        output_shapes = ShapeVector(1);
         arg = std::make_shared<op::v0::Parameter>(element::f32, input_shapes.front().get_shape());
     }
 
@@ -119,8 +119,7 @@ TEST_P(UnsqueezeStaticShapeInferenceTest, shape_inference_with_const_map) {
 
     const auto axes_const = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{axes.size()}, axes);
     const auto axes_tensor = std::make_shared<ngraph::runtime::HostTensor>(axes_const);
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {
-        {op::v0::Unsqueeze::AXES, axes_tensor}};
+    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {{1, axes_tensor}};
 
     shape_infer(op.get(), input_shapes, output_shapes, constant_data);
 

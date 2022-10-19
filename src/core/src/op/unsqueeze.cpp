@@ -25,7 +25,7 @@ op::v0::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes)
 void op::v0::Unsqueeze::validate_and_infer_types() {
     OV_OP_SCOPE(v0_Unsqueeze_validate_and_infer_types);
 
-    const auto& axes_pshape = get_input_partial_shape(AXES);
+    const auto& axes_pshape = get_input_partial_shape(1);
 
     NODE_VALIDATION_CHECK(this,
                           axes_pshape.rank().compatible(0) || axes_pshape.rank().compatible(1),
@@ -33,12 +33,12 @@ void op::v0::Unsqueeze::validate_and_infer_types() {
                           axes_pshape.rank().get_length());
 
     const auto input_shapes = get_node_input_partial_shapes(*this);
-    auto output_shapes = std::vector<ov::PartialShape>(OUT_COUNT);
+    auto output_shapes = std::vector<ov::PartialShape>(1);
 
     shape_infer(this, input_shapes, output_shapes);
 
     set_output_size(output_shapes.size());
-    set_output_type(OUT, get_input_element_type(ARG), output_shapes[OUT]);
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
 bool op::v0::Unsqueeze::visit_attributes(AttributeVisitor& visitor) {
@@ -48,10 +48,10 @@ bool op::v0::Unsqueeze::visit_attributes(AttributeVisitor& visitor) {
 
 shared_ptr<Node> op::v0::Unsqueeze::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Unsqueeze_clone_with_new_inputs);
-    if (new_args.size() != IN_COUNT) {
+    if (new_args.size() != 2) {
         throw ngraph_error("Incorrect number of new arguments");
     }
-    return make_shared<Unsqueeze>(new_args.at(ARG), new_args.at(AXES));
+    return make_shared<Unsqueeze>(new_args.at(0), new_args.at(1));
 }
 
 namespace unsqueeze {
@@ -109,14 +109,14 @@ bool evaluate_unsqueeze(const Node* node,
 
 bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Unsqueeze_evaluate);
-    NGRAPH_CHECK(validate_host_tensor_vector(inputs, IN_COUNT));
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, OUT_COUNT));
-    return unsqueeze::evaluate_unsqueeze(this, inputs[ARG], inputs[AXES], outputs[OUT]);
+    NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    return unsqueeze::evaluate_unsqueeze(this, inputs[0], inputs[1], outputs[0]);
 }
 
 bool op::v0::Unsqueeze::has_evaluate() const {
     OV_OP_SCOPE(v0_Unsqueeze_has_evaluate);
-    switch (get_input_element_type(ARG)) {
+    switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:
@@ -131,32 +131,32 @@ bool op::v0::Unsqueeze::has_evaluate() const {
 }
 
 bool op::v0::Unsqueeze::evaluate_lower(const HostTensorVector& output_values) const {
-    if (!get_input_tensor(AXES).has_and_set_bound())
+    if (!get_input_tensor(1).has_and_set_bound())
         return false;
     return default_lower_bound_evaluator(this, output_values);
 }
 
 bool op::v0::Unsqueeze::evaluate_upper(const HostTensorVector& output_values) const {
-    if (!get_input_tensor(AXES).has_and_set_bound())
+    if (!get_input_tensor(1).has_and_set_bound())
         return false;
     return default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v0::Unsqueeze::evaluate_label(TensorLabelVector& output_labels) const {
-    if (!get_input_tensor(AXES).has_and_set_bound())
+    if (!get_input_tensor(1).has_and_set_bound())
         return false;
     return default_label_evaluator(this, output_labels);
 }
 
 bool op::v0::Unsqueeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
-    if (get_output_partial_shape(OUT).is_dynamic() || is_const_fold_disabled()) {
+    if (get_output_partial_shape(0).is_dynamic() || is_const_fold_disabled()) {
         return false;
     }
 
-    const auto& shape = get_output_shape(OUT);
+    const auto& shape = get_output_shape(0);
 
-    if (auto data_const = std::dynamic_pointer_cast<op::v0::Constant>(inputs_values[ARG].get_node_shared_ptr())) {
-        output_values[OUT] = std::make_shared<op::v0::Constant>(*data_const, shape);
+    if (auto data_const = std::dynamic_pointer_cast<op::v0::Constant>(inputs_values[0].get_node_shared_ptr())) {
+        output_values[0] = std::make_shared<op::v0::Constant>(*data_const, shape);
         return true;
     }
     return false;

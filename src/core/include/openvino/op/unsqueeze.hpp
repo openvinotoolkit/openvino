@@ -37,11 +37,6 @@ public:
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-
-    /// \brief Inputs indexes and count.
-    enum Ins : size_t { ARG, AXES, IN_COUNT };
-    /// \brief Outputs indexes and count.
-    enum Outs : size_t { OUT, OUT_COUNT };
 };
 }  // namespace v0
 }  // namespace op

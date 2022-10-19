@@ -15,13 +15,12 @@ void shape_infer(const Unsqueeze* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    NODE_VALIDATION_CHECK(op,
-                          input_shapes.size() == Unsqueeze::IN_COUNT && output_shapes.size() == Unsqueeze::OUT_COUNT);
-    const auto& arg_shape = input_shapes[Unsqueeze::ARG];
-    auto& out_shape = output_shapes[Unsqueeze::OUT];
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1);
+    const auto& arg_shape = input_shapes[0];
+    auto& out_shape = output_shapes[0];
 
     std::vector<int64_t> axes_val;
-    const auto has_axes = get_data_as_int64<T>(Unsqueeze::AXES, op, axes_val, constant_data);
+    const auto has_axes = get_data_as_int64<T>(1, op, axes_val, constant_data);
 
     if (has_axes && arg_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(op, !axes_val.empty(), "'axes' input is mandatory");
