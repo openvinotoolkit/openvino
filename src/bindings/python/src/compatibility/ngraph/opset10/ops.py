@@ -113,3 +113,14 @@ def is_inf(
     if not attributes:
         attributes = {}
     return _get_node_factory_opset10().create("IsInf", as_nodes(data), attributes)
+
+
+@nameable_op
+def is_nan(data: NodeInput, name: Optional[str] = None) -> Node:
+    """Performs element-wise mapping from NaN to True. Other values are mapped to False.
+
+    :param  data:          A tensor of floating point numeric type and arbitrary shape.
+    :param  name:          Optional name for the output node. Default is None.
+    :return: Node representing is_nan operation.
+    """
+    return _get_node_factory_opset10().create("IsNaN", as_nodes(data))

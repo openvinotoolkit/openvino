@@ -76,6 +76,7 @@ from ngraph.opset8.ops import if_op
 from ngraph.opset10.ops import interpolate
 from ngraph.opset9.ops import irdft
 from ngraph.opset10.ops import is_inf
+from ngraph.opset10.ops import is_nan
 from ngraph.opset8.ops import i420_to_bgr
 from ngraph.opset8.ops import i420_to_rgb
 from ngraph.opset1.ops import less

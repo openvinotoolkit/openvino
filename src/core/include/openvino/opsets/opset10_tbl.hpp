@@ -199,3 +199,4 @@ _OPENVINO_OP_REG(MulticlassNms, ov::op::v9)
 
 // New operations added in opset10
 _OPENVINO_OP_REG(IsInf, ov::op::v10)
+_OPENVINO_OP_REG(IsNaN, ov::op::v10)

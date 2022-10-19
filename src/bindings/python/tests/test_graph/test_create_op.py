@@ -2248,3 +2248,14 @@ def test_is_inf_opset10_custom_all_attributes():
     node_attributes = node.get_attributes()
     assert node_attributes["detect_positive"] is True
     assert node_attributes["detect_negative"] is False
+
+
+def test_in_nan_opset10():
+    input_shape = [1, 2, 3, 4]
+    input_node = ov.parameter(input_shape, np.float, name="InputData")
+    node = ov_opset10.is_nan(input_node)
+
+    assert node.get_type_name() == "IsNaN"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == input_shape
+    assert node.get_output_element_type(0) == Type.boolean

@@ -173,6 +173,7 @@ set(SRC
     type_prop/interpolate.cpp
     type_prop/irdft.cpp
     type_prop/is_inf.cpp
+    type_prop/is_nan.cpp
     type_prop/logical_and.cpp
     type_prop/logical_not.cpp
     type_prop/logical_or.cpp

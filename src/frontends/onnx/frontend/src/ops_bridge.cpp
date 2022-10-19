@@ -80,6 +80,7 @@
 #include "op/image_scaler.hpp"
 #include "op/instance_norm.hpp"
 #include "op/is_inf.hpp"
+#include "op/is_nan.hpp"
 #include "op/leaky_relu.hpp"
 #include "op/less.hpp"
 #include "op/log.hpp"
@@ -360,6 +361,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("ImageScaler", 1, image_scaler);
     REGISTER_OPERATOR("InstanceNormalization", 1, instance_norm);
     REGISTER_OPERATOR("IsInf", 1, is_inf);
+    REGISTER_OPERATOR("IsNaN", 1, is_nan)
     REGISTER_OPERATOR("LeakyRelu", 1, leaky_relu);
     REGISTER_OPERATOR("Less", 1, less);
     REGISTER_OPERATOR("Log", 1, log);

@@ -88,6 +88,7 @@ declared in `namespace opset10`.
 * [Interpolate](image/Interpolate_4.md)
 * [IRDFT](signals/IRDFT_9.md)
 * [IsInf](comparison/IsInf_10.md)
+* [IsNaN](comparison/IsNaN_10.md)
 * [Less](comparison/Less_1.md)
 * [LessEqual](comparison/LessEqual_1.md)
 * [Log](arithmetic/Log_1.md)

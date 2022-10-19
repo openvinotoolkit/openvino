@@ -430,3 +430,5 @@ onnx_is_inf_default
 onnx_is_inf_positive_only
 onnx_is_inf_negative_only
 onnx_is_inf_detect_none
+
+onnx_is_nan

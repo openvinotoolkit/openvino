@@ -93,6 +93,7 @@
    Interpolate-1 <openvino_docs_ops_image_Interpolate_1>
    Interpolate-4 <openvino_docs_ops_image_Interpolate_4>
    IsInf-10 <openvino_docs_ops_comparison_IsInf_10>
+   IsNaN-10 <openvino_docs_ops_comparison_IsNaN_10>
    LRN-1 <openvino_docs_ops_normalization_LRN_1>
    LSTMCell-1 <openvino_docs_ops_sequence_LSTMCell_1>
    LSTMSequence-1 <openvino_docs_ops_sequence_LSTMSequence_1>
