@@ -15,6 +15,7 @@
 #include "snippets/pass/convert_constants.hpp"
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
 #include "snippets/pass/vector_to_scalar.hpp"
+#include "snippets/pass/insert_loops.hpp"
 #include "snippets/pass/transform_convert.hpp"
 #include "snippets/pass/align_element_type.hpp"
 #include "snippets/utils.hpp"
@@ -26,7 +27,6 @@
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph_ops/type_relaxed.hpp"
 #include <openvino/pass/serialize.hpp>
-#include "snippets/op/loop_helpers.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -403,6 +403,10 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
             manager.get_pass_config()->
                     set_callback<ngraph::snippets::pass::SetScalarCountForStore>(skip_matching_domain);
         }
+        // todo: get_lanes() assumes fp32. Could there be any int8 issues?
+        // Note that InsertLoops requires validate_and_infer_types afterwards, so add it manually if
+        // automatic validation will be disabled in the pass manager
+        manager.register_pass<snippets::pass::InsertLoops>(master_shape, m_generator->get_target_machine()->get_lanes());
     }
     manager.run_passes(m_body);
 }
@@ -435,77 +439,6 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
 
     convert_to_snippet_dialect();
     opt.run_passes(m_body);
-
-    if (master_shape.is_static()) {
-        const auto inner_dim = master_shape.size() - 1;
-        // Note: outer_dim could overflow if master_shape.size() < 2
-        const auto outer_dim = master_shape.size() - 2;
-        const auto inner_WA = master_shape[inner_dim].get_length();
-        const auto outer_WA = master_shape.size() >= 2 ? master_shape[outer_dim].get_length() : 1;
-        // todo: get_lanes() assumes fp32. Could there be any int8 issues?
-        const auto vector_size = m_generator->get_target_machine()->get_lanes();
-
-        ParameterVector commonParams = m_body->get_parameters();
-        // Note that topological sort parses node arguments in reversed order, but results are added  - in direct order
-        // So ve need to pass the reversed results to LoopEnd to keep the original traversal order in topological sorter
-        const auto& orig_results = m_body->get_results();
-        ResultVector commonResults(orig_results.rbegin(), orig_results.rend());
-        std::vector<PartialShape> ioShapes;
-        ioShapes.reserve(commonParams.size() + commonResults.size());
-        std::transform(commonParams.begin(), commonParams.end(), std::back_inserter(ioShapes),
-                       [](const std::shared_ptr<Node>& n) { return n->get_output_partial_shape(0); });
-        std::transform(commonResults.begin(), commonResults.end(), std::back_inserter(ioShapes),
-                       [](const std::shared_ptr<Node>& n) { return n->get_input_partial_shape(0); });
-
-        if (inner_WA > 0) {
-            std::vector<bool> apply_increments;
-            apply_increments.reserve(ioShapes.size());
-            // Inner Loop applies increments if a dimension is not broadcasted
-            std::transform(ioShapes.begin(), ioShapes.end(), std::back_inserter(apply_increments),
-                            [=](const PartialShape& ps) {
-                                return ps[inner_dim] != 1 && master_shape[inner_dim] != 1;
-                            });
-            std::vector<int64_t> inner_finalization_offsets(ioShapes.size(), 0);
-            if (outer_WA > 1) {
-                // We need to step back if an outer dim is broadcasted, while the corresponding lower one is not
-                std::transform(ioShapes.begin(), ioShapes.end(), inner_finalization_offsets.begin(),
-                               [=](const PartialShape& ps) {
-                                   return ps[outer_dim] == 1 && ps[inner_dim] != 1 ? -inner_WA : 0;
-                               });
-            }
-                const auto& inner_loop_begin = insertLoopBegin(commonParams);
-                const auto& inner_loop_end = insertLoopEnd(commonResults, inner_loop_begin, inner_dim, inner_WA, vector_size, apply_increments,
-                              inner_finalization_offsets);
-                // set internal flag to enable scalar vs vector loop optimizations
-                inner_loop_end->has_outer_loop = outer_WA > 1;
-                // Due to features of topological sort, some Constants (Scalars) may appear right after Parameters in
-                // sorted ops (so it's between Parameters and LoopBegin). Consequently, ScalarEmitters would be called
-                // outside the Loop, and only the first Loop iteration would yield correct data (assuming the vector reg
-                // assigned to scalar will get corrupted inside the loop body). To avoid such cases, we add control dependency
-                // on LoopBegin to guarantee that the constants are executed inside the Loop.
-                for (const auto& n : m_body->get_ordered_ops()) {
-                    if (auto c = std::dynamic_pointer_cast<ov::op::v0::Constant>(n))
-                        c->add_control_dependency(inner_loop_begin);
-                    else if (n == inner_loop_begin)
-                        break;
-                }
-        }
-
-        if (outer_WA > 1) {
-            std::vector<bool> apply_increments;
-            apply_increments.reserve(ioShapes.size());
-            // Outer Loop applies increments only if a corresponding lower dim was broadcasted (or all lower dims == 1)
-            std::transform(ioShapes.begin(), ioShapes.end(), std::back_inserter(apply_increments),
-                           [=](const PartialShape& ps) {
-                               return ps[outer_dim] != 1 && ps[inner_dim] == 1;
-                           });
-            const auto& outer_loop_begin = insertLoopBegin(commonParams);
-            insertLoopEnd(commonResults, outer_loop_begin, outer_dim, outer_WA, 1, apply_increments);
-        }
-        m_body->validate_nodes_and_infer_types();
-    } else {
-        throw ngraph_error("Dynamic case is not supported yet");
-    }
 
     snippets::pass::AssignRegisters().run_on_model(m_body);
 
