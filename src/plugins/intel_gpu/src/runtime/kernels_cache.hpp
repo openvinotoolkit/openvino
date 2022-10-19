@@ -18,10 +18,6 @@
 #include <threading/ie_cpu_streams_executor.hpp>
 #include "kernels_factory.hpp"
 #include "ocl/ocl_engine.hpp"
-#include "serialization/set_serializer.hpp"
-#include "serialization/vector_serializer.hpp"
-#include "serialization/map_serializer.hpp"
-#include "serialization/string_serializer.hpp"
 
 namespace cldnn {
 class kernels_cache {

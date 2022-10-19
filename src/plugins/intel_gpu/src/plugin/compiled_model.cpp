@@ -10,8 +10,6 @@
 #include "intel_gpu/plugin/async_infer_request.hpp"
 #include "intel_gpu/plugin/async_infer_request_legacy.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
-#include "serialization/binary_buffer.hpp"
-#include "serialization/string_serializer.hpp"
 
 #include <description_buffer.hpp>
 #include <threading/ie_executor_manager.hpp>

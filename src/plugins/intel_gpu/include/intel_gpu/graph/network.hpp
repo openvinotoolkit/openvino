@@ -11,7 +11,6 @@
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/stream.hpp"
-#include "serialization/binary_buffer.hpp"
 
 #include <map>
 #include <vector>

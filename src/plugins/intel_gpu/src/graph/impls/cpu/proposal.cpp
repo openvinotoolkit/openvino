@@ -7,7 +7,6 @@
 #include "impls/implementation_map.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "register.hpp"
-#include "serialization/binary_buffer.hpp"
 #include <algorithm>
 #include <string>
 #include <vector>

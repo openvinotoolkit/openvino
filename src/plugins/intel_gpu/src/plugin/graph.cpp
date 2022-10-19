@@ -11,11 +11,6 @@
 #include <cldnn/cldnn_config.hpp>
 #include "intel_gpu/plugin/infer_request.hpp"
 #include "intel_gpu/plugin/itt.hpp"
-#include "serialization/binary_buffer.hpp"
-#include "serialization/map_serializer.hpp"
-#include "serialization/layout_serializer.hpp"
-#include "serialization/string_serializer.hpp"
-#include "serialization/vector_serializer.hpp"
 
 #include <description_buffer.hpp>
 #include <threading/ie_executor_manager.hpp>

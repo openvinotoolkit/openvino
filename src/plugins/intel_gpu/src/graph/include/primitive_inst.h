@@ -14,13 +14,6 @@
 #include "meta_utils.h"
 #include "program_node.h"
 #include "primitive_type.h"
-#include "serialization/binary_buffer.hpp"
-#include "serialization/cl_kernel_data_serializer.hpp"
-#include "serialization/object_types.hpp"
-#include "serialization/polymorphic_serializer.hpp"
-#include "serialization/string_serializer.hpp"
-#include "serialization/layout_serializer.hpp"
-#include "serialization/vector_serializer.hpp"
 #include "runtime/kernels_cache.hpp"
 
 #include <memory>

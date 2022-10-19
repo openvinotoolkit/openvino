@@ -7,7 +7,6 @@
 #include "register.hpp"
 #include "cpu_impl_helpers.hpp"
 #include "impls/implementation_map.hpp"
-#include "serialization/binary_buffer.hpp"
 #include <vector>
 #include <queue>
 #include <algorithm>

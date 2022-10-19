@@ -17,9 +17,6 @@
 #include "kernel_selector_common.h"
 #include "tensor_type.h"
 #include "fused_primitive_desc.h"
-#include "serialization/binary_buffer.hpp"
-#include "serialization/layout_serializer.hpp"
-#include "serialization/vector_serializer.hpp"
 
 #include <cstdint>
 #include <string>

@@ -11,12 +11,6 @@
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "intel_gpu/graph/network.hpp"
-#include "serialization/binary_buffer.hpp"
-#include "serialization/cl_kernel_data_serializer.hpp"
-#include "serialization/helpers.hpp"
-#include "serialization/set_serializer.hpp"
-#include "serialization/string_serializer.hpp"
-#include "serialization/vector_serializer.hpp"
 #include "register.hpp"
 #include <vector>
 #include <list>

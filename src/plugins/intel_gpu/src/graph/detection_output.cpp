@@ -7,7 +7,6 @@
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
-#include "serialization/string_serializer.hpp"
 
 namespace cldnn {
 primitive_type_id detection_output::type_id() {

@@ -5,7 +5,6 @@
 #include "read_value_inst.h"
 #include "impls/implementation_map.hpp"
 #include "register.hpp"
-#include "serialization/binary_buffer.hpp"
 
 namespace cldnn {
 namespace cpu {
