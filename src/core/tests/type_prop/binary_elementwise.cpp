@@ -468,156 +468,175 @@ shared_ptr<op::v1::Reshape> createReshapeSubgraph(PartialShape param_shape,
 }
 }  // namespace
 
-TEST(type_prop, interval_value_propagation_add) {
+TEST(type_prop, interval_value_propagation_add_rhs) {
     PartialShape op_shape{Dimension(-1), Dimension(2, -1), Dimension(-1, 6), Dimension(7, 10), Dimension(7, 10), 5};
     const auto const_op = op::Constant::create(element::f32, {6}, {2, 3, 4, 5, -5, 6});
-    {  // const rhs
+    // const rhs
+    const auto reshape = createReshapeSubgraph<op::v1::Add>(op_shape, const_op);
+    EXPECT_EQ(reshape->get_element_type(), element::f32);
+    EXPECT_EQ(reshape->get_output_partial_shape(0),
+              PartialShape({-1, /* Dimension(5, -1) */ -1, Dimension(4, 10), Dimension(12, 15), Dimension(2, 5), 11}));
+}
+
+TEST(type_prop, interval_value_propagation_add_lhs) {
+    PartialShape op_shape{Dimension(-1), Dimension(2, -1), Dimension(-1, 6), Dimension(7, 10), Dimension(7, 10), 5};
+    const auto const_op = op::Constant::create(element::f32, {6}, {2, 3, 4, 5, -5, 6});
+    // const lhs
+    const auto reshape = createReshapeSubgraph<op::v1::Add>(op_shape, const_op, false);
+    EXPECT_EQ(reshape->get_element_type(), element::f32);
+    EXPECT_EQ(reshape->get_output_partial_shape(0),
+              PartialShape({-1, /* Dimension(5, -1) */ -1, Dimension(4, 10), Dimension(12, 15), Dimension(2, 5), 11}));
+}
+
+TEST(type_prop, interval_value_propagation_add_incorrect_dim) {
+    // const rhs - result lower than 0
+    PartialShape op_shape{Dimension(5, 7)};
+    const auto const_op = op::Constant::create(element::f32, {1}, {-10});
+    try {
         const auto reshape = createReshapeSubgraph<op::v1::Add>(op_shape, const_op);
-        EXPECT_EQ(reshape->get_element_type(), element::f32);
-        EXPECT_EQ(
-            reshape->get_output_partial_shape(0),
-            PartialShape({-1, /* Dimension(5, -1) */ -1, Dimension(4, 10), Dimension(12, 15), Dimension(2, 5), 11}));
-    }
-    {  // const lhs
-        const auto reshape = createReshapeSubgraph<op::v1::Add>(op_shape, const_op, false);
-        EXPECT_EQ(reshape->get_element_type(), element::f32);
-        EXPECT_EQ(
-            reshape->get_output_partial_shape(0),
-            PartialShape({-1, /* Dimension(5, -1) */ -1, Dimension(4, 10), Dimension(12, 15), Dimension(2, 5), 11}));
-    }
-    {  // const rhs - result lower than 0
-        PartialShape op_shape{Dimension(5, 7)};
-        const auto const_op = op::Constant::create(element::f32, {1}, {-10});
-        try {
-            const auto reshape = createReshapeSubgraph<op::v1::Add>(op_shape, const_op);
-            FAIL() << "Incorrect dimenion was not detected.";
-        } catch (const NodeValidationFailure& error) {
-            EXPECT_HAS_SUBSTRING(error.what(), std::string("Dim size cannot be less than -1"));
-        } catch (...) {
-            FAIL() << "Incorrect dimenion was not detected, different error type was thrown.";
-        }
+        FAIL() << "Incorrect dimension was not detected.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Dim size cannot be less than -1"));
+    } catch (...) {
+        FAIL() << "Incorrect dimension was not detected, different error type was thrown.";
     }
 }
 
-TEST(type_prop, interval_value_propagation_sub) {
+TEST(type_prop, interval_value_propagation_sub_rhs) {
     PartialShape op_shape{Dimension(-1), Dimension(24, -1), Dimension(4, 36), Dimension(13, 27), Dimension(13, 27), 15};
-    {  // const rhs
-        const auto const_op = op::Constant::create(element::f32, {6}, {2, 3, 4, 5, -5, 6});
-        const auto reshape = createReshapeSubgraph<op::v1::Subtract>(op_shape, const_op);
-        EXPECT_EQ(reshape->get_element_type(), element::f32);
-        EXPECT_EQ(
-            reshape->get_output_partial_shape(0),
-            PartialShape({-1, /* Dimension(21, -1) */ -1, Dimension(-1, 32), Dimension(8, 22), Dimension(18, 32), 9}));
-    }
-    {  // const lhs
-        const auto const_op = op::Constant::create(element::f32, {6}, {12, 28, 36, 43, 27, 25});
+    // const rhs
+    const auto const_op = op::Constant::create(element::f32, {6}, {2, 3, 4, 5, -5, 6});
+    const auto reshape = createReshapeSubgraph<op::v1::Subtract>(op_shape, const_op);
+    EXPECT_EQ(reshape->get_element_type(), element::f32);
+    EXPECT_EQ(
+        reshape->get_output_partial_shape(0),
+        PartialShape({-1, /* Dimension(21, -1) */ -1, Dimension(-1, 32), Dimension(8, 22), Dimension(18, 32), 9}));
+}
+
+TEST(type_prop, interval_value_propagation_sub_lhs) {
+    PartialShape op_shape{Dimension(-1), Dimension(24, -1), Dimension(4, 36), Dimension(13, 27), Dimension(13, 27), 15};
+    // const lhs
+    const auto const_op = op::Constant::create(element::f32, {6}, {12, 28, 36, 43, 27, 25});
+    const auto reshape = createReshapeSubgraph<op::v1::Subtract>(op_shape, const_op, false);
+    EXPECT_EQ(reshape->get_element_type(), element::f32);
+    EXPECT_EQ(reshape->get_output_partial_shape(0),
+              PartialShape({-1, /* Dimension(8, -1) */ -1, Dimension(0, 32), Dimension(16, 30), Dimension(0, 14), 10}));
+}
+
+TEST(type_prop, interval_value_propagation_sub_incorrect_dim) {
+    // const lhs - result lower than 0
+    PartialShape op_shape{Dimension(13, 27)};
+    const auto const_op = op::Constant::create(element::f32, {1}, {5});
+    try {
         const auto reshape = createReshapeSubgraph<op::v1::Subtract>(op_shape, const_op, false);
-        EXPECT_EQ(reshape->get_element_type(), element::f32);
-        EXPECT_EQ(
-            reshape->get_output_partial_shape(0),
-            PartialShape({-1, /* Dimension(8, -1) */ -1, Dimension(0, 32), Dimension(16, 30), Dimension(0, 14), 10}));
-    }
-    {  // const lhs - result lower than 0
-        PartialShape op_shape{Dimension(13, 27)};
-        const auto const_op = op::Constant::create(element::f32, {1}, {5});
-        try {
-            const auto reshape = createReshapeSubgraph<op::v1::Subtract>(op_shape, const_op, false);
-            FAIL() << "Incorrect dimenion was not detected.";
-        } catch (const NodeValidationFailure& error) {
-            EXPECT_HAS_SUBSTRING(error.what(), std::string("Dim size cannot be less than -1"));
-        } catch (...) {
-            FAIL() << "Incorrect dimenion was not detected, different error type was thrown.";
-        }
+        FAIL() << "Incorrect dimension was not detected.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Dim size cannot be less than -1"));
+    } catch (...) {
+        FAIL() << "Incorrect dimension was not detected, different error type was thrown.";
     }
 }
 
-TEST(type_prop, interval_value_propagation_mul) {
+TEST(type_prop, interval_value_propagation_mul_rhs) {
     PartialShape op_shape{Dimension(-1), Dimension(4, -1), Dimension(-1, 6), Dimension(5, 7), Dimension(9, 10), 15};
-    {  // const rhs
-        const auto const_op = op::Constant::create(element::f32, {6}, {7, 6, 5, 4, 3, 2});
+    // const rhs
+    const auto const_op = op::Constant::create(element::f32, {6}, {7, 6, 5, 4, 3, 2});
+    const auto reshape = createReshapeSubgraph<op::v1::Multiply>(op_shape, const_op);
+    EXPECT_EQ(reshape->get_element_type(), element::f32);
+    EXPECT_EQ(reshape->get_output_partial_shape(0),
+              PartialShape({-1, -1, Dimension(-1, 30), Dimension(20, 28), Dimension(27, 30), 30}));
+}
+
+TEST(type_prop, interval_value_propagation_mul_lhs) {
+    PartialShape op_shape{Dimension(-1), Dimension(4, -1), Dimension(-1, 6), Dimension(5, 7), Dimension(9, 10), 15};
+
+    // const lhs
+    const auto const_op = op::Constant::create(element::f32, {6}, {7, 6, 5, 4, 3, 2});
+    const auto reshape = createReshapeSubgraph<op::v1::Multiply>(op_shape, const_op, false);
+    EXPECT_EQ(reshape->get_element_type(), element::f32);
+    EXPECT_EQ(reshape->get_output_partial_shape(0),
+              PartialShape({-1, -1, Dimension(-1, 30), Dimension(20, 28), Dimension(27, 30), 30}));
+}
+
+TEST(type_prop, interval_value_propagation_mul_incorrect_dim_rhs) {
+    // const rhs - result lower than 0
+    PartialShape op_shape{Dimension(5, 7)};
+    const auto const_op = op::Constant::create(element::f32, {1}, {-3});
+    try {
         const auto reshape = createReshapeSubgraph<op::v1::Multiply>(op_shape, const_op);
-        EXPECT_EQ(reshape->get_element_type(), element::f32);
-        EXPECT_EQ(reshape->get_output_partial_shape(0),
-                  PartialShape({-1, -1, Dimension(-1, 30), Dimension(20, 28), Dimension(27, 30), 30}));
+        FAIL() << "Incorrect dimension was not detected.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Dim size cannot be less than -1"));
+    } catch (...) {
+        FAIL() << "Incorrect dimension was not detected, different error type was thrown.";
     }
-    {  // const lhs
-        const auto const_op = op::Constant::create(element::f32, {6}, {7, 6, 5, 4, 3, 2});
+}
+
+TEST(type_prop, interval_value_propagation_mul_incorrect_dim_lhs) {
+    // const lhs - result lower than 0
+    PartialShape op_shape{Dimension(5, 7)};
+    const auto const_op = op::Constant::create(element::f32, {1}, {-3});
+    try {
         const auto reshape = createReshapeSubgraph<op::v1::Multiply>(op_shape, const_op, false);
-        EXPECT_EQ(reshape->get_element_type(), element::f32);
-        EXPECT_EQ(reshape->get_output_partial_shape(0),
-                  PartialShape({-1, -1, Dimension(-1, 30), Dimension(20, 28), Dimension(27, 30), 30}));
-    }
-    {  // const rhs - result lower than 0
-        PartialShape op_shape{Dimension(5, 7)};
-        const auto const_op = op::Constant::create(element::f32, {1}, {-3});
-        try {
-            const auto reshape = createReshapeSubgraph<op::v1::Multiply>(op_shape, const_op);
-            FAIL() << "Incorrect dimenion was not detected.";
-        } catch (const NodeValidationFailure& error) {
-            EXPECT_HAS_SUBSTRING(error.what(), std::string("Dim size cannot be less than -1"));
-        } catch (...) {
-            FAIL() << "Incorrect dimenion was not detected, different error type was thrown.";
-        }
-    }
-    {  // const lhs - result lower than 0
-        PartialShape op_shape{Dimension(5, 7)};
-        const auto const_op = op::Constant::create(element::f32, {1}, {-3});
-        try {
-            const auto reshape = createReshapeSubgraph<op::v1::Multiply>(op_shape, const_op, false);
-            FAIL() << "Incorrect dimenion was not detected.";
-        } catch (const NodeValidationFailure& error) {
-            EXPECT_HAS_SUBSTRING(error.what(), std::string("Dim size cannot be less than -1"));
-        } catch (...) {
-            FAIL() << "Incorrect dimenion was not detected, different error type was thrown.";
-        }
+        FAIL() << "Incorrect dimension was not detected.";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Dim size cannot be less than -1"));
+    } catch (...) {
+        FAIL() << "Incorrect dimension was not detected, different error type was thrown.";
     }
 }
 
-TEST(type_prop, interval_value_propagation_div) {
-    {  // const rhs
-        PartialShape op_shape{Dimension(8, 16), Dimension(9, 30), 15};
-        const auto const_op = op::Constant::create(element::f32, {3}, {4, 3, 5});
-        const auto reshape = createReshapeSubgraph<op::v1::Divide>(op_shape, const_op);
-        PartialShape expected_shape{Dimension(2, 4), Dimension(3, 10), 3};
-        EXPECT_EQ(reshape->get_element_type(), element::f32);
-        EXPECT_EQ(reshape->get_output_partial_shape(0), expected_shape);
-    }
+TEST(type_prop, interval_value_propagation_div_rhs) {
+    // const rhs
+    PartialShape op_shape{Dimension(8, 16), Dimension(9, 30), 15};
+    const auto const_op = op::Constant::create(element::f32, {3}, {4, 3, 5});
+    const auto reshape = createReshapeSubgraph<op::v1::Divide>(op_shape, const_op);
+    PartialShape expected_shape{Dimension(2, 4), Dimension(3, 10), 3};
+    EXPECT_EQ(reshape->get_element_type(), element::f32);
+    EXPECT_EQ(reshape->get_output_partial_shape(0), expected_shape);
+}
+
+TEST(type_prop, interval_value_propagation_div_rhs_full) {
     PartialShape op_shape{Dimension(-1), Dimension(4, -1), Dimension(-1, 6), Dimension(8, 16), Dimension(9, 30), 15};
-    {  // const rhs
-        const auto const_op = op::Constant::create(element::f32, {6}, {8, 2, 2, 4, 3, 5});
-        const auto reshape = createReshapeSubgraph<op::v1::Divide>(op_shape, const_op);
-        PartialShape expected_shape{-1, -1, Dimension(-1, 3), Dimension(2, 4), Dimension(3, 10), 3};
-        EXPECT_EQ(reshape->get_element_type(), element::f32);
-        EXPECT_EQ(reshape->get_output_partial_shape(0), expected_shape);
-    }
-    {  // const lhs
-        const auto const_op = op::Constant::create(element::f32, {6}, {8, 8, 12, 32, 90, 45});
-        const auto reshape = createReshapeSubgraph<op::v1::Divide>(op_shape, const_op, false);
-        PartialShape expected_shape{-1, -1, Dimension(2, -1), Dimension(2, 4), Dimension(3, 10), 3};
-        EXPECT_EQ(reshape->get_element_type(), element::f32);
-        EXPECT_EQ(reshape->get_output_partial_shape(0), expected_shape);
-    }
+    // const rhs
+    const auto const_op = op::Constant::create(element::f32, {6}, {8, 2, 2, 4, 3, 5});
+    const auto reshape = createReshapeSubgraph<op::v1::Divide>(op_shape, const_op);
+    PartialShape expected_shape{-1, -1, Dimension(-1, 3), Dimension(2, 4), Dimension(3, 10), 3};
+    EXPECT_EQ(reshape->get_element_type(), element::f32);
+    EXPECT_EQ(reshape->get_output_partial_shape(0), expected_shape);
 }
 
-TEST(type_prop, interval_value_propagation_pow) {
+TEST(type_prop, interval_value_propagation_div_lhs) {
+    PartialShape op_shape{Dimension(-1), Dimension(4, -1), Dimension(-1, 6), Dimension(8, 16), Dimension(9, 30), 15};
+    // const lhs
+    const auto const_op = op::Constant::create(element::f32, {6}, {8, 8, 12, 32, 90, 45});
+    const auto reshape = createReshapeSubgraph<op::v1::Divide>(op_shape, const_op, false);
+    PartialShape expected_shape{-1, -1, Dimension(2, -1), Dimension(2, 4), Dimension(3, 10), 3};
+    EXPECT_EQ(reshape->get_element_type(), element::f32);
+    EXPECT_EQ(reshape->get_output_partial_shape(0), expected_shape);
+}
+
+TEST(type_prop, interval_value_propagation_pow_rhs) {
     PartialShape op_shape{Dimension(-1), Dimension(4, -1), Dimension(-1, 4), Dimension(2, 3), Dimension(3, 4), 2};
-    {  // const rhs
-        const auto const_op = op::Constant::create(element::f32, {6}, {2, 2, 2, 2, 2, 2});
-        const auto reshape = createReshapeSubgraph<op::v1::Power>(op_shape, const_op);
-        EXPECT_EQ(reshape->get_element_type(), element::f32);
-        EXPECT_EQ(reshape->get_output_partial_shape(0),
-                  PartialShape({-1, -1, Dimension(-1, 16), Dimension(4, 9), Dimension(9, 16), 4}));
-    }
-    {  // const lhs
-        const auto const_op = op::Constant::create(element::f32, {6}, {2, 2, 2, 2, 2, 2});
-        const auto reshape = createReshapeSubgraph<op::v1::Power>(op_shape, const_op, false);
-        EXPECT_EQ(reshape->get_element_type(), element::f32);
-        EXPECT_EQ(reshape->get_output_partial_shape(0),
-                  PartialShape({-1, -1, Dimension(1, 16), Dimension(4, 8), Dimension(8, 16), 4}));
-    }
+    // const rhs
+    const auto const_op = op::Constant::create(element::f32, {6}, {2, 2, 2, 2, 2, 2});
+    const auto reshape = createReshapeSubgraph<op::v1::Power>(op_shape, const_op);
+    EXPECT_EQ(reshape->get_element_type(), element::f32);
+    EXPECT_EQ(reshape->get_output_partial_shape(0),
+              PartialShape({-1, -1, Dimension(-1, 16), Dimension(4, 9), Dimension(9, 16), 4}));
 }
 
-TEST(type_prop, interval_value_propagation_max) {
+TEST(type_prop, interval_value_propagation_pow_lhs) {
+    PartialShape op_shape{Dimension(-1), Dimension(4, -1), Dimension(-1, 4), Dimension(2, 3), Dimension(3, 4), 2};
+    // const lhs
+    const auto const_op = op::Constant::create(element::f32, {6}, {2, 2, 2, 2, 2, 2});
+    const auto reshape = createReshapeSubgraph<op::v1::Power>(op_shape, const_op, false);
+    EXPECT_EQ(reshape->get_element_type(), element::f32);
+    EXPECT_EQ(reshape->get_output_partial_shape(0),
+              PartialShape({-1, -1, Dimension(1, 16), Dimension(4, 8), Dimension(8, 16), 4}));
+}
+
+TEST(type_prop, interval_value_propagation_max_rhs) {
     PartialShape op_shape{Dimension(-1),
                           Dimension(4, -1),
                           Dimension(-1, 4),
@@ -627,25 +646,16 @@ TEST(type_prop, interval_value_propagation_max) {
                           Dimension(3, 5),
                           5,
                           8};
-    {  // const rhs
-        const auto const_op = op::Constant::create(element::f32, {9}, {2, 2, 2, 6, 2, 4, 7, 8, 5});
-        const auto reshape = createReshapeSubgraph<op::v1::Maximum>(op_shape, const_op);
-        EXPECT_EQ(reshape->get_element_type(), element::f32);
-        EXPECT_EQ(reshape->get_output_partial_shape(0),
-                  PartialShape(
-                      {-1, /* Dimension(4, -1) */ -1, Dimension(2, 4), 6, Dimension(3, 5), Dimension(4, 5), 7, 8, 8}));
-    }
-    {  // const lhs
-        const auto const_op = op::Constant::create(element::f32, {9}, {2, 2, 2, 6, 2, 4, 7, 8, 5});
-        const auto reshape = createReshapeSubgraph<op::v1::Maximum>(op_shape, const_op, false);
-        EXPECT_EQ(reshape->get_element_type(), element::f32);
-        EXPECT_EQ(reshape->get_output_partial_shape(0),
-                  PartialShape(
-                      {-1, /* Dimension(4, -1) */ -1, Dimension(2, 4), 6, Dimension(3, 5), Dimension(4, 5), 7, 8, 8}));
-    }
+    // const rhs
+    const auto const_op = op::Constant::create(element::f32, {9}, {2, 2, 2, 6, 2, 4, 7, 8, 5});
+    const auto reshape = createReshapeSubgraph<op::v1::Maximum>(op_shape, const_op);
+    EXPECT_EQ(reshape->get_element_type(), element::f32);
+    EXPECT_EQ(
+        reshape->get_output_partial_shape(0),
+        PartialShape({-1, /* Dimension(4, -1) */ -1, Dimension(2, 4), 6, Dimension(3, 5), Dimension(4, 5), 7, 8, 8}));
 }
 
-TEST(type_prop, interval_value_propagation_min) {
+TEST(type_prop, interval_value_propagation_max_lhs) {
     PartialShape op_shape{Dimension(-1),
                           Dimension(4, -1),
                           Dimension(-1, 4),
@@ -655,73 +665,101 @@ TEST(type_prop, interval_value_propagation_min) {
                           Dimension(3, 5),
                           5,
                           8};
-    {  // const rhs
-        const auto const_op = op::Constant::create(element::f32, {9}, {2, 2, 2, 6, 2, 4, 7, 8, 5});
-        const auto reshape = createReshapeSubgraph<op::v1::Minimum>(op_shape, const_op);
-        EXPECT_EQ(reshape->get_element_type(), element::f32);
-        EXPECT_EQ(reshape->get_output_partial_shape(0),
-                  PartialShape({-1,
-                                /* Dimension(2) */ -1,
-                                Dimension(-1, 2),
-                                Dimension(-1, 4),
-                                2,
-                                Dimension(3, 4),
-                                Dimension(3, 5),
-                                5,
-                                5}));
-    }
-    {  // const lhs
-        const auto const_op = op::Constant::create(element::f32, {9}, {2, 2, 2, 6, 2, 4, 7, 8, 5});
-        const auto reshape = createReshapeSubgraph<op::v1::Minimum>(op_shape, const_op, false);
-        EXPECT_EQ(reshape->get_element_type(), element::f32);
-        EXPECT_EQ(reshape->get_output_partial_shape(0),
-                  PartialShape({-1,
-                                /* Dimension(2) */ -1,
-                                Dimension(-1, 2),
-                                Dimension(-1, 4),
-                                2,
-                                Dimension(3, 4),
-                                Dimension(3, 5),
-                                5,
-                                5}));
-    }
+    // const lhs
+    const auto const_op = op::Constant::create(element::f32, {9}, {2, 2, 2, 6, 2, 4, 7, 8, 5});
+    const auto reshape = createReshapeSubgraph<op::v1::Maximum>(op_shape, const_op, false);
+    EXPECT_EQ(reshape->get_element_type(), element::f32);
+    EXPECT_EQ(
+        reshape->get_output_partial_shape(0),
+        PartialShape({-1, /* Dimension(4, -1) */ -1, Dimension(2, 4), 6, Dimension(3, 5), Dimension(4, 5), 7, 8, 8}));
+}
+
+TEST(type_prop, interval_value_propagation_min_rhs) {
+    PartialShape op_shape{Dimension(-1),
+                          Dimension(4, -1),
+                          Dimension(-1, 4),
+                          Dimension(-1, 4),
+                          Dimension(3, 5),
+                          Dimension(3, 5),
+                          Dimension(3, 5),
+                          5,
+                          8};
+    // const rhs
+    const auto const_op = op::Constant::create(element::f32, {9}, {2, 2, 2, 6, 2, 4, 7, 8, 5});
+    const auto reshape = createReshapeSubgraph<op::v1::Minimum>(op_shape, const_op);
+    EXPECT_EQ(reshape->get_element_type(), element::f32);
+    EXPECT_EQ(reshape->get_output_partial_shape(0),
+              PartialShape({-1,
+                            /* Dimension(2) */ -1,
+                            Dimension(-1, 2),
+                            Dimension(-1, 4),
+                            2,
+                            Dimension(3, 4),
+                            Dimension(3, 5),
+                            5,
+                            5}));
+}
+
+TEST(type_prop, interval_value_propagation_min_lhs) {
+    PartialShape op_shape{Dimension(-1),
+                          Dimension(4, -1),
+                          Dimension(-1, 4),
+                          Dimension(-1, 4),
+                          Dimension(3, 5),
+                          Dimension(3, 5),
+                          Dimension(3, 5),
+                          5,
+                          8};
+    // const lhs
+    const auto const_op = op::Constant::create(element::f32, {9}, {2, 2, 2, 6, 2, 4, 7, 8, 5});
+    const auto reshape = createReshapeSubgraph<op::v1::Minimum>(op_shape, const_op, false);
+    EXPECT_EQ(reshape->get_element_type(), element::f32);
+    EXPECT_EQ(reshape->get_output_partial_shape(0),
+              PartialShape({-1,
+                            /* Dimension(2) */ -1,
+                            Dimension(-1, 2),
+                            Dimension(-1, 4),
+                            2,
+                            Dimension(3, 4),
+                            Dimension(3, 5),
+                            5,
+                            5}));
 }
 
 TEST(type_prop, interval_value_propagation_add_sub) {
-    {  // Dimensions with bounds
-        auto param = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(2, 8), Dimension(4, 16), 2});
+    // Dimensions with bounds
+    auto param = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(2, 8), Dimension(4, 16), 2});
 
-        auto shape_of = make_shared<op::v3::ShapeOf>(param);
-        auto cast_fp = make_shared<op::Convert>(shape_of, element::f32);
-        auto add =
-            make_shared<op::v1::Add>(cast_fp,
-                                     op::Constant::create(element::f32, {3}, {2, 3, 4}));  // {(4, 10), (7, 19), 6}
-        auto sub =
-            make_shared<op::v1::Subtract>(add,
-                                          op::Constant::create(element::f32, {3}, {3, 2, 1}));  // {(1, 7), (5, 17), 5}
-        auto cast_int = make_shared<op::Convert>(sub, element::i32);
+    auto shape_of = make_shared<op::v3::ShapeOf>(param);
+    auto cast_fp = make_shared<op::Convert>(shape_of, element::f32);
+    auto add =
+        make_shared<op::v1::Add>(cast_fp, op::Constant::create(element::f32, {3}, {2, 3, 4}));  // {(4, 10), (7, 19), 6}
+    auto sub =
+        make_shared<op::v1::Subtract>(add, op::Constant::create(element::f32, {3}, {3, 2, 1}));  // {(1, 7), (5, 17), 5}
+    auto cast_int = make_shared<op::Convert>(sub, element::i32);
 
-        auto reshape = make_shared<op::v1::Reshape>(param, cast_int, false);
+    auto reshape = make_shared<op::v1::Reshape>(param, cast_int, false);
 
-        EXPECT_EQ(reshape->get_element_type(), element::f32);
-        EXPECT_EQ(reshape->get_output_partial_shape(0), PartialShape({Dimension(1, 7), Dimension(5, 17), 5}));
-    }
-    {  // Fully dynamic dimension, no upper, no lower bound
-        auto param =
-            make_shared<op::Parameter>(element::f32, PartialShape{Dimension(-1), Dimension(4, -1), Dimension(-1, 2)});
+    EXPECT_EQ(reshape->get_element_type(), element::f32);
+    EXPECT_EQ(reshape->get_output_partial_shape(0), PartialShape({Dimension(1, 7), Dimension(5, 17), 5}));
+}
 
-        auto shape_of = make_shared<op::v3::ShapeOf>(param);
-        auto cast_fp = make_shared<op::Convert>(shape_of, element::f32);
-        auto add = make_shared<op::v1::Add>(cast_fp, op::Constant::create(element::f32, {3}, {2, 3, 4}));
-        auto sub = make_shared<op::v1::Subtract>(add, op::Constant::create(element::f32, {3}, {3, 2, 1}));
-        auto cast_int = make_shared<op::Convert>(sub, element::i32);
+TEST(type_prop, interval_value_propagation_add_sub_no_bounds) {
+    // Fully dynamic dimension, no upper, no lower bound
+    auto param =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension(-1), Dimension(4, -1), Dimension(-1, 2)});
 
-        auto reshape = make_shared<op::v1::Reshape>(param, cast_int, false);
+    auto shape_of = make_shared<op::v3::ShapeOf>(param);
+    auto cast_fp = make_shared<op::Convert>(shape_of, element::f32);
+    auto add = make_shared<op::v1::Add>(cast_fp, op::Constant::create(element::f32, {3}, {2, 3, 4}));
+    auto sub = make_shared<op::v1::Subtract>(add, op::Constant::create(element::f32, {3}, {3, 2, 1}));
+    auto cast_int = make_shared<op::Convert>(sub, element::i32);
 
-        EXPECT_EQ(reshape->get_element_type(), element::f32);
-        EXPECT_EQ(reshape->get_output_partial_shape(0),
-                  PartialShape({Dimension(-1), Dimension(-1), Dimension(3, 5)}));  // Fully dynamic if no upper bound
-    }
+    auto reshape = make_shared<op::v1::Reshape>(param, cast_int, false);
+
+    EXPECT_EQ(reshape->get_element_type(), element::f32);
+    EXPECT_EQ(reshape->get_output_partial_shape(0),
+              PartialShape({Dimension(-1), Dimension(-1), Dimension(3, 5)}));  // Fully dynamic if no upper bound
 }
 
 TEST(type_prop, interval_value_propagation_add_sub_div_mul) {
