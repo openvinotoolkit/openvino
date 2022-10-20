@@ -35,7 +35,7 @@ std::vector<std::string> IStreamsExecutor::Config::SupportedKeys() const {
 int IStreamsExecutor::Config::GetDefaultNumStreams() {
     const int sockets = static_cast<int>(getAvailableNUMANodes().size());
     // bare minimum of streams (that evenly divides available number of core)
-    const int num_cores = sockets == 1 ? std::thread::hardware_concurrency() : getNumberOfCPUCores();
+    const int num_cores = sockets == 1 ? parallel_get_max_threads() : getNumberOfCPUCores();
     if (0 == num_cores % 4)
         return std::max(4, num_cores / 4);
     else if (0 == num_cores % 5)
@@ -96,6 +96,18 @@ int IStreamsExecutor::Config::GetHybridAggressiveNumStreams(const Config& config
     config._threads_per_stream_big = num_big_cores / config._big_core_streams;
     config._threads_per_stream_small = num_small_cores == 0 ? 0 : num_small_cores / config._small_core_streams;
     return config._big_core_streams + config._small_core_streams;
+}
+
+int IStreamsExecutor::Config::GetNumaNumStreams() {
+    const int num_cores = getNumberOfCPUCores();
+    if (0 == num_cores % 4)
+        return std::max(4, num_cores / 4);
+    else if (0 == num_cores % 5)
+        return std::max(5, num_cores / 5);
+    else if (0 == num_cores % 3)
+        return std::max(3, num_cores / 3);
+    else  // if user disables some cores say in BIOS, so we got weird #cores which is not easy to divide
+        return 1;
 }
 
 void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::string& value) {
@@ -286,7 +298,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
 #endif
     const auto hwCores = !bLatencyCase && numaNodesNum == 1
                              // throughput case on a single-NUMA node machine uses all available cores
-                             ? parallel_get_max_threads()
+                             ? (ThreadBindingType::NUMA == streamExecutorConfig._threadBindingType ? num_cores_default : parallel_get_max_threads())
                              // in the rest of cases:
                              //    multi-node machine
                              //    or

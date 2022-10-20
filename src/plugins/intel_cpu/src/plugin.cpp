@@ -733,7 +733,10 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             engConfig.streamExecutorConfig._threadBindingType ==
                     InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
                 ? IStreamsExecutor::Config::GetHybridDefaultNumStreams(engConfig.streamExecutorConfig)
-                : IStreamsExecutor::Config::GetDefaultNumStreams();
+                : (engConfig.streamExecutorConfig._threadBindingType ==
+                           InferenceEngine::IStreamsExecutor::ThreadBindingType::NUMA
+                       ? IStreamsExecutor::Config::GetNumaNumStreams()
+                       : IStreamsExecutor::Config::GetDefaultNumStreams());
         int num_streams = default_num_streams;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
             if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL)

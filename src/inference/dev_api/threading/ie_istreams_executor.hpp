@@ -85,6 +85,7 @@ public:
         static int GetDefaultNumStreams();  // no network specifics considered (only CPU's caps);
         static int GetHybridDefaultNumStreams(const Config& config);
         static int GetHybridAggressiveNumStreams(const Config& config, const int stream_mode);
+        static int GetNumaNumStreams();
 
         std::string _name;          //!< Used by `ITT` to name executor threads
         int _streams = 1;           //!< Number of streams.
