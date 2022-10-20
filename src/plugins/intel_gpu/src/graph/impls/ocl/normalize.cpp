@@ -71,6 +71,7 @@ attach_normalize_impl::attach_normalize_impl() {
     auto formats = {
         format::bfyx,
         format::yxfb,
+        format::byxf,
         format::b_fs_yx_fsv16,
         format::b_fs_yx_fsv32,
         format::bs_fs_yx_bsv16_fsv16,

@@ -103,6 +103,8 @@ private:
 };
 
 using format_types = testing::Types<normalize_input_types<format::bfyx, float, false>,
+                                    normalize_input_types<format::byxf, float, false>,
+                                    normalize_input_types<format::yxfb, float, false>,
                                     normalize_input_types<format::b_fs_yx_fsv32, float, false>,
                                     normalize_input_types<format::b_fs_yx_fsv16, float, false>,
                                     normalize_input_types<format::bs_fs_yx_bsv32_fsv16, float, false>,
@@ -121,6 +123,8 @@ using format_types = testing::Types<normalize_input_types<format::bfyx, float, f
                                     normalize_input_types<format::bs_fs_yx_bsv16_fsv16, int8_t, false>,
                                     normalize_input_types<format::bs_fs_yx_bsv32_fsv32, int8_t, false>,
                                     normalize_input_types<format::bfyx, float, true>,
+                                    normalize_input_types<format::byxf, float, true>,
+                                    normalize_input_types<format::yxfb, float, true>,
                                     normalize_input_types<format::b_fs_yx_fsv32, float, true>,
                                     normalize_input_types<format::b_fs_yx_fsv16, float, true>,
                                     normalize_input_types<format::bs_fs_yx_bsv32_fsv16, float, true>,
