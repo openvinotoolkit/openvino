@@ -976,6 +976,42 @@ std::shared_ptr<ov::Model> ov::Model::clone() const {
     return ov::clone_model(*this);
 }
 
+bool ov::Model::has_rt_info(const std::vector<std::string>& args) const {
+    ov::AnyMap info = m_rt_info;
+    for (size_t i = 0; i < args.size(); i++) {
+        bool has_attr = has_rt_arg(info, args[i]);
+        if (!has_attr)
+            return false;
+        if (i == args.size() - 1)
+            break;
+        const ov::Any& rt_attr = get_rt_arg<std::string>(info, args[i]);
+        info = get_map_from_attr(rt_attr);
+    }
+    return true;
+}
+ov::Any& ov::Model::get_rt_info(ov::AnyMap& info,
+                                const std::vector<std::string>::const_iterator& begin,
+                                const std::vector<std::string>::const_iterator& end) {
+    if (begin == end - 1) {
+        return get_rt_arg(info, *begin);
+    } else {
+        ov::Any& rt_attr = get_rt_arg<std::string>(info, *begin);
+        return get_rt_info(get_map_from_attr(rt_attr), begin + 1, end);
+    }
+}
+
+// Allow to get constant attribute for the vector
+const ov::Any& ov::Model::get_rt_info(const ov::AnyMap& info,
+                                      const std::vector<std::string>::const_iterator& begin,
+                                      const std::vector<std::string>::const_iterator& end) const {
+    if (begin == end - 1) {
+        return get_rt_arg(info, *begin);
+    } else {
+        const ov::Any& rt_attr = get_rt_arg<std::string>(info, *begin);
+        return get_rt_info(get_map_from_attr(rt_attr), begin + 1, end);
+    }
+}
+
 const ov::AnyMap& ov::Model::get_map_from_attr(const ov::Any& info) const {
     // lock to get meta from different threads in order to avoid thread safety
     // implementations of meta information for each frontend
