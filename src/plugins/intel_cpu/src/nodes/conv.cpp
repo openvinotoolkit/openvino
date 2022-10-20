@@ -635,23 +635,23 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
                     }
                 }
 
-                if (fakeQuantizeNode->getAlgorithm() == Algorithm::FQCommon &&
-                    hasSubsequentSum &&
-                    hasSubsequentFQ) {
-                    std::vector<float> fqScale = fakeQuantizeNode->getFQScales();
-                    if (!fqScale.empty()) {
-                        size_t size = fqScale.size();
-                        if (size == 1) {
-                            fqScale.resize(OC);
-                            for (size_t k = 0; k < OC; k++)
-                                fqScale[k] = fqScale[0];
-                        }
+                // if (fakeQuantizeNode->getAlgorithm() == Algorithm::FQCommon &&
+                //     hasSubsequentSum &&
+                //     hasSubsequentFQ) {
+                //     std::vector<float> fqScale = fakeQuantizeNode->getFQScales();
+                //     if (!fqScale.empty()) {
+                //         size_t size = fqScale.size();
+                //         if (size == 1) {
+                //             fqScale.resize(OC);
+                //             for (size_t k = 0; k < OC; k++)
+                //                 fqScale[k] = fqScale[0];
+                //         }
 
-                        attr.set_output_scales(1 << 1, fqScale);
+                //         attr.set_output_scales(1 << 1, fqScale);
 
-                        continue;
-                    }
-                }
+                //         continue;
+                //     }
+                // }
 
                 if (node == fusedWith[fusedWith.size() - 1] && !scale.empty()) {
                     attr.set_output_scales(1 << 1, scale);
