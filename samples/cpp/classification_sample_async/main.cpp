@@ -169,13 +169,13 @@ int main(int argc, char* argv[]) {
         std::exception_ptr exception_var;
         // -------- Step 10. Do asynchronous inference --------
         infer_request.set_callback([&](std::exception_ptr ex) {
+            std::lock_guard<std::mutex> l(mutex);
             if (ex) {
                 exception_var = ex;
                 condVar.notify_all();
                 return;
             }
 
-            std::lock_guard<std::mutex> l(mutex);
             cur_iteration++;
             slog::info << "Completed " << cur_iteration << " async request execution" << slog::endl;
             if (cur_iteration < num_iterations) {
