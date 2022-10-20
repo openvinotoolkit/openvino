@@ -731,8 +731,8 @@ void regclass_graph_Model(py::module m) {
                 :param path: List of strings which defines a path to runtime info.
                 :type path: List[str]
 
-                :return: A py::object
-                :rtype: py:object
+                :return: A runtime attribute.
+                :rtype: Any
              )");
     model.def(
         "get_rt_info",
@@ -746,8 +746,8 @@ void regclass_graph_Model(py::module m) {
                 :param path: List of strings which defines a path to runtime info.
                 :type path: str
 
-                :return: A py::object
-                :rtype: py:object
+                :return: A runtime attribute.
+                :rtype: Any
              )");
     model.def(
         "has_rt_info",
