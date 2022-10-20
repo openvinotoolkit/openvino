@@ -10,8 +10,11 @@
 #include "openvino/core/op_extension.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
-
-using namespace ov;
+#include "so_extension.hpp"
 
 ov::Extension::~Extension() = default;
 ov::BaseOpExtension::~BaseOpExtension() = default;
+
+ov::detail::SOExtension::~SOExtension() {
+    m_ext = {};
+}
