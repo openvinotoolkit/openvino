@@ -36,10 +36,3 @@ public:
     OPENVINO_RTTI("ConvertCompressedOnlyToLegacy", "0");
     bool run_on_model(const std::shared_ptr<Model>& f) override;
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertCompressedOnlyToLegacy;
-using ov::pass::EnableDecompressionConvertConstantFolding;
-}  // namespace pass
-}  // namespace ngraph

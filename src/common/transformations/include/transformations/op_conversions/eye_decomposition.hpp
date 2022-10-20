@@ -24,9 +24,3 @@ public:
     OPENVINO_RTTI("EyeDecomposition", "0");
     EyeDecomposition();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::EyeDecomposition;
-}  // namespace pass
-}  // namespace ngraph

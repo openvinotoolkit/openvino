@@ -26,9 +26,3 @@ public:
     OPENVINO_RTTI("MarkPrecisionSensitiveSubgraphs", "0");
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::MarkPrecisionSensitiveSubgraphs;
-}  // namespace pass
-}  // namespace ngraph

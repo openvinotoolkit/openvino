@@ -32,9 +32,3 @@ public:
     OPENVINO_RTTI("SequenceFusion", "0");
     SequenceFusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::SequenceFusion;
-}  // namespace pass
-}  // namespace ngraph

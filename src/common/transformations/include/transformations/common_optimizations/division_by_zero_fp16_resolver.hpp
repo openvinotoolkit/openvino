@@ -33,9 +33,3 @@ public:
     OPENVINO_RTTI("DivisionByZeroFP16Resolver", "0");
     DivisionByZeroFP16Resolver();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::DivisionByZeroFP16Resolver;
-}  // namespace pass
-}  // namespace ngraph

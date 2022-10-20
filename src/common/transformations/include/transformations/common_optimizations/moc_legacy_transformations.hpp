@@ -43,9 +43,3 @@ private:
 
 }  // namespace pass
 }  // namespace ov
-
-namespace ngraph {
-namespace pass {
-using ov::pass::MOCLegacyTransformations;
-}  // namespace pass
-}  // namespace ngraph

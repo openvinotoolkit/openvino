@@ -28,9 +28,3 @@ public:
     OPENVINO_RTTI("RemoveConcatZeroDimInput", "0");
     RemoveConcatZeroDimInput();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::RemoveConcatZeroDimInput;
-}  // namespace pass
-}  // namespace ngraph
