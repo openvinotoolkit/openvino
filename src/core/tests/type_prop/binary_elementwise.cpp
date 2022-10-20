@@ -578,32 +578,24 @@ TEST(type_prop, interval_value_propagation_div) {
         PartialShape op_shape{Dimension(8, 16), Dimension(9, 30), 15};
         const auto const_op = op::Constant::create(element::f32, {3}, {4, 3, 5});
         const auto reshape = createReshapeSubgraph<op::v1::Divide>(op_shape, const_op);
+        PartialShape expected_shape{Dimension(2, 4), Dimension(3, 10), 3};
         EXPECT_EQ(reshape->get_element_type(), element::f32);
-        EXPECT_EQ(reshape->get_output_partial_shape(0), PartialShape::dynamic(3));
-
-        // TODO: Why not:
-        // EXPECT_EQ(reshape->get_output_partial_shape(0), PartialShape({Dimension(2, 8), Dimension(3, 10), 3}));
+        EXPECT_EQ(reshape->get_output_partial_shape(0), expected_shape);
     }
     PartialShape op_shape{Dimension(-1), Dimension(4, -1), Dimension(-1, 6), Dimension(8, 16), Dimension(9, 30), 15};
     {  // const rhs
         const auto const_op = op::Constant::create(element::f32, {6}, {8, 2, 2, 4, 3, 5});
         const auto reshape = createReshapeSubgraph<op::v1::Divide>(op_shape, const_op);
+        PartialShape expected_shape{-1, -1, Dimension(-1, 3), Dimension(2, 4), Dimension(3, 10), 3};
         EXPECT_EQ(reshape->get_element_type(), element::f32);
-        EXPECT_EQ(reshape->get_output_partial_shape(0), PartialShape({-1, -1, -1, -1, -1, -1}));
-
-        // TODO: Why not:
-        // EXPECT_EQ(reshape->get_output_partial_shape(0), PartialShape({-1, -1, Dimension(-1, 3), Dimension(2, 8),
-        // Dimension(3, 10), 3}));
+        EXPECT_EQ(reshape->get_output_partial_shape(0), expected_shape);
     }
     {  // const lhs
         const auto const_op = op::Constant::create(element::f32, {6}, {8, 8, 12, 32, 90, 45});
         const auto reshape = createReshapeSubgraph<op::v1::Divide>(op_shape, const_op, false);
+        PartialShape expected_shape{-1, -1, Dimension(2, -1), Dimension(2, 4), Dimension(3, 10), 3};
         EXPECT_EQ(reshape->get_element_type(), element::f32);
-        EXPECT_EQ(reshape->get_output_partial_shape(0), PartialShape({-1, -1, -1, -1, -1, -1}));
-
-        // TODO: Why not:
-        // EXPECT_EQ(reshape->get_output_partial_shape(0), PartialShape({-1, -1, Dimension(-1, 2), Dimension(4, 2),
-        // Dimension(3, 10), 3}));
+        EXPECT_EQ(reshape->get_output_partial_shape(0), expected_shape);
     }
 }
 

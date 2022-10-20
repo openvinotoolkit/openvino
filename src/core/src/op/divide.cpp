@@ -82,25 +82,20 @@ bool evaluate_bound(const Node* node, const HostTensorVector& output_values, boo
     // for negative arg2 limits for divide will be [up/low, low/up]
     // for arg2 range with both positive and negative values, divide can give any result [-inf, inf]
     NGRAPH_CHECK(node, validate_host_tensor_vector(output_values, 1));
-    const auto& input1 = node->input_value(0);
-    const auto& input2 = node->input_value(1);
+    const auto&& input1 = node->input_value(0);
+    const auto&& input2 = node->input_value(1);
 
     // broadcast shapes to allocate tensors of correct size for operations with both inputs
     PartialShape input_shape = input1.get_partial_shape();
     NGRAPH_CHECK(PartialShape::broadcast_merge_into(input_shape, input2.get_partial_shape(), node->get_autob()),
                  "Argument shapes in divide operation are inconsistent.");
 
-    const auto& input2_low = input2.get_tensor().get_lower_value();
-    if (input2_low == nullptr)
-        return false;
-    const auto& input2_up = input2.get_tensor().get_upper_value();
-    if (input2_up == nullptr)
-        return false;
-    const auto& input1_low = input1.get_tensor().get_lower_value();
-    if (input1_low == nullptr)
-        return false;
-    const auto& input1_up = input1.get_tensor().get_upper_value();
-    if (input1_up == nullptr)
+    std::shared_ptr<HostTensor> input1_low = evaluate_lower_bound(input1);
+    std::shared_ptr<HostTensor> input2_low = evaluate_lower_bound(input2);
+    std::shared_ptr<HostTensor> input1_up = evaluate_upper_bound(input1);
+    std::shared_ptr<HostTensor> input2_up = evaluate_upper_bound(input2);
+
+    if (!(input1_low && input1_up && input2_low && input2_up))
         return false;
 
     auto zeros_const = op::Constant::create(input2.get_element_type(), {}, {0});
