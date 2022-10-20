@@ -24,7 +24,7 @@ class TestTFEqual(CommonTFLayerTest):
         for input in inputs_dict.keys():
             if isinstance(self.x_shape, np.ndarray) or isinstance(self.x_shape, list):
                 if not self.x_value is None:
-                    inputs_dict[input] = np.full(inputs_dict[input], self.x_value, dtype=self.output_type).astype(self.output_type)
+                    inputs_dict[input] = np.full(inputs_dict[input], self.x_value, dtype=self.output_type)
                 else:
                     inputs_dict[input] = np.random.randint(-3, 3, inputs_dict[input]).astype(self.output_type)
             else:
@@ -34,7 +34,7 @@ class TestTFEqual(CommonTFLayerTest):
                     else:
                         inputs_dict[input] = np.ndarray(self.x_value, dtype=self.output_type)
                 else:
-                    inputs_dict[input] = self.output_type(self.x_shape)
+                    raise RuntimeError("x_shape shouldn't be a scalar value, use x_value instead")
         return inputs_dict
 
     # ir_version - common parameter
@@ -74,7 +74,7 @@ class TestTFEqual(CommonTFLayerTest):
 
             if isinstance(self.y_shape, np.ndarray) or isinstance(self.y_shape, list):
                 if not self.y_value is None:
-                    constant_value = np.full(self.y_shape, self.y_value, dtype=self.output_type).astype(self.output_type)
+                    constant_value = np.full(self.y_shape, self.y_value, dtype=self.output_type)
                 else:
                     constant_value = np.random.randint(-3, 3, self.y_shape).astype(self.output_type)
             else:
@@ -84,11 +84,11 @@ class TestTFEqual(CommonTFLayerTest):
                     else:
                         constant_value = np.ndarray(self.y_value, dtype=self.output_type)
                 else:
-                    constant_value = self.output_type(self.y_shape)
+                    raise RuntimeError("y_shape shouldn't be a scalar value, use y_value instead")
 
             y = tf.constant(constant_value)
 
-            equal = tf.equal(x, y)
+            tf.equal(x, y)
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
