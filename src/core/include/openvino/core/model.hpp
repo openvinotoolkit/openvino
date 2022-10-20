@@ -511,7 +511,7 @@ private:
                                       bool>::type = true>
     const ov::Any& get_rt_arg(const ov::AnyMap& rt_info, const T& name) const {
         if (rt_info.find(name) == rt_info.end())
-            throw ov::Exception("Cannot get rt attribute. Keys are incorrect.");
+            throw ov::Exception("Cannot get runtime attribute. Path to runtime attribute is incorrect.");
         return get_attr(rt_info.at(name));
     }
 
