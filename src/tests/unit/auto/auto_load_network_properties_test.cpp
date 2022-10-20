@@ -23,21 +23,16 @@
 #include "unit_test_utils/mocks/mock_iinfer_request.hpp"
 
 using ::testing::_;
-using ::testing::AllOf;
-using ::testing::AtLeast;
-using ::testing::Contains;
-using ::testing::Eq;
-using ::testing::InvokeWithoutArgs;
-using ::testing::IsTrue;
 using ::testing::MatcherCast;
 using ::testing::Matches;
-using ::testing::Pair;
-using ::testing::Property;
 using ::testing::Return;
 using ::testing::ReturnRef;
 using ::testing::StrEq;
 using ::testing::Throw;
+using ::testing::NiceMock;
 using Config = std::map<std::string, std::string>;
+
+// define a matcher if all the elements of subMap are contained in the map.
 MATCHER_P(MapContains, subMap, "Check if all the elements of the subMap are contained in the map.") {
     if (subMap.empty())
         return true;
@@ -63,21 +58,21 @@ static std::vector<ConfigParams> testConfigs;
 
 class LoadNetworkWithSecondaryConfigsMockTest : public ::testing::TestWithParam<ConfigParams> {
 public:
-    std::shared_ptr<MockICore> core;
-    std::shared_ptr<MockMultiDeviceInferencePlugin> plugin;
+    std::shared_ptr<NiceMock<MockICore>> core;
+    std::shared_ptr<NiceMock<MockMultiDeviceInferencePlugin>> plugin;
     InferenceEngine::CNNNetwork simpleCnnNetwork;
     // mock cpu exeNetwork
-    std::shared_ptr<MockIExecutableNetworkInternal> cpuMockIExeNet;
+    std::shared_ptr<NiceMock<MockIExecutableNetworkInternal>> cpuMockIExeNet;
     ov::SoPtr<IExecutableNetworkInternal> cpuMockExeNetwork;
-    MockIInferencePlugin* cpuMockIPlugin;
+    NiceMock<MockIInferencePlugin>* cpuMockIPlugin;
     InferenceEngine::InferencePlugin cpuMockPlugin;
 
-    // mock actual exeNetwork
-    std::shared_ptr<MockIExecutableNetworkInternal> gpuMockIExeNet;
+    // mock gpu exeNetwork
+    std::shared_ptr<NiceMock<MockIExecutableNetworkInternal>> gpuMockIExeNet;
     ov::SoPtr<IExecutableNetworkInternal> gpuMockExeNetwork;
-    MockIInferencePlugin* gpuMockIPlugin;
+    NiceMock<MockIInferencePlugin>* gpuMockIPlugin;
     InferenceEngine::InferencePlugin gpuMockPlugin;
-    std::shared_ptr<MockIInferRequestInternal> inferReqInternal;
+    std::shared_ptr<NiceMock<MockIInferRequestInternal>> inferReqInternal;
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
@@ -86,16 +81,18 @@ public:
         Config deviceConfigs;
         std::tie(deviceName, targetDevices, deviceConfigs) = obj.param;
         std::ostringstream result;
-        if (deviceName.find("AUTO") != std::string::npos)
-            result << "_target_mock_device_"
-                   << "AUTO";
-        else
-            result << "_target_device_"
-                   << "MULTI";
-        for (auto& item : deviceConfigs) {
-            result << "_device_" << item.first;
-            // result << "_config_" << item.second;
+        result << "_virtual_device_" << deviceName;
+        result << "_loadnetwork_to_device_";
+        for (auto& device : targetDevices) {
+            result << device << "_";
         }
+        auto cpuConfig = deviceConfigs.find("CPU");
+        auto gpuConfig = deviceConfigs.find("GPU");
+        result << "device_properties_";
+        if (cpuConfig != deviceConfigs.end())
+            result << "CPU_" << cpuConfig->second << "_";
+        if (gpuConfig != deviceConfigs.end())
+            result << "GPU_" << gpuConfig->second;
         return result.str();
     }
 
@@ -135,8 +132,8 @@ public:
 
     void SetUp() override {
         // prepare cpuMockExeNetwork
-        cpuMockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
-        auto cpuMockIPluginPtr = std::make_shared<MockIInferencePlugin>();
+        cpuMockIExeNet = std::make_shared<NiceMock<MockIExecutableNetworkInternal>>();
+        auto cpuMockIPluginPtr = std::make_shared<NiceMock<MockIInferencePlugin>>();
         ON_CALL(*cpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _))
             .WillByDefault(Return(cpuMockIExeNet));
         cpuMockPlugin = InferenceEngine::InferencePlugin{cpuMockIPluginPtr, {}};
@@ -144,9 +141,9 @@ public:
         EXPECT_CALL(*cpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).Times(1);
         cpuMockExeNetwork = cpuMockPlugin.LoadNetwork(CNNNetwork{}, {});
 
-        // prepare actualMockExeNetwork
-        gpuMockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
-        auto gpuMockIPluginPtr = std::make_shared<MockIInferencePlugin>();
+        // prepare gpuMockExeNetwork
+        gpuMockIExeNet = std::make_shared<NiceMock<MockIExecutableNetworkInternal>>();
+        auto gpuMockIPluginPtr = std::make_shared<NiceMock<MockIInferencePlugin>>();
         ON_CALL(*gpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _))
             .WillByDefault(Return(gpuMockIExeNet));
         gpuMockPlugin = InferenceEngine::InferencePlugin{gpuMockIPluginPtr, {}};
@@ -155,13 +152,12 @@ public:
         gpuMockExeNetwork = gpuMockPlugin.LoadNetwork(CNNNetwork{}, {});
 
         // prepare mockicore and cnnNetwork for loading
-        core = std::shared_ptr<MockICore>(new MockICore());
-        auto* origin_plugin = new MockMultiDeviceInferencePlugin();
-        plugin = std::shared_ptr<MockMultiDeviceInferencePlugin>(origin_plugin);
+        core = std::shared_ptr<NiceMock<MockICore>>(new NiceMock<MockICore>());
+        auto* origin_plugin = new NiceMock<MockMultiDeviceInferencePlugin>();
+        plugin = std::shared_ptr<NiceMock<MockMultiDeviceInferencePlugin>>(origin_plugin);
         // replace core with mock Icore
         plugin->SetCore(core);
-        // mock execNetwork can work
-        inferReqInternal = std::make_shared<MockIInferRequestInternal>();
+        inferReqInternal = std::make_shared<NiceMock<MockIInferRequestInternal>>();
         ON_CALL(*cpuMockIExeNet.get(), CreateInferRequest()).WillByDefault(Return(inferReqInternal));
         ON_CALL(*gpuMockIExeNet.get(), CreateInferRequest()).WillByDefault(Return(inferReqInternal));
 
@@ -173,7 +169,6 @@ public:
         std::vector<std::string> availableDevs = {"CPU", "GPU"};
         ON_CALL(*core, GetAvailableDevices()).WillByDefault(Return(availableDevs));
 
-        // IE_SET_METRIC(SUPPORTED_METRICS, metrics, {METRIC_KEY(SUPPORTED_CONFIG_KEYS)});
         std::vector<std::string> metrics = {METRIC_KEY(SUPPORTED_CONFIG_KEYS)};
         ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_METRICS)), _)).WillByDefault(Return(metrics));
 
@@ -219,14 +214,12 @@ public:
                                   unsigned int Priority) {
                 return plugin->MultiDeviceInferencePlugin::SelectDevice(metaDevices, netPrecision, Priority);
             });
-        // IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, cpuCability, {"FP32", "FP16", "INT8", "BIN"});
-        // IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, gpuCability, {"FP32", "FP16", "BATCHED_BLOB", "BIN", "INT8"});
         std::vector<std::string> cpuCability{"FP32", "FP16", "INT8", "BIN"};
         std::vector<std::string> gpuCability{"FP32", "FP16", "BATCHED_BLOB", "BIN", "INT8"};
         ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_CPU), StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _))
-            .WillByDefault(RETURN_MOCK_VALUE(cpuCability));
+            .WillByDefault(Return(cpuCability));
         ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _))
-            .WillByDefault(RETURN_MOCK_VALUE(gpuCability));
+            .WillByDefault(Return(gpuCability));
 
         ON_CALL(*core,
                 LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
@@ -254,23 +247,13 @@ TEST_P(LoadNetworkWithSecondaryConfigsMockTest, LoadNetworkWithSecondaryConfigsT
         plugin->SetName("AUTO");
     if (device.find("MULTI") != std::string::npos)
         plugin->SetName("MULTI");
-    auto setExpectCall = [&](const std::string& deviceName) {
-        std::stringstream strConfigs(config[deviceName]);
-        Config deviceConfigs;
-        ov::util::Read<Config>{}(strConfigs, deviceConfigs);
-        // EXPECT_CALL(*core,
-        //            LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-        //                        ::testing::Matcher<const std::string&>(StrEq(deviceName)),
-        //                        ::testing::Matcher<const std::map<std::string, std::string>&>(
-        //                            MapContains(deviceConfigs))))
-        //    .Times(1);
-    };
 
     for (auto& deviceName : targetDevices) {
         auto item = config.find(deviceName);
         Config deviceConfigs;
         if (item != config.end()) {
             std::stringstream strConfigs(item->second);
+            // Parse the device properties to common property into deviceConfigs.
             ov::util::Read<Config>{}(strConfigs, deviceConfigs);
         }
         EXPECT_CALL(
@@ -286,5 +269,5 @@ TEST_P(LoadNetworkWithSecondaryConfigsMockTest, LoadNetworkWithSecondaryConfigsT
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoMock_LoadNetworkWithSecondaryConfigs,
                          LoadNetworkWithSecondaryConfigsMockTest,
-                         ::testing::ValuesIn(LoadNetworkWithSecondaryConfigsMockTest::CreateConfigs()));
-// LoadNetworkWithSecondaryConfigsMockTest::getTestCaseName);
+                         ::testing::ValuesIn(LoadNetworkWithSecondaryConfigsMockTest::CreateConfigs()),
+                         LoadNetworkWithSecondaryConfigsMockTest::getTestCaseName);
