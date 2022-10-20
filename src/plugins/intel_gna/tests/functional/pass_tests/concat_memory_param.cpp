@@ -24,27 +24,27 @@ typedef std::tuple<
     std::string,                        // Target Device
     std::map<std::string, std::string>, // Configuration
     std::vector<size_t>                 // shape to split
-> cccmParams;
+> concat_memory_test_params;
 
 namespace LayerTestsDefinitions {
 
-class CCCMTest : public testing::WithParamInterface<cccmParams>,
+class ConcatMemoryTest : public testing::WithParamInterface<concat_memory_test_params>,
                                    public LayerTestsUtils::LayerTestsCommon {
     public:
-    static std::string getTestCaseName(testing::TestParamInfo<cccmParams> obj) {
-            InferenceEngine::Precision netPrecision;
+    static std::string getTestCaseName(testing::TestParamInfo<concat_memory_test_params> obj) {
+            InferenceEngine::Precision net_prc;
             std::string targetDevice;
             std::map<std::string, std::string> configuration;
-            std::vector<size_t> splitInputShape;
-            std::tie(netPrecision, targetDevice, configuration, splitInputShape) = obj.param;
+            std::vector<size_t> input_shape;
+            std::tie(net_prc, targetDevice, configuration, input_shape) = obj.param;
 
             std::ostringstream result;
-            result << "netPRC=" << netPrecision.name() << "_";
-            result << "targetDevice=" << targetDevice << "_";
-            for (auto const& configItem : configuration) {
-                result << "_configItem=" << configItem.first << "_" << configItem.second;
+            result << "net_prc=" << net_prc.name() << "_";
+            result << "device=" << targetDevice << "_";
+            for (auto const& config_item : configuration) {
+                result << "_config_item=" << config_item.first << "_" << config_item.second;
             }
-            result << "_SIS=" << CommonTestUtils::vec2str(splitInputShape);
+            result << "_input_shape=" << CommonTestUtils::vec2str(input_shape);
             return result.str();
         }
 
@@ -53,57 +53,56 @@ class CCCMTest : public testing::WithParamInterface<cccmParams>,
             InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
             blob->allocate();
 
-            auto* rawBlobDataPtr = blob->buffer().as<float*>();
+            auto* raw_blob_data_ptr = blob->buffer().as<float*>();
             std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -2.f, 2.f);
             for (size_t i = 0; i < blob->size(); i++) {
-                rawBlobDataPtr[i] = values[i];
+                raw_blob_data_ptr[i] = values[i];
             }
             return blob;
         }
 
         void SetUp() override {
-            InferenceEngine::Precision netPrecision;
-            std::vector<size_t> inputShape = {1, 64};
-            std::tie(netPrecision, targetDevice, configuration, std::ignore) = this->GetParam();
+            InferenceEngine::Precision net_prc;
+            std::vector<size_t> input_shape;
+            std::tie(net_prc, targetDevice, configuration, input_shape) = this->GetParam();
 
-            auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+            auto ng_prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(net_prc);
 
-            size_t in_total_dims_size = ngraph::shape_size(inputShape);
-            auto params = ngraph::builder::makeParams(ngPrc, {{1, in_total_dims_size}});
-            auto pattern1 =
-                std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{2}, inputShape);
-            auto reshape1 = std::make_shared<ngraph::opset8::Reshape>(params[0], pattern1, false);
-            ngraph::VariableInfo vi{};
-            vi.data_shape = ngraph::PartialShape(inputShape);
+            size_t in_total_dims_size = ov::shape_size(input_shape);
+            auto params = ngraph::builder::makeParams(ng_prc, {{1, in_total_dims_size}});
+            auto reshape_pattern = std::make_shared<ngraph::opset9::Constant>(ov::element::Type_t::i64, ov::Shape{2}, input_shape);
+            auto reshape = std::make_shared<ngraph::opset9::Reshape>(params[0], reshape_pattern, false);
+
+            ov::op::util::VariableInfo vi{};
+            vi.data_shape = ov::PartialShape(input_shape);
             vi.variable_id = "test_variable";
-            vi.data_type = ngraph::element::Type_t::f32;
-            const auto var = std::make_shared<ngraph::Variable>(vi);
+            vi.data_type = ov::element::Type_t::f32;
+            const auto var = std::make_shared<ov::op::util::Variable>(vi);
             std::vector<float> initial_state = CommonTestUtils::generate_float_numbers(in_total_dims_size, -3.f, 3.f);
-            auto initial_state_node =
-                ngraph::builder::makeConstant(ov::element::Type_t::f32, inputShape, initial_state);
+            auto initial_state_node = ngraph::builder::makeConstant(ov::element::Type_t::f32, input_shape, initial_state);
             auto readValue = std::make_shared<ngraph::opset9::ReadValue>(initial_state_node, var);
-            ngraph::OutputVector toConcat{readValue, reshape1};
+
             const int axis = 1;
-            auto concat = ngraph::builder::makeConcat(toConcat, axis);
+            ov::OutputVector to_concat{readValue, reshape};
+            auto concat = ngraph::builder::makeConcat(to_concat, axis);
 
             const auto concat_shape = concat->get_output_shape(0);
-            const auto concat_shape_size = ngraph::shape_size(concat_shape);
+            const auto concat_shape_size = ov::shape_size(concat_shape);
 
             auto etlwise_data = CommonTestUtils::generate_float_numbers(concat_shape_size, -1.f, 1.f);
             auto etlwise_node = ngraph::builder::makeConstant(ov::element::Type_t::f32, concat_shape, etlwise_data);
             auto etlwise_result_node = std::make_shared<ngraph::opset9::Multiply>(concat, etlwise_node);
 
-            ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(etlwise_result_node)};
-            auto split_node = ngraph::builder::makeSplit(concat, ngPrc, 2, axis);
+            ov::ResultVector results{std::make_shared<ngraph::opset9::Result>(etlwise_result_node)};
+            auto split_node = ngraph::builder::makeSplit(concat, ng_prc, 2, axis);
 
             auto assign_node = std::make_shared<ngraph::opset9::Assign>(split_node->output(1), var);
             ngraph::SinkVector sinks{assign_node};
-            function = std::make_shared<ngraph::Function>(results, sinks, params, "CCCM");
-            ov::pass::Serialize("a1.xml", "a1.bin").run_on_function(function);
+            function = std::make_shared<ov::Model>(results, sinks, params);
         }
 };
 
-TEST_P(CCCMTest, CompareWithRefImpl) {
+TEST_P(ConcatMemoryTest, CompareWithRefImpl) {
     Run();
 };
 
@@ -121,15 +120,15 @@ const std::vector<std::map<std::string, std::string>> configs = {
 };
 
 const std::vector<std::vector<size_t>> shapes {
-    {16, 24},
+    {1, 64},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_conv_align_filter, CCCMTest,
+INSTANTIATE_TEST_SUITE_P(smoke_concat_memory, ConcatMemoryTest,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
             ::testing::ValuesIn(configs),
             ::testing::ValuesIn(shapes)),
-        CCCMTest::getTestCaseName);
+        ConcatMemoryTest::getTestCaseName);
 
 } // namespace LayerTestsDefinitions
