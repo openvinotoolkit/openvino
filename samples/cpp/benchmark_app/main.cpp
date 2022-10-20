@@ -193,7 +193,10 @@ int main(int argc, char* argv[]) {
 
         // ----------------- 1. Parsing and validating input arguments
         // -------------------------------------------------
-        auto args_string = get_console_command(argc, argv);
+
+        // Must be executed before parse_and_check_command_line()
+        // gflags::ParseCommandLineNonHelpFlags() modifies the argv array
+        auto command_from_args = get_console_command(argc, argv);
 
         next_step();
 
@@ -201,7 +204,7 @@ int main(int argc, char* argv[]) {
             return 0;
         }
 
-        slog::info << "Input command: " << args_string << slog::endl;
+        slog::info << "Input command: " << command_from_args << slog::endl;
 
         bool isNetworkCompiled = fileExt(FLAGS_m) == "blob";
         if (isNetworkCompiled) {
