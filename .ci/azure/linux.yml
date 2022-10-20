@@ -125,6 +125,11 @@ jobs:
       mkdir -p $(CCACHE_DIR)
     displayName: 'Make dir'
 
+  - script: |
+      sudo apt --assume-yes install lcov
+    displayName: 'Install lcov'
+    condition: and(succeeded(), eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON'))
+
   - checkout: self
     clean: true
     lfs: false
