@@ -129,7 +129,7 @@ void StatisticsReport::dump_sort_performance_counters_request(CsvDumper& dumper,
     std::vector<ov::ProfilingInfo> profiling{std::begin(perfCounts), std::end(perfCounts)};
     std::sort(profiling.begin(), profiling.end(), sort_profiling_descend);
     for (const auto& layer : profiling) {
-        if (status_names[(int)layer.status] == "EXECUTED") {
+        if (strcmp(status_names[(int)layer.status], "EXECUTED") == 0) {
             dumper << layer.node_name;  // layer name
             dumper << ((int)layer.status < (sizeof(status_names) / sizeof(status_names[0]))
                            ? status_names[(int)layer.status]
