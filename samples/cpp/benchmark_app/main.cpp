@@ -194,7 +194,7 @@ int main(int argc, char* argv[]) {
         // ----------------- 1. Parsing and validating input arguments
         // -------------------------------------------------
         auto args_string = get_console_command(argc, argv);
-        
+
         next_step();
 
         if (!parse_and_check_command_line(argc, argv)) {
