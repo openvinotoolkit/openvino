@@ -26,7 +26,6 @@ pr:
 
 resources:
   repositories:
-  
   - repository: openvino_contrib
     type: github
     endpoint: openvinotoolkit
