@@ -115,7 +115,7 @@ TEST(variable_test_common, exception_on_wrong_layout) {
     auto wrong_layout = variable_layout;
     wrong_layout.data_type = data_types::f32;
     const auto wrong_input_data = engine.allocate_memory(wrong_layout);
-    set_values(input_data, {333.666});
+    set_values(input_data, {333.666f});
 
     topology topology;
     topology.add(input_layout("input", input_data->get_layout()));

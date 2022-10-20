@@ -1452,7 +1452,7 @@ TEST(pooling_forward_gpu, basic_in2x2x3x2x1_max_with_argmax) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(mutable_data("arg_max", arg_max));
-    topology.add(pooling("pooling", "input", "arg_max", pooling_mode::max_with_argmax, { 1, 2, 2 }, { 1, 1, 1 }));
+    topology.add(pooling("pooling", "input", "arg_max", pooling_mode::max_with_argmax, { 1, 2, 2 }, { 1, 1, 1 }, {0, 0, 0}));
 
     network network(engine, topology);
 
