@@ -48,7 +48,7 @@ protected:
     kernel_arguments_data get_arguments(typed_primitive_inst<arg_max_min>& instance, int32_t) const override {
         kernel_arguments_data args = parent::get_arguments(instance, 0);
 
-        if (args.inputs.size() == 3) {
+        if (instance.node.has_second_output()) {
             args.inputs.erase(args.inputs.begin() + 1);  // erase constant input in case of TOP_K
         }
 
@@ -63,7 +63,7 @@ public:
         const auto& mode = primitive->mode;
         const auto& sort_type = primitive->sort;
         const auto& values_first = primitive->values_first;
-        const auto& outputs_num = primitive->input.size() == 3 ? 2 : 1;  // second output passed as input for TOP_K layer
+        const auto& outputs_num = arg.get_output_nums();  // second output passed as input for TOP_K layer
 
         auto argm_params = get_default_params<kernel_selector::arg_max_min_params>(impl_param);
         auto argm_optional_params =
@@ -83,8 +83,14 @@ public:
         else
             argm_params.argMaxMinSortType = kernel_selector::argm_sort::INDEX;
 
-        if (outputs_num == 2) {
-            argm_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
+        if (arg.has_second_output()) {  // for backward compatibility
+            argm_params.has_second_output = true;
+            if (arg.use_multiple_outputs()) {
+                argm_params.use_multiple_outputs = true;
+                argm_params.outputs.push_back(convert_data_tensor(impl_param.output_layout));
+            } else {
+                argm_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
+            }
         }
 
         argm_params.values_first = values_first;
