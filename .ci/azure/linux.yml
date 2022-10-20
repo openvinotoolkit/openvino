@@ -282,6 +282,7 @@ jobs:
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py
     displayName: 'Python API 2.0 Tests'
     continueOnError: false
+    condition: and(succeeded(), eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF'))
 
   - script: |
       # because of static build libgna is needed for python binary
