@@ -63,6 +63,13 @@ Dynamic dimensions are specified as `-1` or the `ov::Dimension()` instead of a p
 @sphinxtab{Python}
 
 @snippet docs/snippets/ov_dynamic_shapes.py reshape_undefined
+
+@endsphinxtab
+
+@sphinxtab{C}
+
+@snippet docs/snippets/ov_dynamic_shapes.c ov_dynamic_shapes:reshape_undefined
+
 @endsphinxtab
 
 @endsphinxtabset
@@ -101,7 +108,15 @@ The bounds are coded as arguments for the `ov::Dimension`:
 @sphinxtab{Python}
 
 @snippet docs/snippets/ov_dynamic_shapes.py reshape_bounds
+
 @endsphinxtab
+
+@sphinxtab{C}
+
+@snippet docs/snippets/ov_dynamic_shapes.c ov_dynamic_shapes:reshape_bounds
+
+@endsphinxtab
+
 @endsphinxtabset
 
 Information about bounds gives an opportunity for the inference plugin to apply additional optimizations.
@@ -133,7 +148,15 @@ This is similar to the [regular steps](integrate_with_your_application.md). Howe
 @sphinxtab{Python}
 
 @snippet docs/snippets/ov_dynamic_shapes.py set_input_tensor
+
 @endsphinxtab
+
+@sphinxtab{C}
+
+@snippet docs/snippets/ov_dynamic_shapes.c ov_dynamic_shapes:set_input_tensor
+
+@endsphinxtab
+
 @endsphinxtabset
 
 In the example above, the `set_input_tensor` is used to specify input tensors.
@@ -156,6 +179,13 @@ Contrary to previous example, the following one shows the same sequence of two i
 @sphinxtab{Python}
 
 @snippet  docs/snippets/ov_dynamic_shapes.py get_input_tensor
+
+@endsphinxtab
+
+@sphinxtab{C}
+
+@snippet docs/snippets/ov_dynamic_shapes.c ov_dynamic_shapes:get_input_tensor
+
 @endsphinxtab
 
 @endsphinxtabset
@@ -180,6 +210,13 @@ The same applies to inputs. For example:
 @sphinxtab{Python}
 
 @snippet docs/snippets/ov_dynamic_shapes.py print_dynamic
+
+@endsphinxtab
+
+@sphinxtab{C}
+
+@snippet docs/snippets/ov_dynamic_shapes.c ov_dynamic_shapes:print_dynamic
+
 @endsphinxtab
 
 @endsphinxtabset
@@ -199,6 +236,13 @@ It can also be verified in a more programmatic way:
 @sphinxtab{Python}
 
 @snippet docs/snippets/ov_dynamic_shapes.py detect_dynamic
+
+@endsphinxtab
+
+@sphinxtab{C}
+
+@snippet docs/snippets/ov_dynamic_shapes.c ov_dynamic_shapes:detect_dynamic
+
 @endsphinxtab
 
 @endsphinxtabset
