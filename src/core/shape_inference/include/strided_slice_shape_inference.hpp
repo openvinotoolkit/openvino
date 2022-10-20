@@ -55,7 +55,7 @@ void shape_infer(const StridedSlice* op,
     std::vector<int64_t> end;
     std::vector<int64_t> strides;
 
-    auto number_elements_in_1d = [](const StridedSlice* op, const ov::PartialShape& shape_1d) {
+    auto number_elements_in_1d = [](const StridedSlice* op, const T& shape_1d) {
         auto rank_1d = shape_1d.rank();
         if (rank_1d.is_static()) {
             NODE_VALIDATION_CHECK(op, rank_1d.get_length() == 1, "Only 1D tensor is allowed.");
