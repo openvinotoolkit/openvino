@@ -591,6 +591,22 @@ TEST(type_prop, gather_v8_dynamic_pshape_batch_dims_1_axis_3) {
     ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
+TEST(type_prop, gather_v8_dim_no_bound_pshape_batch_dims_1_axis_3) {
+    PartialShape data_shape{Dimension(7, -1), Dimension(-1, 3), 200, 400};
+    PartialShape indices_shape{Dimension(7, 10), Dimension(2, 10), 3, 8};
+    PartialShape out_shape{7, Dimension(-1, 3), 200, Dimension(2, 10), 3, 8};
+    int64_t axis = 3;
+    int64_t batch_dims = 1;
+
+    auto D = make_shared<op::Parameter>(element::f32, data_shape);
+    auto I = make_shared<op::Parameter>(element::i64, indices_shape);
+    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
+    auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
+
+    ASSERT_EQ(G->get_element_type(), element::f32);
+    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+}
+
 TEST(type_prop, gather_v8_dynamic_2d_pshape_batch_dim) {
     PartialShape data_shape{Dimension(1, 7), Dimension(1, 3), 200, 400};
     PartialShape indices_shape{Dimension(7, 10), Dimension(2, 10), 3, 8};
