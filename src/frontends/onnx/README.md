@@ -3,7 +3,7 @@
 The main responsibility of the ONNX Frontend is to import ONNX models and convert them into the `ov::Model` representation. 
 Other capabilities of the ONNX Frontend:
 * modification of tensors properties (like data type and shapes)
-* changing topology of the models (like cutting subgraphs, inserting additional inputs and outputs)
+* changing the topology of models (like cutting subgraphs, inserting additional inputs and outputs)
 * searching the models in a user-friendly way via tensors and operators names
 
 The component is written in `C++`. If you want to contribute to the ONNX Frontend, follow [the common coding style rules](../../../docs/dev/coding_style.md).
@@ -48,7 +48,7 @@ flowchart LR
     InputModel-->fe_convert
     fe_convert-->ov_model
 ```
-Find more details about the architecture in the [ONNX Frontend architecture](./docs/architecture.md) document.
+Find more details in the [ONNX Frontend architecture](./docs/architecture.md) document.
 
 ## Tutorials
 * [How to add a new operation](./docs/how_to_add_op.md)
