@@ -28,15 +28,17 @@ OpenVINO IR Frontend contains the next components:
 
 * [include](./include) is a public frontend API.
 * [src](./src/) folder contains the sources of the component.
+* [tests](./tests/) folder contains tests for the component. To get more information, read [How to run tests](./docs/tests.md).
 
 ## Architecture
 
-OpenVINO IR Frontend uses [pugixml](https://github.com/zeux/pugixml/blob/master/README.md) library to parse xml files.
+OpenVINO IR Frontend uses the [pugixml](https://github.com/zeux/pugixml/blob/master/README.md) library to parse xml files.
 For detailed information about OpenVINO IR Frontend architecture, read the [architecture guide](./docs/architecture.md).
 
 ## Tutorials
 
  * [How to support a new opset](./docs/support_new_opset.md)
+ * [How to run tests](./docs/tests.md)
 
 
 ## See also
