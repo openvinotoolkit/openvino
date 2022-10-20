@@ -43,18 +43,18 @@ void CustomLocaleTest::SetUp() {
 }
 
 TEST_P(CustomLocaleTest, CanLoadNetworkWithCustomLocale) {
-    auto prev = std::locale();
-    try {
-        std::locale::global(std::locale(localeName.c_str()));
-    } catch (...) {
-        GTEST_SKIP();
-    }
+    auto prev = std::locale().name().c_str();
+    std::setlocale(LC_ALL, localeName.c_str());
+    std::setlocale(LC_NUMERIC, localeName.c_str());
+    std::setlocale(LC_TIME, localeName.c_str());
 
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie(target_device);
     InferenceEngine::CNNNetwork cnnNet(function);
     ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, target_device));
 
-    std::locale::global(prev);
+    std::setlocale(LC_ALL, prev);
+    std::setlocale(LC_NUMERIC, prev);
+    std::setlocale(LC_TIME, prev);
 }
 
 } // namespace BehaviorTestsDefinitions
