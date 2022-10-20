@@ -40,7 +40,6 @@ std::string get_console_command(int argc, char* argv[]) {
     std::stringstream args_command;
 
 #if defined(_WIN32) || defined(WIN32)
-    std::stringstream args_command;
     std::string relative_path(argv[0]);
     std::vector<char> buffer;
 
