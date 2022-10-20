@@ -6,7 +6,7 @@
 #pragma once
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "primitive_inst.h"
-#include "kernel_selector/core/actual_kernels/eltwise/eltwise_kernel_base.h"
+#include "kernel_selector/kernels/eltwise/eltwise_kernel_base.h"
 
 #include <memory>
 #include <string>

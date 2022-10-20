@@ -50,6 +50,7 @@ set(SRC
     dimension.cpp
     element_type.cpp
     eval.cpp
+    evaluate_bound/concat.cpp
     evaluate_bound/transpose.cpp
     extension.cpp
     file_util.cpp
@@ -131,6 +132,7 @@ set(SRC
     type_prop/detection_output.cpp
     type_prop/depth_to_space.cpp
     type_prop/dft.cpp
+    type_prop/divide.cpp
     type_prop/dyn_reshape.cpp
     type_prop/einsum.cpp
     type_prop/erf.cpp
@@ -170,6 +172,7 @@ set(SRC
     type_prop/if.cpp
     type_prop/interpolate.cpp
     type_prop/irdft.cpp
+    type_prop/is_nan.cpp
     type_prop/logical_and.cpp
     type_prop/logical_not.cpp
     type_prop/logical_or.cpp
@@ -186,6 +189,7 @@ set(SRC
     type_prop/mish.cpp
     type_prop/mod.cpp
     type_prop/multiclass_nms.cpp
+    type_prop/multiply.cpp
     type_prop/mvn.cpp
     type_prop/negative.cpp
     type_prop/non_max_suppression.cpp
@@ -248,6 +252,7 @@ set(SRC
     type_prop/sqrt.cpp
     type_prop/squared_difference.cpp
     type_prop/squeeze.cpp
+    type_prop/subtract.cpp
     type_prop/swish.cpp
     type_prop/tan.cpp
     type_prop/tanh.cpp
@@ -446,29 +451,7 @@ if (ENABLE_TEMPLATE)
     list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_plugin)
     set(OP_EVAL_TEST_SRC
         # It should be a part of template plugin
-        op_eval/binary_convolution.cpp
-        op_eval/bucketize.cpp
-        op_eval/clamp.cpp
-        op_eval/einsum.cpp
-        op_eval/floor_mod.cpp
-        op_eval/gelu.cpp
-        op_eval/hsigmoid.cpp
-        op_eval/hswish.cpp
-        op_eval/interpolate.cpp
-        op_eval/loop.cpp
-        op_eval/matmul.cpp
-        op_eval/memory.cpp
-        op_eval/mish.cpp
-        op_eval/non_zero.cpp
-        op_eval/roi_align.cpp
-        op_eval/roi_pooling.cpp
-        op_eval/round.cpp
-        op_eval/softplus.cpp
-        op_eval/split.cpp
-        op_eval/swish.cpp
-        op_eval/strided_slice.cpp
-        op_eval/transpose.cpp
-        op_eval/variadic_split.cpp)
+        op_eval/memory.cpp)
 endif()
 
 # SOURCE FOR FRONTEND TESTING

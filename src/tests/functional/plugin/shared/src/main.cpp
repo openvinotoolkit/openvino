@@ -8,6 +8,8 @@
 #include "functional_test_utils/summary/op_summary.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
+#include "set_device_name.hpp"
+
 int main(int argc, char *argv[]) {
     FuncTestUtils::SkipTestsConfig::disable_tests_skipping = false;
     bool print_custom_help = false;
@@ -32,6 +34,10 @@ int main(int argc, char *argv[]) {
                 throw std::runtime_error("Incorrect value of \"--save_report_timeout\" argument");
             }
             ov::test::utils::OpSummary::setSaveReportTimeout(timeout);
+        } else if (std::string(argv[i]).find("--device_suffix") != std::string::npos) {
+            std::string deviceSuffix = std::string(argv[i]).substr(std::string("--device_suffix").length() + 1);
+            // TODO: uncomment after plugin impl merge
+            // ov::test::set_device_suffix(deviceSuffix);
         }
     }
 
@@ -53,6 +59,8 @@ int main(int argc, char *argv[]) {
         std::cout << "       Allow to try to save report in cycle using timeout (in seconds). " << std::endl;
         std::cout << "  --extract_body" << std::endl;
         std::cout << "       Allow to count extracted operation bodies to report. " << std::endl;
+        std::cout << "  --device_suffix" << std::endl;
+        std::cout << "       Optional. Device suffix" << std::endl;
         std::cout << std::endl;
     }
 
