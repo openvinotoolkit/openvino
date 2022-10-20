@@ -583,19 +583,29 @@ ngraph::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
         const ov::element::Type transpose_element_type = GetTransposeElementType(transpose);
         const int64_t transposed_concat_axis = TransposeConcatAxis(GetConcatAxis(concat), reversed_traspose_axis_order);
 
-        // Graph build strategy
-        auto insert_transpose = InsertTranspose(transpose_axis_order, transpose_element_type);
-        auto append_input_transposes = AppendTransposes(std::move(insert_transpose), AnyIndex());
-        append_input_transposes.SetNewNodesCollected();
+        for (size_t i = 0; i < concat->get_input_size(); ++i) {
+            auto input_node = concat->input_value(i);
+            auto new_transpose_const = std::make_shared<ov::opset9::Constant>(transpose_element_type,
+                                                                              ov::Shape{transpose_axis_order.size()},
+                                                                              transpose_axis_order);
+            auto new_transpose = std::make_shared<ov::opset9::Transpose>(input_node, new_transpose_const);
 
-        auto append_concat = AppendConcat(transposed_concat_axis, std::move(append_input_transposes));
-        //
+            concat->input(i).replace_source_output(new_transpose->output(0));
 
-        const Nodes input_nodes = GetNodes(concat->input_values());
+            ov::copy_runtime_info(input_node.get_node_shared_ptr(), {new_transpose, new_transpose_const});
 
-        for (auto & new_node: DoTransformation(transpose, input_nodes, std::move(append_concat))) {
-            register_new_node(new_node);
+            register_new_node(new_transpose);
         }
+
+        auto transpose_consumers = transpose->output(0).get_target_inputs();
+        for (auto consumer: transpose_consumers) {
+            consumer.replace_source_output(concat);
+        }
+
+        SwapNames(transpose, concat);
+
+        //
+        std::dynamic_pointer_cast<ov::opset9::Concat>(concat)->set_concatenation_axis(transposed_concat_axis);
 
         return true;
     };
