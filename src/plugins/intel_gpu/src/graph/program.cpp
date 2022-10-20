@@ -61,6 +61,7 @@
 #include "region_yolo_inst.h"
 #include "strided_slice_inst.h"
 #include "loop_inst.h"
+#include "reverse_inst.h"
 #include "to_string_utils.h"
 #include "runtime/cldnn_itt.hpp"
 #include "runtime/kernels_cache.hpp"
@@ -1445,7 +1446,9 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::prior_box::type_id() &&
             prim.type() != cldnn::resample::type_id() &&
             prim.type() != cldnn::eye::type_id() &&
-            prim.type() != cldnn::generate_proposals::type_id()) {
+            prim.type() != cldnn::generate_proposals::type_id() &&
+            prim.type() != cldnn::reverse::type_id() &&
+            prim.type() != cldnn::reorg_yolo::type_id()) {
             can_use_fsv16 = false;
         }
 
@@ -1483,7 +1486,9 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::resample::type_id() &&
             prim.type() != cldnn::prior_box::type_id() &&
             prim.type() != cldnn::eye::type_id() &&
-            prim.type() != cldnn::generate_proposals::type_id()) {
+            prim.type() != cldnn::generate_proposals::type_id() &&
+            prim.type() != cldnn::reverse::type_id() &&
+            prim.type() != cldnn::reorg_yolo::type_id()) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
         }
     }
