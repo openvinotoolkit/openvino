@@ -30,16 +30,6 @@ class Model;
 OPENVINO_API
 std::shared_ptr<Model> clone_model(const Model& func, std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
 
-const ov::Any& get_rt_info(const ov::Model& model,
-                           const ov::AnyMap& info,
-                           const std::vector<std::string>::const_iterator& begin,
-                           const std::vector<std::string>::const_iterator& end);
-
-ov::Any& get_rt_info(ov::Model& model,
-                     ov::AnyMap& info,
-                     const std::vector<std::string>::const_iterator& begin,
-                     const std::vector<std::string>::const_iterator& end);
-
 namespace frontend {
 class FrontEnd;
 }
@@ -321,27 +311,140 @@ public:
 
     /// \brief Return a variable by specified variable_id.
     ov::op::util::Variable::Ptr get_variable_by_id(const std::string& variable_id) const;
+
+    /**
+     * @brief Returns a runtime info
+     *
+     * @return reference to ov::AnyMap with runtime info
+     */
     RTMap& get_rt_info() {
         return m_rt_info;
     }
+
+    /**
+     * @brief Returns a constant runtime info
+     *
+     * @return reference to const ov::AnyMap with runtime info
+     */
     const RTMap& get_rt_info() const {
         return m_rt_info;
     }
 
-    template <class T, class... Args>
+    /**
+     * @brief Returns a runtime attribute for the path, throws an ov::Exception if path doesn't exist
+     *
+     * @tparam T the type of returned value
+     * @tparam Args types of variadic arguments
+     * @param args path to the runtime attribute
+     *
+     * @return constant reference to value from runtime info
+     */
+    template <class T, class... Args, typename std::enable_if<!std::is_same<T, ov::Any>::value, bool>::type = true>
     const T& get_rt_info(Args... args) const {
         const ov::Any& arg = get_rt_arg<Args...>(m_rt_info, args...);
         return arg.as<T>();
     }
+    /**
+     * @brief Returns a runtime attribute for the path, throws an ov::Exception if path doesn't exist
+     *
+     * @tparam T the type of returned value
+     * @tparam Args types of variadic arguments
+     * @param args path to the runtime attribute
+     *
+     * @return constant reference to value from runtime info
+     */
+    template <class T, class... Args, typename std::enable_if<std::is_same<T, ov::Any>::value, bool>::type = true>
+    const T& get_rt_info(Args... args) const {
+        const ov::Any& arg = get_rt_arg<Args...>(m_rt_info, args...);
+        return arg;
+    }
 
+    /**
+     * @brief Returns a runtime attribute for the path, throws an ov::Exception if path doesn't exist
+     *
+     * @tparam T the type of returned value
+     * @param args vector with path to the runtime attribute
+     *
+     * @return constant reference to value from runtime info
+     */
+    template <class T, typename std::enable_if<!std::is_same<T, ov::Any>::value, bool>::type = true>
+    const T& get_rt_info(const std::vector<std::string>& args) const {
+        const ov::Any& arg = get_rt_info(m_rt_info, args.cbegin(), args.cend());
+        return arg.as<T>();
+    }
+
+    /**
+     * @brief Returns a runtime attribute for the path, throws an ov::Exception if path doesn't exist
+     *
+     * @tparam T the type of returned value
+     * @param args vector with path to the runtime attribute
+     *
+     * @return constant reference to value from runtime info
+     */
+    template <class T, typename std::enable_if<std::is_same<T, ov::Any>::value, bool>::type = true>
+    const T& get_rt_info(const std::vector<std::string>& args) const {
+        const ov::Any& arg = get_rt_info(m_rt_info, args.cbegin(), args.cend());
+        return arg;
+    }
+
+    /**
+     * @brief Checks if given path exists in runtime info
+     *
+     * @tparam Args types of variadic arguments
+     * @param args path to the runtime attribute
+     *
+     * @return true if path exists, otherwise false
+     */
     template <class... Args>
     bool has_rt_info(Args... args) const {
         return has_rt_arg<Args...>(m_rt_info, args...);
     }
 
+    /**
+     * @brief Checks if given path exists in runtime info
+     *
+     * @param args vector with path to the runtime attribute
+     *
+     * @return true if path exists, otherwise false
+     */
+    bool has_rt_info(const std::vector<std::string>& args) const {
+        ov::AnyMap info = m_rt_info;
+        for (size_t i = 0; i < args.size(); i++) {
+            bool has_attr = has_rt_arg(info, args[i]);
+            if (!has_attr)
+                return false;
+            if (i == args.size() - 1)
+                break;
+            const ov::Any& rt_attr = get_rt_arg<std::string>(info, args[i]);
+            info = get_map_from_attr(rt_attr);
+        }
+        return true;
+    }
+
+    /**
+     * @brief Add value inside the runtime info
+     *
+     * @tparam T type of new value
+     * @tparam Args types of variadic arguments
+     * @param argument value for the runtime info
+     * @param args path to the runtime attribute
+     */
     template <class T, class... Args>
     void set_rt_info(const T& argument, Args... args) {
         ov::Any& arg = get_rt_arg<Args...>(m_rt_info, args...);
+        arg = argument;
+    }
+
+    /**
+     * @brief Add value inside the runtime info
+     *
+     * @tparam T type of new value
+     * @param argument value for the runtime info
+     * @param args vector with path to the runtime attribute
+     */
+    template <class T>
+    void set_rt_info(const T& argument, const std::vector<std::string>& args) {
+        ov::Any& arg = get_rt_info(m_rt_info, args.cbegin(), args.cend());
         arg = argument;
     }
 
@@ -352,15 +455,32 @@ public:
 
 private:
     friend class ov::ModelAccessor;
-    friend ov::Any& get_rt_info(ov::Model& model,
-                                ov::AnyMap& info,
-                                const std::vector<std::string>::const_iterator& begin,
-                                const std::vector<std::string>::const_iterator& end);
-    friend const ov::Any& get_rt_info(const ov::Model& model,
-                                      const ov::AnyMap& info,
-                                      const std::vector<std::string>::const_iterator& begin,
-                                      const std::vector<std::string>::const_iterator& end);
 
+    // Allow to get attribute for the vector
+    ov::Any& get_rt_info(ov::AnyMap& info,
+                         const std::vector<std::string>::const_iterator& begin,
+                         const std::vector<std::string>::const_iterator& end) {
+        if (begin == end - 1) {
+            return get_rt_arg(info, *begin);
+        } else {
+            ov::Any& rt_attr = get_rt_arg<std::string>(info, *begin);
+            return get_rt_info(get_map_from_attr(rt_attr), begin + 1, end);
+        }
+    }
+
+    // Allow to get constant attribute for the vector
+    const ov::Any& get_rt_info(const ov::AnyMap& info,
+                               const std::vector<std::string>::const_iterator& begin,
+                               const std::vector<std::string>::const_iterator& end) const {
+        if (begin == end - 1) {
+            return get_rt_arg(info, *begin);
+        } else {
+            const ov::Any& rt_attr = get_rt_arg<std::string>(info, *begin);
+            return get_rt_info(get_map_from_attr(rt_attr), begin + 1, end);
+        }
+    }
+
+    // Checks rt attribute
     template <class T,
               typename std::enable_if<std::is_same<std::string, T>::value || std::is_same<T, const char*>::value ||
                                           std::is_same<T, char*>::value,
@@ -369,6 +489,7 @@ private:
         return rt_info.find(name) != rt_info.end();
     }
 
+    // Checks rt attribute
     template <class T,
               class... Args,
               typename std::enable_if<std::is_same<std::string, T>::value || std::is_same<T, const char*>::value ||
@@ -383,6 +504,7 @@ private:
         return has_rt_arg<Args...>(new_map, args...);
     }
 
+    // Allow to get constant attribute for variadic arguments
     template <class T,
               typename std::enable_if<std::is_same<std::string, T>::value || std::is_same<T, const char*>::value ||
                                           std::is_same<T, char*>::value,
@@ -393,6 +515,7 @@ private:
         return get_attr(rt_info.at(name));
     }
 
+    // Allow to get constant attribute for variadic arguments
     template <class T,
               class... Args,
               typename std::enable_if<std::is_same<std::string, T>::value || std::is_same<T, const char*>::value ||
@@ -404,6 +527,7 @@ private:
         return get_rt_arg<Args...>(new_map, args...);
     }
 
+    // Allow to get attribute for variadic arguments
     template <class T,
               typename std::enable_if<std::is_same<std::string, T>::value || std::is_same<T, const char*>::value ||
                                           std::is_same<T, char*>::value,
@@ -412,6 +536,7 @@ private:
         return get_attr(rt_info[name]);
     }
 
+    // Allow to get attribute for variadic arguments
     template <class T,
               class... Args,
               typename std::enable_if<std::is_same<std::string, T>::value || std::is_same<T, const char*>::value ||
@@ -423,8 +548,11 @@ private:
         return get_rt_arg<Args...>(new_map, args...);
     }
 
+    // Returns real ov::Any from argument
     const ov::Any& get_attr(const ov::Any& info) const;
     ov::Any& get_attr(ov::Any& info) const;
+
+    // Returns ov::AnyMap from argument
     const ov::AnyMap& get_map_from_attr(const ov::Any& info) const;
     ov::AnyMap& get_map_from_attr(ov::Any& info) const;
 

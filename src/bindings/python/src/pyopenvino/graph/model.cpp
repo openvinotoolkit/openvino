@@ -25,31 +25,6 @@
 
 namespace py = pybind11;
 
-namespace ov {
-const ov::Any& get_rt_info(const ov::Model& model,
-                           const ov::AnyMap& info,
-                           const std::vector<std::string>::const_iterator& begin,
-                           const std::vector<std::string>::const_iterator& end) {
-    if (begin == end - 1) {
-        return model.get_rt_arg(info, *begin);
-    } else {
-        const ov::Any& rt_attr = model.get_rt_arg<std::string>(info, *begin);
-        return get_rt_info(model, model.get_map_from_attr(rt_attr), begin + 1, end);
-    }
-}
-ov::Any& get_rt_info(ov::Model& model,
-                     ov::AnyMap& info,
-                     const std::vector<std::string>::const_iterator& begin,
-                     const std::vector<std::string>::const_iterator& end) {
-    if (begin == end - 1) {
-        return model.get_rt_arg(info, *begin);
-    } else {
-        ov::Any& rt_attr = model.get_rt_arg<std::string>(info, *begin);
-        return get_rt_info(model, model.get_map_from_attr(rt_attr), begin + 1, end);
-    }
-}
-}  // namespace ov
-
 using PyRTMap = ov::RTMap;
 
 PYBIND11_MAKE_OPAQUE(PyRTMap);
@@ -742,67 +717,107 @@ void regclass_graph_Model(py::module m) {
              )");
     model.def(
         "get_rt_info",
-        [](const ov::Model& self, const py::list& args) -> py::object {
-            const size_t args_len = py::len(args);
+        [](const ov::Model& self, const py::list& path) -> py::object {
             std::vector<std::string> cpp_args;
-            for (size_t i = 0; i < args_len; i++) {
-                cpp_args.emplace_back(args[i].cast<std::string>());
+            for (size_t i = 0; i < path.size(); i++) {
+                cpp_args.emplace_back(path[i].cast<std::string>());
             }
-            return Common::utils::from_ov_any(
-                ov::get_rt_info(self, self.get_rt_info(), cpp_args.cbegin(), cpp_args.cend()));
+            return Common::utils::from_ov_any(self.get_rt_info<ov::Any>(cpp_args));
         },
-        py::arg("args") = py::list(),
+        py::arg("path") = py::list(),
         R"(
                 Returns runtime attribute.
 
-                :param args: List of strings which defines a path for rt info
-                :type args: List[str]
+                :param path: List of strings which defines a path to runtime info.
+                :type path: List[str]
 
                 :return: A py::object
+                :rtype: py:object
+             )");
+    model.def(
+        "get_rt_info",
+        [](const ov::Model& self, const py::str& path) -> py::object {
+            return Common::utils::from_ov_any(self.get_rt_info<ov::Any>(path.cast<std::string>()));
+        },
+        py::arg("path") = py::str(),
+        R"(
+                Returns runtime attribute.
+
+                :param path: List of strings which defines a path to runtime info.
+                :type path: str
+
+                :return: A py::object
+                :rtype: py:object
              )");
     model.def(
         "has_rt_info",
-        [](const ov::Model& self, const py::list& args) -> bool {
-            const size_t args_len = py::len(args);
+        [](const ov::Model& self, const py::list& path) -> bool {
             std::vector<std::string> cpp_args;
-            for (size_t i = 0; i < args_len; i++) {
-                cpp_args.emplace_back(args[i].cast<std::string>());
+            for (size_t i = 0; i < path.size(); i++) {
+                cpp_args.emplace_back(path[i].cast<std::string>());
             }
-            try {
-                ov::get_rt_info(self, self.get_rt_info(), cpp_args.cbegin(), cpp_args.cend());
-            } catch (const ov::Exception&) {
-                return false;
-            }
-            return true;
+            return self.has_rt_info(cpp_args);
         },
-        py::arg("args") = py::list(),
+        py::arg("path") = py::list(),
         R"(
-                Returns true if path exists
+                Checks if given path exists in runtime info of the model.
 
-                :param args: List of strings which defines a path for rt info
-                :type args: List[str]
+                :param path: List of strings which defines a path to runtime info.
+                :type path: List[str]
 
-                :return: boolean value
+                :return: `True` if path exists, otherwise `False`.
+                :rtype: bool
+             )");
+    model.def(
+        "has_rt_info",
+        [](const ov::Model& self, const py::str& path) -> bool {
+            return self.has_rt_info(path.cast<std::string>());
+        },
+        py::arg("path") = py::str(),
+        R"(
+                Checks if given path exists in runtime info of the model.
+
+                :param path: List of strings which defines a path to runtime info.
+                :type path: str
+
+                :return: `True` if path exists, otherwise `False`.
+                :rtype: bool
              )");
     model.def(
         "set_rt_info",
-        [](ov::Model& self, const py::object& obj, const py::list& args) -> void {
-            const size_t args_len = py::len(args);
+        [](ov::Model& self, const py::object& obj, const py::list& path) -> void {
             std::vector<std::string> cpp_args;
-            for (size_t i = 0; i < args_len; i++) {
-                cpp_args.emplace_back(args[i].cast<std::string>());
+            for (size_t i = 0; i < path.size(); i++) {
+                cpp_args.emplace_back(path[i].cast<std::string>());
             }
-            ov::get_rt_info(self, self.get_rt_info(), cpp_args.cbegin(), cpp_args.cend()) = py_object_to_any(obj);
+            self.set_rt_info<ov::Any>(py_object_to_any(obj), cpp_args);
         },
         py::arg("obj"),
-        py::arg("args") = py::list(),
+        py::arg("path") = py::list(),
         R"(
-                Add value inside rt info
+                Add value inside runtime info
 
-                :param obj: value for the rt info
-                :type obj: 
-                :param args: List of strings which defines a path for rt info
-                :type args: List[str]
+                :param obj: value for the runtime info
+                :type obj: py:object
+                :param path: List of strings which defines a path to runtime info.
+                :type path: List[str]
+
+                :return: void
+             )");
+    model.def(
+        "set_rt_info",
+        [](ov::Model& self, const py::object& obj, const py::str& path) -> void {
+            self.set_rt_info<ov::Any>(py_object_to_any(obj), path.cast<std::string>());
+        },
+        py::arg("obj"),
+        py::arg("path") = py::str(),
+        R"(
+                Add value inside runtime info
+
+                :param obj: value for the runtime info
+                :type obj: py:object
+                :param path: String which defines a path to runtime info.
+                :type path: str
 
                 :return: void
              )");

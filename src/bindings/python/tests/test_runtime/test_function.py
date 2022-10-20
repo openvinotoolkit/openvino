@@ -458,13 +458,13 @@ def test_serialize_rt_info():
     framework_batch = "1"
 
     def check_rt_info(model):
-        assert model.get_rt_info(["MO_version"]) == version
+        assert model.get_rt_info("MO_version") == version
         assert model.get_rt_info(["Runtime_version"]) == version
         assert model.get_rt_info(["optimization", "config"]) == config
         assert model.get_rt_info(["framework", "batch"]) == framework_batch
 
         assert model.has_rt_info(["test"]) is False
-        assert model.has_rt_info(["optimization"]) is True
+        assert model.has_rt_info("optimization") is True
         assert model.has_rt_info(["optimization", "test"]) is False
         with pytest.raises(RuntimeError):
             assert model.get_rt_info(["test"])
@@ -485,9 +485,9 @@ def test_serialize_rt_info():
 
     assert model is not None
 
-    assert model.has_rt_info(["MO_version"]) is False
-    model.set_rt_info(version, ["MO_version"])
-    assert model.has_rt_info(["MO_version"]) is True
+    assert model.has_rt_info("MO_version") is False
+    model.set_rt_info(version, "MO_version")
+    assert model.has_rt_info("MO_version") is True
 
     assert model.has_rt_info(["Runtime_version"]) is False
     model.set_rt_info(version, ["Runtime_version"])
