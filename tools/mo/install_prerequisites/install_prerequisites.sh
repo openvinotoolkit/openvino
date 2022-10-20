@@ -36,7 +36,7 @@ for ((i=1;i <= $#;i++)) {
 }
 
 VENV_DIR="$HOME/venv_openvino"
-SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" && pwd )"
+SCRIPTDIR="$( cd "$( dirname "$(realpath "${BASH_SOURCE[0]}")" )" && pwd )"
 
 if [[ -f /etc/centos-release ]]; then
     DISTRO="centos"
