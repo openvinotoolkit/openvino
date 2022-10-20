@@ -724,7 +724,7 @@ void regclass_graph_Model(py::module m) {
             }
             return Common::utils::from_ov_any(self.get_rt_info<ov::Any>(cpp_args));
         },
-        py::arg("path") = py::list(),
+        py::arg("path"),
         R"(
                 Returns runtime attribute.
 
@@ -739,7 +739,7 @@ void regclass_graph_Model(py::module m) {
         [](const ov::Model& self, const py::str& path) -> py::object {
             return Common::utils::from_ov_any(self.get_rt_info<ov::Any>(path.cast<std::string>()));
         },
-        py::arg("path") = py::str(),
+        py::arg("path"),
         R"(
                 Returns runtime attribute.
 
@@ -758,7 +758,7 @@ void regclass_graph_Model(py::module m) {
             }
             return self.has_rt_info(cpp_args);
         },
-        py::arg("path") = py::list(),
+        py::arg("path"),
         R"(
                 Checks if given path exists in runtime info of the model.
 
@@ -773,7 +773,7 @@ void regclass_graph_Model(py::module m) {
         [](const ov::Model& self, const py::str& path) -> bool {
             return self.has_rt_info(path.cast<std::string>());
         },
-        py::arg("path") = py::str(),
+        py::arg("path"),
         R"(
                 Checks if given path exists in runtime info of the model.
 
@@ -793,7 +793,7 @@ void regclass_graph_Model(py::module m) {
             self.set_rt_info<ov::Any>(py_object_to_any(obj), cpp_args);
         },
         py::arg("obj"),
-        py::arg("path") = py::list(),
+        py::arg("path"),
         R"(
                 Add value inside runtime info
 
@@ -801,8 +801,6 @@ void regclass_graph_Model(py::module m) {
                 :type obj: py:object
                 :param path: List of strings which defines a path to runtime info.
                 :type path: List[str]
-
-                :return: void
              )");
     model.def(
         "set_rt_info",
@@ -818,8 +816,6 @@ void regclass_graph_Model(py::module m) {
                 :type obj: py:object
                 :param path: String which defines a path to runtime info.
                 :type path: str
-
-                :return: void
              )");
 
     model.def_property_readonly("inputs", (std::vector<ov::Output<ov::Node>>(ov::Model::*)()) & ov::Model::inputs);
