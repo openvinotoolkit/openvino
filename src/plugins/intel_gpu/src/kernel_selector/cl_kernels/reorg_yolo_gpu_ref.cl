@@ -12,6 +12,11 @@
     #define IH INPUT0_SIZES[2]
     #define IC INPUT0_SIZES[1]
     #define B  INPUT0_SIZES[0]
+#elif OUTPUT_LAYOUT_BYXF
+    #define IW INPUT0_SIZES[1]
+    #define IH INPUT0_SIZES[2]
+    #define IC INPUT0_SIZES[0]
+    #define B  INPUT0_SIZES[3]
 #else
     #define IW INPUT0_SIZES[0]
     #define IH INPUT0_SIZES[1]

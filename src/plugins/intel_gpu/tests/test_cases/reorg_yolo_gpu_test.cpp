@@ -32,6 +32,7 @@ using ReorgYoloParamsWithLayout = std::tuple<
 const std::vector<format::type> dataFormats = {
     format::bfyx,
     format::yxfb,
+    format::byxf,
     format::b_fs_yx_fsv16,
     format::b_fs_yx_fsv32,
     format::bs_fs_yx_bsv16_fsv16,
@@ -350,7 +351,7 @@ TEST_P(test_f16, basic) {
 INSTANTIATE_TEST_SUITE_P(reorg_yolo_f32,
                          test_f32,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(generateParams<float>()),
+                                 ::testing::Values(generateParams<float>()[0]),
                                  ::testing::ValuesIn(dataFormats),
                                  ::testing::Values(false)),
                          PrintToStringParamName());
