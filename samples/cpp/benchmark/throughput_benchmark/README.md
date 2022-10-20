@@ -2,6 +2,8 @@
 
 This sample demonstrates how to estimate performace of a model using Asynchronous Inference Request API. Unlike [demos](@ref omz_demos) this sample doesn't have other configurable command line arguments. Feel free to modify sample's source code to try out different options.
 
+The reported results may deviate from what [benchmark_app](../../benchmark_app/README.md) reports. One example is model input precision for computer vision tasks. benchmark_app sets uint8, while the sample uses default model precision which is usually float32.
+
 The following C++ API is used in the application:
 
 | Feature | API | Description |
@@ -14,7 +16,7 @@ The following C++ API is used in the application:
 
 | Options | Values |
 | :--- | :--- |
-| Validated Models | [alexnet](@ref omz_models_model_alexnet), [googlenet-v1](@ref omz_models_model_googlenet_v1) |
+| Validated Models | [alexnet](@ref omz_models_model_alexnet), [googlenet-v1](@ref omz_models_model_googlenet_v1) [yolo-v3-tf](@ref omz_models_model_yolo_v3_tf), [face-detection-0200](@ref omz_models_model_face_detection_0200) |
 | Model Format | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx) |
 | Supported devices | [All](../../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 | Other language realization | [Python](../../../python/benchmark/throughput_benchmark/README.md) |
