@@ -813,7 +813,7 @@ void regclass_graph_Model(py::module m) {
                 Add value inside runtime info
 
                 :param obj: value for the runtime info
-                :type obj: py:object
+                :type obj: Any
                 :param path: String which defines a path to runtime info.
                 :type path: str
              )");
