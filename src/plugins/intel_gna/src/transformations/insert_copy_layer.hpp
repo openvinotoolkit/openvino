@@ -36,20 +36,25 @@ public:
 
 /**
  * @brief Inserts Copy layer before Concat layer if the input is
- * Crop/Split while skipping Reshape/Trivial transpose/Squeeze/Unsqueeze (non-functional) layers:
+ * Crop/Split while skipping Reshape/Trivial transpose/Squeeze/Unsqueeze (non-functional) layers,
+ * because only the slice of the original buffer should be copied
  * [Crop/Split]        [Crop/Split]
  *     |                    |
  *     |         =>       [Copy]
  *     |                    |
  * [Concat]             [Concat]
  *
- * With layers allocated in the different memory region (States, Inputs, RO):
+ * With layers allocated in the different memory regions (States, Inputs, RO):
+ * - Parameter - because its memory is allocated in the INPUT memory region,
+ * - ReadValue - because its memory is allocated in the STATES memory region,
+ * - Constant - because its memory is allocated in the RO memory region
+ * and the Concat, as its memory is allocated in the SCRATCH memory region.
  * [ReadValue/Parameter/Constant]          [ReadValue/Parameter/Constant]
  *                |                                    |
  *                |                  =>              [Copy]
  *                |                                    |
  *             [Concat]                             [Concat]
- * 
+ *
  * With non-functional layers:
  * [Crop/Split]             [Crop/Split]
  *     |                          |
@@ -58,7 +63,7 @@ public:
  *     |              =>       [Copy]
  *     |                         |
  *  [Concat]                 [Concat]
- * 
+ *
  * Or if a layer has multiple connections to Concat
  * [any node]         [any node]
  *   |                 |
