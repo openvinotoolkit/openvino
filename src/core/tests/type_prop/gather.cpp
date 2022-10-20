@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <dimension_tracker.hpp>
-
-#include "gtest/gtest.h"
+#include "dimension_tracker.hpp"
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
 
@@ -12,6 +10,7 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
+using namespace testing;
 
 // ------------------------------ V1 ------------------------------
 
@@ -77,30 +76,20 @@ TEST(type_prop, gather_v1_incorrect_axis_shape) {
     auto params = make_shared<op::Parameter>(element::f32, Shape{5, 6});
     auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
     auto axis = make_shared<op::Parameter>(element::i64, Shape{2});
-    try {
-        auto G = make_shared<op::v1::Gather>(params, indices, axis);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Incorrect axis input shape";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Axis input must be scalar or have 1 element"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+
+    OV_EXPECT_THROW(make_shared<op::v1::Gather>(params, indices, axis),
+                    NodeValidationFailure,
+                    HasSubstr("Axis input must be scalar or have 1 element"));
 }
 
 TEST(type_prop, gather_v1_axis_out_of_input_rank) {
     auto params = make_shared<op::Parameter>(element::f32, Shape{5, 6});
     auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
     auto axis = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{2});
-    try {
-        auto G = make_shared<op::v1::Gather>(params, indices, axis);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Incorrect element of axis input";
-    } catch (const ov::AssertFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("out of the tensor rank range"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+
+    OV_EXPECT_THROW(make_shared<op::v1::Gather>(params, indices, axis),
+                    ov::AssertFailure,
+                    HasSubstr("out of the tensor rank range"));
 }
 
 TEST(type_prop, gather_v1_negative_axis) {
@@ -375,15 +364,9 @@ TEST(type_prop, gather_7_incorrect_axis_shape) {
     auto I = make_shared<op::Parameter>(element::i64, Shape{4});
     auto A = make_shared<op::Parameter>(element::i64, Shape{2});
 
-    try {
-        auto G = make_shared<op::v7::Gather>(D, I, A);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Incorrect A input shape";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Axis input must be scalar or have 1 element"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A),
+                    NodeValidationFailure,
+                    HasSubstr("Axis input must be scalar or have 1 element"));
 }
 
 TEST(type_prop, gather_7_axis_out_of_input_rank) {
@@ -391,15 +374,10 @@ TEST(type_prop, gather_7_axis_out_of_input_rank) {
     auto I = make_shared<op::Parameter>(element::i64, Shape{4});
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{2});
     int64_t batch_dims = 0;
-    try {
-        auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "axis check failed";
-    } catch (const ov::AssertFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("out of the tensor rank range"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+
+    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A, batch_dims),
+                    ov::AssertFailure,
+                    HasSubstr("out of the tensor rank range"));
 }
 
 TEST(type_prop, gather_7_dynamic_batch_dims_inconsistent) {
@@ -411,17 +389,9 @@ TEST(type_prop, gather_7_dynamic_batch_dims_inconsistent) {
     int64_t axis = 1;
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 1;
-
-    try {
-        auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Shape inconsistency check for dynamic PartialShape failed";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("data and indices must have equal or intersecting sizes until batch_dims"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A, batch_dims),
+                    NodeValidationFailure,
+                    HasSubstr("data and indices must have equal or intersecting sizes until batch_dims"));
 }
 
 TEST(type_prop, gather_7_batch_dims_less_check) {
@@ -434,17 +404,9 @@ TEST(type_prop, gather_7_batch_dims_less_check) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 2;
 
-    try {
-        auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "batch_dims check failed";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("After normalization batch_dims must be <= axis. But instead got: batch_dims ="));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A, batch_dims),
+                    NodeValidationFailure,
+                    HasSubstr("After normalization batch_dims must be <= axis. But instead got: batch_dims ="));
 }
 
 TEST(type_prop, gather_7_batch_dims_less_indices_rank_check) {
@@ -457,15 +419,9 @@ TEST(type_prop, gather_7_batch_dims_less_indices_rank_check) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 3;
 
-    try {
-        auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "batch_dims check failed";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("batch_dims must be <= indices_rank"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A, batch_dims),
+                    NodeValidationFailure,
+                    HasSubstr("batch_dims must be <= indices_rank"));
 }
 
 TEST(type_prop, gather_7_indices_type_check) {
@@ -478,15 +434,9 @@ TEST(type_prop, gather_7_indices_type_check) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 0;
 
-    try {
-        auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "indices element_type check failed";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Indices element type must be of an integral number type"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A, batch_dims),
+                    NodeValidationFailure,
+                    HasSubstr("Indices element type must be of an integral number type"));
 }
 
 TEST(type_prop, gather_7_axis_type_check) {
@@ -499,15 +449,9 @@ TEST(type_prop, gather_7_axis_type_check) {
     auto A = make_shared<op::Constant>(element::f32, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 0;
 
-    try {
-        auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "axis element_type check failed";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Axis element type must be of an integral number type"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A, batch_dims),
+                    NodeValidationFailure,
+                    HasSubstr("Axis element type must be of an integral number type"));
 }
 
 // ------------------------------ V8 ------------------------------
@@ -770,15 +714,9 @@ TEST(type_prop, gather_v8_incorrect_axis_shape) {
     auto I = make_shared<op::Parameter>(element::i64, Shape{4});
     auto A = make_shared<op::Parameter>(element::i64, Shape{2});
 
-    try {
-        auto G = make_shared<op::v8::Gather>(D, I, A);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Incorrect A input shape";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Axis input must be scalar or have 1 element"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A),
+                    NodeValidationFailure,
+                    HasSubstr("Axis input must be scalar or have 1 element"));
 }
 
 TEST(type_prop, gather_v8_axis_out_of_input_rank) {
@@ -786,15 +724,10 @@ TEST(type_prop, gather_v8_axis_out_of_input_rank) {
     auto I = make_shared<op::Parameter>(element::i64, Shape{4});
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{2});
     int64_t batch_dims = 0;
-    try {
-        auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "axis check failed";
-    } catch (const ov::AssertFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("out of the tensor rank range"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+
+    OV_EXPECT_THROW(make_shared<op::v8::Gather>(D, I, A, batch_dims),
+                    ov::AssertFailure,
+                    HasSubstr("out of the tensor rank range"));
 }
 
 TEST(type_prop, gather_v8_dynamic_batch_dims_inconsistent) {
@@ -807,16 +740,9 @@ TEST(type_prop, gather_v8_dynamic_batch_dims_inconsistent) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 1;
 
-    try {
-        auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Shape inconsistency check for dynamic PartialShape failed";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("data and indices must have equal or intersecting sizes until batch_dims"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A, batch_dims),
+                    NodeValidationFailure,
+                    HasSubstr("data and indices must have equal or intersecting sizes until batch_dims"));
 }
 
 TEST(type_prop, gather_v8_batch_dims_less_check) {
@@ -829,17 +755,9 @@ TEST(type_prop, gather_v8_batch_dims_less_check) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 2;
 
-    try {
-        auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "batch_dims check failed";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("After normalization batch_dims must be <= axis. But instead got: batch_dims ="));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A, batch_dims),
+                    NodeValidationFailure,
+                    HasSubstr("After normalization batch_dims must be <= axis. But instead got: batch_dims ="));
 }
 
 TEST(type_prop, gather_v8_batch_dims_less_indices_rank_check) {
@@ -852,15 +770,9 @@ TEST(type_prop, gather_v8_batch_dims_less_indices_rank_check) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 3;
 
-    try {
-        auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "batch_dims check failed";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("batch_dims must be <= indices_rank"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A, batch_dims),
+                    NodeValidationFailure,
+                    HasSubstr("batch_dims must be <= indices_rank"));
 }
 
 TEST(type_prop, gather_v8_indices_type_check) {
@@ -873,15 +785,9 @@ TEST(type_prop, gather_v8_indices_type_check) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 0;
 
-    try {
-        auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "indices element_type check failed";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Indices element type must be of an integral number type"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A, batch_dims),
+                    NodeValidationFailure,
+                    HasSubstr("Indices element type must be of an integral number type"));
 }
 
 TEST(type_prop, gather_v8_axis_type_check) {
@@ -894,13 +800,7 @@ TEST(type_prop, gather_v8_axis_type_check) {
     auto A = make_shared<op::Constant>(element::f32, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 0;
 
-    try {
-        auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "axis element_type check failed";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Axis element type must be of an integral number type"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A, batch_dims),
+                    NodeValidationFailure,
+                    HasSubstr("Axis element type must be of an integral number type"));
 }
