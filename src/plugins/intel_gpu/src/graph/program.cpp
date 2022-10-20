@@ -29,7 +29,7 @@
 #include "binary_convolution_inst.h"
 #include "resample_inst.h"
 #include "reshape_inst.h"
-#include "quantize_inst.h"  
+#include "quantize_inst.h"
 #include "activation_inst.h"
 #include "depth_to_space_inst.h"
 #include "convolution_inst.h"
