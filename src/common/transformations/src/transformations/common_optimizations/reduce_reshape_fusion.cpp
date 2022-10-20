@@ -27,27 +27,17 @@ ov::pass::ReduceReshapeFusion::ReduceReshapeFusion() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
         auto reshape_node = pattern_map.at(reshape).get_node_shared_ptr();
-        const auto reduce_node = pattern_map.at(reduce).get_node_shared_ptr();
-        const bool keep_dims =
-            std::dynamic_pointer_cast<op::util::ArithmeticReductionKeepDims>(reduce_node)
-                ? std::dynamic_pointer_cast<op::util::ArithmeticReductionKeepDims>(reduce_node)->get_keep_dims()
-                : std::dynamic_pointer_cast<op::util::LogicalReductionKeepDims>(reduce_node)->get_keep_dims();
-
+        const auto reduce_node = std::dynamic_pointer_cast<op::util::ReductionBase>(pattern_map.at(reduce).get_node_shared_ptr());
         if (!reduce_node) {
             return false;
         }
+        const bool keep_dims = reduce_node->get_keep_dims();
 
         if (keep_dims) {
             return false;
         }
 
-        const auto reduce_axes_val = std::dynamic_pointer_cast<op::util::ArithmeticReductionKeepDims>(reduce_node)
-                                         ? std::dynamic_pointer_cast<op::util::ArithmeticReductionKeepDims>(reduce_node)
-                                               ->get_reduction_axes()
-                                               .to_vector()
-                                         : std::dynamic_pointer_cast<op::util::LogicalReductionKeepDims>(reduce_node)
-                                               ->get_reduction_axes()
-                                               .to_vector();
+        const auto reduce_axes_val = reduce_node->get_reduction_axes().to_vector();
         const auto& reshape_shape = reshape_node->get_shape();
 
         auto reduce_shape_if_keep_dims = reduce_node->get_shape();
@@ -74,5 +64,5 @@ ov::pass::ReduceReshapeFusion::ReduceReshapeFusion() {
     };
 
     auto m = std::make_shared<pattern::Matcher>(reshape, matcher_name);
-    this->register_matcher(m, callback);
+    register_matcher(m, callback);
 }

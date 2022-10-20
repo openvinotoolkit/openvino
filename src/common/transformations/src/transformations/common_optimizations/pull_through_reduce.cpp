@@ -119,7 +119,7 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
         const auto input_node = pattern_map.at(input);
-        const auto reduce_node = pattern_map.at(reduce).get_node_shared_ptr();
+        const auto reduce_node = std::dynamic_pointer_cast<op::util::ReductionBase>(pattern_map.at(reduce).get_node_shared_ptr());
         const auto unsqueeze_node = pattern_map.at(unsqueeze).get_node_shared_ptr();
         auto unsqueeze_axes_input =
             std::dynamic_pointer_cast<opset9::Constant>(pattern_map.at(unsqueeze_axes).get_node_shared_ptr());
@@ -134,22 +134,13 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
         normalize_axes(unsqueeze_node.get(),
                        unsqueeze_node->get_output_partial_shape(0).rank().get_length(),
                        unsqueeze_axes_val);
-        const auto reduce_axes_val = std::dynamic_pointer_cast<op::util::ArithmeticReductionKeepDims>(reduce_node)
-                                         ? std::dynamic_pointer_cast<op::util::ArithmeticReductionKeepDims>(reduce_node)
-                                               ->get_reduction_axes()
-                                               .to_vector()
-                                         : std::dynamic_pointer_cast<op::util::LogicalReductionKeepDims>(reduce_node)
-                                               ->get_reduction_axes()
-                                               .to_vector();
+        const auto reduce_axes_val = reduce_node->get_reduction_axes().to_vector();
 
         if (have_same_axes(unsqueeze_axes_val, reduce_axes_val)) {
             return false;
         }
 
-        const bool keep_dims =
-            std::dynamic_pointer_cast<op::util::ArithmeticReductionKeepDims>(reduce_node)
-                ? std::dynamic_pointer_cast<op::util::ArithmeticReductionKeepDims>(reduce_node)->get_keep_dims()
-                : std::dynamic_pointer_cast<op::util::LogicalReductionKeepDims>(reduce_node)->get_keep_dims();
+        const bool keep_dims = reduce_node->get_keep_dims();
 
         if (!keep_dims) {
             const auto unsqueeze_adjusted_axes = adjust_axes(unsqueeze_axes_val, reduce_axes_val);
@@ -179,7 +170,7 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
     };
 
     auto m = std::make_shared<pattern::Matcher>(reduce, matcher_name);
-    this->register_matcher(m, callback);
+    register_matcher(m, callback);
 }
 
 ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
@@ -196,7 +187,10 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
         const auto input_node = pattern_map.at(input).get_node_shared_ptr();
-        const auto reduce_node = pattern_map.at(reduce).get_node_shared_ptr();
+        const auto reduce_node = std::dynamic_pointer_cast<op::util::ReductionBase>(pattern_map.at(reduce).get_node_shared_ptr());
+        if(!reduce_node) {
+            return false;
+        }
         const auto reshape_node = pattern_map.at(reshape).get_node_shared_ptr();
         const auto unsqueeze_axes =
             try_get_unsqueeze_axes_from_reshape(reshape_node->get_shape(), input_node->get_shape());
@@ -204,13 +198,7 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
             return false;
         }
 
-        const auto reduce_axes_val = std::dynamic_pointer_cast<op::util::ArithmeticReductionKeepDims>(reduce_node)
-                                         ? std::dynamic_pointer_cast<op::util::ArithmeticReductionKeepDims>(reduce_node)
-                                               ->get_reduction_axes()
-                                               .to_vector()
-                                         : std::dynamic_pointer_cast<op::util::LogicalReductionKeepDims>(reduce_node)
-                                               ->get_reduction_axes()
-                                               .to_vector();
+        const auto reduce_axes_val = reduce_node->get_reduction_axes().to_vector();
 
         if (have_same_axes(unsqueeze_axes, reduce_axes_val)) {
             return false;
@@ -221,6 +209,10 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
 
         auto reduce_axes_input =
             std::dynamic_pointer_cast<opset9::Constant>(pattern_map.at(reduce_axes).get_node_shared_ptr());
+
+        if(!reduce_axes_input) {
+            return false;
+        }
 
         if (reduce_adjusted_axes != reduce_axes_val) {
             reduce_axes_input = opset9::Constant::create(reduce_axes_input->get_element_type(),
@@ -241,5 +233,5 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
     };
 
     auto m = std::make_shared<pattern::Matcher>(reduce, matcher_name);
-    this->register_matcher(m, callback);
+    register_matcher(m, callback);
 }

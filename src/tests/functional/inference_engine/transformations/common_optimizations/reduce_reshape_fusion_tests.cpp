@@ -22,7 +22,7 @@ using namespace opset9;
 
 namespace {
     template<typename ReduceType>
-    std::shared_ptr<Model> gen_model(element::Type in_type,
+    std::shared_ptr<Model> generate_model(element::Type in_type,
                                      PartialShape in_shape,
                                      std::vector<int64_t> reshape_target_shape,
                                      std::vector<int64_t> reduce_axes,
@@ -38,7 +38,7 @@ namespace {
     }
 
     template<typename ReduceType>
-    std::shared_ptr<Model> gen_ref_model(element::Type in_type,
+    std::shared_ptr<Model> generate_ref_model(element::Type in_type,
                                          PartialShape in_shape,
                                          std::vector<int64_t> reduce_axes) {
         const auto input = std::make_shared<Parameter>(in_type, in_shape);
@@ -66,11 +66,11 @@ class ReduceReshapeFusion
 TEST_P(ReduceReshapeFusion, ReduceReshapeFusionPattern) {
     const auto& p = GetParam();
     {
-        model = gen_model<ReduceMean>(p.in_type, p.in_shape, p.reshape_target_shape, p.reduce_axes, p.keep_dims, p.reshape_special_zero);
+        model = generate_model<ReduceMean>(p.in_type, p.in_shape, p.reshape_target_shape, p.reduce_axes, p.keep_dims, p.reshape_special_zero);
         manager.register_pass<pass::ReduceReshapeFusion>();
     }
     {
-        model_ref = gen_ref_model<ReduceMean>(p.in_type, p.in_shape, p.reduce_axes);
+        model_ref = generate_ref_model<ReduceMean>(p.in_type, p.in_shape, p.reduce_axes);
     }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -94,33 +94,33 @@ INSTANTIATE_TEST_SUITE_P(ReduceReshapeFusion, ReduceReshapeFusion, ValuesIn(para
 
 TEST_F(TransformationTestsF, ReduceOrReshapeFusion) {
     {
-        model =  gen_model<ReduceLogicalOr>(element::boolean, {5, 10, 15, 20}, {5, 1, 1, 20}, {1, 2}, false, false);
+        model =  generate_model<ReduceLogicalOr>(element::boolean, {5, 10, 15, 20}, {5, 1, 1, 20}, {1, 2}, false, false);
         manager.register_pass<pass::ReduceReshapeFusion>();
     }
     {
-        model_ref =  gen_ref_model<ReduceLogicalOr>(element::boolean, {5, 10, 15, 20}, {1, 2});
+        model_ref =  generate_ref_model<ReduceLogicalOr>(element::boolean, {5, 10, 15, 20}, {1, 2});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, ReduceMeanReshapeFusionSkipIfOneInNotAxisPosition) {
-    model = gen_model<ReduceMean>(element::f32, {5, 10, 15, 1}, {5, 1, 1, 1, 1}, {1, 2}, false, false);
+    model = generate_model<ReduceMean>(element::f32, {5, 10, 15, 1}, {5, 1, 1, 1, 1}, {1, 2}, false, false);
     manager.register_pass<pass::ReduceReshapeFusion>();
 }
 
 TEST_F(TransformationTestsF, ReduceMeanReshapeFusionSkipIfReshapeNotCompatible) {
-    model = gen_model<ReduceMean>(element::f32, {5, 10, 15, 20}, {20, 1, 1, 5}, {1, 2}, false, false);
+    model = generate_model<ReduceMean>(element::f32, {5, 10, 15, 20}, {20, 1, 1, 5}, {1, 2}, false, false);
     manager.register_pass<pass::ReduceReshapeFusion>();
 }
 
 TEST_F(TransformationTestsF, ReduceMeanReshapeFusion_SkipIfReshapeRankLessThanReduceRank) {
-    model = gen_model<ReduceMean>(element::f32, {5, 10, 15}, {50}, {2}, false, false);
+    model = generate_model<ReduceMean>(element::f32, {5, 10, 15}, {50}, {2}, false, false);
     manager.register_pass<pass::ReduceReshapeFusion>();
 }
 
 TEST_F(TransformationTestsF, ReduceMeanReshapeFusion_SkipIfKeepDims) {
-    model = gen_model<ReduceMean>(element::f32, {5, 10, 15}, {5, 1, 15}, {1}, true, false);
+    model = generate_model<ReduceMean>(element::f32, {5, 10, 15}, {5, 1, 15}, {1}, true, false);
     manager.register_pass<pass::ReduceReshapeFusion>();
 }
 

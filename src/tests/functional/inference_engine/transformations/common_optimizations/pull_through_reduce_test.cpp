@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+ // Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ using namespace opset9;
 
 namespace {
     template<typename ReduceType>
-    std::shared_ptr<Model> gen_unsqueeze_model(element::Type in_type,
+    std::shared_ptr<Model> generate_unsqueeze_model(element::Type in_type,
                                                PartialShape in_shape,
                                                std::vector<int64_t> unsqueeze_axes,
                                                std::vector<int64_t> reduce_axes,
@@ -36,7 +36,7 @@ namespace {
     }
 
     template<typename ReduceType>
-    std::shared_ptr<Model> gen_unsqueeze_ref_model(element::Type in_type,
+    std::shared_ptr<Model> generate_unsqueeze_ref_model(element::Type in_type,
                                                    PartialShape in_shape,
                                                    std::vector<int64_t> unsqueeze_axes,
                                                    std::vector<int64_t> reduce_axes,
@@ -51,7 +51,7 @@ namespace {
     }
 
     template<typename ReduceType>
-    std::shared_ptr<Model> gen_reshape_model(element::Type in_type,
+    std::shared_ptr<Model> generate_reshape_model(element::Type in_type,
                                              PartialShape in_shape,
                                              std::vector<int64_t> reshape_target_shape,
                                              std::vector<int64_t> reduce_axes,
@@ -67,7 +67,7 @@ namespace {
     }
 
     template<typename ReduceType>
-    std::shared_ptr<Model> gen_reshape_ref_model(element::Type in_type,
+    std::shared_ptr<Model> generate_reshape_ref_model(element::Type in_type,
                                                    PartialShape in_shape,
                                                    std::vector<int64_t> reshape_target_shape,
                                                    std::vector<int64_t> reduce_axes,
@@ -101,11 +101,11 @@ class PullUnsqueezeThroughReduceMean
 TEST_P(PullUnsqueezeThroughReduceMean, PullUnsqueezeThroughReduceMeanPattern) {
     const auto& p = GetParam();
     {
-        model = gen_unsqueeze_model<ReduceMean>(p.in_type, p.in_shape, p.unsqueeze_axes, p.reduce_axes, p.keep_dims);
+        model = generate_unsqueeze_model<ReduceMean>(p.in_type, p.in_shape, p.unsqueeze_axes, p.reduce_axes, p.keep_dims);
         manager.register_pass<pass::PullUnsqueezeThroughReduce>();
     }
     {
-        model_ref = gen_unsqueeze_ref_model<ReduceMean>(p.in_type, p.in_shape, p.ref_unsqueeze_axes, p.ref_reduce_axes, p.keep_dims);
+        model_ref = generate_unsqueeze_ref_model<ReduceMean>(p.in_type, p.in_shape, p.ref_unsqueeze_axes, p.ref_reduce_axes, p.keep_dims);
     }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -139,11 +139,11 @@ class PullUnsqueezeThroughReduceLogicalOr
 TEST_P(PullUnsqueezeThroughReduceLogicalOr, PullUnsqueezeThroughReduceLogicalOrPattern) {
     const auto& p = GetParam();
     {
-        model = gen_unsqueeze_model<ReduceLogicalOr>(p.in_type, p.in_shape, p.unsqueeze_axes, p.reduce_axes, p.keep_dims);
+        model = generate_unsqueeze_model<ReduceLogicalOr>(p.in_type, p.in_shape, p.unsqueeze_axes, p.reduce_axes, p.keep_dims);
         manager.register_pass<pass::PullUnsqueezeThroughReduce>();
     }
     {
-        model_ref = gen_unsqueeze_ref_model<ReduceLogicalOr>(p.in_type, p.in_shape, p.ref_unsqueeze_axes, p.ref_reduce_axes, p.keep_dims);
+        model_ref = generate_unsqueeze_ref_model<ReduceLogicalOr>(p.in_type, p.in_shape, p.ref_unsqueeze_axes, p.ref_reduce_axes, p.keep_dims);
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
@@ -157,7 +157,7 @@ static const std::vector<PullUnsqueezeParams> reduce_logical_or_params = {
 INSTANTIATE_TEST_SUITE_P(PullUnsqueezeThroughReduceLogicalOr, PullUnsqueezeThroughReduceLogicalOr, ValuesIn(reduce_logical_or_params));
 
 TEST_F(TransformationTestsF, PullUnsqueezeThroughReduceSkipIfTheSameAxes) {
-    model = gen_unsqueeze_model<ReduceMean>(element::f32, {5, 10, 15}, {0, 1}, {1, 2});
+    model = generate_unsqueeze_model<ReduceMean>(element::f32, {5, 10, 15}, {0, 1}, {1, 2});
     manager.register_pass<pass::PullUnsqueezeThroughReduce>();
 }
 
@@ -191,11 +191,11 @@ class PullReshapeThroughReduceMean
 TEST_P(PullReshapeThroughReduceMean, PullReshapeThroughReduceMeanPattern) {
     const auto& p = GetParam();
     {
-        model = gen_reshape_model<ReduceMean>(p.in_type, p.in_shape, p.target_shape, p.reduce_axes, p.keep_dims, p.reshape_special_zero);
+        model = generate_reshape_model<ReduceMean>(p.in_type, p.in_shape, p.target_shape, p.reduce_axes, p.keep_dims, p.reshape_special_zero);
         manager.register_pass<pass::PullReshapeThroughReduce>();
     }
     {
-        model_ref = gen_reshape_ref_model<ReduceMean>(p.in_type, p.in_shape, p.ref_target_shape, p.ref_reduce_axes, p.keep_dims, p.reshape_special_zero);
+        model_ref = generate_reshape_ref_model<ReduceMean>(p.in_type, p.in_shape, p.ref_target_shape, p.ref_reduce_axes, p.keep_dims, p.reshape_special_zero);
     }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -229,11 +229,12 @@ class PullReshapeThroughReduceLogicalOr
 TEST_P(PullReshapeThroughReduceLogicalOr, PullReshapeThroughReduceLogicalOrPattern) {
     const auto& p = GetParam();
     {
-        model = gen_reshape_model<ReduceLogicalOr>(p.in_type, p.in_shape, p.target_shape, p.reduce_axes, p.keep_dims, p.reshape_special_zero);
+        model = generate_reshape_model<ReduceLogicalOr>(p.in_type, p.in_shape, p.target_shape, p.reduce_axes, p.keep_dims, p.reshape_special_zero);
         manager.register_pass<pass::PullReshapeThroughReduce>();
     }
     {
-        model_ref = gen_reshape_ref_model<ReduceLogicalOr>(p.in_type, p.in_shape, p.ref_target_shape, p.ref_reduce_axes, p.keep_dims, p.reshape_special_zero);
+        model_ref = generate_reshape_ref_model<ReduceLogicalOr>(p.in_type, p.in_shape, p.ref_target_shape,
+                                                                p.ref_reduce_axes, p.keep_dims, p.reshape_special_zero);
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
@@ -248,18 +249,18 @@ INSTANTIATE_TEST_SUITE_P(PullReshapeThroughReduceLogicalOr, PullReshapeThroughRe
 
 
 TEST_F(TransformationTestsF, PullReshapeThroughReduceMeanSkipIfDynamicInput) {
-    model = gen_reshape_model<ReduceMean>(element::f32, {5, Dimension::dynamic(), 15}, {1, 5, 10, 15}, {2});
+    model = generate_reshape_model<ReduceMean>(element::f32, {5, Dimension::dynamic(), 15}, {1, 5, 10, 15}, {2});
     manager.register_pass<pass::PullReshapeThroughReduce>();
 }
 
 
 TEST_F(TransformationTestsF, PullReshapeThroughReduceSkipIfTheSameAxes) {
-    model = gen_reshape_model<ReduceMean>(element::f32, {5, 10, 15}, {1, 5, 10, 15}, {0});
+    model = generate_reshape_model<ReduceMean>(element::f32, {5, 10, 15}, {1, 5, 10, 15}, {0});
     manager.register_pass<pass::PullReshapeThroughReduce>();
 }
 
 TEST_F(TransformationTestsF, PullReshapeThroughReduceSkipIfInsertAxesInTheMiddle) {
-    model = gen_reshape_model<ReduceMean>(element::f32, {5, 10, 15}, {5, 10, 1, 15}, {0});
+    model = generate_reshape_model<ReduceMean>(element::f32, {5, 10, 15}, {5, 10, 1, 15}, {0});
     manager.register_pass<pass::PullReshapeThroughReduce>();
 }
 
