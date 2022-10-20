@@ -5,9 +5,13 @@
 include(download/extract)
 include(download/download_and_check)
 
-function (GetNameAndUrlToDownload name url archive_name_unified archive_name_win archive_name_lin archive_name_mac archive_name_android)
+function (GetNameAndUrlToDownload name url archive_name_unified archive_name_win archive_name_lin archive_name_mac archive_name_android USE_NEW_LOCATION)
   if (archive_name_unified)
-    set (${url} "thirdparty/unified/${archive_name_unified}" PARENT_SCOPE)
+      if (USE_NEW_LOCATION)
+        set (${url} "${archive_name_unified}" PARENT_SCOPE)
+      else()
+        set (${url} "thirdparty/unified/${archive_name_unified}" PARENT_SCOPE)
+      endif()
     set (${name} ${archive_name_unified} PARENT_SCOPE)
   else()
     if(archive_name_lin)
@@ -43,25 +47,26 @@ function (DownloadAndExtractPlatformSpecific
   result_path
   folder
   sha256
-  files_to_extract)
+  files_to_extract
+  USE_NEW_LOCATION)
 
-  GetNameAndUrlToDownload(archive_name RELATIVE_URL ${archive_name_unified} ${archive_name_win} ${archive_name_lin} ${archive_name_mac} ${archive_name_android} )
+  GetNameAndUrlToDownload(archive_name RELATIVE_URL ${archive_name_unified} ${archive_name_win} ${archive_name_lin} ${archive_name_mac} ${archive_name_android} ${USE_NEW_LOCATION})
   if (NOT archive_name OR NOT RELATIVE_URL)
     return()
   endif()
-  CheckOrDownloadAndExtract(${component} ${RELATIVE_URL} ${archive_name} ${unpacked_path} result_path2 ${folder} TRUE FALSE TRUE ${sha256} ${files_to_extract})
+  CheckOrDownloadAndExtract(${component} ${RELATIVE_URL} ${archive_name} ${unpacked_path} result_path2 ${folder} TRUE FALSE TRUE ${sha256} ${files_to_extract} ${USE_NEW_LOCATION})
   set (${result_path} ${result_path2} PARENT_SCOPE)
 
 endfunction(DownloadAndExtractPlatformSpecific)
 
 #download from common folder
-function (DownloadAndExtract component archive_name unpacked_path result_path folder sha256 files_to_extract)
+function (DownloadAndExtract component archive_name unpacked_path result_path folder sha256 files_to_extract USE_NEW_LOCATION)
   set (RELATIVE_URL  "${archive_name}")
   set(fattal TRUE)
-  CheckOrDownloadAndExtract(${component} ${RELATIVE_URL} ${archive_name} ${unpacked_path} result_path2 ${folder} ${fattal} result TRUE ${sha256} ${files_to_extract})
+  CheckOrDownloadAndExtract(${component} ${RELATIVE_URL} ${archive_name} ${unpacked_path} result_path2 ${folder} ${fattal} result TRUE ${sha256} ${files_to_extract} ${USE_NEW_LOCATION})
 
   if (NOT ${result})
-    DownloadAndExtractPlatformSpecific(${component} ${archive_name} ${archive_name} ${archive_name} ${unpacked_path} ${result_path2} ${folder} ${sha256} ${files_to_extract})
+    DownloadAndExtractPlatformSpecific(${component} ${archive_name} ${archive_name} ${archive_name} ${unpacked_path} ${result_path2} ${folder} ${sha256} ${files_to_extract} ${USE_NEW_LOCATION})
   endif()
 
   set (${result_path} ${result_path2} PARENT_SCOPE)
@@ -148,7 +153,7 @@ function (DownloadOrExtractInternal URL archive_path unpacked_path folder fattal
 
 endfunction(DownloadOrExtractInternal)
 
-function (CheckOrDownloadAndExtract component RELATIVE_URL archive_name unpacked_path result_path folder fattal resultExt use_alternatives sha256 files_to_extract)
+function (CheckOrDownloadAndExtract component RELATIVE_URL archive_name unpacked_path result_path folder fattal resultExt use_alternatives sha256 files_to_extract USE_NEW_LOCATION)
   set (archive_path ${TEMP}/download/${archive_name})
   set (status "ON")
 
@@ -156,6 +161,8 @@ function (CheckOrDownloadAndExtract component RELATIVE_URL archive_name unpacked
     set(URL "${IE_PATH_TO_DEPS}/${RELATIVE_URL}")
   elseif(DEFINED ENV{IE_PATH_TO_DEPS})
     set(URL "$ENV{IE_PATH_TO_DEPS}/${RELATIVE_URL}")
+  elseif(USE_NEW_LOCATION)
+    set(URL "https://storage.openvinotoolkit.org/dependencies/${RELATIVE_URL}")
   else()
     set(URL "https://download.01.org/opencv/master/openvinotoolkit/${RELATIVE_URL}")
   endif()
