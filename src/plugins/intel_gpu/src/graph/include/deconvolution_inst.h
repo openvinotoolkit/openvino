@@ -94,14 +94,13 @@ using deconvolution_node = typed_program_node<deconvolution>;
 template <>
 class typed_primitive_inst<deconvolution> : public typed_primitive_inst_base<deconvolution> {
     using parent = typed_primitive_inst_base<deconvolution>;
-    using parent::parent;
 
 public:
     static layout calc_output_layout(deconvolution_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(deconvolution_node const& node);
 
 public:
-    typed_primitive_inst(network& network, deconvolution_node const* node);
+    typed_primitive_inst(network& network, deconvolution_node const& node);
 
     memory::ptr weights_memory(size_t index) const {
         if (_node->is_dynamic() && _impl_params->reordered_weights != nullptr) {

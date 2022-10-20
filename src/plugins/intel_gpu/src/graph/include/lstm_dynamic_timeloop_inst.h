@@ -60,14 +60,13 @@ using lstm_dynamic_timeloop_node = typed_program_node<lstm_dynamic_timeloop>;
 template <>
 class typed_primitive_inst<lstm_dynamic_timeloop> : public typed_primitive_inst_base<lstm_dynamic_timeloop> {
     using parent = typed_primitive_inst_base<lstm_dynamic_timeloop>;
-    using parent::parent;
 
 public:
     static layout calc_output_layout(lstm_dynamic_timeloop_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(lstm_dynamic_timeloop_node const& node);
 
 public:
-    typed_primitive_inst(network& network, lstm_dynamic_timeloop_node const* node);
+    typed_primitive_inst(network& network, lstm_dynamic_timeloop_node const& node);
 
     memory::ptr dyn_length_memory() const { return get_dependency_memory("dyn_length"); }
     memory::ptr recurrent_memory() const { return get_dependency_memory("recurrent"); }

@@ -49,12 +49,12 @@ bool is_optimized_output_user(const program_node* user) {
     return false;
 }
 
-bool is_output_buffer(const program_node* node) {
-    if (node->is_output())
+bool is_output_buffer(const program_node& node) {
+    if (node.is_output())
         return true;
 
     // Try to recursively find any optimized out user which is also network output
-    for (const auto& user : node->get_users()) {
+    for (const auto& user : node.get_users()) {
         if (is_optimized_output_user(user)) {
             return true;
         }
@@ -432,12 +432,12 @@ void primitive_inst::build_deps() {
     }
 }
 
-primitive_inst::primitive_inst(network& network, program_node const* node, bool allocate_memory)
+primitive_inst::primitive_inst(network& network, program_node const& node, bool allocate_memory)
     : _network(network)
-    , _node(node)
-    , _node_output_layout(node->get_output_layout())
-    , _impl_params(node->get_kernel_impl_params())
-    , _impl(node->get_selected_impl() ? node->get_selected_impl()->clone() : nullptr)
+    , _node(&node)
+    , _node_output_layout(node.get_output_layout())
+    , _impl_params(node.get_kernel_impl_params())
+    , _impl(node.get_selected_impl() ? node.get_selected_impl()->clone() : nullptr)
     , _outputs({memory::ptr()})
     , _output_changed(false)
     , _mem_allocated(allocate_memory)
@@ -445,7 +445,7 @@ primitive_inst::primitive_inst(network& network, program_node const* node, bool 
     if (allocate_memory) {
         // In case when output is mutable_data primitive, and other users dependencies are only used for
         // suychronization, The output memory of such primitive will be fused with mutable_data
-        auto users = node->get_users();
+        auto users = node.get_users();
         auto user_count = users.size();
         uint32_t mutable_data_count = 0;
         for (auto& user : users) {
@@ -458,9 +458,9 @@ primitive_inst::primitive_inst(network& network, program_node const* node, bool 
         // TODO: Remove WA for arg_max_min node.
         // For now it's required to handle the case when only second output of TopK primitive is used in plugin,
         // but kernels always write both outputs to the same memory object which leads to wrong result.
-        if (user_count == 1 && mutable_data_count == 1 && !node->is_type<arg_max_min>()
-                                                       && !node->is_type<experimental_detectron_roi_feature_extractor>()) {
-            for (auto& user : node->get_users())
+        if (user_count == 1 && mutable_data_count == 1 && !node.is_type<arg_max_min>()
+                                                       && !node.is_type<experimental_detectron_roi_feature_extractor>()) {
+            for (auto& user : node.get_users())
                 if (user->is_type<mutable_data>())
                     _outputs[0] = user->as<mutable_data>().get_attached_memory_ptr();
         } else {
@@ -468,7 +468,7 @@ primitive_inst::primitive_inst(network& network, program_node const* node, bool 
         }
     }
     if (_impl)
-        _impl->set_node_params(*node);
+        _impl->set_node_params(node);
 
     if (_outputs[0])
         max_output_layout_size = _outputs[0]->get_layout().count();
@@ -609,7 +609,7 @@ event::ptr primitive_inst::update_weights() {
     return nullptr;
 }
 
-memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, const program_node* _node, const kernel_impl_params& impl_params,
+memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, const program_node& _node, const kernel_impl_params& impl_params,
                                             uint32_t net_id, bool is_internal) {
     auto get_memory_from_pool = [&](engine& _engine, const layout& layout, const primitive_id id, std::set<primitive_id> dependencies,
             allocation_type type, bool reusable) {
@@ -651,53 +651,53 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
         return false;
     };
 
-    if (user_requesting_mem_reuse_false(*_node)) {
+    if (user_requesting_mem_reuse_false(_node)) {
         memory_reuse_by_user = false;
     }
 
     // For outputs, cpu prim we want to have lockable alloc type
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
-    bool is_cpu = _node->get_selected_impl() ? _node->get_selected_impl()->is_cpu() : false;
-    auto use_lockable_memory = is_output_buffer(_node) || is_cpu || is_any_user_cpu(_node->get_users()) ||
+    bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() : false;
+    auto use_lockable_memory = is_output_buffer(_node) || is_cpu || is_any_user_cpu(_node.get_users()) ||
                                !_engine.supports_allocation(allocation_type::usm_device);
     GPU_DEBUG_GET_INSTANCE(debug_config);
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
     const auto& alloc_type = use_lockable_memory ? lockable_mem_type
         : usm_device_allocatable ? allocation_type::usm_device : lockable_mem_type;
 
-    if ((is_internal && (_node->can_be_optimized() || _node->is_type<generic_layer>())) || (memory_reuse_by_user == false)) {
+    if ((is_internal && (_node.can_be_optimized() || _node.is_type<generic_layer>())) || (memory_reuse_by_user == false)) {
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            GPU_DEBUG_COUT << "[" << _node->id() << ": output]" << std::endl;
+            GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
         }
         return get_memory_from_pool(_engine,
                 layout,
-                _node->id(),
-                _node->get_memory_dependencies(),
+                _node.id(),
+                _node.get_memory_dependencies(),
                 alloc_type,
                 false);
-    } else if (is_internal && _node->is_output() && _node->is_type<generic_layer>() &&
+    } else if (is_internal && _node.is_output() && _node.is_type<generic_layer>() &&
             _engine.supports_allocation(allocation_type::usm_device) && usm_device_allocatable) {
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            GPU_DEBUG_COUT << "[" << _node->id() << ": output]" << std::endl;
+            GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
         }
         return _engine.allocate_memory(layout, allocation_type::usm_device, false);
-    } else if (is_internal && !_node->is_output() && _node->is_type<input_layout>()) {
+    } else if (is_internal && !_node.is_output() && _node.is_type<input_layout>()) {
         // Skip memory reset for input_layout primitives, since data will be copied from cldnn::data primitive
         // or just reuse primitive's memory
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            GPU_DEBUG_COUT << "[" << _node->id() << ": constant]" << std::endl;
+            GPU_DEBUG_COUT << "[" << _node.id() << ": constant]" << std::endl;
         }
         return _engine.allocate_memory(layout, alloc_type, false);
-    } else if (is_internal || (!_node->can_share_buffer()) || _node->can_be_optimized() || _node->is_output()) {
+    } else if (is_internal || (!_node.can_share_buffer()) || _node.can_be_optimized() || _node.is_output()) {
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            GPU_DEBUG_COUT << "[" << _node->id() << ": output]" << std::endl;
+            GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
         }
         return _engine.allocate_memory(layout, alloc_type);
     } else {
         return get_memory_from_pool(_engine,
                 layout,
-                _node->id(),
-                _node->get_memory_dependencies(),
+                _node.id(),
+                _node.get_memory_dependencies(),
                 alloc_type,
                 true);
     }
@@ -706,7 +706,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
 std::vector<memory::ptr> primitive_inst::allocate_outputs() {
     std::vector<memory::ptr> outputs;
     for (size_t i = 0; i < get_node().get_outputs_count() ; ++i) {
-        outputs.push_back(allocate_output(get_network().get_engine(), _network.get_memory_pool(), _node, *_impl_params,
+        outputs.push_back(allocate_output(get_network().get_engine(), _network.get_memory_pool(), *_node, *_impl_params,
                           get_network_id(), _network.is_internal()));
     }
     return outputs;

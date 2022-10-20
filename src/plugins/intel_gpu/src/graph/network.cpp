@@ -947,7 +947,7 @@ void network::allocate_primitive_instance(program_node const& node) {
         GPU_DEBUG_COUT << node.id() << ": allocate primitive instance" << std::endl;
     }
 
-    auto inst = node.type()->create_instance(*this, &node);
+    auto inst = node.type()->create_instance(*this, node);
 
     std::function<bool(const program_node&)> is_mutable_input = [&is_mutable_input](const program_node& node) {
         for (auto& dep : node.get_dependencies()) {

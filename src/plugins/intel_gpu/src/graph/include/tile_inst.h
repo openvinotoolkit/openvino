@@ -28,7 +28,6 @@ using tile_node = typed_program_node<tile>;
 template <>
 class typed_primitive_inst<tile> : public typed_primitive_inst_base<tile> {
     using parent = typed_primitive_inst_base<tile>;
-    using parent::parent;
 
 public:
     template<typename ShapeType>
@@ -38,7 +37,7 @@ public:
     static std::string to_string(tile_node const& node);
 
 public:
-    typed_primitive_inst(network& network, tile_node const* desc);
+    typed_primitive_inst(network& network, tile_node const& desc);
 };
 
 using tile_inst = typed_primitive_inst<tile>;

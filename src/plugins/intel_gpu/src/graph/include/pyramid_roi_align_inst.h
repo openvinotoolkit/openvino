@@ -30,12 +30,11 @@ using pyramid_roi_align_node = typed_program_node<pyramid_roi_align>;
 template <>
 class typed_primitive_inst<pyramid_roi_align> : public typed_primitive_inst_base<pyramid_roi_align> {
     using parent = typed_primitive_inst_base<pyramid_roi_align>;
-    using parent::parent;
 
 public:
     static layout calc_output_layout(pyramid_roi_align_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(pyramid_roi_align_node const& node);
-    typed_primitive_inst(network& network, pyramid_roi_align_node const* node);
+    typed_primitive_inst(network& network, pyramid_roi_align_node const& node);
 
     memory& input() const { return dep_memory(0); }
     memory& P2() const { return dep_memory(1); }

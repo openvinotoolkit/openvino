@@ -361,7 +361,6 @@ using loop_node = typed_program_node<loop>;
 template <>
 class typed_primitive_inst<loop> : public typed_primitive_inst_base<loop> {
     using parent = typed_primitive_inst_base<loop>;
-    using parent::parent;
 
 public:
     struct backedge_memory_mapping {
@@ -559,7 +558,7 @@ private:
     size_t current_iteratoin_backedge_mapping_idx = 0;
 
 public:
-    typed_primitive_inst(network& network, const loop_node* node);
+    typed_primitive_inst(network& network, const loop_node& node);
     network::ptr get_body_network() const { return body_network; }
     void preprocess_input_memory();
     void preprocess_output_memory();

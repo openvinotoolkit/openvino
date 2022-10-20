@@ -31,7 +31,7 @@ public:
 
     static std::string to_string(const read_value_node& node);
 
-    typed_primitive_inst(network& network, const read_value_node* desc);
+    typed_primitive_inst(network& network, const read_value_node& desc);
 };
 
 using read_value_inst = typed_primitive_inst<read_value>;

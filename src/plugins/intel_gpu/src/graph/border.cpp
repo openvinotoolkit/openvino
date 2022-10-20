@@ -104,21 +104,21 @@ std::string border_inst::to_string(border_node const& node) {
     return primitive_description.str();
 }
 
-border_inst::typed_primitive_inst(network& network, border_node const* node) : parent(network, node) {
-    auto input_layout = node->input().get_output_layout();
+border_inst::typed_primitive_inst(network& network, border_node const& node) : parent(network, node) {
+    auto input_layout = node.input().get_output_layout();
 
     const auto& input_sizes = input_layout.get_dims();
     auto pad_mode = argument->pad_mode;
 
     // Check if sizes of border are in proper range.
-    CLDNN_ERROR_BOOL(node->id(),
+    CLDNN_ERROR_BOOL(node.id(),
                      "pads_begin border sizes",
                      std::any_of(argument->pads_begin.begin(), argument->pads_begin.end(),
                                  [](std::ptrdiff_t pad) {
                                     return pad < 0;
                                 }),
                      "Invalid border size: negative value");
-    CLDNN_ERROR_BOOL(node->id(),
+    CLDNN_ERROR_BOOL(node.id(),
                      "pads_end border sizes",
                      std::any_of(argument->pads_end.begin(), argument->pads_end.end(),
                                  [](std::ptrdiff_t pad) {
@@ -133,7 +133,7 @@ border_inst::typed_primitive_inst(network& network, border_node const* node) : p
             valid_pads &= argument->pads_begin[i] <= input_sizes[i];
             valid_pads &= argument->pads_end[i] <= input_sizes[i];
         }
-        CLDNN_ERROR_BOOL(node->id(),
+        CLDNN_ERROR_BOOL(node.id(),
                          "pads_begin/pads_end border sizes",
                          !valid_pads,
                          "Not enough data in input to create SYMMETRIC border of specified size");
@@ -144,7 +144,7 @@ border_inst::typed_primitive_inst(network& network, border_node const* node) : p
             valid_pads &= argument->pads_begin[i] < input_sizes[i];
             valid_pads &= argument->pads_end[i] < input_sizes[i];
         }
-        CLDNN_ERROR_BOOL(node->id(),
+        CLDNN_ERROR_BOOL(node.id(),
                          "pads_begin/pads_end border sizes",
                          !valid_pads,
                          "Not enough data in input to create REFLECT border of specified size");

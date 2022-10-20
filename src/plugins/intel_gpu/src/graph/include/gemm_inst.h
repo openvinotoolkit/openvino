@@ -27,7 +27,6 @@ using gemm_node = typed_program_node<gemm>;
 template <>
 class typed_primitive_inst<gemm> : public typed_primitive_inst_base<gemm> {
     using parent = typed_primitive_inst_base<gemm>;
-    using parent::parent;
 
 public:
     template<typename ShapeType>
@@ -36,7 +35,7 @@ public:
     static std::string to_string(gemm_node const& node);
 
 public:
-    typed_primitive_inst(network& network, gemm_node const* node);
+    typed_primitive_inst(network& network, gemm_node const& node);
 };
 
 using gemm_inst = typed_primitive_inst<gemm>;

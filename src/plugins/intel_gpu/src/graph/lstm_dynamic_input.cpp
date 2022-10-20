@@ -50,48 +50,48 @@ std::string lstm_dynamic_input_inst::to_string(lstm_dynamic_input_node const& no
     return primitive_description.str();
 }
 
-lstm_dynamic_input_inst::typed_primitive_inst(network& network, lstm_dynamic_input_node const* node)
+lstm_dynamic_input_inst::typed_primitive_inst(network& network, lstm_dynamic_input_node const& node)
     : parent(network, node) {
     // Check input
-    auto input_layout = node->input().get_output_layout();
-    auto direction = node->direction();
-    CLDNN_ERROR_NOT_PROPER_FORMAT(node->id(),
+    auto input_layout = node.input().get_output_layout();
+    auto direction = node.direction();
+    CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
                                   "input format",
                                   input_layout.format.value,
                                   "expected format",
                                   format::bfyx);
-    lstm_dynamic_inst::check_direction(node->input(), direction, "input");
+    lstm_dynamic_inst::check_direction(node.input(), direction, "input");
 
     // check dynamic length
-    CLDNN_ERROR_BOOL(node->id(),
+    CLDNN_ERROR_BOOL(node.id(),
                      "Dynamic length memory",
-                     !node->dyn_length_term(),
+                     !node.dyn_length_term(),
                      "Id of dynamic length memory is not set.");
-    auto dyn_length_size = node->dyn_length().get_output_layout().count();
-    CLDNN_ERROR_NOT_EQUAL(node->id(),
+    auto dyn_length_size = node.dyn_length().get_output_layout().count();
+    CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Batch",
-                          node->get_output_layout().batch(),
+                          node.get_output_layout().batch(),
                           "Dynamic tensor elements count.",
                           dyn_length_size,
                           "Should be equal.");
 
     // check weights
-    CLDNN_ERROR_BOOL(node->id(), "Weights memory", !node->weights_term(), "Id of weights memory is not set.");
-    auto weights_id = node->weights().id();
-    auto weights_layout = node->weights().get_output_layout();
+    CLDNN_ERROR_BOOL(node.id(), "Weights memory", !node.weights_term(), "Id of weights memory is not set.");
+    auto weights_id = node.weights().id();
+    auto weights_layout = node.weights().get_output_layout();
     auto hidden_size = weights_layout.spatial(1) / 4;
-    CLDNN_ERROR_NOT_PROPER_FORMAT(node->id(),
+    CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
                                   "weights format",
-                                  node->weights().get_output_layout().format.value,
+                                  node.weights().get_output_layout().format.value,
                                   "expected bfyx format",
                                   format::oiyx, format::lstm_weights_dio, format::bfyx);
-    CLDNN_ERROR_NOT_EQUAL(node->id(),
+    CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Weights batch size",
                           weights_layout.batch(),
                           "1",
                           1,
                           "Sizes mismatch, weights_id: " + weights_id);
-    CLDNN_ERROR_NOT_EQUAL(node->id(),
+    CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Weights x size",
                           weights_layout.spatial(0),
                           "input_size",
@@ -99,16 +99,16 @@ lstm_dynamic_input_inst::typed_primitive_inst(network& network, lstm_dynamic_inp
                           "Sizes mismatch, weights_id: " + weights_id);
 
     // check bias
-    if (node->bias_term()) {
-        auto bias_id = node->id();
-        auto bias_tensor = node->bias().get_output_layout().get_tensor();
-        CLDNN_ERROR_NOT_EQUAL(node->id(),
+    if (node.bias_term()) {
+        auto bias_id = node.id();
+        auto bias_tensor = node.bias().get_output_layout().get_tensor();
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Bias count",
                               bias_tensor.count(),
                               "direction * 4 * hidden_size",
                               direction * 4 * hidden_size,
                               "Bias count mismtach, bias_id: " + bias_id);
-        lstm_dynamic_inst::check_direction(node->bias(), direction, "bias");
+        lstm_dynamic_inst::check_direction(node.bias(), direction, "bias");
     }
 }
 }  // namespace cldnn

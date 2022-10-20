@@ -36,14 +36,13 @@ using lstm_elt_node = typed_program_node<lstm_elt>;
 template <>
 class typed_primitive_inst<lstm_elt> : public typed_primitive_inst_base<lstm_elt> {
     using parent = typed_primitive_inst_base<lstm_elt>;
-    using parent::parent;
 
 public:
     static layout calc_output_layout(lstm_elt_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(lstm_elt_node const& node);
 
 public:
-    typed_primitive_inst(network& network, lstm_elt_node const* node);
+    typed_primitive_inst(network& network, lstm_elt_node const& node);
 
     memory::ptr cell_memory() const { return dep_memory_ptr(1); }
     bool cell_term() const { return !argument->cell.empty(); }

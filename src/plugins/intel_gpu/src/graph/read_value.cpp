@@ -15,9 +15,9 @@ primitive_type_id read_value::type_id() {
     return &instance;
 }
 
-read_value_inst::typed_primitive_inst(network& network, const read_value_node* node) :
+read_value_inst::typed_primitive_inst(network& network, const read_value_node& node) :
     parent(network, node, false),
-    memory_state::variable{node->get_primitive()->variable_id} {
+    memory_state::variable{node.get_primitive()->variable_id} {
 }
 
 layout read_value_inst::calc_output_layout(const read_value_node& node, kernel_impl_params const& impl_param) {

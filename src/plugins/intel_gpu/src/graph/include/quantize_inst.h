@@ -133,7 +133,6 @@ using quantize_node = typed_program_node<quantize>;
 template <>
 class typed_primitive_inst<quantize> : public typed_primitive_inst_base<quantize> {
     using parent = typed_primitive_inst_base<quantize>;
-    using parent::parent;
 
 public:
     template<typename ShapeType>
@@ -141,7 +140,7 @@ public:
     static layout calc_output_layout(quantize_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(quantize_node const& node);
 
-    typed_primitive_inst(network& network, quantize_node const* desc);
+    typed_primitive_inst(network& network, quantize_node const& desc);
 };
 
 using quantize_inst = typed_primitive_inst<quantize>;

@@ -15,7 +15,7 @@ primitive_type_id random_uniform::type_id() {
     return &instance;
 }
 
-random_uniform_inst::typed_primitive_inst(network& network, random_uniform_node const *node)
+random_uniform_inst::typed_primitive_inst(network& network, random_uniform_node const &node)
 : parent(network, node) {
 }
 

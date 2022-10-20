@@ -33,7 +33,6 @@ using concatenation_node = typed_program_node<concatenation>;
 template <>
 class typed_primitive_inst<concatenation> : public typed_primitive_inst_base<concatenation> {
     using parent = typed_primitive_inst_base<concatenation>;
-    using parent::parent;
 
 public:
     template<typename ShapeType>
@@ -41,7 +40,7 @@ public:
     static layout calc_output_layout(concatenation_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(concatenation_node const& node);
 
-    typed_primitive_inst(network& network, concatenation_node const* node);
+    typed_primitive_inst(network& network, concatenation_node const& node);
 };
 
 using concatenation_inst = typed_primitive_inst<concatenation>;

@@ -36,6 +36,6 @@ std::string reverse_inst::to_string(reverse_node const& node) {
     return primitive_description.str();
 }
 
-reverse_inst::typed_primitive_inst(network& network, reverse_node const* node) : parent(network, node) {}
+reverse_inst::typed_primitive_inst(network& network, reverse_node const& node) : parent(network, node) {}
 
 }  // namespace cldnn

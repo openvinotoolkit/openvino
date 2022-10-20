@@ -64,64 +64,64 @@ std::string binary_convolution_inst::to_string(binary_convolution_node const& no
     return primitive_description.str();
 }
 
-binary_convolution_inst::typed_primitive_inst(network& network, binary_convolution_node const* node)
+binary_convolution_inst::typed_primitive_inst(network& network, binary_convolution_node const& node)
     : parent(network, node) {
     auto stride = argument->stride;
     auto pad = argument->pad;
 
-    auto input_layout = node->input().get_output_layout();
-    auto output_layout = node->get_output_layout();
+    auto input_layout = node.input().get_output_layout();
+    auto output_layout = node.get_output_layout();
     auto output_size = output_layout.get_tensor();
 
-    CLDNN_ERROR_NOT_EQUAL(node->id(),
+    CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Input number of dimensions",
                           input_layout.get_rank(),
                           "output number of dimensions",
                           output_layout.get_rank(),
                           "Input/output rank mismatch");
-    CLDNN_ERROR_NOT_EQUAL(node->id(),
+    CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Stride number of dimensions",
                           stride.size(),
                           "output number of dimensions",
                           output_layout.get_spatial_rank(),
                           "stride/output dims mismatch");
-    CLDNN_ERROR_NOT_EQUAL(node->id(),
+    CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "pad number of dimensions",
                           pad.size(),
                           "input number of dimensions",
                           input_layout.get_spatial_rank(),
                           "Input offset/ input size mismatch");
 
-    auto split = node->get_split();
+    auto split = node.get_split();
     for (decltype(split) j = 0; j < split; j++) {
-        auto filter_inst = node->weights(j).get_output_layout();  // convolution filter
+        auto filter_inst = node.weights(j).get_output_layout();  // convolution filter
 
 
-        CLDNN_ERROR_NOT_EQUAL(node->id(),
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Weights number of dimensions",
                               filter_inst.get_rank(),
                               "output number of dimensions",
                               output_layout.get_rank(),
                               "Weights/output dims mismatch");
-        CLDNN_ERROR_NOT_EQUAL(node->id(),
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Convolution padding mode",
-                              node->get_output_layout().data_padding.filling_value(),
+                              node.get_output_layout().data_padding.filling_value(),
                               "padding value",
                               0.0f,
                               "Unknown padding mode.");
-        CLDNN_ERROR_NOT_EQUAL(node->id(),
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Output feature size",
                               output_size.feature.size(),
                               "expected feature size",
                               1,
                               "Only one-dimensional features are supported");
-        CLDNN_ERROR_NOT_EQUAL(node->id(),
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Output batch size",
                               output_size.batch.size(),
                               "expected output size",
                               1,
                               "Only one-dimensional batch size are supported");
-        CLDNN_ERROR_NOT_EQUAL(node->id(),
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Weights feature maps number",
                               input_layout.feature(),
                               "input feature maps number",

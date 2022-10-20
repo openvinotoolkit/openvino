@@ -207,10 +207,10 @@ reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
     if (is_dynamic())
         return;
 
-    auto input_layout = node->input().get_output_layout();
-    auto output_layout = node->get_output_layout();
+    auto input_layout = node.input().get_output_layout();
+    auto output_layout = node.get_output_layout();
     if (input_layout.is_static() && output_layout.is_static()) {
-        CLDNN_ERROR_LESS_THAN(node->id(),
+        CLDNN_ERROR_LESS_THAN(node.id(),
                               "Input dimension size",
                               input_layout.get_tensor().raw.size(),
                               "ouput dimension size",
@@ -219,14 +219,14 @@ reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
                               "(reorder) or when input > output (flatten).");
     }
     if (!argument->subtract_per_feature.empty()) {
-        CLDNN_ERROR_GREATER_THAN(node->id(),
+        CLDNN_ERROR_GREATER_THAN(node.id(),
                                  "Input feature dimension size",
                                  input_layout.get_tensor().feature.size(),
                                  "value",
                                  1,
                                  "Subtracting values work only for formats that have feature dimension == 1");
         if (input_layout.format != format::nv12) {
-            CLDNN_ERROR_NOT_EQUAL(node->id(),
+            CLDNN_ERROR_NOT_EQUAL(node.id(),
                 "Input feature size[0]",
                 static_cast<size_t>(input_layout.feature()),
                 "argument subtract per feature size",
@@ -238,7 +238,7 @@ reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
 }
 
 void reorder_inst::on_execute() {
-    if (can_be_optimized())
+    if (node->can_be_optimized())
         reuse_input();
 }
 

@@ -44,14 +44,13 @@ using lstm_node = typed_program_node<lstm>;
 template <>
 class typed_primitive_inst<lstm> : public typed_primitive_inst_base<lstm> {
     using parent = typed_primitive_inst_base<lstm>;
-    using parent::parent;
 
 public:
     static layout calc_output_layout(lstm_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(lstm_node const& node);
 
 public:
-    typed_primitive_inst(network& network, lstm_node const* node);
+    typed_primitive_inst(network& network, lstm_node const& node);
 
     memory& weights_memory() const { return dep_memory(1); }
     memory& recurrent_memory() const { return dep_memory(2); }

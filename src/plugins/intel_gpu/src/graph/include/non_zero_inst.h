@@ -33,7 +33,6 @@ using count_nonzero_node = typed_program_node<count_nonzero>;
 template <>
 class typed_primitive_inst<count_nonzero> : public typed_primitive_inst_base<count_nonzero> {
     using parent = typed_primitive_inst_base<count_nonzero>;
-    using parent::parent;
 
 public:
     template <typename ShapeType>
@@ -41,7 +40,7 @@ public:
     static layout calc_output_layout(count_nonzero_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(count_nonzero_node const& node);
 
-    typed_primitive_inst(network& network, count_nonzero_node const* node);
+    typed_primitive_inst(network& network, count_nonzero_node const& node);
 
 private:
     void on_execute() override;
@@ -73,7 +72,6 @@ using gather_nonzero_node = typed_program_node<gather_nonzero>;
 template <>
 class typed_primitive_inst<gather_nonzero> : public typed_primitive_inst_base<gather_nonzero> {
     using parent = typed_primitive_inst_base<gather_nonzero>;
-    using parent::parent;
 
 public:
     template <typename ShapeType>
@@ -81,7 +79,7 @@ public:
     static layout calc_output_layout(gather_nonzero_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(gather_nonzero_node const& node);
 
-    typed_primitive_inst(network& network, gather_nonzero_node const* node);
+    typed_primitive_inst(network& network, gather_nonzero_node const& node);
 };
 
 using gather_nonzero_inst = typed_primitive_inst<gather_nonzero>;

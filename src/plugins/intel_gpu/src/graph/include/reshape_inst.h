@@ -42,7 +42,6 @@ using reshape_node = typed_program_node<reshape>;
 template <>
 class typed_primitive_inst<reshape> : public typed_primitive_inst_base<reshape> {
     using parent = typed_primitive_inst_base<reshape>;
-    using parent::parent;
 
 public:
     template<typename ShapeType>
@@ -50,7 +49,7 @@ public:
     static layout calc_output_layout(reshape_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(reshape_node const& node);
 
-    typed_primitive_inst(network& network, reshape_node const* node);
+    typed_primitive_inst(network& network, reshape_node const& node);
 
 private:
     void on_execute() override;

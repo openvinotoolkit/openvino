@@ -15,7 +15,7 @@ primitive_type_id roi_align::type_id() {
     return &instance;
 }
 
-roi_align_inst::typed_primitive_inst(network& network, roi_align_node const* node)
+roi_align_inst::typed_primitive_inst(network& network, roi_align_node const& node)
     : parent(network, node) {}
 
 layout roi_align_inst::calc_output_layout(roi_align_node const& node, kernel_impl_params const& impl_param) {

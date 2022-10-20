@@ -119,46 +119,46 @@ std::string lstm_dynamic_timeloop_inst::to_string(lstm_dynamic_timeloop_node con
     return primitive_description.str();
 }
 
-lstm_dynamic_timeloop_inst::typed_primitive_inst(network& network, lstm_dynamic_timeloop_node const* node)
+lstm_dynamic_timeloop_inst::typed_primitive_inst(network& network, lstm_dynamic_timeloop_node const& node)
     : parent(network, node) {
-    auto batch_size = node->get_output_layout().batch();
-    auto direction = node->direction();
+    auto batch_size = node.get_output_layout().batch();
+    auto direction = node.direction();
 
     // TODO: check input sizes
-    auto input_id = node->input().id();
-    auto input_layout = node->input().get_output_layout();
+    auto input_id = node.input().id();
+    auto input_layout = node.input().get_output_layout();
     auto hidden_size = input_layout.spatial(0) / 4;
-    CLDNN_ERROR_NOT_PROPER_FORMAT(node->id(),
+    CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
                                   "input format",
                                   input_layout.format.value,
                                   "expected format",
                                   format::bfyx);
-    lstm_dynamic_inst::check_direction(node->input(), direction, "input");
+    lstm_dynamic_inst::check_direction(node.input(), direction, "input");
 
     // check recurrent
-    CLDNN_ERROR_BOOL(node->id(), "Recurrent memory", !node->recurrent_term(), "Id of weights memory is not set.");
-    auto reccurent_id = node->recurrent().id();
-    auto recurrent_layout = node->recurrent().get_output_layout();
-    CLDNN_ERROR_NOT_PROPER_FORMAT(node->id(),
+    CLDNN_ERROR_BOOL(node.id(), "Recurrent memory", !node.recurrent_term(), "Id of weights memory is not set.");
+    auto reccurent_id = node.recurrent().id();
+    auto recurrent_layout = node.recurrent().get_output_layout();
+    CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
                                   "recurrent format",
-                                  node->recurrent().get_output_layout().format.value,
+                                  node.recurrent().get_output_layout().format.value,
                                   "expected bfyx format",
                                   format::bfyx);
-    CLDNN_ERROR_NOT_EQUAL(node->id(),
+    CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Recurrent batch size",
                           recurrent_layout.batch(),
                           "1",
                           1,
                           "Sizes mismatch, reccuren_id: " + reccurent_id);
     if (recurrent_layout.feature() != direction)
-        CLDNN_ERROR_MESSAGE(node->id(), "Reccurent directions size needs to be equal to 1 or 2 (bidrectional) !");
-    CLDNN_ERROR_NOT_EQUAL(node->id(),
+        CLDNN_ERROR_MESSAGE(node.id(), "Reccurent directions size needs to be equal to 1 or 2 (bidrectional) !");
+    CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Recurrent x size",
                           recurrent_layout.spatial(0),
                           "hidden_size",
                           hidden_size,
                           "Sizes mismatch, reccuren_id: " + reccurent_id);
-    CLDNN_ERROR_NOT_EQUAL(node->id(),
+    CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Recurrent y size",
                           recurrent_layout.spatial(1),
                           "4 * hidden_size",
@@ -166,7 +166,7 @@ lstm_dynamic_timeloop_inst::typed_primitive_inst(network& network, lstm_dynamic_
                           "Sizes mismatch, reccuren_id: " + reccurent_id);
 
     if (initial_cell_term()) {
-        lstm_dynamic_inst::check_common_lstm_dynamic_sizes(node->initial_cell(),
+        lstm_dynamic_inst::check_common_lstm_dynamic_sizes(node.initial_cell(),
                                                            batch_size,
                                                            hidden_size,
                                                            direction,
@@ -174,23 +174,23 @@ lstm_dynamic_timeloop_inst::typed_primitive_inst(network& network, lstm_dynamic_
     }
 
     if (initial_hidden_term()) {
-        lstm_dynamic_inst::check_common_lstm_dynamic_sizes(node->initial_hidden(),
+        lstm_dynamic_inst::check_common_lstm_dynamic_sizes(node.initial_hidden(),
                                                            batch_size,
                                                            hidden_size,
                                                            direction,
                                                            "initial_hidden");
     }
 
-    if (node->last_hidden_output_term()) {
-        lstm_dynamic_inst::check_common_lstm_dynamic_sizes(node->last_hidden_state(),
+    if (node.last_hidden_output_term()) {
+        lstm_dynamic_inst::check_common_lstm_dynamic_sizes(node.last_hidden_state(),
                                                            batch_size,
                                                            hidden_size,
                                                            direction,
                                                            "optional_hidden_output");
     }
 
-    if (node->last_cell_output_term()) {
-        lstm_dynamic_inst::check_common_lstm_dynamic_sizes(node->last_cell_state(),
+    if (node.last_cell_output_term()) {
+        lstm_dynamic_inst::check_common_lstm_dynamic_sizes(node.last_cell_state(),
                                                            batch_size,
                                                            hidden_size,
                                                            direction,

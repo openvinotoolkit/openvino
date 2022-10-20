@@ -107,14 +107,14 @@ std::string permute_inst::to_string(permute_node const& node) {
     return primitive_description.str();
 }
 
-permute_inst::typed_primitive_inst(network& network, permute_node const* node) : parent(network, node) {
+permute_inst::typed_primitive_inst(network& network, permute_node const& node) : parent(network, node) {
     auto permute_order = argument->permute_order;
 
     auto required_order_values_size = static_cast<uint32_t>(permute_order.size());
 
     for (decltype(required_order_values_size) i = 0; i < required_order_values_size; i++) {
         if (!(std::find(permute_order.begin(), permute_order.end(), i) != permute_order.end()))
-            CLDNN_ERROR_MESSAGE(node->id(), "Permute order does not contain all of required values.");
+            CLDNN_ERROR_MESSAGE(node.id(), "Permute order does not contain all of required values.");
     }
 }
 }  // namespace cldnn

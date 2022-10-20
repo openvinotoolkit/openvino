@@ -271,52 +271,52 @@ std::string convolution_inst::to_string(convolution_node const& node) {
     return primitive_description.str();
 }
 
-convolution_inst::typed_primitive_inst(network& network, convolution_node const* node) : parent(network, node) {
+convolution_inst::typed_primitive_inst(network& network, convolution_node const& node) : parent(network, node) {
     auto stride = argument->stride;
     auto pad = argument->pad;
 
-    auto input_layout = node->input().get_output_layout();
-    auto output_layout = node->get_output_layout();
+    auto input_layout = node.input().get_output_layout();
+    auto output_layout = node.get_output_layout();
     auto output_size = output_layout.get_tensor();
 
-    CLDNN_ERROR_NOT_EQUAL(node->id(),
+    CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Input number of dimensions",
                           input_layout.get_rank(),
                           "output number of dimensions",
                           output_layout.get_rank(),
                           "Input/output rank mismatch");
 
-    auto split = node->get_split();
+    auto split = node.get_split();
     for (decltype(split) j = 0; j < split; j++) {
-        auto filter_inst = node->weights(j).get_output_layout().convert_to_weights_layout(argument->grouped_weights_shape);
+        auto filter_inst = node.weights(j).get_output_layout().convert_to_weights_layout(argument->grouped_weights_shape);
 
         if (bias_term()) {
-            auto bias_inst = node->bias(j).get_output_layout();
-            CLDNN_ERROR_NOT_EQUAL(node->id(),
+            auto bias_inst = node.bias(j).get_output_layout();
+            CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias batch[0]",
                                   bias_inst.batch(),
                                   "expected size of batch",
                                   1,
                                   "Biases isn't 1D vector.");
-            CLDNN_ERROR_NOT_EQUAL(node->id(),
+            CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias feature[0]",
                                   bias_inst.feature(),
                                   "expected feature map number",
                                   output_size.feature[0] / split,
                                   "Bias/fm mismatch");
-            CLDNN_ERROR_NOT_EQUAL(node->id(),
+            CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias spatial[2]",
                                   bias_inst.spatial(2),
                                   "expected size of spatial[2]",
                                   1,
                                   "Biases isn't 1D vector.");
-            CLDNN_ERROR_NOT_EQUAL(node->id(),
+            CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias spatial[1]",
                                   bias_inst.spatial(1),
                                   "expected size of spatial[1]",
                                   1,
                                   "Biases isn't 1D vector.");
-            CLDNN_ERROR_NOT_EQUAL(node->id(),
+            CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias spatial[0]",
                                   bias_inst.spatial(0),
                                   "expected size of spatial[0]",
@@ -326,25 +326,25 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const*
 
         auto pad = argument->pad;
 
-        CLDNN_ERROR_NOT_EQUAL(node->id(),
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Convolution padding mode",
-                              node->get_output_layout().data_padding.filling_value(),
+                              node.get_output_layout().data_padding.filling_value(),
                               "padding value",
                               0.0f,
                               "Unknown padding mode.");
-        CLDNN_ERROR_NOT_EQUAL(node->id(),
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Output feature size",
                               output_size.feature.size(),
                               "expected feature size",
                               1,
                               "Only one-dimensional features are supported");
-        CLDNN_ERROR_NOT_EQUAL(node->id(),
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Output batch size",
                               output_size.batch.size(),
                               "expected output size",
                               1,
                               "Only one-dimensional batch size are supported");
-        CLDNN_ERROR_NOT_EQUAL(node->id(),
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Weights feature maps number",
                               filter_inst.ifm() * filter_inst.group(),
                               "input feature maps number",

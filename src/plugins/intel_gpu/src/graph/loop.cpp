@@ -450,18 +450,18 @@ memory::ptr loop_inst::get_external_memory(const primitive_id& external_id) cons
     return outputPrim->output_memory_ptr();
 }
 
-loop_inst::typed_primitive_inst(network & network, loop_node const * node)
+loop_inst::typed_primitive_inst(network & network, loop_node const & node)
     : parent(network, node),
       preproc_memories_done(false),
       body_network(network::allocate_network(network.get_stream_ptr(),
-                                                  node->get_body_program(),
+                                                  node.get_body_program(),
                                                   false,
                                                   network.is_primary_stream())) {
-    if (!check_if_axis_is_set_properly(*node))
-        CLDNN_ERROR_MESSAGE(node->id(), "axis is not set properly");
+    if (!check_if_axis_is_set_properly(node))
+        CLDNN_ERROR_MESSAGE(node.id(), "axis is not set properly");
 
-    validate_backedges(*node);
-    validate_mappings(*node);
+    validate_backedges(node);
+    validate_mappings(node);
 }
 
 }  // namespace cldnn

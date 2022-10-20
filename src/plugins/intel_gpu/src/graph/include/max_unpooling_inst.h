@@ -28,10 +28,9 @@ using max_unpooling_node = typed_program_node<max_unpooling>;
 template <>
 class typed_primitive_inst<max_unpooling> : public typed_primitive_inst_base<max_unpooling> {
     using parent = typed_primitive_inst_base<max_unpooling>;
-    using parent::parent;
 
 public:
-    typed_primitive_inst(network& network, max_unpooling_node const* desc);
+    typed_primitive_inst(network& network, max_unpooling_node const& desc);
     static layout calc_output_layout(max_unpooling_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(max_unpooling_node const& node);
 };

@@ -76,7 +76,7 @@ void mutable_data_inst::set_output_memory(memory::ptr mem_new, bool check, size_
     primitive_inst::set_output_memory(mem_new, check);
 }
 
-mutable_data_inst::typed_primitive_inst(network& network, mutable_data_node const* node)
-    : parent(network, node, attach_or_copy_data(network, node->get_attached_memory_ptr(), network.is_primary_stream())) {}
+mutable_data_inst::typed_primitive_inst(network& network, mutable_data_node const& node)
+    : parent(network, node, attach_or_copy_data(network, node.get_attached_memory_ptr(), network.is_primary_stream())) {}
 
 }  // namespace cldnn

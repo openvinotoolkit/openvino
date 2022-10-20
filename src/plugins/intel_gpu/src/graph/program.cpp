@@ -29,7 +29,7 @@
 #include "binary_convolution_inst.h"
 #include "resample_inst.h"
 #include "reshape_inst.h"
-#include "quantize_inst.h"
+#include "quantize_inst.h"  
 #include "activation_inst.h"
 #include "depth_to_space_inst.h"
 #include "convolution_inst.h"
@@ -1613,7 +1613,7 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
         } else if (node->is_type<mutable_data>() && node->get_dependencies().empty()) {
             continue;
         } else {
-            allocated_mem_ptrs.insert(primitive_inst::allocate_output(engine, pool, node, *node->get_kernel_impl_params(), 0, false));
+            allocated_mem_ptrs.insert(primitive_inst::allocate_output(engine, pool, *node, *node->get_kernel_impl_params(), 0, false));
         }
     }
 

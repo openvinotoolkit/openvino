@@ -24,14 +24,13 @@ using roi_align_node = typed_program_node<roi_align>;
 template <>
 class typed_primitive_inst<roi_align> : public typed_primitive_inst_base<roi_align> {
     using parent = typed_primitive_inst_base<roi_align>;
-    using parent::parent;
 
 public:
     static layout calc_output_layout(roi_align_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(roi_align_node const& node);
 
 public:
-    typed_primitive_inst(network& network, roi_align_node const* desc);
+    typed_primitive_inst(network& network, roi_align_node const& desc);
     memory::ptr rois_memory() const { return dep_memory_ptr(1); }
     memory::ptr batches_memory() const { return dep_memory_ptr(2); }
 };

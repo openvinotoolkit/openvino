@@ -29,12 +29,12 @@ std::string gather_tree_inst::to_string(gather_tree_node const& node) {
     return primitive_description.str();
 }
 
-gather_tree_inst::typed_primitive_inst(network& network, gather_tree_node const* node) : parent(network, node) {
-    auto input_layout = node->input().get_output_layout();
+gather_tree_inst::typed_primitive_inst(network& network, gather_tree_node const& node) : parent(network, node) {
+    auto input_layout = node.input().get_output_layout();
 
     const auto input_format = input_layout.format;
 
-    CLDNN_ERROR_NOT_PROPER_FORMAT(node->id(),
+    CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
         "Input format",
         input_format.value,
         "supported border primitive input formats",
@@ -42,19 +42,19 @@ gather_tree_inst::typed_primitive_inst(network& network, gather_tree_node const*
         format::yxfb,
         format::byxf);
 
-    auto dependencies = node->get_dependencies();
+    auto dependencies = node.get_dependencies();
 
     // check input dims
-    CLDNN_ERROR_NOT_EQUAL(node->id(),
+    CLDNN_ERROR_NOT_EQUAL(node.id(),
         "input0 size", dependencies.at(0)->get_output_layout().get_tensor(), "output size", input_layout.get_tensor(),
         "mismatch");
-    CLDNN_ERROR_NOT_EQUAL(node->id(),
+    CLDNN_ERROR_NOT_EQUAL(node.id(),
         "input1 size", dependencies.at(1)->get_output_layout().get_tensor(), "output size", input_layout.get_tensor(),
         "mismatch");
-    CLDNN_ERROR_NOT_EQUAL(node->id(),
+    CLDNN_ERROR_NOT_EQUAL(node.id(),
         "input2 size", dependencies.at(2)->get_output_layout().count(), "node's feature size", input_layout.feature(),
         "There can't be more than one end_token");
-    CLDNN_ERROR_NOT_EQUAL(node->id(),
+    CLDNN_ERROR_NOT_EQUAL(node.id(),
         "input3 size", dependencies.at(3)->get_output_layout().count(), "one", 1,
         "There can't be more than one end_token");
 }

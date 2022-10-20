@@ -72,6 +72,6 @@ std::string range_inst::to_string(range_node const& node) {
     return lexical_cast(*node_info);
 }
 
-range_inst::typed_primitive_inst(network& network, range_node const* node) : typed_primitive_inst_base{network, node} {}
+range_inst::typed_primitive_inst(network& network, range_node const& node) : typed_primitive_inst_base{network, node} {}
 
 }  // namespace cldnn

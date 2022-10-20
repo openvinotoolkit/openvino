@@ -101,8 +101,8 @@ std::string one_hot_inst::to_string(one_hot_node const& node) {
     return primitive_description.str();
 }
 
-one_hot_inst::typed_primitive_inst(network& network, one_hot_node const* node) : parent(network, node) {
-    auto input_layout = node->input().get_output_layout();
+one_hot_inst::typed_primitive_inst(network& network, one_hot_node const& node) : parent(network, node) {
+    auto input_layout = node.input().get_output_layout();
 
     if (input_layout.is_dynamic())
         return;
@@ -119,17 +119,17 @@ one_hot_inst::typed_primitive_inst(network& network, one_hot_node const* node) :
                                                    output_sizes.spatial[1],
                                                    output_sizes.spatial[0]};
 
-    if (is_output_bfzyx(input_layout, node->get_primitive()->one_hot_axis)) {
+    if (is_output_bfzyx(input_layout, node.get_primitive()->one_hot_axis)) {
         output_dims.insert(output_dims.begin() + 2, output_sizes.spatial[2]);
     }
 
-    const auto& one_hot_axis = node->get_primitive()->one_hot_axis;
+    const auto& one_hot_axis = node.get_primitive()->one_hot_axis;
 
     for (int64_t i = 0, j = 0; j < static_cast<int64_t>(output_dims.size()) - 1; ++i, ++j) {
         if (j == one_hot_axis)
             ++j;
         if (input_dims[i] != output_dims[j]) {
-            CLDNN_ERROR_MESSAGE(node->id(), "Incorrect parameters configuration: shape does not fit input size.");
+            CLDNN_ERROR_MESSAGE(node.id(), "Incorrect parameters configuration: shape does not fit input size.");
         }
     }
 }

@@ -184,7 +184,7 @@ public:
     }
 
     void allocate_internal_buffers();
-    static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node* _node,
+    static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node,
                                        const kernel_impl_params& impl_params, uint32_t net_id, bool is_internal);
 
     std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
@@ -198,7 +198,7 @@ public:
     layout get_node_output_layout() const { return _node_output_layout; }
 
 protected:
-    primitive_inst(network& network, program_node const* node, bool allocate_memory);
+    primitive_inst(network& network, program_node const& node, bool allocate_memory);
 
     network& _network;
     program_node const* _node;
@@ -352,14 +352,14 @@ public:
     template<typename T>
     static std::vector<layout> calc_output_layouts(const typed_node& node, const kernel_impl_params& impl_param) { return {}; }
 
-    typed_primitive_inst_base(network& network, typed_node const* node)
+    typed_primitive_inst_base(network& network, typed_node const& node)
         : typed_primitive_inst_base(network, node, do_allocate_memory(node)) {}
 
 protected:
-    typed_primitive_inst_base(network& network, typed_node const* node, bool allocate_memory)
-        : primitive_inst(network, node, allocate_memory), node(node), argument(node->get_primitive()) {}
+    typed_primitive_inst_base(network& network, typed_node const& node, bool allocate_memory)
+        : primitive_inst(network, node, allocate_memory), node(&node), argument(node.get_primitive()) {}
 
-    typed_primitive_inst_base(network& network, typed_node const* node, memory::ptr buffer)
+    typed_primitive_inst_base(network& network, typed_node const& node, memory::ptr buffer)
         : typed_primitive_inst_base(network, node, false) {
         _outputs[0] = buffer;
     }
@@ -369,8 +369,8 @@ private:
         if (typ_node.get_output_layout().is_dynamic())
             return false;
 
-        if (typ_node->template have_user_with_type<concatenation>() && typ_node->get_users().size() == 1 &&
-            typ_node->get_users().front()->can_be_optimized()) {  // check if the only user is concat
+        if (typ_node.template have_user_with_type<concatenation>() && typ_node.get_users().size() == 1 &&
+            typ_node.get_users().front()->can_be_optimized()) {  // check if the only user is concat
             return false;
         }
         return true;
