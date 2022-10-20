@@ -119,7 +119,7 @@ void StatisticsReport::dump_sort_performance_counters_request(CsvDumper& dumper,
     dumper.endLine();
 
     for (const auto& layer : perfCounts) {
-        if (status_names[(int)layer.status] == "EXECUTED") {
+        if (strcmp(status_names[(int)layer.status], "EXECUTED") == 0) {
             total += layer.real_time;
             total_cpu += layer.cpu_time;
         }
