@@ -19,15 +19,18 @@ def main():
     if len(sys.argv) != 2:
         log.info(f'Usage: {sys.argv[0]} <path_to_model>')
         return 1
-    # Open Model Zoo downloads vocab.txt to the parrent directory of .xml file
+    # Open Model Zoo downloads vocab.txt near to the parrent directory of .xml file for Intel models.
     # Or use tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-    # to download it
     tokenizer = BertTokenizer(Path(sys.argv[1]).parent.parent / "vocab.txt")
 
     core = Core()
     model = core.read_model(sys.argv[1])
     # Enforce dynamic input shape
-    model.reshape({model_input.any_name: PartialShape([1, '?']) for model_input in model.inputs})
+    try:
+        model.reshape({model_input.any_name: PartialShape([1, '?']) for model_input in model.inputs})
+    except RuntimeError:
+        log.error("Can't set dynamic shape")
+        raise
     # Optimize for throughput. Best throughput can be reached by
     # running multiple openvino.runtime.InferRequest instances asyncronously
     tput = {'PERFORMANCE_HINT': 'THROUGHPUT'}
