@@ -989,9 +989,16 @@ void program_node::init_onednn_primitive_attributes() {
                     update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx);
                 }
             } else {
-                // convolution using post-op output scales can only be int8/uint8
-                if (idx == 0 && !has_out_scales(attrs) && !is_type<pooling>() && !is_type<reduce>() &&
-                    !(is_type<convolution>() && data_type_traits::is_floating_point(output_layout.data_type))) {
+                auto input_datatype = get_dependency(0).get_output_layout().data_type;
+                // convolution using post-op output scales can only be used when i8/u8 input (which use integer accumulator)
+                bool can_use_output_scales =
+                    idx != 0 ||
+                    has_out_scales(attrs) ||
+                    is_type<pooling>() ||
+                    is_type<reduce>() ||
+                    //deconv is work around. TODO: update desc.type in pre_replace_deconv pass
+                    (is_type<convolution>() || is_type<deconvolution>) && data_type_traits::is_floating_point(input_datatype);
+                if (can_use_output_scales) {
                     int mask = in.count() > 1 ? 2 : 0;
                     attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
                     update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx);
