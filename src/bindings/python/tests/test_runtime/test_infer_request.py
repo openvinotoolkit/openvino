@@ -2,6 +2,7 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from collections.abc import Iterable
 from copy import deepcopy
 import numpy as np
 import os
@@ -10,7 +11,7 @@ import datetime
 import time
 
 import openvino.runtime.opset8 as ops
-from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model
+from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model, InferRequest
 from openvino.runtime import Type, PartialShape, Shape, Layout
 from openvino.preprocess import PrePostProcessor
 
@@ -491,6 +492,23 @@ def test_infer_queue_is_ready(device):
     infer_queue.start_async()
     assert not infer_queue.is_ready()
     infer_queue.wait_all()
+
+
+def test_infer_queue_iteration(device):
+    core = Core()
+    param = ops.parameter([10])
+    model = Model(ops.relu(param), [param])
+    compiled_model = core.compile_model(model, device)
+    infer_queue = AsyncInferQueue(compiled_model, 1)
+    assert isinstance(infer_queue, Iterable)
+    for infer_req in infer_queue:
+        assert isinstance(infer_req, InferRequest)
+
+    it = iter(infer_queue)
+    infer_request = next(it)
+    assert isinstance(infer_request, InferRequest)
+    with pytest.raises(StopIteration):
+        next(it)
 
 
 def test_infer_queue_userdata_is_empty(device):
