@@ -187,6 +187,34 @@ def elementwise_pow(name : str, x, y, axis, in_dtype):
 
     return outs[0]
 
+
+def elementwise_floordiv(name : str, x, y, axis, in_dtype):
+    import paddle
+    paddle.enable_static()
+
+    with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
+        node_x = paddle.static.data(name = 'x', shape = x.shape, dtype = in_dtype)
+        node_y = paddle.static.data(name = 'y', shape = y.shape, dtype = in_dtype)
+        if paddle.__version__ == "1.8":
+            out = paddle.fluid.layers.nn.elementwise_floordiv(node_x, node_y, axis=axis)
+        else:
+            if axis != -1:
+                pass
+            out = paddle.floor_divide(node_x, node_y)
+
+        cpu = paddle.static.cpu_places(1)
+        exe = paddle.static.Executor(cpu[0])
+
+        # startup program will call initializer to initialize the parameters.
+        exe.run(paddle.static.default_startup_program())
+        outs = exe.run(
+            feed={'x': x, 'y': y},
+            fetch_list=[out])
+        saveModel(name, exe, feedkeys=['x', 'y'], fetchlist=[out], inputs=[x, y], outputs=[outs[0]], target_dir=sys.argv[1])
+
+    return outs[0]
+
+
 def elementwise_ops(name : str, data_x, data_y, axis, in_dtype):
     elementwise_add("elementwise_add" + name, data_x, data_y, axis, in_dtype)
     elementwise_sub("elementwise_sub" + name, data_x, data_y, axis, in_dtype)
@@ -220,6 +248,30 @@ def main():
     data_y = (0.1 + np.random.rand(2, 5, 3).astype(np.float32)) / 1.1
     axis = 0
     elementwise_ops("4", data_x, data_y, axis, in_dtype)
+
+    # test for elementwise_floordiv, support int and int64
+    # paddle1.8 support axis = [0, x_last_dims]
+    # paddle2.x only support axis = -1
+    floordiv_support_dtype = ['int64', 'int32']
+    data_x = np.array([-4, 0, -8])
+    
+    data_y = np.array([3, 5, 3])
+    axis = -1
+    for dtype in floordiv_support_dtype:
+        elementwise_floordiv("elementwise_floordiv_" + dtype + "_1", 
+                        data_x.astype(dtype), data_y.astype(dtype), axis, dtype)
+
+    data_x = np.random.randint(-10, 10, [2, 5, 3, 4])
+    data_y = np.random.randint(1, 5, [3, 4])
+    for dtype in floordiv_support_dtype:
+        elementwise_floordiv("elementwise_floordiv_" + dtype + "_2", 
+                        data_x.astype(dtype), data_y.astype(dtype), axis, dtype)
+
+    data_y = np.random.randint(1, 5, [5, 3, 4])
+    for dtype in floordiv_support_dtype:
+        elementwise_floordiv("elementwise_floordiv_" + dtype + "_3", 
+                        data_x.astype(dtype), data_y.astype(dtype), axis, dtype)
+
 
 if __name__ == "__main__":
     main()
