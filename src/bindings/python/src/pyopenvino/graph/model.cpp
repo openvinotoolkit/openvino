@@ -808,7 +808,7 @@ void regclass_graph_Model(py::module m) {
             self.set_rt_info<ov::Any>(py_object_to_any(obj), path.cast<std::string>());
         },
         py::arg("obj"),
-        py::arg("path") = py::str(),
+        py::arg("path"),
         R"(
                 Add value inside runtime info
 
