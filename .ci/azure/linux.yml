@@ -270,13 +270,11 @@ jobs:
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
       # because of static build libgna is needed for python binary and mock_py frontend library
-      export LD_LIBRARY_PATH=$(PYTHON_WHEEL_INSTALL_DIR)/openvino/libs:$(REPO_DIR)/temp/gna_03.00.00.1815.1/linux/x64:$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
-      # For frontend manager to load frontend libraries:
-      # - tests install dir for mock_py
-      # - OpenVINO wheel installation dir for others frontend (not required if this variable is not set)
-      export OV_FRONTEND_PATH=$(PYTHON_WHEEL_INSTALL_DIR)/openvino/libs:$(INSTALL_TEST_DIR)
+      export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1815.1/linux/x64:$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
       # For python imports to import pybind_mock_frontend
       export PYTHONPATH=$(INSTALL_TEST_DIR):$(INSTALL_DIR)/python/python3.8:$PYTHONPATH
+      # For frontend manager to load mock_py library
+      export OV_FRONTEND_PATH=$(PYTHON_WHEEL_INSTALL_DIR)/openvino/libs:$(INSTALL_TEST_DIR)
       python3 -m pytest -sv $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py \
