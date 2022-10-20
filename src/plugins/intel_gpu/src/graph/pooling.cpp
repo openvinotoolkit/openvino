@@ -46,36 +46,6 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node, kernel_i
         }
     }
 
-    if (!desc->argmax.empty())
-        CLDNN_ERROR_NOT_EQUAL(desc->id,
-                              "Pooling mode",
-                              static_cast<size_t>(desc->mode),
-                              "should be max_with_argmax",
-                              static_cast<size_t>(pooling_mode::max_with_argmax),
-                              "Pooling mode should be set to max_with_argmax when argmax primitive is present.");
-
-    if (desc->mode == pooling_mode::max_with_argmax) {
-        CLDNN_ERROR_NOT_EQUAL(desc->id,
-                              "Argmax primitive",
-                              static_cast<size_t>(desc->argmax.empty()),
-                              "should not be empty",
-                              static_cast<size_t>(0),
-                              "Argmax primitive not present despite max_with_argmax mode.");
-
-        auto argmax_layout = impl_param.get_input_layout(1);
-        CLDNN_ERROR_NOT_EQUAL(desc->id,
-                              "Argmax data type",
-                              static_cast<size_t>(argmax_layout.data_type),
-                              "expected to be fp32",
-                              static_cast<size_t>(data_types::f32),
-                              "Argmax data type is not fp32.");
-        CLDNN_ERROR_NOT_PROPER_FORMAT(desc->id,
-                                      "Input_layout.format",
-                                      input_layout.format.value,
-                                      "argmax_layout.format",
-                                      argmax_layout.format);
-    }
-
     if (desc->global_pooling) {
         window_size = ov::Shape(input_layout.get_spatial_rank(), 1);
         for (size_t i = 0; i < input_layout.get_spatial_rank(); i++) {

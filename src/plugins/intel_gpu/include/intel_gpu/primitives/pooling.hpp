@@ -26,8 +26,6 @@ enum class pooling_mode : int32_t {
     average,
     /// @brief Average-pooling method without values which are outside of the input.
     average_no_padding,
-    /// @brief Maximum-pooling method with additional buffer to store argmax indices.
-    max_with_argmax,
     /// @brief Pooling with bilinear interpolation.
     bilinear,
     /// @brief Deformable pooling with bilinear interpolation.
@@ -54,34 +52,6 @@ struct pooling : public primitive_base<pooling> {
             const ov::Shape& pad = {0, 0},
             const padding& output_padding = padding())
         : primitive_base(id, {input}, output_padding),
-          argmax(""),
-          mode(static_cast<pooling_mode>(mode)),
-          global_pooling(false),
-          pad(pad),
-          stride(stride),
-          size(size),
-          with_output_size(false),
-          pad_end(size.size(), 0) {}
-
-    /// @brief Constructs pooling primitive with argmax.
-    /// @param id This primitive id.
-    /// @param input Input primitive id.
-    /// @param argmax Primitive id which contains indices of each max pooling region.
-    /// Indices must be in flattened bfyx format with no padding. Needs to be fp32 data type.
-    /// @param mode Pooling mode.
-    /// @param stride Defines shift in input buffer between adjacent calculations of output values.
-    /// @param size Pooling kernel size.
-    /// @param pad Defines logical pad value added to input tensor
-    pooling(const primitive_id& id,
-            const primitive_id& input,
-            const primitive_id& argmax,
-            pooling_mode mode,
-            const ov::Shape& size,
-            const ov::Strides& stride,
-            const ov::Shape& pad = {0, 0},
-            const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
-          argmax(argmax),
           mode(static_cast<pooling_mode>(mode)),
           global_pooling(false),
           pad(pad),
@@ -108,37 +78,6 @@ struct pooling : public primitive_base<pooling> {
             const data_types output_data_type,
             const padding& output_padding = padding())
         : primitive_base(id, {input}, output_padding, optional_data_type{output_data_type}),
-          argmax(""),
-          mode(static_cast<pooling_mode>(mode)),
-          global_pooling(false),
-          pad(pad),
-          stride(stride),
-          size(size),
-          with_output_size(true),
-          output_size(output_size),
-          pad_end(size.size(), 0) {}
-
-    /// @brief Constructs pooling primitive with argmax (computes input paddings to match output size).
-    /// @param id This primitive id.
-    /// @param input Input primitive id.
-    /// @param argmax Primitive id which contains indices of each max pooling region.
-    /// Indices must be in flattened bfyx format with no padding. Needs to be fp32 data type.
-    /// @param mode Pooling mode.
-    /// @param stride Defines shift in input buffer between adjacent calculations of output values.
-    /// @param size Pooling kernel size.
-    /// @param pad Defines logical pad value added to input tensor.
-    /// @param output_size User-defined output data size of the primitive (w/o padding).
-    pooling(const primitive_id& id,
-            const primitive_id& input,
-            const primitive_id& argmax,
-            pooling_mode mode,
-            const ov::Shape& size,
-            const ov::Strides& stride,
-            const ov::Shape& pad,
-            tensor output_size,
-            const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
-          argmax(argmax),
           mode(static_cast<pooling_mode>(mode)),
           global_pooling(false),
           pad(pad),
@@ -157,7 +96,6 @@ struct pooling : public primitive_base<pooling> {
             pooling_mode mode,
             const padding& output_padding = padding())
         : primitive_base(id, {input}, output_padding),
-          argmax(""),
           mode(static_cast<pooling_mode>(mode)),
           global_pooling(true),
           pad({0, 0}),
@@ -192,7 +130,6 @@ struct pooling : public primitive_base<pooling> {
             const data_types output_data_type,
             const padding& output_padding = padding())
             : primitive_base(id, {input, indices_output}, output_padding, optional_data_type{output_data_type}),
-              argmax(""),
               indices_output(indices_output),
               mode(pooling_mode::max),
               global_pooling(false),
@@ -208,9 +145,6 @@ struct pooling : public primitive_base<pooling> {
               maxPoolOpset8Features(true)
               {}
 
-    /// @brief Primitive id which contains indices of each max pooling region.
-    /// Indices must be in flattened bfyx format with no padding. Needs to be fp32 data type.
-    primitive_id argmax;
     /// @brief Primitive id which contains indices output.
     primitive_id indices_output;
     /// @brief Pooling mode.
@@ -240,8 +174,6 @@ struct pooling : public primitive_base<pooling> {
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
-        if (!argmax.empty())
-            ret.push_back(argmax);
         if (!indices_output.empty())
             ret.push_back(indices_output);
         return ret;

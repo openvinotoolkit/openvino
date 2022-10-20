@@ -30,9 +30,8 @@ void trim_to_outputs::run(program& p) {
     for (auto& node : p.get_processing_order()) {
         if (node->is_type<input_layout>() ||  // input layout may become disconnected during prior boxes calculations so
                                               // it may have not been marked at this place but we don't want to remove it
-            node->is_type<max_unpooling>() ||  // ToDo: remove this after support for multi-outputs in primitives will
-                                               // be implemented.
-            (node->is_type<pooling>() && node->as<pooling>().get_primitive()->mode == pooling_mode::max_with_argmax))
+            node->is_type<max_unpooling>())   // ToDo: remove this after support for multi-outputs in primitives will
+                                              // be implemented.
             special_nodes.push_back(node);
     }
     queue.push(&special_nodes);

@@ -36,8 +36,6 @@ kernel_selector::pool_type cldnn_2_pool_type(pooling_mode mode) {
             return kernel_selector::pool_type::AVG;
         case pooling_mode::average_no_padding:
             return kernel_selector::pool_type::AVG;
-        case pooling_mode::max_with_argmax:
-            return kernel_selector::pool_type::MAX_WITH_ARGMAX;
         default:
             assert(0);
             return kernel_selector::pool_type::MAX;
@@ -47,8 +45,6 @@ kernel_selector::pool_type cldnn_2_pool_type(pooling_mode mode) {
 kernel_selector::kernel_divider_mode cldnn_2_kernel_divider_mode(pooling_mode mode) {
     switch (mode) {
         case pooling_mode::max:
-        case pooling_mode::max_with_argmax:
-            return kernel_selector::kernel_divider_mode::DONT_CARE;
         case pooling_mode::average:
             return kernel_selector::kernel_divider_mode::FIXED;
         case pooling_mode::average_no_padding:
@@ -71,8 +67,6 @@ struct pooling_impl : typed_primitive_impl_ocl<pooling> {
 protected:
     kernel_arguments_data get_arguments(typed_primitive_inst<pooling>& instance, int32_t split) const override {
         kernel_arguments_data args = parent::get_arguments(instance, split);
-        if (!instance.argument->argmax.empty())
-            args.inputs.push_back(instance.dep_memory_ptr(1));
         return args;
     }
 
@@ -133,9 +127,6 @@ public:
             pp.divMode = kernel_selector::kernel_divider_mode::DYNAMIC_WITH_PADDING;
         else
             pp.divMode = cldnn_2_kernel_divider_mode(primitive->mode);
-
-        if (primitive->mode == pooling_mode::max_with_argmax)
-            pool_params.inputs.push_back(convert_data_tensor(arg.argmax().get_output_layout()));
 
         uint32_t kernel_z = kernel.size() >= 3 ? kernel[kernel.size() - 3] : 1;
         uint32_t kernel_y = kernel.size() >= 2 ? kernel[kernel.size() - 2] : 1;

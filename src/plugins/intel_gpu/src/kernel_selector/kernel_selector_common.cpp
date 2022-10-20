@@ -241,7 +241,6 @@ std::string toString(PoolType mode) {
     switch (mode) {
         case PoolType::MAX:                 return "MAX";
         case PoolType::AVG:                 return "AVG";
-        case PoolType::MAX_WITH_ARGMAX:     return "MAX_WITH_ARGMAX";
         case PoolType::BILINEAR:            return "BILINEAR";
         case PoolType::DEFORMABLE_BILINEAR: return "DEFORMABLE_BILINEAR";
         default: return "";
