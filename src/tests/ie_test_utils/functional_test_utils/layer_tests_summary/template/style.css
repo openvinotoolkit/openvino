@@ -18,16 +18,16 @@ body {
    cursor: default;
 }
 
-.nr_value {
-  font-weight: 500;
+.nr_value value {
+  font-weight: inherit;
   background: #8080803d;
 }
 .nr_value span {
- display:inline-block;
- font-weight: 400;
- padding: 1px 5px;
- border-radius: 2px;
- cursor: default;
+ display:inherit;
+ font-weight: inherit;
+ padding: inherit;
+ border-radius: inherit;
+ cursor: inherit;
 }
 
  .green {
