@@ -113,6 +113,8 @@ int main() {
     ov_compiled_model_create_infer_request(compiled_model, &infer_request);
     //! [ov_api_2_0:create_infer_request]
 
+    inputs_aligned(infer_request);
+
     //! [ov_api_2_0:inference]
     ov_infer_request_infer(infer_request);
     //! [ov_api_2_0:inference]
@@ -130,6 +132,8 @@ int main() {
     // Wait for 10 milisecond
     ov_infer_request_wait_for(infer_request, 10);
     //! [ov_api_2_0:start_async_and_wait]
+
+    outputs_aligned(infer_request);
 
     //! [ov_api_2_0:load_old_extension]
     // For C API 2.0 "add_extension()" is not supported for now
