@@ -167,6 +167,6 @@ where:
 
 You can also point to more than two devices: `-d HETERO:MYRIAD,GPU,CPU`
 
-### See Also
+### Additional Resources
 
 * [Supported Devices](supported_plugins/Supported_Devices.md)
