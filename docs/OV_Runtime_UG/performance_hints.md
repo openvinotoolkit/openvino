@@ -131,5 +131,5 @@ The `benchmark_app`, that exists in both  [C++](../../samples/cpp/benchmark_app/
 - - benchmark_app **-hint none -nstreams 1**  -d 'device' -m 'path to your model'
  
 
-### See Also
+### Additional Resources
 * [Supported Devices](./supported_plugins/Supported_Devices.md)
