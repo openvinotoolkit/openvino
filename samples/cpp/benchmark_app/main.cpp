@@ -66,15 +66,21 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
                                "(those options can be used in OpenVINO together), but a benchmark_app UI rule.");
     }
     if (!FLAGS_report_type.empty() && FLAGS_report_type != noCntReport && FLAGS_report_type != averageCntReport &&
-        FLAGS_report_type != detailedCntReport) {
+        FLAGS_report_type != detailedCntReport && FLAGS_report_type != sortDetailedCntReport) {
         std::string err = "only " + std::string(noCntReport) + "/" + std::string(averageCntReport) + "/" +
-                          std::string(detailedCntReport) +
+                          std::string(detailedCntReport) + "/" + std::string(sortDetailedCntReport) +
                           " report types are supported (invalid -report_type option value)";
         throw std::logic_error(err);
     }
 
     if ((FLAGS_report_type == averageCntReport) && ((FLAGS_d.find("MULTI") != std::string::npos))) {
         throw std::logic_error("only " + std::string(detailedCntReport) + " report type is supported for MULTI device");
+    }
+
+    if (!FLAGS_pcsort.empty() && FLAGS_pcsort != "sort" && FLAGS_pcsort != "no_sort" && FLAGS_pcsort != "simple_sort") {
+        std::string pcsort_err = std::string("Incorrect performance count sort . Please set -pcsort option to ") +
+                                 std::string("'sort', 'no_sort', 'simple_sort'.");
+        throw std::logic_error(pcsort_err);
     }
 
     bool isNetworkCompiled = fileExt(FLAGS_m) == "blob";
@@ -304,13 +310,18 @@ int main(int argc, char* argv[]) {
                        (device_config.at(ov::enable_profiling.name()).as<bool>())) {
                 slog::warn << "Performance counters for " << device
                            << " device is turned on. To print results use -pc option." << slog::endl;
-            } else if (FLAGS_report_type == detailedCntReport || FLAGS_report_type == averageCntReport) {
+            } else if (FLAGS_report_type == detailedCntReport || FLAGS_report_type == averageCntReport ||
+                       FLAGS_report_type == sortDetailedCntReport) {
                 slog::warn << "Turn on performance counters for " << device << " device since report type is "
                            << FLAGS_report_type << "." << slog::endl;
                 device_config.emplace(ov::enable_profiling(true));
             } else if (!FLAGS_exec_graph_path.empty()) {
                 slog::warn << "Turn on performance counters for " << device << " device due to execution graph dumping."
                            << slog::endl;
+                device_config.emplace(ov::enable_profiling(true));
+            } else if (!FLAGS_pcsort.empty()) {
+                slog::warn << "Turn on sorted performance counters for " << device << " device since pcsort is"
+                           << FLAGS_pcsort << "." << slog::endl;
                 device_config.emplace(ov::enable_profiling(true));
             } else {
                 // set to default value
@@ -1171,7 +1182,14 @@ int main(int argc, char* argv[]) {
             std::vector<std::vector<ov::ProfilingInfo>> perfCounts;
             for (size_t ireq = 0; ireq < nireq; ireq++) {
                 auto reqPerfCounts = inferRequestsQueue.requests[ireq]->get_performance_counts();
-                if (FLAGS_pc) {
+                if (!FLAGS_pcsort.empty()) {
+                    slog::info << "Sort performance counts for " << ireq << "-th infer request:" << slog::endl;
+                    printPerformanceCountsSort(reqPerfCounts,
+                                               std::cout,
+                                               getFullDeviceName(core, FLAGS_d),
+                                               FLAGS_pcsort,
+                                               false);
+                } else if (FLAGS_pc) {
                     slog::info << "Performance counts for " << ireq << "-th infer request:" << slog::endl;
                     printPerformanceCounts(reqPerfCounts, std::cout, getFullDeviceName(core, FLAGS_d), false);
                 }
