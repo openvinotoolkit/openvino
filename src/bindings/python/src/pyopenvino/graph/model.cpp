@@ -718,9 +718,9 @@ void regclass_graph_Model(py::module m) {
     model.def(
         "get_rt_info",
         [](const ov::Model& self, const py::list& path) -> py::object {
-            std::vector<std::string> cpp_args;
+            std::vector<std::string> cpp_args(path.size());
             for (size_t i = 0; i < path.size(); i++) {
-                cpp_args.emplace_back(path[i].cast<std::string>());
+                cpp_args[i] = path[i].cast<std::string>();
             }
             return Common::utils::from_ov_any(self.get_rt_info<ov::Any>(cpp_args));
         },
@@ -752,9 +752,9 @@ void regclass_graph_Model(py::module m) {
     model.def(
         "has_rt_info",
         [](const ov::Model& self, const py::list& path) -> bool {
-            std::vector<std::string> cpp_args;
+            std::vector<std::string> cpp_args(path.size());
             for (size_t i = 0; i < path.size(); i++) {
-                cpp_args.emplace_back(path[i].cast<std::string>());
+                cpp_args[i] = path[i].cast<std::string>();
             }
             return self.has_rt_info(cpp_args);
         },
@@ -786,9 +786,9 @@ void regclass_graph_Model(py::module m) {
     model.def(
         "set_rt_info",
         [](ov::Model& self, const py::object& obj, const py::list& path) -> void {
-            std::vector<std::string> cpp_args;
+            std::vector<std::string> cpp_args(path.size());
             for (size_t i = 0; i < path.size(); i++) {
-                cpp_args.emplace_back(path[i].cast<std::string>());
+                cpp_args[i] = path[i].cast<std::string>();
             }
             self.set_rt_info<ov::Any>(py_object_to_any(obj), cpp_args);
         },
