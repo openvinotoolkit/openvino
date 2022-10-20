@@ -45,7 +45,9 @@ public:
 
     // \brief Returns true if keep_dims is set to true explicitly.
     // Otherwise, (also keep_dims not handled) returns false.
-    virtual bool get_keep_dims() const { return false; }
+    virtual bool get_keep_dims() const {
+        return false;
+    }
 };
 }  // namespace util
 }  // namespace op

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/constant.hpp"
 #include "openvino/op/util/reduction_base.hpp"
+
+#include "openvino/op/constant.hpp"
 #include "reduce_shape_inference.hpp"
 
 using namespace std;
@@ -38,5 +39,6 @@ const ov::AxisSet ov::op::util::ReductionBase::get_reduction_axes() const {
 
 void ov::op::util::ReductionBase::set_reduction_axes(const AxisSet& reduction_axes) {
     this->input(1).replace_source_output(
-        op::v0::Constant::create(element::i64, ov::Shape{reduction_axes.size()}, reduction_axes.to_vector())->output(0));
+        op::v0::Constant::create(element::i64, ov::Shape{reduction_axes.size()}, reduction_axes.to_vector())
+            ->output(0));
 }
