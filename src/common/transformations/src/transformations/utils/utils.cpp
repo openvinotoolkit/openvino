@@ -213,7 +213,7 @@ void visit_shape_path(Node* node, std::unordered_set<ov::Node*>& visited, std::f
 }
 
 bool is_dequantization_subgraph(const Output<Node>& node) {
-    if (!is_type<op::v1::Multiply>(node.get_node())) {
+    if (!is_type<opset8::Multiply>(node.get_node())) {
         return false;
     }
 
@@ -221,9 +221,9 @@ bool is_dequantization_subgraph(const Output<Node>& node) {
     Node* sub = nullptr;
     Node* convert = nullptr;
 
-    if (is_type<op::v1::Subtract>(mul_inputs[0].get_node())) {
+    if (is_type<opset8::Subtract>(mul_inputs[0].get_node())) {
         sub = mul_inputs[0].get_node();
-    } else if (is_type<op::v0::Convert>(mul_inputs[0].get_node())) {
+    } else if (is_type<opset8::Convert>(mul_inputs[0].get_node())) {
         convert = mul_inputs[0].get_node();
     } else {
         return false;
@@ -231,7 +231,7 @@ bool is_dequantization_subgraph(const Output<Node>& node) {
 
     if (sub) {
         auto sub_inputs = sub->input_values();
-        if (is_type<op::v0::Convert>(sub_inputs[0].get_node())) {
+        if (is_type<opset8::Convert>(sub_inputs[0].get_node())) {
             convert = sub_inputs[0].get_node();
         }
     }
@@ -248,8 +248,8 @@ bool is_dequantization_subgraph(const Output<Node>& node) {
 bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
                                 const Output<Node>& constant,
                                 const Output<Node>& non_constant_input) {
-    if (!is_type<op::v1::Add>(eltwise) && !is_type<op::v1::Subtract>(eltwise) && !is_type<op::v1::Multiply>(eltwise) &&
-        !is_type<op::v1::Divide>(eltwise)) {
+    if (!is_type<opset8::Add>(eltwise) && !is_type<opset8::Subtract>(eltwise) && !is_type<opset8::Multiply>(eltwise) &&
+        !is_type<opset8::Divide>(eltwise)) {
         return false;
     }
 
@@ -258,7 +258,7 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
     }
 
     // check if constant has a single value with either 0 (for Add, Subtract) or 1 (for Multiply, Divide)
-    auto constant_ptr = std::dynamic_pointer_cast<op::v0::Constant>(constant.get_node_shared_ptr());
+    auto constant_ptr = std::dynamic_pointer_cast<opset8::Constant>(constant.get_node_shared_ptr());
     if (!constant_ptr) {
         return false;
     }
@@ -302,7 +302,7 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
         return false;
     }
     float expected_const = 0;
-    if (is_type<op::v1::Multiply>(eltwise) || is_type<op::v1::Divide>(eltwise)) {
+    if (is_type<opset8::Multiply>(eltwise) || is_type<opset8::Divide>(eltwise)) {
         expected_const = 1;
     }
     if (actual_const != expected_const) {
