@@ -594,7 +594,7 @@ TEST(type_prop, gather_v8_dynamic_pshape_batch_dims_1_axis_3) {
 TEST(type_prop, gather_v8_dim_no_bound_pshape_batch_dims_1_axis_3) {
     PartialShape data_shape{Dimension(7, -1), Dimension(-1, 3), 200, 400};
     PartialShape indices_shape{Dimension(7, 10), Dimension(2, 10), 3, 8};
-    PartialShape out_shape{7, Dimension(-1, 3), 200, Dimension(2, 10), 3, 8};
+    PartialShape out_shape{Dimension(7, 10), Dimension(-1, 3), 200, Dimension(2, 10), 3, 8};
     int64_t axis = 3;
     int64_t batch_dims = 1;
 
@@ -717,7 +717,8 @@ TEST(type_prop, gather_v8_axis_not_set_positive_batch_dims) {
     ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
-TEST(type_prop, gather_8_dynamic_value_and_label_propagation) {
+/** \brief Check usage of evaluate lower and label on shape inference. */
+TEST(type_prop, gather_v8_dynamic_value_and_label_propagation) {
     Dimension marked_0 = Dimension(3);
     ov::DimensionTracker::set_label(marked_0, 10);
     PartialShape target_0 = PartialShape{marked_0, 4};
@@ -734,6 +735,29 @@ TEST(type_prop, gather_8_dynamic_value_and_label_propagation) {
 
     auto bc = std::make_shared<op::v1::Broadcast>(param, gather);
     ASSERT_EQ(bc->get_shape(), (Shape{3}));
+
+    const auto& output_shape = bc->get_output_partial_shape(0);
+    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+}
+
+/** \brief Check usage of evaluate lower/upper and label on shape inference. */
+TEST(type_prop, gather_v8_dynamic_value_and_label_propagation_interval_dim) {
+    Dimension marked_0 = Dimension(2, 4);
+    ov::DimensionTracker::set_label(marked_0, 10);
+    PartialShape target_0 = PartialShape{marked_0, 4};
+
+    auto param = std::make_shared<op::Parameter>(element::f32, Shape{1});
+    auto param_0 = std::make_shared<op::Parameter>(element::f32, target_0);
+    auto shape_0 = std::make_shared<op::ShapeOf>(param_0);
+
+    const auto& et = element::i64;
+    std::vector<int64_t> zero{0};
+    const auto indices = std::make_shared<op::v0::Constant>(et, Shape{zero.size()}, zero);
+    const auto axis = std::make_shared<op::v0::Constant>(et, Shape{}, zero);
+    const auto gather = std::make_shared<op::v8::Gather>(shape_0, indices, axis);
+
+    auto bc = std::make_shared<op::v1::Broadcast>(param, gather);
+    ASSERT_EQ(bc->get_output_partial_shape(0), PartialShape({marked_0}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
     ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
