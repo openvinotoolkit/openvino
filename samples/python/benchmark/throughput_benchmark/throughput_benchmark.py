@@ -57,7 +57,7 @@ def main():
         log.info(f'Usage: {sys.argv[0]} <path_to_model>')
         return 1
     # Optimize for throughput. Best throughput can be reached by
-    # running multiple ov::InferRequest instances asyncronously
+    # running multiple openvino.runtime.InferRequest instances asyncronously
     tput = {'PERFORMANCE_HINT': 'THROUGHPUT'}
 
     # Uncomment the following line to enable detailed performace counters
@@ -74,8 +74,8 @@ def main():
         for model_input in compiled_model.inputs:
             fill_tensor_random(ireq.get_tensor(model_input))
     # Warm up
-    for _ in ireqs:
-        ireqs.start_async()
+    for ireq in ireqs:
+        ireq.start_async()
     for ireq in ireqs:
         ireq.wait()
     # Benchmark for seconds_to_run seconds and at least niter iterations

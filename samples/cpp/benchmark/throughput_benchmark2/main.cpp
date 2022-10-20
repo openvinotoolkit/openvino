@@ -111,6 +111,7 @@ int main(int argc, char* argv[]) {
                 }
                 ireq.set_callback(
                     [&ireq, time_point, &mutex, &finished_ireqs, &callback_exception, &cv](std::exception_ptr ex) {
+                        // Keep callback small. This improves performance for fast (tens of thousands FPS) models
                         std::unique_lock<std::mutex> lock(mutex);
                         {
                             try {

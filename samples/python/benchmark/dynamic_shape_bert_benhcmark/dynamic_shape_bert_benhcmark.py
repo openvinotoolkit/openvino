@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+import logging as log
+from pathlib import Path
+import sys
+from time import perf_counter
+
+import datasets
+from openvino.runtime import Core, get_version, AsyncInferQueue, PartialShape
+from transformers import BertTokenizer
+
+
+def main():
+    log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
+    log.info(f"OpenVINO:\n{'': <9}{'API version':.<24} {get_version()}")
+    if len(sys.argv) != 2:
+        log.info(f'Usage: {sys.argv[0]} <path_to_model>')
+        return 1
+    # Open Model Zoo downloads vocab.txt to the parrent directory of .xml file
+    # Or use tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+    # to download it
+    tokenizer = BertTokenizer(Path(sys.argv[1]).parent.parent / "vocab.txt")
+
+    core = Core()
+    model = core.read_model(sys.argv[1])
+    # Enforce dynamic input shape
+    model.reshape({model_input.any_name: PartialShape([1, '?']) for model_input in model.inputs})
+    # Optimize for throughput. Best throughput can be reached by
+    # running multiple openvino.runtime.InferRequest instances asyncronously
+    tput = {'PERFORMANCE_HINT': 'THROUGHPUT'}
+    # Pick device by replacing CPU, for example MULTI:CPU(4),GPU(8)
+    compiled_model = core.compile_model(model, 'CPU', tput)
+    # AsyncInferQueue creates optimal number of InferRequest instances
+    ireqs = AsyncInferQueue(compiled_model)
+
+    sst2 = datasets.load_dataset("glue", "sst2")
+    sst2_sentences = sst2['validation']['sentence']
+    # Warm up
+    encoded_warm_up = dict(tokenizer("Warm up sentence is here.", return_tensors="np"))
+    for _ in ireqs:
+        ireqs.start_async(encoded_warm_up)
+    for ireq in ireqs:
+        ireq.wait()
+    # Benchmark
+    start = perf_counter()
+    for sentence in sst2_sentences:
+        encoded = dict(tokenizer(sentence, return_tensors="np"))
+        ireqs.start_async(encoded)
+    ireqs.wait_all()
+    end = perf_counter()
+    log.info(f'Duration:       {end - start:.2f} seconds')
+
+
+if __name__ == '__main__':
+    main()
