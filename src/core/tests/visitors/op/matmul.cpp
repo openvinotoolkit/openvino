@@ -25,7 +25,7 @@ TEST(attributes, matmul_op) {
     bool transpose_b = true;
 
     auto matmul = make_shared<opset1::MatMul>(A, B, transpose_a, transpose_b);
-    NodeBuilder builder(matmul);
+    NodeBuilder builder(matmul, {A, B});
     auto g_matmul = ov::as_type_ptr<opset1::MatMul>(builder.create());
 
     EXPECT_EQ(g_matmul->get_transpose_a(), matmul->get_transpose_a());
@@ -41,7 +41,7 @@ TEST(attributes, matmul_op2) {
     bool transpose_b = false;
 
     auto matmul = make_shared<opset1::MatMul>(A, B, transpose_a, transpose_b);
-    NodeBuilder builder(matmul);
+    NodeBuilder builder(matmul, {A, B});
     auto g_matmul = ov::as_type_ptr<opset1::MatMul>(builder.create());
 
     EXPECT_EQ(g_matmul->get_transpose_a(), matmul->get_transpose_a());
@@ -57,7 +57,7 @@ TEST(attributes, matmul_op3) {
     bool transpose_b = false;
 
     auto matmul = make_shared<opset1::MatMul>(A, B, transpose_a, transpose_b);
-    NodeBuilder builder(matmul);
+    NodeBuilder builder(matmul, {A, B});
     auto g_matmul = ov::as_type_ptr<opset1::MatMul>(builder.create());
 
     EXPECT_EQ(g_matmul->get_transpose_a(), matmul->get_transpose_a());
@@ -70,7 +70,7 @@ TEST(attributes, matmul_op4) {
     auto B = make_shared<op::Parameter>(element::f32, Shape{3, 2, 2, 1});
 
     auto matmul = make_shared<opset1::MatMul>(A, B);
-    NodeBuilder builder(matmul);
+    NodeBuilder builder(matmul, {A, B});
     auto g_matmul = ov::as_type_ptr<opset1::MatMul>(builder.create());
 
     EXPECT_EQ(g_matmul->get_transpose_a(), matmul->get_transpose_a());
@@ -83,7 +83,7 @@ TEST(attributes, matmul_op5) {
     auto B = make_shared<op::Parameter>(element::f32, Shape{2, 10});
 
     auto matmul = make_shared<opset1::MatMul>(A, B);
-    NodeBuilder builder(matmul);
+    NodeBuilder builder(matmul, {A, B});
     auto g_matmul = ov::as_type_ptr<opset1::MatMul>(builder.create());
 
     EXPECT_EQ(g_matmul->get_transpose_a(), matmul->get_transpose_a());
@@ -96,7 +96,7 @@ TEST(attributes, matmul_op6) {
     auto B = make_shared<op::Parameter>(element::f32, Shape{2048, 1000});
 
     auto matmul = make_shared<opset1::MatMul>(A, B);
-    NodeBuilder builder(matmul);
+    NodeBuilder builder(matmul, {A, B});
     auto g_matmul = ov::as_type_ptr<opset1::MatMul>(builder.create());
 
     EXPECT_EQ(g_matmul->get_transpose_a(), matmul->get_transpose_a());

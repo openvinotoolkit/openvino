@@ -21,7 +21,7 @@ TEST(attributes, select_fp32) {
     auto auto_broadcast = op::AutoBroadcastType::NUMPY;
 
     auto select = std::make_shared<opset1::Select>(in_cond, in_then, in_else, auto_broadcast);
-    NodeBuilder builder(select);
+    NodeBuilder builder(select, {in_cond, in_then, in_else});
 
     const auto expected_attr_count = 1;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
@@ -39,7 +39,7 @@ TEST(attributes, select_i32) {
     auto auto_broadcast = op::AutoBroadcastType::NUMPY;
 
     auto select = std::make_shared<opset1::Select>(in_cond, in_then, in_else, auto_broadcast);
-    NodeBuilder builder(select);
+    NodeBuilder builder(select, {in_cond, in_then, in_else});
 
     const auto expected_attr_count = 1;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

@@ -18,7 +18,8 @@ TEST(attributes, tile_op) {
     const auto repeats = make_shared<op::Constant>(element::i64, Shape{4});
 
     const auto tile = make_shared<opset1::Tile>(data, repeats);
-    NodeBuilder builder(tile);
+    NodeBuilder builder(tile, {data, repeats});
+    EXPECT_NO_THROW(auto g_tile = ov::as_type_ptr<opset1::Tile>(builder.create()));
 
     const auto expected_attr_count = 0;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

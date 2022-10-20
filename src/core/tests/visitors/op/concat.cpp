@@ -22,7 +22,7 @@ TEST(attributes, concat_op) {
     int64_t axis = 2;
 
     auto concat = make_shared<opset1::Concat>(ov::NodeVector{input1, input2, input3}, axis);
-    NodeBuilder builder(concat);
+    NodeBuilder builder(concat, {input1, input2, input3});
     auto g_concat = ov::as_type_ptr<opset1::Concat>(builder.create());
 
     EXPECT_EQ(g_concat->get_axis(), concat->get_axis());

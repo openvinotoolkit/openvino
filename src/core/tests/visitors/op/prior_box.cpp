@@ -37,7 +37,7 @@ TEST(attributes, prior_box_op) {
     attrs.scale_all_sizes = true;
 
     auto prior_box = make_shared<opset1::PriorBox>(layer_shape, image_shape, attrs);
-    NodeBuilder builder(prior_box);
+    NodeBuilder builder(prior_box, {layer_shape, image_shape});
     auto g_prior_box = ov::as_type_ptr<opset1::PriorBox>(builder.create());
 
     const auto prior_box_attrs = prior_box->get_attrs();
@@ -57,6 +57,7 @@ TEST(attributes, prior_box_op) {
     EXPECT_EQ(g_prior_box_attrs.offset, prior_box_attrs.offset);
     EXPECT_EQ(g_prior_box_attrs.variance, prior_box_attrs.variance);
     EXPECT_EQ(g_prior_box_attrs.scale_all_sizes, prior_box_attrs.scale_all_sizes);
+    EXPECT_EQ(g_prior_box->has_evaluate(), prior_box->has_evaluate());
 }
 
 TEST(attributes, prior_box_op2) {
@@ -79,7 +80,7 @@ TEST(attributes, prior_box_op2) {
     attrs.scale_all_sizes = false;
 
     auto prior_box = make_shared<opset1::PriorBox>(layer_shape, image_shape, attrs);
-    NodeBuilder builder(prior_box);
+    NodeBuilder builder(prior_box, {layer_shape, image_shape});
     auto g_prior_box = ov::as_type_ptr<opset1::PriorBox>(builder.create());
 
     const auto prior_box_attrs = prior_box->get_attrs();
@@ -99,6 +100,7 @@ TEST(attributes, prior_box_op2) {
     EXPECT_EQ(g_prior_box_attrs.offset, prior_box_attrs.offset);
     EXPECT_EQ(g_prior_box_attrs.variance, prior_box_attrs.variance);
     EXPECT_EQ(g_prior_box_attrs.scale_all_sizes, prior_box_attrs.scale_all_sizes);
+    EXPECT_EQ(g_prior_box->has_evaluate(), prior_box->has_evaluate());
 }
 
 TEST(attributes, prior_box_v8_op) {
@@ -122,7 +124,7 @@ TEST(attributes, prior_box_v8_op) {
     attrs.min_max_aspect_ratios_order = false;
 
     auto prior_box = make_shared<opset8::PriorBox>(layer_shape, image_shape, attrs);
-    NodeBuilder builder(prior_box);
+    NodeBuilder builder(prior_box, {layer_shape, image_shape});
     auto g_prior_box = ov::as_type_ptr<opset8::PriorBox>(builder.create());
 
     const auto prior_box_attrs = prior_box->get_attrs();
@@ -143,4 +145,5 @@ TEST(attributes, prior_box_v8_op) {
     EXPECT_EQ(g_prior_box_attrs.variance, prior_box_attrs.variance);
     EXPECT_EQ(g_prior_box_attrs.scale_all_sizes, prior_box_attrs.scale_all_sizes);
     EXPECT_EQ(g_prior_box_attrs.min_max_aspect_ratios_order, prior_box_attrs.min_max_aspect_ratios_order);
+    EXPECT_EQ(g_prior_box->has_evaluate(), prior_box->has_evaluate());
 }

@@ -39,7 +39,7 @@ TEST(attributes, proposal_op) {
     attrs.framework = string{"nGraph"};
 
     auto proposal = make_shared<opset1::Proposal>(class_probs, class_logits, image_shape, attrs);
-    NodeBuilder builder(proposal);
+    NodeBuilder builder(proposal, {class_probs, class_logits, image_shape});
     auto g_proposal = ov::as_type_ptr<opset1::Proposal>(builder.create());
 
     const auto proposal_attrs = proposal->get_attrs();
@@ -78,7 +78,7 @@ TEST(attributes, proposal_op2) {
     attrs.scale = vector<float>{4.0f, 6.0f, 9.0f, 16.0f, 24.0f, 32.0f};
 
     auto proposal = make_shared<opset1::Proposal>(class_probs, class_logits, image_shape, attrs);
-    NodeBuilder builder(proposal);
+    NodeBuilder builder(proposal, {class_probs, class_logits, image_shape});
     auto g_proposal = ov::as_type_ptr<opset1::Proposal>(builder.create());
 
     const auto proposal_attrs = proposal->get_attrs();

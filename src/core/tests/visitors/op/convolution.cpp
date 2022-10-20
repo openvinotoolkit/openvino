@@ -27,7 +27,7 @@ TEST(attributes, convolution) {
     auto convolution =
         make_shared<op::v1::Convolution>(data, filters, strides, pads_begin, pads_end, dilations, op::PadType::VALID);
 
-    NodeBuilder builder(convolution);
+    NodeBuilder builder(convolution, {data, filters});
     auto g_convolution = ov::as_type_ptr<op::v1::Convolution>(builder.create());
 
     // attribute count
@@ -51,7 +51,7 @@ TEST(attributes, convolution2) {
     auto dilations = Strides{1, 1};
     auto convolution =
         make_shared<op::v1::Convolution>(data, filters, strides, pads_begin, pads_end, dilations, op::PadType::VALID);
-    NodeBuilder builder(convolution);
+    NodeBuilder builder(convolution, {data, filters});
     auto g_convolution = ov::as_type_ptr<op::v1::Convolution>(builder.create());
 
     // attribute count

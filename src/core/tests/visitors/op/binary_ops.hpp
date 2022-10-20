@@ -49,7 +49,7 @@ TYPED_TEST_P(BinaryOperatorVisitor, Auto_Broadcast)
     auto auto_broadcast = ngraph::op::AutoBroadcastType::NUMPY;
 
     const auto op_func = std::make_shared<OP_Type>(A, B, auto_broadcast);
-    ngraph::test::NodeBuilder builder(op_func);
+    ngraph::test::NodeBuilder builder(op_func, {A, B});
     const auto g_op_func = ngraph::as_type_ptr<OP_Type>(builder.create());
 
     const auto expected_attr_count = 1;
@@ -69,7 +69,7 @@ TYPED_TEST_P(BinaryOperatorVisitor, No_Broadcast)
         std::make_shared<ngraph::op::Parameter>(element_type, ngraph::PartialShape{1, 2, 3});
 
     const auto op_func = std::make_shared<OP_Type>(A, B);
-    ngraph::test::NodeBuilder builder(op_func);
+    ngraph::test::NodeBuilder builder(op_func, {A, B});
     const auto g_op_func = ngraph::as_type_ptr<OP_Type>(builder.create());
 
     const auto expected_attr_count = 1;

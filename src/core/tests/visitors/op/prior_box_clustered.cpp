@@ -28,7 +28,7 @@ TEST(attributes, prior_box_clustered_op) {
     attrs.variances = {0.1f};
 
     auto pbc = make_shared<opset1::PriorBoxClustered>(layer_shape, image_shape, attrs);
-    NodeBuilder builder(pbc);
+    NodeBuilder builder(pbc, {layer_shape, image_shape});
     auto g_pbc = ov::as_type_ptr<opset1::PriorBoxClustered>(builder.create());
     const auto pbc_attrs = pbc->get_attrs();
     const auto g_pbc_attrs = g_pbc->get_attrs();
@@ -43,6 +43,7 @@ TEST(attributes, prior_box_clustered_op) {
     EXPECT_EQ(g_pbc_attrs.step, pbc_attrs.step);
     EXPECT_EQ(g_pbc_attrs.offset, pbc_attrs.offset);
     EXPECT_EQ(g_pbc_attrs.variances, pbc_attrs.variances);
+    EXPECT_EQ(g_pbc->has_evaluate(), pbc->has_evaluate());
 }
 
 TEST(attributes, prior_box_clustered_op2) {
@@ -61,7 +62,7 @@ TEST(attributes, prior_box_clustered_op2) {
     attrs.variances = {0.1f, 0.1f, 0.2f, 0.2};
 
     auto pbc = make_shared<opset1::PriorBoxClustered>(layer_shape, image_shape, attrs);
-    NodeBuilder builder(pbc);
+    NodeBuilder builder(pbc, {layer_shape, image_shape});
     auto g_pbc = ov::as_type_ptr<opset1::PriorBoxClustered>(builder.create());
     const auto pbc_attrs = pbc->get_attrs();
     const auto g_pbc_attrs = g_pbc->get_attrs();
@@ -76,4 +77,5 @@ TEST(attributes, prior_box_clustered_op2) {
     EXPECT_EQ(g_pbc_attrs.step, pbc_attrs.step);
     EXPECT_EQ(g_pbc_attrs.offset, pbc_attrs.offset);
     EXPECT_EQ(g_pbc_attrs.variances, pbc_attrs.variances);
+    EXPECT_EQ(g_pbc->has_evaluate(), pbc->has_evaluate());
 }

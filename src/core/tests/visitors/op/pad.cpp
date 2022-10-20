@@ -25,10 +25,12 @@ TEST(attributes, pad_op) {
     auto pad_mode = op::PadMode::EDGE;
 
     auto pad = make_shared<opset1::Pad>(arg, pads_begin, pads_end, pad_mode);
-    NodeBuilder builder(pad);
+    NodeBuilder builder(pad, {arg, pads_begin, pads_end});
     auto g_pad = ov::as_type_ptr<opset1::Pad>(builder.create());
 
     EXPECT_EQ(g_pad->get_pad_mode(), pad->get_pad_mode());
+    EXPECT_EQ(g_pad->get_pads_begin(), pad->get_pads_begin());
+    EXPECT_EQ(g_pad->get_pads_end(), pad->get_pads_end());
 }
 
 TEST(attributes, pad_op2) {
@@ -41,8 +43,10 @@ TEST(attributes, pad_op2) {
     auto pad_mode = op::PadMode::CONSTANT;
 
     auto pad = make_shared<opset1::Pad>(arg, pads_begin, pads_end, pad_value, pad_mode);
-    NodeBuilder builder(pad);
+    NodeBuilder builder(pad, {arg, pads_begin, pads_end, pad_value});
     auto g_pad = ov::as_type_ptr<opset1::Pad>(builder.create());
 
     EXPECT_EQ(g_pad->get_pad_mode(), pad->get_pad_mode());
+    EXPECT_EQ(g_pad->get_pads_begin(), pad->get_pads_begin());
+    EXPECT_EQ(g_pad->get_pads_end(), pad->get_pads_end());
 }

@@ -22,7 +22,7 @@ TEST(attributes, range_op) {
     auto output_type = element::f32;
 
     auto range = make_shared<opset4::Range>(start, stop, step, output_type);
-    NodeBuilder builder(range);
+    NodeBuilder builder(range, {start, stop, step});
     auto g_range = ov::as_type_ptr<opset4::Range>(builder.create());
 
     EXPECT_EQ(g_range->get_output_type(), range->get_output_type());
