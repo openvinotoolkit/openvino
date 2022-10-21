@@ -707,6 +707,23 @@ TEST(type_prop, gather_v8_dynamic_value_and_label_propagation_interval_dim) {
     EXPECT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
 }
 
+TEST(type_prop, gather_v8_use_default_ctor) {
+    auto D = make_shared<op::Parameter>(element::f32, PartialShape{2, 1, 200, 400});
+    auto I = make_shared<op::Parameter>(element::i64, PartialShape{2, 2});
+    auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{-1});
+    constexpr int64_t batch_dims = 1;
+
+    auto G = make_shared<op::v8::Gather>();
+    G->set_arguments(NodeVector{D, I, A});
+    G->set_batch_dims(batch_dims);
+    G->validate_and_infer_types();
+
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_batch_dims(), batch_dims);
+    EXPECT_EQ(G->get_axis(), 3);
+    EXPECT_EQ(G->get_output_partial_shape(0), PartialShape({2, 1, 200, 2}));
+}
+
 // --------------------- V8 Negative tests ------------------------------
 
 TEST(type_prop, gather_v8_incorrect_axis_shape) {
