@@ -785,9 +785,6 @@ static bool is_node_for_onednn(reduce_node const& node, format preferred_format)
     }
 
     auto input_layout = input.get_output_layout();
-    if (input_layout.get_partial_shape().size() > 4) {
-        return false;
-    }
 
     // redundant reduce is not acceptable on oneDNN reduction
     if (node.get_output_layout() == input_layout) {
