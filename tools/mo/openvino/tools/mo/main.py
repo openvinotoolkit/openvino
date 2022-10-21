@@ -82,7 +82,7 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
     serialize(ngraph_function, model_path.encode('utf-8'), model_path.replace('.xml', '.bin').encode('utf-8'))
 
     # add meta information to IR
-    append_ir_info(file=model_path_no_ext, meta_info=get_meta_info(argv))
+    #append_ir_info(file=model_path_no_ext, meta_info=get_meta_info(argv))
 
     # generate .mapping file
     path_to_mapping = model_path_no_ext + ".mapping"
