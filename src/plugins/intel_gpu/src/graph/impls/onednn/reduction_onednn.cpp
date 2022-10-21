@@ -105,9 +105,11 @@ attach_reduction_onednn::attach_reduction_onednn() {
         data_types::i8,
     };
     std::vector<format::type> fmt = {
+        format::bfyx,
         format::b_fs_yx_fsv16,
         format::b_fs_yx_fsv32,
         format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv16_fsv32,
         format::bs_fs_yx_bsv32_fsv16,
         format::bs_fs_yx_bsv32_fsv32,
     };
