@@ -279,14 +279,11 @@ TEST_P(InterpolateLayerCPUTest, CompareWithRefs) {
 namespace {
 
 /* CPU PARAMS */
-std::vector<CPUSpecificParams> filterCPUInfoForDevice(bool forcePlanarForAvx512 = false, bool forcePlanarForSse = false) {
+std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
     std::vector<CPUSpecificParams> resCPUParams;
     if (InferenceEngine::with_cpu_x86_avx512f()) {
         resCPUParams.push_back(CPUSpecificParams{{nChw16c, x, x, x}, {nChw16c}, {"jit_avx512"}, "jit_avx512"});
         resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x, x}, {nhwc}, {"jit_avx512"}, "jit_avx512"});
-        if (forcePlanarForAvx512) {
-            resCPUParams.push_back(CPUSpecificParams{{nchw, x, x, x}, {nchw}, {"jit_avx512"}, "jit_avx512"});
-        }
     } else if (InferenceEngine::with_cpu_x86_avx2()) {
         resCPUParams.push_back(CPUSpecificParams{{nChw8c, x, x, x}, {nChw8c}, {"jit_avx2"}, "jit_avx2"});
         resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x, x}, {nhwc}, {"jit_avx2"}, "jit_avx2"});
@@ -294,14 +291,32 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice(bool forcePlanarForAvx512 
     } else if (InferenceEngine::with_cpu_x86_sse42()) {
         resCPUParams.push_back(CPUSpecificParams{{nChw8c, x, x, x}, {nChw8c}, {"jit_sse42"}, "jit_sse42"});
         resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x, x}, {nhwc}, {"jit_sse42"}, "jit_sse42"});
-        if (forcePlanarForSse) {
-            resCPUParams.push_back(CPUSpecificParams{{nchw, x, x, x}, {nchw}, {"jit_sse42"}, "jit_sse42"});
-        }
     } else {
         resCPUParams.push_back(CPUSpecificParams{{nchw, x, x, x}, {nchw}, {"ref"}, "ref"});
     }
     return resCPUParams;
 }
+
+std::vector<CPUSpecificParams> filterCPUInfoForDeviceNearestExtFP32() {
+    std::vector<CPUSpecificParams> resCPUParams{filterCPUInfoForDevice()};
+    if (InferenceEngine::with_cpu_x86_avx512f()) {
+        resCPUParams.push_back(CPUSpecificParams{{nchw, x, x, x}, {nchw}, {"jit_avx2"}, "jit_avx2"});
+    }
+    return resCPUParams;
+}
+
+std::vector<CPUSpecificParams> filterCPUInfoForDeviceNearestExtI8() {
+    std::vector<CPUSpecificParams> resCPUParams{filterCPUInfoForDevice()};
+    if (InferenceEngine::with_cpu_x86_avx512f()) {
+        resCPUParams.push_back(CPUSpecificParams{{nchw, x, x, x}, {nchw}, {"jit_avx512"}, "jit_avx512"});
+    } else if (InferenceEngine::with_cpu_x86_avx2()) {
+        return resCPUParams;
+    } else if (InferenceEngine::with_cpu_x86_sse42()) {
+        resCPUParams.push_back(CPUSpecificParams{{nchw, x, x, x}, {nchw}, {"jit_sse42"}, "jit_sse42"});
+    }
+    return resCPUParams;
+}
+
 /* ========== */
 const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModes_Smoke = {
         ngraph::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL,
@@ -348,16 +363,11 @@ const std::vector<fusingSpecificParams> interpolateFusingParamsSet{
         fusingFakeQuantizePerTensorRelu,
 };
 
-std::vector<std::map<std::string, std::string>> filterAdditionalConfig(bool enforceBF16 = true) {
+std::vector<std::map<std::string, std::string>> filterAdditionalConfig() {
     if (InferenceEngine::with_cpu_x86_avx512f()) {
-        if (enforceBF16) {
-            return {
-                {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}},
-                {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}}
-            };
-        }
         return {
-            {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}}
+            {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}},
+            {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}}
         };
 
     } else {
@@ -365,6 +375,16 @@ std::vector<std::map<std::string, std::string>> filterAdditionalConfig(bool enfo
             // default config as an stub for target without avx512, otherwise all tests with BF16 in its name are skipped
             {{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::NO}}
         };
+    }
+}
+
+std::vector<std::map<std::string, std::string>> filterAdditionalConfigNearestExt() {
+    if (InferenceEngine::with_cpu_x86_avx512f()) {
+        return {
+            {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO}}
+        };
+    } else {
+        return filterAdditionalConfig();
     }
 }
 
@@ -679,9 +699,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNearestExt_FP32_Layout_Test, Interpola
             interpolateCasesNearestExt_Smoke,
             ::testing::ValuesIn(shapeParams4D_NearestExt_Smoke),
             ::testing::Values(ElementType::f32),
-            ::testing::ValuesIn(filterCPUInfoForDevice(true, false)),
+            ::testing::ValuesIn(filterCPUInfoForDeviceNearestExtFP32()),
             ::testing::ValuesIn(interpolateFusingParamsSet),
-            ::testing::ValuesIn(filterAdditionalConfig(false))),
+            ::testing::ValuesIn(filterAdditionalConfigNearestExt())),
     InterpolateLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(InterpolateNearestExt_FP32_Layout_Test, InterpolateLayerCPUTest,
@@ -689,9 +709,9 @@ INSTANTIATE_TEST_SUITE_P(InterpolateNearestExt_FP32_Layout_Test, InterpolateLaye
             interpolateCasesNearestExt_Full,
             ::testing::ValuesIn(shapeParams4D_NearestExt_Full),
             ::testing::Values(ElementType::f32),
-            ::testing::ValuesIn(filterCPUInfoForDevice(true, false)),
+            ::testing::ValuesIn(filterCPUInfoForDeviceNearestExtFP32()),
             ::testing::ValuesIn(interpolateFusingParamsSet),
-            ::testing::ValuesIn(filterAdditionalConfig(false))),
+            ::testing::ValuesIn(filterAdditionalConfigNearestExt())),
     InterpolateLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNearestExt_I8_U8_Layout_Test, InterpolateLayerCPUTest,
@@ -699,9 +719,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNearestExt_I8_U8_Layout_Test, Interpol
             interpolateCasesNearestExt_Smoke,
             ::testing::ValuesIn(shapeParams4D_NearestExt_Smoke),
             ::testing::Values(ElementType::i8, ElementType::u8),
-            ::testing::ValuesIn(filterCPUInfoForDevice(true, true)),
+            ::testing::ValuesIn(filterCPUInfoForDeviceNearestExtI8()),
             ::testing::Values(emptyFusingSpec),
-            ::testing::ValuesIn(filterAdditionalConfig(false))),
+            ::testing::ValuesIn(filterAdditionalConfigNearestExt())),
     InterpolateLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(InterpolateNearestExt_I8_U8_Layout_Test, InterpolateLayerCPUTest,
@@ -709,20 +729,17 @@ INSTANTIATE_TEST_SUITE_P(InterpolateNearestExt_I8_U8_Layout_Test, InterpolateLay
             interpolateCasesNearestExt_Full,
             ::testing::ValuesIn(shapeParams4D_NearestExt_Full),
             ::testing::Values(ElementType::i8, ElementType::u8),
-            ::testing::ValuesIn(filterCPUInfoForDevice(true, true)),
+            ::testing::ValuesIn(filterCPUInfoForDeviceNearestExtI8()),
             ::testing::Values(emptyFusingSpec),
-            ::testing::ValuesIn(filterAdditionalConfig(false))),
+            ::testing::ValuesIn(filterAdditionalConfigNearestExt())),
     InterpolateLayerCPUTest::getTestCaseName);
 
 ////////////////////////5D/////////////////////////////
-std::vector<CPUSpecificParams> filterCPUInfoForDevice5D(bool forcePlanarForAvx512 = false, bool forcePlanarForSse = false) {
+std::vector<CPUSpecificParams> filterCPUInfoForDevice5D() {
     std::vector<CPUSpecificParams> resCPUParams;
     if (InferenceEngine::with_cpu_x86_avx512f()) {
         resCPUParams.push_back(CPUSpecificParams{{nCdhw16c, x, x, x}, {nCdhw16c}, {"jit_avx512"}, "jit_avx512"});
         resCPUParams.push_back(CPUSpecificParams{{ndhwc, x, x, x}, {ndhwc}, {"jit_avx512"}, "jit_avx512"});
-        if (forcePlanarForAvx512) {
-            resCPUParams.push_back(CPUSpecificParams{{ncdhw, x, x, x}, {ncdhw}, {"jit_avx512"}, "jit_avx512"});
-        }
     } else if (InferenceEngine::with_cpu_x86_avx2()) {
         resCPUParams.push_back(CPUSpecificParams{{nCdhw8c, x, x, x}, {nCdhw8c}, {"jit_avx2"}, "jit_avx2"});
         resCPUParams.push_back(CPUSpecificParams{{ndhwc, x, x, x}, {ndhwc}, {"jit_avx2"}, "jit_avx2"});
@@ -730,9 +747,6 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice5D(bool forcePlanarForAvx51
     } else if (InferenceEngine::with_cpu_x86_sse42()) {
         resCPUParams.push_back(CPUSpecificParams{{nCdhw8c, x, x, x}, {nCdhw8c}, {"jit_sse42"}, "jit_sse42"});
         resCPUParams.push_back(CPUSpecificParams{{ndhwc, x, x, x}, {ndhwc}, {"jit_sse42"}, "jit_sse42"});
-        if (forcePlanarForSse) {
-            resCPUParams.push_back(CPUSpecificParams{{ncdhw, x, x, x}, {ncdhw}, {"jit_sse42"}, "jit_sse42"});
-        }
     } else {
         resCPUParams.push_back(CPUSpecificParams{{ncdhw, x, x, x}, {ncdhw}, {"ref"}, "ref"});
     }
@@ -871,6 +885,26 @@ INSTANTIATE_TEST_SUITE_P(InterpolateNN5D_Layout_Test, InterpolateLayerCPUTest,
     InterpolateLayerCPUTest::getTestCaseName);
 
 
+std::vector<CPUSpecificParams> filterCPUInfoForDevice5DNearestExtFP32() {
+    std::vector<CPUSpecificParams> resCPUParams{filterCPUInfoForDevice5D()};
+    if (InferenceEngine::with_cpu_x86_avx512f()) {
+        resCPUParams.push_back(CPUSpecificParams{{ncdhw, x, x, x}, {ncdhw}, {"jit_avx2"}, "jit_avx2"});
+    }
+    return resCPUParams;
+}
+
+std::vector<CPUSpecificParams> filterCPUInfoForDevice5DNearestExtI8() {
+    std::vector<CPUSpecificParams> resCPUParams{filterCPUInfoForDevice5D()};
+    if (InferenceEngine::with_cpu_x86_avx512f()) {
+        resCPUParams.push_back(CPUSpecificParams{{ncdhw, x, x, x}, {ncdhw}, {"jit_avx512"}, "jit_avx512"});
+    } else if (InferenceEngine::with_cpu_x86_avx2()) {
+        return resCPUParams;
+    } else if (InferenceEngine::with_cpu_x86_sse42()) {
+        resCPUParams.push_back(CPUSpecificParams{{ncdhw, x, x, x}, {ncdhw}, {"jit_sse42"}, "jit_sse42"});
+    }
+    return resCPUParams;
+}
+
 const std::vector<std::vector<size_t>> pads5D_NearestExt = {
         {0, 0, 0, 0, 0},
         {0, 0, 1, 1, 1},
@@ -933,9 +967,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNearestExt_5D_FP32_Layout_Test, Interp
             interpolateCasesNearestExt5D_Smoke,
             ::testing::ValuesIn(shapeParams5D_NearestExt_Smoke),
             ::testing::Values(ElementType::f32),
-            ::testing::ValuesIn(filterCPUInfoForDevice5D(true, false)),
+            ::testing::ValuesIn(filterCPUInfoForDevice5DNearestExtFP32()),
             ::testing::ValuesIn(interpolateFusingParamsSet),
-            ::testing::ValuesIn(filterAdditionalConfig(false))),
+            ::testing::ValuesIn(filterAdditionalConfigNearestExt())),
     InterpolateLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(InterpolateNearestExt_5D_FP32_Layout_Test, InterpolateLayerCPUTest,
@@ -943,9 +977,9 @@ INSTANTIATE_TEST_SUITE_P(InterpolateNearestExt_5D_FP32_Layout_Test, InterpolateL
             interpolateCasesNearestExt5D_Full,
             ::testing::ValuesIn(shapeParams5D_NearestExt_Full),
             ::testing::Values(ElementType::f32),
-            ::testing::ValuesIn(filterCPUInfoForDevice5D(true, false)),
+            ::testing::ValuesIn(filterCPUInfoForDevice5DNearestExtFP32()),
             ::testing::ValuesIn(interpolateFusingParamsSet),
-            ::testing::ValuesIn(filterAdditionalConfig(false))),
+            ::testing::ValuesIn(filterAdditionalConfigNearestExt())),
     InterpolateLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNearestExt_5D_I8_U8_Layout_Test, InterpolateLayerCPUTest,
@@ -953,9 +987,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNearestExt_5D_I8_U8_Layout_Test, Inter
             interpolateCasesNearestExt5D_Smoke,
             ::testing::ValuesIn(shapeParams5D_NearestExt_Smoke),
             ::testing::Values(ElementType::i8, ElementType::u8),
-            ::testing::ValuesIn(filterCPUInfoForDevice5D(true, true)),
+            ::testing::ValuesIn(filterCPUInfoForDevice5DNearestExtI8()),
             ::testing::Values(emptyFusingSpec),
-            ::testing::ValuesIn(filterAdditionalConfig(false))),
+            ::testing::ValuesIn(filterAdditionalConfigNearestExt())),
     InterpolateLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(InterpolateNearestExt_5D_I8_U8_Layout_Test, InterpolateLayerCPUTest,
@@ -963,9 +997,9 @@ INSTANTIATE_TEST_SUITE_P(InterpolateNearestExt_5D_I8_U8_Layout_Test, Interpolate
             interpolateCasesNearestExt5D_Full,
             ::testing::ValuesIn(shapeParams5D_NearestExt_Full),
             ::testing::Values(ElementType::i8, ElementType::u8),
-            ::testing::ValuesIn(filterCPUInfoForDevice5D(true, true)),
+            ::testing::ValuesIn(filterCPUInfoForDevice5DNearestExtI8()),
             ::testing::Values(emptyFusingSpec),
-            ::testing::ValuesIn(filterAdditionalConfig(false))),
+            ::testing::ValuesIn(filterAdditionalConfigNearestExt())),
     InterpolateLayerCPUTest::getTestCaseName);
 
 // corner cases
