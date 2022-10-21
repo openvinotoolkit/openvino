@@ -4,6 +4,7 @@
 
 #include <single_layer_tests/op_impl_check/op_impl_check.hpp>
 #include <single_layer_tests/op_impl_check/single_op_graph.hpp>
+#include <openvino/pass/constant_folding.hpp>
 
 namespace ov {
 namespace test {
@@ -178,9 +179,9 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Concat> &n
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Constant> &node) {
     const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 2}});
-    const auto A = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2, 2}, 2.0);
-    const auto eltwiseNode = std::make_shared<ov::op::v1::Add>(params.at(0), A);
-    return std::make_shared<ov::Model>(A, params, "ConstantGraph");
+    const auto constantNode = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2, 2}, 2.0);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(constantNode)};
+    return std::make_shared<ov::Model>(results, params, "ConstantGraph");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Convert> &node) {
@@ -368,14 +369,18 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v3::ExtractIma
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::Eye> &node) {
-    const auto params = ngraph::builder::makeDynamicParams(ov::element::i64, {{1}, {1}, {1}, {3}});
-    const auto eye = std::make_shared<ov::op::v9::Eye>(params[0],
-                                                       params[1],
-                                                       params[2],
-                                                       params[3],
+    const auto rows = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {1}, {3});
+    const auto cols = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {1}, {4});
+    const auto diag = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {1}, {0});
+    const auto batch = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {3}, {2, 2, 2});
+    const auto eye = std::make_shared<ov::op::v9::Eye>(rows,
+                                                       cols,
+                                                       diag,
+                                                       batch,
                                                        ov::element::f32);
+    ov::pass::disable_constant_folding(eye);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eye)};
-    return std::make_shared<ov::Model>(results, params, "Eye");
+    return std::make_shared<ov::Model>(results, ngraph::ParameterVector{}, "Eye");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::FakeQuantize> &node) {
@@ -1307,6 +1312,10 @@ std::shared_ptr<ov::Model> generateUnaryEltwise(const std::shared_ptr<ov::op::Op
         eltwiseNode = std::make_shared<ov::op::v5::HSigmoid>(param);
     } else if (ov::is_type<ov::op::v4::HSwish>(node)) {
         eltwiseNode = std::make_shared<ov::op::v4::HSwish>(param);
+    } else if (ov::is_type<ov::op::v10::IsInf>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v10::IsInf>(param);
+    } else if (ov::is_type<ov::op::v10::IsNaN>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v10::IsNaN>(param);
     } else if (ov::is_type<ov::op::v0::Log>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Log>(param);
     } else if (ov::is_type<ov::op::v0::Negative>(node)) {

@@ -97,22 +97,26 @@ cldnn::device_info Plugin::GetDeviceInfo(const std::map<std::string, std::string
     return device_info;
 }
 
+void Plugin::TransformNetwork(std::shared_ptr<ov::Model>& model, const Config& config) const {
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::TransformNetwork");
+    auto deviceInfo = GetDeviceInfo(config.key_config_map);
+    TransformationsPipeline transformations(config, deviceInfo);
+    transformations.apply(model);
+}
+
 InferenceEngine::CNNNetwork Plugin::CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,
                                                              const Config& config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::CloneAndTransformNetwork");
     CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
 
-    if (clonedNetwork.getFunction()) {
-        auto nGraphFunc = clonedNetwork.getFunction();
-        auto deviceInfo = GetDeviceInfo(config.key_config_map);
-        TransformationsPipeline transformations(config, deviceInfo);
-        transformations.apply(nGraphFunc);
+    auto nGraphFunc = clonedNetwork.getFunction();
+    if (nGraphFunc) {
+        TransformNetwork(nGraphFunc, config);
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
+            auto path_base = debug_config->dump_graphs + "/" + network.getName() + "_" +  "transformed_func";
+            ov::pass::Serialize(path_base + ".xml", path_base + ".bin").run_on_model(nGraphFunc);
     }
-
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
-        auto path_base = debug_config->dump_graphs + "/" + network.getName() + "_" +  "transformed_func";
-        ov::pass::Serialize(path_base + ".xml", path_base + ".bin").run_on_model(clonedNetwork.getFunction());
     }
     return clonedNetwork;
 }
@@ -244,7 +248,7 @@ std::map<std::string, std::string> Plugin::ConvertPerfHintsToConfig(
 }
 
 IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
-                                                                const std::map<std::string, std::string> &orig_config) {
+                                                           const std::map<std::string, std::string> &orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::LoadExeNetworkImpl");
     // verification of supported input
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
@@ -383,179 +387,51 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
             AnyMap(), conf));
     }
     Program prog(m_defaultContext->getImpl()->GetEngine(), conf);
-    auto function = network.getFunction();
-    if (function == nullptr) {
-        IE_THROW() << "CNNetworkImpl representation is not supported anymore";
+    bool dyn_shape_batch_found = false;
+
+    auto model = network.getFunction();
+    if (model == nullptr) {
+        IE_THROW() << "Only ngraph-based models are supported!";
     }
 
-    std::unordered_set<std::string> originalOpNames;
-    auto originalOps = function->get_ops();
-    for (auto&& node : originalOps) {
-        originalOpNames.emplace(node->get_friendly_name());
-    }
+    auto supported = GetSupportedNodes(model,
+    [&](std::shared_ptr<ov::Model>& model) {
+        std::map<std::string, ngraph::PartialShape> shapes;
+        std::map<std::string, std::pair<int64_t, int64_t>> batch_dim;
+        dyn_shape_batch_found = prog.IsDynBatchModel(model, shapes, batch_dim);
+        TransformNetwork(model, conf);
+    },
+    [&](std::shared_ptr<ngraph::Node> node) {
+            if (node->is_dynamic()) {
+                if (!dyn_shape_batch_found)
+                    return false;
 
-    auto clonedNetwork = CloneAndTransformNetwork(network, conf);
-    auto func = clonedNetwork.getFunction();
-    auto ops = func->get_ordered_ops();
+                auto pshape = node->get_output_partial_shape(0);
+                if (pshape.rank().is_dynamic())
+                    return false;
 
-    //Mark removed nodes as supported
-    std::unordered_set<std::string> supported = GetRemovedNodes(function, func);
-    std::unordered_set<std::string> unsupported;
-
-    std::unordered_set<std::string> supportedNotOriginal;
-    std::unordered_set<std::string> unsupportedNotOriginal;
-
-    std::vector<std::shared_ptr<ngraph::Node>> constants;
-
-    std::map<std::string, ngraph::PartialShape> shapes;
-    std::map<std::string, std::pair<int64_t, int64_t>> batch_dim;
-    bool dyn_shape_batch_found = prog.IsDynBatchModel(func, shapes, batch_dim);
-    auto layerIsSupported = [&](std::shared_ptr<ngraph::Node> node) {
-        if (node->is_dynamic()) {
-            if (!dyn_shape_batch_found)
-                return false;
-
-            auto pshape = node->get_output_partial_shape(0);
-            if (pshape.rank().is_dynamic())
-                return false;
-
-            int dynCount = 0;
-            int64_t batch_idx = -1;
-            for (size_t i = 0; i < pshape.size(); i++) {
-                if (pshape[i].is_dynamic()) {
-                    dynCount++;
-                    if (batch_idx < 0) {
-                        batch_idx = i;
+                int dynCount = 0;
+                int64_t batch_idx = -1;
+                for (size_t i = 0; i < pshape.size(); i++) {
+                    if (pshape[i].is_dynamic()) {
+                        dynCount++;
+                        if (batch_idx < 0) {
+                            batch_idx = i;
+                        }
                     }
                 }
+
+                if (dynCount != 1)
+                    return false;  // more than one dimension is dynamic
+
+                int64_t max_batch = pshape[batch_idx].get_max_length();
+                if (max_batch <= 1)
+                    return false;
+
+                return true;
             }
-
-            if (dynCount != 1)
-                return false;  // more than one dimension is dynamic
-
-            int64_t max_batch = pshape[batch_idx].get_max_length();
-            if (max_batch <= 1)
-                return false;
-
-            return true;
-        }
-        if (ngraph::is_type<const ngraph::op::v0::PriorBox>(node) ||
-            ngraph::is_type<const ngraph::op::v0::PriorBoxClustered>(node) ||
-            ngraph::is_type<const ngraph::op::v0::Proposal>(node)) {
-            return false;
-        }
-        if (ngraph::is_type<const ngraph::op::v0::Constant>(node)) {
-            constants.push_back(node);
-            return false;
-        }
-        return prog.IsOpSupported(network, node) ||
-               ngraph::op::is_parameter(node) ||
-               ngraph::op::is_output(node);
-    };
-
-    // Get ops after transformations and check if it's supported
-    // Transformations might lead to the situation when single node is merged to multiple operations,
-    // so we mark original op as supported only if all nodes that it was merged into are supported
-    for (auto&& op : ops) {
-        bool isSupported = layerIsSupported(op);
-        if (InferenceEngine::details::contains(originalOpNames, op->get_friendly_name())) {
-            if (isSupported) {
-                supported.emplace(op->get_friendly_name());
-            } else {
-                unsupported.emplace(op->get_friendly_name());
-            }
-        } else {
-            if (isSupported) {
-                supportedNotOriginal.emplace(op->get_friendly_name());
-            } else {
-                unsupportedNotOriginal.emplace(op->get_friendly_name());
-            }
-        }
-
-        for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
-            if (InferenceEngine::details::contains(originalOpNames, fusedLayerName)) {
-                if (isSupported) {
-                    supported.emplace(fusedLayerName);
-                } else {
-                    unsupported.emplace(fusedLayerName);
-                }
-            } else {
-                if (isSupported) {
-                    supportedNotOriginal.emplace(fusedLayerName);
-                } else {
-                    unsupportedNotOriginal.emplace(fusedLayerName);
-                }
-            }
-        }
-    }
-
-    for (auto&& layerName : unsupported) {
-        if (InferenceEngine::details::contains(supported, layerName)) {
-            supported.erase(layerName);
-        }
-    }
-    unsupported.clear();
-
-    for (auto&& layerName : unsupportedNotOriginal) {
-        if (InferenceEngine::details::contains(supportedNotOriginal, layerName)) {
-            supportedNotOriginal.erase(layerName);
-        }
-    }
-    unsupportedNotOriginal.clear();
-
-    // 1. Constants are marked as supported when all outputs can be offloaded to GPU
-    for (const auto& op : constants) {
-        bool is_supported = true;
-
-        for (size_t i = 0; i < op->get_output_size(); i++) {
-            auto outTensors = op->get_output_target_inputs(i);
-            for (auto& t : outTensors) {
-                auto output = t.get_node();
-                const auto& name = output->get_friendly_name();
-                if (!InferenceEngine::details::contains(supported, name) &&
-                    !InferenceEngine::details::contains(supportedNotOriginal, name)) {
-                    is_supported = false;
-                    break;
-                }
-            }
-        }
-        if (is_supported) {
-            if (InferenceEngine::details::contains(originalOpNames, op->get_friendly_name()))
-                supported.emplace(op->get_friendly_name());
-            for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op))
-                if (InferenceEngine::details::contains(originalOpNames, fusedLayerName))
-                    supported.emplace(fusedLayerName);
-        }
-    }
-
-    // Mark original constants/parameters/results ops as supported for each supported operation
-    // since rt_info doesn't contain names of constant that are removed during constant folding
-    for (auto&& node : originalOps) {
-        if (InferenceEngine::details::contains(supported, node->get_friendly_name())) {
-            for (auto&& inputNodeOutput : node->input_values()) {
-                if (ngraph::op::is_constant(inputNodeOutput.get_node()) || ngraph::op::is_parameter(inputNodeOutput.get_node())) {
-                    supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
-                }
-            }
-            for (auto&& outputs : node->outputs()) {
-                for (auto&& outputNodeInput : outputs.get_target_inputs()) {
-                    if (ngraph::op::is_output(outputNodeInput.get_node())) {
-                        supported.emplace(outputNodeInput.get_node()->get_friendly_name());
-                    }
-                }
-            }
-        }
-
-        if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node)) {
-            if (!InferenceEngine::details::contains(supported, node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
-                supported.erase(node->get_friendly_name());
-            }
-        } else if (ngraph::op::is_output(node)) {
-            if (!InferenceEngine::details::contains(supported, node->input_values().begin()->get_node()->get_friendly_name())) {
-                supported.erase(node->get_friendly_name());
-            }
-        }
-    }
+            return prog.IsOpSupported(network, node);
+    });
 
     for (auto&& layerName : supported) {
         res.supportedLayersMap.emplace(layerName, GetName());

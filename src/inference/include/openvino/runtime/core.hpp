@@ -692,6 +692,6 @@ public:
  * You might want to use this function if you are developing a dynamically-loaded library which should clean up all
  * resources after itself when the library is unloaded.
  */
-OPENVINO_RUNTIME_API void shutdown();
+void OPENVINO_RUNTIME_API shutdown();
 
 }  // namespace ov

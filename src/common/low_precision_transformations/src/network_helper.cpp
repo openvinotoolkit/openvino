@@ -1066,7 +1066,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
             fq->get_levels(),
             fq->get_auto_broadcast()),
         true,
-        outChannelsShapeIndex);
+        static_cast<int>(outChannelsShapeIndex));
     NetworkHelper::copyInfo(fq, newFQ);
 
     std::shared_ptr<ngraph::Node> convert2;
@@ -1804,7 +1804,7 @@ std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> NetworkHelpe
     auto number_of_concat_inputs = concat->get_input_size();
     const auto concatNode = as_type_ptr<opset1::Concat>(concat);
     const auto concat_axis = concatNode->get_concatenation_axis();
-    std::vector<unsigned int> shape_axis(number_of_concat_inputs);
+    std::vector<int64_t> shape_axis(number_of_concat_inputs);
     for (size_t i{ 0 }; i < number_of_concat_inputs; ++i) {
         auto shape = concat->get_input_partial_shape(i);
         shape_axis[i] = shape[concat_axis].get_length();
