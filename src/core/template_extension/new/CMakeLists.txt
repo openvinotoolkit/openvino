@@ -16,3 +16,5 @@ add_library(${TARGET_NAME} MODULE ${SRC})
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_OPENVINO_EXTENSION_API)
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
 # [cmake:extension]
+install(TARGETS ${TARGET_NAME}
+    LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)

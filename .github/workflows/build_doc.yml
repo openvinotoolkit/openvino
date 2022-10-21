@@ -44,10 +44,10 @@ jobs:
           mkdir build
           cd build
           cmake -DENABLE_DOCS=ON -DENABLE_PYTHON=ON -DCMAKE_BUILD_TYPE=Release ..
-
+      
       - name: Build doc
         run: |
-          cmake --build . --target sphinx_docs -j8
+          cmake --build . --target sphinx_docs -j`nproc`
         working-directory: build
       
       - name: Archive HTML
