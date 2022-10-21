@@ -9,7 +9,6 @@
 #include "openvino/util/pp.hpp"
 
 #define EXPECT_HAS_SUBSTRING(haystack, needle) EXPECT_PRED_FORMAT2(testing::IsSubstring, needle, haystack)
-#define THROWN                                 thrown
 
 #define OV_EXPECT_THROW(statement, exception, exception_what_matcher) \
     try {                                                             \
