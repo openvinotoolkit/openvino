@@ -14,7 +14,7 @@
 
 #include "cpp/ie_plugin.hpp"
 #include "mock_common.hpp"
-#include "plugin/mock_auto_device_plugin.hpp"
+#include "plugin/mock_load_network_properties.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
@@ -25,11 +25,11 @@
 using ::testing::_;
 using ::testing::MatcherCast;
 using ::testing::Matches;
+using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::ReturnRef;
 using ::testing::StrEq;
 using ::testing::Throw;
-using ::testing::NiceMock;
 using Config = std::map<std::string, std::string>;
 
 // define a matcher if all the elements of subMap are contained in the map.
@@ -59,7 +59,7 @@ static std::vector<ConfigParams> testConfigs;
 class LoadNetworkWithSecondaryConfigsMockTest : public ::testing::TestWithParam<ConfigParams> {
 public:
     std::shared_ptr<NiceMock<MockICore>> core;
-    std::shared_ptr<NiceMock<MockMultiDeviceInferencePlugin>> plugin;
+    std::shared_ptr<NiceMock<MockMultiPluginForLoadNetworkWithPropertiesTest>> plugin;
     InferenceEngine::CNNNetwork simpleCnnNetwork;
     // mock cpu exeNetwork
     std::shared_ptr<NiceMock<MockIExecutableNetworkInternal>> cpuMockIExeNet;
@@ -153,8 +153,8 @@ public:
 
         // prepare mockicore and cnnNetwork for loading
         core = std::shared_ptr<NiceMock<MockICore>>(new NiceMock<MockICore>());
-        auto* origin_plugin = new NiceMock<MockMultiDeviceInferencePlugin>();
-        plugin = std::shared_ptr<NiceMock<MockMultiDeviceInferencePlugin>>(origin_plugin);
+        auto* origin_plugin = new NiceMock<MockMultiPluginForLoadNetworkWithPropertiesTest>();
+        plugin = std::shared_ptr<NiceMock<MockMultiPluginForLoadNetworkWithPropertiesTest>>(origin_plugin);
         // replace core with mock Icore
         plugin->SetCore(core);
         inferReqInternal = std::make_shared<NiceMock<MockIInferRequestInternal>>();
