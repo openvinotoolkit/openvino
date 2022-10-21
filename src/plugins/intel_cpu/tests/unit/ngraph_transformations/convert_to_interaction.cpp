@@ -158,7 +158,8 @@ TEST(TransformationTests, FuseFQtoInteractionTest1) {
                 features.push_back(sparse_feat);
                 inputsParams.push_back(sparse_feat);
             }
-            auto interaction = std::make_shared<ov::intel_cpu::InteractionNode>(features);
+            auto interaction = std::make_shared<ngraph::op::TypeRelaxed<ov::intel_cpu::InteractionNode>>(
+                ov::intel_cpu::InteractionNode(features), element::i8);
             f_ref = std::make_shared<ov::Model>(interaction, inputsParams, "interaction");
         }
         auto res = compare_functions(f, f_ref);
