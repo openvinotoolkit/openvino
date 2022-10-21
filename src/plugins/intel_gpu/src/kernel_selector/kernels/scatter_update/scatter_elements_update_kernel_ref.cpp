@@ -48,6 +48,7 @@ ParamsKey ScatterElementsUpdateKernelRef::GetSupportedKey() const {
         DataLayout::b_fs_yx_fsv32,
         DataLayout::bs_fs_yx_bsv16_fsv16,
         DataLayout::bs_fs_yx_bsv32_fsv16,
+        DataLayout::bs_fs_yx_bsv16_fsv32,
         DataLayout::bs_fs_yx_bsv32_fsv32,
         DataLayout::bfzyx,
         DataLayout::b_fs_zyx_fsv16,
