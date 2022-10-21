@@ -95,8 +95,8 @@
    IsInf-10 <openvino_docs_ops_comparison_IsInf_10>
    IsNaN-10 <openvino_docs_ops_comparison_IsNaN_10>
    LRN-1 <openvino_docs_ops_normalization_LRN_1>
-   LSTMCell-1 <openvino_docs_ops_sequence_LSTMCell_1>
-   LSTMSequence-1 <openvino_docs_ops_sequence_LSTMSequence_1>
+   LSTMCell-4 <openvino_docs_ops_sequence_LSTMCell_4>
+   LSTMSequence-5 <openvino_docs_ops_sequence_LSTMSequence_5>
    LessEqual-1 <openvino_docs_ops_comparison_LessEqual_1>
    Less-1 <openvino_docs_ops_comparison_Less_1>
    Log-1 <openvino_docs_ops_arithmetic_Log_1>

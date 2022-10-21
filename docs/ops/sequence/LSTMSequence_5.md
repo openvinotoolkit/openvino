@@ -1,6 +1,6 @@
-# LSTMSequence {#openvino_docs_ops_sequence_LSTMSequence_1}
+# LSTMSequence {#openvino_docs_ops_sequence_LSTMSequence_5}
 
-**Versioned name**: *LSTMSequence-1*
+**Versioned name**: *LSTMSequence-5*
 
 **Category**: *Sequence processing*
 

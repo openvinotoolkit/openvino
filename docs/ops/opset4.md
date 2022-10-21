@@ -73,7 +73,7 @@ declared in `namespace opset4`.
 * [LogicalOr](logical/LogicalOr_1.md)
 * [LogicalXor](logical/LogicalXor_1.md)
 * [LRN](normalization/LRN_1.md)
-* [LSTMCell](sequence/LSTMCell_1.md)
+* [LSTMCell](sequence/LSTMCell_4.md)
 * [MatMul](matrix/MatMul_1.md)
 * [MaxPool](pooling/MaxPool_1.md)
 * [Maximum](arithmetic/Maximum_1.md)

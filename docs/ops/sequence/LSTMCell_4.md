@@ -1,6 +1,6 @@
-# LSTMCell  {#openvino_docs_ops_sequence_LSTMCell_1}
+# LSTMCell  {#openvino_docs_ops_sequence_LSTMCell_4}
 
-**Versioned name**: *LSTMCell-1*
+**Versioned name**: *LSTMCell-4*
 
 **Category**: *Sequence processing*
 
