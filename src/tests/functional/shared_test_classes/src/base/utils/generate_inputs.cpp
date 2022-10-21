@@ -733,7 +733,7 @@ InputsMap getInputMap() {
 #include "openvino/opsets/opset8_tbl.hpp"
 #include "openvino/opsets/opset9_tbl.hpp"
 
-#undef NGRAPH_OP
+#undef _OPENVINO_OP_REG
     };
     return inputsMap;
 }
