@@ -22,9 +22,9 @@ TEST(type_prop, gather_v1_axis_0) {
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
     auto A = op::Constant::create(element::i64, Shape{}, {0});
     auto G = make_shared<op::v1::Gather>(P, I, A);
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_shape(), out_shape);
-    ASSERT_EQ(G->get_axis(), 0);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_shape(), out_shape);
+    EXPECT_EQ(G->get_axis(), 0);
 }
 
 TEST(type_prop, gather_v1_uint8) {
@@ -38,9 +38,9 @@ TEST(type_prop, gather_v1_uint8) {
     auto A = op::Constant::create(element::i64, Shape{}, {0});
     auto G = make_shared<op::v1::Gather>(D, I, A);
 
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
-    ASSERT_EQ(G->get_axis(), 0);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_axis(), 0);
 }
 
 TEST(type_prop, gather_v1_float32) {
@@ -54,9 +54,9 @@ TEST(type_prop, gather_v1_float32) {
     auto A = op::Constant::create(element::i64, Shape{}, {0});
     auto G = make_shared<op::v1::Gather>(D, I, A);
 
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
-    ASSERT_EQ(G->get_axis(), 0);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_axis(), 0);
 }
 
 TEST(type_prop, gather_axis_1) {
@@ -67,9 +67,9 @@ TEST(type_prop, gather_axis_1) {
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
     auto A = op::Constant::create(element::i64, Shape{}, {1});
     auto G = make_shared<op::v1::Gather>(P, I, A);
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_shape(), out_shape);
-    ASSERT_EQ(G->get_axis(), 1);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_shape(), out_shape);
+    EXPECT_EQ(G->get_axis(), 1);
 }
 
 TEST(type_prop, gather_v1_incorrect_axis_shape) {
@@ -98,7 +98,7 @@ TEST(type_prop, gather_v1_negative_axis) {
     int64_t axis = -2;
     auto axis_node = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto gather_v1 = make_shared<op::v1::Gather>(params, indices, axis_node);
-    ASSERT_EQ(gather_v1->get_axis(), 1);
+    EXPECT_EQ(gather_v1->get_axis(), 1);
 }
 
 TEST(type_prop, gather_1_dynamic_value_and_label_propagation) {
@@ -117,10 +117,10 @@ TEST(type_prop, gather_1_dynamic_value_and_label_propagation) {
     const auto gather = std::make_shared<op::v1::Gather>(shape_0, indices, axis);
 
     auto bc = std::make_shared<op::v1::Broadcast>(param, gather);
-    ASSERT_EQ(bc->get_shape(), (Shape{3}));
+    EXPECT_EQ(bc->get_shape(), (Shape{3}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
-    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+    EXPECT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
 }
 
 TEST(type_prop, dynamic_value_propagation) {
@@ -140,8 +140,8 @@ TEST(type_prop, dynamic_value_propagation) {
 
     auto RIC = std::make_shared<op::v1::Gather>(param, range, op::Constant::create(element::i32, {}, {1}));
 
-    ASSERT_EQ(RIC->get_element_type(), element::f32);
-    ASSERT_EQ(RIC->get_output_partial_shape(0), (PartialShape{-1, 3, -1, -1}));
+    EXPECT_EQ(RIC->get_element_type(), element::f32);
+    EXPECT_EQ(RIC->get_output_partial_shape(0), (PartialShape{-1, 3, -1, -1}));
 }
 
 // ------------------------------ V7 ------------------------------
@@ -157,9 +157,9 @@ TEST(type_prop, gather_7_axis_0) {
     auto A = op::Constant::create(element::i64, Shape{}, {0});
     auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
 
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
-    ASSERT_EQ(G->get_axis(), 0);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_axis(), 0);
 }
 
 TEST(type_prop, gather_7_axis_1) {
@@ -173,9 +173,9 @@ TEST(type_prop, gather_7_axis_1) {
     auto A = op::Constant::create(element::i64, Shape{}, {axis});
     auto G = make_shared<op::v7::Gather>(D, I, A);
 
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
-    ASSERT_EQ(G->get_axis(), 1);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_axis(), 1);
 }
 
 TEST(type_prop, gather_7_negative_axis) {
@@ -189,8 +189,8 @@ TEST(type_prop, gather_7_negative_axis) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v7::Gather>(D, I, A);
 
-    ASSERT_EQ(G->get_axis(), 1);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_axis(), 1);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
 TEST(type_prop, gather_7_dynamic_pshape_batch_dims_1_axis_1) {
@@ -205,8 +205,8 @@ TEST(type_prop, gather_7_dynamic_pshape_batch_dims_1_axis_1) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
 
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
 TEST(type_prop, gather_7_dynamic_pshape_batch_dims_1_axis_3) {
@@ -221,8 +221,8 @@ TEST(type_prop, gather_7_dynamic_pshape_batch_dims_1_axis_3) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
 
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
 TEST(type_prop, gather_7_dynamic_2d_pshape_batch_dim) {
@@ -237,8 +237,8 @@ TEST(type_prop, gather_7_dynamic_2d_pshape_batch_dim) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
 
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
 TEST(type_prop, gather_7_dynamic_2d_pshape_batch_dim_axis_3) {
@@ -253,8 +253,8 @@ TEST(type_prop, gather_7_dynamic_2d_pshape_batch_dim_axis_3) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
 
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
 TEST(type_prop, gather_7_dynamic_rank) {
@@ -269,8 +269,8 @@ TEST(type_prop, gather_7_dynamic_rank) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
 
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
 TEST(type_prop, gather_7_axis_boundcheck_for_dynamic_data_rank) {
@@ -285,8 +285,8 @@ TEST(type_prop, gather_7_axis_boundcheck_for_dynamic_data_rank) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
 
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
 TEST(type_prop, gather_7_dynamic_rank_negative_batch_dims) {
@@ -301,8 +301,8 @@ TEST(type_prop, gather_7_dynamic_rank_negative_batch_dims) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
 
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
 TEST(type_prop, gather_7_axis_not_set) {
@@ -316,8 +316,8 @@ TEST(type_prop, gather_7_axis_not_set) {
     auto A = make_shared<op::Parameter>(element::i32, Shape{1});
     auto G = make_shared<op::v7::Gather>(D, I, A);
 
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
 TEST(type_prop, gather_7_axis_not_set_positive_batch_dims) {
@@ -331,8 +331,8 @@ TEST(type_prop, gather_7_axis_not_set_positive_batch_dims) {
     auto A = make_shared<op::Parameter>(element::i32, Shape{1});
     auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
 
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
 TEST(type_prop, gather_7_dynamic_value_and_label_propagation) {
@@ -351,10 +351,10 @@ TEST(type_prop, gather_7_dynamic_value_and_label_propagation) {
     const auto gather = std::make_shared<op::v7::Gather>(shape_0, indices, axis);
 
     auto bc = std::make_shared<op::v1::Broadcast>(param, gather);
-    ASSERT_EQ(bc->get_shape(), (Shape{3}));
+    EXPECT_EQ(bc->get_shape(), (Shape{3}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
-    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+    EXPECT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
 }
 
 // --------------------- V7 Negative tests ------------------------------
@@ -467,9 +467,9 @@ TEST(type_prop, gather_v8_axis_0) {
     auto A = op::Constant::create(element::i64, Shape{}, {0});
     auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
 
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
-    ASSERT_EQ(G->get_axis(), 0);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_axis(), 0);
 }
 
 TEST(type_prop, gather_v8_axis_1) {
@@ -483,9 +483,9 @@ TEST(type_prop, gather_v8_axis_1) {
     auto A = op::Constant::create(element::i64, Shape{}, {axis});
     auto G = make_shared<op::v8::Gather>(D, I, A);
 
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
-    ASSERT_EQ(G->get_axis(), 1);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_axis(), 1);
 }
 
 TEST(type_prop, gather_v8_negative_axis) {
@@ -499,8 +499,8 @@ TEST(type_prop, gather_v8_negative_axis) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v8::Gather>(D, I, A);
 
-    ASSERT_EQ(G->get_axis(), 1);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_axis(), 1);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
 TEST(type_prop, gather_v8_dynamic_pshape_batch_dims_1_axis_1) {
@@ -515,8 +515,8 @@ TEST(type_prop, gather_v8_dynamic_pshape_batch_dims_1_axis_1) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
 
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
 TEST(type_prop, gather_v8_dynamic_pshape_batch_dims_1_axis_3) {
@@ -531,8 +531,8 @@ TEST(type_prop, gather_v8_dynamic_pshape_batch_dims_1_axis_3) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
 
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
 TEST(type_prop, gather_v8_dim_no_bound_pshape_batch_dims_1_axis_3) {
@@ -547,8 +547,8 @@ TEST(type_prop, gather_v8_dim_no_bound_pshape_batch_dims_1_axis_3) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
 
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
 TEST(type_prop, gather_v8_dynamic_2d_pshape_batch_dim) {
@@ -563,8 +563,8 @@ TEST(type_prop, gather_v8_dynamic_2d_pshape_batch_dim) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
 
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
 TEST(type_prop, gather_v8_dynamic_2d_pshape_batch_dim_axis_3) {
@@ -579,8 +579,8 @@ TEST(type_prop, gather_v8_dynamic_2d_pshape_batch_dim_axis_3) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
 
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
 TEST(type_prop, gather_v8_dynamic_rank) {
@@ -595,8 +595,8 @@ TEST(type_prop, gather_v8_dynamic_rank) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
 
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
 TEST(type_prop, gather_v8_axis_boundcheck_for_dynamic_data_rank) {
@@ -611,8 +611,8 @@ TEST(type_prop, gather_v8_axis_boundcheck_for_dynamic_data_rank) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
 
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
 TEST(type_prop, gather_v8_dynamic_rank_negative_batch_dims) {
@@ -627,8 +627,8 @@ TEST(type_prop, gather_v8_dynamic_rank_negative_batch_dims) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
 
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
 TEST(type_prop, gather_v8_axis_not_set) {
@@ -642,8 +642,8 @@ TEST(type_prop, gather_v8_axis_not_set) {
     auto A = make_shared<op::Parameter>(element::i32, Shape{1});
     auto G = make_shared<op::v8::Gather>(D, I, A);
 
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
 TEST(type_prop, gather_v8_axis_not_set_positive_batch_dims) {
@@ -657,8 +657,8 @@ TEST(type_prop, gather_v8_axis_not_set_positive_batch_dims) {
     auto A = make_shared<op::Parameter>(element::i32, Shape{1});
     auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
 
-    ASSERT_EQ(G->get_element_type(), element::f32);
-    ASSERT_EQ(G->get_output_partial_shape(0), out_shape);
+    EXPECT_EQ(G->get_element_type(), element::f32);
+    EXPECT_EQ(G->get_output_partial_shape(0), out_shape);
 }
 
 /** \brief Check usage of evaluate lower and label on shape inference. */
@@ -678,10 +678,10 @@ TEST(type_prop, gather_v8_dynamic_value_and_label_propagation) {
     const auto gather = std::make_shared<op::v8::Gather>(shape_0, indices, axis);
 
     auto bc = std::make_shared<op::v1::Broadcast>(param, gather);
-    ASSERT_EQ(bc->get_shape(), (Shape{3}));
+    EXPECT_EQ(bc->get_shape(), (Shape{3}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
-    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+    EXPECT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
 }
 
 /** \brief Check usage of evaluate lower/upper and label on shape inference. */
@@ -701,10 +701,10 @@ TEST(type_prop, gather_v8_dynamic_value_and_label_propagation_interval_dim) {
     const auto gather = std::make_shared<op::v8::Gather>(shape_0, indices, axis);
 
     auto bc = std::make_shared<op::v1::Broadcast>(param, gather);
-    ASSERT_EQ(bc->get_output_partial_shape(0), PartialShape({marked_0}));
+    EXPECT_EQ(bc->get_output_partial_shape(0), PartialShape({marked_0}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
-    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+    EXPECT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
 }
 
 // --------------------- V8 Negative tests ------------------------------
