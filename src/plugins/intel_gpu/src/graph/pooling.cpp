@@ -22,7 +22,7 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node, kernel_i
 
     auto input_layout = impl_param.get_input_layout();
 
-    auto pad = desc->pad;
+    auto pad = desc->pads_begin;
     auto stride = desc->stride;
     auto window_size = desc->size;
 

@@ -96,7 +96,9 @@ public:
         }
 
         const auto& stride = primitive->stride;
-        const auto& pad = primitive->pad;
+        const auto& pads_begin = primitive->pads_begin;
+        const auto& pads_end = primitive->pads_end;
+
         const auto& dilation = primitive->dilation;
         auto kernel = primitive->size;
         const auto& input_layout = impl_param.input_layouts[0];
@@ -120,7 +122,7 @@ public:
         auto dynamic_mode = false;
         for (size_t i = 0; i < spatial_rank; i++) {
             dynamic_mode |= (((output_layout.spatial(i) - 1) * stride[spatial_rank - i - 1]) + primitive->size[spatial_rank - i - 1]) >
-                                 (primitive->pad_end[spatial_rank - i - 1] + pad[spatial_rank - i - 1]) + input_layout.spatial(i);
+                                 (pads_end[spatial_rank - i - 1] + pads_begin[spatial_rank - i - 1]) + input_layout.spatial(i);
         }
 
         if (primitive->mode == pooling_mode::average && dynamic_mode)
@@ -133,9 +135,9 @@ public:
         uint32_t kernel_x = kernel.size() >= 1 ? kernel[kernel.size() - 1] : 1;
         pp.poolSize = {kernel_x, kernel_y, kernel_z};
 
-        uint32_t pad_z = std::max<std::ptrdiff_t>(pad.size() >= 3 ? pad[pad.size() - 3] : 0, 0);
-        uint32_t pad_y = std::max<std::ptrdiff_t>(pad.size() >= 2 ? pad[pad.size() - 2] : 0, 0);
-        uint32_t pad_x = std::max<std::ptrdiff_t>(pad.size() >= 1 ? pad[pad.size() - 1] : 0, 0);
+        uint32_t pad_z = std::max<std::ptrdiff_t>(pads_begin.size() >= 3 ? pads_begin[pads_begin.size() - 3] : 0, 0);
+        uint32_t pad_y = std::max<std::ptrdiff_t>(pads_begin.size() >= 2 ? pads_begin[pads_begin.size() - 2] : 0, 0);
+        uint32_t pad_x = std::max<std::ptrdiff_t>(pads_begin.size() >= 1 ? pads_begin[pads_begin.size() - 1] : 0, 0);
         pp.poolPad  = {pad_x, pad_y, pad_z};
 
         uint32_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;

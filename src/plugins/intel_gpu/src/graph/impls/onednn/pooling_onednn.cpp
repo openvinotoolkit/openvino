@@ -32,8 +32,8 @@ protected:
 
         dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
         dnnl::memory::dims kernel(prim->size.begin(), prim->size.end());
-        dnnl::memory::dims pad_l(prim->pad.begin(), prim->pad.end());
-        dnnl::memory::dims pad_r(prim->pad_end.begin(), prim->pad_end.end());
+        dnnl::memory::dims pad_l(prim->pads_begin.begin(), prim->pads_begin.end());
+        dnnl::memory::dims pad_r(prim->pads_end.begin(), prim->pads_end.end());
 
         auto input_md = onednn::layout_to_memory_desc(input_layout);
         auto output_md = onednn::layout_to_memory_desc(output_layout);

@@ -326,7 +326,7 @@ bool program::analyze_output_size_handling_need() {
             auto calc_output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(
                 primInputSize,
                 size,
-                ov::CoordinateDiff(prim->pad.begin(), prim->pad.end()),
+                ov::CoordinateDiff(prim->pads_begin.begin(), prim->pads_begin.end()),
                 prim->stride,
                 ov::Strides(prim->stride.size(), 1),
                 true,
