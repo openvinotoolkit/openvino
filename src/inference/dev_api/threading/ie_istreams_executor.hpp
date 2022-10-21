@@ -92,13 +92,13 @@ public:
                                                                          //!< No binding by default
         int _threadBindingStep = 1;                                      //!< In case of @ref CORES binding offset type
                                                                          //!< thread binded to cores with defined step
-        int _threadBindingOffset = 0;  //!< In case of @ref CORES binding offset type thread binded to cores
-                                       //!< starting from offset
-        int _threads = 0;              //!< Number of threads distributed between streams.
-                                       //!< Reserved. Should not be used.
-        mutable int _big_core_streams = 0;          // Number of streams in Performance-core(big core)
-        mutable int _small_core_streams = 0;        // Number of streams in Efficient-core(small core)
-        mutable int _threads_per_stream_big = 0;    // Threads per stream in big cores
+        int _threadBindingOffset = 0;             //!< In case of @ref CORES binding offset type thread binded to cores
+                                                  //!< starting from offset
+        int _threads = 0;                         //!< Number of threads distributed between streams.
+                                                  //!< Reserved. Should not be used.
+        mutable int _big_core_streams = 0;        // Number of streams in Performance-core(big core)
+        mutable int _small_core_streams = 0;      // Number of streams in Efficient-core(small core)
+        mutable int _threads_per_stream_big = 0;  // Threads per stream in big cores
         mutable int _threads_per_stream_small = 0;  // Threads per stream in small cores
         mutable int _small_core_offset = 0;         // Calculate small core start offset when binding cpu cores
         enum StreamMode { DEFAULT, AGGRESSIVE, LESSAGGRESSIVE };
