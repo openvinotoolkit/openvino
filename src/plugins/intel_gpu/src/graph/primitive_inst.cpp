@@ -793,7 +793,7 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                 // which doesn't exist anymore in the graph
                 // Thus we update dependency name used dependencies idx stored in fused descriptor.
                 if (std::find(dep_ids.begin(), dep_ids.end(), in) == dep_ids.end()) {
-                    size_t dep_id = fd.dep_start_idx + i - 1;
+                    size_t dep_id = fd.dep_start_idx;
                     in = _node.get_dependency(dep_id).id();
                 }
             }
@@ -808,7 +808,6 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                 in = _node.get_dependency(i).id();
             }
         }
-
         build_options bo;
         bo.set_option(build_option::allow_static_input_reorder(true));
         bo.set_option(build_option::allow_new_shape_infer(true));
