@@ -5921,7 +5921,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_is_finite) {
 
     test_case.add_input<float>(Shape{1, 2, 3}, {std::nanf(""), std::numeric_limits<float>::infinity(), -0.6000f, -1.0000f, std::nanf(""), -1.0000f});
 
-    test_case.add_expected_output<float>(
+    test_case.add_expected_output<bool>(
         Shape{1, 2, 3},
         {false, false, true, true, false, true});
 
