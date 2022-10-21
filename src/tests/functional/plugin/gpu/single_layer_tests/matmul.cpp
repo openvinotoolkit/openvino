@@ -14,11 +14,6 @@ using namespace ov::test;
 
 namespace GPULayerTestsDefinitions {
 
-enum class MatMulNodeType {
-    MatMul,
-    FullyConnected
-};
-
 struct ShapeRelatedParams {
     std::vector<InputShape> inputShapes;
     std::pair<bool, bool> transpose;
@@ -374,5 +369,341 @@ const auto fullyConnectedParams4D_smoke = ::testing::Combine(::testing::ValuesIn
 INSTANTIATE_TEST_SUITE_P(smoke_FC_4D, MatMulLayerGPUTest, fullyConnectedParams4D_smoke, MatMulLayerGPUTest::getTestCaseName);
 
 } // namespace fullyConnected
+
+/* ============= MatMul ============= */
+namespace matmul {
+
+const std::vector<ShapeRelatedParams> IS = {
+    {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {false, false}},
+    {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {true, false}},
+    {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {false, true}},
+    {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {true, true}},
+
+    {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {false, false}},
+    {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {true, false}},
+    {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {false, true}},
+    {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {true, true}},
+
+    {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {false, false}},
+    {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {true, false}},
+    {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {false, true}},
+    {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {true, true}},
+
+    {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {false, false}},
+    {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {true, false}},
+    {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {false, true}},
+    {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {true, true}}
+};
+
+const std::vector<ShapeRelatedParams> IS_OneDNN = {
+    {static_shapes_to_test_representation({{2, 4, 32, 120}, {2, 4, 120, 5}}), {false, false}},
+    {static_shapes_to_test_representation({{2, 4, 32, 120}, {2, 4, 120, 5}}), {true, false}},
+    {static_shapes_to_test_representation({{2, 4, 32, 120}, {2, 4, 120, 5}}), {false, true}},
+    {static_shapes_to_test_representation({{2, 4, 32, 120}, {2, 4, 120, 5}}), {true, true}},
+
+    {static_shapes_to_test_representation({{2, 2, 32, 120}, {1, 1, 120, 5}}), {false, false}},
+    {static_shapes_to_test_representation({{2, 2, 32, 120}, {1, 1, 120, 5}}), {true, false}},
+    {static_shapes_to_test_representation({{2, 2, 32, 120}, {1, 1, 120, 5}}), {false, true}},
+    {static_shapes_to_test_representation({{2, 2, 32, 120}, {1, 1, 120, 5}}), {true, true}},
+
+    {static_shapes_to_test_representation({{12, 12}, {12, 12}}), {false, false}},
+    {static_shapes_to_test_representation({{12, 12}, {12, 12}}), {true, false}},
+    {static_shapes_to_test_representation({{12, 12}, {12, 12}}), {false, true}},
+    {static_shapes_to_test_representation({{12, 12}, {12, 12}}), {true, true}}
+};
+
+const std::vector<ShapeRelatedParams> IS_Dynamic = {
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1}, {{55, 12}, {33, 7}}}, // input 0
+            {{-1, -1}, {{12, 55}, {7, 33}}}  // input 1
+        },
+        {false, false}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1}, {{55, 12}, {33, 7}}}, // input 0
+            {{-1, -1}, {{12, 55}, {7, 33}}} // input 1
+        },
+        {true, false}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1}, {{55, 12}, {33, 7}}}, // input 0
+            {{-1, -1}, {{12, 55}, {7, 33}}} // input 1
+        },
+        {false, true}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1}, {{55, 12}, {33, 7}}}, // input 0
+            {{-1, -1}, {{12, 55}, {7, 33}}} // input 1
+        },
+        {true, true}
+    },
+
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1, -1, -1}, {{1, 2, 32, 60}, {1, 2, 32, 30}}}, // input 0
+            {{-1, -1}, {{60, 5}, {30, 5}}}  // input 1
+        },
+        {false, false}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1, -1, -1}, {{1, 2, 32, 60}, {1, 2, 32, 30}}}, // input 0
+            {{-1, -1}, {{60, 5}, {30, 5}}} // input 1
+        },
+        {true, false}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1, -1, -1}, {{1, 2, 32, 60}, {1, 2, 32, 30}}}, // input 0
+            {{-1, -1}, {{60, 5}, {30, 5}}} // input 1
+        },
+        {false, true}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1, -1, -1}, {{1, 2, 32, 60}, {1, 2, 32, 30}}}, // input 0
+            {{-1, -1}, {{60, 5}, {30, 5}}} // input 1
+        },
+        {true, true}
+    },
+
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1, -1}, {{7, 32, 60}, {7, 32, 30}}}, // input 0
+            {{-1, -1, -1, -1}, {{3, 7, 60, 25}, {3, 7, 30, 25}}}  // input 1
+        },
+        {false, false}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1, -1}, {{7, 32, 60}, {7, 32, 30}}}, // input 0
+            {{-1, -1, -1, -1}, {{3, 7, 60, 25}, {3, 7, 30, 25}}} // input 1
+        },
+        {true, false}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1, -1}, {{7, 32, 60}, {7, 32, 30}}}, // input 0
+            {{-1, -1, -1, -1}, {{3, 7, 60, 25}, {3, 7, 30, 25}}} // input 1
+        },
+        {false, true}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1, -1}, {{7, 32, 60}, {7, 32, 30}}}, // input 0
+            {{-1, -1, -1, -1}, {{3, 7, 60, 25}, {3, 7, 30, 25}}} // input 1
+        },
+        {true, true}
+    },
+
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1, -1}, {{10, 10, 10}, {5, 5, 5}}}, // input 0
+            {{-1, -1, -1}, {{10, 10, 10}, {5, 5, 5}}}  // input 1
+        },
+        {false, false}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1, -1}, {{10, 10, 10}, {5, 5, 5}}}, // input 0
+            {{-1, -1, -1}, {{10, 10, 10}, {5, 5, 5}}} // input 1
+        },
+        {true, false}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1, -1}, {{10, 10, 10}, {5, 5, 5}}}, // input 0
+            {{-1, -1, -1}, {{10, 10, 10}, {5, 5, 5}}} // input 1
+        },
+        {false, true}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1, -1}, {{10, 10, 10}, {5, 5, 5}}}, // input 0
+            {{-1, -1, -1}, {{10, 10, 10}, {5, 5, 5}}} // input 1
+        },
+        {true, true}
+    },
+
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{{1, 15}, {1, 15}, {1, 15}}, {{10, 10, 10}, {5, 5, 5}}}, // input 0
+            {{{1, 15}, {1, 15}, {1, 15}}, {{10, 10, 10}, {5, 5, 5}}}  // input 1
+        },
+        {false, false}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{{1, 15}, {1, 15}, {1, 15}}, {{10, 10, 10}, {5, 5, 5}}}, // input 0
+            {{{1, 15}, {1, 15}, {1, 15}}, {{10, 10, 10}, {5, 5, 5}}} // input 1
+        },
+        {true, false}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{{1, 15}, {1, 15}, {1, 15}}, {{10, 10, 10}, {5, 5, 5}}}, // input 0
+            {{{1, 15}, {1, 15}, {1, 15}}, {{10, 10, 10}, {5, 5, 5}}} // input 1
+        },
+        {false, true}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ -1, 16 }, {{ 4, 16 }, { 2, 16 }}}, // input 0
+            {{ {1, 5}, 12, -1, 4 }, {{ 1, 12, 16, 4 }, { 1, 12, 16, 4 }}}  // input 1
+        },
+        {true, true}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ -1, 12, -1, 16 }, {{ 1, 12, 4, 16 }, { 2, 12, 2, 16 }}}, // input 0
+            {{ {1, 5}, 12, -1, 4 }, {{ 1, 12, 16, 4 }, { 1, 12, 16, 4 }}}  // input 1
+        },
+        {false, false}
+    }
+};
+
+const std::vector<ShapeRelatedParams> IS_Dynamic_nightly = {
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{{5, 15}, {1, 12}, {4, 15}}, {{10, 10, 10}, {5, 5, 5}}}, // input 0
+            {{{1, 13}, {3, 15}, {1, 10}}, {{10, 10, 10}, {5, 5, 5}}} // input 1
+        },
+        {true, true}
+    },
+
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ {2, 10}, {3, 15}, -1, 16 }, {{ 2, 12, 4, 16 }, { 3, 12, 2, 16 }}}, // input 0
+            {{ 1, 1, -1, 4 }, {{ 1, 1, 16, 4 }, { 1, 1, 16, 4 }}}  // input 1
+        },
+        {true, true}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ 1, 1, -1, 16 }, {{ 1, 1, 4, 16 }, { 1, 1, 2, 16 }}}, // input 0
+            {{ {2, 5}, {3, 15}, -1, 4 }, {{ 2, 12, 16, 4 }, { 2, 12, 16, 4 }}}  // input 1
+        },
+        {false, false}
+    },
+
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ -1, 16 }, {{ 4, 16 }, { 2, 16 }}}, // input 0
+            {{ {1, 5}, 12, -1, 4 }, {{ 1, 12, 16, 4 }, { 1, 12, 16, 4 }}}  // input 1
+        },
+        {false, false}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ -1, {2, 15}, -1, 16 }, {{ 1, 12, 4, 16 }, { 2, 12, 2, 16 }}}, // input 0
+            {{ -1, 4 }, {{ 16, 4 }, { 16, 4 }}}  // input 1
+        },
+        {true, true}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ -1, {1, 15}, -1, 16 }, {{ 1, 12, 4, 16 }, { 2, 12, 2, 16 }}}, // input 0
+            {{ -1, 4 }, {{ 16, 4 }, { 16, 4 }}}  // input 1
+        },
+        {false, false}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ {1, 3}, {1, 9}, {1, 5}, {1, 10} }, {{ 1, 7, 4, 5 }, { 1, 7, 4, 4 }}}, // input 0
+            {{ {1, 5}, {1, 7}, {1, 8}, {1, 5} }, {{ 1, 7, 5, 4 }, { 1, 7, 4, 4 }}}  // input 1
+        },
+        {true, true}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ {1, 3}, {1, 9}, {1, 5}, {1, 10} }, {{ 1, 7, 4, 5 }, { 1, 7, 4, 4 }}}, // input 0
+            {{ {1, 5}, {1, 7}, {1, 8}, {1, 5} }, {{ 1, 7, 5, 4 }, { 1, 7, 4, 4 }}}  // input 1
+        },
+        {false, false}
+    },
+
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ 1, 7, 4, -1 }, {{ 1, 7, 4, 5 }, { 1, 7, 4, 4 }}}, // input 0
+            {{ 1, 7, -1, 4 }, {{ 1, 7, 5, 4 }, { 1, 7, 4, 4 }}}  // input 1
+        },
+        {true, true}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ 1, 7, 4, -1 }, {{ 1, 7, 4, 5 }, { 1, 7, 4, 4 }}}, // input 0
+            {{ 1, 7, -1, 4 }, {{ 1, 7, 5, 4 }, { 1, 7, 4, 4 }}}  // input 1
+        },
+        {false, false}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ -1, 12, -1, 16 }, {{ 1, 12, 4, 16 }, { 2, 12, 2, 16 }}}, // input 0
+            {{ {1, 5}, 12, -1, 4 }, {{ 1, 12, 16, 4 }, { 1, 12, 16, 4 }}}  // input 1
+        },
+        {true, true}
+    },
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ -1, 12, -1, 16 }, {{ 1, 12, 4, 16 }, { 2, 12, 2, 16 }}}, // input 0
+            {{ {1, 5}, 12, -1, 4 }, {{ 1, 12, 16, 4 }, { 1, 12, 16, 4 }}}  // input 1
+        },
+        {true, false}
+    },
+
+    {
+        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{ -1, 12, -1, 16 }, {{ 1, 12, 4, 16 }, { 2, 12, 2, 16 }}}, // input 0
+            {{ {1, 5}, 12, -1, 4 }, {{ 1, 12, 16, 4 }, { 1, 12, 16, 4 }}}  // input 1
+        },
+        {false, true}
+    }
+};
+
+const auto testParams = ::testing::Combine(::testing::ValuesIn(IS),
+                                           ::testing::ValuesIn(netPRCs),
+                                           ::testing::Values(ElementType::undefined),
+                                           ::testing::Values(ElementType::undefined),
+                                           ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                           ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                           ::testing::ValuesIn(additionalConfig));
+
+INSTANTIATE_TEST_SUITE_P(smoke_MM_Static, MatMulLayerGPUTest, testParams, MatMulLayerGPUTest::getTestCaseName);
+
+const auto testParamsOneDNN = ::testing::Combine(::testing::ValuesIn(IS_OneDNN),
+                                                 ::testing::Values(ElementType::f16),
+                                                 ::testing::Values(ElementType::undefined),
+                                                 ::testing::Values(ElementType::undefined),
+                                                 ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                                 ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                                 ::testing::ValuesIn(additionalConfig));
+
+INSTANTIATE_TEST_SUITE_P(smoke_MM_Static_OneDNN, MatMulLayerGPUTest, testParamsOneDNN, MatMulLayerGPUTest::getTestCaseName);
+
+const auto testParamsDynamic = ::testing::Combine(::testing::ValuesIn(IS_Dynamic),
+                                                  ::testing::ValuesIn(netPRCs),
+                                                  ::testing::Values(ElementType::undefined),
+                                                  ::testing::Values(ElementType::undefined),
+                                                  ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                                  ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                                  ::testing::ValuesIn(additionalConfig));
+
+INSTANTIATE_TEST_SUITE_P(smoke_MM_Dynamic, MatMulLayerGPUTest, testParamsDynamic, MatMulLayerGPUTest::getTestCaseName);
+
+const auto testParamsDynamic_nightly = ::testing::Combine(::testing::ValuesIn(IS_Dynamic_nightly),
+                                             ::testing::ValuesIn(netPRCs),
+                                             ::testing::Values(ElementType::undefined),
+                                             ::testing::Values(ElementType::undefined),
+                                             ::testing::Values(helpers::InputLayerType::PARAMETER),
+                                             ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                             ::testing::ValuesIn(additionalConfig));
+
+INSTANTIATE_TEST_SUITE_P(nightly_MM_Dynamic, MatMulLayerGPUTest, testParamsDynamic_nightly, MatMulLayerGPUTest::getTestCaseName);
+
+} // namespace matmul
 } // namespace
 } // namespace GPULayerTestsDefinitions

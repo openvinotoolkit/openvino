@@ -20,7 +20,6 @@
 #include "reduce_inst.h"
 #include "one_hot_inst.h"
 #include "permute_inst.h"
-#include "gemm_inst.h"
 #include "quantize_inst.h"
 #include "mvn_inst.h"
 #include "depth_to_space_inst.h"
@@ -1546,7 +1545,9 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             }
 
             auto gemm_prim = node.as<gemm>().get_primitive();
-            if (!node.is_dynamic()) {
+            if (node.is_dynamic()) {
+                impl_candidate = impl_types::ocl;
+            } else {
                 auto in0_l = node.get_dependency(0).get_output_layout();
                 auto in1_l = node.get_dependency(1).get_output_layout();
                 auto out_l = node.get_output_layout();
@@ -1564,13 +1565,13 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
 
                 auto valid_input_batch = in0_batched_size != 1 && (in1_batched_size == in0_batched_size || in1_batched_size == 1);
                 auto valid_output_batch = in0_batched_size > in1_batched_size ? out_batched_size == in0_batched_size :
-                                                                            out_batched_size == in1_batched_size;
+                                                                                out_batched_size == in1_batched_size;
                 auto valid_extra_input_batch = has_input2 ? in2_batched_size == 1 || in2_batched_size == out_batched_size : true;
                 auto valid_scale_factor = gemm_prim->alpha == 1.f && (has_input2 ? gemm_prim->beta == 1.f : true);
                 auto unsupported_onednn_gemm = !valid_input_batch ||
-                                            !valid_output_batch ||
-                                            !valid_extra_input_batch ||
-                                            !valid_scale_factor;
+                                               !valid_output_batch ||
+                                               !valid_extra_input_batch ||
+                                               !valid_scale_factor;
 
                 bool is_u8_i8 = data_type_traits::is_i8_u8(in0_l.data_type) && data_type_traits::is_i8_u8(in1_l.data_type);
                 bool use_ops_cldnn_kernel = is_u8_i8 || (in0_l.spatial(0) % 16 == 0 && in0_l.spatial(1) % 16 == 0 &&
