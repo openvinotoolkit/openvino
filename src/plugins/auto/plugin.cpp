@@ -444,7 +444,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         // reset the strDevices to support devices
         strDevices = "";
         for (auto iter = supportDevices.begin(); iter != supportDevices.end(); iter++) {
-            std::map<std::string, std::string> deviceConfig;
             auto& configs = iter->config;
             for (auto& config : configs) {
                 LOG_INFO_TAG("device:%s, config:%s=%s",
@@ -454,6 +453,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
             }
             insertPropToConfig(CONFIG_KEY(ALLOW_AUTO_BATCHING), iter->deviceName, configs);
             insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), iter->deviceName, configs);
+            insertPropToConfig(CONFIG_KEY(CACHE_DIR), iter->deviceName, configs);
             strDevices += iter->deviceName;
             strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
             LOG_INFO_TAG("device:%s, priority:%ld", iter->deviceName.c_str(), iter->devicePriority);
