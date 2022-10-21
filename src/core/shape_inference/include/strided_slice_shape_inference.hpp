@@ -55,14 +55,15 @@ void shape_infer(const StridedSlice* op,
     std::vector<int64_t> end;
     std::vector<int64_t> strides;
 
-    auto number_elements_in_1d = [](const StridedSlice* op, const T& shape_1d) {
+    auto number_elements_in_1d = [](const StridedSlice* op, const T& shape_1d) -> int64_t {
         auto rank_1d = shape_1d.rank();
         if (rank_1d.is_static()) {
             NODE_VALIDATION_CHECK(op, rank_1d.get_length() == 1, "Only 1D tensor is allowed.");
-            return shape_1d[0];
+            if (shape_1d[0].is_static()) {
+                return static_cast<int64_t>(shape_1d[0].get_length());
+            }
         }
-
-        return ov::Dimension::dynamic();
+        return -1;
     };
 
     // compute constant values of begin, end, and strides if possible
@@ -78,26 +79,26 @@ void shape_infer(const StridedSlice* op,
     }
 
     // compute and check a number of axes for which begin, end, and strides are defined
-    ov::Dimension number_axes = number_elements_in_1d(op, begin_shape);
-    ov::Dimension end_number_axes = number_elements_in_1d(op, end_shape);
-    if (number_axes.is_static() && end_number_axes.is_static()) {
+    auto number_axes = number_elements_in_1d(op, begin_shape);
+    auto end_number_axes = number_elements_in_1d(op, end_shape);
+    if (number_axes != -1 && end_number_axes != -1) {
         NODE_VALIDATION_CHECK(op,
-                              number_axes.get_length() == end_number_axes.get_length(),
+                              number_axes == end_number_axes,
                               "Lower bounds and Upper bounds need to have same number of values");
-    } else if (end_number_axes.is_static()) {
+    } else if (end_number_axes != -1) {
         number_axes = end_number_axes;
     }
-    ov::Dimension strides_number_axes = number_elements_in_1d(op, strides_shape);
-    if (number_axes.is_static() && strides_number_axes.is_static()) {
+    auto strides_number_axes = number_elements_in_1d(op, strides_shape);
+    if (number_axes != -1 && strides_number_axes != -1) {
         NODE_VALIDATION_CHECK(op,
-                              number_axes.get_length() == strides_number_axes.get_length(),
+                              number_axes == strides_number_axes,
                               "Stride needs to have same number of values as Lower and Upper bounds");
-    } else if (strides_number_axes.is_static()) {
+    } else if (strides_number_axes != -1) {
         number_axes = strides_number_axes;
     }
 
     // if number of axes is undefined we cannot say about output rank
-    if (number_axes.is_dynamic()) {
+    if (number_axes < 0) {
         output_shapes[0] = ov::PartialShape::dynamic();
         return;
     }
@@ -119,14 +120,13 @@ void shape_infer(const StridedSlice* op,
     AxisSet end_mask = convert_mask_to_axis_set(op->get_end_mask());
     AxisSet shrink_axis_mask = convert_mask_to_axis_set(op->get_shrink_axis_mask());
     NODE_VALIDATION_CHECK(op,
-                          input_rank + new_axis_mask.size() >= number_axes.get_length(),
+                          input_rank + new_axis_mask.size() >= static_cast<size_t>(number_axes),
                           "Input rank plus number of new axis has to be at least the size of Lower "
                           "and Upper bounds vector.");
 
-    auto num_axes = number_axes.get_length();
     std::vector<DimType> dims;
     int64_t input_shape_idx = 0;
-    for (size_t axis = 0; axis < num_axes; ++axis) {
+    for (int64_t axis = 0; axis < number_axes; ++axis) {
         // add all dimensions hidden under the ellipsis mask if ellipsis mask is set
         if (ellipsis_mask.count(axis)) {
             // only one bit in ellipsis mask is allowed
@@ -144,7 +144,7 @@ void shape_infer(const StridedSlice* op,
             }
 
             int64_t num_input_axis_after_ellipses =
-                (num_axes - axis - num_new_axis_after_ellipses - 1);  // -1 because it's a position of ellipses
+                (number_axes - axis - num_new_axis_after_ellipses - 1);  // -1 because it's a position of ellipses
             int64_t num_of_hidden_dims = input_rank - num_input_axis_after_ellipses - num_input_axis_before_ellipses;
             for (int64_t i = 0; i < num_of_hidden_dims; ++i) {
                 dims.emplace_back(input_shape[input_shape_idx]);
