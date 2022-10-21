@@ -38,7 +38,6 @@ enum class KernelType {
     RESAMPLE,
     REGION_YOLO,
     REORG_YOLO,
-    MAX_UNPOOLING,
     MVN,
     LSTM_GEMM,
     LSTM_ELT,

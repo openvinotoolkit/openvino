@@ -8,7 +8,6 @@
 
 // ToDo: remove those include with the appropriate code below once we will have support for multiple outputs of a
 // primitive
-#include "max_unpooling_inst.h"
 #include "pooling_inst.h"
 #include <vector>
 #include <queue>
@@ -27,12 +26,10 @@ void trim_to_outputs::run(program& p) {
     queue.push(&p.get_outputs());
 
     std::vector<program_node*> special_nodes;
-    for (auto& node : p.get_processing_order()) {
-        if (node->is_type<input_layout>() ||  // input layout may become disconnected during prior boxes calculations so
-                                              // it may have not been marked at this place but we don't want to remove it
-            node->is_type<max_unpooling>())   // ToDo: remove this after support for multi-outputs in primitives will
-                                              // be implemented.
-            special_nodes.push_back(node);
+    for (auto& node : p.get_processing_order()) {   // input layout may become disconnected during prior boxes calculations so
+        if (node->is_type<input_layout>()) {        // it may have not been marked at this place but we don't want to remove it
+            special_nodes.push_back(node);          // ToDo: remove this after support for multi-outputs in primitives will
+        }                                           // be implemented.
     }
     queue.push(&special_nodes);
 
