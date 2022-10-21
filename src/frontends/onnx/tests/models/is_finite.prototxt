@@ -17,6 +17,9 @@ graph {
             dim_value: 1
           }
           dim {
+            dim_value: 2
+          }
+          dim {
             dim_value: 3
           }
         }
@@ -31,6 +34,9 @@ graph {
         shape {
           dim {
             dim_value: 1
+          }
+          dim {
+            dim_value: 2
           }
           dim {
             dim_value: 3
