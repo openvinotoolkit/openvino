@@ -16,6 +16,7 @@ add_custom_command(OUTPUT ${openvino_wheel_path}
     ${PYTHON_EXECUTABLE} ${SETUP_PY} clean bdist_wheel
         --dist-dir ${openvino_wheels_output_dir}
         --build=${WHEEL_BUILD}
+        --quiet
     DEPENDS ie_wheel
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Building Python wheel ${openvino_wheel_name}"
