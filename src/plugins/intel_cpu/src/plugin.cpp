@@ -95,6 +95,7 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -519,24 +520,24 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         }
         auto supportedPrecisions = std::vector<PrecisionsRestriction>({
             PrecisionsRestriction::create<ngraph::opset1::Convolution>({
-                {0, input0LowPrecisionList},
-                {1, {ngraph::element::i8}},
+                {{0}, input0LowPrecisionList},
+                {{1}, {ngraph::element::i8}},
             }),
             PrecisionsRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
-                {0, {ngraph::element::u8, ngraph::element::i8}},
-                {1, {ngraph::element::i8}}
+                {{0}, {ngraph::element::u8, ngraph::element::i8}},
+                {{1}, {ngraph::element::i8}}
             }),
             PrecisionsRestriction::create<ngraph::opset1::GroupConvolution>({
-                {0, input0LowPrecisionList},
-                {1, {ngraph::element::i8}}
+                {{0}, input0LowPrecisionList},
+                {{1}, {ngraph::element::i8}}
             }),
             PrecisionsRestriction::create<ngraph::opset1::Multiply>({
-                {0, {ngraph::element::u8}},
-                {1, {ngraph::element::i8}},
+                {{0}, {ngraph::element::u8}},
+                {{1}, {ngraph::element::i8}},
             }),
             PrecisionsRestriction::create<ngraph::opset1::MatMul>({
-                {0, {ngraph::element::u8, ngraph::element::i8}},
-                {1, {ngraph::element::i8}}
+                {{0}, {ngraph::element::u8, ngraph::element::i8}},
+                {{1}, {ngraph::element::i8}}
             }),
         });
 
