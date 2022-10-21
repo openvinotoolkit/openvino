@@ -147,13 +147,20 @@ jobs:
       export BUILD_OPENCV=$(BUILD_OPENCV)
       export INSTALL_OPENVINO=$(INSTALL_OPENVINO)
       $(OPENVINO_CONTRIB_REPO_DIR)/modules/arm_plugin/scripts/install_build_dependencies.sh
-      /usr/local/bin/$(PYTHON_EXEC) -m pip install --upgrade pip
-      /usr/local/bin/$(PYTHON_EXEC) -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
-      /usr/local/bin/$(PYTHON_EXEC) -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
-      /usr/local/bin/$(PYTHON_EXEC) -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/requirements.txt
     workingDirectory: $(BUILD_OPENVINO)
     displayName: 'Install dependencies'
 
+  - script: |
+      set -e
+      /usr/local/bin/$(PYTHON_EXEC) -m pip install -U pip
+      /usr/local/bin/$(PYTHON_EXEC) -m pip install crossenv
+      /usr/local/bin/$(PYTHON_EXEC) -m crossenv $(INSTALL_PYTHON)/bin/$(PYTHON_EXEC) /opt/cross_venv
+      source /opt/cross_venv/bin/activate
+      build-pip3 install -U pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
+      cross-pip3 install -U pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/requirements.txt
+      cross-pip3 install -U pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
+    workingDirectory: $(BUILD_OPENVINO)
+    displayName: 'Create crossenv'
 
   - task: CMake@1
     inputs:
@@ -162,10 +169,7 @@ jobs:
         -DCMAKE_VERBOSE_MAKEFILE=ON
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake
-        -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/$(PYTHON_EXEC)
-        -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib/lib$(PYTHON_EXEC).so
-        -DENABLE_PYTHON=ON
-        -DPYTHON_MODULE_EXTENSION=".so"
+        -DENABLE_PYTHON=OFF
         -DENABLE_TESTS=ON
         -DENABLE_DATA=OFF
         -DENABLE_LTO=ON
@@ -174,7 +178,7 @@ jobs:
         -DENABLE_INTEL_MYRIAD=OFF
         -DTHREADING=TBB
         -DTBB_DIR=$(INSTALL_ONETBB)/lib/cmake/TBB
-        -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON
+        -DCMAKE_VERBOSE_MAKEFILE=ON
         -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules/arm_plugin
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
@@ -182,8 +186,8 @@ jobs:
         -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DARM_COMPUTE_SCONS_JOBS=$(NUM_PROC)
         -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPENVINO)
-        $(OPENVINO_REPO_DIR)
-      workingDirectory: $(BUILD_OPENVINO)
+        -S $(OPENVINO_REPO_DIR)
+        -B $(BUILD_OPENVINO)
     displayName: 'CMake OpenVINO ARM plugin'
 
   - script: |
@@ -207,14 +211,7 @@ jobs:
         -DOpenVINODeveloperPackage_DIR=$(BUILD_OPENVINO)
         -DENABLE_PYTHON=ON
         -DTHREADING=TBB
-        -DPYTHON_EXECUTABLE=/usr/local/bin/$(PYTHON_EXEC)
-        -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/$(PYTHON_EXEC)
-        -DPYTHON_LIBRARIES=$(INSTALL_PYTHON)/lib
-        -DPYTHON3_NUMPY_INCLUDE_DIRS=/usr/local/lib/$(PYTHON_EXEC)/site-packages/numpy/core/include
-        -DPYTHON_MODULE_EXTENSION=".so"
-        -DPYBIND11_FINDPYTHON=OFF
-        -DPYBIND11_NOPYTHON=OFF
-        -DPYTHONLIBS_FOUND=TRUE
+        -DPYTHON_EXECUTABLE=/opt/cross_venv/bin/python3
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_DATA=OFF
         -DCMAKE_EXE_LINKER_FLAGS=-Wl,-rpath-link,$(INSTALL_OPENCV)/lib
@@ -224,8 +221,8 @@ jobs:
         -DCMAKE_CXX_LINKER_LAUNCHER=ccache
         -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPENVINO)
-        $(OPENVINO_REPO_DIR)/src/bindings/python
-      workingDirectory: $(BUILD_OPENVINO_PYTHON)
+        -S $(OPENVINO_REPO_DIR)/src/bindings/python
+        -B $(BUILD_OPENVINO_PYTHON)
     displayName: 'CMake OpenVINO python binding'
 
   - script: |
@@ -255,8 +252,8 @@ jobs:
         -DOpenVINO_DIR=$(BUILD_OPENVINO)
         -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake
         -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPEN_MODEL_ZOO)
-        $(OPENVINO_REPO_DIR)/thirdparty/open_model_zoo/demos
-      workingDirectory: $(BUILD_OPEN_MODEL_ZOO)
+        -S $(OPENVINO_REPO_DIR)/thirdparty/open_model_zoo/demos
+        -B $(BUILD_OPEN_MODEL_ZOO)
     displayName: 'CMake Open Model Zoo demos'
 
   - script: ninja
