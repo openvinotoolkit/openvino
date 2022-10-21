@@ -61,6 +61,7 @@ jobs:
     BUILD_OPENVINO: $(WORK_DIR)/build
     BUILD_OPENVINO_PYTHON: $(WORK_DIR)/build_python
     BUILD_OPEN_MODEL_ZOO: $(WORK_DIR)/build_open_model_zoo
+    CROSSENV_DIR: $(WORK_DIR)/cross_env
     INSTALL_OPENVINO: $(WORK_DIR)/install_openvino
     INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
     INSTALL_ONETBB: $(WORK_DIR)/build/extras/oneTBB
@@ -154,8 +155,8 @@ jobs:
       set -e
       /usr/local/bin/$(PYTHON_EXEC) -m pip install -U pip
       /usr/local/bin/$(PYTHON_EXEC) -m pip install crossenv
-      /usr/local/bin/$(PYTHON_EXEC) -m crossenv $(INSTALL_PYTHON)/bin/$(PYTHON_EXEC) /opt/cross_venv
-      source /opt/cross_venv/bin/activate
+      /usr/local/bin/$(PYTHON_EXEC) -m crossenv $(INSTALL_PYTHON)/bin/$(PYTHON_EXEC) $(CROSSENV_DIR)
+      source $(CROSSENV_DIR)/bin/activate
       build-pip3 install -U pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
       cross-pip3 install -U pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/requirements.txt
       cross-pip3 install -U pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
@@ -211,7 +212,7 @@ jobs:
         -DOpenVINODeveloperPackage_DIR=$(BUILD_OPENVINO)
         -DENABLE_PYTHON=ON
         -DTHREADING=TBB
-        -DPYTHON_EXECUTABLE=/opt/cross_venv/bin/python3
+        -DPYTHON_EXECUTABLE=$(CROSSENV_DIR)/bin/python3
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_DATA=OFF
         -DCMAKE_EXE_LINKER_FLAGS=-Wl,-rpath-link,$(INSTALL_OPENCV)/lib
