@@ -89,6 +89,8 @@ public:
 
 protected:
     bool isBias = false;
+    InferenceEngine::SizeVector dilation;
+    Config additionalConfig;
 
     void checkBiasFusing(ov::CompiledModel &execNet) const {
         auto execGraph = execNet.get_runtime_model();
@@ -157,7 +159,6 @@ protected:
         groupConvLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
-        Config additionalConfig;
         std::tie(basicParamsSet, cpuParams, fusingParams, additionalConfig) = this->GetParam();
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
@@ -184,7 +185,7 @@ protected:
         }
 
         ngraph::op::PadType padType;
-        InferenceEngine::SizeVector kernel, stride, dilation;
+        InferenceEngine::SizeVector kernel, stride;
         std::vector<ptrdiff_t> padBegin, padEnd;
         size_t convOutChannels, numGroups;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType) = groupConvParams;
@@ -201,6 +202,27 @@ protected:
 
 TEST_P(GroupConvolutionLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    // Skip tests for brgconv dw convolution where dilates is not 1
+    if (priority[0] == "brgconv_avx512_dw") {
+        bool has_unsupport_dilate = false;
+        for (const auto i : dilation) {
+            if (i != 1) {
+                has_unsupport_dilate = true;
+                break;
+            }
+        }
+        if (has_unsupport_dilate) {
+            GTEST_SKIP() << "Disabled test due to the brgconv dw requiring dilation=1." << std::endl;
+        }
+
+        // brgconv_avx512_dw needs bf16 hardware support, does not support emulation
+        if (additionalConfig.count(PluginConfigParams::KEY_ENFORCE_BF16) &&
+            PluginConfigParams::YES == additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16]) {
+            if (!with_cpu_x86_bfloat16())
+                GTEST_SKIP() << "Disabled test due to the brgconv dw requiring bf16 hw support." << std::endl;
+        }
+    }
 
     run();
     if (isBias) {
@@ -823,7 +845,8 @@ const std::vector<CPUSpecificParams> CPUParams_DW_2D = {
         conv_avx512_dw_2D,
         conv_sse42_dw_2D_nspc,
         conv_avx2_dw_2D_nspc,
-        conv_avx512_dw_2D_nspc
+        conv_avx512_dw_2D_nspc,
+        conv_avx512_dw_2D_nspc_brgconv
 };
 
 std::vector<InputShape> inputShapes2dDW = {
@@ -862,7 +885,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_DW_BF16, GroupConvolutionLayerCPUTes
                                         ::testing::Values(ElementType::undefined),
                                         ::testing::ValuesIn(inputShapes2dDW),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_dw_2D, conv_avx512_dw_2D_nspc})),
+                                ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_dw_2D,
+                                                                            conv_avx512_dw_2D_nspc,
+                                                                            conv_avx512_dw_2D_nspc_brgconv})),
                                 ::testing::ValuesIn(fusingParamsSetBF16),
                                 ::testing::Values(cpuBF16PluginConfig)),
                         GroupConvolutionLayerCPUTest::getTestCaseName);
@@ -1224,7 +1249,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_JIT_AVX2_DW_GroupConv, GroupConvolutionLayerCPUTe
 (JIT_AVX2_DW_GroupConvTestCases)), GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= JIT AVX512 DW GroupConvolution ============= */
-const std::vector<CPUSpecificParams> avx512_DW_2D = {conv_avx512_dw_2D, conv_avx512_dw_2D_nspc};
+const std::vector<CPUSpecificParams> avx512_DW_2D = {conv_avx512_dw_2D, conv_avx512_dw_2D_nspc, conv_avx512_dw_2D_nspc_brgconv};
 const std::vector<CPUSpecificParams> avx512_DW_3D = {conv_avx512_dw_3D, conv_avx512_dw_3D_nspc};
 const std::vector<groupConvLayerCPUTestParamsSet> JIT_AVX512_DW_GroupConvTestCases = generateSingleGroupConvCPUTestCases(
         //  1. jcp.ngroups % simd_w (=0,!=0)

@@ -319,6 +319,7 @@ const std::vector<impl_desc_type>& Convolution::getPrimitivesPriority() {
         impl_desc_type::jit_avx512_amx_dw,
         impl_desc_type::jit_avx512_amx_1x1,
         impl_desc_type::jit_avx512_amx,
+        impl_desc_type::brgconv_avx512_dw,
         impl_desc_type::brgconv_avx512_1x1,
         impl_desc_type::brgconv_avx512,
         impl_desc_type::jit_uni_dw,
@@ -348,7 +349,7 @@ const std::vector<impl_desc_type>& Convolution::getPrimitivesPriority() {
     };
 
     if (!shouldTryBrgconv) {
-        // remove brgconv_avx512_amx_1x1/brgconv_avx512_amx/brgconv_avx512/brgconv_avx512_1x1
+        // remove brgconv_avx512_amx_1x1/brgconv_avx512_amx/brgconv_avx512/brgconv_avx512_1x1/brgconv_avx512_dw
         for (auto it = priorities.begin(); it != priorities.end(); ) {
             if (((*it) & brgconv_avx512) == brgconv_avx512)
                 it = priorities.erase(it);

@@ -69,6 +69,7 @@ enum impl_desc_type {
     jit_sse42_dw        = jit  | sse42  | _dw,
     jit_uni_dw          = jit  | uni    | _dw,
     jit_avx512_amx_dw   = jit  | avx512 | amx | _dw,
+    brgconv_avx512_dw   = brgconv  | avx512 | _dw,
 
     brgconv_avx512      = brgconv  | avx512,
     brgconv_avx2        = brgconv  | avx2,
