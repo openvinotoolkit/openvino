@@ -578,9 +578,9 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
 
     // Finally load the CPU
     if (iterCPU != metaDevices.end()) {
-        if (!executableNetworkPerDevice.empty()) {
+        if (!executableNetworkPerDevice.empty() && iterCPU->config.find(ov::affinity.name()) == iterCPU->config.end()) {
             LOG_DEBUG_TAG("set affinity to NUMA for CPU");
-            // If the other devices load successfully, then set NUMA to CPU
+            // If the other devices load successfully and no user set affinity then set NUMA to CPU
             GetCore()->set_property(iterCPU->deviceName, ov::affinity(ov::Affinity::NUMA));
         }
         loads.push_back([&]() {
