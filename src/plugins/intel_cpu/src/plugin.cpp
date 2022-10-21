@@ -732,7 +732,8 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
         const auto default_num_streams =
             engConfig.streamExecutorConfig._threadBindingType ==
                     InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
-                ? IStreamsExecutor::Config::GetHybridDefaultNumStreams(engConfig.streamExecutorConfig)
+                ? IStreamsExecutor::Config::GetHybridNumStreams(engConfig.streamExecutorConfig,
+                                                                IStreamsExecutor::Config::StreamMode::DEFAULT)
                 : IStreamsExecutor::Config::GetDefaultNumStreams();
         int num_streams = default_num_streams;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
@@ -741,7 +742,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
                 // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
                 num_streams = engConfig.streamExecutorConfig._threadBindingType ==
                                       InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
-                                  ? IStreamsExecutor::Config::GetHybridAggressiveNumStreams(
+                                  ? IStreamsExecutor::Config::GetHybridNumStreams(
                                         engConfig.streamExecutorConfig,
                                         IStreamsExecutor::Config::StreamMode::AGGRESSIVE)
                                   : num_cores;
@@ -750,7 +751,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             // network is below the ISA-specific threshold
             num_streams = engConfig.streamExecutorConfig._threadBindingType ==
                                   InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
-                              ? IStreamsExecutor::Config::GetHybridAggressiveNumStreams(
+                              ? IStreamsExecutor::Config::GetHybridNumStreams(
                                     engConfig.streamExecutorConfig,
                                     IStreamsExecutor::Config::StreamMode::AGGRESSIVE)
                               : num_cores;
@@ -758,7 +759,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             // network is below general threshold
             num_streams = engConfig.streamExecutorConfig._threadBindingType ==
                                   InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
-                              ? IStreamsExecutor::Config::GetHybridAggressiveNumStreams(
+                              ? IStreamsExecutor::Config::GetHybridNumStreams(
                                     engConfig.streamExecutorConfig,
                                     IStreamsExecutor::Config::StreamMode::LESSAGGRESSIVE)
                               : std::max(default_num_streams, num_streams_less_aggressive);
