@@ -158,7 +158,7 @@ check_python_version () {
 
 python_version_to_check="$python_version"
 if [ -z "$python_version" ]; then
-        python_version_to_check="3"
+    python_version_to_check="3"
 fi
 
 if ! command -v python"$python_version_to_check" > /dev/null 2>&1; then

@@ -105,7 +105,7 @@ if not "%check_pyversion%"=="true" (
 :: Check Python bitness
 python -c "import sys; print(64 if sys.maxsize > 2**32 else 32)" 2 > NUL
 if errorlevel 1 (
-   echo Warning^: Error during installed Python bitness detection
+   echo Warning^: Cannot determine installed Python bitness
    exit /B 0
 )
 
