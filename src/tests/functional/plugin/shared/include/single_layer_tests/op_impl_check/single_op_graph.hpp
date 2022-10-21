@@ -25,9 +25,6 @@ static const std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Mod
     }
 
     for (const auto& type_info : opsInfo) {
-        if (type_info == ov::op::v9::Eye::get_type_info_static()) {
-            std::cout << "f" << std::endl;
-        }
         if (opGenerator.find(type_info) != opGenerator.end())
             res.push_back({type_info, opGenerator.find(type_info)->second()});
     }
