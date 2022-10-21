@@ -1,13 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#pragma once
-
 #include <gtest/gtest.h>
+#include "openvino/runtime/properties.hpp"
 #include "log/log.hpp"
 
 using namespace ov::intel_gna;
+
+namespace test {
 
 using GnaLogTestParams = std::tuple<ov::log::Level, ov::log::Level>;
 
@@ -37,7 +38,7 @@ TEST_P(GnaLogTest, LogLevel) {
     ov::log::Level log_level, message_level;
     std::tie(log_level, message_level) = GetParam();
 
-    GnaLog::GnaLog(log_level);
+    GnaLog log(log_level);
 
     switch (message_level) {
     case ov::log::Level::ERR :
@@ -90,3 +91,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_GnaLogTest,
                                                  ov::log::Level::DEBUG,
                                                  ov::log::Level::TRACE})),
                         GnaLogTest::GetTestCaseName);
+} //namespace test
