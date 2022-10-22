@@ -260,6 +260,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Pack", translate_pack_op},
         {"Pad", translate_pad_op},
         {"PadV2", translate_padv2_op},
+        {"DynamicStitch", translate_parallel_dynamic_stitch_op},
+        {"ParallelDynamicStitch", translate_parallel_dynamic_stitch_op},
         {"Placeholder", translate_placeholder_op},
         {"PlaceholderWithDefault", translate_placeholder_with_default_op},
         {"PreventGradient", translate_identity_op},
