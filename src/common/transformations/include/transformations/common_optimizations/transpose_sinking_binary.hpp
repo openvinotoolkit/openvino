@@ -15,6 +15,8 @@ class TRANSFORMATIONS_API TransposeSinkingBinaryForward;
 class TRANSFORMATIONS_API TransposeSinkingBinaryBackward;
 class TRANSFORMATIONS_API TransposeSinkingConcatForward;
 class TRANSFORMATIONS_API TransposeSinkingConcatBackward;
+class TRANSFORMATIONS_API TransposeSinkingSplitForward;
+class TRANSFORMATIONS_API TransposeSinkingSplitBackward;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -41,4 +43,16 @@ class ngraph::pass::TransposeSinkingConcatBackward : public ov::pass::MatcherPas
 public:
     OPENVINO_RTTI("ngraph::pass::TransposeSinkingConcatBackward", "0");
     TransposeSinkingConcatBackward();
+};
+
+class ngraph::pass::TransposeSinkingSplitForward : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ngraph::pass::TransposeSinkingSplitForward", "0");
+    TransposeSinkingSplitForward();
+};
+
+class ngraph::pass::TransposeSinkingSplitBackward : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ngraph::pass::TransposeSinkingSplitBackward", "0");
+    TransposeSinkingSplitBackward();
 };
