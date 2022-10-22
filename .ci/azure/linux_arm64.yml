@@ -213,16 +213,10 @@ jobs:
         -GNinja \
         -DOpenVINODeveloperPackage_DIR=$(BUILD_OPENVINO) \
         -DENABLE_PYTHON=ON \
-        -DTHREADING=TBB \
+        -DENABLE_WHEEL=ON \
         -DPYTHON_EXECUTABLE=$(CROSSENV_DIR)/bin/python3 \
-        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
         -DENABLE_DATA=OFF \
         -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake \
-        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-        -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-        -DCMAKE_CXX_LINKER_LAUNCHER=ccache \
-        -DCMAKE_C_LINKER_LAUNCHER=ccache \
-        -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPENVINO) \
         -S $(OPENVINO_REPO_DIR)/src/bindings/python \
         -B $(BUILD_OPENVINO_PYTHON)
       deactivate
@@ -248,7 +242,6 @@ jobs:
         -GNinja
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_PYTHON=ON
-        -DENABLE_WHEEL=ON
         -DPYTHON_EXECUTABLE=/usr/local/bin/$(PYTHON_EXEC)
         -DPYTHON_INCLUDE_DIR=$(INSTALL_PYTHON)/include/$(PYTHON_EXEC)
         -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib
