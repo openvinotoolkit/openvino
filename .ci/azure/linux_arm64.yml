@@ -207,7 +207,7 @@ jobs:
     workingDirectory: $(BUILD_OPENVINO)
     displayName: 'Install OpenVINO ARM plugin'
 
-  - script:
+  - script: |
       source $(CROSSENV_DIR)/bin/activate
       cmake \
         -GNinja \
