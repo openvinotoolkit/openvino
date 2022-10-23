@@ -2078,7 +2078,7 @@ void Eltwise::fuseInto(NodePtr& parentNode) {
     specialConvolutionAddFusing = (parentNode->getType() == Type::Convolution
                                     || parentNode->getType() == Type::BinaryConvolution)
                                         && getAlgorithm() == Algorithm::EltwiseAdd &&
-            dimsEqualWeak(getInputShapeAtPort(0).getDims(), getInputShapeAtPort(1).getDims());
+            dimsEqualStrong(getInputShapeAtPort(0).getDims(), getInputShapeAtPort(1).getDims());
     if ((scales.empty() && shifts.empty()) &&
         !specialConvolutionAddFusing &&
         canBePerformedAsScaleShift(parentNode.get())) {
