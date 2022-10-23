@@ -34,7 +34,13 @@ ov::OutputVector GetOutputs(const Nodes & nodes) {
 using TransposeNodes = std::tuple<std::shared_ptr<ov::opset9::Transpose>,
                                   std::shared_ptr<ov::opset9::Constant>>;
 
-TransposeNodes GetFirstTransposeInput(NodePtr node) {
+struct TrasposeInputInfo {
+    std::shared_ptr<ov::opset9::Transpose> transpose;
+    std::shared_ptr<ov::opset9::Constant> transpose_const;
+    int input_idx;
+};
+
+TrasposeInputInfo GetFirstTransposeInput(NodePtr node) {
     for (int input_idx = 0; input_idx < node->get_input_size(); ++input_idx) {
         NodePtr input_node = node->get_input_node_shared_ptr(input_idx);
         auto transpose_node = ov::as_type_ptr<ov::opset9::Transpose>(input_node);
@@ -43,31 +49,36 @@ TransposeNodes GetFirstTransposeInput(NodePtr node) {
         auto constant_node = ov::as_type_ptr<ov::opset9::Constant>(transpose_node->input_value(1).get_node_shared_ptr());
         if (!constant_node)
             continue;
-        return std::make_tuple(transpose_node, constant_node);
+        {
+            TrasposeInputInfo input_info;
+            input_info.transpose = transpose_node;
+            input_info.transpose_const = constant_node;
+            input_info.input_idx = input_idx;
+            return input_info;
+        }
     }
 
-    return std::make_tuple<std::shared_ptr<ov::opset9::Transpose>, std::shared_ptr<ov::opset9::Constant>>({}, {});
+    throw std::runtime_error("no transpose input found");
+
+    return TrasposeInputInfo();
 }
 
 bool IfNodeHasTransposeInputs(const ov::Output<ov::Node>& output) {
-    return std::get<0>(GetFirstTransposeInput(output.get_node_shared_ptr())) != nullptr;
+    for (int input_idx = 0; input_idx < output.get_node()->get_input_size(); ++input_idx) {
+        NodePtr input_node = output.get_node()->get_input_node_shared_ptr(input_idx);
+        auto transpose_node = ov::as_type_ptr<ov::opset9::Transpose>(input_node);
+        if (!transpose_node)
+            continue;
+        auto constant_node = ov::as_type_ptr<ov::opset9::Constant>(transpose_node->input_value(1).get_node_shared_ptr());
+        if (!constant_node)
+            continue;
+        return true;
+    }
+
+    return false;
 }
 
 // --------------------------------------------------------------------------------------
-
-size_t GetNodeInputIndex(NodePtr node, NodePtr input_node)
-{
-    for (auto & output : input_node->outputs()) {
-        for (auto & input : output.get_target_inputs()) {
-            if (input.get_node()->get_instance_id() == node->get_instance_id())
-                return input.get_index();
-        }   
-    }
-
-    throw std::runtime_error("input node index not found");
-
-    return 0;
-}
 
 ov::AxisVector ReverseTransposeOrder(const ov::AxisVector & axis_order)
 {
@@ -113,15 +124,12 @@ ngraph::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
 
     ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
         auto binary = m.get_match_root();
-        std::shared_ptr<ov::opset9::Transpose> transpose;
-        std::shared_ptr<ov::opset9::Constant> transpose_const;
+        TrasposeInputInfo transpose_input_info = GetFirstTransposeInput(binary);
 
-        std::tie(transpose, transpose_const) = GetFirstTransposeInput(binary);
-
-        const ov::AxisVector transpose_axis_order = transpose_const->get_axis_vector_val();
+        const ov::AxisVector transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
         const ov::AxisVector reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
-        const size_t tranpose_input_index = GetNodeInputIndex(binary, transpose);
-        const ov::element::Type transpose_element_type = transpose_const->get_element_type();
+        const size_t tranpose_input_index = transpose_input_info.input_idx;
+        const ov::element::Type transpose_element_type = transpose_input_info.transpose_const->get_element_type();
 
         for (size_t i = 0; i < binary->get_input_size(); ++i) {
             auto input_node = binary->input_value(i);
@@ -236,15 +244,12 @@ ngraph::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
         auto & concat_output = pattern_to_output.at(concat_label);
         auto concat = ov::as_type_ptr<ov::opset9::Concat>(concat_output.get_node_shared_ptr());
 
-        std::shared_ptr<ov::opset9::Transpose> transpose;
-        std::shared_ptr<ov::opset9::Constant> transpose_const;
+        TrasposeInputInfo transpose_input_info = GetFirstTransposeInput(concat);
 
-        std::tie(transpose, transpose_const) = GetFirstTransposeInput(concat);
-
-        const ov::AxisVector transpose_axis_order = transpose_const->get_axis_vector_val();
+        const ov::AxisVector transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
         const ov::AxisVector reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
-        const size_t tranpose_input_index = GetNodeInputIndex(concat, transpose);
-        const ov::element::Type transpose_element_type = transpose_const->get_element_type();
+        const size_t tranpose_input_index = transpose_input_info.input_idx;
+        const ov::element::Type transpose_element_type = transpose_input_info.transpose_const->get_element_type();
         const int64_t transposed_concat_axis = TransposeAxis(concat->get_axis(), transpose_axis_order);
 
         for (size_t i = 0; i < concat->get_input_size(); ++i) {
