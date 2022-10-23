@@ -129,6 +129,8 @@ private:
     void reshapeAndFillOutput(dnnl::stream strm);
     int getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) const;
 
+    bool isPredicable(); // output shape is predicable before inference.
+
     ExtensionManager::Ptr ext_mng;
     Graph sub_graph;
     std::vector<Node*> input_nodes;

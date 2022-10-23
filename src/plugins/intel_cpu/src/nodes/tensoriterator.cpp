@@ -15,6 +15,8 @@
 #include "common/cpu_memcpy.h"
 #include "reorder.h"
 
+#include "graph_dumper.h"
+
 using namespace dnnl;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -602,9 +604,9 @@ void TensorIterator::createPrimitive() {
         lastUsedCond = initial_cond_check->getStatus();
     }
 
-    if (isDynamicNode()) {
-        prepareDynamicBuffers();
-    } else {
+    if (!isDynamicNode()) {
+    //     prepareDynamicBuffers();
+    // } else {
         prepareOutputPorts();
     }
     prepareBackEdges();
@@ -630,12 +632,81 @@ void TensorIterator::prepareParams() {
     first_mappers.clear();
     before_mappers.clear();
 
+    auto tiOp = ov::as_type_ptr<const ov::op::util::SubGraphOp>(ngraphOp);
+    if (!tiOp) {
+        THROW_ERROR << "cannot be cast to ov::op::util::SubGraphOp";
+    }
+    std::shared_ptr<ov::Model> body = tiOp->get_function();
+    const std::string &body_name = body->get_friendly_name();
+    ::setenv("OV_CPU_EXEC_GRAPH_PATH", std::string(body_name+"_exec.xml").c_str(), 1);
+    serialize(sub_graph);
+
     if ((lastUsedCond && lastUsedTripCount != 0) || !isDynamicNode()) {
         reshapeSubgraphInput();
 
         prepareInputPorts();
         prepareContinueCond();
         prepareLoopBodyCurrentIteration();
+
+        if(isDynamicNode() && isPredicable()) {//preallocate output memory
+            int max_num_iter = trip_count_check->getStatus();
+
+            for (auto map_rule : outputPortMap) {
+                if (map_rule.axis != -1) { //concatoutput type
+                    auto to_mems = getToMemories(this, map_rule.from);//0
+                    auto from_mem = output_nodes[map_rule.to/*1*/]->getParentEdgeAt(outputNodePortIdx)->getMemoryPtr();
+
+                    const auto axis = map_rule.axis;
+                    const auto stride = map_rule.stride;
+                    const auto abs_stride = std::abs(stride);
+
+                    const auto src_mem = from_mem->GetPrimitive();
+                    const auto src_desc = src_mem.get_desc();
+                    const auto src_dims = src_desc.dims();
+                    const auto src_shape = output_nodes[map_rule.to]->getInputShapeAtPort(outputNodePortIdx); //"Result"
+                    std::cout << "src_shape = " << PartialShape(src_shape.getDims()) << std::endl;
+                    std::cout << "output_nodes[map_rule.to] = " << output_nodes[map_rule.to]->getName() << std::endl;
+
+                    const auto dst_mem = to_mems.front()->GetPrimitive();
+                    const auto dst_desc = dst_mem.get_desc();
+                    const auto dst_dims = dst_desc.dims();
+                    const auto dst_shape = getOutputShapeAtPort(map_rule.from);
+                    std::cout << "dst_shape before = " << PartialShape(dst_shape.getDims()) << std::endl;
+                    if (dst_shape.isDynamic()) {
+                        // calculate its static shape
+                        ov::Shape subgraph_shape;
+                        for (const auto &out : tiOp->get_function()->get_results()) {
+                            //const auto prev = out->input_value(0);
+                            const auto inputID = ngraph::op::util::create_ie_output_name(out);
+                            std::cout << "inputID = " << inputID << std::endl;
+                            if (output_nodes[map_rule.to]->getName() == inputID) {
+                                subgraph_shape = out->get_shape();
+                            }
+                        }
+                        auto new_dims = dst_shape.getDims();
+                        new_dims[axis] = max_num_iter * abs_stride;
+                        size_t dim_idx = 0;
+                        for (auto& dim : new_dims) {
+                            if (dim == Shape::UNDEFINED_DIM) {
+                                dim = subgraph_shape[dim_idx];
+                            }
+                            dim_idx++;
+                        }
+                        std::cout << "dst_shape after = " << new_dims << std::endl;
+
+                        const auto mem_desc = getBaseMemDescAtOutputPort(map_rule.from);
+                        const auto desc = mem_desc->cloneWithNewDims(new_dims);
+                        redefineToMemories(to_mems, desc);
+
+                        const auto src_memdesc = from_mem->getDescPtr();
+                        const auto new_desc = src_memdesc->cloneWithNewDims(subgraph_shape);
+                        from_mem->redefineDesc(new_desc);
+
+                        after_mappers.emplace_back(std::make_shared<PortIteratorHelper>(from_mem, to_mems[0], false, map_rule, getEngine()));
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -671,7 +742,7 @@ void TensorIterator::execute(dnnl::stream strm) {
 }
 
 void TensorIterator::executeDynamicImpl(dnnl::stream strm) {
-    const auto &eng = getEngine();
+    // const auto &eng = getEngine();
     sub_graph.ResetInferCount();
 
     bool continue_cond = initial_cond_check->getStatus();
@@ -692,8 +763,10 @@ void TensorIterator::executeDynamicImpl(dnnl::stream strm) {
 
         continue_cond = continue_cond_check->getStatus();
 
-        for (auto& buffer : buffers)
-            buffer->execute(eng, i);
+        // for (auto& buffer : buffers)
+        //     buffer->execute(eng, i);
+        for (auto &mapper : after_mappers)
+            mapper->execute(strm, i);
     }
 
     reshapeAndFillOutput(strm);
@@ -919,6 +992,37 @@ int TensorIterator::getNumIteration(const std::vector<PortMap>& inputPortMap, co
     }
 
     return numIterations;
+}
+
+bool TensorIterator::isPredicable() {
+    auto tiOp = ov::as_type_ptr<const ov::op::util::SubGraphOp>(ngraphOp);
+    if (!tiOp) {
+        THROW_ERROR << "cannot be cast to ov::op::util::SubGraphOp";
+    }
+    std::shared_ptr<ov::Model> body = tiOp->get_function();
+
+    std::map<size_t, ov::PartialShape> input_shapes = {};
+    const auto &inMap = sub_graph.GetInputNodesMap();
+    // for (auto& inNode : inMap) {
+    //     const auto tmp = inNode.second;
+    //     const auto tmp_memdesc = tmp->getChildEdgesAtPort(outputNodePortIdx)[0]->getMemoryPtr();
+    //     input_shapes[inNode.first] = ov::PartialShape(tmp_memdesc->getStaticDims());
+    // }
+    for (const auto &param : tiOp->get_function()->get_parameters()) {
+        auto inNode = inMap.find(param->get_friendly_name());
+        if (inNode != inMap.end()) {
+            const auto tmp = inNode->second;
+            const auto tmp_memdesc = tmp->getChildEdgesAtPort(outputNodePortIdx)[0]->getMemoryPtr();
+            input_shapes[body->get_parameter_index(param)] = ov::PartialShape(tmp_memdesc->getStaticDims());
+        }
+    }
+    body->reshape(input_shapes);
+
+    for (auto i = 0; i < body->get_output_size(); i++) {
+        std::cout << body->get_output_shape(i) << std::endl;
+    }
+
+    return !body->is_dynamic();
 }
 
 bool TensorIterator::created() const {
