@@ -1345,7 +1345,6 @@ bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_lab
     NGRAPH_CHECK(node->outputs().size() == 1);
 
     const auto& input_values = node->input_values();
-    TensorLabel input_labels;
 
     HostTensorVector input_tensors(input_values.size());
     for (size_t i = 0; i < input_values.size(); ++i) {
@@ -1356,12 +1355,10 @@ bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_lab
             else
                 return false;
         else {
-            input_labels = input.get_tensor().get_value_label();
-            bool no_labels = std::all_of(input_labels.begin(), input_labels.end(), [](const size_t& l) {
-                return l == 0;
-            });
-            if (input_labels.empty() || no_labels)
+            const auto& input_labels = input.get_tensor().get_value_label();
+            if (has_no_labels(input_labels)) {
                 return false;
+            }
 
             auto labels_constant = op::v0::Constant::create(ov::element::u64, input.get_shape(), input_labels);
             auto idxs_htp = std::make_shared<HostTensor>(labels_constant);
@@ -1638,11 +1635,12 @@ shared_ptr<op::Constant> ov::get_constant_from_source(const Output<Node>& source
 }
 
 bool ngraph::validate_host_tensor_vector(const HostTensorVector& tensor_vector, const size_t& size) {
-    if (tensor_vector.size() != size)
-        return false;
-    return std::all_of(tensor_vector.begin(), tensor_vector.end(), [](const HostTensorPtr& t) {
-        return t != nullptr;
-    });
+    return (tensor_vector.size() == size) &&
+           std::none_of(tensor_vector.cbegin(), tensor_vector.cend(), ov::cmp::Equal<HostTensorPtr>(nullptr));
+}
+
+bool ov::has_no_labels(const ov::TensorLabel& labels) {
+    return std::all_of(labels.cbegin(), labels.cend(), cmp::Equal<size_t>(no_label));
 }
 
 void ov::generate_transpose_default_order(std::vector<int64_t>& axes_order, const size_t length) {

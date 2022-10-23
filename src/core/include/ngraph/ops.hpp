@@ -84,6 +84,8 @@
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/op/irdft.hpp"
 #include "ngraph/op/is_finite.hpp"
+#include "ngraph/op/is_inf.hpp"
+#include "ngraph/op/is_nan.hpp"
 #include "ngraph/op/less.hpp"
 #include "ngraph/op/less_eq.hpp"
 #include "ngraph/op/log.hpp"

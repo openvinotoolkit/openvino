@@ -86,7 +86,7 @@ def summarize_graph(model_path, output_nodes_for_freeze=None, reshape_net=None):
             node_dict['type'] = tf.DType(node.attr['dtype'].type).name
             node_dict['shape'] = str(node.attr['shape'].shape.dim).replace('\n', '').replace(' ', '').replace(
                 'size:', '').replace('[', '').replace(']', '')
-            node_dict['shape'] = tuple(map(lambda x: int(x), node_dict['shape'].split(',')))
+            node_dict['shape'] = tuple(map(lambda x: int(x) if x else 0, node_dict['shape'].split(',')))
             placeholders[node.name] = node_dict
         if node.op == "Variable" or node.op == "VariableV2":
             variables.append(node.name)
