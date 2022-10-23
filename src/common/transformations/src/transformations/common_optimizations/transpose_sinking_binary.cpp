@@ -55,39 +55,6 @@ bool IfNodeHasTransposeInputs(const ov::Output<ov::Node>& output) {
 
 // --------------------------------------------------------------------------------------
 
-bool IsTransposeWithConstantAxis(const ov::Node * node) {
-    auto transpose_node = dynamic_cast<const ov::opset9::Transpose*>(node);
-    if (!transpose_node)
-        return false;
-    return dynamic_cast<const ov::opset9::Constant*>(transpose_node->input_value(1).get_node()) != nullptr;
-}
-
-template <typename Predicate>
-int FindFirstOutputIf(const ov::Node * node, Predicate predicate) {
-    for (int output_idx = 0; output_idx < node->get_output_size(); ++output_idx) {
-        for (auto input : node->get_output_target_inputs(output_idx)) {
-            if (predicate(input.get_node()))
-                return output_idx;
-        }
-    }
-
-    return -1;
-}
-
-bool IfNodeHasTransposeOutputs(const ov::Output<ov::Node>& output) {
-    return FindFirstOutputIf(output.get_node(), IsTransposeWithConstantAxis) >= 0;
-}
-
-NodePtr GetFirstTransposeOutput(const ov::Node * node) {
-    const int index = FindFirstOutputIf(node, IsTransposeWithConstantAxis);
-    if (index < 0)
-        return {};
-
-    return node->get_input_node_shared_ptr(index);
-}
-
-// --------------------------------------------------------------------------------------
-
 size_t GetNodeInputIndex(NodePtr node, NodePtr input_node)
 {
     for (auto & output : input_node->outputs()) {
@@ -425,9 +392,128 @@ ngraph::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
             SwapOutputNames(split->output(i), new_transpose->output(0));
         }
 
+        // update split axis
         auto new_split_axis_const = std::make_shared<ov::opset9::Constant>(split_axis_constant->get_element_type(), ov::Shape{}, transposed_split_axis);
         split->input(1).replace_source_output(new_split_axis_const);
 
+        return true;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(split_label, matcher_name);
+    register_matcher(m, matcher_pass_callback);
+}
+
+struct OutputTranspose {
+    ov::opset9::Transpose * transpose;
+    ov::opset9::Constant * transpose_const;
+    int output_idx;
+    int input_idx;
+};
+
+OutputTranspose GetOutputTransposes(NodePtr node) {
+    for (int output_idx = 0; output_idx < node->get_output_size(); ++output_idx) {
+        for (auto input : node->get_output_target_inputs(output_idx)) {
+            auto transpose_node = dynamic_cast<ov::opset9::Transpose*>(input.get_node());
+            if (!transpose_node)
+                continue;
+            auto constant_node = dynamic_cast<ov::opset9::Constant*>(transpose_node->input_value(1).get_node());
+            if (!constant_node)
+                continue;
+            {
+                OutputTranspose output_transpose;
+                output_transpose.transpose = transpose_node;
+                output_transpose.transpose_const = constant_node;
+                output_transpose.output_idx = output_idx;
+                output_transpose.input_idx = input.get_index();
+
+                return output_transpose;
+            }
+        }
+    }
+
+    throw std::runtime_error("cannot find output transpose");
+
+    return OutputTranspose();
+}
+
+bool HasOutputTranposes(const ov::Output<ov::Node>& output) {
+    NodePtr node = output.get_node_shared_ptr();
+
+    for (int output_idx = 0; output_idx < node->get_output_size(); ++output_idx) {
+        for (auto input : node->get_output_target_inputs(output_idx)) {
+            auto transpose_node = dynamic_cast<ov::opset9::Transpose*>(input.get_node());
+            if (!transpose_node)
+                continue;
+            auto constant_node = dynamic_cast<ov::opset9::Constant*>(transpose_node->input_value(1).get_node());
+            if (!constant_node)
+                continue;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+ngraph::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
+    MATCHER_SCOPE(TransposeSinkingSplitBackward);
+
+    auto split_label = ov::pass::pattern::wrap_type<ov::opset9::Split>(HasOutputTranposes);
+
+    ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
+        const auto& pattern_to_output = m.get_pattern_value_map();
+        auto split = ov::as_type_ptr<ov::opset9::Split>(pattern_to_output.at(split_label).get_node_shared_ptr());
+        auto split_axis_constant = ov::as_type_ptr<ov::opset9::Constant>(split->input_value(1).get_node_shared_ptr());
+
+        OutputTranspose output_transpose = GetOutputTransposes(split);
+
+        const ov::AxisVector transpose_axis_order = output_transpose.transpose_const->get_axis_vector_val();
+        const ov::element::Type transpose_element_type = output_transpose.transpose_const->get_element_type();
+
+        const ov::AxisVector reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
+
+        const size_t split_axis = split_axis_constant->get_axis_vector_val()[0];
+        const size_t reversed_transposed_split_axis = TransposeAxis(split_axis, reversed_traspose_axis_order);
+
+        // insert transpose before split
+        {
+            auto input_node = split->input_value(0);
+            auto new_transpose_const = std::make_shared<ov::opset9::Constant>(transpose_element_type,
+                                                                              ov::Shape{transpose_axis_order.size()},
+                                                                              transpose_axis_order);
+            auto new_transpose = std::make_shared<ov::opset9::Transpose>(input_node, new_transpose_const);
+
+            split->input(0).replace_source_output(new_transpose->output(0));
+
+            ov::copy_runtime_info(input_node.get_node_shared_ptr(), {new_transpose, new_transpose_const});
+
+            register_new_node(new_transpose);
+        }
+
+        // update split axis
+        auto new_split_axis_const = std::make_shared<ov::opset9::Constant>(split_axis_constant->get_element_type(),
+                                                                           ov::Shape{},
+                                                                           reversed_transposed_split_axis);
+        split->input(1).replace_source_output(new_split_axis_const);
+
+        // update split output
+        for (int output_idx = 0; output_idx < split->get_output_size(); ++output_idx) {
+            auto new_transpose_const = std::make_shared<ov::opset9::Constant>(transpose_element_type,
+                                                                              ov::Shape{reversed_traspose_axis_order.size()},
+                                                                              reversed_traspose_axis_order);
+            auto new_transpose = std::make_shared<ov::opset9::Transpose>(split, new_transpose_const);
+
+            for (auto input : split->get_output_target_inputs(output_idx)) {
+                if (output_idx != output_transpose.output_idx || input.get_index() != output_transpose.input_idx) {
+                    input.replace_source_output(new_transpose);
+                } else {
+                    // TODO: reconnect all consumers of input.get_node() with split output
+                    auto transpose_consumers = input.get_node()->output(0).get_target_inputs();
+                    for (auto consumer: transpose_consumers) {
+                         consumer.replace_source_output(split->output(output_idx));
+                    }
+                }
+            }
+        }
         return true;
     };
 
