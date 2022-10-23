@@ -104,6 +104,14 @@ public:
 
     void setExtManager(const ExtensionManager::Ptr& extMgr) { ext_mng = extMgr; }
 
+    std::vector<PortMap> inputPortMap;  //!< Input ports map
+    std::vector<PortMap> outputPortMap;  //!< Output ports map
+    std::vector<PortMap> backEdges;  //!< Back edges map
+
+    std::vector<Node*> input_nodes;
+    std::vector<Node*> output_nodes;
+    Graph sub_graph;
+
 protected:
     //  needShapeInfer() should return false
     //  because we cannot resolve the output dimensions before the inference is completed
@@ -131,9 +139,6 @@ private:
     int getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) const;
 
     ExtensionManager::Ptr ext_mng;
-    Graph sub_graph;
-    std::vector<Node*> input_nodes;
-    std::vector<Node*> output_nodes;
 
     std::vector<std::shared_ptr<PortMapHelper>>
         first_mappers,   /// < Applied once before loop
@@ -148,10 +153,6 @@ private:
         continue_cond_check;   /// < Perform check of continue condition value of body. value [0, 1]
 
     std::vector<std::shared_ptr<DynamicBuffer>> buffers;
-
-    std::vector<PortMap> inputPortMap;  //!< Input ports map
-    std::vector<PortMap> outputPortMap;  //!< Output ports map
-    std::vector<PortMap> backEdges;  //!< Back edges map
 
     std::vector<int> loopBodyCurrentIterationIdx;
     int loopBodyConditionOutputIdx = -1;

@@ -36,6 +36,7 @@ public:
     };
 
     Graph() = default;
+    Graph(bool _reuse_output_tensors) : reuse_output_tensors {_reuse_output_tensors} {};
     ~Graph();
 
     bool IsReady() {
@@ -267,6 +268,10 @@ private:
     std::shared_ptr<std::mutex> sharedMutex = nullptr;
     DnnlScratchPadPtr rtScratchPad;
     std::unordered_map<Node*, size_t> syncNodesInds;
+
+    // The to-layer of an backedge won't share memory manager with other clusters.
+    // This will avoid memory spoil when the from-layer reuses its memory.
+    bool reuse_output_tensors = true;  // default
 
     void EnforceBF16();
     void setMinSparseRate(float minSparseRate);

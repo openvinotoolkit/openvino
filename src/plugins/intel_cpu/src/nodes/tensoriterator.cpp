@@ -180,7 +180,7 @@ private:
 
 class BackEdgePortHelper : public PortMapHelper {
 public:
-    BackEdgePortHelper(const Node* from, Node* to) : m_from(from), m_to(to) {
+    BackEdgePortHelper(const Node* from, Node* to, const TensorIterator* tiOp) : m_from(from), m_to(to), m_tiOp(tiOp) {
         auto from_desc = m_from->getBaseMemDescAtInputPort(inputNodePortIdx);
         auto to_desc = m_to->getBaseMemDescAtOutputPort(outputNodePortIdx);
         VectorDims commonDims;
@@ -215,21 +215,31 @@ public:
             to_desc = to_desc->cloneWithNewDims(commonDims);
         }
 
-        m_compatible = to_desc->isCompatible(*from_desc);
         m_dynamic = m_from->isDynamicNode() || m_to->isDynamicNode();
 
         auto from_mem_ptr = m_from->getParentEdgeAt(inputNodePortIdx)->getMemoryPtr();
 
-        if (m_compatible) {
+        if (to_desc->isCompatible(*from_desc)) {
             auto memMngPtr = from_mem_ptr->getDnnlMemoryMngr();
             auto& childEdges = m_to->getChildEdgesAtPort(outputNodePortIdx);
-            for (size_t i = 0; i < childEdges.size(); ++i) {
-                auto to_mem_ptr = childEdges[i]->getMemoryPtr();
 
-                to_mem_ptr->Create(to_mem_ptr->getDesc(), memMngPtr);
+            // check if can share memory of "from" to "to"
+            m_shareable = check_shareable();
+            std::cout << __LINE__ << " backedge: " << m_from->getName() << " -> " << m_to->getName() << " shareable: " << m_shareable << std::endl;
+            if (m_shareable) {
+                for (size_t i = 0; i < childEdges.size(); ++i) {
+                    auto to_mem_ptr = childEdges[i]->getMemoryPtr();
+                    std::cout << __LINE__ << from_mem_ptr->GetPtr() << ", "
+                    << from_mem_ptr->GetData() << ", memman = " << from_mem_ptr->getDnnlMemoryMngr() << std::endl;
+                    std::cout << __LINE__ << to_mem_ptr->GetPtr() << ", "
+                    << to_mem_ptr->GetData() << ", memman = " << to_mem_ptr->getDnnlMemoryMngr() << std::endl;
+                    to_mem_ptr->Create(to_mem_ptr->getDesc(), memMngPtr); // FIXME: to_mem larger than from_mem, OR, from_mem is resued by memman??
+                    std::cout << __LINE__ << to_mem_ptr->GetPtr() << ", "
+                    << to_mem_ptr->GetData() << ", memman = " << to_mem_ptr->getDnnlMemoryMngr() << std::endl;
+                }
             }
         }
-        if (!m_dynamic && !m_compatible) {
+        if (!m_dynamic && !m_shareable) {
             mem_holder_src = from_mem_ptr->GetPrimitive();
             mem_holder_dst = m_to->getChildEdgesAtPort(outputNodePortIdx)[0]->getMemory().GetPrimitive();
             reorder = {mem_holder_src, mem_holder_dst};
@@ -241,7 +251,13 @@ public:
         auto dims = mem_from.getStaticDims();
         if (last_dims != dims) {
             m_to->redefineOutputMemory({dims}); // we exploit the fact that the target edges are connected to port 0
-            if (!m_compatible) {
+            auto& to_memptr = m_to->getChildEdgesAtPort(outputNodePortIdx)[0]->getMemoryPtr();
+            std::cout << __LINE__
+            << "m_from = " << mem_from.GetData()
+            << ", memman = " << mem_from.getDnnlMemoryMngr()
+            << ", m_to = " << to_memptr->GetData()
+            << ", memman = " << to_memptr->getDnnlMemoryMngr() << std::endl;
+            if (!m_shareable) {
                 mem_holder_src = mem_from.GetPrimitive();
                 mem_holder_dst = m_to->getChildEdgesAtPort(outputNodePortIdx)[0]->getMemory().GetPrimitive();
                 reorder = {mem_holder_src, mem_holder_dst};
@@ -261,11 +277,64 @@ public:
         }
     }
 
+protected:
+    bool check_shareable() {
+        const auto& edge_from = m_from->getParentEdgeAt(inputNodePortIdx);
+        const auto& parent_from = edge_from->getParent();
+
+        // check edge cluster of from-layer and to-layer to make sure their lifespans are not
+        // overlap, then to-layer can reuse memory of from-layer.
+
+        // Here we simplifies the checks to -
+        {
+            // 1. no edge shares memory of from-layer, that's equivalent to -
+            // from-layer has no siblings at the same output of parent; and the edge is not inplaced.
+            enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
+            if (edge_from->isMemShared(LOOK_UP)) return false;
+
+            // 2. no edge shares memory of to-layer, that's equivalent to -
+            // to-layer has no child edges, and the edge is not inplaced.
+            const auto& edges_to = m_to->getChildEdgesAtPort(outputNodePortIdx);
+            if (edges_to.size() > 1) return false;
+
+            if (edges_to[0]->isMemShared(LOOK_DOWN)) return false;
+
+            // 3. from-layer should not be a child nor a grandchild of to-layer.
+            // Parameter
+            //    |<------------------|
+            //    |                   |
+            //  Node                  | (backedge)
+            //    |                   |
+            //    |-------------------|
+            // Result
+            if (parent_from.get() == m_to || parent_from == edges_to[0]->getChild()) // based on #2.
+                return false;
+        }
+
+        // Simplify more situations -
+        // 1. from-layer's parent node is also another backedge's to-layer.
+        for (auto map_rule : m_tiOp->backEdges) {
+            const auto to_node = m_tiOp->input_nodes[map_rule.to];
+            if (parent_from.get() == to_node) return false;
+        }
+
+        // 2. Disable backedge memory share for nested-loop/if
+        for (auto& node : const_cast<TensorIterator*>(m_tiOp)->sub_graph.GetNodes()) {
+            if (one_of(node->getType(), Type::TensorIterator, Type::If)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
 private:
-    bool m_compatible = false;
     bool m_dynamic = false;
+    bool m_shareable = false;
     const Node* m_from;
     Node* m_to;
+    const TensorIterator* m_tiOp;
+
     VectorDims last_dims;
     dnnl::memory mem_holder_src;
     dnnl::memory mem_holder_dst;
@@ -485,7 +554,7 @@ bool TensorIterator::isSupportedOperation(const std::shared_ptr<const ov::Node>&
 }
 
 TensorIterator::TensorIterator(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache, InternalDynShapeInferFactory()), ngraphOp(op) {
+        Node(op, eng, cache, InternalDynShapeInferFactory()), ngraphOp(op), sub_graph(false) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -641,6 +710,11 @@ void TensorIterator::prepareParams() {
     first_mappers.clear();
     before_mappers.clear();
 
+    auto tiOp = ov::as_type_ptr<const ov::op::util::SubGraphOp>(ngraphOp);
+    if (!tiOp) {
+        THROW_ERROR << "cannot be cast to ov::op::util::SubGraphOp";
+    }
+
     if ((lastUsedCond && lastUsedTripCount != 0) || !isDynamicNode()) {
         reshapeSubgraphInput();
 
@@ -746,20 +820,9 @@ void TensorIterator::prepareBackEdges() {
         auto from_node = output_nodes[map_rule.from];
         auto to_node = input_nodes[map_rule.to];
 
-        back_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_node, to_node));
+        back_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_node, to_node, this));
     }
 }
-
-// void TensorIterator::prepareDynamicBackEdges() {
-//     const auto &eng = getEngine();
-//     back_mappers.clear();
-//     for (auto map_rule : backEdges) {
-//         auto from_mem = output_mem[map_rule.from];
-//         const auto& to_mems = input_mems[map_rule.to];
-
-//         back_mappers.emplace_back(std::make_shared<BackEdgePortHelperDynamic>(from_mem, to_mems, eng));
-//     }
-// }
 
 void TensorIterator::prepareDynamicBuffers() {
     for (auto map_rule : outputPortMap) {

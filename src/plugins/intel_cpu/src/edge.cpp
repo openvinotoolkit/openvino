@@ -552,6 +552,53 @@ void Edge::init() {
 }
 
 /**
+ * Check if an edge has another edge view it on.
+ * It could be - in-place, siblings at the same in/out port.
+ *
+ * @param type some magic enum values... description needed
+ * @return
+ */
+bool Edge::isMemShared(int look) {
+    EdgePtr edgePtr = getBaseEdge();
+    if (edgePtr.get() == this) {
+        DEBUG_LOG(*this, " getBaseEdge() return itself");
+
+        if (look != LOOK_UP && look != LOOK_DOWN) {
+            IE_THROW() << "Unexpected look direction " << look;
+        }
+
+        auto parentConfig = getParent()->getSelectedPrimitiveDescriptor()->getConfig();
+        auto childConfig = getChild()->getSelectedPrimitiveDescriptor()->getConfig();
+        int inputNum = getInputNum();  // output port of parent node
+        int outputNum = getOutputNum(); // input port of child node
+
+        // check if there's other edge viewing to it.
+        if (look & LOOK_DOWN) {  // backedge: m_to
+            for (auto& outconf : childConfig.outConfs) {
+                if (outconf.inPlace() == outputNum) {
+                    //TODO: check memman sharing to confirm the memory are shared.
+                    return true;
+                }
+            }
+        }
+
+        if (look & LOOK_UP) { // backedge: m_from
+            if (parentConfig.outConfs[inputNum].inPlace() >= 0) {
+                //TODO: check memman sharing to confirm the memory are shared.
+                return true;
+            }
+        }
+
+        // check if there's siblings with the same port.
+        auto edges_for_same_port = getParent()->getChildEdgesAtPort(inputNum);
+        return edges_for_same_port.size() > 1;
+    } else {
+        DEBUG_LOG(*this, " shares memory with others.");
+        return true;
+    }
+}
+
+/**
  * Should analyze graph node dependencies, inplace node information and return root memory(edge) it view on
  *
  * @param type some magic enum values... description needed
@@ -560,8 +607,8 @@ void Edge::init() {
 EdgePtr Edge::getBaseEdge(int look) {
     auto parentConfig = getParent()->getSelectedPrimitiveDescriptor()->getConfig();
     auto childConfig = getChild()->getSelectedPrimitiveDescriptor()->getConfig();
-    int inputNum = getInputNum();
-    int outputNum = getOutputNum();
+    int inputNum = getInputNum(); // output port of parent node
+    int outputNum = getOutputNum(); // input port of child node
 
     if (childConfig.inConfs[outputNum].inPlace() >= 0 && parentConfig.outConfs[inputNum].inPlace() >= 0) {
         // in case of parentConfig requiring upstream-inplace and childConfig supports downstream-inplace
