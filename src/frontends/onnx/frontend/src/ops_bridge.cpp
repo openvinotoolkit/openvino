@@ -80,7 +80,6 @@
 #include "op/if.hpp"
 #include "op/image_scaler.hpp"
 #include "op/instance_norm.hpp"
-#include "op/is_finite.hpp"
 #include "op/is_inf.hpp"
 #include "op/is_nan.hpp"
 #include "op/leaky_relu.hpp"
