@@ -31,9 +31,6 @@ ov::OutputVector GetOutputs(const Nodes & nodes) {
 
 // --------------------------------------------------------------------------------------
 
-using TransposeNodes = std::tuple<std::shared_ptr<ov::opset9::Transpose>,
-                                  std::shared_ptr<ov::opset9::Constant>>;
-
 struct TrasposeInputInfo {
     std::shared_ptr<ov::opset9::Transpose> transpose;
     std::shared_ptr<ov::opset9::Constant> transpose_const;
