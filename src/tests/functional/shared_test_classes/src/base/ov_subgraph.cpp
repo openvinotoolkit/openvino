@@ -4,6 +4,7 @@
 
 #include <signal.h>
 #include <fstream>
+#include <memory>
 #include "transformations/convert_precision.hpp"
 
 #ifdef _WIN32
@@ -83,6 +84,25 @@ void SubgraphBaseTest::run() {
             }
             status = ov::test::utils::PassRate::Statuses::PASSED;
         } catch (const std::exception& ex) {
+            // dump inputs
+            for (auto it = inputs.begin(); it != inputs.end(); ++it) {
+                float* p = static_cast<float*>((*it).second.data());
+                std::cout << "\ninputs:";
+                for (int n = 0; n < (*it).second.get_size(); n++)
+                    std::cout << p[n] << ",";
+            }
+            // dump kernel
+            for (auto op : function->get_ordered_ops()) {
+                const auto name = op->get_type_name();
+                std::cout << "\n" << op->get_friendly_name() << "\n";
+                if (name == std::string("Constant")) {
+                    auto c = std::dynamic_pointer_cast<const ov::opset8::Constant>(op);
+                    auto p = c->get_vector<float>();
+                    for (auto m = 0; m < p.size(); m++) {
+                        std::cout << p[m] << ",";
+                    }
+                }
+            }
             status = ov::test::utils::PassRate::Statuses::FAILED;
             errorMessage = ex.what();
         } catch (...) {
