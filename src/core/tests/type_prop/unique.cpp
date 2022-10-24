@@ -117,6 +117,24 @@ TEST(type_prop, unique_dynamic_rank) {
                         {{PartialShape::dynamic(), PartialShape{{-1}}, PartialShape{{-1}}, PartialShape{{-1}}}});
 }
 
+TEST(type_prop, unique_all_dynamic_dims) {
+    const auto data = make_shared<opset10::Parameter>(element::u8, PartialShape::dynamic(4));
+    const auto axis = make_shared<opset10::Constant>(element::i32, Shape{}, -2);
+    const auto unique = make_shared<opset10::Unique>(data, axis);
+
+    CHECK_ELEMENT_TYPES(unique, {{element::u8, element::i64, element::i64, element::i64}});
+    CHECK_OUTPUT_SHAPES(unique,
+                        {{PartialShape::dynamic(4), PartialShape{{-1}}, PartialShape{{-1}}, PartialShape{{-1}}}});
+}
+
+TEST(type_prop, unique_all_dynamic_dims_no_axis) {
+    const auto data = make_shared<opset10::Parameter>(element::u8, PartialShape::dynamic(4));
+    const auto unique = make_shared<opset10::Unique>(data);
+
+    CHECK_ELEMENT_TYPES(unique, {{element::u8, element::i64, element::i64, element::i64}});
+    CHECK_OUTPUT_SHAPES(unique, {{PartialShape{{-1}}, PartialShape{{-1}}, PartialShape{{-1}}, PartialShape{{-1}}}});
+}
+
 TEST(type_prop, unique_dynamic_rank_negative_axis) {
     const auto data = make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic());
     const auto axis = make_shared<opset10::Constant>(element::i32, Shape{}, -1);
