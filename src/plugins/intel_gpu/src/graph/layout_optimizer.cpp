@@ -1759,6 +1759,8 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             else  // Dep for fused post ops
                 src_fmt = onednn::find_data_format(prim_desc.dst_desc());
 
+            // WA: shallow convolution needs to set input format by bfyx.
+            //     onednn recommended byxf for input format. It will insert reorder before shallow conv.
             if (node.is_type<convolution>() && node.get_input_layouts()[0].feature() == 3)
                 src_fmt = format::bfyx;
 
