@@ -132,7 +132,7 @@ void shape_infer(const StridedSlice* op,
             // only one bit in ellipsis mask is allowed
             int num_new_axis_after_ellipses = 0;
             int num_input_axis_before_ellipses = 0;
-            for (size_t i = 0; i < axis; ++i) {
+            for (int64_t i = 0; i < axis; ++i) {
                 if (!new_axis_mask.count(i)) {
                     num_input_axis_before_ellipses++;
                 }
