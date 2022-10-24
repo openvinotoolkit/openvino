@@ -35,19 +35,19 @@ int main(int argc, char* argv[]) {
         std::vector<ov::Output<ov::Node>> outputs = model->outputs();
         // Each output may have multiple names. Check that one of them is scores_name.
         // This tensor contains confidence of each detected bounding boxes
-        auto scores_out_iter = find_if(outputs.begin(), outputs.end(), [scores_name](const ov::Output<ov::Node>& output) {
-            const std::unordered_set<std::string>& names = output.get_names();
-            return names.find(scores_name) != names.end();
-
-        });
+        auto scores_out_iter =
+            find_if(outputs.begin(), outputs.end(), [scores_name](const ov::Output<ov::Node>& output) {
+                const std::unordered_set<std::string>& names = output.get_names();
+                return names.find(scores_name) != names.end();
+            });
         if (outputs.end() == scores_out_iter) {
             throw std::runtime_error("The model must have 'scores' as one of outputs");
         }
         const ov::Shape& scores_shape = scores_out_iter->get_shape();
-        if (scores_shape.size() != 3 ) {
+        if (scores_shape.size() != 3) {
             throw std::runtime_error("Scores output rank must be 3");
         }
-        if (scores_shape[2] != 92 ) {
+        if (scores_shape[2] != 92) {
             throw std::runtime_error("Scores output last dimension must be of size 92");
         }
         // Set dynamic input shape
@@ -110,8 +110,8 @@ int main(int argc, char* argv[]) {
         int init_niter = 12;
         int niter = ((init_niter + nireq - 1) / nireq) * nireq;
         if (init_niter != niter) {
-            slog::warn << "Number of iterations was aligned by request number from " << init_niter << " to "
-                        << niter << " using number of requests " << nireq << slog::endl;
+            slog::warn << "Number of iterations was aligned by request number from " << init_niter << " to " << niter
+                       << " using number of requests " << nireq << slog::endl;
         }
         size_t ndetections = 0;
         std::vector<double> latencies;
@@ -180,7 +180,8 @@ int main(int argc, char* argv[]) {
                 ireq.set_callback(
                     // Make sure input_data is not destroyed before inference starts
                     // input_tensor doesn't own this data, thus capture input_data by value
-                    [&ireq, time_point, &mutex, &finished_ireqs, &callback_exception, &cv, input_data](std::exception_ptr ex) {
+                    [&ireq, time_point, &mutex, &finished_ireqs, &callback_exception, &cv, input_data](
+                        std::exception_ptr ex) {
                         // Keep callback small. This improves performance for fast (tens of thousands FPS) models
                         std::unique_lock<std::mutex> lock(mutex);
                         {

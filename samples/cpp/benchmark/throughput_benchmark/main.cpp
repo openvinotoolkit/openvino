@@ -66,8 +66,8 @@ int main(int argc, char* argv[]) {
         int init_niter = 12;
         int niter = ((init_niter + nireq - 1) / nireq) * nireq;
         if (init_niter != niter) {
-            slog::warn << "Number of iterations was aligned by request number from " << init_niter << " to "
-                        << niter << " using number of requests " << nireq << slog::endl;
+            slog::warn << "Number of iterations was aligned by request number from " << init_niter << " to " << niter
+                       << " using number of requests " << nireq << slog::endl;
         }
         std::vector<double> latencies;
         std::mutex mutex;
