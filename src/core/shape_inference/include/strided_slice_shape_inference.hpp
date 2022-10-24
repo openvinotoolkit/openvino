@@ -165,7 +165,7 @@ void shape_infer(const StridedSlice* op,
                 const int64_t ub0 = end[axis];
                 // set default value for stride or use given value
                 int64_t stride = 1;
-                if (strides.size() > axis) {
+                if (strides.size() > static_cast<size_t>(axis)) {
                     stride = strides[axis];
                 }
                 NODE_VALIDATION_CHECK(op, stride != 0, "Stride must be non-zero");
