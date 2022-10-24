@@ -8,10 +8,13 @@
 
 #include "exception.hpp"
 #include "input_model.hpp"
+#include "ngraph/pass/constant_folding.hpp"
 #include "op_table.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "pt_framework_node.hpp"
+#include "transformations/control_flow/unroll_if.hpp"
 #include "transforms.hpp"
 #include "transforms/aten_cat_replacer.hpp"
 #include "transforms/prim_list_unpack_replacer.hpp"
@@ -21,16 +24,29 @@ namespace ov {
 namespace frontend {
 namespace pytorch {
 
-std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& model) const {
-    auto converted_model = convert_partially(model);
-    normalize(converted_model);
+namespace {
+std::set<std::string> get_unconverted_types_from_model(const std::shared_ptr<Model>& model) {
     std::set<std::string> unconverted_ops_types;
-    for (const auto& node : converted_model->get_ordered_ops()) {
-        if (const auto& fw_node = ov::as_type_ptr<ov::frontend::pytorch::PtFrameworkNode>(node)) {
+    for (const auto& node : model->get_ordered_ops()) {
+        if (const auto& fw_node = ov::as_type_ptr<PtFrameworkNode>(node)) {
             auto op_type = fw_node->get_decoder()->get_op_type();
             unconverted_ops_types.insert(op_type);
         }
+        if (const auto& fw_node = ov::as_type_ptr<op::util::MultiSubGraphOp>(node)) {
+            for (int i = 0; i < fw_node->get_internal_subgraphs_size(); i++) {
+                auto internal_types = get_unconverted_types_from_model(fw_node->get_function(i));
+                unconverted_ops_types.insert(internal_types.begin(), internal_types.end());
+            }
+        }
     }
+    return unconverted_ops_types;
+}
+}  // namespace
+
+std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
+    auto converted_model = convert_partially(model);
+    normalize(converted_model);
+    std::set<std::string> unconverted_ops_types = get_unconverted_types_from_model(converted_model);
     std::stringstream ops_str;
     for (auto&& op_type : unconverted_ops_types) {
         ops_str << op_type << "\n";
@@ -82,6 +98,8 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
 
     manager.register_pass<ov::frontend::pytorch::pass::AtenCatToConcat>();
     manager.register_pass<ov::frontend::pytorch::pass::PrimListUnpackReplacer>();
+    manager.register_pass<ngraph::pass::UnrollIf>();  // TODO: remove
+    manager.register_pass<ngraph::pass::ConstantFolding>();
 
     manager.run_passes(model);
 

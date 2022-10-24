@@ -117,6 +117,10 @@ OutputVector translate_as_tensor(NodeContext& context) {
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
+        {"prim::is_cuda", return_false_scalar},
+        {"prim::requires_grad", return_false_scalar},
+        {"aten::is_grad_enabled", return_false_scalar},
+
         {"aten::relu", translate_1to1_match_1_inputs<opset8::Relu>},
         {"aten::relu_", inplace_op<translate_1to1_match_1_inputs<opset8::Relu>>},
 
