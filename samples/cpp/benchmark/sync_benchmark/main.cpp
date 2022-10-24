@@ -27,16 +27,12 @@ int main(int argc, char* argv[]) {
         // but there are exceptions like MYRIAD
         ov::AnyMap latency{{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::LATENCY}};
 
-        // Uncomment the following line to enable detailed performace counters
-        // latency[ov::enable_profiling.name()] = true;
-
         // Create ov::Core and use it to compile a model
         // Pick device by replacing CPU, for example AUTO:GPU,CPU.
         // Using MULTI device is pointless in sync scenario
         // because only one instance of ov::InferRequest is used
         ov::Core core;
-        std::string device = "CPU";
-        ov::CompiledModel compiled_model = core.compile_model(argv[1], device, latency);
+        ov::CompiledModel compiled_model = core.compile_model(argv[1], "CPU", latency);
         ov::InferRequest ireq = compiled_model.create_infer_request();
         // Fill input data for the ireq
         for (const ov::Output<const ov::Node>& model_input : compiled_model.inputs()) {
@@ -61,11 +57,6 @@ int main(int argc, char* argv[]) {
         auto end = time_point;
         double duration = std::chrono::duration_cast<Ms>(end - start).count();
         // Report results
-
-        // Uncomment the following lines if performace counters are enabled on top
-        // slog::info << "Performance counts:" << slog::endl;
-        // printPerformanceCounts(ireq.get_profiling_info(), std::cout, getFullDeviceName(core, device), false);
-
         slog::info << "Count:      " << latencies.size() << " iterations" << slog::endl;
         slog::info << "Duration:   " << duration << " ms" << slog::endl;
         slog::info << "Latency:" << slog::endl;

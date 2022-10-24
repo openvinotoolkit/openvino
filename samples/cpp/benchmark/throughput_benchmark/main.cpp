@@ -34,8 +34,7 @@ int main(int argc, char* argv[]) {
         // Create ov::Core and use it to compile a model
         // Pick device by replacing CPU, for example MULTI:CPU(4),GPU(8)
         ov::Core core;
-        std::string device = "CPU";
-        ov::CompiledModel compiled_model = core.compile_model(argv[1], device, tput);
+        ov::CompiledModel compiled_model = core.compile_model(argv[1], "CPU", tput);
         // Create optimal number of ov::InferRequest instances
         uint32_t nireq;
         try {
@@ -73,74 +72,73 @@ int main(int argc, char* argv[]) {
         std::vector<double> latencies;
         std::mutex mutex;
         std::condition_variable cv;
-        std::vector<std::chrono::steady_clock::time_point> time_points(nireq);
         std::exception_ptr callback_exception;
-        int nstarted = 0;
+        struct TimedIreq {
+            ov::InferRequest& ireq;  // ref
+            std::chrono::steady_clock::time_point start;
+            bool has_start_time;
+        };
+        std::deque<TimedIreq> finished_ireqs;
+        for (ov::InferRequest& ireq : ireqs) {
+            finished_ireqs.push_back({ireq, std::chrono::steady_clock::time_point{}, false});
+        }
         auto start = std::chrono::steady_clock::now();
         auto time_point_to_finish = start + seconds_to_run;
-        // For each ireq set up a callback which does the actual management of results and asynchronous infer.
-        // When inference finishes, the callback updates latencies vector and starts new inference.
-        // After the main loop wait for all ireqs completion
-        for (uint32_t i = 0; i < nireq; ++i) {
-            ov::InferRequest& ireq = ireqs[i];
-            std::chrono::steady_clock::time_point& time_point = time_points[i];
-            time_point = std::chrono::steady_clock::now();
-            ireq.set_callback(
-                [&ireq, &time_point, &mutex, &cv, &latencies, &callback_exception, &nstarted, time_point_to_finish, niter](
-                    std::exception_ptr ex) {
-                    {
+        // Once there’s a finished ireq wake up main thread.
+        // Compute and save latency for that ireq and prepare for next inference by setting up callback.
+        // Callback pushes that ireq again to finished ireqs when infrence is completed.
+        // Start asynchronous infer with updated callback
+        for (;;) {
+            std::unique_lock<std::mutex> lock(mutex);
+            while (!callback_exception && finished_ireqs.empty()) {
+                cv.wait(lock);
+            }
+            if (callback_exception) {
+                std::rethrow_exception(callback_exception);
+            }
+            if (!finished_ireqs.empty()) {
+                auto time_point = std::chrono::steady_clock::now();
+                if (time_point > time_point_to_finish && latencies.size() > niter) {
+                    break;
+                }
+                TimedIreq timedIreq = finished_ireqs.front();
+                finished_ireqs.pop_front();
+                lock.unlock();
+                ov::InferRequest& ireq = timedIreq.ireq;
+                if (timedIreq.has_start_time) {
+                    latencies.push_back(std::chrono::duration_cast<Ms>(time_point - timedIreq.start).count());
+                }
+                ireq.set_callback(
+                    [&ireq, time_point, &mutex, &finished_ireqs, &callback_exception, &cv](std::exception_ptr ex) {
+                        // Keep callback small. This improves performance for fast (tens of thousands FPS) models
                         std::unique_lock<std::mutex> lock(mutex);
-                        try {
-                            if (ex) {
-                                std::rethrow_exception(ex);
-                            }
-                            auto infer_end = std::chrono::steady_clock::now();
-                            latencies.push_back(std::chrono::duration_cast<Ms>(infer_end - time_point).count());
-                            if (latencies.size() >= nstarted) {
-                                cv.notify_one();
-                                return;
-                            }
-                            if (infer_end < time_point_to_finish || nstarted < niter) {
-                                time_point = infer_end;
-                                ++nstarted;
-                                ireq.start_async();
-                            }
-                        } catch (const std::exception&) {
-                            if (!callback_exception) {
-                                callback_exception = std::current_exception();
-                                cv.notify_one();
+                        {
+                            try {
+                                if (ex) {
+                                    std::rethrow_exception(ex);
+                                }
+                                finished_ireqs.push_back({ireq, time_point, true});
+                            } catch (const std::exception&) {
+                                if (!callback_exception) {
+                                    callback_exception = std::current_exception();
+                                }
                             }
                         }
-                    }
-                });
-            std::unique_lock<std::mutex> lock(mutex);
-            ireq.start_async();
-            ++nstarted;
-        }
-        std::unique_lock<std::mutex> lock(mutex);
-        while (!callback_exception && latencies.size() < nstarted) {
-            cv.wait(lock);
-        }
-        if (callback_exception) {
-            std::rethrow_exception(callback_exception);
+                        cv.notify_one();
+                    });
+                ireq.start_async();
+            }
         }
         auto end = std::chrono::steady_clock::now();
         double duration = std::chrono::duration_cast<Ms>(end - start).count();
         // Report results
-
-        // Uncomment the following lines if performace counters are enabled on top
-        // for (size_t ireq = 0; ireq < nireq; ireq++) {
-        //     slog::info << "Performance counts for " << ireq << "-th infer request:" << slog::endl;
-        //     printPerformanceCounts(ireqs[ireq].get_profiling_info(), std::cout, getFullDeviceName(core, device), false);
-        // }
-
         slog::info << "Count:      " << latencies.size() << " iterations" << slog::endl;
         slog::info << "Duration:   " << duration << " ms" << slog::endl;
         slog::info << "Latency:" << slog::endl;
         size_t percent = 50;
         LatencyMetrics latency_metrics{latencies, "", percent};
         latency_metrics.write_to_slog();
-        slog::info << "Throughput: " << double_to_string(latencies.size() * 1000 / duration) << " FPS" << slog::endl;
+        slog::info << "Throughput: " << double_to_string(1000 * latencies.size() / duration) << " FPS" << slog::endl;
     } catch (const std::exception& ex) {
         slog::err << ex.what() << slog::endl;
         return EXIT_FAILURE;

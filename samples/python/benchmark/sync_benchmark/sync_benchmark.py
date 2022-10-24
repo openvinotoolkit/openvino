@@ -3,7 +3,6 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from datetime import timedelta
 import logging as log
 from math import ceil
 import sys
@@ -30,26 +29,6 @@ def fill_tensor_random(tensor):
     tensor.data[:] = rs.uniform(rand_min, rand_max, list(tensor.shape)).astype(dtype)
 
 
-def print_perf_counters(perf_counts_list):
-    max_layer_name = 30
-    for ni in range(len(perf_counts_list)):
-        perf_counts = perf_counts_list[ni]
-        total_time = timedelta()
-        total_time_cpu = timedelta()
-        log.info(f"Performance counts for {ni}-th infer request")
-        for pi in perf_counts:
-            print(f"{pi.node_name[:max_layer_name - 4] + '...' if (len(pi.node_name) >= max_layer_name) else pi.node_name:<30}"
-                                                                f"{str(pi.status):<15}"
-                                                                f"{'layerType: ' + pi.node_type:<30}"
-                                                                f"{'realTime: ' + str(pi.real_time):<20}"
-                                                                f"{'cpu: ' +  str(pi.cpu_time):<20}"
-                                                                f"{'execType: ' + pi.exec_type:<20}")
-            total_time += pi.real_time
-            total_time_cpu += pi.cpu_time
-        log.info(f'Total time:     {total_time} seconds')
-        log.info(f'Total CPU time: {total_time_cpu} seconds\n')
-
-
 def main():
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
     log.info(f"OpenVINO:\n{'': <9}{'API version':.<24} {get_version()}")
@@ -60,16 +39,12 @@ def main():
     # but there are exceptions like MYRIAD
     latency = {'PERFORMANCE_HINT': 'LATENCY'}
 
-    # Uncomment the following line to enable detailed performace counters
-    # latency['PERF_COUNT'] = True
-
     # Create Core and use it to compile a model
     # Pick device by replacing CPU, for example AUTO:GPU,CPU.
     # Using MULTI device is pointless in sync scenario
     # because only one instance of openvino.runtime.InferRequest is used
     core = Core()
-    device = 'CPU'
-    compiled_model = core.compile_model(sys.argv[1], device, latency)
+    compiled_model = core.compile_model(sys.argv[1], 'CPU', latency)
     ireq = compiled_model.create_infer_request()
     # Fill input data for the ireq
     for model_input in compiled_model.inputs:
@@ -91,10 +66,6 @@ def main():
     end = time_point
     duration = end - start
     # Report results
-
-    # Uncomment the following line if performace counters are enabled on top
-    # print_perf_counters([ireq.profiling_info])
-
     latencies.sort()
     percent = 50
     percentile_latency_ms = percentile(latencies, percent)
