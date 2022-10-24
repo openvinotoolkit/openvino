@@ -19,6 +19,9 @@ endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # protobuf\src\google\protobuf\descriptor.cc(822) : error C4703: potentially uninitialized local pointer variable 'to_use' used
     add_definitions("/wd4703")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # WA for GCC 7.5 "PYBIND11_NOINLINE inline" warning
+    add_compile_options(-Wno-error=stringop-overflow=)
 endif()
 
 set(protobuf_VERBOSE ON)
