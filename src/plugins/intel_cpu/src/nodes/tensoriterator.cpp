@@ -651,6 +651,8 @@ void TensorIterator::prepareParams() {
         if(isDynamicNode() && isPredicable()) {//preallocate output memory
             int max_num_iter = trip_count_check->getStatus();
 
+            after_mappers.clear();
+
             for (auto map_rule : outputPortMap) {
                 if (map_rule.axis != -1) { //concatoutput type
                     auto to_mems = getToMemories(this, map_rule.from);//0
@@ -699,7 +701,7 @@ void TensorIterator::prepareParams() {
                         redefineToMemories(to_mems, desc);
 
                         const auto src_memdesc = from_mem->getDescPtr();
-                        const auto new_desc = src_memdesc->cloneWithNewDims(subgraph_shape);
+                        const auto new_desc = src_memdesc->cloneWithNewDims(subgraph_shape, true);
                         from_mem->redefineDesc(new_desc);
 
                         after_mappers.emplace_back(std::make_shared<PortIteratorHelper>(from_mem, to_mems[0], false, map_rule, getEngine()));
