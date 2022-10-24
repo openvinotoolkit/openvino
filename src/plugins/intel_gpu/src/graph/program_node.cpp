@@ -10,6 +10,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "convolution_inst.h"
+#include "deconvolution_inst.h"
 #include "quantize_inst.h"
 #include "reorder_inst.h"
 #include "pooling_inst.h"
@@ -31,8 +32,10 @@ thread_local size_t program_node::cur_id = 0;
 
 program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
     : desc(prim), myprog(prog), required_input0(format::any), required_output(format::any), org_id(prim ? (prim->id) : 0) {
-    if (prim)
+    if (prim) {
         output_layout.data_padding = prim->output_padding;
+        num_outputs = prim->num_outputs;
+    }
 }
 
 void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling) {
@@ -350,7 +353,7 @@ std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
 void program_node::invalidate_users() const {
     for (auto& user : users) {
         if (user->valid_output_layout) {
-            if (user->is_type<convolution>() && user->as<convolution>().get_required_output() != format::any)
+            if (user->get_required_output() != format::any)
                 continue;
             user->valid_output_layout = false;
             user->invalidate_users();
@@ -986,16 +989,23 @@ void program_node::init_onednn_primitive_attributes() {
                     update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx);
                 }
             } else {
-                // convolution using post-op output scales can only be int8/uint8
-                if (idx == 0 && !has_out_scales(attrs) && !is_type<pooling>() && !is_type<reduce>() &&
-                    !(is_type<convolution>() && data_type_traits::is_floating_point(output_layout.data_type))) {
-                    int mask = in.count() > 1 ? 2 : 0;
-                    attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
-                    update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx);
-                } else {
+                auto input_datatype = get_dependency(0).get_output_layout().data_type;
+                // convolution using post-op output scales can only be used when i8/u8 input (which use integer accumulator)
+                bool cant_use_output_scales =
+                    idx != 0 ||
+                    has_out_scales(attrs) ||
+                    is_type<pooling>() ||
+                    is_type<reduce>() ||
+                    (is_type<convolution>() && data_type_traits::is_floating_point(input_datatype)) ||
+                    (is_type<deconvolution>() && data_type_traits::is_floating_point(input_datatype));
+                if (cant_use_output_scales) {
                     dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab, true);
                     post_ops.append_binary(dnnl::algorithm::binary_mul, in_desc);
                     update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx);
+                } else {
+                    int mask = in.count() > 1 ? 2 : 0;
+                    attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
+                    update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx);
                 }
             }
         } else if (desc.is_type<quantize>()) {

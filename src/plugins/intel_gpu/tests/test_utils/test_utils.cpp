@@ -388,6 +388,37 @@ double default_tolerance(data_types dt) {
     IE_THROW() << "Unknown";
 }
 
+cldnn::format generic_test::get_plain_format_for(const cldnn::format input) {
+    cldnn::format fmt{format::bfzyx};
+    switch (input) {
+    case format::b_fs_zyx_fsv16:
+    case format::b_fs_zyx_fsv32:
+    case format::bs_fs_zyx_bsv16_fsv32:
+    case format::bs_fs_zyx_bsv16_fsv16:
+    case format::bs_fs_zyx_bsv32_fsv32:
+    case format::bs_fs_zyx_bsv32_fsv16:
+        fmt = format::bfzyx;
+        break;
+
+    case format::b_fs_yx_fsv16:
+    case format::b_fs_yx_fsv32:
+    case format::bs_fs_yx_bsv16_fsv16:
+    case format::bs_fs_yx_bsv32_fsv16:
+    case format::bs_fs_yx_bsv32_fsv32:
+        fmt = format::bfyx;
+        break;
+    case format::bfyx:
+    case format::bfzyx:
+    case format::bfwzyx:
+        fmt = input;
+        break;
+    default:
+        throw std::runtime_error(std::string("Unsupported format::" + format(input).to_string()));
+        break;
+    }
+    return fmt;
+}
+
 std::vector<cldnn::format> generic_test::test_input_formats = { cldnn::format::bfyx , cldnn::format::yxfb, cldnn::format::fyxb, cldnn::format::byxf };
 std::vector<int32_t> generic_test::test_batch_sizes = { 1, 2 };// 4, 8, 16};
 std::vector<int32_t> generic_test::test_feature_sizes = { 1, 2 };// , 3, 15};
