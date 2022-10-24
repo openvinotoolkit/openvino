@@ -25,16 +25,14 @@ void shape_infer(const Unsqueeze* op,
     if (has_axes && arg_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(op, !axes_val.empty(), "'axes' input is mandatory");
         // Remove repeated axes on input
-        std::unordered_set<int64_t> tmp(std::make_move_iterator(axes_val.begin()),
-                                        std::make_move_iterator(axes_val.end()));
-        std::vector<int64_t> unique_axes(std::make_move_iterator(tmp.begin()), std::make_move_iterator(tmp.end()));
+        std::unordered_set<int64_t> tmp(axes_val.begin(), axes_val.end());
+        std::vector<int64_t> unique_axes(tmp.begin(), tmp.end());
 
         const auto expanded_rank = arg_shape.rank().get_length() + unique_axes.size();
 
         // Normalize then remove repeated axes after normalization.
         normalize_axes(op, expanded_rank, unique_axes);
-        const std::set<int64_t> axes(std::make_move_iterator(unique_axes.begin()),
-                                     std::make_move_iterator(unique_axes.end()));
+        const std::set<int64_t> axes(unique_axes.begin(), unique_axes.end());
 
         out_shape = arg_shape;
         for (const auto& axis : axes) {

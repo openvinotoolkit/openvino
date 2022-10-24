@@ -850,30 +850,40 @@ PartialShape ngraph::infer_slice_shape(const Node* node,
     return dim;
 }
 
-void ov::normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes) {
-    const auto& min_value = -tensor_rank;
-    const auto& max_value = tensor_rank ? (tensor_rank - 1) : 0;
-    std::for_each(axes.begin(), axes.end(), [&](int64_t& axis) {
-        NODE_VALIDATION_CHECK(node,
-                              (min_value <= axis) && (axis <= max_value),
-                              " Parameter axis ",
-                              axis,
-                              " out of the tensor rank range [",
-                              min_value,
-                              ", ",
-                              max_value,
-                              "].");
+namespace {
+const auto normalize_axis_to = [](const int64_t& tensor_rank) {
+    return [&tensor_rank](int64_t& axis) {
         if (axis < 0) {
             axis += tensor_rank;
         }
-    });
+    };
+};
+
+std::string normalize_axis_error_msg(const int64_t& axis, const int64_t& lower, const int64_t& upper) {
+    return std::string(" Parameter axis ")
+        .append(to_string(axis))
+        .append(" out of the tensor rank range [")
+        .append(to_string(lower))
+        .append(", ")
+        .append(to_string(upper))
+        .append("].");
+}
+}  // namespace
+
+void ov::normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes) {
+    const auto axis_checker = cmp::Between<int64_t, cmp::BOTH>(-tensor_rank, tensor_rank ? (tensor_rank - 1) : 0);
+    const auto invalid_axis = std::find_if_not(axes.cbegin(), axes.cend(), axis_checker);
+    NODE_VALIDATION_CHECK(node,
+                          invalid_axis == axes.cend(),
+                          normalize_axis_error_msg(*invalid_axis, axis_checker.lower(), axis_checker.upper()));
+    std::for_each(axes.begin(), axes.end(), normalize_axis_to(tensor_rank));
 }
 
 std::vector<size_t> ov::normalize_axes(const std::string& node_description,
                                        const std::vector<int64_t>& axes,
                                        const Rank& tensor_rank) {
     std::vector<size_t> new_axes;
-
+    new_axes.reserve(axes.size());
     for (const auto& axis : axes) {
         new_axes.push_back(normalize_axis(node_description, axis, tensor_rank));
     }
@@ -910,7 +920,7 @@ int64_t ov::normalize_axis(const Node* node,
                            std::uint64_t tensor_rank,
                            std::int64_t axis_range_min,
                            std::int64_t axis_range_max) {
-    return ngraph::normalize_axis(node->description(), axis, tensor_rank, axis_range_min, axis_range_max);
+    return normalize_axis(node->description(), axis, tensor_rank, axis_range_min, axis_range_max);
 }
 
 int64_t ov::normalize_axis(const std::string& node_description,
@@ -921,15 +931,9 @@ int64_t ov::normalize_axis(const std::string& node_description,
     // Accepted range of value for axis is [axis_range_min, axis_range_max].
     OPENVINO_ASSERT((axis_range_min <= axis) && (axis <= axis_range_max),
                     node_description,
-                    " Parameter axis ",
-                    axis,
-                    " out of the tensor rank range [",
-                    axis_range_min,
-                    ", ",
-                    axis_range_max,
-                    "].");
-
-    return (axis < 0) ? (axis + tensor_rank) : axis;
+                    normalize_axis_error_msg(axis, axis_range_min, axis_range_max));
+    normalize_axis_to(tensor_rank)(axis);
+    return axis;
 }
 
 void ngraph::opset1::infer_conv_backprop_auto_padding(const Shape& input_data_shape,
@@ -1655,7 +1659,7 @@ std::vector<PartialShape> ov::get_node_input_partial_shapes(const ov::Node& node
     std::vector<PartialShape> out;
     out.reserve(node.get_input_size());
     for (size_t i = 0; i < node.get_input_size(); ++i) {
-        out.emplace_back(node.get_input_partial_shape(i));
+        out.push_back(node.get_input_partial_shape(i));
     }
     return out;
 }

@@ -81,7 +81,7 @@ bool evaluate_unsqueeze(const Node* node,
     normalize_axes(node, out_rank, axes);
 
     // Sort in increasing order
-    std::set<int64_t> axes_set(std::make_move_iterator(axes.begin()), std::make_move_iterator(axes.end()));
+    std::set<int64_t> axes_set(axes.begin(), axes.end());
     NGRAPH_CHECK(axes.size() == axes_set.size(), "Axes has duplicate axis.");
 
     auto out_shape = data_shape;
