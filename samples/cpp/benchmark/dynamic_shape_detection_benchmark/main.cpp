@@ -27,23 +27,31 @@ int main(int argc, char* argv[]) {
         }
         ov::Core core;
         std::shared_ptr<ov::Model> model = core.read_model(argv[1]);
-        if (model.inputs().size() != 1) {
+        if (model->inputs().size() != 1) {
             throw std::runtime_error("Only modes with 1 input are supported");
         }
 
         std::string scores_name = "scores";
-        vector<ov::Output<ov::Node>> outputs = model.outputs();
+        std::vector<ov::Output<ov::Node>> outputs = model->outputs();
         // Each output may have multiple names. Check that one of them is scores_name.
         // This tensor contains confidence of each detected bounding boxes
-        if (!find_if(outputs.begin(), outputs.end(), [scores_name](const ov::Output<ov::Node>& output) {
+        auto scores_out_iter = find_if(outputs.begin(), outputs.end(), [scores_name](const ov::Output<ov::Node>& output) {
             const std::unordered_set<std::string>& names = output.get_names();
             return names.find(scores_name) != names.end();
 
-        })) {
+        });
+        if (outputs.end() == scores_out_iter) {
             throw std::runtime_error("The model must have 'scores' as one of outputs");
         }
+        const ov::Shape& scores_shape = scores_out_iter->get_shape();
+        if (scores_shape.size() != 3 ) {
+            throw std::runtime_error("Scores output rank must be 3");
+        }
+        if (scores_shape[2] != 92 ) {
+            throw std::runtime_error("Scores output last dimension must be of size 92");
+        }
         // Set dynamic input shape
-        model.reshape(ov::PartialShape{1, 3, ov::Dimension::dynamic(), ov::Dimension::dynamic()});
+        model->reshape(ov::PartialShape{1, 3, ov::Dimension::dynamic(), ov::Dimension::dynamic()});
         ov::preprocess::PrePostProcessor ppp(model);
         ov::element::Type input_type = ov::element::u8;
 
@@ -52,9 +60,6 @@ int main(int argc, char* argv[]) {
         ppp.input().tensor().set_element_type(input_type).set_layout("NHWC");
         // Here we suppose model has 'NCHW' layout for input
         ppp.input().model().set_layout("NCHW");
-        // Set output tensor information:
-        // - precision of tensor is supposed to be 'f32'
-        ppp.output().tensor().set_element_type(ov::element::f32);
 
         // Apply preprocessing modifying the original 'model'
         model = ppp.build();
@@ -76,7 +81,8 @@ int main(int argc, char* argv[]) {
         // Create optimal number of ov::InferRequest instances
         uint32_t nireq;
         try {
-            nireq = compiled_model.get_property(ov::optimal_number_of_infer_requests);
+            // +1 to run postprocessing for one ireq while others are running
+            nireq = compiled_model.get_property(ov::optimal_number_of_infer_requests) + 1;
         } catch (const std::exception& ex) {
             throw std::runtime_error("Every used device must support " +
                                      std::string(ov::optimal_number_of_infer_requests.name()) +
@@ -88,9 +94,9 @@ int main(int argc, char* argv[]) {
         }
 
         ov::Shape warm_up_input_shape = {1, reader->height(), reader->width(), 3};
-        std::shared_ptr<unsigned char>  warm_up_input_data = reader->getData();
+        std::shared_ptr<unsigned char> warm_up_input_data = reader->getData();
         // just wrap image data by ov::Tensor without allocating of new memory
-        ov::Tensor  warm_up_input_tensor = ov::Tensor(input_type, input_shape, input_data.get());
+        ov::Tensor warm_up_input_tensor = ov::Tensor(input_type, warm_up_input_shape, warm_up_input_data.get());
         // Warm up
         for (ov::InferRequest& ireq : ireqs) {
             ireq.set_input_tensor(warm_up_input_tensor);
@@ -107,7 +113,7 @@ int main(int argc, char* argv[]) {
             slog::warn << "Number of iterations was aligned by request number from " << init_niter << " to "
                         << niter << " using number of requests " << nireq << slog::endl;
         }
-        size_t ndetections;
+        size_t ndetections = 0;
         std::vector<double> latencies;
         std::mutex mutex;
         std::condition_variable cv;
@@ -147,17 +153,25 @@ int main(int argc, char* argv[]) {
                 if (timedIreq.has_start_time) {
                     latencies.push_back(std::chrono::duration_cast<Ms>(time_point - timedIreq.start).count());
                 }
-                // Extract data
+                // Extract data and count detected objects
                 ndetections = 0;
                 ov::Tensor output_tensor = ireq.get_tensor(scores_name);
                 float* data = output_tensor.data<float>();
-                for (size_t i = 0; i < output_tensor.get_size(); ++i) {
+                for (size_t i = 0; i < scores_shape[1]; ++i) {
+                    float max_score = 0;
+                    size_t max_id = 0;
+                    for (size_t j = 0; j < scores_shape[2]; ++j) {
+                        if (data[i * scores_shape[1] + j] > max_score) {
+                            max_score = data[i * scores_shape[1] + j];
+                            max_id = j;
+                        }
+                    }
                     float confidence_threshold = 0.5;
-                    if (data[i] > confidence_threshold) {
+                    // The last class is no-object class. Filter it out
+                    if (max_id != scores_shape[2] - 1 && max_score > confidence_threshold) {
                         ++ndetections;
                     }
                 }
-
                 // Prepare new inference
                 ov::Shape input_shape = {1, reader->height(), reader->width(), 3};
                 std::shared_ptr<unsigned char> input_data = reader->getData();
@@ -189,6 +203,7 @@ int main(int argc, char* argv[]) {
         auto end = std::chrono::steady_clock::now();
         double duration = std::chrono::duration_cast<Ms>(end - start).count();
         // Report results
+        slog::info << "Number of detected objects: " << ndetections << slog::endl;
 
         slog::info << "Count:      " << latencies.size() << " iterations" << slog::endl;
         slog::info << "Duration:   " << duration << " ms" << slog::endl;

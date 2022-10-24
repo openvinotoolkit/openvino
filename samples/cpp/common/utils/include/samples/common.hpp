@@ -1123,6 +1123,8 @@ static inline void fill_tensor_random(ov::Tensor tensor) {
         break;
     default:
         throw ov::Exception("Input type is not supported for a tensor");
+    }
+}
 
 static UNUSED void printPerformanceCountsNoSort(std::vector<ov::ProfilingInfo> performanceData,
                                                 std::ostream& stream,
