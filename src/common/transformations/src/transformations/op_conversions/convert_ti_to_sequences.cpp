@@ -252,7 +252,8 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
         auto cell = ngraph::pattern::wrap_type<ngraph::opset1::LSTMCell, ngraph::opset5::LSTMCell>(cell_inputs);
 
         auto pattern_2 = ngraph::pattern::wrap_type<ngraph::opset5::Constant>(ngraph::pattern::rank_equals(1));
-        auto unsqueeze = ngraph::pattern::wrap_type<ngraph::opset5::Reshape, ngraph::opset5::Unsqueeze>({cell, pattern_2});
+        auto unsqueeze =
+            ngraph::pattern::wrap_type<ngraph::opset5::Reshape, ngraph::opset5::Unsqueeze>({cell, pattern_2});
         ngraph::pattern::Matcher matcher(unsqueeze);
 
         bool match = false;
@@ -311,7 +312,8 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
         auto cell = ngraph::pattern::wrap_type<ngraph::opset5::RNNCell>(cell_inputs);
 
         auto pattern_2 = ngraph::pattern::wrap_type<ngraph::opset5::Constant>(ngraph::pattern::rank_equals(1));
-        auto unsqueeze = ngraph::pattern::wrap_type<ngraph::opset5::Reshape, ngraph::opset5::Unsqueeze>({cell, pattern_2});
+        auto unsqueeze =
+            ngraph::pattern::wrap_type<ngraph::opset5::Reshape, ngraph::opset5::Unsqueeze>({cell, pattern_2});
         ngraph::pattern::Matcher matcher(unsqueeze);
 
         bool match = false;
@@ -370,7 +372,8 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
         auto cell = ngraph::pattern::wrap_type<ngraph::opset5::GRUCell>(cell_inputs);
 
         auto pattern_2 = ngraph::pattern::wrap_type<ngraph::opset5::Constant>(ngraph::pattern::rank_equals(1));
-        auto unsqueeze = ngraph::pattern::wrap_type<ngraph::opset5::Reshape, ngraph::opset5::Unsqueeze>({cell, pattern_2});
+        auto unsqueeze =
+            ngraph::pattern::wrap_type<ngraph::opset5::Reshape, ngraph::opset5::Unsqueeze>({cell, pattern_2});
         ngraph::pattern::Matcher matcher(unsqueeze);
 
         bool match = false;
