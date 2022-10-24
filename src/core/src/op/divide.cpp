@@ -91,11 +91,16 @@ bool evaluate_bound(const Node* node, const HostTensorVector& output_values, boo
                  "Argument shapes in divide operation are inconsistent.");
 
     std::shared_ptr<HostTensor> input1_low = evaluate_lower_bound(input1);
-    std::shared_ptr<HostTensor> input2_low = evaluate_lower_bound(input2);
+    if (!input1_low)
+        return false;
     std::shared_ptr<HostTensor> input1_up = evaluate_upper_bound(input1);
+    if (!input1_up)
+        return false;
+    std::shared_ptr<HostTensor> input2_low = evaluate_lower_bound(input2);
+    if (!input2_low)
+        return false;
     std::shared_ptr<HostTensor> input2_up = evaluate_upper_bound(input2);
-
-    if (!(input1_low && input1_up && input2_low && input2_up))
+    if (!input2_up)
         return false;
 
     auto zeros_const = op::Constant::create(input2.get_element_type(), {}, {0});
