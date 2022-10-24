@@ -5911,3 +5911,19 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_trilu_dynamic_shapes) {
 
     // clang-format on
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze_default_domain_opset13) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/squeeze_default_domain_opset13.onnx"));
+
+    auto input =
+        test::NDArray<float, 3>({{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}}).get_vector();
+    auto expected_output =
+        test::NDArray<float, 2>({{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}).get_vector();
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input(input);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}

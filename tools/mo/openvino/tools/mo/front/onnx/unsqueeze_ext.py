@@ -18,9 +18,6 @@ class UnsqueezeFrontExtractor(FrontExtractorOp):
     def extract(cls, node):
         axis = int64_array(onnx_attr(node, 'axes', 'ints', default=[]))
 
-        attrs = {
-            'expand_axis': axis if len(axis) != 0 else None
-        }
+        ExpandDims.update_node_stat(node, {'expand_axis': axis})
 
-        ExpandDims.update_node_stat(node, attrs)
         return cls.enabled
