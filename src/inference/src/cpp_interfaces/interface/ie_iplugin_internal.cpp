@@ -149,9 +149,8 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
         function->get_rt_info() = orig_function->get_rt_info();
     }
     if (function && !IsNewAPI()) {
-        auto& rt_info = function->get_rt_info();
-        if (rt_info.find("version") == rt_info.end()) {
-            rt_info["version"] = int64_t(10);
+        if (!function->has_rt_info("version")) {
+            function->set_rt_info(int64_t(10), "version");
 
             // re-create `network` with new patched `function`
             using namespace InferenceEngine;
@@ -422,10 +421,8 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
 
     std::unordered_set<std::string> leaf_names;
     bool add_operation_names = false;
-    const auto& rt_info = function->get_rt_info();
-    const auto it = rt_info.find("version");
-    if (it != rt_info.end()) {
-        const int64_t ir_version = it->second.as<int64_t>();
+    if (function->has_rt_info("version")) {
+        const int64_t ir_version = function->get_rt_info<int64_t>("version");
         // here we decide whether we need to add operation_names as tensor names for
         // getInputs / getOutputs. Since these functions are designed to be used in new API only
         // always need to add operation names for IR v10
