@@ -703,17 +703,7 @@ pass::EliminateEltwise::EliminateEltwise() {
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-
-        shared_ptr<Node> eltwise;
-        auto it = pattern_map.find(eltwise_pattern);
-        if (it != pattern_map.end()) {
-            eltwise = it->second.get_node_shared_ptr();
-        } else if ((it = pattern_map.find(subtract_pattern)) != pattern_map.end()) {
-            eltwise = it->second.get_node_shared_ptr();
-        } else {
-            return false;
-        }
-
+        auto eltwise = m.get_match_root();
         const auto& non_const_input = pattern_map.at(input);
         const auto& constant = pattern_map.at(constant_pattern);
 
