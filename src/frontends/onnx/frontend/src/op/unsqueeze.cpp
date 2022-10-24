@@ -26,15 +26,6 @@ OutputVector unsqueeze(const Node& node) {
 namespace set_13 {
 OutputVector unsqueeze(const Node& node) {
     auto inputs = node.get_ng_inputs();
-    // when onnx format is < 13 but ai.onnx > 13
-    // which results in using unsqueeze-13 but
-    // the node itself has format of unsqueeze-8
-    if (inputs.size() == 1) {
-        auto data = node.get_ng_inputs().at(0);
-        auto axes_node = node.get_attribute_as_constant<std::vector<std::int64_t>>("axes", {});
-        return {std::make_shared<default_opset::Unsqueeze>(data, axes_node)};
-    }
-    // set 13
     return {std::make_shared<default_opset::Unsqueeze>(inputs.at(0), inputs.at(1))};
 }
 

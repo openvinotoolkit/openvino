@@ -6044,3 +6044,4 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze_default_domain_opset13) {
     test_case.add_input(input);
     test_case.add_expected_output(expected_output);
     test_case.run();
+}
