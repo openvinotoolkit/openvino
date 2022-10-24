@@ -6,7 +6,7 @@
 #pragma once
 #include "intel_gpu/primitives/activation.hpp"
 #include "primitive_inst.h"
-#include "kernel_selector/core/actual_kernels/activation/activation_kernel_base.h"
+#include "kernel_selector/kernels/activation/activation_kernel_base.h"
 
 #include <memory>
 #include <string>

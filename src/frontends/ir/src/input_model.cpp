@@ -191,7 +191,7 @@ namespace ir {
 class InputModel::InputModelIRImpl {
     std::shared_ptr<ngraph::runtime::AlignedBuffer> m_weights;
     std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> m_extensions;
-    std::unordered_map<std::string, ngraph::OpSet> m_opsets;
+    std::unordered_map<std::string, ov::OpSet> m_opsets;
     pugi::xml_node m_root;
     pugi::xml_document m_xml_doc;
 
