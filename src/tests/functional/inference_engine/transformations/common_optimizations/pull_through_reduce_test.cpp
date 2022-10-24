@@ -211,6 +211,14 @@ static const std::vector<PullReshapeParams> reduce_mean_reshape_params = {
     PullReshapeParams{element::f32, {5, 10, 15}, {1, 1, 5, 10, 15, 1}, {1, 1, 15, 1}, {2, 3}, {0, 1}},
     // insert axes on both sides 2
     PullReshapeParams{element::f32, {1, 5, 10, 1}, {1, 1, 5, 10, 1, 1}, {1, 1, 1, 1}, {2, 3}, {1, 2}},
+    // insert axes in the middle
+    PullReshapeParams{element::f32, {4, 5, 6}, {1, 1, 4, 5, 6, 1, 1}, {1, 1, 1, 1}, {2, 3, 4}, {0, 1, 2}},
+    PullReshapeParams{element::f32, {4, 5, 6}, {1, 1, 4, 1, 5, 6, 1, 1}, {1, 1, 1, 1, 1}, {2, 4, 5}, {0, 1, 2}},
+    PullReshapeParams{element::f32, {4, 5, 6}, {1, 1, 4, 1, 1, 5, 6, 1, 1}, {1, 1, 1, 1, 1, 1}, {2, 5, 6}, {0, 1, 2}},
+    PullReshapeParams{element::f32, {4, 1, 1}, {4, 1, 1, 1}, {1}, {0, 1, 2}, {0, 1, 2}},
+    PullReshapeParams{element::f32, {1, 1}, {1, 1, 1}, {1, 1}, {1}, {1}},
+    PullReshapeParams{element::f32, {2, 1, 3, 1}, {1, 2, 1, 1, 3, 1, 1}, {1, 1, 1}, {1, 2, 4, 5}, {0, 1, 2, 3}},
+    PullReshapeParams{element::f32, {1, 3, 1}, {1, 1, 1, 3, 1, 1}, {1, 1, 1}, {0, 3, 4}, {0, 1, 2}},
     // insert axes on both sides, keep_dims=true
     PullReshapeParams{element::f32, {5, 10, 15}, {1, 5, 10, 15}, {1, 1, 1, 1}, {1, 2, 3}, {0, 1, 2}, true},
     // negative axes
@@ -256,11 +264,6 @@ TEST_F(TransformationTestsF, PullReshapeThroughReduceMeanSkipIfDynamicInput) {
 
 TEST_F(TransformationTestsF, PullReshapeThroughReduceSkipIfTheSameAxes) {
     model = generate_reshape_model<ReduceMean>(element::f32, {5, 10, 15}, {1, 5, 10, 15}, {0});
-    manager.register_pass<pass::PullReshapeThroughReduce>();
-}
-
-TEST_F(TransformationTestsF, PullReshapeThroughReduceSkipIfInsertAxesInTheMiddle) {
-    model = generate_reshape_model<ReduceMean>(element::f32, {5, 10, 15}, {5, 10, 1, 15}, {0});
     manager.register_pass<pass::PullReshapeThroughReduce>();
 }
 

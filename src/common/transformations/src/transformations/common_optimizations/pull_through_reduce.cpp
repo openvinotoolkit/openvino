@@ -47,44 +47,31 @@ const std::vector<int64_t> adjust_axes(const std::vector<int64_t>& axes_to_align
 }
 
 // Try to represent given Reshape node via Unsqueeze and calculate axes of such Unsqueeze
-// The function works only for cases where the "1" dimensions are inserted on the left or right sides, like:
 // - Reshape(input_shape={5,10,15}, target_shape={5,10,15,1}), 3 axis returned
 // - Reshape(input_shape={5,10,15}, target_shape={1,5,10,15}), 0 axis returned
 // - Reshape(input_shape={5,10,15}, target_shape={1,5,10,15,1}), 0 and 3 axes returned
-// Cases where the axes are inserted in the middle, like:
-// - Reshape(input_shape={5,10,15}, target_shape={5,10,1,15})
-// are not supported now (ticket 94373)
-// For example if we have Reshape(input_shape={5,10,15}, target_shape={1,5,10,15,1}),
-// it can be represented via Unsqueeze with axes=[0,3]
+// - Reshape(input_shape={5,10,15}, target_shape={5,10,1,15}), 2 axis is returned
 std::vector<int64_t> try_get_unsqueeze_axes_from_reshape(const ov::Shape& reshape_shape,
                                                          const ov::Shape& reduce_shape) {
-    if (reshape_shape.size() < reduce_shape.size()) {
-        return {};
+    std::vector<int64_t> result;
+    auto cur_elem_idx = 0;
+    auto current_reduce_elem = reduce_shape[cur_elem_idx];
+    auto reshape_shape_idx = 0;
+    for (; reshape_shape_idx < reshape_shape.size(); ++reshape_shape_idx) {
+        if (current_reduce_elem == reshape_shape[reshape_shape_idx] && cur_elem_idx + 1 < reduce_shape.size()) {
+            ++cur_elem_idx;
+            current_reduce_elem = reduce_shape[cur_elem_idx];
+        } else if (reshape_shape[reshape_shape_idx] == 1 &&
+                   (reshape_shape_idx >= reduce_shape.size() + result.size() || current_reduce_elem != 1)) {
+            result.push_back(reshape_shape_idx);
+        }
     }
-    const auto it = std::search(std::begin(reshape_shape),
-                                std::end(reshape_shape),
-                                std::begin(reduce_shape),
-                                std::end(reduce_shape));
-    if (it == std::end(reshape_shape)) {
-        return {};
-    }
-    const auto begin_pos = it - std::begin(reshape_shape);
-    const auto end_pos = begin_pos + reduce_shape.size();
-    auto equal_one = [](size_t elem) {
-        return elem == 1;
-    };
-    if (std::all_of(std::begin(reshape_shape), std::begin(reshape_shape) + begin_pos, equal_one) &&
-        std::all_of(begin(reshape_shape) + end_pos, std::end(reshape_shape), equal_one)) {
-        const auto result_size = reshape_shape.size() - reduce_shape.size();
-        std::vector<int64_t> result;
-        result.reserve(result_size);
-        std::generate_n(std::back_inserter(result), begin_pos, ov::SeqGen<int64_t, ov::Direction::FORWARD>(0));
-        std::generate_n(std::back_inserter(result),
-                        result_size - begin_pos,
-                        ov::SeqGen<int64_t, ov::Direction::FORWARD>(end_pos));
+    if (cur_elem_idx == reduce_shape.size() - 1 && reshape_shape_idx == reshape_shape.size()) {
         return result;
+    } else {
+        return {};
     }
-    return {};
+    return result;
 }
 
 // Update given reshape_input_shape by inserting "1" dimension on the postion represented by axes_to_insert
