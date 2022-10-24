@@ -174,8 +174,8 @@ layout convolution_inst::calc_output_layout(convolution_node const& node, kernel
 
     // Adjust output format for shallow conv and mixed precision cases in onednn
     auto out_fmt = input_layout.format;
-    if (node.get_preferred_impl_type() == impl_types::onednn && node.get_required_output() != format::any) {
-        out_fmt = node.get_required_output();
+    if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
+        out_fmt = node.get_preferred_output_fmt();
     }
 
     // get output feature map from weights. It should be the same as number of biases. Will be verifed in
