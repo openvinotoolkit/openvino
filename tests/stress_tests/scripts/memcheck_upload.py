@@ -183,7 +183,7 @@ def modify_data_for_push_to_new_db(records):
 
         try:
             with open(record['log_path'], 'r') as log_file:
-                log = ''
+                log = log_file.read()
         except FileNotFoundError:
             log = ''
         record['log'] = log
