@@ -17,7 +17,7 @@ class TRANSFORMATIONS_API ConvertConvertLike;
 
 class ov::pass::ConvertConvertLike : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertConvertLike", "0");
     ConvertConvertLike();
 };
 

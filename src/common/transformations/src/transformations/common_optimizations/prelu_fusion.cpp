@@ -15,12 +15,6 @@
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(ov::pass::PReluFusion, "PReluFusion", 0);
-NGRAPH_RTTI_DEFINITION(ov::pass::PReluFusionNegativeAdd, "PReluFusionNegativeAdd", 0);
-NGRAPH_RTTI_DEFINITION(ov::pass::PReluFusionNegativeSub, "PReluFusionNegativeSub", 0);
-NGRAPH_RTTI_DEFINITION(ov::pass::PReluFusionMultiplyAdd, "PReluFusionMultiplyAdd", 0);
-NGRAPH_RTTI_DEFINITION(ov::pass::PReluFusionMultiplySub, "PReluFusionMultiplySub", 0);
-
 ov::pass::PReluFusionNegativeAdd::PReluFusionNegativeAdd() {
     MATCHER_SCOPE(PReluFusionNegativeAdd);
     auto input = ngraph::pattern::any_input();

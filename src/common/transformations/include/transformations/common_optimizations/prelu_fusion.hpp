@@ -38,7 +38,7 @@ class TRANSFORMATIONS_API PReluFusionMultiplySub;
  */
 class ov::pass::PReluFusionNegativeAdd : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("PReluFusionNegativeAdd", "0");
     PReluFusionNegativeAdd();
 };
 
@@ -57,7 +57,7 @@ public:
  */
 class ov::pass::PReluFusionNegativeSub : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("PReluFusionNegativeSub", "0");
     PReluFusionNegativeSub();
 };
 
@@ -76,7 +76,7 @@ public:
  */
 class ov::pass::PReluFusionMultiplyAdd : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("PReluFusionMultiplyAdd", "0");
     PReluFusionMultiplyAdd();
 };
 
@@ -95,7 +95,7 @@ public:
  */
 class ov::pass::PReluFusionMultiplySub : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("PReluFusionMultiplySub", "0");
     PReluFusionMultiplySub();
 };
 
@@ -105,7 +105,7 @@ public:
  */
 class ov::pass::PReluFusion : public ov::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("PReluFusion", "0");
     PReluFusion() {
         add_matcher<ov::pass::PReluFusionNegativeAdd>();
         add_matcher<ov::pass::PReluFusionNegativeSub>();

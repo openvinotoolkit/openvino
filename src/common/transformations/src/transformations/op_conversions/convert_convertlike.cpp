@@ -12,8 +12,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ov::pass::ConvertConvertLike, "ConvertConvertLike", 0);
-
 using namespace ov;
 
 ov::pass::ConvertConvertLike::ConvertConvertLike() {
