@@ -99,6 +99,29 @@ protected:
         UnsqueezeTestCommon::SetUp();
     }
 
+    std::pair<std::vector<size_t>, std::vector<size_t>> make_in_exp_labels() const {
+        std::vector<size_t> in_labels;
+        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<size_t>(1));
+
+        auto unique_axes = std::set<int64_t>(axes.begin(), axes.end());
+        auto out_rank = unique_axes.size() + p_shape.size();
+
+        std::set<int64_t> no_label_axes;
+        for (const auto& axis : axes) {
+            no_label_axes.insert(axis < 0 ? axis + out_rank : axis);
+        }
+
+        auto exp_labels = in_labels;
+        for (const auto& axis : no_label_axes) {
+            if (axis < exp_labels.size()) {
+                exp_labels.insert(exp_labels.begin() + axis, ov::no_label);
+            } else {
+                exp_labels.push_back(ov::no_label);
+            }
+        }
+        return {in_labels, exp_labels};
+    }
+
     std::vector<int64_t> axes;
 };
 
@@ -218,6 +241,22 @@ TEST_P(UnsqueezeTest, use_default_ctor) {
     EXPECT_EQ(unsqueeze->get_output_partial_shape(0), exp_shape);
 }
 
+TEST_P(UnsqueezeTest, labels_propagation) {
+    if (p_shape.rank().is_dynamic()) {
+        GTEST_SKIP() << "No dimension to set label";
+    }
+    std::vector<size_t> in_labels, exp_labels;
+    std::tie(in_labels, exp_labels) = make_in_exp_labels();
+
+    set_shape_labels(p_shape, in_labels);
+    param = make_shared<op::Parameter>(element::f32, p_shape);
+
+    const auto axes_node = std::make_shared<op::Constant>(element::i32, Shape{axes.size()}, axes);
+    const auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(param, axes_node);
+
+    EXPECT_EQ(get_shape_labels(unsqueeze->get_output_partial_shape(0)), exp_labels);
+}
+
 using BoundTestParam = std::tuple<PartialShape, PartialShape>;
 
 class UnsqueezeBoundTest : public WithParamInterface<BoundTestParam>, public UnsqueezeTestCommon {
@@ -227,7 +266,7 @@ protected:
         UnsqueezeTestCommon::SetUp();
     }
 
-    std::vector<size_t> exp_labels;
+    std::vector<size_t> in_labels;
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -251,8 +290,8 @@ INSTANTIATE_TEST_SUITE_P(
 TEST_P(UnsqueezeBoundTest, propagate_label_and_dynamic_value) {
     PartialShape labeled_shape = PartialShape{p_shape};
 
-    std::generate_n(std::back_inserter(exp_labels), labeled_shape.size(), ov::SeqGen<size_t>(1));
-    set_shape_labels(labeled_shape, exp_labels);
+    std::generate_n(std::back_inserter(in_labels), labeled_shape.size(), ov::SeqGen<size_t>(1));
+    set_shape_labels(labeled_shape, in_labels);
 
     constexpr auto et = element::i64;
     const auto labeled_param = std::make_shared<op::Parameter>(et, labeled_shape);
@@ -268,5 +307,5 @@ TEST_P(UnsqueezeBoundTest, propagate_label_and_dynamic_value) {
 
     EXPECT_EQ(bc->get_output_partial_shape(0), exp_shape);
     const auto labels = get_shape_labels(bc->get_output_partial_shape(0));
-    EXPECT_THAT(labels, ElementsAre(exp_labels.front()));
+    EXPECT_THAT(labels, ElementsAre(in_labels.front()));
 }
