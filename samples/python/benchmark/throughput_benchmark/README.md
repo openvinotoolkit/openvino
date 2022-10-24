@@ -10,7 +10,7 @@ The following Python\* API is used in the application:
 | :--- | :--- | :--- |
 | OpenVINO Runtime Version | [openvino.runtime.get_version] | Get Openvino API version |
 | Basic Infer Flow | [openvino.runtime.Core], [openvino.runtime.Core.compile_model], [openvino.runtime.InferRequest.get_tensor] | Common API to do inference: compile a model, configure input tensors |
-| Asynchronous Infer | [openvino.runtime.AsyncInferQueue], [openvino.runtime.AsyncInferQueue.set_callback], [openvino.runtime.AsyncInferQueue.start_async], [openvino.runtime.AsyncInferQueue.wait_all], [openvino.runtime.InferRequest.results] | Do asynchronous inference |
+| Asynchronous Infer | [openvino.runtime.AsyncInferQueue], [openvino.runtime.AsyncInferQueue.start_async], [openvino.runtime.AsyncInferQueue.wait_all], [openvino.runtime.InferRequest.results] | Do asynchronous inference |
 | Model Operations | [openvino.runtime.CompiledModel.inputs] | Get inputs of a model |
 | Tensor Operations | [openvino.runtime.Tensor.get_shape], [openvino.runtime.Tensor.data] | Get a tensor shape and its data. |
 
