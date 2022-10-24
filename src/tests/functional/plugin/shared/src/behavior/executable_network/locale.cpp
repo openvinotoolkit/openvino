@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <locale.h>
+
 #include "behavior/executable_network/locale.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
 
