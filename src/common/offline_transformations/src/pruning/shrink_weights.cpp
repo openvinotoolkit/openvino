@@ -89,7 +89,7 @@ static bool handle_variadic_split(const std::shared_ptr<ov::Node>& split) {
     const auto split_lengths_node = ngraph::as_type<ngraph::opset6::Constant>(split->get_input_node_ptr(2));
     if (!split_lengths_node)
         return false;
-    auto split_lengths = split_lengths_node->cast_vector<int64_t>();
+    const auto split_lengths = split_lengths_node->cast_vector<int64_t>();
 
     std::vector<int64_t> sub_values;
     bool sub_with_zero = true;

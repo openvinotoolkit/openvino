@@ -1422,27 +1422,6 @@ public:
     }
 };
 
-static void copy_and_slice_mask_on_axis(const ngraph::Mask* const input,
-                                        const ngraph::Mask::Ptr& output,
-                                        int64_t axis,
-                                        uint64_t split_start,
-                                        uint64_t split_end) {
-    if (output->size() < input->size())
-        output->resize(input->size());
-    for (size_t i = 0; i < output->size(); i++) {
-        if (i == axis) {
-            std::set<uint64_t> dst_set;
-            const auto& src_set = (*input)[i];
-            auto it = src_set.lower_bound(split_start);
-            while (it != src_set.end() && *it < split_end)
-                dst_set.insert(*it++ - split_start);
-            (*output)[i] = dst_set;
-        } else if (!(*input)[i].empty()) {
-            (*output)[i] = (*input)[i];
-        }
-    }
-}
-
 class ngraph::pass::mask_propagation::VariadicSplit : public MatcherPass {
 public:
     VariadicSplit() {
@@ -1501,12 +1480,12 @@ public:
             Mask* input_mask_raw = input_mask.get();
             for (size_t i = 0; i < split->get_output_size(); i++) {
                 auto output_mask = std::make_shared<Mask>();
-                copy_and_slice_mask_on_axis(input_mask.get(), output_mask, axis, split_start, split_end);
+                output_mask->copy_and_slice_mask_from(input_mask_raw, axis, split_start, split_end);
                 output_masks.push_back(output_mask);
                 output_masks_raw.push_back(output_mask.get());
                 output_mask->add_callback(
                     [input_mask_raw, axis, split_start, split_end](Mask::Ptr cur_mask) -> bool {
-                        copy_and_slice_mask_on_axis(input_mask_raw, cur_mask, axis, split_start, split_end);
+                        cur_mask->copy_and_slice_mask_from(input_mask_raw, axis, split_start, split_end);
                         return true;
                     },
                     input_mask);
@@ -1586,12 +1565,12 @@ public:
             Mask* input_mask_raw = input_mask.get();
             for (size_t i = 0; i < num_splits; i++) {
                 auto output_mask = std::make_shared<Mask>();
-                copy_and_slice_mask_on_axis(input_mask.get(), output_mask, axis, split_start, split_end);
+                output_mask->copy_and_slice_mask_from(input_mask_raw, axis, split_start, split_end);
                 output_masks.push_back(output_mask);
                 output_masks_raw.push_back(output_mask.get());
                 output_mask->add_callback(
                     [input_mask_raw, axis, split_start, split_end](Mask::Ptr cur_mask) -> bool {
-                        copy_and_slice_mask_on_axis(input_mask_raw, cur_mask, axis, split_start, split_end);
+                        cur_mask->copy_and_slice_mask_from(input_mask_raw, axis, split_start, split_end);
                         return true;
                     },
                     input_mask);

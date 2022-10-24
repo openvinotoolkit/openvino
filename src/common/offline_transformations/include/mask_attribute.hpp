@@ -180,6 +180,26 @@ public:
         return result_mask;
     }
 
+    void copy_and_slice_mask_from(const ngraph::Mask* const mask,
+                                  int64_t axis,
+                                  uint64_t split_start,
+                                  uint64_t split_end) {
+        if (size() < mask->size())
+            resize(mask->size());
+        for (size_t i = 0; i < size(); i++) {
+            if (i == axis) {
+                std::set<uint64_t> dst_set;
+                const auto& src_set = (*mask)[i];
+                auto it = src_set.lower_bound(split_start);
+                while (it != src_set.end() && *it < split_end)
+                    dst_set.insert(*it++ - split_start);
+                (*this)[i] = dst_set;
+            } else if (!(*mask)[i].empty()) {
+                (*this)[i] = (*mask)[i];
+            }
+        }
+    }
+
     bool add_callback(const std::function<bool(Mask::Ptr)>& receive_callback, Mask::Ptr mask) {
         if (m_callbacks.find(mask.get()) != m_callbacks.end())
             NGRAPH_DEBUG << "Attempt to rewrite callback, could lead to unexpected behaviour";
