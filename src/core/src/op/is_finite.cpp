@@ -20,7 +20,7 @@ std::shared_ptr<ov::Node> ov::op::v10::IsFinite::clone_with_new_inputs(const Out
 void ov::op::v10::IsFinite::validate_and_infer_types() {
     OV_OP_SCOPE(v10_IsFinite_validate_and_infer_types);
     element::Type input_element_type = get_input_element_type(0);
-    element::Type output_element_type = ov::element::Type_t::boolean;
+    element::Type output_element_type = ov::element::boolean;
     ov::PartialShape input_pshape = get_input_partial_shape(0);
 
     NODE_VALIDATION_CHECK(this,
