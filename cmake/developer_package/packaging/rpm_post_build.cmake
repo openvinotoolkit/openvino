@@ -37,5 +37,5 @@ foreach(rpm_file IN LISTS CPACK_PACKAGE_FILES)
 endforeach()
 
 if(NOT rpmlint_passed)
-    message(FATAL_ERROR "rpmlint has found some mistakes")
+    message(FATAL_ERROR "rpmlint has found some mistakes. You can get more info regarding issues on site https://fedoraproject.org/wiki/Common_Rpmlint_issues")
 endif()
