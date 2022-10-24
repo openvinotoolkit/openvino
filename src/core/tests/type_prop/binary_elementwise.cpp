@@ -8,6 +8,7 @@
 
 using namespace std;
 using namespace ngraph;
+using namespace testing;
 
 //
 // Tests for binary elementwise ops.
@@ -492,14 +493,9 @@ TEST(type_prop, interval_value_propagation_add_incorrect_dim) {
     // const rhs - result lower than 0
     PartialShape op_shape{Dimension(5, 7)};
     const auto const_op = op::Constant::create(element::f32, {1}, {-10});
-    try {
-        const auto reshape = createReshapeSubgraph<op::v1::Add>(op_shape, const_op);
-        FAIL() << "Incorrect dimension was not detected.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Dim size cannot be less than -1"));
-    } catch (...) {
-        FAIL() << "Incorrect dimension was not detected, different error type was thrown.";
-    }
+    OV_EXPECT_THROW(createReshapeSubgraph<op::v1::Add>(op_shape, const_op),
+                    NodeValidationFailure,
+                    HasSubstr("Dim size cannot be less than -1"));
 }
 
 TEST(type_prop, interval_value_propagation_sub_rhs) {
@@ -526,14 +522,9 @@ TEST(type_prop, interval_value_propagation_sub_incorrect_dim) {
     // const lhs - result lower than 0
     PartialShape op_shape{Dimension(13, 27)};
     const auto const_op = op::Constant::create(element::f32, {1}, {5});
-    try {
-        const auto reshape = createReshapeSubgraph<op::v1::Subtract>(op_shape, const_op, false);
-        FAIL() << "Incorrect dimension was not detected.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Dim size cannot be less than -1"));
-    } catch (...) {
-        FAIL() << "Incorrect dimension was not detected, different error type was thrown.";
-    }
+    OV_EXPECT_THROW(createReshapeSubgraph<op::v1::Subtract>(op_shape, const_op, false),
+                    NodeValidationFailure,
+                    HasSubstr("Dim size cannot be less than -1"));
 }
 
 TEST(type_prop, interval_value_propagation_mul_rhs) {
@@ -561,28 +552,18 @@ TEST(type_prop, interval_value_propagation_mul_incorrect_dim_rhs) {
     // const rhs - result lower than 0
     PartialShape op_shape{Dimension(5, 7)};
     const auto const_op = op::Constant::create(element::f32, {1}, {-3});
-    try {
-        const auto reshape = createReshapeSubgraph<op::v1::Multiply>(op_shape, const_op);
-        FAIL() << "Incorrect dimension was not detected.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Dim size cannot be less than -1"));
-    } catch (...) {
-        FAIL() << "Incorrect dimension was not detected, different error type was thrown.";
-    }
+    OV_EXPECT_THROW(createReshapeSubgraph<op::v1::Multiply>(op_shape, const_op),
+                    NodeValidationFailure,
+                    HasSubstr("Dim size cannot be less than -1"));
 }
 
 TEST(type_prop, interval_value_propagation_mul_incorrect_dim_lhs) {
     // const lhs - result lower than 0
     PartialShape op_shape{Dimension(5, 7)};
     const auto const_op = op::Constant::create(element::f32, {1}, {-3});
-    try {
-        const auto reshape = createReshapeSubgraph<op::v1::Multiply>(op_shape, const_op, false);
-        FAIL() << "Incorrect dimension was not detected.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Dim size cannot be less than -1"));
-    } catch (...) {
-        FAIL() << "Incorrect dimension was not detected, different error type was thrown.";
-    }
+    OV_EXPECT_THROW(createReshapeSubgraph<op::v1::Multiply>(op_shape, const_op, false),
+                    NodeValidationFailure,
+                    HasSubstr("Dim size cannot be less than -1"));
 }
 
 TEST(type_prop, interval_value_propagation_div_rhs) {
