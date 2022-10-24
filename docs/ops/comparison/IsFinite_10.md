@@ -11,7 +11,7 @@
 **Detailed description**: *IsFinite* returns the boolean mask of the input tensor in which `False` corresponds to `NaN` and `Infinity` and `True` to all other values.
 * The output tensor has the same shape as the input tensor.
 * The `i`'th element of the output tensor is `False` if `i`'th element of the input tensor is `NaN` or `Inf`. Otherwise, it is `True`.
-* For example, for given input tensor `[NaN, 2.1, 3.7, Inf]` the output tensor is `[False, True, True, False]`.
+* For example, for a given input tensor `[NaN, 2.1, 3.7, Inf]` the output tensor is `[False, True, True, False]`.
 
 **Attributes**
 
