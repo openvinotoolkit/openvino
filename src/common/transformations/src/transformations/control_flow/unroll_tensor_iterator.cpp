@@ -9,6 +9,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <openvino/opsets/opset6.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -17,7 +18,7 @@
 bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(UnrollTensorIterator);
     for (const auto& op : f->get_ops()) {
-        auto sub_graph_op = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(op);
+        auto sub_graph_op = std::dynamic_pointer_cast<op::util::SubGraphOp>(op);
         if (!sub_graph_op || transformation_callback(sub_graph_op)) {
             continue;
         }
@@ -113,7 +114,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngraph::
                 auto target_inputs = ti_output.get_target_inputs();
                 if (target_inputs.empty() ||
                     std::any_of(target_inputs.begin(), target_inputs.end(), [](const ov::Input<ov::Node>& target_inp) {
-                        return ov::as_type<ngraph::opset8::Result>(target_inp.get_node()) != nullptr;
+                        return ov::as_type<opset8::Result>(target_inp.get_node()) != nullptr;
                     })) {
                     NGRAPH_SUPPRESS_DEPRECATED_START
                     insert_to.get_tensor().set_name(ngraph::op::util::create_ie_output_name(ti_output));

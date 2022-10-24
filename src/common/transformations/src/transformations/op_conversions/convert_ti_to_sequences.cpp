@@ -19,7 +19,7 @@
 
 namespace {
 bool convertTensorIteratorToSequence(const std::shared_ptr<ov::opset5::TensorIterator>& ti,
-                                     const std::shared_ptr<ngraph::op::util::RNNCellBase>& found_cell,
+                                     const std::shared_ptr<ov::op::util::RNNCellBase>& found_cell,
                                      const ngraph::Output<ngraph::Node>& data,
                                      const ngraph::Output<ngraph::Node>& h_pattern,
                                      const ngraph::Output<ngraph::Node>& c_pattern,
@@ -267,7 +267,7 @@ ov::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSequen
 
         const auto& pattern_map = matcher.get_pattern_value_map();
         std::shared_ptr<Node> found_cell = pattern_map.at(cell).get_node_shared_ptr();
-        const auto lstm_cell = std::dynamic_pointer_cast<ngraph::op::util::RNNCellBase>(found_cell);
+        const auto lstm_cell = std::dynamic_pointer_cast<ov::op::util::RNNCellBase>(found_cell);
         if (lstm_cell == nullptr)
             return false;
 

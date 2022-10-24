@@ -167,7 +167,7 @@ ov::pass::HSigmoidFusionWithClampMul::HSigmoidFusionWithClampMul() {
     auto input = ngraph::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<opset7::Constant>();
     auto add = ngraph::pattern::wrap_type<opset7::Add>({input, add_constant});
-    auto clamp = ngraph::pattern::wrap_type<ngraph::op::v0::Clamp>({add});
+    auto clamp = ngraph::pattern::wrap_type<opset7::Clamp>({add});
     auto mul_constant = ngraph::pattern::wrap_type<opset7::Constant>();
     auto mul_first = ngraph::pattern::wrap_type<opset7::Multiply>({clamp, mul_constant});
 
@@ -212,7 +212,7 @@ ov::pass::HSigmoidFusionWithClampDiv::HSigmoidFusionWithClampDiv() {
     auto input = ngraph::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<opset7::Constant>();
     auto add = ngraph::pattern::wrap_type<opset7::Add>({input, add_constant});
-    auto clamp = ngraph::pattern::wrap_type<ngraph::op::v0::Clamp>({add});
+    auto clamp = ngraph::pattern::wrap_type<opset7::Clamp>({add});
     auto div_constant = ngraph::pattern::wrap_type<opset7::Constant>();
     auto div = ngraph::pattern::wrap_type<opset7::Divide>({clamp, div_constant});
 

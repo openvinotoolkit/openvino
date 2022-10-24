@@ -19,7 +19,7 @@ ov::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
     auto any_lstm = pattern::wrap_type<opset1::LSTMCell, opset4::LSTMCell>();
 
     matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
-        auto lstm_cell = std::dynamic_pointer_cast<ngraph::op::util::RNNCellBase>(m.get_match_root());
+        auto lstm_cell = std::dynamic_pointer_cast<op::util::RNNCellBase>(m.get_match_root());
         if (!lstm_cell || transformation_callback(lstm_cell)) {
             return false;
         }

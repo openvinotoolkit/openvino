@@ -20,7 +20,7 @@ ov::pass::SkipGatherBeforeTransposeAndReshape::SkipGatherBeforeTransposeAndResha
 
     auto indices_m = ngraph::pattern::wrap_type<opset8::Constant>();
     auto axis_m = ngraph::pattern::wrap_type<opset8::Constant>();
-    auto gather_m = ngraph::pattern::wrap_type<ngraph::op::util::GatherBase>({input_m, indices_m, axis_m});
+    auto gather_m = ngraph::pattern::wrap_type<ov::op::util::GatherBase>({input_m, indices_m, axis_m});
 
     auto transpose_const_m = ngraph::pattern::wrap_type<opset8::Constant>();
     auto transpose_m = ngraph::pattern::wrap_type<opset8::Transpose>({gather_m, transpose_const_m});
