@@ -19,6 +19,7 @@ set (SRC
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4244)
+    ie_add_compiler_flags(/wd4018)
 endif()
 
 
