@@ -21,6 +21,7 @@ from setuptools import setup, find_namespace_packages, Extension
 from setuptools.command.build_ext import build_ext
 from setuptools.command.build_clib import build_clib
 from setuptools.command.install import install
+import sysconfig
 import re
 
 WHEEL_LIBS_INSTALL_DIR = os.path.join("openvino", "libs")
@@ -276,7 +277,7 @@ class PrepareLibs(build_clib):
 
         exclude_patterns = ("*so.*.*.*", "*.so.*.*",
                             "libpugixml.so", "libtbbmalloc.so", "libtbb.so",
-                            "libopenvino_*.cpython-38-x86_64-linux-gnu.so")
+                            f"libopenvino_*{sysconfig.get_config_var('EXT_SUFFIX')}")
 
         for src_dir in src_dirs:
             local_base_dir = Path(src_dir)
