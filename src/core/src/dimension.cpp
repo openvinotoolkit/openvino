@@ -50,29 +50,32 @@ Dimension::Dimension(const std::string& value){
     }
 
     std::string min_value_str = val.substr(0, val.find(".."));
-        OPENVINO_ASSERT(ngraph::check_all_digits(min_value_str), "Cannot parse min bound: \"" + min_value_str + "\"");
+    min_value_str = ngraph::trim(min_value_str);
 
     int64_t min_value;
     if (min_value_str.empty())
         min_value = 0;
-    else
+    else {
+        OPENVINO_ASSERT(ngraph::check_all_digits(min_value_str), "Cannot parse min bound: \"" + min_value_str + "\"");
         min_value = ngraph::parse_string<int64_t>(min_value_str);
+    }
 
     std::string max_value_str = val.substr(val.find("..") + 2);
+    max_value_str = ngraph::trim(max_value_str);
+
     int64_t max_value;
     if (max_value_str.empty())
-        max_value = -1;
-    else
+        max_value = Interval::s_max;
+    else {
+        OPENVINO_ASSERT(check_all_digits(max_value_str), "Cannot parse max bound: \"" + max_value_str + "\"");
         max_value = ngraph::parse_string<int64_t>(max_value_str);
-
-    OPENVINO_ASSERT(check_all_digits(max_value_str), "Cannot parse max bound: \"" + max_value_str + "\"");
-
-    m_dimension = {min_value, max_value};
+    }
+    m_dimension = Interval(min_value, max_value);
 }
 
 std::string Dimension::to_string() const{
     std::stringstream dim_str_stream;
-    dim_str_stream << *this;
+    dim_str_stream << Dimension(m_dimension);
     return dim_str_stream.str();
 }
 

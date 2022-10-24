@@ -17,6 +17,7 @@ from openvino.tools.mo.utils.cli_parser import get_placeholder_shapes, get_tuple
     readable_file, get_freeze_placeholder_values, parse_transform, check_available_transforms, get_layout_values, get_data_type_from_input_value
 from openvino.tools.mo.utils.error import Error
 from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
+from openvino.runtime import PartialShape, Dimension
 
 
 class TestingMeanScaleGetter(UnitTestWithMockedTelemetry):
@@ -568,7 +569,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
         # 0D value for freezing specified using --input command line parameter without shape
         argv_input = "inp1[3 1]->[1.0 2.0 3.0],inp2[3 2 3],inp3->False"
         inputs_list, result, _ = get_placeholder_shapes(argv_input, None)
-        exp_res = {'inp1': np.array([3, 1]), 'inp2': np.array([3, 2, 3]), 'inp3': None}
+        exp_res = {'inp1': PartialShape([3, 1]), 'inp2': PartialShape([3, 2, 3]), 'inp3': None}
         self.assertEqual(list(exp_res.keys()), list(result.keys()))
         self.assertEqual(inputs_list, ["inp1","inp2","inp3"])
         for i in exp_res.keys():
@@ -838,7 +839,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
         argv_input = "inp1,inp2"
         input_shapes = "(1,..22,1..100,?), (-1,45..,7,1)"
         inputs_list, result, _ = get_placeholder_shapes(argv_input, input_shapes)
-        exp_res = {'inp1': (1, (0, 22), (1, 100), -1), 'inp2': (-1, (45, np.iinfo(np.int64).max), 7, 1)}
+        exp_res = {'inp1': PartialShape([1, Dimension(0, 22), Dimension(1, 100), -1]), 'inp2': PartialShape([-1, Dimension(45, -1), 7, 1])}
         self.assertEqual(list(exp_res.keys()), list(result.keys()))
         self.assertEqual(inputs_list, ["inp1","inp2"])
         for i in exp_res.keys():
@@ -848,7 +849,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
         # shapes specified using --input command line parameter and no values
         argv_input = "inp1[1 ? 50..100 123],inp2[-1 45.. ..7 1]"
         inputs_list, result, _ = get_placeholder_shapes(argv_input, None)
-        exp_res = {'inp1': (1, -1, (50, 100), 123), 'inp2': (-1, (45,np.iinfo(np.int64).max), (0, 7), 1)}
+        exp_res = {'inp1': PartialShape([1, -1, (50, 100), 123]), 'inp2': PartialShape([-1, Dimension(45,-1), Dimension(0, 7), 1])}
         self.assertEqual(list(exp_res.keys()), list(result.keys()))
         for i in exp_res.keys():
             assert np.array_equal(result[i], exp_res[i])
@@ -864,7 +865,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
         # shapes and value for freezing specified using --input command line parameter
         argv_input = "inp1[3 1]->[1.0 2.0 3.0],inp2[3.. ..2 5..10 ? -1],inp3[5]->[1.0 1.0 2.0 3.0 5.0]"
         inputs_list, result, _ = get_placeholder_shapes(argv_input, None)
-        exp_res = {'inp1': (3, 1), 'inp2': ((3, np.iinfo(np.int64).max), (0, 2), (5, 10), -1, -1), 'inp3': (5,)}
+        exp_res = {'inp1': (3, 1), 'inp2': PartialShape([Dimension(3, -1), Dimension(0, 2), Dimension(5, 10), -1, -1]), 'inp3': (5,)}
         self.assertEqual(list(exp_res.keys()), list(result.keys()))
         for i in exp_res.keys():
             assert np.array_equal(result[i], exp_res[i])
@@ -881,7 +882,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
         argv_input = "inp1->[1.0 2.0 3.0],inp2,inp3->[1.0 1.0 2.0 3.0 5.0]"
         input_shapes = "(3,1), (3..,..2,5..10,?,-1), (5)"
         inputs_list, result, _ = get_placeholder_shapes(argv_input, input_shapes)
-        exp_res = {'inp1': (3, 1), 'inp2': ((3, np.iinfo(np.int64).max), (0, 2), (5, 10), -1, -1), 'inp3': (5,)}
+        exp_res = {'inp1': (3, 1), 'inp2': PartialShape([Dimension(3, -1), Dimension(0, 2), Dimension(5, 10), -1, -1]), 'inp3': (5,)}
         self.assertEqual(list(exp_res.keys()), list(result.keys()))
         for i in exp_res.keys():
             assert np.array_equal(result[i], exp_res[i])
@@ -901,7 +902,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
         argv_freeze_placeholder_with_value = "inp2->[5.0 7.0 3.0],inp4->[100.0 200.0]"
 
         inputs_list, result, _ = get_placeholder_shapes(argv_input, input_shapes)
-        exp_res = {'inp1': (3, 1), 'inp2': ((3, np.iinfo(np.int64).max), (0, 2), (5, 10), -1, -1), 'inp3': (5,)}
+        exp_res = {'inp1': PartialShape([3, 1]), 'inp2': PartialShape([(3, np.iinfo(np.int64).max), (0, 2), (5, 10), -1, -1]), 'inp3': PartialShape([5])}
         self.assertEqual(list(exp_res.keys()), list(result.keys()))
         for i in exp_res.keys():
             assert np.array_equal(result[i], exp_res[i])
@@ -919,7 +920,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
         # 0D value for freezing specified using --input command line parameter without shape
         argv_input = "inp1[3 1]->[1.0 2.0 3.0],inp2[3.. ..2 5..10 ? -1],inp3->False"
         inputs_list, result, _ = get_placeholder_shapes(argv_input, None)
-        exp_res = {'inp1': (3, 1), 'inp2': ((3, np.iinfo(np.int64).max), (0, 2), (5, 10), -1, -1), 'inp3': None}
+        exp_res = {'inp1': PartialShape([3, 1]), 'inp2': PartialShape([(3, np.iinfo(np.int64).max), (0, 2), (5, 10), -1, -1]), 'inp3': None}
         self.assertEqual(list(exp_res.keys()), list(result.keys()))
         for i in exp_res.keys():
             assert np.array_equal(result[i], exp_res[i])
@@ -934,7 +935,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
         # 0D shape and value for freezing specified using --input command line parameter
         argv_input = "inp1[3 1]->[1.0 2.0 3.0],inp2[3.. ..2 5..10 ? -1],inp3[]->True"
         inputs_list, result, _ = get_placeholder_shapes(argv_input, None)
-        exp_res = {'inp1': (3, 1), 'inp2': ((3, np.iinfo(np.int64).max), (0, 2), (5, 10), -1, -1), 'inp3': np.array(False).shape}
+        exp_res = {'inp1': PartialShape([3, 1]), 'inp2': PartialShape([(3, np.iinfo(np.int64).max), (0, 2), (5, 10), -1, -1]), 'inp3': np.array(False).shape}
         self.assertEqual(list(exp_res.keys()), list(result.keys()))
         for i in exp_res.keys():
             assert np.array_equal(result[i], exp_res[i])
@@ -948,7 +949,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
     def test_get_shapes_and_data_types_partial_shape_with_input_port(self):
         argv_input = "inp1:1[3 1]->[1.0 2.0 3.0],0:inp2[3.. ..2 5..10 ? -1]{i32},inp3:4[5]{f32}->[1.0 1.0 2.0 3.0 5.0]"
         input_list, result_shapes, result_data_types = get_placeholder_shapes(argv_input, "")
-        ref_result_shapes = {'inp1:1': np.array([3, 1]), '0:inp2': ((3, np.iinfo(np.int64).max), (0, 2), (5, 10), -1, -1), 'inp3:4': np.array([5])}
+        ref_result_shapes = {'inp1:1': PartialShape([3, 1]), '0:inp2': PartialShape([Dimension(3, -1), Dimension(-1, 2), Dimension(5, 10), -1, -1]), 'inp3:4': np.array([5])}
         ref_result_data_types = {'0:inp2': np.int32, 'inp3:4': np.float32}
         self.assertEqual(list(ref_result_shapes.keys()), list(result_shapes.keys()))
         for i in ref_result_shapes.keys():
@@ -961,7 +962,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
     def test_get_shapes_and_data_types_partial_shape_with_output_port(self):
         argv_input = "inp1:1[3 1]->[1.0 2.0 3.0],inp2:3[3.. ..2 5..10 ? -1]{i32},inp3:4[5]{f32}->[1.0 1.0 2.0 3.0 5.0]"
         input_list, result_shapes, result_data_types = get_placeholder_shapes(argv_input, "")
-        ref_result_shapes = {'inp1:1': np.array([3, 1]), 'inp2:3': ((3, np.iinfo(np.int64).max), (0, 2), (5, 10), -1, -1), 'inp3:4': np.array([5])}
+        ref_result_shapes = {'inp1:1': PartialShape([3, 1]), 'inp2:3': PartialShape([Dimension(3, -1), Dimension(0, 2), Dimension(5, 10), -1, -1]), 'inp3:4': PartialShape([5])}
         ref_result_data_types = {'inp2:3': np.int32, 'inp3:4': np.float32}
         self.assertEqual(list(ref_result_shapes.keys()), list(result_shapes.keys()))
         for i in ref_result_shapes.keys():

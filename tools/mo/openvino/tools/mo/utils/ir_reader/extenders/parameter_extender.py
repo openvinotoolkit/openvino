@@ -3,9 +3,9 @@
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value
 from openvino.tools.mo.middle.passes.convert_data_type import destination_type_to_np_data_type
-from openvino.tools.mo.utils.cli_parser import parse_dimension
 from openvino.tools.mo.utils.graph import Node
 from openvino.tools.mo.utils.ir_reader.extender import Extender
+from openvino.runtime import PartialShape, Dimension
 
 
 class Parameter_extender(Extender):
@@ -31,17 +31,14 @@ class Parameter_extender(Extender):
 
             if has_shapes_with_boundaries:
                 shape_list = []
-                for i, dim in enumerate(op.shape):
-                    if not isinstance(dim, str):
-                        shape_list.append(dim)
-                    else:
-                        shape_list.append(parse_dimension(dim))
+                for dim in op.shape:
+                    shape_list.append(Dimension(dim))
 
                 # This value is used only for serialization of partial shapes with boundaries
                 # for Parameter node.
                 # 'user_shape' is not used in shape inference, as propagation of partial shapes with boundaries
                 # is not implemented in MO.
-                op['user_shape'] = tuple(shape_list)
+                op['user_shape'] = PartialShape(shape_list)
 
             # If 'user_shape' is not set, 'shape' attribute is used for serialization.
             # 'shape' is also used for shape inference.

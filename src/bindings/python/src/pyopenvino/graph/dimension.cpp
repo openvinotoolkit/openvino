@@ -173,4 +173,6 @@ void regclass_graph_Dimension(py::module m) {
     dim.def("__repr__", [](const ov::Dimension& self) -> std::string {
         return "<Dimension: " + py::cast(self).attr("__str__")().cast<std::string>() + ">";
     });
+
+    dim.def("to_string", &ov::Dimension::to_string);
 }

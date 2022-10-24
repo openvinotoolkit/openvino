@@ -51,22 +51,22 @@ class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
 
         inp9 = InputCutInfo("data1", PartialShape([Dimension(-1), Dimension(2, -1),
                                                    Dimension(-1, 10), 100, Dimension(2, 12)]), type=None, value=None)
-        self.assertTrue(input_to_str(inp9) == "data1[? 2.. ..10 100 2..12]")
+        self.assertTrue(input_to_str(inp9) == "data1[?,2..,..10,100,2..12]")
 
         inp10 = InputCutInfo("data2", [Dimension(-1), Dimension(2, -1),
                                        Dimension(-1, 10), 100, Dimension(2, 12)], np.uint8, value=None)
         self.assertTrue(input_to_str(inp10) == "data2[? 2.. ..10 100 2..12]{u8}")
 
         inp11 = InputCutInfo("data3", Shape([4, 5, 6]), np.int64, [5, 4, 3, 2, 1])
-        self.assertTrue(input_to_str(inp11) == "data3[4 5 6]{i64}->[5 4 3 2 1]")
+        self.assertTrue(input_to_str(inp11) == "data3[4,5,6]{i64}->[5 4 3 2 1]")
 
         inp12 = InputCutInfo("data4", PartialShape.dynamic(), type=None, value=None)
         self.assertTrue(input_to_str(inp12) == "data4[...]")
 
         inp = [inp9, inp10, inp11, inp12]
-        self.assertTrue(input_to_str(inp) == "data1[? 2.. ..10 100 2..12],"
+        self.assertTrue(input_to_str(inp) == "data1[?,2..,..10,100,2..12],"
                                              "data2[? 2.. ..10 100 2..12]{u8},"
-                                             "data3[4 5 6]{i64}->[5 4 3 2 1],"
+                                             "data3[4,5,6]{i64}->[5 4 3 2 1],"
                                              "data4[...]")
 
         inp1 = ("data:0")
@@ -88,21 +88,21 @@ class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
                                              "data:0[1 3 100 100]{u8}")
 
         inp5 = ("data1", PartialShape([Dimension(-1), Dimension(2, -1), Dimension(-1, 10), 100, Dimension(2, 12)]))
-        self.assertTrue(input_to_str(inp5) == "data1[? 2.. ..10 100 2..12]")
+        self.assertTrue(input_to_str(inp5) == "data1[?,2..,..10,100,2..12]")
 
         inp6 = ("data2", [Dimension(-1), Dimension(2, -1), Dimension(-1, 10), 100, Dimension(2, 12)], np.uint8)
         self.assertTrue(input_to_str(inp6) == "data2[? 2.. ..10 100 2..12]{u8}")
 
         inp7 = ("data3", Shape([4, 5, 6]), np.int64)
-        self.assertTrue(input_to_str(inp7) == "data3[4 5 6]{i64}")
+        self.assertTrue(input_to_str(inp7) == "data3[4,5,6]{i64}")
 
         inp8 = ("data4", PartialShape.dynamic())
         self.assertTrue(input_to_str(inp8) == "data4[...]")
 
         inp = [inp5, inp6, inp7, inp8]
-        self.assertTrue(input_to_str(inp) == "data1[? 2.. ..10 100 2..12],"
+        self.assertTrue(input_to_str(inp) == "data1[?,2..,..10,100,2..12],"
                                              "data2[? 2.. ..10 100 2..12]{u8},"
-                                             "data3[4 5 6]{i64},"
+                                             "data3[4,5,6]{i64},"
                                              "data4[...]")
 
         self.assertRaises(Exception, input_to_str, **{"input": InputCutInfo(0.5, [1, 2, 3], None, None)})

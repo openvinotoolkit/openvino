@@ -100,32 +100,6 @@ def str_list_to_str(values):
         raise Error("Incorrect argument. {} expected to string or list of strings, got type {}.".format(values, type(values)))
 
 
-def dimension_to_str(dim: Dimension):
-    # TODO: replace this code with Dimension to string conversion method from openvino.runtime when 69092 is done
-    if dim.is_static:
-        return str(dim.get_length())
-    if dim.get_min_length() > 0:
-        dim_str = str(dim.get_min_length()) + ".."
-        if dim.get_max_length() != -1:
-            dim_str += str(dim.get_max_length())
-        return dim_str
-    elif dim.get_max_length() != -1:
-        return ".." + str(dim.get_max_length())
-    else:
-        return "?"
-
-
-def partial_shape_to_str(shape: PartialShape, separator: str):
-    # TODO: replace this code with PartialShape to string conversion method from openvino.runtime when 69092 is done
-    if shape.rank.is_dynamic:
-        return "[...]"
-    dims = []
-    for i in range(shape.rank.get_length()):
-        dims.append(dimension_to_str(shape.get_dimension(i)))
-
-    return "[" + separator.join(dims) + "]"
-
-
 def is_shape_type(value):
     if isinstance(value, PartialShape):
         return True
@@ -143,14 +117,14 @@ def shape_to_str(shape, separator):
     if isinstance(shape, str):
         return shape
     if isinstance(shape, PartialShape):
-        return partial_shape_to_str(shape, separator)
+        return shape.to_string()
     if isinstance(shape, Shape):
-        return partial_shape_to_str(PartialShape(shape), separator)
+        return PartialShape(shape).to_string()
     if isinstance(shape, list) or isinstance(shape, tuple):
         dims = []
         for dim in shape:
             if isinstance(dim, Dimension):
-                dims.append(dimension_to_str(dim))
+                dims.append(dim.to_string())
             elif isinstance(dim, int):
                 dims.append(str(dim))
             else:
@@ -1404,12 +1378,12 @@ def remove_shape_from_input_value(input_value: str):
     :return: string without shape specification
     """
     assert '->' not in input_value, 'The function should not be called for input_value with constant value specified'
-    return re.sub(r'[(\[]([0-9\.?  -]*)[)\]]', '', input_value)
+    return re.sub(r'[(\[]([0-9\.?,  -]*)[)\]]', '', input_value)
 
 
 def get_shape_from_input_value(input_value: str):
     """
-    Returns the list of tuples corresponding to the shape specified in the input value string
+    Returns PartialShape corresponding to the shape specified in the input value string
     :param input_value: string passed as input to the --input command line parameter
     :return: the corresponding shape and None if the shape is not specified in the input value
     """
@@ -1417,13 +1391,14 @@ def get_shape_from_input_value(input_value: str):
     input_value = input_value.split('->')[0]
 
     # parse shape
-    shape = re.findall(r'[(\[]([0-9\.\?  -]*)[)\]]', input_value)
+    shape = re.findall(r'[(\[]([0-9\.\?,  -]*)[)\]]', input_value)
     if len(shape) == 0:
         shape = None
     elif len(shape) == 1 and shape[0] in ['', ' ']:
         shape = ()
     elif len(shape) == 1:
-        shape = tuple(map(parse_dimension, shape[0].split(' ')))
+        dims = re.split(r', *| +', shape[0])
+        shape = PartialShape([Dimension(dim) for dim in dims])
     else:
         raise Error("Wrong syntax to specify shape. Use --input "
                     "\"node_name[shape]->value\"")
@@ -1460,6 +1435,16 @@ def get_value_from_input_value(input_value: str):
     return value
 
 
+def partial_shape_prod(shape: [PartialShape, tuple]):
+    assert not (isinstance(shape, PartialShape) and shape.is_dynamic), \
+        "Unable to calculate prod for dynamic shape {}.".format(shape)
+
+    prod = 1
+    for dim in shape:
+        prod *= dim.get_min_length()
+    return prod
+
+
 def parse_input_value(input_value: str):
     """
     Parses a value of the --input command line parameter and gets a node name, shape and value.
@@ -1484,10 +1469,10 @@ def parse_input_value(input_value: str):
 
     if value is not None and shape is not None:
         for dim in shape:
-            if isinstance(dim, tuple) or dim == -1:
+            if isinstance(dim, Dimension) and dim.is_dynamic:
                 raise Error("Cannot freeze input with dynamic shape: {}".format(shape))
 
-    if shape is not None and value is not None and np.prod(shape) != value_size:
+    if shape is not None and value is not None and partial_shape_prod(shape) != value_size:
         raise Error("The shape '{}' of the input node '{}' does not correspond to the number of elements '{}' in the "
                     "value: {}".format(shape, node_name, value_size, value))
     return node_name, shape, value, data_type
@@ -1691,31 +1676,29 @@ def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_
     return placeholder_values, input_node_names
 
 
-def parse_dimension(dim: str):
-    if '..' in dim:
-        numbers_reg = r'^[0-9]+$'
-        dims = dim.split('..')
-        match_res0 = re.match(numbers_reg, dims[0])
-        match_res1 = re.match(numbers_reg, dims[1])
-        if len(dims[0].strip()) > 0 and match_res0 is None:
-            Error("Incorrect min value of dimension '{}'".format(dims[0]))
-        if len(dims[1].strip()) > 0 and match_res1 is None:
-            Error("Incorrect max value of dimension '{}'".format(dims[1]))
+def split_inputs(input_str):
+    brakets_count = 0
+    inputs = []
+    while input_str:
+        idx = 0
+        for c in input_str:
+            if c == '[':
+                brakets_count += 1
+            if c == ']':
+                brakets_count -= 1
+            if c == ',':
+                if brakets_count != 0:
+                    continue
+                else:
+                    break
+            idx+=1
+        if idx >= len(input_str)-1:
+            inputs.append(input_str)
+            break
+        inputs.append(input_str[:idx])
+        input_str = input_str[idx+1:]
+    return inputs
 
-        min_val = np.int64(dims[0]) if match_res0 else np.int64(0)
-        max_val = np.int64(dims[1]) if match_res1 else np.iinfo(np.int64).max
-        assert min_val >= 0, "Incorrect min value of the dimension {}".format(dim)
-
-        if min_val == np.int64(0) and max_val == np.iinfo(np.int64).max:
-            return np.int64(-1)
-
-        assert min_val < max_val, "Min value should be less than max value. Got min value: {}, " \
-                                  "max value: {}".format(min_val, max_val)
-
-        return min_val, max_val
-    if '?' in dim:
-        return np.int64(-1)
-    return np.int64(dim)
 
 
 def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=None):
@@ -1754,17 +1737,7 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
     are_shapes_specified_through_input = False
     inputs_list = list()
     if argv_input:
-        range_reg = r'([0-9]*\.\.[0-9]*)'
-        first_digit_reg = r'([0-9]+|-1|\?|{})'.format(range_reg)
-        next_digits_reg = r'(,{})+'.format(first_digit_reg)
-        brackets_reg = r'(.*\[{}{}\].*)'.format(first_digit_reg, next_digits_reg,
-                                                      first_digit_reg, next_digits_reg)
-        if re.match(brackets_reg, argv_input):
-            raise Error('Error in input {}. Shape with comma separator is not supported in --input param. '
-                        'Please use shape syntax with whitespace separator. Example --input="data[1 3 100 100]".'.format(
-                argv_input))
-
-        for input_value in argv_input.split(','):
+        for input_value in split_inputs(argv_input):
             node_name, shape, _, data_type = parse_input_value(input_value)
             placeholder_shapes[node_name] = shape
             inputs_list.append(node_name)
@@ -1801,7 +1774,7 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
         shapes = re.findall(r'[(\[]([0-9,\.\? -]+)[)\]]', argv_input_shape)
 
     if argv_input:
-        inputs = argv_input.split(',')
+        inputs = split_inputs(argv_input)
     inputs = [remove_data_type_from_input_value(inp) for inp in inputs]
 
     # check number of shapes with no input provided
@@ -1809,14 +1782,13 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
         if len(shapes) > 1:
             raise Error('Please provide input layer names for input layer shapes. ' + refer_to_faq_msg(58))
         else:
-            placeholder_shapes = tuple(map(parse_dimension, shapes[0].split(',')))
+            placeholder_shapes = PartialShape(shapes[0])
     # check if number of shapes does not match number of passed inputs
     elif argv_input and (len(shapes) == len(inputs) or len(shapes) == 0):
         # clean inputs from values for freezing
         inputs_without_value = list(map(lambda x: x.split('->')[0], inputs))
         placeholder_shapes = dict(zip_longest(inputs_without_value,
-                                              map(lambda x: tuple(map(parse_dimension, x.split(','))) if x else None,
-                                                  shapes)))
+                                              map(lambda x: PartialShape(x) if x else None, shapes)))
         for inp in inputs:
             if '->' not in inp:
                 inputs_list.append(inp)
@@ -1827,7 +1799,7 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
             if shape is None:
                 continue
             for dim in shape:
-                if isinstance(dim, tuple) or dim == -1:
+                if isinstance(dim, Dimension) and not dim.is_static:
                     raise Error("Cannot freeze input with dynamic shape: {}".format(shape))
 
     elif argv_input:
