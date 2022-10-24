@@ -431,8 +431,6 @@ OutputTranspose GetOutputTransposes(NodePtr node) {
         }
     }
 
-    throw std::runtime_error("cannot find output transpose");
-
     return OutputTranspose();
 }
 
