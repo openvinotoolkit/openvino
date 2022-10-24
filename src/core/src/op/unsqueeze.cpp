@@ -25,19 +25,11 @@ op::v0::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes)
 void op::v0::Unsqueeze::validate_and_infer_types() {
     OV_OP_SCOPE(v0_Unsqueeze_validate_and_infer_types);
 
-    const auto& axes_pshape = get_input_partial_shape(1);
-
-    NODE_VALIDATION_CHECK(this,
-                          axes_pshape.rank().compatible(0) || axes_pshape.rank().compatible(1),
-                          "Second input (axes) should not be of rank higher than 1. Got: ",
-                          axes_pshape.rank().get_length());
-
     const auto input_shapes = get_node_input_partial_shapes(*this);
     auto output_shapes = std::vector<ov::PartialShape>(1);
 
     shape_infer(this, input_shapes, output_shapes);
 
-    set_output_size(output_shapes.size());
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
@@ -62,6 +54,9 @@ bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     return true;
 }
 
+// The evaluate cannot use shape_infer for output shape calculation as shape inference accepts
+// repeated axis and evaluate not. When shape inference will changed to be compatible with `numpy` then
+// evaluate and inference can use same function to calculate output shape. TODO for next version for this operator.
 bool evaluate_unsqueeze(const Node* node,
                         const HostTensorPtr& arg0,
                         const HostTensorPtr& arg1,
@@ -70,8 +65,7 @@ bool evaluate_unsqueeze(const Node* node,
     out->set_element_type(element_type);
 
     const auto& axes_shape = arg1->get_shape();
-    OPENVINO_ASSERT(ov::is_scalar(axes_shape) || ov::is_vector(axes_shape),
-                    "Axes to add must be a scalar or 1D tensor with 1 element");
+    ov::op::v0::check_unsqueeze_axes_rank(node, Rank(axes_shape.size()));
 
     const auto& data_shape = arg0->get_shape();
     const auto out_rank = static_cast<int64_t>(data_shape.size() + shape_size(axes_shape));

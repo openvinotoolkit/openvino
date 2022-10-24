@@ -10,12 +10,21 @@ namespace ov {
 namespace op {
 namespace v0 {
 
+template <class TOp>
+void check_unsqueeze_axes_rank(const TOp* op, const Rank& rank) {
+    NODE_VALIDATION_CHECK(op,
+                          is_rank_compatible_any_of(rank, std::vector<Rank>{0, 1}),
+                          "Second input (axes) should not be of rank higher than 1. Got: ",
+                          rank);
+}
+
 template <class T>
 void shape_infer(const Unsqueeze* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1);
+    check_unsqueeze_axes_rank(op, input_shapes[1].rank());
     const auto& arg_shape = input_shapes[0];
     auto& out_shape = output_shapes[0];
 

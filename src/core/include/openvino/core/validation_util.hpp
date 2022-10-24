@@ -164,4 +164,19 @@ OPENVINO_API bool has_no_labels(const TensorLabel& labels);
 ///
 /// \return Vector of PartialShapes of each input.
 OPENVINO_API std::vector<PartialShape> get_node_input_partial_shapes(const ov::Node& node);
+
+/// \brief Check if rank is compatible to any of rank from container.
+///
+/// \tparam TRankContainer Type of rank container.
+///
+/// \param rank   Rank to check.
+/// \param ranks  Ranks list used to check rank compatibility.
+///
+/// \return True if rank compatible to any from ranks, otherwise false.
+template <class TRankContainer>
+OPENVINO_API bool is_rank_compatible_any_of(const ov::Rank& rank, const TRankContainer& ranks) {
+    return std::any_of(ranks.begin(), ranks.end(), [&rank](const Rank& r) {
+        return r.compatible(rank);
+    });
+}
 }  // namespace ov
