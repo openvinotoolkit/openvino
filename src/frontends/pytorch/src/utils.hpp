@@ -63,6 +63,11 @@ OutputVector translate_1to1_match_2_inputs(NodeContext& context) {
     return {context.mark_node(std::make_shared<T>(inputs[0], inputs[1]))};
 }
 
+
+inline OutputVector return_false_scalar(NodeContext& context) {
+    return {context.mark_node(opset8::Constant::create(element::boolean, Shape{}, {false}))};
+}
+
 std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node, const std::string& type);
 
 // TODO: Elimitate the need of this function by implementing more accurate custom data type handling
