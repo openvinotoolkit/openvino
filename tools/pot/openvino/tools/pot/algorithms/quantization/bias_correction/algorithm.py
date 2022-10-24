@@ -496,4 +496,9 @@ class BiasCorrection(Algorithm):
 
     @staticmethod
     def get_node_children(node):
-        return [n for n in nu.get_all_node_outputs(node) if n is not None and nu.get_input_data_value(n, 0) is None]
+        child_nodes = []
+        for output_node in nu.get_all_node_outputs(node):
+            for input_port_id, _ in enumerate(nu.get_node_input_ports(output_node)):
+                if nu.get_input_data_value(output_node, input_port_id) is None:
+                    child_nodes.append(output_node)
+        return child_nodes
