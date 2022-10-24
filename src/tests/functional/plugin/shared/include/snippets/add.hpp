@@ -13,6 +13,7 @@ namespace snippets {
 typedef std::tuple<
         ov::Shape,                   // Input 0 Shape
         ov::Shape,                   // Input 1 Shape
+        ov::element::Type,           // Element type
         size_t,                      // Expected num nodes
         size_t,                      // Expected num subgraphs
         std::string                  // Target Device
@@ -20,6 +21,7 @@ typedef std::tuple<
 
 typedef std::tuple<
         ov::Shape,                   // Input 0 Shape
+        ov::element::Type,           // Element type
         size_t,                      // Expected num nodes
         size_t,                      // Expected num subgraphs
         std::string                  // Target Device
@@ -32,6 +34,8 @@ public:
 
 protected:
     void SetUp() override;
+
+    void setInferenceType(ov::element::Type type);
 };
 
 class AddSinh : public Add {
@@ -43,6 +47,13 @@ class AddSinhConst : public testing::WithParamInterface<ov::test::snippets::AddC
                      virtual public ov::test::SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddConstParams> obj);
+protected:
+    void SetUp() override;
+
+    void setInferenceType(ov::element::Type type);
+};
+
+class AddRollConst : public AddSinhConst {
 protected:
     void SetUp() override;
 };
