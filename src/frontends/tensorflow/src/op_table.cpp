@@ -64,6 +64,8 @@ OP_CONVERTER(translate_identity_op);
 OP_CONVERTER(translate_identity_n_op);
 OP_CONVERTER(translate_interpolate_op);
 OP_CONVERTER(translate_is_finite_op);
+OP_CONVERTER(translate_is_inf_op);
+OP_CONVERTER(translate_is_nan_op);
 OP_CONVERTER(translate_l2_loss_op);
 OP_CONVERTER(translate_linspace_op);
 OP_CONVERTER(translate_list_diff_op);
@@ -234,6 +236,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Identity", translate_identity_op},
         {"IdentityN", translate_identity_n_op},
         {"IsFinite", translate_is_finite_op},
+        {"IsInf", translate_is_inf_op},
+        {"IsNan", translate_is_nan_op},
         {"L2Loss", translate_l2_loss_op},
         {"LeakyRelu", translate_leaky_relu_op},
         {"LinSpace", translate_linspace_op},
