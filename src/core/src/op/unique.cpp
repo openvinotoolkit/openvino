@@ -47,10 +47,21 @@ void op::v10::Unique::validate_and_infer_types() {
                           m_index_element_type == element::i32 || m_index_element_type == element::i64,
                           "The element type of the outputs containing indices can only be set to i32 or i64");
 
-    std::vector<PartialShape> out_shapes(4);
-    if (get_input_size() == 1) {
-        shape_infer(this, get_input_partial_shape(0), out_shapes);
-    } else {
+    const auto& input_shape = get_input_partial_shape(0);
+    std::vector<PartialShape> output_shapes(4);
+
+    int64_t input_tensor_capacity = -1;
+    if (input_shape.is_static()) {
+        input_tensor_capacity = static_cast<int64_t>(shape_size(input_shape.to_shape()));
+    }
+
+    output_shapes[0] = PartialShape::dynamic();
+    output_shapes[1] =
+        input_tensor_capacity > 0 ? PartialShape{{1, input_tensor_capacity}} : PartialShape{{Dimension::dynamic()}};
+    output_shapes[2] = output_shapes[1];
+    output_shapes[3] = output_shapes[1];
+
+    if (get_input_size() == 2) {
         NODE_VALIDATION_CHECK(
             this,
             get_input_element_type(1) == element::i32 || get_input_element_type(1) == element::i64,
@@ -67,13 +78,35 @@ void op::v10::Unique::validate_and_infer_types() {
         const int64_t axis =
             extract_axis(std::dynamic_pointer_cast<op::v0::Constant>(input_value(1).get_node_shared_ptr()));
 
-        shape_infer(this, get_input_partial_shape(0), out_shapes, std::unique_ptr<int64_t>{new int64_t{axis}});
+        if (input_shape.rank().is_static()) {
+            const auto normalized_axis = ngraph::normalize_axis(this, axis, input_shape.rank());
+            const auto dim_at_axis = input_shape[normalized_axis];
+            if (dim_at_axis.is_static()) {
+                auto output_shape = input_shape;
+                output_shape[normalized_axis] = Dimension{1, dim_at_axis.get_length()};
+                output_shapes[0] = output_shape;
+            } else {
+                auto output_shape = input_shape;
+                output_shape[normalized_axis] = Dimension::dynamic();
+                output_shapes[0] = output_shape;
+            }
+        }
+    } else {
+        // no axis => flattened input tensor
+        if (input_shape.is_static()) {
+            // between 1 and the total number of input tensor's unique elements
+            output_shapes[0] = PartialShape{{Dimension{1, input_tensor_capacity}}};
+        } else {
+            output_shapes[0] = PartialShape{{Dimension::dynamic()}};
+        }
     }
 
-    set_output_type(0, get_input_element_type(0), out_shapes[0]);
-    set_output_type(1, m_index_element_type, out_shapes[1]);
-    set_output_type(2, m_index_element_type, out_shapes[2]);
-    set_output_type(3, element::i64, out_shapes[3]);
+    set_input_is_relevant_to_shape(0);
+
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
+    set_output_type(1, m_index_element_type, output_shapes[1]);
+    set_output_type(2, m_index_element_type, output_shapes[2]);
+    set_output_type(3, element::i64, output_shapes[3]);
 }
 
 std::shared_ptr<Node> op::v10::Unique::clone_with_new_inputs(const OutputVector& new_args) const {

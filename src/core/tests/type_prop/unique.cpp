@@ -13,7 +13,7 @@ using namespace ov;
 namespace {
 constexpr const size_t NUM_OUTPUTS = 4u;
 
-void ASSERT_OUTPUT_SHAPES(const std::shared_ptr<ov::Node>& op, std::array<PartialShape, NUM_OUTPUTS> expected_shapes) {
+void CHECK_OUTPUT_SHAPES(const std::shared_ptr<ov::Node>& op, std::array<PartialShape, NUM_OUTPUTS> expected_shapes) {
     for (size_t i = 0; i < NUM_OUTPUTS; ++i) {
         EXPECT_TRUE(op->get_output_partial_shape(i).same_scheme(expected_shapes[i]))
             << "The output shape " << i << " of Unique is incorrect. Expected: " << expected_shapes[i]
@@ -21,7 +21,7 @@ void ASSERT_OUTPUT_SHAPES(const std::shared_ptr<ov::Node>& op, std::array<Partia
     }
 }
 
-void ASSERT_ELEMENT_TYPES(const std::shared_ptr<ov::Node>& op, std::array<element::Type, NUM_OUTPUTS> expected_types) {
+void CHECK_ELEMENT_TYPES(const std::shared_ptr<ov::Node>& op, std::array<element::Type, NUM_OUTPUTS> expected_types) {
     for (size_t i = 0; i < NUM_OUTPUTS; ++i) {
         EXPECT_EQ(op->get_output_element_type(i), expected_types[i])
             << "The output element type " << i << " of Unique is incorrect. Expected: " << expected_types[i]
@@ -34,35 +34,34 @@ TEST(type_prop, unique_no_axis_3d) {
     const auto data = make_shared<opset10::Parameter>(element::f32, PartialShape{2, 4, 2});
     const auto unique = make_shared<opset10::Unique>(data);
 
-    ASSERT_ELEMENT_TYPES(unique, {{element::f32, element::i64, element::i64, element::i64}});
-    ASSERT_OUTPUT_SHAPES(
-        unique,
-        {{PartialShape{{1, 16}}, PartialShape{{1, 16}}, PartialShape{{1, 16}}, PartialShape{{1, 16}}}});
+    CHECK_ELEMENT_TYPES(unique, {{element::f32, element::i64, element::i64, element::i64}});
+    CHECK_OUTPUT_SHAPES(unique,
+                        {{PartialShape{{1, 16}}, PartialShape{{1, 16}}, PartialShape{{1, 16}}, PartialShape{{1, 16}}}});
 }
 
 TEST(type_prop, unique_no_axis_3d_index_type_i32) {
     const auto data = make_shared<opset10::Parameter>(element::f32, PartialShape{1, 3, 3});
     const auto unique = make_shared<opset10::Unique>(data, true, element::i32);
 
-    ASSERT_ELEMENT_TYPES(unique, {{element::f32, element::i32, element::i32, element::i64}});
-    ASSERT_OUTPUT_SHAPES(unique,
-                         {{PartialShape{{1, 9}}, PartialShape{{1, 9}}, PartialShape{{1, 9}}, PartialShape{{1, 9}}}});
+    CHECK_ELEMENT_TYPES(unique, {{element::f32, element::i32, element::i32, element::i64}});
+    CHECK_OUTPUT_SHAPES(unique,
+                        {{PartialShape{{1, 9}}, PartialShape{{1, 9}}, PartialShape{{1, 9}}, PartialShape{{1, 9}}}});
 }
 
 TEST(type_prop, unique_no_axis_scalar) {
     const auto data = make_shared<opset10::Parameter>(element::i32, PartialShape{});
     const auto unique = make_shared<opset10::Unique>(data);
 
-    ASSERT_ELEMENT_TYPES(unique, {{element::i32, element::i64, element::i64, element::i64}});
-    ASSERT_OUTPUT_SHAPES(unique, {{PartialShape{1}, PartialShape{1}, PartialShape{1}, PartialShape{1}}});
+    CHECK_ELEMENT_TYPES(unique, {{element::i32, element::i64, element::i64, element::i64}});
+    CHECK_OUTPUT_SHAPES(unique, {{PartialShape{1}, PartialShape{1}, PartialShape{1}, PartialShape{1}}});
 }
 
 TEST(type_prop, unique_no_axis_1D) {
     const auto data = make_shared<opset10::Parameter>(element::i64, PartialShape{1});
     const auto unique = make_shared<opset10::Unique>(data);
 
-    ASSERT_ELEMENT_TYPES(unique, {{element::i64, element::i64, element::i64, element::i64}});
-    ASSERT_OUTPUT_SHAPES(unique, {{PartialShape{1}, PartialShape{1}, PartialShape{1}, PartialShape{1}}});
+    CHECK_ELEMENT_TYPES(unique, {{element::i64, element::i64, element::i64, element::i64}});
+    CHECK_OUTPUT_SHAPES(unique, {{PartialShape{1}, PartialShape{1}, PartialShape{1}, PartialShape{1}}});
 }
 
 TEST(type_prop, unique_3d_scalar_axis) {
@@ -70,8 +69,8 @@ TEST(type_prop, unique_3d_scalar_axis) {
     const auto axis = make_shared<opset10::Constant>(element::i32, Shape{}, 1);
     const auto unique = make_shared<opset10::Unique>(data, axis);
 
-    ASSERT_ELEMENT_TYPES(unique, {{element::f32, element::i64, element::i64, element::i64}});
-    ASSERT_OUTPUT_SHAPES(
+    CHECK_ELEMENT_TYPES(unique, {{element::f32, element::i64, element::i64, element::i64}});
+    CHECK_OUTPUT_SHAPES(
         unique,
         {{PartialShape{{2}, {1, 4}, {2}}, PartialShape{{1, 16}}, PartialShape{{1, 16}}, PartialShape{{1, 16}}}});
 }
@@ -81,8 +80,8 @@ TEST(type_prop, unique_3d_axis_1d) {
     const auto axis = make_shared<opset10::Constant>(element::i32, Shape{1}, 2);
     const auto unique = make_shared<opset10::Unique>(data, axis);
 
-    ASSERT_ELEMENT_TYPES(unique, {{element::f32, element::i64, element::i64, element::i64}});
-    ASSERT_OUTPUT_SHAPES(
+    CHECK_ELEMENT_TYPES(unique, {{element::f32, element::i64, element::i64, element::i64}});
+    CHECK_OUTPUT_SHAPES(
         unique,
         {{PartialShape{{2}, {4}, {1, 2}}, PartialShape{{1, 16}}, PartialShape{{1, 16}}, PartialShape{{1, 16}}}});
 }
@@ -92,8 +91,8 @@ TEST(type_prop, unique_3d_negative_axis) {
     const auto axis = make_shared<opset10::Constant>(element::i64, Shape{}, -3);
     const auto unique = make_shared<opset10::Unique>(data, axis);
 
-    ASSERT_ELEMENT_TYPES(unique, {{element::f32, element::i64, element::i64, element::i64}});
-    ASSERT_OUTPUT_SHAPES(
+    CHECK_ELEMENT_TYPES(unique, {{element::f32, element::i64, element::i64, element::i64}});
+    CHECK_OUTPUT_SHAPES(
         unique,
         {{PartialShape{{1, 2}, {4}, {2}}, PartialShape{{1, 16}}, PartialShape{{1, 16}}, PartialShape{{1, 16}}}});
 }
@@ -103,9 +102,9 @@ TEST(type_prop, unique_dynamic_dim_at_axis) {
     const auto axis = make_shared<opset10::Constant>(element::i64, Shape{}, 1);
     const auto unique = make_shared<opset10::Unique>(data, axis);
 
-    ASSERT_ELEMENT_TYPES(unique, {{element::f32, element::i64, element::i64, element::i64}});
-    ASSERT_OUTPUT_SHAPES(unique,
-                         {{PartialShape{{2}, {-1}, {2}}, PartialShape{{-1}}, PartialShape{{-1}}, PartialShape{{-1}}}});
+    CHECK_ELEMENT_TYPES(unique, {{element::f32, element::i64, element::i64, element::i64}});
+    CHECK_OUTPUT_SHAPES(unique,
+                        {{PartialShape{{2}, {-1}, {2}}, PartialShape{{-1}}, PartialShape{{-1}}, PartialShape{{-1}}}});
 }
 
 TEST(type_prop, unique_dynamic_rank) {
@@ -113,9 +112,9 @@ TEST(type_prop, unique_dynamic_rank) {
     const auto axis = make_shared<opset10::Constant>(element::i32, Shape{}, 1);
     const auto unique = make_shared<opset10::Unique>(data, axis);
 
-    ASSERT_ELEMENT_TYPES(unique, {{element::f32, element::i64, element::i64, element::i64}});
-    ASSERT_OUTPUT_SHAPES(unique,
-                         {{PartialShape::dynamic(), PartialShape{{-1}}, PartialShape{{-1}}, PartialShape{{-1}}}});
+    CHECK_ELEMENT_TYPES(unique, {{element::f32, element::i64, element::i64, element::i64}});
+    CHECK_OUTPUT_SHAPES(unique,
+                        {{PartialShape::dynamic(), PartialShape{{-1}}, PartialShape{{-1}}, PartialShape{{-1}}}});
 }
 
 TEST(type_prop, unique_dynamic_rank_negative_axis) {
@@ -123,17 +122,17 @@ TEST(type_prop, unique_dynamic_rank_negative_axis) {
     const auto axis = make_shared<opset10::Constant>(element::i32, Shape{}, -1);
     const auto unique = make_shared<opset10::Unique>(data, axis);
 
-    ASSERT_ELEMENT_TYPES(unique, {{element::f32, element::i64, element::i64, element::i64}});
-    ASSERT_OUTPUT_SHAPES(unique,
-                         {{PartialShape::dynamic(), PartialShape{{-1}}, PartialShape{{-1}}, PartialShape{{-1}}}});
+    CHECK_ELEMENT_TYPES(unique, {{element::f32, element::i64, element::i64, element::i64}});
+    CHECK_OUTPUT_SHAPES(unique,
+                        {{PartialShape::dynamic(), PartialShape{{-1}}, PartialShape{{-1}}, PartialShape{{-1}}}});
 }
 
 TEST(type_prop, unique_dynamic_rank_no_axis) {
     const auto data = make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic());
     const auto unique = make_shared<opset10::Unique>(data);
 
-    ASSERT_ELEMENT_TYPES(unique, {{element::f32, element::i64, element::i64, element::i64}});
-    ASSERT_OUTPUT_SHAPES(unique, {{PartialShape{{-1}}, PartialShape{{-1}}, PartialShape{{-1}}, PartialShape{{-1}}}});
+    CHECK_ELEMENT_TYPES(unique, {{element::f32, element::i64, element::i64, element::i64}});
+    CHECK_OUTPUT_SHAPES(unique, {{PartialShape{{-1}}, PartialShape{{-1}}, PartialShape{{-1}}, PartialShape{{-1}}}});
 }
 
 TEST(type_prop, unique_unsupported_index_et) {

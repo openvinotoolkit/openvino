@@ -169,13 +169,13 @@ TEST(opset, opset10) {
 }
 
 TEST(opset, opset10_dump) {
-    const auto& opset = ov::get_opset9();
+    const auto& opset = ov::get_opset10();
     std::cout << "All opset10 operations: ";
     for (const auto& t : opset.get_types_info()) {
         std::cout << t.name << " ";
     }
     std::cout << std::endl;
-    ASSERT_EQ(173, opset.get_types_info().size());
+    ASSERT_EQ(174, opset.get_types_info().size());
 }
 
 class MyOpOld : public ov::op::Op {

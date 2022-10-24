@@ -21,7 +21,7 @@ public:
     /// \brief Constructs a Unique operation
     ///
     /// \param data     Input data tensor
-    /// \param sorted   Normalized interpolation coordinates
+    /// \param sorted   Controls the order of the returned unique values (sorts ascendingly when true)
     /// \param index_element_type    The data type set for outputs containing indices
     Unique(const Output<Node>& data, const bool sorted = true, const element::Type& index_element_type = element::i64);
 
@@ -29,7 +29,7 @@ public:
     ///
     /// \param data     Input data tensor
     /// \param axis     An input tensor containing the axis value
-    /// \param sorted   Normalized interpolation coordinates
+    /// \param sorted   Controls the order of the returned unique values (sorts ascendingly when true)
     /// \param index_element_type    The data type set for outputs containing indices
     Unique(const Output<Node>& data,
            const Output<Node>& axis,
