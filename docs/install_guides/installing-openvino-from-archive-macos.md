@@ -41,7 +41,8 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
 
 ### <a name="install-core"></a>Step 1: Install OpenVINO Core Components
 
-1. Open a command prompt terminal window. Create a folder for OpenVINO and move into it by issuing the following commands. If the `/opt/intel` folder already exists, skip the `mkdir` command.
+1. Open a command prompt terminal window. 
+2. Create the `/opt/intel` folder for OpenVINO and switch to it by using the following commands. If the folder already exists, skip the `mkdir` command.
 
    ```sh
    sudo mkdir /opt/intel
