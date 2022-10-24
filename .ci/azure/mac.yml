@@ -5,6 +5,7 @@ trigger:
     - releases/*
   paths:
     exclude: 
+    - docs/
     - /**/docs/*
     - /**/*.md
     - README.md
@@ -17,6 +18,7 @@ pr:
     - releases/*
   paths:
     exclude: 
+    - docs/
     - /**/docs/*
     - /**/*.md
     - README.md
