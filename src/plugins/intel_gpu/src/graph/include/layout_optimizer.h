@@ -196,7 +196,7 @@ public:
     // Returns whether reorder between "prev" with format fmt_prev and "next" with format fmt_next
     // can be fused into next.
     bool can_fuse_reorder(program_node& prev, program_node& next, format fmt_prev, format fmt_next);
-    bool can_fuse_reorder_to_prev(program_node& prev, program_node* next, format fmt_prev, format fmt_next);
+    bool can_fuse_reorder_to_prev(program_node& prev, reorder_node& target_node, format fmt_prev, format fmt_next);
 
     void set_optimization_attribute(optimization_attributes_type attribute, int32_t val);
     optimization_attributes get_optimization_attributes() { return _optimization_attributes; }
@@ -210,5 +210,9 @@ public:
     size_t get_total_conv_count();
 
     bool should_select_b_fs_yx_fsv16_layout(convolution_node const& node, layout const& output_or_weights_layout);
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    void select_preferred_formats_for_onednn(program_node& node, dnnl::primitive_desc prim_desc);
+#endif
 };
 }  // namespace cldnn

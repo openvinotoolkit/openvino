@@ -5,6 +5,7 @@
 #include "utils.hpp"
 #include "onednn_formats_map.hpp"
 #include <oneapi/dnnl/dnnl_debug.h>
+#include <numeric>
 #include <oneapi/dnnl/dnnl_ocl.hpp>
 
 #include "to_string_utils.h"
@@ -146,7 +147,6 @@ dnnl::memory::format_tag convert_data_format(cldnn::format fmt) {
 
     return ret->first;
 }
-
 
 std::string convert_data_format_string(cldnn::format fmt) {
     switch (fmt) {
@@ -370,6 +370,23 @@ dnnl::memory::format_tag get_format_by_desc(dnnl::memory::desc desc) {
     return dnnl::memory::format_tag::undef;
 }
 
+static std::vector<size_t> get_order(dnnl::memory::desc desc) {
+    auto blk = desc.data.format_desc.blocking;
+    auto strides = blk.strides;
+    std::vector<size_t> order(desc.data.ndims);
+
+    std::iota(order.begin(), order.end(), 0);
+    std::sort(order.begin(), order.end(),
+                [&strides] (size_t ind_l, size_t ind_r) {
+                    return (strides[ind_l] > strides[ind_r]);
+                });
+    return order;
+}
+
+static bool compare_strides(std::vector<size_t> a, std::vector<size_t> b) {
+    return std::equal(a.begin(), a.end(), b.begin());
+}
+
 cldnn::format find_data_format(dnnl::memory::desc desc) {
     auto onednn_desc = get_format_by_desc(desc);
 
@@ -377,26 +394,26 @@ cldnn::format find_data_format(dnnl::memory::desc desc) {
         return convert_data_format(onednn_desc);
     } else {
         auto blk = desc.data.format_desc.blocking;
-        if (desc.data.ndims == 5 && blk.inner_nblks == 1
-                    && blk.inner_blks[0] == 2
-                    && blk.inner_idxs[0] == 1) {
-                    return cldnn::format::b_fs_zyx_fsv2;
+        auto order = get_order(desc);
+        for (int32_t fmt_idx = format::bfyx ; fmt_idx < format::format_num ; fmt_idx++) {
+            auto candidate_trait = format::traits(static_cast<format::type>(fmt_idx));
+            if (desc.data.ndims == static_cast<int>(candidate_trait._order.size())
+                && blk.inner_nblks == static_cast<int>(candidate_trait.block_sizes.size())
+                && compare_strides(order, candidate_trait._order)) {
+                bool is_match = true;
+                for (size_t idx = 0 ; idx < candidate_trait.block_sizes.size() ; idx++) {
+                    if (blk.inner_blks[idx] != static_cast<int>(candidate_trait.block_sizes[idx].second)
+                        || blk.inner_idxs[idx] != static_cast<int>(candidate_trait.block_sizes[idx].first)) {
+                        is_match = false;
+                        break;
+                    }
+                }
+
+                if (is_match)
+                    return static_cast<format::type>(fmt_idx);
+            }
         }
-        if (desc.data.ndims == 4 && blk.inner_nblks == 1
-                    && blk.inner_blks[0] == 2
-                    && blk.inner_idxs[0] == 1) {
-                    return cldnn::format::b_fs_yx_fsv2;
-        }
-        if (desc.data.ndims == 4 && blk.inner_nblks == 2
-                    && blk.inner_blks[0] == 16 && blk.inner_blks[1] == 32
-                    && blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1) {
-                    return cldnn::format::bs_fs_yx_bsv16_fsv32;
-        }
-        if (desc.data.ndims == 5 && blk.inner_nblks == 2
-                    && blk.inner_blks[0] == 16 && blk.inner_blks[1] == 32
-                    && blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1) {
-                    return cldnn::format::bs_fs_zyx_bsv16_fsv32;
-        }
+
         std::stringstream msg;
         msg << "Unsupported onednn dnnl::memory::desc find_data_format. "
             << "ndims: " << desc.data.ndims
@@ -471,19 +488,7 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
         return convert_format(onednn_desc, is_grouped);
     } else {
         auto blk = desc.data.format_desc.blocking;
-
-        auto strides = blk.strides;
-        std::vector<size_t> order(desc.data.ndims);
-        std::iota(order.begin(), order.end(), 0);
-        std::sort(order.begin(), order.end(),
-                  [&strides] (size_t ind_l, size_t ind_r) {
-                      return strides[ind_l] > strides[ind_r];
-                  });
-
-        auto compare_strides = [](std::vector<size_t> &a, std::vector<size_t> b) -> bool {
-            return std::equal(a.begin(), a.end(), b.begin());
-        };
-
+        auto order = get_order(desc);
         if (is_grouped) {
             if (desc.data.ndims == 5 && blk.inner_nblks == 3
                 && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 2

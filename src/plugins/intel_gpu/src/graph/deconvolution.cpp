@@ -42,8 +42,8 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, ke
     int32_t number_of_features = weights_layout.group() * weights_layout.ofm();
 
     format out_fmt = input_layout.format;
-    if (node.get_preferred_impl_type() == impl_types::onednn && node.get_required_output() != format::any) {
-        out_fmt = node.get_required_output();
+    if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
+        out_fmt = node.get_preferred_output_fmt();
     }
 
     if (desc->with_output_size) {
