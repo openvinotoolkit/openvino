@@ -269,14 +269,6 @@ void compare(const ov::Tensor& expected,
                    "\n\t\t coordinate "  << rel_error.max_coordinate <<
                    "; rel errors count "  << rel_error.count  << "; rel mean " <<
                    rel_error.mean  << "; rel threshold "  << rel_threshold;
-        out_stream << "\nexpected: ";
-        for (auto i = 0; i < shape_size(expected_shape); i++) {
-            out_stream << expected_data[i] << ",";
-        }
-        out_stream << "\nactual_data:";
-        for (auto i = 0; i < shape_size(expected_shape); i++) {
-            out_stream << actual_data[i] << ",";
-        }
         throw std::runtime_error(out_stream.str());
     }
 }
