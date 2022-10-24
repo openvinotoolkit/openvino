@@ -12,6 +12,7 @@ set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4018)
     ie_add_compiler_flags(/wd4305)
+    ie_add_compiler_flags(/wd4267)
 endif()
 
 
