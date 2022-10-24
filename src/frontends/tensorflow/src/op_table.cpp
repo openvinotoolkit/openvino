@@ -4,6 +4,7 @@
 
 #include "op_table.hpp"
 
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset9.hpp"
 
 using namespace std;
@@ -144,6 +145,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Erf", translate_unary_op<opset8::Erf>},
         {"Exp", translate_unary_op<opset8::Exp>},
         {"Floor", translate_unary_op<opset8::Floor>},
+        {"IsInf", translate_unary_op<opset10::IsInf>},
+        {"IsNan", translate_unary_op<opset10::IsNaN>},
         {"Log", translate_unary_op<opset8::Log>},
         {"LogicalNot", translate_unary_op<opset8::LogicalNot>},
         {"Mish", translate_unary_op<opset8::Mish>},
@@ -236,8 +239,6 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Identity", translate_identity_op},
         {"IdentityN", translate_identity_n_op},
         {"IsFinite", translate_is_finite_op},
-        {"IsInf", translate_is_inf_op},
-        {"IsNan", translate_is_nan_op},
         {"L2Loss", translate_l2_loss_op},
         {"LeakyRelu", translate_leaky_relu_op},
         {"LinSpace", translate_linspace_op},
