@@ -47,7 +47,6 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
    sudo mkdir /opt/intel
    cd /opt/intel
    ```
-
    > **NOTE**: The `/opt/intel` path is the recommended folder path for installing OpenVINO. You may use a different path if desired.
 
 3. Download the OpenVINO Runtime 2022.2 archive file from the [OpenVINO releases page](https://github.com/openvinotoolkit/openvino/releases/tag/2022.2.0), extract it, and rename the extracted folder to `openvino_2022.2.0.7713` by using the following commands:
