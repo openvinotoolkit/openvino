@@ -21,7 +21,7 @@ def main():
         return 1
     # Open Model Zoo downloads vocab.txt near to the parrent directory of .xml file for Intel models.
     # Or use tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-    tokenizer = BertTokenizer(Path(sys.argv[1]).parent.parent / "vocab.txt")
+    tokenizer = BertTokenizer(Path(sys.argv[1]).parent.parent / 'vocab.txt')
 
     core = Core()
     model = core.read_model(sys.argv[1])
@@ -39,10 +39,10 @@ def main():
     # AsyncInferQueue creates optimal number of InferRequest instances
     ireqs = AsyncInferQueue(compiled_model)
 
-    sst2 = datasets.load_dataset("glue", "sst2")
+    sst2 = datasets.load_dataset('glue', 'sst2')
     sst2_sentences = sst2['validation']['sentence']
     # Warm up
-    encoded_warm_up = dict(tokenizer("Warm up sentence is here.", return_tensors="np"))
+    encoded_warm_up = dict(tokenizer('Warm up sentence is here.', return_tensors='np'))
     for _ in ireqs:
         ireqs.start_async(encoded_warm_up)
     for ireq in ireqs:
@@ -50,7 +50,7 @@ def main():
     # Benchmark
     start = perf_counter()
     for sentence in sst2_sentences:
-        encoded = dict(tokenizer(sentence, return_tensors="np"))
+        encoded = dict(tokenizer(sentence, return_tensors='np'))
         ireqs.start_async(encoded)
     ireqs.wait_all()
     end = perf_counter()

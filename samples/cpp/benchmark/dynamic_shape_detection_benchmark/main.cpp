@@ -81,8 +81,7 @@ int main(int argc, char* argv[]) {
         // Create optimal number of ov::InferRequest instances
         uint32_t nireq;
         try {
-            // +1 to run postprocessing for one ireq while others are running
-            nireq = compiled_model.get_property(ov::optimal_number_of_infer_requests) + 1;
+            nireq = compiled_model.get_property(ov::optimal_number_of_infer_requests);
         } catch (const std::exception& ex) {
             throw std::runtime_error("Every used device must support " +
                                      std::string(ov::optimal_number_of_infer_requests.name()) +
