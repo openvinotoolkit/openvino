@@ -18,7 +18,7 @@ set (SRC
     )
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    ie_add_compiler_flags(/wd2220)
+    ie_add_compiler_flags(/wd4244)
 endif()
 
 

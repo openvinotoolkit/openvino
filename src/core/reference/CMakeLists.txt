@@ -5,7 +5,7 @@
 set(TARGET_NAME "ngraph_reference")
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    ie_add_compiler_flags(/wd2220)
+    ie_add_compiler_flags(/wd4267)
 endif()
 
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
