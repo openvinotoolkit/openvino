@@ -5,6 +5,7 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include <util/type_prop.hpp>
 #include "ngraph_functions/builders.hpp"
+#include "../shared_tests_instances/skip_tests_check.hpp"
 
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
                    std::string,                         // Target Device
@@ -18,7 +19,8 @@ typedef std::tuple<InferenceEngine::Precision,          // Network Precision
 namespace LayerTestsDefinitions {
 
 class ConvWithPadding : public testing::WithParamInterface<ConvWithPaddingParams>,
-                        public LayerTestsUtils::LayerTestsCommon {
+                        public LayerTestsUtils::LayerTestsCommon,
+                        public GnaLayerTestCheck {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConvWithPaddingParams> obj) {
         InferenceEngine::Precision precision;
@@ -64,6 +66,11 @@ protected:
         std::vector<std::ptrdiff_t> padding_size;
 
         std::tie(precision, targetDevice, configuration, input_shape, filter_shape, padding_size) = this->GetParam();
+
+        GnaLayerTestCheck::SetUp(targetDevice);
+        if (GnaLayerTestCheck::gnaLibVersionLessThan(3.5f)) {
+            GTEST_SKIP() << GnaLayerTestCheck::getLastCmpResultMsg() << std::endl;
+        }
 
         auto ng_precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(precision);
         auto input = std::make_shared<ngraph::opset8::Parameter>(ng_precision, ngraph::Shape{input_shape});
