@@ -18,6 +18,16 @@
 
 using Ms = std::chrono::duration<double, std::ratio<1, 1000>>;
 
+// softmax for given max_id
+float prob(float* data, size_t size, size_t max_id) {
+    float max_logit = data[max_id];
+    float sum = 0.0f;
+    for (size_t i = 0; i < size; ++i) {
+       sum += std::exp(data[i] - max_logit);
+    }
+    return std::exp(0.0f) / sum;
+}
+
 int main(int argc, char* argv[]) {
     try {
         slog::info << ov::get_openvino_version() << slog::endl;
@@ -157,7 +167,7 @@ int main(int argc, char* argv[]) {
                 ov::Tensor output_tensor = ireq.get_tensor(scores_name);
                 float* data = output_tensor.data<float>();
                 for (size_t i = 0; i < scores_shape[1]; ++i) {
-                    float max_score = 0;
+                    float max_score = -std::numeric_limits<float>::infinity();
                     size_t max_id = 0;
                     for (size_t j = 0; j < scores_shape[2]; ++j) {
                         if (data[i * scores_shape[1] + j] > max_score) {
@@ -165,10 +175,13 @@ int main(int argc, char* argv[]) {
                             max_id = j;
                         }
                     }
-                    float confidence_threshold = 0.5;
                     // The last class is no-object class. Filter it out
-                    if (max_id != scores_shape[2] - 1 && max_score > confidence_threshold) {
-                        ++ndetections;
+                    if (max_id != scores_shape[2] - 1) {
+                        float max_prob = prob(data + scores_shape[1] * i, scores_shape[2], max_id);
+                        float confidence_threshold = 0.5;
+                        if (max_prob > confidence_threshold) {
+                            ++ndetections;
+                        }
                     }
                 }
                 // Prepare new inference
