@@ -15,7 +15,7 @@ constexpr const size_t NUM_OUTPUTS = 4u;
 
 void CHECK_OUTPUT_SHAPES(const std::shared_ptr<ov::Node>& op, std::array<PartialShape, NUM_OUTPUTS> expected_shapes) {
     for (size_t i = 0; i < NUM_OUTPUTS; ++i) {
-        EXPECT_TRUE(op->get_output_partial_shape(i).same_scheme(expected_shapes[i]))
+        EXPECT_EQ(op->get_output_partial_shape(i), expected_shapes[i])
             << "The output shape " << i << " of Unique is incorrect. Expected: " << expected_shapes[i]
             << ". Got: " << op->get_output_partial_shape(i);
     }

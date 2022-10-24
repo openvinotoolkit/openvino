@@ -7,7 +7,6 @@
 #include "itt.hpp"
 #include "ngraph/validation_util.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "unique_shape_inference.hpp"
 
 namespace ov {
 namespace {
