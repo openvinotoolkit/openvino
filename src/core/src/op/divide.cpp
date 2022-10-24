@@ -82,8 +82,8 @@ bool evaluate_bound(const Node* node, const HostTensorVector& output_values, boo
     // for negative arg2 limits for divide will be [up/low, low/up]
     // for arg2 range with both positive and negative values, divide can give any result [-inf, inf]
     NGRAPH_CHECK(node, validate_host_tensor_vector(output_values, 1));
-    const auto&& input1 = node->input_value(0);
-    const auto&& input2 = node->input_value(1);
+    const auto& input1 = node->input_value(0);
+    const auto& input2 = node->input_value(1);
 
     // broadcast shapes to allocate tensors of correct size for operations with both inputs
     PartialShape input_shape = input1.get_partial_shape();
