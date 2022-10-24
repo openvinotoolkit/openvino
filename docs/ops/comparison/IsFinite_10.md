@@ -27,7 +27,7 @@
 
 **Types**
 
-* **T_IN**: any supported floating-point type.
+* **T**: any supported floating-point type.
 
 **Examples**
 
