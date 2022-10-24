@@ -991,6 +991,118 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
         input_shapes = "[3,1..10]"
         self.assertRaises(Error, get_placeholder_shapes, argv_input, input_shapes)
 
+    def test_get_shapes_several_inputs_several_partial_shapes2_comma_separator(self):
+        # shapes specified using --input command line parameter and no values
+        argv_input = "inp1[1,?,50..100,123],inp2[-1,45..,..7,1]"
+        inputs_list, result, _ = get_placeholder_shapes(argv_input, None)
+        exp_res = {'inp1': PartialShape([1, -1, (50, 100), 123]),
+                   'inp2': PartialShape([-1, Dimension(45, -1), Dimension(0, 7), 1])}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input, None)
+        placeholder_values_ref = {}
+        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
+        self.assertEqual(inputs_list, ["inp1", "inp2"])
+        for i in placeholder_values_ref.keys():
+            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
+
+    def test_get_shapes_several_inputs_several_partial_shapes3_comma_separator(self):
+        # shapes and value for freezing specified using --input command line parameter
+        argv_input = "inp1[3,1]->[1.0 2.0 3.0],inp2[3..,..2,5..10,?,-1],inp3[5]->[1.0 1.0 2.0 3.0 5.0]"
+        inputs_list, result, _ = get_placeholder_shapes(argv_input, None)
+        exp_res = {'inp1': PartialShape([3, 1]), 'inp2': PartialShape([Dimension(3, -1), Dimension(0, 2), Dimension(5, 10), -1, -1]),
+                   'inp3': PartialShape([5])}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input, None)
+        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']),
+                                  'inp3': np.array(['1.0', '1.0', '2.0', '3.0', '5.0'])}
+        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
+        self.assertEqual(inputs_list, ["inp1", "inp2", "inp3"])
+        for i in placeholder_values_ref.keys():
+            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
+
+    def test_get_shapes_several_inputs_several_partial_shapes6_comma_separator(self):
+        # 0D value for freezing specified using --input command line parameter without shape
+        argv_input = "inp1[3, 1]->[1.0 2.0 3.0],inp2[3.., ..2, 5..10, ?,-1],inp3->False"
+        inputs_list, result, _ = get_placeholder_shapes(argv_input, None)
+        exp_res = {'inp1': PartialShape([3, 1]),
+                   'inp2': PartialShape([(3, np.iinfo(np.int64).max), (0, 2), (5, 10), -1, -1]), 'inp3': None}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input, None)
+        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']), 'inp3': False}
+        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
+        self.assertEqual(inputs_list, ["inp1", "inp2", "inp3"])
+        for i in placeholder_values_ref.keys():
+            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
+
+    def test_get_shapes_several_inputs_several_partial_shapes7_comma_separator(self):
+        # 0D shape and value for freezing specified using --input command line parameter
+        argv_input = "inp1[3,1]->[1.0 2.0 3.0],inp2[3.., ..2,5..10, ?,-1],inp3[]->True"
+        inputs_list, result, _ = get_placeholder_shapes(argv_input, None)
+        exp_res = {'inp1': PartialShape([3, 1]),
+                   'inp2': PartialShape([(3, np.iinfo(np.int64).max), (0, 2), (5, 10), -1, -1]),
+                   'inp3': np.array(False).shape}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input, None)
+        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']), 'inp3': True}
+        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
+        self.assertEqual(inputs_list, ["inp1", "inp2", "inp3"])
+        for i in placeholder_values_ref.keys():
+            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
+
+    def test_get_shapes_and_data_types_partial_shape_with_input_port_comma_separator(self):
+        argv_input = "inp1:1[3,1]->[1.0 2.0 3.0],0:inp2[ 3.. ,..2, 5..10, ?,-1]{i32},inp3:4[5]{f32}->[1.0 1.0 2.0 3.0 5.0]"
+        input_list, result_shapes, result_data_types = get_placeholder_shapes(argv_input, "")
+        ref_result_shapes = {'inp1:1': PartialShape([3, 1]),
+                             '0:inp2': PartialShape([Dimension(3, -1), Dimension(-1, 2), Dimension(5, 10), -1, -1]),
+                             'inp3:4': np.array([5])}
+        ref_result_data_types = {'0:inp2': np.int32, 'inp3:4': np.float32}
+        self.assertEqual(list(ref_result_shapes.keys()), list(result_shapes.keys()))
+        for i in ref_result_shapes.keys():
+            assert np.array_equal(result_shapes[i], ref_result_shapes[i])
+        self.assertEqual(list(ref_result_data_types.keys()), list(result_data_types.keys()))
+        self.assertEqual(input_list, ["inp1:1", "0:inp2", "inp3:4"])
+        for i in ref_result_data_types.keys():
+            np.testing.assert_equal(result_data_types[i], ref_result_data_types[i])
+
+    def test_get_shapes_and_data_types_partial_shape_with_output_port_comma_separator(self):
+        argv_input = "inp1:1[3,1]->[1.0 2.0 3.0],inp2:3[3..,..2,5..10,?,-1]{i32},inp3:4[5]{f32}->[1.0 1.0 2.0 3.0 5.0]"
+        input_list, result_shapes, result_data_types = get_placeholder_shapes(argv_input, "")
+        ref_result_shapes = {'inp1:1': PartialShape([3, 1]),
+                             'inp2:3': PartialShape([Dimension(3, -1), Dimension(0, 2), Dimension(5, 10), -1, -1]),
+                             'inp3:4': PartialShape([5])}
+        ref_result_data_types = {'inp2:3': np.int32, 'inp3:4': np.float32}
+        self.assertEqual(list(ref_result_shapes.keys()), list(result_shapes.keys()))
+        for i in ref_result_shapes.keys():
+            assert np.array_equal(result_shapes[i], ref_result_shapes[i])
+        self.assertEqual(list(ref_result_data_types.keys()), list(result_data_types.keys()))
+        self.assertEqual(input_list, ["inp1:1", "inp2:3", "inp3:4"])
+        for i in ref_result_data_types.keys():
+            np.testing.assert_equal(result_data_types[i], ref_result_data_types[i])
+
+    def test_partial_shapes_freeze_dynamic_negative_case1_comma_separator(self):
+        argv_input = "inp1:1[3,1..10]->[1.0 2.0 3.0]"
+        self.assertRaises(Error, get_placeholder_shapes, argv_input, "")
+
+    def test_partial_shapes_freeze_dynamic_negative_case2_comma_separator(self):
+        argv_input = "inp1:1[1,2,-1]->[1.0 2.0 3.0]"
+        self.assertRaises(Error, get_placeholder_shapes, argv_input, "")
+
+    def test_partial_shapes_freeze_dynamic_negative_case3_comma_separator(self):
+        argv_input = "inp1:1[3,1..10]->[1.0 2.0 3.0]"
+        self.assertRaises(Error, get_placeholder_shapes, argv_input, "")
+
+    def test_partial_shapes_freeze_dynamic_negative_case4_comma_separator(self):
+        argv_input = "inp1:1[1, 2, -1]->[1.0 2.0 3.0]"
+        self.assertRaises(Error, get_placeholder_shapes, argv_input, "")
+
 
 class TestModelNameParsing(unittest.TestCase):
     def test_model_name_ideal(self):

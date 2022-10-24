@@ -1398,6 +1398,7 @@ def get_shape_from_input_value(input_value: str):
         shape = ()
     elif len(shape) == 1:
         dims = re.split(r', *| +', shape[0])
+        dims = list(filter(None, dims))
         shape = PartialShape([Dimension(dim) for dim in dims])
     else:
         raise Error("Wrong syntax to specify shape. Use --input "
@@ -1663,7 +1664,7 @@ def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_
     if argv_input is not None:
         input_node_names = ''
         # walkthrough all input values and save values for freezing
-        for input_value in argv_input.split(','):
+        for input_value in split_inputs(argv_input):
             node_name, _, value, _ = parse_input_value(input_value)
             input_node_names = input_node_names + ',' + node_name  if input_node_names != '' else node_name
             if value is None: # no value is specified for freezing
@@ -1688,10 +1689,11 @@ def split_inputs(input_str):
                 brakets_count -= 1
             if c == ',':
                 if brakets_count != 0:
+                    idx += 1
                     continue
                 else:
                     break
-            idx+=1
+            idx += 1
         if idx >= len(input_str)-1:
             inputs.append(input_str)
             break
