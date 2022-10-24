@@ -8,7 +8,7 @@
 #include <string>
 #include <transformations_visibility.hpp>
 
-#include "openvino/core//coordinate_diff.hpp"
+#include "openvino/core/coordinate_diff.hpp"
 #include "openvino/op/op.hpp"
 
 namespace ov {

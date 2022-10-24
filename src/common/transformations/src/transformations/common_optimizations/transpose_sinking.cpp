@@ -167,9 +167,9 @@ ov::pass::TransposeReduction::TransposeReduction() {
 
         ngraph::NodeVector new_ops;
         auto new_axes =
-            ngraph::op::util::make_try_fold<opset6::Gather>(transpose_order,
-                                                            reduction_axes,
-                                                            opset6::Constant::create(ngraph::element::i64, {}, {0}));
+            ov::op::util::make_try_fold<opset6::Gather>(transpose_order,
+                                                        reduction_axes,
+                                                        opset6::Constant::create(ngraph::element::i64, {}, {0}));
         new_ops.push_back(new_axes);
         auto new_reduce = reduction->clone_with_new_inputs({transpose->input_value(0), new_axes});
         new_ops.push_back(new_reduce);

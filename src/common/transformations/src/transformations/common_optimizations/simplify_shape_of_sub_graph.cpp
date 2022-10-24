@@ -85,9 +85,9 @@ ov::pass::GroupedGatherElimination::GroupedGatherElimination() {
             }
 
             // curr and next are the same type of gather which takes data from the same source
-            auto joint_indices = ngraph::op::util::make_try_fold<opset1::Concat>(
-                OutputVector{curr->input_value(1), next->input_value(1)},
-                0);
+            auto joint_indices =
+                ov::op::util::make_try_fold<opset1::Concat>(OutputVector{curr->input_value(1), next->input_value(1)},
+                                                            0);
             std::shared_ptr<Node> new_gather;
             if (ov::is_type<opset1::Gather>(curr)) {
                 new_gather =

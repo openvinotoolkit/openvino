@@ -39,10 +39,10 @@ Output<ngraph::Node> align_indices(const Output<ngraph::Node>& indices,
     const auto default_indices =
         ov::opset8::Constant::create(indices.get_element_type(), Shape{slice_indices_length}, {fill_in_value});
     std::shared_ptr<ngraph::Node> adjusted_indices =
-        ngraph::op::util::make_try_fold<ov::opset8::ScatterUpdate>(default_indices,
-                                                                   slice_axes,
-                                                                   indices,  // updates
-                                                                   scatter_axis);
+        ov::op::util::make_try_fold<ov::opset8::ScatterUpdate>(default_indices,
+                                                               slice_axes,
+                                                               indices,  // updates
+                                                               scatter_axis);
 
     if (!ngraph::op::is_constant(adjusted_indices)) {
         new_ops.push_back(default_indices);

@@ -10,13 +10,9 @@
 #include <limits>
 #include <memory>
 #include <ngraph/op/util/op_annotations.hpp>
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/opsets/opset4.hpp>
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <openvino/op/constant.hpp>
 #include <openvino/opsets/opset4.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <transformations/rt_info/attributes.hpp>

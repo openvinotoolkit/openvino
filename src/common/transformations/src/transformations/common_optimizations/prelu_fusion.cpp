@@ -113,7 +113,7 @@ ov::pass::PReluFusionMultiplyAdd::PReluFusionMultiplyAdd() {
         auto input_output = pattern_to_output.at(input);
         auto slope_output = pattern_to_output.at(mul_constant);
         auto add_node = pattern_to_output.at(add).get_node_shared_ptr();
-        auto negative = ngraph::op::util::make_try_fold<opset8::Negative>(slope_output);
+        auto negative = ov::op::util::make_try_fold<opset8::Negative>(slope_output);
         auto prelu = std::make_shared<opset8::PRelu>(input_output, negative);
 
         prelu->set_friendly_name(m.get_match_root()->get_friendly_name());

@@ -20,9 +20,9 @@ namespace {
 enum class ReduceType { NONE, MAX, MIN };
 
 ReduceType get_reduce_type(const std::shared_ptr<ov::Node>& reduce_node) {
-    if (ov::is_type<ngraph::opset8::ReduceMax>(reduce_node)) {
+    if (ov::is_type<ov::opset8::ReduceMax>(reduce_node)) {
         return ReduceType::MAX;
-    } else if (ov::is_type<ngraph::opset8::ReduceMin>(reduce_node)) {
+    } else if (ov::is_type<ov::opset8::ReduceMin>(reduce_node)) {
         return ReduceType::MIN;
     } else {
         return ReduceType::NONE;
@@ -115,8 +115,8 @@ ov::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
 
         if (!reduce->get_keep_dims()) {
             const auto squeeze_axis_node =
-                ngraph::opset8::Constant::create(ngraph::element::i64, {}, {*reduction_axes.begin()});
-            result_node = register_new_node<ngraph::opset8::Squeeze>(result_node, squeeze_axis_node);
+                ov::opset8::Constant::create(ngraph::element::i64, {}, {*reduction_axes.begin()});
+            result_node = register_new_node<ov::opset8::Squeeze>(result_node, squeeze_axis_node);
             copy_runtime_info({concat, reduce}, result_node);
         }
 

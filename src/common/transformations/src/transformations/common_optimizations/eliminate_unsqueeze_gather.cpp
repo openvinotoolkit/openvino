@@ -82,9 +82,9 @@ ov::pass::EliminateGatherUnsqueeze::EliminateGatherUnsqueeze() {
         auto& unsqueeze = pattern_nodes.at(unsqueeze_label);
 
         auto new_indices =
-            ngraph::op::util::make_try_fold<opset6::Reshape>(gather_indices,
-                                                             opset6::Constant::create(element::i32, {1}, {1}),
-                                                             false);
+            ov::op::util::make_try_fold<opset6::Reshape>(gather_indices,
+                                                         opset6::Constant::create(element::i32, {1}, {1}),
+                                                         false);
         auto new_gather = gather->clone_with_new_inputs({gather->input_value(0), new_indices, gather->input_value(2)});
 
         new_gather->set_friendly_name(gather->get_friendly_name());

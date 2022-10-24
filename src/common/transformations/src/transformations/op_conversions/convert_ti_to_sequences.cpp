@@ -106,12 +106,12 @@ bool convertTensorIteratorToSequence(const std::shared_ptr<ov::opset5::TensorIte
         {batch_dim});
 
     auto seq_lengths_scalar = ov::opset5::Constant::create(ngraph::element::i32, {}, {ti->get_num_iterations()});
-    auto seq_lengths = ngraph::op::util::make_try_fold<ov::opset5::Broadcast>(seq_lengths_scalar, batch_dimension);
+    auto seq_lengths = ov::op::util::make_try_fold<ov::opset5::Broadcast>(seq_lengths_scalar, batch_dimension);
 
     auto axis_0 = ov::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
-    auto W = ngraph::op::util::make_try_fold<ov::opset5::Unsqueeze>(w_pattern, axis_0);
-    auto R = ngraph::op::util::make_try_fold<ov::opset5::Unsqueeze>(r_pattern, axis_0);
-    auto B = ngraph::op::util::make_try_fold<ov::opset5::Unsqueeze>(b_pattern, axis_0);
+    auto W = ov::op::util::make_try_fold<ov::opset5::Unsqueeze>(w_pattern, axis_0);
+    auto R = ov::op::util::make_try_fold<ov::opset5::Unsqueeze>(r_pattern, axis_0);
+    auto B = ov::op::util::make_try_fold<ov::opset5::Unsqueeze>(b_pattern, axis_0);
 
     std::shared_ptr<ngraph::Node> sequence;
     if (ngraph::is_type<ov::opset5::LSTMCell>(found_cell) || ngraph::is_type<ov::opset1::LSTMCell>(found_cell)) {

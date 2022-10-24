@@ -107,8 +107,8 @@ bool broadcast_state_by_batch(ov::Input<ov::Node> input, const shared_ptr<ov::No
     const auto& broadcast_by_batch = make_shared<Broadcast>(
         constant_copy,
         make_shared<Concat>(ngraph::NodeVector{batch_delivering_node,
-                                               ngraph::op::util::make_try_fold<Gather>(
-                                                   ngraph::op::util::make_try_fold<ShapeOf>(constant_copy),
+                                               ov::op::util::make_try_fold<Gather>(
+                                                   ov::op::util::make_try_fold<ShapeOf>(constant_copy),
                                                    Constant::create(ov::element::i64, ov::Shape{1}, {1}),
                                                    Constant::create(ov::element::i64, ov::Shape{}, {0}))},
                             0));
