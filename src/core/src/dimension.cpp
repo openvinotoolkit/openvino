@@ -37,14 +37,14 @@ Dimension::Dimension(value_type dimension)
 Dimension::Dimension(value_type min_dimension, value_type max_dimension)
     : m_dimension(min_dimension == -1 ? 0 : min_dimension, max_dimension == -1 ? Interval::s_max : max_dimension) {}
 
-Dimension::Dimension(const std::string& value){
+Dimension::Dimension(const std::string& value) {
     auto val = ngraph::trim(value);
     if (val == "?" || val == "-1") {
         m_dimension = {0, Interval::s_max};
         return;
     }
     if (val.find("..") == std::string::npos) {
-        OPENVINO_ASSERT(ngraph::check_all_digits(val), "Cannot parse dimension: \""+ val + "\"");
+        OPENVINO_ASSERT(ngraph::check_all_digits(val), "Cannot parse dimension: \"" + val + "\"");
         m_dimension = {ngraph::parse_string<int64_t>(val)};
         return;
     }
@@ -73,7 +73,7 @@ Dimension::Dimension(const std::string& value){
     m_dimension = Interval(min_value, max_value);
 }
 
-std::string Dimension::to_string() const{
+std::string Dimension::to_string() const {
     std::stringstream dim_str_stream;
     dim_str_stream << Dimension(m_dimension);
     return dim_str_stream.str();
