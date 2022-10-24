@@ -83,11 +83,13 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
     bool is_fc = IsNodeOnConstPath(op->get_input_node_shared_ptr(1));
     is_fc &= std::count_if(shape_b.begin(), shape_b.end(), [](Dimension x) { return x != 1; }) <= 2;
     // TODO: This conditions can be relaxed with proper handling in FC path
-    is_fc &= rank_a > 1 && rank_b > 1 && shape_b.is_static();
+    is_fc &= rank_a > 1 && rank_b > 1;
 
     PartialShape shape_a_aligned, shape_b_aligned;
     bool aligned = false;
-    std::tie(aligned, shape_a_aligned, shape_b_aligned) = get_aligned_shapes(shape_a, shape_b, op);
+    if (shape_b.is_static()) {
+        std::tie(aligned, shape_a_aligned, shape_b_aligned) = get_aligned_shapes(shape_a, shape_b, op);
+    }
     is_fc &= aligned;
 
     if (is_fc) {
@@ -161,109 +163,31 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             p.add_primitive(*op, outReshapePrim);
         }
     } else {
-        auto outDims = op->get_output_shape(0);
-        auto outDimsN = outDims.size();
-
-        auto gemmSpecificTensor = [](const InferenceEngine::SizeVector& dims) {
-            switch (dims.size()) {
-            case 2: return cldnn::tensor(cldnn::spatial(dims[1], dims[0]));
-            case 3: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::spatial(dims[2], dims[1]));
-            case 4: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[3], dims[2]));
-            case 5: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[4], dims[3], dims[2]));
-            case 6: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[5], dims[4], dims[3], dims[2]));
-            default: IE_THROW() << "Invalid dimensions size(" << dims.size() << ") for Gemm layer";
-            }
-        };
-
-        // Preprocess inputs
-        for (size_t i = 0; i < inputPrimitives.size(); ++i) {
-            auto inputDims = op->get_input_shape(i);
-            auto inputDimsN = inputDims.size();
-
-            // Add reorder if changing number of dimensions requires changing format
-            auto targetFormat = cldnn::format::get_default_format(outDimsN);
-
-            if (targetFormat.value != cldnn::format::get_default_format(inputDimsN).value) {
-                auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
-                auto targetDatatype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
-                auto reorderPrim = cldnn::reorder(reorderName,
-                                                  inputPrimitives[i],
-                                                  targetFormat,
-                                                  targetDatatype,
-                                                  std::vector<float>(),
-                                                  cldnn::reorder_mean_mode::subtract);
-
-                p.add_primitive(*op, reorderPrim);
-
-                inputPrimitives[i] = reorderName;
-            }
-
-            // Reshape input if they differ or gemm specific shape matches default one
-            if (inputDimsN != outDimsN || inputDimsN < 4) {
-                auto reshapeName = layerName + "_cldnn_in" + std::to_string(i) + "_reshape";
-
-                // Extend input dimensions by prepending ones
-                if (inputDimsN == 1) {
-                    // One-dimensional tensors unsqueezing is applied for each input independently.
-                    // The axes inserted in this step are not included in the output shape.
-                    // * If rank of the **first** input is equal to 1, it is always unsqueezed to 2D tensor **row vector** (regardless of `transpose_a`)
-                    // by adding axes with size 1 at ROW_INDEX_DIM, to the **left** of the shape. For example `[S]` will be reshaped to `[1, S]`.
-                    // * If rank of the **second** input is equal to 1, it is always unsqueezed to 2D tensor **column vector** (regardless of `transpose_b`)
-                    // by adding axes with size 1 at COL_INDEX_DIM, to the **right** of the shape. For example `[S]` will be reshaped to `[S, 1]`.
-                    bool transpose = false;
-                    if (i == 0) {
-                        transpose = op->get_transpose_a();
-                        inputDims.insert(inputDims.begin(), 1);
-                    } else {
-                        transpose = op->get_transpose_b();
-                        inputDims.insert(inputDims.end(), 1);
-                    }
-                    // Specs says that shapes must be unsqueezed regardless of tranpose flag, but primitive implementation always respects transposes
-                    // so we have to swap dimensions correspondingly to have consistent shapes.
-                    if (transpose) {
-                        std::swap(inputDims[0], inputDims[1]);
-                    }
-                }
-                if (inputDimsN < outDimsN)
-                    inputDims.insert(inputDims.begin(), outDimsN - inputDimsN, 1ul);
-
-                auto targetShape = gemmSpecificTensor(inputDims);
-
-                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape);
-
-                p.add_primitive(*op, reshapePrim);
-
-                inputPrimitives[i] = reshapeName;
-            }
-        }
-
         // Add actual gemm
         auto alpha = 1.0f;
         auto beta = 0.0f;
-        auto transA = op->get_transpose_a();
-        auto transB = op->get_transpose_b();
-
         auto gemmPrim = cldnn::gemm(layerName,
                                     inputPrimitives,
                                     cldnn::element_type_to_data_type(op->get_output_element_type(0)),
-                                    transA,
-                                    transB,
+                                    op->get_transpose_a(),
+                                    op->get_transpose_b(),
                                     alpha,
-                                    beta);
+                                    beta,
+                                    rank_a,
+                                    rank_b);
 
         p.add_primitive(*op, gemmPrim);
 
-        auto lastLayerName = layerName;
-
-        // Reshape output if gemm specific shape does not match default one
-        if (outDimsN < 4) {
-            auto outputShape = tensor_from_dims(outDims);
-            auto outReshapeName = layerName + "_cldnn_out_reshape";
-            auto outReshapePrim = cldnn::reshape(outReshapeName, layerName, outputShape);
-
-            p.add_primitive(*op, outReshapePrim);
-
-            lastLayerName = outReshapeName;
+        if (!p.use_new_shape_infer()) {
+            auto outDims = op->get_output_shape(0);
+            auto outDimsN = outDims.size();
+            // Reshape output if gemm specific shape does not match default one
+            if (outDimsN < 4) {
+                auto outputShape = tensor_from_dims(outDims);
+                auto outReshapeName = layerName + "_cldnn_out_reshape";
+                auto outReshapePrim = cldnn::reshape(outReshapeName, layerName, outputShape);
+                p.add_primitive(*op, outReshapePrim);
+            }
         }
     }
 }
