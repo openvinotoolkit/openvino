@@ -46,6 +46,53 @@ int IStreamsExecutor::Config::GetDefaultNumStreams() {
         return 1;
 }
 
+int IStreamsExecutor::Config::GetHybridNumStreams(const Config& config, const int stream_mode) {
+    const int num_phy_cores = getNumberOfCPUCores();
+    const int num_big_cores = getNumberOfCPUCores(true);
+    const int num_small_cores = num_phy_cores - num_big_cores;
+
+    if (stream_mode == DEFAULT) {
+        // bare minimum of streams (that evenly divides available number of core)
+        if (0 == num_big_cores % 4) {
+            config._big_core_streams = std::max(4, num_big_cores / 4);
+        } else if (0 == num_big_cores % 5) {
+            config._big_core_streams = std::max(5, num_big_cores / 5);
+        } else if (0 == num_big_cores % 3) {
+            config._big_core_streams = std::max(3, num_big_cores / 3);
+        } else {  // if user disables some cores say in BIOS, so we got weird #cores which is not easy to divide
+            config._big_core_streams = 1;
+        }
+
+        config._threads_per_stream_big = num_big_cores / config._big_core_streams;
+        config._threads_per_stream_small = config._threads_per_stream_big * 2;
+        if (num_small_cores == 0) {
+            config._big_core_streams = num_big_cores / config._threads_per_stream_big;
+            config._threads_per_stream_small = 0;
+        } else if (num_small_cores < config._threads_per_stream_small) {
+            config._small_core_streams = 1;
+            config._threads_per_stream_small = num_small_cores;
+            config._threads_per_stream_big = config._threads_per_stream_small / 2;
+            config._big_core_streams = num_big_cores / config._threads_per_stream_big;
+        } else {
+            config._small_core_streams = num_small_cores / config._threads_per_stream_small;
+        }
+    } else if (stream_mode == AGGRESSIVE) {
+        config._big_core_streams = num_big_cores;
+        config._small_core_streams = num_small_cores / 2;
+        config._threads_per_stream_big = num_big_cores / config._big_core_streams;
+        config._threads_per_stream_small = num_small_cores == 0 ? 0 : num_small_cores / config._small_core_streams;
+    } else if (stream_mode == LESSAGGRESSIVE) {
+        config._big_core_streams = num_big_cores / 2;
+        config._small_core_streams = num_small_cores / 4;
+        config._threads_per_stream_big = num_big_cores / config._big_core_streams;
+        config._threads_per_stream_small = num_small_cores == 0 ? 0 : num_small_cores / config._small_core_streams;
+    } else {
+        IE_THROW() << "Wrong stream mode to get num of streams: " << stream_mode;
+    }
+    config._small_core_offset = num_small_cores == 0 ? 0 : num_big_cores * 2;
+    return config._big_core_streams + config._small_core_streams;
+}
+
 void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::string& value) {
     if (key == CONFIG_KEY(CPU_BIND_THREAD)) {
         if (value == CONFIG_VALUE(YES) || value == CONFIG_VALUE(NUMA)) {
