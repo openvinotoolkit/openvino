@@ -283,10 +283,10 @@ class AsyncInferQueue(AsyncInferQueueBase):
     def __iter__(self) -> Iterable[InferRequest]:
         """Allows to iterate over AsyncInferQueue.
 
-        :return: a map object (which is an iterator) that yields InferRequests.
+        :return: a generator object that yields InferRequests.
         :rtype: Iterable[openvino.runtime.InferRequest]
         """
-        return map(lambda x: InferRequest(x), super().__iter__())
+        return (InferRequest(ireq) for ireq in super().__iter__())
 
     def __getitem__(self, i: int) -> InferRequest:
         """Gets InferRequest from the pool with given i id.
