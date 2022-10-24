@@ -172,6 +172,8 @@ set(SRC
     type_prop/if.cpp
     type_prop/interpolate.cpp
     type_prop/irdft.cpp
+    type_prop/is_inf.cpp
+    type_prop/is_nan.cpp
     type_prop/logical_and.cpp
     type_prop/logical_not.cpp
     type_prop/logical_or.cpp
@@ -340,6 +342,7 @@ set(SRC
     visitors/op/if.cpp
     visitors/op/idft.cpp
     visitors/op/irdft.cpp
+    visitors/op/is_inf.cpp
     visitors/op/less_equal.cpp
     visitors/op/less.cpp
     visitors/op/log.cpp
