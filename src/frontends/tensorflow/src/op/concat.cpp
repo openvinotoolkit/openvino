@@ -15,34 +15,48 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
-
 OutputVector translate_concat_op(const NodeContext& node) {
-    size_t axis_idx, concat_idx_start, concat_idx_stop;
-    if (node.get_op_type() == "ConcatV2") {
-        axis_idx = node.get_input_size() - 1;
-        concat_idx_start = 0;
-        concat_idx_stop = node.get_input_size() - 1;
-    } else if (node.get_op_type() == "Concat") {
-        axis_idx = 0;
-        concat_idx_start = 1;
-        concat_idx_stop = node.get_input_size();
+    // The difference between Concat and ConcatV2 is that
+    // axis is the first input for Concat
+    // and is the last input to ConcatV2
+    default_op_checks(node, 2, {"Concat", "ConcatV2"});
+    auto input_size = node.get_input_size();
+
+    int64_t axis;
+    OutputVector inputs;
+
+    if (node.get_op_type() == "Concat") {
+        std::vector<int64_t> axis_vector;
+        get_const_input(node, 0, &axis_vector);
+        TENSORFLOW_OP_VALIDATION(
+            node,
+            axis_vector.size() == 1,
+            "Input model is incorrect: axis input for Concat operation must have exactly one element.");
+        axis = axis_vector[0];
+        for (size_t input_idx = 1; input_idx < input_size; ++input_idx) {
+            inputs.push_back(node.get_input(input_idx));
+        }
+    } else if (node.get_op_type() == "ConcatV2") {
+        std::vector<int64_t> axis_vector;
+        get_const_input(node, input_size - 1, &axis_vector);
+        TENSORFLOW_OP_VALIDATION(
+            node,
+            axis_vector.size() == 1,
+            "Input model is incorrect: axis input for Concat operation must have exactly one element.");
+        axis = axis_vector[0];
+        for (size_t input_idx = 0; input_idx < input_size - 1; ++input_idx) {
+            inputs.push_back(node.get_input(input_idx));
+        }
     } else {
-        TENSORFLOW_OP_VALIDATION(node, false, "Incorrect operation type.");
+        TENSORFLOW_OP_VALIDATION(node,
+                                 false,
+                                 "Internal TensorFlow Frontend error: incorrect operation type is passed to "
+                                 "translate_concat_op function.");
     }
 
-    std::vector<int64_t> tf_concat_axis_vec;
-    get_const_input(node, axis_idx, &tf_concat_axis_vec);
-    int64_t concat_axis = tf_concat_axis_vec[0];
-
-    OutputVector ng_args;
-    for (size_t i = concat_idx_start; i < concat_idx_stop; i++) {
-        Output<Node> ng_arg = node.get_input(static_cast<int>(i));
-        ng_args.push_back(ng_arg);
-    }
-
-    auto res = make_shared<Concat>(ng_args, size_t(concat_axis));
-    set_node_name(node.get_name(), res);
-    return res->outputs();
+    auto concat = make_shared<Concat>(inputs, axis);
+    set_node_name(node.get_name(), concat);
+    return {concat};
 }
 }  // namespace op
 }  // namespace tensorflow
