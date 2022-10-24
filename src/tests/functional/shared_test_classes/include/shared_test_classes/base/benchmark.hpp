@@ -7,8 +7,64 @@
 #include <cctype>
 #include <iostream>
 
+#include <nlohmann/json.hpp>
 #include "layer_test_utils.hpp"
 #include "ov_subgraph.hpp"
+
+namespace ov {
+namespace test {
+
+using json = nlohmann::json;
+
+class BenchmarkLayerTestReporter {
+public:
+    static constexpr const char* benchmarkReportFileName = "benchmark_layers.json";
+
+    explicit BenchmarkLayerTestReporter(bool is_readonly)
+        : is_readonly_{is_readonly} {
+        if (is_readonly) {
+            try {
+                report_file_.open(benchmarkReportFileName, std::ios::in);
+                report_json_ = json::parse(report_file_);
+            } catch (...) {
+                report_json_ = json{};
+            }
+        } else {
+            try {
+                report_file_.open(benchmarkReportFileName, std::ios::in | std::ios::out);
+                report_json_ = json::parse(report_file_);
+            } catch (...) {
+                report_file_.open(benchmarkReportFileName, std::ios::out | std::ios::trunc);
+                report_json_ = json{};
+            }
+        }
+    }
+
+    ~BenchmarkLayerTestReporter() {
+        if (!is_readonly_) {
+            report_file_ << report_json_.dump(4);
+        }
+    }
+
+    void report(const std::string& nodeTypeName,
+                const std::string& testCaseName,
+                const uint64_t time) {
+        report_json_[nodeTypeName][testCaseName] = time;
+    }
+
+    uint64_t get_time(const std::string& nodeTypeName,
+                      const std::string& testCaseName) {
+        return report_json_[nodeTypeName][testCaseName];
+    }
+
+private:
+    bool is_readonly_{};
+    std::fstream report_file_{};
+    json report_json_;
+};
+
+}  // namespace test
+}  // namespace ov
 
 namespace LayerTestsDefinitions {
 
@@ -19,6 +75,7 @@ class BenchmarkLayerTest : public BaseLayerTest {
 
 public:
     static constexpr int kDefaultNumberOfAttempts = 100;
+    static constexpr double kMaxAllowedBenchmarkDifference = 0.05;
 
     void RunBenchmark(const std::initializer_list<std::string>& nodeTypeNames,
                       const std::chrono::milliseconds warmupTime = std::chrono::milliseconds(2000),
@@ -40,16 +97,42 @@ public:
         }
     }
 
-    // NOTE: Validation is ignored because we are interested in benchmarks results.
-    //       In future the validate method could check if new benchmark results are not worse than previous one
-    //       (regression test), and in case of any performance issue report it in PR.
     void Validate() override {
+        for (const auto& res : curr_bench_results_) {
+            const auto& node_type_name = res.first;
+            const auto curr_time = static_cast<int64_t>(res.second);
+            if (prev_bench_results_.count(node_type_name) > 0) {
+                const auto prev_time = static_cast<int64_t>(prev_bench_results_[node_type_name]);
+                const auto delta_time = static_cast<double>(curr_time - prev_time);
+                if (delta_time/prev_time > kMaxAllowedBenchmarkDifference) {
+                    std::cerr << "node_type_name: " << node_type_name <<
+                                 ", for test case: " << BaseLayerTest::GetTestName() <<
+                                 ", has exceeded the benchmark threshold: " << kMaxAllowedBenchmarkDifference <<
+                                 ". Current: " << curr_time << " us, previous: " << prev_time << " us" << std::endl;
+                }
+            }
+        }
     }
 
 protected:
     void Infer() override {
         this->inferRequest = this->executableNetwork.CreateInferRequest();
         this->ConfigureInferRequest();
+
+#ifdef ENABLE_BENCHMARK_FILE_REPORT
+        reporter_ = std::unique_ptr<ov::test::BenchmarkLayerTestReporter>(
+                new ::ov::test::BenchmarkLayerTestReporter{false});
+#else
+        reporter_ = std::unique_ptr<ov::test::BenchmarkLayerTestReporter>(
+                new ::ov::test::BenchmarkLayerTestReporter{true});
+#endif
+        for (const auto& node_type_name : bench_node_type_names_) {
+            try {
+                const auto time = reporter_->get_time(node_type_name, BaseLayerTest::GetTestName());
+                prev_bench_results_[node_type_name] = time;
+            } catch (...) {
+            }
+        }
 
         std::map<std::string, uint64_t> results_us{};
         for (const auto& node_type_name : bench_node_type_names_) {
@@ -90,12 +173,19 @@ protected:
             time /= num_attempts_;
             total_us += time;
             report << std::fixed << std::setfill('0') << node_type_name << ": " << time << " us\n";
+#ifdef ENABLE_BENCHMARK_FILE_REPORT
+            curr_bench_results_[node_type_name] = time;
+            reporter_->report(node_type_name, BaseLayerTest::GetTestName(), time);
+#endif
         }
         report << std::fixed << std::setfill('0') << "Total time: " << total_us << " us\n";
         std::cout << report.str();
     }
 
 private:
+    std::unique_ptr<ov::test::BenchmarkLayerTestReporter> reporter_;
+    std::unordered_map<std::string, uint64_t> prev_bench_results_;
+    std::unordered_map<std::string, uint64_t> curr_bench_results_;
     std::vector<std::string> bench_node_type_names_;
     std::chrono::milliseconds warmup_time_;
     int num_attempts_;
@@ -113,6 +203,7 @@ class BenchmarkLayerTest : public BaseLayerTest {
 
  public:
     static constexpr int kDefaultNumberOfAttempts = 100;
+    static constexpr double kMaxAllowedBenchmarkDifference = 0.05;
 
     void run_benchmark(const std::initializer_list<std::string>& nodeTypeNames,
                        const std::chrono::milliseconds warmupTime = std::chrono::milliseconds(2000),
@@ -134,10 +225,21 @@ class BenchmarkLayerTest : public BaseLayerTest {
         }
     }
 
-    // NOTE: Validation is ignored because we are interested in benchmarks results.
-    //       In future the validate method could check if new benchmark results are not worse than previous one
-    //       (regression test), and in case of any performance issue report it in PR.
     void validate() override {
+        for (const auto& res : curr_bench_results_) {
+            const auto& node_type_name = res.first;
+            const auto curr_time = static_cast<int64_t>(res.second);
+            if (prev_bench_results_.count(node_type_name) > 0) {
+                const auto prev_time = static_cast<int64_t>(prev_bench_results_[node_type_name]);
+                const auto delta_time = static_cast<double>(curr_time - prev_time);
+                if (delta_time/prev_time > kMaxAllowedBenchmarkDifference) {
+                    std::cerr << "node_type_name: " << node_type_name <<
+                              ", for test case: " << BaseLayerTest::GetTestName() <<
+                              ", has exceeded the benchmark threshold: " << kMaxAllowedBenchmarkDifference <<
+                              ". Current: " << curr_time << " us, previous: " << prev_time << " us" << std::endl;
+                }
+            }
+        }
     }
 
  protected:
@@ -145,6 +247,21 @@ class BenchmarkLayerTest : public BaseLayerTest {
         this->inferRequest = this->compiledModel.create_infer_request();
         for (const auto& input : this->inputs) {
             this->inferRequest.set_tensor(input.first, input.second);
+        }
+
+#ifdef ENABLE_BENCHMARK_FILE_REPORT
+        reporter_ = std::unique_ptr<ov::test::BenchmarkLayerTestReporter>(
+                new ::ov::test::BenchmarkLayerTestReporter{false});
+#else
+        reporter_ = std::unique_ptr<ov::test::BenchmarkLayerTestReporter>(
+                new ::ov::test::BenchmarkLayerTestReporter{true});
+#endif
+        for (const auto& node_type_name : bench_node_type_names_) {
+            try {
+                const auto time = reporter_->get_time(node_type_name, BaseLayerTest::GetTestName());
+                prev_bench_results_[node_type_name] = time;
+            } catch (...) {
+            }
         }
 
         std::map<std::string, uint64_t> results_us{};
@@ -186,12 +303,19 @@ class BenchmarkLayerTest : public BaseLayerTest {
             time /= num_attempts_;
             total_us += time;
             report << std::fixed << std::setfill('0') << node_type_name << ": " << time << " us\n";
+#ifdef ENABLE_BENCHMARK_FILE_REPORT
+            curr_bench_results_[node_type_name] = time;
+            reporter_->report(node_type_name, BaseLayerTest::GetTestName(), time);
+#endif
         }
         report << std::fixed << std::setfill('0') << "Total time: " << total_us << " us\n";
         std::cout << report.str();
     }
 
  private:
+    std::unique_ptr<ov::test::BenchmarkLayerTestReporter> reporter_;
+    std::unordered_map<std::string, uint64_t> prev_bench_results_;
+    std::unordered_map<std::string, uint64_t> curr_bench_results_;
     std::vector<std::string> bench_node_type_names_;
     std::chrono::milliseconds warmup_time_;
     int num_attempts_;
