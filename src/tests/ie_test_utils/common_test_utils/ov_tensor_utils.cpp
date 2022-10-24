@@ -230,6 +230,10 @@ void compare(const ov::Tensor& expected,
         auto eps = std::numeric_limits<double>::epsilon();
         return (b - a) > (std::fmax(std::fabs(a), std::fabs(b)) * eps);
     };
+    auto less_or_equal = [] (double a, double b) {
+        auto eps = std::numeric_limits<double>::epsilon();
+        return (b - a) >= (std::fmax(std::fabs(a), std::fabs(b)) * eps);
+    };
     for (size_t i = 0; i < shape_size(expected_shape); i++) {
         double expected_value = expected_data[i];
         double actual_value = actual_data[i];
@@ -258,7 +262,7 @@ void compare(const ov::Tensor& expected,
     }
     abs_error.mean /= shape_size(expected_shape);
     rel_error.mean /= shape_size(expected_shape);
-    if (!(less(abs_error.max, abs_threshold) && less(rel_error.max, rel_threshold))) {
+    if (!(less_or_equal(abs_error.max, abs_threshold) && less_or_equal(rel_error.max, rel_threshold))) {
         std::ostringstream out_stream;
         out_stream << "abs_max < abs_threshold && rel_max < rel_threshold" <<
                    "\n\t abs_max: " << abs_error.max <<
