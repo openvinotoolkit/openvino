@@ -1076,37 +1076,6 @@ public:
         m_executableGraphNodes(executableGraphNodes),
         m_prepareCounter(prepareCounter),
         m_inferCounter(inferCounter) {}
-
-    // void operator()() const {
-    //     auto counter = m_block.first;
-    //     const auto& node = m_executableGraphNodes[counter];
-    //     if (m_block.second == 0) {
-    //         m_prepareCounter = counter;
-    //     }
-    //     if (one_of(node->getType(), Type::Input, Type::Reference, Type::Broadcast) &&
-    //         counter != 0 &&
-    //         m_inferCounter != counter) {
-    //         return;
-    //     }
-
-    //     if (m_block.second == 0) {
-    //         node->updateShape();
-    //         if (--m_waveFrontCount[counter] == 0) {
-    //             m_tg.run(PreparationProcess(m_tg, {counter, 1}, m_waveFrontCount, m_executableGraphNodes, m_prepareCounter, m_inferCounter));
-    //         }
-    //         if (counter + 1 < m_executableGraphNodes.size()) {
-    //             //m_tg.run(PreparationProcess(m_tg, {counter + 1, 0}, m_waveFrontCount, m_executableGraphNodes, m_prepareCounter, m_inferCounter));
-    //             PreparationProcess task(m_tg, {counter + 1, 0}, m_waveFrontCount, m_executableGraphNodes, m_prepareCounter, m_inferCounter);
-    //             task();
-    //         }
-    //     } else if (m_block.second == 1) {
-    //         node->prepareNode();
-    //         if (counter + 1 < m_executableGraphNodes.size() && --m_waveFrontCount[counter + 1] == 0) {
-    //             m_tg.run(PreparationProcess(m_tg, {counter + 1, 1}, m_waveFrontCount, m_executableGraphNodes, m_prepareCounter, m_inferCounter));
-    //         }
-    //     }
-    // }
-
 protected:
     tbb::task_group& m_tg;
     size_t m_counter;
@@ -1149,7 +1118,6 @@ public:
             m_tg.run(PrepareNode(m_tg, m_counter, m_waveFrontCount, m_executableGraphNodes, m_prepareCounter, m_inferCounter));
         }
         if (m_counter + 1 < m_executableGraphNodes.size()) {
-            //m_tg.run(PreparationProcess(m_tg, {counter + 1, 0}, m_waveFrontCount, m_executableGraphNodes, m_prepareCounter, m_inferCounter));
             UpdateShape task(m_tg, m_counter + 1, m_waveFrontCount, m_executableGraphNodes, m_prepareCounter, m_inferCounter);
             task();
         }
@@ -1175,20 +1143,8 @@ void Graph::Infer(InferRequestBase* request) {
         }
     };
 
-    // std::shared_future<void> fShapeInfer;
-    // std::future<void> fPrepareParams;
-
-    // WorkerThread worker0;
-    // WorkerThread worker1;
-
-    std::vector<tbb::atomic<uint8_t>> waveFrontCount(executableGraphNodes.size());
-    for (auto& item : waveFrontCount) {
-        item = 2;
-    }
-
+    std::vector<tbb::atomic<uint8_t>> waveFrontCount(executableGraphNodes.size(), 2);
     waveFrontCount.front() = 1;
-
-    //tbb::task_arena nested{8};
 
     while (prepareCounter + 1 < executableGraphNodes.size()) {
 //Sequental implementation!!!
@@ -1211,62 +1167,15 @@ void Graph::Infer(InferRequestBase* request) {
         auto start = std::chrono::steady_clock::now();
         tbb::task_group tg;
 
-        // nested.execute([&](){
-        //     tg.run(UpdateShape(tg, prepareCounter, waveFrontCount, executableGraphNodes, prepareCounter, inferCounter));
-        // });
         tg.run(UpdateShape(tg, prepareCounter, waveFrontCount, executableGraphNodes, prepareCounter, inferCounter));
 
-        //nested.execute([&](){tg.wait();});
         tg.wait();
 
         auto end = std::chrono::steady_clock::now();
         preparationCounter += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
 // END PARALLEL VERSION!!!
-        // tbb::parallel_do(&block, &block + 1,
-        //     [&](const std::pair<size_t, size_t>& block_, tbb::parallel_do_feeder<std::pair<size_t, size_t>>& feeder) {
-
-            // });
-
-        //if (prepareCounter < 30) // For Tests only
-            runNodes(prepareCounter);
-
-            // if (fShapeInfer.valid()) fShapeInfer.wait();
-            // fShapeInfer = worker0.send(&Node::updateShape, node); //.share()
-            // if (fPrepareParams.valid()) fPrepareParams.wait();
-            // fPrepareParams = worker1.send([fShapeInfer, node]() {
-            //     fShapeInfer.wait();
-            //     node->prepareNode();
-            // });
-        //}
+        runNodes(prepareCounter);
     }
-
-    //runNodes(executableGraphNodes.size());
-
-    // for (size_t i = 0; i < executableGraphNodes.size(); ++i) {
-    //     const auto& node = executableGraphNodes[i];
-    //     VERBOSE(node, config.verbose);
-    //     PERF(node, config.collectPerfCounters);
-
-    //     if (request)
-    //         request->ThrowIfCanceled();
-
-    //     std::future<void> f;
-    //     if (one_of(node->getType(), Type::Input, Type::Reference, Type::Broadcast)) {
-    //         node->prepareNode();
-    //     }
-    //     if (i + 1 != executableGraphNodes.size()) {
-    //         const auto& node = executableGraphNodes[i + 1];
-    //         if (!one_of(node->getType(), Type::Input, Type::Reference, Type::Broadcast))
-    //           f = std::async(std::launch::deferred, &Node::prepareNode, node.get());
-    //     }
-
-    //     ExecuteNode(node, stream);
-
-    //     if (f.valid()) {
-    //         f.wait();
-    //     }
-    // }
-
     if (infer_count != -1) infer_count++;
 }
 
