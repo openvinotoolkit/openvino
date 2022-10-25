@@ -45,30 +45,6 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
     if (!target->is_supported())
         throw ngraph_error("unsupported architecture for code generation");
 
-    auto params = m->get_parameters();
-    auto results = m->get_results();
-    auto in = params.size();
-    auto out = results.size();
-
-    std::vector<size_t> io_last_dims(in + out);
-    std::vector<size_t> io_data_sizes(in + out);
-    std::transform(params.begin(), params.end(), io_last_dims.begin(),
-                   [](const std::shared_ptr<Node>& n){
-                       auto last_dim = n->get_output_partial_shape(0).rbegin();
-                       return last_dim->is_dynamic() ? op::Subgraph::DYNAMIC_DIMENSION
-                                                     : last_dim->get_length();
-                   });
-    std::transform(results.begin(), results.end(), io_last_dims.begin() + in,
-                   [](const std::shared_ptr<Node> &n) {
-                       auto last_dim = n->get_input_partial_shape(0).rbegin();
-                       return last_dim->is_dynamic() ? op::Subgraph::DYNAMIC_DIMENSION
-                                                     : last_dim->get_length();
-                   });
-    std::transform(params.begin(), params.end(), io_data_sizes.begin(),
-                   [](const std::shared_ptr<Node>& n){return n->get_element_type().size();});
-    std::transform(results.begin(), results.end(), io_data_sizes.begin() + in,
-                   [](const std::shared_ptr<Node>& n){return n->get_element_type().size();});
-
     OV_ITT_TASK_CHAIN(GENERATE, ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator", "::VectorTile")
     // vector loop
     std::vector<AllocatedEmitter> lowered;
@@ -89,11 +65,10 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
         if (loop->get_work_amount() < 2 * loop->get_increment()) {
             loop->set_evaluate_once(true);
             if (force_ptr_increment || loop->has_outer_loop) {
-                const auto increment = loop->get_increment();
                 std::vector<int64_t> new_finalization_offsets(loop->get_finalization_offsets());
-                const auto& apply_increments = loop->get_apply_increment();
+                const auto& ptr_increments = loop->get_ptr_increments();
                 for (auto i = 0; i < new_finalization_offsets.size(); i++) {
-                    new_finalization_offsets[i] += increment * apply_increments[i];
+                    new_finalization_offsets[i] += ptr_increments[i];
                 }
                 loop->set_finalization_offsets(new_finalization_offsets);
             }
@@ -105,8 +80,8 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
     const auto& ops = m->get_ordered_ops();
     for (auto op = ops.begin(); op < ops.end(); op++) {
         const auto& loop_begin = ov::as_type_ptr<ngraph::snippets::op::LoopBegin>(*op);
-        // ignore outer loops and possible manual tail loops
-        if (loop_begin && loop_begin->get_increment() != 1) {
+        // ignore outer loops and possible manual scalar loops
+        if (loop_begin && loop_begin->get_increment() != 1 && !loop_begin->avoid_scalar_loop_injection) {
             NodeVector vector_loop, tail_loop;
             std::shared_ptr<op::LoopEnd> vector_loop_end, tail_loop_end;
             vector_loop_end = loop_begin->get_loop_end();
@@ -150,6 +125,8 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
                 tail_loop_end = ov::as_type_ptr<op::LoopEnd>(*tail_loop.rbegin());
                 tail_loop_end->set_finalization_offsets(tail_finalization_offsets);
                 tail_loop_end->set_increment(tail_size);
+                // ptr increments were set to the old increment, need to update them in accordance with the new one
+                tail_loop_end->update_ptr_increments(static_cast<int64_t>(tail_size));
                 tail_loop_end->set_work_amount(tail_size);
                 tail_loop_end->has_outer_loop = vector_loop_end->has_outer_loop;
                 // tail loop is always executed once
@@ -162,12 +139,16 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
     }
 
     OV_ITT_TASK_NEXT(GENERATE, "::EmitCode")
-    // emission
-    auto loops2DKernel = std::make_shared<op::Kernel>(std::vector<AllocatedEmitter>{lowered});
+    //todo: Kernel need info on i/o data access pattern and data shapes to calculate data offsets
+    // pass Params and Results
+    // todo: it's probably better to move AllocaledEmitter creation inside Kernel constructor
+    //  So Kernel accepts only model ptr and target, and creates AllocatedEmitter inside
+    //emission
+    auto loops2DKernel = std::make_shared<op::Kernel>(lowered, m);
     loops2DKernel->compile_params = compile_params;
     std::shared_ptr<Emitter> kernel = target->get(op::Kernel::get_type_info_static())(loops2DKernel);
 
-    kernel->emit_code({in, out}, {});
+    kernel->emit_code({}, {});
 
     OV_ITT_TASK_NEXT(GENERATE, "::EmitData")
     for (auto& op : lowered) {

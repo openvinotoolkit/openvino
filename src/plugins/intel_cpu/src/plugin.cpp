@@ -304,6 +304,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     };
 
     static const auto precisions = get_convert_precisions();
+//    todo: disabled for debug purposes. Enable before merge
 
     manager.register_pass<ov::pass::AUGRUCellFusion>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();

@@ -15,6 +15,7 @@
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
 #include "snippets/pass/vector_to_scalar.hpp"
 #include "snippets/pass/insert_loops.hpp"
+#include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/pass/transform_convert.hpp"
 #include "snippets/pass/align_element_type.hpp"
 #include "snippets/utils.hpp"
@@ -43,20 +44,21 @@ void snippets::op::Subgraph::set_non_scalar_constants_count(const size_t count) 
 }
 
 snippets::op::Subgraph::Subgraph(const OutputVector& args, std::shared_ptr<ov::Model> body)
-    : Op(args), m_body(body), m_generator(nullptr) {
+    : Op(args), m_body(std::move(body)), m_generator(nullptr) {
     const auto ops = m_body->get_ops();
     for (const auto& op : ops) {
         config.m_is_quantized = config.m_is_quantized || ov::is_type<ov::op::v0::FakeQuantize>(op);
         config.m_has_type_relaxed_ops = config.m_has_type_relaxed_ops || std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(op);
         config.m_is_needed_to_align_precision = config.m_is_needed_to_align_precision || is_quantized() || has_type_relaxed_ops() ||
             snippets::pass::AlignElementType::opNeedsAlignElementType(op, execution_element_type);
+        config.m_has_domain_sensitive_ops = config.m_has_domain_sensitive_ops || ov::is_type<ov::op::v1::Transpose>(op);
     }
 
     constructor_validate_and_infer_types();
 }
 
 snippets::op::Subgraph::Subgraph(const NodeVector& args, std::shared_ptr<ov::Model> body)
-    : Subgraph(as_output_vector(args), body) {}
+    : Subgraph(as_output_vector(args), std::move(body)) {}
 
 std::shared_ptr<Node> snippets::op::Subgraph::clone_with_new_inputs(const OutputVector& inputs) const {
     INTERNAL_OP_SCOPE(Subgraph);
@@ -131,7 +133,8 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
 
     for (const auto& input : node->input_values()) {
         if ((utils::is_scalar_constant(input.get_node_shared_ptr())) ||
-            (ov::is_type<ov::op::v0::FakeQuantize>(node) && ov::is_type<ov::op::v0::Constant>(input.get_node_shared_ptr()))) {
+            (ov::is_type<ov::op::v0::FakeQuantize>(node) && ov::is_type<ov::op::v0::Constant>(input.get_node_shared_ptr())) ||
+            (ov::is_type<ov::op::v1::Transpose>(node) && ov::is_type<ov::op::v0::Constant>(input.get_node_shared_ptr()))) {
             body_inputs.push_back(input);
         } else {
             auto parameter = std::make_shared<ngraph::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
@@ -363,6 +366,7 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     ngraph::pass::Manager manager;
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
     manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
+    manager.register_pass<snippets::pass::TransposeDecomposition>();
     manager.register_pass<snippets::pass::InsertLoad>(count);
     manager.register_pass<snippets::pass::InsertStore>(count);
     // todo: presently dynamic pipeline is activated even if the last two dimension are static
@@ -399,7 +403,10 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
         // todo: get_lanes() assumes fp32. Could there be any int8 issues?
         // Note that InsertLoops requires validate_and_infer_types afterwards, so add it manually if
         // automatic validation will be disabled in the pass manager
-        manager.register_pass<snippets::pass::InsertLoops>(master_shape, m_generator->get_target_machine()->get_lanes());
+        if (!has_domain_sensitive_ops())
+            manager.register_pass<snippets::pass::InsertLoops>(master_shape, tileRank,
+                                                           m_generator->get_target_machine()->get_lanes());
+//        manager.register_pass<ov::pass::Serialize>("transpose_lowered.xml", "transpose_lowered.bin");
     }
     manager.run_passes(m_body);
 }

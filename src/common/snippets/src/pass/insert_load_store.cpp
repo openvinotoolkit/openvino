@@ -23,7 +23,12 @@ ngraph::snippets::pass::InsertLoad::InsertLoad(const size_t count) {
             // check if already has Load as an output
             for (auto output : root->outputs()) {
                 for (auto consumer : output.get_target_inputs()) {
-                    if (ov::is_type<ngraph::snippets::op::Load>(consumer.get_node())) {
+                    // if a parameter is connected to a Load => we don't need another one
+                    // if a parameter is connected to LoopBegin => there must be Load inside the Loop
+                    // (it's the responsibility of transformation that inserted the Loops)
+                    const auto& consumer_node = consumer.get_node();
+                    if (ov::is_type<ngraph::snippets::op::Load>(consumer_node) ||
+                        ov::is_type<ngraph::snippets::op::LoopBegin>(consumer_node)) {
                         return false;
                     }
                 }
@@ -56,7 +61,9 @@ ngraph::snippets::pass::InsertStore::InsertStore(const size_t count) {
 
             // check if already has Store as an input
             for (auto input : root->inputs()) {
-                if (ov::is_type<ngraph::snippets::op::Store>(input.get_source_output().get_node())) {
+                const auto& parent_node = input.get_source_output().get_node();
+                if (ov::is_type<ngraph::snippets::op::Store>(parent_node) ||
+                    ov::is_type<ngraph::snippets::op::LoopEnd>(parent_node)) {
                     return false;
                 }
             }
