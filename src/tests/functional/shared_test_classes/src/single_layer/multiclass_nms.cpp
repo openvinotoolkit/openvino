@@ -391,7 +391,9 @@ void MulticlassNmsLayerTest::SetUp() {
 
     const auto nms = CreateNmsOp(paramOuts);
 
-    if (!m_outStaticShape) {
+    if (targetDevice == CommonTestUtils::DEVICE_GPU) {
+        function = std::make_shared<Function>(nms, params, "MulticlassNMS");
+    } else if (!m_outStaticShape) {
         OutputVector results = {
             std::make_shared<opset5::Result>(nms->output(0)),
             std::make_shared<opset5::Result>(nms->output(1)),

@@ -13,6 +13,7 @@
 
 #include "itt.hpp"
 #include "ngraph_ops/multiclass_nms_ie_internal.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ngraph;
 
@@ -60,13 +61,13 @@ pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNms
 
         if (nms->output(1).get_element_type() != output_1.get_element_type()) {
             output_1 = std::make_shared<opset1::Convert>(output_1, nms->output(1).get_element_type());
-            output_1.get_node_shared_ptr()->set_friendly_name(nms->get_friendly_name() + "/convert.1");
+            output_1.get_node_shared_ptr()->set_friendly_name(op::util::create_ie_output_name(nms->output(1)));
             new_ops.emplace_back(output_1.get_node_shared_ptr());
         }
 
         if (nms->output(2).get_element_type() != output_2.get_element_type()) {
             output_2 = std::make_shared<opset1::Convert>(output_2, nms->output(2).get_element_type());
-            output_2.get_node_shared_ptr()->set_friendly_name(nms->get_friendly_name() + "/convert.2");
+            output_2.get_node_shared_ptr()->set_friendly_name(op::util::create_ie_output_name(nms->output(2)));
             new_ops.emplace_back(output_2.get_node_shared_ptr());
         }
 
