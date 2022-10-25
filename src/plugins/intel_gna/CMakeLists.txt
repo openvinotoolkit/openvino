@@ -19,6 +19,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # '<': signed/unsigned mismatch
     ie_add_compiler_flags(/wd4018)
     ie_add_compiler_flags(/wd4099)
+    ie_add_compiler_flags(/wd4200)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
