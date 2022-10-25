@@ -23,8 +23,8 @@ public:
             size_t perSampleWeightsIdx,
             size_t defaultIndexIdx);
 
-    void execute(const uint8_t* srcData, const uint8_t* weightsData, uint8_t* dstData, const InferenceEngine::Precision &srcPrc,
-                 const InferenceEngine::SizeVector& inDims, const InferenceEngine::SizeVector& outDims);
+    void execute(const uint8_t* srcData, const uint8_t* weightsData, const InferenceEngine::Precision &srcPrc,
+                 const InferenceEngine::SizeVector& inDims, const MemoryPtr& outMemory);
 
     ~EmbeddingBagSum() = default;
 
@@ -40,8 +40,8 @@ protected:
     void prepareParams(const VectorDims& indexStaticShape);
 
     template<typename T>
-    void processData(const T* srcData, const T* weightsData, T* dstData,
-                     const InferenceEngine::SizeVector& inDataDims, const InferenceEngine::SizeVector& outDataDims);
+    void processData(const T* srcData, const T* weightsData,
+                     const InferenceEngine::SizeVector& inDataDims, const MemoryPtr& outMemory);
 
     const size_t EMB_TABLE_IDX = 0lu;
     const size_t INDICES_IDX;

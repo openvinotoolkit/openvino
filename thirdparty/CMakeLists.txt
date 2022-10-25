@@ -185,7 +185,7 @@ if(NOT APPLE OR CPACK_GENERATOR MATCHES "^(BREW|CONDA-FORGE)$")
     # - on Apple only dynamic libraries are available
     #   also, we can easily mix arm64 and x86_64 binaries when cross-compile for Intel CPU
 
-    if(CPACK_GENERATOR MATCHES "^(BREW|CONDA-FORGE)$" OR DEFINED ENV{HOMEBREW_PREFIX})
+    if(CPACK_GENERATOR MATCHES "^(BREW|CONDA-FORGE)$" OR DEFINED ENV{HOMEBREW_PREFIX} OR LINUX_OS_NAME MATCHES "(Fedora)")
         # conda-forge and brew contains only shared version of gflags
         find_package(gflags QUIET COMPONENTS nothreads_shared)
     else()
