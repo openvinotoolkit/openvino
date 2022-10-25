@@ -502,6 +502,10 @@ void TensorIterator::getSupportedDescriptors() {
     const std::shared_ptr<const ov::Model> body = tiOp->get_function();
     sub_graph.CreateGraph(body, ext_mng, weightCache, sharedMutex);
 
+    const std::string &body_name = body->get_friendly_name();
+    std::cout << "serialize " << body_name << std::endl;
+    serialize(body, body_name+".xml", body_name+".bin");    
+
     const auto &inMap = sub_graph.GetInputNodesMap();
     for (const auto &param : tiOp->get_function()->get_parameters()) {
         auto inNode = inMap.find(param->get_friendly_name());
