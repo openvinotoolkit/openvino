@@ -9,27 +9,186 @@
 #include <intel_gpu/runtime/memory.hpp>
 #include <intel_gpu/graph/topology.hpp>
 #include <intel_gpu/graph/network.hpp>
+#include "ngraph/runtime/reference/non_zero.hpp"
 
 #include <cstddef>
 
 using namespace cldnn;
 using namespace ::tests;
+template<typename T>
+void test_count_non_zero(layout in_layout, std::vector<T> in_data) {
+    auto& engine = get_test_engine();
+    auto input_mem = engine.allocate_memory(in_layout);
+    auto count_non_zero = ngraph::runtime::reference::non_zero_get_count<T>(in_data.data(), in_layout.get_shape());
 
-inline void do_count_non_zero_test(engine& engine,
-                                   const cldnn::memory::ptr& input_data,
-                                   const std::vector<int32_t>& expected_results)
-{
+    set_values(input_mem, in_data);
+
     topology topology;
-    topology.add(input_layout("InputData", input_data->get_layout()));
+    topology.add(input_layout("InputData", in_layout));
+    topology.add(count_nonzero("count_nonzero", "InputData")
+    );
+
+    network network(engine, topology);
+    network.set_input_data("InputData", input_mem);
+    auto outputs = network.execute();
+    auto output = outputs.at("count_nonzero").get_memory();
+
+    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    EXPECT_EQ(count_non_zero, output_ptr[1]);
+}
+
+TEST(test_count_non_zero, 4d_fp32_1_2_1_5) {
+    std::vector<float> in_data = {
+        0.3f, 0.2f   , 0.3f, 0.0f, 0.0f,
+        0.4f, 0.0001f, 0.1f, 0.9f, 0.10f
+    };
+    test_count_non_zero<float>(layout{ov::PartialShape{1, 2, 1, 5}, data_types::f32, format::bfyx}, in_data);
+}
+
+TEST(test_gather_non_zero, 5d_fp16_1_3_2_1_2) {
+    std::vector<FLOAT16> in_data = {
+        0.1f, 0.2f, 0.3f, 0.0f, 12.1f, 11.1f,
+        0.0f, 0.0f, 0.1f, 0.9f, 0.10f, 0.001f
+    };
+    test_count_non_zero<FLOAT16>(layout{ov::PartialShape{1, 3, 2, 1, 2}, data_types::f16, format::bfzyx}, in_data);
+}
+
+template<typename T>
+void test_gather_non_zero(layout in_layout, std::vector<T> in_data) {
+    auto& engine = get_test_engine();
+    auto input_mem = engine.allocate_memory(in_layout);
+    auto count_non_zero = ngraph::runtime::reference::non_zero_get_count<T>(in_data.data(), in_layout.get_shape());
+    auto in_rank = in_layout.get_shape().size();
+    std::vector<int32_t> expected_results(count_non_zero * in_rank);
+    ngraph::runtime::reference::non_zero<T, int32_t>(in_data.data(), expected_results.data(), in_layout.get_shape());
+
+    auto output_shape_layout = layout{ov::PartialShape{4}, data_types::i32, format::bfyx};
+    auto output_shape_mem = engine.allocate_memory(output_shape_layout);
+    set_values(input_mem, in_data);
+
+    std::vector<int32_t> output_shape_data = {(int32_t)in_rank, (int32_t)count_non_zero, 1, 1};
+
+    set_values(output_shape_mem, output_shape_data);
+
+    topology topology;
+    topology.add(input_layout("InputData", in_layout));
+    topology.add(input_layout("OutputShape", output_shape_layout));
     topology.add(
-        count_nonzero("count_nonzero", "InputData")
+        gather_nonzero("gather_nonzero", "InputData", "OutputShape")
     );
 
     network network(engine, topology);
 
-    network.set_input_data("InputData", input_data);
+    network.set_input_data("InputData", input_mem);
+    network.set_input_data("OutputShape", output_shape_mem);
     auto outputs = network.execute();
-    auto output = outputs.at("count_nonzero").get_memory();
+    auto output = outputs.at("gather_nonzero").get_memory();
+    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int32_t> shape_ptr(output_shape_mem, get_test_stream());
+
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        EXPECT_EQ(expected_results[i], output_ptr[i]);
+    }
+}
+
+TEST(test_gather_non_zero, 4d_fp32_1_3_3_1) {
+    std::vector<float> in_data = {
+        0.1f, 0.2f, 0.3f, 0.0f,
+        0.0f, 0.4f, 0.1f, 0.9f, 0.10f
+    };
+    test_gather_non_zero<float>(layout{ov::PartialShape{1, 3, 3, 1}, data_types::f32, format::bfyx}, in_data);
+}
+
+TEST(test_gather_non_zero, 4d_fp32_2_4_3_2) {
+    std::vector<float> in_data = {
+        0.1f,   0.2f,  0.3f, 0.0f, 12.0f, 2.0f,   0.4f,  0.1f,
+        1.9f,   0.10f, 1.0f, 0.0f, 0.1f,  0.2f,   0.0f,  100.0f,
+        0.0001f,   0.0f,  2.9f, 0.2f, 4.0f,  0.0f,   9.1f,  0.9f,
+        100.0f, 0.4f,  0.1f, 0.3f, 0.0f,  24.2f,  1.23f, 0.0f,
+        4.0f,   0.0f,  3.1f, 0.9f, 0.10f, 49.2f,  0.0f,  0.3f,
+        100.0f, 0.4f,  0.1f, 0.9f, 0.1f,  33.12f, 12.1f, 0.0001f
+    };
+    test_gather_non_zero<float>(layout{ov::PartialShape{2, 4, 3, 2}, data_types::f32, format::bfyx}, in_data);
+}
+TEST(test_gather_non_zero, 4d_fp16_2_4_3_2) {
+    std::vector<FLOAT16> in_data = {
+        0.1f,   0.2f,  0.3f, 0.0f, 12.0f, 2.0f,   0.4f,  0.1f,
+        1.9f,   0.10f, 1.0f, 0.0f, 0.1f,  0.2f,   0.0f,  100.0f,
+        0.0001f,   0.0f,  2.9f, 0.2f, 4.0f,  0.0f,   9.1f,  0.9f,
+        100.0f, 0.4f,  0.1f, 0.3f, 0.0f,  24.2f,  1.23f, 0.0f,
+        4.0f,   0.0f,  3.1f, 0.9f, 0.10f, 49.2f,  0.0f,  0.3f,
+        100.0f, 0.4f,  0.1f, 0.9f, 0.1f,  33.12f, 12.1f, 0.0001f
+    };
+    test_gather_non_zero<FLOAT16>(layout{ov::PartialShape{2, 4, 3, 2}, data_types::f16, format::bfyx}, in_data);
+}
+
+TEST(test_gather_non_zero, 5d_fp32_1_3_3_2_2) {
+    std::vector<float> in_data = {
+        0.1f, 0.2f, 0.3f, 0.0f, 12.1f, 11.1f,
+        0.0f, 0.0f, 0.1f, 0.9f, 0.10f, 0.001f,
+        8.0f,  3.0f, 0.1f, 0.00001f,  0.10f, 0.001f,
+        0.1f, -0.2f, 0.3f, 0.0f,  12.1f, 11.1f,
+        0.0f,  0.0f, 0.1f, 0.9f,  0.10f, 0.001f,
+        0.1f,  0.2f, 0.3f, 0.0f,  12.1f, 11.1f,
+        8.0f,  3.0f, 0.1f, 0.00001f,  0.10f, 0.001f,
+        0.1f, -0.2f, 0.3f, 0.0f,  12.1f, 11.1f,
+    };
+    test_gather_non_zero<float>(layout{ov::PartialShape{1, 3, 4, 2, 2}, data_types::f32, format::bfzyx}, in_data);
+}
+
+TEST(test_gather_non_zero, 6d_fp16_2_3_1_3_2_4) {
+   std::vector<float> in_data = {
+        0.1f,  0.2f, 0.3f, 0.0f,  12.1f, 11.1f,
+        1.0f,  0.0f, 0.1f, 0.9f,  0.10f, 0.001f,
+        0.1f,  0.2f, 0.3f, 0.0f,  12.1f, 11.1f,
+        19.0f, 0.0f, 0.1f, 0.9f,  0.10f, -0.001f,
+        0.1f,  0.2f, 0.3f, 0.0f,  12.1f, 11.1f,
+        8.0f,  3.0f, 0.1f, 0.00001f,  0.10f, 0.001f,
+        0.1f, -0.2f, 0.3f, 0.0f,  12.1f, 11.1f,
+        13.0f, 1.0f, 0.1f, 0.9f,  0.10f, 0.001f,
+        11.1f,  0.2f, 0.3f, 66.0f, 12.1f, 11.1f,
+        0.0f,  0.0001f, 0.1f, 0.9f,  0.10f, 0.001f,
+        0.1f,  0.2f, 0.3f, 2.0f,  12.1f, 11.1f,
+        0.0f,  0.0f, 0.1f, 0.9f,  0.10f, 0.001f,
+        0.1f,  0.2f, 0.3f, 0.0f,  12.1f, 11.1f,
+        -13.0f, 1.0f, 0.1f, 0.9f,  0.10f, 0.001f,
+        0.1f,  0.2f, 0.3f, 66.0f, 12.1f, 11.1f,
+        0.0f,  0.001f, 0.1f, 0.9f,  0.10f, 0.001f,
+        0.1f,  0.2f, 0.3f, 2.0f,  12.1f, 11.1f,
+        0.1f,  1.2f, 0.3f, 99.0f,  12.1f, 11.1f,
+       100.0f,  0.0f, 0.1f, 0.9f,  0.10f, 0.001f,
+        0.1f,  0.2f, 0.3f, 0.0f,  12.1f, 11.1f,
+        13.0f, 1.0f, 0.1f, 0.9f,  -0.10f, 0.001f,
+        0.1f,  0.2f, 0.3f, 66.0f, 12.1f, 11.1f,
+        0.0f,  0.0001f, 0.1f, 0.9f,  0.10f, 0.001f,
+        0.1f,  0.2f, 0.3f, 2.0f,  12.1f, 11.1f,
+    };
+    test_gather_non_zero<float>(layout{ov::PartialShape{2, 3, 1, 3, 2, 4}, data_types::f32, format::bfwzyx}, in_data);
+}
+
+template<typename T>
+void test_non_zero(layout in_layout, std::vector<T> in_data) {
+    auto& engine = get_test_engine();
+    auto input_mem = engine.allocate_memory(in_layout);
+    auto count_non_zero = ngraph::runtime::reference::non_zero_get_count<T>(in_data.data(), in_layout.get_shape());
+    auto in_rank = in_layout.get_shape().size();
+    std::vector<int32_t> expected_results(count_non_zero * in_rank);
+    ngraph::runtime::reference::non_zero<T, int32_t>(in_data.data(), expected_results.data(), in_layout.get_shape());
+
+    set_values(input_mem, in_data);
+
+    std::vector<int32_t> output_shape_data = {(int32_t)in_rank, (int32_t)count_non_zero, 1, 1};
+
+    topology topology;
+    topology.add(input_layout("InputData", in_layout));
+    topology.add(count_nonzero("count_nonzero", "InputData"));
+    topology.add(gather_nonzero("gather_nonzero", "InputData", "count_nonzero"));
+
+    network network(engine, topology);
+
+    network.set_input_data("InputData", input_mem);
+    auto outputs = network.execute();
+    auto output = outputs.at("gather_nonzero").get_memory();
     cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
@@ -37,306 +196,104 @@ inline void do_count_non_zero_test(engine& engine,
     }
 }
 
-inline void do_gather_non_zero_test(engine& engine,
-                                    const cldnn::memory::ptr& input_data,
-                                    const cldnn::memory::ptr& output_shape,
-                                    const std::vector<int32_t>& expected_results)
-{
-    topology topology;
-    topology.add(input_layout("InputData", input_data->get_layout()));
-    topology.add(input_layout("OutputShape", output_shape->get_layout()));
-    topology.add(
-        gather_nonzero("gather_nonzero", "InputData", "OutputShape")
-    );
-
-    network network(engine, topology);
-
-    network.set_input_data("InputData", input_data);
-    network.set_input_data("OutputShape", output_shape);
-    auto outputs = network.execute();
-    auto output = outputs.at("gather_nonzero").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
-    cldnn::mem_lock<int32_t> shape_ptr(output_shape, get_test_stream());
-
-    int num_ranks = shape_ptr[0];
-    int num_nonzero = shape_ptr[1];
-
-    for (int i = 0; i < num_nonzero; i++) {
-        bool found = false;
-        for (int j = 0; j < num_nonzero; j++) {
-            for (int k = 0; k < num_ranks; k++) {
-                if (output_ptr[i+num_nonzero*k] != expected_results[j+num_nonzero*k])
-                    break;
-
-                if (k == (num_ranks - 1)) {
-                    found = true;
-                }
-            }
-            if (found)
-                break;
-        }
-
-        EXPECT_TRUE(found);
-    }
+TEST(test_non_zero, 1d_fp16_48) {
+    std::vector<FLOAT16> in_data = {
+        0.1f,   0.2f,  0.3f, 0.0f, 12.0f, 2.0f,   0.4f,  0.1f,
+        1.9f,   0.10f, 1.0f, 0.0f, 0.1f,  0.2f,   0.0f,  100.0f,
+        0.0001f,   0.0f,  2.9f, 0.2f, 4.0f,  0.0f,   9.1f,  0.9f,
+        100.0f, 0.4f,  0.1f, 0.3f, 0.0f,  24.2f,  1.23f, 0.0f,
+        4.0f,   0.0f,  3.1f, 0.9f, 0.10f, 49.2f,  0.0f,  0.3f,
+        100.0f, 0.4f,  0.1f, 0.9f, 0.1f,  33.12f, 12.1f, 0.0001f
+    };
+    test_non_zero<FLOAT16>(layout{ov::PartialShape{48}, data_types::f16, format::bfyx}, in_data);
 }
 
-inline void do_non_zero_test(engine& engine,
-                          const cldnn::memory::ptr& input_data,
-                          const std::vector<int32_t>& expected_shape,
-                          const std::vector<int32_t>& expected_results)
-{
-    topology topology;
-    topology.add(input_layout("InputData", input_data->get_layout()));
-    topology.add(
-        count_nonzero("count_nonzero", "InputData")
-    );
-    topology.add(
-        gather_nonzero("gather_nonzero", "InputData", "count_nonzero")
-    );
-
-    network network(engine, topology);
-
-    network.set_input_data("InputData", input_data);
-    auto outputs = network.execute();
-    auto output = outputs.at("gather_nonzero").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
-    std::vector<int32_t> output_list = std::vector<int32_t>(output_ptr.begin(), output_ptr.end());
-
-    int num_ranks = expected_shape[0];
-    int num_nonzero = expected_shape[1];
-
-    EXPECT_EQ(num_ranks*num_nonzero, output_list.size());
-
-    for (int i = 0; i < num_nonzero; i++) {
-        bool found = false;
-        for (int j = 0; j < num_nonzero; j++) {
-            for (int k = 0; k < num_ranks; k++) {
-                if (output_list[i+num_nonzero*k] != expected_results[j+num_nonzero*k])
-                    break;
-
-                if (k == (num_ranks - 1)) {
-                    found = true;
-                }
-            }
-            if (found)
-                break;
-        }
-
-        EXPECT_TRUE(found);
-    }
+TEST(test_non_zero, 2d_fp32_2_34) {
+    std::vector<float> in_data = {
+        0.1f,   0.2f,  0.3f, 0.0f, 12.0f, 2.0f,   0.4f,  0.1f,
+        1.9f,   0.10f, 1.0f, 0.0f, 0.1f,  0.2f,   0.0f,  100.0f,
+        0.0001f,   0.0f,  2.9f, 0.2f, 4.0f,  0.0f,   9.1f,  0.9f,
+        100.0f, 0.4f,  0.1f, 0.3f, 0.0f,  24.2f,  1.23f, 0.0f,
+        4.0f,   0.0f,  3.1f, 0.9f, 0.10f, 49.2f,  0.0f,  0.3f,
+        100.0f, 0.4f,  0.1f, 0.9f, 0.1f,  33.12f, 12.1f, 0.0001f
+    };
+    test_non_zero<float>(layout{ov::PartialShape{2, 24}, data_types::f32, format::bfyx}, in_data);
 }
 
-TEST(count_nonzero_gpu_fp16, test1) {
-    auto& engine = get_test_engine();
-
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 1, 3, 3, 1 } });
-
-    set_values(input, {
-        FLOAT16(0), FLOAT16(1), FLOAT16(8),
-        FLOAT16(5), FLOAT16(5), FLOAT16(2),
-        FLOAT16(7), FLOAT16(10), FLOAT16(4),
-    });
-
-    std::vector<int32_t> expected_results = {
-        4,  8,  1,  1,
+TEST(test_non_zero, 3d_fp16_4_3_4) {
+    std::vector<float> in_data = {
+        0.1f,   0.2f,  0.3f, 0.0f, 12.0f, 2.0f,   0.4f,  0.1f,
+        1.9f,   0.10f, 1.0f, 0.0f, 0.1f,  0.2f,   0.0f,  100.0f,
+        0.0001f,   0.0f,  2.9f, 0.2f, 4.0f,  0.0f,   9.1f,  0.9f,
+        100.0f, 0.4f,  0.1f, 0.3f, 0.0f,  24.2f,  1.23f, 0.0f,
+        4.0f,   0.0f,  3.1f, 0.9f, 0.10f, 49.2f,  0.0f,  0.3f,
+        100.0f, 0.4f,  0.1f, 0.9f, 0.1f,  33.12f, 12.1f, 0.0001f
     };
-
-    do_count_non_zero_test(engine, input, expected_results);
+    test_non_zero<float>(layout{ov::PartialShape{4, 3, 4}, data_types::f32, format::bfyx}, in_data);
 }
 
-TEST(gather_nonzero_gpu_fp16, test1) {
-    auto& engine = get_test_engine();
-
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 1, 3, 3, 1 } });
-    auto output_shape = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 1, 1, 4, 1 } });
-
-    set_values(input, {
-        FLOAT16(0), FLOAT16(1), FLOAT16(8),
-        FLOAT16(5), FLOAT16(5), FLOAT16(2),
-        FLOAT16(7), FLOAT16(10), FLOAT16(4),
-    });
-
-    set_values(output_shape, {
-        4,  8,  1,  1,
-    });
-
-    std::vector<int32_t> expected_results = {
-        0,  0,  0,  0,  0,  0,  0,  0,
-        0,  0,  1,  1,  1,  2,  2,  2,
-        0,  0,  0,  0,  0,  0,  0,  0,
-        1,  2,  0,  1,  2,  0,  1,  2,
+TEST(test_non_zero, 4d_fp16_2_4_3_2) {
+    std::vector<FLOAT16> in_data = {
+        0.1f,   0.2f,  0.3f, 0.0f, 12.0f, 2.0f,   0.4f,  0.1f,
+        1.9f,   0.10f, 1.0f, 0.0f, 0.1f,  0.2f,   0.0f,  100.0f,
+        0.0001f,   0.0f,  2.9f, 0.2f, 4.0f,  0.0f,   9.1f,  0.9f,
+        100.0f, 0.4f,  0.1f, 0.3f, 0.0f,  24.2f,  1.23f, 0.0f,
+        4.0f,   0.0f,  3.1f, 0.9f, 0.10f, 49.2f,  0.0f,  0.3f,
+        100.0f, 0.4f,  0.1f, 0.9f, 0.1f,  33.12f, 12.1f, 0.0001f
     };
-
-    do_gather_non_zero_test(engine, input, output_shape, expected_results);
+    test_non_zero<FLOAT16>(layout{ov::PartialShape{2, 4, 3, 2}, data_types::f16, format::bfyx}, in_data);
 }
 
-TEST(gather_nonzero_gpu_fp16, test2) {
-    auto& engine = get_test_engine();
-
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 1, 3, 3, 1 } });
-    auto output_shape = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 1, 1, 4, 1 } });
-
-    set_values(input, {
-        FLOAT16(0), FLOAT16(1), FLOAT16(8),
-        FLOAT16(5), FLOAT16(5), FLOAT16(0),
-        FLOAT16(7), FLOAT16(0), FLOAT16(4),
-    });
-
-    set_values(output_shape, {
-        4,  6,  1,  1,
-    });
-
-    std::vector<int32_t> expected_results = {
-        0,  0,  0,  0,  0,  0,
-        0,  0,  1,  1,  2,  2,
-        0,  0,  0,  0,  0,  0,
-        1,  2,  0,  1,  0,  2,
+TEST(test_non_zero, 5d_fp32_1_3_3_2_2) {
+    std::vector<float> in_data = {
+        0.1f, 0.2f, 0.3f, 0.0f, 12.1f, 11.1f,
+        0.0f, 0.0f, 0.1f, 0.9f, 0.10f, 0.001f,
+        8.0f,  3.0f, 0.1f, 0.00001f,  0.10f, 0.001f,
+        0.1f, -0.2f, 0.3f, 0.0f,  12.1f, 11.1f,
+        0.0f,  0.0f, 0.1f, 0.9f,  0.10f, 0.001f,
+        0.1f,  0.2f, 0.3f, 0.0f,  12.1f, 11.1f,
+        8.0f,  3.0f, 0.1f, 0.00001f,  0.10f, 0.001f,
+        0.1f, -0.2f, 0.3f, 0.0f,  12.1f, 11.1f,
     };
-
-    do_gather_non_zero_test(engine, input, output_shape, expected_results);
+    test_non_zero<float>(layout{ov::PartialShape{1, 3, 4, 2, 2}, data_types::f32, format::bfzyx}, in_data);
 }
 
-TEST(nonzero_gpu_fp16, test1) {
-    auto& engine = get_test_engine();
-
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 1, 3, 3, 1 } });
-
-    set_values(input, {
-        FLOAT16(0), FLOAT16(1), FLOAT16(8),
-        FLOAT16(5), FLOAT16(5), FLOAT16(0),
-        FLOAT16(7), FLOAT16(0), FLOAT16(4),
-    });
-
-    std::vector<int32_t> expected_shape = {
-        4,  6,  1, 1,
+TEST(test_non_zero, 6d_fp16_2_3_1_3_2_4) {
+    std::vector<float> in_data = {
+        0.1f,  0.2f, 0.3f, 0.0f,  12.1f, 11.1f,
+        1.0f,  0.0f, 0.1f, 0.9f,  0.10f, 0.001f,
+        0.1f,  0.2f, 0.3f, 0.0f,  12.1f, 11.1f,
+        19.0f, 0.0f, 0.1f, 0.9f,  0.10f, -0.001f,
+        0.1f,  0.2f, 0.3f, 0.0f,  12.1f, 11.1f,
+        8.0f,  3.0f, 0.1f, 0.00001f,  0.10f, 0.001f,
+        0.1f, -0.2f, 0.3f, 0.0f,  12.1f, 11.1f,
+        13.0f, 1.0f, 0.1f, 0.9f,  0.10f, 0.001f,
+        11.1f,  0.2f, 0.3f, 66.0f, 12.1f, 11.1f,
+        0.0f,  0.0001f, 0.1f, 0.9f,  0.10f, 0.001f,
+        0.1f,  0.2f, 0.3f, 2.0f,  12.1f, 11.1f,
+        0.0f,  0.0f, 0.1f, 0.9f,  0.10f, 0.001f,
+        0.1f,  0.2f, 0.3f, 0.0f,  12.1f, 11.1f,
+        -13.0f, 1.0f, 0.1f, 0.9f,  0.10f, 0.001f,
+        0.1f,  0.2f, 0.3f, 66.0f, 12.1f, 11.1f,
+        0.0f,  0.001f, 0.1f, 0.9f,  0.10f, 0.001f,
+        0.1f,  0.2f, 0.3f, 2.0f,  12.1f, 11.1f,
+        0.1f,  1.2f, 0.3f, 99.0f,  12.1f, 11.1f,
+       100.0f,  0.0f, 0.1f, 0.9f,  0.10f, 0.001f,
+        0.1f,  0.2f, 0.3f, 0.0f,  12.1f, 11.1f,
+        13.0f, 1.0f, 0.1f, 0.9f,  -0.10f, 0.001f,
+        0.1f,  0.2f, 0.3f, 66.0f, 12.1f, 11.1f,
+        0.0f,  0.0001f, 0.1f, 0.9f,  0.10f, 0.001f,
+        0.1f,  0.2f, 0.3f, 2.0f,  12.1f, 11.1f,
     };
-
-    std::vector<int32_t> expected_results = {
-        0,  0,  0,  0,  0,  0,
-        0,  0,  1,  1,  2,  2,
-        0,  0,  0,  0,  0,  0,
-        1,  2,  0,  1,  0,  2,
-    };
-
-    do_non_zero_test(engine, input, expected_shape, expected_results);
+    test_non_zero<float>(layout{ov::PartialShape{2, 3, 1, 3, 2, 4}, data_types::f32, format::bfwzyx}, in_data);
 }
 
-TEST(nonzero_gpu_fp16, test2) {
-    auto& engine = get_test_engine();
-
-    auto input = engine.allocate_memory({ data_types::f16, format::bfzyx, tensor{ 1, 3, 3, 3, 1 } });
-
-    set_values(input, {
-        FLOAT16(0), FLOAT16(1), FLOAT16(8),
-        FLOAT16(7), FLOAT16(10), FLOAT16(4),
-        FLOAT16(7), FLOAT16(0), FLOAT16(4),
-        FLOAT16(9), FLOAT16(5), FLOAT16(1),
-        FLOAT16(2), FLOAT16(0), FLOAT16(8),
-        FLOAT16(2), FLOAT16(10), FLOAT16(7),
-        FLOAT16(2), FLOAT16(4), FLOAT16(8),
-        FLOAT16(5), FLOAT16(9), FLOAT16(10),
-        FLOAT16(10), FLOAT16(5), FLOAT16(2),
-    });
-
-    std::vector<int32_t> expected_shape = {
-        5,  24,  1, 1,
+TEST(test_non_zero, 6d_fp16_2_2_2_1_5_1) {
+    std::vector<int32_t> in_data = {
+        10, 12, 23, 1232, 11, 9, 10, 23, 0, 1,
+        0,  12, 23, 0, 11, 9, 10, 23, 0, 1,
+        10, 0,  2,  32, 11, 9, 10, 23, 0, 1,
+        10, 12, 3, 12, 11, 9, 0, 23, 0, 1
     };
-
-    std::vector<int32_t> expected_results = {
-        0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-        0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  2,
-        0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-        0,  0,  1,  1,  1,  2,  2,  0,  0,  0,  1,  1,  2,  2,  2,  0,  0,  0,  1,  1,  1,  2,  2,  2,
-        1,  2,  0,  1,  2,  0,  2,  0,  1,  2,  0,  2,  0,  1,  2,  0,  1,  2,  0,  1,  2,  0,  1,  2,
-    };
-
-    do_non_zero_test(engine, input, expected_shape, expected_results);
-}
-
-TEST(nonzero_gpu_fp16, test3) {
-    auto& engine = get_test_engine();
-
-    auto input = engine.allocate_memory({ data_types::f16, format::bfwzyx, tensor{ 1, 3, 3, 3, 3, 1 } });
-
-    set_values(input, {
-        FLOAT16(0), FLOAT16(1),  FLOAT16(8), FLOAT16(7), FLOAT16(10), FLOAT16(4),  FLOAT16(6),  FLOAT16(5), FLOAT16(4),
-        FLOAT16(7), FLOAT16(0),  FLOAT16(4), FLOAT16(9), FLOAT16(5),  FLOAT16(1),  FLOAT16(2),  FLOAT16(2), FLOAT16(0),
-        FLOAT16(2), FLOAT16(0),  FLOAT16(8), FLOAT16(2), FLOAT16(10), FLOAT16(7),  FLOAT16(7),  FLOAT16(0), FLOAT16(6),
-        FLOAT16(2), FLOAT16(4),  FLOAT16(8), FLOAT16(5), FLOAT16(9),  FLOAT16(10), FLOAT16(10), FLOAT16(5), FLOAT16(2),
-        FLOAT16(4), FLOAT16(8),  FLOAT16(2), FLOAT16(1), FLOAT16(4),  FLOAT16(10), FLOAT16(10), FLOAT16(2), FLOAT16(21),
-        FLOAT16(0), FLOAT16(1),  FLOAT16(5), FLOAT16(1), FLOAT16(5),  FLOAT16(1),  FLOAT16(9),  FLOAT16(4), FLOAT16(22),
-        FLOAT16(4), FLOAT16(3),  FLOAT16(7), FLOAT16(6), FLOAT16(9),  FLOAT16(8),  FLOAT16(9),  FLOAT16(7), FLOAT16(23),
-        FLOAT16(4), FLOAT16(10), FLOAT16(6), FLOAT16(3), FLOAT16(5),  FLOAT16(5),  FLOAT16(4),  FLOAT16(2), FLOAT16(23),
-        FLOAT16(0), FLOAT16(4),  FLOAT16(5), FLOAT16(3), FLOAT16(1),  FLOAT16(2),  FLOAT16(8),  FLOAT16(5), FLOAT16(0),
-    });
-
-    std::vector<int32_t> expected_shape = {
-        6,  73,  1, 1,
-    };
-
-    std::vector<int32_t> expected_results = {
-        0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-        0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,
-        0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-        0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,
-        0,  0,  1,  1,  1,  2,  2,  2,  0,  0,  1,  1,  1,  2,  2,  0,  0,  1,  1,  1,  2,  2,  0,  0,  0,  1,  1,  1,  2,  2,  2,  0,  0,  0,  1,  1,  1,  2,  2,  2,  0,  0,  1,  1,  1,  2,  2,  2,  0,  0,  0,  1,  1,  1,  2,  2,  2,  0,  0,  0,  1,  1,  1,  2,  2,  2,  0,  0,  1,  1,  1,  2,  2,
-        1,  2,  0,  1,  2,  0,  1,  2,  0,  2,  0,  1,  2,  0,  1,  0,  2,  0,  1,  2,  0,  2,  0,  1,  2,  0,  1,  2,  0,  1,  2,  0,  1,  2,  0,  1,  2,  0,  1,  2,  1,  2,  0,  1,  2,  0,  1,  2,  0,  1,  2,  0,  1,  2,  0,  1,  2,  0,  1,  2,  0,  1,  2,  0,  1,  2,  1,  2,  0,  1,  2,  0,  1,
-    };
-
-    do_non_zero_test(engine, input, expected_shape, expected_results);
-}
-
-TEST(nonzero_gpu_fp32, test1) {
-    auto& engine = get_test_engine();
-
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 3, 5, 4 } });
-
-    set_values(input, {
-        6, 6, 0, 3, 0,  4, 1, 0, 8, 4,  8, 5, 8, 6, 0,  2, 0, 9, 6, 9,
-        1, 2, 4, 9, 0,  8, 5, 7, 4, 6,  8, 0, 6, 2, 3,  5, 0, 9, 8, 7,
-        3, 6, 5, 3, 8,  4, 7, 5, 7, 8,  5, 2, 1, 8, 9,  2, 1, 4, 3, 3,
-
-        7, 3, 9, 9, 0,  2, 4, 0, 4, 9,  5, 9, 4, 5, 8,  1, 2, 9, 7, 6,
-        7, 9, 6, 7, 2,  9, 2, 7, 8, 3,  1, 2, 7, 4, 6,  2, 3, 7, 0, 5,
-        2, 3, 7, 7, 0,  3, 4, 0, 9, 0,  9, 0, 2, 7, 7,  8, 6, 6, 0, 8,
-    });
-
-    std::vector<int32_t> expected_shape = {
-        4, 104, 1, 1,
-    };
-
-    std::vector<int32_t> expected_results = {
-        0,  0,      0,      0,  0,      0,  0,  0,  0,  0,  0,      0,      0,  0,  0,
-        0,  0,  0,  0,      0,  0,  0,  0,  0,  0,      0,  0,  0,  0,      0,  0,  0,
-        0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-        1,  1,  1,  1,      1,  1,      1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
-        1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,      1,
-        1,  1,  1,  1,      1,  1,      1,      1,      1,  1,  1,  1,  1,  1,      1,
-
-
-        0,  0,      0,      0,  0,      0,  0,  0,  0,  0,  0,      0,      0,  0,  0,
-        1,  1,  1,  1,      1,  1,  1,  1,  1,  1,      1,  1,  1,  1,      1,  1,  1,
-        2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,
-        0,  0,  0,  0,      0,  0,      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-        1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,      1,
-        2,  2,  2,  2,      2,  2,      2,      2,      2,  2,  2,  2,  2,  2,      2,
-
-
-        0,  0,      0,      1,  1,      1,  1,  2,  2,  2,  2,      3,      3,  3,  3,
-        0,  0,  0,  0,      1,  1,  1,  1,  1,  2,      2,  2,  2,  3,      3,  3,  3,
-        0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  3,  3,  3,  3,  3,
-        0,  0,  0,  0,      1,  1,      1,  1,  2,  2,  2,  2,  2,  3,  3,  3,  3,  3,
-        0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  3,  3,  3,      3,
-        0,  0,  0,  0,      1,  1,      1,      2,      2,  2,  2,  3,  3,  3,      3,
-
-
-        0,  1,      3,      0,  1,      3,  4,  0,  1,  2,  3,      0,      2,  3,  4,
-        0,  1,  2,  3,      0,  1,  2,  3,  4,  0,      2,  3,  4,  0,      2,  3,  4,
-        0,  1,  2,  3,  4,  0,  1,  2,  3,  4,  0,  1,  2,  3,  4,  0,  1,  2,  3,  4,
-        0,  1,  2,  3,      0,  1,      3,  4,  0,  1,  2,  3,  4,  0,  1,  2,  3,  4,
-        0,  1,  2,  3,  4,  0,  1,  2,  3,  4,  0,  1,  2,  3,  4,  0,  1,  2,      4,
-        0,  1,  2,  3,      0,  1,      3,      0,      2,  3,  4,  0,  1,  2,      4,
-    };
-
-    do_non_zero_test(engine, input, expected_shape, expected_results);
+    test_non_zero<int32_t>(layout{ov::PartialShape{2, 2, 2, 1, 5, 1}, data_types::i32, format::bfwzyx}, in_data);
 }

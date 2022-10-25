@@ -12,11 +12,11 @@ Before you start the installation, check the supported operating systems and req
 
 | Supported Operating System                                   | [Python* Version (64-bit)](https://www.python.org/) |
 | :------------------------------------------------------------| :---------------------------------------------------|
-|   Ubuntu* 18.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8                                       |
-|   Ubuntu* 20.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8, 3.9                                  |
-|   Red Hat* Enterprise Linux* 8, 64-bit                       | 3.6, 3.8                                            |
-|   macOS* 10.15.x versions                                    | 3.6, 3.7, 3.8, 3.9                                  |
-|   Windows 10*, 64-bit                                        | 3.6, 3.7, 3.8, 3.9                                  |
+|   Ubuntu* 18.04 long-term support (LTS), 64-bit              | 3.7, 3.8                                            |
+|   Ubuntu* 20.04 long-term support (LTS), 64-bit              | 3.7, 3.8, 3.9, 3.10                                 |
+|   Red Hat* Enterprise Linux* 8, 64-bit                       | 3.8                                                 |
+|   macOS* 10.15.x versions                                    | 3.7, 3.8, 3.9, 3.10                                 |
+|   Windows 10*, 64-bit                                        | 3.7, 3.8, 3.9, 3.10                                 |
 
 **C++ libraries** are also required for the installation on Windows*. To install that, you can [download the Visual Studio Redistributable file (.exe)](https://aka.ms/vs/17/release/vc_redist.x64.exe).
 
@@ -82,6 +82,17 @@ If installation was successful, you will not see any error messages (no console 
 ## Troubleshooting
 
 For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](https://docs.openvino.ai/nightly/openvino_docs_get_started_guide_troubleshooting.html). The following sections also provide explanations to several error messages. 
+
+### Errors with Installing via PIP for Users in China
+
+Users in China might encounter errors while downloading sources via PIP during OpenVINO™ installation. To resolve the issues, try the following solution:
+   
+* Add the download source using the ``-i`` parameter with the Python ``pip`` command. For example: 
+
+   ``` sh
+   pip install openvino -i https://mirrors.aliyun.com/pypi/simple/
+   ```
+   Use the ``--trusted-host`` parameter if the URL above is ``http`` instead of ``https``.
 
 ### ERROR:root:Could not find the Inference Engine or nGraph Python API.
 

@@ -5,13 +5,14 @@
 
 #include <openvino/op/convolution.hpp>
 #include <openvino/op/group_conv.hpp>
+
 #include "utils.hpp"
 
 namespace ov {
 namespace op {
 namespace v1 {
 
-template<class ConvType>
+template <class ConvType>
 int64_t calculate_num_spatial(const ConvType* op,
                               const PartialShape& input_shape,
                               const PartialShape& filters_shape,
@@ -19,41 +20,57 @@ int64_t calculate_num_spatial(const ConvType* op,
                               const int64_t& num_non_spatial_filter_dims) {
     int64_t num_spatial = op->m_num_spatial;
     if (num_spatial == -1) {
-        const auto &input_rank = input_shape.rank();
-        const auto &filters_rank = filters_shape.rank();
+        const auto& input_rank = input_shape.rank();
+        const auto& filters_rank = filters_shape.rank();
 
         if (input_rank.is_static())
             num_spatial = input_rank.get_length() - num_non_spatial_data_dims;
         if (filters_rank.is_static())
             num_spatial = filters_rank.get_length() - num_non_spatial_filter_dims;
 
-        if (const auto &size = op->m_dilations.size()) {
-            NODE_VALIDATION_CHECK(op, num_spatial == -1 || num_spatial == static_cast<int64_t>(size),
+        if (const auto& size = op->m_dilations.size()) {
+            NODE_VALIDATION_CHECK(op,
+                                  num_spatial == -1 || num_spatial == size,
                                   "Dilations should be defined for all and only spatial dimensions.");
             num_spatial = static_cast<int64_t>(size);
         }
-        if (const auto &size = op->m_strides.size()) {
-            NODE_VALIDATION_CHECK(op, num_spatial == -1 || num_spatial == static_cast<int64_t>(size),
+        if (const auto& size = op->m_strides.size()) {
+            NODE_VALIDATION_CHECK(op,
+                                  num_spatial == -1 || num_spatial == size,
                                   "Strides should be defined for all and only spatial dimensions.");
             num_spatial = static_cast<int64_t>(size);
         }
-        if (const auto &size = op->m_pads_begin.size()) {
-            NODE_VALIDATION_CHECK(op, num_spatial == -1 || num_spatial == static_cast<int64_t>(size),
+        if (const auto& size = op->m_pads_begin.size()) {
+            NODE_VALIDATION_CHECK(op,
+                                  num_spatial == -1 || num_spatial == size,
                                   "Pads begin should be defined for all and only spatial dimensions.");
             num_spatial = static_cast<int64_t>(size);
         }
-        if (const auto &size = op->m_pads_end.size()) {
-            NODE_VALIDATION_CHECK(op, num_spatial == -1 || num_spatial == static_cast<int64_t>(size),
-                                  "Pads begin should be defined for all and only spatial dimensions.");
+        if (const auto& size = op->m_pads_end.size()) {
+            NODE_VALIDATION_CHECK(op,
+                                  num_spatial == -1 || num_spatial == size,
+                                  "Pads end should be defined for all and only spatial dimensions.");
             num_spatial = static_cast<int64_t>(size);
         }
     }
     return num_spatial;
 }
 
-template<class ConvType>
-void update_and_validate_attributes(ConvType* op) {
-    const auto& num_spatial = op->m_num_spatial;
+template <class ConvType, class ShapeType>
+int64_t calculate_num_spatial(const ConvType* op,
+                              const ShapeType& input_shape,
+                              const ShapeType& filters_shape,
+                              const int64_t& num_non_spatial_data_dims,
+                              const int64_t& num_non_spatial_filter_dims) {
+    return calculate_num_spatial(op,
+                                 input_shape.to_partial_shape(),
+                                 filters_shape.to_partial_shape(),
+                                 num_non_spatial_data_dims,
+                                 num_non_spatial_filter_dims);
+}
+
+template <class ConvType>
+void update_and_validate_attributes(ConvType* op, int64_t num_spatial) {
     if (num_spatial != -1) {
         auto& strides = op->m_strides;
         auto& dilations = op->m_dilations;
@@ -78,12 +95,12 @@ void update_and_validate_attributes(ConvType* op) {
                               "Dilations should be defined for all and only spatial dimensions..");
         NODE_VALIDATION_CHECK(op,
                               static_cast<int64_t>(pad_begin.size()) == num_spatial &&
-                              static_cast<int64_t>(pad_end.size()) == num_spatial,
+                                  static_cast<int64_t>(pad_end.size()) == num_spatial,
                               "Pads should be defined for all and only spatial dimensions..");
         NODE_VALIDATION_CHECK(op,
                               std::all_of(dilations.begin(),
                                           dilations.end(),
-                                          [](const size_t &i) {
+                                          [](const size_t& i) {
                                               return i > 0;
                                           }),
                               "Filter dilation (",
@@ -92,12 +109,14 @@ void update_and_validate_attributes(ConvType* op) {
         NODE_VALIDATION_CHECK(op,
                               std::all_of(strides.begin(),
                                           strides.end(),
-                                          [](const size_t &i) {
+                                          [](const size_t& i) {
                                               return i > 0;
                                           }),
                               "Filter strides (",
                               strides,
                               ") has zero dimension.");
+    } else if (op->m_num_spatial != -1) {
+        update_and_validate_attributes(op, op->m_num_spatial);
     }
 }
 
@@ -108,16 +127,16 @@ inline bool dynamic_check(const int64_t& num_spatial) {
     return true;
 }
 
-template<>
+template <>
 inline bool dynamic_check<PartialShape>(const int64_t& num_spatial) {
     return num_spatial != -1;
 }
 
-template<class ConvType, class ShapeType>
+template <class ConvType, class ShapeType>
 bool resolve_auto_pad_for_shape(const ConvType* op,
                                 CoordinateDiff& pads_begin,
                                 CoordinateDiff& pads_end,
-                                const std::vector<ShapeType> &input_shapes,
+                                const std::vector<ShapeType>& input_shapes,
                                 const int64_t& num_non_spatial_data_dims,
                                 const int64_t& num_non_spatial_filter_dims) {
     const auto& auto_pad = op->m_auto_pad;
@@ -127,12 +146,17 @@ bool resolve_auto_pad_for_shape(const ConvType* op,
         return true;
     }
 
-    auto& num_spatial = op->m_num_spatial;
-    if (!dynamic_check<ShapeType>(num_spatial))
-        return false;
-
     auto input_shape = input_shapes[0];
     auto filters_shape = input_shapes[1];
+
+    const auto num_spatial = op->m_num_spatial != -1 ? op->m_num_spatial
+                                                     : calculate_num_spatial(op,
+                                                                             input_shape,
+                                                                             filters_shape,
+                                                                             num_non_spatial_data_dims,
+                                                                             num_non_spatial_filter_dims);
+    if (!dynamic_check<ShapeType>(num_spatial))
+        return false;
 
     if (input_shape.rank().is_dynamic())
         input_shape.resize(num_spatial + num_non_spatial_data_dims);
@@ -177,37 +201,62 @@ bool resolve_auto_pad_for_shape(const ConvType* op,
     return status;
 }
 
+template <class DimType>
+void divide_ceil(const DimType& dividend, const typename DimType::value_type& divisor, DimType& quotient) {
+    OPENVINO_ASSERT(divisor >= 0, "divisor must be greater than 0");
+    if (dividend.get_max_length() == -1) {
+        quotient = -1;
+    } else {
+        auto lb = ceil(1. * dividend.get_min_length() / divisor);
+        auto ub = ceil(1. * dividend.get_max_length() / divisor);
+        quotient = DimType(lb, ub);
+    }
+}
 
-template<class ConvType, class ShapeType>
-void calculate_output_spatial_dims_for_convolution(
-        const ConvType* op,
-        const ShapeType& input_shape,
-        const ShapeType& filters_shape,
-        ShapeType& output_shape,
-        const int64_t& num_spatial,
-        const Strides& strides,
-        const Strides& dilations,
-        const CoordinateDiff& pads_begin,
-        const CoordinateDiff& pads_end,
-        const int64_t& num_non_spatial_data_dims,
-        const int64_t& num_non_spatial_filter_dims) {
+template <class DimType>
+void divide_floor(const DimType& dividend, const typename DimType::value_type& divisor, DimType& quotient) {
+    OPENVINO_ASSERT(divisor >= 0, "divisor must be greater than 0");
+    if (dividend.get_max_length() == -1) {
+        quotient = -1;
+    } else {
+        auto lb = floor(1. * dividend.get_min_length() / divisor);
+        auto ub = floor(1. * dividend.get_max_length() / divisor);
+        quotient = DimType(lb, ub);
+    }
+}
 
+template <class ConvType, class ShapeType>
+void calculate_output_spatial_dims_for_convolution(const ConvType* op,
+                                                   const ShapeType& input_shape,
+                                                   const ShapeType& filters_shape,
+                                                   ShapeType& output_shape,
+                                                   const int64_t& num_spatial,
+                                                   const Strides& strides,
+                                                   const Strides& dilations,
+                                                   const CoordinateDiff& pads_begin,
+                                                   const CoordinateDiff& pads_end,
+                                                   const int64_t& num_non_spatial_data_dims,
+                                                   const int64_t& num_non_spatial_filter_dims) {
+    bool auto_pad = op->get_auto_pad() == op::PadType::SAME_UPPER || op->get_auto_pad() == op::PadType::SAME_LOWER;
     for (int64_t i = 0; i < num_spatial; ++i) {
-        const auto& input_dim = input_shape[i + num_non_spatial_data_dims];
+        auto input_dim = input_shape[i + num_non_spatial_data_dims];
+        if (auto_pad) {
+            divide_ceil(input_dim, strides[i], output_shape[i + num_non_spatial_data_dims]);
+            continue;
+        }
         const auto& filters_dim = filters_shape[i + num_non_spatial_filter_dims];
+        const auto& window_dilated_dim = (filters_dim - 1) * dilations[i] + 1;
+        const auto& data_padded_dilated_dim = input_dim + pads_begin[i] + pads_end[i];
         if (input_dim.is_static() && filters_dim.is_static()) {
-            const int64_t& window_dilated_dim = (filters_dim.get_length() - 1) * dilations[i] + 1;
             NODE_VALIDATION_CHECK(op,
-                                  window_dilated_dim > 0,
+                                  window_dilated_dim.get_length() > 0,
                                   "Window after dilation has dimension less than 1 (dim: ",
                                   window_dilated_dim,
                                   ") at axis ",
                                   i,
                                   ".");
-
-            const int64_t& data_padded_dilated_dim = input_dim.get_length() + pads_begin[i] + pads_end[i];
             NODE_VALIDATION_CHECK(op,
-                                  window_dilated_dim <= data_padded_dilated_dim,
+                                  window_dilated_dim.get_length() <= data_padded_dilated_dim.get_length(),
                                   "Window after dilation has dimension (dim: ",
                                   window_dilated_dim,
                                   ") larger than the data shape after padding (dim: ",
@@ -215,23 +264,32 @@ void calculate_output_spatial_dims_for_convolution(
                                   ") at axis ",
                                   i,
                                   ".");
-            output_shape[i + num_non_spatial_data_dims] = (data_padded_dilated_dim - window_dilated_dim) / strides[i] + 1;
         }
+        divide_floor(data_padded_dilated_dim - window_dilated_dim,
+                     strides[i],
+                     output_shape[i + num_non_spatial_data_dims]);
+        output_shape[i + num_non_spatial_data_dims] += 1;
     }
 }
 
-
-template<class T>
+template <class T>
 void shape_infer(const Convolution* op,
                  const CoordinateDiff& pads_begin,
                  const CoordinateDiff& pads_end,
-                 const std::vector<T> &input_shapes,
-                 std::vector<T> &output_shapes) {
+                 const std::vector<T>& input_shapes,
+                 std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1);
+    constexpr size_t num_non_spatial_data_dims = 2, num_non_spatial_filter_dims = 2;
     auto input_shape = input_shapes[0], filters_shape = input_shapes[1];
 
-    const auto& num_spatial = op->m_num_spatial;
-    NODE_VALIDATION_CHECK(op, num_spatial != -1,
+    const auto num_spatial = op->m_num_spatial != -1 ? op->m_num_spatial
+                                                     : calculate_num_spatial(op,
+                                                                             input_shape,
+                                                                             filters_shape,
+                                                                             num_non_spatial_data_dims,
+                                                                             num_non_spatial_filter_dims);
+    NODE_VALIDATION_CHECK(op,
+                          num_spatial != -1,
                           "Convolution shape_infer should be provided with correct num_spatial attribute");
 
     if (input_shape.rank().is_dynamic())
@@ -239,67 +297,82 @@ void shape_infer(const Convolution* op,
     if (filters_shape.rank().is_dynamic())
         filters_shape.resize(num_spatial + 2);
 
-    NODE_VALIDATION_CHECK(op,
-                          (static_cast<int64_t>(input_shape.size()) == (num_spatial + 2)) &&
-                          (static_cast<int64_t>(filters_shape.size()) == (num_spatial + 2)),
-                          "Data batch and filters rank do not match (data batch shape: ",
-                          input_shape,
-                          ", filters shape: ",
-                          filters_shape,
-                          ").");
+    NODE_VALIDATION_CHECK(
+        op,
+        (static_cast<int64_t>(input_shape.size()) == (num_spatial + num_non_spatial_data_dims)) &&
+            (static_cast<int64_t>(filters_shape.size()) == (num_spatial + num_non_spatial_filter_dims)),
+        "Data batch and filters rank do not match (data batch shape: ",
+        input_shape,
+        ", filters shape: ",
+        filters_shape,
+        ").");
 
     // ranks are originally static or aligned with num_spatial, attributes assumed to be valid
     auto& output_shape = output_shapes[0];
-    output_shape.resize(num_spatial + 2);
+    output_shape.resize(num_spatial + num_non_spatial_data_dims);
     output_shape[0] = input_shape[0];
     output_shape[1] = filters_shape[0];
 
-    NODE_VALIDATION_CHECK(
-            op,
-            input_shape[1].compatible(filters_shape[1]),
-            "Data batch channel count (",
-            input_shape[1],
-            ") does not match filter input ",
-            "channel count (",
-            filters_shape[1],
-            ").");
+    NODE_VALIDATION_CHECK(op,
+                          input_shape[1].compatible(filters_shape[1]),
+                          "Data batch channel count (",
+                          input_shape[1],
+                          ") does not match filter input ",
+                          "channel count (",
+                          filters_shape[1],
+                          ").");
 
-    calculate_output_spatial_dims_for_convolution(
-        op, input_shape, filters_shape, output_shape,
-        num_spatial, op->m_strides, op->m_dilations, pads_begin, pads_end, 2, 2
-    );
+    calculate_output_spatial_dims_for_convolution(op,
+                                                  input_shape,
+                                                  filters_shape,
+                                                  output_shape,
+                                                  num_spatial,
+                                                  op->m_strides,
+                                                  op->m_dilations,
+                                                  pads_begin,
+                                                  pads_end,
+                                                  num_non_spatial_data_dims,
+                                                  num_non_spatial_filter_dims);
 }
 
-template<class T>
+template <class T>
 void shape_infer(const GroupConvolution* op,
                  const CoordinateDiff& pads_begin,
                  const CoordinateDiff& pads_end,
-                 const std::vector<T> &input_shapes,
-                 std::vector<T> &output_shapes) {
+                 const std::vector<T>& input_shapes,
+                 std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1);
     auto input_shape = input_shapes[0], filters_shape = input_shapes[1];
+    constexpr size_t num_non_spatial_data_dims = 2, num_non_spatial_filter_dims = 3;
 
-    const auto& num_spatial = op->m_num_spatial;
-    NODE_VALIDATION_CHECK(op, num_spatial != -1,
+    const auto num_spatial = op->m_num_spatial != -1 ? op->m_num_spatial
+                                                     : calculate_num_spatial(op,
+                                                                             input_shape,
+                                                                             filters_shape,
+                                                                             num_non_spatial_data_dims,
+                                                                             num_non_spatial_filter_dims);
+    NODE_VALIDATION_CHECK(op,
+                          num_spatial != -1,
                           "GroupConvolution shape_infer should be provided with correct num_spatial attribute");
 
     if (input_shape.rank().is_dynamic())
-        input_shape.resize(num_spatial + 2);
+        input_shape.resize(num_spatial + num_non_spatial_data_dims);
     if (filters_shape.rank().is_dynamic())
-        filters_shape.resize(num_spatial + 3);
+        filters_shape.resize(num_spatial + num_non_spatial_filter_dims);
 
-    NODE_VALIDATION_CHECK(op,
-                          (static_cast<int64_t>(input_shape.size()) == (num_spatial + 2)) &&
-                          (static_cast<int64_t>(filters_shape.size()) == (num_spatial + 3)),
-                          "Data batch and filters rank do not match (data batch shape: ",
-                          input_shape,
-                          ", filters shape: ",
-                          filters_shape,
-                          ").");
+    NODE_VALIDATION_CHECK(
+        op,
+        (static_cast<int64_t>(input_shape.size()) == (num_spatial + num_non_spatial_data_dims)) &&
+            (static_cast<int64_t>(filters_shape.size()) == (num_spatial + num_non_spatial_filter_dims)),
+        "Data batch and filters rank do not match (data batch shape: ",
+        input_shape,
+        ", filters shape: ",
+        filters_shape,
+        ").");
 
     // ranks are originally static or aligned with num_spatial, attributes assumed to be valid
     auto& output_shape = output_shapes[0];
-    output_shape.resize(num_spatial + 2);
+    output_shape.resize(num_spatial + num_non_spatial_data_dims);
     output_shape[0] = input_shape[0];
 
     auto groups = filters_shape[0];
@@ -316,28 +389,33 @@ void shape_infer(const GroupConvolution* op,
     if (input_shape[1].is_static()) {
         // GROUPS and C_IN consistency checks
         if (groups.is_static() && filters_shape[2].is_static()) {
-            NODE_VALIDATION_CHECK(
-                op,
-                input_shape[1].get_length() / groups.get_length() == filters_shape[2].get_length(),
-                "Input channels dimension of data batch has incompatible value "
-                "with filter shape.");
+            NODE_VALIDATION_CHECK(op,
+                                  input_shape[1].get_length() / groups.get_length() == filters_shape[2].get_length(),
+                                  "Input channels dimension of data batch has incompatible value "
+                                  "with filter shape.");
         } else if (groups.is_static()) {
-            NODE_VALIDATION_CHECK(
-                    op,
-                    input_shape[1].get_length() % groups.get_length() == 0,
-                    "Input channels dimension of data batch not a multiple of group size.");
+            NODE_VALIDATION_CHECK(op,
+                                  input_shape[1].get_length() % groups.get_length() == 0,
+                                  "Input channels dimension of data batch not a multiple of group size.");
         }
     }
 
     output_shape[1] = groups * filters_shape[1];
 
-    calculate_output_spatial_dims_for_convolution(
-        op, input_shape, filters_shape, output_shape,
-        num_spatial, op->m_strides, op->m_dilations, pads_begin, pads_end, 2, 3
-    );
+    calculate_output_spatial_dims_for_convolution(op,
+                                                  input_shape,
+                                                  filters_shape,
+                                                  output_shape,
+                                                  num_spatial,
+                                                  op->m_strides,
+                                                  op->m_dilations,
+                                                  pads_begin,
+                                                  pads_end,
+                                                  num_non_spatial_data_dims,
+                                                  num_non_spatial_filter_dims);
 }
 
-template<class ConvType>
+template <class ConvType>
 int64_t calculate_num_spatial(const ConvType* op,
                               const PartialShape& input_shape,
                               const PartialShape& filters_shape,
@@ -346,16 +424,23 @@ int64_t calculate_num_spatial(const ConvType* op,
                               const int64_t& num_non_spatial_filter_dims) {
     auto num_spatial = op->m_num_spatial;
     if (num_spatial == -1) {
-        num_spatial = calculate_num_spatial(
-            op, input_shape, filters_shape, num_non_spatial_data_dims, num_non_spatial_filter_dims);
-        if (const auto &size = op->m_output_padding.size()) {
-            NODE_VALIDATION_CHECK(op, num_spatial == -1 || num_spatial == static_cast<int64_t>(size),
+        num_spatial = calculate_num_spatial(op,
+                                            input_shape,
+                                            filters_shape,
+                                            num_non_spatial_data_dims,
+                                            num_non_spatial_filter_dims);
+        if (const auto& size = op->m_output_padding.size()) {
+            NODE_VALIDATION_CHECK(op,
+                                  num_spatial == -1 || num_spatial == size,
                                   "Output padding should be defined for all and only spatial dimensions.");
             num_spatial = static_cast<int64_t>(size);
         }
         if (output_shapes_shape.is_static()) {
-            NODE_VALIDATION_CHECK(op, output_shapes_shape.size() == 1, "Input delivering output shape must have rank 1");
-            NODE_VALIDATION_CHECK(op, num_spatial == -1 || num_spatial == output_shapes_shape[0].get_length(),
+            NODE_VALIDATION_CHECK(op,
+                                  output_shapes_shape.size() == 1,
+                                  "Input delivering output shape must have rank 1");
+            NODE_VALIDATION_CHECK(op,
+                                  num_spatial == -1 || num_spatial == output_shapes_shape[0].get_length(),
                                   "Output shape should be specified only and for all spatial dimensions.");
             num_spatial = static_cast<int64_t>(output_shapes_shape[0].get_length());
         }
@@ -363,11 +448,25 @@ int64_t calculate_num_spatial(const ConvType* op,
     return num_spatial;
 }
 
-template<class ConvType>
-void update_and_validate_attributes_back_prop(ConvType* op) {
-    const auto& num_spatial = op->m_num_spatial;
+template <class ConvType, class ShapeType>
+int64_t calculate_num_spatial(const ConvType* op,
+                              const ShapeType& input_shape,
+                              const ShapeType& filters_shape,
+                              const ShapeType& output_shapes_shape,
+                              const int64_t& num_non_spatial_data_dims,
+                              const int64_t& num_non_spatial_filter_dims) {
+    return calculate_num_spatial(op,
+                                 input_shape.to_partial_shape(),
+                                 filters_shape.to_partial_shape(),
+                                 output_shapes_shape.to_partial_shape(),
+                                 num_non_spatial_data_dims,
+                                 num_non_spatial_filter_dims);
+}
+
+template <class ConvType>
+void update_and_validate_attributes_back_prop(ConvType* op, int64_t num_spatial) {
     if (num_spatial != -1) {
-        update_and_validate_attributes(op);
+        update_and_validate_attributes(op, num_spatial);
         auto& output_padding = op->m_output_padding;
         if (output_padding.empty())
             output_padding = CoordinateDiff(num_spatial, 0);
@@ -375,18 +474,19 @@ void update_and_validate_attributes_back_prop(ConvType* op) {
                               static_cast<int64_t>(output_padding.size()) == num_spatial,
                               "Output padding should be defined for all and only "
                               "spatial dimensions..");
+    } else if (op->m_num_spatial != -1) {
+        update_and_validate_attributes_back_prop(op, op->m_num_spatial);
     }
 }
 
-
-template<class ConvType, class ShapeType>
+template <class ConvType, class ShapeType>
 bool resolve_auto_pad_for_shape_back_prop(const ConvType* op,
-                                CoordinateDiff& pads_begin,
-                                CoordinateDiff& pads_end,
-                                const std::vector<ShapeType> &input_shapes,
-                                ShapeType& output_spatial_shape,
-                                const int64_t& num_non_spatial_data_dims,
-                                const int64_t& num_non_spatial_filter_dims) {
+                                          CoordinateDiff& pads_begin,
+                                          CoordinateDiff& pads_end,
+                                          const std::vector<ShapeType>& input_shapes,
+                                          ShapeType& output_spatial_shape,
+                                          const int64_t& num_non_spatial_data_dims,
+                                          const int64_t& num_non_spatial_filter_dims) {
     const auto& auto_pad = op->m_auto_pad;
     if (auto_pad != PadType::SAME_UPPER && auto_pad != PadType::SAME_LOWER) {
         pads_begin = op->m_pads_begin;
@@ -429,7 +529,9 @@ bool resolve_auto_pad_for_shape_back_prop(const ConvType* op,
             const auto& strides = op->m_strides[i];
             const auto& dilations = op->m_dilations[i];
             int total_padding = std::max<int>(
-                    strides * (data_dim.get_length() - 1) + dilations * (filter_dim.get_length() - 1) + 1 - output_dim.get_length() + output_padding, 0);
+                static_cast<int>(strides * (data_dim.get_length() - 1) + dilations * (filter_dim.get_length() - 1) + 1 -
+                                 output_dim.get_length() + output_padding),
+                0);
             if (auto_pad != op::PadType::SAME_UPPER) {
                 pads_begin[i] = total_padding / 2;
                 pads_end[i] = total_padding - pads_begin[i];
@@ -444,26 +546,6 @@ bool resolve_auto_pad_for_shape_back_prop(const ConvType* op,
     return status;
 }
 
-
-
-template<class ConvType, class ShapeType>
-void calculate_output_spatial_dims_for_convolution_back_prop_data(
-        const ConvType* op,
-        const ShapeType& input_shape,
-        const ShapeType& filters_shape,
-        const ShapeType& output_rank,
-        ShapeType& output_shape,
-        const int64_t& num_spatial,
-        const Strides& strides,
-        const Strides& dilations,
-        const CoordinateDiff& pads_begin,
-        const CoordinateDiff& pads_end,
-        const CoordinateDiff& output_padding,
-        const int64_t& num_non_spatial_data_dims,
-        const int64_t& num_non_spatial_filter_dims) {
-
-}
-
 template <class T>
 void shape_infer(const ConvolutionBackpropData* op,
                  const CoordinateDiff& pads_begin,
@@ -471,56 +553,75 @@ void shape_infer(const ConvolutionBackpropData* op,
                  const T& output_shape_from_input,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes) {
+    constexpr size_t num_non_spatial_data_dims = 2, num_non_spatial_filter_dims = 2;
     size_t input_size = input_shapes.size();
     NODE_VALIDATION_CHECK(op, (input_size == 2 || input_size == 3) && output_shapes.size() == 1);
     auto input_shape = input_shapes[0], filters_shape = input_shapes[1];
 
-    const auto& num_spatial = op->m_num_spatial;
-    NODE_VALIDATION_CHECK(op, num_spatial != -1,
+    const auto num_spatial = op->m_num_spatial != -1
+                                 ? op->m_num_spatial
+                                 : input_size == 3 ? calculate_num_spatial(op,
+                                                                           input_shape,
+                                                                           filters_shape,
+                                                                           input_shapes[2],
+                                                                           num_non_spatial_data_dims,
+                                                                           num_non_spatial_filter_dims)
+                                                   : calculate_num_spatial(op,
+                                                                           input_shape,
+                                                                           filters_shape,
+                                                                           num_non_spatial_data_dims,
+                                                                           num_non_spatial_filter_dims);
+
+    NODE_VALIDATION_CHECK(op,
+                          num_spatial != -1,
                           "ConvolutionBackpropData shape_infer should be provided with correct num_spatial attribute");
 
-    NODE_VALIDATION_CHECK(op, num_spatial == 1 || num_spatial == 2 || num_spatial == 3,
+    NODE_VALIDATION_CHECK(op,
+                          num_spatial == 1 || num_spatial == 2 || num_spatial == 3,
                           "Data and filters inputs must have rank 3, 4 or 5");
 
     if (input_shape.rank().is_dynamic())
-        input_shape.resize(num_spatial + 2);
+        input_shape.resize(num_spatial + num_non_spatial_data_dims);
     if (filters_shape.rank().is_dynamic())
-        filters_shape.resize(num_spatial + 2);
+        filters_shape.resize(num_spatial + num_non_spatial_filter_dims);
 
-    NODE_VALIDATION_CHECK(op,
-                          (static_cast<int64_t>(input_shape.size()) == (num_spatial + 2)) &&
-                          (static_cast<int64_t>(filters_shape.size()) == (num_spatial + 2)),
-                          "Data and filters rank do not match (data batch shape: ",
-                          input_shape,
-                          ", filters shape: ",
-                          filters_shape,
-                          ").");
+    NODE_VALIDATION_CHECK(
+        op,
+        (static_cast<int64_t>(input_shape.size()) == (num_spatial + num_non_spatial_data_dims)) &&
+            (static_cast<int64_t>(filters_shape.size()) == (num_spatial + num_non_spatial_filter_dims)),
+        "Data and filters rank do not match (data batch shape: ",
+        input_shape,
+        ", filters shape: ",
+        filters_shape,
+        ").");
 
     // ranks are originally static or aligned with num_spatial, attributes assumed to be valid
     auto& output_shape = output_shapes[0];
-    output_shape.resize(num_spatial + 2);
+    output_shape.resize(num_spatial + num_non_spatial_data_dims);
     output_shape[0] = input_shape[0];
     output_shape[1] = filters_shape[1];
 
-    NODE_VALIDATION_CHECK(op, input_shape[1].compatible(filters_shape[0]),
+    NODE_VALIDATION_CHECK(op,
+                          input_shape[1].compatible(filters_shape[0]),
                           "Input channels dimension of data and filters inputs must be equal");
 
     if (input_size == 3) {
         if (output_shape_from_input.rank().is_static()) {
-            NODE_VALIDATION_CHECK(op, output_shape_from_input.size() == num_spatial,
+            NODE_VALIDATION_CHECK(op,
+                                  output_shape_from_input.size() == num_spatial,
                                   "Output shape should be specified only and for all spatial dimensions.");
             for (int64_t i = 0; i < num_spatial; ++i)
-                output_shape[i + 2] = output_shape_from_input[i];
+                output_shape[i + num_non_spatial_data_dims] = output_shape_from_input[i];
         }
     } else {
         const auto& strides = op->m_strides;
         const auto& dilations = op->m_dilations;
         const auto& output_padding = op->m_output_padding;
         for (int64_t i = 0; i < num_spatial; ++i) {
-            if (filters_shape[i + 2].is_static() && input_shape[i + 2].is_static())
-                output_shape[i + 2] = strides[i] * (input_shape[i + 2].get_length() - 1) +
-                  dilations[i] * (filters_shape[i + 2].get_length() - 1) + 1 - pads_begin[i] - pads_end[i] +
-                  output_padding[i];
+            const auto &data_idx = i + num_non_spatial_data_dims, filter_idx = i + num_non_spatial_filter_dims;
+            output_shape[data_idx] = (input_shape[data_idx] - 1) * strides[i] +
+                                     (filters_shape[filter_idx] - 1) * dilations[i] + 1 - pads_begin[i] - pads_end[i] +
+                                     output_padding[i];
         }
     }
 }
@@ -532,34 +633,52 @@ void shape_infer(const GroupConvolutionBackpropData* op,
                  const T& output_shape_from_input,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes) {
+    constexpr size_t num_non_spatial_data_dims = 2, num_non_spatial_filter_dims = 3;
     size_t input_size = input_shapes.size();
     NODE_VALIDATION_CHECK(op, (input_size == 2 || input_size == 3) && output_shapes.size() == 1);
     auto input_shape = input_shapes[0], filters_shape = input_shapes[1];
 
-    const auto& num_spatial = op->m_num_spatial;
-    NODE_VALIDATION_CHECK(op, num_spatial != -1,
-                          "GroupConvolutionBackpropData shape_infer should be provided with correct num_spatial attribute");
+    const auto num_spatial = op->m_num_spatial != -1
+                                 ? op->m_num_spatial
+                                 : input_size == 3 ? calculate_num_spatial(op,
+                                                                           input_shape,
+                                                                           filters_shape,
+                                                                           input_shapes[2],
+                                                                           num_non_spatial_data_dims,
+                                                                           num_non_spatial_filter_dims)
+                                                   : calculate_num_spatial(op,
+                                                                           input_shape,
+                                                                           filters_shape,
+                                                                           num_non_spatial_data_dims,
+                                                                           num_non_spatial_filter_dims);
 
-    NODE_VALIDATION_CHECK(op, num_spatial == 1 || num_spatial == 2 || num_spatial == 3,
+    NODE_VALIDATION_CHECK(
+        op,
+        num_spatial != -1,
+        "GroupConvolutionBackpropData shape_infer should be provided with correct num_spatial attribute");
+
+    NODE_VALIDATION_CHECK(op,
+                          num_spatial == 1 || num_spatial == 2 || num_spatial == 3,
                           "Data and filters inputs must have rank 3, 4 or 5");
 
     if (input_shape.rank().is_dynamic())
-        input_shape.resize(num_spatial + 2);
+        input_shape.resize(num_spatial + num_non_spatial_data_dims);
     if (filters_shape.rank().is_dynamic())
-        filters_shape.resize(num_spatial + 3);
+        filters_shape.resize(num_spatial + num_non_spatial_filter_dims);
 
-    NODE_VALIDATION_CHECK(op,
-                          (static_cast<int64_t>(input_shape.size()) == (num_spatial + 2)) &&
-                          (static_cast<int64_t>(filters_shape.size()) == (num_spatial + 3)),
-                          "Data and filters rank do not match (data batch shape: ",
-                          input_shape,
-                          ", filters shape: ",
-                          filters_shape,
-                          ").");
+    NODE_VALIDATION_CHECK(
+        op,
+        (static_cast<int64_t>(input_shape.size()) == (num_spatial + num_non_spatial_data_dims)) &&
+            (static_cast<int64_t>(filters_shape.size()) == (num_spatial + num_non_spatial_filter_dims)),
+        "Data and filters rank do not match (data batch shape: ",
+        input_shape,
+        ", filters shape: ",
+        filters_shape,
+        ").");
 
     // ranks are originally static or aligned with num_spatial, attributes assumed to be valid
     auto& output_shape = output_shapes[0];
-    output_shape.resize(num_spatial + 2);
+    output_shape.resize(num_spatial + num_non_spatial_data_dims);
     output_shape[0] = input_shape[0];
 
     auto groups = filters_shape[0];
@@ -576,16 +695,14 @@ void shape_infer(const GroupConvolutionBackpropData* op,
     if (input_shape[1].is_static()) {
         // GROUPS and C_IN consistency checks
         if (groups.is_static() && filters_shape[1].is_static()) {
-            NODE_VALIDATION_CHECK(
-                    op,
-                    input_shape[1].get_length() / groups.get_length() == filters_shape[1].get_length(),
-                    "Input channels dimension of data batch has incompatible value "
-                    "with filter shape.");
+            NODE_VALIDATION_CHECK(op,
+                                  input_shape[1].get_length() / groups.get_length() == filters_shape[1].get_length(),
+                                  "Input channels dimension of data batch has incompatible value "
+                                  "with filter shape.");
         } else if (groups.is_static()) {
-            NODE_VALIDATION_CHECK(
-                    op,
-                    input_shape[1].get_length() % groups.get_length() == 0,
-                    "Input channels dimension of data batch not a multiple of group size.");
+            NODE_VALIDATION_CHECK(op,
+                                  input_shape[1].get_length() % groups.get_length() == 0,
+                                  "Input channels dimension of data batch not a multiple of group size.");
         }
     }
 
@@ -593,24 +710,25 @@ void shape_infer(const GroupConvolutionBackpropData* op,
 
     if (input_size == 3) {
         if (output_shape_from_input.rank().is_static()) {
-            NODE_VALIDATION_CHECK(op, output_shape_from_input.size() == num_spatial,
+            NODE_VALIDATION_CHECK(op,
+                                  output_shape_from_input.size() == num_spatial,
                                   "Output shape should be specified only and for all spatial dimensions.");
             for (int64_t i = 0; i < num_spatial; ++i)
-                output_shape[i + 2] = output_shape_from_input[i];
+                output_shape[i + num_non_spatial_data_dims] = output_shape_from_input[i];
         }
     } else {
         const auto& strides = op->m_strides;
         const auto& dilations = op->m_dilations;
         const auto& output_padding = op->m_output_padding;
         for (int64_t i = 0; i < num_spatial; ++i) {
-            if (filters_shape[i + 3].is_static() && input_shape[i + 2].is_static())
-                output_shape[i + 2] = strides[i] * (input_shape[i + 2].get_length() - 1) +
-                  dilations[i] * (filters_shape[i + 3].get_length() - 1) + 1 - pads_begin[i] - pads_end[i] +
-                  output_padding[i];
+            const auto &data_idx = i + num_non_spatial_data_dims, filter_idx = i + num_non_spatial_filter_dims;
+            output_shape[data_idx] = (input_shape[data_idx] - 1) * strides[i] +
+                                     (filters_shape[filter_idx] - 1) * dilations[i] + 1 - pads_begin[i] - pads_end[i] +
+                                     output_padding[i];
         }
     }
 }
 
-}
-}
-}
+}  // namespace v1
+}  // namespace op
+}  // namespace ov

@@ -91,6 +91,8 @@ std::shared_ptr<ov::Node> clone(const std::shared_ptr<ov::Node> &node, LayerTest
                                                                                            constant->get_shape());
                 op_inputs.push_back(param);
 
+                has_parameters = true;
+
             } else {
                 const auto clone = std::make_shared<ov::op::v0::Constant>(constant->get_element_type(),
                                                                               constant->get_shape(),
@@ -143,6 +145,8 @@ std::shared_ptr<ov::Node> clone_weightable_node(const std::shared_ptr<ov::Node> 
                 auto param = std::make_shared<ov::op::v0::Parameter>(constant_input->get_element_type(),
                                                                                    constant_input->get_shape());
                 op_inputs.push_back(param);
+
+                has_parameters = true;
             } else {
                 const auto clone = std::make_shared<ov::op::v0::Constant>(constant_input->get_element_type(),
                                                                               constant_input->get_shape(),
@@ -226,6 +230,8 @@ const ClonersMap::cloners_map_type ClonersMap::cloners{
 #include <ngraph/opsets/opset5_tbl.hpp>
 #include <ngraph/opsets/opset6_tbl.hpp>
 #include <ngraph/opsets/opset7_tbl.hpp>
+#include <ngraph/opsets/opset8_tbl.hpp>
+#include <ngraph/opsets/opset9_tbl.hpp>
 };
 #undef NGRAPH_OP
 

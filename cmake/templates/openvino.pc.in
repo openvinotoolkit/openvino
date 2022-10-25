@@ -5,8 +5,8 @@
 pc_path=${pcfiledir}
 prefix=${pc_path}/@PKGCONFIG_OpenVINO_PREFIX@
 
-exec_prefix=${prefix}/@OV_CPACK_RUNTIMEDIR@
-libdir=${exec_prefix}/@PKGCONFIG_OpenVINO_TRIPLET@
+exec_prefix=${prefix}/@OV_WHEEL_RUNTIMEDIR@
+libdir=${exec_prefix}
 
 include_prefix=${prefix}/@OV_CPACK_INCLUDEDIR@
 includedir_old=${include_prefix}/ie

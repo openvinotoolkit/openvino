@@ -32,7 +32,7 @@ op::Squeeze::Squeeze(const Output<Node>& data) : Op({data}) {
 }
 
 void op::Squeeze::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_Squeeze_validate_and_infer_types);
+    OV_OP_SCOPE(v0_Squeeze_validate_and_infer_types);
     auto data = input_value(0);
     bool data_has_dynamic_rank = data.get_partial_shape().rank().is_dynamic();
     bool data_has_dynamic_shape = data.get_partial_shape().is_dynamic();
@@ -120,12 +120,12 @@ void op::Squeeze::validate_and_infer_types() {
 }
 
 bool ngraph::op::v0::Squeeze::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Squeeze_visit_attributes);
+    OV_OP_SCOPE(v0_Squeeze_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::Squeeze::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Squeeze_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_Squeeze_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 1) {
         return make_shared<Squeeze>(new_args.at(0));
@@ -208,7 +208,7 @@ bool evaluate_squeeze(const HostTensorPtr& arg0, const HostTensorPtr& out) {
 }  // namespace squeeze
 
 bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_Squeeze_evaluate);
+    OV_OP_SCOPE(v0_Squeeze_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, inputs.size()));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
 
@@ -220,7 +220,7 @@ bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs, const HostTensor
 }
 
 bool op::v0::Squeeze::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_Squeeze_has_evaluate);
+    OV_OP_SCOPE(v0_Squeeze_has_evaluate);
 
     if (get_input_size() == 2) {
         switch (get_input_element_type(1)) {
@@ -245,7 +245,7 @@ bool op::v0::Squeeze::has_evaluate() const {
 }
 
 bool op::v0::Squeeze::evaluate_lower(const HostTensorVector& output_values) const {
-    NGRAPH_OP_SCOPE(v0_Squeeze_evaluate_lower);
+    OV_OP_SCOPE(v0_Squeeze_evaluate_lower);
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
 
     if (inputs().size() > 1 && !input_value(1).get_tensor().has_and_set_bound())
@@ -254,7 +254,7 @@ bool op::v0::Squeeze::evaluate_lower(const HostTensorVector& output_values) cons
 }
 
 bool op::v0::Squeeze::evaluate_upper(const HostTensorVector& output_values) const {
-    NGRAPH_OP_SCOPE(v0_Squeeze_evaluate_upper);
+    OV_OP_SCOPE(v0_Squeeze_evaluate_upper);
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
 
     if (inputs().size() > 1 && !input_value(1).get_tensor().has_and_set_bound())
@@ -269,7 +269,7 @@ bool op::v0::Squeeze::evaluate_label(TensorLabelVector& output_labels) const {
 }
 
 bool op::v0::Squeeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
-    NGRAPH_OP_SCOPE(v0_Squeeze_constant_fold);
+    OV_OP_SCOPE(v0_Squeeze_constant_fold);
     if (get_output_partial_shape(0).is_dynamic() || is_const_fold_disabled()) {
         return false;
     }

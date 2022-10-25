@@ -119,7 +119,6 @@ xfail_issue_63033 = xfail_test(reason="BatchNormalization: Training mode is not 
 xfail_issue_63036 = xfail_test(reason="Changes in ConvTranspose padding")
 xfail_issue_63039 = xfail_test(reason="Result mismatches with UINT8 operations")
 xfail_issue_63043 = xfail_test(reason="Recurrent node expects constants as W, R, B inputs.")
-xfail_issue_63044 = xfail_test(reason="ONNX opset 14 operation: Trilu")
 
 skip_rng_tests = pytest.mark.skip(reason="Tests use random number generator with no seed.")
 xfail_issue_63137 = xfail_test(reason="Unsupported operations: OptionalHasElement, OptionalGetElement")
@@ -134,3 +133,4 @@ xfail_issue_82039 = xfail_test(reason="Unsupported data type Optional, RuntimeEr
                                       "CPU plugin: Input image format UNSPECIFIED is not supported yet...")
 
 xfail_issue_86911 = xfail_test(reason="LSTM_Seq_len_unpacked - AssertionError: zoo models results mismatch")
+xfail_issue_91490 = xfail_test(reason="y has zero dimension which is not allowed")
