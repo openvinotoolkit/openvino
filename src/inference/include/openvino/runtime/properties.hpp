@@ -725,8 +725,7 @@ static constexpr Property<std::vector<std::string>, PropertyMutability::RO> capa
  * the hash calculation for model cache
  * @ingroup ov_runtime_cpp_prop_api
  */
-static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> caching_properties{
-    "CACHING_PROPERTIES"};
+static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> caching_properties{"CACHING_PROPERTIES"};
 
 /**
  * @brief Namespace with possible values for ov::device::capabilities property
