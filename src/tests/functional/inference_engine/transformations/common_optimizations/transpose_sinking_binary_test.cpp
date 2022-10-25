@@ -16,11 +16,14 @@
 
 #include "gtest/gtest.h"
 
+#include "ngraph/pass/visualize_tree.hpp" // DEBUG
+
 namespace {
 
 using NodePtr = std::shared_ptr<ov::Node>;
 using Nodes = std::vector<NodePtr>;
 using ModelPtr = std::shared_ptr<ov::Model>;
+using Output = ov::Output<ov::Node>;
 
 class IBinaryFactory {
 public:
@@ -60,7 +63,9 @@ template <typename PassT>
 class PassFactory : public IPassFactory {
 public:
     void registerPass(ov::pass::Manager& pass_manager) const override {
+        //pass_manager.register_pass<ngraph::pass::VisualizeTree>("./0before.png"); // DEBUG
         pass_manager.register_pass<PassT>();
+        //pass_manager.register_pass<ngraph::pass::VisualizeTree>("./1after.png"); // DEBUG
     }
 };
 
@@ -673,3 +678,258 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(concat::single_consumer::forward::double_transpose::CreateReferenceFunction),
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(5)));
+
+// --------------------------------------------------------------------------------------
+
+using CreateGraphSplitForwardF = std::function< std::shared_ptr<ov::Model> (size_t num_split_ops,
+                                                                            size_t num_split_outputs,
+                                                                            ov::element::Type input_type)>;
+
+using TestSplitForwardParams = std::tuple<PassFactoryPtr,
+                              size_t, /* num_split_ops */
+                              size_t, /* num_split_outputs */
+                              CreateGraphSplitForwardF, /* model_factory */
+                              CreateGraphSplitForwardF, /* reference_model_factory */
+                              ov::element::Type> /* input type */;
+
+class TransposeSinkingSplitForwardTestFixture: public ::testing::WithParamInterface<TestSplitForwardParams>,
+                                        public TransformationTestsF {};
+
+namespace {
+
+std::vector<size_t> split_operations_numbers = {1, 10};
+
+std::vector<size_t> split_outputs_numbers = {2, 5};
+
+} // namespace
+
+// --------------------------------------------------------------------------------------
+
+namespace split {
+namespace forward {
+std::shared_ptr<ov::Model> CreateFunction(size_t num_split_ops,
+                                          size_t num_split_outputs,
+                                          ov::element::Type input_type) {
+        const ov::Shape input_shape{96, static_cast<size_t>(std::pow(num_split_outputs, num_split_ops + 1)), 55, 55};
+
+        auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+
+        auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+        auto transpose0 = std::make_shared<ov::opset9::Transpose>(X, ng_order0);
+
+        ov::OutputVector outputs;
+        Output in_op = transpose0->output(0);
+        for (size_t i = 0; i < num_split_ops; ++i) {
+            auto split_axis_const = std::make_shared<ov::opset9::Constant>(ov::element::u64,
+                                                                           ov::Shape{},
+                                                                           2);
+            auto split = std::make_shared<ov::opset9::Split>(in_op, split_axis_const, num_split_outputs);
+            for (size_t num_output = 0; num_output < num_split_outputs - 1; ++num_output) {
+                outputs.push_back(split->output(num_output));
+            }
+            in_op = split->output(num_split_outputs - 1);
+        }
+        outputs.push_back(in_op);
+
+        return std::make_shared<ov::Model>(outputs, ov::ParameterVector{X});
+}
+
+std::shared_ptr<ov::Model> CreateReferenceFunction(size_t num_split_ops,
+                                                   size_t num_split_outputs,
+                                                   ov::element::Type input_type) {
+        const ov::Shape input_shape{96, static_cast<size_t>(std::pow(num_split_outputs, num_split_ops + 1)), 55, 55};
+
+        auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+
+        ov::OutputVector outputs;
+        Output in_op = X->output(0);
+        for (size_t i = 0; i < num_split_ops; ++i) {
+            auto split_axis_const = std::make_shared<ov::opset9::Constant>(ov::element::u64,
+                                                                           ov::Shape{},
+                                                                           1);
+            auto split = std::make_shared<ov::opset9::Split>(in_op, split_axis_const, num_split_outputs);
+            for (size_t num_output = 0; num_output < num_split_outputs - 1; ++num_output) {
+                auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+                auto transpose0 = std::make_shared<ov::opset9::Transpose>(split->output(num_output), ng_order0);
+                outputs.push_back(transpose0);
+            }
+            in_op = split->output(num_split_outputs - 1);
+        }
+
+        auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+        auto transpose0 = std::make_shared<ov::opset9::Transpose>(in_op, ng_order0);
+        outputs.push_back(transpose0);
+
+        return std::make_shared<ov::Model>(outputs, ov::ParameterVector{X});
+}
+
+} // namespace forward
+} // namespace split
+
+TEST_P(TransposeSinkingSplitForwardTestFixture, CompareFunctions) {
+    PassFactoryPtr pass_factory;
+    size_t num_split_ops;
+    size_t num_split_outputs;
+    CreateGraphSplitForwardF model_factory;
+    CreateGraphSplitForwardF reference_model_factory;
+    ov::element::Type input_type;
+    std::tie(pass_factory,
+             num_split_ops,
+             num_split_outputs,
+             model_factory,
+             reference_model_factory,
+             input_type) = this->GetParam();
+
+    model = model_factory(num_split_ops, num_split_outputs, input_type);
+    model_ref = reference_model_factory(num_split_ops, num_split_outputs, input_type);
+    pass_factory->registerPass(manager);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    TransposeSinkingSplitForwardTestSuite,
+    TransposeSinkingSplitForwardTestFixture,
+    ::testing::Combine(::testing::Values(CreatePassFactory<ngraph::pass::TransposeSinkingSplitForward>()),
+                       ::testing::ValuesIn(split_operations_numbers),
+                       ::testing::ValuesIn(split_outputs_numbers),
+                       ::testing::Values(split::forward::CreateFunction),
+                       ::testing::Values(split::forward::CreateReferenceFunction),
+                       ::testing::Values(ov::element::f32)));
+
+// --------------------------------------------------------------------------------------
+
+#if 0
+using FloatPtr = std::unique_ptr<float[]>;
+
+template <class IterT, class T>
+void Fill(IterT begin_iter, IterT end_iter, T value, T step) {
+    while (begin_iter != end_iter) {
+        *begin_iter = value;
+        value += step;
+        ++begin_iter;
+    }
+}
+
+FloatPtr GenerateTestInput(const ov::Shape & input_shape) {
+    const size_t size = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<size_t>());
+
+    FloatPtr input(new float[size]);
+    Fill(input.get(), input.get() + size, 0.01, 0.01);
+
+    return input;
+}
+
+#define EMUTEX_DEBUG_CHECKPOINT std::cout << "[EMUTEX DEBUG] CHECKPOINT " << __FILE__ << ":" << __LINE__ << std::endl;
+
+TEST(TransposeSinkingSplitTests, SplitForward) {
+    const size_t num_split_ops = 2;
+    const size_t num_split_outputs = 2;
+
+    const ov::element::Type input_type = ov::element::f32;
+    const ov::Shape input_shape{96, (1 << (num_split_ops + 1)), 55, 55};
+
+    std::cout << "input shape " << input_shape << std::endl;
+
+    EMUTEX_DEBUG_CHECKPOINT;
+
+    ModelPtr model, original_model, reference_model;
+    {
+        auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+
+        auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+        auto transpose0 = std::make_shared<ov::opset9::Transpose>(X, ng_order0);
+
+        ov::OutputVector outputs;
+        Output in_op = transpose0->output(0);
+        for (size_t i = 0; i < num_split_ops; ++i) {
+            std::cout << "[EMUTEX DEBUG] (1) input shape " << in_op.get_shape() << std::endl;
+            auto split_axis_const = std::make_shared<ov::opset9::Constant>(ov::element::u64,
+                                                                           ov::Shape{},
+                                                                           2);
+            std::cout << "in_op input shape " << in_op.get_shape() << std::endl;
+            auto split = std::make_shared<ov::opset9::Split>(in_op, split_axis_const, num_split_outputs);
+            for (size_t num_output = 0; num_output < num_split_outputs - 1; ++num_output) {
+                outputs.push_back(split->output(num_output));
+            }
+            in_op = split->output(num_split_outputs - 1);
+        }
+        outputs.push_back(in_op);
+
+        model = std::make_shared<ov::Model>(outputs, ov::ParameterVector{X});
+
+        original_model = model->clone();
+
+        EMUTEX_DEBUG_CHECKPOINT;
+
+        ngraph::pass::Manager pass_manager;
+        pass_manager.register_pass<ngraph::pass::InitNodeInfo>();
+        pass_manager.register_pass<ngraph::pass::VisualizeTree>("./0before.png"); // DEBUG
+        pass_manager.register_pass<ngraph::pass::TransposeSinkingSplitForward>();
+        pass_manager.register_pass<ngraph::pass::VisualizeTree>("./1after.png"); // DEBUG
+        pass_manager.run_passes(model);
+        ASSERT_NO_THROW(check_rt_info(model));
+    }
+    EMUTEX_DEBUG_CHECKPOINT;
+    {
+        auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+
+        ov::OutputVector outputs;
+        Output in_op = X->output(0);
+        for (size_t i = 0; i < num_split_ops; ++i) {
+            std::cout << "[EMUTEX DEBUG] (2) input shape " << in_op.get_shape() << std::endl;
+            auto split_axis_const = std::make_shared<ov::opset9::Constant>(ov::element::u64,
+                                                                           ov::Shape{},
+                                                                           1);
+            auto split = std::make_shared<ov::opset9::Split>(in_op, split_axis_const, num_split_outputs);
+            for (size_t num_output = 0; num_output < num_split_outputs - 1; ++num_output) {
+                auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+                auto transpose0 = std::make_shared<ov::opset9::Transpose>(split->output(num_output), ng_order0);
+                outputs.push_back(transpose0);
+            }
+            in_op = split->output(num_split_outputs - 1);
+        }
+
+        auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+        auto transpose0 = std::make_shared<ov::opset9::Transpose>(in_op, ng_order0);
+        outputs.push_back(transpose0);
+
+        reference_model = std::make_shared<ov::Model>(outputs, ov::ParameterVector{X});
+    }
+
+    EMUTEX_DEBUG_CHECKPOINT;
+
+    FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    func_comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    const FunctionsComparator::Result result = func_comparator(model, reference_model);
+    ASSERT_TRUE(result.valid) << result.message;
+
+    EMUTEX_DEBUG_CHECKPOINT;
+
+    const size_t num_outputs = num_split_ops + 1;
+
+    FloatPtr test_input = GenerateTestInput(input_shape);
+    ov::Tensor input_tensor{input_type, input_shape, test_input.get()};
+    ov::TensorVector function_result(num_outputs), reference_function_result(num_outputs);
+    ASSERT_TRUE(original_model->evaluate(function_result, ov::TensorVector{input_tensor}));
+    EXPECT_EQ(function_result.size(), num_outputs);
+
+    EMUTEX_DEBUG_CHECKPOINT;
+
+    for (size_t result_idx = 0; result_idx < num_outputs; ++result_idx) {
+        EXPECT_EQ(function_result[result_idx].get_element_type(), ngraph::element::f32);
+
+        ASSERT_TRUE(model->evaluate(reference_function_result, ov::TensorVector{input_tensor}));
+        EXPECT_EQ(reference_function_result.size(), num_outputs);
+        EXPECT_EQ(reference_function_result[result_idx].get_element_type(), ngraph::element::f32);
+
+        EXPECT_EQ(reference_function_result[result_idx].get_shape(), function_result[result_idx].get_shape());
+        EXPECT_EQ(reference_function_result[result_idx].get_size(), function_result[result_idx].get_size());
+
+        const float * function_result_data = function_result[result_idx].data<float>();
+        const float * reference_function_result_data = reference_function_result[result_idx].data<float>();
+        for (size_t i = 0; i < reference_function_result[result_idx].get_size(); ++i)
+            EXPECT_EQ(function_result_data[i], reference_function_result_data[i]);
+    }
+
+    EMUTEX_DEBUG_CHECKPOINT;
+}
+#endif

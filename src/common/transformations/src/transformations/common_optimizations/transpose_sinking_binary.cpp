@@ -371,23 +371,27 @@ ngraph::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
         const size_t transposed_split_axis = TransposeAxis(split_axis, transpose_axis_order);
 
         // remove input transpose
-        auto transpose_parent = transpose->input_value(0).get_node()->input_value(0);
+        auto transpose_parent = split->input_value(0).get_node()->input_value(0);
         split->input(0).replace_source_output(transpose_parent);
 
         // insert output transposes
         for (size_t i = 0; i < split->get_output_size(); ++i) {
+            auto split_consumers = split->output(i).get_target_inputs();
+
             auto new_transpose_const = std::make_shared<ov::opset9::Constant>(transpose_element_type,
                                                                               ov::Shape{transpose_axis_order.size()},
                                                                               transpose_axis_order);
-            auto new_transpose = std::make_shared<ov::opset9::Transpose>(split, new_transpose_const);
+            auto new_transpose = std::make_shared<ov::opset9::Transpose>(split->output(i), new_transpose_const);
 
-            auto split_consumers = split->output(i).get_target_inputs();
+
             for (auto& consumer: split_consumers) {
                 consumer.replace_source_output(new_transpose);
             }
 
             ov::copy_runtime_info(split, {new_transpose, new_transpose_const});
             SwapOutputNames(split->output(i), new_transpose->output(0));
+
+            new_transpose->set_friendly_name(split->get_friendly_name() + "." + std::to_string(i));
 
             register_new_node(new_transpose);
         }
