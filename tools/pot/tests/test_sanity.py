@@ -23,11 +23,11 @@ from .utils.config import get_engine_config, merge_configs, \
     get_dataset_info, PATHS2DATASETS_CONFIG, make_algo_config
 
 TEST_MODELS = [
-    ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance', 300, {'accuracy@top1': 0.729,
+    ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance', 300, {'accuracy@top1': 0.732,
                                                                                     'accuracy@top5': 0.907},
      {}, 'CPU'),
 
-    ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'mixed', 300, {'accuracy@top1': 0.734,
+    ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'mixed', 300, {'accuracy@top1': 0.737,
                                                                               'accuracy@top5': 0.91},
      {}, 'CPU'),
 
@@ -53,7 +53,7 @@ TEST_MODELS = [
 
     ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 1, {'recall': 0.76, 'map': 0.6618}, {}, 'CPU'),
 
-    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 2, {'recall': 0.76, 'map': 0.5101},
+    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 2, {'recall': 0.76, 'map': 0.505},
      {'use_fast_bias': False}, 'CPU'),
     ('octave-resnet-26-0.25', 'mxnet', 'DefaultQuantization', 'performance', 300,
      {'accuracy@top1': 0.766, 'accuracy@top5': 0.927}, {'use_fast_bias': False}, 'CPU'),
@@ -115,8 +115,8 @@ def test_compression(_params, tmp_path, models):
 
 
 TEST_SAMPLE_MODELS = [
-    ('mobilenet-v2-1.0-224', 'tf', 'DefaultQuantization', 'performance', {'accuracy@top1': 0.716}, []),
-    ('mobilenet-v2-1.0-224', 'tf', 'DefaultQuantization', 'performance', {'accuracy@top1': 0.716},
+    ('mobilenet-v2-1.0-224', 'tf', 'DefaultQuantization', 'performance', {'accuracy@top1': 0.71}, []),
+    ('mobilenet-v2-1.0-224', 'tf', 'DefaultQuantization', 'performance', {'accuracy@top1': 0.71},
      ['--input_shape=[1,?,?,3]'])
 ]
 
@@ -171,9 +171,9 @@ def test_sample_compression(_sample_params, tmp_path, models):
 
 SIMPLIFIED_TEST_MODELS = [
     ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance',
-     {'accuracy@top1': 0.701, 'accuracy@top5': 0.91}, []),
+     {'accuracy@top1': 0.707, 'accuracy@top5': 0.91}, []),
     ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance',
-     {'accuracy@top1': 0.709, 'accuracy@top5': 0.904}, ['--input_shape=[1,3,?,?]'])
+     {'accuracy@top1': 0.706, 'accuracy@top5': 0.904}, ['--input_shape=[1,3,?,?]'])
 ]
 
 
