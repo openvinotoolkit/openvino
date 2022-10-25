@@ -179,9 +179,9 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Concat> &n
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Constant> &node) {
     const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 2}});
-    const auto A = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2, 2}, 2.0);
-    const auto eltwiseNode = std::make_shared<ov::op::v1::Add>(params.at(0), A);
-    return std::make_shared<ov::Model>(A, params, "ConstantGraph");
+    const auto constantNode = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2, 2}, 2.0);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(constantNode)};
+    return std::make_shared<ov::Model>(results, params, "ConstantGraph");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Convert> &node) {
@@ -1312,6 +1312,10 @@ std::shared_ptr<ov::Model> generateUnaryEltwise(const std::shared_ptr<ov::op::Op
         eltwiseNode = std::make_shared<ov::op::v5::HSigmoid>(param);
     } else if (ov::is_type<ov::op::v4::HSwish>(node)) {
         eltwiseNode = std::make_shared<ov::op::v4::HSwish>(param);
+    } else if (ov::is_type<ov::op::v10::IsInf>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v10::IsInf>(param);
+    } else if (ov::is_type<ov::op::v10::IsNaN>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v10::IsNaN>(param);
     } else if (ov::is_type<ov::op::v0::Log>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Log>(param);
     } else if (ov::is_type<ov::op::v0::Negative>(node)) {

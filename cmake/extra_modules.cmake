@@ -72,10 +72,9 @@ function(register_extra_modules)
     openvino_developer_export_targets(COMPONENT core_legacy TARGETS inference_engine)
     openvino_developer_export_targets(COMPONENT core_legacy TARGETS ngraph)
 
-    set(InferenceEngineDeveloperPackage_DIR "${CMAKE_CURRENT_BINARY_DIR}/runtime")
-    set(OpenVINODeveloperPackage_DIR "${CMAKE_BINARY_DIR}/runtime")
-    set(OpenVINO_DIR ${CMAKE_BINARY_DIR})
-
+    set(InferenceEngineDeveloperPackage_DIR "${CMAKE_CURRENT_BINARY_DIR}/build-modules")
+    set(OpenVINODeveloperPackage_DIR "${CMAKE_BINARY_DIR}/build-modules")
+    set(OpenVINO_DIR "${CMAKE_BINARY_DIR}")
 
     function(generate_fake_dev_package NS)
         if(NS STREQUAL "openvino")
@@ -90,7 +89,9 @@ function(register_extra_modules)
 
         foreach(target IN LISTS ${openvino_export_components})
             if(target)
-                file(APPEND "${devconfig_file}" "add_library(${NS}::${target} ALIAS ${target})\n")
+                file(APPEND "${devconfig_file}" "if(NOT TARGET ${NS}::${target})
+    add_library(${NS}::${target} ALIAS ${target})
+endif()\n")
             endif()
         endforeach()
     endfunction()
@@ -98,9 +99,9 @@ function(register_extra_modules)
     generate_fake_dev_package("openvino")
     generate_fake_dev_package("IE")
 
-    # detect where IE_EXTRA_MODULES contains folders with CMakeLists.txt
+    # detect where OPENVINO_EXTRA_MODULES contains folders with CMakeLists.txt
     # other folders are supposed to have sub-folders with CMakeLists.txt
-    foreach(module_path IN LISTS IE_EXTRA_MODULES)
+    foreach(module_path IN LISTS OPENVINO_EXTRA_MODULES IE_EXTRA_MODULES)
         get_filename_component(module_path "${module_path}" ABSOLUTE)
         if(EXISTS "${module_path}/CMakeLists.txt")
             list(APPEND extra_modules "${module_path}")
