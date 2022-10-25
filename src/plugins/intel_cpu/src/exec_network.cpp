@@ -542,6 +542,7 @@ bool ExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &network)
 }
 
 void ExecNetwork::Export(std::ostream& modelStream) {
+    std::const_pointer_cast<ngraph::Function>(_network.getFunction())->set_rt_info(_cfg.exportPropertiesForCaching(), "intel_cpu_config");
     CNNNetworkSerializer serializer(modelStream, extensionManager);
     serializer <<_network;
 }

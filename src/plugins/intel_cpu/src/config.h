@@ -53,6 +53,9 @@ struct Config {
 
     void readProperties(const std::map<std::string, std::string> &config);
     void updateProperties();
+    // exports the properties which should be saved in model cache
+    ov::AnyMap exportPropertiesForCaching();
+
     std::map<std::string, std::string> _config;
 
 #ifdef CPU_DEBUG_CAPS

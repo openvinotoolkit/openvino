@@ -225,6 +225,12 @@ void Config::updateProperties() {
     _config.insert({PluginConfigParams::KEY_CACHE_DIR, cache_dir});
 }
 
+ov::AnyMap Config::exportPropertiesForCaching() {
+    ov::AnyMap props;
+    props.insert({ov::num_streams.name(), streamExecutorConfig.GetConfig(ov::num_streams.name())});
+    return props;
+}
+
 #ifdef CPU_DEBUG_CAPS
 void Config::readDebugCapsProperties() {
     auto readEnv = [](const char* envVar) {
