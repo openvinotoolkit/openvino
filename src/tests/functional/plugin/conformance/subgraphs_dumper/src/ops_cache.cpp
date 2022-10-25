@@ -159,6 +159,28 @@ float OPCache::get_size_of_cached_ops() {
     return size;
 }
 
+std::string getOpVersion(const ngraph::NodeTypeInfo& type_info) {
+    static std::vector<ngraph::OpSet> opsets;
+    if (opsets.size() == 0) {
+        opsets.push_back(ngraph::get_opset1());
+        opsets.push_back(ngraph::get_opset2());
+        opsets.push_back(ngraph::get_opset3());
+        opsets.push_back(ngraph::get_opset4());
+        opsets.push_back(ngraph::get_opset5());
+        opsets.push_back(ngraph::get_opset6());
+        opsets.push_back(ngraph::get_opset7());
+        opsets.push_back(ngraph::get_opset8());
+        opsets.push_back(ngraph::get_opset9());
+        opsets.push_back(ngraph::get_opset10());
+    }
+    for (size_t i = 0; i < opsets.size(); i++) {
+        if (opsets[i].contains_type(type_info)) {
+            return std::to_string(i + 1);
+        }
+    }
+    return "undefined";
+}
+
 OPCache::SerializationStatus
 OPCache::serialize_function(const std::pair<std::shared_ptr<ov::Node>, LayerTestsUtils::OPInfo> &op,
                             const std::string &serialization_dir) {
@@ -188,7 +210,8 @@ OPCache::serialize_function(const std::pair<std::shared_ptr<ov::Node>, LayerTest
         auto op_el_type = op.first->get_output_element_type(0).get_type_name();
         auto current_op_folder = serialization_dir + CommonTestUtils::FileSeparator +
                                  (is_dynamic ? "dynamic" : "static") + CommonTestUtils::FileSeparator +
-                                 op.first->get_type_info().name + CommonTestUtils::FileSeparator + op_el_type;
+                                 op.first->get_type_info().name + "-" + getOpVersion(op.first->get_type_info()) +
+                                 CommonTestUtils::FileSeparator + op_el_type;
         auto op_name = op.first->get_name();
         std::cout << op_name << " will be serialized to " << current_op_folder << std::endl;
         if (!CommonTestUtils::directoryExists(current_op_folder)) {
