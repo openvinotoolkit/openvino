@@ -179,7 +179,7 @@ void Select::execute_impl() {
     auto *dstData = reinterpret_cast<DATA_T *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
     if (broadcastType == SelectBroadcastType::NONE) {
-        size_t dstDataSize = std::accumulate(begin(resDims), end(resDims), 1, std::multiplies<size_t>());
+        size_t dstDataSize = std::accumulate(begin(resDims), end(resDims), size_t(1), std::multiplies<size_t>());
         parallel_for(dstDataSize, [&](size_t i) {
             dstData[i] = conditionData[i] ? thenData[i] : elseData[i];
         });
