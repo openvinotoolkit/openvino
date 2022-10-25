@@ -3316,6 +3316,19 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_pad_constant) {
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_pad_non_scalar_values) {
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                              SERIALIZED_ZOO,
+                                                                              "onnx/pad_non_scalar_values.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input<float>({1.f, 1.2f, 2.3f, 3.4f, 4.5f, 5.7f});
+    test_case.add_expected_output<float>(Shape{3, 4},
+                                         {44.f, 44.f, 1.f, 1.2f, 44.f, 44.f, 2.3f, 3.4f, 44.f, 44.f, 4.5f, 5.7f});
+
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_pad_optional_constant) {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,

@@ -17,6 +17,7 @@
 #include "onnx_import/core/null_node.hpp"
 #include "op/pad.hpp"
 #include "utils/convpool.hpp"
+#include "utils/reshape.hpp"
 
 namespace {
 ngraph::op::PadMode get_pad_mode(std::string mode) {
@@ -73,7 +74,7 @@ OutputVector pad(const Node& node) {
     Output<ngraph::Node> padding_end;
 
     if (inputs.size() == 3 && !ngraph::op::is_null(inputs[2])) {
-        values = inputs[2];
+        values = reshape::interpret_as_scalar(inputs[2]);
     } else {
         values = default_opset::Constant::create(data.get_element_type(), ngraph::Shape{}, {0});
     }
