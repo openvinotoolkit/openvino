@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import hashlib
-import os
 
 import defusedxml.ElementTree as ET
 from defusedxml import defuse_stdlib
@@ -634,31 +633,3 @@ def port_renumber(graph: Graph):
         for v, d in node.get_sorted_outputs():
             d['out'] = base
             base += 1
-
-
-def append_ir_info(file: str,
-                   meta_info: dict = dict(),
-                   mean_data: [list, None] = None,
-                   input_names: list = None,
-                   legacy_path: bool = True):
-    path_to_xml = file + ".xml"
-    path_to_bin = file + ".bin"
-
-    et = ET.parse(path_to_xml)
-    net = et.getroot()
-
-    if mean_data:
-        mean_offset, mean_size = serialize_mean_image(path_to_bin, mean_data=mean_data)
-        create_pre_process_block_for_image(net, input_names, mean_offset, mean_size)
-
-    add_meta_data(net, meta_info, legacy_path)
-
-    for elem in et.iter():
-        if elem.text:
-            elem.text = elem.text.strip()
-        if elem.tail:
-            elem.tail = elem.tail.strip()
-
-    pretty_xml_as_string = parseString(tostring(net)).toprettyxml()
-    with open(path_to_xml, 'wb') as file:
-        file.write(bytes(pretty_xml_as_string, "UTF-8"))

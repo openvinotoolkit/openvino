@@ -38,7 +38,7 @@ from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_na
 from openvino.tools.mo.utils.logger import init_logger, progress_printer
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info
-from openvino.tools.mo.utils.version import get_simplified_mo_version, get_simplified_ie_version
+from openvino.tools.mo.utils.version import get_simplified_mo_version, get_simplified_ie_version, get_version
 from openvino.tools.mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
 from openvino.tools.mo.utils.telemetry_utils import get_tid
 from openvino.tools.mo.front.common.partial_infer.utils import mo_array
@@ -46,6 +46,7 @@ from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, ProgressReporterExtension, TelemetryExtension, JsonConfigExtension
+from openvino.runtime import get_version as get_rt_version
 
 
 def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_mxnet: bool, is_kaldi: bool,
@@ -492,8 +493,10 @@ def driver(argv: argparse.Namespace):
     start_time = datetime.datetime.now()
 
     graph, ngraph_function = prepare_ir(argv)
+    legacy_path = False
     if graph is not None:
         res_ngraph_function = emit_ir(graph, argv)
+        legacy_path = True
     else:
         res_ngraph_function = moc_emit_ir(ngraph_function, argv)
 
@@ -512,7 +515,7 @@ def driver(argv: argparse.Namespace):
         except ImportError:
             pass
 
-    return res_ngraph_function
+    return res_ngraph_function, legacy_path
 
 
 def args_dict_to_list(cli_parser, **kwargs):
@@ -578,12 +581,20 @@ def _convert(**args):
         init_logger('ERROR', False)
 
         argv.feManager = FrontEndManager()
-        ngraph_function = driver(argv)
+        ov_model, legacy_path = driver(argv)
+
+        # add MO meta data to model
+        ov_model.set_rt_info(get_version(), "MO_version")
+        ov_model.set_rt_info(get_rt_version(), "Runtime_version")
+        ov_model.set_rt_info(str(legacy_path), "legacy_path")
+        meta_info = get_meta_info(argv)
+        for key, value in meta_info.items():
+            ov_model.set_rt_info(str(value), ["conversion_parameters", str(key)])
 
         telemetry.send_event('mo', 'conversion_result', 'success')
         telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)
-        return ngraph_function
+        return ov_model
     except Exception as e:
         telemetry.send_event('mo', 'conversion_result', 'fail')
         telemetry.end_session('mo')
