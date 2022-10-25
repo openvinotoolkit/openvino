@@ -127,7 +127,7 @@ class MetaDataTest(UnitTestWithMockedTelemetry):
                             val = Path(val)
                         assert val == param_value, \
                             "Runtime info attribute with name {} does not match. Expected: {}, " \
-                            "got {}".format(key, value, ov_model.get_rt_info(key))
+                            "got {}".format(key, value, val)
                     continue
                 assert str(ov_model.get_rt_info(key)) == value, \
                     "Runtime info attribute with name {} does not match. Expected: {}, " \
