@@ -1001,66 +1001,6 @@ inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) 
 }
 
 namespace {
-class WorkerThread {
-public:
-    WorkerThread() {
-        m_thread = std::thread(&WorkerThread::run, this);
-    }
-    ~WorkerThread() {
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            m_exit = true;
-        }
-        m_cv.notify_one();
-        if (m_thread.joinable()) {
-            m_thread.join();
-        }
-    }
-
-    template<typename Fn, typename... Args>
-    std::future<void>
-    send(Fn&& f, Args&&... args) {
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            m_body = std::packaged_task<void()>(std::bind(std::forward<Fn>(f), std::forward<Args>(args)...));
-            m_busy = true;
-        }
-        m_cv.notify_one();
-        return m_body.get_future();
-    }
-
-private:
-    void run() {
-        std::unique_lock<std::mutex> mlock(m_mutex);
-        while (true) {
-            m_cv.wait(mlock, [this](){return m_busy || m_exit;});
-            if (m_busy) {
-                m_body();
-                m_busy = false;
-            }
-            if (m_exit) {return;}
-        }
-    }
-
-private:
-    std::thread m_thread;
-    std::packaged_task<void()> m_body;
-    std::condition_variable m_cv;
-    std::mutex m_mutex;
-    bool m_busy = false;
-    bool m_exit = false;
-};
-
-class ShapeInfer : public tbb::task {
-public:
-    ShapeInfer(Node* node) : m_node(node) {}
-    tbb::task* execute() override {
-        m_node->updateShape();
-        return nullptr;
-    }
-private:
-    Node* m_node;
-};
 
 class PreparationProcess {
 public:
