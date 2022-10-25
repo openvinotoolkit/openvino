@@ -17,7 +17,7 @@ TEST(attributes, mish_op) {
     const auto A = make_shared<op::Parameter>(element::f32, Shape{5, 2});
 
     const auto mish = make_shared<opset4::Mish>(A);
-    NodeBuilder builder(mish,{A});
+    NodeBuilder builder(mish, {A});
     EXPECT_NO_THROW(auto g_mish = ov::as_type_ptr<opset4::Mish>(builder.create()));
 
     const auto expected_attr_count = 0;

@@ -835,7 +835,6 @@ TEST_F(IRFrontendTestsTensorIterator, loop_external_port1_is_not_connected) {
     ASSERT_TRUE(!!model);
 }
 
-
 TEST_F(IRFrontendTestsTensorIterator, tensor_iterator_resnet_opset4) {
     std::string xmlModel = R"V0G0N(
     <net name="Resnet" version="10">

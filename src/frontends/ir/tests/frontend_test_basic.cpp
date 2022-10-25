@@ -1063,7 +1063,7 @@ TEST_F(IRFrontendTests, extension_proposal_network) {
     FAIL() << "Custom proposal layer is not an opset6 operation.";
 }
 
-TEST_F(IRFrontendTests, ReadModelWithTensorNamesWithSpaces) {
+TEST_F(IRFrontendTests, model_with_tensor_names_with_spaces) {
     std::string testModel = R"V0G0N(
             <net name="graph" version="11">
             <layers>
@@ -1126,7 +1126,6 @@ TEST_F(IRFrontendTests, ReadModelWithTensorNamesWithSpaces) {
             </edges>
         </net>
         )V0G0N";
-        
 
     std::shared_ptr<ov::Model> model;
 
@@ -1141,7 +1140,7 @@ TEST_F(IRFrontendTests, ReadModelWithTensorNamesWithSpaces) {
     EXPECT_NE(it, names.end());
 }
 
-TEST_F(IRFrontendTests, ReadModelWithTensorNamesAddOutput) {
+TEST_F(IRFrontendTests, model_with_tensor_names_add_output) {
     std::string testModel = R"V0G0N(
 <net name="graph" version="11">
 	<layers>
@@ -1235,6 +1234,71 @@ TEST_F(IRFrontendTests, ReadModelWithTensorNamesAddOutput) {
     EXPECT_EQ(outputs.size(), 2);
     auto names = outputs.at(1).get_names();
     EXPECT_EQ(names.size(), 1);
+    auto it = names.find(tensor_name);
+    EXPECT_NE(it, names.end());
+}
+
+TEST_F(IRFrontendTests, name_with_comma) {
+    std::string testModel = R"V0G0N(
+<net name="Network" version="10">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset1">
+            <data element_type="f32" shape="1,3,22,22"/>
+            <output>
+                <port id="0" precision="FP32" names="input">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="activation" id="1" type="ReLU" version="opset1">
+            <input>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32" names="relu\,t, identity_t">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+
+    std::shared_ptr<ov::Model> model;
+    std::string tensor_name = "relu,t";
+
+    ASSERT_NO_THROW(model = core.read_model(testModel, ov::Tensor()));
+    ASSERT_TRUE(!!model);
+
+    model->add_output(tensor_name);
+    auto outputs = model->outputs();
+    EXPECT_EQ(outputs.size(), 1);
+    auto names = outputs.at(0).get_names();
     auto it = names.find(tensor_name);
     EXPECT_NE(it, names.end());
 }
