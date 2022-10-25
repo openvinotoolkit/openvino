@@ -6,6 +6,7 @@
 
 #include "functional_test_utils/summary/op_summary.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/common_utils.hpp"
 
 using namespace ov::test::utils;
 
@@ -98,15 +99,6 @@ void OpSummary::updateOPsImplStatus(const ngraph::NodeTypeInfo &op, const bool i
         opsStats[op] = PassRate();
         opsStats[op].isImplemented = implStatus;
     }
-}
-
-std::string OpSummary::getOpVersion(const ngraph::NodeTypeInfo &type_info) {
-    for (size_t i = 0; i < opsets.size(); i++) {
-        if (opsets[i].contains_type(type_info)) {
-            return std::to_string(i+1);
-        }
-    }
-    return "undefined";
 }
 
 std::map<std::string, PassRate> OpSummary::getStatisticFromReport() {
@@ -249,7 +241,7 @@ void OpSummary::saveReport() {
     std::string outputFilePath = outputFolder + std::string(CommonTestUtils::FileSeparator) + filename;
 
     std::set<ngraph::NodeTypeInfo> opsInfo;
-    for (const auto &opset : opsets) {
+    for (const auto &opset : getOpSets()) {
         const auto &type_info_set = opset.get_type_info_set();
         opsInfo.insert(type_info_set.begin(), type_info_set.end());
     }

@@ -185,4 +185,7 @@ inline std::ostream& operator<<(std::ostream& os, const std::map<std::string, st
     os << ")";
     return os;
 }
+
+std::vector<ov::OpSet> getOpSets(void);
+std::string getOpVersion(const ov::NodeTypeInfo& type_info);
 }  // namespace CommonTestUtils

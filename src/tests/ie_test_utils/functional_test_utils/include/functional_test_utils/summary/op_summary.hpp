@@ -25,7 +25,6 @@ class OpSummary : public virtual Summary {
 private:
     static OpSummary *p_instance;
     static bool extractBody;
-    std::vector<ngraph::OpSet> opsets;
     std::map<ngraph::NodeTypeInfo, PassRate> opsStats = {};
 
     std::string getOpVersion(const ngraph::NodeTypeInfo &type_info);
@@ -39,10 +38,6 @@ public:
     static OpSummary &getInstance();
 
     std::map<ngraph::NodeTypeInfo, PassRate> getOPsStats() { return opsStats; }
-
-    std::vector<ngraph::OpSet> getOpSets() {
-        return opsets;
-    }
 
     static void setExtractBody(bool val) { extractBody = val; }
     static bool getExtractBody() { return extractBody; }
