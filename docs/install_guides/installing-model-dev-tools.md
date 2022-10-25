@@ -10,8 +10,9 @@ If you want to download, convert, optimize and tune pre-trained deep learning mo
 
 > **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. 
 
-## For Python Developers
+<a name="python-developers"></a>
 
+## For Python Developers
 If you are a Python developer, you can find the main steps below to install OpenVINO Development Tools. For more details, see <https://pypi.org/project/openvino-dev>.
 
 While installing OpenVINO Development Tools, OpenVINO Runtime will also be installed as a dependency, so you don't need to install OpenVINO Runtime separately.
@@ -92,8 +93,9 @@ mo -h
 You will see the help message for Model Optimizer if installation finished successfully.
 
 
-## For C++ Developers
+<a name="cpp-developers"></a>
 
+## For C++ Developers
 Note the following things:
 
 * To install OpenVINO Development Tools, you must have OpenVINO Runtime installed first. You can install OpenVINO Runtime through archive files. See [Install OpenVINO on Linux from Archive](installing-openvino-from-archive-linux.md), [Install OpenVINO on Windows from Archive](installing-openvino-from-archive-windows.md), and [Install OpenVINO on macOS from Archive](installing-openvino-from-archive-macos.md) for more details. 

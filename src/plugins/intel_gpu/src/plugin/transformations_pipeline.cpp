@@ -74,6 +74,7 @@
 #include <transformations/op_conversions/convert_gather_downgrade.hpp>
 #include <transformations/op_conversions/convert_gather_0d.hpp>
 #include <transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp>
+#include <transformations/op_conversions/convert_gp9_to_gp_ie_internal.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include "transformations/op_conversions/softmax_decomposition.hpp"
 #include <transformations/op_conversions/gelu7_downgrade.hpp>
@@ -94,6 +95,7 @@
 #include <low_precision/multiply_to_group_convolution.hpp>
 #include <low_precision/strided_slice.hpp>
 #include <low_precision/network_helper.hpp>
+#include "transformations/op_conversions/eye_decomposition.hpp"
 
 #include "intel_gpu/plugin/itt.hpp"
 
@@ -132,6 +134,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<EinsumDecomposition>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
+
         manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
         manager.register_pass<ngraph::pass::TransposeSinking>();
 
@@ -161,6 +164,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ngraph::pass::ConvertNMS4ToNMS9>();
         manager.register_pass<ngraph::pass::ConvertNMS5ToNMS9>();
         manager.register_pass<ngraph::pass::ConvertNMS9ToNMSIEInternal>();
+        manager.register_pass<ngraph::pass::ConvertGP9ToGPIEInternal>();
         manager.register_pass<ngraph::pass::ConvertGather0D>();
         manager.register_pass<ngraph::pass::ConvertPriorBox8To0, false>();
 
@@ -188,7 +192,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ngraph::pass::ConvertPrecision>(convert_precision_list);
 
         auto pass_config = manager.get_pass_config();
-
+        pass_config->disable<ov::pass::EyeDecomposition>();
         pass_config->enable<ov::pass::ConvertCompressedOnlyToLegacy>();
 
         // SpaceToDepth/DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
@@ -407,16 +411,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         auto supportedPrecisions = std::vector<PrecisionsRestriction>({
             PrecisionsRestriction::create<ngraph::opset1::Convolution>({
-                {0, {ngraph::element::u8, ngraph::element::i8}},
-                {1, {ngraph::element::i8}},
+                {{0}, {ngraph::element::u8, ngraph::element::i8}},
+                {{1}, {ngraph::element::i8}},
             }),
             PrecisionsRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
-                {0, {ngraph::element::u8, ngraph::element::i8}},
-                {1, {ngraph::element::i8}}
+                {{0}, {ngraph::element::u8, ngraph::element::i8}},
+                {{1}, {ngraph::element::i8}}
             }),
             PrecisionsRestriction::create<ngraph::opset1::GroupConvolution>({
-                {0, {ngraph::element::u8, ngraph::element::i8}},
-                {1, {ngraph::element::i8}}
+                {{0}, {ngraph::element::u8, ngraph::element::i8}},
+                {{1}, {ngraph::element::i8}}
             })
         });
 
