@@ -28,6 +28,10 @@ Based on the steps, the following code demostrates how to change the application
 @snippet docs/snippets/ie_common.py ie:create_core
 @endsphinxtab
 
+@sphinxtab{C}
+@snippet docs/snippets/ie_common.c ie:create_core
+@endsphinxtab
+
 @endsphinxtabset
 
 **API 2.0**
@@ -40,6 +44,10 @@ Based on the steps, the following code demostrates how to change the application
 
 @sphinxtab{Python}
 @snippet docs/snippets/ov_common.py ov_api_2_0:create_core
+@endsphinxtab
+
+@sphinxtab{C}
+@snippet docs/snippets/ov_common.c ov_api_2_0:create_core
 @endsphinxtab
 
 @endsphinxtabset
@@ -61,6 +69,10 @@ To load a model with custom operations, you need to add extensions for these ope
 @snippet docs/snippets/ie_common.py ie:load_old_extension
 @endsphinxtab
 
+@sphinxtab{C}
+@snippet docs/snippets/ie_common.c ie:load_old_extension
+@endsphinxtab
+
 @endsphinxtabset
 
 **API 2.0**
@@ -73,6 +85,10 @@ To load a model with custom operations, you need to add extensions for these ope
 
 @sphinxtab{Python}
 @snippet docs/snippets/ov_common.py ov_api_2_0:load_old_extension
+@endsphinxtab
+
+@sphinxtab{C}
+@snippet docs/snippets/ov_common.c ov_api_2_0:load_old_extension
 @endsphinxtab
 
 @endsphinxtabset
@@ -92,6 +108,10 @@ To load a model with custom operations, you need to add extensions for these ope
 @snippet docs/snippets/ie_common.py ie:read_model
 @endsphinxtab
 
+@sphinxtab{C}
+@snippet docs/snippets/ie_common.c ie:read_model
+@endsphinxtab
+
 @endsphinxtabset
 
 **API 2.0**
@@ -104,6 +124,10 @@ To load a model with custom operations, you need to add extensions for these ope
 
 @sphinxtab{Python}
 @snippet docs/snippets/ov_common.py ov_api_2_0:read_model
+@endsphinxtab
+
+@sphinxtab{C}
+@snippet docs/snippets/ov_common.c ov_api_2_0:read_model
 @endsphinxtab
 
 @endsphinxtabset
@@ -132,6 +156,10 @@ When the application input data does not perfectly match the model input format,
 @snippet docs/snippets/ie_common.py ie:compile_model
 @endsphinxtab
 
+@sphinxtab{C}
+@snippet docs/snippets/ie_common.c ie:compile_model
+@endsphinxtab
+
 @endsphinxtabset
 
 **API 2.0**
@@ -144,6 +172,10 @@ When the application input data does not perfectly match the model input format,
 
 @sphinxtab{Python}
 @snippet docs/snippets/ov_common.py ov_api_2_0:compile_model
+@endsphinxtab
+
+@sphinxtab{C}
+@snippet docs/snippets/ov_common.c ov_api_2_0:compile_model
 @endsphinxtab
 
 @endsphinxtabset
@@ -165,6 +197,10 @@ If you need to configure devices with additional parameters for OpenVINO Runtime
 @snippet docs/snippets/ie_common.py ie:create_infer_request
 @endsphinxtab
 
+@sphinxtab{C}
+@snippet docs/snippets/ie_common.c ie:create_infer_request
+@endsphinxtab
+
 @endsphinxtabset
 
 **API 2.0**
@@ -177,6 +213,10 @@ If you need to configure devices with additional parameters for OpenVINO Runtime
 
 @sphinxtab{Python}
 @snippet docs/snippets/ov_common.py ov_api_2_0:create_infer_request
+@endsphinxtab
+
+@sphinxtab{C}
+@snippet docs/snippets/ov_common.c ov_api_2_0:create_infer_request
 @endsphinxtab
 
 @endsphinxtabset
@@ -202,6 +242,10 @@ The Inference Engine API fills inputs with data of the `I32` precision (**not** 
 @snippet docs/snippets/ie_common.py ie:get_input_tensor
 @endsphinxtab
 
+@sphinxtab{C}
+@snippet docs/snippets/ie_common.c ie:get_input_tensor
+@endsphinxtab
+
 @endsphinxtabset
 
 @endsphinxtab
@@ -216,6 +260,10 @@ The Inference Engine API fills inputs with data of the `I32` precision (**not** 
 
 @sphinxtab{Python}
 @snippet docs/snippets/ie_common.py ie:get_input_tensor
+@endsphinxtab
+
+@sphinxtab{C}
+@snippet docs/snippets/ie_common.c ie:get_input_tensor
 @endsphinxtab
 
 @endsphinxtabset
@@ -234,6 +282,10 @@ The Inference Engine API fills inputs with data of the `I32` precision (**not** 
 @snippet docs/snippets/ie_common.py ie:get_input_tensor
 @endsphinxtab
 
+@sphinxtab{C}
+@snippet docs/snippets/ie_common.c ie:get_input_tensor
+@endsphinxtab
+
 @endsphinxtabset
 
 @endsphinxtab
@@ -248,6 +300,10 @@ The Inference Engine API fills inputs with data of the `I32` precision (**not** 
 
 @sphinxtab{Python}
 @snippet docs/snippets/ie_common.py ie:get_input_tensor
+@endsphinxtab
+
+@sphinxtab{C}
+@snippet docs/snippets/ie_common.c ie:get_input_tensor
 @endsphinxtab
 
 @endsphinxtabset
@@ -274,6 +330,10 @@ API 2.0 fills inputs with data of the `I64` precision (aligned with the original
 @snippet docs/snippets/ov_common.py ov_api_2_0:get_input_tensor_v10
 @endsphinxtab
 
+@sphinxtab{C}
+@snippet docs/snippets/ov_common.c ov_api_2_0:get_input_tensor_v10
+@endsphinxtab
+
 @endsphinxtabset
 
 @endsphinxtab
@@ -288,6 +348,10 @@ API 2.0 fills inputs with data of the `I64` precision (aligned with the original
 
 @sphinxtab{Python}
 @snippet docs/snippets/ov_common.py ov_api_2_0:get_input_tensor_aligned
+@endsphinxtab
+
+@sphinxtab{C}
+@snippet docs/snippets/ov_common.c ov_api_2_0:get_input_tensor_aligned
 @endsphinxtab
 
 @endsphinxtabset
@@ -306,6 +370,10 @@ API 2.0 fills inputs with data of the `I64` precision (aligned with the original
 @snippet docs/snippets/ov_common.py ov_api_2_0:get_input_tensor_aligned
 @endsphinxtab
 
+@sphinxtab{C}
+@snippet docs/snippets/ov_common.c ov_api_2_0:get_input_tensor_aligned
+@endsphinxtab
+
 @endsphinxtabset
 
 @endsphinxtab
@@ -320,6 +388,10 @@ API 2.0 fills inputs with data of the `I64` precision (aligned with the original
 
 @sphinxtab{Python}
 @snippet docs/snippets/ov_common.py ov_api_2_0:get_input_tensor_aligned
+@endsphinxtab
+
+@sphinxtab{C}
+@snippet docs/snippets/ov_common.c ov_api_2_0:get_input_tensor_aligned
 @endsphinxtab
 
 @endsphinxtabset
@@ -347,6 +419,10 @@ API 2.0 fills inputs with data of the `I64` precision (aligned with the original
 @snippet docs/snippets/ie_common.py ie:inference
 @endsphinxtab
 
+@sphinxtab{C}
+@snippet docs/snippets/ie_common.c ie:inference
+@endsphinxtab
+
 @endsphinxtabset
 
 @endsphinxtab
@@ -361,6 +437,10 @@ API 2.0 fills inputs with data of the `I64` precision (aligned with the original
 
 @sphinxtab{Python}
 @snippet docs/snippets/ie_common.py ie:start_async_and_wait
+@endsphinxtab
+
+@sphinxtab{C}
+@snippet docs/snippets/ie_common.c ie:start_async_and_wait
 @endsphinxtab
 
 @endsphinxtabset
@@ -385,6 +465,10 @@ API 2.0 fills inputs with data of the `I64` precision (aligned with the original
 @snippet docs/snippets/ov_common.py ov_api_2_0:inference
 @endsphinxtab
 
+@sphinxtab{C}
+@snippet docs/snippets/ov_common.c ov_api_2_0:inference
+@endsphinxtab
+
 @endsphinxtabset
 
 @endsphinxtab
@@ -399,6 +483,10 @@ API 2.0 fills inputs with data of the `I64` precision (aligned with the original
 
 @sphinxtab{Python}
 @snippet docs/snippets/ov_common.py ov_api_2_0:start_async_and_wait
+@endsphinxtab
+
+@sphinxtab{C}
+@snippet docs/snippets/ov_common.c ov_api_2_0:start_async_and_wait
 @endsphinxtab
 
 @endsphinxtabset
@@ -429,6 +517,10 @@ The Inference Engine API processes outputs as they are of the `I32` precision (*
 @snippet docs/snippets/ie_common.py ie:get_output_tensor
 @endsphinxtab
 
+@sphinxtab{C}
+@snippet docs/snippets/ie_common.c ie:get_output_tensor
+@endsphinxtab
+
 @endsphinxtabset
 
 @endsphinxtab
@@ -443,6 +535,10 @@ The Inference Engine API processes outputs as they are of the `I32` precision (*
 
 @sphinxtab{Python}
 @snippet docs/snippets/ie_common.py ie:get_output_tensor
+@endsphinxtab
+
+@sphinxtab{C}
+@snippet docs/snippets/ie_common.c ie:get_output_tensor
 @endsphinxtab
 
 @endsphinxtabset
@@ -461,6 +557,10 @@ The Inference Engine API processes outputs as they are of the `I32` precision (*
 @snippet docs/snippets/ie_common.py ie:get_output_tensor
 @endsphinxtab
 
+@sphinxtab{C}
+@snippet docs/snippets/ie_common.c ie:get_output_tensor
+@endsphinxtab
+
 @endsphinxtabset
 
 @endsphinxtab
@@ -475,6 +575,10 @@ The Inference Engine API processes outputs as they are of the `I32` precision (*
 
 @sphinxtab{Python}
 @snippet docs/snippets/ie_common.py ie:get_output_tensor
+@endsphinxtab
+
+@sphinxtab{C}
+@snippet docs/snippets/ie_common.c ie:get_output_tensor
 @endsphinxtab
 
 @endsphinxtabset
@@ -504,6 +608,10 @@ API 2.0 processes outputs as they are of:
 @snippet docs/snippets/ov_common.py ov_api_2_0:get_output_tensor_v10
 @endsphinxtab
 
+@sphinxtab{C}
+@snippet docs/snippets/ov_common.c ov_api_2_0:get_output_tensor_v10
+@endsphinxtab
+
 @endsphinxtabset
 
 @endsphinxtab
@@ -518,6 +626,10 @@ API 2.0 processes outputs as they are of:
 
 @sphinxtab{Python}
 @snippet docs/snippets/ov_common.py ov_api_2_0:get_output_tensor_aligned
+@endsphinxtab
+
+@sphinxtab{C}
+@snippet docs/snippets/ov_common.c ov_api_2_0:get_output_tensor_aligned
 @endsphinxtab
 
 @endsphinxtabset
@@ -536,6 +648,10 @@ API 2.0 processes outputs as they are of:
 @snippet docs/snippets/ov_common.py ov_api_2_0:get_output_tensor_aligned
 @endsphinxtab
 
+@sphinxtab{C}
+@snippet docs/snippets/ov_common.c ov_api_2_0:get_output_tensor_aligned
+@endsphinxtab
+
 @endsphinxtabset
 
 @endsphinxtab
@@ -550,6 +666,10 @@ API 2.0 processes outputs as they are of:
 
 @sphinxtab{Python}
 @snippet docs/snippets/ov_common.py ov_api_2_0:get_output_tensor_aligned
+@endsphinxtab
+
+@sphinxtab{C}
+@snippet docs/snippets/ov_common.c ov_api_2_0:get_output_tensor_aligned
 @endsphinxtab
 
 @endsphinxtabset
