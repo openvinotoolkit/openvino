@@ -197,26 +197,21 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
    pip install openvino-dev
    ```
 
-2. Download the model using `omz_downloader`, specifying the model name:
+2. Download the model using `omz_downloader`, specifying the model name and directory to download the model to:
    ```sh
-   omz_downloader --name googlenet-v1
-   ```
-
-3. Convert the model to IR format using `omz_converter`:
-   ```sh
-   omz_converter --name googlenet-v1
+   omz_downloader --name asl-recognition-0004 --precisions FP16 --output_dir omz_models
    ```
 
 3. Run the tool, specifying the location of the model .xml file, the device to perform inference on, and with a performance hint. The following commands demonstrate examples of how to run the Benchmark Tool in latency mode on CPU and throughput mode on GPU devices:
 
    * On CPU (latency mode):
    ```sh
-   ./benchmark_app -m public/googlenet-v1/FP16/googlenet-v1.xml -d CPU -hint latency
+   ./benchmark_app -m omz_models/intel/asl-recognition-0004/FP16/asl-recognition-0004.xml -d CPU -hint latency
    ```
 
    * On GPU (throughput mode):
    ```sh
-   ./benchmark_app -m public/googlenet-v1/FP16/googlenet-v1.xml -d GPU -hint throughput
+   ./benchmark_app -m omz_models/intel/asl-recognition-0004/FP16/asl-recognition-0004.xml -d GPU -hint throughput
    ```
 
 The application outputs the number of executed iterations, total duration of execution, latency, and throughput.
@@ -241,24 +236,24 @@ An example of the information output when running benchmark_app on CPU in latenc
 [ WARNING ] Device(CPU) performance hint is set to LATENCY
 [Step 4/11] Reading network files
 [ INFO ] Loading network files
-[ INFO ] Read network took 22.84 ms
+[ INFO ] Read network took 21.23 ms
 [ INFO ] Original network I/O parameters:
 Network inputs:
-    data (node: data) : f32 / [N,C,H,W]
+    input (node: input) : f32 / [N,C,D,H,W]
 Network outputs:
-    prob (node: prob) : f32 / [...]
+    output (node: output) : f32 / [...]
 [Step 5/11] Resizing network to match image sizes and given batch
 [Step 6/11] Configuring input of the model
 [ INFO ] Network batch size: 1
 Network inputs:
-    data (node: data) : u8 / [N,C,H,W]
+    input (node: input) : f32 / [N,C,D,H,W]
 Network outputs:
-    prob (node: prob) : f32 / [...]
+    output (node: output) : f32 / [...]
 [Step 7/11] Loading the model to the device
-[ INFO ] Load network took 117.72 ms
+[ INFO ] Load network took 152.95 ms
 [Step 8/11] Setting optimal runtime parameters
 [ INFO ] Device: CPU
-[ INFO ]   { NETWORK_NAME , GoogleNet }
+[ INFO ]   { NETWORK_NAME , torch-jit-export }
 [ INFO ]   { OPTIMAL_NUMBER_OF_INFER_REQUESTS , 1 }
 [ INFO ]   { NUM_STREAMS , 1 }
 [ INFO ]   { AFFINITY , CORE }
@@ -270,63 +265,70 @@ Network outputs:
 [Step 9/11] Creating infer requests and preparing input blobs with data
 [ WARNING ] No input files were given: all inputs will be filled with random values!
 [ INFO ] Test Config 0
-[ INFO ] data  ([N,C,H,W], u8, {1, 3, 224, 224}, static):	random (image is expected)
+[ INFO ] input  ([N,C,D,H,W], f32, {1, 3, 16, 224, 224}, static):	random (binary data is expected)
 [Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
 [ INFO ] BENCHMARK IS IN INFERENCE ONLY MODE.
 [ INFO ] Input blobs will be filled once before performance measurements.
-[ INFO ] First inference took 9.01 ms
+[ INFO ] First inference took 43.55 ms
 
 [Step 11/11] Dumping statistics report
-[ INFO ] Count:      5342 iterations
-[ INFO ] Duration:   60014.01 ms
+[ INFO ] Count:      1902 iterations
+[ INFO ] Duration:   60054.44 ms
 [ INFO ] Latency: 
-[ INFO ] 	Median:     11.24 ms
-[ INFO ] 	Average:    11.22 ms
-[ INFO ] 	Min:        8.50 ms
-[ INFO ] 	Max:        23.92 ms
-[ INFO ] Throughput: 89.01 FPS
+[ INFO ] 	Median:     31.64 ms
+[ INFO ] 	Average:    31.56 ms
+[ INFO ] 	Min:        27.76 ms
+[ INFO ] 	Max:        47.97 ms
+[ INFO ] Throughput: 31.67 FPS
 ```
 
-The Benchmark Tool can also be used with dynamically shaped networks to measure expected inference time for various input data shapes. See the `-shape` and `-data_shape` argument descriptions in the <a href="#whats-next">All configuration options</a> section to learn more about using dynamic shapes. Here is a command example for using benchmark_app with dynamic networks and a portion of the resulting output:
+The Benchmark Tool can also be used with dynamically shaped networks to measure expected inference time for various input data shapes. See the `-shape` and `-data_shape` argument descriptions in the <a href="#all-configuration-options">All configuration options</a> section to learn more about using dynamic shapes. Here is a command example for using benchmark_app with dynamic networks and a portion of the resulting output:
 
 ```sh
-./benchmark_app -m public/googlenet-v1/FP16/googlenet-v1.xml -d CPU -shape [1,3,?,?] -data_shape [1,3,224,224][1,3,448,448] -pcseq
-
+./benchmark_app -m omz_models/intel/asl-recognition-0004/FP16/asl-recognition-0004.xml -d CPU -shape [-1,3,16,224,224] -data_shape [1,3,16,224,224][2,3,16,224,224][4,3,16,224,224] -pcseq
 ```
 
 ```sh
 [Step 9/11] Creating infer requests and preparing input blobs with data
 [ INFO ] Test Config 0
-[ INFO ] data  ([N,C,H,W], u8, {1, 3, 224, 224}, dyn:{1,3,?,?}):	random (image is expected)
+[ INFO ] input  ([N,C,D,H,W], f32, {1, 3, 16, 224, 224}, dyn:{?,3,16,224,224}):	random (binary data is expected)
 [ INFO ] Test Config 1
-[ INFO ] data  ([N,C,H,W], u8, {1, 3, 448, 448}, dyn:{1,3,?,?}):	random (image is expected)
+[ INFO ] input  ([N,C,D,H,W], f32, {2, 3, 16, 224, 224}, dyn:{?,3,16,224,224}):	random (binary data is expected)
+[ INFO ] Test Config 2
+[ INFO ] input  ([N,C,D,H,W], f32, {4, 3, 16, 224, 224}, dyn:{?,3,16,224,224}):	random (binary data is expected)
 [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
 [ INFO ] BENCHMARK IS IN FULL MODE.
 [ INFO ] Inputs setup stage will be included in performance measurements.
-[ INFO ] First inference took 25.20 ms
+[ INFO ] First inference took 72.21 ms
 
 [Step 11/11] Dumping statistics report
-[ INFO ] Count:      2216 iterations
-[ INFO ] Duration:   60190.01 ms
+[ INFO ] Count:      764 iterations
+[ INFO ] Duration:   60351.95 ms
 [ INFO ] Latency: 
-[ INFO ] 	Median:     127.74 ms
-[ INFO ] 	Average:    108.46 ms
-[ INFO ] 	Min:        27.08 ms
-[ INFO ] 	Max:        265.00 ms
+[ INFO ] 	Median:     263.88 ms
+[ INFO ] 	Average:    315.42 ms
+[ INFO ] 	Min:        108.68 ms
+[ INFO ] 	Max:        715.47 ms
 [ INFO ] Latency for each data shape group:
-[ INFO ] 1. data : {1, 3, 224, 224}
-[ INFO ] 	Data shape: data{1, 3, 224, 224}
-[ INFO ] 	Median:     45.07 ms
-[ INFO ] 	Average:    45.95 ms
-[ INFO ] 	Min:        27.08 ms
-[ INFO ] 	Max:        88.71 ms
-[ INFO ] 2. data : {1, 3, 448, 448}
-[ INFO ] 	Data shape: data{1, 3, 448, 448}
-[ INFO ] 	Median:     169.40 ms
-[ INFO ] 	Average:    170.97 ms
-[ INFO ] 	Min:        127.74 ms
-[ INFO ] 	Max:        265.00 ms
-[ INFO ] Throughput: 36.82 FPS
+[ INFO ] 1. input : {1, 3, 16, 224, 224}
+[ INFO ] 	Data shape: input{1, 3, 16, 224, 224}
+[ INFO ] 	Median:     150.68 ms
+[ INFO ] 	Average:    157.01 ms
+[ INFO ] 	Min:        108.68 ms
+[ INFO ] 	Max:        255.31 ms
+[ INFO ] 2. input : {2, 3, 16, 224, 224}
+[ INFO ] 	Data shape: input{2, 3, 16, 224, 224}
+[ INFO ] 	Median:     263.88 ms
+[ INFO ] 	Average:    271.57 ms
+[ INFO ] 	Min:        177.93 ms
+[ INFO ] 	Max:        390.42 ms
+[ INFO ] 3. input : {4, 3, 16, 224, 224}
+[ INFO ] 	Data shape: input{4, 3, 16, 224, 224}
+[ INFO ] 	Median:     513.19 ms
+[ INFO ] 	Average:    518.48 ms
+[ INFO ] 	Min:        428.20 ms
+[ INFO ] 	Max:        715.47 ms
+[ INFO ] Throughput: 29.51 FPS
 ```
 
 ## See Also
