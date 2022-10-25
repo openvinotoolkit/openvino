@@ -86,6 +86,36 @@ def interpolate(
 
 
 @nameable_op
+def is_inf(
+    data: NodeInput,
+    attributes: Optional[dict] = None,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs IsInf operation.
+
+    :param data: The input tensor.
+    :param attributes: Optional dictionary containing IsInf attributes.
+    :param name: Optional name of the node.
+
+    Available attributes:
+
+    * detect_negative   Specifies whether to map negative infinities to true in output map.
+                        Range of values: true, false
+                        Default value: true
+                        Required: no
+    * detect_positive   Specifies whether to map positive infinities to true in output map.
+                        Range of values: true, false
+                        Default value: true
+                        Required: no
+
+    :return: A new IsInf node.
+    """
+    if not attributes:
+        attributes = {}
+    return _get_node_factory_opset10().create("IsInf", as_nodes(data), attributes)
+
+
+@nameable_op
 def is_nan(data: NodeInput, name: Optional[str] = None) -> Node:
     """Performs element-wise mapping from NaN to True. Other values are mapped to False.
 
