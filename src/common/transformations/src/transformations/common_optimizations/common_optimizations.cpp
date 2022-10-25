@@ -127,7 +127,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     // TODO: move to KMB
     manager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
 
-    auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    auto common_fusions = manager.register_pass<pass::GraphRewrite>();
     common_fusions->add_matcher<ngraph::pass::SpaceToBatchFusion>();
     common_fusions->add_matcher<ngraph::pass::BatchToSpaceFusion>();
     common_fusions->add_matcher<ngraph::pass::InterpolateSequenceFusion>();
@@ -140,7 +140,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
     manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4, false>();
 
-    auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
+    auto decomp = manager.register_pass<pass::GraphRewrite>();
     decomp->add_matcher<ngraph::pass::Gelu7Downgrade>();
     decomp->add_matcher<ngraph::pass::BidirectionalSequenceDecomposition>();
     decomp->add_matcher<ngraph::pass::ReduceL1Decomposition>();
@@ -179,7 +179,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
     manager.register_pass<ngraph::pass::UnrollIf>();
 
-    auto multiply_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    auto multiply_fusions = manager.register_pass<pass::GraphRewrite>();
     multiply_fusions->add_matcher<ngraph::pass::ConvolutionMultiplyFusion>();
     multiply_fusions->add_matcher<ngraph::pass::GroupConvolutionMultiplyFusion>();
     multiply_fusions->add_matcher<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
@@ -208,7 +208,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     manager.register_pass<ngraph::pass::ConvertROIAlign9To3>();
     manager.register_pass<ngraph::pass::ConvertMulticlassNms8ToMulticlassNms9>();
 
-    auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    auto fq_fusions = manager.register_pass<pass::GraphRewrite>();
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeMulFusion>();
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeReshapeFusion>();
     fq_fusions->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
