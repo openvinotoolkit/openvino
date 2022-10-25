@@ -5,7 +5,7 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <vector>
 
 namespace ov {
@@ -32,13 +32,13 @@ class NGRAPH_API Proposal4Scales;
  *      Parameter [batch, 3 or 4] -> Reshape [-1] -> StridedSlice[0: 3 or 4] -(in: 3)-> PriorBox
  */
 
-class ov::pass::Proposal1Scales : public ngraph::pass::MatcherPass {
+class ov::pass::Proposal1Scales : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("Proposal1Scales", "0");
     Proposal1Scales();
 };
 
-class ov::pass::Proposal4Scales : public ngraph::pass::MatcherPass {
+class ov::pass::Proposal4Scales : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("Proposal4Scales", "0");
     Proposal4Scales();

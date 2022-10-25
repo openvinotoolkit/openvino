@@ -34,7 +34,7 @@ class TRANSFORMATIONS_API SimplifySecondInputOfReshape;
 class ov::pass::SharedShapeOf : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("SharedShapeOf", "0");
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
 /**
@@ -56,7 +56,7 @@ public:
 class ov::pass::SimplifyShapeOfSubGraph : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("SimplifyShapeOfSubGraph", "0");
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
 /**

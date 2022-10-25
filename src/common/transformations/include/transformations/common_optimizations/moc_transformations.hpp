@@ -39,7 +39,7 @@ public:
         : m_use_shapes(use_shapes),
           m_low_precision_enabled(low_precision_enabled) {}
 
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
 namespace ngraph {

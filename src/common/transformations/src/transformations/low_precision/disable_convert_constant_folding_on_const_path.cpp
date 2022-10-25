@@ -18,10 +18,10 @@ using namespace ngraph;
 
 ov::pass::DisableConvertConstantFoldingOnConstPath::DisableConvertConstantFoldingOnConstPath(
     const element::TypeVector& inputPrecisions) {
-    auto matcherData = ngraph::pattern::any_input();
+    auto matcherData = pass::pattern::any_input();
     auto matcherConvert = ngraph::pattern::wrap_type<opset3::Convert>({matcherData}, pattern::consumers_count(1));
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) -> bool {
+    matcher_pass_callback callback = [=](pass::pattern::Matcher& m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
         const auto convert = opsMap.at(matcherConvert).get_node_shared_ptr();
 

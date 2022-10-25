@@ -16,7 +16,7 @@
 
 ov::pass::DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer() {
     MATCHER_SCOPE(DropoutWithRandomUniformReplacer);
-    const auto shape_pattern = ngraph::pattern::any_input();
+    const auto shape_pattern = pass::pattern::any_input();
     const auto ru_min_const_pattern = ngraph::pattern::wrap_type<opset8::Constant>();
     const auto ru_max_const_pattern = ngraph::pattern::wrap_type<opset8::Constant>();
     const auto random_uniform_pattern =

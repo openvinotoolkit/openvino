@@ -131,10 +131,10 @@ ov::pass::GroupedGatherElimination::GroupedGatherElimination() {
 
 ov::pass::GatherNopElimination::GatherNopElimination() {
     MATCHER_SCOPE(GatherNopElimination);
-    const auto gather_label = ngraph::pattern::wrap_type<ngraph::op::util::GatherBase>(
-        {ngraph::pattern::any_input(pattern::has_static_shape()),
-         ngraph::pattern::wrap_type<ngraph::op::Constant>(),
-         ngraph::pattern::wrap_type<ngraph::op::Constant>()});
+    const auto gather_label =
+        ngraph::pattern::wrap_type<ngraph::op::util::GatherBase>({pass::pattern::any_input(pattern::has_static_shape()),
+                                                                  ngraph::pattern::wrap_type<ngraph::op::Constant>(),
+                                                                  ngraph::pattern::wrap_type<ngraph::op::Constant>()});
 
     ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto gather = m.get_match_root();

@@ -5,7 +5,7 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 #include <utility>
 
@@ -17,7 +17,7 @@ class TRANSFORMATIONS_API DisableConvertConstantFoldingOnConstPath;
 }  // namespace pass
 }  // namespace ov
 
-class ov::pass::DisableConvertConstantFoldingOnConstPath : public ngraph::pass::MatcherPass {
+class ov::pass::DisableConvertConstantFoldingOnConstPath : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("DisableConvertConstantFoldingOnConstPath", "0");
     DisableConvertConstantFoldingOnConstPath(const element::TypeVector& inputPrecisions = {});

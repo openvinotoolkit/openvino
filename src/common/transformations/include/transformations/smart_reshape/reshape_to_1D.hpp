@@ -5,7 +5,7 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <vector>
 
 namespace ov {
@@ -21,7 +21,7 @@ class NGRAPH_API ReshapeTo1D;
  * @brief ReshapeTo1D transformation looks for Reshape from nD to 1D tensor and replaces its pattern to [-1]
  */
 
-class ov::pass::ReshapeTo1D : public ngraph::pass::MatcherPass {
+class ov::pass::ReshapeTo1D : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ReshapeTo1D", "0");
     ReshapeTo1D();

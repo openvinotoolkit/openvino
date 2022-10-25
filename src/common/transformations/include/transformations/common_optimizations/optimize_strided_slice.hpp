@@ -31,7 +31,7 @@ class TRANSFORMATIONS_API GroupedStridedSliceOptimizer;
 class ov::pass::UselessStridedSliceEraser : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("UselessStridedSliceEraser", "0");
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
 /**
@@ -43,7 +43,7 @@ public:
 class ov::pass::SharedStridedSliceEraser : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("SharedStridedSliceEraser", "0");
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
 /**
@@ -55,7 +55,7 @@ public:
 class ov::pass::GroupedStridedSliceOptimizer : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("GroupedStridedSliceOptimizer", "0");
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
 /**
@@ -68,7 +68,7 @@ public:
     StridedSliceOptimization(bool use_shapes = true);
 
     OPENVINO_RTTI("StridedSliceOptimization", "0");
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:
     bool m_use_shapes = true;

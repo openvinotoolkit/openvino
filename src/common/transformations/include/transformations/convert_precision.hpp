@@ -7,10 +7,10 @@
 #include <algorithm>
 #include <memory>
 #include <ngraph/opsets/opset3.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pass/pass.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 #include <unordered_map>
 #include <vector>
@@ -25,7 +25,7 @@ class NGRAPH_API ConvertPrecision;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief ConvertPrecision transformation convert precision for entire ngraph::Function
+ * @brief ConvertPrecision transformation convert precision for entire ov::Model
  * List of supported precision conversion:
  *    FROM -> TO
  *      u8 -> i32
@@ -73,7 +73,7 @@ using type_to_fuse_map =
                        std::function<bool(const std::shared_ptr<ngraph::Node>&, ngraph::element::Type, size_t idx)>>;
 using precisions_array = std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>>;
 
-class ov::pass::ConvertPrecision : public ngraph::pass::FunctionPass {
+class ov::pass::ConvertPrecision : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("ConvertPrecision", "0");
     ConvertPrecision(ngraph::element::Type_t from,
@@ -86,7 +86,7 @@ public:
         : m_precisions(precisions),
           m_additional_type_to_fuse_map(additional_type_to_fuse_map) {}
 
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:
     precisions_array m_precisions;

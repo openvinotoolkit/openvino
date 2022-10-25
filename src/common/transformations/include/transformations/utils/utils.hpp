@@ -10,11 +10,11 @@
 #include <limits>
 #include <memory>
 #include <ngraph/op/util/op_annotations.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <openvino/opsets/opset4.hpp>
 #include <openvino/opsets/opset8.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations/rt_info/attributes.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>
@@ -41,7 +41,7 @@ bool normalize_single_value(std::vector<T> vec, float& value) {
 }
 
 template <class T>
-bool has_op_with_type(const std::shared_ptr<const ngraph::Function>& function) {
+bool has_op_with_type(const std::shared_ptr<const ov::Model>& function) {
     for (const auto& op : function->get_ops()) {
         if (std::dynamic_pointer_cast<T>(op)) {
             return true;
@@ -50,7 +50,7 @@ bool has_op_with_type(const std::shared_ptr<const ngraph::Function>& function) {
     return false;
 }
 
-inline bool has_decompression_converts(const std::shared_ptr<const ngraph::Function>& function) {
+inline bool has_decompression_converts(const std::shared_ptr<const ov::Model>& function) {
     for (const auto& op : function->get_ops()) {
         if (std::dynamic_pointer_cast<opset8::Convert>(op)) {
             if (ov::is_decompression(op))
@@ -161,7 +161,7 @@ TRANSFORMATIONS_API bool constantIsEqualTo(const std::shared_ptr<opset4::Constan
                                            float value,
                                            float eps = 1e-5);
 
-TRANSFORMATIONS_API bool has_f16_constants(const std::shared_ptr<const ngraph::Function>& function);
+TRANSFORMATIONS_API bool has_f16_constants(const std::shared_ptr<const ov::Model>& function);
 
 TRANSFORMATIONS_API bool check_for_broadcast(const ngraph::PartialShape& ref_shape,
                                              const ngraph::PartialShape& other_shape);

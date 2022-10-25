@@ -15,7 +15,7 @@
 ov::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
     MATCHER_SCOPE(HSwishFusionWithReluDiv);
     // Replaces a sub-graph (x * (min(Relu(x + 3), 6)) / 6 with a HSwish op.
-    auto input = ngraph::pattern::any_input();
+    auto input = pass::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<opset8::Constant>();
     auto add = std::make_shared<opset8::Add>(input, add_constant);
     auto relu = std::make_shared<opset8::Relu>(add);
@@ -70,7 +70,7 @@ ov::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
 ov::pass::HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
     MATCHER_SCOPE(HSwishFusionWithReluMul);
     // Replaces a sub-graph (x * (min(Relu(x + 3), 6)) * const(1/6) with a HSwish op.
-    auto input = ngraph::pattern::any_input();
+    auto input = pass::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<opset8::Constant>();
     auto add = std::make_shared<opset8::Add>(input, add_constant);
     auto relu = std::make_shared<opset8::Relu>(add);
@@ -145,7 +145,7 @@ ov::pass::HSwishFusionWithHSigmoid::HSwishFusionWithHSigmoid() {
 ov::pass::HSwishFusionWithClamp::HSwishFusionWithClamp() {
     MATCHER_SCOPE(HSwishFusionWithClampMul);
     // Replaces a sub-graph (Clamp(x + 3, 0, 6) * x) with a HSwish * 6.
-    const auto input = ngraph::pattern::any_input();
+    const auto input = pass::pattern::any_input();
     const auto add_constant = ngraph::pattern::wrap_type<opset8::Constant>();
     const auto add = ngraph::pattern::wrap_type<opset8::Add>({input, add_constant});
     const auto clamp = ngraph::pattern::wrap_type<opset8::Clamp>({add});

@@ -10,7 +10,7 @@
  */
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <vector>
 
 namespace ov {
@@ -31,10 +31,10 @@ class NGRAPH_API InitNodeInfo;
  * This transformations should be called first in transformation pipeline. If attribute was
  * already set initialization will be skipped for this node.
  */
-class ov::pass::InitNodeInfo : public ngraph::pass::FunctionPass {
+class ov::pass::InitNodeInfo : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("InitNodeInfo", "0");
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
 namespace ngraph {
