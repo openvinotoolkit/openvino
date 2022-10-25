@@ -29,7 +29,8 @@ ov::PartialShape::PartialShape(const std::string& value) {
     auto val = ngraph::trim(value);
     if (val[0] == '[' && val[val.size() - 1] == ']')
         val = val.substr(1, val.size() - 2);
-    if (val.find("...") != std::string::npos) {
+    val = ngraph::trim(val);
+    if (val == "...") {
         m_rank_is_static = false;
         m_dimensions = std::vector<Dimension>();
         return;
