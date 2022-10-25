@@ -64,7 +64,7 @@ class MetaDataTest(UnitTestWithMockedTelemetry):
                 'Runtime_version': get_rt_version(),
                 'legacy_path': "False",
                 'conversion_parameters': {
-                    'caffe_parser_path': "DIR",
+                    'caffe_parser_path': Path("DIR"),
                     'compress_fp16': "False",
                     'data_type': "float",
                     'disable_nhwc_to_nchw': "False",
@@ -77,10 +77,10 @@ class MetaDataTest(UnitTestWithMockedTelemetry):
                     'extensions': Path("['" + import_extensions.default_path() + "']"),
                     'framework': "onnx",
                     'freeze_placeholder_with_value': "{}",
-                    'input_model': "DIR\model.onnx",
+                    'input_model': Path("DIR\model.onnx"),
                     'input_model_is_text': "False",
                     'inputs_list': "[]",
-                    'k': "DIR\CustomLayersMapping.xml",
+                    'k': Path("DIR\CustomLayersMapping.xml"),
                     'layout': "()",
                     'layout_values': "{}",
                     'legacy_mxnet_model': "False",
@@ -88,7 +88,7 @@ class MetaDataTest(UnitTestWithMockedTelemetry):
                     'mean_scale_values': "{}",
                     'mean_values': "()",
                     'model_name': "model",
-                    'output_dir': "DIR",
+                    'output_dir': Path("DIR"),
                     'placeholder_data_types': "{}",
                     'progress': "False",
                     'remove_memory': "False",
@@ -123,7 +123,7 @@ class MetaDataTest(UnitTestWithMockedTelemetry):
                 if key == 'conversion_parameters':
                     for param_name, param_value in value.items():
                         val = ov_model.get_rt_info([key, param_name])
-                        if param_name == 'extensions':
+                        if param_name in ['extensions', 'caffe_parser_path', 'input_model', 'k', 'output_dir']:
                             val = Path(val)
                         assert val == param_value, \
                             "Runtime info attribute with name {} does not match. Expected: {}, " \
