@@ -15,7 +15,7 @@ from openvino.tools.benchmark.utils.inputs_filling import get_input_data
 from openvino.tools.benchmark.utils.logging import logger
 from openvino.tools.benchmark.utils.progress_bar import ProgressBar
 from openvino.tools.benchmark.utils.utils import next_step, get_number_iterations, pre_post_processing, \
-    process_help_inference_string, print_perf_counters, dump_exec_graph, get_duration_in_milliseconds, \
+    process_help_inference_string, print_perf_counters, print_perf_counters_sort, dump_exec_graph, get_duration_in_milliseconds, \
     get_command_line_arguments, parse_value_per_device, parse_devices, get_inputs_info, \
     print_inputs_and_outputs_info, get_network_batch_size, load_config, dump_config, get_latency_groups, \
     check_for_static, can_measure_as_static
@@ -32,7 +32,7 @@ def parse_and_check_command_line():
                         "should explicitely set -hint option to none. This is not OpenVINO limitation " \
                         "(those options can be used in OpenVINO together), but a benchmark_app UI rule.")
     
-    if args.report_type == "average_counters" and args.target_device.contains("MULTI"):
+    if args.report_type == "average_counters" and "MULTI" in args.target_device:
         raise Exception("only detailed_counters report type is supported for MULTI device")
     
     _, ext = os.path.splitext(args.path_to_model)
@@ -156,16 +156,18 @@ def main():
                 logger.warning(f"Turn on performance counters for {device} device " +
                                "due to execution graph dumping.")
                 config[device]['PERF_COUNT'] = 'YES'
+            elif is_flag_set_in_command_line('pcsort'):
+                ## set to default value
+                config[device]['PERF_COUNT'] = 'YES' if args.perf_counts_sort else 'NO'
             else:
                 ## set to default value
                 config[device]['PERF_COUNT'] = 'YES' if args.perf_counts else 'NO'
             perf_counts = True if config[device]['PERF_COUNT'] == 'YES' else perf_counts
 
             ## high-level performance hints
-            if is_flag_set_in_command_line('hint') or args.perf_hint:
-                config[device]['PERFORMANCE_HINT'] = args.perf_hint.upper()
-                if is_flag_set_in_command_line('nireq'):
-                    config[device]['PERFORMANCE_HINT_NUM_REQUESTS'] = str(args.number_infer_requests)
+            config[device]['PERFORMANCE_HINT'] = args.perf_hint.upper()
+            if is_flag_set_in_command_line('nireq'):
+                config[device]['PERFORMANCE_HINT_NUM_REQUESTS'] = str(args.number_infer_requests)
 
             ## infer precision
             if device in device_infer_precision and 'INFERENCE_PRECISION_HINT' in supported_properties:
@@ -501,9 +503,17 @@ def main():
             perfs_count_list = []
             for request in requests:
                 perfs_count_list.append(request.profiling_info)
-            if args.perf_counts:
+
+            if args.perf_counts_sort:
+                total_sorted_list = print_perf_counters_sort(perfs_count_list,sort_flag=args.perf_counts_sort)
+                if statistics:
+                    statistics.dump_performance_counters_sorted(total_sorted_list)
+            
+            elif args.perf_counts:
                 print_perf_counters(perfs_count_list)
+
             if statistics:
+                # if not args.perf_counts_sort:
                 statistics.dump_performance_counters(perfs_count_list)
 
         if statistics:
