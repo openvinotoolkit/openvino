@@ -93,4 +93,9 @@ protected:
     ShapeVector input_shapes, output_shapes;
     ov::intel_cpu::StaticShape exp_shape;
     std::shared_ptr<TOp> op;
+
+    template <class... Args>
+    std::shared_ptr<TOp> make_op(Args&&... args) {
+        return std::make_shared<TOp>(std::forward<Args>(args)...);
+    }
 };
