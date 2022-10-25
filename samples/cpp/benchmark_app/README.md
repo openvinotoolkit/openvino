@@ -98,7 +98,7 @@ The application also collects per-layer Performance Measurement (PM) counters fo
 
 Depending on the type, the report is stored to benchmark_no_counters_report.csv, benchmark_average_counters_report.csv, or benchmark_detailed_counters_report.csv file located in the path specified in -report_folder. The application also saves executable graph information serialized to an XML file if you specify a path to it with the -exec_graph_path parameter.
 
-### All configuration options
+### <a name="all-configuration-options"></a> All configuration options
 
 Running the application with the `-h` or `--help` option yields the following usage message:
 
@@ -287,7 +287,7 @@ Network outputs:
 [ INFO ] Throughput: 89.01 FPS
 ```
 
-The Benchmark Tool can also be used with dynamically shaped networks to measure expected inference time for various input data shapes. See the `-shape` and `-data_shape` argument descriptions in the [All configuration options](#all-configuration-options) section to learn more about using dynamic shapes. Here is a command example for using benchmark_app with dynamic networks and a portion of the resulting output:
+The Benchmark Tool can also be used with dynamically shaped networks to measure expected inference time for various input data shapes. See the `-shape` and `-data_shape` argument descriptions in the <a href="#whats-next">All configuration options</a> section to learn more about using dynamic shapes. Here is a command example for using benchmark_app with dynamic networks and a portion of the resulting output:
 
 ```sh
 ./benchmark_app -m public/googlenet-v1/FP16/googlenet-v1.xml -d CPU -shape [1,3,?,?] -data_shape [1,3,224,224][1,3,448,448] -pcseq
