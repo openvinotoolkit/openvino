@@ -361,6 +361,18 @@ const auto fusingMultiplyPerChannel = fusingSpecificParams{std::make_shared<post
             return std::make_shared<ngraph::opset1::Multiply>(cfg.input, secondMultInput);
         }, "Multiply(PerChannel)"}}), {"Multiply"}};
 
+const auto fusingMultiplyAddPerChannel = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+        {[](postNodeConfig& cfg) {
+                ngraph::Shape newShape = generatePerChannelShape(cfg.input);
+                auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
+                return std::make_shared<ngraph::opset1::Multiply>(cfg.input, constNode);
+        }, "Multiply(PerChannel)"},
+        {[](postNodeConfig& cfg) {
+                ngraph::Shape newShape = generatePerChannelShape(cfg.input);
+                auto constNode = ngraph::builder::makeConstant(cfg.type, newShape, std::vector<float>{}, true);
+                return std::make_shared<ngraph::opset1::Add>(cfg.input, constNode);
+        }, "Add(PerChannel)"}}), {"Add"} };
+
 const auto fusingAddPerTensor = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg){
             ngraph::Shape secondMultInShape(1, 1);
