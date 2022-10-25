@@ -90,7 +90,7 @@ TEST(ov_partial_shape, ov_partial_shape_to_shape) {
 
     int64_t rank = 5;
     ov_dimension_t dims[5] = {{10, 10}, {20, 20}, {30, 30}, {40, 40}, {50, 50}};
-    OV_EXPECT_OK(ov_partial_shape_create(rank, dims, &partial_shape));
+    OV_ASSERT_OK(ov_partial_shape_create(rank, dims, &partial_shape));
 
     ov_shape_t shape;
     OV_ASSERT_OK(ov_partial_shape_to_shape(partial_shape, &shape));
@@ -110,7 +110,7 @@ TEST(ov_partial_shape, ov_partial_shape_to_shape_invalid) {
 
     int64_t rank = 5;
     ov_dimension_t dims[5] = {{10, 10}, {-1, -1}, {30, 30}, {40, 40}, {50, 50}};
-    OV_EXPECT_OK(ov_partial_shape_create(rank, dims, &partial_shape));
+    OV_ASSERT_OK(ov_partial_shape_create(rank, dims, &partial_shape));
 
     ov_shape_t shape;
     shape.rank = 0;

@@ -10,9 +10,13 @@ if(ENABLE_LTO)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endif()
 
-add_subdirectory(ittapi)
-add_subdirectory(itt_collector EXCLUDE_FROM_ALL)
+if(ENABLE_PROFILING_ITT)
+    add_subdirectory(ittapi)
+    add_subdirectory(itt_collector EXCLUDE_FROM_ALL)
+endif()
+
 add_subdirectory(cnpy EXCLUDE_FROM_ALL)
+
 if(ENABLE_INTEL_GPU)
     add_subdirectory(ocl)
 endif()
@@ -54,6 +58,10 @@ if(ENABLE_SYSTEM_PUGIXML)
         if(TARGET pugixml::shared)
             # example: cross-compilation on debian
             set(pugixml_target pugixml::shared)
+        elseif(TARGET pugixml::pugixml)
+            # or create an alias for pugixml::pugixml shared library
+            # example: pugixml brew package
+            set(pugixml_target pugixml::pugixml)
         elseif(TARGET pugixml)
             # or create an alias for pugixml shared library
             # example: libpugixml-dev debian package
@@ -117,8 +125,8 @@ if(ENABLE_SYSTEM_PUGIXML)
                     DESTINATION runtime/3rdparty/pugixml/lib
                     COMPONENT pugixml
                     EXCLUDE_FROM_ALL)
-        elseif(CPACK_GENERATOR STREQUAL "DEB")
-            message(FATAL_ERROR "Debian package build requires shared Pugixml library")
+        elseif(CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
+            message(FATAL_ERROR "Debian | RPM package build requires shared Pugixml library")
         endif()
 
         set_target_properties(${pugixml_target} PROPERTIES IMPORTED_GLOBAL ON)
@@ -151,37 +159,50 @@ endif()
 # Fluid, G-API, OpenCV HAL
 #
 
-add_library(ocv_hal INTERFACE)
-target_include_directories(ocv_hal INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/ocv")
+if(ENABLE_GAPI_PREPROCESSING)
+    add_library(ocv_hal INTERFACE)
+    target_include_directories(ocv_hal INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/ocv")
 
-add_subdirectory(ade EXCLUDE_FROM_ALL)
-add_subdirectory(fluid/modules/gapi EXCLUDE_FROM_ALL)
+    add_subdirectory(ade EXCLUDE_FROM_ALL)
+    add_subdirectory(fluid/modules/gapi EXCLUDE_FROM_ALL)
 
-if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND NOT OV_COMPILER_IS_CLANG)
-    target_compile_options(fluid PRIVATE "-Wno-maybe-uninitialized")
+    if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND NOT OV_COMPILER_IS_CLANG)
+        target_compile_options(fluid PRIVATE "-Wno-maybe-uninitialized")
+    endif()
+
+    set_target_properties(ade fluid PROPERTIES FOLDER thirdparty)
+    openvino_developer_export_targets(COMPONENT openvino_common TARGETS ade fluid)
+
+    ov_install_static_lib(ade ${OV_CPACK_COMP_CORE})
+    ov_install_static_lib(fluid ${OV_CPACK_COMP_CORE})
 endif()
-
-set_target_properties(ade fluid PROPERTIES FOLDER thirdparty)
-openvino_developer_export_targets(COMPONENT openvino_common TARGETS ade fluid)
-
-ov_install_static_lib(ade ${OV_CPACK_COMP_CORE})
-ov_install_static_lib(fluid ${OV_CPACK_COMP_CORE})
 
 #
 # Gflags
 #
 
-if(NOT APPLE)
-    # on Apple only dynamic libraries are available
-    find_package(gflags QUIET COMPONENTS nothreads_static)
+if(NOT APPLE OR CPACK_GENERATOR MATCHES "^(BREW|CONDA-FORGE)$")
+    # - on Apple only dynamic libraries are available
+    #   also, we can easily mix arm64 and x86_64 binaries when cross-compile for Intel CPU
+
+    if(CPACK_GENERATOR MATCHES "^(BREW|CONDA-FORGE)$" OR DEFINED ENV{HOMEBREW_PREFIX} OR LINUX_OS_NAME MATCHES "(Fedora)")
+        # conda-forge and brew contains only shared version of gflags
+        find_package(gflags QUIET COMPONENTS nothreads_shared)
+    else()
+        find_package(gflags QUIET COMPONENTS nothreads_static)
+    endif()
 endif()
 
 if(gflags_FOUND)
-    if(TARGET gflags_nothreads-static)
+    if(TARGET gflags)
+        set_target_properties(gflags PROPERTIES IMPORTED_GLOBAL ON)
+    elseif(TARGET gflags_nothreads-static)
+        # debian_9_arm case
         set_target_properties(gflags_nothreads-static PROPERTIES IMPORTED_GLOBAL ON)
         add_library(gflags ALIAS gflags_nothreads-static)
-    elseif(TARGET gflags)
-        set_target_properties(gflags PROPERTIES IMPORTED_GLOBAL ON)
+    elseif(TARGET ${GFLAGS_TARGET})
+        set_target_properties(${GFLAGS_TARGET} PROPERTIES IMPORTED_GLOBAL ON)
+        add_library(gflags ALIAS ${GFLAGS_TARGET})
     else()
         message(FATAL_ERROR "Internal error: failed to find imported target 'gflags'")
     endif()
@@ -196,10 +217,19 @@ endif()
 #
 
 if(ENABLE_TESTS)
-    add_subdirectory(gtest EXCLUDE_FROM_ALL)
+    # TODO: migrate to official version of googltest
+    # find_package(GTest QUIET)
 
-    openvino_developer_export_targets(COMPONENT tests
-                                      TARGETS gmock gmock_main gtest gtest_main)
+    if(GTest_FOUND)
+        foreach(gtest_target gtest gtest_main gmock gmock_main)
+            set_target_properties(GTest::${gtest_target} PROPERTIES IMPORTED_GLOBAL ON)
+            add_library(${gtest_target} ALIAS GTest::${gtest_target})
+        endforeach()
+    else()
+        add_subdirectory(gtest EXCLUDE_FROM_ALL)
+        openvino_developer_export_targets(COMPONENT tests
+                                          TARGETS gmock gmock_main gtest gtest_main)
+    endif()
 endif()
 
 #
@@ -209,7 +239,7 @@ endif()
 if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND)
     if(ENABLE_SYSTEM_PROTOBUF)
         set(Protobuf_USE_STATIC_LIBS ON)
-        if(VERBOSE_BUILD)
+        if(CMAKE_VERBOSE_MAKEFILE)
             set(Protobuf_DEBUG ON)
         endif()
         find_package(Protobuf 3.18.2 REQUIRED)
@@ -268,35 +298,70 @@ ov_install_static_lib(nlohmann_json_schema_validator ${OV_CPACK_COMP_CORE})
 # Install
 #
 
-if(CPACK_GENERATOR STREQUAL "DEB")
-    # These libraries are dependencies for openvino-samples-2022.1 package
+if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
+    # These libraries are dependencies for openvino-samples package
 
     if(NOT gflags_FOUND)
-        message(FATAL_ERROR "gflags must be used as a debian package. Install libgflags-dev")
+        message(FATAL_ERROR "gflags must be used as a ${CPACK_GENERATOR} package. Install libgflags-dev")
     endif()
     if(NOT zlib_FOUND)
-        message(FATAL_ERROR "zlib must be used as a debian package. Install zlib1g-dev")
+        message(FATAL_ERROR "zlib must be used as a ${CPACK_GENERATOR} package. Install zlib1g-dev")
     endif()
     if(NOT ENABLE_SYSTEM_PUGIXML)
-        message(FATAL_ERROR "Pugixml must be used as a debian package. Install libpugixml-dev")
+        message(FATAL_ERROR "Pugixml must be used as a ${CPACK_GENERATOR} package. Install libpugixml-dev")
     endif()
 else()
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
-            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
+            PATTERN bazel EXCLUDE
+            PATTERN doc EXCLUDE
+            PATTERN .git EXCLUDE
+            PATTERN appveyor.yml EXCLUDE
+            PATTERN AUTHORS.txt EXCLUDE
+            PATTERN BUILD EXCLUDE
+            PATTERN ChangeLog.txt EXCLUDE
+            PATTERN .gitattributes EXCLUDE
+            PATTERN .gitignore EXCLUDE
+            PATTERN .gitmodules EXCLUDE
+            PATTERN test EXCLUDE
+            PATTERN INSTALL.md EXCLUDE
+            PATTERN README.md EXCLUDE
+            PATTERN .travis.yml EXCLUDE
+            PATTERN WORKSPACE EXCLUDE)
 
-    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/zlib
-            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
+    file(GLOB zlib_sources ${CMAKE_CURRENT_SOURCE_DIR}/zlib/zlib/*.c
+                           ${CMAKE_CURRENT_SOURCE_DIR}/zlib/zlib/*.h)
+    install(FILES ${zlib_sources}
+            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty/zlib/zlib
+            COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})
+    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/zlib/CMakeLists.txt
+            DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty/zlib
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES})
 
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json/nlohmann_json
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-            REGEX .*json/nlohmann_json/.github/.* EXCLUDE
-            REGEX .*json/nlohmann_json/benchmarks/.* EXCLUDE
-            REGEX .*json/nlohmann_json/doc/.* EXCLUDE
-            REGEX .*json/nlohmann_json/test/.* EXCLUDE
-            REGEX .*json/nlohmann_json/cpplint/.* EXCLUDE)
+            PATTERN appveyor.yml EXCLUDE
+            PATTERN benchmarks EXCLUDE
+            PATTERN ChangeLog.md EXCLUDE
+            PATTERN CITATION.cff EXCLUDE
+            PATTERN .clang-format EXCLUDE
+            PATTERN .clang-tidy EXCLUDE
+            PATTERN CODE_OF_CONDUCT.md EXCLUDE
+            PATTERN doc EXCLUDE
+            PATTERN .git EXCLUDE
+            PATTERN .drone.yml EXCLUDE
+            PATTERN .github EXCLUDE
+            PATTERN .gitignore EXCLUDE
+            PATTERN Makefile EXCLUDE
+            PATTERN meson.build EXCLUDE
+            PATTERN nlohmann_json.natvis EXCLUDE
+            PATTERN README.md EXCLUDE
+            PATTERN test EXCLUDE
+            PATTERN third_party EXCLUDE
+            PATTERN .travis.yml EXCLUDE
+            PATTERN wsjcpp.yml EXCLUDE)
 endif()
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cnpy

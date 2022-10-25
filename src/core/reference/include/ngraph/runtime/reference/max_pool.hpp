@@ -147,7 +147,7 @@ struct Coord : public std::vector<T> {
     Coord(std::initializer_list<T>&& values) : std::vector<T>{std::move(values)} {}
 };
 
-inline bool elem_in_padding_area(const Coord<int>& kernel_position,
+inline bool elem_in_padding_area(const Coord<size_t>& kernel_position,
                                  const Coord<size_t>& kernel_offset,
                                  const Shape& data_shape) {
     for (size_t dim = 0; dim + 2 < data_shape.size(); ++dim) {
@@ -160,10 +160,10 @@ inline bool elem_in_padding_area(const Coord<int>& kernel_position,
     return false;
 }
 
-inline Coord<int> calculate_kernel_position(const Coord<size_t>& out_elem_coord,
-                                            const Strides& kernel_strides,
-                                            const Shape& pads_begin) {
-    Coord<int> top_left_corner;
+inline Coord<size_t> calculate_kernel_position(const Coord<size_t>& out_elem_coord,
+                                               const Strides& kernel_strides,
+                                               const Shape& pads_begin) {
+    Coord<size_t> top_left_corner;
     top_left_corner.reserve(out_elem_coord.size());
     for (size_t i = 0u; i < out_elem_coord.size(); ++i) {
         top_left_corner.emplace_back(out_elem_coord[i] * kernel_strides[i] - pads_begin[i]);
@@ -184,7 +184,7 @@ void max_pool_1d(const Values_t* data,
                  const size_t pads_begin,
                  const size_t pads_end,
                  const size_t indices_offset) {
-    int kernel_position = 0 - pads_begin;
+    int kernel_position = 0 - static_cast<int>(pads_begin);
     // select max elem and its index for each "placeholder" in the out buffer (pointed to by out_idx)
     for (size_t out_idx = 0; out_idx < out_elems; ++out_idx) {
         Values_t max_elem = std::numeric_limits<Values_t>::lowest();
@@ -195,12 +195,12 @@ void max_pool_1d(const Values_t* data,
             if (kernel_position + kernel_elem_offset >= 0 && kernel_position + kernel_elem_offset < data_elems &&
                 data[kernel_position + kernel_elem_offset] > max_elem) {
                 max_elem = data[kernel_position + kernel_elem_offset];
-                max_elem_idx = kernel_position + kernel_elem_offset;
+                max_elem_idx = static_cast<Indices_t>(kernel_position + kernel_elem_offset);
             }
         }
         values[out_idx] = max_elem;
-        indices[out_idx] = max_elem_idx + indices_offset;
-        kernel_position += kernel_stride;
+        indices[out_idx] = static_cast<Indices_t>(max_elem_idx + indices_offset);
+        kernel_position += static_cast<int>(kernel_stride);
     }
 }
 
@@ -246,14 +246,14 @@ void max_pool_2d(const Values_t* data,
 
                         if (data[data_elem_index] > max_elem) {
                             max_elem = data[data_elem_index];
-                            max_elem_idx = data_elem_index;
+                            max_elem_idx = static_cast<Indices_t>(data_elem_index);
                         }
                     }
                 }
             }
 
             values[out_idx] = max_elem;
-            indices[out_idx] = max_elem_idx + indices_offset;
+            indices[out_idx] = static_cast<Indices_t>(max_elem_idx + indices_offset);
             ++out_idx;
         }
     }
@@ -307,14 +307,14 @@ void max_pool_3d(const Values_t* data,
 
                                 if (data[data_elem_index] > max_elem) {
                                     max_elem = data[data_elem_index];
-                                    max_elem_idx = data_elem_index;
+                                    max_elem_idx = static_cast<Indices_t>(data_elem_index);
                                 }
                             }
                         }
                     }
                 }
                 values[out_idx] = max_elem;
-                indices[out_idx] = max_elem_idx + indices_offset;
+                indices[out_idx] = static_cast<Indices_t>(max_elem_idx + indices_offset);
                 ++out_idx;
             }
         }
@@ -342,7 +342,7 @@ void max_pool(const Values_t* data,
     const auto out_channel_elems = shape_size(std::begin(out_shape) + 2, std::end(out_shape));
 
     for (size_t b = 0; b < data_shape[0]; ++b) {
-        const Indices_t batch_indices_offset = b * data_batch_elems;
+        const Indices_t batch_indices_offset = static_cast<Indices_t>(b * data_batch_elems);
 
         for (size_t c = 0; c < data_shape[1]; ++c) {
             // calculate the buffer offsets for a given channel "c" then execute an appropriate
@@ -350,7 +350,7 @@ void max_pool(const Values_t* data,
             const Values_t* data_channel_first_elem = data + b * data_batch_elems + c * data_channel_elems;
             Values_t* out_channel_first_elem = values + b * out_batch_elems + c * out_channel_elems;
             Indices_t* indices_channel_first_elem = indices + b * out_batch_elems + c * out_channel_elems;
-            const Indices_t channel_indices_offset = c * data_channel_elems;
+            const Indices_t channel_indices_offset = static_cast<Indices_t>(c * data_channel_elems);
             // total offset of the flattened tensor indices for currently processed batch and channel
             const Indices_t indices_offset = batch_indices_offset + channel_indices_offset;
 
@@ -401,7 +401,8 @@ void max_pool(const Values_t* data,
 
     // adjust the calculated indices to the requested range (specified by the axis attribute) if needed
     if (axis != 0) {
-        const Indices_t max_index = shape_size(std::begin(data_shape) + axis, std::end(data_shape));
+        const Indices_t max_index =
+            static_cast<Indices_t>(shape_size(std::begin(data_shape) + axis, std::end(data_shape)));
 
         const auto indices_number = shape_size(out_shape);
         for (size_t i = 0; i < indices_number; ++i) {

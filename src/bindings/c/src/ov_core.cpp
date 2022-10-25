@@ -324,18 +324,16 @@ void ov_core_versions_free(ov_core_version_list_t* versions) {
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 ov_status_e ov_core_create_with_config_unicode(const wchar_t* xml_config_file_ws, ov_core_t** core) {
-    if (!core || !xml_config_file_ws) {
+    if (!xml_config_file_ws) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
+    std::string xml_config_file;
     try {
-        std::string xml_config_file = ov::util::wstring_to_string(std::wstring(xml_config_file_ws));
-        std::unique_ptr<ov_core_t> _core(new ov_core_t);
-        _core->object = std::make_shared<ov::Core>(xml_config_file);
-        *core = _core.release();
+        xml_config_file = ov::util::wstring_to_string(std::wstring(xml_config_file_ws));
     }
     CATCH_OV_EXCEPTIONS
-    return ov_status_e::OK;
+    return ov_core_create_with_config(xml_config_file.c_str(), core);
 }
 
 ov_status_e ov_core_read_model_unicode(const ov_core_t* core,

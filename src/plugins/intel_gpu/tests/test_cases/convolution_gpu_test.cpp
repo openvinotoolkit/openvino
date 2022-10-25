@@ -4769,6 +4769,15 @@ using TestParamType_convolution_depthwise_gpu = ::testing::tuple<int,   // 0 - I
         int,   // 5 - Output padding
         bool>; // 6 - With bias
 
+using TestParamType_convolution_depthwise_xy_gpu = ::testing::tuple<int,   // 0 - Input Y size
+        int,   // 1 - Input X size
+        int,   // 2 - Kernel sizeY
+        int,   // 3 - Kernel sizeX
+        int,   // 4 - Groups number
+        int,   // 5 - Stride
+        int,   // 6 - Output padding
+        bool>; // 7 - With bias
+
 using TestParamType_grouped_convolution_gpu = ::testing::tuple<  int,    // 0 - Input X size
         int,            // 1  - Input Y size
         int,            // 2  - Input Z size
@@ -4866,6 +4875,23 @@ struct convolution_depthwise_gpu_fsv16 : public ::testing::TestWithParam<TestPar
             + "_stride" + std::to_string(testing::get<4>(param_info.param))
             + "_pad" + std::to_string(testing::get<5>(param_info.param))
             + (testing::get<6>(param_info.param) ? "_bias" : "");
+    }
+};
+
+struct convolution_depthwise_gpu_fsv16_xy : public ::testing::TestWithParam<TestParamType_convolution_depthwise_xy_gpu>
+{
+    static std::string
+    PrintToStringParamName(testing::TestParamInfo<TestParamType_convolution_depthwise_xy_gpu> param_info)
+    {
+        // construct a readable name
+        return "in" + std::to_string(testing::get<0>(param_info.param))
+            + "x" + std::to_string(testing::get<1>(param_info.param))
+            + "_k" + std::to_string(testing::get<2>(param_info.param))
+            + 'x' + std::to_string(testing::get<3>(param_info.param))
+            + "_f" + std::to_string(testing::get<4>(param_info.param))
+            + "_stride" + std::to_string(testing::get<5>(param_info.param))
+            + "_pad" + std::to_string(testing::get<6>(param_info.param))
+            + (testing::get<7>(param_info.param) ? "_bias" : "");
     }
 };
 
@@ -6835,6 +6861,133 @@ TEST_P(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16)
                     {
                         std::cout << "At b = " << bi << ", fi = " << fi << ", yi = " << yi << ", xi = " << xi << std::endl;
                     }
+                }
+}
+
+INSTANTIATE_TEST_SUITE_P(convolution_depthwise_gpu_b_fs_yx_fsv16_1d_depthwise_convolution,
+                        convolution_depthwise_gpu_fsv16_xy,
+                        ::testing::Values(
+                            // Input Y size, Input X size, Filter size Y, Filter size X, groups, Stride, Output padding, With bias
+                            // F is multiple of 16
+                            TestParamType_convolution_depthwise_xy_gpu(55, 1, 3, 1, 16, 1, 0, false),
+                            TestParamType_convolution_depthwise_xy_gpu(55, 1, 3, 1, 32, 1, 0, false),
+                            TestParamType_convolution_depthwise_xy_gpu(55, 1, 3, 1, 48, 1, 0, false),
+                            TestParamType_convolution_depthwise_xy_gpu(55, 1, 3, 1, 64, 1, 0, false),
+                            TestParamType_convolution_depthwise_xy_gpu(55, 1, 3, 1, 80, 1, 0, false),
+                            TestParamType_convolution_depthwise_xy_gpu(55, 1, 3, 1, 96, 1, 0, false),
+                            // F is not multiple of 16
+                            TestParamType_convolution_depthwise_xy_gpu(55, 1, 3, 1, 8, 1, 0, false),
+                            TestParamType_convolution_depthwise_xy_gpu(55, 1, 3, 1, 17, 1, 0, false),
+                            TestParamType_convolution_depthwise_xy_gpu(55, 1, 3, 1, 34, 1, 0, false),
+                            TestParamType_convolution_depthwise_xy_gpu(55, 1, 3, 1, 51, 1, 0, false),
+                            TestParamType_convolution_depthwise_xy_gpu(55, 1, 3, 1, 68, 1, 0, false),
+                            TestParamType_convolution_depthwise_xy_gpu(55, 1, 3, 1, 85, 1, 0, false),
+                            TestParamType_convolution_depthwise_xy_gpu(55, 1, 3, 1, 102, 1, 0, false)
+                        ),
+                        convolution_depthwise_gpu_fsv16_xy::PrintToStringParamName);
+
+TEST_P(convolution_depthwise_gpu_fsv16_xy, depthwise_conv_b_fs_yx_fsv16)
+{
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_fp16) {
+        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
+        EXPECT_EQ(1, 1);
+        return;
+    }
+
+    const int batch_num = 2;
+    const int input_y = testing::get<0>(GetParam());
+    const int input_x = testing::get<1>(GetParam());
+    const int groups = testing::get<4>(GetParam());
+    const int input_f = groups;
+    const int output_f = groups;
+    const int filter_y = testing::get<2>(GetParam());
+    const int filter_x = testing::get<3>(GetParam());
+    const uint64_t stride = testing::get<5>(GetParam());
+    const int output_padding = testing::get<6>(GetParam());
+    const int pad_y = filter_y / 2;
+    const int pad_x = filter_x / 2;
+    const int f_group_size = 16;
+    const int f_group_num_in_batch = (output_f % f_group_size) ? (output_f / f_group_size + 1) : (output_f / f_group_size);
+
+    const int output_y = 1 + (input_y + 2 * pad_y - filter_y) / stride + 2 * output_padding;
+    const int output_x = 1 + (input_x + 2 * pad_x - filter_x) / stride + 2 * output_padding;
+
+    auto input_size = tensor(batch_num, input_f, input_x, input_y);
+    auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
+    auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
+    auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
+    set_values(input_mem, input_data_bfyx);
+
+    auto weights_size = tensor(group(output_f), batch(1), feature(1), spatial(filter_x, filter_y));
+    auto weights_data = generate_random_4d<FLOAT16>(output_f, 1, filter_y, filter_x, -1, 1);
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+    auto weights_mem = engine.allocate_memory({ data_types::f16, format::goiyx, weights_size });
+    set_values(weights_mem, weights_data_bfyx);
+
+    // Will be used to store reference values calculated in branches depending on bias
+    auto reference_result = VVVVF<FLOAT16>(batch_num, VVVF<FLOAT16>(output_f));
+
+    topology topology(
+        input_layout("input", input_mem->get_layout()),
+        data("weights_fsv", weights_mem));
+
+    // Reorder input to b_fs_yx_fsv16
+    topology.add(reorder("input_fsv", "input", { data_types::f16, format::b_fs_yx_fsv16, input_size }));
+
+    // Calculate reference values without bias
+    for (auto bi = 0; bi < batch_num; ++bi)
+    {
+        for (auto ofi = 0; ofi < output_f; ++ofi)
+        {
+            reference_result[bi][ofi] = reference_convolve(
+                input_data[bi], weights_data[ofi],  // input, weights
+                stride, stride,                     // strides
+                0,                                  // bias
+                1, 1,                               // dilation
+                pad_y, pad_x,                       // input padding
+                output_padding, output_padding,     // output_padding
+                ofi, ofi + 1,                       // f_begin, f_end
+                true);                              // depthwise
+        }
+    }
+
+    auto conv_fsv = convolution("conv_fsv", "input_fsv", { "weights_fsv" }, groups,
+                                { stride, stride }, { pad_y, pad_x });
+    conv_fsv.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+
+    topology.add(conv_fsv);
+
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_depthwise" };
+    options.set_option(build_option::force_implementations({ { "conv_fsv", conv_impl } }));
+    network network(engine, topology, options);
+
+    network.set_input_data("input", input_mem);
+
+    network.execute();
+
+    auto out_mem = network.get_output("conv_fsv").get_memory();
+    cldnn::mem_lock<FLOAT16> out_ptr(out_mem, get_test_stream());
+
+    ASSERT_EQ(out_mem->get_layout().format, format::b_fs_yx_fsv16);
+
+    for (int bi = 0; bi < batch_num; ++bi)
+        for (int fi = 0; fi < output_f; ++fi)
+            for (int yi = 0; yi < output_y; ++yi)
+                for (int xi = 0; xi < output_x; ++xi)
+                {
+                    auto val_ref = reference_result[bi][fi][yi][xi];
+
+                    auto val = out_ptr[bi * f_group_num_in_batch * f_group_size * output_y * output_x  +
+                        (fi / f_group_size) * output_y * output_x * f_group_size +
+                        yi * output_x * f_group_size +
+                        xi * f_group_size +
+                        fi % f_group_size];
+                    auto equal = are_equal(val_ref, val, 1e-2f);
+                    EXPECT_TRUE(equal);
                 }
 }
 
