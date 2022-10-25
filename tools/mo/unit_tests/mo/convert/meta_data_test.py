@@ -3,17 +3,17 @@
 
 import os
 import tempfile
+from pathlib import Path
 
 from generator import generator
 from openvino.runtime import get_version as get_rt_version
 from openvino.runtime import serialize
 
 from openvino.tools.mo import convert
+from openvino.tools.mo.utils import import_extensions
 from openvino.tools.mo.utils.version import get_version
 from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from utils import save_to_onnx
-from openvino.tools.mo.utils import import_extensions
-from pathlib import Path
 
 
 @generator
@@ -63,7 +63,7 @@ class MetaDataTest(UnitTestWithMockedTelemetry):
                 'MO_version': get_version(),
                 'Runtime_version': get_rt_version(),
                 'legacy_path': "False",
-                'conversion_parameters':  {
+                'conversion_parameters': {
                     'caffe_parser_path': "DIR",
                     'compress_fp16': "False",
                     'data_type': "float",
@@ -148,6 +148,3 @@ class MetaDataTest(UnitTestWithMockedTelemetry):
             core = Core()
             serialized_model = core.read_model(out_xml)
             check_meta_data(serialized_model)
-
-
-
