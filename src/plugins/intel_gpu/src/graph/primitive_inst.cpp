@@ -215,18 +215,27 @@ void primitive_inst::update_shape() {
 
     _impl_params->memory_deps = memory_deps;
 
-    auto new_layouts = _node->type()->calc_output_layouts(*_node, *_impl_params);
-    auto new_layout = new_layouts.empty() ? _node->type()->calc_output_layout(*_node, *_impl_params) : new_layouts[0];
-    new_layout.data_padding = padding::max(_node->get_primitive()->output_padding, new_layout.data_padding);
-
-    if (_impl_params->get_output_layout() != new_layout) {
-        GPU_DEBUG_IF(debug_config->verbose >= 4) {
-            GPU_DEBUG_COUT << id() << ": update shape: was: " << _impl_params->get_output_layout() << "\nnow: " << new_layout << std::endl;
+    auto update_output_layout = [&](layout& layout, size_t idx) {
+        layout.data_padding = padding::max(_node->get_primitive()->output_padding, layout.data_padding);
+        if (_impl_params->get_output_layout(idx) != layout) {
+            GPU_DEBUG_IF(debug_config->verbose >= 4) {
+                GPU_DEBUG_COUT << id() << ": update shape: was: " << _impl_params->get_output_layout(idx) << "\nnow: " << layout << std::endl;
+            }
+            set_shape_change();
         }
-        set_shape_change();
-    }
+        _impl_params->output_layouts[idx] = layout;
+    };
 
-    _impl_params->output_layouts[0] = new_layout;
+    auto new_layouts = _node->type()->calc_output_layouts(*_node, *_impl_params);
+    if (new_layouts.empty()) {
+        auto new_layout = _node->type()->calc_output_layout(*_node, *_impl_params);
+        update_output_layout(new_layout, 0);
+    } else {
+        for (size_t i = 0; i != new_layouts.size(); ++i) {
+            auto new_layout = new_layouts[i];
+            update_output_layout(new_layout, i);
+        }
+    }
 
     // Update descriptors of fused operations and set output_layout's shape to all fused ops
     // It's legal as long as fused ops don't change the shape
