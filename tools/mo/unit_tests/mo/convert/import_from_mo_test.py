@@ -95,7 +95,6 @@ class ConvertImportMOTest(UnitTestWithMockedTelemetry):
 
         from openvino.tools.mo import convert
         with tempfile.TemporaryDirectory(dir=self.test_directory) as tmpdir:
-
             model = create_onnx_model()
             model_path = save_to_onnx(model, tmpdir)
             out_xml = os.path.join(tmpdir, "model.xml")
