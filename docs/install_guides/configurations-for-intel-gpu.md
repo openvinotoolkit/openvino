@@ -1,4 +1,4 @@
-# Configurations for Intel® Processor Graphics (GPU) with OpenVINO™ {#openvino_docs_install_guides_configurations_for_intel_gpu}
+# Configurations for Intel® Processor Graphics (GPU) with Intel® Distribution of OpenVINO™ toolkit {#openvino_docs_install_guides_configurations_for_intel_gpu}
 
 
 @sphinxdirective
@@ -8,18 +8,20 @@
 @endsphinxdirective
 
 
+This page introduces additional configurations for Intel® Processor Graphics (GPU) with Intel® Distribution of OpenVINO™ toolkit on Linux and Windows.
 
 ## Linux
 
-If you have installed OpenVINO Runtime from the archive file, follow these steps to work with GPU:
+Once you have installed OpenVINO, follow these steps to configure it to work on GPU:
 
-1. Go to the install_dependencies directory:
+1. Download the `install_NEO_OCL_driver.sh` install script from the OpenVINO GitHub repository:
    ```sh
-   cd <INSTALL_DIR>/install_dependencies/
+   curl https://raw.githubusercontent.com/openvinotoolkit/openvino/master/scripts/install_dependencies/install_NEO_OCL_driver.sh --output install_NEO_OCL_driver.sh
    ```
 
-2. Install the **Intel® Graphics Compute Runtime for OpenCL™** driver components required to use the GPU plugin and write custom layers for Intel® Integrated Graphics. The drivers are not included in the package. To install it, run this script:
+2. Install the **Intel® Graphics Compute Runtime for OpenCL™** driver components required to use the GPU plugin and write custom layers for Intel® Integrated Graphics. These drivers are not included in the OpenVINO installation package, so the install script downloads and installs them separately. To install, run the script:
    ```sh
+   chmod +x install_NEO_OCL_driver.sh
    sudo -E ./install_NEO_OCL_driver.sh
    ```
    > **NOTE**: To use the **Intel® Iris® Xe MAX Graphics**, see the [Intel® Iris® Xe MAX Graphics with Linux*](https://dgpu-docs.intel.com/devices/iris-xe-max-graphics/index.html) page for driver installation instructions.
@@ -37,7 +39,9 @@ If you have installed OpenVINO Runtime from the archive file, follow these steps
 
 3. **Optional:** Install header files to allow compilation of new code. You can find the header files at [Khronos OpenCL™ API Headers](https://github.com/KhronosGroup/OpenCL-Headers.git).
 
-You've completed all required configuration steps to perform inference on processor graphics.
+You've completed all required configuration steps to perform inference on processor graphics. 
+Proceed to the <a href="openvino_docs_install_guides_installing_openvino_linux.html#get-started">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
+
 @sphinxdirective
 
 .. _gpu guide windows:
@@ -63,18 +67,4 @@ To check if you have this driver installed:
 4. Click the **Driver** tab to see the driver version. 
    ![](../img/DeviceDriverVersion.PNG)
 
-You are done updating your device driver and are ready to use your GPU.
-## What’s Next?
-
-You can try out the toolkit with:
-
-Developing in Python:
-   * [Start with tensorflow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
-   * [Start with ONNX and PyTorch models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/102-pytorch-onnx-to-openvino-with-output.html)
-   * [Start with PaddlePaddle models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/103-paddle-onnx-to-openvino-classification-with-output.html)
-
-Developing in C++:
-   * [Image Classification Async C++ Sample](@ref openvino_inference_engine_samples_classification_sample_async_README)
-   * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
-   * [Hello Reshape SSD C++ Sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
-
+You are done updating your device driver and are ready to use your GPU. Proceed to the <a href="openvino_docs_install_guides_installing_openvino_windows.html#get-started">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
