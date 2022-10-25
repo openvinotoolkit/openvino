@@ -87,11 +87,11 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override {
         bool parent_visit_result = FrameworkNode::visit_attributes(visitor);
-        // TODO: correctly serialize bodies and descriptors
+        // TODO: correctly serialize bodies and descriptors. Only 1st body information can be serialized.
         for (size_t i = 0; i < m_bodies.size(); ++i) {
-            visitor.on_attribute("body", m_bodies[i]);
-            visitor.on_attribute("input_descriptions", m_input_descriptions[i]);
-            visitor.on_attribute("output_descriptions", m_output_descriptions[i]);
+            visitor.on_attribute("body" + std::to_string(i), m_bodies[i]);
+            //visitor.on_attribute("input_descriptions" + std::to_string(i), m_input_descriptions[i]);
+            // visitor.on_attribute("output_descriptions", m_output_descriptions[i]);
         }
         return parent_visit_result;
     }
