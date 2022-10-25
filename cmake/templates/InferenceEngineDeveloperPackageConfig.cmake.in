@@ -68,6 +68,8 @@ if(TARGET ngraph::ngraph AND NOT TARGET IE::ngraph)
     set_target_properties(IE::ngraph PROPERTIES INTERFACE_LINK_LIBRARIES ngraph::ngraph)
 endif()
 
+_ov_find_tbb()
+
 foreach(component @openvino_export_components@)
     include("${CMAKE_CURRENT_LIST_DIR}/${component}_dev_targets.cmake")
 endforeach()

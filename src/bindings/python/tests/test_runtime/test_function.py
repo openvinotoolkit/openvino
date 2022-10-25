@@ -2,6 +2,7 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import numpy as np
 import pytest
 
@@ -18,6 +19,7 @@ from openvino.runtime import (
     Shape,
     set_batch,
     get_batch,
+    serialize,
 )
 
 from ..test_utils.test_utils import generate_add_model  # TODO: reformat into an absolute path
@@ -448,3 +450,68 @@ def test_reshape_with_python_types(device):
         "expected values as openvino.runtime.PartialShape, str, list or tuple."
         in str(e.value)
     )
+
+
+def test_serialize_rt_info():
+    version = "TestVersion"
+    config = "TestConfig"
+    framework_batch = "1"
+
+    def check_rt_info(model):
+        assert model.get_rt_info("MO_version") == version
+        assert model.get_rt_info(["Runtime_version"]) == version
+        assert model.get_rt_info(["optimization", "config"]) == config
+        assert model.get_rt_info(["framework", "batch"]) == framework_batch
+
+        assert model.has_rt_info(["test"]) is False
+        assert model.has_rt_info("optimization") is True
+        assert model.has_rt_info(["optimization", "test"]) is False
+        with pytest.raises(RuntimeError):
+            assert model.get_rt_info(["test"])
+
+        with pytest.raises(RuntimeError):
+            assert model.get_rt_info(["optimization", "test"])
+
+    core = Core()
+    xml_path = "./serialized_model.xml"
+    bin_path = "./serialized_model.bin"
+    input_shape = PartialShape([1])
+    param = ops.parameter(input_shape, dtype=np.float32, name="data")
+    relu1 = ops.relu(param, name="relu1")
+    relu1.get_output_tensor(0).set_names({"relu_t1"})
+    assert "relu_t1" in relu1.get_output_tensor(0).names
+    relu2 = ops.relu(relu1, name="relu2")
+    model = Model(relu2, [param], "TestFunction")
+
+    assert model is not None
+
+    assert model.has_rt_info("MO_version") is False
+    model.set_rt_info(version, "MO_version")
+    assert model.has_rt_info("MO_version") is True
+
+    assert model.has_rt_info(["Runtime_version"]) is False
+    model.set_rt_info(version, ["Runtime_version"])
+    assert model.has_rt_info(["Runtime_version"]) is True
+
+    assert model.has_rt_info(["optimization"]) is False
+    assert model.has_rt_info(["optimization", "config"]) is False
+    model.set_rt_info(config, ["optimization", "config"])
+    assert model.has_rt_info(["optimization"]) is True
+    assert model.has_rt_info(["optimization", "config"]) is True
+
+    assert model.has_rt_info(["framework"]) is False
+    assert model.has_rt_info(["framework", "batch"]) is False
+    model.set_rt_info(framework_batch, ["framework", "batch"])
+    assert model.has_rt_info(["framework"]) is True
+    assert model.has_rt_info(["framework", "batch"]) is True
+
+    check_rt_info(model)
+
+    serialize(model, xml_path, bin_path)
+
+    res_model = core.read_model(model=xml_path, weights=bin_path)
+
+    check_rt_info(res_model)
+
+    os.remove(xml_path)
+    os.remove(bin_path)
