@@ -10,13 +10,14 @@
 #include <utility>
 #include <vector>
 
-#include "common_test_utils/test_common.hpp"
 #include "common_test_utils/file_utils.hpp"
-#include "openvino/util/file_util.hpp"
+#include "common_test_utils/test_common.hpp"
 #include "ie_iextension.h"
 #include "ngraph/op/op.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/op_extension.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/util/file_util.hpp"
 
 using namespace testing;
 using namespace InferenceEngine;
@@ -176,7 +177,17 @@ namespace {
 
 std::string getOVExtensionPath() {
     return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
-        std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
+                                              std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
+}
+
+std::string getOldExtensionPath() {
+    return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+                                              std::string("template_extension") + IE_BUILD_POSTFIX);
+}
+
+std::string getIncorrectExtensionPath() {
+    return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+                                              std::string("incorrect") + IE_BUILD_POSTFIX);
 }
 
 }  // namespace
@@ -333,4 +344,16 @@ TEST_F(OVExtensionTests, ReshapeIRWithSeveralNewExtensions) {
 TEST_F(OVExtensionTests, ReshapeIRWithSeveralNewOps) {
     core.add_extension<CustomNewIdentity, CustomReLU>();
     test_two_op();
+}
+
+TEST_F(OVExtensionTests, load_new_extension) {
+    EXPECT_NO_THROW(core.add_extension(getOVExtensionPath()));
+}
+
+TEST_F(OVExtensionTests, load_old_extension) {
+    EXPECT_NO_THROW(core.add_extension(getOldExtensionPath()));
+}
+
+TEST_F(OVExtensionTests, load_incorrect_extension) {
+    EXPECT_THROW(core.add_extension(getIncorrectExtensionPath()), ov::Exception);
 }

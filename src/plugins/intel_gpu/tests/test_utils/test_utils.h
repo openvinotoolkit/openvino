@@ -468,6 +468,8 @@ public:
             }
     };
 
+    static cldnn::format get_plain_format_for(const cldnn::format);
+
 protected:
     cldnn::engine& engine = get_test_engine();
     std::shared_ptr<test_params> generic_params;
