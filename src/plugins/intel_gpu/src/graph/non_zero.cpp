@@ -104,9 +104,6 @@ std::string gather_nonzero_inst::to_string(gather_nonzero_node const& node) {
 
     json_composite gather_nonzero_info;
     gather_nonzero_info.add("input id", input.id());
-    if (node.is_valid_output_layout()) {
-        gather_nonzero_info.add("output layout", node.get_output_layout().to_string());
-    }
 
     node_info->add("gather_nonzero info", gather_nonzero_info);
     node_info->dump(primitive_description);
