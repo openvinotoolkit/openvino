@@ -35,6 +35,8 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
   * Apple Xcode Command Line Tools. In the terminal, run `xcode-select --install` from any directory
   * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
 
+.. note::
+   The package may also be installed on other versions of macOS, but only the specific versions listed here are fully validated.
 @endsphinxdirective
 
 ## Installing OpenVINO Runtime
