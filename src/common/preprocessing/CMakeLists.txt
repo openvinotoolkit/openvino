@@ -89,9 +89,6 @@ if(ARM OR AARCH64)
         set_source_files_properties(${NEON_SRC} PROPERTIES COMPILE_OPTIONS "${neon_flags}")
         add_definitions(-DHAVE_NEON=1)
     endif()
-    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-        target_compile_options(openvino_gapi_preproc PRIVATE -Wno-unused-command-line-argument)
-    endif()
 endif()
 
 # Create object library
@@ -100,6 +97,9 @@ if(ENABLE_GAPI_PREPROCESSING)
     add_library(${TARGET_NAME}_obj OBJECT
                 ${LIBRARY_SRC}
                 ${LIBRARY_HEADERS})
+    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+        target_compile_options(${TARGET_NAME}_obj PRIVATE -Wno-unused-command-line-argument)
+    endif()
 
     ie_faster_build(${TARGET_NAME}_obj UNITY)
 
