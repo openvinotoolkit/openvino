@@ -212,7 +212,7 @@ def test_partial_shape():
 
     with pytest.raises(RuntimeError) as e:
         ps = PartialShape("[?,,3]")
-    assert 'Cannot get vector of dimensions! "?,,3" is incorrect' in str(e.value)
+    assert 'Cannot get vector of dimensions! "[?,,3]" is incorrect' in str(e.value)
 
     shape = Shape()
     assert len(shape) == 0
