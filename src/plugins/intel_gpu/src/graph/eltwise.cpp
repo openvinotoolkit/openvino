@@ -247,6 +247,8 @@ std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node
     return { output_layout };
 }
 
+template std::vector<layout> eltwise_inst::calc_output_layouts<ov::PartialShape>(eltwise_node const& node, const kernel_impl_params& impl_param);
+
 static inline std::string stringify_vector(const std::vector<float>& v) {
     std::stringstream s;
 

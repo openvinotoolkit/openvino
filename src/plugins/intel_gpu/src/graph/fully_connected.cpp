@@ -8,6 +8,7 @@
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
+#include <algorithm>
 
 #include "matmul_shape_inference.hpp"
 
@@ -94,7 +95,9 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
     auto desc = impl_param.typed_desc<fully_connected>();
 
     auto input_layout = impl_param.get_input_layout();
+    auto input_pshape = input_layout.get_partial_shape();
     auto weights_layout = *impl_param.weights_layout;
+    auto weights_pshape = weights_layout.get_partial_shape();
     auto output_type = input_layout.data_type;
     if ((output_type == data_types::u8 || output_type == data_types::i8) && desc->output_data_type)
         output_type = *desc->output_data_type;
@@ -103,10 +106,23 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
         output_type = impl_param.get_fused_output_layout().data_type;
     }
 
-    if (input_layout.is_dynamic()) {
-        auto rank = input_layout.get_rank();
-        format output_format = format::get_default_format(rank);
-        return layout(ov::PartialShape::dynamic(rank), output_type, output_format);
+    auto reshape_to_2d = [](const ov::PartialShape& shape, int64_t feature) {
+        auto staticShape = shape.to_shape();
+        size_t total = std::accumulate(staticShape.begin(), staticShape.end(), 1, std::multiplies<size_t>());
+        std::vector<int64_t> reshapeSize = { static_cast<int64_t>(total) / feature, feature };
+        return reshapeSize;
+    };
+
+    int64_t feature = input_pshape[std::min(desc->input_size, static_cast<size_t>(4)) - 1].get_length();
+    if (desc->input_size == 3) {
+        feature = std::max({input_layout.spatial(0), input_layout.spatial(1), input_layout.spatial(2)});
+    }
+
+    if (desc->input_size > 3) {
+       input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
+    }
+    if (weights_pshape.size() != 2) {
+        weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
     }
 
     auto output_size = tensor(input_layout.batch(), weights_layout.batch(), 1, 1);
@@ -148,6 +164,9 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
 
     return { layout{output_shapes[0], output_type, output_format} };
 }
+
+template std::vector<layout> fully_connected_inst::calc_output_layouts<ov::PartialShape>(fully_connected_node const& node,
+                                                                                         const kernel_impl_params& impl_param);
 
 std::string fully_connected_inst::to_string(fully_connected_node const& node) {
     auto desc = node.get_primitive();
