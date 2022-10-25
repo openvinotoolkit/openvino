@@ -13,7 +13,7 @@ namespace v0 {
 template <class TOp>
 void check_unsqueeze_axes_rank(const TOp* op, const Rank& rank) {
     NODE_VALIDATION_CHECK(op,
-                          is_rank_compatible_any_of(rank, std::vector<Rank>{0, 1}),
+                          is_rank_compatible_any_of(rank, {0, 1}),
                           "Second input (axes) should not be of rank higher than 1. Got: ",
                           rank);
 }

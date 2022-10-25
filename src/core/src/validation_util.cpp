@@ -1663,3 +1663,9 @@ std::vector<PartialShape> ov::get_node_input_partial_shapes(const ov::Node& node
     }
     return out;
 }
+
+bool ov::is_rank_compatible_any_of(const ov::Rank& rank, const std::vector<Rank>& ranks) {
+    return std::any_of(ranks.cbegin(), ranks.cend(), [&rank](const Rank& r) {
+        return rank.compatible(r);
+    });
+}
