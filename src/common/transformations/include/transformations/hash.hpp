@@ -6,7 +6,6 @@
 
 #include <string>
 
-#include "ngraph/opsets/opset.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/pass/serialize.hpp"
 

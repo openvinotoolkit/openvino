@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <memory>
-#include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pass/pass.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
