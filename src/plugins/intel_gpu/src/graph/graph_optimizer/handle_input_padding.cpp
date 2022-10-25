@@ -22,6 +22,9 @@ void handle_input_padding::run(program& p) {
         if (!node->is_type<convolution>()) {
             continue;
         }
+        if (node->is_dynamic()) {
+            continue; // do nothing for dynamic shape. Use pad_above/ pad_below as is
+        }
         convolution_node& convolution_node = node->as<convolution>();
         auto convolution_prim = const_cast<convolution*>(&(*convolution_node.get_primitive()));
 
@@ -105,9 +108,6 @@ void handle_input_padding::run(program& p) {
                 auto& b_prim_node = p.get_or_create(b_prim);
 
                 p.add_intermediate(b_prim_node, convolution_node, 0, true);
-            } else if (convolution_node.is_dynamic()) { // symetric
-                return;
-                // do nothing for dynamic shape. Use pad_above, pad_below as is
             } else {
                 // Symmetric padding
                 // set pad
