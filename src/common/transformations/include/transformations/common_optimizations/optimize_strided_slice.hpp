@@ -6,7 +6,6 @@
 
 #include <memory>
 #include <ngraph/slice_plan.hpp>
-#include <ngraph/util.hpp>
 #include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>

@@ -9,7 +9,6 @@
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <ngraph/validation_util.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>

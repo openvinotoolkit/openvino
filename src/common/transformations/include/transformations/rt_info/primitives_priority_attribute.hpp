@@ -13,7 +13,6 @@
 
 #include <functional>
 #include <memory>
-#include <ngraph/variant.hpp>
 #include <set>
 #include <string>
 

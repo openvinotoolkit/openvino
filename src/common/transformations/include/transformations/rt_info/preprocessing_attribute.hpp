@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ngraph/variant.hpp>
 #include <openvino/core/node.hpp>
 #include <openvino/core/rtti.hpp>
 #include <openvino/core/runtime_attribute.hpp>
