@@ -7,14 +7,25 @@
 #include "itt.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/ops.hpp"
+#include "openvino/opsets/opset.hpp"
 
 ngraph::OpSet::OpSet(const ov::OpSet& opset) : ov::OpSet(opset) {}
 
+ngraph::OpSet::OpSet(const ngraph::OpSet& opset) : ov::OpSet(opset) {}
+
 ov::OpSet::OpSet(const std::string& name) : m_name(name) {}
 
-std::mutex& ov::OpSet::get_mutex() {
-    static std::mutex opset_mutex;
-    return opset_mutex;
+ov::OpSet::OpSet(const ov::OpSet& opset) {
+    *this = opset;
+}
+
+ov::OpSet& ov::OpSet::operator=(const ov::OpSet& opset) {
+    m_factory_registry = opset.m_factory_registry;
+    m_name = opset.m_name;
+    m_op_types = opset.m_op_types;
+    m_name_type_info_map = opset.m_name_type_info_map;
+    m_case_insensitive_type_info_map = opset.m_case_insensitive_type_info_map;
+    return *this;
 }
 
 ov::Node* ov::OpSet::create(const std::string& name) const {
@@ -136,6 +147,17 @@ const ov::OpSet& ov::get_opset9() {
     return opset;
 }
 
+const ov::OpSet& ov::get_opset10() {
+    static OpSet opset;
+    static std::once_flag flag;
+    std::call_once(flag, [&]() {
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
+#include "openvino/opsets/opset10_tbl.hpp"
+#undef _OPENVINO_OP_REG
+    });
+    return opset;
+}
+
 const ngraph::OpSet& ngraph::get_opset1() {
     static OpSet opset(ov::get_opset1());
     return opset;
@@ -178,5 +200,10 @@ const ngraph::OpSet& ngraph::get_opset8() {
 
 const ngraph::OpSet& ngraph::get_opset9() {
     static OpSet opset(ov::get_opset9());
+    return opset;
+}
+
+const ngraph::OpSet& ngraph::get_opset10() {
+    static OpSet opset(ov::get_opset10());
     return opset;
 }

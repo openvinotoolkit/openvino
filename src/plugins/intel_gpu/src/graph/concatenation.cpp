@@ -71,6 +71,8 @@ std::vector<layout> concatenation_inst::calc_output_layouts(const concatenation_
     return { layout {output_shape, output_dt, output_format} };
 }
 
+template std::vector<layout> concatenation_inst::calc_output_layouts<ov::PartialShape>(concatenation_node const& node, const kernel_impl_params& impl_param);
+
 std::string concatenation_inst::to_string(concatenation_node const& node) {
     auto node_info = node.desc_to_json();
     auto desc = node.get_primitive();
@@ -146,7 +148,7 @@ concatenation_inst::typed_primitive_inst(network& network, concatenation_node co
             stack.pop_front();
 
             for (auto processed_node : *nodes_list) {
-                processed_node->_output = _output;
+                processed_node->_outputs = _outputs;
                 if (processed_node->type() == concatenation::type_id() && processed_node->can_be_optimized()) {
                     if (!processed_node->_deps.empty())
                         stack.push_back(&processed_node->_deps);

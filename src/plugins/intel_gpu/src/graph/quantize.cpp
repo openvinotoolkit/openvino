@@ -48,6 +48,8 @@ std::vector<layout> quantize_inst::calc_output_layouts(quantize_node const&, ker
     return { layout{input_layout.get<ShapeType>(), out_dt, output_format} };
 }
 
+template std::vector<layout> quantize_inst::calc_output_layouts<ov::PartialShape>(quantize_node const& node, const kernel_impl_params& impl_param);
+
 std::string quantize_inst::to_string(quantize_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
