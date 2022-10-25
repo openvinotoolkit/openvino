@@ -24,20 +24,14 @@ primitive_type_id count_nonzero::type_id() {
 layout count_nonzero_inst::calc_output_layout(count_nonzero_node const& node, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
            "Output data type forcing is not supported for count_nonzero_node!");
-    return layout{cldnn::data_types::i32, cldnn::format::bfyx, tensor{1, 1, 1, 4}};
+    return layout{cldnn::data_types::i32, cldnn::format::bfyx, tensor{1, 1, 1, 1}};
 }
 
 template<typename ShapeType>
 std::vector<layout> count_nonzero_inst::calc_output_layouts(count_nonzero_node const& /*node*/, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
-           "Output data type forcing is not supported for count_nonzero_node!");
-    if (impl_param.input_layouts[0].is_dynamic()) {
-        return { layout{ov::PartialShape{4}, cldnn::data_types::i32, cldnn::format::bfyx} };
-    } else {
-        auto rank =  static_cast<ov::Dimension::value_type>(impl_param.input_layouts[0].get_shape().size());
-        auto out_layout = layout{ov::PartialShape{rank + 1}, cldnn::data_types::i32, cldnn::format::bfyx};
-        return {out_layout};
-    }
+            "Output data type forcing is not supported for count_nonzero_node!");
+    return {layout{ov::PartialShape{1}, cldnn::data_types::i32, cldnn::format::bfyx}};
 }
 
 std::string count_nonzero_inst::to_string(count_nonzero_node const& node) {
@@ -91,9 +85,11 @@ std::vector<layout> gather_nonzero_inst::calc_output_layouts(gather_nonzero_node
            "Output data type forcing is not supported for gather_nonzero_node!");
     if (impl_param.memory_deps.count(1)) {
         auto out_size = read_vector<int64_t>(impl_param.memory_deps.at(1), impl_param.prog.get_stream());
-        ov::Shape output_shape(out_size.begin(), out_size.end());
+        // output shape of nonzero is [input_rank, count_non_zero]
+        ov::Shape output_shape({impl_param.get_input_layout(0).get<ShapeType>().rank().get_length(), out_size[0]});
         ov::PartialShape output_pshape(output_shape);
-        return {layout{output_pshape, cldnn::data_types::i32, cldnn::format::bfyx}};
+        auto out_layout = layout{output_pshape, cldnn::data_types::i32, cldnn::format::bfyx};
+        return {out_layout};
     } else {
         return {layout{ov::PartialShape({ov::Dimension::dynamic(), ov::Dimension::dynamic()}), cldnn::data_types::i32, cldnn::format::bfyx}};
     }
