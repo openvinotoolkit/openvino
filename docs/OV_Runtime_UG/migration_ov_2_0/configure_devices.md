@@ -72,6 +72,32 @@ The snippets in the following sections demostrate the device configurations for 
 
 @endsphinxtab
 
+@sphinxtab{C}
+
+@sphinxtabset
+
+@sphinxtab{Devices}
+
+@snippet docs/snippets/ov_properties_migration.c core_set_config
+
+@endsphinxtab
+
+@sphinxtab{Model Loading}
+
+@snippet docs/snippets/ov_properties_migration.c core_load_network
+
+@endsphinxtab
+
+@sphinxtab{Execution}
+
+@snippet docs/snippets/ov_properties_migration.c executable_network_set_config
+
+@endsphinxtab
+
+@endsphinxtabset
+
+@endsphinxtab
+
 @endsphinxtabset
 
 **API 2.0**
@@ -123,6 +149,32 @@ The snippets in the following sections demostrate the device configurations for 
 @sphinxtab{Execution}
 
 @snippet docs/snippets/ov_properties_migration.py compiled_model_set_property
+
+@endsphinxtab
+
+@endsphinxtabset
+
+@endsphinxtab
+
+@sphinxtab{C}
+
+@sphinxtabset
+
+@sphinxtab{Devices}
+
+@snippet docs/snippets/ov_properties_migration.c core_set_property
+
+@endsphinxtab
+
+@sphinxtab{Model Loading}
+
+@snippet docs/snippets/ov_properties_migration.c core_compile_model
+
+@endsphinxtab
+
+@sphinxtab{Execution}
+
+@snippet docs/snippets/ov_properties_migration.c compiled_model_set_property
 
 @endsphinxtab
 
@@ -202,6 +254,38 @@ The snippets in the following sections demostrate the device configurations for 
 
 @endsphinxtab
 
+@sphinxtab{C}
+
+@sphinxtabset
+
+@sphinxtab{Device Configuration}
+
+@snippet docs/snippets/ov_properties_migration.c core_get_config
+
+@endsphinxtab
+
+@sphinxtab{Device metrics}
+
+@snippet docs/snippets/ov_properties_migration.c core_get_metric
+
+@endsphinxtab
+
+@sphinxtab{Execution config}
+
+@snippet docs/snippets/ov_properties_migration.c executable_network_get_config
+
+@endsphinxtab
+
+@sphinxtab{Execution metrics}
+
+@snippet docs/snippets/ov_properties_migration.c executable_network_get_metric
+
+@endsphinxtab
+
+@endsphinxtabset
+
+@endsphinxtab
+
 @endsphinxtabset
 
 **API 2.0**
@@ -265,6 +349,38 @@ The snippets in the following sections demostrate the device configurations for 
 @sphinxtab{Execution metrics}
 
 @snippet docs/snippets/ov_properties_migration.py compiled_model_get_ro_property
+
+@endsphinxtab
+
+@endsphinxtabset
+
+@endsphinxtab
+
+@sphinxtab{C}
+
+@sphinxtabset
+
+@sphinxtab{Device Configuration}
+
+@snippet docs/snippets/ov_properties_migration.c core_get_rw_property
+
+@endsphinxtab
+
+@sphinxtab{Device metrics}
+
+@snippet docs/snippets/ov_properties_migration.c core_get_ro_property
+
+@endsphinxtab
+
+@sphinxtab{Execution config}
+
+@snippet docs/snippets/ov_properties_migration.c compiled_model_get_rw_property
+
+@endsphinxtab
+
+@sphinxtab{Execution metrics}
+
+@snippet docs/snippets/ov_properties_migration.c compiled_model_get_ro_property
 
 @endsphinxtab
 
