@@ -28,6 +28,18 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
 
+// todo: LoadReshape is just Load (and mapped on LoadEmitter), it just allows to keep correct shape propagation
+//  when we decompose Transpose to Load and Store.
+class LoadReshape : public Load {
+public:
+    OPENVINO_OP("LoadReshape", "SnippetsOpset");
+    LoadReshape(const Output<Node>& x, size_t count = 1lu, std::vector<size_t> order = {});
+    bool visit_attributes(AttributeVisitor& visitor) override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    void validate_and_infer_types() override;
+private:
+    std::vector<size_t> m_order;
+};
 } // namespace op
 } // namespace snippets
 } // namespace ngraph

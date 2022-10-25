@@ -48,6 +48,7 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
     // jitters[ngraph::opset1::Constant::get_type_info_static()] = CREATE_EMITTER(); // Not supported
 
     jitters[ngraph::snippets::op::Load::get_type_info_static()] = CREATE_EMITTER(LoadEmitter);
+    jitters[ngraph::snippets::op::LoadReshape::get_type_info_static()] = CREATE_EMITTER(LoadEmitter);
     jitters[ngraph::snippets::op::BroadcastLoad::get_type_info_static()] = CREATE_EMITTER(BroadcastLoadEmitter);
     jitters[ov::intel_cpu::LoadConvertSaturation::get_type_info_static()] = CREATE_EMITTER(LoadConvertEmitter);
     jitters[ov::intel_cpu::LoadConvertTruncation::get_type_info_static()] = CREATE_EMITTER(LoadConvertEmitter);

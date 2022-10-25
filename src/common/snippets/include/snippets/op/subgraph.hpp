@@ -101,6 +101,12 @@ public:
         return config.m_has_type_relaxed_ops;
     }
 
+    bool has_domain_sensitive_ops() const {
+        return config.m_has_domain_sensitive_ops;
+    }
+
+    size_t tileRank = 0; // set by plugin to facilitate scheduling
+
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, ngraph::pass::Manager& opt,
                                 const void* compile_params = nullptr);
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, const void* compile_params = nullptr);
@@ -149,6 +155,9 @@ private:
         // True if Subgraph contains TypeRelaxed nodes -> for several streams in tp mode we should copy body using mutexes
         // because TypeRelaxed::copy_with_new_inputs() isn't save-thread method
         bool m_has_type_relaxed_ops = false;
+        // True if body has operations that don't support plugin-side domain optimizations
+        // (e.g. Transpose in general doesn't support dimensions collapsing)
+        bool m_has_domain_sensitive_ops = false;
     } config;
 
     ov::PartialShape master_shape;

@@ -59,7 +59,8 @@ private:
     void copy_snippet();
 
     ov::PartialShape canonicalizeBody();
-    void optimizeExecDomain(std::vector<VectorDims>&, std::vector<VectorDims>&, VectorDims&, size_t&) const;
+    // returns true if exec domain was modified
+    bool optimizeExecDomain(std::vector<VectorDims>&, std::vector<VectorDims>&, VectorDims&, size_t&) const;
     void calcJITParams(std::vector<int64_t>& offsets) const;
 
     void generate(const jit_snippets_compile_args*);
