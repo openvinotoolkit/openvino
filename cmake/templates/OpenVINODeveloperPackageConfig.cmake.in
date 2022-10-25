@@ -48,6 +48,8 @@ find_dependency(OpenVINO
                 NO_CMAKE_FIND_ROOT_PATH
                 NO_DEFAULT_PATH)
 
+_ov_find_tbb()
+
 foreach(component @openvino_export_components@)
     # TODO: remove legacy targets from some tests
     # string(FIND "${component}" "_legacy" index)

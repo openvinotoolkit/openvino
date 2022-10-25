@@ -175,7 +175,9 @@ public:
     impl_types get_preferred_impl_type() const { return impl_type; }
 
     std::vector<program_node*> const& get_dependencies() const { return dependencies; }
+    std::vector<std::pair<program_node*, int>> const& get_dependencies_new() const { return dependencies_new; }
     program_node& get_dependency(size_t idx) const { return *dependencies.at(idx); }
+    std::pair<program_node*, int32_t> get_dependency_new(size_t idx) const { return dependencies_new.at(idx); }
 
     std::vector<layout> const get_input_layouts() const {
         std::vector<layout> layouts;
@@ -195,6 +197,9 @@ public:
 
     void remove_dependency(size_t idx);
     void remove_dependency(program_node& node);
+
+    size_t get_dependency_index(program_node& node) const;
+    size_t get_user_index(program_node& node) const;
 
     std::set<primitive_id> get_memory_dependencies() const;
     void add_memory_dependency(primitive_id);
@@ -246,6 +251,8 @@ public:
     // sets cached output layout to an arbitrary value, invalidates users if new layout differs from previous one and @p
     // invalidate_users_if_changed is set to true returns whether output layout has changed
     bool set_output_layout(layout& new_layout, bool invalidate_users_if_changed = true);
+
+    size_t get_outputs_count() const { return num_outputs; }
 
     // forces recalculation of cached output layout, invalidates users if new layout is different than previous one and
     // @p invalidate_users_if_changed is set to true returns whether output layout has changed
@@ -415,10 +422,18 @@ public:
         cur_id = 0;
     }
 
-    format::type get_required_input0() const { return required_input0; }
-    format::type get_required_output() const { return required_output; }
-    void set_required_input0(format::type type) { required_input0 = type; }
-    void set_required_output(format::type type) { required_output = type; }
+    std::vector<format::type> get_preferred_input_fmts() const { return preferred_input_fmts; }
+    std::vector<format::type> get_preferred_output_fmts() const { return preferred_output_fmts; }
+    format::type get_preferred_input_fmt(size_t idx = 0) const {
+        return (idx < preferred_input_fmts.size()) ? preferred_input_fmts.at(idx) : format::any;
+    }
+    format::type get_preferred_output_fmt(size_t idx = 0) const {
+        return (idx < preferred_output_fmts.size()) ? preferred_output_fmts.at(idx) : format::any;
+    }
+
+    void init_preferred_fmt(size_t dep_size, size_t user_size);
+    void set_preferred_input_fmt(size_t idx, format::type type);
+    void set_preferred_output_fmt(size_t idx, format::type type);
 
 
 protected:
@@ -433,10 +448,11 @@ protected:
     bool valid_output_layout = false;
     layout output_layout = layout(data_types::f32, format::bfyx, tensor());
 
-    format::type required_input0;
-    format::type required_output;
+    std::vector<format::type> preferred_input_fmts;
+    std::vector<format::type> preferred_output_fmts;
 
     std::vector<program_node*> dependencies;
+    std::vector<std::pair<program_node*, int>> dependencies_new;
     std::list<program_node*> users;
 
     // list of primitives that can reuse same memory buffers due to execution order conflicts
@@ -490,6 +506,7 @@ private:
     bool has_out_scales(const std::shared_ptr<dnnl::primitive_attr>& attr);
     dnnl::post_ops try_optimize_post_ops(dnnl::post_ops& p_ops, const std::shared_ptr<dnnl::primitive_attr>& attr, bool& optimization_is_completed);
 #endif // ENABLE_ONEDNN_FOR_GPU
+    size_t num_outputs = 1;
 };
 
 /*

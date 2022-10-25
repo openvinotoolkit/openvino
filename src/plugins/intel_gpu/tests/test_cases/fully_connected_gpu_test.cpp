@@ -188,13 +188,13 @@ TEST(fully_connected_gpu, no_biases) {
     //  Output:
     //   2.5    2.75    0.75   7
 
-    const int32_t input_x = 3, input_b = 1,    // size of the whole input buffer
-                  weight_b = 4, weight_x = 3;  // size of the whole weights buffer
+    const int32_t input_f = 3, input_b = 1,    // size of the whole input buffer
+                  weight_b = 4, weight_f = 3;  // size of the whole weights buffer
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { input_b, 1, input_x, 1 } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, 1, weight_x, 1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { input_b, input_f, 1, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, weight_f, 1, 1 } });
 
     set_values(input_prim, { -0.5f, 2.0f, 0.5f });
     set_values(weights_prim, { 1.5f, 1.0f, 0.5f, -1.0f, 0.0f, 0.5f, 0.5f, -0.5f, -2.0f, -0.5f, 1.0f, 1.5f });
@@ -245,22 +245,22 @@ TEST(fully_connected_gpu, no_biases_int8) {
     //  Output:
     //  18    -32    12   -52
 
-    const int32_t input_x = 3, input_b = 1,    // size of the whole input buffer
-                  weight_b = 4, weight_x = 3;  // size of the whole weights buffer
+    const int32_t input_f = 3, input_b = 1,    // size of the whole input buffer
+                  weight_b = 4, weight_f = 3;  // size of the whole weights buffer
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { input_b, 1, input_x, 1 } });
-    auto weights_prim = engine.allocate_memory({ data_types::i8, format::bfyx, { weight_b, 1, weight_x, 1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { input_b, input_f, 1, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::i8, format::bfyx, { weight_b, weight_f, 1, 1 } });
 
     set_values(input_prim, { 8.4f, 2.3f, -4.49f });
     set_values<char>(weights_prim, { 2, 1, 0, -3, -2, 1, 0, -2, -4, -5, 10, 8 });
 
     auto input = input_layout("input", input_prim->get_layout());
     auto w_data = data("weights", weights_prim);
-    auto ri = reorder("reorder_to_int", "input", { data_types::i8, format::bfyx, { input_b, 1, input_x, 1 } });
+    auto ri = reorder("reorder_to_int", "input", { data_types::i8, format::bfyx, { input_b, input_f, 1, 1 } });
     auto fc = fully_connected("fc_prim", "reorder_to_int", "weights");
-    auto rf = reorder("reorder_to_float", "fc_prim", { data_types::f32, format::bfyx, { input_b, 1, 4, 1 } });
+    auto rf = reorder("reorder_to_float", "fc_prim", { data_types::f32, format::bfyx, { input_b, weight_b, 1, 1 } });
     topology topology;
     topology.add(input);
     topology.add(w_data);
@@ -306,13 +306,13 @@ TEST(fully_connected_gpu, xb_f32_batch_1) {
     //   2.5    2.75    0.75   7
 
     const int32_t output_f = 4,                 // size of the whole output buffer
-                  input_x = 3, input_b = 1,     // size of the whole input buffer
-                  weight_b = 4, weight_x = 3;   // size of the whole weights buffer
+                  input_f = 3, input_b = 1,     // size of the whole input buffer
+                  weight_b = 4, weight_f = 3;   // size of the whole weights buffer
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { input_b, 1, input_x, 1 } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, 1, weight_x, 1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { input_b, input_f, 1, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, weight_f, 1, 1 } });
     auto bias_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, output_f, 1} });
 
     set_values(input_prim, { -0.5f, 2.0f, 0.5f });
@@ -366,13 +366,13 @@ TEST(fully_connected_gpu, xb_f32_batch_2) {
     //   4      1        2.75   5
 
     const int32_t output_f = 4,                 // size of the whole output buffer
-                  input_x = 3, input_b = 2,     // size of the whole input buffer
-                  weight_b = 4, weight_x = 3;   // size of the whole weights buffer
+                  input_f = 3, input_b = 2,     // size of the whole input buffer
+                  weight_b = 4, weight_f = 3;   // size of the whole weights buffer
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { input_b,1, input_x, 1 } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, 1, weight_x, 1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { input_b, input_f, 1, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, weight_f, 1, 1 } });
     auto bias_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, output_f, 1 } });
 
     set_values(input_prim, { -0.5f, 1.0f, 2.0f, 1.5f, 0.5f, 0.0f });
@@ -427,14 +427,14 @@ TEST(fully_connected_gpu, x_f32) {
     //   2.5    2.75    0.75   7
 
     const int32_t output_f = 4,                // size of the whole output buffer
-                  input_x = 3,                 // size of the whole input buffer
-                  weight_b = 4, weight_x = 3;  // size of the whole weights buffer
+                  input_f = 3,                 // size of the whole input buffer
+                  weight_b = 4, weight_f = 3;  // size of the whole weights buffer
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, input_x, 1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, input_f, 1, 1 } });
     //auto output_prim = memory::allocate({ memory::format::xb_f32, { output_b, { { output_f } }, { 1 } } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, 1, weight_x, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, weight_f, 1, 1 } });
     auto bias_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, output_f, 1 } });
 
     set_values(input_prim, { -0.5f, 2.0f, 0.5f });
@@ -465,60 +465,6 @@ TEST(fully_connected_gpu, x_f32) {
     EXPECT_EQ(7.00f, output_ptr[3]);
 }
 
-TEST(fully_connected_gpu, yxfn_f32) {
-    //  Input  : 1x2x1x2 - 1 batch 2 feature maps of size 2x1
-    //  Output : 2x1 - 2 batches 1 neuron each
-    //  Weights: 2x2x1x2 - 2 neurons with weights of 2 feature maps of size 2x1
-    //
-    //  Input:
-    //   1  -2      f0: b0
-    //   3  -4      f1: b0
-
-    //  Weights:
-    //   1  -1      n0: fm0
-    //   2   0      n0: fm1
-    //   3   4      n1: fm0
-    //   0.5 5      n1: fm1
-    //
-    //  Biases:
-    //   1.0 -5
-    //
-    //  Output:
-    //   10  -28.5
-
-    auto& engine = get_test_engine();
-
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 2, 2, 1 } });
-    //auto output_prim = memory::allocate({ memory::format::xb_f32, { 2 , { { 1 } }, 1 } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 1 } });
-    auto bias_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 2, 1 } });
-
-    set_values(input_prim, { 1.f, 3.f, -2.f, -4.f });
-    set_values(weights_prim, { 1.f, -1.f, 2.0f, 0.f, 3.0f, 4.0f, 0.5f, 5.0f });
-    set_values(bias_prim, { 1.0f, -5.0f });
-
-    topology topology(
-        input_layout("input", input_prim->get_layout()),
-        data("weights", weights_prim),
-        data("bias", bias_prim),
-        fully_connected("fc_prim", "input", "weights", "bias")
-    );
-
-    network network(engine, topology);
-    network.set_input_data("input", input_prim);
-
-    auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "fc_prim");
-
-    auto output_prim = outputs.begin()->second.get_memory();
-
-    cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
-
-    EXPECT_EQ(10, output_ptr[0]);
-    EXPECT_EQ(-28.5, output_ptr[1]);
-}
-
 TEST(fully_connected_gpu, xb_f32_batch_1_relu) {
     //  Input  : 3x1
     //  Output : 4x1
@@ -541,14 +487,14 @@ TEST(fully_connected_gpu, xb_f32_batch_1_relu) {
     //   2.5   0      0.75  0
 
     const int32_t output_f = 4,                 // size of the whole output buffer
-                  input_x = 3, input_b = 1,     // size of the whole input buffer
-                  weight_b = 4, weight_x = 3;   // size of the whole weights buffer
+                  input_f = 3, input_b = 1,     // size of the whole input buffer
+                  weight_b = 4, weight_f = 3;   // size of the whole weights buffer
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { input_b, 1, input_x, 1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { input_b, input_f, 1, 1 } });
     //auto output_prim = memory::allocate({ memory::format::xb_f32, { output_b, { { output_f } }, { 1 } } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, 1, weight_x, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, weight_f, 1, 1 } });
     auto bias_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, output_f, 1 } });
 
     set_values(input_prim, { -0.5f, 2.0f, 0.5f });
@@ -603,14 +549,14 @@ TEST(fully_connected_gpu, xb_f32_batch_2_relu) {
     //   4      0   2.75   0
 
     const int32_t output_f = 4,                 // size of the whole output buffer
-                  input_x = 3, input_b = 2,     // size of the whole input buffer
-                  weight_b = 4, weight_x = 3;   // size of the whole weights buffer
+                  input_f = 3, input_b = 2,     // size of the whole input buffer
+                  weight_b = 4, weight_f = 3;   // size of the whole weights buffer
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { input_b, 1, input_x, 1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { input_b, input_f, 1, 1 } });
     //auto output_prim = memory::allocate({ memory::format::xb_f32, { output_b, { { output_f } }, { 1 } } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, 1, weight_x, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, weight_f, 1, 1 } });
     auto bias_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, output_f, 1 } });
 
     set_values(input_prim, { -0.5f, 1.0f, 2.0f, 1.5f, 0.5f, 0.0f });
@@ -666,14 +612,14 @@ TEST(fully_connected_gpu, x_f32_relu) {
     //   2.5   0    0.75  0
 
     const int32_t output_f = 4,                 // size of the whole output buffer
-                  input_x = 3,                  // size of the whole input buffer
-                  weight_b = 4, weight_x = 3;   // size of the whole weights buffer
+                  input_f = 3,                  // size of the whole input buffer
+                  weight_b = 4, weight_y = 3;   // size of the whole weights buffer
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, input_x, 1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, input_f, 1, 1 } });
     //auto output_prim = memory::allocate({ memory::format::x_f32, { 1       , { { output_f } }, 1 } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, 1, weight_x, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, weight_y, 1, 1 } });
     auto bias_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, output_f, 1 } });
 
     set_values(input_prim, { -0.5f, 2.0f, 0.5f });
@@ -726,14 +672,14 @@ TEST(fully_connected_gpu, x_f32_relu_with_negative_slope) {
     //   2.5   -0.125    0.75  -0.1
 
     const int32_t output_f = 4,                 // size of the whole output buffer
-                  input_x = 3,                  // size of the whole input buffer
-                  weight_b = 4, weight_x = 3;   // size of the whole weights buffer
+                  input_f = 3,                  // size of the whole input buffer
+                  weight_b = 4, weight_f = 3;   // size of the whole weights buffer
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, input_x, 1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, input_f, 1, 1 } });
     //auto output_prim = memory::allocate({ memory::format::x_f32, { 1       , { { output_f } }, 1 } });
-    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, 1, weight_x, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { weight_b, weight_f, 1, 1 } });
     auto bias_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, output_f, 1 } });
 
     set_values(input_prim, { -0.5f, 2.0f, 0.5f });
@@ -1024,11 +970,10 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b34)
     }
 }
 
+using shared_dims = std::tuple<size_t, size_t, size_t>;
 using fully_connected_test_params = std::tuple<
     size_t,        // batch_num
-    size_t,        // input_f
-    size_t,        // input_x
-    size_t,        // input_y
+    shared_dims,   // input_f input_x input_y
     size_t,        // output_f
     format::type,  // input format
     format::type,  // output format
@@ -1038,11 +983,13 @@ using fully_connected_test_params = std::tuple<
 template <typename InputT, typename WeightsT, typename BiasT, typename OutputT>
 struct fully_connected_random_test : ::testing::TestWithParam<fully_connected_test_params> {
     void run_test() {
+        shared_dims dims;
         size_t batch, input_f, input_x, input_y, output_f;
         format::type input_format, output_format;
         std::string kernel;
 
-        std::tie(batch, input_f, input_x, input_y, output_f, input_format, output_format, kernel) = GetParam();
+        std::tie(batch, dims, output_f, input_format, output_format, kernel) = GetParam();
+        std::tie(input_f, input_x, input_y) = dims;
 
         auto input_data = generate_smart_random_4d<InputT>(batch, input_f, input_y, input_x);
         auto weights_data = generate_smart_random_4d<WeightsT>(output_f, input_f, input_y, input_x);
@@ -1071,9 +1018,8 @@ INSTANTIATE_TEST_SUITE_P(
     fully_connected_random_test_f32,
     ::testing::Combine(
         ::testing::Values(1, 2),
-        ::testing::Values(3, 32),
-        ::testing::Values(1, 3),
-        ::testing::Values(1, 3),
+        ::testing::Values(shared_dims{3, 1, 1},
+                          shared_dims{32, 1, 1}),
         ::testing::Values(3, 32),
         ::testing::Values(format::bfyx, format::yxfb),
         ::testing::Values(format::any),
@@ -1085,9 +1031,8 @@ INSTANTIATE_TEST_SUITE_P(
     fully_connected_random_test_f32,
     ::testing::Combine(
         ::testing::Values(2, 8),
-        ::testing::Values(3, 32),
-        ::testing::Values(1, 3),
-        ::testing::Values(1, 3),
+        ::testing::Values(shared_dims{3, 1, 1},
+                          shared_dims{32, 1, 1}),
         ::testing::Values(3, 32),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::bfyx),
@@ -1105,9 +1050,8 @@ INSTANTIATE_TEST_SUITE_P(
         // Batch 1 is disabled due to sporadic failures in `fully_connected_gpu_bs_f_bsv16_b1`
         // - there are nans in output.
         ::testing::Values(2),
-        ::testing::Values(3, 32),
-        ::testing::Values(1, 3),
-        ::testing::Values(1, 3),
+        ::testing::Values(shared_dims{3, 1, 1},
+                          shared_dims{32, 1, 1}),
         ::testing::Values(3, 32),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
@@ -1119,9 +1063,8 @@ INSTANTIATE_TEST_SUITE_P(
     fully_connected_random_test_f16,
     ::testing::Combine(
         ::testing::Values(1, 2),
-        ::testing::Values(3, 32),
-        ::testing::Values(1, 3),
-        ::testing::Values(1, 3),
+        ::testing::Values(shared_dims{3, 1, 1},
+                          shared_dims{32, 1, 1}),
         ::testing::Values(3, 32),
         ::testing::Values(format::yxfb),
         ::testing::Values(format::any),
@@ -1133,9 +1076,8 @@ INSTANTIATE_TEST_SUITE_P(
     fully_connected_random_test_f16,
     ::testing::Combine(
         ::testing::Values(2, 8),
-        ::testing::Values(3, 32),
-        ::testing::Values(1, 3),
-        ::testing::Values(1, 3),
+        ::testing::Values(shared_dims{3, 1, 1},
+                          shared_dims{32, 1, 1}),
         ::testing::Values(3, 32),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::bfyx),
@@ -1146,11 +1088,13 @@ INSTANTIATE_TEST_SUITE_P(
 template <typename InputT, typename WeightsT, typename BiasT, typename OutputT>
 struct fully_connected_random_test_3d : ::testing::TestWithParam<fully_connected_test_params> {
     void run_test() {
+        shared_dims dims;
         size_t batch, input_f, input_x, input_y, output_y;
         format::type input_format, output_format;
         std::string kernel;
 
-        std::tie(batch, input_f, input_x, input_y, output_y, input_format, output_format, kernel) = GetParam();
+        std::tie(batch, dims, output_y, input_format, output_format, kernel) = GetParam();
+        std::tie(input_f, input_x, input_y) = dims;
 
         auto input_data = generate_smart_random_4d<InputT>(batch, input_f, input_y, input_x);
         auto weights_data = generate_smart_random_4d<WeightsT>(output_y, input_y, 1, 1);
@@ -1181,9 +1125,10 @@ INSTANTIATE_TEST_SUITE_P(
     fully_connected_random_test_f32_3d,
     ::testing::Combine(
         ::testing::Values(1, 3),
-        ::testing::Values(1, 3),
-        ::testing::Values(1),
-        ::testing::Values(1, 3, 16),
+        ::testing::Values(shared_dims{1, 1, 1},
+                          shared_dims{1, 1, 3},
+                          shared_dims{3, 1, 1},
+                          shared_dims{3, 1, 3}),
         ::testing::Values(1, 3, 16),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
@@ -1195,9 +1140,10 @@ INSTANTIATE_TEST_SUITE_P(
     fully_connected_random_test_f32_3d,
     ::testing::Combine(
         ::testing::Values(1, 2),
-        ::testing::Values(64, 65),
-        ::testing::Values(1),
-        ::testing::Values(64, 65, 128),
+        ::testing::Values(shared_dims{64, 1, 65},
+                          shared_dims{64, 1, 128},
+                          shared_dims{65, 1, 65},
+                          shared_dims{65, 1, 128}),
         ::testing::Values(1, 32, 64),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
@@ -1209,9 +1155,10 @@ INSTANTIATE_TEST_SUITE_P(
     fully_connected_random_test_f32_3d,
     ::testing::Combine(
         ::testing::Values(3),
-        ::testing::Values(16, 17, 32),
-        ::testing::Values(1),
-        ::testing::Values(17, 32),
+        ::testing::Values(shared_dims{16, 1, 17},
+                          shared_dims{16, 1, 32},
+                          shared_dims{32, 1, 17},
+                          shared_dims{32, 1, 32}),
         ::testing::Values(17, 32),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
@@ -1227,9 +1174,10 @@ INSTANTIATE_TEST_SUITE_P(
     fully_connected_random_test_f16_3d,
     ::testing::Combine(
         ::testing::Values(1, 3),
-        ::testing::Values(1, 3),
-        ::testing::Values(1),
-        ::testing::Values(1, 3, 16),
+        ::testing::Values(shared_dims{1, 1, 1},
+                          shared_dims{1, 1, 16},
+                          shared_dims{3, 1, 1},
+                          shared_dims{3, 1, 16}),
         ::testing::Values(1, 3, 16),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
@@ -1245,9 +1193,10 @@ INSTANTIATE_TEST_SUITE_P(
     fully_connected_random_test_i8_3d,
     ::testing::Combine(
         ::testing::Values(1, 3),
-        ::testing::Values(1, 3),
-        ::testing::Values(1),
-        ::testing::Values(1, 3, 16),
+        ::testing::Values(shared_dims{1, 1, 1},
+                          shared_dims{1, 1, 16},
+                          shared_dims{3, 1, 1},
+                          shared_dims{3, 1, 16}),
         ::testing::Values(1, 3, 16),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
@@ -1259,9 +1208,10 @@ INSTANTIATE_TEST_SUITE_P(
     fully_connected_random_test_i8_3d,
     ::testing::Combine(
         ::testing::Values(1, 2),
-        ::testing::Values(64, 65),
-        ::testing::Values(1),
-        ::testing::Values(64, 65, 128),
+        ::testing::Values(shared_dims{64, 1, 65},
+                          shared_dims{64, 1, 128},
+                          shared_dims{65, 1, 65},
+                          shared_dims{65, 1, 128}),
         ::testing::Values(1, 32, 64),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
@@ -1273,9 +1223,10 @@ INSTANTIATE_TEST_SUITE_P(
     fully_connected_random_test_i8_3d,
     ::testing::Combine(
         ::testing::Values(1, 3),
-        ::testing::Values(16, 17),
-        ::testing::Values(1),
-        ::testing::Values(17, 32),
+        ::testing::Values(shared_dims{16, 1, 17},
+                          shared_dims{16, 1, 32},
+                          shared_dims{32, 1, 17},
+                          shared_dims{32, 1, 32}),
         ::testing::Values(17, 32),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
@@ -1388,7 +1339,12 @@ public:
         topo.add(data("bias", bias_prim));
 
         topo.add(input_layout("input", input_prim->get_layout()));
-        auto fc_prim = fully_connected("fc_prim", "input", "weights", "bias");
+
+        auto input_sizes = input_size.sizes();
+        auto last_dim = std::find_if(input_sizes.rbegin(), input_sizes.rend(),
+                                     [](tensor::value_type x) { return x != 1l; });
+        size_t input_rank = std::distance(input_sizes.begin(), last_dim.base());
+        auto fc_prim = fully_connected("fc_prim", "input", "weights", "bias", cldnn::padding(), input_rank);
         fc_prim.output_data_type = type_to_data_type<OutputT>::value;
         topo.add(fc_prim);
 
@@ -1575,8 +1531,8 @@ INSTANTIATE_TEST_SUITE_P(
     testing::Combine(
         testing::Values(1, 2),
         testing::Values(3, 64),
-        testing::Values(1, 3),
-        testing::Values(1, 3),
+        testing::Values(1),
+        testing::Values(1),
         testing::Values(3, 32),
         testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32)
     ),
@@ -1603,8 +1559,8 @@ INSTANTIATE_TEST_SUITE_P(
     testing::Combine(
         testing::Values(1, 2),
         testing::Values(3, 64),
-        testing::Values(1, 3),
-        testing::Values(1, 3),
+        testing::Values(1),
+        testing::Values(1),
         testing::Values(3, 32),
         testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32)
     ),
@@ -1617,8 +1573,8 @@ INSTANTIATE_TEST_SUITE_P(
     testing::Combine(
         testing::Values(1, 2),
         testing::Values(3, 32),
-        testing::Values(1, 3),
-        testing::Values(1, 3),
+        testing::Values(1),
+        testing::Values(1),
         testing::Values(3, 32),
         testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
     ),
@@ -1631,8 +1587,8 @@ INSTANTIATE_TEST_SUITE_P(
     testing::Combine(
         testing::Values(1, 2),
         testing::Values(3, 32),
-        testing::Values(1, 3),
-        testing::Values(1, 3),
+        testing::Values(1),
+        testing::Values(1),
         testing::Values(3, 32),
         testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
     ),
@@ -1645,8 +1601,8 @@ INSTANTIATE_TEST_SUITE_P(
     testing::Combine(
         testing::Values(1, 2),
         testing::Values(3, 32),
-        testing::Values(1, 3),
-        testing::Values(1, 3),
+        testing::Values(1),
+        testing::Values(1),
         testing::Values(3, 32),
         testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
     ),
@@ -1659,8 +1615,8 @@ INSTANTIATE_TEST_SUITE_P(
     testing::Combine(
         testing::Values(1, 2),
         testing::Values(3, 32),
-        testing::Values(1, 3),
-        testing::Values(1, 3),
+        testing::Values(1),
+        testing::Values(1),
         testing::Values(3, 32),
         testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
     ),
@@ -1673,25 +1629,25 @@ TEST(fully_connected_onednn_gpu, no_biases_int8) {
     //  Output : 4x1
     //  Weights: 4x3
 
-    const int32_t input_x = 3, input_b = 1,     // size of the whole input buffer
-                  weight_b = 4, weight_x = 3;   // size of the whole weights buffer
+    const int32_t input_f = 3, input_b = 1,     // size of the whole input buffer
+                  weight_b = 4, weight_f = 3;   // size of the whole weights buffer
 
     auto& engine = get_onednn_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
 
     // Change input data of fully-connected node from bx to bf
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { input_b, 1, input_x, 1 } });
-    auto weights_prim = engine.allocate_memory({ data_types::i8, format::bfyx, { weight_b, weight_x, 1, 1 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { input_b, input_f, 1, 1 } });
+    auto weights_prim = engine.allocate_memory({ data_types::i8, format::bfyx, { weight_b, weight_f, 1, 1 } });
 
     set_values(input_prim, { 8.4f, 2.3f, -4.49f });
     set_values<char>(weights_prim, { 2, 1, 0, -3, -2, 1, 0, -2, -4, -5, 10, 8 });
 
     auto input = input_layout("input", input_prim->get_layout());
     auto w_data = data("weights", weights_prim);
-    auto ri = reorder("reorder_to_int", "input", { data_types::i8, format::bfyx, { input_b, 1, input_x, 1 } });
+    auto ri = reorder("reorder_to_int", "input", { data_types::i8, format::bfyx, { input_b, input_f, 1, 1 } });
     auto fc = fully_connected("fc_prim", "reorder_to_int", "weights");
-    auto rf = reorder("reorder_to_float", "fc_prim", { data_types::f32, format::bfyx, { input_b, 1, 4, 1 } });
+    auto rf = reorder("reorder_to_float", "fc_prim", { data_types::f32, format::bfyx, { input_b, 4, 1, 1 } });
     topology topology;
     topology.add(input);
     topology.add(w_data);
@@ -1793,6 +1749,7 @@ TEST(fully_connected_gpu, dynamic) {
 
     build_options options;
     options.set_option(build_option::optimize_data(true));
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
     network network(engine, topology, options);
     network.set_input_data("input", input_data);
 
@@ -1841,6 +1798,7 @@ TEST(fully_connected_gpu, dynamic_multi_inference_same_shape) {
 
     build_options options;
     options.set_option(build_option::optimize_data(true));
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
     network network(engine, topology, options);
 
     {
@@ -1918,6 +1876,7 @@ TEST(fully_connected_gpu, dynamic_multi_inference_different_shape) {
 
     build_options options;
     options.set_option(build_option::optimize_data(true));
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
     network network(engine, topology, options);
 
     {
@@ -2000,6 +1959,7 @@ TEST(fully_connected_gpu, dynamic_multi_inference_multiple_shapes) {
 
     build_options options;
     options.set_option(build_option::optimize_data(true));
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
     network network(engine, topology, options);
 
     // Call different shape multiple times to ensure caching works fine
