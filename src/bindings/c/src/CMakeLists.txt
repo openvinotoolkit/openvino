@@ -4,6 +4,10 @@
 
 set(TARGET_NAME openvino_c)
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    ie_add_compiler_flags(/wd4267)
+endif()
+
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB HEADERS ${OpenVINO_C_API_SOURCE_DIR}/include/*)
 

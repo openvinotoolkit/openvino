@@ -10,6 +10,12 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT ENABLE_SANITIZER)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold")
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    ie_add_compiler_flags(/wd4244)
+    ie_add_compiler_flags(/wd4267)
+endif()
+
+
 message(STATUS "ONNX frontend test enabled")
 
 add_compile_definitions(

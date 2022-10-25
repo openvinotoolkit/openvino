@@ -39,7 +39,7 @@ void validate_input_rank(const ov::op::util::FFTBase* op,
 
     if (rfft_kind == RFFTKind::Forward) {
         NODE_VALIDATION_CHECK(op,
-                              input_rank >= static_cast<int64_t>(axes_shape[0].get_length()),
+                              input_rank >= static_cast<size_t>(axes_shape[0].get_length()),
                               "The input rank must be greater than or equal to the number of RDFT op axes. "
                               "Got input rank: ",
                               input_rank,
@@ -47,7 +47,7 @@ void validate_input_rank(const ov::op::util::FFTBase* op,
                               axes_shape[0].get_length());
     } else {
         NODE_VALIDATION_CHECK(op,
-                              input_rank >= static_cast<int64_t>(axes_shape[0].get_length() + 1),
+                              input_rank >= static_cast<size_t>(axes_shape[0].get_length() + 1),
                               "The input rank must be greater than number of IRDFT op axes. Got "
                               "input rank: ",
                               input_rank,

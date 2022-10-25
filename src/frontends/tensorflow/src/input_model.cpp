@@ -200,7 +200,7 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
                 size_t producer_output_port_idx;
                 try {
                     current_operation_decoder->get_input_node(input_port_idx, producer_name, producer_output_port_idx);
-                } catch (const std::exception& e) {
+                } catch (const std::exception&) {
                     FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " +
                                     std::to_string(input_port_idx) + " for op '" +
                                     current_operation_decoder->get_op_name() + "', expected input name: '" +

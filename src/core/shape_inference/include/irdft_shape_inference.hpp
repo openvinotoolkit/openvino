@@ -42,7 +42,7 @@ void irdft_shape_infer(const ov::op::v9::IRDFT* op,
     output_shape.resize(input_rank - 1);
 
     if (axes_shape.rank().is_dynamic() || !axes_are_known) {
-        for (int64_t i = 0; i < input_rank - 1; ++i) {
+        for (size_t i = 0; i < input_rank - 1; ++i) {
             output_shape[i] = ov::Dimension::dynamic();
         }
         return;
