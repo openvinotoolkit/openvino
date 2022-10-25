@@ -97,7 +97,7 @@ static void generate_proposal_refine_anchors(const std::vector<float>& deltas,
                 proposals[p_idx + 2] = x1;
                 proposals[p_idx + 3] = y1;
                 proposals[p_idx + 4] = score;
-                proposals[p_idx + 5] = (min_box_W <= box_w) * (min_box_H <= box_h) * 1.0;
+                proposals[p_idx + 5] = (min_box_W <= box_w) * (min_box_H <= box_h) * 1.0f;
 
                 // update index for next anchor iter
                 a_idx += 4;  // anchors shape is [bottom_H, bottom_W, anchors_num, 4], so add 4 for next anchor iter
@@ -261,7 +261,7 @@ static void generate_proposals_single_image(const std::vector<float>& im_info,
     const int64_t pre_nms_topn = std::min(num_proposals, attrs.pre_nms_count);
 
     // bbox normalized flag
-    const float coordinates_offset = attrs.normalized ? 0 : 1.0;
+    const float coordinates_offset = attrs.normalized ? 0.f : 1.f;
 
     std::vector<sProposalBox> proposals(num_proposals);
     std::vector<float> unpacked_boxes(5 * pre_nms_topn);
