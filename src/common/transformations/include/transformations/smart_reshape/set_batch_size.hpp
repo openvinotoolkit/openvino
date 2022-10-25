@@ -11,7 +11,7 @@
 namespace ov {
 namespace pass {
 
-class NGRAPH_API SetBatchSize;
+class TRANSFORMATIONS_API SetBatchSize;
 
 }  // namespace pass
 }  // namespace ov

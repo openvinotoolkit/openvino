@@ -15,7 +15,7 @@
 namespace ov {
 namespace pass {
 
-class NGRAPH_API ConvertPrecision;
+class TRANSFORMATIONS_API ConvertPrecision;
 
 }  // namespace pass
 }  // namespace ov

@@ -13,10 +13,12 @@
 #include <openvino/pass/graph_rewrite.hpp>
 #include <vector>
 
+#include "transformations_visibility.hpp"
+
 namespace ov {
 namespace pass {
 
-class NGRAPH_API FixRtInfo;
+class TRANSFORMATIONS_API FixRtInfo;
 
 }  // namespace pass
 }  // namespace ov

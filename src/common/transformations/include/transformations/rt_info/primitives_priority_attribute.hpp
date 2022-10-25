@@ -19,6 +19,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/runtime_attribute.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 /**
@@ -26,9 +27,9 @@ namespace ov {
  * @brief getPrimitivesPriority return string with primitive priorities value
  * @param[in] node The node will be used to get PrimitivesPriority attribute
  */
-NGRAPH_API std::string getPrimitivesPriority(const std::shared_ptr<Node>& node);
+TRANSFORMATIONS_API std::string getPrimitivesPriority(const std::shared_ptr<Node>& node);
 
-class NGRAPH_API PrimitivesPriority : public ov::RuntimeAttribute {
+class TRANSFORMATIONS_API PrimitivesPriority : public ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("primitives_priority", "0");
 

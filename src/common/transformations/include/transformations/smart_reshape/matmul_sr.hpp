@@ -8,12 +8,14 @@
 #include <memory>
 #include <openvino/pass/graph_rewrite.hpp>
 
+#include "transformations_visibility.hpp"
+
 namespace ov {
 namespace pass {
 
-class NGRAPH_API ReshapeAMatMul;
-class NGRAPH_API ReshapeBMatMul;
-class NGRAPH_API TransposeMatMul;
+class TRANSFORMATIONS_API ReshapeAMatMul;
+class TRANSFORMATIONS_API ReshapeBMatMul;
+class TRANSFORMATIONS_API TransposeMatMul;
 
 }  // namespace pass
 }  // namespace ov

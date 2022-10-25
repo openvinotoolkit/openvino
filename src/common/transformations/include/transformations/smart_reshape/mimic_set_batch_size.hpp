@@ -9,10 +9,12 @@
 #include <numeric>
 #include <openvino/pass/graph_rewrite.hpp>
 
+#include "transformations_visibility.hpp"
+
 namespace ov {
 namespace pass {
 
-class NGRAPH_API MimicSetBatchSize;
+class TRANSFORMATIONS_API MimicSetBatchSize;
 
 }  // namespace pass
 }  // namespace ov

@@ -8,10 +8,12 @@
 #include <openvino/pass/graph_rewrite.hpp>
 #include <vector>
 
+#include "transformations_visibility.hpp"
+
 namespace ov {
 namespace pass {
 
-class NGRAPH_API SmartReshape;
+class TRANSFORMATIONS_API SmartReshape;
 
 }  // namespace pass
 }  // namespace ov

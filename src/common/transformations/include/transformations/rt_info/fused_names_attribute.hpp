@@ -19,6 +19,7 @@
 #include <string>
 
 #include "openvino/core/runtime_attribute.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 
@@ -27,7 +28,7 @@ namespace ov {
  * @brief FusedName class represents runtime info attribute that stores
  * all operation names that was fully or partially fused into node
  */
-class NGRAPH_API FusedNames : public ov::RuntimeAttribute {
+class TRANSFORMATIONS_API FusedNames : public ov::RuntimeAttribute {
     std::set<std::string> fused_names;
 
 public:
@@ -77,7 +78,7 @@ public:
  * @brief getFusedNames return string with operation names separated by coma in alphabetical order
  * @param[in] node The node will be used to get FusedNames attribute
  */
-NGRAPH_API std::string getFusedNames(const std::shared_ptr<ov::Node>& node);
+TRANSFORMATIONS_API std::string getFusedNames(const std::shared_ptr<ov::Node>& node);
 
 /**
  * @ingroup ie_runtime_attr_api
@@ -85,7 +86,7 @@ NGRAPH_API std::string getFusedNames(const std::shared_ptr<ov::Node>& node);
  * @param[in] node The node will be used to get FusedNames attribute
  * @return vector of strings
  */
-NGRAPH_API std::vector<std::string> getFusedNamesVector(const std::shared_ptr<ov::Node>& node);
+TRANSFORMATIONS_API std::vector<std::string> getFusedNamesVector(const std::shared_ptr<ov::Node>& node);
 
 }  // namespace ov
 

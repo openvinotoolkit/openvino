@@ -8,12 +8,14 @@
 #include <openvino/pass/graph_rewrite.hpp>
 #include <vector>
 
+#include "transformations_visibility.hpp"
+
 namespace ov {
 namespace pass {
 
-class NGRAPH_API StridedSliceSqueeze;
-class NGRAPH_API SqueezeStridedSlice;
-class NGRAPH_API SharedSqueeze;
+class TRANSFORMATIONS_API StridedSliceSqueeze;
+class TRANSFORMATIONS_API SqueezeStridedSlice;
+class TRANSFORMATIONS_API SharedSqueeze;
 
 }  // namespace pass
 }  // namespace ov
