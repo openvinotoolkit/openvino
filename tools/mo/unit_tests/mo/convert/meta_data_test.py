@@ -77,10 +77,10 @@ class MetaDataTest(UnitTestWithMockedTelemetry):
                     'extensions': Path("['" + import_extensions.default_path() + "']"),
                     'framework': "onnx",
                     'freeze_placeholder_with_value': "{}",
-                    'input_model': Path("DIR\model.onnx"),
+                    'input_model': Path.joinpath(Path("DIR"), Path("model.onnx")),
                     'input_model_is_text': "False",
                     'inputs_list': "[]",
-                    'k': Path("DIR\CustomLayersMapping.xml"),
+                    'k': Path.joinpath(Path("DIR"), Path("CustomLayersMapping.xml")),
                     'layout': "()",
                     'layout_values': "{}",
                     'legacy_mxnet_model': "False",
@@ -127,7 +127,7 @@ class MetaDataTest(UnitTestWithMockedTelemetry):
                             val = Path(val)
                         assert val == param_value, \
                             "Runtime info attribute with name {} does not match. Expected: {}, " \
-                            "got {}".format(key, value, val)
+                            "got {}".format(param_name, param_value, val)
                     continue
                 assert str(ov_model.get_rt_info(key)) == value, \
                     "Runtime info attribute with name {} does not match. Expected: {}, " \
