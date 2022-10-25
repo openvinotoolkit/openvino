@@ -45,9 +45,8 @@ ie_option(ENABLE_ERROR_HIGHLIGHT "Highlight errors and warnings during compile t
 
 ie_option (ENABLE_DOCS "Build docs using Doxygen" OFF)
 
-# TODO: fix apple later
 find_package(PkgConfig QUIET)
-ie_dependent_option (ENABLE_PKGCONFIG_GEN "Enable openvino.pc pkg-config file generation" ON "LINUX;PkgConfig_FOUND;BUILD_SHARED_LIBS" OFF)
+ie_dependent_option (ENABLE_PKGCONFIG_GEN "Enable openvino.pc pkg-config file generation" ON "LINUX OR APPLE;PkgConfig_FOUND;BUILD_SHARED_LIBS" OFF)
 
 #
 # Inference Engine specific options
@@ -125,7 +124,7 @@ ie_option (ENABLE_OPENCV "enables custom OpenCV download" OFF)
 
 ie_option (ENABLE_V7_SERIALIZE "enables serialization to IR v7" OFF)
 
-set(IE_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include into OpenVINO build")
+set(OPENVINO_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include into OpenVINO build")
 
 ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the Inference Engine binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
 
@@ -175,7 +174,7 @@ ie_dependent_option(ENABLE_SYSTEM_PROTOBUF "Use system protobuf" OFF
 
 ie_dependent_option(ENABLE_OV_CORE_UNIT_TESTS "Enables OpenVINO core unit tests" ON "ENABLE_TESTS" OFF)
 ie_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OFF)
-ie_option(ENABLE_REQUIREMENTS_INSTALL "Dynamic dependencies install" ON)
+ie_dependent_option(ENABLE_REQUIREMENTS_INSTALL "Dynamic dependencies install" ON "ENABLE_TESTS" OFF)
 
 if(NOT BUILD_SHARED_LIBS AND ENABLE_OV_TF_FRONTEND)
     set(FORCE_FRONTENDS_USE_PROTOBUF ON)
