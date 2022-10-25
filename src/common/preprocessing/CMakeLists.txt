@@ -89,6 +89,9 @@ if(ARM OR AARCH64)
         set_source_files_properties(${NEON_SRC} PROPERTIES COMPILE_OPTIONS "${neon_flags}")
         add_definitions(-DHAVE_NEON=1)
     endif()
+    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+        target_compile_options(openvino_gapi_preproc PRIVATE -Wno-unused-command-line-argument)
+    endif()
 endif()
 
 # Create object library
