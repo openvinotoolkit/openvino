@@ -17,6 +17,7 @@ from ngraph.utils.types import (
 )
 
 _get_node_factory_opset4 = partial(_get_node_factory, "opset4")
+_get_node_factory_opset10 = partial(_get_node_factory, "opset10")
 
 # -------------------------------------------- ops ------------------------------------------------
 
@@ -82,3 +83,44 @@ def interpolate(
     # This is an update of the operator version, so even though this is opset 10,
     # the operator is taken from opset 4.
     return _get_node_factory_opset4().create("Interpolate", inputs, attrs)
+
+
+@nameable_op
+def is_inf(
+    data: NodeInput,
+    attributes: Optional[dict] = None,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs IsInf operation.
+
+    :param data: The input tensor.
+    :param attributes: Optional dictionary containing IsInf attributes.
+    :param name: Optional name of the node.
+
+    Available attributes:
+
+    * detect_negative   Specifies whether to map negative infinities to true in output map.
+                        Range of values: true, false
+                        Default value: true
+                        Required: no
+    * detect_positive   Specifies whether to map positive infinities to true in output map.
+                        Range of values: true, false
+                        Default value: true
+                        Required: no
+
+    :return: A new IsInf node.
+    """
+    if not attributes:
+        attributes = {}
+    return _get_node_factory_opset10().create("IsInf", as_nodes(data), attributes)
+
+
+@nameable_op
+def is_nan(data: NodeInput, name: Optional[str] = None) -> Node:
+    """Performs element-wise mapping from NaN to True. Other values are mapped to False.
+
+    :param  data:          A tensor of floating point numeric type and arbitrary shape.
+    :param  name:          Optional name for the output node. Default is None.
+    :return: Node representing is_nan operation.
+    """
+    return _get_node_factory_opset10().create("IsNaN", as_nodes(data))
