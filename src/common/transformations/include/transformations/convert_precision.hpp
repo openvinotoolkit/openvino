@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <memory>
-#include <ngraph/pass/pass.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
 #include <openvino/pass/graph_rewrite.hpp>

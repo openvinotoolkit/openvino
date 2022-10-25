@@ -14,7 +14,6 @@
 #include <functional>
 #include <memory>
 #include <ngraph/attribute_visitor.hpp>
-#include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
 #include <openvino/core/rtti.hpp>
 #include <set>
@@ -65,7 +64,7 @@ public:
      */
     std::vector<std::string> getVectorNames() const;
 
-    ov::Any merge(const ngraph::NodeVector& nodes) const override;
+    ov::Any merge(const ov::NodeVector& nodes) const override;
 
     ov::Any init(const std::shared_ptr<ngraph::Node>& node) const override;
 

@@ -8,7 +8,6 @@
 
 #include <functional>
 #include <memory>
-#include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
 #include <set>
 #include <string>
