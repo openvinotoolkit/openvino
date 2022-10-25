@@ -42,6 +42,7 @@ There are two alternatives in case of substantial accuracy degradation after app
 ### Tuning Hyperparameters of the Default Quantization
 The Default Quantization algorithm provides multiple hyperparameters which can be used in order to improve accuracy results for the fully-quantized model. 
 Below is a list of best practices that can be applied to improve accuracy without a substantial performance reduction with respect to default settings:
+
 1. The first recommended option is to change the `preset` from `performance` to `mixed`. This enables asymmetric quantization of 
 activations and can be helpful for models with non-ReLU activation functions, for example, YOLO, EfficientNet, etc.
 
@@ -86,6 +87,7 @@ Find all the possible options and their description in the configuration [specif
 ## Accuracy-aware Quantization
 When the steps above do not lead to the accurate quantized model, you may use the so-called [Accuracy-aware Quantization](@ref pot_accuracyaware_usage) algorithm which leads to mixed-precision models. 
 A fragment of Accuracy-aware Quantization configuration with default settings is shown below:
+
 ```python
 {
     "name": "AccuracyAwareQuantization",
