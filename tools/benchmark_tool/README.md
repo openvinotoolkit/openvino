@@ -251,14 +251,14 @@ An example of the information output when running benchmark_app on CPU in latenc
 
 [Step 3/11] Setting device configuration
 [Step 4/11] Reading network files
-[ INFO ] Read model took 12.91 ms
+[ INFO ] Read model took 21.20 ms
 [Step 5/11] Resizing network to match image sizes and given batch
 [ INFO ] Network batch size: 1
 [Step 6/11] Configuring input of the model
-[ INFO ] Model input 'data' precision u8, dimensions ([N,C,H,W]): 1 3 224 224
-[ INFO ] Model output 'prob' precision f32, dimensions ([...]): 1 1000
+[ INFO ] Model input 'input' precision f32, dimensions ([N,C,D,H,W]): 1 3 16 224 224
+[ INFO ] Model output 'output' precision f32, dimensions ([...]): 1 100
 [Step 7/11] Loading the model to the device
-[ INFO ] Compile model took 109.73 ms
+[ INFO ] Compile model took 144.11 ms
 [Step 8/11] Querying optimal runtime parameters
 [ INFO ] DEVICE: CPU
 [ INFO ]   AVAILABLE_DEVICES  , ['']
@@ -275,21 +275,21 @@ An example of the information output when running benchmark_app on CPU in latenc
 [ INFO ]   PERFORMANCE_HINT  , PerformanceMode.LATENCY
 [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS  , 0
 [Step 9/11] Creating infer requests and preparing input data
-[ INFO ] Create 1 infer requests took 0.07 ms
-[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
-[ INFO ] Fill input 'data' with random values 
+[ INFO ] Create 1 infer requests took 0.10 ms
+[ WARNING ] No input files were given for input 'input'!. This input will be filled with random values!
+[ INFO ] Fill input 'input' with random values 
 [Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, inference only: True, limits: 60000 ms duration)
 [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-[ INFO ] First inference took 8.74 ms
+[ INFO ] First inference took 32.43 ms
 [Step 11/11] Dumping statistics report
-Count:          5307 iterations
-Duration:       60015.07 ms
+Count:          1936 iterations
+Duration:       60063.42 ms
 Latency:
-    Median:     11.19 ms
-    AVG:        11.24 ms
-    MIN:        8.08 ms
-    MAX:        23.97 ms
-Throughput: 88.43 FPS
+    Median:     30.90 ms
+    AVG:        30.97 ms
+    MIN:        26.89 ms
+    MAX:        46.39 ms
+Throughput: 32.23 FPS
 ```
 
 The Benchmark Tool can also be used with dynamically shaped networks to measure expected inference time for various input data shapes. See the -shape and -data_shape argument descriptions in the <a href="#all-configuration-options">All configuration options</a> section to learn more about using dynamic shapes. Here is a command example for using benchmark_app with dynamic networks and a portion of the resulting output:
@@ -300,39 +300,38 @@ benchmark_app -m omz_models/intel/asl-recognition-0004/FP16/asl-recognition-0004
 
 ```sh
 [Step 9/11] Creating infer requests and preparing input data
-[ INFO ] Create 5 infer requests took 0.00 ms
+[ INFO ] Create 4 infer requests took 0.47 ms
 [ WARNING ] No input files were given for input 'input'!. This input will be filled with random values!
-[ INFO ] Fill input 'input' with random values
+[ INFO ] Fill input 'input' with random values 
 [ INFO ] Defined 3 tensor groups:
-        input: {1, 3, 16, 224, 224}
-        input: {2, 3, 16, 224, 224}
-        input: {4, 3, 16, 224, 224}
-[Step 10/11] Measuring performance (Start inference asynchronously, 5 inference requests using 5 streams for CPU, inference only: False, limits: 60000 ms duration)
+	input: {1, 3, 16, 224, 224} 
+	input: {2, 3, 16, 224, 224} 
+	input: {4, 3, 16, 224, 224} 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests using 4 streams for CPU, inference only: False, limits: 60000 ms duration)
 [ INFO ] Benchmarking in full mode (inputs filling are included in measurement loop).
-[ INFO ] First inference took 35.39 ms
+[ INFO ] First inference took 73.16 ms
 [Step 11/11] Dumping statistics report
-Count:          2040 iterations
-Duration:       60181.95 ms
+Count:          807 iterations
+Duration:       60438.28 ms
 Latency:
-    AVG:        147.16 ms
-    MIN:        52.19 ms
-    MAX:        359.92 ms
-Latency for each data shape group:
-  input: {1, 3, 16, 224, 224}
-    AVG:        69.58 ms
-    MIN:        52.19 ms
-    MAX:        127.87 ms
-  input: {2, 3, 16, 224, 224}
-    AVG:        124.81 ms
-    MIN:        103.68 ms
-    MAX:        211.50 ms
-  input: {4, 3, 16, 224, 224}
-    AVG:        247.30 ms
-    MIN:        212.58 ms
-    MAX:        359.92 ms
-Throughput: 79.09 FPS
+    AVG:        298.88 ms
+    MIN:        115.96 ms
+    MAX:        560.42 ms
+Latency for each data shape group: 
+  input: {1, 3, 16, 224, 224} 
+    AVG:        144.01 ms
+    MIN:        115.96 ms
+    MAX:        179.73 ms
+  input: {2, 3, 16, 224, 224} 
+    AVG:        254.44 ms
+    MIN:        205.56 ms
+    MAX:        312.95 ms
+  input: {4, 3, 16, 224, 224} 
+    AVG:        498.74 ms
+    MIN:        440.95 ms
+    MAX:        560.42 ms
+Throughput: 31.16 FPS
 ```
-
 
 ## See Also
 * [Using OpenVINO Samples](../../docs/OV_Runtime_UG/Samples_Overview.md)
