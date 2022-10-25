@@ -1763,7 +1763,7 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
 
             // Conv or deconv gets a preferred format for its data input based on source memory description
             // But an input format for fused post-ops should be same with an output format of conv/deconv
-            size_t prim_input;
+            size_t prim_input(0);
             if (node.is_type<convolution>())
                 prim_input = node.get_dependency_index(node.as<convolution>().input());
             if (node.is_type<deconvolution>())
