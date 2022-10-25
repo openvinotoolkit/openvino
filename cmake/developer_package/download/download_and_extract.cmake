@@ -35,7 +35,7 @@ function (GetNameAndUrlToDownload name url archive_name_unified archive_name_win
   endif()
 endfunction(GetNameAndUrlToDownload)
 
-#download from paltform specific folder from share server
+#download from platform specific folder from share server
 function (DownloadAndExtractPlatformSpecific
   component
   archive_name_unified
