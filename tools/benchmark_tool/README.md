@@ -217,26 +217,21 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
    pip install openvino-dev
    ```
 
-2. Download the model using omz_downloader, specifying the model name:
+2. Download the model using omz_downloader, specifying the model name and directory to download the model to:
    ```sh
-   omz_downloader --name googlenet-v1
+   omz_downloader --name asl-recognition-0004 --precisions FP16 --output_dir omz_models
    ```
 
-3. Convert the model to IR format using omz_converter:
-   ```sh
-   omz_converter --name googlenet-v1
-   ```
-
-4. Run the tool, specifying the location of the model .xml file, the device to perform inference on, and with a performance hint. The following commands demonstrate examples of how to run the Benchmark Tool in latency mode on CPU and throughput mode on GPU devices:
+3. Run the tool, specifying the location of the model .xml file, the device to perform inference on, and with a performance hint. The following commands demonstrate examples of how to run the Benchmark Tool in latency mode on CPU and throughput mode on GPU devices:
 
    * On CPU (latency mode):
    ```sh
-   benchmark_app -m public/googlenet-v1/FP16/googlenet-v1.xml -d CPU -hint latency
+   benchmark_app -m omz_models/intel/asl-recognition-0004/FP16/asl-recognition-0004.xml -d CPU -hint latency
    ```
 
    * On GPU (throughput mode):
    ```sh
-   benchmark_app -m public/googlenet-v1/FP16/googlenet-v1.xml -d GPU -hint throughput
+   benchmark_app -m omz_models/intel/asl-recognition-0004/FP16/asl-recognition-0004.xml -d GPU -hint throughput
    ```
 
 The application outputs the number of executed iterations, total duration of execution, latency, and throughput.
@@ -300,37 +295,42 @@ Throughput: 88.43 FPS
 The Benchmark Tool can also be used with dynamically shaped networks to measure expected inference time for various input data shapes. See the -shape and -data_shape argument descriptions in the <a href="#whats-next">All configuration options</a> section to learn more about using dynamic shapes. Here is a command example for using benchmark_app with dynamic networks and a portion of the resulting output:
 
 ```sh
-benchmark_app -m public/googlenet-v1/FP16/googlenet-v1.xml -d CPU -shape [1,3,?,?] -data_shape [1,3,224,224][1,3,448,448] -pcseq
+benchmark_app -m omz_models/intel/asl-recognition-0004/FP16/asl-recognition-0004.xml -d CPU -shape [-1,3,16,224,224] -data_shape [1,3,16,224,224][2,3,16,224,224][4,3,16,224,224] -pcseq
 ```
 
 ```sh
 [Step 9/11] Creating infer requests and preparing input data
-[ INFO ] Create 4 infer requests took 0.45 ms
-[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
-[ INFO ] Fill input 'data' with random values 
-[ INFO ] Defined 2 tensor groups:
-	data: {1, 3, 224, 224} 
-	data: {1, 3, 448, 448} 
-[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests using 4 streams for CPU, inference only: False, limits: 60000 ms duration)
+[ INFO ] Create 5 infer requests took 0.00 ms
+[ WARNING ] No input files were given for input 'input'!. This input will be filled with random values!
+[ INFO ] Fill input 'input' with random values
+[ INFO ] Defined 3 tensor groups:
+        input: {1, 3, 16, 224, 224}
+        input: {2, 3, 16, 224, 224}
+        input: {4, 3, 16, 224, 224}
+[Step 10/11] Measuring performance (Start inference asynchronously, 5 inference requests using 5 streams for CPU, inference only: False, limits: 60000 ms duration)
 [ INFO ] Benchmarking in full mode (inputs filling are included in measurement loop).
-[ INFO ] First inference took 25.64 ms
+[ INFO ] First inference took 35.39 ms
 [Step 11/11] Dumping statistics report
-Count:          2314 iterations
-Duration:       60146.92 ms
+Count:          2040 iterations
+Duration:       60181.95 ms
 Latency:
-    AVG:        103.74 ms
-    MIN:        27.45 ms
-    MAX:        228.34 ms
-Latency for each data shape group: 
-  data: {1, 3, 224, 224} 
-    AVG:        44.47 ms
-    MIN:        27.45 ms
-    MAX:        86.90 ms
-  data: {1, 3, 448, 448} 
-    AVG:        163.06 ms
-    MIN:        119.29 ms
-    MAX:        228.34 ms
-Throughput: 38.47 FPS
+    AVG:        147.16 ms
+    MIN:        52.19 ms
+    MAX:        359.92 ms
+Latency for each data shape group:
+  input: {1, 3, 16, 224, 224}
+    AVG:        69.58 ms
+    MIN:        52.19 ms
+    MAX:        127.87 ms
+  input: {2, 3, 16, 224, 224}
+    AVG:        124.81 ms
+    MIN:        103.68 ms
+    MAX:        211.50 ms
+  input: {4, 3, 16, 224, 224}
+    AVG:        247.30 ms
+    MIN:        212.58 ms
+    MAX:        359.92 ms
+Throughput: 79.09 FPS
 ```
 
 
