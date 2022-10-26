@@ -5926,7 +5926,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_trilu_dynamic_shapes) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_is_finite) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/is_finite.onnx"));
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/is_finite.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -6046,7 +6047,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_is_inf_detect_none) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_is_nan) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/is_nan.onnx"));
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/is_nan.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -6054,7 +6056,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_is_nan) {
     
     test_case.add_input<float>(Shape{1, 2, 3}, {std::nanf(""), std::nanf(""), -0.6000f, -1.0000f, std::nanf(""), -1.0000f});
 
-    test_case.add_expected_output<float>(
+    test_case.add_expected_output<bool>(
         Shape{1, 2, 3},
         {true, true, false, false, true, false});
 

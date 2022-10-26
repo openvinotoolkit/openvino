@@ -25,6 +25,11 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     void validate_and_infer_types() override;
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool has_evaluate() const override;
 };
 }  // namespace v10
 }  // namespace op
