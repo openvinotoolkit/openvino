@@ -733,7 +733,7 @@ void InferRequest::allocate_inputs() {
             } else {
                 _inputs[name] = create_host_blob(desc);
                 if (input_layout.is_static()) {
-                    if (m_graph->GetEngine()->use_unified_shared_memory()) {
+                    if (m_graph->GetEngine()->use_unified_shared_memory() && !m_graph->GetNetwork()->is_dynamic()) {
                         // For USM case we create host blob using custom USM host allocator
                         // and then create shared device blob on top of this buffer
                         auto host_blob = _inputs[name];
@@ -783,7 +783,7 @@ void InferRequest::allocate_outputs() {
         } else {
             _outputs[no.first] = create_host_blob(desc);
             if (output_layout.is_static()) {
-                if (m_graph->GetEngine()->use_unified_shared_memory()) {
+                if (m_graph->GetEngine()->use_unified_shared_memory() && !m_graph->GetNetwork()->is_dynamic()) {
                     // For USM case we create host blob using custom USM host allocator
                     // and then create shared device blob on top of this buffer
                     auto host_blob = _outputs[no.first];
@@ -937,7 +937,7 @@ InferenceEngine::Blob::Ptr InferRequest::create_device_blob(const InferenceEngin
 
     auto l = cldnn::layout(shape, dt, format);
 
-    if (m_graph->GetEngine()->use_unified_shared_memory()) {
+    if (m_graph->GetEngine()->use_unified_shared_memory() && !m_graph->GetNetwork()->is_dynamic()) {
         auto blobPtr = std::make_shared<RemoteUSMbuffer>(m_graph->GetContext(),
                                                          m_graph->GetNetwork()->get_stream(),
                                                          desc,
