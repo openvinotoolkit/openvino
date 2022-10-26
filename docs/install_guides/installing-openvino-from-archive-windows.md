@@ -61,7 +61,6 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
    mkdir "C:\Program Files (x86)\Intel"
    cd "C:\Program Files (x86)\Intel"
    ```
-
    > **NOTE**: C:\Program Files (x86)\Intel is the recommended folder path, but you may use a different path if desired or if you don't have administrator priveleges on your PC. If the C:\Program Files (x86)\Intel folder already exists, skip the `mkdir` command.
 
 2. Download the OpenVINO Runtime 2022.2 archive file from the [OpenVINO releases page](https://github.com/openvinotoolkit/openvino/releases/tag/2022.2.0), unzip it, and rename the folder to `openvino_2022.2.0.7713` by issuing:
