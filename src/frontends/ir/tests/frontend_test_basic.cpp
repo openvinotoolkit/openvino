@@ -137,9 +137,9 @@ TEST_F(IRFrontendTests, elementary_model_reading_v10) {
     EXPECT_TRUE(res.valid) << res.message;
 }
 
-TEST_F(IRFrontendTests, DISABLED_elementary_model_reading_v9) {
+TEST_F(IRFrontendTests, elementary_model_reading_v1) {
     std::string testModelV9 = R"V0G0N(
-<net name="Network" version="9">
+<net name="Network" version="1">
     <layers>
         <layer name="input" type="Parameter" id="0" version="opset1">
             <data element_type="f32" shape="1,3,22,22"/>
