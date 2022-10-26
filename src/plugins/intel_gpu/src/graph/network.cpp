@@ -587,6 +587,15 @@ memory::ptr network::get_output_memory(const primitive_id& output_id) {
     return get_primitive(output_id)->output_memory_ptr();
 }
 
+layout network::get_node_output_layout(const primitive_id& output_id) const {
+    auto res = std::find_if(_outputs.begin(), _outputs.end(), [&](const std::shared_ptr<primitive_inst>& v) {
+        return v->id() == output_id;
+    });
+    OPENVINO_ASSERT(res != _outputs.end(), "[GPU] Couldn't get output layout for ", output_id, ". Output with such name is not found in the outputs list");
+
+    return (*res)->get_node_output_layout();
+}
+
 void network::allocate_primitives() {
     std::vector<std::shared_ptr<program_node>> nodes_to_allocate{};
     auto& po = _program->get_processing_order();
@@ -887,6 +896,11 @@ std::shared_ptr<primitive_inst> network::get_primitive(const primitive_id& id) {
     return _primitives.at(id);
 }
 
+std::shared_ptr<const primitive_inst> network::get_primitive(const primitive_id& id) const {
+    OPENVINO_ASSERT(_primitives.count(id) == 1, "[GPU] Can't get primitive with ", id, " id: primitive with such name hasn't been found in processing order");
+    return _primitives.at(id);
+}
+
 std::vector<std::shared_ptr<primitive_inst>> network::get_primitives(const std::vector<primitive_id>& ids) {
     std::vector<std::shared_ptr<primitive_inst>> result(ids.size());
     std::transform(std::begin(ids), std::end(ids), std::begin(result), [&](const primitive_id& id) {
@@ -899,6 +913,14 @@ std::vector<std::shared_ptr<primitive_inst>> network::get_primitives(const std::
     std::vector<std::shared_ptr<primitive_inst>> result(nodes.size());
     std::transform(std::begin(nodes), std::end(nodes), std::begin(result), [&](const program_node* node) {
         return get_primitive(node->id());
+    });
+    return result;
+}
+
+std::vector<std::pair<std::shared_ptr<primitive_inst>, int>> network::get_primitives(const std::vector<std::pair<program_node*, int>>& nodes) {
+    std::vector<std::pair<std::shared_ptr<primitive_inst>, int>> result(nodes.size());
+    std::transform(std::begin(nodes), std::end(nodes), std::begin(result), [&](const std::pair<program_node*, int>& node) {
+        return std::make_pair(get_primitive(node.first->id()), node.second);
     });
     return result;
 }

@@ -68,7 +68,7 @@ bool compare_rt_keys(const T& node1, const T& node2, std::ostream& err_log) {
                 err_log << "Values for " << key << " key are not equal.\n";
                 return false;
             }
-        } catch (ov::Exception& e) {
+        } catch (const ov::Exception&) {
             // Handle cases wen equality operator is not defined for some rt attribute
         }
     }
