@@ -10,7 +10,7 @@ from openvino.runtime import PartialShape, Dimension, Model
 from common.mo_convert_test_class import CommonMOConvertTest
 
 
-def create_pytorch_nn_module_case1(temp_dir):
+def create_pytorch_nn_module_case1():
     from torch import nn
     class NeuralNetwork(nn.Module):
         def __init__(self):
@@ -45,7 +45,7 @@ def create_pytorch_nn_module_case1(temp_dir):
                                        'sample_input': sample_input}
 
 
-def create_pytorch_nn_module_case2(temp_dir):
+def create_pytorch_nn_module_case2():
     from torch import nn
     class NeuralNetwork(nn.Module):
         def __init__(self):
@@ -80,7 +80,7 @@ def create_pytorch_nn_module_case2(temp_dir):
                                        'sample_input': sample_input, 'onnx_opset_version': 11}
 
 
-def create_pytorch_nn_module_case3(temp_dir):
+def create_pytorch_nn_module_case3():
     from torch import nn
     class NeuralNetwork(nn.Module):
         def __init__(self):
@@ -114,7 +114,7 @@ def create_pytorch_nn_module_case3(temp_dir):
     return NeuralNetwork(), function, {'input_shape': "[?,3,?,?],[?,3,?,?]", 'sample_input': sample_input}
 
 
-def create_pytorch_jit_script_module(tmp_dir):
+def create_pytorch_jit_script_module():
     import torch
     from torch import nn
 
@@ -148,7 +148,7 @@ def create_pytorch_jit_script_module(tmp_dir):
     return scripted_model, ref_model, {'input_shape': [PartialShape([1, 3, 5, 5]), PartialShape([1, 3, 5, 5])]}
 
 
-def create_pytorch_jit_script_function(tmp_dir):
+def create_pytorch_jit_script_function():
     import torch
 
     @torch.jit.script
@@ -186,7 +186,7 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
     @pytest.mark.precommit
     def test_mo_import_from_memory(self, create_model, ie_device, precision, ir_version,
                                    temp_dir, use_new_frontend, use_old_api):
-        fw_model, graph_ref, mo_params = create_model(temp_dir)
+        fw_model, graph_ref, mo_params = create_model()
 
         test_params = {'input_model': fw_model}
         if mo_params is not None:

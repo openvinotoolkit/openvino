@@ -43,6 +43,14 @@ def create_tf_graph_def(tmp_dir):
 def create_keras_model(temp_dir):
     import tensorflow as tf
 
+    tf.keras.backend.clear_session()
+    tf.compat.v1.reset_default_graph()
+
+    # Enable eager execution to use KerasTensors in this test.
+    # If eager execution is disabled then TF uses tf.Tensors
+    # which causes renaming of tensors in the created model after each test run
+    tf.compat.v1.enable_eager_execution()
+
     input_names = ["Input1", "Input2"]
     input_shape = [1, 2, 3]
 
