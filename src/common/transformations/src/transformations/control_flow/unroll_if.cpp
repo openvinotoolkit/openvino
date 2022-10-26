@@ -18,6 +18,12 @@ bool ngraph::pass::UnrollIf::run_on_model(const std::shared_ptr<ngraph::Function
     RUN_ON_FUNCTION_SCOPE(UnrollIf);
     bool is_applicable = false;
     for (const auto& op : f->get_ordered_ops()) {
+        auto multisubgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(op);
+        if (multisubgraph_op) {
+            for (size_t i = 0; i < multisubgraph_op->get_internal_subgraphs_size(); ++i) {
+                run_on_model(multisubgraph_op->get_function(static_cast<int>(i)));
+            }
+        }
         auto if_node = std::dynamic_pointer_cast<opset8::If>(op);
         if (!if_node || transformation_callback(if_node)) {
             continue;
