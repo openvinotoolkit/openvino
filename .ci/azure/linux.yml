@@ -93,7 +93,7 @@ jobs:
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
     CMAKE_VERSION: 3.24.0
     CMAKE_DIR: ${WORK_DIR}/cmake-${CMAKE_VERSION}
-    CMAKE_CMD: ${CMAKE_CMD}/bin/cmake
+    CMAKE_CMD: ${CMAKE_DIR}/bin/cmake
 
   steps:
   - script: |
