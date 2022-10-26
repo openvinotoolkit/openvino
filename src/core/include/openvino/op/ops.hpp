@@ -82,6 +82,7 @@
 #include "openvino/op/if.hpp"
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/irdft.hpp"
+#include "openvino/op/is_finite.hpp"
 #include "openvino/op/is_inf.hpp"
 #include "openvino/op/is_nan.hpp"
 #include "openvino/op/less.hpp"

@@ -92,6 +92,7 @@
    If-8 <openvino_docs_ops_infrastructure_If_8>
    Interpolate-1 <openvino_docs_ops_image_Interpolate_1>
    Interpolate-4 <openvino_docs_ops_image_Interpolate_4>
+   IsFinite-10 <openvino_docs_ops_comparison_IsFinite_10>
    IsInf-10 <openvino_docs_ops_comparison_IsInf_10>
    IsNaN-10 <openvino_docs_ops_comparison_IsNaN_10>
    LRN-1 <openvino_docs_ops_normalization_LRN_1>
