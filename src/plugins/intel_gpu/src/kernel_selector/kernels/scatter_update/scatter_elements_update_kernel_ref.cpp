@@ -34,20 +34,36 @@ static size_t GetScatterElementsUpdateChannelIndex(const scatter_elements_update
 
 ParamsKey ScatterElementsUpdateKernelRef::GetSupportedKey() const {
     ParamsKey k;
-    k.EnableInputDataType(Datatype::F16);
-    k.EnableInputDataType(Datatype::F32);
-    k.EnableInputDataType(Datatype::INT32);
-    k.EnableOutputDataType(Datatype::F16);
-    k.EnableOutputDataType(Datatype::F32);
-    k.EnableOutputDataType(Datatype::INT32);
-    k.EnableOutputDataType(Datatype::INT8);
-    k.EnableOutputDataType(Datatype::UINT8);
-    k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::bfyx);
-    k.EnableInputLayout(DataLayout::bfzyx);
-    k.EnableOutputLayout(DataLayout::bfzyx);
-    k.EnableInputLayout(DataLayout::bfwzyx);
-    k.EnableOutputLayout(DataLayout::bfwzyx);
+    const std::vector<Datatype> supportedTypes{
+        Datatype::F16, Datatype::F32, Datatype::INT32, Datatype::INT8, Datatype::UINT8
+    };
+    for (const auto t : supportedTypes) {
+        k.EnableInputDataType(t);
+        k.EnableOutputDataType(t);
+    }
+
+    const std::vector<DataLayout> supportedLayots{
+        DataLayout::bfyx,
+        DataLayout::b_fs_yx_fsv16,
+        DataLayout::b_fs_yx_fsv32,
+        DataLayout::bs_fs_yx_bsv16_fsv16,
+        DataLayout::bs_fs_yx_bsv32_fsv16,
+        DataLayout::bs_fs_yx_bsv16_fsv32,
+        DataLayout::bs_fs_yx_bsv32_fsv32,
+        DataLayout::bfzyx,
+        DataLayout::b_fs_zyx_fsv16,
+        DataLayout::b_fs_zyx_fsv32,
+        DataLayout::bs_fs_zyx_bsv16_fsv32,
+        DataLayout::bs_fs_zyx_bsv16_fsv16,
+        DataLayout::bs_fs_zyx_bsv32_fsv32,
+        DataLayout::bs_fs_zyx_bsv32_fsv16,
+        DataLayout::bfwzyx
+    };
+    for (const auto l : supportedLayots) {
+        k.EnableInputLayout(l);
+        k.EnableOutputLayout(l);
+    }
+
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -79,22 +95,24 @@ CommonDispatchData ScatterElementsUpdateKernelRef::SetDefault(const scatter_elem
 
     const auto& scope = is_second ? indices : output;
 
-    switch (params.inputs[0].GetLayout()) {
-    case DataLayout::bfyx:
+    const auto rank = params.inputs[0].GetDims().size();
+
+    switch (rank) {
+    case 4:
         dispatchData.gws = {scope.X().v, scope.Y().v, scope.Feature().v * scope.Batch().v};
         dims_by_gws = {{Tensor::DataChannelName::X},
                        {Tensor::DataChannelName::Y},
                        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
         break;
 
-    case DataLayout::bfzyx:
+    case 5:
         dispatchData.gws = {scope.X().v * scope.Y().v, scope.Z().v, scope.Feature().v * scope.Batch().v};
         dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
                        {Tensor::DataChannelName::Z},
                        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
         break;
 
-    case DataLayout::bfwzyx:
+    case 6:
         dispatchData.gws = {scope.X().v * scope.Y().v, scope.Z().v * scope.W().v, scope.Feature().v * scope.Batch().v};
         dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
                        {Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
