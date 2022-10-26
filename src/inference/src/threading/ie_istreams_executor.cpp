@@ -51,7 +51,7 @@ int IStreamsExecutor::Config::GetDefaultNumStreams() {
         return 1;
 }
 
-int IStreamsExecutor::Config::GetHybridNumStreams(std::map<std::string, std::string> &config, const int stream_mode) {
+int IStreamsExecutor::Config::GetHybridNumStreams(std::map<std::string, std::string>& config, const int stream_mode) {
     const int num_phy_cores = getNumberOfCPUCores();
     const int num_big_cores = getNumberOfCPUCores(true);
     const int num_small_cores = num_phy_cores - num_big_cores;
@@ -178,7 +178,7 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
             _streams = LimitHybridStreams(_streams, _threads);
         } else if (streams.num >= 0) {
             _streams = streams.num;
-            if(_threadBindingType == ThreadBindingType::HYBRID_AWARE){
+            if (_threadBindingType == ThreadBindingType::HYBRID_AWARE) {
                 _streams = LimitHybridStreams(streams.num, _threads);
             }
         } else {
@@ -327,18 +327,20 @@ int IStreamsExecutor::Config::LimitHybridStreams(const int num_streams, const in
     const auto core_types = custom::info::core_types();
     const auto num_big_cores_phys = getNumberOfCPUCores(true);
     const auto num_small_cores =
-            custom::info::default_concurrency(custom::task_arena::constraints{}.set_core_type(core_types.front()));
+        custom::info::default_concurrency(custom::task_arena::constraints{}.set_core_type(core_types.front()));
     const auto base_streams_total = num_big_cores_phys + num_small_cores / 2;
 
     // limit streams to reasonable range
     int streams = num_streams > base_streams_total ? base_streams_total : std::max(1, num_streams);
-    if(num_threads > 0 && streams > num_threads){
+    if (num_threads > 0 && streams > num_threads) {
         streams = num_threads;
     }
     return streams;
 }
 
-void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config, const int num_big_cores_phys, const int num_small_cores) {
+void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config,
+                                                         const int num_big_cores_phys,
+                                                         const int num_small_cores) {
     const auto base_streams_total = num_big_cores_phys + num_small_cores / 2;
     const auto num_cores_phys = num_big_cores_phys + num_small_cores;
 
@@ -415,7 +417,9 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
             num_cores_default = (num_big_cores_phys <= hyper_threading_threshold) ? num_big_cores : num_big_cores_phys;
         }
         if (streamExecutorConfig._big_core_streams == 0) {
-            UpdateHybridCustomThreads(streamExecutorConfig, num_big_cores_phys, core_types.size() > 1 ? num_little_cores : 0);
+            UpdateHybridCustomThreads(streamExecutorConfig,
+                                      num_big_cores_phys,
+                                      core_types.size() > 1 ? num_little_cores : 0);
         }
     }
 #endif
