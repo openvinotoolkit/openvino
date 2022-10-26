@@ -148,7 +148,7 @@ macro(ov_cpack_settings)
 
     set(CPACK_COMPONENT_CORE_DEV_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit C / C++ Development files")
     set(CPACK_COMPONENT_CORE_DEV_DEPENDS "${OV_CPACK_COMP_CORE};${frontends}")
-    set(CPACK_RPM_CORE_DEV_PACKAGE_NAME "libopenvino-dev-${cpack_name_ver}")
+    set(CPACK_RPM_CORE_DEV_PACKAGE_NAME "libopenvino-devel-${cpack_name_ver}")
     ov_rpm_generate_conflicts("${OV_CPACK_COMP_CORE_DEV}" ${conflicting_versions})
 
     ov_rpm_add_rpmlint_suppression("${OV_CPACK_COMP_CORE_DEV}"
@@ -319,16 +319,16 @@ macro(ov_cpack_settings)
 
     ov_rpm_add_rpmlint_suppression(libraries
         # it's umbrella package
-        "empty-binary-package")
+        "no-binary")
 
     # all libraries-dev
     set(CPACK_COMPONENT_LIBRARIES_DEV_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit Libraries and Development files")
     set(CPACK_COMPONENT_LIBRARIES_DEV_DEPENDS "core_dev;libraries")
-    set(CPACK_RPM_LIBRARIES_DEV_PACKAGE_NAME "openvino-libraries-dev-${cpack_name_ver}")
+    set(CPACK_RPM_LIBRARIES_DEV_PACKAGE_NAME "openvino-libraries-devel-${cpack_name_ver}")
     ov_rpm_generate_conflicts(libraries_dev ${conflicting_versions})
     ov_rpm_add_rpmlint_suppression(libraries_dev
         # it's umbrella package
-        "empty-binary-package")
+        "no-binary")
 
     # all openvino
     set(CPACK_COMPONENT_OPENVINO_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit Libraries and Development files")
@@ -337,7 +337,7 @@ macro(ov_cpack_settings)
     ov_rpm_generate_conflicts(openvino ${conflicting_versions})
     ov_rpm_add_rpmlint_suppression(openvino
         # it's umbrella package
-        "empty-binary-package")
+        "no-binary")
 
     list(APPEND CPACK_COMPONENTS_ALL "libraries;libraries_dev;openvino")
 
