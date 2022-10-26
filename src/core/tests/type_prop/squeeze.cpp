@@ -4,6 +4,7 @@
 
 #include <dimension_tracker.hpp>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "gmock/gmock.h"
 #include "ngraph/ngraph.hpp"
 #include "sequnce_generator.hpp"
@@ -17,7 +18,7 @@ TEST(type_prop, squeeze_axes_invalid_value) {
     auto param = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto axes_node = make_shared<op::Constant>(element::u64, Shape{2}, vector<int64_t>{0, 2});
 
-    OV_EXPECT_THROW(make_shared<op::Squeeze>(param, axes_node),
+    OV_EXPECT_THROW(auto s = make_shared<op::Squeeze>(param, axes_node),
                     NodeValidationFailure,
                     HasSubstr("provided axis value is invalid. Only axes of size 1 may be removed."));
 }
@@ -26,7 +27,7 @@ TEST(type_prop, squeeze_axes_invalid_rank) {
     auto param = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto axes_node = make_shared<op::Constant>(element::i32, Shape{2, 1}, vector<int32_t>{0, 2});
 
-    OV_EXPECT_THROW(make_shared<op::Squeeze>(param, axes_node),
+    OV_EXPECT_THROW(auto s = make_shared<op::Squeeze>(param, axes_node),
                     NodeValidationFailure,
                     HasSubstr("Second input (axes) should not be of rank higher than 1."));
 }
@@ -35,7 +36,7 @@ TEST(type_prop, squeeze_incorrect_negative_axes) {
     auto param = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1, 4, 1, 8});
     auto axes_node = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{-6, -10});
 
-    OV_EXPECT_THROW(make_shared<op::Squeeze>(param, axes_node),
+    OV_EXPECT_THROW(auto s = make_shared<op::Squeeze>(param, axes_node),
                     ov::Exception,
                     HasSubstr("Parameter axis -10 out of the tensor rank range"));
 }
