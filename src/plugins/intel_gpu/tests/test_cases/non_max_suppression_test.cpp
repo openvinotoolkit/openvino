@@ -364,8 +364,10 @@ TYPED_TEST(non_max_suppression_basic, multiple_outputs) {
     tests::set_values(num_per_class_mem, {1.f});
 
     topology topo;
-    topo.add(input_layout("boxes", this->boxes_layout));
-    topo.add(input_layout("scores", this->scores_layout));
+    const auto l_boxes = this->boxes_layout;
+    topo.add(input_layout("boxes", layout{ov::PartialShape{l_boxes.batch(), l_boxes.feature(), l_boxes.spatial(1)}, l_boxes.data_type, l_boxes.format}));
+    const auto l_scores = this->scores_layout;
+    topo.add(input_layout("scores", layout{ov::PartialShape{l_scores.batch(), l_scores.feature(), l_scores.spatial(1)}, l_scores.data_type, l_scores.format}));
     topo.add(data("num_per_class", num_per_class_mem));
     topo.add(reorder("reformat_boxes", "boxes", this->layout_format, this->data_type, {}, reorder_mean_mode::subtract, padding(), {input_info("boxes")}),
              reorder("reformat_scores", "scores", this->layout_format, this->data_type, {}, reorder_mean_mode::subtract, padding(), {input_info("scores")}),
