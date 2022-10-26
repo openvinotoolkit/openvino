@@ -5,7 +5,6 @@
 #include "dnnl_postops_composer.h"
 
 #include <common/primitive_attr.hpp>
-#include <vector>
 
 #include "node.h"
 
@@ -26,8 +25,7 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(ov::intel_cpu::Node* node,
       outputDims(outputDims),
       dimOC(indexOfOutputChannelDim),
       isINT8(isINT8) {
-    if (dimOC < 0)
-        dimOC += outputDims.size();
+    IE_ASSERT(dimOC >= 0 && dimOC < outputDims.size());
     OC = outputDims[dimOC];
     dimsPerOC = dimsPerTensor = VectorDims(outputDims.size(), 1);
     dimsPerOC[dimOC] = OC;
@@ -36,17 +34,17 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(ov::intel_cpu::Node* node,
 void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vector<float>& data) {
     VectorDims* pdims = &dimsPerTensor;
     if (data.size() > 1) {
-        assert(data.size() == OC);
+        IE_ASSERT(data.size() == OC);
         pdims = &dimsPerOC;
     }
     DnnlBlockedMemoryDesc memoryDesc(InferenceEngine::Precision::FP32, Shape(*pdims));
     ops.append_binary(alg, memoryDesc.getDnnlDesc());
 
-    // copy the per-OC data as args
-    auto * mem = new Memory(node->getEngine());
+    // copy the data as args
+    auto mem = std::make_shared<Memory>(node->getEngine());
     mem->Create(memoryDesc);
     memcpy(mem->GetPtr(), data.data(), data.size() * sizeof(float));
-    args.emplace_back(mem);
+    args.emplace_back(std::move(mem));
 }
 
 void DnnlPostOpsComposer::appendEltwise(float scale, const dnnl::algorithm alg, float alpha, float beta) {
@@ -58,7 +56,7 @@ void DnnlPostOpsComposer::appendRoundHTE() {
 }
 
 bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool allowBinary) {
-    assert(scale.size() == OC || scale.size() == 1);
+    IE_ASSERT(scale.size() == OC || scale.size() == 1);
     // there are so many possible optimizations can be done, for example:
     //
     // we can switch the existing postOps's order to take
@@ -107,7 +105,7 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool allo
             if (mask == 0)
                 outScales.resize(scale.size(), outScales[0]);
             else
-                assert(outScales.size() == OC);
+                IE_ASSERT(outScales.size() == OC);
             for (int j = 0; j < OC; j++)
                 outScales[j] *= scale[j];
         } else {
@@ -154,7 +152,9 @@ void DnnlPostOpsComposer::appendShift(const std::vector<float>& shift) {
     }
 }
 
-bool DnnlPostOpsComposer::appendLinear(const std::vector<float>& scale, const std::vector<float>& shift, bool allowBinary) {
+bool DnnlPostOpsComposer::appendLinear(const std::vector<float>& scale,
+                                       const std::vector<float>& shift,
+                                       bool allowBinary) {
     if (scale.size() == 1 && shift.size() == 1) {
         ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, scale[0], shift[0]);
     } else {
@@ -176,22 +176,22 @@ void DnnlPostOpsComposer::appendClip(const std::vector<float>& low, const std::v
     if (low.size() == 1 && high.size() == 1) {
         ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, low[0], high[0]);
     } else if (low.size() == 1) {
-        assert(high.size() == OC);
+        IE_ASSERT(high.size() == OC);
         ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, low[0], std::numeric_limits<float>::max());
         if (high.size() > 0)
             appendBinary(dnnl::algorithm::binary_min, high);
     } else if (high.size() == 1) {
-        assert(low.size() == OC);
+        IE_ASSERT(low.size() == OC);
         ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, -std::numeric_limits<float>::max(), high[0]);
         if (low.size() > 0)
             appendBinary(dnnl::algorithm::binary_max, low);
     } else {
         if (low.size() > 0) {
-            assert(low.size() == OC);
+            IE_ASSERT(low.size() == OC);
             appendBinary(dnnl::algorithm::binary_max, low);
         }
         if (high.size() > 0) {
-            assert(high.size() == OC);
+            IE_ASSERT(high.size() == OC);
             appendBinary(dnnl::algorithm::binary_min, high);
         }
     }

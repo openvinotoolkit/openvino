@@ -396,11 +396,12 @@ void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& di
     if (dims_ext.size() == 2) {
         // 2D
         dims = dims_ext;
-    } else {
+    } else if (dims_ext.size() == 3) {
         // 3D
-        assert(dims_ext.size() == 3);
         dims.push_back(dims_ext[0] * dims_ext[1]);
         dims.push_back(dims_ext[2]);
+    } else {
+        IE_THROW() << "Unexpected rank(" << dims_ext.size() << ") for output tensor of node: " << getName();
     }
 
     DEBUG_LOG(getName(), " dims_ext=", dims_ext, " dims=", dims, ", initWeights=", initWeights);
@@ -408,7 +409,7 @@ void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& di
     bool isINT8 = getOriginalInputPrecisionAtPort(WEIGHTS_ID) == Precision::U8 ||
                   getOriginalInputPrecisionAtPort(WEIGHTS_ID) == Precision::I8;
 
-    DnnlPostOpsComposer dnnlpoc(this, attr, ops, postOpsArgs, dims, -1, isINT8);
+    DnnlPostOpsComposer dnnlpoc(this, attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8);
 
     for (int i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];

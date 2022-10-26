@@ -738,7 +738,7 @@ void Deconvolution::createPrimitive() {
         dnnl::memory::desc dnnlBiasDesc;
         if (biasDesc != nullptr)
             // WA to align IR bias representation (3 to 5 rank tensors) to oneDNN representation (1 rank tensor)
-            dnnlBiasDesc = biasDesc->getDnnlDesc().reshape({static_cast<dnnl::memory::dim>(biasesDims[0])});
+            dnnlBiasDesc = biasDesc->getDnnlDesc().reshape({DnnlExtensionUtils::convertToDnnlDim(biasesDims[0])});
         auto desc = createInt8MkldnnDeconvDesc(inDesc->getDnnlDesc(), wgh_candidate, dnnlBiasDesc, outDesc->getDnnlDesc(), withBiases,
                                                stride, dilation, paddingL, paddingR);
         AttrPtr pAttr = makePrimitiveAttr(outDims);
@@ -834,7 +834,7 @@ void Deconvolution::prepareParams() {
         if (key.isInt8) {
             if (key.bias)
                 // WA to align IR bias representation (3 to 5 rank tensors) to oneDNN representation (1 rank tensor)
-                dnnlBiasDesc = key.bias->getDnnlDesc().reshape({key.out->getDnnlDesc().dims()[1]});
+                dnnlBiasDesc = key.bias->getDnnlDesc().reshape({key.out->getShape().getStaticDims()[1]});
 
             desc = createInt8MkldnnDeconvDesc(key.inp0->getDnnlDesc(), key.inp1->getDnnlDesc(), dnnlBiasDesc, key.out->getDnnlDesc(),
                                                 key.bias != nullptr, key.stride, key.dilation, key.paddingL, key.paddingR);

@@ -1913,7 +1913,7 @@ static float roundHalfToEven(float f) {
     return f - d;
 }
 
-FakeQuantize::OptimizedFormula FakeQuantize::getOptimizedFormula(bool do_rounding) {
+FakeQuantize::OptimizedFormula FakeQuantize::makeOptimizedFormula(bool do_rounding) {
     FakeQuantize::OptimizedFormula f;
 
     auto isPerTensor =
@@ -1929,12 +1929,12 @@ FakeQuantize::OptimizedFormula FakeQuantize::getOptimizedFormula(bool do_roundin
                        outputScale.size(),
                        outputShift.size()});
 
-    assert(inputScale.size() == 1 || inputScale.size() == OC);
-    assert(inputShift.size() == 1 || inputShift.size() == OC);
-    assert(cropLow.size() == 1 || cropLow.size() == OC);
-    assert(cropHigh.size() == 1 || cropHigh.size() == OC);
-    assert(outputScale.size() == 1 || outputScale.size() == OC);
-    assert(outputShift.size() == 1 || outputShift.size() == OC);
+    IE_ASSERT(inputScale.size() == 1 || inputScale.size() == OC);
+    IE_ASSERT(inputShift.size() == 1 || inputShift.size() == OC);
+    IE_ASSERT(cropLow.size() == 1 || cropLow.size() == OC);
+    IE_ASSERT(cropHigh.size() == 1 || cropHigh.size() == OC);
+    IE_ASSERT(outputScale.size() == 1 || outputScale.size() == OC);
+    IE_ASSERT(outputShift.size() == 1 || outputShift.size() == OC);
 
     // input shift has special threshold as a workaround
     if (!std::isnan(originalPerTensorInputShift) && isPerTensor(inputShift, originalPerTensorInputShift, 0.0001f)) {
@@ -2030,7 +2030,7 @@ bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
                                      bool isLastPostOp,
                                      dnnl::memory::data_type outDataType,
                                      bool allowBinary,
-                                     bool do_rounding) {
+                                     bool doRounding) {
     DEBUG_LOG(getName(),
               ", isLastPostOp=",
               isLastPostOp,
@@ -2038,9 +2038,9 @@ bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
               outDataType,
               ", allowBinary=",
               allowBinary,
-              ", do_rounding=",
-              do_rounding);
-
+              ", doRounding=",
+              doRounding);
+    DEBUG_LOG("\t ---- Original formula ----");
     DEBUG_LOG("\t    cropLow =[", PrintableVector<float>(cropLow), "]");
     DEBUG_LOG("\t   cropHigh =[", PrintableVector<float>(cropHigh), "]");
     DEBUG_LOG("\t inputScale =[", PrintableVector<float>(inputScale), "]");
@@ -2048,24 +2048,25 @@ bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
     DEBUG_LOG("\t outputScale=[", PrintableVector<float>(outputScale), "]");
     DEBUG_LOG("\t outputShift=[", PrintableVector<float>(outputShift), "]");
 
-    auto f = getOptimizedFormula(do_rounding);
+    auto f = makeOptimizedFormula(doRounding);
 
-    DEBUG_LOG("\tinputScale2 =[", PrintableVector<float>(f.isc), "]");
-    DEBUG_LOG("\tinputShift2 =[", PrintableVector<float>(f.ish), "]");
-    DEBUG_LOG("\t   cropLow2 =[", PrintableVector<float>(f.clo), "]");
-    DEBUG_LOG("\t  cropHigh2 =[", PrintableVector<float>(f.chi), "]");
-    DEBUG_LOG("\toutputScale2=[", PrintableVector<float>(f.osc), "]");
-    DEBUG_LOG("\toutputShift2=[", PrintableVector<float>(f.osh), "]");
+    DEBUG_LOG("\t ---- Optimized formula ----");
+    DEBUG_LOG("\t inputScale =[", PrintableVector<float>(f.isc), "]");
+    DEBUG_LOG("\t inputShift =[", PrintableVector<float>(f.ish), "]");
+    DEBUG_LOG("\t    cropLow =[", PrintableVector<float>(f.clo), "]");
+    DEBUG_LOG("\t   cropHigh =[", PrintableVector<float>(f.chi), "]");
+    DEBUG_LOG("\toutputScale =[", PrintableVector<float>(f.osc), "]");
+    DEBUG_LOG("\toutputShift =[", PrintableVector<float>(f.osh), "]");
 
     // when FQ is last postOps and output data type is u8/s8
     // round & clip2 can be further optimized since saturation will be performed by oneDNN by default
-    bool skip_round_clip_outlinear = false;
+    bool skipRoundClipOutputLinear = false;
     if (isLastPostOp && (levels == 256) && f.clo.size() == 1 && f.chi.size() == 1 && f.osc.empty() && f.osh.empty()) {
         if (outDataType == memory::data_type::u8 && f.clo[0] <= 0.0f && f.chi[0] >= 255.0f) {
-            skip_round_clip_outlinear = true;
+            skipRoundClipOutputLinear = true;
         }
         if (outDataType == memory::data_type::s8 && f.clo[0] <= -128.0f && f.chi[0] >= 127.0f) {
-            skip_round_clip_outlinear = true;
+            skipRoundClipOutputLinear = true;
         }
     }
 
@@ -2073,7 +2074,7 @@ bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
     if (!allowBinary) {
         if (f.ish.size() > 1)
             return false;
-        if (!skip_round_clip_outlinear) {
+        if (!skipRoundClipOutputLinear) {
             if (f.clo.size() > 1 || f.chi.size() > 1)
                 return false;
             if (f.osc.size() > 1 || f.osh.size() > 1)
@@ -2084,13 +2085,13 @@ bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
     if (!dnnlpoc.appendLinear(f.isc, f.ish, allowBinary))
         return false;
 
-    if (skip_round_clip_outlinear)
+    if (skipRoundClipOutputLinear)
         return true;
 
-    if (do_rounding)
+    if (doRounding)
         dnnlpoc.appendRoundHTE();
     dnnlpoc.appendClip(f.clo, f.chi);
-    dnnlpoc.appendLinear(f.osc, f.osh);
+    dnnlpoc.appendLinear(f.osc, f.osh, allowBinary);
     return true;
 }
 

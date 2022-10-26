@@ -227,7 +227,7 @@ private:
         }
     };
 
-    OptimizedFormula getOptimizedFormula(bool do_rounding);
+    OptimizedFormula makeOptimizedFormula(bool do_rounding);
     float originalPerTensorInputShift;
 
     std::vector<float> quantizationData;

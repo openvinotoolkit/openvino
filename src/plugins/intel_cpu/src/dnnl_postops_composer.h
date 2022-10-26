@@ -24,17 +24,6 @@ class Node;
 
 // so far the API only support per-Tensor or per-OC
 class DnnlPostOpsComposer {
-    dnnl::primitive_attr& attr;
-    dnnl::post_ops& ops;
-    std::vector<MemoryPtr>& args;
-    const VectorDims outputDims;
-    int dimOC;
-    VectorDims dimsPerTensor;
-    VectorDims dimsPerOC;
-    int OC;
-    const bool isINT8;  // isINT8 has no output scale
-    ov::intel_cpu::Node* node;
-
 public:
     DnnlPostOpsComposer(ov::intel_cpu::Node* node,
                         dnnl::primitive_attr& attr,
@@ -51,6 +40,18 @@ public:
     void appendShift(const std::vector<float>& shift);
     bool appendLinear(const std::vector<float>& scale, const std::vector<float>& shift, bool allowBinary = true);
     void appendClip(const std::vector<float>& low, const std::vector<float>& high);
+
+private:
+    dnnl::primitive_attr& attr;
+    dnnl::post_ops& ops;
+    std::vector<MemoryPtr>& args;
+    const VectorDims outputDims;
+    Dim dimOC;
+    VectorDims dimsPerTensor;
+    VectorDims dimsPerOC;
+    Dim OC;
+    const bool isINT8;  // isINT8 has no output scale
+    ov::intel_cpu::Node* node;
 };
 
 }  // namespace intel_cpu
