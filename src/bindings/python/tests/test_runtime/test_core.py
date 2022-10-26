@@ -199,14 +199,10 @@ def test_available_devices(device):
     )
 
 
-@pytest.mark.skipif(
-    os.environ.get("TEST_DEVICE", "CPU") != "CPU",
-    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test",
-)
-def test_get_property():
+def test_get_property(device):
     core = Core()
-    conf = core.get_property("CPU", "CPU_BIND_THREAD")
-    assert conf == "YES"
+    conf = core.get_property(device, "SUPPORTED_CONFIG_KEYS")
+    assert "PERF_COUNT" in conf
 
 
 @pytest.mark.skipif(
