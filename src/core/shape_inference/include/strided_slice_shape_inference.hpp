@@ -132,7 +132,7 @@ void shape_infer(const StridedSlice* op,
             // only one bit in ellipsis mask is allowed
             int num_new_axis_after_ellipses = 0;
             int num_input_axis_before_ellipses = 0;
-            for (size_t i = 0; i < axis; ++i) {
+            for (int64_t i = 0; i < axis; ++i) {
                 if (!new_axis_mask.count(i)) {
                     num_input_axis_before_ellipses++;
                 }
@@ -165,7 +165,7 @@ void shape_infer(const StridedSlice* op,
                 const int64_t ub0 = end[axis];
                 // set default value for stride or use given value
                 int64_t stride = 1;
-                if (strides.size() > axis) {
+                if (strides.size() > static_cast<size_t>(axis)) {
                     stride = strides[axis];
                 }
                 NODE_VALIDATION_CHECK(op, stride != 0, "Stride must be non-zero");
