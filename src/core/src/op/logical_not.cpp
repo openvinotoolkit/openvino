@@ -26,11 +26,10 @@ bool ngraph::op::v1::LogicalNot::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v1::LogicalNot::validate_and_infer_types() {
     OV_OP_SCOPE(v1_LogicalNot_validate_and_infer_types);
-    auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this);
-    element::Type& args_et = std::get<0>(args_et_pshape);
-    ov::PartialShape& args_pshape = std::get<1>(args_et_pshape);
-
-    set_output_type(0, args_et, args_pshape);
+    const auto& element_type = get_input_element_type(0);
+    // No boolean element_type validation for backward compatibility
+    const auto& arg_pshape = get_input_partial_shape(0);
+    set_output_type(0, element_type, arg_pshape);
 }
 
 shared_ptr<Node> op::v1::LogicalNot::clone_with_new_inputs(const OutputVector& new_args) const {

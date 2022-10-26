@@ -95,6 +95,7 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -123,6 +124,7 @@
 #include "nodes/normalize.h"
 #include "nodes/mha.h"
 #include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
+#include "ngraph_transformations/convert_to_interaction.hpp"
 #include "ngraph_transformations/move_eltwise_up_data_movement.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 #include "ngraph_transformations/swap_convert_transpose.hpp"
@@ -325,6 +327,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
     manager.register_pass<ngraph::pass::EliminateConvert>();
     manager.register_pass<SwapConvertTranspose>();
+    manager.register_pass<ConvertToInteraction>();
 
     auto pass_config = manager.get_pass_config();
 
@@ -522,27 +525,33 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     if (useLpt) {
         CPU_LPT_SCOPE(LowPrecisionTransformations_Part4);
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
-
+        //Only enable conv/group conv signed input on AMX platform.
+        std::vector<ngraph::element::Type> input0LowPrecisionList;
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+            input0LowPrecisionList = {ngraph::element::u8, ngraph::element::i8};
+        } else {
+            input0LowPrecisionList = {ngraph::element::u8};
+        }
         auto supportedPrecisions = std::vector<PrecisionsRestriction>({
             PrecisionsRestriction::create<ngraph::opset1::Convolution>({
-                {0, {ngraph::element::u8, ngraph::element::i8}},
-                {1, {ngraph::element::i8}},
+                {{0}, input0LowPrecisionList},
+                {{1}, {ngraph::element::i8}},
             }),
             PrecisionsRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
-                {0, {ngraph::element::u8, ngraph::element::i8}},
-                {1, {ngraph::element::i8}}
+                {{0}, {ngraph::element::u8, ngraph::element::i8}},
+                {{1}, {ngraph::element::i8}}
             }),
             PrecisionsRestriction::create<ngraph::opset1::GroupConvolution>({
-                {0, {ngraph::element::u8}},
-                {1, {ngraph::element::i8}}
+                {{0}, input0LowPrecisionList},
+                {{1}, {ngraph::element::i8}}
             }),
             PrecisionsRestriction::create<ngraph::opset1::Multiply>({
-                {0, {ngraph::element::u8}},
-                {1, {ngraph::element::i8}},
+                {{0}, {ngraph::element::u8}},
+                {{1}, {ngraph::element::i8}},
             }),
             PrecisionsRestriction::create<ngraph::opset1::MatMul>({
-                {0, {ngraph::element::u8, ngraph::element::i8}},
-                {1, {ngraph::element::i8}}
+                {{0}, {ngraph::element::u8, ngraph::element::i8}},
+                {{1}, {ngraph::element::i8}}
             }),
         });
 
@@ -724,7 +733,8 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
         const auto default_num_streams =
             engConfig.streamExecutorConfig._threadBindingType ==
                     InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
-                ? IStreamsExecutor::Config::GetHybridDefaultNumStreams(engConfig.streamExecutorConfig)
+                ? IStreamsExecutor::Config::GetHybridNumStreams(engConfig.streamExecutorConfig,
+                                                                IStreamsExecutor::Config::StreamMode::DEFAULT)
                 : IStreamsExecutor::Config::GetDefaultNumStreams();
         int num_streams = default_num_streams;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
@@ -733,7 +743,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
                 // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
                 num_streams = engConfig.streamExecutorConfig._threadBindingType ==
                                       InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
-                                  ? IStreamsExecutor::Config::GetHybridAggressiveNumStreams(
+                                  ? IStreamsExecutor::Config::GetHybridNumStreams(
                                         engConfig.streamExecutorConfig,
                                         IStreamsExecutor::Config::StreamMode::AGGRESSIVE)
                                   : num_cores;
@@ -742,7 +752,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             // network is below the ISA-specific threshold
             num_streams = engConfig.streamExecutorConfig._threadBindingType ==
                                   InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
-                              ? IStreamsExecutor::Config::GetHybridAggressiveNumStreams(
+                              ? IStreamsExecutor::Config::GetHybridNumStreams(
                                     engConfig.streamExecutorConfig,
                                     IStreamsExecutor::Config::StreamMode::AGGRESSIVE)
                               : num_cores;
@@ -750,7 +760,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             // network is below general threshold
             num_streams = engConfig.streamExecutorConfig._threadBindingType ==
                                   InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
-                              ? IStreamsExecutor::Config::GetHybridAggressiveNumStreams(
+                              ? IStreamsExecutor::Config::GetHybridNumStreams(
                                     engConfig.streamExecutorConfig,
                                     IStreamsExecutor::Config::StreamMode::LESSAGGRESSIVE)
                               : std::max(default_num_streams, num_streams_less_aggressive);

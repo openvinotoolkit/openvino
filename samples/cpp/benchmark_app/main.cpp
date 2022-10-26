@@ -66,15 +66,21 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
                                "(those options can be used in OpenVINO together), but a benchmark_app UI rule.");
     }
     if (!FLAGS_report_type.empty() && FLAGS_report_type != noCntReport && FLAGS_report_type != averageCntReport &&
-        FLAGS_report_type != detailedCntReport) {
+        FLAGS_report_type != detailedCntReport && FLAGS_report_type != sortDetailedCntReport) {
         std::string err = "only " + std::string(noCntReport) + "/" + std::string(averageCntReport) + "/" +
-                          std::string(detailedCntReport) +
+                          std::string(detailedCntReport) + "/" + std::string(sortDetailedCntReport) +
                           " report types are supported (invalid -report_type option value)";
         throw std::logic_error(err);
     }
 
     if ((FLAGS_report_type == averageCntReport) && ((FLAGS_d.find("MULTI") != std::string::npos))) {
         throw std::logic_error("only " + std::string(detailedCntReport) + " report type is supported for MULTI device");
+    }
+
+    if (!FLAGS_pcsort.empty() && FLAGS_pcsort != "sort" && FLAGS_pcsort != "no_sort" && FLAGS_pcsort != "simple_sort") {
+        std::string pcsort_err = std::string("Incorrect performance count sort . Please set -pcsort option to ") +
+                                 std::string("'sort', 'no_sort', 'simple_sort'.");
+        throw std::logic_error(pcsort_err);
     }
 
     bool isNetworkCompiled = fileExt(FLAGS_m) == "blob";
@@ -271,18 +277,14 @@ int main(int argc, char* argv[]) {
         // check if using the virtual device
         auto if_auto = std::find(devices.begin(), devices.end(), "AUTO") != devices.end();
         auto if_multi = std::find(devices.begin(), devices.end(), "MULTI") != devices.end();
+        auto hardware_devices = devices;
         // Remove the hardware devices if AUTO/MULTI appears in the devices list.
         if (if_auto || if_multi) {
             devices.clear();
-            std::string virtual_device;
-            if (if_auto) {
-                virtual_device = "AUTO";
-                devices.push_back("AUTO");
-            }
-            if (if_multi) {
-                virtual_device = "MULTI";
-                devices.push_back("MULTI");
-            }
+            std::string virtual_device = if_auto ? "AUTO" : "MULTI";
+            auto iter_virtual = std::find(hardware_devices.begin(), hardware_devices.end(), virtual_device);
+            hardware_devices.erase(iter_virtual);
+            devices.push_back(virtual_device);
             parse_value_for_virtual_device(virtual_device, device_nstreams);
             parse_value_for_virtual_device(virtual_device, device_infer_precision);
         }
@@ -304,13 +306,18 @@ int main(int argc, char* argv[]) {
                        (device_config.at(ov::enable_profiling.name()).as<bool>())) {
                 slog::warn << "Performance counters for " << device
                            << " device is turned on. To print results use -pc option." << slog::endl;
-            } else if (FLAGS_report_type == detailedCntReport || FLAGS_report_type == averageCntReport) {
+            } else if (FLAGS_report_type == detailedCntReport || FLAGS_report_type == averageCntReport ||
+                       FLAGS_report_type == sortDetailedCntReport) {
                 slog::warn << "Turn on performance counters for " << device << " device since report type is "
                            << FLAGS_report_type << "." << slog::endl;
                 device_config.emplace(ov::enable_profiling(true));
             } else if (!FLAGS_exec_graph_path.empty()) {
                 slog::warn << "Turn on performance counters for " << device << " device due to execution graph dumping."
                            << slog::endl;
+                device_config.emplace(ov::enable_profiling(true));
+            } else if (!FLAGS_pcsort.empty()) {
+                slog::warn << "Turn on sorted performance counters for " << device << " device since pcsort is"
+                           << FLAGS_pcsort << "." << slog::endl;
                 device_config.emplace(ov::enable_profiling(true));
             } else {
                 // set to default value
@@ -347,9 +354,15 @@ int main(int argc, char* argv[]) {
                             std::stringstream strm(it_device_nstreams->second);
                             std::map<std::string, std::string> devices_property;
                             ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
-                            for (auto& it : devices_property) {
-                                device_config.insert(
-                                    ov::device::properties(it.first, ov::num_streams(std::stoi(it.second))));
+                            for (auto it : devices_property) {
+                                if (device_config.find(it.first) == device_config.end())
+                                    device_config.insert(
+                                        ov::device::properties(it.first, ov::num_streams(std::stoi(it.second))));
+                                else {
+                                    auto& property = device_config[it.first].as<ov::AnyMap>();
+                                    property.emplace(ov::num_streams(std::stoi(it.second)));
+                                    device_config.insert(ov::device::properties(it.first, property));
+                                }
                             }
                         }
                     } else {
@@ -408,12 +421,29 @@ int main(int argc, char* argv[]) {
                     return str;
             };
 
-            if (supported(ov::inference_num_threads.name()) && isFlagSetInCommandLine("nthreads")) {
-                device_config.emplace(ov::inference_num_threads(FLAGS_nthreads));
-            }
-            if (supported(ov::affinity.name()) && isFlagSetInCommandLine("pin")) {
-                device_config.emplace(ov::affinity(fix_pin_option(FLAGS_pin)));
-            }
+            auto set_nthreads_pin = [&](const std::string& str) {
+                auto property_name = str == "nthreads" ? ov::inference_num_threads.name() : ov::affinity.name();
+                auto property = str == "nthreads" ? ov::inference_num_threads(FLAGS_nthreads)
+                                                  : ov::affinity(fix_pin_option(FLAGS_pin));
+                if (supported(property_name) || if_multi) {
+                    device_config.emplace(property);
+                } else if (if_auto) {
+                    for (auto& device : hardware_devices) {
+                        if (device_config.find(device) == device_config.end()) {
+                            device_config.insert(ov::device::properties(device, property));
+                        } else {
+                            auto& properties = device_config[device].as<ov::AnyMap>();
+                            properties.emplace(property);
+                            device_config.insert(ov::device::properties(device, properties));
+                        }
+                    }
+                }
+            };
+            if (isFlagSetInCommandLine("nthreads"))
+                set_nthreads_pin("nthreads");
+
+            if (isFlagSetInCommandLine("pin"))
+                set_nthreads_pin("pin");
 
             if (device.find("CPU") != std::string::npos || device.find("GPU") != std::string::npos) {
                 // CPU supports few special performance-oriented keys
@@ -1171,7 +1201,14 @@ int main(int argc, char* argv[]) {
             std::vector<std::vector<ov::ProfilingInfo>> perfCounts;
             for (size_t ireq = 0; ireq < nireq; ireq++) {
                 auto reqPerfCounts = inferRequestsQueue.requests[ireq]->get_performance_counts();
-                if (FLAGS_pc) {
+                if (!FLAGS_pcsort.empty()) {
+                    slog::info << "Sort performance counts for " << ireq << "-th infer request:" << slog::endl;
+                    printPerformanceCountsSort(reqPerfCounts,
+                                               std::cout,
+                                               getFullDeviceName(core, FLAGS_d),
+                                               FLAGS_pcsort,
+                                               false);
+                } else if (FLAGS_pc) {
                     slog::info << "Performance counts for " << ireq << "-th infer request:" << slog::endl;
                     printPerformanceCounts(reqPerfCounts, std::cout, getFullDeviceName(core, FLAGS_d), false);
                 }
