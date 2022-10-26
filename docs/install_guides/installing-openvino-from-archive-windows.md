@@ -57,7 +57,6 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
 ### <a name="install-openvino"></a>Step 1: Download and Install OpenVINO Core Components
 
 1. Open a command terminal as administrator by searching for "Command Terminal" in the Start menu, right clicking on it, and selecting "Run as administrator". Create a folder for OpenVINO and move into it by issuing the following commands.
-
    ```sh
    mkdir "C:\Program Files (x86)\Intel"
    cd "C:\Program Files (x86)\Intel"
