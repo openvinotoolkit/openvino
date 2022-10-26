@@ -120,8 +120,6 @@ private:
     static constexpr size_t batchDimDummyValue = 64lu;
 
     bool wasMemoryPrepared = false;
-
-    DnnlMemoryDescPtr scratchpad_md;
 };
 
 }   // namespace node

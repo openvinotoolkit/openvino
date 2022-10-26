@@ -29,7 +29,7 @@ class DnnlExecutor {
         void exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::stream strm);
         bool needReordering() const;
         virtual ~DnnlExecutor() = default;
-        Primitive get_execPrim() const;
+        Primitive getExecPrim() const;
 
     protected:
         DnnlExecutor() = default;

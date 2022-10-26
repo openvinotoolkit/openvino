@@ -50,7 +50,7 @@ bool DnnlExecutor::needReordering() const {
     return !inputReorders.empty() || !outputReorders.empty();
 }
 
-Primitive DnnlExecutor::get_execPrim() const {
+Primitive DnnlExecutor::getExecPrim() const {
     return execPrim;
 }
 

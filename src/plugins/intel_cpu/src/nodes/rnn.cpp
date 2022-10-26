@@ -826,7 +826,6 @@ void RNN::prepareParams() {
     auto builder = [this](const RNNKey& key) -> std::shared_ptr<dnnl::primitive> {
         fillDescs();
         dnnl::primitive_attr attr;
-        // RNN's performance can benefit a lot from user scratchpad
         attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
         if (key.cellType == dnnl::algorithm::vanilla_rnn) {
@@ -856,8 +855,8 @@ void RNN::prepareParams() {
     prim = result.first;
 
     auto pd = (*prim).get_primitive_desc();
-    scratchpad_md = DnnlExtensionUtils::query_md(pd, dnnl::query::scratchpad_md);
-    scratchpadMem = getRuntimeScratchPad()->getScratchPadMem(scratchpad_md);
+    auto scratchpadMemoryDesc = DnnlExtensionUtils::query_md(pd, dnnl::query::scratchpad_md);
+    scratchpadMem = getRuntimeScratchPad()->getScratchPadMem(scratchpadMemoryDesc);
 
     if (!wasMemoryPrepared || wFormatWasChanged) {
         auto pd = (*prim).get_primitive_desc();

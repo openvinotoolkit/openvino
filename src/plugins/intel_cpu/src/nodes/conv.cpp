@@ -1462,9 +1462,9 @@ void Convolution::prepareParams() {
 
         Node::appendPostOpArgs(*pAttrLocal, primArgs, convPostOpsArgs[preferLegacyPostOps]);
 
-        auto pd = (*(execPtr->get_execPrim())).get_primitive_desc();
-        scratchpad_md = DnnlExtensionUtils::query_md(pd, dnnl::query::scratchpad_md);
-        scratchpadMem = getRuntimeScratchPad()->getScratchPadMem(scratchpad_md);
+        auto pd = (*(execPtr->getExecPrim())).get_primitive_desc();
+        auto scratchpadMemoryDesc = DnnlExtensionUtils::query_md(pd, dnnl::query::scratchpad_md);
+        scratchpadMem = getRuntimeScratchPad()->getScratchPadMem(scratchpadMemoryDesc);
         primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
     } else {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
