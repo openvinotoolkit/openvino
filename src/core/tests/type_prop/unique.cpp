@@ -107,6 +107,17 @@ TEST(type_prop, unique_dynamic_dim_at_axis) {
                         {{PartialShape{{2}, {-1}, {2}}, PartialShape{{-1}}, PartialShape{{-1}}, PartialShape{{-1}}}});
 }
 
+TEST(type_prop, unique_dim_with_intervals_at_axis) {
+    const auto data = make_shared<opset10::Parameter>(element::f32, PartialShape{2, Dimension{2, 10}, 2});
+    const auto axis = make_shared<opset10::Constant>(element::i64, Shape{}, 1);
+    const auto unique = make_shared<opset10::Unique>(data, axis);
+
+    CHECK_ELEMENT_TYPES(unique, {{element::f32, element::i64, element::i64, element::i64}});
+    CHECK_OUTPUT_SHAPES(
+        unique,
+        {{PartialShape{{2}, {1, 10}, {2}}, PartialShape{{-1}}, PartialShape{{-1}}, PartialShape{{-1}}}});
+}
+
 TEST(type_prop, unique_dynamic_rank) {
     const auto data = make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic());
     const auto axis = make_shared<opset10::Constant>(element::i32, Shape{}, 1);
