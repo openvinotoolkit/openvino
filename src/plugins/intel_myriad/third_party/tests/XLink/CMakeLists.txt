@@ -6,6 +6,7 @@ set(TARGET_NAME "XLinkTests")
 set(CMAKE_CXX_STANDARD 11)
 
 include(${XLINK_DIR}/XLink.cmake)
+
 file(GLOB_RECURSE XLINK_TESTS_SOURCES "*.cpp")
 
 add_executable(${TARGET_NAME} ${XLINK_TESTS_SOURCES})
@@ -30,3 +31,8 @@ set_target_properties(${TARGET_NAME} PROPERTIES
         COMPILE_PDB_NAME ${TARGET_NAME})
 
 add_dependencies(${TARGET_NAME} vpu_copy_firmware)
+
+install(TARGETS ${TARGET_NAME}
+        RUNTIME DESTINATION tests
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)

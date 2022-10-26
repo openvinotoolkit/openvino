@@ -12,8 +12,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::MishFusion, "MishFusion", 0);
-
 ngraph::pass::MishFusion::MishFusion() {
     MATCHER_SCOPE(MishFusion);
     auto input = ngraph::pattern::any_input();

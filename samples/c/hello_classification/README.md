@@ -41,7 +41,7 @@ To run the sample, you need specify a model and image:
 
 > **NOTES**:
 >
-> - By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
+> - By default, OpenVINO™ Toolkit Samples and Demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 >
 > - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
@@ -49,21 +49,19 @@ To run the sample, you need specify a model and image:
 
 ### Example
 1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader):
-```
-python <path_to_omz_tools>/downloader.py --name alexnet
-```
+   ```
+   python <path_to_omz_tools>/downloader.py --name alexnet
+   ```
 
 2. If a model is not in the Inference Engine IR or ONNX format, it must be converted. You can do this using the model converter script:
-
-```
-python <path_to_omz_tools>/converter.py --name alexnet
-```
+   ```
+   python <path_to_omz_tools>/converter.py --name alexnet
+   ```
 
 3. Perform inference of `car.bmp` using `alexnet` model on a `GPU`, for example:
-
-```
-<path_to_sample>/hello_classification_c <path_to_model>/alexnet.xml <path_to_image>/car.bmp GPU
-```
+   ```
+   <path_to_sample>/hello_classification_c <path_to_model>/alexnet.xml <path_to_image>/car.bmp GPU
+   ```
 
 ## Sample Output
 

@@ -33,15 +33,10 @@ static void regclass_graph_PreProcessSteps(py::module m) {
             Subtracts single float value from each element in input tensor.
             Input tensor must have ov.Type.f32 data type.
 
-            Parameters
-            ----------
-            value : float
-                Value to subtract.
-
-            Returns
-            ----------
-            selfan : PreProcessSteps
-                Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :param value: Value to subtract.
+            :type value: float
+            :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.PreProcessSteps
         )");
 
     steps.def(
@@ -54,15 +49,10 @@ static void regclass_graph_PreProcessSteps(py::module m) {
             Subtracts a given single float value from each element in a given channel from input tensor.
             Input tensor must have ov.Type.f32 data type.
 
-            Parameters
-            ----------
-            values : List[float]
-                Values to subtract.
-
-            Returns
-            ----------
-            selfan : PreProcessSteps
-                Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :param values: Values to subtract.
+            :type values: List[float]
+            :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.PreProcessSteps
         )");
 
     steps.def(
@@ -75,15 +65,10 @@ static void regclass_graph_PreProcessSteps(py::module m) {
             Divides each element in input tensor by specified constant float value.
             Input tensor must have ov.Type.f32 data type.
 
-            Parameters
-            ----------
-            value : float
-                Value to divide.
-
-            Returns
-            ----------
-            scale : PreProcessSteps
-                Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :param value: Value used in division.
+            :type value: float
+            :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.PreProcessSteps
         )");
 
     steps.def(
@@ -96,15 +81,10 @@ static void regclass_graph_PreProcessSteps(py::module m) {
             Divides each element in a given channel from input tensor by a given single float value.
             Input tensor must have ov.Type.f32 data type.
 
-            Parameters
-            ----------
-            value : List[float]
-                Value to divide.
-
-            Returns
-            ----------
-            scale : PreProcessSteps
-                Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :param values: Values which are used in division.
+            :type values: List[float]
+            :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.PreProcessSteps
         )");
 
     steps.def(
@@ -117,15 +97,10 @@ static void regclass_graph_PreProcessSteps(py::module m) {
             Converts input tensor element type to specified type.
             Input tensor must have openvino.Type data type.
 
-            Parameters
-            ----------
-            type : openvino.runtime.Type
-                Destination type. If not specified, type will be taken from model input's element type.
-
-            Returns
-            ----------
-            convert_element_type : PreProcessSteps
-                Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :param type: Destination type. If not specified, type will be taken from model input's element type
+            :type type: openvino.runtime.Type
+            :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.PreProcessSteps
         )");
 
     steps.def(
@@ -137,14 +112,10 @@ static void regclass_graph_PreProcessSteps(py::module m) {
         R"(
             Adds custom preprocessing operation.
 
-            Parameters
-            ----------
-            operation : function taking Output<Node> as input argument and returning Output<Node> after preprocessing.
-
-            Returns
-            ----------
-            custom : PreProcessSteps
-                Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :param operation: Python's function which takes `openvino.runtime.Output` as input argument and returns`openvino.runtime.Output`.
+            :type operation: function
+            :return: Reference to itself, allows chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.PreProcessSteps
         )");
 
     steps.def(
@@ -172,6 +143,14 @@ static void regclass_graph_PreProcessSteps(py::module m) {
             return &self.resize(alg);
         },
         py::arg("alg"));
+
+    steps.def(
+        "crop",
+        [](ov::preprocess::PreProcessSteps& self, const std::vector<int>& begin, const std::vector<int>& end) {
+            return &self.crop(begin, end);
+        },
+        py::arg("begin"),
+        py::arg("end"));
 
     steps.def(
         "convert_layout",
@@ -208,15 +187,10 @@ static void regclass_graph_PostProcessSteps(py::module m) {
             Converts tensor element type to specified type.
             Tensor must have openvino.Type data type.
 
-            Parameters
-            ----------
-            type : Type
-                Destination type. If not specified, type will be taken from model output's element type.
-
-            Returns
-            ----------
-            convert_element_type : PostProcessSteps
-                Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :param type: Destination type. If not specified, type will be taken from model output's element type.
+            :type type: openvino.runtime.Type
+            :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.PostProcessSteps
         )");
 
     steps.def(
@@ -242,14 +216,10 @@ static void regclass_graph_PostProcessSteps(py::module m) {
         R"(
             Adds custom postprocessing operation.
 
-            Parameters
-            ----------
-            operation : function taking Output<Node> as input argument and returning Output<Node> after postprocessing.
-
-            Returns
-            ----------
-            custom : PostProcessSteps
-                Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :param operation: Python's function which takes `openvino.runtime.Output` as input argument and returns`openvino.runtime.Output`.
+            :type operation: function
+            :return: Reference to itself, allows chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.PreProcessSteps
         )");
 }
 
@@ -269,15 +239,10 @@ static void regclass_graph_InputTensorInfo(py::module m) {
             Set initial client's tensor element type. If type is not the same as model's element type,
             conversion of element type will be done automatically.
 
-            Parameters
-            ----------
-            type : Type
-                Client's input tensor element type.
-
-            Returns
-            ----------
-            tensor : InputTensorInfo
-                Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :param type: Client's input tensor element type.
+            :type type: openvino.runtime.Type
+            :return: Reference to itself, allows chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.InputTensorInfo
         )");
 
     info.def(
@@ -285,7 +250,12 @@ static void regclass_graph_InputTensorInfo(py::module m) {
         [](ov::preprocess::InputTensorInfo& self, const ov::Layout& layout) {
             return &self.set_layout(layout);
         },
-        py::arg("layout"));
+        py::arg("layout"),
+        R"(
+            Set layout for input tensor info 
+            :param layout: layout to be set
+            :type layout: Union[str, openvino.runtime.Layout]
+        )");
 
     info.def("set_spatial_dynamic_shape", [](ov::preprocess::InputTensorInfo& self) {
         return &self.set_spatial_dynamic_shape();
@@ -330,6 +300,41 @@ static void regclass_graph_InputTensorInfo(py::module m) {
             return &self.set_memory_type(memory_type);
         },
         py::arg("memory_type"));
+
+    info.def(
+        "set_from",
+        [](ov::preprocess::InputTensorInfo& self, const ov::Tensor& tensor) {
+            return &self.set_from(tensor);
+        },
+        py::arg("runtime_tensor"),
+        R"(
+            Helper function to reuse element type and shape from user's created tensor. Overwrites previously
+            set shape and element type via `set_shape` and `set_element_type' methods. This method should be
+            used only in case if runtime tensor is already known and avaiable before.
+
+            :param runtime_tensor: User's created tensor
+            :type type: openvino.runtime.Tensor
+            :return: Reference to itself, allows chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.InputTensorInfo
+        )");
+
+    info.def(
+        "set_from",
+        [](ov::preprocess::InputTensorInfo& self, py::array& numpy_array) {
+            // Convert to contiguous array if not already C-style.
+            return &self.set_from(Common::tensor_from_numpy(numpy_array, false));
+        },
+        py::arg("runtime_tensor"),
+        R"(
+            Helper function to reuse element type and shape from user's created tensor. Overwrites previously
+            set shape and element type via `set_shape` and `set_element_type' methods. This method should be
+            used only in case if runtime tensor is already known and avaiable before.
+
+            :param runtime_tensor: User's created numpy array
+            :type type: numpy.ndarray
+            :return: Reference to itself, allows chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.InputTensorInfo
+        )");
 }
 
 static void regclass_graph_OutputTensorInfo(py::module m) {
@@ -347,14 +352,11 @@ static void regclass_graph_OutputTensorInfo(py::module m) {
         R"(
             Set client's output tensor element type. If type is not the same as model's element type,
             conversion of element type will be done automatically.
-            Parameters
-            ----------
-            type : Type
-                Client's output tensor element type.
-            Returns
-            ----------
-            tensor : OutputTensorInfo
-                Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+
+            :param type: Client's output tensor element type.
+            :type type: openvino.runtime.Type
+            :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.runtime.preprocess.OutputTensorInfo
         )");
 
     info.def(
@@ -362,7 +364,12 @@ static void regclass_graph_OutputTensorInfo(py::module m) {
         [](ov::preprocess::OutputTensorInfo& self, const ov::Layout& layout) {
             return &self.set_layout(layout);
         },
-        py::arg("layout"));
+        py::arg("layout"),
+        R"(
+            Set layout for output tensor info 
+            :param layout: layout to be set
+            :type layout: Union[str, openvino.runtime.Layout]
+        )");
 }
 
 static void regclass_graph_InputInfo(py::module m) {
@@ -410,7 +417,12 @@ static void regclass_graph_OutputModelInfo(py::module m) {
         [](ov::preprocess::OutputModelInfo& self, const ov::Layout& layout) {
             return &self.set_layout(layout);
         },
-        py::arg("layout"));
+        py::arg("layout"),
+        R"(
+            Set layout for output model info 
+            :param layout: layout to be set
+            :type layout: Union[str, openvino.runtime.Layout]
+        )");
 }
 
 static void regclass_graph_InputModelInfo(py::module m) {
@@ -424,7 +436,12 @@ static void regclass_graph_InputModelInfo(py::module m) {
         [](ov::preprocess::InputModelInfo& self, const ov::Layout& layout) {
             return &self.set_layout(layout);
         },
-        py::arg("layout"));
+        py::arg("layout"),
+        R"(
+            Set layout for input model
+            :param layout: layout to be set
+            :type layout: Union[str, openvino.runtime.Layout]
+        )");
 }
 
 static void regenum_graph_ColorFormat(py::module m) {
@@ -503,7 +520,7 @@ void regclass_graph_PrePostProcessor(py::module m) {
         },
         py::arg("output_index"));
 
-    proc.def("build", &ov::preprocess::PrePostProcessor::build);
+    proc.def("build", &ov::preprocess::PrePostProcessor::build, py::call_guard<py::gil_scoped_release>());
 
     proc.def("__str__", [](const ov::preprocess::PrePostProcessor& self) -> std::string {
         std::stringstream ss;

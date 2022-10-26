@@ -20,6 +20,7 @@ public:
 
     // internal usage
     onnx_editor::InputEdge get_input_edge() const;
+    void check_if_valid() const;
 
     // external usage
     std::vector<std::string> get_names() const override;
@@ -35,6 +36,7 @@ public:
 private:
     onnx_editor::InputEdge m_edge;
     const std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
+    std::string m_initial_source_tensor_name;
 };
 
 class PlaceOutputEdge : public Place {
@@ -44,6 +46,7 @@ public:
 
     // internal usage
     onnx_editor::OutputEdge get_output_edge() const;
+    void check_if_valid() const;
 
     // external usage
     std::vector<std::string> get_names() const override;
@@ -59,6 +62,7 @@ public:
 private:
     onnx_editor::OutputEdge m_edge;
     std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
+    std::string m_initial_target_tensor_name;
 };
 
 class PlaceTensor : public Place {
@@ -94,6 +98,7 @@ public:
     // internal usage
     const onnx_editor::EditorNode& get_editor_node() const;
     void set_name(const std::string& new_name);
+    void check_if_valid() const;
 
     // external usage
     Place::Ptr get_output_port() const override;
@@ -128,6 +133,7 @@ public:
 private:
     onnx_editor::EditorNode m_node;
     std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
+    std::string m_initial_first_output;
 };
 
 }  // namespace onnx

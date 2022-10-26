@@ -4,7 +4,7 @@
 
 // #include <openvino/cc/selective_build.h>
 #include <snippets/itt.hpp>
-#include "remarks.hpp"
+#include "snippets/remarks.hpp"
 
 #include "snippets/pass/assign_registers.hpp"
 #include "snippets/snippets_isa.hpp"
@@ -14,9 +14,8 @@
 #include <iterator>
 
 bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr<ov::Model>& f) {
-    RUN_ON_FUNCTION_SCOPE(AssignRegisters);
+    RUN_ON_MODEL_SCOPE(AssignRegisters);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::AssignRegisters")
-    int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
     using Reg = size_t;
     auto ops = f->get_ordered_ops();
     decltype(ops) stmts;
@@ -26,8 +25,8 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
 
     size_t rdx = 0;
     std::map<std::shared_ptr<descriptor::Tensor>, Reg> regs;
-    for (auto op : stmts) {
-        for (auto output : op->outputs()) {
+    for (const auto& op : stmts) {
+        for (const auto& output : op->outputs()) {
             regs[output.get_tensor_ptr()] = rdx++;
         }
     }
@@ -35,9 +34,9 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
     std::vector<std::set<Reg>> used;
     std::vector<std::set<Reg>> def;
 
-    for (auto op : stmts) {
+    for (const auto& op : stmts) {
         std::set<Reg> u;
-        for (auto input : op->inputs()) {
+        for (const auto& input : op->inputs()) {
             if (regs.count(input.get_tensor_ptr())) {
                 u.insert(regs[input.get_tensor_ptr()]);
             }
@@ -46,7 +45,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
 
         std::set<Reg> d;
         if (!std::dynamic_pointer_cast<snippets::op::Store>(op)) {
-            for (auto output : op->outputs()) {
+            for (const auto& output : op->outputs()) {
                 d.insert(regs[output.get_tensor_ptr()]);
             }
         }
@@ -65,8 +64,8 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
         for (size_t n = 0; n < stmts.size(); n++) {
             auto node = stmts[n];
             if (!std::dynamic_pointer_cast<snippets::op::Store>(node)) {
-                for (auto out : node->outputs()) {
-                    for (auto port : out.get_target_inputs()) {
+                for (const auto& out : node->outputs()) {
+                    for (const auto& port : out.get_target_inputs()) {
                         auto pos = std::find(stmts.begin(), stmts.end(), port.get_node()->shared_from_this());
                         if (pos != stmts.end()) {
                             auto k = pos-stmts.begin();
@@ -94,7 +93,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
 
     std::reverse(lifeIn.begin(), lifeIn.end());
     auto find_last_use = [lifeIn](int i) -> int {
-        int ln = lifeIn.size()-1;
+        int ln = static_cast<int>(lifeIn.size()) - 1;
         for (auto& x : lifeIn) {
             if (x.find(i) != x.end()) {
                 return ln;
@@ -105,7 +104,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
     };
 
     for (size_t i = 0; i < stmts.size(); i++) {
-        live_intervals.insert(std::make_pair(i, find_last_use(i)));
+        live_intervals.insert(std::make_pair(static_cast<int>(i), find_last_use(static_cast<int>(i))));
     }
 
     // http://web.cs.ucla.edu/~palsberg/course/cs132/linearscan.pdf
@@ -136,45 +135,31 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
 
     std::map<std::shared_ptr<descriptor::Tensor>, Reg> physical_regs;
 
-    for (auto reg : regs) {
+    for (const auto& reg : regs) {
         physical_regs[reg.first] = register_map[reg.second];
     }
-
-    size_t constantID = 0;
-
-    for (auto n : f->get_ordered_ops()) {
+    const auto num_parameters = f->get_parameters().size();
+    for (const auto& n : f->get_ordered_ops()) {
         auto& rt = n->get_rt_info();
-        // nothing to do for model signature
-        if (std::dynamic_pointer_cast<opset1::Parameter>(n) || std::dynamic_pointer_cast<opset1::Result>(n)) {
+        std::vector<size_t> regs;
+        regs.reserve(n->outputs().size());
+        /* The main idea here is that each operation stores its output regs in rt["reginfo"]. Input and output regs are
+         * then derived by parsing node's and parent's rt["reginfo"], look into ngraph::snippets::getRegisters for details.
+         * Note also that Parameter and Result store general-purpose register index, because they work with memory
+         * (memory pointer is stored in gpr). All other "regular" ops store vector regs indexes, since calculations are
+         * performed on registers.
+         */
+        if (is_type<ov::op::v0::Result>(n)) {
             continue;
-        }
-
-        // store only effective address
-        if (auto result = std::dynamic_pointer_cast<snippets::op::Store>(n)) {
-            auto ea = reg64_tmp_start+static_cast<int64_t>(f->get_result_index(result) + f->get_parameters().size());
-            rt["effectiveAddress"] = ea;
-            continue;
-        }
-        // store effective address and procced with vector registers
-        if (ov::as_type_ptr<ngraph::snippets::op::Load>(n) || ov::as_type_ptr<ngraph::snippets::op::BroadcastLoad>(n)) {
-            auto source = n->get_input_source_output(0).get_node_shared_ptr();
-
-            if (auto param = ov::as_type_ptr<opset1::Parameter>(source)) {
-                auto ea = reg64_tmp_start+static_cast<int64_t>(f->get_parameter_index(param));
-                rt["effectiveAddress"] = ea;
-            } else if (auto constant = ov::as_type_ptr<opset1::Constant>(source)) {
-                auto ea = reg64_tmp_start+static_cast<int64_t>(f->get_parameters().size() + f->get_results().size() + 1 + constantID);
-                rt["effectiveAddress"] = ea;
-                constantID++;
-            } else {
-                throw ngraph_error("load/broadcast should follow only Parameter or non-Scalar constant");
+        } else if (const auto& param = ov::as_type_ptr<ov::op::v0::Parameter>(n)) {
+            regs.push_back(f->get_parameter_index(param));
+        } else if (const auto& store = ov::as_type_ptr<ngraph::snippets::op::Store>(n)) {
+            regs.push_back(f->get_result_index(store) + num_parameters);
+        } else {
+            for (const auto& output : n->outputs()) {
+                auto allocated = physical_regs[output.get_tensor_ptr()];
+                regs.push_back(allocated);
             }
-        }
-
-        std::vector<size_t> regs; regs.reserve(n->outputs().size());
-        for (auto output : n->outputs()) {
-            auto allocated = physical_regs[output.get_tensor_ptr()];
-            regs.push_back(allocated);
         }
         rt["reginfo"] = regs;
     }

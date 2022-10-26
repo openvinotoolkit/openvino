@@ -7,73 +7,91 @@ import numpy as np
 import paddle
 
 
-#print numpy array like C structure
-def print_alike(arr):
+#print numpy array like C structure       
+def print_alike(arr, seperator_begin='{', seperator_end='}', verbose=False):
     shape = arr.shape
     rank = len(shape)
+
     #print("shape: ", shape, "rank: %d" %(rank))
 
-    #for idx, value in np.ndenumerate(arr):
+    # for idx, value in np.ndenumerate(arr):
     #    print(idx, value)
-    
+
     def print_array(arr, end=' '):
         shape = arr.shape
         rank = len(arr.shape)
         if rank > 1:
-            line = "{"
+            line = seperator_begin
             for i in range(arr.shape[0]):
-                line += print_array(arr[i,:], end="},\n" if i < arr.shape[0]-1 else "}")
+                line += print_array(
+                    arr[i, :],
+                    end=seperator_end +
+                    ",\n" if i < arr.shape[0] - 1 else seperator_end)
             line += end
             return line
         else:
-            line = "{"           
-            for i in range(arr.shape[0]):              
-                line += "{:.2f}".format(arr[i]) #str(arr[i])
-                line += ", " if i < shape[0]-1 else ' '
+            line = seperator_begin
+            for i in range(arr.shape[0]):
+                line += "{:.2f}".format(arr[i])  # str(arr[i])
+                line += ", " if i < shape[0] - 1 else ' '
             line += end
-            #print(line)
+            # print(line)
             return line
-    # print(print_array(arr, "}"))
 
+    if verbose:
+        print(print_array(arr, seperator_end))        
 
-def saveModel(name, exe, feedkeys:list, fetchlist:list, inputs:list, outputs:list, target_dir:str):
+def saveModel(name, exe, feedkeys:list, fetchlist:list, inputs:list, outputs:list, target_dir:str, use_static_api=False):
     model_dir = os.path.join(target_dir, name)
     if not os.path.exists(model_dir):
-        os.makedirs(model_dir)      
+        os.makedirs(model_dir)
 
     # print("\n\n------------- %s -----------\n" % (name))
     for i, input in enumerate(inputs):
-        # print("INPUT %s :" % (feedkeys[i]), input.shape, input.dtype, "\n")
+        if use_static_api == True:
+            feedkey = feedkeys[i].name
+        else:
+            feedkey = feedkeys[i]
+        # print("INPUT %s :" % (feedkey), input.shape, input.dtype, "\n")
         # print_alike(input)
         np.save(os.path.join(model_dir, "input{}".format(i)), input)
-        np.save(os.path.join(model_dir, "input{}.{}.{}".format(i, feedkeys[i], input.dtype)), input)
+        np.save(os.path.join(model_dir, "input{}.{}.{}".format(i, feedkey, input.dtype)), input)
     # print("\n")
 
     for i, output in enumerate(outputs):
         # print("OUTPUT %s :" % (fetchlist[i]),output.shape, output.dtype, "\n")
         # print_alike(output)
-        np.save(os.path.join(model_dir, "output{}".format(i)), output)     
+        np.save(os.path.join(model_dir, "output{}".format(i)), output)
 
     # composited model + scattered model
-    paddle.fluid.io.save_inference_model(model_dir, feedkeys, fetchlist, exe)
-    paddle.fluid.io.save_inference_model(model_dir, feedkeys, fetchlist, exe, model_filename=name+".pdmodel", params_filename=name+".pdiparams")
+    if use_static_api == True:
+        model_name = os.path.join(model_dir, name)
+        paddle.static.io.save_inference_model(model_name, feedkeys, fetchlist, exe)
+    else:
+        paddle.fluid.io.save_inference_model(model_dir, feedkeys, fetchlist, exe)
+        paddle.fluid.io.save_inference_model(model_dir, feedkeys, fetchlist, exe, model_filename=name+".pdmodel", params_filename=name+".pdiparams")
 
 
 '''
 export dyn model, along with input and output for reference.
 input_data: list of all inputs
 '''
-def exportModel(name, dyn_func, input_data:list, target_dir:str):
+def exportModel(name, dyn_func, input_data:list, target_dir:str, dyn_shapes:list=[]):
     model_dir = os.path.join(target_dir, name)
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
     save_path = '{}/{}'.format(model_dir, name)
 
+    if len(dyn_shapes)>0:
+        assert(len(dyn_shapes) == len(input_data))
+
     input_specs = []
     for idx, data in enumerate(input_data):
         input_name = 'input{}'.format(idx)
+        input_shape = dyn_shapes[idx] if len(dyn_shapes)>0 and dyn_shapes[idx] is not None else data.shape
+
         input_specs.append(
-            paddle.static.InputSpec(shape=data.shape, dtype=data.dtype, name=input_name)
+            paddle.static.InputSpec(shape=input_shape, dtype=data.dtype, name=input_name)
         )
 
         # dump input
@@ -93,6 +111,8 @@ def exportModel(name, dyn_func, input_data:list, target_dir:str):
             np.save(os.path.join(model_dir, "output{}".format(idx)), out.numpy())
     else:       
         np.save(os.path.join(model_dir, "output{}".format(0)), result.numpy())
+    
+    return result
 
 
 if __name__ == "__main__":

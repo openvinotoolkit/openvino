@@ -55,6 +55,9 @@ int main() {
     //! [ie:inference]
 
     //! [ie:start_async_and_wait]
+    // NOTE: For demonstration purposes we are trying to set callback
+    // which restarts inference inside one more time, so two inferences happen here
+
     // Start inference without blocking current thread
     auto restart_once = true;
     infer_request.SetCompletionCallback<std::function<void(InferenceEngine::InferRequest, InferenceEngine::StatusCode)>>(
@@ -72,11 +75,11 @@ int main() {
             }
         });
     infer_request.StartAsync();
-    // Get inference status
+    // Get inference status immediately
     InferenceEngine::StatusCode status = infer_request.Wait(InferenceEngine::InferRequest::STATUS_ONLY);
-    // Wait for 1 miliseconds
+    // Wait for 1 milisecond
     status = infer_request.Wait(1);
-    // Wait for inference complition
+    // Wait for inference completion
     infer_request.Wait(InferenceEngine::InferRequest::RESULT_READY);
     //! [ie:start_async_and_wait]
 
@@ -93,5 +96,8 @@ int main() {
         // process output data
     }
     //! [ie:get_output_tensor]
+    //! [ie:load_old_extension]
+    core.AddExtension(std::make_shared<InferenceEngine::Extension>("path_to_extension_library.so"));
+    //! [ie:load_old_extension]
     return 0;
 }

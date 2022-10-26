@@ -15,8 +15,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::MultiplyConvolutionFusion, "MultiplyConvolutionFusion", 0);
-
 ngraph::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
     MATCHER_SCOPE(MultiplyConvolutionFusion);
     auto input_pattern = pattern::any_input();
@@ -67,8 +65,6 @@ ngraph::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(conv_pattern, matcher_name);
     register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::MultiplyGroupConvolutionFusion, "MultiplyGroupConvolutionFusion", 0);
 
 ngraph::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
     MATCHER_SCOPE(MultiplyGroupConvolutionFusion);
@@ -134,8 +130,6 @@ ngraph::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(conv_pattern, matcher_name);
     register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::MultiplyConvolutionBackpropDataFusion, "MultiplyConvolutionBackpropDataFusion", 0);
 
 ngraph::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropDataFusion() {
     MATCHER_SCOPE(MultiplyConvolutionBackpropDataFusion);
@@ -203,10 +197,6 @@ ngraph::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackprop
     auto m = std::make_shared<ngraph::pattern::Matcher>(conv_pattern, matcher_name);
     register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion,
-                       "MultiplyGroupConvolutionBackpropDataFusion",
-                       0);
 
 ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBackpropDataFusion() {
     MATCHER_SCOPE(MultiplyGroupConvolutionBackpropDataFusion);

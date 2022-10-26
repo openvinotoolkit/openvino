@@ -2,9 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(ENABLE_LTO)
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
-endif()
+# enable LTO globally for all libraries below
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 add_definitions(-DIN_OV_CORE_LIBRARY)
 
@@ -31,18 +30,42 @@ set_property(SOURCE ${MIXED_SRC}
         $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
         $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    ie_add_compiler_flags(/wd4244)
+endif()
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
+#
 # Create ov_core_dev library
+#
+
 add_library(ov_core_dev INTERFACE)
+add_library(openvino::core::dev ALIAS ov_core_dev)
+
 target_include_directories(ov_core_dev INTERFACE $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>)
 
+set_target_properties(ov_core_dev PROPERTIES EXPORT_NAME core::dev)
+openvino_developer_export_targets(COMPONENT core TARGETS openvino::core::dev)
+
+# Install interface libraries for case BUILD_SHARED_LIBS=OFF
+ov_install_static_lib(ov_core_dev ${OV_CPACK_COMP_CORE})
+
+#
 # Create static or shared library depending on BUILD_SHARED_LIBS
+#
+
 add_library(ngraph_obj OBJECT ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+
+if(ENABLE_SYSTEM_PUGIXML)
+    # system pugixml has /usr/include as include directories
+    # we cannot use them as system ones, leads to compilation errors
+    set_target_properties(ngraph_obj PROPERTIES NO_SYSTEM_FROM_IMPORTED ON)
+endif()
 
 target_compile_definitions(ngraph_obj PRIVATE IMPLEMENT_OPENVINO_API)
 
@@ -52,7 +75,8 @@ ie_faster_build(ngraph_obj
 
 addVersionDefines(src/version.cpp CI_BUILD_NUMBER)
 
-target_link_libraries(ngraph_obj PRIVATE ngraph::builder ngraph::reference openvino::util pugixml::static ov_shape_inference ov_core_dev)
+target_link_libraries(ngraph_obj PRIVATE ngraph::builder ngraph::reference openvino::util
+                                         openvino::pugixml ov_shape_inference openvino::core::dev)
 
 ie_mark_target_as_cc(ngraph_obj)
 
@@ -81,6 +105,10 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     endif()
 
     target_link_options(ngraph_obj ${link_type} "/IGNORE:4217,4286")
+    
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+ie_add_compiler_flags(/wd4267)
+endif()
 endif()
 
 # some sources are located in ngraph, while headers are in inference_engine_transformations
@@ -104,7 +132,6 @@ target_include_directories(ngraph_obj PUBLIC $<BUILD_INTERFACE:${OV_CORE_INCLUDE
 add_library(ngraph INTERFACE)
 target_link_libraries(ngraph INTERFACE openvino::runtime)
 # Add an alias so that library can be used inside the build tree, e.g. when testing
-add_library(ngraph::ngraph ALIAS ngraph)
 add_library(openvino::core ALIAS ngraph)
 
 target_include_directories(ngraph INTERFACE $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>)
@@ -114,21 +141,21 @@ target_include_directories(ngraph INTERFACE $<BUILD_INTERFACE:${OV_CORE_INCLUDE_
 #-----------------------------------------------------------------------------------------------
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
-        DESTINATION "runtime/include"
-        COMPONENT core_dev
+        DESTINATION ${OV_CPACK_INCLUDEDIR}
+        COMPONENT ${OV_CPACK_COMP_CORE_DEV}
         FILES_MATCHING
             PATTERN "*.hpp"
             PATTERN "*.h")
 
 configure_package_config_file(${OpenVINO_SOURCE_DIR}/cmake/templates/ngraphConfig.cmake.in
     ${CMAKE_BINARY_DIR}/ngraphConfig.cmake
-    INSTALL_DESTINATION cmake)
+    INSTALL_DESTINATION ${OV_CPACK_NGRAPH_CMAKEDIR})
 
 write_basic_package_version_file(${CMAKE_BINARY_DIR}/ngraphConfigVersion.cmake
-    VERSION ${IE_VERSION_MAJOR}.${IE_VERSION_MINOR}.${IE_VERSION_PATCH}
+    VERSION ${OpenVINO_VERSION_MAJOR}.${OpenVINO_VERSION_MINOR}.${OpenVINO_VERSION_PATCH}
     COMPATIBILITY SameMajorVersion)
 
 install(FILES ${CMAKE_BINARY_DIR}/ngraphConfig.cmake
               ${CMAKE_BINARY_DIR}/ngraphConfigVersion.cmake
-        DESTINATION "runtime/cmake"
-        COMPONENT core_dev)
+        DESTINATION ${OV_CPACK_NGRAPH_CMAKEDIR}
+        COMPONENT ${OV_CPACK_COMP_CORE_DEV})

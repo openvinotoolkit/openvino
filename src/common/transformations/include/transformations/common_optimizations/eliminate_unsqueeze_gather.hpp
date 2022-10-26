@@ -27,7 +27,7 @@ class TRANSFORMATIONS_API EliminateGatherUnsqueeze;
 
 class ngraph::pass::EliminateUnsqueezeGather : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("EliminateUnsqueezeGather", "0");
     EliminateUnsqueezeGather();
 };
 
@@ -39,6 +39,6 @@ public:
 
 class ngraph::pass::EliminateGatherUnsqueeze : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("EliminateGatherUnsqueeze", "0");
     EliminateGatherUnsqueeze();
 };

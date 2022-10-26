@@ -37,8 +37,10 @@ inline const ov::OpSet& get_opset_by_name(const std::string& opset_name) {
         return ov::get_opset7();
     } else if (opset_name == "opset8") {
         return ov::get_opset8();
+    } else if (opset_name == "opset9") {
+        return ov::get_opset9();
     } else if (opset_name.empty() || opset_name == "latest") {
-        return ov::get_opset8();
+        return ov::get_opset9();
     } else {
         FRONT_END_GENERAL_CHECK(false, "Unsupported opset name: ", opset_name);
     }
@@ -130,7 +132,7 @@ public:
 
         std::vector<Output<Node>> inputs;
         for (size_t i = 0; i < context.get_input_size(); ++i) {
-            inputs.push_back(context.get_input(i));
+            inputs.push_back(context.get_input(static_cast<int>(i)));
         }
         node->set_arguments(inputs);
         FWVisitor fw_visitor(context, m_attr_names_map, m_attr_values_map);

@@ -79,24 +79,24 @@ class TRANSFORMATIONS_API MultiplyGroupConvolutionBackpropDataFusion;
 
 class ngraph::pass::MultiplyConvolutionFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MultiplyConvolutionFusion", "0");
     MultiplyConvolutionFusion();
 };
 
 class ngraph::pass::MultiplyGroupConvolutionFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MultiplyGroupConvolutionFusion", "0");
     MultiplyGroupConvolutionFusion();
 };
 
 class ngraph::pass::MultiplyConvolutionBackpropDataFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MultiplyConvolutionBackpropDataFusion", "0");
     MultiplyConvolutionBackpropDataFusion();
 };
 
 class ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MultiplyGroupConvolutionBackpropDataFusion", "0");
     MultiplyGroupConvolutionBackpropDataFusion();
 };

@@ -13,33 +13,6 @@ namespace ov {
 namespace test {
 namespace subgraph {
 
-void OpImplCheckTest::run() {
-    if (function == nullptr) {
-        GTEST_FAIL() << "Target function is empty!";
-    }
-
-    // in case of crash jump will be made and work will be continued
-    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
-
-    // place to jump in case of a crash
-#ifdef _WIN32
-    if (setjmp(CommonTestUtils::env) == 0) {
-#else
-    if (sigsetjmp(CommonTestUtils::env, 1) == 0) {
-#endif
-        summary.setDeviceName(targetDevice);
-        try {
-            auto executableNetwork = core->compile_model(function, targetDevice, configuration);
-            summary.updateOPsImplStatus(function, true);
-        } catch (...) {
-            summary.updateOPsImplStatus(function, false);
-            GTEST_FAIL() << "Error in the LoadNetwork!";
-        }
-    } else {
-        IE_THROW() << "Crash happens";
-    }
-}
-
 void OpImplCheckTest::SetUp() {
     std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>> funcInfo;
     std::tie(funcInfo, targetDevice, configuration) = this->GetParam();
@@ -64,10 +37,6 @@ std::string OpImplCheckTest::getTestCaseName(const testing::TestParamInfo<OpImpl
     }
     result << ")";
     return result.str();
-}
-
-TEST_P(OpImplCheckTest, checkPluginImplementation) {
-    run();
 }
 
 }   // namespace subgraph

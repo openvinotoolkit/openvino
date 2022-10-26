@@ -14,6 +14,7 @@
 #include "meta_utils.h"
 #include "program_node.h"
 #include "primitive_type.h"
+#include "runtime/kernels_cache.hpp"
 
 #include <memory>
 #include <vector>
@@ -39,6 +40,7 @@ struct primitive_impl {
     virtual ~primitive_impl() = default;
 
     virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
+    virtual void set_node_params(const program_node&) {}
     virtual void set_arguments(primitive_inst& instance) = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
     virtual bool validate(const primitive_inst& instance) const = 0;
@@ -47,8 +49,14 @@ struct primitive_impl {
     kernel_selector::weights_reorder_params _weights_reorder_params;
     // class typed_primitive_gpu_impl override this with return false;
     virtual bool is_cpu() const { return true; }
-    virtual void init_kernels() = 0;
+    virtual void init_kernels(const kernels_cache&) = 0;
     virtual std::unique_ptr<primitive_impl> clone() const = 0;
+    virtual std::vector<std::string> get_kernel_ids() {
+        return {};
+    }
+
+    // If this flag is set as false, the memory allocated for this primitive is not allowed to be reused
+    bool can_reuse_memory = true;
 
 protected:
     std::string _kernel_name;
@@ -71,21 +79,44 @@ public:
         return reinterpret_cast<std::vector<std::shared_ptr<const primitive_inst>> const&>(_deps);
     }
 
-    memory& dep_memory(size_t index) const { return dependencies().at(index)->output_memory(); }
-    memory::ptr dep_memory_ptr(size_t index) const { return dependencies().at(index)->output_memory_ptr(); }
-    memory& output_memory() const { return *_output; }
-    memory::ptr output_memory_ptr() const { return _output; }
+    const std::vector<std::pair<std::shared_ptr<const primitive_inst>, int32_t>>& dependencies_new() const {
+        return reinterpret_cast<std::vector<std::pair<std::shared_ptr<const primitive_inst>, int32_t>> const&>(_deps_new);
+    }
+
+    memory& dep_memory(size_t index) const {
+        if (!dependencies_new().empty()) {
+            auto dep = dependencies_new().at(index);
+            return dep.first->output_memory(dep.second);
+        }
+        return dependencies().at(index)->output_memory();
+    }
+    memory::ptr dep_memory_ptr(size_t index) const {
+        if (!dependencies_new().empty()) {
+            auto dep = dependencies_new().at(index);
+            return dep.first->output_memory_ptr(dep.second);
+        }
+        return dependencies().at(index)->output_memory_ptr();
+    }
+    memory& output_memory(size_t index = 0) const { return *_outputs[index]; }
+    memory::ptr output_memory_ptr(size_t index = 0) const { return _outputs[index]; }
     size_t inputs_memory_count() const { return _node.get_primitive()->input_size(); }
+    size_t outputs_memory_count() const { return _node.get_primitive()->output_size(); }
+    bool outputs_allocated() const {
+        if (_outputs.empty()) return false;
+        for (const auto& output : _outputs) {
+            if (!output) return false;
+        }
+        return true;
+    }
     primitive_type_id type() const { return _node.type(); }
     primitive_id id() const { return _node.id(); }
     primitive_id org_id() const { return _node.get_org_primitive_id(); }
-    const primitive_id& get_ext_prim_id() const { return _node.get_ext_prim_id(); }
     bool can_be_optimized() const { return _node.can_be_optimized(); }
     std::shared_ptr<const primitive> desc() const { return _node.get_primitive(); }
     program_node const& get_node() const { return _node; }
     network& get_network() const { return _network; }
     uint32_t get_network_id() const;
-    virtual void set_output_memory(memory::ptr mem, bool check = true);
+    virtual void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0);
     void check_memory_to_set(const memory& mem, const layout& layout) const;
     const std::list<const cldnn::program_node *>& get_users() const { return _node.get_users(); }
 
@@ -109,12 +140,18 @@ public:
     void set_arguments();
 
     bool validate() const {
-        if (_impl == nullptr)
-            throw std::invalid_argument("[Internal cldnn error].  Validation method for nullptr impl is not allowed.");
-        return _impl->validate(*this);
+        OPENVINO_ASSERT(_impl != nullptr || is_dynamic(), "[GPU] Invalid impl object for ", id(), " primitive");
+        if (_impl)
+            return _impl->validate(*this);
+
+        return true;
     }
     bool output_changed() const { return _output_changed; }
     void reset_output_change() { _output_changed = false; }
+
+    bool shape_changed() const { return _shape_changed; }
+    void reset_shape_change() { _shape_changed = false; }
+    void set_shape_change() { _shape_changed = true; }
 
     void build_deps();
 
@@ -142,23 +179,38 @@ public:
         return _mem_allocated;
     }
 
+    bool is_dynamic() const {
+        return _is_dynamic;
+    }
+
     void allocate_internal_buffers();
-    static memory::ptr allocate_output(engine& engine, memory_pool& pool,
-                                        const program_node& _node, bool is_internal);
+    static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node,
+                                       const kernel_impl_params& impl_params, uint32_t net_id, bool is_internal);
 
     std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
+
+    std::string get_implementation_name() const;
+
+    void add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, int64_t time);
+    const std::unordered_map<size_t, std::tuple<int64_t, size_t>>& get_profiling_data() const { return _profiling_data; }
+    const std::unordered_map<size_t, instrumentation::perf_counter_key>& get_profiling_info() const { return _profiling_info; }
+
+    layout get_node_output_layout() const { return _node_output_layout; }
 
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
 
     network& _network;
     program_node const& _node;
+    const layout _node_output_layout;
 
+    std::unique_ptr<kernel_impl_params> _impl_params;
     std::unique_ptr<primitive_impl> _impl;
 
     // this is a set of dependencies in terms of memory, if execution of this primitive requires data from another one,
     // it should be added to this set
     std::vector<std::shared_ptr<primitive_inst>> _deps;
+    std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> _deps_new;
 
     // this is a set of dependencies in terms of execution
     // execution of all primitives from this set should be enough to guarantee that all memory deps (see _deps)
@@ -169,20 +221,29 @@ protected:
     // executed and memories which are used by this primitive
     std::vector<std::shared_ptr<primitive_inst>> _exec_deps;
 
+    // This is sub-network generated on demand to execute unfused primitives sequence instead of single fused primitive
+    // Needed for dynamic path only, as fusion in some cases may be illegal, but it can't be checked on program build phase,
+    // thus we do less restrictive fusion with runtime sanity check and unfusion when needed.
+    cldnn::network::ptr _unfused_subgraph = nullptr;
+
     // _output is optional because its initialization might be postponed (reshape_inst may either allocate it's own
     // buffer or attach input as output
     // depending on reshape_node.is_in_place())
-    memory::ptr _output;
+    std::vector<memory::ptr> _outputs;
 
     std::vector<memory::cptr> _intermediates_memory;
 
     bool _output_changed;  // todo: implement output reuse if neither of inputs has changed
+    bool _shape_changed = false;
     bool _has_valid_input =
         true;  // by default all primitives has valid inputs, exception is input_layout (see input_layout_inst)
     bool _has_mutable_input = false;
     bool _mem_allocated = false;
+    bool _is_dynamic = false;
 
-    memory::ptr allocate_output();
+    size_t max_output_layout_size = 0;
+
+    std::vector<memory::ptr> allocate_outputs();
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
         std::vector<std::shared_ptr<primitive_inst>> const& mem_deps);
 
@@ -190,7 +251,36 @@ protected:
     // _impl->execute() mainly for reshape (to update output memory if reshape_node.is_in_place() == true)
     virtual void on_execute() {}
 
+    virtual void update_shape();
+    virtual event::ptr update_weights();
+    void update_impl();
+    void realloc_if_needed();
+
+    cldnn::network::ptr get_unfused_subgraph();
+
+    // This method checks if fusion applied to current primitive is valid.
+    // Needed for dynamic case only, and basically tracks single problematic case at the moment:
+    // eltwise primitive in dynamic case may be expressed as follows:
+    // input1 (dynamic_shape_in1)    input2 (dynamic_shape_in2)
+    //       \                 /
+    //            eltwise (dynamic_shape_out)
+    // Consider that eltwise is fused into primitive that produces input1 tensor. Then
+    // this pattern may lead to the one of the following cases:
+    // 1. dynamic_shape_in1 == dynamic_shape_in2 => supported fusion
+    // 2. dynamic_shape_in1 > dynamic_shape_in2 => supported fusion with additional input broadcast
+    // 3. dynamic_shape_in1 < dynamic_shape_in2 => illegal fusion pattern
+    // If input2 is not constant, then we can't really understand which case it actuall is,
+    // thus for performance reasons we allow fusions for dynamic shape regardless the actual case
+    // and then using this method in runtime we check if the fusion was valid or not
+    bool is_valid_fusion() const;
+
     static std::string generic_to_string(program_node const& node, const char* type_name);
+
+    // This could be implemented via single map std::unordered_map<instrumentation::perf_counter_key, std::tuple<int64_t, size_t>>
+    // but the overhead on using perf_counter_key as map key is too big, thus we use hash as map key
+    // and store mapping onto original perf_clounter_key for further data analysis and dumps
+    std::unordered_map<size_t, std::tuple<int64_t, size_t>> _profiling_data;
+    std::unordered_map<size_t, instrumentation::perf_counter_key> _profiling_info;
 };
 
 /*
@@ -206,8 +296,7 @@ struct typed_primitive_impl : public primitive_impl {
     using primitive_impl::primitive_impl;
 
 private:
-    event::ptr execute(const std::vector<event::ptr>& event,
-                            primitive_inst& instance) override {
+    event::ptr execute(const std::vector<event::ptr>& event, primitive_inst& instance) override {
         if (instance.type() != PType::type_id())
             throw std::invalid_argument("Implementation type does not match primitive type");
         if (instance.get_impl() != this)
@@ -260,6 +349,9 @@ public:
     const typed_node& node;
     const PType& argument;
 
+    template<typename T>
+    static std::vector<layout> calc_output_layouts(const typed_node& node, const kernel_impl_params& impl_param) { return {}; }
+
     typed_primitive_inst_base(network& network, typed_node const& node)
         : typed_primitive_inst_base(network, node, do_allocate_memory(node)) {}
 
@@ -269,11 +361,14 @@ protected:
 
     typed_primitive_inst_base(network& network, typed_node const& node, memory::ptr buffer)
         : typed_primitive_inst_base(network, node, false) {
-        _output = buffer;
+        _outputs[0] = buffer;
     }
 
 private:
     bool do_allocate_memory(typed_node const& typ_node) {
+        if (typ_node.is_dynamic())
+            return false;
+
         if (typ_node.template have_user_with_type<concatenation>() && typ_node.get_users().size() == 1 &&
             typ_node.get_users().front()->can_be_optimized()) {  // check if the only user is concat
             return false;

@@ -25,6 +25,7 @@
    openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_GPT2
    openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Mask_RCNN
    openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_Bert_ner
+   openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_Cascade_RCNN_res101
    openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_F3Net
    openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_QuartzNet
    openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_RCAN
@@ -36,6 +37,7 @@
 
 @endsphinxdirective
 
-This section provides you with a set of tutorials that demonstrate conversion steps for specific TensorFlow, ONNX, PyTorch, MXNet and Kaldi models.
+This section provides a set of tutorials that demonstrate conversion methods for specific TensorFlow, ONNX, PyTorch, MXNet, and Kaldi models, that unnecessarily cover your case.
+Before studying the tutorials, try to convert the model out-of-the-box by specifying only the `--input_model` parameter in the command line.
 
-You can also find a collection of [Python tutorials](../../../tutorials.md) written for running on Jupyter* notebooks that provide an introduction to the OpenVINO™ toolkit and explain how to use the Python API and tools for optimized deep learning inference.
+You will find a collection of [Python tutorials](../../../tutorials.md) written for running on Jupyter notebooks that provide an introduction to the OpenVINO™ toolkit and explain how to use the Python API and tools for optimized deep learning inference.

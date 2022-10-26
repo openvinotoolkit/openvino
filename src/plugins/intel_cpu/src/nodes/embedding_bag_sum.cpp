@@ -5,16 +5,19 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include "ie_parallel.hpp"
 #include "embedding_bag_sum.h"
 #include <ngraph/opsets/opset1.hpp>
 #include "common/cpu_memcpy.h"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-MKLDNNEmbeddingBagSumNode::MKLDNNEmbeddingBagSumNode(
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+EmbeddingBagSum::EmbeddingBagSum(
             const std::shared_ptr<ngraph::Node>& op,
             size_t requiredInputNum,
             size_t indicesIdx,
@@ -36,7 +39,7 @@ MKLDNNEmbeddingBagSumNode::MKLDNNEmbeddingBagSumNode(
     }
 }
 
-void MKLDNNEmbeddingBagSumNode::prepareParams(const VectorDims& indexStaticShape) {
+void EmbeddingBagSum::prepareParams(const VectorDims& indexStaticShape) {
     _embDepth = 1lu;
     for (size_t i = 1lu; i < indexStaticShape.size(); i++) {
         _embDepth *= indexStaticShape[i];
@@ -44,13 +47,14 @@ void MKLDNNEmbeddingBagSumNode::prepareParams(const VectorDims& indexStaticShape
 }
 
 template<typename T>
-void MKLDNNEmbeddingBagSumNode::processData(const T* srcData, const T* weightsData, T* dstData,
-                                            const InferenceEngine::SizeVector& inDataDims, const InferenceEngine::SizeVector& outDataDims) {
+void EmbeddingBagSum::processData(const T* srcData, const T* weightsData,
+                                  const InferenceEngine::SizeVector& inDataDims, const MemoryPtr& outMemory) {
     std::string msgPrefix = std::string("Node EmbeddingBagSum with name '") + _layerName + "' ";
 
     initFromInputs();
 
-    const size_t outputBagsNum = outDataDims[0];
+    const size_t outputBagsNum = outMemory->GetShape().getStaticDims()[0];
+    auto *dstData = reinterpret_cast<T *>(outMemory->GetPtr());
 
     auto threadBody = [&](const int ithr, const int nthr) {
         size_t start(0lu), end(0lu);
@@ -115,23 +119,23 @@ void MKLDNNEmbeddingBagSumNode::processData(const T* srcData, const T* weightsDa
     parallel_nt(0, threadBody);
 }
 
-void MKLDNNEmbeddingBagSumNode::execute(const uint8_t* srcData, const uint8_t* weightsData, uint8_t* dstData, const InferenceEngine::Precision &srcPrc,
-                                        const InferenceEngine::SizeVector& inDims, const InferenceEngine::SizeVector& outDims) {
+void EmbeddingBagSum::execute(const uint8_t* srcData, const uint8_t* weightsData, const InferenceEngine::Precision &srcPrc,
+                              const InferenceEngine::SizeVector& inDims, const MemoryPtr& outMemory) {
     switch (srcPrc) {
         case Precision::FP32: {
             return processData<PrecisionTrait<Precision::FP32>::value_type>(reinterpret_cast<const float*>(srcData),
-                    reinterpret_cast<const float*>(weightsData), reinterpret_cast<float*>(dstData), inDims, outDims);
+                    reinterpret_cast<const float*>(weightsData), inDims, outMemory);
         }
         case Precision::I8: {
             return processData<PrecisionTrait<Precision::I8>::value_type>(reinterpret_cast<const int8_t*>(srcData),
-                    reinterpret_cast<const int8_t*>(weightsData), reinterpret_cast<int8_t*>(dstData), inDims, outDims);
+                    reinterpret_cast<const int8_t*>(weightsData), inDims, outMemory);
         }
         case Precision::U8: {
-            return processData<PrecisionTrait<Precision::U8>::value_type>(srcData, weightsData, dstData, inDims, outDims);
+            return processData<PrecisionTrait<Precision::U8>::value_type>(srcData, weightsData, inDims, outMemory);
         }
         case Precision::I32: {
             return processData<PrecisionTrait<Precision::I32>::value_type>(reinterpret_cast<const int32_t*>(srcData),
-                    reinterpret_cast<const int32_t*>(weightsData), reinterpret_cast<int32_t*>(dstData), inDims, outDims);
+                    reinterpret_cast<const int32_t*>(weightsData), inDims, outMemory);
         }
         default: {
             IE_THROW() << "EmbeddingBagSum layer does not support precision '"
@@ -139,3 +143,7 @@ void MKLDNNEmbeddingBagSumNode::execute(const uint8_t* srcData, const uint8_t* w
         }
     }
 }
+
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

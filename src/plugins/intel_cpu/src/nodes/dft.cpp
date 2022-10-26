@@ -5,21 +5,24 @@
 #include <string>
 #include <vector>
 #include <cmath>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 
 #include "dft.h"
 #include "ie_parallel.hpp"
 #include "ie_precision.hpp"
-#include "mkldnn/ie_mkldnn.h"
+#include <onednn/dnnl.h>
 #include "utils/general_utils.h"
 #include "common/cpu_memcpy.h"
 #include <ngraph/opsets/opset7.hpp>
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
+using namespace dnnl;
 using namespace InferenceEngine;
 
-bool MKLDNNDFTNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool DFT::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -38,8 +41,8 @@ bool MKLDNNDFTNode::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
     return true;
 }
 
-MKLDNNDFTNode::MKLDNNDFTNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-               MKLDNNNode(op, eng, cache) {
+DFT::DFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
+               Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -74,9 +77,9 @@ MKLDNNDFTNode::MKLDNNDFTNode(const std::shared_ptr<ngraph::Node>& op, const mkld
     inverse = std::dynamic_pointer_cast<ngraph::opset7::DFT>(op) == nullptr;
 }
 
-void MKLDNNDFTNode::getSupportedDescriptors() {}
+void DFT::getSupportedDescriptors() {}
 
-void MKLDNNDFTNode::initSupportedPrimitiveDescriptors() {
+void DFT::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -191,9 +194,9 @@ void applyBufferND(const float* buffer, float* output, size_t axis, const std::v
 
 void copyDataToOutputWithSignalSize(const float* input, const std::vector<size_t>& inputShape, const std::vector<size_t>& inputStrides,
                                     float* output, const std::vector<size_t>& outputShape, const std::vector<size_t>& outputStrides) {
-    auto totalInput = std::accumulate(inputShape.begin(), inputShape.end(), 1, std::multiplies<size_t>());
-    auto totalOutput = std::accumulate(outputShape.begin(), outputShape.end(), 1, std::multiplies<size_t>());
-    std::fill_n(output, totalOutput, 0);
+    auto totalInput = std::accumulate(inputShape.begin(), inputShape.end(), size_t(1), std::multiplies<size_t>());
+    auto totalOutput = std::accumulate(outputShape.begin(), outputShape.end(), size_t(1), std::multiplies<size_t>());
+    std::fill_n(output, totalOutput, 0.f);
     size_t lastChangedDim = 0;
     for (size_t index = inputShape.size() - 1; index > 0; --index) {
         if (inputShape[index] != outputShape[index]) {
@@ -214,7 +217,7 @@ void copyDataToOutputWithSignalSize(const float* input, const std::vector<size_t
 
     const std::vector<size_t> inputStridesRange(inputStrides.begin(), inputStrides.begin() + iterationRange.size());
     const std::vector<size_t> outputStridesRange(outputStrides.begin(), outputStrides.begin() + iterationRange.size());
-    const size_t blockSize = std::accumulate(inputShape.begin() + lastChangedDim + 1, inputShape.end(), 1ul, std::multiplies<size_t>());
+    const size_t blockSize = std::accumulate(inputShape.begin() + lastChangedDim + 1, inputShape.end(), size_t(1), std::multiplies<size_t>());
     const size_t blockSizeBytes = blockSize * sizeof(float);
     std::vector<size_t> iterationCounter(iterationRange.size(), 0);
     do {
@@ -226,7 +229,7 @@ void copyDataToOutputWithSignalSize(const float* input, const std::vector<size_t
 
 } // namespace
 
-void MKLDNNDFTNode::execute(mkldnn::stream strm) {
+void DFT::execute(dnnl::stream strm) {
     auto axesEdge = getParentEdgeAt(AXES_INDEX);
     const auto* axesStartPtr = reinterpret_cast<const int32_t*>(axesEdge->getMemoryPtr()->GetPtr());
     axes = std::vector<int32_t>(axesStartPtr, axesStartPtr + axesEdge->getMemory().getStaticDims()[0]);
@@ -256,7 +259,7 @@ void MKLDNNDFTNode::execute(mkldnn::stream strm) {
     if (inputShape != outputShape) {
         copyDataToOutputWithSignalSize(input, inputShape, inputStrides, output, outputShape, outputStrides);
     } else {
-        auto totalElements = std::accumulate(inputShape.begin(), inputShape.end(), 1, std::multiplies<size_t>());
+        auto totalElements = std::accumulate(inputShape.begin(), inputShape.end(), size_t(1), std::multiplies<size_t>());
         cpu_memcpy(output, input, totalElements * sizeof(float));
     }
 
@@ -273,7 +276,7 @@ void MKLDNNDFTNode::execute(mkldnn::stream strm) {
     }
 }
 
-void MKLDNNDFTNode::dftNd(float* output, const std::vector<size_t>& outputStrides) const {
+void DFT::dftNd(float* output, const std::vector<size_t>& outputStrides) const {
     const std::vector<size_t> iterationRange(outputShape.begin(), outputShape.end() - 1);
     const size_t lastDimIndex = iterationRange.size() - 1;
     for (size_t axisIndex = 0; axisIndex < axes.size(); ++axisIndex) {
@@ -307,7 +310,7 @@ void MKLDNNDFTNode::dftNd(float* output, const std::vector<size_t>& outputStride
 }
 
 /* Cooley Tukey implementation of FFT */
-void MKLDNNDFTNode::fft(float* data, int64_t dataLength, bool parallelize) const {
+void DFT::fft(float* data, int64_t dataLength, bool parallelize) const {
     static int cacheSizeL3 = utils::get_cache_size(3, false);
     static int elementsPerCacheLine = cacheSizeL3 / sizeof(float);
     std::vector<float> bufferVector(dataLength * 2, 0);
@@ -368,7 +371,7 @@ void MKLDNNDFTNode::fft(float* data, int64_t dataLength, bool parallelize) const
     }
 }
 
-void MKLDNNDFTNode::naiveDFT(float* data, size_t dataLength) const {
+void DFT::naiveDFT(float* data, size_t dataLength) const {
     std::vector<float> outputBuffer(dataLength);
     const size_t nComplex = dataLength / 2;
     const auto& twiddles = twiddlesMap.find(nComplex)->second;
@@ -401,7 +404,7 @@ void MKLDNNDFTNode::naiveDFT(float* data, size_t dataLength) const {
     cpu_memcpy(data, outputBuffer.data(), dataLength * sizeof(float));
 }
 
-std::vector<std::pair<float, float>> MKLDNNDFTNode::generateTwiddles(size_t n_complex) const {
+std::vector<std::pair<float, float>> DFT::generateTwiddles(size_t n_complex) const {
     std::vector<std::pair<float, float>> twiddles(n_complex * n_complex);
     parallel_for(n_complex, [&](const size_t k) {
         for (size_t n = 0; n < n_complex; ++n) {
@@ -414,11 +417,12 @@ std::vector<std::pair<float, float>> MKLDNNDFTNode::generateTwiddles(size_t n_co
     return twiddles;
 }
 
-bool MKLDNNDFTNode::created() const {
-    return getType() == DFT;
+bool DFT::created() const {
+    return getType() == Type::DFT;
 }
 
-void MKLDNNDFTNode::createPrimitive() {}
+void DFT::createPrimitive() {}
 
-
-REG_MKLDNN_PRIM_FOR(MKLDNNDFTNode, DFT)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

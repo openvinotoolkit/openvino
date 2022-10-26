@@ -28,6 +28,6 @@ class TRANSFORMATIONS_API ConvertPadToGroupConvolution;
 
 class ngraph::pass::ConvertPadToGroupConvolution : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertPadToGroupConvolution", "0");
     ConvertPadToGroupConvolution();
 };

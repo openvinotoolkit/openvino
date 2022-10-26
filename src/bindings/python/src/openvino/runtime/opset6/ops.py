@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -63,7 +64,7 @@ def ctc_greedy_decoder_seq_len(
     attributes = {
         "merge_repeated": merge_repeated,
         "classes_index_type": classes_index_type,
-        "sequence_length_type": sequence_length_type
+        "sequence_length_type": sequence_length_type,
     }
 
     return _get_node_factory_opset6().create("CTCGreedyDecoderSeqLen", inputs, attributes)
@@ -86,7 +87,7 @@ def gather_elements(
     inputs = as_nodes(data, indices)
 
     attributes = {
-        "axis": axis
+        "axis": axis,
     }
 
     return _get_node_factory_opset6().create("GatherElements", inputs, attributes)
@@ -117,7 +118,7 @@ def mvn(
     attributes = {
         "normalize_variance": normalize_variance,
         "eps": eps,
-        "eps_mode": eps_mode
+        "eps_mode": eps_mode,
     }
 
     return _get_node_factory_opset6().create("MVN", inputs, attributes)
@@ -135,7 +136,7 @@ def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -
     return _get_node_factory_opset6().create(
         "Assign",
         [as_node(new_value)],
-        {"variable_id": variable_id}
+        {"variable_id": variable_id},
     )
 
 
@@ -151,5 +152,5 @@ def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = No
     return _get_node_factory_opset6().create(
         "ReadValue",
         [as_node(init_value)],
-        {"variable_id": variable_id}
+        {"variable_id": variable_id},
     )

@@ -15,13 +15,14 @@ namespace intel_cpu {
 using Dim = std::size_t;
 using VectorDims = std::vector<Dim>;
 
-enum Type {
+enum class Type {
     Unknown,
     Generic,
     If,
     Reorder,
     Input,
     Output,
+    Eye,
     Convolution,
     Deconvolution,
     Lrn,
@@ -78,6 +79,7 @@ enum Type {
     Reference,
     ShuffleChannels,
     DFT,
+    RDFT,
     Math,
     CTCLoss,
     Bucketize,
@@ -98,6 +100,7 @@ enum Type {
     ExperimentalDetectronROIFeatureExtractor,
     ExperimentalDetectronPriorGridGenerator,
     ExperimentalDetectronGenerateProposalsSingleImage,
+    GenerateProposals,
     ExtractImagePatches,
     NonMaxSuppression,
     MatrixNms,
@@ -105,9 +108,11 @@ enum Type {
     Subgraph,
     PriorBox,
     PriorBoxClustered,
+    Interaction,
+    MHA
 };
 
-enum Algorithm {
+enum class Algorithm {
     Default,
 
     // Pooling algorithms
@@ -167,11 +172,13 @@ enum Algorithm {
     EltwiseRoundHalfToEven,
     EltwiseRoundHalfAwayFromZero,
     EltwiseErf,
+    EltwiseSoftSign,
 
     // FakeQuantize algorithms
     FQCommon,
     FQQuantization,
     FQBinarization,
+    FQRequantization,
 
     // ROIPooling algorithms
     ROIPoolingMax,

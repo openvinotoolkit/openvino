@@ -24,6 +24,6 @@ class TRANSFORMATIONS_API ConvertGather0D;
  */
 class ngraph::pass::ConvertGather0D : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertGather0D", "0");
     ConvertGather0D();
 };

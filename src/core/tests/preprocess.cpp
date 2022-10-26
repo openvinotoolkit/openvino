@@ -6,6 +6,8 @@
 #include "ngraph/ngraph.hpp"
 #include "ngraph/ops.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/util/common_util.hpp"
 #include "util/test_tools.hpp"
 
 using namespace ov;
@@ -1255,6 +1257,86 @@ TEST(pre_post_process, preprocess_memory_type_not_cleared) {
     EXPECT_EQ(var0, "abc");
 }
 
+TEST(pre_post_process, preprocess_from) {
+    auto t = ov::Tensor(element::u8, {1, 480, 640, 3});
+    auto f = create_simple_function(element::f32, Shape{1, 224, 224, 3});
+    ov::layout::set_layout(f->input(), "NHWC");
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_from(t);
+    p.input().preprocess().resize(ResizeAlgorithm::RESIZE_LINEAR);
+    f = p.build();
+
+    EXPECT_EQ(f->input().get_element_type(), element::u8);
+    EXPECT_EQ(f->input().get_shape(), (Shape{1, 480, 640, 3}));
+    EXPECT_EQ(f->output().get_element_type(), element::f32);
+    EXPECT_EQ(f->output().get_shape(), (Shape{1, 224, 224, 3}));
+}
+
+TEST(pre_post_process, preprocess_crop) {
+    auto model = create_n_inputs<1>(element::f32, PartialShape::dynamic());
+    auto p = PrePostProcessor(model);
+
+    p.input().tensor().set_shape(Shape{1, 3, 200, 400});
+    auto begin = std::vector<int>{0, 0, 50, 100};
+    auto end = std::vector<int>{1, 3, 150, 300};
+    auto begin_dump = ov::util::vector_to_string(begin);
+    auto end_dump = ov::util::vector_to_string(end);
+    p.input().preprocess().crop(begin, end);
+
+    std::stringstream dump;
+    dump << p;
+    EXPECT_TRUE(dump.str().find(begin_dump) != std::string::npos)
+        << "Dump doesn't contain begin coordinate. " << dump.str() << begin_dump;
+    EXPECT_TRUE(dump.str().find(end_dump) != std::string::npos)
+        << "Dump doesn't contain end coordinate. " << dump.str() << end_dump;
+    p.build();
+
+    // Verify that output will be {1, 3, 100, 200}
+    EXPECT_EQ(model->output().get_partial_shape(), (PartialShape{1, 3, 100, 200}));
+}
+
+TEST(pre_post_process, preprocess_crop_wrong_dims) {
+    auto model = create_n_inputs<1>(element::f32, PartialShape::dynamic());
+    auto p = PrePostProcessor(model);
+
+    p.input().tensor().set_shape(Shape{1, 3, 200, 400});
+    auto begin = std::vector<int>{0, 0, 50, 100};
+    auto end = std::vector<int>{1, 3, 150};
+    auto begin_dump = ov::util::vector_to_string(begin);
+    auto end_dump = ov::util::vector_to_string(end);
+    try {
+        p.input().preprocess().crop(begin, end);
+        FAIL() << "crop with wrong dims shall throw";
+    } catch (const ov::Exception& err) {
+        EXPECT_TRUE(std::string(err.what()).find(begin_dump) != std::string::npos) << err.what();
+        EXPECT_TRUE(std::string(err.what()).find(end_dump) != std::string::npos) << err.what();
+    } catch (...) {
+        FAIL() << "Expected ov::Exception";
+    }
+}
+
+TEST(pre_post_process, preprocess_crop_wrong_dims_not_aligned) {
+    auto model = create_n_inputs<1>(element::f32, PartialShape{1, 3, 100, 200});
+    auto p = PrePostProcessor(model);
+
+    p.input().tensor().set_shape(Shape{1, 3, 200});
+    auto begin = std::vector<int>{0, 0, 50};
+    auto end = std::vector<int>{1, 3, 150};
+    std::stringstream exp_dump, act_dump;
+    exp_dump << model->input().get_partial_shape();
+    act_dump << PartialShape{1, 3, 100};
+    try {
+        p.input().preprocess().crop(begin, end);
+        p.build();
+        FAIL() << "crop with wrong dims rank shall throw";
+    } catch (const ov::Exception& err) {
+        EXPECT_TRUE(std::string(err.what()).find(exp_dump.str()) != std::string::npos) << err.what();
+        EXPECT_TRUE(std::string(err.what()).find(act_dump.str()) != std::string::npos) << err.what();
+    } catch (...) {
+        FAIL() << "Expected ov::Exception";
+    }
+}
+
 // --- PostProcess - set/convert element type ---
 
 TEST(pre_post_process, postprocess_convert_element_type_explicit) {
@@ -1651,6 +1733,66 @@ TEST(pre_post_process, postprocess_many) {
     EXPECT_EQ(f->get_results()[0]->get_layout(), "NHWC");
     EXPECT_EQ(f->output().get_partial_shape(), (PartialShape{1, 2, 2, 3}));
     EXPECT_TRUE(custom_called);
+}
+
+TEST(pre_post_process, postprocess_one_node_many_outputs) {
+    auto data1 = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
+    auto c1 = opset8::Constant::create(element::i32, Shape{}, {0});
+    auto op = std::make_shared<opset8::Split>(data1, c1, 3);
+    op->set_friendly_name("Split");
+    ResultVector results;
+    for (size_t i = 0; i < op->get_num_splits(); i++) {
+        op->output(i).set_names({"tensor_Split" + std::to_string(i)});
+        auto res = std::make_shared<op::v0::Result>(op->output(i));
+        results.emplace_back(res);
+    }
+    auto model = std::make_shared<Model>(ResultVector{results}, ParameterVector{data1});
+    EXPECT_EQ(model->output(0).get_tensor().get_names().count("tensor_Split0"), 1);
+    EXPECT_EQ(model->output(1).get_tensor().get_names().count("tensor_Split1"), 1);
+    EXPECT_EQ(model->output(2).get_tensor().get_names().count("tensor_Split2"), 1);
+
+    auto p = PrePostProcessor(model);
+    p.output(0).tensor().set_element_type(element::f32);
+    p.output(2).tensor().set_element_type(element::f32);
+    model = p.build();
+    EXPECT_EQ(model->get_results().size(), 3);
+    EXPECT_EQ(model->output(0).get_tensor().get_names().count("tensor_Split0"), 1);
+    EXPECT_EQ(model->output(1).get_tensor().get_names().count("tensor_Split1"), 1);
+    EXPECT_EQ(model->output(2).get_tensor().get_names().count("tensor_Split2"), 1);
+    EXPECT_EQ(model->get_results()[0]->input(0).get_source_output().get_node()->get_friendly_name(), "Split.0");
+    EXPECT_EQ(model->get_results()[1]->input(0).get_source_output().get_node()->get_friendly_name(), "Split");
+    EXPECT_EQ(model->get_results()[2]->input(0).get_source_output().get_node()->get_friendly_name(), "Split.2");
+}
+
+TEST(pre_post_process, postprocess_nothing_applied) {
+    auto data1 = std::make_shared<op::v0::Parameter>(element::i32, Shape{1, 3, 10, 20});
+    auto c1 = opset8::Constant::create(element::i32, Shape{}, {1});
+    auto op = std::make_shared<opset8::Split>(data1, c1, 3);
+    op->set_friendly_name("Split");
+    ResultVector results;
+    for (size_t i = 0; i < op->get_num_splits(); i++) {
+        op->output(i).set_names({"tensor_Split" + std::to_string(i)});
+        auto res = std::make_shared<op::v0::Result>(op->output(i));
+        results.emplace_back(res);
+    }
+    auto model = std::make_shared<Model>(ResultVector{results}, ParameterVector{data1});
+    EXPECT_EQ(model->get_results()[0]->input(0).get_source_output().get_node()->get_friendly_name(), "Split");
+    EXPECT_EQ(model->get_results()[1]->input(0).get_source_output().get_node()->get_friendly_name(), "Split");
+    EXPECT_EQ(model->get_results()[2]->input(0).get_source_output().get_node()->get_friendly_name(), "Split");
+
+    ov::layout::set_layout(model->output(1), "N???");
+    auto p = PrePostProcessor(model);
+    p.output(1).tensor().set_layout("NCHW");
+    model = p.build();
+    EXPECT_EQ(model->get_results().size(), 3);
+    EXPECT_EQ(ov::layout::get_layout(model->output(1)), "NCHW");
+    EXPECT_EQ(model->output(1).get_shape(), (Shape{1, 1, 10, 20}));
+    EXPECT_EQ(model->output(0).get_tensor().get_names().count("tensor_Split0"), 1);
+    EXPECT_EQ(model->output(1).get_tensor().get_names().count("tensor_Split1"), 1);
+    EXPECT_EQ(model->output(2).get_tensor().get_names().count("tensor_Split2"), 1);
+    EXPECT_EQ(model->get_results()[0]->input(0).get_source_output().get_node()->get_friendly_name(), "Split");
+    EXPECT_EQ(model->get_results()[1]->input(0).get_source_output().get_node()->get_friendly_name(), "Split");
+    EXPECT_EQ(model->get_results()[2]->input(0).get_source_output().get_node()->get_friendly_name(), "Split");
 }
 
 TEST(pre_post_process, exception_safety) {

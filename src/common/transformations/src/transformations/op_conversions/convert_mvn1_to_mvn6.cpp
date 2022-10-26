@@ -12,8 +12,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMVN1ToMVN6, "ConvertMVN1ToMVN6", 0);
-
 ngraph::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
     MATCHER_SCOPE(ConvertMVN1ToMVN6);
     auto mvn = pattern::wrap_type<ngraph::opset2::MVN>();
@@ -29,7 +27,7 @@ ngraph::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
         if (!input_rank.is_static()) {
             return false;
         }
-        int64_t start_axis = 1 + (!mvn_node->get_across_channels());
+        int64_t start_axis = 1 + static_cast<int64_t>(!mvn_node->get_across_channels());
         if (input_rank.get_length() <= start_axis) {
             return false;
         }
@@ -39,7 +37,7 @@ ngraph::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
         auto mvn6_node = std::make_shared<ngraph::opset6::MVN>(input,
                                                                axes,
                                                                mvn_node->get_normalize_variance(),
-                                                               mvn_node->get_eps(),
+                                                               static_cast<float>(mvn_node->get_eps()),
                                                                ngraph::op::MVNEpsMode::OUTSIDE_SQRT);
 
         mvn6_node->set_friendly_name(mvn_node->get_friendly_name());

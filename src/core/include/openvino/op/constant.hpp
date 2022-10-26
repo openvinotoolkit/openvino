@@ -19,6 +19,7 @@ namespace ov {
 namespace op {
 namespace v0 {
 /// \brief Class for constants.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Constant : public Op {
 public:
     OPENVINO_OP("Constant", "opset1");
@@ -37,7 +38,8 @@ public:
     /// \param values A vector of literals for initializing the tensor constant. The
     ///               size of values must match the size of the shape.
     template <typename T>
-    Constant(const element::Type& type, const Shape& shape, const std::vector<T>& values) : Constant(type, shape) {
+    Constant(const element::Type& type, const Shape& shape, const std::vector<T>& values)
+        : Constant(false, type, shape) {
         NODE_VALIDATION_CHECK(this,
                               values.size() == 1 || values.size() == shape_size(m_shape),
                               "Did not get the expected number of literals for a constant of shape ",
@@ -54,7 +56,6 @@ public:
         } else {
             write_values(values);
         }
-        m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
     }
 
     /// \brief Create uninitialized constant
@@ -66,9 +67,8 @@ public:
     /// \param value A scalar for initializing the uniform tensor constant. The
     ///               value is broadcast to the specified shape.
     template <class T, class = typename std::enable_if<std::is_fundamental<T>::value>::type>
-    Constant(const element::Type& type, const Shape& shape, T value) : Constant(type, shape) {
+    Constant(const element::Type& type, const Shape& shape, T value) : Constant(false, type, shape) {
         fill_data(type, value);
-        m_all_elements_bitwise_identical = true;
     }
 
     template <typename T>
@@ -372,6 +372,9 @@ public:
     }
 
     bool get_all_data_elements_bitwise_identical() const {
+        if (!m_all_elements_bitwise_identical_checked) {
+            update_identical_flags(true, are_all_data_elements_bitwise_identical());
+        }
         return m_all_elements_bitwise_identical;
     }
     std::string convert_value_to_string(size_t index) const;
@@ -384,6 +387,8 @@ public:
     }
 
 private:
+    Constant(bool memset_allocation, const element::Type& type, const Shape& shape);
+
     template <element::Type_t Type,
               typename StorageDataType = fundamental_type_for<Type>,
               typename std::enable_if<Type != element::Type_t::u1 && Type != element::Type_t::u4 &&
@@ -525,7 +530,7 @@ private:
         std::fill_n(get_data_ptr_nc<Type>(), mem_size(), v);
     }
 
-    void allocate_buffer();
+    void allocate_buffer(bool memset_allocation);
 
     void* get_data_ptr_nc() {
         return (m_data ? m_data->get_ptr() : nullptr);
@@ -690,6 +695,8 @@ private:
     }
 
     bool are_all_data_elements_bitwise_identical() const;
+    // This is 'const' as it updates only mutable data
+    void update_identical_flags(bool is_checked, bool identical_value) const;
     static constexpr size_t host_alignment() {
         return 64;
     }
@@ -709,7 +716,8 @@ private:
     element::Type m_element_type;
     Shape m_shape{};
     std::shared_ptr<ngraph::runtime::AlignedBuffer> m_data;
-    bool m_all_elements_bitwise_identical = false;
+    mutable std::atomic_bool m_all_elements_bitwise_identical{false};
+    mutable std::atomic_bool m_all_elements_bitwise_identical_checked{false};
     bool m_alloc_buffer_on_visit_attributes = true;
 };
 }  // namespace v0

@@ -10,16 +10,17 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNStridedSliceNode : public MKLDNNNode {
+class StridedSlice : public Node {
 public:
-    MKLDNNStridedSliceNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    StridedSlice(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
@@ -29,11 +30,11 @@ public:
 
 protected:
     void prepareParams() override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
 private:
     void addHiddenDims(const size_t nSrcDims, int ellipsisPos1);
-    void orderParametersByLayouts(const MKLDNNMemoryPtr& srcMemPtr);
+    void orderParametersByLayouts(const MemoryPtr& srcMemPtr);
 
     struct StridedSliceAttributes {
         std::vector<int> begin;
@@ -100,5 +101,6 @@ private:
     bool isConstantInput[AXES_ID + 1] = {false};
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

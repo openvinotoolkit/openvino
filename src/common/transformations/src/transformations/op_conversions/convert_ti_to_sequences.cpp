@@ -17,11 +17,6 @@
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertTensorIteratorToLSTMSequence, "ConvertTensorIteratorToLSTMSequence", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertTensorIteratorToRNNSequence, "ConvertTensorIteratorToRNNSequence", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertTensorIteratorToGRUSequence, "ConvertTensorIteratorToGRUSequence", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertTensorIteratorToSequence, "ConvertTensorIteratorToSequence", 0);
-
 namespace {
 bool convertTensorIteratorToSequence(const std::shared_ptr<ngraph::opset5::TensorIterator>& ti,
                                      const std::shared_ptr<ngraph::op::util::RNNCellBase>& found_cell,

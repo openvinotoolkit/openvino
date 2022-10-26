@@ -14,8 +14,6 @@
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::UnrollTensorIterator, "UnrollTensorIterator", 0);
-
 bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(UnrollTensorIterator);
     for (const auto& op : f->get_ops()) {
@@ -109,6 +107,20 @@ bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngra
 
         // Port map: outputs
         for (const auto& desc : sub_graph_op->get_output_descriptions()) {
+            //  we need to insert tensor_name to the outputs of TensorIterator if they directly connected to
+            // Results ops. It's necessary to save original TensorIterator name when we use CNNNetwork.
+            auto insert_tensor_name = [&](const ov::Output<ov::Node>& ti_output, const ov::Output<Node>& insert_to) {
+                auto target_inputs = ti_output.get_target_inputs();
+                if (target_inputs.empty() ||
+                    std::any_of(target_inputs.begin(), target_inputs.end(), [](const ov::Input<ov::Node>& target_inp) {
+                        return ov::as_type<ngraph::opset8::Result>(target_inp.get_node()) != nullptr;
+                    })) {
+                    NGRAPH_SUPPRESS_DEPRECATED_START
+                    insert_to.get_tensor().set_name(ngraph::op::util::create_ie_output_name(ti_output));
+                    NGRAPH_SUPPRESS_DEPRECATED_END
+                }
+            };
+
             if (const auto& concat_desc =
                     std::dynamic_pointer_cast<ngraph::opset6::TensorIterator::ConcatOutputDescription>(desc)) {
                 if (!concat_desc) {
@@ -135,10 +147,8 @@ bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngra
                     copy_runtime_info(sub_graph_op, concat);
 
                     // set output name to Tensor to store it for ngraph to cnn conversion
-                    NGRAPH_SUPPRESS_DEPRECATED_START
-                    concat->output(0).get_tensor().set_name(
-                        op::util::create_ie_output_name(sub_graph_op->output(concat_desc->m_output_index)));
-                    NGRAPH_SUPPRESS_DEPRECATED_END
+                    insert_tensor_name(sub_graph_op->output(concat_desc->m_output_index), concat->output(0));
+
                     // connect the Concat layer to the corresponding TI outputs
                     for (auto& input : sub_graph_op->output(concat_desc->m_output_index).get_target_inputs()) {
                         input.replace_source_output(concat);
@@ -149,10 +159,8 @@ bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngra
                         body_functions[0]->get_results().at(concat_desc->m_body_value_index);
                     const auto& input_to_res = result->get_input_source_output(0);
                     // set output name to Tensor to store it for ngraph to cnn conversion
-                    NGRAPH_SUPPRESS_DEPRECATED_START
-                    input_to_res.get_tensor().set_name(
-                        op::util::create_ie_output_name(sub_graph_op->output(concat_desc->m_output_index)));
-                    NGRAPH_SUPPRESS_DEPRECATED_END
+                    insert_tensor_name(sub_graph_op->output(concat_desc->m_output_index), input_to_res);
+
                     for (auto& input : sub_graph_op->output(concat_desc->m_output_index).get_target_inputs()) {
                         input.replace_source_output(input_to_res);
                     }
@@ -166,11 +174,7 @@ bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngra
                     body_functions[iter]->get_results()[output_desc->m_body_value_index];
                 const auto& in_value = result->input_value(0);
 
-                // set output name to Tensor to store it for ngraph to cnn conversion
-                NGRAPH_SUPPRESS_DEPRECATED_START
-                in_value.get_tensor().set_name(
-                    op::util::create_ie_output_name(sub_graph_op->output(output_desc->m_output_index)));
-                NGRAPH_SUPPRESS_DEPRECATED_END
+                insert_tensor_name(sub_graph_op->output(output_desc->m_output_index), in_value);
                 for (const auto& input : sub_graph_op->output(output_desc->m_output_index).get_target_inputs()) {
                     input.replace_source_output(result->get_input_source_output(0));
                 }

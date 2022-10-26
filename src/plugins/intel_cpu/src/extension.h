@@ -9,7 +9,7 @@
 namespace ov {
 namespace intel_cpu {
 
-class MKLDNNExtension : public InferenceEngine::IExtension {
+class Extension : public InferenceEngine::IExtension {
 public:
     void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override;
     void Unload() noexcept override;

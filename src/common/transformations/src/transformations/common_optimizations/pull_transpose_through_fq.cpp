@@ -14,8 +14,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::PullTransposeThroughFQUp, "PullTransposeThroughFQUp", 0);
-
 ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
     MATCHER_SCOPE(PullTransposeThroughFQUp);
     const auto weights = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();

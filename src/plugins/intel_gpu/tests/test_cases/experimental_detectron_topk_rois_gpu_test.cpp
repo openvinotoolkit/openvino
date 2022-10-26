@@ -31,7 +31,7 @@ TEST(experimental_detectron_topk_rois_gpu_fp32, check_set_indices_layer) {
                {3, 1});
 
     const std::string input_rois_id = "InputRois";
-    const std::string input_indices_id = "InputIndices";;
+    const std::string input_indices_id = "InputIndices";
     const std::string experimental_detectron_topk_rois_id = "experimental_detectron_topk_rois";
     topology topology;
     topology.add(input_layout(input_rois_id, roi_input->get_layout()));

@@ -24,13 +24,15 @@ struct depth_to_space_impl : typed_primitive_impl_ocl<depth_to_space> {
     }
 
 public:
-    static primitive_impl* create(const depth_to_space_node& arg) {
-        auto depth_to_space_params = get_default_params<kernel_selector::depth_to_space_params>(arg);
+    static primitive_impl* create(const depth_to_space_node& arg, const kernel_impl_params& impl_param) {
+        const auto& prim = arg.get_primitive();
+
+        auto depth_to_space_params = get_default_params<kernel_selector::depth_to_space_params>(impl_param);
         auto depth_to_space_optional_params =
             get_default_optional_params<kernel_selector::depth_to_space_optional_params>(arg.get_program());
 
-        depth_to_space_params.block_size = arg.get_primitive()->block_size;
-        depth_to_space_params.mode = arg.get_primitive()->mode == depth_to_space_mode::blocks_first ? kernel_selector::depth_to_space_mode::BLOCKS_FIRST
+        depth_to_space_params.block_size = prim->block_size;
+        depth_to_space_params.mode = prim->mode == depth_to_space_mode::blocks_first ? kernel_selector::depth_to_space_mode::BLOCKS_FIRST
                                                                                                     : kernel_selector::depth_to_space_mode::DEPTH_FIRST;
 
         auto& kernel_selector = kernel_selector::depth_to_space_kernel_selector::Instance();
@@ -50,32 +52,22 @@ public:
 namespace detail {
 
 attach_depth_to_space_impl::attach_depth_to_space_impl() {
-    implementation_map<depth_to_space>::add(impl_types::ocl, depth_to_space_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
-    });
+    std::vector<data_types> dt = {
+        data_types::f32,
+        data_types::f16,
+        data_types::u8,
+        data_types::i8,
+    };
+    std::vector<format::type> fmt = {
+        format::bfyx,
+        format::bfzyx,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv32,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32,
+    };
+    implementation_map<depth_to_space>::add(impl_types::ocl, depth_to_space_impl::create, dt, fmt);
 }
 
 }  // namespace detail

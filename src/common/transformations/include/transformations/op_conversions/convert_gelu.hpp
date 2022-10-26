@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API ConvertGELU;
 
 class ngraph::pass::ConvertGELU : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertGELU", "0");
     ConvertGELU();
 };

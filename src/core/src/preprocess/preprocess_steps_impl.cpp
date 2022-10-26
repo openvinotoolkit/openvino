@@ -11,6 +11,7 @@
 #include "openvino/op/nv12_to_bgr.hpp"
 #include "openvino/op/nv12_to_rgb.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/util/common_util.hpp"
 #include "transformations/rt_info/preprocessing_attribute.hpp"
 
 namespace ov {
@@ -202,6 +203,33 @@ void PreStepsList::add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_
         name);
 }
 
+void PreStepsList::add_crop_impl(const std::vector<int>& begin, const std::vector<int>& end) {
+    std::stringstream name_str;
+    name_str << "Crop (" << ov::util::vector_to_string(begin) << "," << ov::util::vector_to_string(end) << ")";
+    OPENVINO_ASSERT(begin.size() == end.size(),
+                    name_str.str(),
+                    " begin/end coordinates must have the same size. Begin size=",
+                    begin.size(),
+                    ", end size=",
+                    end.size());
+    m_actions.emplace_back(
+        [begin, end](const std::vector<Output<Node>>& nodes,
+                     const std::shared_ptr<Model>& function,
+                     PreprocessingContext& ctxt) {
+            OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't add resize for empty input.");
+            OPENVINO_ASSERT(nodes.size() == 1,
+                            "Can't crop multi-plane input. Suggesting to convert current image to "
+                            "RGB/BGR color format using 'PreProcessSteps::convert_color'");
+            auto node = nodes.front();
+            auto start = opset8::Constant::create(element::i32, {begin.size()}, begin);
+            auto stop = opset8::Constant::create(element::i32, {end.size()}, end);
+            auto step = opset8::Constant::create(element::i32, {begin.size()}, std::vector<int32_t>(begin.size(), 1));
+            auto slice = std::make_shared<opset8::Slice>(node, start, stop, step);
+            return std::make_tuple(std::vector<Output<Node>>{slice}, true);
+        },
+        name_str.str());
+}
+
 Layout PreStepsList::propagate_layout(const Layout& tensor_layout) const {
     auto res = m_last_explicit_layout_set ? m_last_explicit_layout : tensor_layout;
     for (const auto& convert : m_forward_layout_converts) {
@@ -293,7 +321,7 @@ std::tuple<PartialShape, Layout> PreStepsList::calculate_param_shape(const Parti
     Layout res_layout = model_layout;
     std::vector<Dimension> old_dims(model_shape.rank().get_length());
     std::vector<Dimension> dims(model_shape.rank().get_length());
-    for (size_t i = 0; i < model_shape.rank().get_length(); i++) {
+    for (size_t i = 0; i < static_cast<size_t>(model_shape.rank().get_length()); i++) {
         dims[i] = model_shape[i];
     }
     for (const auto& convert : m_layout_converts) {

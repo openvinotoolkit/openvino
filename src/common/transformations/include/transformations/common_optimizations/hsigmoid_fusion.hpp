@@ -28,7 +28,7 @@ class TRANSFORMATIONS_API HSigmoidFusionWithClampDiv;
  */
 class ngraph::pass::HSigmoidFusionWithReluDiv : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("HSigmoidFusionWithReluDiv", "0");
     HSigmoidFusionWithReluDiv();
 };
 
@@ -38,7 +38,7 @@ public:
  */
 class ngraph::pass::HSigmoidFusionWithReluMul : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("HSigmoidFusionWithReluMul", "0");
     HSigmoidFusionWithReluMul();
 };
 
@@ -48,7 +48,7 @@ public:
  */
 class ngraph::pass::HSigmoidFusionWithoutRelu : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("HSigmoidFusionWithoutRelu", "0");
     HSigmoidFusionWithoutRelu();
 };
 
@@ -58,7 +58,7 @@ public:
  */
 class ngraph::pass::HSigmoidFusionWithClampMul : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("HSigmoidFusionWithClampMul", "0");
     HSigmoidFusionWithClampMul();
 };
 
@@ -68,7 +68,7 @@ public:
  */
 class ngraph::pass::HSigmoidFusionWithClampDiv : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("HSigmoidFusionWithClampDiv", "0");
     HSigmoidFusionWithClampDiv();
 };
 
@@ -78,7 +78,7 @@ public:
  */
 class ngraph::pass::HSigmoidFusion : public ngraph::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("HSigmoidFusion", "0");
     HSigmoidFusion() {
         add_matcher<ngraph::pass::HSigmoidFusionWithReluDiv>();
         add_matcher<ngraph::pass::HSigmoidFusionWithReluMul>();

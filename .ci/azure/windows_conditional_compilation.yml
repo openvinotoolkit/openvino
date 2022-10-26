@@ -1,11 +1,28 @@
 trigger:
   branches:
     include:
+    - master 
+    - releases/*
+  paths:
+    exclude: 
+    - docs/
+    - /**/docs/*
+    - /**/*.md
+    - README.md
+    - /**/layer_tests_summary/**
+
+pr:
+  branches:
+    include:
     - master
     - releases/*
   paths:
-    exclude:
-    - docs/*
+    exclude: 
+    - docs/
+    - /**/docs/*
+    - /**/*.md
+    - README.md
+    - /**/layer_tests_summary/**
 
 jobs:
 - job: WinCC
@@ -21,7 +38,6 @@ jobs:
     VSTS_HTTP_TIMEOUT: 200
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
-    OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)\..\openvino_contrib
     MODELS_PATH: $(REPO_DIR)\..\testdata
     WORK_DIR: $(Pipeline.Workspace)\_w
     BUILD_DIR: $(WORK_DIR)\build
@@ -66,7 +82,15 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && cmake -GNinja -DENABLE_FASTER_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(REPO_DIR)
+      call "$(MSVS_VARS_PATH)" && cmake -GNinja ^
+        -DENABLE_FASTER_BUILD=ON ^
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^
+        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
+        -DENABLE_PROFILING_ITT=ON ^
+        -DSELECTIVE_BUILD=COLLECT ^
+        -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
+        -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
+        $(REPO_DIR)
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
 

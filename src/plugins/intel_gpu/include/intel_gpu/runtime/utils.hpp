@@ -10,6 +10,7 @@
 #include <memory>
 #include <stdexcept>
 #include <algorithm>
+#include <sstream>
 #include <vector>
 
 namespace cldnn {
@@ -169,6 +170,28 @@ inline bool any_not_one(const std::vector<T> vec) {
 template <typename T>
 inline bool any_not_zero(const std::vector<T> vec) {
     return std::any_of(vec.begin(), vec.end(), [](const T& val) { return val != 0; });
+}
+
+// Helpers to get string for types that have operator<< defined
+template <typename T>
+inline std::string to_string(const T& v) {
+    std::stringstream s;
+    s << v;
+    return s.str();
+}
+
+// The following code is derived from Boost C++ library
+// Copyright 2005-2014 Daniel James.
+// Distributed under the Boost Software License, Version 1.0. (See http://www.boost.org/LICENSE_1_0.txt)
+template <typename T, typename std::enable_if<!std::is_enum<T>::value , int>::type = 0>
+static size_t hash_combine(size_t seed, const T &v) {
+    return seed ^= std::hash<T> {}(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
+
+template <typename T, typename std::enable_if<std::is_enum<T>::value , int>::type = 0>
+static size_t hash_combine(size_t seed, const T &v) {
+    using underlying_t = typename std::underlying_type<T>::type;
+    return hash_combine(seed, static_cast<underlying_t>(v));
 }
 
 /// @}

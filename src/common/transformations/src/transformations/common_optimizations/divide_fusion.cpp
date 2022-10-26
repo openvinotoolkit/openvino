@@ -12,8 +12,6 @@
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::DivideFusion, "DivideFusion", 0);
-
 ngraph::pass::DivideFusion::DivideFusion() {
     MATCHER_SCOPE(DivideFusion);
     auto p_pow_input = pattern::any_input();

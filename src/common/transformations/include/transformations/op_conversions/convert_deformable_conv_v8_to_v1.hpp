@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API ConvertDeformableConv8To1;
  */
 class ngraph::pass::ConvertDeformableConv8To1 : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertDeformableConv8To1", "0");
     ConvertDeformableConv8To1();
 };

@@ -26,11 +26,11 @@ class LP_TRANSFORMATIONS_API ConvertSubtractConstant;
  * to prevent constant folding.
  *
  * For more details about the transformation, refer to
- * [ConvertSubtractConstant](@ref openvino_docs_IE_DG_lpt_ConvertSubtractConstant) page
+ * [ConvertSubtractConstant](@ref openvino_docs_OV_UG_lpt_ConvertSubtractConstant) page
  * in the Inference Engine Developer Guide.
  */
 class ngraph::pass::low_precision::ConvertSubtractConstant : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertSubtractConstant", "0");
     ConvertSubtractConstant(const std::vector<ngraph::element::Type>& constantPrecisions = {});
 };

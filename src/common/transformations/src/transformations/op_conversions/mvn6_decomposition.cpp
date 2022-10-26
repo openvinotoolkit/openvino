@@ -11,8 +11,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::MVN6Decomposition, "MVN6Decomposition", 0);
-
 ngraph::pass::MVN6Decomposition::MVN6Decomposition() {
     MATCHER_SCOPE(MVN6Decomposition);
     // Decomposes MVN(x, axes) op if normalize_variance is false into sub-graph

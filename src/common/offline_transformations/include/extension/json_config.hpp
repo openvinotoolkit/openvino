@@ -9,7 +9,6 @@
 #include <type_traits>
 
 #include "openvino/frontend/extension/decoder_transformation.hpp"
-#include "openvino/frontend/visibility.hpp"
 
 namespace ov {
 namespace frontend {

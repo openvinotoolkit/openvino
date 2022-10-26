@@ -3,7 +3,7 @@
 #
 
 from openvino.preprocess import ResizeAlgorithm, ColorFormat
-from openvino.runtime import Layout, Type
+from openvino.runtime import Layout, Type, serialize
 
 
 xml_path = ''
@@ -169,3 +169,64 @@ def custom_abs(output: Output):
 ppp.output("result_image").postprocess()\
     .custom(custom_abs)
 # ! [ov:preprocess:postprocess]
+
+# ! [ov:preprocess:save_headers]
+from openvino.preprocess import PrePostProcessor, ColorFormat, ResizeAlgorithm
+from openvino.runtime import Core, Layout, Type, set_batch
+# First method - imports
+from openvino.runtime import serialize
+# Second method - imports
+from openvino.runtime.passes import Manager, Serialize
+# ! [ov:preprocess:save_headers]
+
+# ! [ov:preprocess:save]
+# ========  Step 0: read original model =========
+core = Core()
+model = core.read_model(model='/path/to/some_model.onnx')
+
+# ======== Step 1: Preprocessing ================
+ppp = PrePostProcessor(model)
+# Declare section of desired application's input format
+ppp.input().tensor() \
+    .set_element_type(Type.u8) \
+    .set_spatial_dynamic_shape() \
+    .set_layout(Layout('NHWC')) \
+    .set_color_format(ColorFormat.BGR)
+
+# Specify actual model layout
+ppp.input().model().set_layout(Layout('NCHW'))
+
+# Explicit preprocessing steps. Layout conversion will be done automatically as last step
+ppp.input().preprocess() \
+    .convert_element_type() \
+    .convert_color(ColorFormat.RGB) \
+    .resize(ResizeAlgorithm.RESIZE_LINEAR) \
+    .mean([123.675, 116.28, 103.53]) \
+    .scale([58.624, 57.12, 57.375])
+
+# Dump preprocessor
+print(f'Dump preprocessor: {ppp}')
+model = ppp.build()
+
+# ======== Step 2: Change batch size ================
+# In this example we also want to change batch size to increase throughput
+set_batch(model, 2)
+
+# ======== Step 3: Save the model ================
+# First method - using serialize runtime wrapper
+serialize(model, '/path/to/some_model_saved.xml', '/path/to/some_model_saved.bin')
+
+# Second method - using Manager and Serialize pass
+manager = Manager()
+manager.register_pass(Serialize('/path/to/some_model_saved.xml', '/path/to/some_model_saved.bin'))
+manager.run_passes(model)
+# ! [ov:preprocess:save]
+
+# ! [ov:preprocess:save_load]
+core = Core()
+core.set_property({'CACHE_DIR': '/path/to/cache/dir'})
+
+# In case that no preprocessing is needed anymore, we can load model on target device directly
+# With cached model available, it will also save some time on reading original model
+compiled_model = core.compile_model('/path/to/some_model_saved.xml', 'CPU')
+# ! [ov:preprocess:save_load]

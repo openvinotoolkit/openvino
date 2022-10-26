@@ -19,6 +19,6 @@ class TRANSFORMATIONS_API ConvertBroadcast3;
 
 class ngraph::pass::ConvertBroadcast3 : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertBroadcast3", "0");
     ConvertBroadcast3();
 };

@@ -12,8 +12,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SoftPlusDecomposition, "SoftPlusDecomposition", 0);
-
 ngraph::pass::SoftPlusDecomposition::SoftPlusDecomposition() {
     MATCHER_SCOPE(SoftPlusDecomposition);
     // decomposes SoftPlus(x) operation into ln(exp(x) + 1.0)

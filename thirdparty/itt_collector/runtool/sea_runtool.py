@@ -30,7 +30,7 @@ import binascii
 import platform
 import traceback
 import threading
-import subprocess
+import subprocess # nosec
 from python_compat import *
 from glob import glob
 from datetime import datetime, timedelta

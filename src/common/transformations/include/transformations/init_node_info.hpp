@@ -40,6 +40,6 @@ class NGRAPH_API InitNodeInfo;
  */
 class ngraph::pass::InitNodeInfo : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("InitNodeInfo", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };

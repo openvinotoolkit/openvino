@@ -11,8 +11,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::HSigmoidDecomposition, "HSigmoidDecomposition", 0);
-
 ngraph::pass::HSigmoidDecomposition::HSigmoidDecomposition() {
     MATCHER_SCOPE(HSigmoidDecomposition);
     // Decomposes HSigmoid(x) op into sub-graph (min(Relu(x + 3), 6) * const(1/6)

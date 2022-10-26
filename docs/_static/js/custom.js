@@ -25,6 +25,14 @@ var wapSection = 'openvinotoolkit';
     s.appendChild(po);
 })();
 
+// legal notice for benchmarks
+function addLegalNotice() {
+    if (window.location.href.indexOf('openvino_docs_performance_') !== -1) {
+        var legalNotice = $('<div class="opt-notice-wrapper"><p class="opt-notice">Results may vary. For workloads visit: <a href="openvino_docs_performance_benchmarks_faq.html#what-image-sizes-are-used-for-the-classification-network-models">workloads</a> and for configurations visit: <a href="openvino_docs_performance_benchmarks_openvino.html#platform-configurations">configurations</a>. See also <a class="el" href="openvino_docs_Legal_Information.html">Legal Information</a>.</p></div>');
+        $('body').append(legalNotice);
+    }
+}
+
 $(document).ready(function () {
     createVersions();
     updateTitleTag();
@@ -36,6 +44,9 @@ $(document).ready(function () {
     if (TABLE_SORT) {
         addTableSort();
     }
+    addLegalNotice();
+    updateSearchForm();
+    createSphinxTabSets();
 });
 
 // Determine where we'd go if clicking on a version selector option
@@ -43,6 +54,35 @@ function getPageUrlWithVersion(version) {
     var currentURL = window.location.href;
     var newURL = currentURL.replace(getCurrentVersion(), version);
     return encodeURI(newURL);
+}
+
+
+function createSphinxTabSets() {
+    var sphinxTabSets = $('.sphinxtabset');
+    var tabSetCount = 1000;
+    sphinxTabSets.each(function() {
+        var tabSet = $(this);
+        var inputCount = 1;
+        tabSet.addClass('tab-set docutils');
+        tabSetCount++;
+        tabSet.find('> .sphinxtab').each(function() {
+            var tab = $(this);
+            var checked = '';
+            var tabValue = tab.attr('data-sphinxtab-value');
+            if (inputCount == 1) {
+                checked = 'checked';
+            }
+            var input = $(`<input ${checked} class="tab-input" id="tab-set--${tabSetCount}-input--${inputCount}" name="tab-set--${tabSetCount}" type="radio">`);
+            input.insertBefore(tab);
+            var label = $(`<label class="tab-label" for="tab-set--${tabSetCount}-input--${inputCount}">${tabValue}</label>`);
+            label.click(onLabelClick);
+            label.insertBefore(tab);
+            inputCount++;
+            tab.addClass('tab-content docutils');
+        });
+
+    })
+    ready(); // # this function is available from tabs.js
 }
 
 function updateTitleTag() {
@@ -69,6 +109,10 @@ function getCurrentVersion() {
     return encodeURI(wordAfterDomain);
 }
 
+function updateSearchForm() {
+    var currentVersion = getCurrentVersion();
+    $('.searchForm').append('<input type="hidden" name="version" value="' + currentVersion  + '">');
+}
 
 function createVersions() {
     var currentVersion = getCurrentVersion();

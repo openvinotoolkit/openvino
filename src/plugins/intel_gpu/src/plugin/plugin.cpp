@@ -26,9 +26,15 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "ie_icore.hpp"
 
+#include "dimension_tracker.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/common_optimizations/dimension_tracking.hpp"
 #include <transformations/rt_info/fused_names_attribute.hpp>
 
+#include <transformations/utils/utils.hpp>
 #include "openvino/pass/serialize.hpp"
+#include "openvino/pass/manager.hpp"
+#include <ngraph/pass/manager.hpp>
 #include <openvino/util/common_util.hpp>
 
 #include "intel_gpu/runtime/device_query.hpp"
@@ -48,7 +54,6 @@ using namespace InferenceEngine::gpu;
 using namespace InferenceEngine::details;
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 #define FACTORY_DECLARATION(op_version, op_name) \
@@ -92,22 +97,26 @@ cldnn::device_info Plugin::GetDeviceInfo(const std::map<std::string, std::string
     return device_info;
 }
 
+void Plugin::TransformNetwork(std::shared_ptr<ov::Model>& model, const Config& config) const {
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::TransformNetwork");
+    auto deviceInfo = GetDeviceInfo(config.key_config_map);
+    TransformationsPipeline transformations(config, deviceInfo);
+    transformations.apply(model);
+}
+
 InferenceEngine::CNNNetwork Plugin::CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,
                                                              const Config& config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::CloneAndTransformNetwork");
     CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
 
-    if (clonedNetwork.getFunction()) {
-        auto nGraphFunc = clonedNetwork.getFunction();
-        auto deviceInfo = GetDeviceInfo(config.key_config_map);
-        TransformationsPipeline transformations(config, deviceInfo);
-        transformations.apply(nGraphFunc);
+    auto nGraphFunc = clonedNetwork.getFunction();
+    if (nGraphFunc) {
+        TransformNetwork(nGraphFunc, config);
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
+            auto path_base = debug_config->dump_graphs + "/" + network.getName() + "_" +  "transformed_func";
+            ov::pass::Serialize(path_base + ".xml", path_base + ".bin").run_on_model(nGraphFunc);
     }
-
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
-        auto path_base = debug_config->dump_graphs + "/" + network.getName() + "_" +  "transformed_func";
-        ov::pass::Serialize(path_base + ".xml", path_base + ".bin").run_on_model(clonedNetwork.getFunction());
     }
     return clonedNetwork;
 }
@@ -239,7 +248,7 @@ std::map<std::string, std::string> Plugin::ConvertPerfHintsToConfig(
 }
 
 IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
-                                                                const std::map<std::string, std::string> &orig_config) {
+                                                           const std::map<std::string, std::string> &orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::LoadExeNetworkImpl");
     // verification of supported input
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
@@ -378,150 +387,51 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
             AnyMap(), conf));
     }
     Program prog(m_defaultContext->getImpl()->GetEngine(), conf);
-    auto function = network.getFunction();
-    if (function == nullptr) {
-        IE_THROW() << "CNNetworkImpl representation is not supported anymore";
+    bool dyn_shape_batch_found = false;
+
+    auto model = network.getFunction();
+    if (model == nullptr) {
+        IE_THROW() << "Only ngraph-based models are supported!";
     }
 
-    std::unordered_set<std::string> originalOpNames;
-    auto originalOps = function->get_ops();
-    for (auto&& node : originalOps) {
-        originalOpNames.emplace(node->get_friendly_name());
-    }
+    auto supported = GetSupportedNodes(model,
+    [&](std::shared_ptr<ov::Model>& model) {
+        std::map<std::string, ngraph::PartialShape> shapes;
+        std::map<std::string, std::pair<int64_t, int64_t>> batch_dim;
+        dyn_shape_batch_found = prog.IsDynBatchModel(model, shapes, batch_dim);
+        TransformNetwork(model, conf);
+    },
+    [&](std::shared_ptr<ngraph::Node> node) {
+            if (node->is_dynamic()) {
+                if (!dyn_shape_batch_found)
+                    return false;
 
-    auto clonedNetwork = CloneAndTransformNetwork(network, conf);
-    auto func = clonedNetwork.getFunction();
-    auto ops = func->get_ordered_ops();
-    std::unordered_set<std::string> supported;
-    std::unordered_set<std::string> unsupported;
+                auto pshape = node->get_output_partial_shape(0);
+                if (pshape.rank().is_dynamic())
+                    return false;
 
-    std::unordered_set<std::string> constantsNames;
-    std::vector<std::shared_ptr<ngraph::Node>> constants;
-
-    std::map<std::string, ngraph::PartialShape> shapes;
-    std::map<std::string, std::pair<int64_t, int64_t>> batch_dim;
-    bool dyn_shape_batch_found = prog.IsDynBatchModel(func, shapes, batch_dim);
-    auto layerIsSupported = [&](std::shared_ptr<ngraph::Node> node) {
-        if (node->is_dynamic()) {
-            if (!dyn_shape_batch_found)
-                return false;
-
-            auto pshape = node->get_output_partial_shape(0);
-            if (pshape.rank().is_dynamic())
-                return false;
-
-            int dynCount = 0;
-            int64_t batch_idx = -1;
-            for (size_t i = 0; i < pshape.size(); i++) {
-                if (pshape[i].is_dynamic()) {
-                    dynCount++;
-                    if (batch_idx < 0) {
-                        batch_idx = i;
+                int dynCount = 0;
+                int64_t batch_idx = -1;
+                for (size_t i = 0; i < pshape.size(); i++) {
+                    if (pshape[i].is_dynamic()) {
+                        dynCount++;
+                        if (batch_idx < 0) {
+                            batch_idx = i;
+                        }
                     }
                 }
+
+                if (dynCount != 1)
+                    return false;  // more than one dimension is dynamic
+
+                int64_t max_batch = pshape[batch_idx].get_max_length();
+                if (max_batch <= 1)
+                    return false;
+
+                return true;
             }
-
-            if (dynCount != 1)
-                return false;  // more than one dimension is dynamic
-
-            int64_t max_batch = pshape[batch_idx].get_max_length();
-            if (max_batch <= 1)
-                return false;
-
-            return true;
-        }
-        if (ngraph::is_type<const ngraph::op::v0::PriorBox>(node) ||
-            ngraph::is_type<const ngraph::op::v0::PriorBoxClustered>(node) ||
-            ngraph::is_type<const ngraph::op::v0::Proposal>(node)) {
-            return false;
-        }
-        if (ngraph::is_type<const ngraph::op::v0::Constant>(node)) {
-            constantsNames.emplace(node->get_friendly_name());
-            constants.push_back(node);
-            return false;
-        }
-        return prog.IsOpSupported(network, node) &&
-               !ngraph::op::is_parameter(node) &&
-               !ngraph::op::is_output(node);
-    };
-
-    // Get ops after transformations and check if it's supported
-    // Transformations might lead to the situation when single node is merged to multiple operations,
-    // so we mark original op as supported only if all nodes that it was merged into are supported
-    bool wasNodeAlreadyChecked = false;
-    bool isSupported = false;
-    for (auto&& op : ops) {
-        wasNodeAlreadyChecked = false;
-        isSupported = false;
-        for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
-            if (InferenceEngine::details::contains(originalOpNames, fusedLayerName)) {
-                if (!wasNodeAlreadyChecked) {
-                    isSupported = layerIsSupported(op);
-                    wasNodeAlreadyChecked = true;
-                }
-                if (isSupported) {
-                    supported.emplace(fusedLayerName);
-                } else {
-                    unsupported.emplace(fusedLayerName);
-                }
-            }
-        }
-    }
-
-    for (auto&& layerName : unsupported) {
-        if (InferenceEngine::details::contains(supported, layerName)) {
-            supported.erase(layerName);
-        }
-    }
-    unsupported.clear();
-
-    // 1. Constants are marked as supported when all outputs can be offloaded to GPU
-    for (const auto& op : constants) {
-        bool is_supported = true;
-        for (size_t i = 0; i < op->get_output_size(); i++) {
-            auto outTensors = op->get_output_target_inputs(i);
-            for (auto& t : outTensors) {
-                auto output = t.get_node();
-                const auto& name = output->get_friendly_name();
-                if (!InferenceEngine::details::contains(supported, name)) {
-                    is_supported = false;
-                    break;
-                }
-            }
-        }
-        if (is_supported) {
-            supported.emplace(op->get_friendly_name());
-        }
-    }
-
-    // Mark original constants/parameters/results ops as supported for each supported operation
-    // since rt_info doesn't contain names of constant that are removed during constant folding
-    for (auto&& node : originalOps) {
-        if (InferenceEngine::details::contains(supported, node->get_friendly_name())) {
-            for (auto&& inputNodeOutput : node->input_values()) {
-                if (ngraph::op::is_constant(inputNodeOutput.get_node()) || ngraph::op::is_parameter(inputNodeOutput.get_node())) {
-                    supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
-                }
-            }
-            for (auto&& outputs : node->outputs()) {
-                for (auto&& outputNodeInput : outputs.get_target_inputs()) {
-                    if (ngraph::op::is_output(outputNodeInput.get_node())) {
-                        supported.emplace(outputNodeInput.get_node()->get_friendly_name());
-                    }
-                }
-            }
-        }
-
-        if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node)) {
-            if (!InferenceEngine::details::contains(supported, node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
-                supported.erase(node->get_friendly_name());
-            }
-        } else if (ngraph::op::is_output(node)) {
-            if (!InferenceEngine::details::contains(supported, node->input_values().begin()->get_node()->get_friendly_name())) {
-                supported.erase(node->get_friendly_name());
-            }
-        }
-    }
+            return prog.IsOpSupported(network, node);
+    });
 
     for (auto&& layerName : supported) {
         res.supportedLayersMap.emplace(layerName, GetName());
@@ -540,7 +450,7 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
     }
     Config config = _impl->m_configs.GetConfig(device_id);
 
-    const bool is_new_api = GetCore()->isNewAPI();
+    const bool is_new_api = IsNewAPI();
     if (config.key_config_map.find(name) != config.key_config_map.end()) {
         std::string val = config.key_config_map.find(name)->second;
         if (is_new_api) {
@@ -565,8 +475,9 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
             } else if (name == ov::num_streams) {
                 return ov::util::from_string(val, ov::num_streams);
             } else if (name == ov::hint::num_requests) {
-                auto temp = ov::util::from_string(val, ov::hint::num_requests);;
-                return temp;
+                return ov::util::from_string(val, ov::hint::num_requests);
+            } else if (name == ov::hint::inference_precision) {
+                return ov::util::from_string(val, ov::hint::inference_precision);
             } else if (name == ov::device::id) {
                 return ov::util::from_string(val, ov::device::id);
             } else {
@@ -580,7 +491,7 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
                 return val;
         }
     } else {
-        IE_THROW() << "Unsupported config key : " << name;
+        IE_THROW() << "3-Unsupported config key : " << name;
     }
 }
 
@@ -658,10 +569,14 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
     GPU_DEBUG_GET_INSTANCE(debug_config);
     std::string device_id = GetConfig(ov::device::id.name(), options);
 
-    auto iter = device_map.find(device_id);
-    auto device = iter != device_map.end() ? iter->second : device_map.begin()->second;
+    auto iter = device_map.find(std::to_string(cldnn::device_query::device_id));
+    if (iter == device_map.end())
+        iter = device_map.find(device_id);
+    if (iter == device_map.end())
+        iter = device_map.begin();
+    auto device = iter->second;
     auto device_info = device->get_info();
-    bool is_new_api = GetCore()->isNewAPI();
+    bool is_new_api = IsNewAPI();
 
     if (name == ov::supported_properties) {
         return decltype(ov::supported_properties)::value_type {
@@ -673,6 +588,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             ov::PropertyName{ov::optimal_batch_size.name(), PropertyMutability::RO},
             ov::PropertyName{ov::max_batch_size.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::full_name.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::device::uuid.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::type.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::gops.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::capabilities.name(), PropertyMutability::RO},
@@ -693,6 +609,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RW},
             ov::PropertyName{ov::num_streams.name(), PropertyMutability::RW},
             ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RW},
+            ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
             ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
         };
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
@@ -828,6 +745,10 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             GPU_DEBUG_COUT << "ACTUAL OPTIMAL BATCH: " << batch << std::endl;
         }
         return decltype(ov::optimal_batch_size)::value_type {batch};
+    } else if (name == ov::device::uuid) {
+        ov::device::UUID uuid = {};
+        std::copy_n(std::begin(device_info.uuid.val), cldnn::device_uuid::max_uuid_size, std::begin(uuid.uuid));
+        return decltype(ov::device::uuid)::value_type {uuid};
     } else if (name == ov::device::full_name) {
         auto deviceName = StringRightTrim(device_info.dev_name, "NEO", false);
         deviceName += std::string(" (") + (device_info.dev_type == cldnn::device_type::discrete_gpu ? "dGPU" : "iGPU") + ")";
@@ -961,48 +882,66 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         std::shared_ptr<Program> program;
 
         GPU_DEBUG_IF(debug_config->base_batch_for_memory_estimation > 0) {
-            int32_t user_specified_base_batch_size = debug_config->base_batch_for_memory_estimation;
+            size_t user_specified_base_batch_size = debug_config->base_batch_for_memory_estimation;
             base_batch_size = (user_specified_base_batch_size != base_batch_size) ? user_specified_base_batch_size : base_batch_size;
         }
 
         auto cloned_network = InferenceEngine::details::cloneNetwork(network);
         auto inputs_info = cloned_network.getInputsInfo();
         ICNNNetwork::InputShapes new_shapes;
-        //std::map<std::string, SizeVector>;
-        bool batch_detected = false;
-        for (auto& info : inputs_info) {
-            if (!info.second)
-                continue;
-            InferenceEngine::Layout layout = info.second->getLayout();
-            auto data = info.second->getInputData();
-            if (!data)
-                continue;
-            std::string name = info.second->getInputData()->getName();
-            auto shape = data->getTensorDesc().getDims();
-            if (layout == InferenceEngine::Layout::NCHW ||
-                layout == InferenceEngine::Layout::NHWC ||
-                layout == InferenceEngine::Layout::NCDHW ||
-                layout == InferenceEngine::Layout::NDHWC ||
-                layout == InferenceEngine::Layout::NC)  {
-                shape[0] = base_batch_size;
-                batch_detected = true;
-            } else if (layout == InferenceEngine::Layout::CN) {
-                shape[1] = base_batch_size;
-                batch_detected = true;
-            }
-            new_shapes[name] = shape;
-        }
+
         try {
-            if (batch_detected) { // reshape only for batched layout
-                cloned_network.reshape(new_shapes);
-                GPU_DEBUG_IF(debug_config->verbose >= 1) {
-                    GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] Reshaped base batch size to " << base_batch_size << std::endl;
+            std::set<std::pair<std::string, size_t>> batched_inputs;
+
+            auto function = InferenceEngine::details::cloneNetwork(cloned_network).getFunction();
+            ov::pass::Manager m;
+            m.register_pass<ngraph::pass::InitNodeInfo>();
+            m.register_pass<ov::pass::FindBatch>(true, false);
+            m.run_passes(function);
+            const auto& params = function->get_parameters();
+            for (size_t input_id = 0; input_id < params.size(); input_id++) {
+                const auto& input = params[input_id];
+                const auto& shape = input->get_partial_shape();
+                // currently no plugin support batched execution for dynamic networks
+                if (shape.is_dynamic()) {
+                    GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                        GPU_DEBUG_COUT << "[MAX_BATCH_SIZE] does not support dynamic networks" << std::endl;
+                    }
+                    return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
                 }
-            } else {
-                base_batch_size = 1;
-                GPU_DEBUG_IF(debug_config->verbose >= 1) {
-                    GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] Batch dimension is not used in inputs." << std::endl;
+
+                if (shape.size()) {
+                    for (size_t s = 0; s < shape.size(); s++) {
+                        if (ov::DimensionTracker::get_label(shape[s])) {
+                            // batched dim for the input
+                            auto batched_input_id = ngraph::op::util::get_ie_output_name(params[input_id]->output(0));
+                            GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                                GPU_DEBUG_COUT << "[MAX_BATCH_SIZE] detected batched input " << batched_input_id
+                                               << "[" << s << "]" << std::endl;
+                            }
+                            batched_inputs.insert(std::make_pair(batched_input_id, s));
+                        }
+                    }
                 }
+            }
+
+            if (!batched_inputs.size()) {
+                GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                    GPU_DEBUG_COUT << "[MAX_BATCH_SIZE] MAX_BATCH_SIZE supports only networks with inputs/outputs featuring batched dim." << std::endl;
+                }
+                return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
+            }
+
+            try {
+                ICNNNetwork::InputShapes shapes = cloned_network.getInputShapes();
+                for (const auto& input : batched_inputs)
+                    shapes[input.first][input.second] = base_batch_size;
+                cloned_network.reshape(shapes);
+            } catch (...) {
+                GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                    GPU_DEBUG_COUT << "[MAX_BATCH_SIZE] Error at reshape to " << base_batch_size << std::endl;
+                }
+                return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
             }
 
             auto nGraphFunc = cloned_network.getFunction();
@@ -1033,8 +972,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
     }
 }
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov
 
 static const Version version = { {2, 1}, CI_BUILD_NUMBER, "Intel GPU plugin" };
-IE_DEFINE_PLUGIN_CREATE_FUNCTION(ov::runtime::intel_gpu::Plugin, version)
+IE_DEFINE_PLUGIN_CREATE_FUNCTION(ov::intel_gpu::Plugin, version)

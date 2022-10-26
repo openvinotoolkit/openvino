@@ -10,12 +10,14 @@
 #include <utility>
 #include <vector>
 
+#include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_common.hpp"
-#include "file_utils.h"
 #include "ie_iextension.h"
 #include "ngraph/op/op.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/op_extension.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/util/file_util.hpp"
 
 using namespace testing;
 using namespace InferenceEngine;
@@ -174,14 +176,25 @@ public:
 namespace {
 
 std::string getOVExtensionPath() {
-    return FileUtils::makePluginLibraryName<char>({}, std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
+    return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+                                              std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
+}
+
+std::string getOldExtensionPath() {
+    return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+                                              std::string("template_extension") + IE_BUILD_POSTFIX);
+}
+
+std::string getIncorrectExtensionPath() {
+    return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+                                              std::string("incorrect") + IE_BUILD_POSTFIX);
 }
 
 }  // namespace
 
 class CustomOldIdentity : public ngraph::op::Op {
 public:
-    static constexpr ngraph::NodeTypeInfo type_info{"Identity", 0};
+    static constexpr ngraph::NodeTypeInfo type_info{"Identity", static_cast<uint64_t>(0)};
     const ngraph::NodeTypeInfo& get_type_info() const override {
         return type_info;
     }
@@ -331,4 +344,16 @@ TEST_F(OVExtensionTests, ReshapeIRWithSeveralNewExtensions) {
 TEST_F(OVExtensionTests, ReshapeIRWithSeveralNewOps) {
     core.add_extension<CustomNewIdentity, CustomReLU>();
     test_two_op();
+}
+
+TEST_F(OVExtensionTests, load_new_extension) {
+    EXPECT_NO_THROW(core.add_extension(getOVExtensionPath()));
+}
+
+TEST_F(OVExtensionTests, load_old_extension) {
+    EXPECT_NO_THROW(core.add_extension(getOldExtensionPath()));
+}
+
+TEST_F(OVExtensionTests, load_incorrect_extension) {
+    EXPECT_THROW(core.add_extension(getIncorrectExtensionPath()), ov::Exception);
 }

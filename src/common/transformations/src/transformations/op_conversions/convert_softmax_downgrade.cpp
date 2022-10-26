@@ -12,8 +12,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSoftMax8ToSoftMax1, "ConvertSoftMax8ToSoftMax1", 0);
-
 ngraph::pass::ConvertSoftMax8ToSoftMax1::ConvertSoftMax8ToSoftMax1() {
     MATCHER_SCOPE(ConvertSoftMax8ToSoftMax1);
 

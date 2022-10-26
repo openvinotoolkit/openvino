@@ -12,6 +12,7 @@ namespace v4 {
 /// \brief A Self Regularized Non-Monotonic Neural Activation Function
 /// f(x) =  x * tanh(log(exp(x) + 1.))
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Mish : public Op {
 public:
     OPENVINO_OP("Mish", "opset4", op::Op, 4);

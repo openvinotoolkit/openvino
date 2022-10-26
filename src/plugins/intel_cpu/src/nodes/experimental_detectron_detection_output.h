@@ -9,19 +9,20 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNExperimentalDetectronDetectionOutputNode : public MKLDNNNode {
+class ExperimentalDetectronDetectionOutput : public Node {
 public:
-    MKLDNNExperimentalDetectronDetectionOutputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    ExperimentalDetectronDetectionOutput(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     bool needShapeInfer() const override;
     bool needPrepareParams() const override;
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
@@ -44,6 +45,6 @@ private:
     std::vector<float> deltas_weights_;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
-

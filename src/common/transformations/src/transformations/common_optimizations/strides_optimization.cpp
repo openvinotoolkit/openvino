@@ -14,10 +14,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::StridesOptimization, "StridesOptimization", 0);
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvStridesPropagation, "ConvStridesPropagation", 0);
-
 static bool can_propagate_conv_stride(const std::shared_ptr<ngraph::Node>& conv) {
     const auto& kernel_shape = conv->input_value(1).get_shape();
     return std::all_of(kernel_shape.begin() + 2, kernel_shape.end(), [](size_t s) -> bool {
@@ -81,7 +77,7 @@ static void insert_pooling(const ngraph::Output<ngraph::Node>& first,
     second.replace_source_output(new_node);
 }
 
-static void handle_not_equal_stride_props(std::vector<ngraph::Input<ngraph::Node>>&& next_ops) {
+static void handle_not_equal_stride_props(std::vector<ngraph::Input<ngraph::Node>>& next_ops) {
     for (auto& op : next_ops) {
         if (!has_strides_prop(op))
             continue;
@@ -97,6 +93,12 @@ static void handle_not_equal_stride_props(std::vector<ngraph::Input<ngraph::Node
                 insert_pooling(op.get_source_output(), op, strides);
             }
         }
+    }
+}
+
+static void remove_strides_property_from_nodes(std::vector<ngraph::Input<ngraph::Node>>& nodes) {
+    for (auto& node : nodes) {
+        remove_strides_prop(node);
     }
 }
 
@@ -127,7 +129,7 @@ ngraph::pass::ConvStridesPropagation::ConvStridesPropagation() {
         std::tie(strides, all_ops_are_valid) = check_next_ops(next_ops);
 
         if (!all_ops_are_valid) {
-            handle_not_equal_stride_props(std::move(next_ops));
+            handle_not_equal_stride_props(next_ops);
         } else {
             std::transform(conv_strides.begin(),
                            conv_strides.end(),
@@ -152,14 +154,14 @@ ngraph::pass::ConvStridesPropagation::ConvStridesPropagation() {
             conv->set_strides(conv_strides);
         }
 
+        remove_strides_property_from_nodes(next_ops);
+
         return true;
     };
 
     auto m = std::make_shared<pattern::Matcher>(conv_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SupportedNodesStridesPropagation, "SupportedNodesStridesPropagation", 0);
 
 ngraph::pass::SupportedNodesStridesPropagation::SupportedNodesStridesPropagation() {
     MATCHER_SCOPE(SupportedNodesStridesPropagation);
@@ -180,14 +182,14 @@ ngraph::pass::SupportedNodesStridesPropagation::SupportedNodesStridesPropagation
             insert_strides_prop(input, strides);
         }
 
+        remove_strides_property_from_nodes(next_ops);
+
         return true;
     };
 
     auto m = std::make_shared<pattern::Matcher>(root, matcher_name);
     this->register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::UnsupportedNodesStridesPropagation, "UnsupportedNodesStridesPropagation", 0);
 
 ngraph::pass::UnsupportedNodesStridesPropagation::UnsupportedNodesStridesPropagation() {
     MATCHER_SCOPE(UnsupportedNodesStridesPropagation);
@@ -196,7 +198,8 @@ ngraph::pass::UnsupportedNodesStridesPropagation::UnsupportedNodesStridesPropaga
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();
         auto next_ops = op::util::get_node_target_inputs(node);
-        handle_not_equal_stride_props(std::move(next_ops));
+        handle_not_equal_stride_props(next_ops);
+        remove_strides_property_from_nodes(next_ops);
 
         return true;
     };

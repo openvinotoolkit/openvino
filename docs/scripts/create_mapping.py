@@ -11,7 +11,8 @@ REPOSITORIES = [
     'openvino',
     'omz',
     'pot'
-    'ovms'
+    'ovms',
+    'ote'
 ]
 
 

@@ -27,6 +27,6 @@ class TRANSFORMATIONS_API ConvertNmsGatherPathToUnsigned;
  */
 class ngraph::pass::ConvertNmsGatherPathToUnsigned : public ngraph::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertNmsGatherPathToUnsigned", "0");
     ConvertNmsGatherPathToUnsigned();
 };

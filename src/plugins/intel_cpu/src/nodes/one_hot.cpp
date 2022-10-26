@@ -4,7 +4,7 @@
 
 #include <vector>
 #include <string>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include "ie_parallel.hpp"
 #include <selective_build.h>
 #include "one_hot.h"
@@ -15,10 +15,13 @@
 #include <utils/shape_inference/shape_inference.hpp>
 #include "common/cpu_memcpy.h"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-bool MKLDNNOneHotNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool OneHot::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto oneHot = std::dynamic_pointer_cast<const ngraph::opset1::OneHot>(op);
         if (!oneHot) {
@@ -39,8 +42,8 @@ bool MKLDNNOneHotNode::isSupportedOperation(const std::shared_ptr<const ngraph::
     return true;
 }
 
-MKLDNNOneHotNode::MKLDNNOneHotNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+OneHot::OneHot(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -76,14 +79,14 @@ MKLDNNOneHotNode::MKLDNNOneHotNode(const std::shared_ptr<ngraph::Node>& op, cons
         IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions!";
 }
 
-bool MKLDNNOneHotNode::needShapeInfer() const {
+bool OneHot::needShapeInfer() const {
     const auto depthNodePtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr());
     if (depth != depthNodePtr[0])
         return true;
-    return MKLDNNNode::needShapeInfer();
+    return Node::needShapeInfer();
 }
 
-std::vector<VectorDims> MKLDNNOneHotNode::shapeInfer() const {
+std::vector<VectorDims> OneHot::shapeInfer() const {
     depth = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr())[0];
 
     auto result = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
@@ -92,7 +95,7 @@ std::vector<VectorDims> MKLDNNOneHotNode::shapeInfer() const {
     return { result };
 }
 
-void MKLDNNOneHotNode::initSupportedPrimitiveDescriptors() {
+void OneHot::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -112,7 +115,7 @@ void MKLDNNOneHotNode::initSupportedPrimitiveDescriptors() {
 }
 
 template<typename out_type>
-void MKLDNNOneHotNode::one_hot(size_t prefix_size, size_t suffix_size) {
+void OneHot::one_hot(size_t prefix_size, size_t suffix_size) {
     const auto *src_data = reinterpret_cast<const in_type *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *dst_data = reinterpret_cast<out_type *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
@@ -137,11 +140,11 @@ void MKLDNNOneHotNode::one_hot(size_t prefix_size, size_t suffix_size) {
     });
 }
 
-void MKLDNNOneHotNode::executeDynamicImpl(mkldnn::stream strm) {
+void OneHot::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNOneHotNode::execute(mkldnn::stream strm) {
+void OneHot::execute(dnnl::stream strm) {
     std::size_t prefix_size = 1;
     auto input_dims = getParentEdgeAt(0)->getMemory().getStaticDims();
 
@@ -158,8 +161,10 @@ void MKLDNNOneHotNode::execute(mkldnn::stream strm) {
               OV_CASE(sizeof(uint8_t), uint8_t))
 }
 
-bool MKLDNNOneHotNode::created() const {
-    return getType() == OneHot;
+bool OneHot::created() const {
+    return getType() == Type::OneHot;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNOneHotNode, OneHot)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

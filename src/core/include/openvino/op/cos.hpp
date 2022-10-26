@@ -9,6 +9,7 @@
 namespace ov {
 namespace opset1 {
 /// \brief Elementwise cosine operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Cos : public op::util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Cos", "opset1", op::util::UnaryElementwiseArithmetic);

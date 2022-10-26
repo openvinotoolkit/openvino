@@ -17,7 +17,7 @@ namespace pass {
 
 class TRANSFORMATIONS_API AlignEltwiseInputRanks : public MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TRANSFORMATIONS_API", "0");
     AlignEltwiseInputRanks();
 };
 

@@ -58,7 +58,8 @@ def convert_batch_norm(graph: Graph):
             shift = (mean.data.get_value() * (-1)) * scale
 
             # Expand dims for current layout
-            broadcast_dims_cnt = len(node.in_port(0).data.get_shape()) - 2 if graph.graph['layout'] == 'NCHW' else 0
+            layout = node.soft_get('data_format', graph.graph['layout'])
+            broadcast_dims_cnt = len(node.in_port(0).data.get_shape()) - 2 if layout in ['NCHW', "NCDHW"] else 0
 
             # Update values and shapes with new shape
             expand_node_shape(const, broadcast_dims_cnt)

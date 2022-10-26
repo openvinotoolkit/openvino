@@ -11,7 +11,7 @@ namespace intel_cpu {
 
 class ConvertMatMulToFC: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertMatMulToFC", "0");
     ConvertMatMulToFC();
 };
 

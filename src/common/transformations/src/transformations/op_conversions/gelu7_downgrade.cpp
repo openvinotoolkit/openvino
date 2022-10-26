@@ -12,8 +12,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::Gelu7Downgrade, "Gelu7Downgrade", 0);
-
 ngraph::pass::Gelu7Downgrade::Gelu7Downgrade() {
     MATCHER_SCOPE(Gelu7Downgrade);
     auto gelu = ngraph::pattern::wrap_type<opset7::Gelu>();

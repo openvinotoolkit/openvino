@@ -33,7 +33,7 @@
  * @brief Defines the OpenVINO Runtime Plugin API method.
  */
 
-#ifdef IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+#if defined(IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 #    define OPENVINO_PLUGIN_API OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS
 #else
 #    define OPENVINO_PLUGIN_API OPENVINO_EXTERN_C
@@ -46,6 +46,7 @@ namespace ie = InferenceEngine;
 
 /**
  * @brief This type of map is used for result of Core::query_model
+ * @ingroup ov_runtime_cpp_api
  *   - `key` means operation name
  *   - `value` means device name supporting this operation
  */

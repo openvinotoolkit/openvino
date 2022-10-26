@@ -19,6 +19,6 @@ class TRANSFORMATIONS_API ConvertNegative;
 
 class ngraph::pass::ConvertNegative : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertNegative", "0");
     ConvertNegative();
 };

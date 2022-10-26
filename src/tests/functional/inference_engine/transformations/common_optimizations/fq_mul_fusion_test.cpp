@@ -92,7 +92,9 @@ TEST_P(FQMulFusion, ExpectFusion) {
     manager.run_passes(m_function);
     ASSERT_NO_THROW(check_rt_info(m_function));
 
-    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto fc = FunctionsComparator::no_default()
+            .enable(FunctionsComparator::PRECISIONS)
+            .enable(FunctionsComparator::NODES);
     auto res = fc.compare(m_function, m_expected_function);
     ASSERT_TRUE(res.valid) << res.message;
 };

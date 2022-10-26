@@ -18,19 +18,21 @@ TEST(ExecutorManagerTests, canCreateSingleExecutorManager) {
 }
 
 TEST(ExecutorManagerTests, createDifferentExecutorsForDifferentDevices) {
-    auto executor1 = executorManager()->getExecutor("CPU");
-    auto executor2 = executorManager()->getExecutor("GPU");
+    auto executorMgr = executorManager();
+    auto executor1 = executorMgr->getExecutor("CPU");
+    auto executor2 = executorMgr->getExecutor("GPU");
 
     ASSERT_NE(executor1, executor2);
-    ASSERT_EQ(2, executorManager()->getExecutorsNumber());
+    ASSERT_EQ(2, executorMgr->getExecutorsNumber());
 }
 
 TEST(ExecutorManagerTests, returnTheSameExecutorForTheSameDevice) {
-    auto executor1 = executorManager()->getExecutor("CPU");
-    auto executor2 = executorManager()->getExecutor("GPU");
+    auto executorMgr = executorManager();
+    auto executor1 = executorMgr->getExecutor("CPU");
+    auto executor2 = executorMgr->getExecutor("GPU");
 
-    auto executor = executorManager()->getExecutor("GPU");
+    auto executor = executorMgr->getExecutor("GPU");
 
     ASSERT_EQ(executor, executor2);
-    ASSERT_EQ(2, executorManager()->getExecutorsNumber());
+    ASSERT_EQ(2, executorMgr->getExecutorsNumber());
 }

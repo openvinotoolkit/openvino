@@ -19,6 +19,6 @@ class TRANSFORMATIONS_API ConvertSubtract;
 
 class ngraph::pass::ConvertSubtract : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertSubtract", "0");
     ConvertSubtract();
 };

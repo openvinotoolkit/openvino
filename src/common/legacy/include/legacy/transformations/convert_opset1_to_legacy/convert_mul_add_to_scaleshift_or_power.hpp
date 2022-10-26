@@ -21,7 +21,7 @@ class ConvertMulAddToScaleShiftOrPower;
 
 class ngraph::pass::ConvertMulAddToScaleShiftOrPower: public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertMulAddToScaleShiftOrPower", "0");
     ConvertMulAddToScaleShiftOrPower();
 };
 

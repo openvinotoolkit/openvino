@@ -90,7 +90,9 @@ void test(std::shared_ptr<ngraph::Function> f, std::shared_ptr<ngraph::Function>
     manager.register_pass<ngraph::pass::ConstantFolding>();
     ASSERT_NO_THROW(manager.run_passes(f));
 
-    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto fc = FunctionsComparator::no_default()
+            .enable(FunctionsComparator::NODES)
+            .enable(FunctionsComparator::PRECISIONS);
     auto res = fc.compare(f, f_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }

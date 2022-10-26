@@ -67,7 +67,7 @@ namespace {
     }
 };  // namespace
 
-CNNNetworkSerializer::CNNNetworkSerializer(std::ostream & ostream, MKLDNNExtensionManager::Ptr extensionManager)
+CNNNetworkSerializer::CNNNetworkSerializer(std::ostream & ostream, ExtensionManager::Ptr extensionManager)
     : _ostream(ostream)
     , _extensionManager(extensionManager) {
 }

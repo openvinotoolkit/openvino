@@ -29,7 +29,7 @@ class TRANSFORMATIONS_API MVNFusionWithConstantsInside;
  */
 class ngraph::pass::MVNFusionWithoutConstants : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MVNFusionWithoutConstants", "0");
     MVNFusionWithoutConstants();
 };
 
@@ -41,7 +41,7 @@ public:
  */
 class ngraph::pass::MVNFusionWithConstantsInside : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MVNFusionWithConstantsInside", "0");
     MVNFusionWithConstantsInside();
 };
 
@@ -51,7 +51,7 @@ public:
  */
 class ngraph::pass::MVNFusion : public ngraph::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("MVNFusion", "0");
     MVNFusion() {
         add_matcher<ngraph::pass::MVNFusionWithoutConstants>();
         add_matcher<ngraph::pass::MVNFusionWithConstantsInside>();

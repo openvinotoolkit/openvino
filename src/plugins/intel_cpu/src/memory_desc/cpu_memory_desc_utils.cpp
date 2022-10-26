@@ -14,8 +14,7 @@
 #include <blob_factory.hpp>
 #include <dnnl_types.h>
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -27,7 +26,7 @@ DnnlMemoryDescPtr MemoryDescUtils::convertToDnnlMemoryDesc(const MemoryDescPtr &
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(cpuDesc->getPrecision(), cpuDesc->getShape(), cpuDesc->getBlockDims(),
                                                         cpuDesc->getOrder(), cpuDesc->getOffsetPadding(),
                                                         cpuDesc->getOffsetPaddingToData(), cpuDesc->getStrides()));
-    } else if (MemoryDescType::Mkldnn & desc->getType()) {
+    } else if (MemoryDescType::Dnnl & desc->getType()) {
         return std::dynamic_pointer_cast<DnnlMemoryDesc>(desc);
     } else {
         IE_THROW() << "Cannot convert MemoryDesc to DnnlMemoryDesc";
@@ -90,13 +89,20 @@ BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDes
     }
 }
 
-InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const MKLDNNMemory &mem) {
+InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const Memory &mem) {
     // TODO [DS]: Rewrite when IE is moved to the new TensorDescriptor
     auto& memDesc = mem.getDesc();
     InferenceEngine::TensorDesc desc = convertToTensorDesc(memDesc);
 
     desc = InferenceEngine::TensorDesc(desc.getPrecision(), memDesc.getShape().getStaticDims(), desc.getBlockingDesc());
     return make_blob_with_precision(desc, mem.GetData());
+}
+
+InferenceEngine::TensorDesc MemoryDescUtils::interpretAsBlobDesc(const Memory &mem) {
+    auto& memDesc = mem.getDesc();
+    InferenceEngine::TensorDesc desc = convertToTensorDesc(memDesc);
+
+    return InferenceEngine::TensorDesc(desc.getPrecision(), memDesc.getShape().getStaticDims(), desc.getBlockingDesc());
 }
 
 InferenceEngine::TensorDesc MemoryDescUtils::convertToTensorDesc(const MemoryDesc& desc) {

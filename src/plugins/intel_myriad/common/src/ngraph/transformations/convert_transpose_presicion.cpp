@@ -10,7 +10,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(vpu::ConvertTransposePrecision, "ConvertTransposePrecision", 0);
 using namespace std;
 
 namespace vpu {

@@ -77,10 +77,6 @@ protected:
         std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
                                                           const std::shared_ptr<OpPlace>&)> func);
 
-    // m_extensions should be the first member here,
-    // m_extensions can contain SO Extension (holder for other Extensions),
-    // so it should be released last.
-    std::vector<Extension::Ptr> m_extensions;
     TelemetryExtension::Ptr m_telemetry;
     std::vector<DecoderTransformationExtension::Ptr> m_transformation_extensions;
     std::vector<ConversionExtensionBase::Ptr> m_conversion_extensions;

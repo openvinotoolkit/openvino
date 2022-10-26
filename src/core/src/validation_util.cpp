@@ -10,6 +10,7 @@
 #include <ngraph/rt_info.hpp>
 #include <numeric>
 
+#include "compare.hpp"
 #include "ngraph/evaluator.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/convert.hpp"
@@ -23,6 +24,7 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
+#include "sequnce_generator.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
@@ -952,10 +954,10 @@ void ngraph::opset1::infer_conv_backprop_auto_padding(const Shape& input_data_sh
     pads_end = CoordinateDiff(num_spatial_dims);
 
     for (uint64_t i = 0; i < num_spatial_dims; ++i) {
-        int total_padding =
-            std::max<int>(strides[i] * (input_data_shape[i] - 1) + dilations[i] * (filters_shape[i] - 1) + 1 -
-                              output_shape[i] + output_padding[i],
-                          0);
+        int total_padding = std::max<int>(
+            static_cast<int>(strides[i] * (input_data_shape[i] - 1) + dilations[i] * (filters_shape[i] - 1) + 1 -
+                             output_shape[i] + output_padding[i]),
+            0);
         if (auto_pad_type != op::PadType::SAME_UPPER) {
             pads_begin[i] = total_padding / 2;
             pads_end[i] = total_padding - pads_begin[i];
@@ -1203,8 +1205,13 @@ void propagate_rt_info(Node* node, const Output<Node>& final_port) {
             for (auto& in : output.get_target_inputs()) {
                 if (stop_nodes.count(in.get_node()))
                     continue;
-                auto consumer = in.get_node()->shared_from_this();
-                copy_runtime_info({curr_node, consumer}, consumer);
+                try {
+                    auto consumer = in.get_node()->shared_from_this();
+                    copy_runtime_info({curr_node, consumer}, consumer);
+                } catch (const std::bad_weak_ptr&) {
+                    // Exception can be thrown, if `shared_from_this()` was called during node creation.
+                    // Continue propagation for other nodes.
+                }
             }
         }
     }
@@ -1298,7 +1305,9 @@ HostTensorPtr ngraph::evaluate_upper_bound(const Output<Node>& output) {
 }
 
 pair<HostTensorPtr, HostTensorPtr> ngraph::evaluate_both_bounds(const Output<Node>& output) {
-    return {evaluate_bound(output, false, false), evaluate_upper_bound(output)};
+    evaluate_bound(output, false, false);
+    evaluate_upper_bound(output);
+    return {output.get_tensor_ptr()->get_lower_value(), output.get_tensor_ptr()->get_upper_value()};
 }
 
 bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape) {
@@ -1336,7 +1345,6 @@ bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_lab
     NGRAPH_CHECK(node->outputs().size() == 1);
 
     const auto& input_values = node->input_values();
-    TensorLabel input_labels;
 
     HostTensorVector input_tensors(input_values.size());
     for (size_t i = 0; i < input_values.size(); ++i) {
@@ -1347,12 +1355,10 @@ bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_lab
             else
                 return false;
         else {
-            input_labels = input.get_tensor().get_value_label();
-            bool no_labels = std::all_of(input_labels.begin(), input_labels.end(), [](const size_t& l) {
-                return l == 0;
-            });
-            if (input_labels.empty() || no_labels)
+            const auto& input_labels = input.get_tensor().get_value_label();
+            if (has_no_labels(input_labels)) {
                 return false;
+            }
 
             auto labels_constant = op::v0::Constant::create(ov::element::u64, input.get_shape(), input_labels);
             auto idxs_htp = std::make_shared<HostTensor>(labels_constant);
@@ -1629,9 +1635,20 @@ shared_ptr<op::Constant> ov::get_constant_from_source(const Output<Node>& source
 }
 
 bool ngraph::validate_host_tensor_vector(const HostTensorVector& tensor_vector, const size_t& size) {
-    if (tensor_vector.size() != size)
-        return false;
-    return std::all_of(tensor_vector.begin(), tensor_vector.end(), [](const HostTensorPtr& t) {
-        return t != nullptr;
-    });
+    return (tensor_vector.size() == size) &&
+           std::none_of(tensor_vector.cbegin(), tensor_vector.cend(), ov::cmp::Equal<HostTensorPtr>(nullptr));
+}
+
+bool ov::has_no_labels(const ov::TensorLabel& labels) {
+    return std::all_of(labels.cbegin(), labels.cend(), cmp::Equal<size_t>(no_label));
+}
+
+void ov::generate_transpose_default_order(std::vector<int64_t>& axes_order, const size_t length) {
+    axes_order.reserve(length);
+    std::generate_n(std::back_inserter(axes_order), length, ov::SeqGen<size_t, ov::Direction::BACKWARD>(length - 1));
+}
+
+bool ov::is_valid_axes_order(const std::vector<int64_t>& axes_order, const size_t size) {
+    return (std::unordered_set<size_t>(axes_order.cbegin(), axes_order.cend()).size() == size) &&
+           std::all_of(axes_order.cbegin(), axes_order.cend(), ov::cmp::Between<int64_t, ov::cmp::LOWER>(0, size));
 }

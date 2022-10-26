@@ -10,6 +10,9 @@
 #include "defs.h"
 #include "ie_parallel.hpp"
 
+namespace ov {
+namespace intel_cpu {
+
 struct jit_uni_softmax_kernel;
 
 static inline
@@ -51,3 +54,5 @@ private:
     std::shared_ptr<jit_uni_softmax_kernel> softmax_kernel;
 };
 
+}   // namespace intel_cpu
+}   // namespace ov

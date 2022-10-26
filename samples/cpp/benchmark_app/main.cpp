@@ -56,20 +56,31 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
         throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
     }
     if (!FLAGS_hint.empty() && FLAGS_hint != "throughput" && FLAGS_hint != "tput" && FLAGS_hint != "latency" &&
-        FLAGS_hint != "none") {
+        FLAGS_hint != "cumulative_throughput" && FLAGS_hint != "ctput" && FLAGS_hint != "none") {
         throw std::logic_error("Incorrect performance hint. Please set -hint option to"
-                               "`throughput`(tput), `latency' value or 'none'.");
+                               "`throughput`(tput), `latency', 'cumulative_throughput'(ctput) value or 'none'.");
+    }
+    if (FLAGS_hint != "none" && (FLAGS_nstreams != "" || FLAGS_nthreads != 0 || FLAGS_pin != "")) {
+        throw std::logic_error("-nstreams, -nthreads and -pin options are fine tune options. To use them you "
+                               "should explicitely set -hint option to none. This is not OpenVINO limitation "
+                               "(those options can be used in OpenVINO together), but a benchmark_app UI rule.");
     }
     if (!FLAGS_report_type.empty() && FLAGS_report_type != noCntReport && FLAGS_report_type != averageCntReport &&
-        FLAGS_report_type != detailedCntReport) {
+        FLAGS_report_type != detailedCntReport && FLAGS_report_type != sortDetailedCntReport) {
         std::string err = "only " + std::string(noCntReport) + "/" + std::string(averageCntReport) + "/" +
-                          std::string(detailedCntReport) +
+                          std::string(detailedCntReport) + "/" + std::string(sortDetailedCntReport) +
                           " report types are supported (invalid -report_type option value)";
         throw std::logic_error(err);
     }
 
     if ((FLAGS_report_type == averageCntReport) && ((FLAGS_d.find("MULTI") != std::string::npos))) {
         throw std::logic_error("only " + std::string(detailedCntReport) + " report type is supported for MULTI device");
+    }
+
+    if (!FLAGS_pcsort.empty() && FLAGS_pcsort != "sort" && FLAGS_pcsort != "no_sort" && FLAGS_pcsort != "simple_sort") {
+        std::string pcsort_err = std::string("Incorrect performance count sort . Please set -pcsort option to ") +
+                                 std::string("'sort', 'no_sort', 'simple_sort'.");
+        throw std::logic_error(pcsort_err);
     }
 
     bool isNetworkCompiled = fileExt(FLAGS_m) == "blob";
@@ -88,7 +99,7 @@ static void next_step(const std::string additional_info = "") {
     static size_t step_id = 0;
     static const std::map<size_t, std::string> step_names = {
         {1, "Parsing and validating input arguments"},
-        {2, "Loading Inference Engine"},
+        {2, "Loading OpenVINO Runtime"},
         {3, "Setting device configuration"},
         {4, "Reading network files"},
         {5, "Resizing network to match image sizes and given batch"},
@@ -100,8 +111,12 @@ static void next_step(const std::string additional_info = "") {
         {11, "Dumping statistics report"}};
 
     step_id++;
-    if (step_names.count(step_id) == 0)
-        IE_THROW() << "Step ID " << step_id << " is out of total steps number " << step_names.size();
+
+    OPENVINO_ASSERT(step_names.count(step_id) != 0,
+                    "Step ID ",
+                    step_id,
+                    " is out of total steps number ",
+                    step_names.size());
 
     std::cout << "[Step " << step_id << "/" << step_names.size() << "] " << step_names.at(step_id)
               << (additional_info.empty() ? "" : " (" + additional_info + ")") << std::endl;
@@ -119,6 +134,9 @@ ov::hint::PerformanceMode get_performance_hint(const std::string& device, const 
             } else if (FLAGS_hint == "latency") {
                 slog::warn << "Device(" << device << ") performance hint is set to LATENCY" << slog::endl;
                 ov_perf_hint = ov::hint::PerformanceMode::LATENCY;
+            } else if (FLAGS_hint == "cumulative_throughput" || FLAGS_hint == "ctput") {
+                slog::warn << "Device(" << device << ") performance hint is set to CUMULATIVE_THROUGHPUT" << slog::endl;
+                ov_perf_hint = ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT;
             } else if (FLAGS_hint == "none") {
                 slog::warn << "No device(" << device << ") performance hint is set" << slog::endl;
                 ov_perf_hint = ov::hint::PerformanceMode::UNDEFINED;
@@ -203,16 +221,16 @@ int main(int argc, char* argv[]) {
         /** This vector stores paths to the processed images with input names**/
         auto inputFiles = parse_input_arguments(gflags::GetArgvs());
 
-        // ----------------- 2. Loading the Inference Engine
+        // ----------------- 2. Loading the OpenVINO Runtime
         // -----------------------------------------------------------
         next_step();
 
         ov::Core core;
 
-        if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
-            // CPU (MKLDNN) extensions is loaded as a shared library
-            core.add_extension(FLAGS_l);
-            slog::info << "CPU (MKLDNN) extensions is loaded " << FLAGS_l << slog::endl;
+        if (!FLAGS_extensions.empty()) {
+            // Extensions are loaded as a shared library
+            core.add_extension(FLAGS_extensions);
+            slog::info << "Extensions are loaded: " << FLAGS_extensions << slog::endl;
         }
 
         // Load clDNN Extensions
@@ -225,7 +243,7 @@ int main(int argc, char* argv[]) {
         if (config.count("GPU") && config.at("GPU").count(CONFIG_KEY(CONFIG_FILE))) {
             auto ext = config.at("GPU").at(CONFIG_KEY(CONFIG_FILE)).as<std::string>();
             core.set_property("GPU", {{CONFIG_KEY(CONFIG_FILE), ext}});
-            slog::info << "GPU extensions is loaded " << ext << slog::endl;
+            slog::info << "GPU extensions are loaded: " << ext << slog::endl;
         }
 
         slog::info << "OpenVINO: " << ov::get_openvino_version() << slog::endl;
@@ -256,17 +274,33 @@ int main(int argc, char* argv[]) {
         }
 
         bool perf_counts = false;
+        // check if using the virtual device
+        auto if_auto = std::find(devices.begin(), devices.end(), "AUTO") != devices.end();
+        auto if_multi = std::find(devices.begin(), devices.end(), "MULTI") != devices.end();
+        // Remove the hardware devices if AUTO/MULTI appears in the devices list.
+        if (if_auto || if_multi) {
+            devices.clear();
+            std::string virtual_device;
+            if (if_auto) {
+                virtual_device = "AUTO";
+                devices.push_back("AUTO");
+            }
+            if (if_multi) {
+                virtual_device = "MULTI";
+                devices.push_back("MULTI");
+            }
+            parse_value_for_virtual_device(virtual_device, device_nstreams);
+            parse_value_for_virtual_device(virtual_device, device_infer_precision);
+        }
         // Update config per device according to command line parameters
         for (auto& device : devices) {
             auto& device_config = config[device];
 
             // high-level performance modes
             auto ov_perf_hint = get_performance_hint(device, core);
-            if (ov_perf_hint != ov::hint::PerformanceMode::UNDEFINED) {
-                device_config.emplace(ov::hint::performance_mode(ov_perf_hint));
-                if (FLAGS_nireq != 0)
-                    device_config.emplace(ov::hint::num_requests(FLAGS_nireq));
-            }
+            device_config.emplace(ov::hint::performance_mode(ov_perf_hint));
+            if (FLAGS_nireq != 0)
+                device_config.emplace(ov::hint::num_requests(FLAGS_nireq));
 
             // Set performance counter
             if (isFlagSetInCommandLine("pc")) {
@@ -276,13 +310,18 @@ int main(int argc, char* argv[]) {
                        (device_config.at(ov::enable_profiling.name()).as<bool>())) {
                 slog::warn << "Performance counters for " << device
                            << " device is turned on. To print results use -pc option." << slog::endl;
-            } else if (FLAGS_report_type == detailedCntReport || FLAGS_report_type == averageCntReport) {
+            } else if (FLAGS_report_type == detailedCntReport || FLAGS_report_type == averageCntReport ||
+                       FLAGS_report_type == sortDetailedCntReport) {
                 slog::warn << "Turn on performance counters for " << device << " device since report type is "
                            << FLAGS_report_type << "." << slog::endl;
                 device_config.emplace(ov::enable_profiling(true));
             } else if (!FLAGS_exec_graph_path.empty()) {
                 slog::warn << "Turn on performance counters for " << device << " device due to execution graph dumping."
                            << slog::endl;
+                device_config.emplace(ov::enable_profiling(true));
+            } else if (!FLAGS_pcsort.empty()) {
+                slog::warn << "Turn on sorted performance counters for " << device << " device since pcsort is"
+                           << FLAGS_pcsort << "." << slog::endl;
                 device_config.emplace(ov::enable_profiling(true));
             } else {
                 // set to default value
@@ -308,6 +347,22 @@ int main(int argc, char* argv[]) {
                         // Use API 2.0 key for streams
                         key = ov::num_streams.name();
                         device_config[key] = it_device_nstreams->second;
+                    } else if (device == "MULTI" || device == "AUTO") {
+                        // check if the element contains the hardware device property
+                        auto value_vec = split(it_device_nstreams->second, ' ');
+                        if (value_vec.size() == 1) {
+                            key = ov::num_streams.name();
+                            device_config[key] = it_device_nstreams->second;
+                        } else {
+                            // set device nstreams properties in the AUTO/MULTI plugin
+                            std::stringstream strm(it_device_nstreams->second);
+                            std::map<std::string, std::string> devices_property;
+                            ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
+                            for (auto& it : devices_property) {
+                                device_config.insert(
+                                    ov::device::properties(it.first, ov::num_streams(std::stoi(it.second))));
+                            }
+                        }
                     } else {
                         throw std::logic_error("Device " + device + " doesn't support config key '" + key + "' " +
                                                "and '" + ov::num_streams.name() + "'!" +
@@ -371,40 +426,41 @@ int main(int argc, char* argv[]) {
                 device_config.emplace(ov::affinity(fix_pin_option(FLAGS_pin)));
             }
 
-            if (device.find("CPU") != std::string::npos) {  // CPU supports few special performance-oriented keys
-                // limit threading for CPU portion of inference
-                if (!isFlagSetInCommandLine("pin")) {
-                    auto it_affinity = device_config.find(ov::affinity.name());
-                    if (it_affinity != device_config.end() && (device_name.find("MULTI") != std::string::npos) &&
-                        (device_name.find("GPU") != std::string::npos)) {
-                        slog::warn << "Turn off threads pinning for " << device
-                                   << " device since multi-scenario with GPU device is used." << slog::endl;
-                        it_affinity->second = ov::Affinity::NONE;
-                    }
-                }
-
-                // for CPU execution, more throughput-oriented execution via streams
+            if (device.find("CPU") != std::string::npos || device.find("GPU") != std::string::npos) {
+                // CPU supports few special performance-oriented keys
+                // for CPU and GPU execution, more throughput-oriented execution via streams
                 setThroughputStreams();
                 set_infer_precision();
-            } else if (device.find("GPU") != std::string::npos) {
-                // for GPU execution, more throughput-oriented execution via streams
-                setThroughputStreams();
-
-                if ((device_name.find("MULTI") != std::string::npos) &&
-                    (device_name.find("CPU") != std::string::npos)) {
-                    slog::warn << "GPU throttling is turned on. Multi-device execution with "
-                                  "the CPU + GPU performs best with GPU throttling hint, "
-                               << "which releases another CPU thread (that is otherwise "
-                                  "used by the GPU driver for active polling)."
-                               << slog::endl;
-                    device_config[GPU_CONFIG_KEY(PLUGIN_THROTTLE)] = "1";
-                }
             } else if (device.find("MYRIAD") != std::string::npos) {
                 device_config.emplace(ov::log::level(ov::log::Level::WARNING));
                 setThroughputStreams();
             } else if (device.find("GNA") != std::string::npos) {
                 set_infer_precision();
             } else if (device.find("AUTO") != std::string::npos) {
+                setThroughputStreams();
+                set_infer_precision();
+                device_nstreams.erase(device);
+            } else if (device.find("MULTI") != std::string::npos) {
+                setThroughputStreams();
+                set_infer_precision();
+                if ((device_name.find("GPU") != std::string::npos) && (device_name.find("CPU") != std::string::npos)) {
+                    slog::warn << "GPU throttling is turned on. Multi-device execution with "
+                                  "the CPU + GPU performs best with GPU throttling hint, "
+                               << "which releases another CPU thread (that is otherwise "
+                                  "used by the GPU driver for active polling)."
+                               << slog::endl;
+
+                    device_config.insert(ov::device::properties("GPU", {{GPU_CONFIG_KEY(PLUGIN_THROTTLE), 1}}));
+                    // limit threading for CPU portion of inference
+                    if (!isFlagSetInCommandLine("pin")) {
+                        auto it_affinity = device_config.find(ov::affinity.name());
+                        if (it_affinity != device_config.end()) {
+                            slog::warn << "Turn off threads pinning for " << device
+                                       << " device since multi-scenario with GPU device is used." << slog::endl;
+                            it_affinity->second = ov::Affinity::NONE;
+                        }
+                    }
+                }
                 device_nstreams.erase(device);
             }
         }
@@ -424,6 +480,11 @@ int main(int argc, char* argv[]) {
             core.set_property(ov::cache_dir(FLAGS_cache_dir));
         }
 
+        // If set batch size, disable the auto batching
+        if (FLAGS_b > 0) {
+            core.set_property(ov::hint::allow_auto_batching(false));
+        }
+
         bool isDynamicNetwork = false;
 
         if (FLAGS_load_from_file && !isNetworkCompiled) {
@@ -437,6 +498,9 @@ int main(int argc, char* argv[]) {
             compiledModel = core.compile_model(FLAGS_m, device_name);
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Load network took " << double_to_string(duration_ms) << " ms" << slog::endl;
+            slog::info << "Original network I/O parameters:" << slog::endl;
+            printInputAndOutputsInfoShort(compiledModel);
+
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
@@ -466,6 +530,9 @@ int main(int argc, char* argv[]) {
             auto model = core.read_model(FLAGS_m);
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Read network took " << double_to_string(duration_ms) << " ms" << slog::endl;
+            slog::info << "Original network I/O parameters:" << slog::endl;
+            printInputAndOutputsInfoShort(*model);
+
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
@@ -478,6 +545,12 @@ int main(int argc, char* argv[]) {
 
             // ----------------- 5. Resizing network to match image sizes and given
             // batch ----------------------------------
+            for (auto& item : model->inputs()) {
+                if (item.get_tensor().get_names().empty()) {
+                    item.get_tensor_ptr()->set_names(
+                        std::unordered_set<std::string>{item.get_node_shared_ptr()->get_name()});
+                }
+            }
             next_step();
             convert_io_names_in_map(inputFiles, std::const_pointer_cast<const ov::Model>(model)->inputs());
             // Parse input shapes if specified
@@ -633,6 +706,9 @@ int main(int argc, char* argv[]) {
 
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Import network took " << double_to_string(duration_ms) << " ms" << slog::endl;
+            slog::info << "Original network I/O paramteters:" << slog::endl;
+            printInputAndOutputsInfoShort(compiledModel);
+
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
@@ -706,9 +782,10 @@ int main(int argc, char* argv[]) {
                 try {
                     nireq = compiledModel.get_property(ov::optimal_number_of_infer_requests);
                 } catch (const std::exception& ex) {
-                    IE_THROW() << "Every device used with the benchmark_app should "
-                               << "support " << ov::optimal_number_of_infer_requests.name()
-                               << " Failed to query the metric for the " << device_name << " with error:" << ex.what();
+                    throw ov::Exception("Every device used with the benchmark_app should support " +
+                                        std::string(ov::optimal_number_of_infer_requests.name()) +
+                                        " Failed to query the metric for the " + device_name +
+                                        " with error:" + ex.what());
                 }
             }
         }
@@ -806,7 +883,7 @@ int main(int argc, char* argv[]) {
                         nireq);
                 }
             } else {
-                IE_THROW() << "Requested device doesn't support `use_device_mem` option.";
+                throw ov::Exception("Requested device doesn't support `use_device_mem` option.");
             }
         } else {
             if (newInputType) {
@@ -904,7 +981,7 @@ int main(int argc, char* argv[]) {
         // warming up - out of scope
         auto inferRequest = inferRequestsQueue.get_idle_request();
         if (!inferRequest) {
-            IE_THROW() << "No idle Infer Requests!";
+            throw ov::Exception("No idle Infer Requests!");
         }
 
         if (!inferenceOnly) {
@@ -956,7 +1033,7 @@ int main(int argc, char* argv[]) {
                (FLAGS_api == "async" && iteration % nireq != 0)) {
             inferRequest = inferRequestsQueue.get_idle_request();
             if (!inferRequest) {
-                IE_THROW() << "No idle Infer Requests!";
+                throw ov::Exception("No idle Infer Requests!");
             }
 
             if (!inferenceOnly) {
@@ -1089,14 +1166,12 @@ int main(int argc, char* argv[]) {
 
         if (!FLAGS_dump_config.empty()) {
             dump_config(FLAGS_dump_config, config);
-            slog::info << "Inference Engine configuration settings were dumped to " << FLAGS_dump_config << slog::endl;
+            slog::info << "OpenVINO Runtime configuration settings were dumped to " << FLAGS_dump_config << slog::endl;
         }
 
         if (!FLAGS_exec_graph_path.empty()) {
             try {
-                std::string fileName = fileNameNoExt(FLAGS_exec_graph_path);
-                ov::pass::Serialize serializer(fileName + ".xml", fileName + ".bin");
-                serializer.run_on_model(std::const_pointer_cast<ov::Model>(compiledModel.get_runtime_model()));
+                ov::serialize(compiledModel.get_runtime_model(), FLAGS_exec_graph_path);
                 slog::info << "executable graph is stored to " << FLAGS_exec_graph_path << slog::endl;
             } catch (const std::exception& ex) {
                 slog::err << "Can't get executable graph: " << ex.what() << slog::endl;
@@ -1107,7 +1182,14 @@ int main(int argc, char* argv[]) {
             std::vector<std::vector<ov::ProfilingInfo>> perfCounts;
             for (size_t ireq = 0; ireq < nireq; ireq++) {
                 auto reqPerfCounts = inferRequestsQueue.requests[ireq]->get_performance_counts();
-                if (FLAGS_pc) {
+                if (!FLAGS_pcsort.empty()) {
+                    slog::info << "Sort performance counts for " << ireq << "-th infer request:" << slog::endl;
+                    printPerformanceCountsSort(reqPerfCounts,
+                                               std::cout,
+                                               getFullDeviceName(core, FLAGS_d),
+                                               FLAGS_pcsort,
+                                               false);
+                } else if (FLAGS_pc) {
                     slog::info << "Performance counts for " << ireq << "-th infer request:" << slog::endl;
                     printPerformanceCounts(reqPerfCounts, std::cout, getFullDeviceName(core, FLAGS_d), false);
                 }

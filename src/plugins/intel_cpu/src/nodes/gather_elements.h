@@ -12,20 +12,21 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNGatherElementsNode : public MKLDNNNode {
+class GatherElements : public Node {
 public:
-    MKLDNNGatherElementsNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    GatherElements(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 protected:
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
     void prepareParams() override;
 
 private:
@@ -43,5 +44,6 @@ private:
     void directExecution();
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

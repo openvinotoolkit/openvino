@@ -24,6 +24,6 @@ class TRANSFORMATIONS_API SoftPlusFusion;
  */
 class ngraph::pass::SoftPlusFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SoftPlusFusion", "0");
     SoftPlusFusion();
 };

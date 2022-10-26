@@ -68,6 +68,6 @@ class TRANSFORMATIONS_API SoftmaxDecomposition;
 
 class ngraph::pass::SoftmaxDecomposition : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SoftmaxDecomposition", "0");
     SoftmaxDecomposition();
 };

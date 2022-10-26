@@ -8,10 +8,13 @@
 #include "ie_parallel.hpp"
 #include "ctc_loss.h"
 
-using namespace ov::intel_cpu;
 using namespace InferenceEngine;
 
-bool MKLDNNCTCLossNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool CTCLoss::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto ctcLossOp = ngraph::as_type_ptr<const ngraph::op::v4::CTCLoss>(op);
         if (!ctcLossOp) {
@@ -24,8 +27,8 @@ bool MKLDNNCTCLossNode::isSupportedOperation(const std::shared_ptr<const ngraph:
     return true;
 }
 
-MKLDNNCTCLossNode::MKLDNNCTCLossNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                                     MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+CTCLoss::CTCLoss(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -42,7 +45,7 @@ MKLDNNCTCLossNode::MKLDNNCTCLossNode(const std::shared_ptr<ngraph::Node>& op, co
     unique = ctcLossOp->get_unique();
 }
 
-void MKLDNNCTCLossNode::initSupportedPrimitiveDescriptors() {
+void CTCLoss::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -57,11 +60,11 @@ void MKLDNNCTCLossNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNCTCLossNode::executeDynamicImpl(mkldnn::stream strm) {
+void CTCLoss::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNCTCLossNode::execute(mkldnn::stream strm) {
+void CTCLoss::execute(dnnl::stream strm) {
     StatusCode returnCode = OK;
 
     const float* logits = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
@@ -277,8 +280,10 @@ void MKLDNNCTCLossNode::execute(mkldnn::stream strm) {
     parallel_nt(0, threadBody_3);
 }
 
-bool MKLDNNCTCLossNode::created() const {
-    return getType() == CTCLoss;
+bool CTCLoss::created() const {
+    return getType() == Type::CTCLoss;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNCTCLossNode, CTCLoss)
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

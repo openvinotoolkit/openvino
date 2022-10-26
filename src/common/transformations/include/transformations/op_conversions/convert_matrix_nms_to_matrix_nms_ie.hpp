@@ -20,6 +20,6 @@ class TRANSFORMATIONS_API ConvertMatrixNmsToMatrixNmsIE;
 
 class ngraph::pass::ConvertMatrixNmsToMatrixNmsIE : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertMatrixNmsToMatrixNmsIE", "0");
     ConvertMatrixNmsToMatrixNmsIE(bool force_i32_output_type = true);
 };

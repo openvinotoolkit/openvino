@@ -8,7 +8,7 @@
 #include <ie_ngraph_utils.hpp>
 #include "exec_graph_info.hpp"
 #include "ie_common.h"
-#include "mkldnn_debug.h"
+#include <dnnl_debug.h>
 #include <ngraph/variant.hpp>
 #include "ngraph/ngraph.hpp"
 #include <ngraph/pass/manager.hpp>
@@ -24,18 +24,18 @@ using namespace InferenceEngine;
 namespace ov {
 namespace intel_cpu {
 
-void serializeToCout(const MKLDNNGraph &graph);
-void serializeToXML(const MKLDNNGraph &graph, const std::string& path);
+void serializeToCout(const Graph &graph);
+void serializeToXML(const Graph &graph, const std::string& path);
 
 namespace {
 
-std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &node) {
+std::map<std::string, std::string> extract_node_metadata(const NodePtr &node) {
     std::map<std::string, std::string> serialization_info;
 
-    if (node->getType() == Input && node->isConstant()) {
+    if (node->getType() == Type::Input && node->isConstant()) {
         // We need to separate Input and Const layers
         serialization_info[ExecGraphInfoSerialization::LAYER_TYPE] = "Const";
-    } else if (node->getType() == Generic) {
+    } else if (node->getType() == Type::Generic) {
         // Path to print actual name for extension layers
         serialization_info[ExecGraphInfoSerialization::LAYER_TYPE] = node->getTypeStr();
     } else {
@@ -94,7 +94,7 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
             }
         }
     } else {
-        outputLayoutsStr = mkldnn::utils::fmt2str(mkldnn::memory::format_tag::undef);
+        outputLayoutsStr = dnnl::utils::fmt2str(dnnl::memory::format_tag::undef);
     }
     serialization_info[ExecGraphInfoSerialization::OUTPUT_LAYOUTS] = outputLayoutsStr;
 
@@ -114,14 +114,14 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
 
 }  // namespace
 
-std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph) {
-    std::map<MKLDNNNodePtr, std::shared_ptr<ngraph::Node> > node2layer;
+std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph) {
+    std::map<NodePtr, std::shared_ptr<ngraph::Node> > node2layer;
 
     ngraph::ResultVector results;
     ngraph::ParameterVector params;
     ngraph::NodeVector to_hold;
 
-    auto get_inputs = [&] (const MKLDNNNodePtr & node) {
+    auto get_inputs = [&] (const NodePtr & node) {
         auto pr_edges = node->getParentEdges();
         ngraph::OutputVector inputs(pr_edges.size());
 
@@ -140,7 +140,7 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph 
         return inputs;
     };
 
-    auto create_ngraph_node = [&](const MKLDNNNodePtr &node) {
+    auto create_ngraph_node = [&](const NodePtr &node) {
         bool is_input = false, is_output = false, should_be_hold = false;
         for (auto && kvp : graph.inputNodesMap) {
             if (kvp.second == node) {
@@ -209,7 +209,7 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph 
 }
 
 #ifdef CPU_DEBUG_CAPS
-void serialize(const MKLDNNGraph &graph) {
+void serialize(const Graph &graph) {
     const std::string& path = graph.getConfig().execGraphPath;
 
     if (path.empty())
@@ -223,7 +223,7 @@ void serialize(const MKLDNNGraph &graph) {
         IE_THROW() << "Unknown serialize format. Should be either 'cout' or '*.xml'. Got " << path;
 }
 
-void serializeToXML(const MKLDNNGraph &graph, const std::string& path) {
+void serializeToXML(const Graph &graph, const std::string& path) {
     if (path.empty())
         return;
 
@@ -235,7 +235,7 @@ void serializeToXML(const MKLDNNGraph &graph, const std::string& path) {
     manager.run_passes(graph.dump());
 }
 
-void serializeToCout(const MKLDNNGraph &graph) {
+void serializeToCout(const Graph &graph) {
     for (const auto& node : graph.GetNodes()) {
         std::cout << "name: " << node->getName() << " [ ";
         auto nodeDesc = node->getSelectedPrimitiveDescriptor();
@@ -255,6 +255,88 @@ void serializeToCout(const MKLDNNGraph &graph) {
         std::cout << " ]"  << std::endl;
     }
 }
+
+void summary_perf(const Graph &graph) {
+    const std::string& summaryPerf = graph.getConfig().summaryPerf;
+
+    if (summaryPerf.empty())
+        return;
+
+    std::map<std::string, double> perf_by_type;
+    std::map<NodePtr, double> perf_by_node;
+    double total_avg = 0;
+    uint64_t total = 0;
+    for (auto &node : graph.GetNodes()) {  // important: graph.graphNodes are in topological order
+        double avg = node->PerfCounter().avg();
+        auto type = node->getTypeStr() + "_" + node->getPrimitiveDescriptorType();
+        auto name = node->getName();
+
+        total += node->PerfCounter().count() * avg;
+        total_avg += avg;
+
+        if (perf_by_type.count(type))
+            perf_by_type[type] += avg;
+        else
+            perf_by_type[type] = avg;
+
+        if (perf_by_node.count(node))
+            perf_by_node[node] += avg;
+        else
+            perf_by_node[node] = avg;
+    }
+
+    if (total_avg < 1) return;
+
+    std::cout << "======= ENABLE_DEBUG_CAPS:OV_CPU_SUMMARY_PERF ======" << std::endl;
+    std::cout << "Summary of " << graph.GetName() << " @" << std::hash<uint64_t>{}(reinterpret_cast<uint64_t>(&graph)) << std::endl;
+    std::cout << "     Total(us): " << (uint64_t)(total) << std::endl;
+    std::cout << " Total_avg(us): " << (uint64_t)(total_avg) << std::endl;
+    {
+        std::cout << " perf_by_type:" << std::endl;
+        std::vector<std::pair<std::string, double> > A;
+        for (auto& it : perf_by_type)
+            A.push_back(it);
+            sort(A.begin(), A.end(),
+                [](std::pair<std::string, double>& a,
+                   std::pair<std::string, double>& b){
+                return a.second > b.second;
+            });
+
+        for (auto& it : A) {
+            std::stringstream ss;
+            int percentage = static_cast<int>(it.second*100/total_avg);
+            if (percentage == 0) break;
+            ss << std::setw(10) << std::right << percentage << " % :" << it.first << std::endl;
+            std::cout << ss.str();
+        }
+    }
+    {
+        std::cout << " perf_by_node:" << std::endl;
+        std::vector<std::pair<NodePtr, double> > A;
+        for (auto& it : perf_by_node)
+            A.push_back(it);
+        sort(A.begin(), A.end(),
+            [](std::pair<NodePtr, double>& a,
+                std::pair<NodePtr, double>& b){
+            return a.second > b.second;
+        });
+
+        for (auto& it : A) {
+            std::stringstream ss;
+            auto percentage = it.second*100/total_avg;
+            auto node = it.first;
+            if (node->PerfCounter().count() == 0) continue;
+            if (node->PerfCounter().avg() < 1) continue;
+            ss << std::setw(10) << std::right << std::fixed << std::setprecision(2) << percentage << " %  "
+               << std::setw(8) << std::right  << node->PerfCounter().avg() << "(us)x" << node->PerfCounter().count()
+               << " #" << node->getExecIndex()
+               << " " << node->getName()
+               << " " << node->getTypeStr() + "_" + node->getPrimitiveDescriptorType() << std::endl;
+            std::cout << ss.str();
+        }
+    }
+}
+
 #endif
 }   // namespace intel_cpu
 }   // namespace ov

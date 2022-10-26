@@ -10,6 +10,7 @@ namespace ov {
 namespace op {
 namespace v0 {
 /// \brief Elementwise ceiling operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Ceiling : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Ceiling", "opset1", util::UnaryElementwiseArithmetic);

@@ -2,19 +2,22 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import argparse
+import re
+from typing import List, Tuple, Union
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
-    """Create and return argument parser"""
+    """Create and return argument parser."""
     parser = argparse.ArgumentParser(add_help=False)
     args = parser.add_argument_group('Options')
     model = parser.add_mutually_exclusive_group(required=True)
 
-    args.add_argument('-h', '--help', action='help', help='Show this help message and exit.')
     model.add_argument('-m', '--model', type=str,
                        help='Path to an .xml file with a trained model (required if -rg is missing).')
     model.add_argument('-rg', '--import_gna_model', type=str,
                        help='Read GNA model from file using path/filename provided (required if -m is missing).')
+
+    args.add_argument('-h', '--help', action='help', help='Show this help message and exit.')
     args.add_argument('-i', '--input', required=True, type=str, help='Required. Path to an input file (.ark or .npz).')
     args.add_argument('-o', '--output', type=str,
                       help='Optional. Output file name to save inference results (.ark or .npz).')
@@ -32,8 +35,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     args.add_argument('-qb', '--quantization_bits', default=16, type=int, choices=(8, 16), metavar='[8, 16]',
                       help='Optional. Weight bits for quantization: 8 or 16 (default 16).')
     args.add_argument('-sf', '--scale_factor', type=str,
-                      help='Optional. The user-specified input scale factor for quantization. '
-                      'If the model contains multiple inputs, provide scale factors by separating them with commas.')
+                      help='Optional. The user-specified input scale factor for quantization.')
     args.add_argument('-wg', '--export_gna_model', type=str,
                       help='Optional. Write GNA model to file using path/filename provided.')
     args.add_argument('-we', '--export_embedded_gna_model', type=str,
@@ -51,12 +53,6 @@ def build_arg_parser() -> argparse.ArgumentParser:
                       help='Optional. Enables performance report (specify -a to ensure arch accurate results).')
     args.add_argument('-a', '--arch', default='CORE', type=str.upper, choices=('CORE', 'ATOM'), metavar='[CORE, ATOM]',
                       help='Optional. Specify architecture. CORE, ATOM with the combination of -pc.')
-    args.add_argument('-iname', '--input_layers', type=str,
-                      help='Optional. Layer names for input blobs. The names are separated with ",". '
-                      'Allows to change the order of input layers for -i flag. Example: Input1,Input2')
-    args.add_argument('-oname', '--output_layers', type=str,
-                      help='Optional. Layer names for output blobs. The names are separated with ",". '
-                      'Allows to change the order of output layers for -o flag. Example: Output1:port,Output2:port.')
     args.add_argument('-cw_l', '--context_window_left', type=int, default=0,
                       help='Optional. Number of frames for left context windows (default is 0). '
                       'Works only with context window models. '
@@ -72,8 +68,28 @@ def build_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def parse_args() -> argparse.Namespace:
-    """Parse and validate command-line arguments"""
+def parse_arg_with_names(arg_string: Union[str, None], separator: str = '=') -> Tuple[List[str], List[str]]:
+    keys = []
+    values = []
+
+    if isinstance(arg_string, str):
+        for parameter in re.split(', |,', arg_string):
+            if separator in parameter:
+                key, value = parameter.split(separator)
+                keys.append(key)
+                values.append(value)
+            else:
+                values.append(parameter)
+
+    return keys, values
+
+
+def check_arg_with_names(arg: Tuple[List[str], List[str]]) -> bool:
+    return True if len(arg[0]) == 0 and len(arg[1]) > 1 else False
+
+
+def parse_args(separator: str = '=') -> argparse.Namespace:
+    """Parse and validate command-line arguments."""
     parser = build_arg_parser()
     args = parser.parse_args()
 
@@ -85,5 +101,33 @@ def parse_args() -> argparse.Namespace:
 
     if args.pwl_me < 0.0 or args.pwl_me > 100.0:
         parser.error('Invalid value for -pwl_me argument. It must be greater than 0.0 and less than 100.0')
+
+    args.input = parse_arg_with_names(args.input, separator)
+    if check_arg_with_names(args.input):
+        parser.error(
+            'Invalid format for -i/--input argment. Please specify the parameter like this '
+            f'<input_name1>{separator}<file1.ark/.npz>,<input_name2>{separator}<file2.ark/.npz> or just <file.ark/.npz> in case of one input.',
+        )
+
+    args.scale_factor = parse_arg_with_names(args.scale_factor, separator)
+    if check_arg_with_names(args.scale_factor):
+        parser.error(
+            'Invalid format for -sf/--scale_factor argment. Please specify the parameter like this '
+            f'<input_name1>{separator}<sf1>,<input_name2>{separator}<sf2> or just <sf> to be applied to all inputs.',
+        )
+
+    args.output = parse_arg_with_names(args.output, separator)
+    if check_arg_with_names(args.output):
+        parser.error(
+            'Invalid format for -o/--output argment. Please specify the parameter like this '
+            f'<output_name1>{separator}<output1.ark/.npz>,<output_name2>{separator}<output2.ark/.npz> or just <output.ark/.npz> in case of one output.',
+        )
+
+    args.reference = parse_arg_with_names(args.reference, separator)
+    if check_arg_with_names(args.reference):
+        parser.error(
+            'Invalid format for -r/--reference argment. Please specify the parameter like this '
+            f'<output_name1>{separator}<reference1.ark/.npz>,<output_name2>{separator}<reference2.ark/.npz> or <reference.ark/.npz> in case of one output.',
+        )
 
     return args

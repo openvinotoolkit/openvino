@@ -3,13 +3,12 @@
 //
 
 #include "data_inst.h"
+#include "kernel_selector_helper.h"
+#include "non_max_suppression/non_max_suppression_kernel_ref.h"
+#include "non_max_suppression/non_max_suppression_kernel_selector.h"
 #include "non_max_suppression_inst.h"
 #include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
-#include "non_max_suppression/non_max_suppression_kernel_selector.h"
-#include "non_max_suppression/non_max_suppression_kernel_ref.h"
-
 
 namespace cldnn {
 namespace ocl {
@@ -44,7 +43,7 @@ protected:
             args.inputs.push_back(instance.soft_nms_sigma_mem());
         }
 
-        args.output = instance.output_memory_ptr();
+        args.outputs = {instance.output_memory_ptr()};
         if (instance.has_second_output())
             args.inputs.push_back(instance.second_output_mem());
         if (instance.has_third_output())
@@ -54,13 +53,14 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const non_max_suppression_node& arg) {
-        auto params = get_default_params<kernel_selector::non_max_suppression_params>(arg);
+    static primitive_impl* create(const non_max_suppression_node& arg, const kernel_impl_params& impl_param) {
+        const auto& primitive = arg.get_primitive();
+        auto params = get_default_params<kernel_selector::non_max_suppression_params>(impl_param);
         auto optional_params =
             get_default_optional_params<kernel_selector::non_max_suppression_optional_params>(arg.get_program());
 
-        const auto& primitive = arg.get_primitive();
-        params.inputs.push_back(convert_data_tensor(arg.input_scores().get_output_layout()));
+        const auto input_scores_idx = 1;
+        params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[input_scores_idx]));
 
         if (arg.has_num_select_per_class()) {
             cldnn::program_node& node = arg.num_select_per_class_node();
@@ -69,7 +69,7 @@ public:
                 params.num_select_per_class = get_value<int>(node);
             } else {
                 params.num_select_per_class_type = kernel_selector::NmsArgType::Input;
-                params.inputs.push_back(convert_data_tensor(node.get_output_layout()));
+                params.inputs.push_back(convert_data_tensor(impl_param.output_layout));
             }
         }
 
@@ -80,7 +80,7 @@ public:
                 params.iou_threshold = get_value<float>(node);
             } else {
                 params.iou_threshold_type = kernel_selector::NmsArgType::Input;
-                params.inputs.push_back(convert_data_tensor(node.get_output_layout()));
+                params.inputs.push_back(convert_data_tensor(impl_param.output_layout));
             }
         }
 
@@ -91,7 +91,7 @@ public:
                 params.score_threshold = get_value<float>(node);
             } else {
                 params.score_threshold_type = kernel_selector::NmsArgType::Input;
-                params.inputs.push_back(convert_data_tensor(node.get_output_layout()));
+                params.inputs.push_back(convert_data_tensor(impl_param.output_layout));
             }
         }
 
@@ -102,24 +102,34 @@ public:
                 params.soft_nms_sigma = get_value<float>(node);
             } else {
                 params.soft_nms_sigma_type = kernel_selector::NmsArgType::Input;
-                params.inputs.push_back(convert_data_tensor(node.get_output_layout()));
+                params.inputs.push_back(convert_data_tensor(impl_param.output_layout));
             }
         }
 
+        auto get_additional_output_node_idx = [&] (bool is_third) {
+            size_t offset = 2;
+            offset += arg.has_num_select_per_class();
+            offset += arg.has_iou_threshold();
+            offset += arg.has_score_threshold();
+            offset += arg.has_soft_nms_sigma();
+            if (is_third)
+                offset += arg.has_second_output();
+            return offset;
+        };
+
         if (arg.has_second_output()) {
-            params.inputs.push_back(convert_data_tensor(arg.second_output_node().get_output_layout()));
+            params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[get_additional_output_node_idx(false)]));
             params.has_second_output = true;
         }
 
         if (arg.has_third_output()) {
-            params.inputs.push_back(convert_data_tensor(arg.third_output_node().get_output_layout()));
+            params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[get_additional_output_node_idx(true)]));
             params.has_third_output = true;
         }
 
         params.sort_result_descending = primitive->sort_result_descending;
-        params.box_encoding = primitive->center_point_box ?
-            kernel_selector::BoxEncodingType::BOX_ENCODING_CENTER : kernel_selector::BoxEncodingType::BOX_ENCODING_CORNER;
-
+        params.box_encoding = primitive->center_point_box ? kernel_selector::BoxEncodingType::BOX_ENCODING_CENTER
+                                                          : kernel_selector::BoxEncodingType::BOX_ENCODING_CORNER;
         auto& kernel_selector = kernel_selector::non_max_suppression_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
 
@@ -171,11 +181,25 @@ private:
 namespace detail {
 
 attach_non_max_suppression_impl::attach_non_max_suppression_impl() {
-    implementation_map<non_max_suppression>::add(impl_types::ocl, non_max_suppression_impl::create, {
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfyx),
-    });
+    implementation_map<non_max_suppression>::add(impl_types::ocl,
+                                                 non_max_suppression_impl::create,
+                                                 {
+                                                     std::make_tuple(data_types::i32, format::bfyx),
+
+                                                     std::make_tuple(data_types::f16, format::bfyx),
+                                                     std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
+                                                     std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
+                                                     std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
+                                                     std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
+                                                     std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
+
+                                                     std::make_tuple(data_types::f32, format::bfyx),
+                                                     std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
+                                                     std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
+                                                     std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
+                                                     std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
+                                                     std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
+                                                 });
 }
 
 }  // namespace detail

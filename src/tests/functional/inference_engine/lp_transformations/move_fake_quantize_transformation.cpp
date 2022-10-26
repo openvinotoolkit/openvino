@@ -154,14 +154,14 @@ public:
             testValues.axis,
             oneInputWithSplit);
 
-        auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
-                ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::AvgPool>({{0, testValues.params.precisionsOnActivations}})
+        auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
+                ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::AvgPool>({{{0}, testValues.params.precisionsOnActivations}})
             });
 
         auto quantizationRestrictions = testValues.multiChannels ?
-            std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>() :
-            std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>({
-                ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction::create<ngraph::opset1::AvgPool>()
+            std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>() :
+            std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>({
+                ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ngraph::opset1::AvgPool>()
                 });
 
         const auto params = TestTransformationParams::toParams(testValues.params);
@@ -296,7 +296,7 @@ const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
             {},
         }
     },
-    // negative test
+    // concat by batch
     {
         LayerTransformation::createParamsU8I8(),
         false,
@@ -313,11 +313,11 @@ const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
         },
         {
             2,
-            {},
+            {{ 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
             {},
             {},
             "",
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+            {},
             {},
             {}
         }

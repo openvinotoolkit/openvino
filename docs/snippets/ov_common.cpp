@@ -1,6 +1,8 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <ie_extension.h>
+
 #include <openvino/core/core.hpp>
 #include <openvino/runtime/runtime.hpp>
 
@@ -80,8 +82,11 @@ int main() {
     //! [ov_api_2_0:inference]
 
     //! [ov_api_2_0:start_async_and_wait]
+    // NOTE: For demonstration purposes we are trying to set callback
+    // which restarts inference inside one more time, so two inferences happen here
+
     auto restart_once = true;
-    infer_request.set_callback([&, restart_once] (std::exception_ptr exception_ptr) mutable {
+    infer_request.set_callback([&, restart_once](std::exception_ptr exception_ptr) mutable {
         if (exception_ptr) {
             // procces exception or rethrow it.
             std::rethrow_exception(exception_ptr);
@@ -97,15 +102,21 @@ int main() {
     });
     // Start inference without blocking current thread
     infer_request.start_async();
-    // Get inference status
+    // Get inference status immediately
     bool status = infer_request.wait_for(std::chrono::milliseconds{0});
-    // Wait for one miliseconds
+    // Wait for one milisecond
     status = infer_request.wait_for(std::chrono::milliseconds{1});
-    // Wait for inference complition
+    // Wait for inference completion
     infer_request.wait();
     //! [ov_api_2_0:start_async_and_wait]
 
     outputs_aligned(infer_request);
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    //! [ov_api_2_0:load_old_extension]
+    core.add_extension(std::make_shared<InferenceEngine::Extension>("path_to_extension_library.so"));
+    //! [ov_api_2_0:load_old_extension]
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return 0;
 }

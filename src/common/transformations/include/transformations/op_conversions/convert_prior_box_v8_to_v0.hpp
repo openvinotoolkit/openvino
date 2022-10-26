@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API ConvertPriorBox8To0;
  */
 class ngraph::pass::ConvertPriorBox8To0 : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertPriorBox8To0", "0");
     ConvertPriorBox8To0();
 };

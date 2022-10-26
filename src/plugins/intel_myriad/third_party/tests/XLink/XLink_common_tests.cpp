@@ -411,6 +411,13 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
     XLinkCommon,
+    XLinkFindAllSuitableDevicesTests,
+    Combine(Values(X_LINK_USB_VSC, X_LINK_PCIE),
+            Values(X_LINK_ANY_PLATFORM)),
+    XLinkBootTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    XLinkCommon,
     XLinkResetAllTests,
     Combine(Values(X_LINK_USB_VSC, X_LINK_PCIE),
             Values(X_LINK_ANY_PLATFORM)),

@@ -4,8 +4,27 @@ trigger:
     - master
     - releases/*
   paths:
-    exclude:
-    - docs/*
+    exclude: 
+    - docs/
+    - /**/docs/*
+    - /**/*.md
+    - README.md
+    - /**/layer_tests_summary/**
+    - src/tests/functional/plugin/conformance/**
+
+pr:
+  branches:
+    include:
+    - master
+    - releases/*
+  paths:
+    exclude: 
+    - docs/
+    - /**/docs/*
+    - /**/*.md
+    - README.md
+    - /**/layer_tests_summary/**
+    - src/tests/functional/plugin/conformance/**
 
 resources:
   repositories:
@@ -13,6 +32,7 @@ resources:
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/openvino_contrib
+    ref: master
 
 jobs:
 - job: android_arm64
@@ -103,26 +123,24 @@ jobs:
     inputs:
       cmakeArgs: >
         -GNinja
-        -DVERBOSE_BUILD=ON
+        -DCMAKE_VERBOSE_MAKEFILE=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DCMAKE_TOOLCHAIN_FILE=$(ANDROID_TOOLS)/ndk-bundle/build/cmake/android.toolchain.cmake
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DANDROID_ABI=$(ANDROID_ABI_CONFIG)
         -DANDROID_STL=c++_shared
         -DANDROID_PLATFORM=$(ANDROID_SDK_VERSION)
-        -DENABLE_OPENCV=OFF
         -DENABLE_TESTS=ON
         -DENABLE_SAMPLES=ON
-        -DENABLE_INTEL_MYRIAD=OFF
         -DBUILD_java_api=ON
-        -DTHREADING=SEQ
-        -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
+        -DBUILD_nvidia_plugin=OFF
+        -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
+        -DCMAKE_CXX_LINKER_LAUNCHER=ccache
+        -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
         $(OPENVINO_REPO_DIR)
       workingDirectory: $(BUILD_DIR)
-
-  - script: ls -alR $(OPENVINO_REPO_DIR)/temp/
-    displayName: 'List temp SDKs'
 
   - script: ccache --zero-stats --max-size=50G --show-config
     displayName: 'Clean ccache stats'

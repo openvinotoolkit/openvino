@@ -8,18 +8,19 @@
 #include <string>
 #include <memory>
 #include <vector>
-#include <extension_utils.h>
+#include <dnnl_extension_utils.h>
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
-class MKLDNNAdaptivePoolingNode : public MKLDNNNode {
+class AdaptivePooling : public Node {
 public:
-  MKLDNNAdaptivePoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+  AdaptivePooling(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
@@ -36,8 +37,9 @@ protected:
     bool needShapeInfer() const override;
     std::vector<VectorDims> shapeInfer() const override;
     bool needPrepareParams() const override { return false; };
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

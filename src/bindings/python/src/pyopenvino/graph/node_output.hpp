@@ -11,11 +11,22 @@
 #include "openvino/core/node_output.hpp"
 #include "pyopenvino/core/common.hpp"
 
+#include <type_traits>
+
 namespace py = pybind11;
 
 using PyRTMap = ov::Node::RTMap;
 
 PYBIND11_MAKE_OPAQUE(PyRTMap);
+
+// this function is overloaded in the corresponding cpp file with T=ov::Node
+// it exposes additional functions with T = ov::Node, which are undefined with T = const ov::Node
+template<typename T>
+void def_type_dependent_functions(py::class_<ov::Output<T>, std::shared_ptr<ov::Output<T>>>& output);
+
+template<>
+void def_type_dependent_functions<ov::Node>(py::class_<ov::Output<ov::Node>,
+                                            std::shared_ptr<ov::Output<ov::Node>>>& output);
 
 template <typename VT>
 void regclass_graph_Output(py::module m, std::string typestring)
@@ -37,6 +48,17 @@ void regclass_graph_Output(py::module m, std::string typestring)
 
     output.def("__hash__", [](ov::Output<VT>& self) {
         return std::hash<VT*>()(self.get_node()) + self.get_index();
+    });
+
+    output.def("__copy__", [](ov::Output<VT>& self) {
+        return ov::Output<VT>(self);
+    });
+
+    output.def("__deepcopy__", [typestring](ov::Output<VT>& self, py::dict& memo) {
+        auto error_message = py::detail::c_str(std::string("cannot deepcopy 'openvino.runtime.")
+                                                + typestring + std::string("Output' object."));
+        PyErr_SetString(PyExc_TypeError, error_message);
+        throw py::error_already_set();
     });
 
     output.def("get_node",
@@ -117,7 +139,7 @@ void regclass_graph_Output(py::module m, std::string typestring)
                 A reference to the tensor descriptor for this output.
 
                 :return: Tensor of the output.
-                :rtype: openvino.pyopenvino.DescriptorTensor 
+                :rtype: openvino.pyopenvino.DescriptorTensor
                )");
     output.def("get_rt_info",
              (ov::RTMap & (ov::Output<VT>::*)()) &  ov::Output<VT>::get_rt_info,
@@ -128,7 +150,6 @@ void regclass_graph_Output(py::module m, std::string typestring)
                 :return: A dictionary of user defined data.
                 :rtype: openvino.runtime.RTMap
              )");
-
     output.def("__repr__", [typestring](const ov::Output<VT>& self) {
         std::stringstream shape_type_ss;
 
@@ -155,4 +176,7 @@ void regclass_graph_Output(py::module m, std::string typestring)
                                 (const ov::RTMap&(ov::Output<VT>::*)() const) &
                                 ov::Output<VT>::get_rt_info,
                                 py::return_value_policy::reference_internal);
+
+    // define functions avaliable only for specific type
+    def_type_dependent_functions<VT>(output);
 }

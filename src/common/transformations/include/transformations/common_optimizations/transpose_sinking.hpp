@@ -31,7 +31,7 @@ class TRANSFORMATIONS_API TransposeFuse;
  */
 class ngraph::pass::TransposeReduction : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TransposeReduction", "0");
     TransposeReduction();
 };
 
@@ -42,7 +42,7 @@ public:
  */
 class ngraph::pass::TransposeFQReduction : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TransposeFQReduction", "0");
     TransposeFQReduction();
 };
 
@@ -52,7 +52,7 @@ public:
  */
 class ngraph::pass::TransposeConvert : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TransposeConvert", "0");
     TransposeConvert();
 };
 
@@ -62,7 +62,7 @@ public:
  */
 class ngraph::pass::TransposeEltwise : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TransposeEltwise", "0");
     TransposeEltwise();
 };
 
@@ -73,7 +73,7 @@ public:
  */
 class ngraph::pass::TransposeFuse : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TransposeFuse", "0");
     TransposeFuse();
 };
 
@@ -83,7 +83,7 @@ public:
  */
 class ngraph::pass::TransposeSinking : public ngraph::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TransposeSinking", "0");
     TransposeSinking() {
         add_matcher<ngraph::pass::TransposeFQReduction>();
         add_matcher<ngraph::pass::TransposeReduction>();

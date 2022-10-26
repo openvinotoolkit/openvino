@@ -213,7 +213,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithReluDivWrongConstValue) {
         auto min_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {6.002});
         auto min = std::make_shared<ngraph::opset7::Minimum>(relu, min_constant);
         auto mul = std::make_shared<ngraph::opset7::Multiply>(input, min);
-        auto div_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {0.0});
+        auto div_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {0.1});
         auto div = std::make_shared<ngraph::opset7::Divide>(mul, div_constant);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});

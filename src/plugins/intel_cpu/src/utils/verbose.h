@@ -16,7 +16,7 @@ namespace intel_cpu {
 
 class Verbose {
 public:
-    Verbose(const MKLDNNNodePtr& _node, const std::string& _lvl)
+    Verbose(const NodePtr& _node, const std::string& _lvl)
         : node(_node), lvl(atoi(_lvl.c_str())) {
         if (!shouldBePrinted())
             return;
@@ -32,7 +32,7 @@ public:
     }
 
 private:
-    const MKLDNNNodePtr& node;
+    const NodePtr& node;
     const int lvl;
     std::stringstream stream;
 

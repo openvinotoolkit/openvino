@@ -6,7 +6,6 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/split.hpp>
-#include <intel_gpu/primitives/scale.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 
 #include <sstream>
@@ -112,14 +111,14 @@ void split_test(int batch_num, int feature_num, int x_size, int y_size, std::vec
         primitive_id split_id = "split:" + create_split_id(splitNum);
         cldnn::memory::ptr output = outputs.at(split_id).get_memory();
         auto prim = output->get_layout();
-        EXPECT_EQ(prim.size, expected_sizes[splitNum]);
+        EXPECT_EQ(prim.get_tensor(), expected_sizes[splitNum]);
         cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
         // Output tensor size
-        auto output_batch = prim.size.batch[0];
-        auto output_feature = prim.size.feature[0];
-        auto output_x = prim.size.spatial[0];
-        auto output_y = prim.size.spatial[1];
+        auto output_batch = prim.batch();
+        auto output_feature = prim.feature();
+        auto output_x = prim.spatial(0);
+        auto output_y = prim.spatial(1);
 
         // Input offsets, starting from which we will compare the output
         auto input_batch_offset = split_offsets[splitNum].batch[0];
@@ -221,7 +220,7 @@ TEST(split_gpu_f32, basic_split_concat_optimization) {
     }
 
     topology.add(split("split", "input", offsets));
-    topology.add(concatenation("concat", ids, concatenation::along_f));
+    topology.add(concatenation("concat", ids, 1));
     topology.add(reorder("output", "concat", format::bfyx, data_types::f32));
 
     build_options opts;
@@ -261,7 +260,7 @@ TEST(split_gpu_i64, basic_split_concat_optimization) {
     }
 
     topology.add(split("split", "input", offsets));
-    topology.add(concatenation("concat", ids, concatenation::along_f));
+    topology.add(concatenation("concat", ids, 1));
     topology.add(reorder("output", "concat", format::bfyx, data_types::i64));
 
     build_options opts;
@@ -634,9 +633,9 @@ TEST(split_gpu_f32, basic_in2x3x2x2_split_scale_feature_bfyx) {
         { "out1",{ 0, 1, 0, 0 } },
         { "out2",{ 0, 2, 0, 0 } }
     }));
-    topology.add(scale("scale0", "split:out0", "scale_input0"));
-    topology.add(scale("scale1", "split:out1", "scale_input1"));
-    topology.add(scale("scale2", "split:out2", "scale_input2"));
+    topology.add(eltwise("scale0", { "split:out0", "scale_input0" }, eltwise_mode::prod));
+    topology.add(eltwise("scale1", { "split:out1", "scale_input1" }, eltwise_mode::prod));
+    topology.add(eltwise("scale2", { "split:out2", "scale_input2" }, eltwise_mode::prod));
 
     std::vector<float> scale_input_vec0 = { 1.f };
     set_values(scale_input0, scale_input_vec0);

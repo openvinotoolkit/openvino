@@ -4,25 +4,26 @@
 
 #pragma once
 
-#include <mkldnn.hpp>
 #include <functional>
 #include <ie_common.h>
 #include <vector>
 #include <memory>
 
+#include "onednn/dnnl.h"
+
 namespace ov {
 namespace intel_cpu {
 
-class MKLDNNPrimitive {
+class Primitive {
 public:
-    MKLDNNPrimitive();
+    Primitive();
     operator bool() const;
-    MKLDNNPrimitive& operator=(const std::shared_ptr<mkldnn::primitive>& primitive);
-    mkldnn::primitive operator*();
-    void reset(mkldnn::primitive* primitive);
+    Primitive& operator=(const std::shared_ptr<dnnl::primitive>& primitive);
+    dnnl::primitive operator*();
+    void reset(dnnl::primitive* primitive);
 
 private:
-    std::shared_ptr<mkldnn::primitive> prim;
+    std::shared_ptr<dnnl::primitive> prim;
 };
 
 }   // namespace intel_cpu

@@ -19,8 +19,6 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SliceToStridedSlice, "SliceToStridedSlice", 0);
-
 namespace {
 Output<ngraph::Node> align_indices(const Output<ngraph::Node>& indices,
                                    const Output<ngraph::Node>& slice_axes,

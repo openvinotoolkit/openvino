@@ -52,6 +52,18 @@ class primitive_inst;
 struct network {
 public:
     using ptr = std::shared_ptr<network>;
+
+    struct VariableState {
+        using Ptr = std::shared_ptr<VariableState>;
+
+        cldnn::memory_ptr memory;
+        bool is_set;
+        VariableState(cldnn::memory_ptr mem = nullptr) :
+            memory { mem }, is_set { false } {
+        }
+    };
+    using variables_states_map = std::map<std::string, VariableState::Ptr>;
+
     explicit network(program::ptr program, stream::ptr stream, bool is_internal = false, bool is_primary_stream = true);
     network(engine& engine,
             const topology& topo,
@@ -102,10 +114,14 @@ public:
     }
 
     network_output get_output(const primitive_id& output_id) {
-        return network_output(get_primitive_event(output_id), get_output_memory(output_id), get_stream_ptr());
+        event::ptr evt;
+        if (get_stream().get_queue_type() == queue_types::out_of_order)
+            evt = get_primitive_event(output_id);
+        return network_output(evt, get_output_memory(output_id), get_stream_ptr());
     }
 
     memory::ptr get_output_memory(const primitive_id& output_id);
+    layout get_node_output_layout(const primitive_id& output_id) const;
 
     /// @brief Returns the list of primitive ids before and after graph optimization.
     /// @details If primitive was not optimized, the old and actual id will be the same.
@@ -133,8 +149,12 @@ public:
         }
         std::map<primitive_id, event::ptr> result;
         for (auto& id : primitive_ids) {
-            if (std::find(optimized_primitives.begin(), optimized_primitives.end(), id) == optimized_primitives.end())
-                result.emplace(id, get_primitive_event(id));
+            if (std::find(optimized_primitives.begin(), optimized_primitives.end(), id) == optimized_primitives.end()) {
+                if (has_event(id))
+                    result.emplace(id, get_primitive_event(id));
+                else
+                    result.emplace(id, nullptr);
+            }
         }
         return result;
     }
@@ -159,12 +179,14 @@ public:
     void set_arguments();
     // Implementation specific calls
     std::shared_ptr<primitive_inst> get_primitive(const primitive_id& id);
+    std::shared_ptr<const primitive_inst> get_primitive(const primitive_id& id) const;
     std::string get_primitive_info(const primitive_id& id) const;
     std::string get_implementation_info(const primitive_id& id) const;
     const event::ptr& get_primitive_event(const primitive_id& id) const { return _events.at(id); }
     bool has_event(const primitive_id& id) const { return _events.count(id); }
     std::vector<std::shared_ptr<primitive_inst>> get_primitives(const std::vector<primitive_id>& ids);
     std::vector<std::shared_ptr<primitive_inst>> get_primitives(const std::vector<program_node*>& nodes);
+    std::vector<std::pair<std::shared_ptr<primitive_inst>, int>> get_primitives(const std::vector<std::pair<program_node*, int>>& nodes);
     void execute_primitive(const std::shared_ptr<primitive_inst>& primitive,
                            const std::vector<event::ptr>& events);
     void allocate_primitives();
@@ -174,7 +196,8 @@ public:
     stream& get_stream() const { return *_stream; }
     stream::ptr get_stream_ptr() const { return _stream; }
     bool is_internal() const { return _internal; }
-    bool is_primary_stream() { return _is_primary_stream; }
+    bool is_primary_stream() const { return _is_primary_stream; }
+    bool is_dynamic() const { return _is_dynamic; }
 
     /// Create memory object with specified @p layout and allocation @p type for primitive with @p id
     /// Underlying memory handle can be reused with other primitives from memory pool based on @p dependencies
@@ -187,6 +210,12 @@ public:
         return *_memory_pool;
     }
 
+    /// Assigns memory state locations
+    void assign_variables_memories(variables_states_map &&variables_memories);
+
+    /// Returns memory state @p variable_id of stateful network
+    VariableState& get_variable_memory(const std::string &variable_id);
+
 private:
     using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;
     uint32_t net_id = 0;
@@ -195,13 +224,17 @@ private:
     std::unique_ptr<memory_pool> _memory_pool;
     bool _internal;
     bool _is_primary_stream;
+    bool _is_dynamic = false;
     bool _reset_arguments;
 
-    std::map<primitive_id, std::shared_ptr<primitive_inst>> _primitives;
+    std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> _primitives;
+    std::vector<shared_mem_type> _in_out_shared_mem_types;
     std::vector<std::shared_ptr<primitive_inst>> _inputs;
     std::vector<std::shared_ptr<primitive_inst>> _outputs;
     std::list<std::shared_ptr<primitive_inst>> _exec_order;
     std::list<std::shared_ptr<primitive_inst>> _data_outputs;
+    variables_states_map _variables_states;
+    std::vector<std::shared_ptr<primitive_inst>> _variable_state_primitives;
 
     std::unordered_map<primitive_id, event::ptr> _events;
     output_chains_map _output_chains;

@@ -13,7 +13,6 @@
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/crop.hpp>
-#include <intel_gpu/primitives/scale.hpp>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -105,7 +104,7 @@ TEST(memory_pool, basic_non_padded_relu_and_pooling_pipe) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(activation("relu", "input", activation_func::relu));
     topology.add(activation("relu1", "relu", activation_func::relu));
-    topology.add(pooling("pool1", "relu1", pooling_mode::max, { 1, 1, 3, 3 }, { 1, 1, 2, 2 }));
+    topology.add(pooling("pool1", "relu1", pooling_mode::max, { 3, 3 }, { 2, 2 }));
     topology.add(activation("relu2", "pool1", activation_func::relu));
     topology.add(activation("relu3", "relu2", activation_func::relu));
     topology.add(activation("relu4", "relu3", activation_func::relu));
@@ -178,10 +177,10 @@ TEST(memory_pool, oooq) {
     topology.add(activation("relu1", "input", activation_func::relu));
     topology.add(activation("relu2", "input", activation_func::relu));
     topology.add(activation("relu3", "input", activation_func::relu));
-    topology.add(concatenation("concat1", { "relu1", "relu2" },concatenation::along_f));
+    topology.add(concatenation("concat1", { "relu1", "relu2" }, 1));
     topology.add(activation("relu4", "concat1", activation_func::relu));
     topology.add(activation("relu5", "relu3", activation_func::relu));
-    topology.add(concatenation("concat2", { "relu4", "relu5" }, concatenation::along_f));
+    topology.add(concatenation("concat2", { "relu4", "relu5" }, 1));
     topology.add(activation("relu6", "concat2", activation_func::relu));
 
     build_options bo;
@@ -223,10 +222,10 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice) {
     topology.add(activation("relu1", "input", activation_func::relu));
     topology.add(activation("relu2", "input", activation_func::sqrt));
     topology.add(activation("relu3", "input", activation_func::square));
-    topology.add(concatenation("concat1", { "relu1", "relu2" }, concatenation::along_f));
+    topology.add(concatenation("concat1", { "relu1", "relu2" }, 1));
     topology.add(activation("relu4", "concat1", activation_func::relu));
     topology.add(activation("relu5", "relu3", activation_func::relu));
-    topology.add(concatenation("concat2", { "relu4", "relu5" }, concatenation::along_f));
+    topology.add(concatenation("concat2", { "relu4", "relu5" }, 1));
     topology.add(activation("relu6", "concat2", activation_func::linear, { 1.0f, 0.5f }));
 
     build_options bo;
@@ -254,10 +253,10 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice) {
 
     EXPECT_EQ(output_layout_first, output_layout_second);
 
-    int y_size = output_layout_first.size.spatial[1];
-    int x_size = output_layout_first.size.spatial[0];
-    int f_size = output_layout_first.size.feature[0];
-    int b_size = output_layout_first.size.batch[0];
+    int y_size = output_layout_first.spatial(1);
+    int x_size = output_layout_first.spatial(0);
+    int f_size = output_layout_first.feature();
+    int b_size = output_layout_first.batch();
     int f_offset = y_size*x_size;
     int b_offset = f_size * f_offset;
     for (int b = 0; b < b_size; ++b)
@@ -335,10 +334,10 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice_weights) {
     EXPECT_TRUE(is_correct) << "Memory max peak is not correct";
     EXPECT_EQ(output_layout_first, output_layout_second);
 
-    int y_size = output_layout_first.size.spatial[1];
-    int x_size = output_layout_first.size.spatial[0];
-    int f_size = output_layout_first.size.feature[0];
-    int b_size = output_layout_first.size.batch[0];
+    int y_size = output_layout_first.spatial(1);
+    int x_size = output_layout_first.spatial(0);
+    int f_size = output_layout_first.feature();
+    int b_size = output_layout_first.batch();
     int f_offset = y_size * x_size;
     int b_offset = f_size * f_offset;
     for (int b = 0; b < b_size; ++b)
@@ -380,12 +379,14 @@ TEST(memory_pool, shared_mem_pool_diff_batches) {
 
     set_values(input_1, dummy_input_data_1);
     set_values(input_8, dummy_input_data_8);
-    set_values(weights, { 0.10f, 0.2f, 0.1f, 0.2f, 0.1f, 0.2f });
+    set_values(weights, { 0.10f, 0.2f, 0.1f, 0.2f, 0.1f, 0.2f,
+                          0.10f, 0.2f, 0.1f, 0.2f, 0.1f, 0.2f,
+                          0.10f, 0.2f, 0.1f, 0.2f, 0.1f, 0.2f });
 
     topology topo(
         input_layout("input", input_8->get_layout()),
         data("weights", weights),
-        convolution("conv", "input", { "weights" }, { 1, 1, 1, 2 }),
+        convolution("conv", "input", { "weights" }, { 2, 1 }),
         softmax("softmax", "conv"));
 
     build_options bo;
@@ -396,14 +397,14 @@ TEST(memory_pool, shared_mem_pool_diff_batches) {
     auto outputs = network_first.execute();
 
     auto dev_info = engine->get_device_info();
-    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t) 4744);
+    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t)4744);
 
     topo.change_input_layout("input", input_1->get_layout());//change input layout to batch=1
 
     network network_second(*engine, topo, bo);
     network_second.set_input_data("input", input_1);
     auto outputs_second = network_second.execute();
-    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t) 5912);
+    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t)5912);
 }
 
 TEST(memory_pool, shared_dep_two_output) {
@@ -430,12 +431,12 @@ TEST(memory_pool, shared_dep_two_output) {
     auto result_1_0 = cldnn::concatenation(
         "result_1_0",
         { constant_0_0 },
-        cldnn::concatenation::along_b
+        0
     );
     auto result_2_0 = cldnn::concatenation(
         "result_2_0",
         { constant_0_0 },
-        cldnn::concatenation::along_b
+        0
     );
 
     //build and execute network
@@ -469,12 +470,12 @@ TEST(memory_pool, non_opt_intermidate_opt_after) {
     auto reshape_tensor = cldnn::tensor(8, 1, 1, 1);
     auto input = cldnn::input_layout("input1", input_layout1);
     auto input2 = cldnn::input_layout("input2", input_layout2);
-    auto concat = cldnn::concatenation("concat", { "input1", "input2" }, cldnn::concatenation::along_b);
+    auto concat = cldnn::concatenation("concat", { "input1", "input2" }, 0);
     auto reshape = cldnn::reshape("reshape", "concat", reshape_tensor);
     auto crop1 = cldnn::crop("crop1", "reshape", { 1, 1, 1, 1 }, { 0, 0, 0, 0 });
     auto crop2 = cldnn::crop("crop2", "reshape", { 1, 1, 1, 1 }, { 1, 0, 0, 0 });
-    auto eltwise1 = cldnn::scale("elt1", "crop1", "scale_mem");
-    auto eltwise2 = cldnn::scale("elt2", "crop2", "scale_mem");
+    auto eltwise1 = cldnn::eltwise("elt1", { "crop1", "scale_mem" }, eltwise_mode::prod);
+    auto eltwise2 = cldnn::eltwise("elt2", { "crop2", "scale_mem" }, eltwise_mode::prod);
 
     auto topology = cldnn::topology(
         input, input2,
@@ -520,8 +521,8 @@ TEST(memory_pool, add_mem_dep_test) {
     auto actv2 = cldnn::activation("input_activ2", "input1", activation_func::abs);
     auto crop1 = cldnn::crop("crop1", "input_activ1", { 1, 1, 2, 2 }, { 0, 0, 0, 0 });
     auto crop2 = cldnn::crop("crop2", "input_activ2", { 1, 1, 2, 2 }, { 0, 1, 0, 0 });
-    auto eltwise1 = cldnn::scale("elt1", "crop1", "scale_mem");
-    auto eltwise2 = cldnn::scale("elt2", "crop2", "scale_mem");
+    auto eltwise1 = cldnn::eltwise("elt1", { "crop1", "scale_mem" }, eltwise_mode::prod);
+    auto eltwise2 = cldnn::eltwise("elt2", { "crop2", "scale_mem" }, eltwise_mode::prod);
     auto actv3 = cldnn::activation("out3", "elt1", activation_func::abs);
     auto actv4 = cldnn::activation("out4", "elt2", activation_func::abs);
 

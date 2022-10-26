@@ -11,7 +11,7 @@ namespace intel_cpu {
 
 class FullyConnectedBiasFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("FullyConnectedBiasFusion", "0");
     FullyConnectedBiasFusion();
 };
 

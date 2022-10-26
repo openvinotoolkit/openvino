@@ -27,26 +27,30 @@ protected:
     kernel_arguments_data get_arguments(typed_primitive_inst<lstm_dynamic_input>& instance, int32_t) const override {
         kernel_arguments_data args;
         args.inputs = { instance.input_memory_ptr(), instance.dyn_length_memory()};
-        args.output = instance.output_memory_ptr();
+        args.outputs = { instance.output_memory_ptr() };
         args.weights = instance.weights_memory();
         args.bias = instance.bias_term() ? instance.bias_memory() : nullptr;
         return args;
     }
 
 public:
-    static primitive_impl* create(const lstm_dynamic_input_node& arg) {
-        auto dlstm_input_params = get_default_params<kernel_selector::lstm_dynamic_input_params>(arg);
+    static primitive_impl* create(const lstm_dynamic_input_node& arg, const kernel_impl_params& impl_param) {
+        auto dlstm_input_params = get_default_params<kernel_selector::lstm_dynamic_input_params>(impl_param);
 
-        const auto& weights_layout = arg.weights().get_output_layout();
+        const auto dyn_len_idx = 1;
+        const auto weights_idx = 2;
+        const auto bias_idx = 3;
+
+        const auto& weights_layout = impl_param.input_layouts[weights_idx];
         dlstm_input_params.weights = convert_weights_tensor(weights_layout);
 
         if (arg.bias_term()) {
-            const auto& bias_layout = arg.bias().get_output_layout();
+            const auto& bias_layout = impl_param.input_layouts[bias_idx];
             dlstm_input_params.bias.push_back(convert_data_tensor(bias_layout));
         }
 
         // dyn length
-        const auto& dyn_length_tensor = arg.dyn_length().get_output_layout();
+        const auto& dyn_length_tensor = impl_param.input_layouts[dyn_len_idx];
         dlstm_input_params.inputs.push_back(convert_data_tensor(dyn_length_tensor));
 
         dlstm_input_params.direction = arg.direction();

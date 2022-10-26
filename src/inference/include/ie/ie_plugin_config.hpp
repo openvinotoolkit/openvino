@@ -268,6 +268,7 @@ DECLARE_CONFIG_VALUE(MODEL_PRIORITY_LOW);
 DECLARE_CONFIG_KEY(PERFORMANCE_HINT);
 DECLARE_CONFIG_VALUE(LATENCY);
 DECLARE_CONFIG_VALUE(THROUGHPUT);
+DECLARE_CONFIG_VALUE(CUMULATIVE_THROUGHPUT);
 /**
  * @brief (Optional) config key that backs the (above) Performance Hints
  * by giving additional information on how many inference requests the application will be keeping in flight
@@ -448,6 +449,19 @@ DECLARE_CONFIG_KEY(ENFORCE_BF16);
  * @endcode
  */
 DECLARE_CONFIG_KEY(CACHE_DIR);
+
+/**
+ * @brief The key to decide whether terminate tbb threads when inference engine destructing.
+ *
+ * value type: boolean
+ *   - True explicitly terminate tbb when inference engine destruction
+ *   - False will not involve additional tbb operations when inference engine destruction
+ *
+ * @code
+ * ie.SetConfig({{CONFIG_KEY(FORCE_TBB_TERMINATE), CONFIG_VALUE(YES)}}); // enable
+ * @endcode
+ */
+DECLARE_CONFIG_KEY(FORCE_TBB_TERMINATE);
 
 }  // namespace PluginConfigParams
 

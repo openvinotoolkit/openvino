@@ -3,8 +3,9 @@
 //
 
 #include "shared_test_classes/single_layer/prior_box.hpp"
+#include <openvino/pass/constant_folding.hpp>
 
-namespace LayerTestDefinitions {
+namespace LayerTestsDefinitions {
 std::string PriorBoxLayerTest::getTestCaseName(const testing::TestParamInfo<priorBoxLayerParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
@@ -79,6 +80,7 @@ void PriorBoxLayerTest::SetUp() {
     attributes.offset = offset;
     attributes.clip = clip;
     attributes.flip = flip;
+    attributes.scale_all_sizes = scale_all_sizes;
     attributes.min_max_aspect_ratios_order = min_max_aspect_ratios_order;
 
     auto shape_of_1 = std::make_shared<ngraph::opset3::ShapeOf>(params[0]);
@@ -88,7 +90,9 @@ void PriorBoxLayerTest::SetUp() {
         shape_of_2,
         attributes);
 
+    ov::pass::disable_constant_folding(priorBox);
+
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(priorBox)};
     function = std::make_shared <ngraph::Function>(results, params, "PriorBoxFunction");
 }
-} // namespace LayerTestDefinitions
+} // namespace LayerTestsDefinitions

@@ -14,8 +14,6 @@
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeSequenceFusion, "ReshapeSequenceFusion", 0);
-
 namespace {
 bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
     const auto const_node = std::dynamic_pointer_cast<ngraph::opset8::Constant>(node_out.get_node_shared_ptr());

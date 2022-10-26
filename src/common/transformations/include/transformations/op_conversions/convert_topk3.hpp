@@ -19,6 +19,6 @@ class TRANSFORMATIONS_API ConvertTopK3;
 
 class ngraph::pass::ConvertTopK3 : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertTopK3", "0");
     ConvertTopK3();
 };

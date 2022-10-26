@@ -85,10 +85,10 @@ public:
         ngraph::pass::low_precision::TypeRelaxedReplacer pass;
         pass.run_on_function(actualFunction);
 
-        auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
-            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
-                {0, {ngraph::element::u8}},
-                {1, {ngraph::element::i8}}
+        auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
+            ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::Convolution>({
+                {{0}, {ngraph::element::u8}},
+                {{1}, {ngraph::element::i8}}
             })
         });
 

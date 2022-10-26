@@ -25,6 +25,6 @@ class TRANSFORMATIONS_API ReluFakeQuantizeFusion;
 
 class ngraph::pass::ReluFakeQuantizeFusion : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ReluFakeQuantizeFusion", "0");
     ReluFakeQuantizeFusion();
 };

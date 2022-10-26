@@ -69,6 +69,11 @@ std::pair<std::shared_ptr<ngraph::opset8::Split>, uint64_t> get_split_before_con
 
     // If 'split' node has more than one consumer, then the transformation is not applicable.
     for (const auto& output : split->outputs()) {
+        // if there is 'split' output port with no consumers,
+        // SplitConcatPairToInterpolateFusion is not applicable
+        if (output.get_target_inputs().empty()) {
+            return {};
+        }
         for (const auto& consumer : output.get_target_inputs()) {
             if (consumer.get_node() != concat.get())
                 return {};
@@ -101,8 +106,6 @@ std::pair<std::shared_ptr<ngraph::opset8::Split>, uint64_t> get_split_before_con
     return {split, size_of_group};
 }
 }  // namespace
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SplitConcatPairToInterpolateFusion, "SplitConcatPairToInterpolateFusion", 0);
 
 ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFusion(bool use_shape_for_elimination) {
     MATCHER_SCOPE(SplitConcatPairToInterpolateFusion);

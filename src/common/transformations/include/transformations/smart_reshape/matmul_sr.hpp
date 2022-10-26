@@ -28,16 +28,16 @@ class NGRAPH_API TransposeMatMul;
 
 class ngraph::pass::ReshapeAMatMul : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ReshapeAMatMul", "0");
     ReshapeAMatMul();
 };
 class ngraph::pass::ReshapeBMatMul : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ReshapeBMatMul", "0");
     ReshapeBMatMul();
 };
 class ngraph::pass::TransposeMatMul : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TransposeMatMul", "0");
     TransposeMatMul();
 };

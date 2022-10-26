@@ -6,11 +6,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertReduceToPooling, "ConvertReduceToPooling", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertReduceMeanToPooling, "ConvertReduceMeanToPooling", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertReduceMaxToPooling, "ConvertReduceMaxToPooling", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertReduceSumToPooling, "ConvertReduceSumToPooling", 0);
-
 ngraph::pass::ConvertReduceMeanToPooling::ConvertReduceMeanToPooling() {
     MATCHER_SCOPE(ConvertReduceMeanToPooling);
     auto m = std::make_shared<ngraph::pattern::Matcher>(

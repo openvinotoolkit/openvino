@@ -25,11 +25,6 @@ class InstallCmd(install):
             # install requires
             self.do_egg_install()
 
-        def_quant_path = os.path.join("configs", "default_quantization_template.json")
-        aa_quant_path = os.path.join("configs", "accuracy_aware_quantization_template.json")
-        copyfile(def_quant_path, os.path.join(self.install_purelib, prefix, "pot", def_quant_path))
-        copyfile(aa_quant_path, os.path.join(self.install_purelib, prefix, "pot", aa_quant_path))
-
         version_txt = os.path.join(prefix, "pot", "version.txt")
         if os.path.exists(version_txt):
             copyfile(os.path.join(version_txt),
@@ -70,23 +65,21 @@ if '--install-dev-extras' in sys.argv:
     sys.argv.remove('--install-dev-extras')
 
 INSTALL_REQUIRES = [
-    "scipy~=1.5.4",
-    "jstyleson~=0.0.2",
-    "numpy>=1.16.6,<1.20",
+    "scipy>=1.5.4",
+    "jstyleson>=0.0.2",
+    "numpy>=1.16.6,<=1.23.1",
     "addict>=2.4.0",
     "networkx~=2.5;python_version<='3.6'",
-    "networkx~=2.6;python_version>'3.6'",
+    "networkx<2.8.1;python_version>'3.6'",
     "tqdm>=4.54.1",
-    "texttable~=1.6.3",
+    "texttable>=1.6.3",
     "pandas~=1.1.5",
     "openvino-telemetry>=2022.1.0"
 ]
 
-ALGO_EXTRAS = [
-    'hyperopt~=0.1.2',
-]
+ALGO_EXTRAS = []
 
-DEV_EXTRAS = ['pytest==4.5.0', 'openpyxl==2.6.4', 'pytest-mock==3.1.1']
+DEV_EXTRAS = ['pytest>=5.0,<=7.0.1', 'openpyxl==2.6.4', 'pytest-mock==3.1.1']
 
 DEPENDENCY_LINKS = []
 
@@ -143,8 +136,9 @@ setup(
     url='https://software.intel.com/openvino-toolkit',
     packages=find_packages(exclude=["tests", "tests.*",
                                     "tools", "tools.*"]),
-    package_data={"openvino.tools.pot.configs.hardware": ['*.json'],
-                  "openvino.tools.pot.api.samples": ['*.md', '*/*.md']},
+    package_data={'openvino.tools.pot.configs.hardware': ['*.json'],
+                  'openvino.tools.pot.api.samples': ['*.md', '*/*.md'],
+                  'openvino.tools.pot.configs.templates': ['*.json']},
     include_package_data=True,
     cmdclass={
         'install': InstallCmd,

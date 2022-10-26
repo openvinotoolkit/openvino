@@ -12,6 +12,7 @@
 #  * `Runtime`: OpenVINO C++ and C Core & Inference Runtime, frontend common
 #  * `ONNX`: OpenVINO ONNX frontend
 #  * `Paddle`: OpenVINO Paddle frontend
+#  * `TensorFlow`: OpenVINO TensorFlow frontend
 #
 # If no components are specified, `Runtime` component is provided:
 #
@@ -117,8 +118,140 @@ macro(_ov_find_dependency dep)
         return()
     endif()
 
-    set(cmake_fd_required_arg)
-    set(cmake_fd_quiet_arg)
+    unset(cmake_fd_required_arg)
+    unset(cmake_fd_quiet_arg)
+endmacro()
+
+macro(_ov_find_tbb)
+    set(THREADING "@THREADING@")
+    if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND NOT TBB_FOUND)
+        set(enable_pkgconfig_tbb "@tbb_FOUND@")
+
+        # try tbb.pc
+        if(enable_pkgconfig_tbb AND NOT ANDROID)
+            _ov_find_dependency(PkgConfig)
+            if(PkgConfig_FOUND)
+                if(${CMAKE_FIND_PACKAGE_NAME}_FIND_QUIETLY)
+                    set(pkg_config_quiet_arg QUIET)
+                endif()
+                if(${CMAKE_FIND_PACKAGE_NAME}_FIND_REQUIRED)
+                    set(pkg_config_required_arg REQUIRED)
+                endif()
+
+                pkg_search_module(tbb
+                                ${pkg_config_quiet_arg}
+                                ${pkg_config_required_arg}
+                                IMPORTED_TARGET
+                                tbb)
+                unset(pkg_config_quiet_arg)
+                unset(pkg_config_required_arg)
+
+                if(tbb_FOUND)
+                    if(TARGET PkgConfig::tbb)
+                        set(TBB_VERSION ${tbb_VERSION})
+                        set(TBB_FOUND ${tbb_FOUND})
+                        unset(tbb_FOUND)
+                        unset(tbb_VERSION)
+                    elseif(${CMAKE_FIND_PACKAGE_NAME}_FIND_REQUIRED)
+                        message(FATAL_ERROR "cmake v${CMAKE_VERSION} contains bug in function 'pkg_search_module', need to update to at least v3.16.0 version")
+                    endif()
+                endif()
+            endif()
+        else()
+            # try cmake TBB interface
+
+            set(enable_system_tbb "@ENABLE_SYSTEM_TBB@")
+            if(NOT enable_system_tbb)
+                set_and_check(_tbb_dir "@PACKAGE_IE_TBB_DIR@")
+
+                # see https://stackoverflow.com/questions/28070810/cmake-generate-error-on-windows-as-it-uses-as-escape-seq
+                if(DEFINED ENV{TBBROOT})
+                    file(TO_CMAKE_PATH $ENV{TBBROOT} ENV_TBBROOT)
+                endif()
+                if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
+                    set(_no_cmake_install_prefix NO_CMAKE_INSTALL_PREFIX)
+                endif()
+
+                set(find_package_tbb_extra_args
+                    CONFIG
+                    PATHS
+                        # oneTBB case exposed via export TBBROOT=<custom TBB root>
+                        "${ENV_TBBROOT}/lib64/cmake/TBB"
+                        "${ENV_TBBROOT}/lib/cmake/TBB"
+                        "${ENV_TBBROOT}/lib/cmake/tbb"
+                        # for custom TBB exposed via cmake -DTBBROOT=<custom TBB root>
+                        "${TBBROOT}/cmake"
+                        # _tbb_dir points to TBB_DIR (custom | temp | system) used to build OpenVINO
+                        ${_tbb_dir}
+                    CMAKE_FIND_ROOT_PATH_BOTH
+                    NO_PACKAGE_ROOT_PATH
+                    NO_SYSTEM_ENVIRONMENT_PATH
+                    NO_CMAKE_PACKAGE_REGISTRY
+                    NO_CMAKE_SYSTEM_PATH
+                    ${_no_cmake_install_prefix}
+                    NO_CMAKE_SYSTEM_PACKAGE_REGISTRY)
+                unset(_tbb_dir)
+                unset(_no_cmake_install_prefix)
+            endif()
+            unset(enable_system_tbb)
+
+            _ov_find_dependency(TBB
+                                COMPONENTS tbb tbbmalloc
+                                ${find_package_tbb_extra_args})
+            unset(find_package_tbb_extra_args)
+        endif()
+        unset(enable_pkgconfig_tbb)
+
+        set(install_tbbbind "@install_tbbbind@")
+        if(install_tbbbind)
+            set_and_check(_tbb_bind_dir "@PACKAGE_IE_TBBBIND_DIR@")
+            _ov_find_dependency(TBBBIND_2_5
+                                PATHS ${_tbb_bind_dir}
+                                NO_CMAKE_FIND_ROOT_PATH
+                                NO_DEFAULT_PATH)
+            set_target_properties(${TBBBIND_2_5_IMPORTED_TARGETS} PROPERTIES IMPORTED_GLOBAL ON)
+            unset(_tbb_bind_dir)
+        endif()
+        unset(install_tbbbind)
+    endif()
+endmacro()
+
+macro(_ov_find_intel_gna_dependencies)
+    set(_OV_ENABLE_INTEL_GNA "@ENABLE_INTEL_GNA@")
+    if(_OV_ENABLE_INTEL_GNA AND NOT libGNA_FOUND)
+        set_and_check(GNA_PATH "@PACKAGE_GNA_PATH@")
+        _ov_find_dependency(libGNA
+                            COMPONENTS KERNEL
+                            CONFIG
+                            PATHS "${CMAKE_CURRENT_LIST_DIR}"
+                            NO_CMAKE_FIND_ROOT_PATH
+                            NO_DEFAULT_PATH)
+        unset(GNA_PATH)
+    endif()
+    unset(_OV_ENABLE_INTEL_GNA)
+endmacro()
+
+macro(_ov_find_intel_myriad_dependencies)
+    set(_OV_ENABLE_INTEL_MYRIAD "@ENABLE_INTEL_MYRIAD@")
+    if(_OV_ENABLE_INTEL_MYRIAD)
+        find_package(PkgConfig QUIET)
+        if(PkgConfig_FOUND AND NOT ANDROID)
+            if(${CMAKE_FIND_PACKAGE_NAME}_FIND_QUIETLY)
+                set(pkg_config_quiet_arg QUIET)
+            endif()
+            if(${CMAKE_FIND_PACKAGE_NAME}_FIND_REQUIRED)
+                set(pkg_config_required_arg REQUIRED)
+            endif()
+            pkg_search_module(libusb
+                            ${pkg_config_quiet_arg}
+                            ${pkg_config_required_arg}
+                            IMPORTED_TARGET
+                            libusb-1.0)
+            unset(pkg_config_quiet_arg)
+            unset(pkg_config_required_arg)
+        endif()
+    endif()
+    unset(_OV_ENABLE_INTEL_MYRIAD)
 endmacro()
 
 function(_ov_target_no_deprecation_error)
@@ -144,52 +277,34 @@ endfunction()
 # need to store current PACKAGE_PREFIX_DIR, because it's overwritten by sub-package one
 set(_ov_package_prefix_dir "${PACKAGE_PREFIX_DIR}")
 
-set(THREADING "@THREADING@")
-if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND NOT TBB_FOUND)
-    set_and_check(_tbb_dir "@PACKAGE_IE_TBB_DIR@")
-    _ov_find_dependency(TBB
-                        COMPONENTS tbb tbbmalloc
-                        CONFIG
-                        PATHS ${TBBROOT}/cmake
-                              ${_tbb_dir}
-                        NO_CMAKE_FIND_ROOT_PATH
-                        NO_DEFAULT_PATH)
+set(_OV_ENABLE_OPENVINO_BUILD_SHARED "@BUILD_SHARED_LIBS@")
 
-    set(install_tbbbind "@install_tbbbind@")
-    if(install_tbbbind)
-        set_and_check(_tbb_bind_dir "@PACKAGE_IE_TBBBIND_DIR@")
-        _ov_find_dependency(TBBBIND_2_5
-                            PATHS ${_tbb_bind_dir}
-                            NO_CMAKE_FIND_ROOT_PATH
-                            NO_DEFAULT_PATH)
-        set_target_properties(${TBBBIND_2_5_IMPORTED_TARGETS} PROPERTIES IMPORTED_GLOBAL ON)
-    endif()
+if(NOT _OV_ENABLE_OPENVINO_BUILD_SHARED)
+    _ov_find_tbb()
+    _ov_find_intel_gna_dependencies()
+    _ov_find_intel_myriad_dependencies()
 endif()
 
 _ov_find_dependency(Threads)
 
-set(ENABLE_INTEL_GNA "@ENABLE_INTEL_GNA@")
-set(ENABLE_INTEL_GNA_SHARED "@BUILD_SHARED_LIBS@")
-if(ENABLE_INTEL_GNA AND NOT ENABLE_INTEL_GNA_SHARED AND NOT libGNA_FOUND)
-    set_and_check(GNA_PATH "@PACKAGE_GNA_PATH@")
-    _ov_find_dependency(libGNA
-                        COMPONENTS KERNEL
-                        CONFIG
-                        PATHS ${CMAKE_CURRENT_LIST_DIR}
-                        NO_CMAKE_FIND_ROOT_PATH
-                        NO_DEFAULT_PATH)
-endif()
+unset(_OV_ENABLE_OPENVINO_BUILD_SHARED)
 
 if(NOT TARGET openvino)
     set(_ov_as_external_package ON)
     include("${CMAKE_CURRENT_LIST_DIR}/OpenVINOTargets.cmake")
 
-    # TODO: WA for cmake version < 3.16
+    # WA for cmake version < 3.16 which does not export
+    # IMPORTED_LINK_DEPENDENT_LIBRARIES_** properties if no PUBLIC dependencies for the library
     if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBB_FOUND)
-        foreach (type RELEASE DEBUG RELWITHDEBINFO MINSIZEREL)
-            set_property(TARGET openvino::runtime APPEND PROPERTY IMPORTED_LINK_DEPENDENT_LIBRARIES_${type} "TBB::tbb;TBB::tbbmalloc")
+        foreach(type RELEASE DEBUG RELWITHDEBINFO MINSIZEREL)
+            foreach(tbb_target TBB::tbb TBB::tbbmalloc PkgConfig::tbb)
+                if(TARGET ${tbb_target})
+                    set_property(TARGET openvino::runtime APPEND PROPERTY IMPORTED_LINK_DEPENDENT_LIBRARIES_${type} "${tbb_target}")
+                endif()
+            endforeach()
         endforeach()
     endif()
+    unset(THREADING)
 endif()
 
 #

@@ -1,19 +1,36 @@
-#include <ie_core.hpp>
+#include <openvino/openvino.hpp>
 
 int main() {
-    const std::map<std::string, std::string> cpu_config  = { { InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES } };
-    const std::map<std::string, std::string> gpu_config = { { InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES } };
-    //! [part4]
-    InferenceEngine::Core ie; 
-    InferenceEngine::CNNNetwork network = ie.ReadNetwork("sample.xml");
-    // configure the CPU device first
-    ie.SetConfig(cpu_config, "CPU"); 
-    // configure the GPU device
-    ie.SetConfig(gpu_config, "GPU"); 
-    // load the network to the auto-device
-    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(network, "AUTO");
-    // new metric allows to query the optimization capabilities
-    std::vector<std::string> device_cap = exeNetwork.GetMetric(METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-    //! [part4]
+    ov::Core core;
+
+    // Read a network in IR, PaddlePaddle, or ONNX format:
+    std::shared_ptr<ov::Model> model = core.read_model("sample.xml");
+{
+//! [part4]
+// Example 1
+ov::CompiledModel compiled_model0 = core.compile_model(model, "AUTO",
+    ov::hint::model_priority(ov::hint::Priority::HIGH));
+ov::CompiledModel compiled_model1 = core.compile_model(model, "AUTO",
+    ov::hint::model_priority(ov::hint::Priority::MEDIUM));
+ov::CompiledModel compiled_model2 = core.compile_model(model, "AUTO",
+    ov::hint::model_priority(ov::hint::Priority::LOW));
+/************
+  Assume that all the devices (CPU, GPU, and MYRIAD) can support all the networks.
+  Result: compiled_model0 will use GPU, compiled_model1 will use MYRIAD, compiled_model2 will use CPU.
+ ************/
+
+// Example 2
+ov::CompiledModel compiled_model3 = core.compile_model(model, "AUTO",
+    ov::hint::model_priority(ov::hint::Priority::LOW));
+ov::CompiledModel compiled_model4 = core.compile_model(model, "AUTO",
+    ov::hint::model_priority(ov::hint::Priority::MEDIUM));
+ov::CompiledModel compiled_model5 = core.compile_model(model, "AUTO",
+    ov::hint::model_priority(ov::hint::Priority::LOW));
+/************
+  Assume that all the devices (CPU, GPU, and MYRIAD) can support all the networks.
+  Result: compiled_model3 will use GPU, compiled_model4 will use GPU, compiled_model5 will use MYRIAD.
+ ************/
+//! [part4]
+}
     return 0;
 }

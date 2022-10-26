@@ -11,7 +11,6 @@
 #include "ngraph/type/element_type.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 #define TensorValue(val) static_cast<cldnn::tensor::value_type>(val)
@@ -58,32 +57,24 @@ inline cldnn::data_types DataTypeFromPrecision(InferenceEngine::Precision p) {
     }
 }
 
-inline cldnn::data_types DataTypeFromPrecision(ngraph::element::Type t) {
-    switch (t) {
-    case ngraph::element::Type_t::i16:
-    case ngraph::element::Type_t::u16:
-    case ngraph::element::Type_t::f32:
-    case ngraph::element::Type_t::f64:
-        return cldnn::data_types::f32;
-    case ngraph::element::Type_t::f16:
-        return cldnn::data_types::f16;
-    case ngraph::element::Type_t::u8:
-        return cldnn::data_types::u8;
-    case ngraph::element::Type_t::i8:
-        return cldnn::data_types::i8;
-    case ngraph::element::Type_t::i32:
-    case ngraph::element::Type_t::u32:
-    case ngraph::element::Type_t::u64:
-        return cldnn::data_types::i32;
-    case ngraph::element::Type_t::i64:
-        return cldnn::data_types::i64;
-    case ngraph::element::Type_t::boolean:
-        return cldnn::data_types::i8;
-    case ngraph::element::Type_t::u1:
-        return cldnn::data_types::bin;
+inline InferenceEngine::Precision PrecisionFromDataType(cldnn::data_types dt) {
+    switch (dt) {
+    case cldnn::data_types::bin:
+        return InferenceEngine::Precision::ePrecision::BIN;
+    case cldnn::data_types::u8:
+        return InferenceEngine::Precision::ePrecision::U8;
+    case cldnn::data_types::i8:
+        return InferenceEngine::Precision::ePrecision::I8;
+    case cldnn::data_types::f16:
+        return InferenceEngine::Precision::ePrecision::FP16;
+    case cldnn::data_types::f32:
+        return InferenceEngine::Precision::ePrecision::FP32;
+    case cldnn::data_types::i32:
+        return InferenceEngine::Precision::ePrecision::I32;
+    case cldnn::data_types::i64:
+        return InferenceEngine::Precision::ePrecision::I64;
     default:
-        IE_THROW(ParameterMismatch)
-            << "The plugin does not support " << t.get_type_name()<< " precision";
+        IE_THROW(ParameterMismatch) << "The plugin does not support " << cldnn::data_type_traits::name(dt) << " data type";
     }
 }
 
@@ -150,50 +141,6 @@ inline cldnn::format ImageFormatFromLayout(InferenceEngine::Layout l) {
     }
 }
 
-inline cldnn::format DefaultFormatForDims(size_t dimensions) {
-    switch (dimensions) {
-    case 0:
-    case 1:
-    case 2:
-    case 3:
-    case 4:
-        return cldnn::format::bfyx;
-    case 5:
-        return cldnn::format::bfzyx;
-    case 6:
-        return cldnn::format::bfwzyx;
-    default:
-        IE_THROW() << "Unsupported number of dimensions: " << dimensions;
-    }
-
-    return cldnn::format::bfyx;  // Should not get here
-}
-
-// This helper function is needed to convert permute order from IE format (bfyx) into cldnn format (bfxy)
-inline std::vector<uint16_t> ConvertPermuteOrder(const std::vector<uint16_t>& ie_order, size_t rank = 0) {
-    std::vector<uint16_t> ie_order_aligned = ie_order;
-    // if order size is less than 4 - fill the rest with just copy
-    rank = std::max(rank, (size_t)4);
-    for (auto o = ie_order_aligned.size(); o < rank; o++)
-        ie_order_aligned.push_back((uint16_t)o);
-
-    std::vector<uint16_t> cldnn_order;
-    // 1. Switch permute order values for spatial dims
-    for (auto const& o : ie_order_aligned) {
-        if (o >= 2)
-            cldnn_order.push_back(1 + ie_order_aligned.size() - o);
-        else
-            cldnn_order.push_back(o);
-    }
-
-    // 2. Swap spatial positions
-    for (int i = 0; i < (cldnn_order.size() - 2) / 2; i++) {
-        std::swap(cldnn_order[2 + i], cldnn_order[1 + cldnn_order.size() - (2 + i)]);
-    }
-
-    return cldnn_order;
-}
-
 inline InferenceEngine::Layout InferenceEngineLayoutFromOVLayout(ov::Layout l) {
     if (l == ov::Layout("C")) return InferenceEngine::Layout::C;
     if (l == ov::Layout("CN")) return InferenceEngine::Layout::CN;
@@ -210,5 +157,4 @@ inline InferenceEngine::Layout InferenceEngineLayoutFromOVLayout(ov::Layout l) {
 }
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

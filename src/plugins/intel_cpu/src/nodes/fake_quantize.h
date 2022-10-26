@@ -15,6 +15,7 @@
 
 namespace ov {
 namespace intel_cpu {
+namespace node {
 
 struct jit_quantize_params {
     int c;
@@ -65,15 +66,15 @@ struct jit_uni_quantize_kernel {
     jit_quantize_params jqp_;
 };
 
-class MKLDNNFakeQuantizeNode : public MKLDNNNode {
+class FakeQuantize : public Node {
 public:
-    MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void initSupportedPrimitiveDescriptors() override;
     void getSupportedDescriptors() override;
     bool created() const override;
-    void execute(mkldnn::stream strm) override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
     size_t getAxis() const { return axis; }
 
@@ -113,6 +114,8 @@ public:
         outputShift = std::move(newOutputShift); outputShiftSize = outputShift.size(); isPostOpDataInitialized = false;
     }
 
+    const std::vector<float>& getFQScales() const { return fqScales; }
+
     bool isInputLowBroadcast() const { return isInputLowBroadcasted; }
     bool isInputHighBroadcast() const { return isInputHighBroadcasted; }
     bool isOutputLowBroadcast() const { return isOutputLowBroadcasted; }
@@ -121,12 +124,14 @@ public:
     InferenceEngine::Precision getInputPrecision() const { return inputPrecision; }
     InferenceEngine::Precision getOutputPrecision() const { return outputPrecision; }
 
-    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MKLDNNMemoryPtr>& postOpsMem) override;
-    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem) override;
-    void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MKLDNNMemoryPtr>& binaryPostOpsMem) override;
+    void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem, const int channelAxis = 1) override;
+    void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1) override;
+    void appendBinPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem) override;
+    void appendBinPostOpsOptimized(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem,
+            bool isLastPostOp, dnnl::memory::data_type outDataType);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
-
+    std::vector<float> simplifyToScale(dnnl::memory::data_type outDataType, size_t OC);
     enum BroadcastingPolicy {
         PerChannel, // all FQ operations are per channel
         PerTensor,  // all FQ operations are per tensor
@@ -135,16 +140,16 @@ public:
 
     BroadcastingPolicy getBroadcastingPolicy() const { return broadcastingPolicy; }
 
-    MKLDNNMemoryPtr cropLowMemory;
-    MKLDNNMemoryPtr cropHighMemory;
-    MKLDNNMemoryPtr inputScaleMemory;
-    MKLDNNMemoryPtr inputShiftMemory;
-    MKLDNNMemoryPtr outputScaleMemory;
-    MKLDNNMemoryPtr outputShiftMemory;
+    MemoryPtr cropLowMemory;
+    MemoryPtr cropHighMemory;
+    MemoryPtr inputScaleMemory;
+    MemoryPtr inputShiftMemory;
+    MemoryPtr outputScaleMemory;
+    MemoryPtr outputShiftMemory;
 
 private:
     struct FakeQuantizeExecutor {
-        virtual void exec(const MKLDNNFakeQuantizeNode& node) = 0;
+        virtual void exec(const FakeQuantize& node) = 0;
         virtual ~FakeQuantizeExecutor() = default;
     };
     using executorPtr = std::shared_ptr<FakeQuantizeExecutor>;
@@ -152,7 +157,7 @@ private:
 
     struct FakeQuantizeJitExecutor : public FakeQuantizeExecutor {
         FakeQuantizeJitExecutor(const jit_quantize_params &_jqp);
-        void exec(const MKLDNNFakeQuantizeNode& node) override;
+        void exec(const FakeQuantize& node) override;
         std::unique_ptr<jit_uni_quantize_kernel> pKernel;
     };
 
@@ -164,10 +169,10 @@ private:
     void executeBinarization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const;
     void executeQuantization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const;
 
-    void appendMemory(const size_t dataSize, const void *data, MKLDNNMemoryPtr &memPtr, std::vector<MKLDNNMemoryPtr>& postOpsMem);
-    void appendMemory(const size_t dataSize, const void *data, MKLDNNMemoryPtr &memPtr, std::vector<const void*>& postOpsMem);
+    void appendMemory(const size_t dataSize, const void *data, MemoryPtr &memPtr, std::vector<MemoryPtr>& postOpsMem);
+    void appendMemory(const size_t dataSize, const void *data, MemoryPtr &memPtr, std::vector<const void*>& postOpsMem);
     template <typename T>
-    void appendPostOpsImpl(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem);
+    void appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem);
 
     size_t levels = 0;
 
@@ -185,7 +190,7 @@ private:
 
     std::vector<float> quantizationData;
     size_t quantizationDataSize = 0lu;
-    MKLDNNMemoryPtr quantizationMemory;
+    MemoryPtr quantizationMemory;
 
     size_t cropLowSize;
     size_t cropHighSize;
@@ -194,14 +199,19 @@ private:
     size_t outputScaleSize;
     size_t outputShiftSize;
 
-    // mkldnn style post ops data representation
+    std::vector<float> fqScales;
+
+
     bool isPostOpDataInitialized = false;
-    mkldnn::impl::shifts_t<float> cropLowData;
-    mkldnn::impl::shifts_t<float> cropHighData;
-    mkldnn::impl::scales_t inputScaleData;
-    mkldnn::impl::shifts_t<float> inputShiftData;
-    mkldnn::impl::scales_t outputScaleData;
-    mkldnn::impl::shifts_t<float> outputShiftData;
+    bool isLegacyPostOpDataInitialized = false;
+
+    // onednn style post ops data representation
+    dnnl::impl::shifts_t<float> cropLowData;
+    dnnl::impl::shifts_t<float> cropHighData;
+    dnnl::impl::scales_t inputScaleData;
+    dnnl::impl::shifts_t<float> inputShiftData;
+    dnnl::impl::scales_t outputScaleData;
+    dnnl::impl::shifts_t<float> outputShiftData;
 
     bool isInputLowBroadcasted = false;
     bool isInputHighBroadcasted = false;
@@ -219,5 +229,6 @@ private:
     BroadcastingPolicy broadcastingPolicy;
 };
 
+}   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

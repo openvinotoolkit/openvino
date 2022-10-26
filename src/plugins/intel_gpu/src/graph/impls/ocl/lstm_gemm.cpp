@@ -27,7 +27,7 @@ protected:
     kernel_arguments_data get_arguments(typed_primitive_inst<lstm_gemm>& instance, int32_t) const override {
         kernel_arguments_data args = parent::get_arguments(instance, 0);
 
-        args.output = instance.output_memory_ptr();
+        args.outputs = { instance.output_memory_ptr() };
         args.weights = instance.weights_memory();
         args.recurrent = instance.recurrent_memory();
         args.bias = instance.bias_term() ? instance.bias_memory() : nullptr;
@@ -37,32 +37,37 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const lstm_gemm_node& arg) {
-        const auto& weights_layout = arg.weights().get_output_layout();
+    static primitive_impl* create(const lstm_gemm_node& arg, const kernel_impl_params& impl_param) {
+        const auto input_idx = 0;
+        const auto weight_idx = 1;
+        const auto recurrent_idx = 2;
+        const auto bias_idx = 3;
+        const auto hidden_idx = arg.bias_term() ? 4 : 3;
 
-        auto lstm_gemm_params = get_default_params<kernel_selector::lstm_gemm_params>(arg);
+        const auto& weights_layout = impl_param.input_layouts[weight_idx];
+        auto lstm_gemm_params = get_default_params<kernel_selector::lstm_gemm_params>(impl_param);
         lstm_gemm_params.weights = convert_data_tensor(weights_layout);
 
         if (arg.bias_term()) {
-            const auto& bias_layout = arg.bias().get_output_layout();
+            const auto& bias_layout = impl_param.input_layouts[bias_idx];
             lstm_gemm_params.SetBias(convert_data_tensor(bias_layout));
         }
         if (arg.hidden_term()) {
-            const auto& recurrent_layout = arg.recurrent().get_output_layout();
+            const auto& recurrent_layout = impl_param.input_layouts[recurrent_idx];
             lstm_gemm_params.recurrent = convert_data_tensor(recurrent_layout);
 
-            const auto& hidden_layout = arg.hidden().get_output_layout();
+            const auto& hidden_layout = impl_param.input_layouts[hidden_idx];
             lstm_gemm_params.SetHidden(convert_data_tensor(hidden_layout));
             // TODO: make a generic function to get the direction
-            if (hidden_layout.size.spatial[1] > 1) {
+            if (hidden_layout.spatial(1) > 1) {
                 lstm_gemm_params.hidden_direction = arg.direction();
             }
         }
         lstm_gemm_params.direction = arg.direction();
 
         // Update the direction of the input for the gemm kernel
-        const auto& input_layout = arg.input().get_output_layout();
-        size_t input_directions = input_layout.size.spatial[1];
+        const auto& input_layout = impl_param.input_layouts[input_idx];
+        size_t input_directions = input_layout.spatial(1);
 
         if (input_directions > 1) {  // For bidirection input, input direction can be 1 or 0
             lstm_gemm_params.input_direction = arg.direction();

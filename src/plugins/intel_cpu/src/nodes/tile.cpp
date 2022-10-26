@@ -6,9 +6,12 @@
 #include "common/cpu_memcpy.h"
 
 using namespace InferenceEngine;
-using namespace ov::intel_cpu;
 
-bool MKLDNNTileNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool Tile::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!ov::is_type<ov::op::v0::Tile>(op)) {
             errorMessage = "Only opset1 Tile operation is supported.";
@@ -29,8 +32,8 @@ bool MKLDNNTileNode::isSupportedOperation(const std::shared_ptr<const ov::Node>&
     return true;
 }
 
-MKLDNNTileNode::MKLDNNTileNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(op, eng, cache) {
+Tile::Tile(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
+        Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -47,7 +50,16 @@ MKLDNNTileNode::MKLDNNTileNode(const std::shared_ptr<ov::Node>& op, const mkldnn
     }
 }
 
-void MKLDNNTileNode::getSupportedDescriptors() {
+void Tile::getSupportedDescriptors() {
+    const auto& vec_to_string = [](const std::vector<size_t>& vec) -> std::string {
+        std::string result = "[";
+        for (size_t i = 0; i < vec.size(); i++) {
+            if (i)
+                result += ", ";
+            result += std::to_string(vec[i]);
+        }
+        return result;
+    };
     if (getParentEdges().size() != 2)
         IE_THROW() << errorPrefix << " has incorrect number of input edges. "
                 "Expected: 2, Actual: " << getParentEdges().size();
@@ -60,8 +72,8 @@ void MKLDNNTileNode::getSupportedDescriptors() {
             IE_THROW() << errorPrefix << " has output edges 0 and " << i << " with different ranks: " << dstDims0.size() << " and " << dstDims.size();
         for (size_t j = 0; j < dstDims0.size(); j++) {
             if (dstDims0[j] != dstDims[j]) {
-                IE_THROW() << errorPrefix << " has output edges 0 and " << i << " with different dims: "
-                        << std::string(dstDims0.begin(), dstDims0.end()) << " and " << std::string(dstDims.begin(), dstDims.end());
+                IE_THROW() << errorPrefix << " has output edges 0 and " << i << " with different dims: " << vec_to_string(dstDims0) << " and "
+                           << vec_to_string(dstDims);
             }
         }
     }
@@ -73,18 +85,18 @@ void MKLDNNTileNode::getSupportedDescriptors() {
         needPrepareParamsVar = true;
 }
 
-void MKLDNNTileNode::initSupportedPrimitiveDescriptors() {
+void Tile::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
     supportedPrimitiveDescriptors = getSupportedConfigs(this);
 }
 
-bool MKLDNNTileNode::needPrepareParams() const {
+bool Tile::needPrepareParams() const {
     return needPrepareParamsVar;
 }
 
-void MKLDNNTileNode::prepareParams() {
+void Tile::prepareParams() {
     if (!constMap[TILE_REPEATS]) {
         const auto& repeatsMem = getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory();
 
@@ -104,7 +116,7 @@ void MKLDNNTileNode::prepareParams() {
     optimizedCase = prepareOptimizedParams(this, srcBlockedDims, dstBlockedDims);
 }
 
-bool MKLDNNTileNode::needShapeInfer() const {
+bool Tile::needShapeInfer() const {
     needPrepareParamsVar = true;
     if (inputShapesModified()) {
         return true;
@@ -122,15 +134,15 @@ bool MKLDNNTileNode::needShapeInfer() const {
     return false;
 }
 
-std::vector<VectorDims> MKLDNNTileNode::shapeInfer() const {
-    return MKLDNNNode::shapeInferGeneric(PortMask(TILE_REPEATS));
+std::vector<VectorDims> Tile::shapeInfer() const {
+    return Node::shapeInferGeneric(PortMask(TILE_REPEATS));
 }
 
-void MKLDNNTileNode::executeDynamicImpl(mkldnn::stream strm) {
+void Tile::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MKLDNNTileNode::execute(mkldnn::stream strm) {
+void Tile::execute(dnnl::stream strm) {
     if (optimizedCase) {
         optimizedExecute(getParentEdgeAt(TILE_INPUT)->getMemoryPtr(), getChildEdgeAt(0)->getMemoryPtr());
     } else {
@@ -138,7 +150,7 @@ void MKLDNNTileNode::execute(mkldnn::stream strm) {
     }
 }
 
-void MKLDNNTileNode::plainExecute(mkldnn::stream strm) {
+void Tile::plainExecute(dnnl::stream strm) {
     if (noTiling) {
         return;
     }
@@ -194,8 +206,10 @@ void MKLDNNTileNode::plainExecute(mkldnn::stream strm) {
     }
 }
 
-bool MKLDNNTileNode::created() const {
-    return getType() == Tile;
+bool Tile::created() const {
+    return getType() == Type::Tile;
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNTileNode, Tile);
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

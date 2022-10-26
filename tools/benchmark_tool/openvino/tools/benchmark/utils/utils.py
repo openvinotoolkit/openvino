@@ -2,10 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from collections import defaultdict
-import datetime
-from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type
+from datetime import timedelta
+from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type, serialize
 from openvino.preprocess import PrePostProcessor
-from openvino.runtime.passes import Manager
 
 from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
     CPU_DEVICE_NAME, GPU_DEVICE_NAME
@@ -254,7 +253,7 @@ def parse_devices(device_string):
     return [d for d in devices.split(',')]
 
 
-def parse_nstreams_value_per_device(devices, values_string):
+def parse_value_per_device(devices, values_string, value_type):
     # Format: <device1>:<value1>,<device2>:<value2> or just <value>
     result = {}
     if not values_string:
@@ -264,16 +263,16 @@ def parse_nstreams_value_per_device(devices, values_string):
         device_value_vec = device_value_string.split(':')
         if len(device_value_vec) == 2:
             device_name = device_value_vec[0]
-            nstreams = device_value_vec[1]
+            value = device_value_vec[1]
             if device_name in devices:
-                result[device_name] = nstreams
+                result[device_name] = value
             else:
-                raise Exception("Can't set nstreams value " + str(nstreams) +
-                                " for device '" + device_name + "'! Incorrect device name!");
+                raise Exception(f"Can't set {value_type} for {device_name}!" \
+                                 " Incorrect device name!")
         elif len(device_value_vec) == 1:
-            nstreams = device_value_vec[0]
+            value = device_value_vec[0]
             for device in devices:
-                result[device] = nstreams
+                result[device] = value
         elif not device_value_vec:
             raise Exception('Unknown string format: ' + values_string)
     return result
@@ -308,31 +307,89 @@ def process_help_inference_string(benchmark_app, device_number_streams):
 
 
 def dump_exec_graph(compiled_model, model_path):
-    weight_path = model_path[:model_path.find(".xml")] + ".bin"
-    pass_manager = Manager()
-    pass_manager.register_pass("Serialize", model_path, weight_path)
-    pass_manager.run_passes(compiled_model.get_runtime_model())
+    serialize(compiled_model.get_runtime_model(), model_path)
 
+def print_perf_counters_sort(perf_counts_list,sort_flag="sort"):
+    """ Print opts time cost and can be sorted according by each opts time cost
+    """
+    for ni in range(len(perf_counts_list)):
+        perf_counts = perf_counts_list[ni]
+        total_time = datetime.timedelta()
+        total_time_cpu = datetime.timedelta()
+        logger.info(f"Performance counts sorted for {ni}-th infer request")
+        for pi in perf_counts:
+            total_time += pi.real_time
+            total_time_cpu += pi.cpu_time
 
+        total_time = total_time.microseconds
+        total_time_cpu = total_time_cpu.microseconds
+        total_real_time_proportion = 0
+        total_detail_data=[]
+        for pi in perf_counts:
+            node_name = pi.node_name
+            layerStatus = pi.status
+            layerType = pi.node_type
+            real_time = pi.real_time.microseconds
+            cpu_time = pi.cpu_time.microseconds
+            real_proportion = round(real_time/total_time,4)
+            execType = pi.exec_type
+            tmp_data=[node_name,layerStatus,layerType,real_time,cpu_time,real_proportion,execType]
+            total_detail_data.append(tmp_data)
+            total_real_time_proportion += real_proportion
+        total_detail_data = np.array(total_detail_data)
+        if sort_flag=="sort":
+            total_detail_data = sorted(total_detail_data,key=lambda tmp_data:tmp_data[-4],reverse=True)
+        elif sort_flag=="no_sort":
+            total_detail_data = total_detail_data
+        elif sort_flag=="simple_sort":
+            total_detail_data = sorted(total_detail_data,key=lambda tmp_data:tmp_data[-4],reverse=True)
+            total_detail_data = [tmp_data for tmp_data in total_detail_data if str(tmp_data[1])!="Status.NOT_RUN"]
+        print_detail_result(total_detail_data)        
+        print(f'Total time:       {total_time} microseconds')
+        print(f'Total CPU time:   {total_time_cpu} microseconds')
+        print(f'Total proportion: {"%.2f"%(round(total_real_time_proportion)*100)} % \n')
+    return total_detail_data
+
+def print_detail_result(result_list):
+    """ Print_perf_counters_sort result 
+    """
+    max_layer_name = 30
+    for tmp_result in result_list:
+        node_name = tmp_result[0]
+        layerStatus = tmp_result[1]
+        layerType = tmp_result[2]
+        real_time = tmp_result[3]
+        cpu_time = tmp_result[4]
+        real_proportion = "%.2f"%(tmp_result[5]*100)
+        if real_proportion == "0.00":
+            real_proportion = "-nan"
+        execType = tmp_result[6]
+        print(f"{node_name[:max_layer_name - 4] + '...' if (len(node_name) >= max_layer_name) else node_name:<30}"
+            f"{str(layerStatus):<20}"
+            f"{'layerType: ' + layerType:<30}"
+            f"{'realTime: ' + str(real_time):<20}"
+            f"{'cpu: ' +  str(cpu_time):<15}"
+            f"{'proportion: '+ str(real_proportion)+'%':<20}"
+            f"{'execType: ' + execType:<20}")
 
 def print_perf_counters(perf_counts_list):
     max_layer_name = 30
     for ni in range(len(perf_counts_list)):
         perf_counts = perf_counts_list[ni]
-        total_time = datetime.timedelta()
-        total_time_cpu = datetime.timedelta()
+        total_time = timedelta()
+        total_time_cpu = timedelta()
         logger.info(f"Performance counts for {ni}-th infer request")
         for pi in perf_counts:
             print(f"{pi.node_name[:max_layer_name - 4] + '...' if (len(pi.node_name) >= max_layer_name) else pi.node_name:<30}"
                                                                 f"{str(pi.status):<15}"
                                                                 f"{'layerType: ' + pi.node_type:<30}"
-                                                                f"{'realTime: ' + str(pi.real_time):<20}"
-                                                                f"{'cpu: ' +  str(pi.cpu_time):<20}"
+                                                                f"{'realTime: ' + str((pi.real_time // timedelta(microseconds=1)) / 1000.0):<20}"
+                                                                f"{'cpu: ' +  str((pi.cpu_time // timedelta(microseconds=1)) / 1000.0):<20}"
                                                                 f"{'execType: ' + pi.exec_type:<20}")
             total_time += pi.real_time
             total_time_cpu += pi.cpu_time
-        print(f'Total time:     {total_time} microseconds')
-        print(f'Total CPU time: {total_time_cpu} microseconds\n')
+        print(f'Total time:     {(total_time // timedelta(microseconds=1)) / 1000.0} milliseconds')
+        print(f'Total CPU time: {(total_time_cpu // timedelta(microseconds=1)) / 1000.0} milliseconds\n')
 
 
 def get_command_line_arguments(argv):
@@ -542,18 +599,18 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
         elif inputs[i].node.layout != Layout():
             info.layout = inputs[i].node.layout
         else:
-            image_colors_dim = Dimension(3)
+            image_colors_dim_max = 4
             shape = info.partial_shape
             num_dims = len(shape)
             if num_dims == 4:
-                if(shape[1]) == image_colors_dim:
+                if shape[1].get_max_length() <= image_colors_dim_max and shape[3].get_max_length() > image_colors_dim_max:
                     info.layout = Layout("NCHW")
-                elif(shape[3] == image_colors_dim):
+                elif shape[3].get_max_length() <= image_colors_dim_max and shape[1].get_max_length() > image_colors_dim_max:
                     info.layout = Layout("NHWC")
             elif num_dims == 3:
-                if(shape[0]) == image_colors_dim:
+                if shape[0].get_max_length() <= image_colors_dim_max and shape[2].get_max_length() > image_colors_dim_max:
                     info.layout = Layout("CHW")
-                elif(shape[2] == image_colors_dim):
+                elif shape[2].get_max_length() <= image_colors_dim_max and shape[0].get_max_length() > image_colors_dim_max:
                     info.layout = Layout("HWC")
 
         # Update shape with batch if needed

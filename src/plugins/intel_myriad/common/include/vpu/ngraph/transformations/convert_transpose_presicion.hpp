@@ -11,7 +11,7 @@ namespace vpu {
 
 class ConvertTransposePrecision : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertTransposePrecision", "0");
     ConvertTransposePrecision();
 };
 }

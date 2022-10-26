@@ -13,7 +13,6 @@
 #include "intel_gpu/plugin/remote_context.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 using CustomLayerPtr = std::shared_ptr<class CustomLayer>;
@@ -36,7 +35,7 @@ class Plugin : public InferenceEngine::IInferencePlugin,
     cldnn::device_info GetDeviceInfo(const std::map<std::string, std::string> &config) const;
     InferenceEngine::CNNNetwork CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,
                                                          const Config& config) const;
-
+    void TransformNetwork(std::shared_ptr<ov::Model>& model, const Config& config) const;
     std::map<std::string, std::string> ConvertPerfHintsToConfig(const std::map<std::string, std::string>& network_config,
                                                                 const Config& plugin_config) const;
 
@@ -90,5 +89,4 @@ public:
 };
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

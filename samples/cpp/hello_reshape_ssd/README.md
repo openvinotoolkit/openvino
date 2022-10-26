@@ -46,7 +46,7 @@ To run the sample, you need specify a model and image:
 
 > **NOTES**:
 >
-> - By default, OpenVINO™ Toolkit Samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
+> - By default, OpenVINO™ Toolkit Samples and Demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 >
 > - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
@@ -55,28 +55,24 @@ To run the sample, you need specify a model and image:
 ### Example
 
 1. Install openvino-dev python package if you don't have it to use Open Model Zoo Tools:
-
-```
-python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
-```
+   ```
+   python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
+   ```
 
 2. Download a pre-trained model using:
-
-```
-omz_downloader --name person-detection-retail-0013
-```
+   ```
+   omz_downloader --name person-detection-retail-0013
+   ```
 
 3. `person-detection-retail-0013` does not need to be converted, because it is already in necessary format, so you can skip this step. If you want to use another model that is not in the IR or ONNX format, you can convert it using the model converter script:
-
-```
-omz_converter --name <model_name>
-```
+   ```
+   omz_converter --name <model_name>
+   ```
 
 4. Perform inference of `person_detection.bmp` using `person-detection-retail-0013` model on a `GPU`, for example:
-
-```
-hello_reshape_ssd person-detection-retail-0013.xml person_detection.bmp GPU
-```
+   ```
+   hello_reshape_ssd person-detection-retail-0013.xml person_detection.bmp GPU
+   ```
 
 ## Sample Output
 

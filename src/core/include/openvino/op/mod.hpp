@@ -11,6 +11,7 @@ namespace op {
 namespace v1 {
 /// \brief Mod returns an element-wise division reminder with two given tensors applying
 /// multi-directional broadcast rules.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Mod : public util::BinaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Mod", "opset1", op::util::BinaryElementwiseArithmetic, 1);

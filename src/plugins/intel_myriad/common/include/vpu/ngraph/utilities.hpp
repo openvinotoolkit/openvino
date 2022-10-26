@@ -41,7 +41,9 @@ std::shared_ptr<ngraph::Node> gatherShapeElements(const ngraph::Output<ngraph::N
 
 template<>
 inline void printTo(std::ostream& stream, const ngraph::NodeTypeInfo& object) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     stream << object.name << " ver. " << object.version;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 using Nodes = std::unordered_set<ngraph::Node*>;

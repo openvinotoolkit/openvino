@@ -45,16 +45,15 @@ std::vector<std::string> tensor_names = {
     "relu_1.tmp_0",
     "relu_2.tmp_0",
     "relu_3.tmp_0",
-    "save_infer_model/scale_0.tmp_1",
-    "save_infer_model/scale_1.tmp_1",
-    "save_infer_model/scale_2.tmp_1",
-    "save_infer_model/scale_3.tmp_1",
-    "save_infer_model/scale_4.tmp_1",
-    "save_infer_model/scale_5.tmp_1",
+    "save_infer_model/scale_0.tmp_0",
+    "save_infer_model/scale_1.tmp_0",
+    "save_infer_model/scale_2.tmp_0",
+    "save_infer_model/scale_3.tmp_0",
+    "save_infer_model/scale_4.tmp_0",
+    "save_infer_model/scale_5.tmp_0",
 };
 
 TEST(Paddle_Places, check_tensor_names) {
-    FrontEndTestUtils::setupTestEnv();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
@@ -68,7 +67,6 @@ TEST(Paddle_Places, check_tensor_names) {
 }
 
 TEST(Paddle_Places, check_input_outputs) {
-    FrontEndTestUtils::setupTestEnv();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
@@ -84,12 +82,12 @@ TEST(Paddle_Places, check_input_outputs) {
     auto tensor_place = input_model->get_place_by_tensor_name("x");
     tensor_place->is_equal(inputs[0]);
 
-    std::vector<std::string> output_names = {"save_infer_model/scale_0.tmp_1",
-                                             "save_infer_model/scale_1.tmp_1",
-                                             "save_infer_model/scale_2.tmp_1",
-                                             "save_infer_model/scale_3.tmp_1",
-                                             "save_infer_model/scale_4.tmp_1",
-                                             "save_infer_model/scale_5.tmp_1"};
+    std::vector<std::string> output_names = {"save_infer_model/scale_0.tmp_0",
+                                             "save_infer_model/scale_1.tmp_0",
+                                             "save_infer_model/scale_2.tmp_0",
+                                             "save_infer_model/scale_3.tmp_0",
+                                             "save_infer_model/scale_4.tmp_0",
+                                             "save_infer_model/scale_5.tmp_0"};
 
     for (const auto& name : output_names) {
         const auto output_place = input_model->get_place_by_tensor_name(name);
@@ -102,7 +100,6 @@ TEST(Paddle_Places, check_input_outputs) {
 
 // all existed in the model ops have "Out" port
 TEST(Paddle_Places, check_out_port_of_all_ops) {
-    FrontEndTestUtils::setupTestEnv();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
@@ -125,7 +122,6 @@ TEST(Paddle_Places, check_out_port_of_all_ops) {
 }
 
 TEST(Paddle_Places, check_in_out_ports_of_model_outputs) {
-    FrontEndTestUtils::setupTestEnv();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
@@ -160,7 +156,6 @@ TEST(Paddle_Places, check_in_out_ports_of_model_outputs) {
 }
 
 TEST(Paddle_Places, check_source_target_tensors_of_model_outputs) {
-    FrontEndTestUtils::setupTestEnv();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
@@ -195,7 +190,6 @@ TEST(Paddle_Places, check_source_target_tensors_of_model_outputs) {
 }
 
 TEST(Paddle_Places, check_producing_consuming_ops_of_model_outputs) {
-    FrontEndTestUtils::setupTestEnv();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
@@ -231,7 +225,6 @@ TEST(Paddle_Places, check_producing_consuming_ops_of_model_outputs) {
 
 // check data flow [ output port -> tensor -> input port ]
 TEST(Paddle_Places, check_data_flow) {
-    FrontEndTestUtils::setupTestEnv();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
@@ -271,7 +264,6 @@ TEST(Paddle_Places, check_data_flow) {
 //                -> input_port_N]
 // input_port, input_port_2, ... input_port_N are equal data
 TEST(Paddle_Places, check_tensor_to_multiple_ports) {
-    FrontEndTestUtils::setupTestEnv();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
@@ -298,7 +290,6 @@ TEST(Paddle_Places, check_tensor_to_multiple_ports) {
 
 // consuming ops should be equal for tensor place and producing output port
 TEST(Paddle_Places, check_consuming_ops) {
-    FrontEndTestUtils::setupTestEnv();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
@@ -340,7 +331,6 @@ TEST(Paddle_Places, check_consuming_ops) {
 }
 
 TEST(Paddle_Places, check_consuming_ops_2) {
-    FrontEndTestUtils::setupTestEnv();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
@@ -380,7 +370,6 @@ TEST(Paddle_Places, check_consuming_ops_2) {
 }
 
 TEST(Paddle_Places, check_producing_ops) {
-    FrontEndTestUtils::setupTestEnv();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
@@ -403,19 +392,18 @@ TEST(Paddle_Places, check_producing_ops) {
 }
 
 TEST(Paddle_Places, check_input_output_ports_dy_idx) {
-    FrontEndTestUtils::setupTestEnv();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
     InputModel::Ptr input_model;
     ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
-    std::vector<std::string> output_names = {"save_infer_model/scale_0.tmp_1",
-                                             "save_infer_model/scale_1.tmp_1",
-                                             "save_infer_model/scale_2.tmp_1",
-                                             "save_infer_model/scale_3.tmp_1",
-                                             "save_infer_model/scale_4.tmp_1",
-                                             "save_infer_model/scale_5.tmp_1"};
+    std::vector<std::string> output_names = {"save_infer_model/scale_0.tmp_0",
+                                             "save_infer_model/scale_1.tmp_0",
+                                             "save_infer_model/scale_2.tmp_0",
+                                             "save_infer_model/scale_3.tmp_0",
+                                             "save_infer_model/scale_4.tmp_0",
+                                             "save_infer_model/scale_5.tmp_0"};
 
     for (const auto& tensor_name : output_names) {
         auto tensor_place = input_model->get_place_by_tensor_name(tensor_name);
@@ -430,19 +418,18 @@ TEST(Paddle_Places, check_input_output_ports_dy_idx) {
 }
 
 TEST(Paddle_Places, check_ops_tensors_by_idx) {
-    FrontEndTestUtils::setupTestEnv();
     auto fem = FrontEndManager();
     FrontEnd::Ptr frontend;
     ASSERT_NO_THROW(frontend = fem.load_by_framework(PADDLE_FE));
     InputModel::Ptr input_model;
     ASSERT_NO_THROW(input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file)));
 
-    std::vector<std::string> output_names = {"save_infer_model/scale_0.tmp_1",
-                                             "save_infer_model/scale_1.tmp_1",
-                                             "save_infer_model/scale_2.tmp_1",
-                                             "save_infer_model/scale_3.tmp_1",
-                                             "save_infer_model/scale_4.tmp_1",
-                                             "save_infer_model/scale_5.tmp_1"};
+    std::vector<std::string> output_names = {"save_infer_model/scale_0.tmp_0",
+                                             "save_infer_model/scale_1.tmp_0",
+                                             "save_infer_model/scale_2.tmp_0",
+                                             "save_infer_model/scale_3.tmp_0",
+                                             "save_infer_model/scale_4.tmp_0",
+                                             "save_infer_model/scale_5.tmp_0"};
 
     for (const auto& tensor_name : output_names) {
         auto tensor_place = input_model->get_place_by_tensor_name(tensor_name);

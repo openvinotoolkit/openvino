@@ -23,6 +23,6 @@ class NGRAPH_API SetBatchSize;
 
 class ngraph::pass::SetBatchSize : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SetBatchSize", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };

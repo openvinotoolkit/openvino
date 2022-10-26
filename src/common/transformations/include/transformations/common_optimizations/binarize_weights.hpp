@@ -76,6 +76,6 @@ class TRANSFORMATIONS_API BinarizeWeights;
 
 class ngraph::pass::BinarizeWeights : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("BinarizeWeights", "0");
     BinarizeWeights();
 };

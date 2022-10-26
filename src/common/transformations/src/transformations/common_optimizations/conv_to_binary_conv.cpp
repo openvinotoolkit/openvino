@@ -13,8 +13,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvToBinaryConv, "ConvToBinaryConv", 0);
-
 static std::vector<uint8_t> binarize_weights(const std::vector<float>& weights) {
     std::vector<uint8_t> out;
     size_t bits_per_byte = 8;
@@ -95,7 +93,7 @@ ngraph::pass::ConvToBinaryConv::ConvToBinaryConv() {
                 conv->get_pads_end(),
                 conv->get_dilations(),
                 opset5::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT,
-                -1,
+                -1.f,
                 conv->get_auto_pad());
             new_conv->set_friendly_name(conv->get_friendly_name());
             std::vector<int64_t> axes;
@@ -131,8 +129,9 @@ ngraph::pass::ConvToBinaryConv::ConvToBinaryConv() {
                                                         conv->get_pads_end(),
                                                         conv->get_dilations(),
                                                         opset5::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT,
-                                                        0,
+                                                        0.f,
                                                         conv->get_auto_pad());
+
         new_conv->set_friendly_name(conv->get_friendly_name());
         copy_runtime_info(conv, new_conv);
         replace_node(conv, new_conv);

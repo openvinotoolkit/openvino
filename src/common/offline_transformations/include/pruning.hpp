@@ -5,10 +5,9 @@
 #pragma once
 
 #include <memory>
-#include <vector>
-
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <vector>
 
 namespace ngraph {
 namespace pass {
@@ -20,8 +19,8 @@ class ShrinkWeights;
 
 class Pruning;
 
-} // namespace pass
-} // namespace ngraph
+}  // namespace pass
+}  // namespace ngraph
 
 /**
  * @ingroup ie_transformation_common_api
@@ -29,7 +28,7 @@ class Pruning;
  */
 class ngraph::pass::InitMasks : public ngraph::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("InitMasks", "0");
     InitMasks();
 };
 
@@ -41,9 +40,12 @@ public:
  */
 class ngraph::pass::InitConstMask : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
-    explicit InitConstMask(const ngraph::AxisSet & dims,
-                           const std::function<bool(const double & value)> & condition = [](const double & value) { return value == 0; });
+    OPENVINO_RTTI("InitConstMask", "0");
+    explicit InitConstMask(
+        const ngraph::AxisSet& dims,
+        const std::function<bool(const double& value)>& condition = [](const double& value) {
+            return value == 0;
+        });
 };
 
 /**
@@ -53,7 +55,7 @@ public:
  */
 class ngraph::pass::PropagateMasks : public ngraph::pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("PropagateMasks", "0");
     PropagateMasks();
 };
 
@@ -64,7 +66,7 @@ public:
  */
 class ngraph::pass::ShrinkWeights : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ShrinkWeights", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>&) override;
 };
 
@@ -74,6 +76,6 @@ public:
  */
 class ngraph::pass::Pruning : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("Pruning", "0");
     bool run_on_model(const std::shared_ptr<Function>&) override;
 };

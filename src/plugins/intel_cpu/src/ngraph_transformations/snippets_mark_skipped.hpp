@@ -16,7 +16,7 @@ namespace intel_cpu {
  */
 class SnippetsMarkSkipped : public ov::pass::ModelPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("SnippetsMarkSkipped", "0");
     SnippetsMarkSkipped() : ModelPass() {}
     bool run_on_model(const std::shared_ptr<ov::Model> &) override;
 };
@@ -37,7 +37,7 @@ enum class NodeFusingType : int64_t {
     NotSet,
     FusedTerminator,
     FusedWithConvolution,  FusedWithBinaryConvolution, FusedWithConvolutionSumActivation,
-    FusedWithMatMul, FusedWithMisc, IgnoredAfterInputs};
+    FusedWithMatMul, FusedWithMatMulI8, FusedWithReduce, FusedWithMisc, IgnoredAfterInputs};
 
 }   // namespace intel_cpu
 }   // namespace ov

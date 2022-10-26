@@ -19,6 +19,6 @@ class TRANSFORMATIONS_API CommonOptimizations;
 
 class ngraph::pass::CommonOptimizations : public ngraph::pass::FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("CommonOptimizations", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override;
 };

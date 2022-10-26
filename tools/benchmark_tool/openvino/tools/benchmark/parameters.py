@@ -50,9 +50,10 @@ def parse_args():
     args.add_argument('-c', '--path_to_cldnn_config', type=str, required=False,
                       help='Optional. Required for GPU custom kernels. Absolute path to an .xml file with the '
                            'kernels description.')
-    args.add_argument('-hint', '--perf_hint', type=str, required=False, default='', choices=['throughput', 'latency', 'none'],
-                      help='Optional. Performance hint (latency or throughput or none). Performance hint allows the OpenVINO device to select the right network-specific settings.\n'
+    args.add_argument('-hint', '--perf_hint', type=str, required=False, default='', choices=['throughput', 'cumulative_throughput', 'latency', 'none'],
+                      help='Optional. Performance hint (latency or throughput or cumulative_throughput or none). Performance hint allows the OpenVINO device to select the right network-specific settings.\n'
                             '\'throughput\': device performance mode will be set to THROUGHPUT. \n'
+                            '\'cumulative_throughput\': device performance mode will be set to CUMULATIVE_THROUGHPUT. \n'
                             '\'latency\': device performance mode will be set to LATENCY. \n'
                             '\'none\': no device performance mode will be set. \n'
                             'Using explicit \'nstreams\' or other device-specific options, please set hint to \'none\'')
@@ -100,10 +101,6 @@ def parse_args():
                            'See samples README for more details.')
     args.add_argument('--latency_percentile', type=int, required=False, default=50, choices=range(1,101),
                       help='Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).')
-    args.add_argument('-enforcebf16', '--enforce_bfloat16', type=str2bool, required=False, default=False, nargs='?', const=True, choices=[True, False],
-                      help='Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform. '
-                           '\'True\'  - enable  bfloat16 regardless of platform support. '
-                           '\'False\' - disable bfloat16 regardless of platform support.')
     args.add_argument('-nthreads', '--number_threads', type=int, required=False, default=None,
                       help='Number of threads to use for inference on the CPU, GNA '
                            '(including HETERO and MULTI cases).')
@@ -117,6 +114,12 @@ def parse_args():
                       help='Optional. Path to a file where to store executable graph information serialized.')
     args.add_argument('-pc', '--perf_counts', type=str2bool, required=False, default=False, nargs='?', const=True,
                       help='Optional. Report performance counters.', )
+    args.add_argument('-pcsort', '--perf_counts_sort', type=str, required=False, default="",
+                      choices=['no_sort', 'sort', 'simple_sort'],
+                      help='Optional. Report performance counters and analysis the sort hotpoint opts.'
+                           '  sort: Analysis opts time cost, print by hotpoint order'
+                           '  no_sort: Analysis opts time cost, print by normal order'
+                           '  simple_sort: Analysis opts time cost, only print EXECUTED opts by normal order', )
     args.add_argument('-pcseq', '--pcseq', type=str2bool, required=False, default=False, nargs='?', const=True,
                       help='Optional. Report latencies for each shape in -data_shape sequence.', )
     args.add_argument('-inference_only', '--inference_only', type=str2bool, required=False, default=None, nargs='?', const=True,
@@ -137,8 +140,8 @@ def parse_args():
     args.add_argument('-load_config', type=str, required=False, default='',
                       help="Optional. Path to JSON file to load custom OpenVINO parameters."
                            " Please note, command line parameters have higher priority then parameters from configuration file.")
-    args.add_argument('-qb', '--quantization_bits', type=int, required=False, default=None, choices=[8, 16],
-                      help="Optional. Weight bits for quantization:  8 (I8) or 16 (I16) ")
+    args.add_argument('-infer_precision', type=str, required=False,
+                      help='Optional. Hint to specifies inference precision. Example: -infer_precision CPU:bf16,GPU:f32')
     args.add_argument('-ip', '--input_precision', type=str, required=False, choices=['u8', 'U8', 'f16','FP16', 'f32','FP32'],
                       help='Optional. Specifies precision for all input layers of the network.')
     args.add_argument('-op', '--output_precision', type=str, required=False, choices=['u8', 'U8', 'f16','FP16', 'f32','FP32'],

@@ -6,8 +6,8 @@
 #include "common/cpu_memcpy.h"
 #include "common/blocked_desc_creator.h"
 #include <vector>
-#include <mkldnn_types.h>
-#include <extension_utils.h>
+#include <dnnl_types.h>
+#include <dnnl_extension_utils.h>
 #include <ie_parallel.hpp>
 #include "utils/general_utils.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
@@ -15,13 +15,16 @@
 
 #define THROW_ERROR IE_THROW() << "Split layer with name '" << getName() <<"' "
 
-using namespace mkldnn;
-using namespace ov::intel_cpu;
+using namespace dnnl;
 using namespace InferenceEngine;
 
-bool MKLDNNSplitNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+bool Split::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ov::intel_cpu::one_of(op->get_type_info(), ngraph::op::v1::Split::get_type_info_static(), ngraph::op::v1::VariadicSplit::get_type_info_static())) {
+        if (!one_of(op->get_type_info(), ngraph::op::v1::Split::get_type_info_static(), ngraph::op::v1::VariadicSplit::get_type_info_static())) {
             errorMessage = "Only opset1 Split and VariadicSplit operations are supported";
             return false;
         }
@@ -43,8 +46,8 @@ bool MKLDNNSplitNode::isSupportedOperation(const std::shared_ptr<const ngraph::N
     return true;
 }
 
-MKLDNNSplitNode::MKLDNNSplitNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(op, eng, cache) {
+Split::Split(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
+        Node(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -68,10 +71,10 @@ MKLDNNSplitNode::MKLDNNSplitNode(const std::shared_ptr<ngraph::Node>& op, const 
     this->axis = axis;
 }
 
-void MKLDNNSplitNode::getSupportedDescriptors() {
+void Split::getSupportedDescriptors() {
 }
 
-void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
+void Split::initSupportedPrimitiveDescriptors() {
     constexpr size_t channelsPos = 1lu;
 
     if (!supportedPrimitiveDescriptors.empty())
@@ -234,18 +237,18 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-bool MKLDNNSplitNode::needPrepareParams() const {
+bool Split::needPrepareParams() const {
     if (isOptimized()) {
         return false;
     }
-    return MKLDNNNode::inputShapesModified();
+    return Node::inputShapesModified();
 }
 
-std::vector<VectorDims> MKLDNNSplitNode::shapeInfer() const {
-    return MKLDNNNode::shapeInferGeneric(PortMask(1, 2));
+std::vector<VectorDims> Split::shapeInfer() const {
+    return Node::shapeInferGeneric(PortMask(1, 2));
 }
 
-void MKLDNNSplitNode::prepareParams() {
+void Split::prepareParams() {
     const auto &srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
     if (!srcMemPtr || !srcMemPtr->isAllocated()) {
         THROW_ERROR << "has not allocated input memory";
@@ -263,11 +266,7 @@ void MKLDNNSplitNode::prepareParams() {
             continue;
         }
 
-        if (uint8_t* dstData = reinterpret_cast<uint8_t*>(outMemPtr->GetPtr())) {
-            dstMemPtrs.emplace_back(port, dstData);
-        } else {
-            THROW_ERROR << "can't get child edge indx " << port << "data.";
-        }
+        dstMemPtrs.emplace_back(port, outMemPtr);
 
         if (!canUseOptimizedNspc2Ncsp) {
             outDescs.push_back(outMemPtr->GetDescWithType<BlockedMemoryDesc>());
@@ -280,11 +279,11 @@ void MKLDNNSplitNode::prepareParams() {
     }
 }
 
-bool MKLDNNSplitNode::isExecutable() const {
+bool Split::isExecutable() const {
     return !isInputTensorAtPortEmpty(0) && !isOptimized();
 }
 
-void MKLDNNSplitNode::execute(mkldnn::stream strm) {
+void Split::execute(dnnl::stream strm) {
     if (isOptimized()) {
         return;
     }
@@ -303,25 +302,25 @@ void MKLDNNSplitNode::execute(mkldnn::stream strm) {
 
     uint8_t* srcData = reinterpret_cast<uint8_t*>(srcMem.GetPtr());
     IE_ASSERT(execPtr != nullptr);
-    execPtr->exec(srcData, dstMemPtrs, batch, MB);
+    execPtr->exec(srcData, getRawDstMemPtrs(), batch, MB);
 }
 
-bool MKLDNNSplitNode::created() const {
-    return getType() == Split;
+bool Split::created() const {
+    return getType() == Type::Split;
 }
 
-bool MKLDNNSplitNode::isOptimized() const {
+bool Split::isOptimized() const {
     return getSelectedPrimitiveDescriptor() && getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].inPlace() >= 0;
 }
 
-void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
+void Split::initOptimalPrimitiveDescriptor() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
         THROW_ERROR << "Preferable primitive descriptor is not set.";
     auto config = selected_pd->getConfig();
 
     if (!isOptimized()) {
-        MKLDNNNode::initOptimalPrimitiveDescriptor();
+        Node::initOptimalPrimitiveDescriptor();
     } else if (!isDynamicNode() && !isConfigDefined(config)) {
         for (size_t i = 0; i < config.inConfs.size(); i++) {
             int num = getParentEdgeAt(i)->getInputNum();
@@ -381,7 +380,7 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
     }
 }
 
-void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
+void Split::selectOptimalPrimitiveDescriptor() {
     // Enforce the reference implementation for the planar layout if the implementation is in the impl priorities list.
     // This is needed mostly for the testing purposes, since for the planar layout Split works always in place, we need to enforce
     // the reference implementation when it is selected in a test to test that piece of code.
@@ -477,14 +476,14 @@ void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
     selectPrimitiveDescriptorByIndex(0);
 }
 
-void MKLDNNSplitNode::setDynamicBatchLim(int lim) {
+void Split::setDynamicBatchLim(int lim) {
     if (axis == 0)
         THROW_ERROR << "Dynamic batch is not supported by split layer with axis == 0 parameter";
 
     dynBatchLim = lim;
 }
 
-void MKLDNNSplitNode::optimizedNspc2Ncsp(size_t MB) {
+void Split::optimizedNspc2Ncsp(size_t MB) {
     auto parentEdge = getParentEdgeAt(0);
     const int rank = parentEdge->getMemory().GetShape().getRank();
     const auto parentDims = parentEdge->getMemory().getStaticDims();
@@ -503,7 +502,7 @@ void MKLDNNSplitNode::optimizedNspc2Ncsp(size_t MB) {
     const size_t strideOC = DHW * dataSize;
 
     for (size_t i = 0, sIdx = 0; i < dstMemPtrs.size(); i++) {
-        auto dstData = dstMemPtrs[i].second;
+        auto dstData = reinterpret_cast<uint8_t*>(dstMemPtrs[i].second->GetPtr());
 
         size_t innerSize = 1;
         auto dims = getChildEdgesAtPort(dstMemPtrs[i].first)[0]->getMemory().getStaticDims();
@@ -530,7 +529,18 @@ void MKLDNNSplitNode::optimizedNspc2Ncsp(size_t MB) {
     }
 }
 
-MKLDNNSplitNode::SplitOptimizedExecutor::SplitOptimizedExecutor(BlockedMemoryDescCPtr inDesc, const std::vector<BlockedMemoryDescCPtr> &outDescs,
+std::vector<uint8_t*> Split::getRawDstMemPtrs() const {
+    std::vector<uint8_t*> result(dstMemPtrs.size());
+    for (size_t i = 0; i < dstMemPtrs.size(); ++i) {
+        result[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i].second->GetPtr());
+        if (!result[i]) {
+            THROW_ERROR << "can't get child edge indx " << dstMemPtrs[i].first << " data.";
+        }
+    }
+    return result;
+}
+
+Split::SplitOptimizedExecutor::SplitOptimizedExecutor(BlockedMemoryDescCPtr inDesc, const std::vector<BlockedMemoryDescCPtr> &outDescs,
                                                                 const size_t axis) {
     // find axis order position
     const auto& order = inDesc->getOrder();
@@ -573,14 +583,14 @@ MKLDNNSplitNode::SplitOptimizedExecutor::SplitOptimizedExecutor(BlockedMemoryDes
     }
 }
 
-void MKLDNNSplitNode::SplitOptimizedExecutor::exec(const uint8_t* srcData, const std::vector<std::pair<size_t, uint8_t*>> &dstMemPtrs,
+void Split::SplitOptimizedExecutor::exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs,
                                                    const Dim origBatch, const Dim perInferBatch) {
     size_t execCountStrides = countStrides;
     if (origBatch != perInferBatch)
         execCountStrides = execCountStrides / origBatch * perInferBatch;
 
-    parallel_for2d(dstMemPtrs.size(), execCountStrides, [&](size_t i, size_t j) {
-        uint8_t* dstData = dstMemPtrs[i].second;
+    parallel_for2d(dstRawMemPtrs.size(), execCountStrides, [&](size_t i, size_t j) {
+        uint8_t* dstData = dstRawMemPtrs[i];
 
         cpu_memcpy(&dstData[j * dataSize[i]],
                    &srcData[srcDataOffsets[i] + j * srcDataStride],
@@ -588,4 +598,6 @@ void MKLDNNSplitNode::SplitOptimizedExecutor::exec(const uint8_t* srcData, const
     });
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNSplitNode, Split);
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

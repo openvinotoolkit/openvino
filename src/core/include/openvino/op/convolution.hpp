@@ -13,6 +13,7 @@ namespace op {
 namespace v1 {
 /// \brief Batched convolution operation, with optional window dilation and stride.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Convolution : public Op {
 public:
     OPENVINO_OP("Convolution", "opset1", op::Op, 1);
@@ -77,8 +78,12 @@ public:
     const CoordinateDiff& get_pads_end() const {
         return m_pads_end;
     }
-    void set_adding_above(const CoordinateDiff& pads_end) {
+    void set_pads_end(const CoordinateDiff& pads_end) {
         m_pads_end = pads_end;
+    }
+    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon. Please use set_pads_end instead.")
+    void set_adding_above(const CoordinateDiff& pads_end) {
+        set_pads_end(pads_end);
     }
     /// \return The pad type for convolution.
     const PadType& get_auto_pad() const {
@@ -109,8 +114,7 @@ private:
                                          const int64_t& num_non_spatial_filter_dims);
 
     template <class ConvType>
-    friend void update_and_validate_attributes(ConvType* op);
-
+    friend void update_and_validate_attributes(ConvType* op, int64_t num_spatial);
     template <class ConvType, class ShapeType>
     friend bool resolve_auto_pad_for_shape(const ConvType* op,
                                            CoordinateDiff& pads_begin,
@@ -127,6 +131,7 @@ private:
 };
 
 /// \brief Data batch backprop for batched convolution operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ConvolutionBackpropData : public Op {
 public:
     OPENVINO_OP("ConvolutionBackpropData", "opset1", op::Op, 1);
@@ -288,10 +293,9 @@ private:
                                          const int64_t& num_non_spatial_filter_dims);
 
     template <class ConvType>
-    friend void update_and_validate_attributes(ConvType* op);
-
+    friend void update_and_validate_attributes(ConvType* op, int64_t num_spatial);
     template <class ConvType>
-    friend void update_and_validate_attributes_back_prop(ConvType* op);
+    friend void update_and_validate_attributes_back_prop(ConvType* op, int64_t num_spatial);
 
     template <class ConvType, class ShapeType>
     friend bool resolve_auto_pad_for_shape_back_prop(const ConvType* op,

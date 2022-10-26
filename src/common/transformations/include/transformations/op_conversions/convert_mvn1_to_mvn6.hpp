@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API ConvertMVN1ToMVN6;
  */
 class ngraph::pass::ConvertMVN1ToMVN6 : public ngraph::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertMVN1ToMVN6", "0");
     ConvertMVN1ToMVN6();
 };

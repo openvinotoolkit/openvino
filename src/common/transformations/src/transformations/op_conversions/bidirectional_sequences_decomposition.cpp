@@ -12,13 +12,6 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::BidirectionalSequenceDecomposition, "BidirectionalSequenceDecomposition", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::BidirectionalLSTMSequenceDecomposition,
-                       "BidirectionalLSTMSequenceDecomposition",
-                       0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::BidirectionalGRUSequenceDecomposition, "BidirectionalGRUSequenceDecomposition", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::BidirectionalRNNSequenceDecomposition, "BidirectionalRNNSequenceDecomposition", 0);
-
 ngraph::pass::BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceDecomposition() {
     MATCHER_SCOPE(BidirectionalLSTMSequenceDecomposition);
     auto lstm_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::opset5::LSTMSequence>();
