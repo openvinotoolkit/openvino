@@ -341,14 +341,14 @@ def test_conditional_block_conditional_block_concat():
 
 if __name__ == "__main__":
     test_conditional_block_slice0()
-    test_conditional_block_slice1()
-    test_conditional_block_slice0_slice1()
+    #test_conditional_block_slice1()
+    #test_conditional_block_slice0_slice1()
     test_conditional_block_slice0_scaler()
     test_conditional_block_concat()
     test_conditional_block_concat_false()
     test_conditional_block_conditional_block_concat()
     test_conditional_block_slice0_axis2()
-    test_conditional_block_slice0_aixs1_axis2()
+    #test_conditional_block_slice0_aixs1_axis2()
     test_conditional_block_slice0_2tensorarrays()
     test_conditional_block_slice0_2tensorarrays_extra()
     test_conditional_block_slice0_else()

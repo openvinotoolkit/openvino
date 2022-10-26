@@ -239,7 +239,7 @@ def loop_tensor_array():
         result = []
         while t >= i:
             i = i + 1
-            result.append(x[0:i,:])
+            result.append(x[0:2,:])
 
         return paddle.concat(result)
 

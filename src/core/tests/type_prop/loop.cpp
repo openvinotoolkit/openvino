@@ -1383,3 +1383,38 @@ TEST(type_prop, loop_operation_dynamic_iter_1d_shapes_inputs_dynamic_shape_outpu
     // map from the submodel, should be dynamic
     EXPECT_EQ(loop->get_output_partial_shape(1), out1_shape);
 }
+
+// dynamic output
+// trip_count = -1
+// execution_condition = true
+// body_condition = true
+// model could be described like so:
+// Parameter([-1, -1])
+// while (true) {
+//    input = unsqueeze(input, 0);
+// }
+TEST(type_prop, loop_operation_dynamic_iter_dynamic_shapes_unsqueeze) {
+    // Inner model
+    const auto inner_parameter = std::make_shared<opset5::Parameter>(element::dynamic, ov::PartialShape::dynamic());
+    const auto unsqueeze = std::make_shared<opset5::Unsqueeze>(
+            inner_parameter, opset5::Constant::create(element::i64, {1}, {0}));
+    const auto true_const = opset5::Constant::create(element::boolean, {1}, {1});
+    auto body = std::make_shared<Function>(OutputVector{unsqueeze, true_const}, ParameterVector{inner_parameter});
+
+    // Outer model
+    const auto outer_parameter = std::make_shared<opset5::Parameter>(element::dynamic, ov::PartialShape::dynamic(2));
+
+    const auto trip_count = opset5::Constant::create(element::i64, {1}, {-1});
+    const auto execution_condition = opset5::Constant::create(element::boolean, {1}, {1});
+    const auto loop = std::make_shared<opset5::Loop>(trip_count, execution_condition);
+    loop->set_function(body);
+    loop->set_merged_input(inner_parameter, outer_parameter, unsqueeze);
+    loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 1});
+
+    auto outer_result = make_shared<opset5::Result>(loop->get_iter_value(unsqueeze, -1));
+
+    auto outer_model = std::make_shared<Function>(ResultVector{outer_result}, ParameterVector{outer_parameter});
+    PartialShape outer_shape = PartialShape::dynamic();
+    EXPECT_EQ(outer_model->get_output_size(), 1);
+    EXPECT_EQ(outer_result->get_output_partial_shape(0), outer_shape);
+}

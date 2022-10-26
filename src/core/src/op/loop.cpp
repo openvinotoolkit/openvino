@@ -226,33 +226,19 @@ void op::v5::Loop::validate_and_infer_types() {
                             const auto body_rank_len = body_value_shape.rank().get_length();
                             const auto input_rank_len = input_param_ps.rank().get_length();
                             ov::PartialShape new_ps;
-                            const auto new_ps_rank_len = std::max(body_rank_len, input_rank_len);
-                            new_ps.resize(new_ps_rank_len);
                             bool shape_changed = false;
-                            for (auto j = new_ps_rank_len - 1; j >= 0; j--) {
-                                const auto body_idx_from_right = body_rank_len - 1 - (new_ps_rank_len - 1 - j);
-                                const auto input_idx_from_right = input_rank_len - 1 - (new_ps_rank_len - 1 - j);
-                                if (body_idx_from_right >= 0 && input_idx_from_right >= 0) {
-                                    if (!body_value_shape[body_idx_from_right].compatible(
-                                            input_param_ps[input_idx_from_right])) {
+                            if (body_rank_len == input_rank_len) {
+                                new_ps = body_value_shape;
+                                for (auto j = 0; j < body_rank_len; j++) {
+                                    if (!body_value_shape[j].compatible(input_param_ps[j])) {
                                         new_ps[j] = Dimension::dynamic();
                                         shape_changed = true;
-                                    } else {
-                                        const auto min =
-                                            std::min(body_value_shape[body_idx_from_right].get_min_length(),
-                                                     input_param_ps[input_idx_from_right].get_min_length());
-                                        const auto max =
-                                            std::max(body_value_shape[body_idx_from_right].get_max_length(),
-                                                     input_param_ps[input_idx_from_right].get_max_length());
-                                        new_ps[j] = Dimension(min, max);
                                     }
-                                } else if (body_idx_from_right >= 0) {
-                                    new_ps[j] = body_value_shape[body_idx_from_right];
-                                } else {
-                                    new_ps[j] = input_param_ps[input_idx_from_right];
                                 }
+                            } else {
+                                new_ps = ov::PartialShape::dynamic();
+                                shape_changed = true;
                             }
-
                             // reset sub model input shape
                             if (shape_changed) {
                                 need_reinvalidate = true;
