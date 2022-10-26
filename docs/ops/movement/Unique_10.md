@@ -33,7 +33,7 @@ The operator can either work in elementwise mode searching for unique values in 
 
 * **1**: A tensor of type *T* and arbitrary shape. **Required.**
 * **2**: A tensor of type *T_AXIS*. The allowed tensor shape is 1D with a single element or a scalar. If provided, this input has to be connected to a Constant. **Optional**
-  When provided this input is used to "divide" the input tensor into slices along the specified axis before unique elements processing starts. When this input is not provided the operator works on a flattened version of the input tensor (elementwise processing).
+  When provided this input is used to "divide" the input tensor into slices along the specified axis before unique elements processing starts. When this input is not provided the operator works on a flattened version of the input tensor (elementwise processing). The range of allowed values is `[-r; r-1]` where `r` is the rank of the input tensor.
 
 **Outputs**
 
