@@ -95,6 +95,7 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -533,24 +534,24 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         }
         auto supportedPrecisions = std::vector<PrecisionsRestriction>({
             PrecisionsRestriction::create<ngraph::opset1::Convolution>({
-                {0, input0LowPrecisionList},
-                {1, {ngraph::element::i8}},
+                {{0}, input0LowPrecisionList},
+                {{1}, {ngraph::element::i8}},
             }),
             PrecisionsRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
-                {0, {ngraph::element::u8, ngraph::element::i8}},
-                {1, {ngraph::element::i8}}
+                {{0}, {ngraph::element::u8, ngraph::element::i8}},
+                {{1}, {ngraph::element::i8}}
             }),
             PrecisionsRestriction::create<ngraph::opset1::GroupConvolution>({
-                {0, input0LowPrecisionList},
-                {1, {ngraph::element::i8}}
+                {{0}, input0LowPrecisionList},
+                {{1}, {ngraph::element::i8}}
             }),
             PrecisionsRestriction::create<ngraph::opset1::Multiply>({
-                {0, {ngraph::element::u8}},
-                {1, {ngraph::element::i8}},
+                {{0}, {ngraph::element::u8}},
+                {{1}, {ngraph::element::i8}},
             }),
             PrecisionsRestriction::create<ngraph::opset1::MatMul>({
-                {0, {ngraph::element::u8, ngraph::element::i8}},
-                {1, {ngraph::element::i8}}
+                {{0}, {ngraph::element::u8, ngraph::element::i8}},
+                {{1}, {ngraph::element::i8}}
             }),
         });
 
@@ -732,7 +733,8 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
         const auto default_num_streams =
             engConfig.streamExecutorConfig._threadBindingType ==
                     InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
-                ? IStreamsExecutor::Config::GetHybridDefaultNumStreams(engConfig.streamExecutorConfig)
+                ? IStreamsExecutor::Config::GetHybridNumStreams(engConfig.streamExecutorConfig,
+                                                                IStreamsExecutor::Config::StreamMode::DEFAULT)
                 : (engConfig.streamExecutorConfig._threadBindingType ==
                            InferenceEngine::IStreamsExecutor::ThreadBindingType::NUMA
                        ? IStreamsExecutor::Config::GetNumaNumStreams()
@@ -744,7 +746,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
                 // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
                 num_streams = engConfig.streamExecutorConfig._threadBindingType ==
                                       InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
-                                  ? IStreamsExecutor::Config::GetHybridAggressiveNumStreams(
+                                  ? IStreamsExecutor::Config::GetHybridNumStreams(
                                         engConfig.streamExecutorConfig,
                                         IStreamsExecutor::Config::StreamMode::AGGRESSIVE)
                                   : num_cores;
@@ -753,7 +755,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             // network is below the ISA-specific threshold
             num_streams = engConfig.streamExecutorConfig._threadBindingType ==
                                   InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
-                              ? IStreamsExecutor::Config::GetHybridAggressiveNumStreams(
+                              ? IStreamsExecutor::Config::GetHybridNumStreams(
                                     engConfig.streamExecutorConfig,
                                     IStreamsExecutor::Config::StreamMode::AGGRESSIVE)
                               : num_cores;
@@ -761,7 +763,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             // network is below general threshold
             num_streams = engConfig.streamExecutorConfig._threadBindingType ==
                                   InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
-                              ? IStreamsExecutor::Config::GetHybridAggressiveNumStreams(
+                              ? IStreamsExecutor::Config::GetHybridNumStreams(
                                     engConfig.streamExecutorConfig,
                                     IStreamsExecutor::Config::StreamMode::LESSAGGRESSIVE)
                               : std::max(default_num_streams, num_streams_less_aggressive);

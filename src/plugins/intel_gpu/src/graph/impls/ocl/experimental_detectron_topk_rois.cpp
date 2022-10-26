@@ -3,10 +3,10 @@
 //
 
 #include <experimental_detectron_topk_rois_inst.h>
-#include <edtopkroi/experimental_detectron_topk_rois_ref.h>
 #include "intel_gpu/runtime/error_handler.hpp"
 #include <impls/implementation_map.hpp>
-#include <edtopkroi/experimental_detectron_topk_rois_kernel_selector.h>
+#include <ed_topkroi/topk_rois_ref.h>
+#include <ed_topkroi/topk_rois_kernel_selector.h>
 #include "primitive_base.hpp"
 #include <vector>
 
