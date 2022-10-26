@@ -196,6 +196,10 @@ endif()
 if(gflags_FOUND)
     if(TARGET gflags)
         set_target_properties(gflags PROPERTIES IMPORTED_GLOBAL ON)
+    elseif(TARGET gflags_nothreads-shared)
+        # gflags shared case for CentOS/RHEL8
+        set_target_properties(gflags_nothreads-shared PROPERTIES IMPORTED_GLOBAL ON)
+        add_library(gflags ALIAS gflags_nothreads-shared)
     elseif(TARGET gflags_nothreads-static)
         # debian_9_arm case
         set_target_properties(gflags_nothreads-static PROPERTIES IMPORTED_GLOBAL ON)
