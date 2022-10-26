@@ -36,7 +36,11 @@ execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.vendored.packaging
 
 macro(_ov_platform_arch)
     if(AARCH64)
-        set(_arch "aarch64")
+        if(APPLE)
+            set(_arch "arm64")
+        else()
+            set(_arch "aarch64")
+        endif()
     elseif(ARM)
         set(_arch "armvl7")
     elseif(X86_64)

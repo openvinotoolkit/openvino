@@ -115,16 +115,24 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
             # grab all tbb files matching pattern
             file(GLOB tbb_files "${dir}/${name_we}.*")
             foreach(tbb_file IN LISTS tbb_files)
-                if(tbb_file MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)*$")
-                    # since the setup.py for pip installs tbb component
-                    # explicitly, it's OK to put EXCLUDE_FROM_ALL to such component
-                    # to ignore from IRC / apt / yum distribution;
-                    # but they will be present in .wheel
-                    install(FILES "${tbb_file}"
-                            DESTINATION runtime/3rdparty/tbb/lib
-                            COMPONENT tbb EXCLUDE_FROM_ALL)
+                if(LINUX)
+                    if(tbb_file MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)+$")
+                        list(APPEND tbb_install_files "${tbb_file}")
+                    endif()
+                elseif(APPLE)
+                    if(tbb_file MATCHES "^.*\(\.[0-9]+)+.${CMAKE_SHARED_LIBRARY_SUFFIX}$")
+                        list(APPEND tbb_install_files "${tbb_file}")
+                    endif()
                 endif()
             endforeach()
+
+            # since the setup.py for pip installs tbb component
+            # explicitly, it's OK to put EXCLUDE_FROM_ALL to such component
+            # to ignore from IRC / apt / yum distribution;
+            # but they will be present in .wheel
+            install(FILES "${tbb_install_files}"
+                    DESTINATION runtime/3rdparty/tbb/lib
+                    COMPONENT tbb EXCLUDE_FROM_ALL)
         endforeach()
 
         set(pkg_config_tbb_lib_dir "runtime/3rdparty/tbb/lib")
