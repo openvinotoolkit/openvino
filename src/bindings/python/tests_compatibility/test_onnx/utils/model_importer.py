@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional, Pattern, Set, Text, Type, Union, C
 # add post-processing function as part of test data
 OnnxTestCase_fields = [field.name for field in dataclasses.fields(OnnxTestCase)]
 ExtOnnxTestCase = dataclasses.make_dataclass(cls_name="TestCaseExt",
-                                                fields=[*OnnxTestCase_fields, "post_processing"])
+                                             fields=[*OnnxTestCase_fields, "post_processing"])
 
 
 class ModelImportRunner(onnx.backend.test.BackendTest):
