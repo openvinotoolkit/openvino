@@ -21,12 +21,6 @@ private:
     std::vector<std::shared_ptr<Model>> m_functions;
 };
 
-class TransformEliminateConvert : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("ov::frontend::paddle::pass::TransformEliminateConvert");
-    TransformEliminateConvert();
-};
-
 }  // namespace pass
 }  // namespace paddle
 }  // namespace frontend

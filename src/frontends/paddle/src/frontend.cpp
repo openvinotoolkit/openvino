@@ -320,7 +320,6 @@ std::map<int32_t, std::shared_ptr<ov::Model>> FrontEnd::convert_each_node_recurs
 void FrontEnd::try_remove_internal_ops(const std::vector<std::shared_ptr<Model>>& models) const {
     for (auto& model : models) {
         ov::pass::Manager manager;
-        manager.register_pass<ov::frontend::paddle::pass::TransformEliminateConvert>();
         manager.register_pass<ov::frontend::paddle::pass::TransformTensorArray>(models);
         manager.register_pass<ov::frontend::paddle::pass::TransformIf>(models);
         manager.register_pass<ov::frontend::paddle::pass::TransformWhile>(models);

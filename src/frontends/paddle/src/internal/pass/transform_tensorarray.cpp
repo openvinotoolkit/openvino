@@ -61,22 +61,3 @@ ov::frontend::paddle::pass::TransformTensorArray::TransformTensorArray(std::vect
     auto m = std::make_shared<ngraph::pattern::Matcher>(write_label, "tensorarray");
     this->register_matcher(m, callback);
 }
-
-ov::frontend::paddle::pass::TransformEliminateConvert::TransformEliminateConvert() {
-    auto convert_pattern = ngraph::pattern::wrap_type<Convert>();
-
-    matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
-        auto convert = std::dynamic_pointer_cast<Convert>(m.get_match_root());
-        if (!convert) {
-            return false;
-        }
-        if (convert->get_input_element_type(0) == convert->get_element_type()) {
-            convert->output(0).replace(convert->input_value(0));
-            return true;
-        }
-        return false;
-    };
-
-    auto m = std::make_shared<ngraph::pattern::Matcher>(convert_pattern, "nop_convert");
-    this->register_matcher(m, callback);
-}
