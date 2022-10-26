@@ -410,8 +410,6 @@ ngraph::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
 struct OutputTranspose {
     ov::opset9::Transpose * transpose;
     ov::opset9::Constant * transpose_const;
-    size_t output_idx;
-    size_t input_idx;
 };
 
 OutputTranspose GetOutputTransposes(NodePtr node) {
@@ -427,8 +425,6 @@ OutputTranspose GetOutputTransposes(NodePtr node) {
                 OutputTranspose output_transpose;
                 output_transpose.transpose = transpose_node;
                 output_transpose.transpose_const = constant_node;
-                output_transpose.output_idx = output_idx;
-                output_transpose.input_idx = input.get_index();
 
                 return output_transpose;
             }
@@ -438,30 +434,57 @@ OutputTranspose GetOutputTransposes(NodePtr node) {
     return OutputTranspose();
 }
 
-bool HasOutputTranposes(const ov::Output<ov::Node>& output) {
-    NodePtr node = output.get_node_shared_ptr();
-
-    std::cout << "[EMUTEX DEBUG] HasOutputTranposes node name " << output.get_node()->get_friendly_name() << " type " << output.get_node()->get_type_name() << std::endl;
-
-    for (size_t output_idx = 0; output_idx < node->get_output_size(); ++output_idx) {
-        for (auto& input : node->get_output_target_inputs(output_idx)) {
-            auto transpose_node = dynamic_cast<ov::opset9::Transpose*>(input.get_node());
-            if (!transpose_node) {
-                std::cout << "[EMUTEX DEBUG] HasOutputTranposes FALSE not transpose" << std::endl;
+NodePtr FindSplitInput(ov::Node * node) {
+    for (size_t input_idx = 0; input_idx < node->get_input_size(); ++input_idx) {
+        NodePtr input_node = node->get_input_node_shared_ptr(input_idx);
+        auto split_node = ov::as_type_ptr<ov::opset9::Split>(input_node);
+            if (!split_node)
                 continue;
-            }
-            auto constant_node = dynamic_cast<ov::opset9::Constant*>(transpose_node->input_value(1).get_node());
-            if (!constant_node) {
-                std::cout << "[EMUTEX DEBUG] HasOutputTranposes FALSE transpose has not constant" << std::endl;
-                continue;
-            }
-            std::cout << "[EMUTEX DEBUG] HasOutputTranposes TRUE transpose" << std::endl;
-            return true;
+    }
+    return {};
+}
+
+std::shared_ptr<ov::opset9::Constant> GetTransposeConstant(ov::Input<ov::Node> input) {
+    auto transpose_node = dynamic_cast<ov::opset9::Transpose*>(input.get_node());
+    if (!transpose_node)
+        return {};
+    
+    auto constant_node = ov::as_type_ptr<ov::opset9::Constant>(transpose_node->input_value(1).get_node_shared_ptr());
+    if (!constant_node)
+        return {};
+
+    return constant_node;
+}
+
+bool HasInputSplitAndTransposeSiblings(const ov::Output<ov::Node>& output) {
+    NodePtr split_node = FindSplitInput(output.get_node());
+    if (!split_node)
+        return false;
+
+    ov::AxisVector first_transpose_axis_order;
+    // get first transpose axis
+    {
+        auto constant_node = GetTransposeConstant(*(split_node->get_output_target_inputs(0).begin()));
+        if (!constant_node)
+            return false;
+        first_transpose_axis_order = constant_node->get_axis_vector_val();
+    }
+
+    for (size_t output_idx = 1; output_idx < split_node->get_output_size(); ++output_idx) {
+        for (auto& input : split_node->get_output_target_inputs(output_idx)) {
+            auto constant_node = GetTransposeConstant(input);
+            if (!constant_node)
+                return false;
+
+            ov::AxisVector transpose_axis_order = constant_node->get_axis_vector_val();
+            if (transpose_axis_order.size() != first_transpose_axis_order.size())
+                return false;
+            if (!std::equal(transpose_axis_order.begin(), transpose_axis_order.end(), first_transpose_axis_order.begin()))
+                return false;
         }
     }
 
-    std::cout << "[EMUTEX DEBUG] HasOutputTranposes FALSE transpose false END" << std::endl;
-    return false;
+    return true;
 }
 
 #define EMUTEX_DEBUG_CHECKPOINT std::cout << "[EMUTEX DEBUG] CHECKPOINT " << __FILE__ << ":" << __LINE__ << std::endl;
@@ -469,15 +492,20 @@ bool HasOutputTranposes(const ov::Output<ov::Node>& output) {
 ngraph::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
     MATCHER_SCOPE(TransposeSinkingSplitBackward);
 
-    auto split_label = ov::pass::pattern::wrap_type<ov::opset9::Split>(HasOutputTranposes);
+    auto transpose_const_label = ov::pass::pattern::wrap_type<ov::opset9::Constant>(ov::pass::pattern::consumers_count(1));
+    auto transpose_label =
+        ov::pass::pattern::wrap_type<ov::opset9::Transpose>({ov::pass::pattern::any_input(),
+                                                             transpose_const_label},
+                                                             HasInputSplitAndTransposeSiblings);
 
     ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
         EMUTEX_DEBUG_CHECKPOINT;
 
         const auto& pattern_to_output = m.get_pattern_value_map();
-        auto split = ov::as_type_ptr<ov::opset9::Split>(pattern_to_output.at(split_label).get_node_shared_ptr());
+        auto transpose_label_node = pattern_to_output.at(transpose_label).get_node();
+        
+        NodePtr split = FindSplitInput(transpose_label_node);
         auto split_axis_constant = ov::as_type_ptr<ov::opset9::Constant>(split->input_value(1).get_node_shared_ptr());
-
         OutputTranspose output_transpose = GetOutputTransposes(split);
 
         const ov::AxisVector transpose_axis_order = output_transpose.transpose_const->get_axis_vector_val();
@@ -509,33 +537,19 @@ ngraph::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
                                                                            reversed_transposed_split_axis);
         split->input(1).replace_source_output(new_split_axis_const);
 
-        // update split output
+        // remote split output transposes
         for (size_t output_idx = 0; output_idx < split->get_output_size(); ++output_idx) {
-
-            auto split_output_target_inputs = split->get_output_target_inputs(output_idx);
-
-            auto new_transpose_const = std::make_shared<ov::opset9::Constant>(transpose_element_type,
-                                                                              ov::Shape{reversed_traspose_axis_order.size()},
-                                                                              reversed_traspose_axis_order);
-            auto new_transpose = std::make_shared<ov::opset9::Transpose>(split, new_transpose_const);
-
-            for (auto& input : split_output_target_inputs) {
-                if (output_idx != output_transpose.output_idx || input.get_index() != output_transpose.input_idx) {
-                    input.replace_source_output(new_transpose);
-                } else {
-                    auto transpose_consumers = input.get_node()->output(0).get_target_inputs();
-                    for (auto& consumer: transpose_consumers) {
-                         consumer.replace_source_output(split->output(output_idx));
-                    }
+            for (auto& input : split->get_output_target_inputs(output_idx)) {
+                auto transpose_consumers = input.get_node()->output(0).get_target_inputs();
+                for (auto& consumer: transpose_consumers) {
+                    consumer.replace_source_output(split->output(output_idx));
                 }
             }
-
-            ov::copy_runtime_info(split, {new_transpose, new_transpose_const});
         }
         EMUTEX_DEBUG_CHECKPOINT;
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(split_label, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
