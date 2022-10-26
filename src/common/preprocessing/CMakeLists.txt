@@ -97,7 +97,6 @@ if(ENABLE_GAPI_PREPROCESSING)
     add_library(${TARGET_NAME}_obj OBJECT
                 ${LIBRARY_SRC}
                 ${LIBRARY_HEADERS})
-
     ie_faster_build(${TARGET_NAME}_obj UNITY)
 
     target_compile_definitions(${TARGET_NAME}_obj PRIVATE

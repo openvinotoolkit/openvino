@@ -15,7 +15,7 @@ add_subdirectory(nlohmann_json_schema_validator EXCLUDE_FROM_ALL)
 
 set_target_properties(nlohmann_json_schema_validator PROPERTIES FOLDER thirdparty)
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-    target_compile_options(nlohmann_json_schema_validator PRIVATE -Wno-switch -Wno-deprecated-declarations)
+    target_compile_options(nlohmann_json_schema_validator PRIVATE -Wno-switch -Wno-deprecated-declarations -Wno-range-loop-construct)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options(nlohmann_json_schema_validator PRIVATE /wd4996)
 endif()
