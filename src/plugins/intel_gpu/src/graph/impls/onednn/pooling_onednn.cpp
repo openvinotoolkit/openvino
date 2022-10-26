@@ -38,11 +38,6 @@ protected:
         auto input_md = onednn::layout_to_memory_desc(input_layout);
         auto output_md = onednn::layout_to_memory_desc(output_layout);
 
-        if (prim->global_pooling) {
-            for (size_t i = 0; i < kernel.size(); i++)
-                kernel[i] = input_md.dims()[2 + i];
-        }
-
         for (size_t i = 0; i < kernel.size(); i++) {
             pad_r[i] = (output_md.dims()[2 + i] - 1) * stride[i] - input_md.dims()[2 + i] + kernel[i] - pad_l[i];
         }

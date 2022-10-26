@@ -21,11 +21,9 @@ void validate_args(const pooling_node& arg) {
     auto stride_rank = arg.get_primitive()->stride.size();
     auto window_rank = arg.get_primitive()->size.size();
 
-    if (!arg.get_primitive()->global_pooling) {
-        CLDNN_ERROR_NOT_EQUAL(arg.id(), "input dimensions", input_rank, "output dimensions", output_rank, "");
-        CLDNN_ERROR_NOT_EQUAL(arg.id(), "stride dimensions", stride_rank, "output dimensions", output_rank, "");
-        CLDNN_ERROR_NOT_EQUAL(arg.id(), "window dimensions", window_rank, "output dimensions", output_rank, "");
-    }
+    CLDNN_ERROR_NOT_EQUAL(arg.id(), "input dimensions", input_rank, "output dimensions", output_rank, "");
+    CLDNN_ERROR_NOT_EQUAL(arg.id(), "stride dimensions", stride_rank, "output dimensions", output_rank, "");
+    CLDNN_ERROR_NOT_EQUAL(arg.id(), "window dimensions", window_rank, "output dimensions", output_rank, "");
 }
 
 kernel_selector::pool_type cldnn_2_pool_type(pooling_mode mode) {
@@ -109,13 +107,6 @@ public:
 
         pp.poolType = cldnn_2_pool_type(primitive->mode);
         pp.remainderAction = kernel_selector::pool_remainder::CEIL;
-
-        if (primitive->global_pooling) {
-            kernel = ov::Shape(spatial_rank, 1);
-            for (size_t i = 0; i < spatial_rank; i++) {
-                kernel[i] = input_layout.spatial(spatial_rank - i - 1);
-            }
-        }
 
         // check if last pooling window goes outside of input size + padding. If so the avg pooling size will be
         // adjusted to that, to work properly this calculation must take pad_end into account.

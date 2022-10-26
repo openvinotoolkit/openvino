@@ -46,13 +46,6 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node, kernel_i
         }
     }
 
-    if (desc->global_pooling) {
-        window_size = ov::Shape(input_layout.get_spatial_rank(), 1);
-        for (size_t i = 0; i < input_layout.get_spatial_rank(); i++) {
-            window_size[i] = input_layout.spatial(input_layout.get_spatial_rank() - i - 1);
-        }
-    }
-
     uint32_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
     uint32_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
     uint32_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
@@ -160,13 +153,10 @@ std::string pooling_inst::to_string(pooling_node const& node) {
 
     std::stringstream primitive_description;
 
-    bool is_global = desc->global_pooling;
-
     json_composite pooling_info;
     pooling_info.add("mode", mode);
     pooling_info.add("stride", cldnn::to_string(strd));
     pooling_info.add("kernel size", cldnn::to_string(kernel_size));
-    pooling_info.add("is global", is_global ? "true" : "false");
     if (desc->with_output_size) {
         json_composite ud_out_size_info;
         ud_out_size_info.add("size", desc->output_size.to_string());

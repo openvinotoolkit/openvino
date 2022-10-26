@@ -54,7 +54,6 @@ struct pooling : public primitive_base<pooling> {
             const padding& output_padding = padding())
         : primitive_base(id, {input}, output_padding),
           mode(static_cast<pooling_mode>(mode)),
-          global_pooling(false),
           pads_begin(pads_begin),
           pads_end(pads_end),
           stride(stride),
@@ -81,30 +80,12 @@ struct pooling : public primitive_base<pooling> {
             const padding& output_padding = padding())
         : primitive_base(id, {input}, output_padding, optional_data_type{output_data_type}),
           mode(static_cast<pooling_mode>(mode)),
-          global_pooling(false),
           pads_begin(pads_begin),
           pads_end(pads_end),
           stride(stride),
           size(size),
           with_output_size(true),
           output_size(output_size) {}
-
-    /// @brief Constructs pooling primitive with kernel size equal to the spatial dimension of input tensor.
-    /// @param id This primitive id.
-    /// @param input Input primitive id.
-    /// @param mode Pooling mode.
-    pooling(const primitive_id& id,
-            const primitive_id& input,
-            pooling_mode mode,
-            const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
-          mode(static_cast<pooling_mode>(mode)),
-          global_pooling(true),
-          pads_begin({0 ,0}),
-          pads_end({0 ,0}),
-          stride({1, 1}),
-          size({0, 0}),
-          with_output_size(false) {}
 
     /// @brief Constructs pooling primitive that supports MaxPool features from opset8 (dilation and indices output).
     /// @param id This primitive id.
@@ -134,7 +115,6 @@ struct pooling : public primitive_base<pooling> {
             : primitive_base(id, {input, indices_output}, output_padding, optional_data_type{output_data_type}),
               indices_output(indices_output),
               mode(pooling_mode::max),
-              global_pooling(false),
               pads_begin(pads_begin),
               pads_end(pads_end),
               stride(stride),
@@ -150,8 +130,6 @@ struct pooling : public primitive_base<pooling> {
     primitive_id indices_output;
     /// @brief Pooling mode.
     pooling_mode mode;
-    /// @brief Global pooling (kernel size is equal to the spatial dimension of input tensor)
-    bool global_pooling;
     /// @brief Defines logical pad value added to input tensor.
     ov::Shape pads_begin;
     /// @brief Defines a shift, relative to the end of padding shape.
