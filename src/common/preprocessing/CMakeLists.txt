@@ -97,10 +97,6 @@ if(ENABLE_GAPI_PREPROCESSING)
     add_library(${TARGET_NAME}_obj OBJECT
                 ${LIBRARY_SRC}
                 ${LIBRARY_HEADERS})
-    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-        target_compile_options(${TARGET_NAME}_obj PRIVATE -Wno-unused-command-line-argument)
-    endif()
-
     ie_faster_build(${TARGET_NAME}_obj UNITY)
 
     target_compile_definitions(${TARGET_NAME}_obj PRIVATE
