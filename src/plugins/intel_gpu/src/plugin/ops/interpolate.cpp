@@ -50,6 +50,7 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
     if (axes.size() != scales.size())
         IE_THROW() << op->get_friendly_name() << " Incorrect axes and scales should be the same size";
 
+    // TODO shouldn't be all this checking done in ngraph::op::v4::Interpolate?
     auto interpolateMode = attrs.mode;
     if (interpolateMode == ov::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX) {
         if (inputRank != 2 && inputRank != 4 && inputRank != 5)
@@ -57,7 +58,7 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
         if (axes.size() != 2 && axes.size() != 3 && inputRank != axes.size())
             IE_THROW() << "mode 'linear_onnx' supports only axes with size 2, 3 or equal to input rank";
         bool correctAxes =
-            (((axes.size() == 2 || axes.size() == 4) && inputRank != 5) &&
+            (((axes.size() == 2 || axes.size() == 4) && inputRank < 5) &&
             ((axes[0] == 0 && axes[1] == 1) ||
             (axes[0] == 1 && axes[1] == 0) ||
             (axes[0] == 2 && axes[1] == 3) ||
