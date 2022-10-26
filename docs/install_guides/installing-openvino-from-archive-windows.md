@@ -74,7 +74,6 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
    ```sh
    mklink /D openvino_2022 openvino_2022.2.0.7713
    ```
-
    > **NOTE**: If you have already installed a previous release of OpenVINO 2022, a symbolic link to the `openvino_2022` folder may already exist. If you want to override it, nagivate to the `C:\Program Files (x86)\Intel` folder and delete the existing linked folder before running the `mklink` command.
 
 Congratulations, you finished installation! The C:\Program Files (x86)\Intel\openvino_2022 folder now contains the core components for OpenVINO™. When other pages in OpenVINO™ documentation refer to the `<INSTALL_DIR>` directory, this is the folder they're referring to. If you installed OpenVINO™ in a different location, make sure to use that instead.
