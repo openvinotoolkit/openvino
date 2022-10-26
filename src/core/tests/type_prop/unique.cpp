@@ -189,3 +189,11 @@ TEST(type_prop, unique_non_const_axis_input) {
 
     EXPECT_THROW(make_shared<opset10::Unique>(data, axis), ov::NodeValidationFailure);
 }
+
+TEST(type_prop, unique_with_zero_dimension) {
+    const auto data = make_shared<opset10::Parameter>(element::i64, PartialShape{1, 0, 2});
+    const auto axis = make_shared<opset10::Constant>(element::i32, Shape{}, 1);
+    const auto unique = make_shared<opset10::Unique>(data, axis);
+
+    CHECK_OUTPUT_SHAPES(unique, {{PartialShape{{1, 0, 2}}, PartialShape{{0}}, PartialShape{{0}}, PartialShape{{0}}}});
+}

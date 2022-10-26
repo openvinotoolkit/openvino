@@ -80,8 +80,24 @@ void op::v10::Unique::validate_and_infer_types() {
         if (input_shape.rank().is_static()) {
             const auto normalized_axis = ngraph::normalize_axis(this, axis, input_shape.rank());
             const auto dim_at_axis = input_shape[normalized_axis];
-            const auto output_dim_at_axis =
-                dim_at_axis == Dimension::dynamic() ? Dimension::dynamic() : Dimension{1, dim_at_axis.get_max_length()};
+            std::cout << dim_at_axis.get_min_length() << " " << dim_at_axis.get_max_length() << std::endl;
+
+            Dimension output_dim_at_axis;
+            if (dim_at_axis.is_dynamic()) {
+                if (dim_at_axis == Dimension::dynamic()) {
+                    output_dim_at_axis = dim_at_axis;
+                } else {
+                    output_dim_at_axis = Dimension{1, dim_at_axis.get_max_length()};
+                }
+            } else if (dim_at_axis.get_length() == 0) {
+                output_dim_at_axis = Dimension{0};
+                output_shapes[1] = PartialShape{{0}};
+                output_shapes[2] = PartialShape{{0}};
+                output_shapes[3] = PartialShape{{0}};
+            } else {
+                output_dim_at_axis = Dimension{1, dim_at_axis.get_max_length()};
+            }
+
             auto output_shape = input_shape;
             output_shape[normalized_axis] = output_dim_at_axis;
             output_shapes[0] = output_shape;
