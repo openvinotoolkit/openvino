@@ -141,6 +141,8 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
     return {output_layouts[desc->output_idx]};
 }
 
+template std::vector<layout> crop_inst::calc_output_layouts<ov::PartialShape>(crop_node const& node, const kernel_impl_params& impl_param);
+
 std::string crop_inst::to_string(crop_node const& node) {
     const auto& desc = node.get_primitive();
     auto ref_in_sizes = desc->reference_input;
@@ -245,13 +247,13 @@ void crop_inst::on_execute() {
     if (!node.can_be_optimized())
         return;
 
-    if (_output && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+    if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
 
     reuse_input();
 }
 
 void crop_inst::reuse_input() {
-    _output = _network.get_engine().reinterpret_buffer(input_memory(), node.get_output_layout());
+    _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), node.get_output_layout());
 }
 }  // namespace cldnn

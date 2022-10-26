@@ -8,6 +8,10 @@ if(BUILD_SHARED_LIBS)
     set (OBJ_LIB $<TARGET_OBJECTS:openvino_intel_cpu_plugin_obj>)
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    ie_add_compiler_flags(/wd5051)
+endif()
+
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}

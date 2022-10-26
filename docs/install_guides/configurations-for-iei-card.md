@@ -4,7 +4,7 @@
 
 
 The IEI Mustang-V100-MX8 is an OEM version of the Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
-This guide assumes you have installed the [Mustang-V100-MX8](https://download.ieiworld.com/) and Intel® Distribution of OpenVINO™ toolkit.
+This guide assumes you have installed the [Mustang-V100-MX8](https://download.ieiworld.com/) and OpenVINO™ Runtime.
 
 Instructions in this guide for configuring your accelerator include:
 1.	Installing the required IEI BSL reset software
