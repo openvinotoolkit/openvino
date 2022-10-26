@@ -4,10 +4,8 @@
 from pathlib import Path
 
 from openvino.runtime import serialize
-from openvino.tools.mo import convert_model
-from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
-from openvino.frontend import FrontEnd, FrontEndManager
 from openvino.test_utils import compare_functions
+from openvino.tools.mo import convert_model
 
 from common.utils.common_utils import generate_ir
 
