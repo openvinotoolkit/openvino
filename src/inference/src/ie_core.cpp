@@ -227,7 +227,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         std::lock_guard<std::mutex> lock(global_mutex);
         try {
             return dev_mutexes.at(dev_name);
-        } catch (const std::out_of_range& ex) {
+        } catch (const std::out_of_range&) {
             throw ov::Exception("Cannot get mutex for device: " + dev_name);
         }
     }
