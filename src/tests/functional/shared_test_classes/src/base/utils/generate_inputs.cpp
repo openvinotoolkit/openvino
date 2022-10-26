@@ -721,19 +721,19 @@ ov::runtime::Tensor generateInput(const std::shared_ptr<ov::Node>& node,
 
 InputsMap getInputMap() {
     static InputsMap inputsMap{
-#define NGRAPH_OP(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), generateInput<NAMESPACE::NAME>},
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), generateInput<NAMESPACE::NAME>},
 
-#include "ngraph/opsets/opset1_tbl.hpp"
-#include "ngraph/opsets/opset2_tbl.hpp"
-#include "ngraph/opsets/opset3_tbl.hpp"
-#include "ngraph/opsets/opset4_tbl.hpp"
-#include "ngraph/opsets/opset5_tbl.hpp"
-#include "ngraph/opsets/opset6_tbl.hpp"
-#include "ngraph/opsets/opset7_tbl.hpp"
-#include "ngraph/opsets/opset8_tbl.hpp"
-#include "ngraph/opsets/opset9_tbl.hpp"
+#include "openvino/opsets/opset1_tbl.hpp"
+#include "openvino/opsets/opset2_tbl.hpp"
+#include "openvino/opsets/opset3_tbl.hpp"
+#include "openvino/opsets/opset4_tbl.hpp"
+#include "openvino/opsets/opset5_tbl.hpp"
+#include "openvino/opsets/opset6_tbl.hpp"
+#include "openvino/opsets/opset7_tbl.hpp"
+#include "openvino/opsets/opset8_tbl.hpp"
+#include "openvino/opsets/opset9_tbl.hpp"
 
-#undef NGRAPH_OP
+#undef _OPENVINO_OP_REG
     };
     return inputsMap;
 }
