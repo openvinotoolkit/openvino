@@ -33,7 +33,7 @@ NamedOutputs select_input(const NodeContext& node) {
                 const auto ps = x[idx].get_partial_shape();
                 if (ps.is_static()) {
                     const Shape shape(ps.get_shape());
-                    const auto size = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
+                    const auto size = std::accumulate(shape.begin(), shape.end(), size_t{1}, std::multiplies<size_t>());
                     if (size == 0)
                         return 1 - idx;
                 }

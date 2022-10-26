@@ -1396,8 +1396,8 @@ TEST(type_prop, loop_operation_dynamic_iter_1d_shapes_inputs_dynamic_shape_outpu
 TEST(type_prop, loop_operation_dynamic_iter_dynamic_shapes_unsqueeze) {
     // Inner model
     const auto inner_parameter = std::make_shared<opset5::Parameter>(element::dynamic, ov::PartialShape::dynamic());
-    const auto unsqueeze = std::make_shared<opset5::Unsqueeze>(
-            inner_parameter, opset5::Constant::create(element::i64, {1}, {0}));
+    const auto unsqueeze =
+        std::make_shared<opset5::Unsqueeze>(inner_parameter, opset5::Constant::create(element::i64, {1}, {0}));
     const auto true_const = opset5::Constant::create(element::boolean, {1}, {1});
     auto body = std::make_shared<Function>(OutputVector{unsqueeze, true_const}, ParameterVector{inner_parameter});
 
