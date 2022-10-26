@@ -96,7 +96,7 @@ std::vector<paddle::TensorName> DecoderProto::get_output_var_names(const std::st
     std::vector<std::string> output_names;
     for (const auto& output : op_place->get_desc().outputs()) {
         if (output.parameter() == var_name) {
-            for (size_t idx = 0; idx < output.arguments_size(); ++idx) {
+            for (int idx = 0; idx < output.arguments_size(); ++idx) {
                 output_names.push_back(output.arguments()[idx]);
             }
         }
@@ -108,7 +108,7 @@ std::vector<paddle::TensorName> DecoderProto::get_input_var_names(const std::str
     std::vector<std::string> input_names;
     for (const auto& input : op_place->get_desc().inputs()) {
         if (input.parameter() == var_name) {
-            for (size_t idx = 0; idx < input.arguments_size(); ++idx) {
+            for (int idx = 0; idx < input.arguments_size(); ++idx) {
                 input_names.push_back(input.arguments()[idx]);
             }
         }
