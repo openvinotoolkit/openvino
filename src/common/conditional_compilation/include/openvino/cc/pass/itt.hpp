@@ -22,6 +22,7 @@ OV_CC_DOMAINS(ov_pass);
 #    define RUN_ON_MODEL_SCOPE(region)    OV_SCOPE(ov_pass, OV_PP_CAT(region, _run_on_model))
 
 #    define ADD_MATCHER_SCOPE_WITHOUT_OBJ(nspace, region, ...) add_matcher<nspace::region>(__VA_ARGS__);
+#    define ADD_MATCHER_SCOPE_WITHOUT_NSPACE(obj, region, ...) obj->add_matcher<region>(__VA_ARGS__);
 #    define ADD_MATCHER_SCOPE_WITHOUT_OBJ_NSPACE(region, ...)  add_matcher<region>(__VA_ARGS__);
 #    define ADD_MATCHER_SCOPE(obj, nspace, region, ...)        obj->add_matcher<nspace::region>(__VA_ARGS__);
 #    define REGISTER_PASS_SCOPE(obj, nspace, region, ...)      obj.register_pass<nspace::region>(__VA_ARGS__);
@@ -49,10 +50,15 @@ OV_CC_DOMAINS(ov_pass);
 #    define ADD_MATCHER_SCOPE_WITHOUT_OBJ(nspace, region, ...)                          \
         OV_PP_CAT(ADD_MATCHER_, OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, region))) \
         (nspace, region)
-#    define ADD_MATCHER_NO_NSPACE_1(region, ...) add_matcher<region>(__VA_ARGS__);
-#    define ADD_MATCHER_NO_NSPACE_0(region, ...)
-#    define ADD_MATCHER_SCOPE_WITHOUT_OBJ_NSPACE(region, ...)                                     \
-        OV_PP_CAT(ADD_MATCHER_NO_NSPACE_, OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, region))) \
+#    define ADD_MATCHER_NO_OBJ_(obj, region, ...) obj->add_matcher<region>(__VA_ARGS__);
+#    define ADD_MATCHER_NO_OBJ_(obj, region, ...)
+#    define ADD_MATCHER_SCOPE_WITHOUT_NSPACE(obj, region, ...)                                 \
+        OV_PP_CAT(ADD_MATCHER_NO_OBJ_, OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, region))) \
+        (obj, region)
+#    define ADD_MATCHER_NO_OBJ_NSPACE_1(region, ...) add_matcher<region>(__VA_ARGS__);
+#    define ADD_MATCHER_NO_OBJ_NSPACE_0(region, ...)
+#    define ADD_MATCHER_SCOPE_WITHOUT_OBJ_NSPACE(region, ...)                                         \
+        OV_PP_CAT(ADD_MATCHER_NO_OBJ_NSPACE_, OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, region))) \
         (region)
 #    define ADD_MATCHER_OBJ_1(obj, nspace, region, ...) obj->add_matcher<nspace::region>(__VA_ARGS__);
 #    define ADD_MATCHER_OBJ_0(obj, nspace, region, ...)
@@ -89,6 +95,7 @@ OV_CC_DOMAINS(ov_pass);
 #    define RUN_ON_MODEL_SCOPE(region)
 
 #    define ADD_MATCHER_SCOPE_WITHOUT_OBJ(nspace, region, ...) add_matcher<nspace::region>(__VA_ARGS__);
+#    define ADD_MATCHER_SCOPE_WITHOUT_NSPACE(obj, region, ...) obj->add_matcher<region>(__VA_ARGS__);
 #    define ADD_MATCHER_SCOPE_WITHOUT_OBJ_NSPACE(region, ...)  add_matcher<region>(__VA_ARGS__);
 #    define ADD_MATCHER_SCOPE(obj, nspace, region, ...)        obj->add_matcher<nspace::region>(__VA_ARGS__);
 #    define REGISTER_PASS_SCOPE(obj, nspace, region, ...)      obj.register_pass<nspace::region>(__VA_ARGS__);

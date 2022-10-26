@@ -199,8 +199,8 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
 
     auto prerequisites = manager.register_pass<ngraph::pass::GraphRewrite>();
     const std::vector<ngraph::element::Type> supportedTypes = {ngraph::element::i8, ngraph::element::u8};
-    prerequisites->add_matcher<PullReshapeThroughDequantization>(supportedTypes);
-    prerequisites->add_matcher<PullTransposeThroughDequantization>(supportedTypes);
+    ADD_MATCHER_SCOPE_WITHOUT_NSPACE(prerequisites, PullReshapeThroughDequantization, supportedTypes)
+    ADD_MATCHER_SCOPE_WITHOUT_NSPACE(prerequisites, PullTransposeThroughDequantization, supportedTypes)
     ADD_MATCHER_SCOPE(prerequisites, ngraph::pass, LinOpSequenceFusion)
     ADD_MATCHER_SCOPE(prerequisites, ngraph::pass::low_precision, MoveFakeQuantize)
 
