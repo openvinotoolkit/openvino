@@ -207,8 +207,8 @@ void divide_ceil(const DimType& dividend, const typename DimType::value_type& di
     if (dividend.get_max_length() == -1) {
         quotient = -1;
     } else {
-        auto lb = ceil(1. * dividend.get_min_length() / divisor);
-        auto ub = ceil(1. * dividend.get_max_length() / divisor);
+        auto lb = static_cast<int64_t>(ceil(1. * dividend.get_min_length() / divisor));
+        auto ub = static_cast<int64_t>(ceil(1. * dividend.get_max_length() / divisor));
         quotient = DimType(lb, ub);
     }
 }
