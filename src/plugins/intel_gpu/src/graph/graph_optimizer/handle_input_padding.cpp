@@ -22,7 +22,7 @@ void handle_input_padding::run(program& p) {
         if (!node->is_type<convolution>()) {
             continue;
         }
-        if (node->is_dynamic()) {
+        if (!node->is_valid_output_layout() || node->is_dynamic()) {
             continue; // do nothing for dynamic shape. Use pad_above/ pad_below as is
         }
         convolution_node& convolution_node = node->as<convolution>();
@@ -108,8 +108,7 @@ void handle_input_padding::run(program& p) {
                 auto& b_prim_node = p.get_or_create(b_prim);
 
                 p.add_intermediate(b_prim_node, convolution_node, 0, true);
-            } else {
-                // Symmetric padding
+            } else {            // Symmetric padding
                 // set pad
                 auto spatial_rank = convolution_node.get_output_layout().get_spatial_rank();
                 ov::CoordinateDiff prim_pad = ov::CoordinateDiff(spatial_rank, 0);

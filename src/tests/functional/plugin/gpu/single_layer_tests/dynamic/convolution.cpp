@@ -29,7 +29,7 @@ typedef std::tuple<
 > convLayerTestParamsSet;
 
 
-class ConvolutionLayerGPUTest : public testing::WithParamInterface<convLayerTestParamsSet>,
+class ConvolutionLayerGPUTestDynamic : public testing::WithParamInterface<convLayerTestParamsSet>,
                              virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<convLayerTestParamsSet>& obj) {
@@ -98,29 +98,77 @@ protected:
     }
 };
 
-TEST_P(ConvolutionLayerGPUTest, CompareWithRefs) {
+TEST_P(ConvolutionLayerGPUTestDynamic, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
 }
 
 namespace {
-// Check 3D input tensor for convolution is handled properly and its output is correct comparing with ngraph runtime.
-INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_3D_tensor_basic, ConvolutionLayerGPUTest,
+const std::vector<ov::test::InputShape> dynInputShapes4D = {
+    {
+        {1, 10, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+        {{1, 10, 20, 20}, {1, 10, 30, 30}, {1, 10, 40, 20}}
+    },
+};
+
+const std::vector<ov::test::InputShape> dynInputShapes1D = {
+    {
+        {1, 10, ov::Dimension::dynamic()},
+        {{1, 10, 20}, {1, 10, 30}, {1, 10, 50}}
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic1DSymPad, ConvolutionLayerGPUTestDynamic,
         ::testing::Combine(
                 ::testing::Combine(
                         ::testing::Values(SizeVector{3}),
                         ::testing::Values(SizeVector{1}),
-                        ::testing::Values(std::vector<ptrdiff_t>{0}),
-                        ::testing::Values(std::vector<ptrdiff_t>{0}),
+                        ::testing::Values(std::vector<ptrdiff_t>{1}),
+                        ::testing::Values(std::vector<ptrdiff_t>{1}),
                         ::testing::Values(SizeVector{1}),
-                        ::testing::Values(13),
-                        ::testing::Values(ngraph::op::PadType::SAME_UPPER)),
+                        ::testing::Values(10),
+                        ::testing::ValuesIn({ngraph::op::PadType::EXPLICIT, ngraph::op::PadType::VALID})),
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::undefined),
-                ::testing::Values(InputShape{{}, {{1, 13, 30}}}),
+                ::testing::ValuesIn(dynInputShapes1D),
                 ::testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),
-                ConvolutionLayerGPUTest::getTestCaseName);
+                ConvolutionLayerGPUTestDynamic::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic4DSymPad, ConvolutionLayerGPUTestDynamic,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::Values(SizeVector{3, 3}),
+                        ::testing::Values(SizeVector{1, 1}),
+                        ::testing::Values(std::vector<ptrdiff_t>{1, 2}),
+                        ::testing::Values(std::vector<ptrdiff_t>{1, 2}),
+                        ::testing::Values(SizeVector{1, 1}),
+                        ::testing::Values(10),
+                        ::testing::ValuesIn({ngraph::op::PadType::EXPLICIT, ngraph::op::PadType::VALID})),
+                ::testing::Values(ElementType::f16),
+                ::testing::Values(ElementType::f16),
+                ::testing::Values(ElementType::undefined),
+                ::testing::ValuesIn(dynInputShapes4D),
+                ::testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),
+                ConvolutionLayerGPUTestDynamic::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic4D_AsymPad, ConvolutionLayerGPUTestDynamic,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::Values(SizeVector{3, 3}),
+                        ::testing::Values(SizeVector{1, 1}),
+                        ::testing::Values(std::vector<ptrdiff_t>{1, 2}),
+                        ::testing::Values(std::vector<ptrdiff_t>{2, 1}),
+                        ::testing::Values(SizeVector{1, 1}),
+                        ::testing::Values(10),
+                        ::testing::ValuesIn({ngraph::op::PadType::EXPLICIT, ngraph::op::PadType::VALID})),
+                ::testing::Values(ElementType::f16),
+                ::testing::Values(ElementType::f16),
+                ::testing::Values(ElementType::undefined),
+                ::testing::ValuesIn(dynInputShapes4D),
+                ::testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),
+                ConvolutionLayerGPUTestDynamic::getTestCaseName);
+
 }  // namespace
 
 } // namespace GPULayerTestsDefinitions
