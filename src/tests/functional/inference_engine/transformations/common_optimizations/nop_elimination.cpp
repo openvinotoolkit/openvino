@@ -890,6 +890,35 @@ struct ShapeParams {
     bool can_fuse;
 };
 
+enum class OpType {
+    ADD,
+    SUBTRACT,
+    SUBTRACT_WITH_CONVERT,
+    MULTIPLY,
+    DIVIDE,
+};
+
+static std::ostream& operator<<(std::ostream& os, OpType kind) {
+    switch (kind) {
+        case OpType::ADD:
+            os << "add";
+            break;
+        case OpType::SUBTRACT:
+            os << "subtract";
+            break;
+        case OpType::SUBTRACT_WITH_CONVERT:
+            os << "subtract_with_convert";
+            break;
+        case OpType::MULTIPLY:
+            os << "multiply";
+            break;
+        case OpType::DIVIDE:
+            os << "divide";
+            break;
+    }
+    return os;
+}
+
 enum class ConstantKind {
     ZERO,
     ONE,
@@ -912,7 +941,7 @@ static std::ostream& operator<<(std::ostream& os, ConstantKind kind) {
 }
 
 struct TypeParams {
-    EltwiseTypes op_type;
+    OpType op_type;
     ConstantKind constant_kind;
     bool can_fuse;
 };
@@ -936,6 +965,14 @@ class EliminateEltwiseTests: public testing::WithParamInterface<EliminateEltwise
         }
 };
 
+std::vector<element::Type> types{
+    element::f32, element::f64,
+    element::i32, element::u32,
+    element::i64, element::u64,
+    element::i8, element::u8,
+    element::i16, element::u16,
+};
+
 TEST_P(EliminateEltwiseTests, eliminate_eltwise) {
     auto params = GetParam();
     const auto& shape_params = std::get<0>(params);
@@ -947,45 +984,60 @@ TEST_P(EliminateEltwiseTests, eliminate_eltwise) {
     bool can_fuse = shape_params.can_fuse && type_params.can_fuse;
 
     auto parameter = make_shared<op::Parameter>(type, shape1);
+
+    auto constant_type = type;
+    if (type_params.op_type == OpType::SUBTRACT_WITH_CONVERT) {
+        if (type == types[0])
+            constant_type = types[1];
+        else
+            constant_type = types[0];
+    }
+
     std::shared_ptr<Node> constant;
     switch (type_params.constant_kind) {
         case ConstantKind::ZERO:
-            constant = op::Constant::create(type, shape2, {0});
+            constant = op::Constant::create(constant_type, shape2, {0});
             break;
         case ConstantKind::ONE:
-            constant = op::Constant::create(type, shape2, {1});
+            constant = op::Constant::create(constant_type, shape2, {1});
             break;
         case ConstantKind::RANDOM:
-            constant = builder::makeConstant(type, shape2, {}, true, 20 /* upTo */, 2 /* startFrom */);
+            constant = builder::makeConstant(constant_type, shape2, {}, true, 20 /* upTo */, 2 /* startFrom */);
             break;
+    }
+
+    if (type_params.op_type == OpType::SUBTRACT_WITH_CONVERT) {
+        constant = std::make_shared<opset8::Convert>(constant, type);
     }
 
     shared_ptr<Node> A = parameter;
     shared_ptr<Node> B = constant;
     if (swap_inputs) {
         std::swap(A, B);
-        if (type_params.op_type == EltwiseTypes::SUBTRACT ||
-            type_params.op_type == EltwiseTypes::DIVIDE) {
+        if (type_params.op_type == OpType::SUBTRACT ||
+            type_params.op_type == OpType::SUBTRACT_WITH_CONVERT ||
+            type_params.op_type == OpType::DIVIDE) {
             can_fuse = false;
         }
     }
 
     shared_ptr<Node> node;
     switch (type_params.op_type) {
-        case EltwiseTypes::ADD:
+        case OpType::ADD:
             node = make_shared<opset8::Add>(A, B);
             break;
-        case EltwiseTypes::SUBTRACT:
+        case OpType::SUBTRACT:
+        case OpType::SUBTRACT_WITH_CONVERT:
             node = make_shared<opset8::Subtract>(A, B);
             break;
-        case EltwiseTypes::MULTIPLY:
+        case OpType::MULTIPLY:
             node = make_shared<opset8::Multiply>(A, B);
             break;
-        case EltwiseTypes::DIVIDE:
+        case OpType::DIVIDE:
             node = make_shared<opset8::Divide>(A, B);
             break;
         default:
-            ASSERT_FALSE(true) << "Invalid EltwiseType";
+            ASSERT_FALSE(true) << "Invalid OpType";
     }
     auto abs = make_shared<opset8::Abs>(node);
     function = make_shared<Function>(abs, ParameterVector{parameter});
@@ -1045,22 +1097,16 @@ std::vector<ShapeParams> shape_params = {
 
 std::vector<TypeParams> type_params = {
     // op type, constant value, can fuse
-    { EltwiseTypes::ADD, ConstantKind::ZERO, true },
-    { EltwiseTypes::ADD, ConstantKind::RANDOM, false },
-    { EltwiseTypes::SUBTRACT, ConstantKind::ZERO, true },
-    { EltwiseTypes::SUBTRACT, ConstantKind::RANDOM, false },
-    { EltwiseTypes::MULTIPLY, ConstantKind::ONE, true },
-    { EltwiseTypes::MULTIPLY, ConstantKind::RANDOM, false },
-    { EltwiseTypes::DIVIDE, ConstantKind::ONE, true },
-    { EltwiseTypes::DIVIDE, ConstantKind::RANDOM, false },
-};
-
-std::vector<element::Type> types{
-    element::f32, element::f64,
-    element::i32, element::u32,
-    element::i64, element::u64,
-    element::i8, element::u8,
-    element::i16, element::u16,
+    { OpType::ADD, ConstantKind::ZERO, true },
+    { OpType::ADD, ConstantKind::RANDOM, false },
+    { OpType::SUBTRACT, ConstantKind::ZERO, true },
+    { OpType::SUBTRACT, ConstantKind::RANDOM, false },
+    { OpType::SUBTRACT_WITH_CONVERT, ConstantKind::ZERO, true },
+    { OpType::SUBTRACT_WITH_CONVERT, ConstantKind::RANDOM, false },
+    { OpType::MULTIPLY, ConstantKind::ONE, true },
+    { OpType::MULTIPLY, ConstantKind::RANDOM, false },
+    { OpType::DIVIDE, ConstantKind::ONE, true },
+    { OpType::DIVIDE, ConstantKind::RANDOM, false },
 };
 
 INSTANTIATE_TEST_SUITE_P(EliminateEltwise, EliminateEltwiseTests,
