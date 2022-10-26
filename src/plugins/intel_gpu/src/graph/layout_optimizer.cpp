@@ -1761,8 +1761,13 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
 
             // WA: shallow convolution needs to set input format by bfyx.
             //     onednn recommended byxf for input format. It will insert reorder before shallow conv.
-            if (node.is_type<convolution>() && node.get_input_layouts()[0].feature() == 3)
-                src_fmt = format::bfyx;
+            if (node.is_type<convolution>() && node.get_input_layouts()[0].feature() == 3) {
+                auto rank = node.get_input_layouts()[0].get_rank();
+                if (rank == 4)
+                    src_fmt = format::bfyx;
+                else if (rank == 5)
+                    src_fmt = format::bfzyx;
+            }
 
             node.set_preferred_input_fmt(idx, src_fmt);
 
