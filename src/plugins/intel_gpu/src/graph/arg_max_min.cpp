@@ -71,7 +71,7 @@ layout arg_max_min_inst::calc_output_layout(arg_max_min_node const& node, kernel
 }
 
 template<typename ShapeType>
-std::vector<layout> arg_max_min_inst::calc_output_layouts(const arg_max_min_node& /*node*/, const kernel_impl_params& impl_param) {
+std::vector<layout> arg_max_min_inst::calc_output_layouts(arg_max_min_node const& /*node*/, const kernel_impl_params& impl_param) {
     std::vector<layout> layouts;
 
     auto desc = impl_param.typed_desc<arg_max_min>();
