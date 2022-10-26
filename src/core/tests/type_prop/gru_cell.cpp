@@ -42,7 +42,8 @@ TEST(type_prop, gru_cell_invalid_input) {
         const auto gru_cell = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size);
         FAIL() << "GRUCell node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter hidden_size mistmatched in W input."));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("First dimension of W input shape is required to be compatible"));
     }
 
     // Invalid R tensor shape.
@@ -52,8 +53,7 @@ TEST(type_prop, gru_cell_invalid_input) {
         const auto gru_cell = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size);
         FAIL() << "GRUCell node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Parameter hidden_size not matched for R and initial_hidden_state inputs."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Dimension `hidden_size` is not matched between inputs"));
     }
 
     // Invalid H_t tensor shape.
@@ -63,8 +63,7 @@ TEST(type_prop, gru_cell_invalid_input) {
         const auto gru_cell = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size);
         FAIL() << "GRUCell node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Parameter batch_size not matched for X and initial_hidden_state inputs."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Dimension `batch_size` is not matched between inputs"));
     }
 
     // Invalid B tensor shape.
@@ -74,7 +73,8 @@ TEST(type_prop, gru_cell_invalid_input) {
         const auto gru_cell = make_shared<opset4::GRUCell>(X, H_t, W, R, B, hidden_size);
         FAIL() << "GRUCell node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter hidden_size mistmatched in B input."));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("First dimension of B input shape is required to be compatible"));
     }
 }
 
@@ -171,7 +171,7 @@ TEST(type_prop, gru_cell_invalid_input_rank0) {
         << "GRUCell node was created with invalid data.";
 }
 
-TEST(type_prop, gru_cell_invalid_input_dynamic_rank) {
+TEST(type_prop, gru_cell_input_dynamic_rank) {
     const size_t batch_size = 2;
     const size_t input_size = 3;
     const size_t hidden_size = 3;
@@ -182,34 +182,34 @@ TEST(type_prop, gru_cell_invalid_input_dynamic_rank) {
     auto H_t = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
 
     auto check_dynamic_gru = [](const shared_ptr<opset4::GRUCell>& gru) -> bool {
-        return gru->output(0).get_partial_shape() == PartialShape::dynamic() &&
+        return gru->output(0).get_partial_shape() == PartialShape{batch_size, hidden_size} &&
                gru->output(0).get_element_type() == gru->input(0).get_element_type();
     };
 
-    // Invalid dynamic rank for W tensor.
+    // Dynamic rank for W tensor.
     auto W = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
     auto gru_w = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size);
     EXPECT_EQ(check_dynamic_gru(gru_w), true);
 
-    // Invalid dynamic rank for X tensor.
-    W = make_shared<op::Parameter>(element::f32, PartialShape{hidden_size, input_size});
+    // Dynamic rank for X tensor.
+    W = make_shared<op::Parameter>(element::f32, PartialShape{gates_count * hidden_size, input_size});
     X = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
     auto gru_x = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size);
     EXPECT_EQ(check_dynamic_gru(gru_x), true);
 
-    // Invalid dynamic rank for H_t tensor.
+    // Dynamic rank for H_t tensor.
     X = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, input_size});
     H_t = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
     auto gru_h = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size);
     EXPECT_EQ(check_dynamic_gru(gru_h), true);
 
-    // Invalid dynamic rank for R tensor.
+    // Dynamic rank for R tensor.
     H_t = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
     R = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
     auto gru_r = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size);
     EXPECT_EQ(check_dynamic_gru(gru_r), true);
 
-    // Invalid dynamic rank for B tensor.
+    // Dynamic rank for B tensor.
     R = make_shared<op::Parameter>(element::f32, PartialShape{gates_count * hidden_size, hidden_size});
     auto B = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
     auto gru_b = make_shared<opset4::GRUCell>(X, H_t, W, R, B, hidden_size);
