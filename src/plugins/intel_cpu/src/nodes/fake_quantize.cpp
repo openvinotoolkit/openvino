@@ -1753,8 +1753,8 @@ void FakeQuantize::execute(dnnl::stream strm) {
     }
 }
 
-void FakeQuantize::initializePostOpData(const VectorDims &dims, const size_t bufferAlignment) {
-    if (isPostOpDataInitialized)
+void FakeQuantize::initializePostOpData(const VectorDims &dims, const size_t bufferAlignment, bool doRounding) {
+    if (postOpDataVersion == parameterVersion)
         return;
 
     if (getAlgorithm() == Algorithm::FQBinarization) {
@@ -1772,32 +1772,14 @@ void FakeQuantize::initializePostOpData(const VectorDims &dims, const size_t buf
             std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0.f);
         }
     } else {
-        if (cropLow.size() > 1)
-            cropLow.resize(rnd_up(cropLow.size(), bufferAlignment), 0);
-        if (cropHigh.size() > 1)
-            cropHigh.resize(rnd_up(cropHigh.size(), bufferAlignment), 0);
-        if (inputScale.size() > 1)
-            inputScale.resize(rnd_up(inputScale.size(), bufferAlignment), 0);
-        if (inputShift.size() > 1)
-            inputShift.resize(rnd_up(inputShift.size(), bufferAlignment), 0);
-        if (outputScale.size() > 1)
-            outputScale.resize(rnd_up(outputScale.size(), bufferAlignment), 0);
-        if (outputShift.size() > 1)
-            outputShift.resize(rnd_up(outputShift.size(), bufferAlignment), 0);
-
-        cropLowData.set(cropLow.size(), 1 << 1, &cropLow[0]);
-        cropHighData.set(cropHigh.size(), 1 << 1, &cropHigh[0]);
-        inputScaleData.set(inputScale.size(), 1 << 1, &inputScale[0]);
-        inputShiftData.set(inputShift.size(), 1 << 1, &inputShift[0]);
-        outputScaleData.set(outputScale.size(), 1 << 1, &outputScale[0]);
-        outputShiftData.set(outputShift.size(), 1 << 1, &outputShift[0]);
+        updateOptimizedFormula(doRounding);
     }
 
-    isPostOpDataInitialized = true;
+    postOpDataVersion = parameterVersion;
 }
 
 void FakeQuantize::initializePostOpDataLegacy(const VectorDims &dims, const size_t bufferAlignment) {
-    if (isLegacyPostOpDataInitialized)
+    if (legacyPostOpDataVersion == parameterVersion)
         return;
 
     if (getAlgorithm() == Algorithm::FQBinarization) {
@@ -1829,7 +1811,7 @@ void FakeQuantize::initializePostOpDataLegacy(const VectorDims &dims, const size
         quantizationData.resize(quantizationDataSize + bufferPaddingSize, 0);
     }
 
-    isLegacyPostOpDataInitialized = true;
+    legacyPostOpDataVersion = parameterVersion;
 }
 
 void FakeQuantize::appendMemory(const size_t dataSize, const void *data, MemoryPtr &memPtr, std::vector<MemoryPtr>& postOpsMem) {
@@ -1913,8 +1895,8 @@ static float roundHalfToEven(float f) {
     return f - d;
 }
 
-FakeQuantize::OptimizedFormula FakeQuantize::makeOptimizedFormula(bool do_rounding) {
-    FakeQuantize::OptimizedFormula f;
+void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
+    auto& f = optimizedFormula;
 
     auto isPerTensor =
         [](const std::vector<float>& v, float ref, const float zero_thr = std::numeric_limits<float>::min()) {
@@ -1938,10 +1920,14 @@ FakeQuantize::OptimizedFormula FakeQuantize::makeOptimizedFormula(bool do_roundi
 
     // input shift has special threshold as a workaround
     if (!std::isnan(originalPerTensorInputShift) && isPerTensor(inputShift, originalPerTensorInputShift, 0.0001f)) {
-        f.ish.resize(OC, originalPerTensorInputShift);
+        f.ish.resize(OC);
+        for (auto & v : f.ish)
+            v = originalPerTensorInputShift;
     } else if (isPerTensor(inputShift, 128.0f, 0.0001f)) {
         // due to FQ's definition, symmetric input range tends to generate 128 input shift
-        f.ish.resize(OC, 128.0f);
+        f.ish.resize(OC);
+        for (auto & v : f.ish)
+            v = 128.0f;
     } else {
         f.ish = inputShift;
     }
@@ -2020,7 +2006,6 @@ FakeQuantize::OptimizedFormula FakeQuantize::makeOptimizedFormula(bool do_roundi
         }
     }
     */
-    return f;
 }
 
 // map FQ to oneDNN's attribuites & postOps
@@ -2048,7 +2033,10 @@ bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
     DEBUG_LOG("\t outputScale=[", PrintableVector<float>(outputScale), "]");
     DEBUG_LOG("\t outputShift=[", PrintableVector<float>(outputShift), "]");
 
-    auto f = makeOptimizedFormula(doRounding);
+    const size_t bufferAlignment = 16;
+    initializePostOpData(dnnlpoc.getOutputDims(), bufferAlignment, doRounding);
+
+    auto& f = optimizedFormula;
 
     DEBUG_LOG("\t ---- Optimized formula ----");
     DEBUG_LOG("\t inputScale =[", PrintableVector<float>(f.isc), "]");

@@ -96,22 +96,22 @@ public:
     const std::vector<float>& getOutputShift() const { return outputShift; }
 
     void setCropLow(std::vector<float> newCropLow) {
-        cropLow = std::move(newCropLow); cropLowSize = cropLow.size(); isPostOpDataInitialized = false;
+        cropLow = std::move(newCropLow); cropLowSize = cropLow.size(); ++parameterVersion;
     }
     void setCropHigh(std::vector<float> newCropHigh) {
-        cropHigh = std::move(newCropHigh); cropHighSize = cropHigh.size(); isPostOpDataInitialized = false;
+        cropHigh = std::move(newCropHigh); cropHighSize = cropHigh.size(); ++parameterVersion;
     }
     void setInputScale(std::vector<float> newInputScale) {
-        inputScale = std::move(newInputScale); inputScaleSize = inputScale.size(); isPostOpDataInitialized = false;
+        inputScale = std::move(newInputScale); inputScaleSize = inputScale.size(); ++parameterVersion;
     }
     void setInputShift(std::vector<float> newInputShift) {
-        inputShift = std::move(newInputShift); inputShiftSize = inputShift.size(); isPostOpDataInitialized = false;
+        inputShift = std::move(newInputShift); inputShiftSize = inputShift.size(); ++parameterVersion;
     }
     void setOutputScale(std::vector<float> newOutputScale) {
-        outputScale = std::move(newOutputScale); outputScaleSize = outputScale.size(); isPostOpDataInitialized = false;
+        outputScale = std::move(newOutputScale); outputScaleSize = outputScale.size(); ++parameterVersion;
     }
     void setOutputShift(std::vector<float> newOutputShift) {
-        outputShift = std::move(newOutputShift); outputShiftSize = outputShift.size(); isPostOpDataInitialized = false;
+        outputShift = std::move(newOutputShift); outputShiftSize = outputShift.size(); ++parameterVersion;
     }
 
     const std::vector<float>& getFQScales() const { return fqScales; }
@@ -165,7 +165,7 @@ private:
 
     void init() override;
     std::vector<LayoutType> getDataFormats() const;
-    void initializePostOpData(const VectorDims &postOpDims, const size_t bufferAlignment);
+    void initializePostOpData(const VectorDims &postOpDims, const size_t bufferAlignment, bool doRounding);
     void initializePostOpDataLegacy(const VectorDims &dims, const size_t bufferAlignment);
     void executeReference();
     void executeBinarization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const;
@@ -225,9 +225,9 @@ private:
             _do_shrink(osc);
             _do_shrink(osh);
         }
-    };
+    } optimizedFormula;
 
-    OptimizedFormula makeOptimizedFormula(bool do_rounding);
+    void updateOptimizedFormula(bool do_rounding);
     float originalPerTensorInputShift;
 
     std::vector<float> quantizationData;
@@ -243,17 +243,12 @@ private:
 
     std::vector<float> fqScales;
 
-
-    bool isPostOpDataInitialized = false;
-    bool isLegacyPostOpDataInitialized = false;
-
-    // onednn style post ops data representation
-    dnnl::impl::shifts_t<float> cropLowData;
-    dnnl::impl::shifts_t<float> cropHighData;
-    dnnl::impl::scales_t inputScaleData;
-    dnnl::impl::shifts_t<float> inputShiftData;
-    dnnl::impl::scales_t outputScaleData;
-    dnnl::impl::shifts_t<float> outputShiftData;
+    // version based lazy evaluation, any parameter change increases parameterVersion
+    // and postOpDataVersion will be compared with it to see if an update is required
+    // when it was being actually used.
+    size_t parameterVersion = 1lu;
+    size_t postOpDataVersion = 0lu;
+    size_t legacyPostOpDataVersion = 0lu;
 
     bool isInputLowBroadcasted = false;
     bool isInputHighBroadcasted = false;

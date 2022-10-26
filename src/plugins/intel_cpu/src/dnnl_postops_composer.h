@@ -41,6 +41,10 @@ public:
     bool appendLinear(const std::vector<float>& scale, const std::vector<float>& shift, bool allowBinary = true);
     void appendClip(const std::vector<float>& low, const std::vector<float>& high);
 
+    const VectorDims& getOutputDims() {
+        return outputDims;
+    }
+
 private:
     dnnl::primitive_attr& attr;
     dnnl::post_ops& ops;

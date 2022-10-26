@@ -81,11 +81,12 @@ std::ostream & operator<<(std::ostream & os, const PrintableModel& model);
 template<typename T>
 std::ostream & operator<<(std::ostream & os, const PrintableVector<T>& vec) {
     std::stringstream ss;
-    for (int i = 0; i < vec.values.size(); i++) {
+    auto N = vec.values.size();
+    for (int i = 0; i < N; i++) {
         if (i > 0)
             ss << ",";
         if (ss.tellp() > vec.maxsize) {
-            ss << "...";
+            ss << "..." << N << "in total";
             break;
         }
         ss << vec.values[i];
