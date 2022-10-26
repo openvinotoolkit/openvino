@@ -44,7 +44,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     }
 
     typed_primitive_impl_ocl(const typed_primitive_impl_ocl<PType>& other)
-    : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name)
+    : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name, other._is_dynamic)
     , _node_id(other._node_id)
     , _kernel_data(other._kernel_data)
     , _kernel_ids(other._kernel_ids)
@@ -115,6 +115,8 @@ protected:
         for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
             args.outputs.push_back(instance.output_memory_ptr(i));
         }
+
+        args.shape_info = instance.shape_info_memory_ptr();
 
         return args;
     }
