@@ -9,6 +9,7 @@ trigger:
     - /**/docs/*
     - /**/*.md
     - README.md
+    - /**/layer_tests_summary/**
 
 pr:
   branches:
@@ -21,6 +22,7 @@ pr:
     - /**/docs/*
     - /**/*.md
     - README.md
+    - /**/layer_tests_summary/**
 
 jobs:
 - job: WinCC
