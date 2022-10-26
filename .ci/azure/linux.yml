@@ -442,6 +442,19 @@ jobs:
     condition: and(succeeded(), eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON'))
     displayName: 'Build coverage'
 
+  - script: |
+      cd $(BUILD_DIR)/coverage
+      curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+      curl -Os https://uploader.codecov.io/latest/linux/codecov
+      curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+      curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+      gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+      shasum -a 256 -c codecov.SHA256SUM
+      chmod +x codecov
+      ./codecov
+    condition: and(succeeded(), eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON'))
+    displayName: 'Collect coverage'
+
   - script: rm -fr $(BUILD_DIR)
     displayName: 'Clean build dir'
     continueOnError: false
