@@ -189,7 +189,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
         }
         return i;
     };
-    for (size_t i = 0; i < typed_ops.size(); i++) {
+    for (int i = 0; i < static_cast<int>(typed_ops.size()); i++) {
         for (const auto& def : defined_vec[i])
             live_intervals_vec[std::make_pair(i, find_last_use(life_in_vec, static_cast<int>(def)))] = def;
         for (const auto& def : defined_gpr[i])
