@@ -14,6 +14,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4305)
     ie_add_compiler_flags(/wd4244)
     ie_add_compiler_flags(/wd4267)
+    ie_add_compiler_flags(/wd4834)
 endif()
 
 add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")
@@ -172,6 +173,8 @@ set(SRC
     type_prop/if.cpp
     type_prop/interpolate.cpp
     type_prop/irdft.cpp
+    type_prop/is_finite.cpp
+    type_prop/is_inf.cpp
     type_prop/is_nan.cpp
     type_prop/logical_and.cpp
     type_prop/logical_not.cpp
@@ -341,6 +344,7 @@ set(SRC
     visitors/op/if.cpp
     visitors/op/idft.cpp
     visitors/op/irdft.cpp
+    visitors/op/is_inf.cpp
     visitors/op/less_equal.cpp
     visitors/op/less.cpp
     visitors/op/log.cpp

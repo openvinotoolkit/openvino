@@ -1312,6 +1312,10 @@ std::shared_ptr<ov::Model> generateUnaryEltwise(const std::shared_ptr<ov::op::Op
         eltwiseNode = std::make_shared<ov::op::v5::HSigmoid>(param);
     } else if (ov::is_type<ov::op::v4::HSwish>(node)) {
         eltwiseNode = std::make_shared<ov::op::v4::HSwish>(param);
+    } else if (ov::is_type<ov::op::v10::IsFinite>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v10::IsFinite>(param);
+    } else if (ov::is_type<ov::op::v10::IsInf>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v10::IsInf>(param);
     } else if (ov::is_type<ov::op::v10::IsNaN>(node)) {
         eltwiseNode = std::make_shared<ov::op::v10::IsNaN>(param);
     } else if (ov::is_type<ov::op::v0::Log>(node)) {
