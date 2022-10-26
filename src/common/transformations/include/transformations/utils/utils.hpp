@@ -9,7 +9,6 @@
 #include <functional>
 #include <limits>
 #include <memory>
-#include <ngraph/op/util/op_annotations.hpp>
 #include <openvino/core/rt_info.hpp>
 #include <openvino/opsets/opset4.hpp>
 #include <openvino/opsets/opset8.hpp>

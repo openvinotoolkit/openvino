@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ngraph/strides.hpp>
 #include <transformations_visibility.hpp>
 
 #include "openvino/core/node.hpp"
