@@ -19,6 +19,13 @@ class Parameter_extender(Extender):
             op.shape = int64_array([])
         else:
             Extender.attr_to_list(op, 'shape')
+
+            # Remove brackets from shape splited by comma separator
+            if op.shape[0][0] == '[':
+                op.shape[0] = op.shape[0][1:]
+            if op.shape[-1][-1] == ']':
+                op.shape[-1] = op.shape[-1][:-1]
+
             shape = op.shape.copy()
             has_shapes_with_boundaries = False
             for i, dim in enumerate(op.shape):
