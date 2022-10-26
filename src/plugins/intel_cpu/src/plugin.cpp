@@ -1001,7 +1001,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                     RO_property(ov::range_for_streams.name()),
                                                     RO_property(ov::device::full_name.name()),
                                                     RO_property(ov::device::capabilities.name()),
-                                                    RO_property(ov::device::caching_properties.name()),
+                                                    RO_property(ov::caching_properties.name()),
                                                     RO_property(ov::cache_dir.name())   // WA Can be removed after implementing snippet serialization.
         };
         // the whole config is RW before network is loaded.
@@ -1043,11 +1043,11 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
     } else if (name == ov::range_for_streams) {
         const std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, parallel_get_max_threads());
         return decltype(ov::range_for_streams)::value_type(range);
-    } else if (name == ov::device::caching_properties) {
+    } else if (name == ov::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties;
         cachingProperties.push_back(ov::PropertyName(ov::hint::inference_precision.name(), ov::PropertyMutability::RO));
         cachingProperties.push_back(ov::PropertyName(ov::hint::performance_mode.name(), ov::PropertyMutability::RO));
-        return decltype(ov::device::caching_properties)::value_type(cachingProperties);
+        return decltype(ov::caching_properties)::value_type(cachingProperties);
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */

@@ -519,8 +519,8 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         }
 
         // 3. extract config keys which affect compile config
-        if (DeviceSupportsConfigKey(plugin, ov::device::caching_properties.name())) {
-            auto caching_props = plugin.get_property(ov::device::caching_properties);
+        if (DeviceSupportsConfigKey(plugin, ov::caching_properties.name())) {
+            auto caching_props = plugin.get_property(ov::caching_properties);
             for (const auto& prop : caching_props)
                 compileConfig[prop] = plugin.get_property(prop, {}).as<std::string>();
         }
