@@ -86,7 +86,9 @@ std::vector<layout> gather_nonzero_inst::calc_output_layouts(gather_nonzero_node
     if (impl_param.memory_deps.count(1)) {
         auto out_size = read_vector<int64_t>(impl_param.memory_deps.at(1), impl_param.prog.get_stream());
         // output shape of nonzero is [input_rank, count_non_zero]
-        ov::Shape output_shape({impl_param.get_input_layout(0).get<ShapeType>().rank().get_length(), out_size[0]});
+        auto rank = static_cast<size_t>(impl_param.get_input_layout(0).get<ShapeType>().rank().get_length());
+        auto count = static_cast<size_t>(out_size[0]);
+        ov::Shape output_shape({rank, count});
         ov::PartialShape output_pshape(output_shape);
         auto out_layout = layout{output_pshape, cldnn::data_types::i32, cldnn::format::bfyx};
         return {out_layout};
