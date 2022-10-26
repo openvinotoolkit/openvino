@@ -40,6 +40,15 @@ size_t merge_labels(const size_t label_a, const size_t label_b, bool merge_unequ
         return 0;
 }
 
+int64_t stringToInt64(const std::string& valStr) {
+    int64_t ret{0};
+    std::istringstream ss(valStr);
+    if (!ss.eof()) {
+        ss >> ret;
+    }
+    return ret;
+}
+
 Dimension::value_type dimension_length(Interval::value_type vt) {
     return vt == Interval::s_max ? -1 : vt;
 }
@@ -75,7 +84,7 @@ Dimension::Dimension(const std::string& value) {
     }
     if (val.find("..") == std::string::npos) {
         OPENVINO_ASSERT(ngraph::check_all_digits(val), "Cannot parse dimension: \"" + val + "\"");
-        m_dimension = {ngraph::parse_string<int64_t>(val)};
+        m_dimension = {stringToInt64(val)};
         return;
     }
 
@@ -87,7 +96,7 @@ Dimension::Dimension(const std::string& value) {
         min_value = 0;
     else {
         OPENVINO_ASSERT(ngraph::check_all_digits(min_value_str), "Cannot parse min bound: \"" + min_value_str + "\"");
-        min_value = ngraph::parse_string<int64_t>(min_value_str);
+        min_value = stringToInt64(min_value_str);
     }
 
     std::string max_value_str = val.substr(val.find("..") + 2);
@@ -98,7 +107,7 @@ Dimension::Dimension(const std::string& value) {
         max_value = Interval::s_max;
     else {
         OPENVINO_ASSERT(check_all_digits(max_value_str), "Cannot parse max bound: \"" + max_value_str + "\"");
-        max_value = ngraph::parse_string<int64_t>(max_value_str);
+        max_value = stringToInt64(max_value_str);
     }
     m_dimension = Interval(min_value, max_value);
 }
