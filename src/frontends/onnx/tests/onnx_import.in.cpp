@@ -5952,8 +5952,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_is_inf_default) {
 
     // clang-format off
 
-    test_case.add_input<float>(Shape{1, 2, 3}, {std::nanf(""), std::numeric_limits<float>::infinity(), -0.6000f, -1.0000f, std::nanf(""), -1.0000f});
-
     test_case.add_input<float>(
         Shape{2, 2, 2},
         std::vector<float>{ std::numeric_limits<float>::infinity(), 0.0000f,
