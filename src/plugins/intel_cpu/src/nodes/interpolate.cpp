@@ -3309,6 +3309,21 @@ bool Interpolate::canFuse(const NodePtr& node) const {
         return false;
     }
 
+    const auto& inShape = getInputShapeAtPort(DATA_ID);
+    const auto& dataMinDims = inShape.getMinDims();
+    const bool isOneChannel = inShape.getRank() > 1 && dataMinDims[1] != Shape::UNDEFINED_DIM && dataMinDims[1] == 1;
+    const auto inPrc = getOriginalInputPrecisionAtPort(DATA_ID);
+    const auto outPrc = getOriginalOutputPrecisionAtPort(0);
+
+    // NOTE: disable fusing for I8/U8 one channel because it provides worse perfomance
+    if (interpAttrs.mode == InterpolateMode::nearest &&
+        inShape.isStatic() &&
+        isOneChannel &&
+        inPrc == outPrc &&
+        one_of(inPrc, Precision::I8, Precision::U8)) {
+        return false;
+    }
+
     return canFuseSimpleOperation(node);
 }
 
