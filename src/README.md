@@ -35,7 +35,7 @@ flowchart LR
 ```
 
  * [core](./core/README.md) is responsible for model representation, contains a set of supported OpenVINO operations and base API for model modification.
- * [inference](./inference) provides the API for model inference on different accelerators.
+ * [inference](./inference/README.md) provides the API for model inference on different accelerators.
  * Transformations:
     * [common transformations](../src/common/transformations) - a set of common transformations which are used for model optimization
     * [low precision transformations](../src/common/low_precision_transformations) - a set of transformations which are needed to optimize quantized models

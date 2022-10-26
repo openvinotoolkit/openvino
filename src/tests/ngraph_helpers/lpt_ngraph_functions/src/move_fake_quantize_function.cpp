@@ -60,7 +60,8 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
         const auto split_lengths = std::make_shared<ngraph::opset1::Constant>(element::i32, Shape{split_lengths_values.size()}, split_lengths_values);
         const auto split = std::make_shared<ngraph::opset1::VariadicSplit>(inputs[0], axis_constant, split_lengths);
         for (size_t i = 0; i < concatInputsCount; i++) {
-            concatParents[i] = split->output(i);
+            // added unary op to avoid Split -> Concat pair elimination
+            concatParents[i] = std::make_shared<ngraph::opset1::Sigmoid>(split->output(i));
         }
     } else {
         for (size_t i = 0; i < concatInputsCount; i++) {

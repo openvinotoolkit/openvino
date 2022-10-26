@@ -63,8 +63,9 @@ std::vector<SubgraphsDumper::Model> findModelsInDirs(const std::vector<std::stri
     std::sort(models.begin(), models.end());
     std::reverse(models.begin(), models.end());
     if (!CommonTestUtils::directoryExists(FLAGS_output_folder)) {
-        std::string msg = "Output directory (" + FLAGS_output_folder + ") doesn't not exist!";
-        throw std::runtime_error(msg);
+        std::string msg = "Output directory (" + FLAGS_output_folder + ") doesn't not exist! The directory will be created.";
+        std::cout << msg << std::endl;
+        CommonTestUtils::createDirectoryRecursive(FLAGS_output_folder);
     }
     return models;
 }
@@ -138,7 +139,7 @@ int main(int argc, char *argv[]) {
     try {
         models = findModelsInDirs(dirs);
     } catch (std::runtime_error& e) {
-        std::cout << "Try 'subgraphdumper -h' for more information" << std::endl;
+        std::cout << "Try 'subgraphdumper -h' for more information. \nException: " << e.what() << std::endl;
         return 1;
     }
 
