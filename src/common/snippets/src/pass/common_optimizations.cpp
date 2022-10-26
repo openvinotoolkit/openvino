@@ -7,6 +7,7 @@
 #include <memory>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/constant_folding.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "transformations/utils/utils.hpp"
 #include "snippets/pass/fq_decomposition.hpp"

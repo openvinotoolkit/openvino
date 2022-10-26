@@ -13,7 +13,6 @@
 
 #include <functional>
 #include <memory>
-#include <ngraph/attribute_visitor.hpp>
 #include <openvino/core/rtti.hpp>
 #include <set>
 #include <string>

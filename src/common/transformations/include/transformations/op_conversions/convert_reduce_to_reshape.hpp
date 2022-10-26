@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <memory>
 #include <ngraph/op/util/op_types.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/pass/graph_rewrite.hpp>
@@ -90,7 +89,7 @@ public:
 
 template <class T>
 ov::matcher_pass_callback CvtReduceBase::convert_reduce_to_reshape() {
-    return [&](ngraph::pattern::Matcher& m) {
+    return [&](ov::pass::pattern::Matcher& m) {
         auto reduce = std::dynamic_pointer_cast<T>(m.get_match_root());
         if (!reduce)
             return false;
