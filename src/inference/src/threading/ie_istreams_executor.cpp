@@ -27,6 +27,11 @@ std::vector<std::string> IStreamsExecutor::Config::SupportedKeys() const {
         CONFIG_KEY(CPU_BIND_THREAD),
         CONFIG_KEY(CPU_THREADS_NUM),
         CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM),
+        CONFIG_KEY(BIG_CORE_STREAMS),
+        CONFIG_KEY(SMALL_CORE_STREAMS),
+        CONFIG_KEY(THREADS_PER_STREAM_BIG),
+        CONFIG_KEY(THREADS_PER_STREAM_SMALL),
+        CONFIG_KEY(SMALL_CORE_OFFSET),
         ov::num_streams.name(),
         ov::inference_num_threads.name(),
         ov::affinity.name(),
@@ -46,51 +51,59 @@ int IStreamsExecutor::Config::GetDefaultNumStreams() {
         return 1;
 }
 
-int IStreamsExecutor::Config::GetHybridNumStreams(const Config& config, const int stream_mode) {
+int IStreamsExecutor::Config::GetHybridNumStreams(std::map<std::string, std::string> &config, const int stream_mode) {
     const int num_phy_cores = getNumberOfCPUCores();
     const int num_big_cores = getNumberOfCPUCores(true);
     const int num_small_cores = num_phy_cores - num_big_cores;
+    int big_core_streams = 0;
+    int small_core_streams = 0;
+    int threads_per_stream_big = 0;
+    int threads_per_stream_small = 0;
 
     if (stream_mode == DEFAULT) {
         // bare minimum of streams (that evenly divides available number of core)
         if (0 == num_big_cores % 4) {
-            config._big_core_streams = std::max(4, num_big_cores / 4);
+            big_core_streams = std::max(4, num_big_cores / 4);
         } else if (0 == num_big_cores % 5) {
-            config._big_core_streams = std::max(5, num_big_cores / 5);
+            big_core_streams = std::max(5, num_big_cores / 5);
         } else if (0 == num_big_cores % 3) {
-            config._big_core_streams = std::max(3, num_big_cores / 3);
+            big_core_streams = std::max(3, num_big_cores / 3);
         } else {  // if user disables some cores say in BIOS, so we got weird #cores which is not easy to divide
-            config._big_core_streams = 1;
+            big_core_streams = 1;
         }
 
-        config._threads_per_stream_big = num_big_cores / config._big_core_streams;
-        config._threads_per_stream_small = config._threads_per_stream_big * 2;
+        threads_per_stream_big = num_big_cores / big_core_streams;
+        threads_per_stream_small = threads_per_stream_big * 2;
         if (num_small_cores == 0) {
-            config._big_core_streams = num_big_cores / config._threads_per_stream_big;
-            config._threads_per_stream_small = 0;
-        } else if (num_small_cores < config._threads_per_stream_small) {
-            config._small_core_streams = 1;
-            config._threads_per_stream_small = num_small_cores;
-            config._threads_per_stream_big = config._threads_per_stream_small / 2;
-            config._big_core_streams = num_big_cores / config._threads_per_stream_big;
+            big_core_streams = num_big_cores / threads_per_stream_big;
+            threads_per_stream_small = 0;
+        } else if (num_small_cores < threads_per_stream_small) {
+            small_core_streams = 1;
+            threads_per_stream_small = num_small_cores;
+            threads_per_stream_big = threads_per_stream_small / 2;
+            big_core_streams = num_big_cores / threads_per_stream_big;
         } else {
-            config._small_core_streams = num_small_cores / config._threads_per_stream_small;
+            small_core_streams = num_small_cores / threads_per_stream_small;
         }
     } else if (stream_mode == AGGRESSIVE) {
-        config._big_core_streams = num_big_cores;
-        config._small_core_streams = num_small_cores / 2;
-        config._threads_per_stream_big = num_big_cores / config._big_core_streams;
-        config._threads_per_stream_small = num_small_cores == 0 ? 0 : num_small_cores / config._small_core_streams;
+        big_core_streams = num_big_cores;
+        small_core_streams = num_small_cores / 2;
+        threads_per_stream_big = num_big_cores / big_core_streams;
+        threads_per_stream_small = num_small_cores == 0 ? 0 : num_small_cores / small_core_streams;
     } else if (stream_mode == LESSAGGRESSIVE) {
-        config._big_core_streams = num_big_cores / 2;
-        config._small_core_streams = num_small_cores / 4;
-        config._threads_per_stream_big = num_big_cores / config._big_core_streams;
-        config._threads_per_stream_small = num_small_cores == 0 ? 0 : num_small_cores / config._small_core_streams;
+        big_core_streams = num_big_cores / 2;
+        small_core_streams = num_small_cores / 4;
+        threads_per_stream_big = num_big_cores / big_core_streams;
+        threads_per_stream_small = num_small_cores == 0 ? 0 : num_small_cores / small_core_streams;
     } else {
         IE_THROW() << "Wrong stream mode to get num of streams: " << stream_mode;
     }
-    config._small_core_offset = num_small_cores == 0 ? 0 : num_big_cores * 2;
-    return config._big_core_streams + config._small_core_streams;
+    config[CONFIG_KEY(BIG_CORE_STREAMS)] = std::to_string(big_core_streams);
+    config[CONFIG_KEY(SMALL_CORE_STREAMS)] = std::to_string(small_core_streams);
+    config[CONFIG_KEY(THREADS_PER_STREAM_BIG)] = std::to_string(threads_per_stream_big);
+    config[CONFIG_KEY(THREADS_PER_STREAM_SMALL)] = std::to_string(threads_per_stream_small);
+    config[CONFIG_KEY(SMALL_CORE_OFFSET)] = std::to_string(num_small_cores == 0 ? 0 : num_big_cores * 2);
+    return big_core_streams + small_core_streams;
 }
 
 void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::string& value) {
@@ -114,7 +127,6 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
     } else if (key == ov::affinity) {
         ov::Affinity affinity;
         std::stringstream{value} >> affinity;
-        const auto core_type_size = getAvailableCoresTypes().size();
         switch (affinity) {
         case ov::Affinity::NONE:
             _threadBindingType = ThreadBindingType::NONE;
@@ -123,14 +135,14 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
 #if (defined(__APPLE__) || defined(_WIN32))
             _threadBindingType = ThreadBindingType::NUMA;
 #else
-            _threadBindingType = core_type_size > 1 ? ThreadBindingType::HYBRID_AWARE : ThreadBindingType::CORES;
+            _threadBindingType = ThreadBindingType::CORES;
 #endif
         } break;
         case ov::Affinity::NUMA:
             _threadBindingType = ThreadBindingType::NUMA;
             break;
         case ov::Affinity::HYBRID_AWARE:
-            _threadBindingType = core_type_size == 1 ? ThreadBindingType::CORES : ThreadBindingType::HYBRID_AWARE;
+            _threadBindingType = ThreadBindingType::HYBRID_AWARE;
             break;
         default:
             OPENVINO_UNREACHABLE("Unsupported affinity type");
@@ -163,8 +175,12 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
         } else if (streams == ov::streams::AUTO) {
             // bare minimum of streams (that evenly divides available number of cores)
             _streams = GetDefaultNumStreams();
+            _streams = LimitHybridStreams(_streams, _threads);
         } else if (streams.num >= 0) {
             _streams = streams.num;
+            if(_threadBindingType == ThreadBindingType::HYBRID_AWARE){
+                _streams = LimitHybridStreams(streams.num, _threads);
+            }
         } else {
             OPENVINO_UNREACHABLE("Wrong value for property key ",
                                  ov::num_streams.name(),
@@ -198,6 +214,71 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
                        << ". Expected only non negative numbers (#threads)";
         }
         _threadsPerStream = val_i;
+    } else if (key == CONFIG_KEY(BIG_CORE_STREAMS)) {
+        int val_i;
+        try {
+            val_i = std::stoi(value);
+        } catch (const std::exception&) {
+            IE_THROW() << "Wrong value for property key " << CONFIG_KEY(BIG_CORE_STREAMS)
+                       << ". Expected only non negative numbers (#streams)";
+        }
+        if (val_i < 0) {
+            IE_THROW() << "Wrong value for property key " << CONFIG_KEY(BIG_CORE_STREAMS)
+                       << ". Expected only non negative numbers (#streams)";
+        }
+        _big_core_streams = val_i;
+    } else if (key == CONFIG_KEY(SMALL_CORE_STREAMS)) {
+        int val_i;
+        try {
+            val_i = std::stoi(value);
+        } catch (const std::exception&) {
+            IE_THROW() << "Wrong value for property key " << CONFIG_KEY(SMALL_CORE_STREAMS)
+                       << ". Expected only non negative numbers (#streams)";
+        }
+        if (val_i < 0) {
+            IE_THROW() << "Wrong value for property key " << CONFIG_KEY(SMALL_CORE_STREAMS)
+                       << ". Expected only non negative numbers (#streams)";
+        }
+        _small_core_streams = val_i;
+    } else if (key == CONFIG_KEY(THREADS_PER_STREAM_BIG)) {
+        int val_i;
+        try {
+            val_i = std::stoi(value);
+        } catch (const std::exception&) {
+            IE_THROW() << "Wrong value for property key " << CONFIG_KEY(THREADS_PER_STREAM_BIG)
+                       << ". Expected only non negative numbers (#threads)";
+        }
+        if (val_i < 0) {
+            IE_THROW() << "Wrong value for property key " << CONFIG_KEY(THREADS_PER_STREAM_BIG)
+                       << ". Expected only non negative numbers (#threads)";
+        }
+        _threads_per_stream_big = val_i;
+    } else if (key == CONFIG_KEY(THREADS_PER_STREAM_SMALL)) {
+        int val_i;
+        try {
+            val_i = std::stoi(value);
+        } catch (const std::exception&) {
+            IE_THROW() << "Wrong value for property key " << CONFIG_KEY(THREADS_PER_STREAM_SMALL)
+                       << ". Expected only non negative numbers (#threads)";
+        }
+        if (val_i < 0) {
+            IE_THROW() << "Wrong value for property key " << CONFIG_KEY(THREADS_PER_STREAM_SMALL)
+                       << ". Expected only non negative numbers (#threads)";
+        }
+        _threads_per_stream_small = val_i;
+    } else if (key == CONFIG_KEY(SMALL_CORE_OFFSET)) {
+        int val_i;
+        try {
+            val_i = std::stoi(value);
+        } catch (const std::exception&) {
+            IE_THROW() << "Wrong value for property key " << CONFIG_KEY(SMALL_CORE_OFFSET)
+                       << ". Expected only non negative numbers";
+        }
+        if (val_i < 0) {
+            IE_THROW() << "Wrong value for property key " << CONFIG_KEY(SMALL_CORE_OFFSET)
+                       << ". Expected only non negative numbers";
+        }
+        _small_core_offset = val_i;
     } else {
         IE_THROW() << "Wrong value for property key " << key;
     }
@@ -242,6 +323,62 @@ Parameter IStreamsExecutor::Config::GetConfig(const std::string& key) const {
     return {};
 }
 
+int IStreamsExecutor::Config::LimitHybridStreams(const int num_streams, const int num_threads) {
+    const auto core_types = custom::info::core_types();
+    const auto num_big_cores_phys = getNumberOfCPUCores(true);
+    const auto num_small_cores =
+            custom::info::default_concurrency(custom::task_arena::constraints{}.set_core_type(core_types.front()));
+    const auto base_streams_total = num_big_cores_phys + num_small_cores / 2;
+
+    // limit streams to reasonable range
+    int streams = num_streams > base_streams_total ? base_streams_total : std::max(1, num_streams);
+    if(num_threads > 0 && streams > num_threads){
+        streams = num_threads;
+    }
+    return streams;
+}
+
+void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config, const int num_big_cores_phys, const int num_small_cores) {
+    const auto base_streams_total = num_big_cores_phys + num_small_cores / 2;
+    const auto num_cores_phys = num_big_cores_phys + num_small_cores;
+
+    config._small_core_offset = num_big_cores_phys * 2;
+    if (config._threads) {
+        // limit threads to reasonable range
+        auto threads = config._threads > num_cores_phys ? num_cores_phys : config._threads;
+        // all threads are placed on big cores
+        if (threads <= num_big_cores_phys) {
+            config._big_core_streams = config._streams;
+            config._threads_per_stream_big = std::max(1, threads / config._streams);
+        } else {
+            // big cores first, then small cores
+            config._big_core_streams =
+                config._streams * num_big_cores_phys % base_streams_total == 0
+                    ? config._streams * num_big_cores_phys / base_streams_total
+                    : (config._streams * num_big_cores_phys + base_streams_total) / base_streams_total;
+            config._small_core_streams = config._streams - config._big_core_streams;
+            config._threads_per_stream_big = std::max(1, num_big_cores_phys / config._big_core_streams);
+            if (config._small_core_streams > 0) {
+                const int remain_threads = threads - config._threads_per_stream_big * config._big_core_streams;
+                config._threads_per_stream_small =
+                    std::min(remain_threads / config._small_core_streams, config._threads_per_stream_big * 2);
+            }
+        }
+    } else {
+        config._threads_per_stream_big =
+            std::min(num_big_cores_phys, std::max(1, base_streams_total / config._streams));
+        config._big_core_streams = std::min(config._streams, num_big_cores_phys / config._threads_per_stream_big);
+        config._small_core_streams = config._streams - config._big_core_streams;
+        config._threads_per_stream_small = config._small_core_streams > 0 ? config._threads_per_stream_big * 2 : 0;
+        if (num_small_cores < config._threads_per_stream_small) {
+            config._threads_per_stream_big = std::max(1, num_big_cores_phys / config._streams);
+            config._big_core_streams = std::min(config._streams, num_big_cores_phys / config._threads_per_stream_big);
+            config._small_core_streams = 0;
+            config._threads_per_stream_small = 0;
+        }
+    }
+}
+
 IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(const IStreamsExecutor::Config& initial,
                                                                             const bool fp_intesive) {
     const auto envThreads = parallel_get_env_threads();
@@ -276,6 +413,9 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
             const auto num_big_cores =
                 custom::info::default_concurrency(custom::task_arena::constraints{}.set_core_type(core_types.back()));
             num_cores_default = (num_big_cores_phys <= hyper_threading_threshold) ? num_big_cores : num_big_cores_phys;
+        }
+        if (streamExecutorConfig._big_core_streams == 0) {
+            UpdateHybridCustomThreads(streamExecutorConfig, num_big_cores_phys, core_types.size() > 1 ? num_little_cores : 0);
         }
     }
 #endif
