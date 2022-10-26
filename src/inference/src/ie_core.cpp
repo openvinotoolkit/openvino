@@ -522,9 +522,8 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             for (const auto& prop : cachingProps) {
                 // origConfig values have higher priority than plugin parameters
                 auto it = origConfig.find(prop);
-                compileConfig[prop] = it == origConfig.end() ?
-                    plugin.get_property(prop, {}).as<std::string>() :
-                    it->second;
+                compileConfig[prop] =
+                    it == origConfig.end() ? plugin.get_property(prop, {}).as<std::string>() : it->second;
             }
         }
         return compileConfig;

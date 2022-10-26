@@ -78,4 +78,4 @@ namespace ov {
  */
 static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> caching_properties{"CACHING_PROPERTIES"};
 
-} // namespace ov
+}  // namespace ov
