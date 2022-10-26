@@ -28,7 +28,7 @@ ov::intel_gpu::ConvertAvgPoolingToReduce::ConvertAvgPoolingToReduce() {
         int64_t rank = pool->get_input_partial_shape(0).size();
         auto input_shape = pool->get_input_shape(0);
         // Check if input spatial size is same with kernel size.
-        bool has_same_spatial_size = rank > 2 && std::equal(input_shape.begin() + 2, input_shape.end(), kernel.begin());
+        bool has_same_spatial_size = rank > 2 && std::equal(input_shape.end() - (rank - 2), input_shape.end(), kernel.end() - (rank - 2));
         // Check if pads are zeros.
         bool no_padding =
             std::count(pads_begin.begin(), pads_begin.end(), 0) == static_cast<int64_t>(pads_begin.size()) &&
