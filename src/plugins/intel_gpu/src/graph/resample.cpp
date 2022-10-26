@@ -23,7 +23,8 @@ layout resample_inst::calc_output_layout(resample_node const& node, kernel_impl_
 
     auto output_type = input_layout.data_type;
     if ((input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8)
-        && desc->operation_type != resample::InterpolateOp::InterpolateMode::NEAREST) {
+        && desc->operation_type != resample::InterpolateOp::InterpolateMode::NEAREST
+        && desc->operation_type != resample::InterpolateOp::InterpolateMode::LINEAR_ONNX) {
         output_type = data_types::f32;
     }
     if (impl_param.has_fused_primitives()) {
