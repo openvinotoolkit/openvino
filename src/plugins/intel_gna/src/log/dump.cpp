@@ -64,7 +64,7 @@ uint32_t FindInMapOrReturnOne(MapType map, typename MapType::key_type key) {
 }
 
 inline uint32_t GetTypeByteSize(Gna2DataType type) {
-    const std::map<Gna2DataType, uint32_t> operandTypeMap = {
+    static const std::map<Gna2DataType, uint32_t> operandTypeMap = {
         {Gna2DataTypeNone, 1},
         {Gna2DataTypeBoolean, 1},
         {Gna2DataTypeInt4, 1},
@@ -215,7 +215,7 @@ void WriteInputAndOutputTextGNAImpl(const Gna2Model & gnaModel, const std::strin
 }
 
 template<typename T>
-std::string GetName(T name, size_t index) {
+static std::string GetName(T name, size_t index) {
     return name;
 }
 
@@ -234,7 +234,7 @@ std::string FindInMapOrReturnUnknown(MapType map, typename MapType::key_type key
 }
 
 inline std::string GetOperandType(Gna2DataType type) {
-    const std::map<Gna2DataType, std::string> operandTypeMap = {
+    static const std::map<Gna2DataType, std::string> operandTypeMap = {
         {Gna2DataTypeNone, "Gna2DataTypeNone"},
         {Gna2DataTypeBoolean, "Gna2DataTypeBoolean"},
         {Gna2DataTypeInt4, "Gna2DataTypeInt4"},
@@ -254,7 +254,7 @@ inline std::string GetOperandType(Gna2DataType type) {
 }
 
 inline std::string GetOperandName(Gna2OperationType type, size_t index) {
-    const std::map<Gna2OperationType, std::vector<std::string>> operationOperandNamesMap = {
+    static const std::map<Gna2OperationType, std::vector<std::string>> operationOperandNamesMap = {
         {Gna2OperationTypeConvolution, {"inputs", "outputs", "filters", "biases", "activationFunction"}},
         {Gna2OperationTypeCopy, {"inputs", "outputs"}},
         {Gna2OperationTypeFullyConnectedAffine, {"inputs", "outputs", "weights", "biases", "activationFunction", "weightScaleFactors"}},
@@ -267,7 +267,7 @@ inline std::string GetOperandName(Gna2OperationType type, size_t index) {
 }
 
 inline std::string GetBiasMode(Gna2BiasMode mode) {
-    const std::map<Gna2BiasMode, std::string> biasModeMap = {
+    static const std::map<Gna2BiasMode, std::string> biasModeMap = {
         {Gna2BiasModeDefault, "Gna2BiasModeDefault"},
         {Gna2BiasModePerStride, "Gna2BiasModePerStride"},
         {Gna2BiasModeGrouping, "Gna2BiasModeGrouping"}
@@ -276,7 +276,7 @@ inline std::string GetBiasMode(Gna2BiasMode mode) {
 }
 
 inline std::string GetPoolingMode(Gna2PoolingMode mode) {
-    const std::map<Gna2PoolingMode, std::string> poolingModeMap = {
+    static const std::map<Gna2PoolingMode, std::string> poolingModeMap = {
         {Gna2PoolingModeDisabled, "Gna2PoolingModeDisabled"},
         {Gna2PoolingModeMax, "Gna2PoolingModeMax"},
         {Gna2PoolingModeSum, "Gna2PoolingModeSum"}
@@ -346,7 +346,7 @@ inline void DumpIntParameter(std::ostream& dumpFile, void** parameters, size_t k
 
 inline std::vector<std::string> GetParamaterNames(Gna2OperationType type) {
     // This map must be aligned with dumpParamMap in this file
-    const std::map<Gna2OperationType, std::vector<std::string>> operationParamaterNamesMap = {
+    static const std::map<Gna2OperationType, std::vector<std::string>> operationParamaterNamesMap = {
         {Gna2OperationTypeConvolution, {"convolutionStride", "biasMode", "poolingMode", "poolingWindow", "poolingStride", "zeroPadding"}},
         {Gna2OperationTypeCopy, {"shape (sub-tensor shape)"}},
         {Gna2OperationTypeFullyConnectedAffine, {"biasMode", "biasVectorIndex"}},
@@ -361,7 +361,7 @@ typedef void (*dumpParameters) (std::ostream&, void**, size_t, const std::vector
 
 inline dumpParameters GetParamDumpFunc(Gna2OperationType type) {
     // This map must be aligned with operationParamaterNamesMap in this file
-    const std::map<Gna2OperationType, dumpParameters> dumpParamMap = {
+    static const std::map<Gna2OperationType, dumpParameters> dumpParamMap = {
         {Gna2OperationTypeConvolution, DumpConvolutionParameters},
         {Gna2OperationTypeCopy, DumpCopyParameters},
         {Gna2OperationTypeFullyConnectedAffine, DumpFCAffineParameters},
