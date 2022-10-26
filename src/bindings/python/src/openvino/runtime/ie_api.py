@@ -8,13 +8,13 @@ from pathlib import Path
 
 import numpy as np
 
-from openvino.pyopenvino import Model
-from openvino.pyopenvino import Core as CoreBase
-from openvino.pyopenvino import CompiledModel as CompiledModelBase
-from openvino.pyopenvino import InferRequest as InferRequestBase
-from openvino.pyopenvino import AsyncInferQueue as AsyncInferQueueBase
-from openvino.pyopenvino import ConstOutput
-from openvino.pyopenvino import Tensor
+from openvino._pyopenvino import Model
+from openvino._pyopenvino import Core as CoreBase
+from openvino._pyopenvino import CompiledModel as CompiledModelBase
+from openvino._pyopenvino import InferRequest as InferRequestBase
+from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
+from openvino._pyopenvino import ConstOutput
+from openvino._pyopenvino import Tensor
 
 
 def tensor_from_file(path: str) -> Tensor:

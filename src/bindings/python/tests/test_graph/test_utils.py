@@ -5,7 +5,7 @@
 import numpy as np
 import openvino.runtime as ov
 import pytest
-from openvino.pyopenvino.util import deprecation_warning
+from openvino._pyopenvino.util import deprecation_warning
 from openvino.runtime import Shape
 
 

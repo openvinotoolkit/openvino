@@ -2,8 +2,8 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 # type: ignore
-from openvino.pyopenvino.passes import Manager as ManagerBase
-from openvino.pyopenvino.passes import PassBase
+from openvino._pyopenvino.passes import Manager as ManagerBase
+from openvino._pyopenvino.passes import PassBase
 
 
 class Manager(ManagerBase):

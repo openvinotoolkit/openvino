@@ -42,7 +42,7 @@ def deprecated(version: str = "", message: str = "") -> Callable[..., Any]:
         @wraps(wrapped)
         def wrapper(*args: Any, **kwargs: Any) -> Callable[..., Any]:
             # it must be imported here; otherwise, there are errors with no loaded DLL for Windows
-            from openvino.pyopenvino.util import deprecation_warning
+            from openvino._pyopenvino.util import deprecation_warning
             deprecation_warning(wrapped.__name__, version, message)
             return wrapped(*args, **kwargs)
         return wrapper
