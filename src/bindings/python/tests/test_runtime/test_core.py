@@ -199,6 +199,10 @@ def test_available_devices(device):
     )
 
 
+@pytest.mark.skipif(
+    os.environ.get("TEST_DEVICE", "CPU") != "CPU",
+    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test",
+)
 def test_get_property():
     core = Core()
     conf = core.get_property("CPU", "CPU_BIND_THREAD")
