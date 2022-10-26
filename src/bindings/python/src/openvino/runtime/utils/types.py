@@ -108,7 +108,7 @@ def get_dtype(openvino_type: Type) -> np.dtype:
 def get_ndarray(data: NumericData) -> np.ndarray:
     """Wrap data into a numpy ndarray."""
     if type(data) == np.ndarray:
-        return data  # type: ignore
+        return data
     return np.array(data)
 
 
