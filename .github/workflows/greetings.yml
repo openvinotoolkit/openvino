@@ -1,0 +1,16 @@
+name: Greetings
+
+on: [pull_request_target, issues]
+
+jobs:
+  greeting:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+    - uses: actions/first-interaction@v1
+      with:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        issue-message: "Hi!👋\nThank you for raising the issue.\nWe hope you like the OpenVINO toolkit!\nWe will investigate your issue as soon as possible."
+        pr-message: "Hi!👋\nThank you for the Pull Request 💖.\nPlease read [CONTRIBUTING.md](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING.md) to make a good PR."
