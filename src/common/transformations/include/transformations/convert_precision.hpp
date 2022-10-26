@@ -65,15 +65,15 @@ class TRANSFORMATIONS_API ConvertPrecision;
  */
 
 using type_to_fuse_map =
-    std::unordered_map<ngraph::NodeTypeInfo,
-                       std::function<bool(const std::shared_ptr<ngraph::Node>&, ngraph::element::Type, size_t idx)>>;
-using precisions_array = std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>>;
+    std::unordered_map<ov::NodeTypeInfo,
+                       std::function<bool(const std::shared_ptr<ov::Node>&, ov::element::Type, size_t idx)>>;
+using precisions_array = std::vector<std::pair<ov::element::Type, ov::element::Type>>;
 
 class ov::pass::ConvertPrecision : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("ConvertPrecision", "0");
-    ConvertPrecision(ngraph::element::Type_t from,
-                     ngraph::element::Type_t to,
+    ConvertPrecision(ov::element::Type_t from,
+                     ov::element::Type_t to,
                      type_to_fuse_map additional_type_to_fuse_map = {})
         : m_precisions(precisions_array{{from, to}}),
           m_additional_type_to_fuse_map(additional_type_to_fuse_map) {}

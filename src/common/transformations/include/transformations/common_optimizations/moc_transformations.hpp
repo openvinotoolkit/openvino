@@ -17,7 +17,7 @@ class TRANSFORMATIONS_API MOCTransformations;
 }  // namespace ov
 
 /**
- * @brief This transformation is an entry point for nGraph transformations that will be
+ * @brief This transformation is an entry point for OpenVINO transformations that will be
  * applied inside MOC. And in future this transformations container will be filled
  * with transformations pipeline but now it remains empty.
  */
