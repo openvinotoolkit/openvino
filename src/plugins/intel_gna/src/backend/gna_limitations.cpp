@@ -426,7 +426,7 @@ bool ValidateConvConcatAxis(const InferenceEngine::ConcatLayer* concat_layer) {
     return true;
 }
 
-bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage, bool userWarning) {
+bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage) {
     IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::InputsDataMap inputs = network.getInputsInfo();
     std::unordered_set<InferenceEngine::CNNLayer *> allLayers;
@@ -478,8 +478,8 @@ bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMe
                                                        check_result = false;
                                                    }
                                                } else if (info.isConcat()) {
-                                                   if (userWarning && !ValidateConcatAxis(layer, errMessage)) {
-                                                       log::error() << errMessage;
+                                                   if (!ValidateConcatAxis(layer, errMessage)) {
+                                                       log::warning() << errMessage;
                                                    }
                                                }
                                            }, false);

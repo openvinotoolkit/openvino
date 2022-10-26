@@ -794,9 +794,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
 
     //  Check the network
     std::string error;
-    if (!GNAPluginNS::GNALimitations::AreLayersSupported(network,
-                                                         error,
-                                                         gnaFlags->log_level == ov::log::Level::WARNING)) {
+    if (!GNAPluginNS::GNALimitations::AreLayersSupported(network, error)) {
         THROW_GNA_EXCEPTION << error.c_str();
     }
 
