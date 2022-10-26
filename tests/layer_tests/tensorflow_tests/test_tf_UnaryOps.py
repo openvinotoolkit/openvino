@@ -67,8 +67,10 @@ class TestUnaryOps(CommonTFLayerTest):
             'Cos': tf.math.cos,
             'Cosh': tf.math.cosh,
             'Elu': tf.nn.elu,
+            'Erf': tf.math.erf,
             'Exp': tf.math.exp,
             'Floor': tf.math.floor,
+            'IsFinite': tf.math.is_finite,
             'Log': tf.math.log,
             'LogicalNot': tf.math.logical_not,
             'Negative': tf.math.negative,
@@ -77,6 +79,7 @@ class TestUnaryOps(CommonTFLayerTest):
             'Sin': tf.math.sin,
             'Sinh': tf.math.sinh,
             'SoftPlus': tf.nn.softplus,
+            'Square': tf.math.square,
             'Tan': tf.math.tan,
             'Tanh': tf.math.tanh,
             'ReLU': tf.nn.relu,
@@ -151,6 +154,9 @@ class TestUnaryOps(CommonTFLayerTest):
                                          'Acosh',
                                          'Asinh',
                                          'LogicalNot',
+                                         'Square',
+                                         'IsFinite',
+                                         'Erf',
                                          ])
     @pytest.mark.precommit
     def test_unary_op_precommit(self, params, ie_device, precision, ir_version, temp_dir, op_type,
@@ -191,7 +197,11 @@ class TestUnaryOps(CommonTFLayerTest):
                                          'SoftPlus',
                                          'Atanh',
                                          'Acosh',
-                                         'Asinh'])
+                                         'Asinh',
+                                         'Square',
+                                         'IsFinite',
+                                         'Erf',
+                                         ])
     @pytest.mark.nightly
     def test_unary_op(self, params, ie_device, precision, ir_version, temp_dir, op_type,
                       use_new_frontend, use_old_api):
