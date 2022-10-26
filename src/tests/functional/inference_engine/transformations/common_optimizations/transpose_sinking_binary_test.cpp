@@ -1428,7 +1428,95 @@ INSTANTIATE_TEST_SUITE_P(
 
 // --------------------------------------------------------------------------------------
 
-#if 0
+// TODO: TestSuite class
+
+// --------------------------------------------------------------------------------------
+
+namespace split {
+namespace backward {
+std::shared_ptr<ov::Model> CreateFunction(size_t num_split_ops,
+                                          size_t num_split_outputs,
+                                          std::set<size_t> transpose_output_indexes,
+                                          ov::element::Type input_type) {
+        const ov::Shape input_shape{96, static_cast<size_t>(std::pow(num_split_outputs, num_split_ops + 1)), 55, 55};
+
+        auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+
+        ov::OutputVector outputs;
+        Output in_op = X->output(0);
+        for (size_t i = 0; i < num_split_ops; ++i) {
+            auto split_axis_const = std::make_shared<ov::opset9::Constant>(ov::element::u64,
+                                                                           ov::Shape{},
+                                                                           1);
+            auto split = std::make_shared<ov::opset9::Split>(in_op, split_axis_const, num_split_outputs);
+            for (size_t num_output = 0; num_output < num_split_outputs - 1; ++num_output) {
+                outputs.push_back(split->output(num_output));
+            }
+            in_op = split->output(num_split_outputs - 1);
+        }
+        outputs.push_back(in_op);
+
+        for (size_t idx = 0; idx < outputs.size(); ++idx) {
+            if (transpose_output_indexes.find(idx) == transpose_output_indexes.end())
+                continue;
+            const size_t output_idx = outputs.size() - num_split_outputs - 1 + idx;
+
+            auto ng_order = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+            outputs[output_idx] = std::make_shared<ov::opset9::Transpose>(outputs[output_idx], ng_order);
+        }
+
+        return std::make_shared<ov::Model>(outputs, ov::ParameterVector{X});
+}
+
+std::shared_ptr<ov::Model> CreateReferenceFunction(size_t num_split_ops,
+                                                   size_t num_split_outputs,
+                                                   std::set<size_t> no_transpose_output_indexes,
+                                                   ov::element::Type input_type) {
+        const ov::Shape input_shape{96, static_cast<size_t>(std::pow(num_split_outputs, num_split_ops + 1)), 55, 55};
+
+        auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+
+        auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+        auto transpose0 = std::make_shared<ov::opset9::Transpose>(X, ng_order0);
+
+        ov::OutputVector outputs;
+        Output in_op = transpose0->output(0);
+        for (size_t i = 0; i < num_split_ops - 1; ++i) {
+            auto split_axis_const = std::make_shared<ov::opset9::Constant>(ov::element::u64,
+                                                                           ov::Shape{},
+                                                                           2);
+            auto split = std::make_shared<ov::opset9::Split>(in_op, split_axis_const, num_split_outputs);
+            for (size_t num_output = 0; num_output < num_split_outputs - 1; ++num_output) {
+                auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+                auto transpose0 = std::make_shared<ov::opset9::Transpose>(split->output(num_output), ng_order0);
+                outputs.push_back(transpose0);
+            }
+            in_op = split->output(num_split_outputs - 1);
+        }
+
+        auto split_axis_const = std::make_shared<ov::opset9::Constant>(ov::element::u64,
+                                                                           ov::Shape{},
+                                                                           2);
+        auto last_split = std::make_shared<ov::opset9::Split>(in_op, split_axis_const, num_split_outputs);
+
+        for (size_t output_idx = 0; output_idx < num_split_outputs; ++output_idx) {
+            if (no_transpose_output_indexes.find(output_idx) == no_transpose_output_indexes.end()) {
+                auto ng_order = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+                auto transpose = std::make_shared<ov::opset9::Transpose>(last_split->output(output_idx), ng_order);
+
+                auto ng_order1 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+                outputs.push_back(std::make_shared<ov::opset9::Transpose>(transpose, ng_order1));
+            } else {
+                outputs.push_back(last_split->output(output_idx));
+            }
+        }
+
+        return std::make_shared<ov::Model>(outputs, ov::ParameterVector{X});
+}
+
+} // namespace backward
+} // namespace split
+
 using FloatPtr = std::unique_ptr<float[]>;
 
 template <class IterT, class T>
@@ -1464,29 +1552,7 @@ TEST(TransposeSinkingSplitTests, SplitForward) {
 
     ModelPtr model, original_model, reference_model;
     {
-        auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
-
-        auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
-        auto transpose0 = std::make_shared<ov::opset9::Transpose>(X, ng_order0);
-
-        ov::OutputVector outputs;
-        Output in_op = transpose0->output(0);
-        for (size_t i = 0; i < num_split_ops; ++i) {
-            std::cout << "[EMUTEX DEBUG] (1) input shape " << in_op.get_shape() << std::endl;
-            auto split_axis_const = std::make_shared<ov::opset9::Constant>(ov::element::u64,
-                                                                           ov::Shape{},
-                                                                           2);
-            std::cout << "in_op input shape " << in_op.get_shape() << std::endl;
-            auto split = std::make_shared<ov::opset9::Split>(in_op, split_axis_const, num_split_outputs);
-            for (size_t num_output = 0; num_output < num_split_outputs - 1; ++num_output) {
-                outputs.push_back(split->output(num_output));
-            }
-            in_op = split->output(num_split_outputs - 1);
-        }
-        outputs.push_back(in_op);
-
-        model = std::make_shared<ov::Model>(outputs, ov::ParameterVector{X});
-
+        model = split::backward::CreateFunction(num_split_ops, num_split_outputs, std::set<size_t>{2}, input_type);
         original_model = model->clone();
 
         EMUTEX_DEBUG_CHECKPOINT;
@@ -1494,36 +1560,14 @@ TEST(TransposeSinkingSplitTests, SplitForward) {
         ngraph::pass::Manager pass_manager;
         pass_manager.register_pass<ngraph::pass::InitNodeInfo>();
         pass_manager.register_pass<ngraph::pass::VisualizeTree>("./0before.png"); // DEBUG
-        pass_manager.register_pass<ngraph::pass::TransposeSinkingSplitForward>();
+        pass_manager.register_pass<ngraph::pass::TransposeSinkingSplitBackward>();
         pass_manager.register_pass<ngraph::pass::VisualizeTree>("./1after.png"); // DEBUG
         pass_manager.run_passes(model);
         ASSERT_NO_THROW(check_rt_info(model));
     }
     EMUTEX_DEBUG_CHECKPOINT;
     {
-        auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
-
-        ov::OutputVector outputs;
-        Output in_op = X->output(0);
-        for (size_t i = 0; i < num_split_ops; ++i) {
-            std::cout << "[EMUTEX DEBUG] (2) input shape " << in_op.get_shape() << std::endl;
-            auto split_axis_const = std::make_shared<ov::opset9::Constant>(ov::element::u64,
-                                                                           ov::Shape{},
-                                                                           1);
-            auto split = std::make_shared<ov::opset9::Split>(in_op, split_axis_const, num_split_outputs);
-            for (size_t num_output = 0; num_output < num_split_outputs - 1; ++num_output) {
-                auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
-                auto transpose0 = std::make_shared<ov::opset9::Transpose>(split->output(num_output), ng_order0);
-                outputs.push_back(transpose0);
-            }
-            in_op = split->output(num_split_outputs - 1);
-        }
-
-        auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
-        auto transpose0 = std::make_shared<ov::opset9::Transpose>(in_op, ng_order0);
-        outputs.push_back(transpose0);
-
-        reference_model = std::make_shared<ov::Model>(outputs, ov::ParameterVector{X});
+        reference_model = split::backward::CreateReferenceFunction(num_split_ops, num_split_outputs, std::set<size_t>{2}, input_type);
     }
 
     EMUTEX_DEBUG_CHECKPOINT;
@@ -1563,4 +1607,3 @@ TEST(TransposeSinkingSplitTests, SplitForward) {
 
     EMUTEX_DEBUG_CHECKPOINT;
 }
-#endif
