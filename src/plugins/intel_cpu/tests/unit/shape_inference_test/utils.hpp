@@ -82,3 +82,17 @@ static void check_output_shape(ov::Node* op, std::initializer_list<ov::PartialSh
         id++;
     }
 }
+
+using ShapeVector = std::vector<ov::intel_cpu::StaticShape>;
+
+template <class TOp>
+class OpStaticShapeInferenceTest : public testing::Test {
+protected:
+    ShapeVector input_shapes, output_shapes;
+    ov::intel_cpu::StaticShape exp_shape;
+
+    template <class... Args>
+    std::shared_ptr<TOp> make_op(Args&&... args) {
+        return std::make_shared<TOp>(std::forward<Args>(args)...);
+    }
+};
