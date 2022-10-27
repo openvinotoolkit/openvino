@@ -84,7 +84,7 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
       tar -xf openvino_2022.2.0.7713.tgz
       sudo mv l_openvino_toolkit_ubuntu20_2022.2.0.7713.af16ea1d79a_x86_64 /opt/intel/openvino_2022.2.0.7713
       
-.. tab:: Red Hat
+.. tab:: RHEL 8
 
    .. code-block:: sh
    
