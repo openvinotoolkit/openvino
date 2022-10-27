@@ -182,7 +182,7 @@ private:
 
 class BackEdgePortHelper : public PortMapHelper {
 public:
-    BackEdgePortHelper(const Node* from, Node* to) : m_from(from), m_to(to) {
+    BackEdgePortHelper(const Node* from, Node* to, const TensorIterator* tiOp) : m_from(from), m_to(to), m_tiOp(tiOp) {
         auto from_desc = m_from->getBaseMemDescAtInputPort(inputNodePortIdx);
         auto to_desc = m_to->getBaseMemDescAtOutputPort(outputNodePortIdx);
         VectorDims commonDims;
@@ -225,13 +225,21 @@ public:
         if (m_compatible) {
             auto memMngPtr = from_mem_ptr->getDnnlMemoryMngr();
             auto& childEdges = m_to->getChildEdgesAtPort(outputNodePortIdx);
-            for (size_t i = 0; i < childEdges.size(); ++i) {
-                auto to_mem_ptr = childEdges[i]->getMemoryPtr();
 
-                to_mem_ptr->Create(to_mem_ptr->getDesc(), memMngPtr);
+            // check if can share memory of "from" to "to"
+            m_shareable = check_shareable();
+
+            if (m_shareable) {
+                for (size_t i = 0; i < childEdges.size(); ++i) {
+                    auto to_mem_ptr = childEdges[i]->getMemoryPtr();
+                    std::cout << __LINE__ << from_mem_ptr->GetPtr() << std::endl;
+                    std::cout << __LINE__ << to_mem_ptr->GetPtr() << std::endl;
+                    to_mem_ptr->Create(to_mem_ptr->getDesc(), memMngPtr);
+                    std::cout << __LINE__ << to_mem_ptr->GetPtr() << std::endl;
+                }
             }
         }
-        if (!m_dynamic && !m_compatible) {
+        if (!m_dynamic && !m_shareable) {
             mem_holder_src = from_mem_ptr->GetPrimitive();
             mem_holder_dst = m_to->getChildEdgesAtPort(outputNodePortIdx)[0]->getMemory().GetPrimitive();
             reorder = {mem_holder_src, mem_holder_dst};
@@ -263,11 +271,49 @@ public:
         }
     }
 
+protected:
+    bool check_shareable() {
+        const auto& edge_from = m_from->getParentEdgeAt(inputNodePortIdx);
+        const auto& parent_from = edge_from->getParent();
+
+        // 1. if the backedge's "from" is also another backedge's "to".
+        for (auto map_rule : m_tiOp->backEdges) {
+            const auto to_node = m_tiOp->input_nodes[map_rule.to];
+            if (parent_from.get() == to_node) return false;
+        }
+
+        // 2. if the backedge's "from" shares intput memory with siblings, and the sibling node is
+        // inplaced with outConfs.
+        auto port = edge_from->getInputNum();
+        auto edges_at_same_port = parent_from->getChildEdgesAtPort(static_cast<size_t>(port));
+        // for (auto edge : edges_at_same_port) {
+        //     if (edge != edge_from) {
+        //         const auto sibling = edge->getChild();
+        //         if (sibling->isInPlace()) {
+        //             auto selected_pd = sibling->getSelectedPrimitiveDescriptor();
+        //             if (selected_pd == nullptr)
+        //                 IE_THROW() << "Preferable primitive descriptor is not set.";
+        //             auto config = selected_pd->getConfig();
+        //             for (auto &out : config.outConfs) {
+        //                 if (out.inPlace() == 0) return false;
+        //             }
+        //         }
+        //     }
+        // }
+        if (edges_at_same_port.size() > 1) return false;
+
+
+        return true;
+    }
+
 private:
     bool m_compatible = false;
     bool m_dynamic = false;
+    bool m_shareable = false;
     const Node* m_from;
     Node* m_to;
+    const TensorIterator* m_tiOp;
+
     VectorDims last_dims;
     dnnl::memory mem_holder_src;
     dnnl::memory mem_holder_dst;
@@ -814,7 +860,7 @@ void TensorIterator::prepareBackEdges() {
         auto from_node = output_nodes[map_rule.from];
         auto to_node = input_nodes[map_rule.to];
 
-        back_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_node, to_node));
+        back_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_node, to_node, this));
     }
 }
 
