@@ -4,6 +4,11 @@
 
 #pragma once
 
+#include "openvino/core/any.hpp"
+#include "openvino/core/core_visibility.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/rtti.hpp"
+
 #include <atomic>
 #include <initializer_list>
 #include <list>
@@ -12,10 +17,6 @@
 #include <string>
 #include <vector>
 
-#include "openvino/core/any.hpp"
-#include "openvino/core/core_visibility.hpp"
-#include "openvino/core/node.hpp"
-#include "openvino/core/rtti.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/read_value.hpp"
@@ -326,7 +327,7 @@ public:
      *
      * @return reference to const ov::AnyMap with runtime info
      */
-    const RTMap& get_rt_info() const {
+    const RTMap & get_rt_info() const {
         return m_rt_info;
     }
 
@@ -355,7 +356,7 @@ public:
      */
     template <class T, class... Args, typename std::enable_if<std::is_same<T, ov::Any>::value, bool>::type = true>
     const T& get_rt_info(Args... args) const {
-        const ov::Any& arg = get_rt_arg<Args...>(m_rt_info, args...);
+        const ov::Any& arg = get_rt_arg<Args...>( m_rt_info, args...);
         return arg;
     }
 
@@ -383,8 +384,7 @@ public:
      */
     template <class T, typename std::enable_if<std::is_same<T, ov::Any>::value, bool>::type = true>
     const T& get_rt_info(const std::vector<std::string>& args) const {
-        const ov::Any& arg = get_rt_info(m_rt_info, args.cbegin(), args.cend());
-        return arg;
+        const ov::Any& arg = get_rt_info(m_rt_info, args.cbegin(), args.cend()); return arg;
     }
 
     /**
@@ -417,8 +417,7 @@ public:
      * @param argument value for the runtime info
      * @param args path to the runtime attribute
      */
-    template <class T, class... Args>
-    void set_rt_info(const T& argument, Args... args) {
+    template <class T, class... Args> void set_rt_info(const T& argument, Args... args) {
         ov::Any& arg = get_rt_arg<Args...>(m_rt_info, args...);
         arg = argument;
     }
