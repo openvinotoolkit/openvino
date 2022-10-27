@@ -164,9 +164,25 @@ void loop(const std::shared_ptr<Function>& func,
             }
 
             // Back-edge processing
+            bool need_validate = false;
             for (auto& back_edge : back_edges) {
+                const auto& input_shape = inputs_to_body[back_edge.param_idx]->get_shape();
+                const auto& result_shape = body_outputs[back_edge.result_idx]->get_shape();
+                // when output shape does not equal to input shape in a back-edge, such as
+                //          Parameter(out:1)->|
+                //                            |->Concat(out:2)->Result(out:2)
+                //              Const(out:1)->|
+                // after iteration completed, should update (out:2) to input, then use new input
+                // shape to propagate others.
+                if (input_shape != result_shape) {
+                    const auto& param = func->get_parameters().at(back_edge.param_idx);
+                    param->set_partial_shape(result_shape);
+                    need_validate = true;
+                }
                 inputs_to_body[back_edge.param_idx] = body_outputs[back_edge.result_idx];
             }
+            if (need_validate)
+                func->validate_nodes_and_infer_types();
         }
 
         for (const auto& desc : out_descs) {

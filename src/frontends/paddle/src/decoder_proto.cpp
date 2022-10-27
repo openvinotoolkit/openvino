@@ -92,6 +92,35 @@ std::vector<paddle::OutPortName> DecoderProto::get_output_names() const {
     return output_names;
 }
 
+std::vector<paddle::TensorName> DecoderProto::get_output_var_names(const std::string& var_name) const {
+    std::vector<std::string> output_names;
+    for (const auto& output : op_place->get_desc().outputs()) {
+        if (output.parameter() == var_name) {
+            for (int idx = 0; idx < output.arguments_size(); ++idx) {
+                output_names.push_back(output.arguments()[idx]);
+            }
+        }
+    }
+    return output_names;
+}
+
+std::vector<paddle::TensorName> DecoderProto::get_input_var_names(const std::string& var_name) const {
+    std::vector<std::string> input_names;
+    for (const auto& input : op_place->get_desc().inputs()) {
+        if (input.parameter() == var_name) {
+            for (int idx = 0; idx < input.arguments_size(); ++idx) {
+                input_names.push_back(input.arguments()[idx]);
+            }
+        }
+    }
+    return input_names;
+}
+
+size_t DecoderProto::get_output_size(const std::string& port_name) const {
+    const auto out_port = op_place->get_output_ports().at(port_name);
+    return out_port.size();
+}
+
 size_t DecoderProto::get_output_size() const {
     size_t res = 0;
     for (const auto& output : op_place->get_desc().outputs()) {
@@ -106,6 +135,16 @@ std::map<std::string, std::vector<ov::element::Type>> DecoderProto::get_output_t
         for (const auto& p_place : out_port_pair.second) {
             output_types[out_port_pair.first].push_back(p_place->get_target_tensor_paddle()->get_element_type());
         }
+    }
+    return output_types;
+}
+
+std::vector<std::pair<ov::element::Type, ov::PartialShape>> DecoderProto::get_output_port_infos(
+    const std::string& port_name) const {
+    std::vector<std::pair<ov::element::Type, ov::PartialShape>> output_types;
+    for (const auto& out_port : op_place->get_output_ports().at(port_name)) {
+        output_types.push_back({out_port->get_target_tensor_paddle()->get_element_type(),
+                                out_port->get_target_tensor_paddle()->get_partial_shape()});
     }
     return output_types;
 }
