@@ -119,6 +119,14 @@ jobs:
     path: openvino_contrib
 
   - script: |
+      wget "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.sh"
+      chmod +x ./cmake-${CMAKE_VERSION}-linux-x86_64.sh
+      sudo ./cmake-${CMAKE_VERSION}-linux-x86_64.sh --prefix=/usr/local/ --skip-license
+      rm -rf ./cmake-${CMAKE_VERSION}-linux-x86_64.sh
+      echo cmake info ; which cmake ; cmake --version
+    displayName: 'Install cmake'
+
+  - script: |
       set -e
       $(REPO_DIR)/install_build_dependencies.sh
       # Move jdk into contrib
@@ -146,13 +154,6 @@ jobs:
       git clone https://github.com/google/gtest-parallel.git
     workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
-
-  - script: |
-      wget "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}.tar.gz"
-      tar xf cmake-${CMAKE_VERSION}.tar.gz
-      (cd cmake-${CMAKE_VERSION} && ./bootstrap --parallel="$(nproc --all)" && make --jobs="$(nproc --all)" && sudo make install)
-      rm -rf cmake-${CMAKE_VERSION} cmake-${CMAKE_VERSION}.tar.gz
-    displayName: 'Install cmake'
 
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
