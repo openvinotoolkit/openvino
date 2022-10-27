@@ -44,9 +44,8 @@ def parse_args():
                            'Default value is CPU. Use \'-d HETERO:<comma separated devices list>\' format to specify HETERO plugin. '
                            'Use \'-d MULTI:<comma separated devices list>\' format to specify MULTI plugin. '
                            'The application looks for a suitable plugin for the specified device.')
-    args.add_argument('-l', '--path_to_extension', type=str, required=False, default=None,
-                      help='Optional. Required for CPU custom layers. '
-                           'Absolute path to a shared library with the kernels implementations.')
+    args.add_argument('-extensions', '--extensions', type=str, required=False, default=None,
+                      help='Optional. Path or a comma-separated list of paths to libraries (.so or .dll) with extensions.')
     args.add_argument('-c', '--path_to_cldnn_config', type=str, required=False,
                       help='Optional. Required for GPU custom kernels. Absolute path to an .xml file with the '
                            'kernels description.')
