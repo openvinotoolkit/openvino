@@ -9,10 +9,10 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install clang-format-9
+      - name: Install clang-format-14
         run: |
           sudo apt update
-          sudo apt --assume-yes install clang-format-9
+          sudo apt --assume-yes install clang-format-14
 
       - name: Install dependencies
         run: |
