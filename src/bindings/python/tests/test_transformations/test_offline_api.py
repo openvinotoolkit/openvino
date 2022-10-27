@@ -107,7 +107,6 @@ def test_moc_with_smart_reshape():
 
     apply_moc_transformations(model, cf=False, smart_reshape=True)
 
-    print(model.get_ops())
     assert model is not None
     assert len(model.get_ops()) == 3
 
