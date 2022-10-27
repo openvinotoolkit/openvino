@@ -88,17 +88,17 @@ class IREngine(object):
                 layers = child.findall('layer')
                 for layer in layers:
                     statistics[layer.find('name').text] = {'min': layer.find('min').text, 'max': layer.find('max').text}
-            elif child.tag == 'meta_data':
+            elif child.tag == 'rt_info':
                 for elem in child:
-                    if elem.tag == 'cli_parameters':
+                    if elem.tag == 'conversion_parameters':
+                        conv_params = {}
                         for det in elem:
-                            if det.tag != 'unset':
-                                value = det.attrib['value']
-                                if value in ['True', 'False']:
-                                    value = False if value == 'False' else True
-                                self.meta_data[det.tag] = value
-                            else:
-                                self.meta_data[det.tag] = det.attrib['unset_cli_parameters'].split(',_')
+                            value = det.attrib['value']
+                            conv_params[det.tag] = value
+                        self.meta_data['conversion_parameters'] = conv_params
+                    else:
+                        value = elem.attrib['value']
+                        self.meta_data[elem.tag] = value
             elif child.tag == 'quantization_parameters':
                 # Section with Post Optimization Toolkit parameters
                 self.meta_data['quantization_parameters'] = dict()
