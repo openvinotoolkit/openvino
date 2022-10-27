@@ -142,7 +142,7 @@ bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::
         return false;
     }
 
-    int dimc = channelDimension;
+    auto dimc = channelDimension;
 
     const auto channelsDimension = partialShape[dimc];
     if (channelsDimension.is_dynamic()) {
