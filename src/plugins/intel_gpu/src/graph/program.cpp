@@ -702,6 +702,7 @@ void program::cleanup() {
             }
         }
     }
+    _kernels_cache->reset();
 }
 
 void program::add_split_outputs() {
