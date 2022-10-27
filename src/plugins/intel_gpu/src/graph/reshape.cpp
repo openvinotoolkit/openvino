@@ -60,7 +60,14 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node
     // we return output_partial_shape taken from the original model intead of something like PartialShape::dynamic(rank)
     // as ngraph may refine output shape using interval arithmetic
     if ((memory_deps.empty() && prim->output_pattern.empty()) || input_layout.is_dynamic()) {
-        return { layout{prim->output_partial_shape, input_layout.data_type, format::adjust_to_rank(input_layout.format, prim->output_partial_shape.size())} };
+        if (prim->output_partial_shape.size() > 0) {
+            auto fm = format::adjust_to_rank(input_layout.format, prim->output_partial_shape.size());
+            return { layout{prim->output_partial_shape, input_layout.data_type, fm} };
+        } else if (prim->output_shape != tensor()) {
+            return { layout{input_layout.data_type, input_layout.format, prim->output_shape} };
+        } else {
+            OPENVINO_ASSERT("There are no output pattern, predefined output partial shape, and output shape!");
+        }
     }
 
     ShapeType pattern_shape = impl_param.input_layouts.size() == 2 ? impl_param.get_input_layout(1).get<ShapeType>()
@@ -78,16 +85,19 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node
             case reshape::reshape_mode::base: {
                 ov::op::v1::Reshape op;
                 op.set_special_zero(prim->special_zero);
+                op.set_friendly_name(prim->id.c_str());
                 shape_infer(&op, input_shapes, output_shapes, const_data);
                 break;
             }
             case reshape::reshape_mode::squeeze: {
                 ov::op::v0::Squeeze op;
+                op.set_friendly_name(prim->id.c_str());
                 shape_infer(&op, input_shapes, output_shapes, const_data);
                 break;
             }
             case reshape::reshape_mode::unsqueeze: {
                 ov::op::v0::Unsqueeze op;
+                op.set_friendly_name(prim->id.c_str());
                 shape_infer(&op, input_shapes, output_shapes, const_data);
                 break;
             }
@@ -114,7 +124,7 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node
         run_shape_infer(prim->mode);
     }
 
-    return { layout{output_shapes[0], input_layout.data_type, format::adjust_to_rank(input_layout.format, output_shapes[0].size())} };
+    return { layout {output_shapes[0], input_layout.data_type, format::adjust_to_rank(input_layout.format, output_shapes[0].size())} };
 }
 
 template std::vector<layout> reshape_inst::calc_output_layouts<ov::PartialShape>(reshape_node const& node, const kernel_impl_params& impl_param);

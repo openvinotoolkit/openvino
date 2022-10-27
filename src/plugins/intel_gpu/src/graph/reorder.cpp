@@ -200,7 +200,7 @@ std::string reorder_inst::to_string(reorder_node const& node) {
 }
 
 reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
-    : parent(network, node, !node.can_be_optimized() && !node.is_dynamic()) {
+    : parent(network, node, (!node.can_be_optimized() && node.get_output_layout().is_static()) ? true : false) {
     if (node.can_be_optimized())
         reuse_input();
 
