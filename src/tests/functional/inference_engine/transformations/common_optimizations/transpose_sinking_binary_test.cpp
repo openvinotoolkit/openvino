@@ -16,8 +16,6 @@
 
 #include "gtest/gtest.h"
 
-#include "ngraph/pass/visualize_tree.hpp" // DEBUG
-
 namespace {
 
 using NodePtr = std::shared_ptr<ov::Node>;
@@ -63,9 +61,7 @@ template <typename PassT>
 class PassFactory : public IPassFactory {
 public:
     void registerPass(ov::pass::Manager& pass_manager) const override {
-        //pass_manager.register_pass<ngraph::pass::VisualizeTree>("./0before.png"); // DEBUG
         pass_manager.register_pass<PassT>();
-        //pass_manager.register_pass<ngraph::pass::VisualizeTree>("./1after.png"); // DEBUG
     }
 };
 
@@ -699,7 +695,7 @@ namespace {
 
 std::vector<size_t> split_operations_numbers = {1, 10};
 
-std::vector<size_t> split_outputs_numbers = {2, 5};
+std::vector<size_t> split_outputs_numbers = {2, 3};
 
 } // namespace
 
@@ -797,87 +793,109 @@ INSTANTIATE_TEST_SUITE_P(
 
 // --------------------------------------------------------------------------------------
 
-// TODO: TestSuite class
+using CreateGraphSplitBackwardF = std::function< std::shared_ptr<ov::Model> (size_t split_tree_depth,
+                                                                             size_t num_split_outputs,
+                                                                             ov::element::Type input_type)>;
+
+using TestSplitBackwardParams = std::tuple<PassFactoryPtr,
+                              size_t, /* split_tree_depth */
+                              size_t, /* num_split_outputs */
+                              CreateGraphSplitBackwardF, /* model_factory */
+                              CreateGraphSplitBackwardF, /* reference_model_factory */
+                              ov::element::Type> /* input type */;
+
+class TransposeSinkingSplitBackwardTestFixture: public ::testing::WithParamInterface<TestSplitBackwardParams>,
+                                        public TransformationTestsF {};
+
+namespace {
+std::vector<size_t> split_tree_depth_nums = {1, 3};
+} // namespace
 
 // --------------------------------------------------------------------------------------
 
 namespace split {
 namespace backward {
-std::shared_ptr<ov::Model> CreateFunction(size_t num_split_ops,
+
+class SplitFactory {
+public:
+    SplitFactory(size_t axis, size_t n_outputs, ov::element::Type elem_type) :
+        _axis(axis), _n_outputs(n_outputs), _elem_type(elem_type) {}
+    NodePtr create(Output parent) const {
+        auto split_axis_const = std::make_shared<ov::opset9::Constant>(_elem_type,
+                                                                       ov::Shape{},
+                                                                       _axis);
+        return std::make_shared<ov::opset9::Split>(parent, split_axis_const, _n_outputs);
+    }
+private:
+    const size_t _axis;
+    const size_t _n_outputs;
+    const ov::element::Type _elem_type;
+};
+
+void CreateSplitTree(size_t max_depth, size_t depth, Output parent, const SplitFactory & split_factory, ov::OutputVector & leaves) {
+    if (depth == max_depth) {
+        leaves.push_back(parent);
+        return;
+    }
+
+    auto split = split_factory.create(parent);
+
+    for (size_t output_idx = 0; output_idx < split->get_output_size(); ++output_idx) {
+        CreateSplitTree(max_depth, depth + 1, split->output(output_idx), split_factory, leaves);
+    }
+}
+
+std::shared_ptr<ov::Model> CreateFunction(size_t split_tree_depth,
                                           size_t num_split_outputs,
-                                          std::set<size_t> transpose_output_indexes,
                                           ov::element::Type input_type) {
-        const ov::Shape input_shape{96, static_cast<size_t>(std::pow(num_split_outputs, num_split_ops + 1)), 55, 55};
+        const size_t split_input_dim_value = static_cast<size_t>(std::pow(num_split_outputs, split_tree_depth + 1));
+        const ov::Shape input_shape{96, split_input_dim_value, 55, 55};
 
         auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
 
-        ov::OutputVector outputs;
-        Output in_op = X->output(0);
-        for (size_t i = 0; i < num_split_ops; ++i) {
-            auto split_axis_const = std::make_shared<ov::opset9::Constant>(ov::element::u64,
-                                                                           ov::Shape{},
-                                                                           1);
-            auto split = std::make_shared<ov::opset9::Split>(in_op, split_axis_const, num_split_outputs);
-            for (size_t num_output = 0; num_output < num_split_outputs - 1; ++num_output) {
-                outputs.push_back(split->output(num_output));
-            }
-            in_op = split->output(num_split_outputs - 1);
+        ov::OutputVector split_tree_leaves;
+        {
+            SplitFactory split_factory(/* axis */ 1, num_split_outputs, /* elem_type */ ov::element::u64);
+            CreateSplitTree(split_tree_depth, /* depth */ 0, X->output(0), split_factory, split_tree_leaves);
         }
-        outputs.push_back(in_op);
 
-        for (size_t idx = 0; idx < outputs.size(); ++idx) {
-            if (transpose_output_indexes.find(idx) == transpose_output_indexes.end())
-                continue;
-            const size_t output_idx = outputs.size() - num_split_outputs - 1 + idx;
-
+        ov::OutputVector outputs;
+        for (auto& split_tree_leaf : split_tree_leaves) {
             auto ng_order = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
-            outputs[output_idx] = std::make_shared<ov::opset9::Transpose>(outputs[output_idx], ng_order);
+            auto transpose = std::make_shared<ov::opset9::Transpose>(split_tree_leaf, ng_order);
+
+            const size_t split_dim_current_value = static_cast<size_t>(split_input_dim_value / std::pow(num_split_outputs, split_tree_depth));
+            auto reshape_const = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{3}, ov::Shape{96, 55, split_dim_current_value * 55});
+            auto reshape = std::make_shared<ov::opset9::Reshape>(transpose, reshape_const, false);
+            outputs.push_back(reshape);
         }
 
         return std::make_shared<ov::Model>(outputs, ov::ParameterVector{X});
 }
 
-std::shared_ptr<ov::Model> CreateReferenceFunction(size_t num_split_ops,
+std::shared_ptr<ov::Model> CreateReferenceFunction(size_t split_tree_depth,
                                                    size_t num_split_outputs,
-                                                   std::set<size_t> no_transpose_output_indexes,
                                                    ov::element::Type input_type) {
-        const ov::Shape input_shape{96, static_cast<size_t>(std::pow(num_split_outputs, num_split_ops + 1)), 55, 55};
+        const size_t split_input_dim_value = static_cast<size_t>(std::pow(num_split_outputs, split_tree_depth + 1));
+        const ov::Shape input_shape{96, split_input_dim_value, 55, 55};
 
         auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
 
-        auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
-        auto transpose0 = std::make_shared<ov::opset9::Transpose>(X, ng_order0);
+        auto ng_order = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+        auto transpose = std::make_shared<ov::opset9::Transpose>(X, ng_order);
 
-        ov::OutputVector outputs;
-        Output in_op = transpose0->output(0);
-        for (size_t i = 0; i < num_split_ops - 1; ++i) {
-            auto split_axis_const = std::make_shared<ov::opset9::Constant>(ov::element::u64,
-                                                                           ov::Shape{},
-                                                                           2);
-            auto split = std::make_shared<ov::opset9::Split>(in_op, split_axis_const, num_split_outputs);
-            for (size_t num_output = 0; num_output < num_split_outputs - 1; ++num_output) {
-                auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
-                auto transpose0 = std::make_shared<ov::opset9::Transpose>(split->output(num_output), ng_order0);
-                outputs.push_back(transpose0);
-            }
-            in_op = split->output(num_split_outputs - 1);
+        ov::OutputVector split_tree_leaves;
+        {
+            SplitFactory split_factory(/* axis */ 2, num_split_outputs, /* elem_type */ ov::element::u64);
+            CreateSplitTree(split_tree_depth, /* depth */ 0, transpose->output(0), split_factory, split_tree_leaves);
         }
 
-        auto split_axis_const = std::make_shared<ov::opset9::Constant>(ov::element::u64,
-                                                                           ov::Shape{},
-                                                                           2);
-        auto last_split = std::make_shared<ov::opset9::Split>(in_op, split_axis_const, num_split_outputs);
-
-        for (size_t output_idx = 0; output_idx < num_split_outputs; ++output_idx) {
-            if (no_transpose_output_indexes.find(output_idx) == no_transpose_output_indexes.end()) {
-                auto ng_order = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
-                auto transpose = std::make_shared<ov::opset9::Transpose>(last_split->output(output_idx), ng_order);
-
-                auto ng_order1 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
-                outputs.push_back(std::make_shared<ov::opset9::Transpose>(transpose, ng_order1));
-            } else {
-                outputs.push_back(last_split->output(output_idx));
-            }
+        ov::OutputVector outputs;
+        for (auto& split_tree_leaf : split_tree_leaves) {
+            const size_t split_dim_current_value = static_cast<size_t>(split_input_dim_value / std::pow(num_split_outputs, split_tree_depth));
+            auto reshape_const = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{3}, ov::Shape{96, 55, split_dim_current_value * 55});
+            auto reshape = std::make_shared<ov::opset9::Reshape>(split_tree_leaf, reshape_const, false);
+            outputs.push_back(reshape);
         }
 
         return std::make_shared<ov::Model>(outputs, ov::ParameterVector{X});
@@ -886,93 +904,237 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(size_t num_split_ops,
 } // namespace backward
 } // namespace split
 
-using FloatPtr = std::unique_ptr<float[]>;
+TEST_P(TransposeSinkingSplitBackwardTestFixture, CompareFunctions) {
+    PassFactoryPtr pass_factory;
+    size_t split_tree_depth;
+    size_t num_split_outputs;
+    CreateGraphSplitBackwardF model_factory;
+    CreateGraphSplitBackwardF reference_model_factory;
+    ov::element::Type input_type;
+    std::tie(pass_factory,
+             split_tree_depth,
+             num_split_outputs,
+             model_factory,
+             reference_model_factory,
+             input_type) = this->GetParam();
 
-template <class IterT, class T>
-void Fill(IterT begin_iter, IterT end_iter, T value, T step) {
-    while (begin_iter != end_iter) {
-        *begin_iter = value;
-        value += step;
-        ++begin_iter;
-    }
+    model = model_factory(split_tree_depth, num_split_outputs, input_type);
+    model_ref = reference_model_factory(split_tree_depth, num_split_outputs, input_type);
+    pass_factory->registerPass(manager);
 }
 
-FloatPtr GenerateTestInput(const ov::Shape & input_shape) {
-    const size_t size = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<size_t>());
+INSTANTIATE_TEST_SUITE_P(
+    TransposeSinkingSplitBackwardTestSuite,
+    TransposeSinkingSplitBackwardTestFixture,
+    ::testing::Combine(::testing::Values(CreatePassFactory<ngraph::pass::TransposeSinkingSplitBackward>()),
+                       ::testing::ValuesIn(split_tree_depth_nums),
+                       ::testing::ValuesIn(split_outputs_numbers),
+                       ::testing::Values(split::backward::CreateFunction),
+                       ::testing::Values(split::backward::CreateReferenceFunction),
+                       ::testing::Values(ov::element::f32)));
 
-    FloatPtr input(new float[size]);
-    Fill(input.get(), input.get() + size, 0.01, 0.01);
+// --------------------------------------------------------------------------------------
 
-    return input;
+using TransposeInsertF = std::function< ov::OutputVector (const ov::OutputVector& split_tree_leaves)>;
+
+using CreateGraphSplitBackwardRestrictF = std::function< std::shared_ptr<ov::Model> (size_t split_tree_depth,
+                                                                                     size_t num_split_outputs,
+                                                                                     ov::element::Type input_type,
+                                                                                     TransposeInsertF tranpose_insert_function)>;
+
+using TestSplitBackwardRestrictParams = std::tuple<PassFactoryPtr,
+                              size_t, /* split_tree_depth */
+                              size_t, /* num_split_outputs */
+                              CreateGraphSplitBackwardRestrictF, /* model_factory */
+                              ov::element::Type, /* input type */
+                              TransposeInsertF>; /* insert transpose function */
+
+class TransposeSinkingSplitBackwardRestrictTestFixture: public ::testing::WithParamInterface<TestSplitBackwardRestrictParams>,
+                                        public TransformationTestsF {};
+
+TEST_P(TransposeSinkingSplitBackwardRestrictTestFixture, CompareFunctions) {
+    PassFactoryPtr pass_factory;
+    size_t split_tree_depth;
+    size_t num_split_outputs;
+    CreateGraphSplitBackwardRestrictF model_factory;
+    ov::element::Type input_type;
+    TransposeInsertF tranpose_insert_function;
+    std::tie(pass_factory,
+             split_tree_depth,
+             num_split_outputs,
+             model_factory,
+             input_type,
+             tranpose_insert_function) = this->GetParam();
+
+    model = model_factory(split_tree_depth, num_split_outputs, input_type, tranpose_insert_function);
+    model_ref = model->clone();
+    pass_factory->registerPass(manager);
 }
 
-#define EMUTEX_DEBUG_CHECKPOINT std::cout << "[EMUTEX DEBUG] CHECKPOINT " << __FILE__ << ":" << __LINE__ << std::endl;
+namespace split {
+namespace backward {
+namespace restrictions {
 
-TEST(TransposeSinkingSplitTests, SplitForward) {
-    const size_t num_split_ops = 2;
-    const size_t num_split_outputs = 2;
+std::shared_ptr<ov::Model> CreateFunction(size_t split_tree_depth,
+                                          size_t num_split_outputs,
+                                          ov::element::Type input_type,
+                                          TransposeInsertF transpose_insert_func) {
+        const size_t split_input_dim_value = static_cast<size_t>(std::pow(num_split_outputs, split_tree_depth + 1));
+        const ov::Shape input_shape{96, split_input_dim_value, 55, 55};
 
-    const ov::element::Type input_type = ov::element::f32;
-    const ov::Shape input_shape{96, (1 << (num_split_ops + 1)), 55, 55};
+        auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
 
-    std::cout << "input shape " << input_shape << std::endl;
+        ov::OutputVector split_tree_leaves;
+        {
+            SplitFactory split_factory(/* axis */ 1, num_split_outputs, /* elem_type */ ov::element::u64);
+            CreateSplitTree(split_tree_depth, /* depth */ 0, X->output(0), split_factory, split_tree_leaves);
+        }
 
-    EMUTEX_DEBUG_CHECKPOINT;
+        ov::OutputVector outputs;
+        for (auto& split_tree_leaf : transpose_insert_func(split_tree_leaves)) {
+            const size_t split_dim_current_value = static_cast<size_t>(split_input_dim_value / std::pow(num_split_outputs, split_tree_depth));
+            auto reshape_const = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{3}, ov::Shape{96, 55, split_dim_current_value * 55});
+            auto reshape = std::make_shared<ov::opset9::Reshape>(split_tree_leaf, reshape_const, false);
+            outputs.push_back(reshape);
+        }
 
-    ModelPtr model, original_model, reference_model;
+        return std::make_shared<ov::Model>(outputs, ov::ParameterVector{X});
+}
+
+ov::OutputVector OnlyFirstTranspose(const ov::OutputVector& split_tree_leaves) {
+    ov::OutputVector outputs;
     {
-        model = split::backward::CreateFunction(num_split_ops, num_split_outputs, std::set<size_t>{2}, input_type);
-        original_model = model->clone();
-
-        EMUTEX_DEBUG_CHECKPOINT;
-
-        ngraph::pass::Manager pass_manager;
-        pass_manager.register_pass<ngraph::pass::InitNodeInfo>();
-        pass_manager.register_pass<ngraph::pass::VisualizeTree>("./0before.png"); // DEBUG
-        pass_manager.register_pass<ngraph::pass::TransposeSinkingSplitBackward>();
-        pass_manager.register_pass<ngraph::pass::VisualizeTree>("./1after.png"); // DEBUG
-        pass_manager.run_passes(model);
-        ASSERT_NO_THROW(check_rt_info(model));
-    }
-    EMUTEX_DEBUG_CHECKPOINT;
-    {
-        reference_model = split::backward::CreateReferenceFunction(num_split_ops, num_split_outputs, std::set<size_t>{2}, input_type);
+        auto& split_tree_leaf = split_tree_leaves.front();
+        auto ng_order = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+        auto transpose = std::make_shared<ov::opset9::Transpose>(split_tree_leaf, ng_order);
+        outputs.push_back(transpose);
     }
 
-    EMUTEX_DEBUG_CHECKPOINT;
-
-    FunctionsComparator func_comparator = FunctionsComparator::with_default();
-    func_comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    const FunctionsComparator::Result result = func_comparator(model, reference_model);
-    ASSERT_TRUE(result.valid) << result.message;
-
-    EMUTEX_DEBUG_CHECKPOINT;
-
-    const size_t num_outputs = num_split_ops + 1;
-
-    FloatPtr test_input = GenerateTestInput(input_shape);
-    ov::Tensor input_tensor{input_type, input_shape, test_input.get()};
-    ov::TensorVector function_result(num_outputs), reference_function_result(num_outputs);
-    ASSERT_TRUE(original_model->evaluate(function_result, ov::TensorVector{input_tensor}));
-    EXPECT_EQ(function_result.size(), num_outputs);
-
-    EMUTEX_DEBUG_CHECKPOINT;
-
-    for (size_t result_idx = 0; result_idx < num_outputs; ++result_idx) {
-        EXPECT_EQ(function_result[result_idx].get_element_type(), ngraph::element::f32);
-
-        ASSERT_TRUE(model->evaluate(reference_function_result, ov::TensorVector{input_tensor}));
-        EXPECT_EQ(reference_function_result.size(), num_outputs);
-        EXPECT_EQ(reference_function_result[result_idx].get_element_type(), ngraph::element::f32);
-
-        EXPECT_EQ(reference_function_result[result_idx].get_shape(), function_result[result_idx].get_shape());
-        EXPECT_EQ(reference_function_result[result_idx].get_size(), function_result[result_idx].get_size());
-
-        const float * function_result_data = function_result[result_idx].data<float>();
-        const float * reference_function_result_data = reference_function_result[result_idx].data<float>();
-        for (size_t i = 0; i < reference_function_result[result_idx].get_size(); ++i)
-            EXPECT_EQ(function_result_data[i], reference_function_result_data[i]);
+    for (size_t leaf_idx = 1; leaf_idx < split_tree_leaves.size(); ++leaf_idx) {
+        outputs.push_back(split_tree_leaves[leaf_idx]);
     }
 
-    EMUTEX_DEBUG_CHECKPOINT;
+    return outputs;
 }
+
+ov::OutputVector OnlyLastTranspose(const ov::OutputVector& split_tree_leaves) {
+    ov::OutputVector outputs;
+    {
+        auto& split_tree_leaf = split_tree_leaves.back();
+        auto ng_order = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+        auto transpose = std::make_shared<ov::opset9::Transpose>(split_tree_leaf, ng_order);
+        outputs.push_back(transpose);
+    }
+
+    for (size_t leaf_idx = 0; leaf_idx < split_tree_leaves.size() - 1; ++leaf_idx) {
+        outputs.push_back(split_tree_leaves[leaf_idx]);
+    }
+
+    return outputs;
+}
+
+ov::OutputVector OnlyMiddleTranspose(const ov::OutputVector& split_tree_leaves) {
+    ov::OutputVector outputs;
+    size_t middle_idx = split_tree_leaves.size() / 2;
+    if (split_tree_leaves.size() % 2)
+        ++middle_idx;
+    for (size_t leaf_idx = 0; leaf_idx < split_tree_leaves.size() - 1; ++leaf_idx) {
+        if (leaf_idx == middle_idx) {
+            auto& split_tree_leaf = split_tree_leaves[leaf_idx];
+            auto ng_order = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+            auto transpose = std::make_shared<ov::opset9::Transpose>(split_tree_leaf, ng_order);
+            outputs.push_back(transpose);
+        } else {
+            outputs.push_back(split_tree_leaves[leaf_idx]);
+        }
+    }
+
+    return outputs;
+}
+
+ov::OutputVector FirstAnotherTranspose(const ov::OutputVector& split_tree_leaves) {
+    ov::OutputVector outputs;
+    {
+        auto& split_tree_leaf = split_tree_leaves.front();
+        auto ng_order = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+        auto transpose = std::make_shared<ov::opset9::Transpose>(split_tree_leaf, ng_order);
+        outputs.push_back(transpose);
+    }
+
+    for (size_t leaf_idx = 1; leaf_idx < split_tree_leaves.size(); ++leaf_idx) {
+        auto& split_tree_leaf = split_tree_leaves[leaf_idx];
+        auto ng_order = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+        auto transpose = std::make_shared<ov::opset9::Transpose>(split_tree_leaf, ng_order);
+        outputs.push_back(transpose);
+    }
+
+    return outputs;
+}
+
+ov::OutputVector LastAnotherTranspose(const ov::OutputVector& split_tree_leaves) {
+    ov::OutputVector outputs;
+    {
+        auto& split_tree_leaf = split_tree_leaves.back();
+        auto ng_order = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+        auto transpose = std::make_shared<ov::opset9::Transpose>(split_tree_leaf, ng_order);
+        outputs.push_back(transpose);
+    }
+
+    for (size_t leaf_idx = 0; leaf_idx < split_tree_leaves.size() - 1; ++leaf_idx) {
+        auto& split_tree_leaf = split_tree_leaves[leaf_idx];
+        auto ng_order = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+        auto transpose = std::make_shared<ov::opset9::Transpose>(split_tree_leaf, ng_order);
+        outputs.push_back(transpose);
+    }
+
+    return outputs;
+}
+
+ov::OutputVector MiddleAnotherTranspose(const ov::OutputVector& split_tree_leaves) {
+    ov::OutputVector outputs;
+    size_t middle_idx = split_tree_leaves.size() / 2;
+    if (split_tree_leaves.size() % 2)
+        ++middle_idx;
+    for (size_t leaf_idx = 0; leaf_idx < split_tree_leaves.size(); ++leaf_idx) {
+        auto& split_tree_leaf = split_tree_leaves[leaf_idx];
+        if (leaf_idx == middle_idx) {
+            auto ng_order = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+            auto transpose = std::make_shared<ov::opset9::Transpose>(split_tree_leaf, ng_order);
+            outputs.push_back(transpose);
+        } else {
+            auto ng_order = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+            auto transpose = std::make_shared<ov::opset9::Transpose>(split_tree_leaf, ng_order);
+            outputs.push_back(transpose);
+        }
+    }
+
+    return outputs;
+}
+
+} // namespace restrictions
+} // namespace backward
+} // namespace split
+
+namespace {
+
+std::vector<TransposeInsertF> insertTransposeFactories = {
+    split::backward::restrictions::OnlyFirstTranspose,
+    split::backward::restrictions::OnlyLastTranspose,
+    split::backward::restrictions::OnlyMiddleTranspose,
+    split::backward::restrictions::FirstAnotherTranspose,
+    split::backward::restrictions::LastAnotherTranspose,
+    split::backward::restrictions::MiddleAnotherTranspose
+};
+
+} // namespace
+
+
+INSTANTIATE_TEST_SUITE_P(
+    TransposeSinkingSplitBackwardRestrictTestSuite,
+    TransposeSinkingSplitBackwardRestrictTestFixture,
+    ::testing::Combine(::testing::Values(CreatePassFactory<ngraph::pass::TransposeSinkingSplitBackward>()),
+                       ::testing::Values(1),
+                       ::testing::Values(5),
+                       ::testing::Values(split::backward::restrictions::CreateFunction),
+                       ::testing::Values(ov::element::f32),
+                       ::testing::ValuesIn(insertTransposeFactories)));
