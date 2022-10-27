@@ -123,7 +123,6 @@ jobs:
       chmod +x ./cmake-${CMAKE_VERSION}-linux-x86_64.sh
       sudo ./cmake-${CMAKE_VERSION}-linux-x86_64.sh --prefix=/usr/local/ --skip-license
       rm -rf ./cmake-${CMAKE_VERSION}-linux-x86_64.sh
-      echo cmake info ; which cmake ; cmake --version
     displayName: 'Install cmake'
 
   - script: |
