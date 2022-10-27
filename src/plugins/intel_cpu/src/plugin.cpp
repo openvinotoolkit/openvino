@@ -95,6 +95,7 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -533,24 +534,24 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         }
         auto supportedPrecisions = std::vector<PrecisionsRestriction>({
             PrecisionsRestriction::create<ngraph::opset1::Convolution>({
-                {0, input0LowPrecisionList},
-                {1, {ngraph::element::i8}},
+                {{0}, input0LowPrecisionList},
+                {{1}, {ngraph::element::i8}},
             }),
             PrecisionsRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
-                {0, {ngraph::element::u8, ngraph::element::i8}},
-                {1, {ngraph::element::i8}}
+                {{0}, {ngraph::element::u8, ngraph::element::i8}},
+                {{1}, {ngraph::element::i8}}
             }),
             PrecisionsRestriction::create<ngraph::opset1::GroupConvolution>({
-                {0, input0LowPrecisionList},
-                {1, {ngraph::element::i8}}
+                {{0}, input0LowPrecisionList},
+                {{1}, {ngraph::element::i8}}
             }),
             PrecisionsRestriction::create<ngraph::opset1::Multiply>({
-                {0, {ngraph::element::u8}},
-                {1, {ngraph::element::i8}},
+                {{0}, {ngraph::element::u8}},
+                {{1}, {ngraph::element::i8}},
             }),
             PrecisionsRestriction::create<ngraph::opset1::MatMul>({
-                {0, {ngraph::element::u8, ngraph::element::i8}},
-                {1, {ngraph::element::i8}}
+                {{0}, {ngraph::element::u8, ngraph::element::i8}},
+                {{1}, {ngraph::element::i8}}
             }),
         });
 
@@ -729,20 +730,40 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
         // less aggressive
         const auto num_streams_less_aggressive = num_cores / 2;
         // default #streams value (most conservative)
-        const auto default_num_streams = IStreamsExecutor::Config::GetDefaultNumStreams();
+        const auto default_num_streams =
+            engConfig.streamExecutorConfig._threadBindingType ==
+                    InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
+                ? IStreamsExecutor::Config::GetHybridNumStreams(engConfig.streamExecutorConfig,
+                                                                IStreamsExecutor::Config::StreamMode::DEFAULT)
+                : IStreamsExecutor::Config::GetDefaultNumStreams();
         int num_streams = default_num_streams;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
             if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL)
                 || (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
                 // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
-                num_streams = num_cores;
+                num_streams = engConfig.streamExecutorConfig._threadBindingType ==
+                                      InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
+                                  ? IStreamsExecutor::Config::GetHybridNumStreams(
+                                        engConfig.streamExecutorConfig,
+                                        IStreamsExecutor::Config::StreamMode::AGGRESSIVE)
+                                  : num_cores;
             }   // otherwise (no recognized layers) falling back to the default value
         } else if (networkToleranceForLowCache.max_mem_tolerance > memThresholdAssumeLimitedForISA) {
             // network is below the ISA-specific threshold
-            num_streams = num_cores;
+            num_streams = engConfig.streamExecutorConfig._threadBindingType ==
+                                  InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
+                              ? IStreamsExecutor::Config::GetHybridNumStreams(
+                                    engConfig.streamExecutorConfig,
+                                    IStreamsExecutor::Config::StreamMode::AGGRESSIVE)
+                              : num_cores;
         } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
             // network is below general threshold
-            num_streams = std::max(default_num_streams, num_streams_less_aggressive);
+            num_streams = engConfig.streamExecutorConfig._threadBindingType ==
+                                  InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
+                              ? IStreamsExecutor::Config::GetHybridNumStreams(
+                                    engConfig.streamExecutorConfig,
+                                    IStreamsExecutor::Config::StreamMode::LESSAGGRESSIVE)
+                              : std::max(default_num_streams, num_streams_less_aggressive);
         }
         auto num_requests = config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
         if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
