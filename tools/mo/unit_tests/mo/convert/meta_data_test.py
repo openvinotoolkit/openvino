@@ -15,6 +15,8 @@ from openvino.tools.mo.utils.version import get_version
 from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from utils import save_to_onnx
 
+from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
+
 
 @generator
 class MetaDataTest(UnitTestWithMockedTelemetry):
@@ -148,3 +150,9 @@ class MetaDataTest(UnitTestWithMockedTelemetry):
             core = Core()
             serialized_model = core.read_model(out_xml)
             check_meta_data(serialized_model)
+
+            restored_graph, meta_data = restore_graph_from_ir(out_xml, out_xml.replace('.xml', '.bin'))
+            save_restored_graph(restored_graph, tmpdir, meta_data, "mo_ir_reader_test_model")
+
+            mo_ir_reader_test_model = core.read_model(os.path.join(tmpdir, "mo_ir_reader_test_model.xml"))
+            check_meta_data(mo_ir_reader_test_model)
