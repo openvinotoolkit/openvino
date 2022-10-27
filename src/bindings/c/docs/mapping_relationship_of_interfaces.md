@@ -1,8 +1,8 @@
 # Mapping Relationship of Interfaces
 
-Here provides the details mapping relationship between C API and C++ API in OpenVINO including components `core`, `model`, `compiled model`, `infer request`, `partial shape`, `prepostprocess`, `tensor`.
+Here provides the details mapping relationship between C API and C++ API in OpenVINO including components `core`, `model`, `compiled model`, `infer request`, `partial shape`, `prepostprocess`, `tensor`. This introduction doesn't provide all interfaces' mapping relationship from C++ to C in OpenVINO, but the most important & common interfaces provided.
 
-> **NOTE**: This introduction doesn't provide all interfaces' mapping relationship from C++ to C in OpenVINO, but the most important & common interfaces provided.
+**NOTE**: For more matching details can be found in [Mapping Relationship of Interfaces](./docs/mapping_relationship_of_interfaces.md).
 
 ## Contents:
 
@@ -112,7 +112,7 @@ Here is the mapping relationship for core related,
 |`PrePostProcessor::output()`|`ov_preprocess_prepostprocessor_get_output_info(const ov_preprocess_prepostprocessor_t* preprocess, ov_preprocess_output_info_t** preprocess_output_info)`| get the output info of preprocess output instance (also provides method get by index/name)
 |`PrePostProcessor::build()`|`ov_preprocess_prepostprocessor_build(const ov_preprocess_prepostprocessor_t* preprocess, ov_model_t** model)`| adds pre/post-processing operations to function passed in constructor
 
-> **NOTE**: For prepostprocesser, only basic operations are wraped for C, if you need some other methods, please refer [How to wrap OpenVINO interfaces with C](./docs/How_to_Wrap_OpenVINO_Interfaces_with_C.md) to wrape the interfaces.
+> **NOTE**: For prepostprocesser, only basic operations are wraped for C, if you need some other methods, please refer [How to wrap OpenVINO interfaces with C](./docs/how_to_wrap_openvino_interfaces_with_c.md) to wrape the interfaces.
 
 ## The mapping relationship for tensor
  * All tensor related APIs implemented with C++ can be found [here](../../../core/include/openvino/runtime/tensor.hpp)
@@ -131,4 +131,4 @@ Here is the mapping relationship for core related,
 |`~Tensor()`|`ov_tensor_free(ov_tensor_t* tensor)`| C need to free the allocated tensor instance abviously, C++ not
 
 ## See also
- * [C API Reference](https://docs.openvino.ai/)
+ * [C API Reference](https://docs.openvino.ai/latest/api/api_reference.html)

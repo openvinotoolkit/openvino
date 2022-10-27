@@ -25,6 +25,6 @@ Here is the details introduction about the matching relationship between C struc
 | `ov_preprocess_prepostprocessor_t` | `ov::preprocess::PrePostProcessor` | structure represents the `ov::preprocess::PrePostProcessor` by a pointer | [ov_prepostprocess.h](../include/openvino/c/ov_prepostprocess.h)
 
 ## See also
- * [C API Reference](https://docs.openvino.ai/)
+ * [C API Reference](https://docs.openvino.ai/latest/api/api_reference.html)
 
 

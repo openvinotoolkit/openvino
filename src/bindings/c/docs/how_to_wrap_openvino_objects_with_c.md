@@ -6,9 +6,13 @@ In OpenVINO C++ implementation, many objects are defined with `class`, such as `
  * C `struct` contains a shared pointer to C++ `class`, [Wrap by C++ Shared Pointer](#wrap_by_c++_shared_pointer)
  * C `struct` contains a instance of C++ `class`, [Wrap by C++ Object](#wrap_by_c++_object)
  * C `struct` rewrite the C++ `class`, [Wrap by Rewrite](#wrap_by_rewrite)
+For the objects which needs to be hided for users, C `struct` contains a shared pointer will be adopted.
+For the objects which needs to be created, operated and read by users, rewrite the C++ `class` will be better.
+For some simple objects, C `struct` contains a instance of C++ `class` will be enough.
 
 In OpenVINO C++, most objects implemented with C++ `class` as following:
-```ruby
+
+```
 class ClassName {
 public:
     ...
@@ -17,81 +21,66 @@ private:
 }
 ```
 
+> **NOTE**: For more matching details can be found in [Mapping Relationship of Objects](./docs/mapping_relationship_of_objects.md).
+
  ## Wrap by C++ Shared Pointer
+
 C construct a new `struct` represents the class, which contains a shared pointer to the `class` as following:
-```ruby
+
+```
 struct ov_ClassName {
     std::shared_ptr<ov::ClassName> object;
 };
 ```
+
 Here is an example (core) for wrapping by shared pointer:
-`ov::Core` C++ [implementation](../../../inference/include/openvino/runtime/core.hpp)
-```ruby
-class OPENVINO_RUNTIME_API Core {
-    class Impl;
-    std::shared_ptr<Impl> _impl;
-public:
-    ...
-}
-```
-Represent by C `struct` [here](../src/common.h)
-```ruby
-struct ov_core {
-    std::shared_ptr<ov::Core> object;
-};
-```
+
+https://github.com/openvinotoolkit/openvino/blob/d96c25844d6cfd5ad131539c8a0928266127b05a/src/inference/include/openvino/runtime/core.hpp#L41-L684
+
+Represent by C `struct`:
+
+https://github.com/openvinotoolkit/openvino/blob/d96c25844d6cfd5ad131539c8a0928266127b05a/src/bindings/c/src/common.h#L47-L53
+
 C provides the `struct` by `typedef struct ov_core ov_core_t;`
 
  ## Wrap by C++ Object
+
 C construct a new `struct` represents the class, which contains an instance to C++ `class` as following:
-```ruby
+
+```
 struct ov_ClassName {
     ov::ClassName object;
 };
 ```
+
 Here is an example (layout) for wrapping by shared pointer:
-`ov::Layout` C++ [implementation](../../../core/include/openvino/core/layout.hpp)
-```ruby
-class OPENVINO_API Layout {
-public:
-    /// \brief Constructs a dynamic Layout with no layout information.
-    Layout();
-    ...
-}
-```
-Represent by C `struct` [here](../src/common.h)
-```ruby
-struct ov_layout {
-    ov::Layout object;
-};
-```
+
+https://github.com/openvinotoolkit/openvino/blob/d96c25844d6cfd5ad131539c8a0928266127b05a/src/core/include/openvino/core/layout.hpp#L44-L107
+
+Represent by C `struct`:
+
+https://github.com/openvinotoolkit/openvino/blob/d96c25844d6cfd5ad131539c8a0928266127b05a/src/bindings/c/src/common.h#L95-L101
+
 C provides the `struct` by `typedef struct ov_layout ov_layout_t;`
 
  ## Wrap by Rewrite
+
 C construct a new `struct` represents the class, which rewrites related info to the `class` as following:
-```ruby
+
+```
 typedef struct {
     ov::ClassName object;
 } ov_ClassName_t;
 ```
 Here is an example (shape) for wrapping by shared pointer:
-`ov::Shape` C++ [implementation](../../../core/include/openvino/core/shape.hpp)
-```ruby
-class Shape : public std::vector<size_t> {
-public:
-    OPENVINO_API Shape();
-    ...
-}
-```
+https://github.com/openvinotoolkit/openvino/blob/d96c25844d6cfd5ad131539c8a0928266127b05a/src/core/include/openvino/core/shape.hpp#L21-L40
+
 Represent by C `struct` [here](../src/common.h)
-```ruby
-typedef struct {
-    int64_t rank;
-    int64_t* dims;
-} ov_shape_t;
-```
+
+https://github.com/openvinotoolkit/openvino/blob/d96c25844d6cfd5ad131539c8a0928266127b05a/src/bindings/c/include/openvino/c/ov_shape.h#L15-L22
+
 > **NOTE**: this implementation needs developer create the C++ `class` based on the C `struct` info in using this rewrite type.
 
  ## See also
- * [Mapping Relationship of Objects](./docs/Mapping_Relationship_of_Objects.md)
+ * [Mapping Relationship of Objects](./docs/mapping_relationship_of_objects.md)
  * [C API Reference](https://docs.openvino.ai/)
