@@ -215,7 +215,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
 
             auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
 
-            ASSERT_TRUE(primTypeCheck(primType)) << "primType is unexpected: " << primType;
+            ASSERT_TRUE(primTypeCheck(primType)) << "primType is unexpected: " << primType << " Expected: " << selectedType;
         }
     }
 }

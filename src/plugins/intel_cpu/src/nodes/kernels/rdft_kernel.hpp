@@ -60,7 +60,7 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
     public:
         DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_dft_kernel_f32)
 
-        jit_dft_kernel_f32(bool is_inverse, enum dft_type type) : jit_dft_kernel(is_inverse, type), jit_generator() {}
+        jit_dft_kernel_f32(bool is_inverse, enum dft_type type) : jit_dft_kernel(is_inverse, type), jit_generator(jit_name()) {}
 
         void create_ker() override {
             jit_generator::create_kernel();
