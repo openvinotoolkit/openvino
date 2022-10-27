@@ -164,6 +164,8 @@ std::vector<std::string> disabledTestPatterns() {
         // is shared across plugins
         // passed local test and cpu has specific test cases with nms9 to cover
         R"(smoke_NmsLayerTest.*)",
+        R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*(TIwithLSTMcell1|MatMulBias)_(i|u).*)",
+        R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*ReadConcatSplitAssign.*)",
     };
 
 #define FIX_62820 0
