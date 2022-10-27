@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <google/protobuf/stubs/logging.h>
+
 #include "openvino/frontend/manager.hpp"
 #include "openvino/frontend/tensorflow/frontend.hpp"
 #include "openvino/frontend/tensorflow/visibility.hpp"
@@ -16,5 +18,9 @@ TENSORFLOW_C_API void* GetFrontEndData() {
     res->m_creator = []() {
         return std::make_shared<ov::frontend::tensorflow::FrontEnd>();
     };
+#ifndef OPENVINO_DEBUG_ENABLE
+    // disable protobuf logging
+    google::protobuf::SetLogHandler(nullptr);
+#endif
     return res;
 }
