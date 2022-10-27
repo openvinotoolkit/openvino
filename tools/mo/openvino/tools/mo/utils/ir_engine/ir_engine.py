@@ -25,6 +25,18 @@ log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.DEBUG, stream=
 # in a safe manner without including unsafe xml.etree.ElementTree
 ElementTree = defuse_stdlib()[ET].ElementTree
 
+
+def read_rt_info_attr(elem):
+    if len(elem) == 0:
+        value = elem.attrib['value']
+        return value
+    val_dict = {}
+    for child in elem:
+        child_val = read_rt_info_attr(child)
+        val_dict[child.tag] = child_val
+    return val_dict
+
+
 class IREngine(object):
     def __init__(self, path_to_xml: str, path_to_bin=None, precision="FP32", xml_tree=None):
         if not xml_tree and not os.path.exists(path_to_xml):
@@ -90,15 +102,9 @@ class IREngine(object):
                     statistics[layer.find('name').text] = {'min': layer.find('min').text, 'max': layer.find('max').text}
             elif child.tag == 'rt_info':
                 for elem in child:
-                    if elem.tag == 'conversion_parameters':
-                        conv_params = {}
-                        for det in elem:
-                            value = det.attrib['value']
-                            conv_params[det.tag] = value
-                        self.meta_data['conversion_parameters'] = conv_params
-                    else:
-                        value = elem.attrib['value']
-                        self.meta_data[elem.tag] = value
+                    self.meta_data[elem.tag] = read_rt_info_attr(elem)
+
+            # TODO: Remove this part when POT updates to using of rt_info
             elif child.tag == 'quantization_parameters':
                 # Section with Post Optimization Toolkit parameters
                 self.meta_data['quantization_parameters'] = dict()

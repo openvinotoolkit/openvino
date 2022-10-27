@@ -21,6 +21,8 @@ Element = ET_defused.Element
 SubElement = ET_defused.SubElement
 tostring = ET_defused.tostring
 
+elements_to_skip_during_serializing = ['inputs_list']
+
 
 def serialize_constants(graph: Graph, bin_file_name: str, data_type=np.float32):
     """
@@ -408,21 +410,24 @@ def add_quantization_info_section(net: Element, meta_info: dict):
         cli_params.set('value', parameters['cli_params'])
 
 
-def add_meta_data(net: Element, meta_info: dict):
+def add_meta_data_elem(meta: Element, key, value):
+    if isinstance(value, dict):
+        sub_elem = SubElement(meta, key)
+        for sub_key, sub_value in sorted(value.items()):
+            if sub_value in elements_to_skip_during_serializing:
+                continue
+            add_meta_data_elem(sub_elem, sub_key, sub_value)
+    else:
+        SubElement(meta, key).set('value', value)
+
+
+def add_net_rt_info(net: Element, meta_info: dict):
     if meta_info == {}:
         log.warning('`meta_info` is not provided, IR will not contain appropriate section.')
     else:
         meta = SubElement(net, 'rt_info')
         for key, value in meta_info.items():
-            if isinstance(value, dict):
-                parameters = SubElement(meta, key)
-                for sub_key, sub_value in sorted(value.items()):
-                    if 'inputs_list' == sub_value:
-                        continue
-                    SubElement(parameters, str(sub_key)).set('value', str(value[sub_key]))
-            else:
-                SubElement(meta, key).set('value', value)
-
+            add_meta_data_elem(meta, key, value)
 
 
 def serialize_node(graph: Graph, node: Node, layers: SubElement, edges: SubElement, unsupported: UnsupportedOps):
@@ -599,9 +604,15 @@ def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_o
     unsupported = UnsupportedOps(graph)
 
     serialize_network(graph, net, unsupported)
+
+    #TODO: Remove this line when POT updates to using of rt_info
     add_quantization_statistics(graph, net)
-    add_meta_data(net, meta_info)
+
+    add_net_rt_info(net, meta_info)
+
+    #TODO: Remove this line when POT updates to using of rt_info
     add_quantization_info_section(net, meta_info)
+
     xml_string = tostring(net)
     xml_doc = parseString(xml_string)
     pretty_xml_as_string = xml_doc.toprettyxml()
