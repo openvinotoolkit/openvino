@@ -11,8 +11,7 @@ namespace snippets {
 namespace op {
 
 LoopBase::LoopBase(const std::vector<Output<Node>> &args, size_t dimension, size_t work_amount, size_t increment)
-        : Op(args), dimension(dimension), work_amount(work_amount), increment(increment), evaluate_once(false),
-        reuse_work_amount_reg(false) {
+        : Op(args), dimension(dimension), work_amount(work_amount), increment(increment), evaluate_once(false) {
 }
 
 bool LoopBase::visit_attributes(AttributeVisitor &visitor) {

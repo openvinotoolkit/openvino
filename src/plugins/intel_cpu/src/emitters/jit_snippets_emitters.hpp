@@ -122,7 +122,6 @@ private:
                    const ov::intel_cpu::emitter_context *emit_context) const override;
 
     std::shared_ptr<ngraph::snippets::op::LoopBegin> loop_begin;
-    bool reuse_work_amount_reg = false;
     size_t num_inputs = 0;
     bool evaluate_once = false;
     size_t work_amount = 0; // need to store work_amount explicitly, since two loops can work on the same dim (e.g. vector + scalar)
@@ -159,7 +158,6 @@ private:
     size_t increment = 0;
     size_t work_amount = 0;
     bool evaluate_once = false;
-    bool reuse_work_amount_reg = false;
     std::vector<bool> apply_increments;
     std::vector<int64_t> finalization_offsets;
 };

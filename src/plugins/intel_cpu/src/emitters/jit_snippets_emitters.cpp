@@ -246,7 +246,6 @@ LoopBeginEmitter::LoopBeginEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl:
         IE_THROW() << "LoopBeginEmitter invoked with invalid configuration: the last output must be LoopEnd";
     work_amount = loop_begin->get_work_amount();
     evaluate_once = loop_begin->get_evaluate_once();
-    reuse_work_amount_reg = loop_begin->reuse_work_amount_reg;
     num_inputs = loop_begin->get_output_size() - 1;
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
@@ -278,7 +277,7 @@ void LoopBeginEmitter::emit_impl(const std::vector<size_t>& in,
     Reg64 reg_work_amount = Reg64(out.back());
     Label for_body;
     // save previous register state (if there is an outer loop that uses this reg for example)
-    if (!evaluate_once && !reuse_work_amount_reg) {
+    if (!evaluate_once) {
         h->push(reg_work_amount);
         h->mov(reg_work_amount, work_amount);
     }
@@ -308,7 +307,6 @@ LoopEndEmitter::LoopEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::imp
     apply_increments = loop_end->get_apply_increment();
     finalization_offsets = loop_end->get_finalization_offsets();
     evaluate_once = loop_end->get_evaluate_once();
-    reuse_work_amount_reg = loop_end->reuse_work_amount_reg;
     for (int i = 0; i < num_inputs; i++)
         io_data_size.push_back(loop_begin->get_input_element_type(i).size());
     for (int i = 0; i < num_outputs; i++)
@@ -367,7 +365,7 @@ void LoopEndEmitter::emit_impl(const std::vector<size_t>& in,
         if (finalization_offsets[idx] != 0)
             h->add(data_ptr_regs[idx], finalization_offsets[idx] * io_data_size[idx]);
     }
-    if (!evaluate_once && !reuse_work_amount_reg) {
+    if (!evaluate_once) {
         // restore reg state if we've changed it before
         h->pop(reg_work_amount);
     }
