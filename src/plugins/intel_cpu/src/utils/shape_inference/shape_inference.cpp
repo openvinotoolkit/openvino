@@ -66,6 +66,7 @@
 #include "tile_shape_inference.hpp"
 #include "topk_shape_inference.hpp"
 #include "transpose_shape_inference.hpp"
+#include "unsqueeze_shape_inference.hpp"
 #include "utils.hpp"
 #include "variadic_split_shape_inference.hpp"
 
