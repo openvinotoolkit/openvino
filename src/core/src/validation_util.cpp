@@ -1669,3 +1669,10 @@ bool ov::is_rank_compatible_any_of(const ov::Rank& rank, const std::vector<Rank>
         return rank.compatible(r);
     });
 }
+
+bool ov::validate_tensor_vector(const TensorVector& tensor_vector, const size_t& size) {
+    return (tensor_vector.size() == size) &&
+           std::none_of(tensor_vector.cbegin(), tensor_vector.cend(), [](const Tensor& tensor) {
+               return (&tensor == nullptr);
+           });
+}

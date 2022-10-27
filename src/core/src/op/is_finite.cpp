@@ -4,10 +4,9 @@
 
 #include "openvino/op/is_finite.hpp"
 
-#include <ngraph/validation_util.hpp>
-
 #include "itt.hpp"
 #include "ngraph/runtime/reference/is_finite.hpp"
+#include "utils.hpp"
 
 namespace ov {
 ov::op::v10::IsFinite::IsFinite(const Output<Node>& data) : op::Op{{data}} {
@@ -41,23 +40,23 @@ bool ov::op::v10::IsFinite::visit_attributes(AttributeVisitor& visitor) {
 
 namespace {
 template <element::Type_t ET>
-bool evaluate_exec(const HostTensorPtr& input, const HostTensorPtr& output) {
-    ngraph::runtime::reference::is_finite(input->get_data_ptr<ET>(),
-                                          output->get_data_ptr<element::Type_t::boolean>(),
-                                          shape_size(input->get_shape()));
+bool evaluate_exec(const ov::TensorVector& input, ov::TensorVector& output) {
+    using T = typename element_type_traits<ET>::value_type;
+    using U = typename element_type_traits<element::Type_t::boolean>::value_type;
+    ngraph::runtime::reference::is_finite(input[0].data<T>(), output[0].data<U>(), shape_size(input[0].get_shape()));
     return true;
 }
 
-#define IS_FINITE_TYPE_CASE(a, ...)                                \
+#define IS_FINITE_TYPE_CASE(a, ...)                             \
     case element::Type_t::a: {                                  \
         OV_OP_SCOPE(OV_PP_CAT3(evaluate_exec_is_finite, _, a)); \
         rc = evaluate_exec<element::Type_t::a>(__VA_ARGS__);    \
     } break
 
 template <element::Type_t ET>
-bool evaluate(const HostTensorPtr& input, const HostTensorPtr& output) {
+bool evaluate(const ov::TensorVector& input, ov::TensorVector& output) {
     bool rc = true;
-    switch (input->get_element_type()) {
+    switch (input[0].get_element_type()) {
         IS_FINITE_TYPE_CASE(bf16, input, output);
         IS_FINITE_TYPE_CASE(f16, input, output);
         IS_FINITE_TYPE_CASE(f32, input, output);
@@ -69,9 +68,9 @@ bool evaluate(const HostTensorPtr& input, const HostTensorPtr& output) {
     return rc;
 }
 
-bool evaluate_is_finite(const HostTensorPtr& input, const HostTensorPtr& output) {
+bool evaluate_is_finite(const ov::TensorVector& input, ov::TensorVector& output) {
     bool rc = true;
-    switch (input->get_element_type()) {
+    switch (input[0].get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_is_finite, bf16, input, output);
         NGRAPH_TYPE_CASE(evaluate_is_finite, f16, input, output);
         NGRAPH_TYPE_CASE(evaluate_is_finite, f32, input, output);
@@ -84,11 +83,11 @@ bool evaluate_is_finite(const HostTensorPtr& input, const HostTensorPtr& output)
 }
 }  // namespace
 
-bool op::v10::IsFinite::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool op::v10::IsFinite::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     OV_OP_SCOPE(v10_IsFinite_evaluate);
-    OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(inputs, 1), "Invalid IsFinite input TensorVector.");
-    OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(outputs, 1), "Invalid IsFinite output TensorVector.");
-    return evaluate_is_finite(inputs[0], outputs[0]);
+    OPENVINO_ASSERT(validate_tensor_vector(inputs, 1), "Invalid IsFinite input TensorVector.");
+    OPENVINO_ASSERT(validate_tensor_vector(outputs, 1), "Invalid IsFinite output TensorVector.");
+    return evaluate_is_finite(inputs, outputs);
 }
 
 bool op::v10::IsFinite::has_evaluate() const {

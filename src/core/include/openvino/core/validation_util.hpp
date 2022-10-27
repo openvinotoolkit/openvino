@@ -172,4 +172,8 @@ OPENVINO_API std::vector<PartialShape> get_node_input_partial_shapes(const ov::N
 ///
 /// \return True if rank compatible to any from ranks, otherwise false.
 OPENVINO_API bool is_rank_compatible_any_of(const ov::Rank& rank, const std::vector<ov::Rank>& ranks);
+
+/// \brief Checks if size of TensorVector is the same as passed size attribute. Then checks
+/// that all the Tensor pointers are not equal to nullptr
+OPENVINO_API bool validate_tensor_vector(const TensorVector& tensor_vector, const size_t& size);
 }  // namespace ov

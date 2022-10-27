@@ -4,10 +4,9 @@
 
 #include "openvino/op/is_inf.hpp"
 
-#include <ngraph/validation_util.hpp>
-
 #include "itt.hpp"
 #include "ngraph/runtime/reference/is_inf.hpp"
+#include "utils.hpp"
 
 namespace ov {
 op::v10::IsInf::IsInf(const Output<Node>& data) : op::Op{{data}} {
@@ -43,12 +42,12 @@ std::shared_ptr<Node> op::v10::IsInf::clone_with_new_inputs(const OutputVector& 
 
 namespace {
 template <element::Type_t ET>
-bool evaluate_exec(const HostTensorPtr& input,
-                   const HostTensorPtr& output,
-                   const op::v10::IsInf::Attributes& attributes) {
-    ngraph::runtime::reference::is_inf(input->get_data_ptr<ET>(),
-                                       output->get_data_ptr<element::Type_t::boolean>(),
-                                       shape_size(input->get_shape()),
+bool evaluate_exec(const TensorVector& input, TensorVector& output, const op::v10::IsInf::Attributes& attributes) {
+    using T = typename element_type_traits<ET>::value_type;
+    using U = typename element_type_traits<element::Type_t::boolean>::value_type;
+    ngraph::runtime::reference::is_inf(input[0].data<T>(),
+                                       output[0].data<U>(),
+                                       shape_size(input[0].get_shape()),
                                        attributes);
     return true;
 }
@@ -60,9 +59,9 @@ bool evaluate_exec(const HostTensorPtr& input,
     } break
 
 template <element::Type_t ET>
-bool evaluate(const HostTensorPtr& input, const HostTensorPtr& output, const op::v10::IsInf::Attributes& attributes) {
+bool evaluate(const TensorVector& input, TensorVector& output, const op::v10::IsInf::Attributes& attributes) {
     bool rc = true;
-    switch (input->get_element_type()) {
+    switch (input[0].get_element_type()) {
         IS_INF_TYPE_CASE(bf16, input, output, attributes);
         IS_INF_TYPE_CASE(f16, input, output, attributes);
         IS_INF_TYPE_CASE(f32, input, output, attributes);
@@ -74,11 +73,9 @@ bool evaluate(const HostTensorPtr& input, const HostTensorPtr& output, const op:
     return rc;
 }
 
-bool evaluate_is_inf(const HostTensorPtr& input,
-                     const HostTensorPtr& output,
-                     const op::v10::IsInf::Attributes& attributes) {
+bool evaluate_is_inf(const TensorVector& input, TensorVector& output, const op::v10::IsInf::Attributes& attributes) {
     bool rc = true;
-    switch (input->get_element_type()) {
+    switch (input[0].get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_is_inf, bf16, input, output, attributes);
         NGRAPH_TYPE_CASE(evaluate_is_inf, f16, input, output, attributes);
         NGRAPH_TYPE_CASE(evaluate_is_inf, f32, input, output, attributes);
@@ -91,11 +88,11 @@ bool evaluate_is_inf(const HostTensorPtr& input,
 }
 }  // namespace
 
-bool op::v10::IsInf::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool op::v10::IsInf::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v10_IsInf_evaluate);
-    OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(inputs, 1), "Invalid IsInf input TensorVector.");
-    OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(outputs, 1), "Invalid IsInf output TensorVector.");
-    return evaluate_is_inf(inputs[0], outputs[0], m_attributes);
+    OPENVINO_ASSERT(validate_tensor_vector(inputs, 1), "Invalid IsInf input TensorVector.");
+    OPENVINO_ASSERT(validate_tensor_vector(outputs, 1), "Invalid IsInf output TensorVector.");
+    return evaluate_is_inf(inputs, outputs, m_attributes);
 }
 
 bool op::v10::IsInf::has_evaluate() const {

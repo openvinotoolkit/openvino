@@ -4,10 +4,9 @@
 
 #include "openvino/op/is_nan.hpp"
 
-#include <ngraph/validation_util.hpp>
-
 #include "itt.hpp"
 #include "ngraph/runtime/reference/is_nan.hpp"
+#include "utils.hpp"
 
 namespace ov {
 ov::op::v10::IsNaN::IsNaN(const Output<Node>& data) : op::Op{{data}} {
@@ -35,10 +34,10 @@ bool ov::op::v10::IsNaN::visit_attributes(AttributeVisitor& visitor) {
 
 namespace {
 template <element::Type_t ET>
-bool evaluate_exec(const HostTensorPtr& input, const HostTensorPtr& output) {
-    ngraph::runtime::reference::is_nan(input->get_data_ptr<ET>(),
-                                       output->get_data_ptr<element::Type_t::boolean>(),
-                                       shape_size(input->get_shape()));
+bool evaluate_exec(const TensorVector& input, TensorVector& output) {
+    using T = typename element_type_traits<ET>::value_type;
+    using U = typename element_type_traits<element::Type_t::boolean>::value_type;
+    ngraph::runtime::reference::is_nan(input[0].data<T>(), output[0].data<U>(), shape_size(input[0].get_shape()));
     return true;
 }
 
@@ -49,9 +48,9 @@ bool evaluate_exec(const HostTensorPtr& input, const HostTensorPtr& output) {
     } break
 
 template <element::Type_t ET>
-bool evaluate(const HostTensorPtr& input, const HostTensorPtr& output) {
+bool evaluate(const TensorVector& input, TensorVector& output) {
     bool rc = true;
-    switch (input->get_element_type()) {
+    switch (input[0].get_element_type()) {
         IS_NAN_TYPE_CASE(bf16, input, output);
         IS_NAN_TYPE_CASE(f16, input, output);
         IS_NAN_TYPE_CASE(f32, input, output);
@@ -63,9 +62,9 @@ bool evaluate(const HostTensorPtr& input, const HostTensorPtr& output) {
     return rc;
 }
 
-bool evaluate_is_nan(const HostTensorPtr& input, const HostTensorPtr& output) {
+bool evaluate_is_nan(const TensorVector& input, TensorVector& output) {
     bool rc = true;
-    switch (input->get_element_type()) {
+    switch (input[0].get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_is_nan, bf16, input, output);
         NGRAPH_TYPE_CASE(evaluate_is_nan, f16, input, output);
         NGRAPH_TYPE_CASE(evaluate_is_nan, f32, input, output);
@@ -78,11 +77,11 @@ bool evaluate_is_nan(const HostTensorPtr& input, const HostTensorPtr& output) {
 }
 }  // namespace
 
-bool op::v10::IsNaN::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool op::v10::IsNaN::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v10_IsNaN_evaluate);
-    OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(inputs, 1), "Invalid IsNaN input TensorVector.");
-    OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(outputs, 1), "Invalid IsNaN output TensorVector.");
-    return evaluate_is_nan(inputs[0], outputs[0]);
+    OPENVINO_ASSERT(validate_tensor_vector(inputs, 1), "Invalid IsNaN input TensorVector.");
+    OPENVINO_ASSERT(validate_tensor_vector(outputs, 1), "Invalid IsNaN output TensorVector.");
+    return evaluate_is_nan(inputs, outputs);
 }
 
 bool op::v10::IsNaN::has_evaluate() const {
