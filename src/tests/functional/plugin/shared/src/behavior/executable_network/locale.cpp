@@ -57,6 +57,6 @@ TEST_P(CustomLocaleTest, CanLoadNetworkWithCustomLocale) {
     setlocale(LC_ALL, prev.c_str());
     setlocale(LC_NUMERIC, prev.c_str());
     setlocale(LC_TIME, prev.c_str());
-}\
+}
 
 } // namespace BehaviorTestsDefinitions
