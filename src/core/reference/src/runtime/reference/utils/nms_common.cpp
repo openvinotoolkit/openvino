@@ -22,7 +22,7 @@ void nms_common_postprocessing(void* prois,
                                const std::vector<int64_t>& selected_indices,
                                const std::vector<int64_t>& valid_outputs,
                                const ngraph::element::Type& selected_outputs_type) {
-    int64_t total_num = std::accumulate(valid_outputs.begin(), valid_outputs.end(), 0);
+    int64_t total_num = std::accumulate(valid_outputs.begin(), valid_outputs.end(), int64_t(0));
 
     switch (selected_outputs_type) {
     case element::Type_t::bf16: {

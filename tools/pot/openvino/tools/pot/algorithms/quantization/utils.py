@@ -18,6 +18,8 @@ __HARDWARE_CONFIG_DIR = Path(__file__).parent.parent.parent.absolute() / 'config
 __HARDWARE_CONFIGS_MAP = {'ANY': 'cpu.json',
                           'CPU': 'cpu.json',
                           'GNA': 'gna.json',
+                          'GNA3': 'gna3.json',
+                          'GNA3.5': 'gna3.json',
                           'GPU': 'cpu.json',
                           'VPU': 'vpu.json',
                           'CPU_SPR': 'cpu.json'}

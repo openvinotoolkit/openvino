@@ -23,7 +23,8 @@ layout resample_inst::calc_output_layout(resample_node const& node, kernel_impl_
 
     auto output_type = input_layout.data_type;
     if ((input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8)
-        && desc->operation_type != resample::InterpolateOp::InterpolateMode::NEAREST) {
+        && desc->operation_type != resample::InterpolateOp::InterpolateMode::NEAREST
+        && desc->operation_type != resample::InterpolateOp::InterpolateMode::LINEAR_ONNX) {
         output_type = data_types::f32;
     }
     if (impl_param.has_fused_primitives()) {
@@ -94,6 +95,8 @@ std::vector<layout> resample_inst::calc_output_layouts(resample_node const& /*no
 
     return { layout{output_shapes[0], input_layout.data_type, format::adjust_to_rank(input_layout.format, output_shapes[0].size())} };
 }
+
+template std::vector<layout> resample_inst::calc_output_layouts<ov::PartialShape>(resample_node const& node, const kernel_impl_params& impl_param);
 
 std::string resample_inst::to_string(resample_node const& node) {
     auto desc = node.get_primitive();

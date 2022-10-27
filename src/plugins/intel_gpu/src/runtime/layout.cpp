@@ -66,6 +66,7 @@ std::pair<bool, bool> are_layouts_identical(layout const& l1, layout const& l2) 
         check_format(format::bs_fs_yx_bsv32_fsv16) ||
         check_format(format::bs_fs_yx_bsv32_fsv32) ||
         check_format(format::bs_fs_yx_bsv16_fsv16) ||
+        check_format(format::bs_fs_yx_bsv16_fsv32) ||
         check_format(format::bs_fs_zyx_bsv16_fsv32) ||
         check_format(format::bs_fs_zyx_bsv16_fsv16) ||
         check_format(format::bs_fs_zyx_bsv32_fsv16) ||
@@ -254,6 +255,25 @@ std::string layout::to_string() const {
       << "\tpad_l=" << data_padding.lower_size().to_string() << ";\n"
       << "\tpad_u=" << data_padding.upper_size().to_string() << ";\n"
       << "}";
+    return s.str();
+}
+
+std::string layout::to_short_string() const {
+    std::stringstream s;
+    auto dump_shape = [](std::stringstream& stream, const ov::PartialShape& shape) {
+        for (size_t i = 0; i < shape.size(); i++) {
+            stream << shape[i];
+            if (i != shape.size() - 1)
+                stream << "x";
+        }
+    };
+
+    s << data_type_traits::name(data_type) << ":" << format.to_string() << ":";
+    dump_shape(s, size);
+    if (data_padding)
+        s << ":pad";
+    else
+        s << ":nopad";
     return s.str();
 }
 

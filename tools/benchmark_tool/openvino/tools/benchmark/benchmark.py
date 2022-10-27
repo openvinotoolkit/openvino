@@ -30,14 +30,15 @@ class Benchmark:
     def __del__(self):
         del self.core
 
-    def add_extension(self, path_to_extension: str=None, path_to_cldnn_config: str=None):
+    def add_extension(self, path_to_extensions: str=None, path_to_cldnn_config: str=None):
         if path_to_cldnn_config:
             self.core.set_property(GPU_DEVICE_NAME, {'CONFIG_FILE': path_to_cldnn_config})
             logger.info(f'GPU extensions is loaded {path_to_cldnn_config}')
 
-        if path_to_extension:
-            self.core.add_extension(extension_path=path_to_extension)
-            logger.info(f'CPU extensions is loaded {path_to_extension}')
+        if path_to_extensions:
+            for extension in path_to_extensions.split(","):
+                logger.info(f"Loading extension {extension}")
+                self.core.add_extension(extension)
 
     def get_version_info(self) -> str:
         logger.info(f"OpenVINO:\n{'': <9}{'API version':.<24} {get_version()}")
@@ -54,6 +55,9 @@ class Benchmark:
 
     def set_cache_dir(self, cache_dir: str):
         self.core.set_property({'CACHE_DIR': cache_dir})
+
+    def set_allow_auto_batching(self, flag: bool):
+        self.core.set_property({'ALLOW_AUTO_BATCHING': flag})
 
     def read_model(self, path_to_model: str):
         model_filename = os.path.abspath(path_to_model)

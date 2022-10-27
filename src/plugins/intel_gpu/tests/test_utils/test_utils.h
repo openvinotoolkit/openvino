@@ -54,6 +54,7 @@ namespace tests {
 
 std::shared_ptr<cldnn::engine> create_test_engine(cldnn::queue_types queue_type = cldnn::queue_types::out_of_order);
 cldnn::engine& get_test_engine();
+cldnn::engine& get_test_engine(const cldnn::engine_configuration& configuration);
 #ifdef ENABLE_ONEDNN_FOR_GPU
 cldnn::engine& get_onednn_test_engine();
 #endif
@@ -468,6 +469,8 @@ public:
             }
     };
 
+    static cldnn::format get_plain_format_for(const cldnn::format);
+
 protected:
     cldnn::engine& engine = get_test_engine();
     std::shared_ptr<test_params> generic_params;
@@ -564,6 +567,8 @@ T div_up(const T a, const U b) {
     assert(b);
     return (a + b - 1) / b;
 }
+
+double default_tolerance(data_types dt);
 
 // inline void print_bin_blob(cldnn::memory& mem, std::string name)
 // {

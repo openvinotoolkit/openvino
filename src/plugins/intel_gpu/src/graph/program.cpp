@@ -38,9 +38,11 @@
 #include "data_inst.h"
 #include "deconvolution_inst.h"
 #include "detection_output_inst.h"
+#include "generate_proposals_inst.h"
 #include "input_layout_inst.h"
 #include "shuffle_channels_inst.h"
 #include "arg_max_min_inst.h"
+#include "dft_inst.h"
 #include "lstm_inst.h"
 #include "lstm_elt_inst.h"
 #include "lstm_gemm_inst.h"
@@ -54,10 +56,12 @@
 #include "split_inst.h"
 #include "mvn_inst.h"
 #include "gemm_inst.h"
+#include "adaptive_pooling_inst.h"
 #include "reduce_inst.h"
 #include "region_yolo_inst.h"
 #include "strided_slice_inst.h"
 #include "loop_inst.h"
+#include "reverse_inst.h"
 #include "to_string_utils.h"
 #include "runtime/cldnn_itt.hpp"
 #include "runtime/kernels_cache.hpp"
@@ -109,7 +113,8 @@ program::program(engine& engine_ref,
     prepare_nodes(topology);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
-    _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(0));
+    _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(_impls_cache_capacity));
+    _in_mem_kernels_cache = std::unique_ptr<KernelsCache>(new KernelsCache(_in_mem_kernels_cache_capacity));
     program_node::reset_unique_id();
     if (no_optimizations) {
         init_graph();
@@ -131,7 +136,8 @@ program::program(engine& engine_ref,
     set_options();
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
-    _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(0));
+    _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(_impls_cache_capacity));
+    _in_mem_kernels_cache = std::unique_ptr<KernelsCache>(new KernelsCache(_in_mem_kernels_cache_capacity));
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(nodes);
     build_program(is_internal);
@@ -400,6 +406,16 @@ void program::add_node_dependencies(program_node* node) {
                                      " that is input to: " + node->get_primitive()->id);
         }
     }
+    auto deps_new = node->get_primitive()->dependencies_new();
+    for (auto& dep : deps_new) {
+        try {
+            auto dep_node = nodes_map.at(dep.pid);
+            node->dependencies_new.push_back({dep_node.get(), dep.idx});
+        } catch (...) {
+            throw std::runtime_error("Program doesn't contain primitive: " + dep.pid +
+                                     " that is input to: " + node->get_primitive()->id);
+        }
+    }
 }
 
 /* helper method for program constructor from list of nodes which
@@ -526,6 +542,8 @@ void program::pre_optimize_graph(bool is_internal) {
         apply_opt_pass<pre_replace_deconv>(lo);
 
         apply_opt_pass<prepare_primitive_fusing>(lo);
+
+        apply_opt_pass<select_preferred_formats>(lo);
 
         apply_opt_pass<reorder_inputs>(lo, rf);
         // Ideally this should be done before fusing to simplify logic and make the pass more powerful,
@@ -1409,6 +1427,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                  prim.as<mvn>().input().get_output_layout().data_type != data_types::i8)
              || prim.as<mvn>().get_primitive()->across_channels) &&
             prim.type() != cldnn::arg_max_min::type_id() &&
+            prim.type() != cldnn::dft::type_id() &&
             prim.type() != cldnn::mutable_data::type_id() &&
             prim.type() != cldnn::reduce::type_id() &&
             prim.type() != cldnn::strided_slice::type_id() &&
@@ -1418,8 +1437,19 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::gather::type_id() &&
             prim.type() != cldnn::scatter_nd_update::type_id() &&
             prim.type() != cldnn::broadcast::type_id() &&
+            prim.type() != cldnn::ctc_loss::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
-            prim.type() != cldnn::roi_align::type_id()) {
+            prim.type() != cldnn::roi_align::type_id() &&
+            prim.type() != cldnn::adaptive_pooling::type_id() &&
+            prim.type() != cldnn::bucketize::type_id() &&
+            prim.type() != cldnn::roll::type_id() &&
+            prim.type() != cldnn::prior_box::type_id() &&
+            prim.type() != cldnn::resample::type_id() &&
+            prim.type() != cldnn::eye::type_id() &&
+            prim.type() != cldnn::generate_proposals::type_id() &&
+            prim.type() != cldnn::reverse::type_id() &&
+            prim.type() != cldnn::reorg_yolo::type_id() &&
+            prim.type() != cldnn::scatter_elements_update::type_id()) {
             can_use_fsv16 = false;
         }
 
@@ -1441,14 +1471,27 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::reshape::type_id() &&
             prim.type() != cldnn::input_layout::type_id() &&
             prim.type() != cldnn::activation::type_id() &&
+            prim.type() != cldnn::dft::type_id() &&
             prim.type() != cldnn::softmax::type_id() &&
             prim.type() != cldnn::fully_connected::type_id() &&
             prim.type() != cldnn::generic_layer::type_id() &&
             prim.type() != cldnn::scatter_nd_update::type_id() &&
             prim.type() != cldnn::broadcast::type_id() &&
             prim.type() != cldnn::quantize::type_id() &&
+            prim.type() != cldnn::ctc_loss::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
-            prim.type() != cldnn::roi_align::type_id()) {
+            prim.type() != cldnn::roi_align::type_id() &&
+            prim.type() != cldnn::adaptive_pooling::type_id() &&
+            prim.type() != cldnn::bucketize::type_id() &&
+            prim.type() != cldnn::roll::type_id() &&
+            prim.type() != cldnn::resample::type_id() &&
+            prim.type() != cldnn::prior_box::type_id() &&
+            prim.type() != cldnn::eye::type_id() &&
+            prim.type() != cldnn::generate_proposals::type_id() &&
+            prim.type() != cldnn::reverse::type_id() &&
+            prim.type() != cldnn::reorg_yolo::type_id() &&
+            prim.type() != cldnn::scatter_elements_update::type_id() &&
+            prim.type() != cldnn::deconvolution::type_id()) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
         }
     }

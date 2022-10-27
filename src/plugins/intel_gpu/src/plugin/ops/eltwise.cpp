@@ -37,38 +37,43 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
-    auto outRank = op->get_output_shape(0).size();
-    for (size_t i = 0; i < inputPrimitives.size(); ++i) {
-        auto inputShape = op->get_input_shape(i);
-        auto inputRank = inputShape.size();
-        if (inputRank != outRank) {
-            // Add reorder if changing number of dimensions requires changing format
-            auto targetFormat = cldnn::format::get_default_format(outRank);
-            if (targetFormat.value != cldnn::format::get_default_format(inputRank).value) {
-                auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
-                auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(i));
-                auto reorderPrim = cldnn::reorder(reorderName,
-                                                  inputPrimitives[i],
-                                                  targetFormat,
-                                                  targetDatatype,
-                                                  std::vector<float>(),
-                                                  cldnn::reorder_mean_mode::subtract);
+    auto out_pshape = op->get_output_partial_shape(0);
+    auto out_rank = out_pshape.size();
+    // New shape infer is supposed to work w/o extra reshapes/reorders
+    // So the code below must be removed once new shape infer is enabled
+    if (out_pshape.is_static()) {
+        for (size_t i = 0; i < inputPrimitives.size(); ++i) {
+            auto input_pshape = op->get_input_partial_shape(i);
+            auto input_rank = input_pshape.size();
+            if (input_rank != out_rank && input_pshape.is_static()) {
+                // Add reorder if changing number of dimensions requires changing format
+                auto targetFormat = cldnn::format::get_default_format(out_rank);
+                if (targetFormat.value != cldnn::format::get_default_format(input_rank).value) {
+                    auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
+                    auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(i));
+                    auto reorderPrim = cldnn::reorder(reorderName,
+                                                    inputPrimitives[i],
+                                                    targetFormat,
+                                                    targetDatatype,
+                                                    std::vector<float>(),
+                                                    cldnn::reorder_mean_mode::subtract);
 
-                p.add_primitive(*op, reorderPrim);
-                inputPrimitives[i] = reorderName;
+                    p.add_primitive(*op, reorderPrim);
+                    inputPrimitives[i] = reorderName;
+                }
+
+                auto reshapeName = layerName + "_cldnn_in" + std::to_string(i) + "_reshape";
+
+                // Extend input dimensions by prepending ones
+                input_pshape.insert(input_pshape.begin(), out_rank - input_rank, 1ul);
+
+                auto targetShape = tensor_from_dims(input_pshape.to_shape());
+
+                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape);
+                p.add_primitive(*op, reshapePrim);
+
+                inputPrimitives[i] = reshapeName;
             }
-
-            auto reshapeName = layerName + "_cldnn_in" + std::to_string(i) + "_reshape";
-
-            // Extend input dimensions by prepending ones
-            inputShape.insert(inputShape.begin(), outRank - inputRank, 1ul);
-
-            auto targetShape = tensor_from_dims(inputShape);
-
-            auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape);
-            p.add_primitive(*op, reshapePrim);
-
-            inputPrimitives[i] = reshapeName;
         }
     }
 
@@ -77,7 +82,8 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
                                       inputPrimitives,
                                       mode,
                                       {},
-                                      out_dt);
+                                      out_dt,
+                                      op->get_autob());
 
     p.add_primitive(*op, eltwisePrim);
 }

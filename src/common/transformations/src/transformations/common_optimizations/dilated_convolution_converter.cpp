@@ -65,11 +65,17 @@ ngraph::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
         auto crops_begin_val = crops_begin->cast_vector<std::ptrdiff_t>();
         auto crops_end_val = crops_end->cast_vector<std::ptrdiff_t>();
         std::vector<std::ptrdiff_t> new_pads_begin;
-        for (size_t i = 2; i < pads_begin_val.size(); i++)
+        for (size_t i = 2; i < pads_begin_val.size(); i++) {
+            if (pads_begin_val[i] < crops_begin_val[i])
+                return false;
             new_pads_begin.push_back(pads_begin_val[i] - crops_begin_val[i]);
+        }
         std::vector<std::ptrdiff_t> new_pads_end;
-        for (size_t i = 2; i < pads_end_val.size(); i++)
+        for (size_t i = 2; i < pads_end_val.size(); i++) {
+            if (pads_end_val[i] < crops_end_val[i])
+                return false;
             new_pads_end.push_back(pads_end_val[i] - crops_end_val[i]);
+        }
         auto new_conv = register_new_node<opset6::Convolution>(pattern_map.at(data_pattern),
                                                                conv->input_value(1),
                                                                conv->get_strides(),

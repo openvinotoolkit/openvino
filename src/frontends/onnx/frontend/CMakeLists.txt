@@ -2,9 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    ie_add_compiler_flags(/wd4267)
+    ie_add_compiler_flags(/wd4018)
+    ie_add_compiler_flags(/wd4244)
+endif()
+
 ov_add_frontend(NAME onnx
                 LINKABLE_FRONTEND
-                SHUTDOWN_PROTOBUF
                 PROTOBUF_LITE
                 SKIP_NCC_STYLE
                 FILEDESCRIPTION "FrontEnd to load and convert ONNX file format"
@@ -22,5 +27,4 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import
         DESTINATION ${FRONTEND_INSTALL_INCLUDE}/ngraph/frontend
-        COMPONENT ${OV_CPACK_COMP_CORE_DEV}
-        FILES_MATCHING PATTERN "*.hpp")
+        COMPONENT ${OV_CPACK_COMP_CORE_DEV})

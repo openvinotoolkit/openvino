@@ -4,8 +4,27 @@ trigger:
     - master
     - releases/*
   paths:
-    exclude:
-    - docs/*
+    exclude: 
+    - docs/
+    - /**/docs/*
+    - /**/*.md
+    - README.md
+    - /**/layer_tests_summary/**
+    - src/tests/functional/plugin/conformance/**
+
+pr:
+  branches:
+    include:
+    - master
+    - releases/*
+  paths:
+    exclude: 
+    - docs/
+    - /**/docs/*
+    - /**/*.md
+    - README.md
+    - /**/layer_tests_summary/**
+    - src/tests/functional/plugin/conformance/**
 
 jobs:
 - job: OpenVINO_ONNX_CI

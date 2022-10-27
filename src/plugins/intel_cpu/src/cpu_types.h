@@ -108,6 +108,8 @@ enum class Type {
     Subgraph,
     PriorBox,
     PriorBoxClustered,
+    Interaction,
+    MHA
 };
 
 enum class Algorithm {

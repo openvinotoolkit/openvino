@@ -3,25 +3,23 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from functools import singledispatch
-from typing import Any, Union, Dict
+from typing import Any, Iterable, Union, Dict
 from pathlib import Path
 
 import numpy as np
 
-from openvino.pyopenvino import Model
-from openvino.pyopenvino import Core as CoreBase
-from openvino.pyopenvino import CompiledModel as CompiledModelBase
-from openvino.pyopenvino import InferRequest as InferRequestBase
-from openvino.pyopenvino import AsyncInferQueue as AsyncInferQueueBase
-from openvino.pyopenvino import ConstOutput
-from openvino.pyopenvino import Tensor
-from openvino.pyopenvino import Type
-from openvino.pyopenvino import Shape
+from openvino._pyopenvino import Model
+from openvino._pyopenvino import Core as CoreBase
+from openvino._pyopenvino import CompiledModel as CompiledModelBase
+from openvino._pyopenvino import InferRequest as InferRequestBase
+from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
+from openvino._pyopenvino import ConstOutput
+from openvino._pyopenvino import Tensor
 
 
 def tensor_from_file(path: str) -> Tensor:
     """Create Tensor from file. Data will be read with dtype of unit8."""
-    return Tensor(np.fromfile(path, dtype=np.uint8))
+    return Tensor(np.fromfile(path, dtype=np.uint8))  # type: ignore
 
 
 def set_scalar_tensor(request: InferRequestBase, tensor: Tensor, key: Union[str, int, ConstOutput] = None) -> None:
@@ -69,7 +67,7 @@ def _(
         tensor.data[:] = inputs[:]
 
 
-@update_tensor.register(np.number)
+@update_tensor.register(np.number)  # type: ignore
 @update_tensor.register(float)
 @update_tensor.register(int)
 def _(
@@ -282,6 +280,14 @@ class AsyncInferQueue(AsyncInferQueueBase):
     InferRequests and provides synchronization functions to control flow of
     a simple pipeline.
     """
+    def __iter__(self) -> Iterable[InferRequest]:
+        """Allows to iterate over AsyncInferQueue.
+
+        :return: a map object (which is an iterator) that yields InferRequests.
+        :rtype: Iterable[openvino.runtime.InferRequest]
+        """
+        return (InferRequest(x) for x in super().__iter__())
+
     def __getitem__(self, i: int) -> InferRequest:
         """Gets InferRequest from the pool with given i id.
 

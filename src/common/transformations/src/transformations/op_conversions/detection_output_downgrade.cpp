@@ -44,7 +44,7 @@ pass::ConvertDetectionOutput8ToDetectionOutput1::ConvertDetectionOutput8ToDetect
         attributes_v1.keep_top_k = attributes_v8.keep_top_k;
         attributes_v1.nms_threshold = attributes_v8.nms_threshold;
         attributes_v1.normalized = attributes_v8.normalized;
-        attributes_v1.num_classes = num_classes.get_length();
+        attributes_v1.num_classes = static_cast<int>(num_classes.get_length());
         attributes_v1.objectness_score = attributes_v8.objectness_score;
         attributes_v1.share_location = attributes_v8.share_location;
         attributes_v1.top_k = attributes_v8.top_k;

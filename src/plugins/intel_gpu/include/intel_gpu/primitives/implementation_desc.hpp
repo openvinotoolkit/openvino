@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include "intel_gpu/runtime/tensor.hpp"
-
 #include <map>
 #include <ostream>
+
+#include "intel_gpu/primitives/primitive.hpp"
+#include "intel_gpu/runtime/tensor.hpp"
 
 namespace cldnn {
 

@@ -18,7 +18,6 @@ void shape_infer(const Split* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2));
 
     output_shapes.clear();
@@ -32,7 +31,7 @@ void shape_infer(const Split* op,
     const auto data_rank = data_ps.rank();
 
     std::vector<int64_t> axes_values;
-    const auto & num_splits = op->get_num_splits();
+    const auto& num_splits = op->get_num_splits();
     if (get_data_as_int64<T>(1, op, axes_values, constant_data) && data_rank.is_static()) {
         NODE_VALIDATION_CHECK(op,
                               axes_values.size() == 1,

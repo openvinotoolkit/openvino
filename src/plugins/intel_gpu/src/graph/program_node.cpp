@@ -6,9 +6,11 @@
 #include "program_helpers.h"
 #include "primitive_inst.h"
 #include "loop_inst.h"
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#include "strided_slice_inst.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#ifdef ENABLE_ONEDNN_FOR_GPU
 #include "convolution_inst.h"
+#include "deconvolution_inst.h"
 #include "quantize_inst.h"
 #include "reorder_inst.h"
 #include "pooling_inst.h"
@@ -29,9 +31,11 @@ using namespace cldnn;
 thread_local size_t program_node::cur_id = 0;
 
 program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
-    : desc(prim), myprog(prog), org_id(prim ? (prim->id) : 0) {
-    if (prim)
+    : desc(prim), myprog(prog), preferred_input_fmts({}), preferred_output_fmts({}), org_id(prim ? (prim->id) : 0) {
+    if (prim) {
         output_layout.data_padding = prim->output_padding;
+        num_outputs = prim->num_outputs;
+    }
 }
 
 void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling) {
@@ -96,17 +100,7 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     s << get_preferred_impl_type();
     node_info->add("preferred impl", s.str());
 
-    json_composite output_layout_info;
-    output_layout_info.add("data type", dt_to_str(output_layout.data_type));
-    output_layout_info.add("format", fmt_to_str(output_layout.format));
-    output_layout_info.add("size", output_layout.get_tensor().to_string());
-
-    json_composite padding_info;
-    padding_info.add("lower size", output_layout.data_padding.lower_size().to_string());
-    padding_info.add("upper size", output_layout.data_padding.upper_size().to_string());
-    output_layout_info.add("padding info", padding_info);
-
-    node_info->add("output layout", output_layout_info);
+    node_info->add("output layout", output_layout.to_string());
 
     node_info->add("constant", bool_to_str(constant));
     node_info->add("in data flow", bool_to_str(data_flow));
@@ -127,7 +121,7 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
         json_composite info;
         info.add("data type", dt_to_str(fused_desc.output_layout.data_type));
         info.add("format", fmt_to_str(output_layout.format));
-        info.add("size", output_layout.get_tensor().to_string());
+        info.add("size", output_layout.to_short_string());
         fused_node_info.add("output layout", info);
         fused_nodes_info.add("fused primitive idx " + std::to_string(index++), fused_node_info);
     }
@@ -217,6 +211,26 @@ void program_node::remove_dependency(program_node& node) {
             remove_dependency(i);
 }
 
+size_t program_node::get_user_index(program_node& node) const {
+    size_t idx = 0;
+    for (auto& user : users) {
+        if (user == &node)
+            return idx;
+        else
+            idx++;
+    }
+
+    OPENVINO_ASSERT(false, "Search invalid user node" + node.id() + " node");
+}
+
+size_t program_node::get_dependency_index(program_node& node) const {
+    for (size_t i = 0; i < dependencies.size(); ++i)
+        if (dependencies[i] == &node)
+            return i;
+
+    OPENVINO_ASSERT(false, "Search invalid dependency node" + node.id() + " node");
+}
+
 bool program_node::is_detached(bool whole_branch) {
     if (!users.empty())
         return false;
@@ -226,15 +240,25 @@ bool program_node::is_detached(bool whole_branch) {
 }
 
 layout program_node::calc_output_layout() const {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
     bool allow_new_shape_infer =
         get_program().get_options().get<build_option_type::allow_new_shape_infer>()->enabled();
     if (allow_new_shape_infer) {
         auto out_layouts = type()->calc_output_layouts(*this, *get_kernel_impl_params());
         if (!out_layouts.empty()) {
+            GPU_DEBUG_IF(debug_config->verbose >= 4) {
+                GPU_DEBUG_COUT << id() << ": calc_output_layout(new):" << out_layouts[0] << std::endl;
+            }
             return out_layouts[0];
         }
     }
-    return type()->calc_output_layout(*this, *get_kernel_impl_params());
+
+    auto res = type()->calc_output_layout(*this, *get_kernel_impl_params());
+    GPU_DEBUG_IF(debug_config->verbose >= 4) {
+        GPU_DEBUG_COUT << id() << ": calc_output_layout:" << res << std::endl;
+    }
+
+    return res;
 }
 
 std::vector<layout> program_node::calc_output_layouts() const {
@@ -281,6 +305,16 @@ bool program_node::recalc_output_layout(bool invalidate_users_if_changed) {
 }
 
 bool program_node::is_dynamic() const {
+    // Strided slice loads data from {1,2,3} dependencies in impl::create method.
+    // It means that this data must be put into impl_params map
+    // Thus we treat it as "dynamic" case
+    // TODO: Remove once strided slice impl support runtime tensors for begin/end/stride
+    if (is_type<strided_slice>()) {
+        for (size_t i = 1; i < get_dependencies().size(); i++) {
+            if (!get_dependency(i).is_type<data>())
+                return true;
+        }
+    }
     for (const auto* input : get_dependencies()) {
         if (input->get_output_layout().is_dynamic())
             return true;
@@ -290,6 +324,17 @@ bool program_node::is_dynamic() const {
 }
 
 bool program_node::is_dynamic() {
+    // Strided slice loads data from {1,2,3} dependencies in impl::create method.
+    // It means that this data must be put into impl_params map
+    // Thus we treat it as "dynamic" case
+    // TODO: Remove once strided slice impl support runtime tensors for begin/end/stride
+    if (is_type<strided_slice>()) {
+        for (size_t i = 1; i < get_dependencies().size(); i++) {
+            if (!get_dependency(i).is_type<data>())
+                return true;
+        }
+    }
+
     for (auto& input : get_dependencies()) {
         if (input->get_output_layout(true).is_dynamic())
             return true;
@@ -328,6 +373,8 @@ std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
 void program_node::invalidate_users() const {
     for (auto& user : users) {
         if (user->valid_output_layout) {
+            if (user->get_preferred_output_fmt() != format::any)
+                continue;
             user->valid_output_layout = false;
             user->invalidate_users();
         }
@@ -378,6 +425,25 @@ bool program_node::need_lockable_memory() const {
     });
 
     return need_lockable_mem;
+}
+
+void program_node::init_preferred_fmt(size_t dep_node, size_t user_node) {
+    preferred_input_fmts.resize(dep_node, format::any);
+    preferred_output_fmts.resize(user_node, format::any);
+}
+
+void program_node::set_preferred_input_fmt(size_t idx, format::type type) {
+    if (idx >= preferred_input_fmts.size())
+        preferred_input_fmts.resize(idx+1, format::any);
+
+    preferred_input_fmts.at(idx) = type;
+}
+
+void program_node::set_preferred_output_fmt(size_t idx, format::type type) {
+    if (idx >= preferred_output_fmts.size())
+        preferred_output_fmts.resize(idx+1, format::any);
+
+    preferred_output_fmts.at(idx) = type;
 }
 
     /* ----------------------------------------- */
@@ -602,8 +668,8 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
         auto cur_idx = static_cast<int>(has_out_scales(attr) ? (cur_post_op_idx >= 1 ? cur_post_op_idx - 1 : 0) : cur_post_op_idx);
         auto prev_idx = static_cast<int>(has_out_scales(attr) ? (prev_post_op_idx >= 1 ? prev_post_op_idx - 1 : 0) : prev_post_op_idx);
 
-        // if 2 indices are same, add the last post-op to dnnl::post_ops
-        if (prev_idx == post_ops_size - 1 && prev_idx == cur_idx && !type_is_any_optimized(prev_type)) {
+        // If prev_idx and cur_idx are same, add the last post-op to dnnl::post_ops
+        if (prev_post_op_idx == post_ops_size - 1 && prev_idx == cur_idx && !type_is_any_optimized(prev_type)) {
             add_post_op(prev_type, p_ops, optimized_p_ops, prev_idx);
             break;
         }
@@ -962,18 +1028,23 @@ void program_node::init_onednn_primitive_attributes() {
                     update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx);
                 }
             } else {
-                if (in.spatial(0) > 1 || in.spatial(1) > 1 || in.batch() > 1)
-                    throw std::runtime_error("Unsupported eltwise mode for fused onednn op");
-                // convolution using post-op output scales can only be int8/uint8
-                if (idx == 0 && !has_out_scales(attrs) && !is_type<pooling>() && !is_type<reduce>() &&
-                    !(is_type<convolution>() && data_type_traits::is_floating_point(output_layout.data_type))) {
-                    int mask = in.count() > 1 ? 2 : 0;
-                    attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
-                    update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx);
-                } else {
+                auto input_datatype = get_dependency(0).get_output_layout().data_type;
+                // convolution using post-op output scales can only be used when i8/u8 input (which use integer accumulator)
+                bool cant_use_output_scales =
+                    idx != 0 ||
+                    has_out_scales(attrs) ||
+                    is_type<pooling>() ||
+                    is_type<reduce>() ||
+                    (is_type<convolution>() && data_type_traits::is_floating_point(input_datatype)) ||
+                    (is_type<deconvolution>() && data_type_traits::is_floating_point(input_datatype));
+                if (cant_use_output_scales) {
                     dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab, true);
                     post_ops.append_binary(dnnl::algorithm::binary_mul, in_desc);
                     update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx);
+                } else {
+                    int mask = in.count() > 1 ? 2 : 0;
+                    attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
+                    update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx);
                 }
             }
         } else if (desc.is_type<quantize>()) {
@@ -1206,6 +1277,9 @@ void program_node::init_onednn_primitive_attributes() {
         // Trying to combine multiplications and additions which are placed one after another.
         // We do it in the cycle because some optimization cases can be simplified again from time to time
         do {
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(debug_config->disable_onednn_opt_post_ops)
+                break;
             optimized_post_ops = try_optimize_post_ops(optimized_post_ops, attrs, optimization_is_finished);
         } while (!optimization_is_finished);
 
@@ -1218,5 +1292,6 @@ void program_node::init_onednn_primitive_attributes() {
 
     add_onednn_attrs(attrs);
 }
+
 
 #endif // ENABLE_ONEDNN_FOR_GPU

@@ -5,8 +5,8 @@
 import openvino.preprocess as ov_pre
 import openvino.runtime as ov_run
 import openvino.frontend as ov_front
-import openvino.offline_transformations as ov_off_transf
-import openvino.pyopenvino as ov_py
+import openvino._offline_transformations as ov_off_transf
+import openvino._pyopenvino as ov_py
 
 
 def test_get_version_match():

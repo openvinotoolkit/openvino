@@ -11,6 +11,7 @@
 #include <cpu/x64/jit_generator.hpp>
 #include "ie_parallel.hpp"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include <common/primitive_hashing_utils.hpp>
 
 using namespace InferenceEngine;
 using namespace dnnl;
@@ -681,6 +682,64 @@ bool DeformableConvolution::isSupportedOperation(const std::shared_ptr<const ngr
     return true;
 }
 
+namespace {
+
+struct DefConvKey {
+    std::vector<std::shared_ptr<BlockedMemoryDesc>> descVector;
+    DeformableConvolution::DefConvAttr defConvAttr;
+    impl_desc_type implType;
+
+    size_t hash() const;
+    bool operator==(const DefConvKey& rhs) const;
+};
+
+size_t DefConvKey::hash() const {
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::primitive_hashing;
+
+    size_t seed = 0;
+
+    for (const auto& ptr : descVector) {
+        if (ptr) {
+            seed = get_vector_hash(seed, ptr->getBlockDims());
+            seed = get_vector_hash(seed, ptr->getStrides());
+            seed = get_vector_hash(seed, ptr->getOrder());
+            seed = get_vector_hash(seed, ptr->getOffsetPaddingToData());
+            seed = hash_combine(seed, ptr->getOffsetPadding());
+        }
+    }
+
+    seed = get_vector_hash(seed, defConvAttr.stride);
+    seed = get_vector_hash(seed, defConvAttr.dilation);
+    seed = get_vector_hash(seed, defConvAttr.padL);
+
+    seed = hash_combine(seed, implType);
+    return seed;
+}
+
+bool DefConvKey::operator==(const DefConvKey &rhs) const {
+    bool retVal = true;
+    for (size_t i = 0; i < descVector.size(); i++) {
+        if (descVector[i] != rhs.descVector[i]) {
+            retVal = retVal && descVector[i] && rhs.descVector[i] &&
+            descVector[i]->getBlockDims() == rhs.descVector[i]->getBlockDims() &&
+            descVector[i]->getStrides() == rhs.descVector[i]->getStrides() &&
+            descVector[i]->getOrder() == rhs.descVector[i]->getOrder() &&
+            descVector[i]->getOffsetPaddingToData() == rhs.descVector[i]->getOffsetPaddingToData() &&
+            descVector[i]->getOffsetPadding() == rhs.descVector[i]->getOffsetPadding();
+        }
+    }
+
+    retVal = retVal && defConvAttr.stride == rhs.defConvAttr.stride;
+    retVal = retVal && defConvAttr.dilation == rhs.defConvAttr.dilation;
+    retVal = retVal && defConvAttr.padL == rhs.defConvAttr.padL;
+
+    retVal = retVal && implType == rhs.implType;
+    return retVal;
+}
+
+} // namespace
+
 DeformableConvolution::DeformableConvolution(const std::shared_ptr<ngraph::Node>& op,
         const dnnl::engine& eng, WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
     std::string errorMessage;
@@ -940,7 +999,7 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(
         }
     };
 
-    parallel_nd(MB, DG, OH, OW, [&](int mb, int dg, int oh, int ow)  {
+    parallel_nd(MB, DG, OH, OW, [&](dim_t mb, dim_t dg, dim_t oh, dim_t ow) {
         precompKer(mb, dg, oh, ow);
     });
 }
@@ -1095,8 +1154,7 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src, const flo
         return d;
     };
 
-    parallel_nd(G, MB, OC, OH, OW,
-                [&](int g, int mb, int oc, int oh, int ow)  {
+    parallel_nd(G, MB, OC, OH, OW, [&](dnnl_dim_t g, dnnl_dim_t mb, dnnl_dim_t oc, dnnl_dim_t oh, dnnl_dim_t ow) {
                     dst[mb * dstStrides[0] + (g * OC + oc) * dstStrides[1] + oh * dstStrides[2] + ow * dstStrides[3]] = compKer(g, mb, oc, oh, ow);
                 });
 }
@@ -1142,6 +1200,12 @@ void DeformableConvolution::prepareParams() {
     }
     descVector.push_back(getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>());
 
+    DefConvKey key = {
+        descVector,
+        defConvAttr,
+        getSelectedPrimitiveDescriptor()->getImplementationType()
+    };
+
     const int MB = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims()[0];
     const int OH = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims()[2];
     const int OW = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims()[3];
@@ -1155,10 +1219,19 @@ void DeformableConvolution::prepareParams() {
     sampledCoordsVector.resize(MB * DG * KH * KW * OH * OW * sampledPointsPerPixel);
     interpWeightsVector.resize(MB * DG * KH * KW * OH * OW * sampledPointsPerPixel);
 
-    if (enforceRef) {
-        execPtr = std::make_shared<DefConvRefExecutor>(defConvAttr, descVector);
-    } else {
-        execPtr = std::make_shared<DefConvJitExecutor>(defConvAttr, descVector);
+    execPtr = nullptr;
+
+    auto cache = getRuntimeCache();
+    auto result = cache->getOrCreate(key, [] (const DefConvKey& key) -> std::shared_ptr<DefConvExecutor> {
+        if (key.implType == impl_desc_type::ref) {
+            return std::make_shared<DefConvRefExecutor>(key.defConvAttr, key.descVector);
+        }
+        return std::make_shared<DefConvJitExecutor>(key.defConvAttr, key.descVector);
+    });
+    execPtr = result.first;
+
+    if (!execPtr) {
+        IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
 }
 
