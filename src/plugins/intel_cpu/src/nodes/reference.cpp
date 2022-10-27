@@ -19,7 +19,7 @@ namespace node {
 
 Reference::Reference(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache,
                                          const std::string& errorMessage) :
-        Node(op, eng, cache), ngraphOp(op), additionalErrorMessage(errorMessage) {
+        Node(op, eng, cache, DefaultShapeInferFactory(op, 0x00)), ngraphOp(op), additionalErrorMessage(errorMessage) {
     if (!op->has_evaluate()) {
         IE_THROW(NotImplemented) << "Cannot fallback on ngraph reference implementation (Ngraph::Node::evaluate() is not implemented)";
     }

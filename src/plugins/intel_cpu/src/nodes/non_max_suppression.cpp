@@ -575,7 +575,7 @@ bool NonMaxSuppression::isSupportedOperation(const std::shared_ptr<const ngraph:
 }
 
 NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache), isSoftSuppressedByIOU(false) {
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache, DefaultShapeInferFactory(op, 0x00)), isSoftSuppressedByIOU(false) {
         std::string errorMessage;
         if (!isSupportedOperation(op, errorMessage)) {
             IE_THROW(NotImplemented) << errorMessage;

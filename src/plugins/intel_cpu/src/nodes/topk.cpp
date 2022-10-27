@@ -1822,7 +1822,7 @@ bool TopK::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, s
 }
 
 TopK::TopK(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+        : Node(op, eng, cache, DefaultShapeInferFactory(op, 0x00)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "TopK layer with name '" + getName() + "'";

@@ -1013,7 +1013,7 @@ bool ColorConvert::isSupportedOperation(const std::shared_ptr<const ngraph::Node
 ColorConvert::ColorConvert(const std::shared_ptr<ngraph::Node>& op,
                                                const dnnl::engine& eng,
                                                WeightsSharing::Ptr &cache)
-    : Node(op, eng, cache) {
+    : Node(op, eng, cache, DefaultShapeInferFactory(op, 0x00)) {
     std::string errorMessage;
     std::tie(algorithm, errorMessage) = getAlgorithmFor(op);
     if (algorithm == Algorithm::Default)

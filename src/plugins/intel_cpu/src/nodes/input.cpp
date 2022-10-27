@@ -230,7 +230,7 @@ jit_has_subnormals_base::fn_t jit_has_subnormals_function() {
 }   // namespace
 
 Input::Input(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+        : Node(op, eng, cache, DefaultShapeInferFactory(op, 0x00)) {
     if (!one_of(op->get_type_info(),
             v0::Parameter::get_type_info_static(),
             v0::Constant::get_type_info_static(),

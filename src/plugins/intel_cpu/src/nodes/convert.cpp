@@ -31,7 +31,7 @@ bool Convert::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
 }
 
 Convert::Convert(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+        : Node(op, eng, cache, DefaultShapeInferFactory(op, 0x00)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Convert node with name '" + getName() + "'";
