@@ -61,7 +61,6 @@ void * ExportSueLegacyUsingGnaApi2(
 #define Gna2TlvTypeOVOutputScaleFactor GNA2_TLV_IMPL_CHAR_TO_TYPE("OVOS")
 #define Gna2TlvTypeOVString GNA2_TLV_IMPL_CHAR_TO_TYPE("OVSS")
 #define Gna2TlvTypeOVVersion GNA2_TLV_IMPL_CHAR_TO_TYPE("OVVR")
-#define Gna2ExportTlv(...) 1
 
 static_assert(std::numeric_limits<float>::is_iec559, "Float is not IEC 559 compatible");
 typedef std::array<char, sizeof(Gna2TlvRecord) + sizeof(float)> TlvFloatRecord;

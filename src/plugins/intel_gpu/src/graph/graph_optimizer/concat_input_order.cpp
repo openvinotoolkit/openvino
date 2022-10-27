@@ -120,7 +120,7 @@ void concat_input_order::run(program& p) {
         // 4. Not already aligned
         // 5. Users can accept shuffled features
         // 6. No fused primitives
-        if (!node->is_type<concatenation>() || node->is_output())
+        if (!node->is_type<concatenation>() || node->is_output() || node->is_dynamic())
             continue;
 
         auto& concat_node = node->as<concatenation>();

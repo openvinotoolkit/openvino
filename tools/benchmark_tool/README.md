@@ -102,13 +102,13 @@ Running the application with the `-h` or `--help` option yields the following us
 ```
 benchmark_app -h
 [Step 1/11] Parsing and validating input arguments
-usage: benchmark_app [-h [HELP]] [-i PATHS_TO_INPUT [PATHS_TO_INPUT ...]] -m PATH_TO_MODEL [-d TARGET_DEVICE] [-l PATH_TO_EXTENSION] [-c PATH_TO_CLDNN_CONFIG] [-hint {throughput,latency,none}]
+usage: benchmark_app [-h [HELP]] [-i PATHS_TO_INPUT [PATHS_TO_INPUT ...]] -m PATH_TO_MODEL [-d TARGET_DEVICE] [-extensions PATH_TO_EXTENSIONS] [-c PATH_TO_CLDNN_CONFIG] [-hint {throughput,latency,none}]
                      [-api {sync,async}] [-niter NUMBER_ITERATIONS] [-nireq NUMBER_INFER_REQUESTS] [-b BATCH_SIZE] [-stream_output [STREAM_OUTPUT]] [-t TIME] [-progress [PROGRESS]] [-shape SHAPE]
                      [-data_shape DATA_SHAPE] [-layout LAYOUT] [-nstreams NUMBER_STREAMS]
                      [--latency_percentile {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100}]
-                     [-enforcebf16 [{True,False}]] [-nthreads NUMBER_THREADS] [-pin {YES,NO,NUMA,HYBRID_AWARE}] [-exec_graph_path EXEC_GRAPH_PATH] [-pc [PERF_COUNTS]] [-pcseq [PCSEQ]]
+                     [-nthreads NUMBER_THREADS] [-pin {YES,NO,NUMA,HYBRID_AWARE}] [-exec_graph_path EXEC_GRAPH_PATH] [-pc [PERF_COUNTS]] [-pcseq [PCSEQ]]
                      [-inference_only [INFERENCE_ONLY]] [-report_type {no_counters,average_counters,detailed_counters}] [-report_folder REPORT_FOLDER] [-dump_config DUMP_CONFIG]
-                     [-load_config LOAD_CONFIG] [-qb {8,16}] [-ip {u8,U8,f16,FP16,f32,FP32}] [-op {u8,U8,f16,FP16,f32,FP32}] [-iop INPUT_OUTPUT_PRECISION] [-cdir CACHE_DIR] [-lfile [LOAD_FROM_FILE]]
+                     [-load_config LOAD_CONFIG] [-infer_precision INFER_PRECISION] [-ip {u8,U8,f16,FP16,f32,FP32}] [-op {u8,U8,f16,FP16,f32,FP32}] [-iop INPUT_OUTPUT_PRECISION] [-cdir CACHE_DIR] [-lfile [LOAD_FROM_FILE]]
                      [-iscale INPUT_SCALE] [-imean INPUT_MEAN]
 
 Options:
@@ -122,8 +122,8 @@ Options:
   -d TARGET_DEVICE, --target_device TARGET_DEVICE
                         Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU. Use '-d HETERO:<comma separated devices list>' format to
                         specify HETERO plugin. Use '-d MULTI:<comma separated devices list>' format to specify MULTI plugin. The application looks for a suitable plugin for the specified device.
-  -l PATH_TO_EXTENSION, --path_to_extension PATH_TO_EXTENSION
-                        Optional. Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.
+  -extensions PATH_TO_EXTENSIONS, --extensions PATH_TO_EXTENSIONS
+                        Optional. Path or a comma-separated list of paths to libraries (.so or .dll) with extensions.
   -c PATH_TO_CLDNN_CONFIG, --path_to_cldnn_config PATH_TO_CLDNN_CONFIG
                         Optional. Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
   -hint {throughput,latency,none}, --perf_hint {throughput,latency,none}
@@ -155,9 +155,6 @@ Options:
                         number of streams should be set to 1. See samples README for more details.
   --latency_percentile {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100}
                         Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).
-  -enforcebf16 [{True,False}], --enforce_bfloat16 [{True,False}]
-                        Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform. 'True' - enable bfloat16 regardless of platform support.
-                        'False' - disable bfloat16 regardless of platform support.
   -nthreads NUMBER_THREADS, --number_threads NUMBER_THREADS
                         Number of threads to use for inference on the CPU, GNA (including HETERO and MULTI cases).
   -pin {YES,NO,NUMA,HYBRID_AWARE}, --infer_threads_pinning {YES,NO,NUMA,HYBRID_AWARE}
@@ -181,8 +178,8 @@ Options:
                         Optional. Path to JSON file to dump OpenVINO parameters, which were set by application.
   -load_config LOAD_CONFIG
                         Optional. Path to JSON file to load custom OpenVINO parameters. Please note, command line parameters have higher priority then parameters from configuration file.
-  -qb {8,16}, --quantization_bits {8,16}
-                        Optional. Weight bits for quantization: 8 (I8) or 16 (I16)
+  -infer_precision INFER_PRECISION
+                        Optional. Hint to specifies inference precision. Example: -infer_precision CPU:bf16,GPU:f32'.
   -ip {u8,U8,f16,FP16,f32,FP32}, --input_precision {u8,U8,f16,FP16,f32,FP32}
                         Optional. Specifies precision for all input layers of the network.
   -op {u8,U8,f16,FP16,f32,FP32}, --output_precision {u8,U8,f16,FP16,f32,FP32}
