@@ -548,12 +548,12 @@ std::vector<VectorDims> Deconvolution::shapeInfer() const {
 }
 
 VectorDims Deconvolution::shapeInferInternal(const VectorDims &inDims, std::vector<int32_t> outSpDims) const {
-    std::vector<StaticShape> inputShapes = {
+    std::vector<VectorDims> inputShapes = {
             inDims,
             getWeightDims()
     };
 
-    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> inputValues;
+    std::unordered_map<size_t, MemoryPtr> inputValues;
 
     if (externOutShape) {
         if (outSpDims.size() != getInputShapeAtPort(2).getStaticDims()[0]) {
@@ -561,14 +561,24 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims &inDims, std::vect
                        << ", because the node has 'output_shape' input, but provided output spatial dims number is incorrect";
         }
         inputShapes.push_back({outSpDims.size()});
-        inputValues.insert({2, std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32,
-                                                                              inputShapes.back().to_shape(),
-                                                                              outSpDims.data())});
+        CpuBlockedMemoryDesc desc(Precision::I32, Shape(inputShapes.back()));
+        auto mem = std::make_shared<Memory>(getEngine());
+        mem->Create(desc, outSpDims.data());
+        inputValues[2] = mem;
+
+        // inputValues.insert({2, std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32,
+        //                                                                       inputShapes.back().getStaticDims(),
+        //                                                                       outSpDims.data())});
     }
 
-    std::vector<StaticShape> outputShapes = shapeInference->infer(inputShapes, inputValues);
+    std::vector<std::reference_wrapper<const VectorDims>> inputShapesRefs;
+    for (auto& item : inputShapes) {
+        inputShapesRefs.emplace_back(std::ref(item));
+    }
 
-    return outputShapes.back().to_shape();
+    auto outputShapes = shapeInference->infer(inputShapesRefs, inputValues);
+
+    return outputShapes.back();
 }
 
 void Deconvolution::setDynamicBatchLim(int lim) {
