@@ -21,9 +21,9 @@ class Parameter_extender(Extender):
             Extender.attr_to_list(op, 'shape')
 
             # Remove brackets from shape splited by comma separator
-            if op.shape[0][0] == '[':
+            if isinstance(op.shape[0], str) and op.shape[0][0] == '[':
                 op.shape[0] = op.shape[0][1:]
-            if op.shape[-1][-1] == ']':
+            if isinstance(op.shape[-1], str) and op.shape[-1][-1] == ']':
                 op.shape[-1] = op.shape[-1][:-1]
 
             shape = op.shape.copy()
