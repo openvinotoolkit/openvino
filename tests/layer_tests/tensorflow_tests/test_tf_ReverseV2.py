@@ -11,7 +11,7 @@ class TestReverseV2(CommonTFLayerTest):
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
             x = tf.compat.v1.placeholder(tf.float32, shape, 'Input')
-            tf.compat.v1.reverse_v2(x, axis)
+            tf.raw_ops.ReverseV2(tensor=x, axis=axis, name='reverse')
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
