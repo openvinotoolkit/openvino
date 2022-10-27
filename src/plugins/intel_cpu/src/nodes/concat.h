@@ -48,9 +48,6 @@ private:
     std::vector<size_t> srcsOffset; // inputs data may share same memory pointer
     InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
-
-protected:
-    // std::vector<VectorDims> shapeInfer() const override;
 };
 
 }   // namespace node
