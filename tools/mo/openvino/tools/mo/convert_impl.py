@@ -11,6 +11,7 @@ from collections import OrderedDict
 from copy import deepcopy
 
 import numpy as np
+import torch
 
 try:
     import openvino_telemetry as tm
@@ -537,7 +538,7 @@ def get_dynamic_dims(shape: [PartialShape, list, tuple]):
         elif isinstance(dim, tuple):
             dynamic_dims.append(idx)
         elif isinstance(dim, Dimension):
-            if not dim.is_static:
+            if dim.get_min_length() == 0 and dim.get_max_length() == -1:
                 dynamic_dims.append(idx)
 
     return dynamic_dims
@@ -603,7 +604,16 @@ def convert_pytorch_to_onnx(model, input_shape, opset_version, sample_input, out
     import torch
 
     if sample_input is not None:
-        inputs = sample_input
+        if isinstance(sample_input, torch.Tensor):
+            inputs = [sample_input]
+        elif isinstance(sample_input, list):
+            for inp in sample_input:
+                if not isinstance(inp, torch.Tensor):
+                    raise Error(
+                        "Unknown type of sample_input. Expected torch.Tensor. Got {}".format(type(inp)))
+            inputs = sample_input
+        else:
+            raise Error("Unknown type of sample_input. Expected torch.Tensor or list of torch.Tensor's. Got {}".format(type(sample_input)))
     elif input_shape is not None:
         inputs = []
         for shape_idx, shape in enumerate(input_shape):
@@ -615,10 +625,10 @@ def convert_pytorch_to_onnx(model, input_shape, opset_version, sample_input, out
     else:
         raise Error("Please provide input_shapes or sample_input for converting PyTorch model.")
 
-    input_names = ["input_{}".format(idx) for idx in range(len(input_shape))]
     dynamic_axes_params = {}
     dynamic_dims_dict = {}
     if input_shape is not None:
+        input_names = ["input_{}".format(idx) for idx in range(len(input_shape))]
         for shape_idx, shape in enumerate(input_shape):
             dynamic_dims = get_dynamic_dims(shape)
             if len(dynamic_dims) > 0:
@@ -644,7 +654,7 @@ def parse_input_shapes(argv):
         shapes = argv['input_shape']
         if isinstance(shapes, str):
             shapes = ["[{}]".format(x) for x in split_shapes(shapes)]
-        if isinstance(shapes, list):
+        if isinstance(shapes, list) or isinstance(shapes, tuple):
             input_shapes = []
             is_single_shape = False
             for shape in shapes:
@@ -660,6 +670,12 @@ def parse_input_shapes(argv):
                     input_shapes.append(shape)
             if is_single_shape:
                 return [input_shapes]
+            else:
+                return input_shapes
+        if isinstance(shapes, PartialShape) or isinstance(shapes, torch.Size):
+            return [shapes]
+        else:
+            raise Error("Unknown type of input shape {}.".format(type(shapes)))
 
     return input_shapes
 

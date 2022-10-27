@@ -114,6 +114,95 @@ def create_pytorch_nn_module_case3():
     return NeuralNetwork(), function, {'input_shape': "[?,3,?,?],[?,3,?,?]", 'sample_input': sample_input}
 
 
+def create_pytorch_nn_module_case4():
+    from torch import nn
+    class NeuralNetwork(nn.Module):
+        def __init__(self):
+            super(NeuralNetwork, self).__init__()
+            self.linear_relu_stack = nn.Sequential(
+                nn.ReLU(),
+                nn.Sigmoid(),
+            )
+
+        def forward(self, x):
+            logits = self.linear_relu_stack(x)
+            return logits
+
+    sample_input = torch.zeros(1, 3, 10, 10)
+
+    shape = PartialShape([1, 3, 10, 10])
+    param1 = ov.opset8.parameter(shape, name="input_0", dtype=np.float32)
+    param1.get_output_tensor(0).set_names({"input"})
+    relu = ov.opset8.relu(param1)
+    relu.get_output_tensor(0).set_names({"onnx::Sigmoid_1"})
+    sigm = ov.opset8.sigmoid(relu)
+    sigm.get_output_tensor(0).set_names({"2"})
+
+    parameter_list = [param1]
+    function = Model([sigm], parameter_list, "test")
+
+    return NeuralNetwork(), function, {'sample_input': sample_input}
+
+
+def create_pytorch_nn_module_case5():
+    from torch import nn
+    class NeuralNetwork(nn.Module):
+        def __init__(self):
+            super(NeuralNetwork, self).__init__()
+            self.linear_relu_stack = nn.Sequential(
+                nn.ReLU(),
+                nn.Sigmoid(),
+            )
+
+        def forward(self, x):
+            logits = self.linear_relu_stack(x)
+            return logits
+
+    sample_input = torch.zeros(1, 3, 10, 10)
+
+    shape = PartialShape([-1, 3, 10, 10])
+    param1 = ov.opset8.parameter(shape, name="input", dtype=np.float32)
+    param1.get_output_tensor(0).set_names({"input_0"})
+    relu = ov.opset8.relu(param1)
+    relu.get_output_tensor(0).set_names({"onnx::Sigmoid_1"})
+    sigm = ov.opset8.sigmoid(relu)
+    sigm.get_output_tensor(0).set_names({"2"})
+
+    parameter_list = [param1]
+    function = Model([sigm], parameter_list, "test")
+
+    return NeuralNetwork(), function, {'sample_input': sample_input,
+                                       'input_shape': PartialShape([-1, 3, Dimension(2, -1), Dimension(-1, 10)])}
+
+
+def create_pytorch_nn_module_case6():
+    from torch import nn
+    class NeuralNetwork(nn.Module):
+        def __init__(self):
+            super(NeuralNetwork, self).__init__()
+            self.linear_relu_stack = nn.Sequential(
+                nn.ReLU(),
+                nn.Sigmoid(),
+            )
+
+        def forward(self, x):
+            logits = self.linear_relu_stack(x)
+            return logits
+
+    shape = PartialShape([1, 3, 2, 10])
+    param1 = ov.opset8.parameter(shape, name="input", dtype=np.float32)
+    param1.get_output_tensor(0).set_names({"input"})
+    relu = ov.opset8.relu(param1)
+    relu.get_output_tensor(0).set_names({"onnx::Sigmoid_1"})
+    sigm = ov.opset8.sigmoid(relu)
+    sigm.get_output_tensor(0).set_names({"2"})
+
+    parameter_list = [param1]
+    function = Model([sigm], parameter_list, "test")
+
+    return NeuralNetwork(), function, {'input_shape': PartialShape([1, 3, Dimension(2, -1), Dimension(-1, 10)])}
+
+
 def create_pytorch_jit_script_module():
     import torch
     from torch import nn
@@ -157,9 +246,9 @@ def create_pytorch_jit_script_function():
 
     inp_shape = PartialShape([Dimension(1, -1), Dimension(-1, 5), 10])
 
-    shape = PartialShape([-1, -1, 10])
-    param1 = ov.opset8.parameter(shape, name="input_0", dtype=np.float32)
-    param2 = ov.opset8.parameter(shape, name="input_1", dtype=np.float32)
+    shape = PartialShape([1, 5, 10])
+    param1 = ov.opset8.parameter(shape, name="x.1", dtype=np.float32)
+    param2 = ov.opset8.parameter(shape, name="y.1", dtype=np.float32)
     add = ov.opset8.add(param1, param2)
     add.get_output_tensor(0).set_names({"onnx::Relu_2"})
     relu = ov.opset8.relu(add)
@@ -177,6 +266,9 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_nn_module_case1,
         create_pytorch_nn_module_case2,
         create_pytorch_nn_module_case3,
+        create_pytorch_nn_module_case4,
+        create_pytorch_nn_module_case5,
+        create_pytorch_nn_module_case6,
         create_pytorch_jit_script_module,
         create_pytorch_jit_script_function,
     ]
