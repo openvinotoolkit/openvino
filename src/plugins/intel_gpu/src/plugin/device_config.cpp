@@ -556,7 +556,7 @@ std::string Config::ConvertPropertyToLegacy(const std::string& key, const std::s
     IE_THROW() << "Unsupported value for legacy key : " << key;
 }
 
-bool Config::operator==(const Config& other) const {
+bool Config::CanShareContextWith(const Config& other) const {
     return this->throughput_streams == other.throughput_streams &&
            this->useProfiling == other.useProfiling &&
            this->dumpCustomKernels == other.dumpCustomKernels &&

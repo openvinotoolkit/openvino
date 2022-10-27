@@ -267,7 +267,7 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
         if (m_defaultContexts.find(conf.device_id) == m_defaultContexts.end())
             return false;
 
-        return m_defaultContexts.at(conf.device_id)->GetConfig() == conf;
+        return m_defaultContexts.at(conf.device_id)->GetConfig().CanShareContextWith(conf);
     };
 
     {
@@ -336,7 +336,7 @@ InferenceEngine::RemoteContext::Ptr Plugin::GetDefaultContext(const AnyMap& para
     const Config conf = _impl->m_configs.GetConfig(device_id);
 
     if (m_defaultContexts.find(conf.device_id) != m_defaultContexts.end() &&
-        m_defaultContexts.at(conf.device_id)->GetConfig() == conf) {
+        m_defaultContexts.at(conf.device_id)->GetConfig().CanShareContextWith(conf)) {
         ctx = m_defaultContexts.at(conf.device_id);
     } else {
         ctx = std::make_shared<RemoteCLContext>(shared_from_this(), AnyMap(), conf);
@@ -380,7 +380,7 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
 
     RemoteCLContext::Ptr ctx;
     if (m_defaultContexts.find(conf.device_id) != m_defaultContexts.end() &&
-        m_defaultContexts.at(conf.device_id)->GetConfig() == conf) {
+        m_defaultContexts.at(conf.device_id)->GetConfig().CanShareContextWith(conf)) {
         ctx = m_defaultContexts.at(conf.device_id);
     } else {
         ctx = std::make_shared<RemoteCLContext>(
