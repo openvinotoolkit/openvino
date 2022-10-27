@@ -27,17 +27,17 @@ shared_ptr<Node> compute_sequence_lengths(const Output<Node>& input_shape, int64
 OutputVector translate_reverse_base_op(const NodeContext& node,
                                        const Output<Node>& input,
                                        const std::vector<int64_t>& axes) {
-    TENSORFLOW_OP_VALIDATION(
-        node,
-        axes.size() == 0 || axes.size() == 1,
-        "OpenVINO TensorFlow Frontend does not support Reverse and ReverseV2 with multiple axes for the reversing.");
     auto reverse_v2_node_name = node.get_name();
-
     if (axes.size() == 0) {
         // there is nothing to reverse
         input.get_tensor().add_names({reverse_v2_node_name + ":0"});
         return {input};
     }
+
+    TENSORFLOW_OP_VALIDATION(
+        node,
+        axes.size() == 1,
+        "OpenVINO TensorFlow Frontend does not support Reverse or ReverseV2 with multiple axes for the reversing.");
 
     int64_t seq_axis = axes[0];
     int64_t batch_axis = 0;
@@ -53,28 +53,27 @@ OutputVector translate_reverse_base_op(const NodeContext& node,
         // for seq_axis is negative, we can handle it only if input rank is defined
         // since we need it for seq_axis normalization
         auto input_rank = input.get_partial_shape().rank();
-        if (input_rank.is_static()) {
-            auto input_rank_value = static_cast<int64_t>(input_rank.get_length());
-            if (input_rank_value == 0) {
-                // in case of a scalar input, there is nothing to do
-                // we just skip ReverseV2 node and transfer output tensor name
-                input.get_tensor().add_names({reverse_v2_node_name + ":0"});
-                return {input};
-            } else if (input_rank_value == 1) {
-                unsqueeze_axes.push_back(0);
-                seq_axis = 1;
-            } else {
-                // normalize seq_axis
-                seq_axis += input_rank_value;
-                // batch_axis and seq_axis must be different
-                batch_axis = (seq_axis == 0 ? 1 : 0);
-            }
+
+        // in this case we cannot compute batch_axis because normalized seq_axis is unknown
+        TENSORFLOW_OP_VALIDATION(node,
+                                 input_rank.is_static(),
+                                 "OpenVINO TensorFlow Frontend does not support negative axis and input of "
+                                 "undefined rank simultaneously.");
+
+        auto input_rank_value = input_rank.get_length();
+        if (input_rank_value == 0) {
+            // in case of a scalar input, there is nothing to do
+            // we just skip ReverseV2 node and transfer output tensor name
+            input.get_tensor().add_names({reverse_v2_node_name + ":0"});
+            return {input};
+        } else if (input_rank_value == 1) {
+            unsqueeze_axes.push_back(0);
+            seq_axis = 1;
         } else {
-            // in this case we cannot compute batch_axis because normalized seq_axis is unknown
-            TENSORFLOW_OP_VALIDATION(node,
-                                     false,
-                                     "OpenVINO TensorFlow Frontend does not support negative axis and input of "
-                                     "undefined rank simultaneously.");
+            // normalize seq_axis
+            seq_axis += input_rank_value;
+            // batch_axis and seq_axis must be different
+            batch_axis = (seq_axis == 0 ? 1 : 0);
         }
     }
 
