@@ -8,6 +8,12 @@ set(TARGET_NAME openvino)
 # Add openvino library
 #
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /wd4098")
+    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /wd4098")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /wd4098")
+endif()
+
 add_library(${TARGET_NAME}
     $<TARGET_OBJECTS:ngraph_obj>
     $<TARGET_OBJECTS:frontend_common_obj>
