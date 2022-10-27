@@ -172,6 +172,7 @@ set(SRC
     type_prop/if.cpp
     type_prop/interpolate.cpp
     type_prop/irdft.cpp
+    type_prop/is_finite.cpp
     type_prop/is_inf.cpp
     type_prop/is_nan.cpp
     type_prop/logical_and.cpp

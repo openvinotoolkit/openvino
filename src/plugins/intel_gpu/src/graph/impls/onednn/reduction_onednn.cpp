@@ -106,12 +106,18 @@ attach_reduction_onednn::attach_reduction_onednn() {
     };
     std::vector<format::type> fmt = {
         format::bfyx,
+        format::bfzyx,
         format::b_fs_yx_fsv16,
         format::b_fs_yx_fsv32,
+        format::b_fs_zyx_fsv32,
         format::bs_fs_yx_bsv16_fsv16,
         format::bs_fs_yx_bsv16_fsv32,
         format::bs_fs_yx_bsv32_fsv16,
         format::bs_fs_yx_bsv32_fsv32,
+        format::bs_fs_zyx_bsv16_fsv16,
+        format::bs_fs_zyx_bsv16_fsv32,
+        format::bs_fs_zyx_bsv32_fsv16,
+        format::bs_fs_zyx_bsv32_fsv32,
     };
 
     implementation_map<reduce>::add(impl_types::onednn, reduction_onednn::create, dt, fmt);
