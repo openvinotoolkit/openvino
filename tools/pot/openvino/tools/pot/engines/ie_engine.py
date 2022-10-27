@@ -259,7 +259,7 @@ class IEEngine(Engine):
             )
             input_data_batched = input_data_batched.squeeze()
             if is_sampler_batchfied:
-                if input_data_batched.shape[batch_dim] != len(input_data):
+                if len(input_data_batched.shape) > batch_dim and input_data_batched.shape[batch_dim] != len(input_data):
                     input_data_batched = np.expand_dims(input_data_batched, batch_dim)
 
             if is_dynamic_input(input_blob):
