@@ -15,22 +15,22 @@ class TRANSFORMATIONS_API TransposeSinkingGeneralBackward;
 class TRANSFORMATIONS_API TransposeSinkingGeneral;
 
 }  // namespace pass
-}  // namespace ov
+}  // namespace ngraph
 
-class ngraph::pass::TransposeSinkingGeneralForward : public ngraph::pass::GraphRewrite {
+class ov::pass::TransposeSinkingGeneralForward : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("TransposeSinkingGeneralForward", "0");
     TransposeSinkingGeneralForward();
 };
 
-class ngraph::pass::TransposeSinkingGeneralBackward : public ngraph::pass::GraphRewrite {
+class ov::pass::TransposeSinkingGeneralBackward : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("TransposeSinkingGeneralBackward", "0");
     TransposeSinkingGeneralBackward();
 };
 
 
-class ngraph::pass::TransposeSinkingGeneral : public ov::pass::ModelPass {
+class ov::pass::TransposeSinkingGeneral : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("TransposeSinkingGeneral", "0");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
