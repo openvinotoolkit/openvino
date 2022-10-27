@@ -38,6 +38,7 @@
 #include "gather_shape_inference.hpp"
 #include "gather_tree_shape_inference.hpp"
 #include "gru_sequence_shape_inference.hpp"
+#include "gru_cell_shape_inference.hpp"
 #include "interpolate_shape_inference.hpp"
 #include "lstm_cell_shape_inference.hpp"
 #include "matmul_shape_inference.hpp"
@@ -491,6 +492,8 @@ std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::
     } else if (auto node = ov::as_type_ptr<ov::opset1::GatherTree>(op)) {
         return make_shared_entryIO(node);
     } else if (auto node = ov::as_type_ptr<ov::opset5::GRUSequence>(op)) {
+        return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset3::GRUCell>(op)) {
         return make_shared_entryIO(node);
     } else if (auto node = ov::as_type_ptr<ov::opset1::OneHot>(op)) {
         return make_shared_entryIOC(node);
