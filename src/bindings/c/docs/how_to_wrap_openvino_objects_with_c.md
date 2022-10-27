@@ -6,9 +6,11 @@ In OpenVINO C++ implementation, many objects are defined with `class`, such as `
  * C `struct` contains a shared pointer to C++ `class`, [Wrap by C++ Shared Pointer](#wrap_by_c++_shared_pointer)
  * C `struct` contains a instance of C++ `class`, [Wrap by C++ Object](#wrap_by_c++_object)
  * C `struct` rewrite the C++ `class`, [Wrap by Rewrite](#wrap_by_rewrite)
-For the objects which needs to be hided for users, C `struct` contains a shared pointer will be adopted.
-For the objects which needs to be created, operated and read by users, rewrite the C++ `class` will be better.
-For some simple objects, C `struct` contains a instance of C++ `class` will be enough.
+
+Tips:
+1) For the objects which needs to be hided for users, C `struct` contains a shared pointer will be adopted.
+2) For the objects which needs to be created, operated and read by users, rewrite the C++ `class` will be better.
+3) For some simple objects, C `struct` contains a instance of C++ `class` will be enough.
 
 In OpenVINO C++, most objects implemented with C++ `class` as following:
 
