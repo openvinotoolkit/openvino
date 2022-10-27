@@ -407,6 +407,8 @@ ngraph::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
     register_matcher(m, matcher_pass_callback);
 }
 
+// --------------------------------------------------------------------------------------
+
 struct OutputTranspose {
     ov::opset9::Transpose * transpose;
     ov::opset9::Constant * transpose_const;
@@ -438,8 +440,8 @@ NodePtr FindSplitInput(ov::Node * node) {
     for (size_t input_idx = 0; input_idx < node->get_input_size(); ++input_idx) {
         NodePtr input_node = node->get_input_node_shared_ptr(input_idx);
         auto split_node = ov::as_type_ptr<ov::opset9::Split>(input_node);
-            if (!split_node)
-                continue;
+        if (split_node)
+            return split_node;
     }
     return {};
 }
@@ -458,8 +460,9 @@ std::shared_ptr<ov::opset9::Constant> GetTransposeConstant(ov::Input<ov::Node> i
 
 bool HasInputSplitAndTransposeSiblings(const ov::Output<ov::Node>& output) {
     NodePtr split_node = FindSplitInput(output.get_node());
-    if (!split_node)
+    if (!split_node) {
         return false;
+    }
 
     ov::AxisVector first_transpose_axis_order;
     // get first transpose axis
@@ -487,8 +490,6 @@ bool HasInputSplitAndTransposeSiblings(const ov::Output<ov::Node>& output) {
     return true;
 }
 
-#define EMUTEX_DEBUG_CHECKPOINT std::cout << "[EMUTEX DEBUG] CHECKPOINT " << __FILE__ << ":" << __LINE__ << std::endl;
-
 ngraph::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
     MATCHER_SCOPE(TransposeSinkingSplitBackward);
 
@@ -499,8 +500,6 @@ ngraph::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
                                                              HasInputSplitAndTransposeSiblings);
 
     ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
-        EMUTEX_DEBUG_CHECKPOINT;
-
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_label_node = pattern_to_output.at(transpose_label).get_node();
         
@@ -546,7 +545,6 @@ ngraph::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
                 }
             }
         }
-        EMUTEX_DEBUG_CHECKPOINT;
         return true;
     };
 
