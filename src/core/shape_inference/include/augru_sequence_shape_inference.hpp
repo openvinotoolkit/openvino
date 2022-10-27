@@ -33,6 +33,9 @@ void shape_infer(const ov::op::internal::AUGRUSequence* op,
     if (a_shape.rank().is_static()) {
         if (x_shape.rank().is_static()) {
             NODE_VALIDATION_CHECK(op,
+                                  x_shape.rank().get_length() > 1 && a_shape[0].compatible(x_shape[0]),
+                                  "Dimension `batch_size` must be the same for `X` and `A` inputs.");
+            NODE_VALIDATION_CHECK(op,
                                   x_shape.rank().get_length() > 1 && a_shape[1].compatible(x_shape[1]),
                                   "Dimension `seq_length` must be the same for `X` and `A` inputs.");
         }
