@@ -4,6 +4,7 @@
 
 #include "op_table.hpp"
 
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset9.hpp"
 
 using namespace std;
@@ -64,6 +65,8 @@ OP_CONVERTER(translate_identity_op);
 OP_CONVERTER(translate_identity_n_op);
 OP_CONVERTER(translate_interpolate_op);
 OP_CONVERTER(translate_is_finite_op);
+OP_CONVERTER(translate_is_inf_op);
+OP_CONVERTER(translate_is_nan_op);
 OP_CONVERTER(translate_l2_loss_op);
 OP_CONVERTER(translate_linspace_op);
 OP_CONVERTER(translate_list_diff_op);
@@ -92,7 +95,6 @@ OP_CONVERTER(translate_reciprocal_op);
 OP_CONVERTER(translate_reshape_op);
 OP_CONVERTER(translate_resource_gather_op);
 OP_CONVERTER(translate_reverse_op);
-OP_CONVERTER(translate_reverse_v2_op);
 OP_CONVERTER(translate_reverse_sequence_op);
 OP_CONVERTER(translate_roll_op);
 OP_CONVERTER(translate_round_op);
@@ -144,6 +146,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Erf", translate_unary_op<opset8::Erf>},
         {"Exp", translate_unary_op<opset8::Exp>},
         {"Floor", translate_unary_op<opset8::Floor>},
+        {"IsInf", translate_unary_op<opset10::IsInf>},
+        {"IsNan", translate_unary_op<opset10::IsNaN>},
         {"Log", translate_unary_op<opset8::Log>},
         {"LogicalNot", translate_unary_op<opset8::LogicalNot>},
         {"Mish", translate_unary_op<opset8::Mish>},
@@ -274,7 +278,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Reshape", translate_reshape_op},
         {"Reverse", translate_reverse_op},
         {"ReverseSequence", translate_reverse_sequence_op},
-        {"ReverseV2", translate_reverse_v2_op},
+        {"ReverseV2", translate_reverse_op},
         {"ResizeBilinear", translate_interpolate_op},
         {"ResizeNearestNeighbor", translate_interpolate_op},
         {"ResourceGather", translate_resource_gather_op},
