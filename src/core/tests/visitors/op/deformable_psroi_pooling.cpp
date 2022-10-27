@@ -37,7 +37,7 @@ TEST(attributes, deformable_psroi_pooling_op) {
                                                           spatial_bins_y,
                                                           trans_std,
                                                           part_size);
-    NodeBuilder builder(op);
+    NodeBuilder builder(op, {input, coords});
     auto g_op = ov::as_type_ptr<opset1::DeformablePSROIPooling>(builder.create());
 
     EXPECT_EQ(g_op->get_output_dim(), op->get_output_dim());

@@ -20,8 +20,9 @@ TEST(attributes, selu_op) {
 
     const auto op = make_shared<opset1::Selu>(data_input, alpha, lambda);
 
-    NodeBuilder builder(op);
+    NodeBuilder builder(op, {data_input, alpha, lambda});
     const auto expected_attr_count = 0;
+    EXPECT_NO_THROW(auto g_op = ov::as_type_ptr<opset1::Selu>(builder.create()));
 
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 }

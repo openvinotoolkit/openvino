@@ -21,7 +21,7 @@ TEST(attributes, ctc_greedy_decoder_seq_len_op) {
     auto blank_index = op::Constant::create<int32_t>(element::i32, Shape{}, {2});
     auto decoder = make_shared<op::v6::CTCGreedyDecoderSeqLen>(data, seq_len, blank_index, merge_repeated);
 
-    NodeBuilder builder(decoder);
+    NodeBuilder builder(decoder, {data, seq_len, blank_index});
     auto g_decoder = ov::as_type_ptr<opset6::CTCGreedyDecoderSeqLen>(builder.create());
 
     EXPECT_EQ(g_decoder->get_merge_repeated(), decoder->get_merge_repeated());

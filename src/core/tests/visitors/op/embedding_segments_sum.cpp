@@ -29,7 +29,8 @@ TEST(visitor_without_attribute, embedding_segments_sum_op) {
                                                          num_segments,
                                                          default_index,
                                                          per_sample_weights);
-    NodeBuilder builder(ess);
+    NodeBuilder builder(ess, {emb_table, indices, segment_ids, num_segments, default_index, per_sample_weights});
+    EXPECT_NO_THROW(auto g_ess = ov::as_type_ptr<opset3::EmbeddingSegmentsSum>(builder.create()));
 
     const auto expected_attr_count = 0;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

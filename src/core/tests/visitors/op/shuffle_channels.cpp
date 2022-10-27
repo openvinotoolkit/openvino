@@ -19,7 +19,7 @@ TEST(attributes, shuffle_channels_op) {
     auto axis = 1;
     auto groups = 2;
     auto shuffle_channels = make_shared<ShuffleChannels>(data, axis, groups);
-    NodeBuilder builder(shuffle_channels);
+    NodeBuilder builder(shuffle_channels, {data});
     auto g_shuffle_channels = ov::as_type_ptr<ShuffleChannels>(builder.create());
 
     const auto expected_attr_count = 2;

@@ -27,7 +27,7 @@ TEST(attributes, lrn_op) {
     const size_t size = 4;
 
     const auto lrn = make_shared<opset1::LRN>(arg, axes, alpha, beta, bias, size);
-    NodeBuilder builder(lrn);
+    NodeBuilder builder(lrn, {arg, axes});
     auto g_lrn = ov::as_type_ptr<opset1::LRN>(builder.create());
 
     EXPECT_EQ(g_lrn->get_alpha(), lrn->get_alpha());

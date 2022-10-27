@@ -19,7 +19,7 @@ TEST(attributes, einsum_v7_op) {
     auto input2 = make_shared<opset1::Parameter>(element::i32, Shape{3, 4});
     std::string equation = "ab,bc->ac";
     auto einsum = make_shared<opset7::Einsum>(OutputVector{input1, input2}, equation);
-    NodeBuilder builder(einsum);
+    NodeBuilder builder(einsum, {input1, input2});
     auto g_einsum = ov::as_type_ptr<opset7::Einsum>(builder.create());
     EXPECT_EQ(g_einsum->get_equation(), einsum->get_equation());
 }

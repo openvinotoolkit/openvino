@@ -20,7 +20,7 @@ TEST(attributes, experimental_detectron_topkrois_op) {
     auto input_probs = std::make_shared<op::Parameter>(element::f32, Shape{2});
     auto topkrois = std::make_shared<op::v6::ExperimentalDetectronTopKROIs>(input_rois, input_probs, num_rois);
 
-    NodeBuilder builder(topkrois);
+    NodeBuilder builder(topkrois, {input_rois, input_probs});
     auto g_topkrois = ov::as_type_ptr<opset6::ExperimentalDetectronTopKROIs>(builder.create());
 
     EXPECT_EQ(g_topkrois->get_max_rois(), topkrois->get_max_rois());

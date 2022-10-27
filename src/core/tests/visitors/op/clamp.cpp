@@ -21,7 +21,7 @@ TEST(attributes, clamp_op) {
     double max = 5.6;
 
     const auto clamp = make_shared<opset1::Clamp>(data, min, max);
-    NodeBuilder builder(clamp);
+    NodeBuilder builder(clamp, {data});
     auto g_clamp = ov::as_type_ptr<opset1::Clamp>(builder.create());
 
     const auto expected_attr_count = 2;
