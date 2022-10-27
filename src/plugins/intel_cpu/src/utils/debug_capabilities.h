@@ -11,6 +11,7 @@
 #include <string>
 #include <iostream>
 #include <sstream>
+#include <chrono>
 
 #include <onednn/dnnl.h>
 #include <dnnl_debug.h>
@@ -35,7 +36,7 @@ class DebugLogEnabled {
     std::string tag;
 
 public:
-    DebugLogEnabled(const char* file, const char* func, int line);
+    DebugLogEnabled(const char* file, const char* func, int line, const char* name = nullptr);
 
     const std::string & get_tag() const { return tag; }
     operator bool() const { return enabled; }
@@ -70,6 +71,30 @@ public:
     int maxsize;
 };
 
+struct PrintableDelta {
+    uint64_t us_last;
+    uint64_t us_all;
+};
+
+class PrintableTimer {
+public:
+    PrintableTimer(): t0(std::chrono::high_resolution_clock::now()) {
+        t1 = t0;
+    }
+
+    std::chrono::high_resolution_clock::time_point t0;
+    std::chrono::high_resolution_clock::time_point t1;
+
+    PrintableDelta delta() {
+        PrintableDelta ret;
+        auto now = std::chrono::high_resolution_clock::now();
+        ret.us_last = std::chrono::duration_cast<std::chrono::microseconds>(now - t1).count();
+        ret.us_all = std::chrono::duration_cast<std::chrono::microseconds>(now - t0).count();
+        t1 = now;
+        return ret;
+    }
+};
+
 std::ostream & operator<<(std::ostream & os, const dnnl::memory::desc& desc);
 std::ostream & operator<<(std::ostream & os, const NodeDesc& desc);
 std::ostream & operator<<(std::ostream & os, const Node& node);
@@ -77,6 +102,7 @@ std::ostream & operator<<(std::ostream & os, const MemoryDesc& desc);
 std::ostream & operator<<(std::ostream & os, const Edge& edge);
 std::ostream & operator<<(std::ostream & os, const dnnl::memory::data_type& dtype);
 std::ostream & operator<<(std::ostream & os, const PrintableModel& model);
+std::ostream & operator<<(std::ostream & os, const PrintableDelta& us);
 
 template<typename T>
 std::ostream & operator<<(std::ostream & os, const PrintableVector<T>& vec) {
@@ -100,9 +126,9 @@ std::ostream & operator<<(std::ostream & os, const PrintableVector<T>& vec) {
 
 #define DEBUG_ENABLE_NAME debug_enable_##__LINE__
 
-#define DEBUG_LOG(...)                                                                                     \
+#define DEBUG_LOG_EXT(name, ...)                                                                              \
         do {                                                                                               \
-            static DebugLogEnabled DEBUG_ENABLE_NAME(__FILE__, __func__, __LINE__);                        \
+            static DebugLogEnabled DEBUG_ENABLE_NAME(__FILE__, __func__, __LINE__, name);                  \
             if (DEBUG_ENABLE_NAME) {                                                                       \
                 ::std::stringstream ss___;                                                                 \
                 ov::intel_cpu::write_all_to_stream(ss___, "[ DEBUG ] ", DEBUG_ENABLE_NAME.get_tag(), " ", __VA_ARGS__); \
@@ -111,11 +137,18 @@ std::ostream & operator<<(std::ostream & os, const PrintableVector<T>& vec) {
             }                                                                                              \
         } while (0)
 
+#define DEBUG_LOG(...) DEBUG_LOG_EXT(nullptr, __VA_ARGS__)
+
+#define CREATE_DEBUG_TIMER(x) PrintableTimer x
+
 #else // !CPU_DEBUG_CAPS
 
 #define CPU_DEBUG_CAP_ENABLE(_x)
 #define CPU_DEBUG_CAPS_ALWAYS_TRUE(x) x
 
 #define DEBUG_LOG(...)
+#define DEBUG_LOG_EXT(name, ...)
+
+#define CREATE_DEBUG_TIMER(x)
 
 #endif // CPU_DEBUG_CAPS

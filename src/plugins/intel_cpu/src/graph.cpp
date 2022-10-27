@@ -71,6 +71,7 @@ template<typename NET>
 void Graph::CreateGraph(NET &net, const ExtensionManager::Ptr& extMgr,
         WeightsSharing::Ptr &w_cache, const std::shared_ptr<std::mutex>& mutex) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "CreateGraph");
+    DEBUG_LOG_EXT("LOADTIME", config.debugLoadTimer.delta(), "CreateGraph");
 
     if (IsReady())
         ForgetGraphData();
@@ -81,6 +82,8 @@ void Graph::CreateGraph(NET &net, const ExtensionManager::Ptr& extMgr,
     sharedMutex = mutex;
 
     Replicate(net, extMgr);
+    DEBUG_LOG_EXT("LOADTIME", config.debugLoadTimer.delta(), "Replicate");
+
     InitGraph();
 
     status = Ready;
@@ -390,22 +393,30 @@ void Graph::InitGraph() {
 
     SortTopologically();
     InitNodes();
+    DEBUG_LOG_EXT("LOADTIME", config.debugLoadTimer.delta(), "InitNodes");
 
     optimizer.ApplyCommonGraphOptimizations(*this);
     SortTopologically();
+    DEBUG_LOG_EXT("LOADTIME", config.debugLoadTimer.delta(), "ApplyCommonGraphOptimizations");
 
     InitDescriptors();
+    DEBUG_LOG_EXT("LOADTIME", config.debugLoadTimer.delta(), "InitDescriptors");
 
     InitOptimalPrimitiveDescriptors();
+    DEBUG_LOG_EXT("LOADTIME", config.debugLoadTimer.delta(), "InitOptimalPrimitiveDescriptors");
 
     InitEdges();
+    DEBUG_LOG_EXT("LOADTIME", config.debugLoadTimer.delta(), "InitEdges");
 
     optimizer.ApplyImplSpecificGraphOptimizations(*this);
     SortTopologically();
+    DEBUG_LOG_EXT("LOADTIME", config.debugLoadTimer.delta(), "ApplyImplSpecificGraphOptimizations");
 
     Allocate();
+    DEBUG_LOG_EXT("LOADTIME", config.debugLoadTimer.delta(), "Allocate");
 
     CreatePrimitives();
+    DEBUG_LOG_EXT("LOADTIME", config.debugLoadTimer.delta(), "CreatePrimitives");
 
 #ifndef CPU_DEBUG_CAPS
     for (auto &graphNode : graphNodes) {
@@ -413,8 +424,10 @@ void Graph::InitGraph() {
     }
 #endif
     ExtractConstantAndExecutableNodes();
+    DEBUG_LOG_EXT("LOADTIME", config.debugLoadTimer.delta(), "ExtractConstantAndExecutableNodes");
 
     ExecuteConstantNodesOnly();
+    DEBUG_LOG_EXT("LOADTIME", config.debugLoadTimer.delta(), "ExecuteConstantNodesOnly");
 }
 
 void Graph::InitNodes() {
@@ -834,10 +847,13 @@ void Graph::Allocate() {
 
 void Graph::CreatePrimitives() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Graph::CreatePrimitives");
+    CREATE_DEBUG_TIMER(timer);
+
     for (auto& node : graphNodes) {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, node->profiling.createPrimitive);
         DEBUG_LOG(*node);
         node->createPrimitive();
+        DEBUG_LOG_EXT("LOADTIME_createPrimitive", node->getName(), " ", node->getPrimitiveDescriptorType(), " ", timer.delta());
     }
 }
 

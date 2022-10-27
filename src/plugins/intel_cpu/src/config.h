@@ -77,6 +77,8 @@ struct Config {
     std::string summaryPerf = "";
 
     void readDebugCapsProperties();
+
+    CREATE_DEBUG_TIMER(debugLoadTimer);
 #endif
 
     bool isNewApi = true;

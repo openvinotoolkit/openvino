@@ -761,6 +761,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
 InferenceEngine::IExecutableNetworkInternal::Ptr
 Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Engine::LoadExeNetworkImpl");
+    CREATE_DEBUG_TIMER(debugLoadTimer);
 
     // verification of supported input
     for (const auto &ii : network.getInputsInfo()) {
@@ -833,7 +834,9 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
-
+#ifdef CPU_DEBUG_CAPS
+    conf.debugLoadTimer = debugLoadTimer;
+#endif
     conf.readProperties(config);
     if (conf.enableDynamicBatch) {
         conf.batchLimit = static_cast<int>(network.getBatchSize());

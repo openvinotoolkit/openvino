@@ -15,7 +15,7 @@
 namespace ov {
 namespace intel_cpu {
 
-DebugLogEnabled::DebugLogEnabled(const char* file, const char* func, int line) {
+DebugLogEnabled::DebugLogEnabled(const char* file, const char* func, int line, const char* name) {
     // check ENV
     const char* p_filters = std::getenv("OV_CPU_DEBUG_LOG");
     if (!p_filters) {
@@ -34,6 +34,11 @@ DebugLogEnabled::DebugLogEnabled(const char* file, const char* func, int line) {
 
     std::string file_name_with_line = file_name + ":" + std::to_string(line);
     tag = file_name_with_line + " " + func + "()";
+    if (name != nullptr) {
+        tag += " ";
+        tag += name;
+    }
+
     // check each filter patten:
     bool filter_match_action;
     if (p_filters[0] == '-') {
@@ -50,8 +55,9 @@ DebugLogEnabled::DebugLogEnabled(const char* file, const char* func, int line) {
         p1 = p0;
         while (*p1 != ';' && *p1 != 0)
             ++p1;
-        std::string patten(p0, p1 - p0);
-        if (patten == file_name || patten == func || patten == tag || patten == file_name_with_line) {
+        std::string pattern(p0, p1 - p0);
+        if (pattern == file_name || pattern == func || pattern == tag || pattern == file_name_with_line ||
+            (name != nullptr && pattern == name)) {
             match = true;
             break;
         }
@@ -416,6 +422,16 @@ std::ostream & operator<<(std::ostream & os, const PrintableModel& model) {
             }
         }
     }
+    return os;
+}
+
+// so far we can only show correct delta on single stream configuration, which
+// is enough for debug purpose
+std::ostream& operator<<(std::ostream& os, const PrintableDelta& d) {
+    double us_last = d.us_last;
+    double us_all = d.us_all;
+    os << "[+ " << std::setw(8) << std::setfill(' ') << std::fixed << std::setprecision(3) << us_last / 1000 << "/"
+       << us_all / 1000 << " ms]";
     return os;
 }
 
