@@ -54,6 +54,7 @@ namespace tests {
 
 std::shared_ptr<cldnn::engine> create_test_engine(cldnn::queue_types queue_type = cldnn::queue_types::out_of_order);
 cldnn::engine& get_test_engine();
+cldnn::engine& get_test_engine(const cldnn::engine_configuration& configuration);
 #ifdef ENABLE_ONEDNN_FOR_GPU
 cldnn::engine& get_onednn_test_engine();
 #endif
@@ -467,6 +468,8 @@ public:
                     return std::to_string(info.index);
             }
     };
+
+    static cldnn::format get_plain_format_for(const cldnn::format);
 
 protected:
     cldnn::engine& engine = get_test_engine();

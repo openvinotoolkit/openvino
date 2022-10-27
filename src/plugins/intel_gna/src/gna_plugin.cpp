@@ -93,6 +93,7 @@
 #include "transformations/insert_copy_layer.hpp"
 #include "transformations/split_eltwise.hpp"
 #include "transformations/markup_fusable_transpose.hpp"
+#include "transformations/insert_identity_layer.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -740,6 +741,16 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
             input is doing
         */
         manager.register_pass<ov::intel_gna::pass::SplitEltwise>();
+        /* The following transformations perform insertion of Identity layer in 3 steps:
+           1. Mark inputs with rt_info attribute where precision change from i32 to i16/i8 is happened
+           2. Insert Identity after operation which have consumers marked with precision change
+           3. Cleanup appropriate attribute from rt_info
+        */
+        manager.register_pass<ov::intel_gna::pass::MarkIdentityCandidates>(config.gnaFlags.input_low_precision);
+        manager.register_pass<ov::intel_gna::pass::InsertIdentity>();
+        manager.register_pass<ov::intel_gna::pass::IdentityCandidatesCleanup>();
+        // Breaks fusing of layers before result
+        manager.register_pass<ov::intel_gna::pass::BreakFusingOfOutputLayers>();
         if (!config.gnaFlags.sw_fp32 && !config.gnaFlags.uniformPwlDesign) {
             manager.register_pass<ov::intel_gna::pass::PWLApproximationWithFq>(config.gnaFlags.pwlMaxErrorPercent);
             manager.register_pass<ov::intel_gna::pass::PWLApproximation>(config.gnaFlags.pwlMaxErrorPercent);
@@ -843,6 +854,8 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         passes->registerPass<InsertConcatAligningFilterPass>();
         passes->registerPass<ReorderConcatInputsPass>();
         passes->registerPass<RemovePermutationsNHWCToNCHWPass>();
+        // Keep legacy inserting of Identity layer here
+        // because concat and split aliging passes are not moved to ngraph yet
         passes->registerPass<InsertIdentityLayerPass>();
         passes->registerPass<BreakFusingOfOutputLayersPass>();
         passes->registerPass<InsertDiagonalLayerPass>();
@@ -863,27 +876,9 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         // to run all passes need to have two calls to pass manager
         run_passes(newNet, true, gnaFlags->input_low_precision);
         run_passes(newNet, false, gnaFlags->input_low_precision);
-    } else if (fake_quantized) {
-        ModelQuantizer<FakeQuant> modelQuantizer;
-        newNet = modelQuantizer.quantize(network, run_passes, *inputs_ptr_);
     } else {
-        switch (config.gnaPrecision) {
-        case Precision::I16:
-            ModelQuantizer<QuantI16> q16;
-            newNet = q16.quantize(network, run_passes, *inputs_ptr_);
-            break;
-        case Precision::I8:
-            if (gnaFlags->input_low_precision == false) {
-                ModelQuantizer<QuantI8> q8;
-                newNet = q8.quantize(network, run_passes, *inputs_ptr_);
-            } else {
-                ModelQuantizer<QuantI8_I8> q8_8;
-                newNet = q8_8.quantize(network, run_passes, *inputs_ptr_);
-            }
-            break;
-        default:
-            THROW_GNA_EXCEPTION << "unsupported GNA precision for quantisation: " << config.gnaPrecision;
-        }
+        ModelQuantizer modelQuantizer;
+        newNet = modelQuantizer.quantize(network, run_passes, *inputs_ptr_, config.gnaPrecision, gnaFlags->input_low_precision);
     }
 
     auto inputLayers = CNNNetGetAllInputLayers(newNet);
@@ -1017,7 +1012,6 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         }
         portId++;
     }
-
     // TODO: how active list will work in multioutput case
     // make room for active list
     gnamem->getQueue(REGION_OUTPUTS)
