@@ -105,9 +105,6 @@ OutputVector translate_reverse_op(const NodeContext& node) {
             axes.push_back(ind);
         }
     }
-    TENSORFLOW_OP_VALIDATION(node,
-                             axes.size() == 1,
-                             "OpenVINO TensorFlow Frontend supports only constant axis input with one element.");
 
     return translate_reverse_base_op(node, input, axes);
 }
