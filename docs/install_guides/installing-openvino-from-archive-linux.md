@@ -12,7 +12,7 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
 .. tab:: Operating Systems
 
   * Ubuntu 18.04 long-term support (LTS) x86, 64-bit
-  * Ubuntu 20.04 long-term support (LTS), 64-bit
+  * Ubuntu 20.04 long-term support (LTS) x86, 64-bit
   * Red Hat Enterprise Linux 8, 64-bit
 
   .. note::
