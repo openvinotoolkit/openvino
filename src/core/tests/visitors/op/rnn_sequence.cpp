@@ -51,7 +51,7 @@ TEST(attributes, rnn_sequence_op) {
                                                                activations_alpha,
                                                                activations_beta,
                                                                clip_threshold);
-    NodeBuilder builder(rnn_sequence);
+    NodeBuilder builder(rnn_sequence, {X, initial_hidden_state, sequence_lengths, W, R, B});
     auto g_rnn_sequence = ov::as_type_ptr<opset5::RNNSequence>(builder.create());
 
     EXPECT_EQ(g_rnn_sequence->get_hidden_size(), rnn_sequence->get_hidden_size());
