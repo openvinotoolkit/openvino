@@ -347,7 +347,7 @@ void prepare_buffer_fusing::run(program& p) {
                 }
             }
 
-            if (node.get_dependencies().size() == 1 && node.get_users().size() > 0) {
+            if (node.get_users().size() > 0) {
                 if (p.is_loop_body() && node.get_dependency(0).is_type<lstm_elt>()) {
                     return;
                 }
