@@ -14,6 +14,11 @@ KERNEL (count_nonzero_ref)(const __global INPUT0_TYPE* input,
     const uint gdim1 = (uint)get_global_id(1);
     const uint gdim2 = (uint)get_global_id(2);
 
+    if (gdim0 == 0 && gdim1 == 0 && gdim2 == 0) {
+        output[0] = 0;
+    }
+    barrier(CLK_GLOBAL_MEM_FENCE);
+
     #if INPUT0_DIMS == 6
         #define INPUT_ORDER b,f,w,z,y,x
         const uint x = gdim0 % INPUT0_SIZE_X;
@@ -37,13 +42,7 @@ KERNEL (count_nonzero_ref)(const __global INPUT0_TYPE* input,
     count = sub_group_reduce_add(count);
 
     if (get_sub_group_local_id() == 0)
-        atomic_add(&(output[1]), count);
-
-    if (gdim0 == 0 && gdim1 == 0 && gdim2 == 0) {
-        output[0] = OV_INPUT_RANK;
-        output[2] = 1;
-        output[3] = 1;
-    }
+        atomic_add(&(output[0]), count);
 }
 
 #undef INPUT0_GET_INDEX1

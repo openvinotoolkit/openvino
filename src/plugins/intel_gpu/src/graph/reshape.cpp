@@ -146,7 +146,8 @@ std::string reshape_inst::to_string(reshape_node const& node) {
     return primitive_description.str();
 }
 
-reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) : parent(network, node, false) {
+reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
+        parent(network, node, (!node.can_be_optimized() && node.get_output_layout().is_static()) ? true : false) {
     auto input_layout = node.input().get_output_layout();
     auto output_layout = node.get_output_layout();
     CLDNN_ERROR_DATA_TYPES_MISMATCH(node.id(),
@@ -155,7 +156,7 @@ reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
                                     "output layout data type",
                                     output_layout.data_type,
                                     "");
-    if (output_layout.is_static())
+    if (output_layout.is_static() && input_layout.is_static())
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Output layout count",
                               output_layout.count(),
@@ -165,7 +166,7 @@ reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
 
     // if reshape operated in-place, postpone creation of the output until network run,
     // then create new memory object as the reinterpreted output of the previous primitive
-    if (_node.get_output_layout().is_static()) {
+    if (input_layout.is_static() && output_layout.is_static()) {
         if (!node.can_be_optimized())
             _outputs = allocate_outputs();
         else

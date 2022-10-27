@@ -19,6 +19,7 @@
 #include "intel_gpu/graph/network.hpp"
 #include "assign_inst.h"
 #include "read_value_inst.h"
+#include "reshape_inst.h"
 
 #include "to_string_utils.h"
 #include "primitive_inst.h"
@@ -993,6 +994,12 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "NetworkImpl::TransferMemory");
     auto& inst_mem = instance->output_memory();
     auto alloc_type = inst_mem.get_allocation_type();
+
+    auto users = node.get_users();
+    if (users.size() == 1
+        && users.front()->is_type<reshape>()
+        && users.front()->is_dynamic())
+            return;
 
     // Do not transfer memory if a user requires lockable memory.
     // If memory is used in both gpu and cpu implementations, primitive itself is responsible for correct allocation type

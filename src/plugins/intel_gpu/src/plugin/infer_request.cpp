@@ -550,7 +550,7 @@ void InferRequest::wait() {
             auto layout = layout_by_rank(out_rank);
             auto tensorDesc = InferenceEngine::TensorDesc(precision, dims, layout);
             if (_outputs.find(no.first) == _outputs.end()) {
-                _outputs[no.first] = create_host_blob(tensorDesc);
+                _outputs[no.first] = create_host_blob(tensorDesc, false);
             } else {
                 _outputs[no.first]->setShape(dims);
             }
@@ -592,11 +592,11 @@ void InferRequest::setup_stream_graph() {
     m_graph = streamGraphs[streamID];
 }
 
-Blob::Ptr InferRequest::create_host_blob(const TensorDesc& desc) {
+Blob::Ptr InferRequest::create_host_blob(const TensorDesc& desc, bool is_dynamic) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::create_host_blob");
     // Disable USM usage as USMHostAllocator may fail for attempt to allocate 0 bytes
     // If we add WA for such case to avoid driver call, then deallocate method will return false and Blob::setShape call will throw an exception
-    bool use_usm = m_graph->GetEngine()->use_unified_shared_memory() && !m_graph->GetNetwork()->is_dynamic();
+    bool use_usm = m_graph->GetEngine()->use_unified_shared_memory() && !is_dynamic;
     auto alloc = use_usm ? std::make_shared<USMHostAllocator>(m_graph->GetContext().get()) : CreateDefaultAllocator();
     auto blob = make_blob_with_precision(desc, alloc);
     blob->allocate();
@@ -727,11 +727,11 @@ void InferRequest::allocate_inputs() {
             if (desc.getPrecision() == Precision::I16 || desc.getPrecision() == Precision::U16) {
                 TensorDesc desc_fp32 = desc;
                 desc_fp32.setPrecision(Precision::FP32);
-                _inputs[name] = create_host_blob(desc);
+                _inputs[name] = create_host_blob(desc, input_layout.is_dynamic());
                 if (input_layout.is_static())
                     _deviceInputs[name] = create_device_blob(desc_fp32);
             } else {
-                _inputs[name] = create_host_blob(desc);
+                _inputs[name] = create_host_blob(desc, input_layout.is_dynamic());
                 if (input_layout.is_static()) {
                     if (m_graph->GetEngine()->use_unified_shared_memory()) {
                         // For USM case we create host blob using custom USM host allocator
@@ -777,11 +777,11 @@ void InferRequest::allocate_outputs() {
             else
                 device_blob_desc.setPrecision(Precision::FP32);
 
-            _outputs[no.first] = create_host_blob(desc);
+            _outputs[no.first] = create_host_blob(desc, output_layout.is_dynamic());
             if (output_layout.is_static())
                 _deviceOutputs[no.first] = create_device_blob(device_blob_desc);
         } else {
-            _outputs[no.first] = create_host_blob(desc);
+            _outputs[no.first] = create_host_blob(desc, output_layout.is_dynamic());
             if (output_layout.is_static()) {
                 if (m_graph->GetEngine()->use_unified_shared_memory()) {
                     // For USM case we create host blob using custom USM host allocator

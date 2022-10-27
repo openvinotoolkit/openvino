@@ -311,7 +311,7 @@ void prepare_buffer_fusing::run(program& p) {
     If crop is before concat there can be padding mismtach, since concat changes padding.
     */
     auto can_optimize = [](const program_node* node) {
-        if (node->is_output() || (!node->get_fused_activations_funcs().empty())) {
+        if (node->is_dynamic() || node->is_output() || (!node->get_fused_activations_funcs().empty())) {
             return false;
         }
         return true;
