@@ -1,18 +1,18 @@
+#include "transformations/common_optimizations/transpose_sinking_binary.hpp"
+
+#include <ngraph/opsets/opset9.hpp>
+#include <ngraph/pattern/op/or.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <transformations/utils/utils.hpp>
+#include <utility>
+
+#include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
-#include "itt.hpp"
-#include <ngraph/opsets/opset9.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/pattern/op/or.hpp>
-#include <transformations/utils/utils.hpp>
-
-#include "transformations/common_optimizations/transpose_sinking_binary.hpp"
-
-#include <utility>
 
 namespace {
 
@@ -43,7 +43,8 @@ TrasposeInputsInfo GetFirstTransposeInput(NodePtr node) {
         auto transpose_node = ov::as_type_ptr<ov::opset9::Transpose>(input_node);
         if (!transpose_node)
             continue;
-        auto constant_node = ov::as_type_ptr<ov::opset9::Constant>(transpose_node->input_value(1).get_node_shared_ptr());
+        auto constant_node =
+            ov::as_type_ptr<ov::opset9::Constant>(transpose_node->input_value(1).get_node_shared_ptr());
         if (!constant_node)
             continue;
         {
@@ -64,7 +65,8 @@ bool IfNodeHasTransposeInputs(const ov::Output<ov::Node>& output) {
         auto transpose_node = ov::as_type_ptr<ov::opset9::Transpose>(input_node);
         if (!transpose_node)
             continue;
-        auto constant_node = ov::as_type_ptr<ov::opset9::Constant>(transpose_node->input_value(1).get_node_shared_ptr());
+        auto constant_node =
+            ov::as_type_ptr<ov::opset9::Constant>(transpose_node->input_value(1).get_node_shared_ptr());
         if (!constant_node)
             continue;
         return true;
@@ -83,7 +85,7 @@ ov::AxisVector ReverseTransposeOrder(const ov::AxisVector& axis_order) {
     return out;
 }
 
-}
+}  // namespace
 
 void SwapOutputNames(ov::Output<ov::Node> output1, ov::Output<ov::Node> output2) {
     const auto node2_output_names = output2.get_names();
@@ -104,17 +106,18 @@ void SwapNames(NodePtr node1, NodePtr node2) {
 ngraph::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
     MATCHER_SCOPE(TransposeSinkingBinaryForward);
 
-    auto transpose_label =
-        ov::pass::pattern::wrap_type<ov::opset9::Transpose>({ov::pass::pattern::any_input(), ngraph::pattern::wrap_type<ov::opset9::Constant>()},
-                                                             ov::pass::pattern::consumers_count(1));
-    auto binary_label_left = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>({transpose_label,
-                                                                                                      ov::pass::pattern::any_input()},
-                                                                                                      ov::pass::pattern::consumers_count(1));
+    auto transpose_label = ov::pass::pattern::wrap_type<ov::opset9::Transpose>(
+        {ov::pass::pattern::any_input(), ngraph::pattern::wrap_type<ov::opset9::Constant>()},
+        ov::pass::pattern::consumers_count(1));
+    auto binary_label_left = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>(
+        {transpose_label, ov::pass::pattern::any_input()},
+        ov::pass::pattern::consumers_count(1));
 
-    auto binary_label_right = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>({ov::pass::pattern::any_input(),
-                                                                                                       transpose_label},
-                                                                                                       ov::pass::pattern::consumers_count(1));
-    auto binary_label = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{binary_label_left, binary_label_right});
+    auto binary_label_right = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>(
+        {ov::pass::pattern::any_input(), transpose_label},
+        ov::pass::pattern::consumers_count(1));
+    auto binary_label =
+        std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{binary_label_left, binary_label_right});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
         auto binary = m.get_match_root();
@@ -131,9 +134,10 @@ ngraph::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
                 auto transpose_parent = input_node.get_node()->input_value(0);
                 binary->input(i).replace_source_output(transpose_parent);
             } else {
-                auto new_transpose_const = std::make_shared<ov::opset9::Constant>(transpose_element_type,
-                                                                                  ov::Shape{reversed_traspose_axis_order.size()},
-                                                                                  reversed_traspose_axis_order);
+                auto new_transpose_const =
+                    std::make_shared<ov::opset9::Constant>(transpose_element_type,
+                                                           ov::Shape{reversed_traspose_axis_order.size()},
+                                                           reversed_traspose_axis_order);
                 auto new_transpose = std::make_shared<ov::opset9::Transpose>(input_node, new_transpose_const);
 
                 binary->input(i).replace_source_output(new_transpose->output(0));
@@ -149,7 +153,7 @@ ngraph::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
                                                                           transpose_axis_order);
         auto new_transpose = std::make_shared<ov::opset9::Transpose>(binary, new_transpose_const);
 
-        for (auto& consumer: binary_consumers) {
+        for (auto& consumer : binary_consumers) {
             consumer.replace_source_output(new_transpose);
         }
 
@@ -169,18 +173,19 @@ ngraph::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
 ngraph::pass::TransposeSinkingBinaryBackward::TransposeSinkingBinaryBackward() {
     MATCHER_SCOPE(TransposeSinkingBinaryBackward);
 
-    auto binary_label = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>({ov::pass::pattern::any_input(),
-                                                                                                 ov::pass::pattern::any_input()},
-                                                                                                 ov::pass::pattern::consumers_count(1));
+    auto binary_label = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>(
+        {ov::pass::pattern::any_input(), ov::pass::pattern::any_input()},
+        ov::pass::pattern::consumers_count(1));
 
-    auto transpose_const_label = ov::pass::pattern::wrap_type<ov::opset9::Constant>(ov::pass::pattern::consumers_count(1));
-    auto transpose_label =
-        ov::pass::pattern::wrap_type<ov::opset9::Transpose>({binary_label, transpose_const_label},
-                                                            ov::pass::pattern::consumers_count(1));
+    auto transpose_const_label =
+        ov::pass::pattern::wrap_type<ov::opset9::Constant>(ov::pass::pattern::consumers_count(1));
+    auto transpose_label = ov::pass::pattern::wrap_type<ov::opset9::Transpose>({binary_label, transpose_const_label},
+                                                                               ov::pass::pattern::consumers_count(1));
 
     ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
-        auto transpose_const = ov::as_type_ptr<ov::opset9::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
+        auto transpose_const =
+            ov::as_type_ptr<ov::opset9::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto binary = pattern_to_output.at(binary_label).get_node_shared_ptr();
 
@@ -202,7 +207,7 @@ ngraph::pass::TransposeSinkingBinaryBackward::TransposeSinkingBinaryBackward() {
         }
 
         auto transpose_consumers = transpose->output(0).get_target_inputs();
-        for (auto& consumer: transpose_consumers) {
+        for (auto& consumer : transpose_consumers) {
             consumer.replace_source_output(binary);
         }
 
@@ -225,7 +230,7 @@ T TransposeAxis(T axis, const ov::AxisVector& transpose_order) {
     return transpose_order[axis];
 }
 
-} // namespace
+}  // namespace
 
 ngraph::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
     MATCHER_SCOPE(TransposeSinkingConcatForward);
@@ -250,11 +255,11 @@ ngraph::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
             if (i == tranpose_input_index) {
                 auto transpose_parent = input_node.get_node()->input_value(0);
                 concat->input(i).replace_source_output(transpose_parent);
-            }
-            else {
-                auto new_transpose_const = std::make_shared<ov::opset9::Constant>(transpose_element_type,
-                                                                                  ov::Shape{reversed_traspose_axis_order.size()},
-                                                                                  reversed_traspose_axis_order);
+            } else {
+                auto new_transpose_const =
+                    std::make_shared<ov::opset9::Constant>(transpose_element_type,
+                                                           ov::Shape{reversed_traspose_axis_order.size()},
+                                                           reversed_traspose_axis_order);
                 auto new_transpose = std::make_shared<ov::opset9::Transpose>(input_node, new_transpose_const);
 
                 concat->input(i).replace_source_output(new_transpose->output(0));
@@ -270,7 +275,7 @@ ngraph::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
                                                                           transpose_axis_order);
         auto new_transpose = std::make_shared<ov::opset9::Transpose>(concat, new_transpose_const);
 
-        for (auto& consumer: binary_consumers) {
+        for (auto& consumer : binary_consumers) {
             consumer.replace_source_output(new_transpose);
         }
 
@@ -295,14 +300,15 @@ ngraph::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
 
     auto concat_label = ov::pass::pattern::wrap_type<ov::opset9::Concat>(ov::pass::pattern::consumers_count(1));
 
-    auto transpose_const_label = ov::pass::pattern::wrap_type<ov::opset9::Constant>(ov::pass::pattern::consumers_count(1));
-    auto transpose_label =
-        ov::pass::pattern::wrap_type<ov::opset9::Transpose>({concat_label, transpose_const_label},
-                                                            ov::pass::pattern::consumers_count(1));
+    auto transpose_const_label =
+        ov::pass::pattern::wrap_type<ov::opset9::Constant>(ov::pass::pattern::consumers_count(1));
+    auto transpose_label = ov::pass::pattern::wrap_type<ov::opset9::Transpose>({concat_label, transpose_const_label},
+                                                                               ov::pass::pattern::consumers_count(1));
 
     ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
-        auto transpose_const = ov::as_type_ptr<ov::opset9::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
+        auto transpose_const =
+            ov::as_type_ptr<ov::opset9::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto concat = ov::as_type_ptr<ov::opset9::Concat>(pattern_to_output.at(concat_label).get_node_shared_ptr());
 
@@ -326,7 +332,7 @@ ngraph::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
         }
 
         auto transpose_consumers = transpose->output(0).get_target_inputs();
-        for (auto& consumer: transpose_consumers) {
+        for (auto& consumer : transpose_consumers) {
             consumer.replace_source_output(concat);
         }
 
@@ -347,19 +353,20 @@ ngraph::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
 ngraph::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
     MATCHER_SCOPE(TransposeSinkingSplitForward);
 
-    auto transpose_const_label = ov::pass::pattern::wrap_type<ov::opset9::Constant>(ov::pass::pattern::consumers_count(1));
+    auto transpose_const_label =
+        ov::pass::pattern::wrap_type<ov::opset9::Constant>(ov::pass::pattern::consumers_count(1));
     auto transpose_label =
-        ov::pass::pattern::wrap_type<ov::opset9::Transpose>({ov::pass::pattern::any_input(),
-                                                             transpose_const_label},
-                                                             ov::pass::pattern::consumers_count(1));
+        ov::pass::pattern::wrap_type<ov::opset9::Transpose>({ov::pass::pattern::any_input(), transpose_const_label},
+                                                            ov::pass::pattern::consumers_count(1));
 
-    auto split_label = ov::pass::pattern::wrap_type<ov::opset9::Split>({transpose_label,
-                                                                        ov::pass::pattern::any_input()},
-                                                                        ov::pass::pattern::consumers_count(1));
+    auto split_label =
+        ov::pass::pattern::wrap_type<ov::opset9::Split>({transpose_label, ov::pass::pattern::any_input()},
+                                                        ov::pass::pattern::consumers_count(1));
 
     ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
-        auto transpose_const = ov::as_type_ptr<ov::opset9::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
+        auto transpose_const =
+            ov::as_type_ptr<ov::opset9::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto split = ov::as_type_ptr<ov::opset9::Split>(pattern_to_output.at(split_label).get_node_shared_ptr());
         auto split_axis_constant = ov::as_type_ptr<ov::opset9::Constant>(split->input_value(1).get_node_shared_ptr());
@@ -383,8 +390,7 @@ ngraph::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
                                                                               transpose_axis_order);
             auto new_transpose = std::make_shared<ov::opset9::Transpose>(split->output(i), new_transpose_const);
 
-
-            for (auto& consumer: split_consumers) {
+            for (auto& consumer : split_consumers) {
                 consumer.replace_source_output(new_transpose);
             }
 
@@ -397,7 +403,9 @@ ngraph::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
         }
 
         // update split axis
-        auto new_split_axis_const = std::make_shared<ov::opset9::Constant>(split_axis_constant->get_element_type(), ov::Shape{}, transposed_split_axis);
+        auto new_split_axis_const = std::make_shared<ov::opset9::Constant>(split_axis_constant->get_element_type(),
+                                                                           ov::Shape{},
+                                                                           transposed_split_axis);
         split->input(1).replace_source_output(new_split_axis_const);
 
         return true;
@@ -410,8 +418,8 @@ ngraph::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
 // --------------------------------------------------------------------------------------
 
 struct OutputTranspose {
-    ov::opset9::Transpose * transpose;
-    ov::opset9::Constant * transpose_const;
+    ov::opset9::Transpose* transpose;
+    ov::opset9::Constant* transpose_const;
 };
 
 OutputTranspose GetOutputTransposes(NodePtr node) {
@@ -436,7 +444,7 @@ OutputTranspose GetOutputTransposes(NodePtr node) {
     return OutputTranspose();
 }
 
-NodePtr FindSplitInput(ov::Node * node) {
+NodePtr FindSplitInput(ov::Node* node) {
     for (size_t input_idx = 0; input_idx < node->get_input_size(); ++input_idx) {
         NodePtr input_node = node->get_input_node_shared_ptr(input_idx);
         auto split_node = ov::as_type_ptr<ov::opset9::Split>(input_node);
@@ -450,7 +458,7 @@ std::shared_ptr<ov::opset9::Constant> GetTransposeConstant(ov::Input<ov::Node> i
     auto transpose_node = dynamic_cast<ov::opset9::Transpose*>(input.get_node());
     if (!transpose_node)
         return {};
-    
+
     auto constant_node = ov::as_type_ptr<ov::opset9::Constant>(transpose_node->input_value(1).get_node_shared_ptr());
     if (!constant_node)
         return {};
@@ -482,7 +490,9 @@ bool HasInputSplitAndTransposeSiblings(const ov::Output<ov::Node>& output) {
             ov::AxisVector transpose_axis_order = constant_node->get_axis_vector_val();
             if (transpose_axis_order.size() != first_transpose_axis_order.size())
                 return false;
-            if (!std::equal(transpose_axis_order.begin(), transpose_axis_order.end(), first_transpose_axis_order.begin()))
+            if (!std::equal(transpose_axis_order.begin(),
+                            transpose_axis_order.end(),
+                            first_transpose_axis_order.begin()))
                 return false;
         }
     }
@@ -493,16 +503,16 @@ bool HasInputSplitAndTransposeSiblings(const ov::Output<ov::Node>& output) {
 ngraph::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
     MATCHER_SCOPE(TransposeSinkingSplitBackward);
 
-    auto transpose_const_label = ov::pass::pattern::wrap_type<ov::opset9::Constant>(ov::pass::pattern::consumers_count(1));
+    auto transpose_const_label =
+        ov::pass::pattern::wrap_type<ov::opset9::Constant>(ov::pass::pattern::consumers_count(1));
     auto transpose_label =
-        ov::pass::pattern::wrap_type<ov::opset9::Transpose>({ov::pass::pattern::any_input(),
-                                                             transpose_const_label},
-                                                             HasInputSplitAndTransposeSiblings);
+        ov::pass::pattern::wrap_type<ov::opset9::Transpose>({ov::pass::pattern::any_input(), transpose_const_label},
+                                                            HasInputSplitAndTransposeSiblings);
 
     ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_label_node = pattern_to_output.at(transpose_label).get_node();
-        
+
         NodePtr split = FindSplitInput(transpose_label_node);
         auto split_axis_constant = ov::as_type_ptr<ov::opset9::Constant>(split->input_value(1).get_node_shared_ptr());
         OutputTranspose output_transpose = GetOutputTransposes(split);
@@ -540,7 +550,7 @@ ngraph::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
         for (size_t output_idx = 0; output_idx < split->get_output_size(); ++output_idx) {
             for (auto& input : split->get_output_target_inputs(output_idx)) {
                 auto transpose_consumers = input.get_node()->output(0).get_target_inputs();
-                for (auto& consumer: transpose_consumers) {
+                for (auto& consumer : transpose_consumers) {
                     consumer.replace_source_output(split->output(output_idx));
                 }
             }
