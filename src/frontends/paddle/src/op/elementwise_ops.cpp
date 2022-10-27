@@ -46,7 +46,6 @@ NamedOutputs elementwise_greater_equal(const NodeContext& node_context) {
     return elementwise_ops<default_opset::GreaterEqual>(node_context);
 }
 
-
 NamedOutputs elementwise_not_equal(const NodeContext& node_context) {
     return elementwise_ops<default_opset::NotEqual>(node_context);
 }
