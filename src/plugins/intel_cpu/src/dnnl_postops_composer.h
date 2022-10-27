@@ -50,7 +50,7 @@ private:
     dnnl::post_ops& ops;
     std::vector<MemoryPtr>& args;
     const VectorDims outputDims;
-    Dim dimOC;
+    int idxOC;
     VectorDims dimsPerTensor;
     VectorDims dimsPerOC;
     Dim OC;

@@ -23,12 +23,12 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(ov::intel_cpu::Node* node,
       ops(ops),
       args(args),
       outputDims(outputDims),
-      dimOC(indexOfOutputChannelDim),
+      idxOC(indexOfOutputChannelDim),
       isINT8(isINT8) {
-    IE_ASSERT(dimOC >= 0 && dimOC < outputDims.size());
-    OC = outputDims[dimOC];
+    IE_ASSERT(idxOC >= 0 && idxOC < outputDims.size());
+    OC = outputDims[idxOC];
     dimsPerOC = dimsPerTensor = VectorDims(outputDims.size(), 1);
-    dimsPerOC[dimOC] = OC;
+    dimsPerOC[idxOC] = OC;
 }
 
 void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vector<float>& data) {
