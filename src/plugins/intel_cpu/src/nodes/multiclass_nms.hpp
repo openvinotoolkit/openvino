@@ -6,6 +6,8 @@
 
 #include <ie_common.h>
 #include <node.h>
+#include "kernels/jit_uni_multiclass_nms_kernel.hpp"
+#include <memory>
 
 namespace ov {
 namespace intel_cpu {
@@ -26,6 +28,7 @@ public:
     void executeDynamicImpl(dnnl::stream strm) override;
 
     bool needShapeInfer() const override { return false; }
+    void createPrimitive() override;
     void prepareParams() override;
 
 private:
@@ -42,6 +45,8 @@ private:
     std::string err_str_prefix_;
 
 private:
+    std::unique_ptr<jit_uni_multiclass_nms_kernel> nms_kernel_ {};
+
     // Attributes
     int attr_nms_top_k_ = 0;
     float attr_iou_threshold_ = 0.0f;
@@ -54,12 +59,7 @@ private:
     enum class SortResultType { CLASSID, SCORE, NONE };
     SortResultType attr_sort_result_ = SortResultType::NONE;
 
-    struct Box {
-        float score;
-        int batch_idx;
-        int class_idx;
-        int box_idx;
-    };
+    using Box = jit_uni_multiclass_nms_kernel::Box;
 
     struct Buffer {
         Box* boxes;
@@ -102,8 +102,21 @@ private:
         std::vector<std::vector<size_t>> num_boxes_per_batch_and_class; // number of rois after nms for each class in each image
         std::vector<int> num_boxes_per_batch;
 
-        Box* thread_workspace_for(int batch_idx, int class_idx) {
+        std::vector<float> coords; // internal buffer for kernel
+
+        Box* thread_boxes_for(int batch_idx, int class_idx) {
             return boxes.data() + batch_idx * num_classes_ * num_boxes_ + class_idx * num_boxes_;
+        }
+
+        float* thread_coords_for(int batch_idx, int class_idx, int buffer_idx) {
+            // [num_batches, num_classes, num_buffers, buf_size]
+            const size_t buff_size = coords_buffer_size_for_thread(num_boxes_);
+            float* buffer = coords.data() +
+                batch_idx * num_classes_ * num_coord_buffers_per_thread * buff_size +
+                class_idx * num_coord_buffers_per_thread * buff_size +
+                buffer_idx * buff_size;
+            const size_t alignment = coord_buffers_alignment;
+            return reinterpret_cast<float*>((reinterpret_cast<uint64_t>(buffer) / alignment + 1) * alignment);
         }
 
         Buffer flatten_all();
@@ -111,6 +124,16 @@ private:
         Buffer flatten_batches();
 
     private:
+        static constexpr size_t coord_buffers_alignment = 64;
+        static constexpr size_t num_coord_buffers_per_thread = 4;
+        static size_t coords_buffer_size_for_thread(size_t num_boxes) {
+            return num_boxes + coord_buffers_alignment * 2;
+        }
+        static size_t coords_buffer_size(size_t num_batches, size_t num_classes, size_t num_boxes) {
+            const size_t num_threads = num_batches * num_classes;
+            return num_threads * num_coord_buffers_per_thread * coords_buffer_size_for_thread(num_boxes);
+        }
+
         const size_t num_batches_;
         const size_t num_classes_;
         const size_t num_boxes_;
@@ -126,7 +149,6 @@ private:
     };
     OutputsLayout output_layout_;
 
-    float intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized);
     void multiclass_nms(const float* boxes, const float* scores, const int* roisnum);
 
     static void partial_sort_by_score(Buffer buffer, int mid_size);
