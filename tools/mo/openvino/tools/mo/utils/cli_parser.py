@@ -440,7 +440,12 @@ mo_convert_params = {
         '{} Tensorflow*: a file with a pre-trained model ' +
         ' (binary or text .pb file after freezing).\n' +
         ' Caffe*: a model proto file with model weights', '',
-        'Model object in original framework (PyTorch, Tensorflow) or path to model file.',
+        'Model object in original framework (PyTorch, Tensorflow) or path to model file. \n' +
+        'Supported object formats of input model:\n PyTorch - torch.nn.Module, torch.jit.ScriptModule, torch.jit.ScriptFunction' +
+        'TF - tf.compat.v1.GraphDef, tf.compat.v1.wrap_function, tf.compat.v1.session\n ' +
+        'TF2 / Keras - tf.keras.Model, tf.keras.layers.Layer, tf.function, tf.Module, tf.train.checkpoint, ' +
+        'tf.python.training.tracking.base.Trackable for case when it is output from tf.saved_model.load().\n' +
+        'File formats examples:\n',
         path_to_str_or_object),
     'framework': ParamDescription(
         'Name of the framework used to train the input model.', '', '', None),

@@ -18,6 +18,26 @@ def convert_model(input_model=None, **args):
             Tensorflow*: a file with a pre-trained model (binary or text .pb file after freezing).
             Caffe*: a model proto file with model weights
 
+            Supported formats of input model:
+
+            PyTorch
+            torch.nn.Module
+            torch.jit.ScriptModule
+            torch.jit.ScriptFunction
+
+            TF
+            tf.compat.v1.GraphDef
+            tf.compat.v1.wrap_function
+            tf.compat.v1.session
+
+            TF2 / Keras
+            tf.keras.Model
+            tf.keras.layers.Layer
+            tf.function
+            tf.Module
+            tf.train.checkpoint
+            tf.python.training.tracking.base.Trackable for case when it is output from tf.saved_model.load()
+
     Run convert(help=true) to list all available parameters.
 
     Returns:
