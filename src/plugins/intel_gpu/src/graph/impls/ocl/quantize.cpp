@@ -133,10 +133,20 @@ attach_quantize_impl::attach_quantize_impl() {
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
 
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv32),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv32),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv32),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv32),
+
         std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv16),
         std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
         std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv16_fsv16),
         std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv16_fsv16),
+
+        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv32),
+        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv32),
+        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv16_fsv32),
+        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv16_fsv32),
 
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),

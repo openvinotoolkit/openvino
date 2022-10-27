@@ -2,42 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(NOT ENABLE_DOCKER)
-    if(CMAKE_COMPILER_IS_GNUCXX)
-        ie_add_compiler_flags(-Wall)
-    endif()
-
-    # Detect OpenVINO
-    find_package(OpenVINO QUIET
-                 PATHS "${CMAKE_BINARY_DIR}"
-                 NO_DEFAULT_PATH)
-    if(NOT OpenVINO_FOUND)
-        set(OpenVINO_DIR ${CMAKE_BINARY_DIR})
-    endif()
-
-    add_subdirectory(snippets)
-
-    set(all_docs_targets
-        ie_docs_snippets ov_template_func_tests
-        template_extension openvino_template_extension openvino_template_plugin)
-    foreach(target_name IN LISTS all_docs_targets)
-        if(TARGET ${target_name})
-            set_target_properties(${target_name} PROPERTIES FOLDER docs)
-            if(WIN32)
-                set_target_properties(${target_name} PROPERTIES COMPILE_PDB_NAME ${target_name})
-            endif()
-        endif()
-    endforeach()
-
-    # install
-
-    foreach(target openvino_template_plugin template_extension openvino_template_extension)
-        if(TARGET ${target})
-            install(TARGETS ${target}
-                    LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
-        endif()
-    endforeach()
-endif()
+add_subdirectory(snippets)
 
 set(LINKCHECKER_PY "" CACHE FILEPATH "Path to linkchecker.py for documentation check dir.")
 set(ENABLE_OPENVINO_NOTEBOOKS OFF CACHE BOOL "Build with openvino notebooks")
