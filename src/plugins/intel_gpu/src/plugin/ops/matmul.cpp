@@ -171,21 +171,33 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
         auto transA = op->get_transpose_a();
         auto transB = op->get_transpose_b();
 
-        auto canTransposeInputs = [] (const std::array<ngraph::Shape, 2>& shapes, bool transA, bool transB) -> bool {
+        std::array<ngraph::PartialShape, 2> inputShapes{
+            op->get_input_partial_shape(0),
+            op->get_input_partial_shape(1)
+        };
+
+        auto canTransposeInputs = [] (const std::array<ngraph::PartialShape, 2>& shapes, bool transA, bool transB) -> bool {
             if (!transA && !transB)
+                return false;
+            if (shapes[0].rank().is_dynamic() ||
+                shapes[1].rank().is_dynamic())
                 return false;
 
             // don't transpose inputs if they're aligned to 16
-            bool inputsAligned = std::all_of(shapes[0].rbegin(), shapes[0].rbegin() + 2, [] (size_t dim) { return dim % 16 == 0; }) &&
-                                 std::all_of(shapes[1].rbegin(), shapes[1].rbegin() + 2, [] (size_t dim) { return dim % 16 == 0; });
+            bool inputsAligned = std::all_of(shapes[0].rbegin(), shapes[0].rbegin() + 2,
+                                             [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() % 16 == 0; }) &&
+                                 std::all_of(shapes[1].rbegin(), shapes[1].rbegin() + 2,
+                                             [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() % 16 == 0; });
             if (inputsAligned)
                 return false;
 
-            return std::all_of(shapes[0].rbegin(), shapes[0].rbegin() + 2, [] (size_t dim) { return dim >= 64; }) &&
-                   std::all_of(shapes[1].rbegin(), shapes[1].rbegin() + 2, [] (size_t dim) { return dim >= 64; });
+            return std::all_of(shapes[0].rbegin(), shapes[0].rbegin() + 2,
+                               [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() >= 64; }) &&
+                   std::all_of(shapes[1].rbegin(), shapes[1].rbegin() + 2,
+                               [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() >= 64; });
         };
 
-        auto transposeInput = [&layerName] (Program& p, const std::shared_ptr<ngraph::Node>& op, const ngraph::Shape& shape,
+        auto transposeInput = [&layerName] (Program& p, const std::shared_ptr<ngraph::Node>& op, const ngraph::PartialShape& shape,
                                             const std::string& suffix, const cldnn::primitive_id& primitiveId) -> std::string {
             std::vector<uint16_t> transposeOrder(shape.size());
             std::iota(transposeOrder.begin(), transposeOrder.end(), 0);
