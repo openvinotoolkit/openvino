@@ -29,11 +29,11 @@ void gru_cell_shape_infer(const OpType* op,
 
     rnn_seq::validate_inputs_rank(op, input_shapes, {2, 2, 2, 2, 1});
 
-    auto x_pshape = input_shapes[0]; // [batch_size, input_size]
-    auto ht_pshape = input_shapes[1]; // [batch_size, hidden_size]
-    auto w_pshape = input_shapes[2]; // [3 * hidden_size, input_size]
-    auto r_pshape = input_shapes[3]; // [3 * hidden_size, hidden_size]
-    auto b_pshape = input_shapes[4]; // if linear_before_reset [4 * hidden_size], otherwise [3 * hidden_size]
+    const auto& x_pshape = input_shapes[0]; // [batch_size, input_size]
+    const auto& ht_pshape = input_shapes[1]; // [batch_size, hidden_size]
+    const auto& w_pshape = input_shapes[2]; // [3 * hidden_size, input_size]
+    const auto& r_pshape = input_shapes[3]; // [3 * hidden_size, hidden_size]
+    const auto& b_pshape = input_shapes[4]; // if linear_before_reset [4 * hidden_size], otherwise [3 * hidden_size]
 
     using DimType = typename std::iterator_traits<typename ShapeType::iterator>::value_type;
 

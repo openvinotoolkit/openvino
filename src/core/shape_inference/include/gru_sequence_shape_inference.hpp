@@ -46,12 +46,12 @@ void gru_shape_infer(const OpType* op,
 
     rnn_seq::validate_inputs_rank(op, input_shapes, {3, 3, 1, 3, 3, 2});
 
-    auto x_pshape = input_shapes[0];
-    auto ht_pshape = input_shapes[1];
-    auto sl_pshape = input_shapes[2];
-    auto w_pshape = input_shapes[3];
-    auto r_pshape = input_shapes[4];
-    auto b_pshape = input_shapes[5];
+    const auto& x_pshape = input_shapes[0];
+    const auto& ht_pshape = input_shapes[1];
+    const auto& sl_pshape = input_shapes[2];
+    const auto& w_pshape = input_shapes[3];
+    const auto& r_pshape = input_shapes[4];
+    const auto& b_pshape = input_shapes[5];
 
     using DimType = typename std::iterator_traits<typename ShapeType::iterator>::value_type;
 
