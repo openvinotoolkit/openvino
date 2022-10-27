@@ -53,16 +53,18 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
 
 1. Open a command prompt terminal window. You can use the keyboard shortcut: Ctrl+Alt+T
 
-2. Create the `/opt/intel` folder for OpenVINO and switch to it by using the following commands. If the folder already exists, skip the `mkdir` command.
-
+2. Create the `/opt/intel` folder for OpenVINO by using the following command. If the folder already exists, skip this command.
    ```sh
    sudo mkdir /opt/intel
-   cd /opt/intel
    ```
-
    > **NOTE**: The `/opt/intel` path is the recommended folder path for administrators or root users. If you prefer to install OpenVINO in regular userspace, the recommended path is `/home/<USER>/intel`. You may use a different path if desired.
 
-3. Download the OpenVINO Runtime archive file for Linux from the [OpenVINO releases page](https://github.com/openvinotoolkit/openvino/releases/tag/2022.2.0), extract it, and rename the folder to `openvino_2022.2.0.7713` by using the following commands:
+3. Browse to the current user's `Downloads` folder:
+   ```sh
+    cd <user_home>/Downloads
+    ```
+    
+4. Download the OpenVINO Runtime archive file for Linux from the [OpenVINO releases page](https://github.com/openvinotoolkit/openvino/releases/tag/2022.2.0), extract the files, rename the extracted folder and move it to the desired path:
 
 @sphinxdirective
 
@@ -70,30 +72,29 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
 
    .. code-block:: sh
    
-      sudo curl -L https://github.com/openvinotoolkit/openvino/releases/download/2022.2.0/l_openvino_toolkit_ubuntu18_2022.2.0.7713.af16ea1d79a_x86_64.tgz --output openvino_2022.2.0.7713.tgz
-      sudo tar -xf openvino_2022.2.0.7713.tgz
-      sudo mv l_openvino_toolkit_ubuntu18_2022.2.0.7713.af16ea1d79a_x86_64 openvino_2022.2.0.7713
+      curl -L https://github.com/openvinotoolkit/openvino/releases/download/2022.2.0/l_openvino_toolkit_ubuntu18_2022.2.0.7713.af16ea1d79a_x86_64.tgz --output openvino_2022.2.0.7713.tgz
+      tar -xf openvino_2022.2.0.7713.tgz
+      sudo mv l_openvino_toolkit_ubuntu18_2022.2.0.7713.af16ea1d79a_x86_64 /opt/intel/openvino_2022.2.0.7713
       
 .. tab:: Ubuntu 20.04
 
    .. code-block:: sh
    
       sudo curl -L https://github.com/openvinotoolkit/openvino/releases/download/2022.2.0/l_openvino_toolkit_ubuntu20_2022.2.0.7713.af16ea1d79a_x86_64.tgz --output openvino_2022.2.0.7713.tgz
-      sudo tar -xf openvino_2022.2.0.7713.tgz
-      sudo mv l_openvino_toolkit_ubuntu20_2022.2.0.7713.af16ea1d79a_x86_64 openvino_2022.2.0.7713
+      tar -xf openvino_2022.2.0.7713.tgz
+      sudo mv l_openvino_toolkit_ubuntu20_2022.2.0.7713.af16ea1d79a_x86_64 /opt/intel/openvino_2022.2.0.7713
       
 .. tab:: Red Hat
 
    .. code-block:: sh
    
-      sudo curl -L https://github.com/openvinotoolkit/openvino/releases/download/2022.2.0/l_openvino_toolkit_rhel8_2022.2.0.7713.af16ea1d79a_x86_64.tgz --output openvino_2022.2.0.7713.tgz
-      sudo tar -xf openvino_2022.2.0.7713.tgz
-      sudo mv l_openvino_toolkit_rhel8_2022.2.0.7713.af16ea1d79a_x86_64 openvino_2022.2.0.7713
+      curl -L https://github.com/openvinotoolkit/openvino/releases/download/2022.2.0/l_openvino_toolkit_rhel8_2022.2.0.7713.af16ea1d79a_x86_64.tgz --output openvino_2022.2.0.7713.tgz
+      tar -xf openvino_2022.2.0.7713.tgz
+      sudo mv l_openvino_toolkit_rhel8_2022.2.0.7713.af16ea1d79a_x86_64 /opt/intel/openvino_2022.2.0.7713
       
 @endsphinxdirective
-
-4. For simplicity, it is useful to create a symbolic link as below:
-
+   
+5. For simplicity, it is useful to create a symbolic link as below:
    ```
    sudo ln -s openvino_2022.2.0.7713 openvino_2022
    ```
