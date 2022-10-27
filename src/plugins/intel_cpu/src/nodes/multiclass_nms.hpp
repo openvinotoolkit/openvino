@@ -6,6 +6,8 @@
 
 #include <ie_common.h>
 #include <node.h>
+#include "kernels/jit_uni_multiclass_nms_kernel.hpp"
+#include <memory>
 
 namespace ov {
 namespace intel_cpu {
@@ -26,6 +28,7 @@ public:
     void executeDynamicImpl(dnnl::stream strm) override;
 
     bool needShapeInfer() const override { return false; }
+    void createPrimitive() override;
     void prepareParams() override;
 
 private:
@@ -42,6 +45,8 @@ private:
     std::string err_str_prefix_;
 
 private:
+    std::unique_ptr<jit_uni_multiclass_nms_kernel> nms_kernel_ {};
+
     // Attributes
     int attr_nms_top_k_ = 0;
     float attr_iou_threshold_ = 0.0f;
@@ -54,12 +59,7 @@ private:
     enum class SortResultType { CLASSID, SCORE, NONE };
     SortResultType attr_sort_result_ = SortResultType::NONE;
 
-    struct Box {
-        float score;
-        int batch_idx;
-        int class_idx;
-        int box_idx;
-    };
+    using Box = jit_uni_multiclass_nms_kernel::Box;
 
     struct Buffer {
         Box* boxes;
@@ -126,7 +126,6 @@ private:
     };
     OutputsLayout output_layout_;
 
-    float intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized);
     void multiclass_nms(const float* boxes, const float* scores, const int* roisnum);
 
     static void partial_sort_by_score(Buffer buffer, int mid_size);

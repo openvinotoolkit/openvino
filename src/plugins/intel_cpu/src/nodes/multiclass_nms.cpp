@@ -12,6 +12,7 @@
 #include "ie_parallel.hpp"
 
 using namespace InferenceEngine;
+using namespace dnnl::impl::cpu;
 
 namespace ov {
 namespace intel_cpu {
@@ -303,6 +304,23 @@ bool MultiClassNms::isExecutable() const {
     return isDynamicNode() || Node::isExecutable();
 }
 
+void MultiClassNms::createPrimitive() {
+    Node::createPrimitive();
+
+    if (x64::mayiuse(x64::avx512_core)) {
+        nms_kernel_.reset(new jit_uni_multiclass_nms_kernel_impl<x64::avx512_core> {});
+    } else if (x64::mayiuse(x64::avx2)) {
+        nms_kernel_.reset(new jit_uni_multiclass_nms_kernel_impl<x64::avx2> {});
+    } else if (x64::mayiuse(x64::sse41)) {
+        nms_kernel_.reset(new jit_uni_multiclass_nms_kernel_impl<x64::sse41> {});
+    } else {
+        DEBUG_LOG("Unable to create jit_uni_multiclass_nms_kernel due to unsupported ISA. Non-JIT version will be executed.");
+        nms_kernel_.reset(new jit_uni_multiclass_nms_kernel_fallback {});
+    }
+
+    nms_kernel_->create_ker();
+}
+
 void MultiClassNms::prepareParams() {
     inputs_->prepareParams(*this, err_str_prefix_);
     const size_t num_batches = inputs_->num_batches();
@@ -363,30 +381,6 @@ void MultiClassNms::execute(dnnl::stream strm) {
     fill_outputs(rois, boxes, roisnum);
 }
 
-float MultiClassNms::intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized) {
-    float yminI, xminI, ymaxI, xmaxI, yminJ, xminJ, ymaxJ, xmaxJ;
-    const float norm = static_cast<float>(normalized == false);
-
-    // to align with reference
-    yminI = boxesI[0];
-    xminI = boxesI[1];
-    ymaxI = boxesI[2];
-    xmaxI = boxesI[3];
-    yminJ = boxesJ[0];
-    xminJ = boxesJ[1];
-    ymaxJ = boxesJ[2];
-    xmaxJ = boxesJ[3];
-
-    float areaI = (ymaxI - yminI + norm) * (xmaxI - xminI + norm);
-    float areaJ = (ymaxJ - yminJ + norm) * (xmaxJ - xminJ + norm);
-    if (areaI <= 0.f || areaJ <= 0.f)
-        return 0.f;
-
-    float intersection_area = (std::max)((std::min)(ymaxI, ymaxJ) - (std::max)(yminI, yminJ) + norm, 0.f) *
-                              (std::max)((std::min)(xmaxI, xmaxJ) - (std::max)(xminI, xminJ) + norm, 0.f);
-    return intersection_area / (areaI + areaJ - intersection_area);
-}
-
 void MultiClassNms::multiclass_nms(const float* in_boxes, const float* in_scores, const int* in_roisnum) {
     parallel_for2d(inputs_->num_batches(), inputs_->num_classes(), [&](int batch_idx, int class_idx) {
         const int num_input_boxes = inputs_->num_input_boxes(batch_idx, in_roisnum);
@@ -430,30 +424,16 @@ void MultiClassNms::multiclass_nms(const float* in_boxes, const float* in_scores
                 });
         }
 
-        num_boxes_selected = 0;
-        float iou_threshold = attr_iou_threshold_;
-        for (size_t i = 0; i < num_boxes_per_class; i++) {
-            bool box_is_selected = true;
-            for (int j = num_boxes_selected - 1; j >= 0; j--) {
-                const float iou = intersectionOverUnion(&input_boxes[boxes[i].box_idx * 4],
-                                                        &input_boxes[boxes[j].box_idx * 4],
-                                                        attr_normalized_);
-                if (iou >= iou_threshold) {
-                    box_is_selected = false;
-                    break;
-                }
-                if (boxes[i].score == attr_score_threshold_)    // TODO: bug in reference impl?
-                    break;
-            }
-            if (box_is_selected) {
-                if (iou_threshold > 0.5f) {
-                    iou_threshold *= attr_nms_eta_;
-                }
-                boxes[num_boxes_selected++] = boxes[i];
-            }
-        }
-
-        workbuffers_->num_boxes_per_batch_and_class[batch_idx][class_idx] = num_boxes_selected;
+        jit_uni_multiclass_nms_kernel::jit_nms_call_args args {};
+        args.iou_threshold = attr_iou_threshold_;
+        args.score_threshold = attr_score_threshold_;
+        args.nms_eta = attr_nms_eta_;
+        args.coordinates_offset = static_cast<float>(attr_normalized_ == false);
+        args.boxes_ptr = boxes;
+        args.num_boxes = num_boxes_per_class;
+        args.coords_ptr = input_boxes;
+        args.num_boxes_selected_ptr = &workbuffers_->num_boxes_per_batch_and_class[batch_idx][class_idx];
+        nms_kernel_->operator()(&args);
     });
 }
 
