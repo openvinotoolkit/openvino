@@ -48,7 +48,7 @@ bool evaluate_exec(const HostTensorPtr& input, const HostTensorPtr& output) {
     return true;
 }
 
-#define IS_NAN_TYPE_CASE(a, ...)                                \
+#define IS_FINITE_TYPE_CASE(a, ...)                                \
     case element::Type_t::a: {                                  \
         OV_OP_SCOPE(OV_PP_CAT3(evaluate_exec_is_finite, _, a)); \
         rc = evaluate_exec<element::Type_t::a>(__VA_ARGS__);    \
@@ -58,10 +58,10 @@ template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& input, const HostTensorPtr& output) {
     bool rc = true;
     switch (input->get_element_type()) {
-        IS_NAN_TYPE_CASE(bf16, input, output);
-        IS_NAN_TYPE_CASE(f16, input, output);
-        IS_NAN_TYPE_CASE(f32, input, output);
-        IS_NAN_TYPE_CASE(f64, input, output);
+        IS_FINITE_TYPE_CASE(bf16, input, output);
+        IS_FINITE_TYPE_CASE(f16, input, output);
+        IS_FINITE_TYPE_CASE(f32, input, output);
+        IS_FINITE_TYPE_CASE(f64, input, output);
     default:
         rc = false;
         break;
