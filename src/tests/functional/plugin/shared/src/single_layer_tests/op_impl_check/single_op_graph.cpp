@@ -179,9 +179,9 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Concat> &n
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Constant> &node) {
     const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 2}});
-    const auto A = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2, 2}, 2.0);
-    const auto eltwiseNode = std::make_shared<ov::op::v1::Add>(params.at(0), A);
-    return std::make_shared<ov::Model>(A, params, "ConstantGraph");
+    const auto constantNode = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2, 2}, 2.0);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(constantNode)};
+    return std::make_shared<ov::Model>(results, params, "ConstantGraph");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Convert> &node) {
@@ -434,20 +434,6 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::GatherTree
     const auto gather_tree = std::make_shared<ov::op::v1::GatherTree>(params[0], params[1], params[2], params[3]);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gather_tree)};
     return std::make_shared<ov::Model>(results, params, "GatherTree");
-}
-
-std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Gelu> &node) {
-    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{8}});
-    const auto gelu = std::make_shared<ov::op::v0::Gelu>(params[0]);
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gelu)};
-    return std::make_shared<ov::Model>(results, params, "Gelu");
-}
-
-std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v7::Gelu> &node) {
-    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{8}});
-    const auto gelu = std::make_shared<ov::op::v7::Gelu>(params[0]);
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gelu)};
-    return std::make_shared<ov::Model>(results, params, "Gelu");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::GroupConvolution> &node) {
@@ -1312,6 +1298,12 @@ std::shared_ptr<ov::Model> generateUnaryEltwise(const std::shared_ptr<ov::op::Op
         eltwiseNode = std::make_shared<ov::op::v5::HSigmoid>(param);
     } else if (ov::is_type<ov::op::v4::HSwish>(node)) {
         eltwiseNode = std::make_shared<ov::op::v4::HSwish>(param);
+    } else if (ov::is_type<ov::op::v10::IsFinite>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v10::IsFinite>(param);
+    } else if (ov::is_type<ov::op::v10::IsInf>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v10::IsInf>(param);
+    } else if (ov::is_type<ov::op::v10::IsNaN>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v10::IsNaN>(param);
     } else if (ov::is_type<ov::op::v0::Log>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Log>(param);
     } else if (ov::is_type<ov::op::v0::Negative>(node)) {
@@ -1332,6 +1324,10 @@ std::shared_ptr<ov::Model> generateUnaryEltwise(const std::shared_ptr<ov::op::Op
         eltwiseNode = std::make_shared<ov::op::v0::Tan>(param);
     } else if (ov::is_type<ov::op::v0::Tanh>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Tanh>(param);
+    } else if (ov::is_type<ov::op::v0::Gelu>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v0::Gelu>(param);
+    } else if (ov::is_type<ov::op::v7::Gelu>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v7::Gelu>(param);
     } else {
         return nullptr;
     }
@@ -1861,6 +1857,7 @@ OpGenerator getOpGeneratorMap() {
 #include "openvino/opsets/opset7_tbl.hpp"
 #include "openvino/opsets/opset8_tbl.hpp"
 #include "openvino/opsets/opset9_tbl.hpp"
+#include "openvino/opsets/opset10_tbl.hpp"
 #undef _OPENVINO_OP_REG
     };
     return opGeneratorMap;
