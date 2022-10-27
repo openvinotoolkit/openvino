@@ -23,11 +23,12 @@ ov::intel_cpu::ConvertLogSoftmax::ConvertLogSoftmax() {
         auto input = logSoftmaxNode->get_input_node_ptr(0);
         auto xMax = std::make_shared<opset8::ReduceMax>(input->get_default_output(), axis->get_default_output(), true);
         auto subtract = std::make_shared<opset8::Subtract>(input->get_default_output(), xMax->get_default_output());
-        auto tmp = std::make_shared<opset8::Exp>(subtract->get_default_output());
-        auto s = std::make_shared<opset8::ReduceSum>(tmp->get_default_output(), axis->get_default_output(), true);
+        auto exp = std::make_shared<opset8::Exp>(subtract->get_default_output());
+        auto s = std::make_shared<opset8::ReduceSum>(exp->get_default_output(), axis->get_default_output(), true);
         auto log = std::make_shared<opset8::Log>(s);
         auto result = std::make_shared<opset8::Subtract>(subtract, log);
         result->set_friendly_name(logSoftmaxNode->get_friendly_name());
+        ov::copy_runtime_info(logSoftmaxNode, {xMax, subtract, exp, s, log, result});
         ov::replace_node(logSoftmaxNode, result);
         return true;
     };

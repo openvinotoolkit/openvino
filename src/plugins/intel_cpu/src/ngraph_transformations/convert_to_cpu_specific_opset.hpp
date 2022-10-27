@@ -30,6 +30,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     RUN_ON_FUNCTION_SCOPE(ConvertToCPUSpecificOpset);
     ngraph::pass::Manager manager;
     manager.register_pass<ConvertMatMulToFC>();
+    manager.register_pass<ConvertLogSoftmax>();
     manager.register_pass<AlignMatMulInputRanks>();
     manager.register_pass<ConvertTileToSeqTiles>();
     manager.register_pass<FullyConnectedBiasFusion>();
@@ -37,8 +38,6 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     manager.register_pass<ConvertToLeakyRelu>();
     manager.register_pass<ConvertToSwishCPU>();
     manager.register_pass<OptimizeSequenceTransposes>();
-    if (getenv("YI_LOG"))
-        manager.register_pass<ConvertLogSoftmax>();
     if (!ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc)) {
         manager.register_pass<ReshapeFullyConnectedFusion>();
     }
