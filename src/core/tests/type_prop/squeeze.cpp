@@ -41,33 +41,6 @@ TEST(type_prop, squeeze_incorrect_negative_axes) {
                     HasSubstr("Parameter axis -10 out of the tensor rank range"));
 }
 
-TEST(type_prop, squeeze_dynamic_value_and_label_propagation) {
-    Dimension marked_0 = Dimension(3);
-    ov::DimensionTracker::set_label(marked_0, 10);
-    PartialShape target_0 = PartialShape{marked_0, 4};
-
-    auto param = std::make_shared<op::Parameter>(element::f32, Shape{1});
-    auto param_0 = std::make_shared<op::Parameter>(element::f32, target_0);
-    auto shape_0 = std::make_shared<op::ShapeOf>(param_0);
-
-    const auto& et = element::i64;
-    std::vector<int64_t> zero{0};
-    const auto indices = std::make_shared<op::v0::Constant>(et, Shape{}, zero);
-    const auto axis = std::make_shared<op::v0::Constant>(et, Shape{}, zero);
-    const auto gather = std::make_shared<op::v7::Gather>(shape_0, indices, axis);
-
-    const auto axis_1 = std::make_shared<op::v0::Constant>(et, Shape{2}, std::vector<int64_t>{0, 1});
-    const auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(gather, axis_1);
-
-    const auto squeeze = std::make_shared<op::v0::Squeeze>(unsqueeze, axis);
-
-    auto bc = std::make_shared<op::v1::Broadcast>(param, squeeze);
-    EXPECT_EQ(bc->get_shape(), (Shape{3}));
-
-    const auto& output_shape = bc->get_output_partial_shape(0);
-    EXPECT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
-}
-
 using TypePropTestParam = std::tuple<PartialShape, std::vector<int64_t>, PartialShape>;
 
 class SqueezeTest : public WithParamInterface<TypePropTestParam>, public UnSqueezeFixture {
@@ -115,7 +88,8 @@ protected:
 };
 
 const auto static_partial_shapes_test_values =
-    Values(std::make_tuple(PartialShape{1, 2}, std::vector<int64_t>{0}, PartialShape{2}),
+    Values(std::make_tuple(PartialShape{1}, std::vector<int64_t>{0}, PartialShape{}),
+           std::make_tuple(PartialShape{1, 2}, std::vector<int64_t>{0}, PartialShape{2}),
            std::make_tuple(PartialShape{1, 2}, std::vector<int64_t>{-2}, PartialShape{2}),
            std::make_tuple(PartialShape{1, 2, 1}, std::vector<int64_t>{0}, PartialShape{2, 1}),
            std::make_tuple(PartialShape{1, 2}, std::vector<int64_t>{-2, -2}, PartialShape{2}),
@@ -128,12 +102,18 @@ const auto empty_axes_test_values =
                            std::vector<int64_t>{},
                            PartialShape{Dimension(2, 5), Dimension(3, 4), 6}),
            std::make_tuple(PartialShape::dynamic(6), std::vector<int64_t>{}, PartialShape::dynamic()),
+           std::make_tuple(PartialShape{Dimension::dynamic(), 1, Dimension::dynamic()},
+                           std::vector<int64_t>{},
+                           PartialShape::dynamic()),
            std::make_tuple(PartialShape::dynamic(), std::vector<int64_t>{}, PartialShape::dynamic()));
 
 INSTANTIATE_TEST_SUITE_P(
     type_prop_shrink_dynamic_shape,
     SqueezeTest,
     Values(std::make_tuple(PartialShape::dynamic(6), std::vector<int64_t>{0, 2}, PartialShape::dynamic(4)),
+           std::make_tuple(PartialShape{Dimension::dynamic(), 1, Dimension::dynamic()},
+                           std::vector<int64_t>{0, 2},
+                           PartialShape{1}),
            std::make_tuple(PartialShape::dynamic(), std::vector<int64_t>{0, 2}, PartialShape::dynamic())),
     PrintToStringParamName());
 

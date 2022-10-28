@@ -61,6 +61,7 @@
 #include "space_to_batch_shape_inference.hpp"
 #include "space_to_depth_shape_inference.hpp"
 #include "split_shape_inference.hpp"
+#include "squeeze_shape_inference.hpp"
 #include "static_shape.hpp"
 #include "strided_slice_shape_inference.hpp"
 #include "tile_shape_inference.hpp"

@@ -7,6 +7,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "squeeze_shape_inference.hpp"
 #include "utils.hpp"
 
 using namespace ov;
@@ -69,6 +70,7 @@ INSTANTIATE_TEST_SUITE_P(
            make_tuple(ShapeVector{{10, 1, 0, 1, 3, 1, 1}, {4}},
                       std::vector<int64_t>{1, -1, 3, -2},
                       StaticShape({10, 0, 3})),
+           make_tuple(ShapeVector{{10, 1, 0, 1, 3, 1, 1}, {}}, std::vector<int64_t>{}, StaticShape({10, 0, 3})),
            make_tuple(ShapeVector{{2, 1, 7, 8, 3}, {1}}, std::vector<int64_t>{1}, StaticShape({2, 7, 8, 3}))),
     PrintToStringParamName());
 
