@@ -351,7 +351,6 @@ ov::pass::TransposeSinkingElementwiseBackward::TransposeSinkingElementwiseBackwa
         auto main_node = pattern_to_output.at(main_node_label).get_node_shared_ptr();
 
         const auto transpose_axis_order = transpose_const->get_axis_vector_val();
-        const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
         const auto transpose_element_type = transpose_const->get_element_type();
 
         // insert transposes before main node
@@ -379,6 +378,7 @@ ov::pass::TransposeSinkingElementwiseBackward::TransposeSinkingElementwiseBackwa
 
         // update axis if Concat
         if (auto concat_node = ov::as_type_ptr<ov::opset9::Concat>(main_node)) {
+            const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
             const int64_t transposed_concat_axis = TransposeAxis(concat_node->get_axis(), reversed_traspose_axis_order);
             concat_node->set_concatenation_axis(transposed_concat_axis);
         }
