@@ -637,3 +637,61 @@ ov::pass::TransposeSinkingElementwiseForward::TransposeSinkingElementwiseForward
     auto m = std::make_shared<Matcher>(main_node_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
+
+ov::pass::TransposeSinkingElementwiseBackward::TransposeSinkingElementwiseBackward() {
+    MATCHER_SCOPE(TransposeSinkingElementwiseBackward);
+
+    auto main_node_label = wrap_type<ov::op::util::BinaryElementwiseArithmetic,
+                                     ov::opset9::Concat>(consumers_count(1));
+
+    auto transpose_const_label =
+        wrap_type<ov::opset9::Constant>(consumers_count(1));
+    auto transpose_label = wrap_type<ov::opset9::Transpose>({main_node_label, transpose_const_label},
+                                                                               consumers_count(1));
+
+    ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
+        const auto& pattern_to_output = m.get_pattern_value_map();
+        auto transpose_const =
+            ov::as_type_ptr<ov::opset9::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
+        auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
+        auto main_node = pattern_to_output.at(main_node_label).get_node_shared_ptr();
+
+        const ov::AxisVector transpose_axis_order = transpose_const->get_axis_vector_val();
+        const ov::AxisVector reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
+        const ov::element::Type transpose_element_type = transpose_const->get_element_type();
+
+        // insert transposes before main node
+        for (size_t i = 0; i < main_node->get_input_size(); ++i) {
+            auto input_node = main_node->input_value(i);
+            auto new_transpose_const = std::make_shared<ov::opset9::Constant>(transpose_element_type,
+                                                                              ov::Shape{transpose_axis_order.size()},
+                                                                              transpose_axis_order);
+            auto new_transpose = std::make_shared<ov::opset9::Transpose>(input_node, new_transpose_const);
+
+            main_node->input(i).replace_source_output(new_transpose->output(0));
+
+            ov::copy_runtime_info(input_node.get_node_shared_ptr(), {new_transpose, new_transpose_const});
+
+            register_new_node(new_transpose);
+        }
+
+        // remove transpose after main node
+        auto transpose_consumers = transpose->output(0).get_target_inputs();
+        for (auto& consumer : transpose_consumers) {
+            consumer.replace_source_output(main_node);
+        }
+
+        SwapNames(transpose, main_node);
+
+        // update axis if Concat
+        if (auto concat_node = ov::as_type_ptr<ov::opset9::Concat>(main_node)) {
+            const int64_t transposed_concat_axis = TransposeAxis(concat_node->get_axis(), reversed_traspose_axis_order);
+            concat_node->set_concatenation_axis(transposed_concat_axis);
+        }
+
+        return true;
+    };
+
+    auto m = std::make_shared<Matcher>(transpose_label, matcher_name);
+    register_matcher(m, matcher_pass_callback);
+}
