@@ -62,7 +62,6 @@ private:
 
     std::array<DnnlBlockedMemoryDescPtr, 2> inDataDesc;
     DnnlBlockedMemoryDescPtr outDataDesc;
-    AttrPtr attr;
 };
 
 }   // namespace node
