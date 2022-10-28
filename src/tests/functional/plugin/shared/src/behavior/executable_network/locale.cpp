@@ -45,7 +45,7 @@ void CustomLocaleTest::SetUp() {
 }
 
 TEST_P(CustomLocaleTest, CanLoadNetworkWithCustomLocale) {
-    auto prev = std::locale().name().c_str();
+    auto prev = std::locale().name();
     setlocale(LC_ALL, localeName.c_str());
     setlocale(LC_NUMERIC, localeName.c_str());
     setlocale(LC_TIME, localeName.c_str());
@@ -54,9 +54,9 @@ TEST_P(CustomLocaleTest, CanLoadNetworkWithCustomLocale) {
     InferenceEngine::CNNNetwork cnnNet(function);
     ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, target_device));
 
-    setlocale(LC_ALL, prev);
-    setlocale(LC_NUMERIC, prev);
-    setlocale(LC_TIME, prev);
+    setlocale(LC_ALL, prev.c_str());
+    setlocale(LC_NUMERIC, prev.c_str());
+    setlocale(LC_TIME, prev.c_str());
 }
 
 } // namespace BehaviorTestsDefinitions
