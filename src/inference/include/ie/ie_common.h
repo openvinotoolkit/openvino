@@ -384,14 +384,15 @@ namespace details {
  */
 [[noreturn]] INFERENCE_ENGINE_API_CPP(void) Rethrow();
 
-INFERENCE_ENGINE_API_CPP(std::string) get_message(const std::ostream& ostream);
 /**
  * @brief Tag struct used to throw exception
  */
 template <typename ExceptionType>
 struct ThrowNow final {
     [[noreturn]] void operator<<=(const std::ostream& ostream) {
-        throw ExceptionType{get_message(ostream)};
+        std::ostringstream stream;
+        stream << ostream.rdbuf();
+        throw ExceptionType{stream.str()};
     }
 };
 

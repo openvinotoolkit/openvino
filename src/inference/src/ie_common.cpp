@@ -78,12 +78,6 @@ void Rethrow() {
     }
 }
 
-std::string get_message(const std::ostream& ostream) {
-    std::ostringstream stream;
-    stream << ostream.rdbuf();
-    return stream.str();
-}
-
 IE_SUPPRESS_DEPRECATED_START
 
 StatusCode InferenceEngineException::getStatus() const {
