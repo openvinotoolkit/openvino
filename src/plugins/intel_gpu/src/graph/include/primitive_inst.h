@@ -366,7 +366,7 @@ protected:
 
 private:
     bool do_allocate_memory(typed_node const& typ_node) {
-        if (typ_node.is_dynamic())
+        if (typ_node.get_output_layout().is_dynamic())
             return false;
 
         if (typ_node.template have_user_with_type<concatenation>() && typ_node.get_users().size() == 1 &&
