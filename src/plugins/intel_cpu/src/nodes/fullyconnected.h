@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "common/dnnl_executor.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -40,6 +41,7 @@ public:
     }
 
     void initSupportedPrimitiveDescriptors() override;
+    void initOptimalPrimitiveDescriptor() override;
     std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     std::shared_ptr<MemoryDesc> getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
@@ -75,6 +77,39 @@ private:
     static const size_t WEIGHTS_ID = 1;
     static const size_t BIAS_ID = 2;
     dnnl::memory::data_type outputDataType;
+
+    using executorPtr = std::shared_ptr<DnnlExecutor>;
+    executorPtr execPtr = nullptr;
+    bool convWeightInit = false;
+    bool shouldUseConv1x1 = false;
+    impl_desc_type implementationTypeIP;
+
+    class ExecutorInnerProduct : public DnnlExecutor {
+        public:
+            ExecutorInnerProduct(const dnnl::inner_product_forward::primitive_desc& pd);
+    };
+
+    class ExecutorConv1x1 : public DnnlExecutor {
+        public:
+            ExecutorConv1x1(const dnnl::convolution_forward::primitive_desc& pd);
+            const dnnl::memory::desc& getSrcDesc() const { return srcDesc; }
+            const dnnl::memory::desc& getWeightDesc() const { return weightDesc; }
+            const dnnl::memory::desc& getDstDesc() const { return dstDesc; }
+            impl_desc_type getImplementationType() const { return implementationType; }
+
+        private:
+            dnnl::memory::desc srcDesc;
+            dnnl::memory::desc weightDesc;
+            dnnl::memory::desc dstDesc;
+            impl_desc_type implementationType;
+    };
+
+    DnnlDesriptor createDescriptorInternalForConv(const dnnl::memory::desc &inputDesc,
+                                const dnnl::memory::desc &biasDesc,
+                                const dnnl::memory::desc &outputDesc) const;
+
+    bool canBeExecutedInConv1x1() const;
+    void InitWeiMemoryForConv(dnnl::stream strm, dnnl::memory mem);
 };
 
 }   // namespace node
