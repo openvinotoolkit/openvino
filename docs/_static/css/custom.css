@@ -24,6 +24,17 @@ main img {
     padding: 0.25rem 0.5rem!important;
 }
 
+/* Content in two columns */
+
+.row-two-col-content {
+    display: flex;
+}
+
+.column-two-col-content {
+    flex: 50%;
+    padding-right: 10px!important;
+}
+
 /* code reference text formatting override */
 code {
     color: black !important;
