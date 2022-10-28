@@ -89,10 +89,11 @@ function(ov_download_tbb)
     if(WIN32 AND X86_64)
         # TODO: add target_path to be platform specific as well, to avoid following if
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_WIN "tbb2020_20200415_win.zip"
+                ARCHIVE_WIN "tbb2020_617e9a71_win.zip"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "f1c9b9e2861efdaa01552bd25312ccbc5feeb45551e5f91ae61e29221c5c1479")
+                SHA256 "01cac3cc48705bd52b83a6e1fa1ed95c708928be76160f5b9c5c37f954d56df4"
+                USE_NEW_LOCATION TRUE)
     elseif(ANDROID AND X86_64)  # Should be before LINUX due LINUX is detected as well
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
@@ -293,8 +294,8 @@ if(ENABLE_INTEL_GNA)
             GNA_LIB_DIR
             libGNA_INCLUDE_DIRS
             libGNA_LIBRARIES_BASE_PATH)
-        set(GNA_VERSION "03.00.00.1455.2")
-        set(GNA_HASH "e52785d3f730fefb4e794bb7ab40c8676537ef2f7c69c5b4bb89a5d3cc0bbe60")
+        set(GNA_VERSION "03.00.00.1815.1")
+        set(GNA_HASH "682eb01e5a148ea03b90ee12b7fd67afb1479f35ccf2966f83b208e50e91633c")
 
         set(FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/include)
         if(WIN32)
@@ -304,11 +305,12 @@ if(ENABLE_INTEL_GNA)
         endif()
 
         RESOLVE_DEPENDENCY(GNA_EXT_DIR
-                ARCHIVE_UNIFIED "GNA/GNA_${GNA_VERSION}.zip"
+                ARCHIVE_UNIFIED "gna/GNA_${GNA_VERSION}.zip"
                 TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"
                 VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
                 FILES_TO_EXTRACT FILES_TO_EXTRACT_LIST
-                SHA256 ${GNA_HASH})
+                SHA256 ${GNA_HASH}
+                USE_NEW_LOCATION TRUE)
     update_deps_cache(GNA_EXT_DIR "${GNA_EXT_DIR}" "Path to GNA root folder")
     debug_message(STATUS "gna=" ${GNA_EXT_DIR})
 
