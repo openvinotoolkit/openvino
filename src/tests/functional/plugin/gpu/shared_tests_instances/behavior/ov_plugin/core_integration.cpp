@@ -27,6 +27,8 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassCommon,
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassNetworkTestP, OVClassNetworkTestP, ::testing::Values("GPU"));
 
+INSTANTIATE_TEST_SUITE_P(OVClassNetworkTestP_smoke, OVClassNetworkTestP, ::testing::Values("GPU"));
+
 //
 // IE Class GetMetric
 //
