@@ -12,6 +12,7 @@
 #include <dnnl_extension_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <common/primitive_hashing_utils.hpp>
+#include <utils/shape_inference/shape_inference_ngraph.hpp>
 
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
@@ -274,8 +275,56 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
     return true;
 }
 
+namespace {
+class ShapeInferRNN final : public NgraphShapeInfer {
+public:
+    ShapeInferRNN(std::shared_ptr<ov::Node> op) :
+        NgraphShapeInfer(make_shape_inference(op), 0x00) {
+            is_sequence = one_of(op->get_type_info(),
+                ov::op::v5::GRUSequence::get_type_info_static(),
+                ov::op::v0::LSTMSequence::get_type_info_static(),
+                ov::op::v5::LSTMSequence::get_type_info_static(),
+                ov::op::v5::RNNSequence::get_type_info_static());
+
+            if (is_sequence) {
+                native_order = false;
+                const auto& rtInfo = op->get_rt_info();
+                if (rtInfo.count("seqAxis")) {
+                    native_order = rtInfo.at("seqAxis").as<int64_t>() == 0;
+                }
+            }
+        }
+
+    std::vector<VectorDims> infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        auto originOutputShapes = NgraphShapeInfer::infer(input_shapes, data_dependency);
+
+        // Graph optimizer makes the same optimization. So this is required to make shapes compatible.
+        if (is_sequence && !native_order && originOutputShapes[0].size() == 4lu && originOutputShapes[0][1] == 1lu) {
+            originOutputShapes[0].erase(originOutputShapes[0].begin() + 1);
+        }
+        return originOutputShapes;
+    }
+
+private:
+    bool is_sequence = false;
+    bool native_order = true;
+};
+class RnnShapeInferFactory final : public ShapeInferFactory {
+public:
+    RnnShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    ShapeInferPtr makeShapeInfer() const override {
+        return std::make_shared<ShapeInferRNN>(m_op);
+    }
+private:
+    std::shared_ptr<ov::Node> m_op;
+};
+
+} // namespace
+
 RNN::RNN(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache, DefaultShapeInferFactory(op, 0x00)) {
+        Node(op, eng, cache, RnnShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -928,6 +977,9 @@ void RNN::prepareParams() {
         if (!memPtr || !memPtr->isAllocated())
             THROW_ERROR << "has uninitialized memory at port " << i;
     }
+    if ((is_cell && DC != getParentEdgesAtPort(0)[0]->getMemory().getDesc().getShape().getStaticDims()[1]) ||
+        (!is_cell && DC != getParentEdgesAtPort(0)[0]->getMemory().getDesc().getShape().getStaticDims()[2]))
+            THROW_ERROR << "has incorrect input size value in the first input.";
 
     auto dataMemPtr = getParentEdgesAtPort(0).front()->getMemoryPtr();
     const size_t B = dataMemPtr->GetShape().getStaticDims()[0];
@@ -1085,20 +1137,6 @@ void RNN::execute(dnnl::stream strm) {
 
 void RNN::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
-}
-
-std::vector<VectorDims> RNN::shapeInfer() const {
-    if ((is_cell && DC != getParentEdgesAtPort(0)[0]->getMemory().getDesc().getShape().getStaticDims()[1]) ||
-            (!is_cell && DC != getParentEdgesAtPort(0)[0]->getMemory().getDesc().getShape().getStaticDims()[2]))
-        THROW_ERROR << "has incorrect input size value in the first input.";
-
-    auto originOutputShapes = Node::shapeInfer();
-
-    // Graph optimizer makes the same optimization. So this is required to make shapes compatible.
-    if (getType() == Type::RNNSeq && !hasNativeOrder() && originOutputShapes[0].size() == 4lu && originOutputShapes[0][1] == 1lu) {
-        originOutputShapes[0].erase(originOutputShapes[0].begin() + 1);
-    }
-    return originOutputShapes;
 }
 
 void RNN::cleanup() {
