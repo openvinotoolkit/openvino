@@ -79,10 +79,7 @@ void SwapFriendlyNames(NodePtr node1, NodePtr node2) {
 }
 
 void SwapNames(NodePtr node1, NodePtr node2) {
-    const std::string node2_name = node2->get_friendly_name();
-    node2->set_friendly_name(node1->get_friendly_name());
-    node1->set_friendly_name(node2_name);
-
+    SwapFriendlyNames(node1, node2);
     SwapOutputNames(node1->output(0), node2->output(0));
 }
 
