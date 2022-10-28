@@ -11,6 +11,7 @@
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include <ngraph/opsets/opset8.hpp>
 
 using namespace testing;
 
