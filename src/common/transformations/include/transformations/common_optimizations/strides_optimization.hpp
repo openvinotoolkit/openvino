@@ -10,7 +10,6 @@
 #include <ngraph/util.hpp>
 #include <transformations_visibility.hpp>
 
-#include "itt.hpp"
 namespace ngraph {
 namespace pass {
 
@@ -66,8 +65,8 @@ class ngraph::pass::StridesOptimization : public ngraph::pass::BackwardGraphRewr
 public:
     OPENVINO_RTTI("StridesOptimization", "0");
     StridesOptimization() {
-        ADD_MATCHER_SCOPE_WITHOUT_OBJ(ngraph::pass, ConvStridesPropagation)
-        ADD_MATCHER_SCOPE_WITHOUT_OBJ(ngraph::pass, SupportedNodesStridesPropagation)
-        ADD_MATCHER_SCOPE_WITHOUT_OBJ(ngraph::pass, UnsupportedNodesStridesPropagation)
+        add_matcher<ngraph::pass::ConvStridesPropagation>();
+        add_matcher<ngraph::pass::SupportedNodesStridesPropagation>();
+        add_matcher<ngraph::pass::UnsupportedNodesStridesPropagation>();
     }
 };
