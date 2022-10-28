@@ -251,7 +251,7 @@ macro(ov_rpm_add_latest_component comp)
 
     ov_rpm_add_rpmlint_suppression(${comp_name}
         # it's umbrella package
-        "empty-binary-package")
+        "no-binary")
 
     # add latest to a list of rpm packages
     list(APPEND CPACK_COMPONENTS_ALL ${comp_name})
