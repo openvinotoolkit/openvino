@@ -24,7 +24,9 @@ struct TrasposeInputsInfo {
     std::shared_ptr<ov::opset9::Constant> transpose_const;
     size_t input_idx;
 
-    bool isEmpty() const { return !transpose || !transpose_const; }
+    bool isEmpty() const {
+        return !transpose || !transpose_const;
+    }
 };
 
 TrasposeInputsInfo GetFirstTransposeInput(NodePtr node) {
@@ -184,11 +186,9 @@ bool HasInputSplitAndTransposeSiblings(const ov::Output<ov::Node>& output) {
 ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
     MATCHER_SCOPE(TransposeSinkingSplitBackward);
 
-    auto transpose_const_label =
-        wrap_type<ov::opset9::Constant>(consumers_count(1));
+    auto transpose_const_label = wrap_type<ov::opset9::Constant>(consumers_count(1));
     auto transpose_label =
-        wrap_type<ov::opset9::Transpose>({any_input(), transpose_const_label},
-                                                            HasInputSplitAndTransposeSiblings);
+        wrap_type<ov::opset9::Transpose>({any_input(), transpose_const_label}, HasInputSplitAndTransposeSiblings);
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -245,9 +245,8 @@ ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
 ov::pass::TransposeSinkingElementwiseForward::TransposeSinkingElementwiseForward() {
     MATCHER_SCOPE(TransposeSinkingElementwiseForward);
 
-    auto main_node_label = wrap_type<ov::op::util::BinaryElementwiseArithmetic,
-                                     ov::opset9::Concat,
-                                     ov::opset9::Split>(IfNodeHasTransposeInputs);
+    auto main_node_label = wrap_type<ov::op::util::BinaryElementwiseArithmetic, ov::opset9::Concat, ov::opset9::Split>(
+        IfNodeHasTransposeInputs);
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -310,7 +309,8 @@ ov::pass::TransposeSinkingElementwiseForward::TransposeSinkingElementwiseForward
 
         // update axis if Concat or Split
         if (split_node) {
-            auto split_axis_constant = ov::as_type_ptr<ov::opset9::Constant>(split_node->input_value(1).get_node_shared_ptr());
+            auto split_axis_constant =
+                ov::as_type_ptr<ov::opset9::Constant>(split_node->input_value(1).get_node_shared_ptr());
             const size_t split_axis = split_axis_constant->get_axis_vector_val()[0];
             const size_t transposed_split_axis = TransposeAxis(split_axis, transpose_axis_order);
             auto new_split_axis_const = std::make_shared<ov::opset9::Constant>(split_axis_constant->get_element_type(),
@@ -332,13 +332,11 @@ ov::pass::TransposeSinkingElementwiseForward::TransposeSinkingElementwiseForward
 ov::pass::TransposeSinkingElementwiseBackward::TransposeSinkingElementwiseBackward() {
     MATCHER_SCOPE(TransposeSinkingElementwiseBackward);
 
-    auto main_node_label = wrap_type<ov::op::util::BinaryElementwiseArithmetic,
-                                     ov::opset9::Concat>(consumers_count(1));
+    auto main_node_label = wrap_type<ov::op::util::BinaryElementwiseArithmetic, ov::opset9::Concat>(consumers_count(1));
 
-    auto transpose_const_label =
-        wrap_type<ov::opset9::Constant>(consumers_count(1));
-    auto transpose_label = wrap_type<ov::opset9::Transpose>({main_node_label, transpose_const_label},
-                                                                               consumers_count(1));
+    auto transpose_const_label = wrap_type<ov::opset9::Constant>(consumers_count(1));
+    auto transpose_label =
+        wrap_type<ov::opset9::Transpose>({main_node_label, transpose_const_label}, consumers_count(1));
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
