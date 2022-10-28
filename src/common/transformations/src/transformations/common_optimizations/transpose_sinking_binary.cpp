@@ -17,9 +17,6 @@
 namespace {
 
 using NodePtr = std::shared_ptr<ov::Node>;
-using Nodes = std::vector<NodePtr>;
-
-// --------------------------------------------------------------------------------------
 
 struct TrasposeInputsInfo {
     std::shared_ptr<ov::opset9::Transpose> transpose;

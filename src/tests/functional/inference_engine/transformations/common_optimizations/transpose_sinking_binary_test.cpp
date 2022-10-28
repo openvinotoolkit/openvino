@@ -17,7 +17,6 @@
 namespace {
 
 using NodePtr = std::shared_ptr<ov::Node>;
-using Nodes = std::vector<NodePtr>;
 using ModelPtr = std::shared_ptr<ov::Model>;
 using Output = ov::Output<ov::Node>;
 
