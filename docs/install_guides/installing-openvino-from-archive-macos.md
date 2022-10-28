@@ -1,6 +1,6 @@
 # Install OpenVINO™ Runtime on macOS from an Archive File {#openvino_docs_install_guides_installing_openvino_from_archive_macos}
 
-With the OpenVINO™ 2022.2 release, you can download and use archive files to install OpenVINO Runtime. The archive files contain pre-built binaries and library files needed for OpenVINO Runtime, as well as sample code for running demos. This page provides instructions showing how to install OpenVINO Runtime using archive files. Check the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes) for more information on updates in the 2022.2 release.
+With the OpenVINO™ 2022.2 release, you can download and use archive files to install OpenVINO Runtime. The archive files contain pre-built binaries and library files needed for OpenVINO Runtime, as well as code samples. This page provides instructions showing how to install OpenVINO Runtime using archive files. Check the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes) for more information on updates in the 2022.2 release.
 
 Installing OpenVINO Runtime from archive files is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. Visit the [Install OpenVINO from PyPI](installing-openvino-pip.md) page for instructions on how to install OpenVINO Runtime for Python using PyPI.
 
@@ -36,7 +36,7 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
   * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
 
 .. note::
-   The package may also be installed on other versions of macOS, but only the specific versions listed here are fully validated.
+   The package can also be installed on macOS x86 versions higher than 10.15, but only the specific versions listed here are fully validated.
 @endsphinxdirective
 
 ## Installing OpenVINO Runtime
@@ -78,7 +78,7 @@ source /opt/intel/openvino_2022/setupvars.sh
 
 If you have more than one OpenVINO™ version on your machine, you can easily switch its version by sourcing the `setupvars.sh` of your choice.
 
-> **NOTE**: The above command must be re-run every time the terminal is opened. To set up Linux so it automatically runs the command every time a new terminal is opened, open `~/.bashrc` in your favorite editor and add `source /opt/intel/openvino_2022/setupvars.sh` after the last line. Next time when you open a terminal, you will see `[setupvars.sh] OpenVINO™ environment initialized`. Changing `.bashrc` is not recommended when you have multiple OpenVINO™ versions on your machine and want to switch among them.
+> **NOTE**: The above command must be re-run every time you start a new terminal session. To set up macOS to automatically run the command every time a new terminal is opened, open `~/.zshrc` in your favorite editor and add `source /opt/intel/openvino_2022/setupvars.sh` after the last line. Next time when you open a terminal, you will see `[setupvars.sh] OpenVINO™ environment initialized`. Changing `~/.zshrc` is not recommended when you have multiple OpenVINO versions on your machine and want to switch among them.
 
 The environment variables are set. Continue to the next section if you want to download any additional components.
 
