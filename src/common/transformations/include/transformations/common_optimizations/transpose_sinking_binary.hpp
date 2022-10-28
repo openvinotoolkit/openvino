@@ -8,7 +8,7 @@
 #include "openvino/pass/pass.hpp"
 #include "transformations_visibility.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API TransposeSinkingBinaryForward;
@@ -21,38 +21,38 @@ class TRANSFORMATIONS_API TransposeSinkingSplitBackward;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::TransposeSinkingBinaryForward : public ov::pass::MatcherPass {
+class ov::pass::TransposeSinkingBinaryForward : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ngraph::pass::TransposeSinkingBinaryForward", "0");
+    OPENVINO_RTTI("ov::pass::TransposeSinkingBinaryForward", "0");
     TransposeSinkingBinaryForward();
 };
 
-class ngraph::pass::TransposeSinkingBinaryBackward : public ov::pass::MatcherPass {
+class ov::pass::TransposeSinkingBinaryBackward : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ngraph::pass::TransposeSinkingBinaryBackward", "0");
+    OPENVINO_RTTI("ov::pass::TransposeSinkingBinaryBackward", "0");
     TransposeSinkingBinaryBackward();
 };
 
-class ngraph::pass::TransposeSinkingConcatForward : public ov::pass::MatcherPass {
+class ov::pass::TransposeSinkingConcatForward : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ngraph::pass::TransposeSinkingConcatForward", "0");
+    OPENVINO_RTTI("ov::pass::TransposeSinkingConcatForward", "0");
     TransposeSinkingConcatForward();
 };
 
-class ngraph::pass::TransposeSinkingConcatBackward : public ov::pass::MatcherPass {
+class ov::pass::TransposeSinkingConcatBackward : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ngraph::pass::TransposeSinkingConcatBackward", "0");
+    OPENVINO_RTTI("ov::pass::TransposeSinkingConcatBackward", "0");
     TransposeSinkingConcatBackward();
 };
 
-class ngraph::pass::TransposeSinkingSplitForward : public ov::pass::MatcherPass {
+class ov::pass::TransposeSinkingSplitForward : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ngraph::pass::TransposeSinkingSplitForward", "0");
+    OPENVINO_RTTI("ov::pass::TransposeSinkingSplitForward", "0");
     TransposeSinkingSplitForward();
 };
 
-class ngraph::pass::TransposeSinkingSplitBackward : public ov::pass::MatcherPass {
+class ov::pass::TransposeSinkingSplitBackward : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ngraph::pass::TransposeSinkingSplitBackward", "0");
+    OPENVINO_RTTI("ov::pass::TransposeSinkingSplitBackward", "0");
     TransposeSinkingSplitBackward();
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporationstd
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -298,7 +298,7 @@ TEST_P(TransposeSinkingBinaryTestFixture, CompareFunctions) {
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingBinaryForwardTestSuite, TransposeSinkingBinaryTestFixture,
                          ::testing::Combine(::testing::ValuesIn(binary_factories),
-                                            ::testing::Values(CreatePassFactory<ngraph::pass::TransposeSinkingBinaryForward>()),
+                                            ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingBinaryForward>()),
                                             ::testing::ValuesIn(binary_operations_numbers),
                        ::testing::Values(binary::single_consumer::forward::one_input_tranpose::CreateFunction),
                        ::testing::Values(binary::single_consumer::forward::one_input_tranpose::CreateReferenceFunction),
@@ -309,7 +309,7 @@ INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingBinaryBackwardTestSuite,
     TransposeSinkingBinaryTestFixture,
                          ::testing::Combine(::testing::ValuesIn(binary_factories),
-                                            ::testing::Values(CreatePassFactory<ngraph::pass::TransposeSinkingBinaryBackward>()),
+                                            ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingBinaryBackward>()),
                                             ::testing::ValuesIn(binary_operations_numbers),
                        ::testing::Values(binary::single_consumer::backward::one_input_tranpose::CreateFunction),
                        ::testing::Values(binary::single_consumer::backward::one_input_tranpose::CreateReferenceFunction),
@@ -352,7 +352,7 @@ INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingBinaryTwoTransposeInputsForwardTestSuite,
     TransposeSinkingBinaryTwoTransposeInputsTestFixture,
     ::testing::Combine(::testing::ValuesIn(binary_factories),
-                       ::testing::Values(CreatePassFactory<ngraph::pass::TransposeSinkingBinaryForward>()),
+                       ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingBinaryForward>()),
                        ::testing::ValuesIn(binary_operations_numbers),
                        ::testing::Values(binary::single_consumer::forward::double_transpose::CreateFunction),
                        ::testing::Values(binary::single_consumer::forward::double_transpose::CreateReferenceFunction),
@@ -607,7 +607,7 @@ TEST_P(TransposeSinkingConcatTestFixture, CompareFunctions) {
 }
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatForwardTestSuite, TransposeSinkingConcatTestFixture,
-                         ::testing::Combine(::testing::Values(CreatePassFactory<ngraph::pass::TransposeSinkingConcatForward>()),
+                         ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingConcatForward>()),
                                             ::testing::ValuesIn(concat_operations_numbers),
                        ::testing::Values(concat::single_consumer::forward::one_input_tranpose::CreateFunction),
                        ::testing::Values(concat::single_consumer::forward::one_input_tranpose::CreateReferenceFunction),
@@ -616,7 +616,7 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatForwardTestSuite, TransposeSinkin
                                             ::testing::Values(5)));
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatBackwardTestSuite, TransposeSinkingConcatTestFixture,
-                         ::testing::Combine(::testing::Values(CreatePassFactory<ngraph::pass::TransposeSinkingConcatBackward>()),
+                         ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingConcatBackward>()),
                                             ::testing::ValuesIn(concat_operations_numbers),
                                             ::testing::Values(concat::single_consumer::backward::CreateFunction),
                                             ::testing::Values(concat::single_consumer::backward::CreateReferenceFunction),
@@ -663,7 +663,7 @@ TEST_P(TransposeSinkingConcatAllTransposesInputTestFixture, CompareFunctions) {
 INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingConcatForwardAllTransposesTestSuite,
     TransposeSinkingConcatAllTransposesInputTestFixture,
-    ::testing::Combine(::testing::Values(CreatePassFactory<ngraph::pass::TransposeSinkingConcatForward>()),
+    ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingConcatForward>()),
                        ::testing::ValuesIn(concat_operations_numbers),
                        ::testing::Values(concat::single_consumer::forward::double_transpose::CreateFunction),
                        ::testing::Values(concat::single_consumer::forward::double_transpose::CreateReferenceFunction),
@@ -779,7 +779,7 @@ TEST_P(TransposeSinkingSplitForwardTestFixture, CompareFunctions) {
 INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingSplitForwardTestSuite,
     TransposeSinkingSplitForwardTestFixture,
-    ::testing::Combine(::testing::Values(CreatePassFactory<ngraph::pass::TransposeSinkingSplitForward>()),
+    ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingSplitForward>()),
                        ::testing::ValuesIn(split_operations_numbers),
                        ::testing::ValuesIn(split_outputs_numbers),
                        ::testing::Values(split::forward::CreateFunction),
@@ -921,7 +921,7 @@ TEST_P(TransposeSinkingSplitBackwardTestFixture, CompareFunctions) {
 INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingSplitBackwardTestSuite,
     TransposeSinkingSplitBackwardTestFixture,
-    ::testing::Combine(::testing::Values(CreatePassFactory<ngraph::pass::TransposeSinkingSplitBackward>()),
+    ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingSplitBackward>()),
                        ::testing::ValuesIn(split_tree_depth_nums),
                        ::testing::ValuesIn(split_outputs_numbers),
                        ::testing::Values(split::backward::CreateFunction),
@@ -1127,7 +1127,7 @@ std::vector<TransposeInsertF> insertTransposeFactories = {
 INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingSplitBackwardRestrictTestSuite,
     TransposeSinkingSplitBackwardRestrictTestFixture,
-    ::testing::Combine(::testing::Values(CreatePassFactory<ngraph::pass::TransposeSinkingSplitBackward>()),
+    ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingSplitBackward>()),
                        ::testing::Values(1),
                        ::testing::Values(5),
                        ::testing::Values(split::backward::restrictions::CreateFunction),

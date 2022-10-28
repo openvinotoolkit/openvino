@@ -103,7 +103,7 @@ void SwapNames(NodePtr node1, NodePtr node2) {
 
 // --------------------------------------------------------------------------------------
 
-ngraph::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
+ov::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
     MATCHER_SCOPE(TransposeSinkingBinaryForward);
 
     auto transpose_label = ov::pass::pattern::wrap_type<ov::opset9::Transpose>(
@@ -170,7 +170,7 @@ ngraph::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
     register_matcher(matcher, matcher_pass_callback);
 }
 
-ngraph::pass::TransposeSinkingBinaryBackward::TransposeSinkingBinaryBackward() {
+ov::pass::TransposeSinkingBinaryBackward::TransposeSinkingBinaryBackward() {
     MATCHER_SCOPE(TransposeSinkingBinaryBackward);
 
     auto binary_label = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>(
@@ -232,7 +232,7 @@ T TransposeAxis(T axis, const ov::AxisVector& transpose_order) {
 
 }  // namespace
 
-ngraph::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
+ov::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
     MATCHER_SCOPE(TransposeSinkingConcatForward);
 
     auto concat_label = ov::pass::pattern::wrap_type<ov::opset9::Concat>(IfNodeHasTransposeInputs);
@@ -295,7 +295,7 @@ ngraph::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
     register_matcher(m, matcher_pass_callback);
 }
 
-ngraph::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
+ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
     MATCHER_SCOPE(TransposeSinkingConcatBackward);
 
     auto concat_label = ov::pass::pattern::wrap_type<ov::opset9::Concat>(ov::pass::pattern::consumers_count(1));
@@ -350,7 +350,7 @@ ngraph::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
 
 // --------------------------------------------------------------------------------------
 
-ngraph::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
+ov::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
     MATCHER_SCOPE(TransposeSinkingSplitForward);
 
     auto transpose_const_label =
@@ -500,7 +500,7 @@ bool HasInputSplitAndTransposeSiblings(const ov::Output<ov::Node>& output) {
     return true;
 }
 
-ngraph::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
+ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
     MATCHER_SCOPE(TransposeSinkingSplitBackward);
 
     auto transpose_const_label =
