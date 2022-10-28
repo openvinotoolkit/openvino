@@ -61,7 +61,7 @@ if(APPLE AND DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
     if(_arch AND _macos_min_version)
         set(PLATFORM_TAG "macosx_${_macos_min_version}_${_arch}")
     endif()
-elseif(LINUX)
+elseif(LINUX AND OFF)
     _ov_platform_arch()
 
     execute_process(COMMAND ldd --version
@@ -74,7 +74,7 @@ elseif(LINUX)
     endif()
 
     # common pattern manylinux_<libc major>_<libc minor>_<arch>
-    if(_libc_version AND _arch)
+    if(_libc_major AND _libc_minor AND _arch)
         set(PLATFORM_TAG "manylinux_${_libc_major}_${_libc_minor}_${_arch}")
     endif()
 endif()
