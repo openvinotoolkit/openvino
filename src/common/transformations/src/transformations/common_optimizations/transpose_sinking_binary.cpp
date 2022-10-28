@@ -198,10 +198,10 @@ ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
         auto split_axis_constant = ov::as_type_ptr<ov::opset9::Constant>(split->input_value(1).get_node_shared_ptr());
         OutputTranspose output_transpose = GetOutputTransposes(split);
 
-        const ov::AxisVector transpose_axis_order = output_transpose.transpose_const->get_axis_vector_val();
-        const ov::element::Type transpose_element_type = output_transpose.transpose_const->get_element_type();
+        const auto transpose_axis_order = output_transpose.transpose_const->get_axis_vector_val();
+        const auto transpose_element_type = output_transpose.transpose_const->get_element_type();
 
-        const ov::AxisVector reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
+        const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
 
         const size_t split_axis = split_axis_constant->get_axis_vector_val()[0];
         const size_t reversed_transposed_split_axis = TransposeAxis(split_axis, reversed_traspose_axis_order);
@@ -261,10 +261,10 @@ ov::pass::TransposeSinkingElementwiseForward::TransposeSinkingElementwiseForward
 
         TrasposeInputsInfo transpose_input_info = GetFirstTransposeInput(main_node);
 
-        const ov::AxisVector transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
-        const ov::AxisVector reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
+        const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
+        const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
         const size_t tranpose_input_index = transpose_input_info.input_idx;
-        const ov::element::Type transpose_element_type = transpose_input_info.transpose_const->get_element_type();
+        const auto transpose_element_type = transpose_input_info.transpose_const->get_element_type();
 
         // insert input reversed transposes, remove first input tranpose
         for (size_t i = 0; i < main_node->get_input_size(); ++i) {
@@ -350,9 +350,9 @@ ov::pass::TransposeSinkingElementwiseBackward::TransposeSinkingElementwiseBackwa
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto main_node = pattern_to_output.at(main_node_label).get_node_shared_ptr();
 
-        const ov::AxisVector transpose_axis_order = transpose_const->get_axis_vector_val();
-        const ov::AxisVector reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
-        const ov::element::Type transpose_element_type = transpose_const->get_element_type();
+        const auto transpose_axis_order = transpose_const->get_axis_vector_val();
+        const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
+        const auto transpose_element_type = transpose_const->get_element_type();
 
         // insert transposes before main node
         for (size_t i = 0; i < main_node->get_input_size(); ++i) {
