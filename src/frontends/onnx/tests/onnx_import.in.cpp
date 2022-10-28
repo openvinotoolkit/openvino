@@ -6064,7 +6064,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_is_nan) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_layer_norm) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/layer_norm.onnx"));
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/layer_norm.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
     std::vector<float> input = {
@@ -6120,8 +6121,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_layer_norm) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_layer_norm_dynamic_4d) {
-    const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/layer_norm_dynamic_4d.onnx"));
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                              SERIALIZED_ZOO,
+                                                                              "onnx/layer_norm_dynamic_4d.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
     std::vector<float> input = {
@@ -6161,7 +6163,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_layer_norm_dynamic_4d) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_layer_norm_dynamic_4d_axis_minus1) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/layer_norm_dynamic_4d_axis_-1.onnx"));
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/layer_norm_dynamic_4d_axis_-1.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
     std::vector<float> input = {
