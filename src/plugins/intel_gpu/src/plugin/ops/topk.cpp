@@ -25,7 +25,24 @@ static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>
     uint32_t top_k = op->get_k();
     uint64_t chosen_axis = op->get_axis();
 
-    if (!p.use_new_shape_infer()) {
+    if (p.use_new_shape_infer() || op->is_dynamic()) {
+        std::vector<cldnn::input_info> inputs;
+        for (size_t i = 0; i != inputPrimitives.size(); ++i) {
+            inputs.push_back(cldnn::input_info(inputPrimitives[i], op->get_input_source_output(i).get_index()));
+        }
+        auto argmaxPrim = cldnn::arg_max_min(layerName,
+                                             inputPrimitives,
+                                             mode,
+                                             top_k,
+                                             chosen_axis,
+                                             stype,
+                                             true,
+                                             cldnn::padding({0, 0, 0, 0}, 0),
+                                             cldnn::element_type_to_data_type(op->get_output_element_type(0)),
+                                             inputs,
+                                             op->get_output_size());
+        p.add_primitive(*op, argmaxPrim);
+    } else {
         if (op->get_output_size() == 2) {
             auto mutable_precision = op->get_output_element_type(1);
             if (mutable_precision == ngraph::element::i64) {
@@ -81,23 +98,6 @@ static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>
         } else {
             IE_THROW() << op->get_friendly_name() << " Incorrect TopK outputs number";
         }
-    } else {
-        std::vector<cldnn::input_info> inputs;
-        for (size_t i = 0; i != inputPrimitives.size(); ++i) {
-            inputs.push_back(cldnn::input_info(inputPrimitives[i], op->get_input_source_output(i).get_index()));
-        }
-        auto argmaxPrim = cldnn::arg_max_min(layerName,
-                                             inputPrimitives,
-                                             mode,
-                                             top_k,
-                                             chosen_axis,
-                                             stype,
-                                             true,
-                                             cldnn::padding({0, 0, 0, 0}, 0),
-                                             cldnn::element_type_to_data_type(op->get_output_element_type(0)),
-                                             inputs,
-                                             op->get_output_size());
-        p.add_primitive(*op, argmaxPrim);
     }
 }
 
