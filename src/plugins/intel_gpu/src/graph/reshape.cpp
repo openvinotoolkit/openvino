@@ -61,13 +61,11 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node
     // we return output_partial_shape taken from the original model intead of something like PartialShape::dynamic(rank)
     // as ngraph may refine output shape using interval arithmetic
     if ((memory_deps.empty() && prim->output_pattern.empty()) || input_layout.is_dynamic()) {
-        if (prim->output_partial_shape.size() > 0) {
-            auto fm = format::adjust_to_rank(input_layout.format, prim->output_partial_shape.size());
-            return { layout{prim->output_partial_shape, input_layout.data_type, fm} };
-        } else if (prim->output_shape != tensor()) {
+        if (prim->output_shape.count() != 0) {
             return { layout{input_layout.data_type, input_layout.format, prim->output_shape} };
         } else {
-            OPENVINO_ASSERT("There are no output pattern, predefined output partial shape, and output shape!");
+            auto fm = format::adjust_to_rank(input_layout.format, prim->output_partial_shape.size());
+            return { layout{prim->output_partial_shape, input_layout.data_type, fm} };
         }
     }
 
