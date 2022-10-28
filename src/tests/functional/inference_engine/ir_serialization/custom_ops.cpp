@@ -13,7 +13,7 @@
 #include "ie_core.hpp"
 #include "ngraph/ngraph.hpp"
 #include "openvino/runtime/core.hpp"
-#include "transformations/serialize.hpp"
+#include "ngraph/pass/serialize.hpp"
 
 #ifndef IR_SERIALIZATION_MODELS_PATH  // should be already defined by cmake
 #error "IR_SERIALIZATION_MODELS_PATH is not defined"

@@ -7,7 +7,7 @@
 #include "gtest/gtest.h"
 #include "ie_core.hpp"
 #include "ngraph/ngraph.hpp"
-#include "transformations/serialize.hpp"
+#include "ngraph/pass/serialize.hpp"
 #include "common_test_utils/file_utils.hpp"
 
 #ifndef IR_SERIALIZATION_MODELS_PATH  // should be already defined by cmake

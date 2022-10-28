@@ -11,7 +11,7 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "ie_core.hpp"
 #include "ngraph/ngraph.hpp"
-#include "transformations/serialize.hpp"
+#include "ngraph/pass/serialize.hpp"
 #include <openvino/core/preprocess/pre_post_process.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <transformations/rt_info/attributes.hpp>

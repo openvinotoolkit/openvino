@@ -18,7 +18,6 @@
 #include <transformations/common_optimizations/moc_legacy_transformations.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
 #include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
-#include <transformations/serialize.hpp>
 
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"

@@ -13,7 +13,7 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "ngraph/ngraph.hpp"
-#include "transformations/serialize.hpp"
+#include "openvino/pass/serialize.hpp"
 
 class PartialShapeSerializationTest : public CommonTestUtils::TestsCommon {
 protected:
