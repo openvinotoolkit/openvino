@@ -428,7 +428,7 @@ def create_pytorch_nn_module_compare_convert_paths_case5(tmp_dir):
     ref_model = convert_model(onnx_model_path)
 
     return NeuralNetwork(), ref_model, {'sample_input': sample_input,
-                                        'input_shape': [PartialShape([1, 3, 10, 10]), PartialShape([1, 3, 10, 10])],
+                                        'input_shape': [torch.Size([1, 3, 10, 10]), PartialShape([1, 3, 10, 10])],
                                         'onnx_opset_version': 16}
 
 def create_pytorch_nn_module_compare_convert_paths_case6(tmp_dir):
@@ -456,7 +456,7 @@ def create_pytorch_nn_module_compare_convert_paths_case6(tmp_dir):
 
     ref_model = convert_model(onnx_model_path)
 
-    return NeuralNetwork(), ref_model, {'input_shape': [PartialShape([1, 3, 10, 10]), PartialShape([1, 3, 10, 10])],
+    return NeuralNetwork(), ref_model, {'input_shape': [torch.Size([1, 3, 10, 10]), torch.Size([1, 3, 10, 10])],
                                         'onnx_opset_version': 16}
 
 
