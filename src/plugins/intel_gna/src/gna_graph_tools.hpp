@@ -776,14 +776,25 @@ inline void CNNNetworkReconnectLayer(CNNLayerPtr old_prev_layer, CNNLayerPtr new
     }
 }
 
+inline uint32_t GetDimFromFront(const InferenceEngine::SizeVector& dims, uint32_t dim) {
+    if (dim >= dims.size()) {
+        return 1;
+    }
+    return static_cast<uint32_t>(dims[dim]);
+}
+
 /**
- * @brief returns a size of a specified data dimension depending on its back offset
- * @param data a pointer to the data
+ * @brief returns a specified dimension depending on its back offset
+ * @param dims vector of dimensions
  * @param backOffset back dimension offset
  */
-inline uint32_t GetDataDimSize(InferenceEngine::DataPtr data, uint32_t backOffset) {
-    auto dims = data->getDims();
-    return (dims.size() > backOffset - 1) ? static_cast<uint32_t>(dims[dims.size() - backOffset]) : uint32_t(1);
+
+inline uint32_t GetDimFromBack(const InferenceEngine::SizeVector& dims, const uint32_t backOffset) {
+    if (backOffset > dims.size()) {
+        return 1;
+    }
+    const auto indexFromFront = dims.size() - backOffset;
+    return GetDimFromFront(dims, indexFromFront);
 }
 
 enum class DataDimName {
@@ -795,7 +806,7 @@ enum class DataDimName {
  * @param data a pointer to the data
  * @param dimName dimension name
  */
-inline uint32_t GetDataDimSize(InferenceEngine::DataPtr data, DataDimName dimName) {
+inline uint32_t GetDataDimByName(InferenceEngine::DataPtr data, DataDimName dimName) {
     uint32_t dimIxInNCHW = static_cast<uint32_t>(dimName);
     IE_ASSERT(dimIxInNCHW <= 3);
 
@@ -819,7 +830,8 @@ inline uint32_t GetDataDimSize(InferenceEngine::DataPtr data, DataDimName dimNam
         default:
             THROW_GNA_EXCEPTION << data->getName() << " Unexpected layout " << data->getLayout();
     }
-    return GetDataDimSize(data, backOffsets[dimIxInNCHW]);
+    auto dims = data->getDims();
+    return GetDimFromBack(dims, backOffsets[dimIxInNCHW]);
 }
 
 }  // namespace InferenceEngine
