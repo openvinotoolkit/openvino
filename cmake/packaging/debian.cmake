@@ -343,7 +343,9 @@ macro(ov_cpack_settings)
     ov_debian_generate_conflicts(openvino ${conflicting_versions})
     ov_debian_add_lintian_suppression(openvino
         # it's umbrella package
-        "empty-binary-package")
+        "empty-binary-package"
+        # reproduced only on ubu18
+        "description-starts-with-package-name")
 
     list(APPEND CPACK_COMPONENTS_ALL "libraries;libraries_dev;openvino")
 

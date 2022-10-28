@@ -39,6 +39,9 @@ function(_ov_add_plugin comp is_pseudo)
     set(installed_plugins "${installed_plugins}" PARENT_SCOPE)
 endfunction()
 
+    
+
+
 macro(ov_cpack_settings)
     # fill a list of components which are part of rpm
     set(cpack_components_all ${CPACK_COMPONENTS_ALL})
@@ -85,7 +88,74 @@ macro(ov_cpack_settings)
         # - 2022.1.0 is the last public release with rpm packages from Intel install team
         # - 2022.1.1 does not have rpm packages enabled, distributed only as archives
         2022.1.0)
+    
+    #
+    # Frontends
+    #
 
+    if(ENABLE_OV_IR_FRONTEND)
+        set(CPACK_COMPONENT_IR_DESCRIPTION "OpenVINO IR Frontend")
+        set(CPACK_COMPONENT_IR_DEPENDS "${OV_CPACK_COMP_CORE}")
+        set(CPACK_RPM_IR_PACKAGE_NAME "libopenvino-ir-frontend-${cpack_name_ver}")
+        set(CPACK_RPM_IR_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
+        ov_rpm_add_rpmlint_suppression(ir
+            # we have different package name strategy; it suggests libopenvino-ir-frontend202230
+            "package-name-doesnt-match-sonames"
+            # IR FE should not linked directly by end users
+            "package-must-activate-ldconfig-trigger")
+        list(APPEND frontends ir)
+    endif()
+
+    if(ENABLE_OV_ONNX_FRONTEND)
+        set(CPACK_COMPONENT_ONNX_DESCRIPTION "OpenVINO ONNX Frontend")
+        set(CPACK_COMPONENT_ONNX_DEPENDS "${OV_CPACK_COMP_CORE}")
+        set(CPACK_RPM_ONNX_PACKAGE_NAME "libopenvino-onnx-frontend-${cpack_name_ver}")
+        # since we ONNX FE is linkable target, we need to call ldconfig (i.e. `def_triggers`)
+        set(CPACK_RPM_ONNX_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
+        ov_rpm_add_rpmlint_suppression(onnx
+            # we have different package name strategy; it suggests libopenvino-onnx-frontend202230
+            "package-name-doesnt-match-sonames")
+        list(APPEND frontends onnx)
+    endif()
+
+    if(ENABLE_OV_TF_FRONTEND AND "tensorflow" IN_LIST CPACK_COMPONENTS_ALL)
+        set(CPACK_COMPONENT_TENSORFLOW_DESCRIPTION "OpenVINO TensorFlow Frontend")
+        set(CPACK_COMPONENT_TENSORFLOW_DEPENDS "${OV_CPACK_COMP_CORE}")
+        set(CPACK_RPM_TENSORFLOW_PACKAGE_NAME "libopenvino-tensorflow-frontend-${cpack_name_ver}")
+        # since we TF FE is linkable target, we need to call ldconfig (i.e. `def_triggers`)
+        set(CPACK_RPM_TENSORFLOW_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
+        ov_rpm_add_rpmlint_suppression(tensorflow
+            # we have different package name strategy; it suggests libopenvino-tensorflow-frontend202230
+            "package-name-doesnt-match-sonames")
+        list(APPEND frontends tensorflow)
+    endif()
+
+    if(ENABLE_OV_PADDLE_FRONTEND)
+        set(CPACK_COMPONENT_PADDLE_DESCRIPTION "OpenVINO Paddle Frontend")
+        set(CPACK_COMPONENT_PADDLE_DEPENDS "${OV_CPACK_COMP_CORE}")
+        set(CPACK_RPM_PADDLE_PACKAGE_NAME "libopenvino-paddle-frontend-${cpack_name_ver}")
+        # since we PADDLE FE is linkable target, we need to call ldconfig (i.e. `def_triggers`)
+        set(CPACK_RPM_PADDLE_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
+        ov_rpm_add_rpmlint_suppression(paddle
+            # we have different package name strategy; it suggests libopenvino-paddle-frontend202230
+            "package-name-doesnt-match-sonames")
+        list(APPEND frontends paddle)
+    endif()
+
+    #
+    # core_dev: depends on core and frontends (since frontends don't want to provide its own dev packages)
+    #
+
+    set(CPACK_COMPONENT_CORE_DEV_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit C / C++ Development files")
+    set(CPACK_COMPONENT_CORE_DEV_DEPENDS "${OV_CPACK_COMP_CORE};${frontends}")
+    set(CPACK_RPM_CORE_DEV_PACKAGE_NAME "libopenvino-devel-${cpack_name_ver}")
+    ov_rpm_generate_conflicts("${OV_CPACK_COMP_CORE_DEV}" ${conflicting_versions})
+
+    ov_rpm_add_rpmlint_suppression("${OV_CPACK_COMP_CORE_DEV}"
+        # CVS-79409: create man page for compile_tool
+        "binary-without-manpage")
+    
+    
     # core
     set(CPACK_COMPONENT_CORE_DESCRIPTION "OpenVINO C / C++ Runtime libraries")
     set(CPACK_RPM_CORE_PACKAGE_NAME "libopenvino-${cpack_name_ver}")
@@ -99,15 +169,6 @@ macro(ov_cpack_settings)
         "shlib-without-versioned-soname"
         "package-name-doesnt-match-sonames")
 
-    # core_dev
-    set(CPACK_COMPONENT_CORE_DEV_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit C / C++ Development files")
-    set(CPACK_COMPONENT_CORE_DEV_DEPENDS "core")
-    set(CPACK_RPM_CORE_DEV_PACKAGE_NAME "libopenvino-dev-${cpack_name_ver}")
-    ov_rpm_generate_conflicts(core_dev ${conflicting_versions})
-
-    ov_rpm_add_rpmlint_suppression(core_dev
-        # CVS-79409: create man page for compile_tool
-        "binary-without-manpage")
 
     #
     # Plugins
@@ -258,16 +319,16 @@ macro(ov_cpack_settings)
 
     ov_rpm_add_rpmlint_suppression(libraries
         # it's umbrella package
-        "empty-binary-package")
+        "no-binary")
 
     # all libraries-dev
     set(CPACK_COMPONENT_LIBRARIES_DEV_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit Libraries and Development files")
     set(CPACK_COMPONENT_LIBRARIES_DEV_DEPENDS "core_dev;libraries")
-    set(CPACK_RPM_LIBRARIES_DEV_PACKAGE_NAME "openvino-libraries-dev-${cpack_name_ver}")
+    set(CPACK_RPM_LIBRARIES_DEV_PACKAGE_NAME "openvino-libraries-devel-${cpack_name_ver}")
     ov_rpm_generate_conflicts(libraries_dev ${conflicting_versions})
     ov_rpm_add_rpmlint_suppression(libraries_dev
         # it's umbrella package
-        "empty-binary-package")
+        "no-binary")
 
     # all openvino
     set(CPACK_COMPONENT_OPENVINO_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit Libraries and Development files")
@@ -276,7 +337,7 @@ macro(ov_cpack_settings)
     ov_rpm_generate_conflicts(openvino ${conflicting_versions})
     ov_rpm_add_rpmlint_suppression(openvino
         # it's umbrella package
-        "empty-binary-package")
+        "no-binary")
 
     list(APPEND CPACK_COMPONENTS_ALL "libraries;libraries_dev;openvino")
 
