@@ -31,12 +31,8 @@ namespace node {
 namespace {
 
 struct MatMulKey {
-    InferenceEngine::Precision prec0;
-    InferenceEngine::Precision prec1;
-    VectorDims inp0Shape;
-    VectorDims inp1Shape;
-    VectorDims inp0Stride;
-    VectorDims inp1Stride;
+    DnnlMemoryDescCPtr inp0;
+    DnnlMemoryDescCPtr inp1;
     DnnlMemoryDescCPtr bias;
     DnnlMemoryDescCPtr out;
     dnnl::primitive_attr attr;
@@ -51,13 +47,8 @@ size_t MatMulKey::hash() const {
     using namespace dnnl::impl::primitive_hashing;
 
     size_t seed = 0;
-    seed = hash_combine(seed, static_cast<size_t>(prec0));
-    seed = hash_combine(seed, static_cast<size_t>(prec1));
-    seed = get_vector_hash(seed, inp0Shape);
-    seed = get_vector_hash(seed, inp1Shape);
-    seed = get_vector_hash(seed, inp0Stride);
-    seed = get_vector_hash(seed, inp1Stride);
-    for (const auto& ptr : {bias, out}) {
+
+    for (const auto& ptr : {inp0, inp1, bias, out}) {
         if (ptr) {
             seed = hash_combine(seed, get_md_hash(ptr->getDnnlDesc().data));
         }
@@ -70,20 +61,11 @@ size_t MatMulKey::hash() const {
 
 bool MatMulKey::operator==(const MatMulKey &rhs) const {
     bool retVal = true;
-    if (prec0 != rhs.prec0 || prec1 != rhs.prec1) {
-        return false;
+    if (inp0 != rhs.inp0) {
+        retVal = retVal && inp0 && rhs.inp0 && inp0->getDnnlDesc() == rhs.inp0->getDnnlDesc();
     }
-    if (inp0Shape != rhs.inp0Shape) {
-        return false;
-    }
-    if (inp1Shape != rhs.inp1Shape) {
-        return false;
-    }
-    if (inp0Stride != rhs.inp0Stride) {
-        return false;
-    }
-    if (inp1Stride != rhs.inp1Stride) {
-        return false;
+    if (inp1 != rhs.inp1) {
+        retVal = retVal && inp1 && rhs.inp1 && inp1->getDnnlDesc() == rhs.inp1->getDnnlDesc();
     }
     if (bias != rhs.bias) {
         retVal = retVal && bias && rhs.bias && bias->getDnnlDesc() == rhs.bias->getDnnlDesc();
@@ -145,7 +127,6 @@ MatMul::MatMul(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
 
     transposeIn[0] = matMul->get_transpose_a();
     transposeIn[1] = matMul->get_transpose_b();
-    attr = std::make_shared<dnnl::primitive_attr>();
 }
 
 bool MatMul::canFuse(const NodePtr& node) const {
@@ -509,10 +490,28 @@ void MatMul::prepareParams() {
     if (selected_pd == nullptr)
         IE_THROW()  << errorPrefix << " did not set preferable primitive descriptor";
 
+    DnnlMemoryDescPtr src0TransposedDesc;
+    DnnlMemoryDescPtr src1TransposedDesc;
+
+    AttrPtr attr;
+
     if (isDynamicNode()) {
-        setPostOps(*attr, dstMemPtr->getStaticDims(), true);
+        attr = initPrimitiveAttr(dstMemPtr->getStaticDims());
+
+        const auto& src0Desc = src0MemPtr->getDesc();
+        const auto& src1Desc = src1MemPtr->getDesc();
+
+        auto src0Shape = src0Desc.getShape();
+        auto src0Strides = getStridesAndModifyShape(src0Shape, transposeIn[0]);
+        src0TransposedDesc = std::make_shared<DnnlBlockedMemoryDesc>(src0Desc.getPrecision(), src0Shape, src0Strides);
+
+        auto src1Shape = src1Desc.getShape();
+        auto src1Strides = getStridesAndModifyShape(src1Shape, transposeIn[1]);
+        src1TransposedDesc = std::make_shared<DnnlBlockedMemoryDesc>(src1Desc.getPrecision(), src1Shape, src1Strides);
     } else {
         attr = initPrimitiveAttr();
+        src0TransposedDesc = inDataDesc[0];
+        src1TransposedDesc = inDataDesc[1];
     }
 
     auto dstDnnlDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>();
@@ -524,39 +523,26 @@ void MatMul::prepareParams() {
             IE_THROW()  << errorPrefix << " did not allocate bias memory";
         dnnlBiasMemDesc = biasMemory->GetDescWithType<DnnlMemoryDesc>();
     }
-    const auto& src0Desc = src0MemPtr->getDesc();
-    const auto& src1Desc = src1MemPtr->getDesc();
-    auto src0Shape = src0Desc.getShape();
-    auto src0Strides = getStridesAndModifyShape(src0Shape, transposeIn[0]);
-    auto src1Shape = src1Desc.getShape();
-    auto src1Strides = getStridesAndModifyShape(src1Shape, transposeIn[1]);
-    MatMulKey key = {src0Desc.getPrecision(), src1Desc.getPrecision(), src0Shape.getStaticDims(),
-                     src1Shape.getStaticDims(),
-                     src0Strides,
-                     src1Strides, dnnlBiasMemDesc,
+
+    MatMulKey key = {src0TransposedDesc, src1TransposedDesc, dnnlBiasMemDesc,
                      dstDnnlDesc, *attr, selected_pd->getImplementationType()};
+
     auto engine = getEngine();
 
     auto builder = [&engine](const MatMulKey& key) -> std::shared_ptr<dnnl::primitive> {
         std::shared_ptr<dnnl::matmul::desc> matmul_desc;
-        auto src0TransposedDesc = std::make_shared<DnnlBlockedMemoryDesc>(key.prec0,
-            Shape(key.inp0Shape),
-            key.inp0Stride);
-        auto src1TransposedDesc = std::make_shared<DnnlBlockedMemoryDesc>(key.prec1,
-            Shape(key.inp1Shape),
-            key.inp1Stride);
+
         if (key.bias) {
-            matmul_desc.reset(new dnnl::matmul::desc{src0TransposedDesc->getDnnlDesc(),
-                                                    src1TransposedDesc->getDnnlDesc(),
-                                                    key.bias->getDnnlDesc(),
-                                                    key.out->getDnnlDesc()});
+            matmul_desc.reset(new dnnl::matmul::desc{key.inp0->getDnnlDesc(),
+                                                       key.inp1->getDnnlDesc(),
+                                                       key.bias->getDnnlDesc(),
+                                                       key.out->getDnnlDesc()});
         } else {
-            auto src0 = src0TransposedDesc->getDnnlDesc();
-            auto src1 = src1TransposedDesc->getDnnlDesc();
-            matmul_desc.reset(new dnnl::matmul::desc(src0,
-                                                    src1,
-                                                    key.out->getDnnlDesc()));
+            matmul_desc.reset(new dnnl::matmul::desc(key.inp0->getDnnlDesc(),
+                                                       key.inp1->getDnnlDesc(),
+                                                       key.out->getDnnlDesc()));
         }
+
         DnnlDesriptor desc(matmul_desc);
         primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
         matmul::primitive_desc prim_desc;
