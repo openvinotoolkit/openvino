@@ -16,6 +16,7 @@
 #include "openvino/c/ov_model.h"
 #include "openvino/c/ov_node.h"
 #include "openvino/c/ov_property.h"
+#include "openvino/c/ov_remote_context.h"
 
 typedef struct ov_compiled_model ov_compiled_model_t;
 
@@ -180,5 +181,17 @@ ov_compiled_model_export_model(const ov_compiled_model_t* compiled_model, const 
  * @param compiled_model A pointer to the ov_compiled_model_t to free memory.
  */
 OPENVINO_C_API(void) ov_compiled_model_free(ov_compiled_model_t* compiled_model);
+
+/**
+ * @brief Returns pointer to device-specific shared context
+ * on a remote accelerator device that was used to create this CompiledModel.
+ * @ingroup compiled_model
+ * @param compiled_model A pointer to the ov_compiled_model_t.
+ * @param context Return context.
+ * @return Status code of the operation: OK(0) for success.
+ *
+ */
+OPENVINO_C_API(ov_status_e)
+ov_compiled_model_get_context(const ov_compiled_model_t* compiled_model, ov_remote_context_t** context);
 
 /** @} */  // end of compiled_model

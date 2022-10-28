@@ -229,3 +229,19 @@ void ov_compiled_model_free(ov_compiled_model_t* compiled_model) {
     if (compiled_model)
         delete compiled_model;
 }
+
+ov_status_e ov_compiled_model_get_context(const ov_compiled_model_t* compiled_model, ov_remote_context** context) {
+    if (!compiled_model || !context) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    try {
+        ov::RemoteContext object = compiled_model->object->get_context();
+        std::unique_ptr<ov_remote_context> _context(new ov_remote_context);
+        _context->object = std::make_shared<ov::RemoteContext>(std::move(object));
+        *context = _context.release();
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}

@@ -34,7 +34,8 @@
     CATCH_OV_EXCEPTION(INFER_NOT_STARTED, InferNotStarted)    \
     CATCH_OV_EXCEPTION(NETWORK_NOT_READ, NetworkNotRead)      \
     CATCH_OV_EXCEPTION(INFER_CANCELLED, InferCancelled)       \
-    catch (...) {                                             \
+    catch (const std::exception& ex) {                        \
+        std::cout << "Exception: " << ex.what() << std::endl; \
         return ov_status_e::UNKNOW_EXCEPTION;                 \
     }
 
@@ -162,6 +163,14 @@ struct ov_preprocess_input_model_info {
  */
 struct ov_preprocess_preprocess_steps {
     ov::preprocess::PreProcessSteps* object;
+};
+
+/**
+ * @struct ov_remote_context
+ * @brief This is an interface of ov::RemoteContext
+ */
+struct ov_remote_context {
+    std::shared_ptr<ov::RemoteContext> object;
 };
 
 /**

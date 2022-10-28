@@ -183,10 +183,14 @@ ov_preprocess_input_tensor_info_set_element_type(ov_preprocess_input_tensor_info
  * @ingroup prepostprocess
  * @param preprocess_input_tensor_info A pointer to the ov_preprocess_input_tensor_info_t.
  * @param colorFormat The enumerate of colorFormat
+ * @param sub_names_size The size of sub_names
+ * @param variadic params sub_names Optional list of sub-names assigned for each plane (e.g. {"Y", "UV"}.
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_input_tensor_info_set_color_format(ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
-                                                 const ov_color_format_e colorFormat);
+                                                 const ov_color_format_e colorFormat,
+                                                 const size_t sub_names_size,
+                                                 ...);
 
 /**
  * @brief Set ov_preprocess_input_tensor_info_t spatial_static_shape.
@@ -200,6 +204,17 @@ ov_preprocess_input_tensor_info_set_spatial_static_shape(
     ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
     const size_t input_height,
     const size_t input_width);
+
+/**
+ * @brief Set ov_preprocess_input_tensor_info_t memory type.
+ * @ingroup prepostprocess
+ * @param preprocess_input_tensor_info A pointer to the ov_preprocess_input_tensor_info_t.
+ * @param mem_type Memory type. Refer to specific plugin's documentation for exact string format.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_input_tensor_info_set_memory_type(
+    ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
+    const char* mem_type);
 
 /**
  * @brief Convert ov_preprocess_preprocess_steps_t element type.
