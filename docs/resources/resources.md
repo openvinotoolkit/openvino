@@ -14,6 +14,7 @@
    openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers
    openvino_docs_OV_Glossary
    openvino_docs_Legal_Information
+   openvino_docs_telemetry_information
 
 
 .. toctree::
