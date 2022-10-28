@@ -34,24 +34,22 @@ void shape_infer(const Squeeze* op,
 
     bool has_static_axes;  // empty axis is also treat as static
     std::set<int64_t> unique_axes;
-    if (arg_shape.rank().is_static()) {
-        if (input_shapes.size() == 2) {
-            const auto& axes_shape = input_shapes[1];
-            has_static_axes = axes_shape.is_static();
+    if (arg_shape.rank().is_static() && (input_shapes.size() == 2)) {
+        const auto& axes_shape = input_shapes[1];
+        has_static_axes = axes_shape.is_static();
 
-            NODE_VALIDATION_CHECK(op,
-                                  !has_static_axes || is_rank_compatible_any_of(axes_shape.rank(), {0, 1}),
-                                  "Second input (axes) should not be of rank higher than 1. Got: ",
-                                  axes_shape.rank().get_length());
+        NODE_VALIDATION_CHECK(op,
+                              !has_static_axes || is_rank_compatible_any_of(axes_shape.rank(), {0, 1}),
+                              "Second input (axes) should not be of rank higher than 1. Got: ",
+                              axes_shape.rank().get_length());
 
-            std::vector<int64_t> axes;
-            if (get_data_as_int64<T>(1, op, axes, constant_data)) {
-                normalize_axes(op, arg_shape.rank().get_length(), axes);
-                unique_axes = std::set<int64_t>(axes.cbegin(), axes.cend());
-            }
-        } else {
-            has_static_axes = true;
+        std::vector<int64_t> axes;
+        if (get_data_as_int64<T>(1, op, axes, constant_data)) {
+            normalize_axes(op, arg_shape.rank().get_length(), axes);
+            unique_axes = std::set<int64_t>(axes.cbegin(), axes.cend());
         }
+    } else {
+        has_static_axes = true;
     }
 
     if (arg_shape.rank().is_static() && has_static_axes) {
