@@ -1499,9 +1499,9 @@ std::vector<VectorDims> Node::shapeInfer() const {
 //     return result;
 // }
 
-std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<Shape>& shapes,
-                                                      uint32_t input_value_port_mask) const {
+std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<Shape>& shapes) const {
     std::vector<std::reference_wrapper<const VectorDims>> input_shapes;
+    auto input_value_port_mask = shapeInference->get_port_mask();
 
     input_shapes.reserve(shapes.size());
     for (size_t i = 0; i < shapes.size(); i++)
@@ -1521,8 +1521,9 @@ std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<Shape>& shapes
     // return shapeInferGeneric(input_shapes, input_value_port_mask);
 }
 
-std::vector<VectorDims> Node::shapeInferGeneric(uint32_t input_value_port_mask) const {
+std::vector<VectorDims> Node::shapeInferGeneric() const {
     std::vector<std::reference_wrapper<const VectorDims>> input_shapes;
+    auto input_value_port_mask = shapeInference->get_port_mask();
 
     input_shapes.reserve(inputShapes.size());
     for (size_t port = 0; port < inputShapes.size(); ++port)

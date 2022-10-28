@@ -35,7 +35,7 @@ bool Reshape::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
 }
 
 Reshape::Reshape(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache, DefaultShapeInferFactory(op, 0x00)) {
+        Node(op, eng, cache, DefaultShapeInferFactory(op, PortMask(1))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -88,7 +88,7 @@ std::vector<VectorDims> Reshape::shapeInfer() const {
         lastSecondInputValues[i] = sndInput[i];
     }
 
-    return shapeInferGeneric(PortMask(1));
+    return shapeInferGeneric();
 }
 
 void Reshape::getSupportedDescriptors() {

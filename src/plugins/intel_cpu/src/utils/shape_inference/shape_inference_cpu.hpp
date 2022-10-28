@@ -24,7 +24,7 @@ public:
     // infer may generate padding as by-product, these APIs is designed to retrieve them back
     virtual const ov::CoordinateDiff& get_pads_begin() = 0;
     virtual const ov::CoordinateDiff& get_pads_end() = 0;
-    virtual port_mask_t getPortMask() const = 0;
+    virtual port_mask_t get_port_mask() const = 0;
 };
 
 using ShapeInferPtr = std::shared_ptr<IShapeInfer>;
@@ -36,7 +36,7 @@ public:
     virtual ShapeInferPtr makeShapeInfer() const = 0;
 };
 
-class DefaultShapeInferFactory : public ShapeInferFactory {
+class DefaultShapeInferFactory final : public ShapeInferFactory {
 public:
     DefaultShapeInferFactory(std::shared_ptr<ov::Node> op, IShapeInfer::port_mask_t port_mask) : m_op(op), m_port_mask(port_mask) {}
     ShapeInferPtr makeShapeInfer() const override;

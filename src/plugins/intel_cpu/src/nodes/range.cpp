@@ -27,7 +27,7 @@ bool Range::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, 
 }
 
 Range::Range(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache, DefaultShapeInferFactory(op, 0x00)) {
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache, DefaultShapeInferFactory(op, PortMask(RANGE_START, RANGE_LIMIT, RANGE_DELTA))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -84,10 +84,6 @@ void Range::initSupportedPrimitiveDescriptors() {
         outDataConf.emplace_back(LayoutType::ncsp);
         addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref_any);
     }
-}
-
-std::vector<VectorDims> Range::shapeInfer() const {
-    return Node::shapeInferGeneric(PortMask(RANGE_START, RANGE_LIMIT, RANGE_DELTA));
 }
 
 void Range::executeDynamicImpl(dnnl::stream strm) {
