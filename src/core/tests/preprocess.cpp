@@ -209,13 +209,134 @@ TEST(pre_post_process, tensor_element_type_and_scale) {
     EXPECT_EQ(ov::layout::get_layout(f->input(0)), Layout());
 }
 
-TEST(pre_post_process, convert_color_nv12_rgb_single) {
+TEST(pre_post_process, convert_color_rgb_gray_nhwc_to_nhwc) {
     auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 3});
     auto p = PrePostProcessor(f);
     auto name = f->get_parameters()[0]->get_friendly_name();
     auto tensor_names = f->get_parameters().front()->get_output_tensor(0).get_names();
+    p.input().tensor().set_color_format(ColorFormat::RGB);
+    p.input().preprocess().convert_color(ColorFormat::GRAY);
+    f = p.build();
+
+    EXPECT_EQ(f->get_parameters().size(), 1);
+    EXPECT_EQ(f->get_parameters().front()->get_layout(), "NHWC");
+    EXPECT_EQ(ov::layout::get_layout(f->input(0)), "NHWC");
+    EXPECT_EQ(f->get_parameters().front()->get_friendly_name(), name);
+    EXPECT_EQ(f->get_parameters().front()->get_output_tensor(0).get_names(), tensor_names);
+    EXPECT_EQ(f->get_parameters().front()->get_partial_shape(), (PartialShape{Dimension::dynamic(), 2, 2, 3}));
+    EXPECT_EQ(f->get_result()->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 2, 2, 1}));
+}
+
+TEST(pre_post_process, convert_color_rgb_gray_nchw_to_nchw) {
+    auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 3, 2, 2});
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_layout("NCHW").set_color_format(ColorFormat::RGB);
+    p.input().model().set_layout("NCHW");
+    p.input().preprocess().convert_color(ColorFormat::GRAY);
+    f = p.build();
+
+    EXPECT_EQ(f->get_parameters().front()->get_layout(), "NCHW");
+    EXPECT_EQ(f->get_parameters().front()->get_partial_shape(), (PartialShape{Dimension::dynamic(), 3, 2, 2}));
+    EXPECT_EQ(f->get_result()->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 1, 2, 2}));
+}
+
+TEST(pre_post_process, convert_color_rgb_gray_nhwc_to_nchw) {
+    auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 3, 2, 2});
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_layout("NHWC").set_color_format(ColorFormat::RGB);
+    p.input().model().set_layout("NCHW");
+    p.input().preprocess().convert_color(ColorFormat::GRAY);
+    f = p.build();
+
+    EXPECT_EQ(f->get_parameters().front()->get_layout(), "NHWC");
+    EXPECT_EQ(f->get_parameters().front()->get_partial_shape(), (PartialShape{Dimension::dynamic(), 2, 2, 3}));
+    EXPECT_EQ(f->get_result()->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 1, 2, 2}));
+}
+
+TEST(pre_post_process, convert_color_rgb_gray_nchw_to_nhwc) {
+    auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 3});
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_layout("NCHW").set_color_format(ColorFormat::RGB);
+    p.input().model().set_layout("NHWC");
+    p.input().preprocess().convert_color(ColorFormat::GRAY);
+    f = p.build();
+
+    EXPECT_EQ(f->get_parameters().front()->get_layout(), "NCHW");
+    EXPECT_EQ(f->get_parameters().front()->get_partial_shape(), (PartialShape{Dimension::dynamic(), 3, 2, 2}));
+    EXPECT_EQ(f->get_result()->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 2, 2, 1}));
+}
+
+TEST(pre_post_process, convert_color_rgb_gray_nhc) {
+    auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 3});
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_layout("NHC").set_color_format(ColorFormat::RGB);
+    p.input().preprocess().convert_color(ColorFormat::GRAY);
+    f = p.build();
+
+    EXPECT_EQ(f->get_parameters().front()->get_layout(), "NHC");
+    EXPECT_EQ(f->get_parameters().front()->get_partial_shape(), (PartialShape{Dimension::dynamic(), 2, 3}));
+    EXPECT_EQ(f->get_result()->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 2, 1}));
+}
+
+TEST(pre_post_process, convert_color_rgb_gray_ndhwc) {
+    auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 2, 3});
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_layout("NDHWC").set_color_format(ColorFormat::RGB);
+    p.input().preprocess().convert_color(ColorFormat::GRAY);
+    f = p.build();
+
+    EXPECT_EQ(f->get_parameters().front()->get_layout(), "NDHWC");
+    EXPECT_EQ(f->get_parameters().front()->get_partial_shape(), (PartialShape{Dimension::dynamic(), 2, 2, 2, 3}));
+    EXPECT_EQ(f->get_result()->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 2, 2, 2, 1}));
+}
+
+TEST(pre_post_process, convert_color_rgb_gray_asserts) {
+    // No "N" dimension name
+    EXPECT_THROW(auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 3});
+                 auto p = PrePostProcessor(f);
+                 p.input().tensor().set_layout("HWC").set_color_format(ColorFormat::RGB);
+                 p.input().preprocess().convert_color(ColorFormat::GRAY);
+                 p.build();, ov::AssertFailure);
+
+    // No "C" dimension name
+    EXPECT_THROW(auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 3});
+                 auto p = PrePostProcessor(f);
+                 p.input().tensor().set_layout("NHW").set_color_format(ColorFormat::RGB);
+                 p.input().preprocess().convert_color(ColorFormat::GRAY);
+                 p.build();, ov::AssertFailure);
+    
+    // Rank < 3
+    EXPECT_THROW(auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 3});
+                 auto p = PrePostProcessor(f);
+                 p.input().tensor().set_layout("NC").set_color_format(ColorFormat::RGB);
+                 p.input().preprocess().convert_color(ColorFormat::GRAY);
+                 p.build();, ov::AssertFailure);
+
+    // Rank < 5
+    EXPECT_THROW(auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 2, 2, 3});
+                 auto p = PrePostProcessor(f);
+                 p.input().tensor().set_layout("NXDHWC").set_color_format(ColorFormat::RGB);
+                 p.input().preprocess().convert_color(ColorFormat::GRAY);
+                 p.build();, ov::AssertFailure);
+
+
+    // "C" != 3
+    EXPECT_THROW(auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 1});
+                 auto p = PrePostProcessor(f);
+                 p.input().tensor().set_layout("NHC").set_color_format(ColorFormat::RGB);
+                 p.input().preprocess().convert_color(ColorFormat::GRAY);
+                 p.build();, ov::AssertFailure);
+}
+
+TEST(pre_post_process, convert_color_nv12_rgb_single) {
+    auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 3, 2, 2});
+    auto p = PrePostProcessor(f);
+    auto name = f->get_parameters()[0]->get_friendly_name();
+    auto tensor_names = f->get_parameters().front()->get_output_tensor(0).get_names();
     p.input().tensor().set_element_type(element::u8).set_color_format(ColorFormat::NV12_SINGLE_PLANE);
+    p.input().model().set_layout("NCHW");
     p.input().preprocess().convert_color(ColorFormat::RGB).convert_element_type(element::f32);
+    std::cout << "Dump preprocessor: " << p << std::endl;
     f = p.build();
 
     EXPECT_EQ(f->get_parameters().size(), 1);
@@ -245,10 +366,12 @@ TEST(pre_post_process, convert_color_nv12_bgr_single) {
 }
 
 TEST(pre_post_process, convert_color_nv12_bgr_2_planes) {
-    auto f = create_simple_function(element::f32, Shape{5, 2, 2, 3});
+    auto f = create_simple_function(element::f32, Shape{5, 3, 2, 2});
     auto p = PrePostProcessor(f);
-    p.input().tensor().set_color_format(ColorFormat::NV12_TWO_PLANES, {"TestY", "TestUV"});
+    p.input().tensor().set_color_format(ColorFormat::NV12_TWO_PLANES, {"TestY", "TestUV"}).set_layout("NCHW");
+    p.input().model().set_layout("NCHW");
     p.input().preprocess().convert_color(ColorFormat::BGR);
+    std::cout << "Dump preprocessor: " << p << std::endl;
     f = p.build();
 
     EXPECT_EQ(f->get_parameters().size(), 2);

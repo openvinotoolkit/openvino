@@ -710,6 +710,7 @@ std::map<std::string, ov::TensorVector> get_tensors_static_case(const std::vecto
 }
 
 void copy_tensor_data(ov::Tensor& dst, const ov::Tensor& src) {
+    std::cout << "SRC : " << src.get_shape() << " DST : " << dst.get_shape() << std::endl;
     if (src.get_shape() != dst.get_shape() || src.get_byte_size() != dst.get_byte_size()) {
         throw std::runtime_error(
             "Source and destination tensors shapes and byte sizes are expected to be equal for data copying.");
