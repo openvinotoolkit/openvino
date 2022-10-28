@@ -19,16 +19,6 @@ namespace {
 using NodePtr = std::shared_ptr<ov::Node>;
 using Nodes = std::vector<NodePtr>;
 
-ov::OutputVector GetOutputs(const Nodes& nodes) {
-    ov::OutputVector outputs;
-
-    for (auto& node : nodes)
-        for (auto& output : node->outputs())
-            outputs.push_back(output);
-
-    return outputs;
-}
-
 // --------------------------------------------------------------------------------------
 
 struct TrasposeInputsInfo {
