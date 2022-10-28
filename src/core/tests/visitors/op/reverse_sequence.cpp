@@ -26,7 +26,7 @@ TEST(attributes, reverse_sequence_op) {
 
     auto reverse_sequence = make_shared<opset1::ReverseSequence>(data, seq_indices, batch_axis, seq_axis);
 
-    NodeBuilder builder(reverse_sequence);
+    NodeBuilder builder(reverse_sequence, {data, seq_indices});
     const auto expected_attr_count = 2;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
