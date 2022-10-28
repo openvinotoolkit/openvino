@@ -59,7 +59,9 @@ Concat::Concat(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
 
     const auto inRank = getInputShapeAtPort(0).getRank();
     if (inRank > 6) {
-        IE_THROW() << "Concat node with name '" << getName() << "' has rank greater than " << axis;
+        canExecRef = false;
+    } else {
+        canExecRef = true;
     }
     auto concatOp = ngraph::as_type_ptr<ngraph::op::v0::Concat>(op);
     auto axis = concatOp->get_axis();
@@ -370,35 +372,62 @@ void Concat::prepareParams() {
         IE_THROW() << "Destination memory didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
-    auto outputStride = dstMemPtr->getDescPtr()->as<BlockedMemoryDesc>()->getStrides();
-    size_t curConcatOffset = 0;
-    const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemPtr->GetDataType());
-    const auto& outputOrder = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getDescPtr()->as<BlockedMemoryDesc>()->getOrder();
-    for (int64_t i = 0; i < outputOrder.size(); i++) {
-        if (outputOrder[i] == axis) {
-            reorderedAxis = i;
-            break;
+
+        auto outputStride = dstMemPtr->getDescPtr()->as<BlockedMemoryDesc>()->getStrides();
+        size_t curConcatOffset = 0;
+        const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemPtr->GetDataType());
+        const auto& outputOrder = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getDescPtr()->as<BlockedMemoryDesc>()->getOrder();
+        for (auto i = 0; i < outputOrder.size(); i++) {
+            if (outputOrder[i] == axis) {
+                reorderedAxis = i;
+                break;
+            }
+        }
+        std::vector<memory::desc> srcs_d;
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
+            if (!srcMemPtr || !srcMemPtr->isAllocated()) {
+                auto parent = getParentEdgeAt(i)->getParent();
+                IE_THROW() << "Source memory from " << parent->getName() << " didn't allocate for node "
+                           << getName() << ".";
+            }
+
+        if (canExecRef) {
+            const auto& inputShape = srcMemPtr->getDescPtr()->as<BlockedMemoryDesc>()->getBlockDims();
+            inputStrides[i] = srcMemPtr->getDescPtr()->as<BlockedMemoryDesc>()->getStrides();
+            size_t nElem = 1;
+            for (size_t j = reorderedAxis; j < inputShape.size(); j++) {
+                nElem *= inputShape[j];
+            }
+            nelemToCopy[i] = nElem * elemSize;
+            dstOffset[i] = outputStride[reorderedAxis] * curConcatOffset * elemSize;
+            curConcatOffset += inputShape[reorderedAxis];
+            auto desc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+            srcsOffset[i] = desc.data.offset0;
+        } else {
+            if (srcMemPtr->GetShape().hasZeroDims()) {
+                continue;
+            }
+
+            auto desc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+            const auto& dims = srcMemPtr->getStaticDims();
+            for (size_t j = 0; j < dims.size(); j++) {
+                desc.data.dims[j] = dims[j];
+            }
+
+            srcs_d.emplace_back(desc);
         }
     }
+    if (!canExecRef) {
+        auto desc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+        const auto& dims = dstMemPtr->getStaticDims();
+        for (size_t i = 0; i < dims.size(); i++) {
+            desc.data.dims[i] = dims[i];
+            desc.data.padded_dims[i] = dims[i];
+        }
 
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
-        const auto& inputShape = srcMemPtr->getDescPtr()->as<BlockedMemoryDesc>()->getBlockDims();
-        inputStrides[i] = srcMemPtr->getDescPtr()->as<BlockedMemoryDesc>()->getStrides();
-        if (!srcMemPtr || !srcMemPtr->isAllocated()) {
-            auto parent = getParentEdgeAt(i)->getParent();
-            IE_THROW() << "Source memory from " << parent->getName() << " didn't allocate for node "
-                       << getName() << ".";
-        }
-        size_t nElem = 1;
-        for (size_t j = reorderedAxis; j < inputShape.size(); j++) {
-            nElem *= inputShape[j];
-        }
-        nelemToCopy[i] = nElem * elemSize;
-        dstOffset[i] = outputStride[reorderedAxis] * curConcatOffset * elemSize;
-        curConcatOffset += inputShape[reorderedAxis];
-        auto desc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-        srcsOffset[i] = desc.data.offset0;
+        auto primitive_desc = concat::primitive_desc(desc, static_cast<int>(axis), srcs_d, getEngine());
+        prim.reset(new concat(primitive_desc));
     }
 }
 
@@ -503,8 +532,23 @@ void Concat::execute(dnnl::stream strm) {
         return;
     }
 
-    execRef();
-    return;
+    if (canExecRef) {
+        execRef();
+    } else {
+        const Memory& dst_memory = getChildEdgeAt(0)->getMemory();
+        const size_t num_src = getParentEdges().size();
+        std::unordered_map<int, memory> mem_ags {{DNNL_ARG_DST, dst_memory.GetPrimitive()}};
+        size_t nonZeroInShapes = 0;
+        for (int i = 0; i < num_src; i++) {
+            const auto& srcMem = getParentEdgesAtPort(i)[0]->getMemory();
+            if (srcMem.GetShape().hasZeroDims()) {
+                continue;
+            }
+            mem_ags[DNNL_ARG_MULTIPLE_SRC + nonZeroInShapes] = srcMem.GetPrimitive();
+            nonZeroInShapes++;
+        }
+        (*prim).execute(strm, mem_ags);
+    }
 }
 
 InferenceEngine::Precision Concat::getRuntimePrecision() const {
