@@ -1,8 +1,7 @@
 #include "transformations/common_optimizations/transpose_sinking_binary.hpp"
 
-#include <ngraph/opsets/opset9.hpp>
-#include <ngraph/pattern/op/or.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include <openvino/opsets/opset9.hpp>
+#include <openvino/pass/pattern/op/or.hpp>
 #include <transformations/utils/utils.hpp>
 #include <utility>
 
@@ -104,7 +103,7 @@ ov::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
         {ov::pass::pattern::any_input(), transpose_label},
         ov::pass::pattern::consumers_count(1));
     auto binary_label =
-        std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{binary_label_left, binary_label_right});
+        std::make_shared<ov::pass::pattern::op::Or>(ngraph::OutputVector{binary_label_left, binary_label_right});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
         auto binary = m.get_match_root();
