@@ -115,7 +115,9 @@ struct CPUStreamsExecutor::Impl {
                     // Prevent conflicts with system scheduling, so default cpu id on big core starts from 1
                     const auto cpu_idx_offset = selected_core_type == 0 ? _impl->_config._small_core_offset : 1;
 
-                    _taskArena.reset(new custom::task_arena{max_concurrency});
+                    _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
+                                                                .set_core_type(selected_core_type)
+                                                                .set_max_concurrency(max_concurrency)});
                     CpuSet processMask;
                     int ncpus = 0;
                     std::tie(processMask, ncpus) = GetProcessMask();
