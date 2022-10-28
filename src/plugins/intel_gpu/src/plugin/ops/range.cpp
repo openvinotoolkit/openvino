@@ -13,16 +13,21 @@ namespace intel_gpu {
 
 static void CreateRangeOp(Program &p, const std::shared_ptr<ngraph::op::v4::Range> &op) {
     validate_inputs_count(op, { 3 });
-    auto &outShape = op->get_output_shape(0);
-    {
-        auto r = outShape.size();
-        if (r != 1)
-            throw std::runtime_error { "range v4 output rank is " + std::to_string(r) };
+    auto output_pshape = op->get_output_partial_shape(0);
+    auto output_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
+
+    std::shared_ptr<cldnn::layout> outLayout = nullptr;
+    if (output_pshape.is_static()) {
+        OPENVINO_ASSERT(output_pshape.rank().get_length() == 1 , "[GPU] range v4 output rank should be 1");
+        auto& out_shape = op->get_output_shape(0);
+        outLayout = std::make_shared<cldnn::layout>(output_dtype, cldnn::format::bfyx, cldnn::tensor(cldnn::batch(out_shape[0])));
+    } else {
+        outLayout = std::make_shared<cldnn::layout>(output_pshape, output_dtype, cldnn::format::bfyx);
     }
-    cldnn::tensor outTensor { cldnn::spatial(outShape[0]) };
-    auto outDataType = cldnn::element_type_to_data_type(op->get_output_element_type(0));
-    cldnn::layout outLayout { outDataType, cldnn::format::bfyx, outTensor };
-    cldnn::range prim { layer_type_name_ID(op), p.GetInputPrimitiveIDs(op), outLayout };
+
+    cldnn::range prim(layer_type_name_ID(op),
+                        p.GetInputPrimitiveIDs(op),
+                        *outLayout);
     p.add_primitive(*op, prim);
 }
 
