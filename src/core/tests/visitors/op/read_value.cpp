@@ -19,7 +19,8 @@ TEST(attributes, readvalue_v3_op) {
     const auto in = make_shared<op::Parameter>(element::f32, Shape{1});
     const string variable_id = "v0";
     const auto read_value = make_shared<opset3::ReadValue>(in, variable_id);
-    NodeBuilder builder(read_value);
+    NodeBuilder builder(read_value, {in});
+    EXPECT_NO_THROW(auto g_read_value = ov::as_type_ptr<opset3::ReadValue>(builder.create()));
 
     // attribute count
     const auto expected_attr_count = 1;
@@ -31,7 +32,8 @@ TEST(attributes, readvalue_v6_op) {
     const auto in = make_shared<op::Parameter>(element::f32, Shape{1});
     const auto variable = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"});
     const auto read_value = make_shared<opset6::ReadValue>(in, variable);
-    NodeBuilder builder(read_value);
+    NodeBuilder builder(read_value, {in});
+    EXPECT_NO_THROW(auto g_read_value = ov::as_type_ptr<opset6::ReadValue>(builder.create()));
 
     // attribute count
     const auto expected_attr_count = 1;
