@@ -131,8 +131,7 @@ bool is_seq_len_provided(const std::shared_ptr<Node>& seq_len_input, int64_t max
     if (const auto& seq_len_const = std::dynamic_pointer_cast<ngraph::op::Constant>(seq_len_input)) {
         const auto& seq_len_values = seq_len_const->cast_vector<int64_t>();
         return std::any_of(seq_len_values.begin(), seq_len_values.end(), [max_seq_len](const int64_t val) {
-            // -1 means max_seq_len
-            return val != max_seq_len && val != -1;
+            return val != max_seq_len;
         });
     }
     return true;
