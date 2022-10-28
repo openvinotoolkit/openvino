@@ -163,13 +163,15 @@ TEST(ONNX_Importer_Tests, IsOperatorSupported) {
 
 TEST(ONNX_Importer_Tests, ImportModelWithoutMetadata) {
     ov::Core core;
-    auto model = core.read_model(ov::util::path_join({ONNX_MODELS_DIR, "priorbox_clustered.onnx"}));
+    auto model = core.read_model(
+        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "priorbox_clustered.onnx"})));
     ASSERT_FALSE(model->has_rt_info("framework"));
 }
 
 TEST(ONNX_Importer_Tests, ImportModelWithMetadata) {
     ov::Core core;
-    auto model = core.read_model(ov::util::path_join({ONNX_MODELS_DIR, "model_with_metadata.onnx"}));
+    auto model = core.read_model(
+        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({ONNX_MODELS_DIR, "model_with_metadata.onnx"})));
     ASSERT_TRUE(model->has_rt_info("framework"));
 
     const auto rtinfo = model->get_rt_info();
