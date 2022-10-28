@@ -17,6 +17,7 @@
 using namespace cldnn;
 using namespace ::tests;
 
+namespace {
 cldnn::format::type layout_4d(cldnn::format f) {
     switch (f.value) {
     case cldnn::format::bfyx:
@@ -130,6 +131,7 @@ void generic_fully_connected_test(cldnn::format test_input_fmt, cldnn::format te
         << "slope = " << (float)slope << std::endl
         << "type = " << (sizeof(T) == 2 ? "float16" : "float32") << std::endl;
 }
+}  // namespace
 
 TEST(DISABLED_fully_connected_gpu, generic_random_short) {
     VF<cldnn::format> test_input_fmts = { cldnn::format::bfyx, cldnn::format::yxfb };
