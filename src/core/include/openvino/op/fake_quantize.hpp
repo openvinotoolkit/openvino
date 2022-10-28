@@ -75,7 +75,11 @@ public:
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override {
         return false;
     }
-
+    struct AlignedParam {
+        float aligned_zp;
+        float aligned_ol;
+        float aligned_oh;
+    };
 private:
     std::size_t m_levels;
     AutoBroadcastSpec m_auto_broadcast = op::AutoBroadcastType::NUMPY;

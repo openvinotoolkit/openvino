@@ -114,8 +114,6 @@ public:
         outputShift = std::move(newOutputShift); outputShiftSize = outputShift.size(); ++parameterVersion;
     }
 
-    const std::vector<float>& getFQScales() const { return fqScales; }
-
     bool isInputLowBroadcast() const { return isInputLowBroadcasted; }
     bool isInputHighBroadcast() const { return isInputHighBroadcasted; }
     bool isOutputLowBroadcast() const { return isOutputLowBroadcasted; }
@@ -148,6 +146,7 @@ public:
     MemoryPtr inputShiftMemory;
     MemoryPtr outputScaleMemory;
     MemoryPtr outputShiftMemory;
+    bool alignedQuantization() const { return useAlignedQuantization; }
 
 private:
     struct FakeQuantizeExecutor {
@@ -264,6 +263,7 @@ private:
     std::string errorPrefix;
 
     BroadcastingPolicy broadcastingPolicy;
+    bool useAlignedQuantization = false;
 };
 
 }   // namespace node

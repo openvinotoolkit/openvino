@@ -191,6 +191,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
         float dequantizationSub;
         float updatedOutputLowValue;
         float updatedOutputHighValue;
+        const size_t original_levels = layer->get_levels();
         const size_t levels = NetworkHelper::calculateLevels(
             dataPrecision.min,
             dataPrecision.max,
@@ -221,6 +222,11 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
             false);
         matcherPass->register_new_node(newFakeQuantizeLayer);
         newFakeQuantizeLayer->set_levels(levels);
+
+        // The aligned levels maybe introduce pertensor shift error after rounding to int. Need to original float parameters.
+        if (levels != original_levels)
+            newFakeQuantizeLayer->get_rt_info()["originalAlignedParam"] =  ngraph::opset1::FakeQuantize::AlignedParam{dequantizationSub,
+                                updatedOutputLowValue, updatedOutputHighValue};
 
         auto dequantization = ngraph::pass::low_precision::NetworkHelper::makeDequantization(
             dequantizationMul,

@@ -1005,8 +1005,48 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
         } else {
             originalPerTensorInputShift = NAN;
         }
+        /*
+        LPT has QuantizationAlignmentAttribute to align quantization parameter across FQs node, which
+        will introduce quantization errors caused by rounding when calculating levels.
+        Before LPT:
 
-        binarization = levels == 2;
+              input1                              input2
+                |                                   |
+        FQ1(-25.6, 25.4, -25.6, 25.4)           FQ2(-256.0, 254.0, -256.0, 254.0)
+                |                                   |
+                |----------Concat-------------------|
+                             |
+                            Conv Input(Per-tensor Granularity Limitation)
+        After LPT:
+
+              input1                              input2
+                |                                   |
+        FQ1(-25.6, 25.4, -13, 13) 27 levels      FQ2(-256.0, 254.0, -128, 127)256 levels
+                |                                   |
+                |----------Concat-------------------|
+                             |
+                            DQ_multiply(multiply with 2.0)
+                             |
+                            Conv Input(Per-tensor Granularity Limiteation)
+
+        The original aligned  quantization formula for FQ1, FQ2 is: FQ = 0.5 * x + 0.0;
+
+        fround(-25.6 * 0.5) = -13
+        fround(25.4 * 0.5)= 13
+
+        but after LPT rounding,  FQ2 = 0.5098039215686274 * x + 0.050980392156862564;
+        fround() in LPT introduces scale and shift error.
+        Here we try checking whether we have chance to use the original output ranges.
+        */
+        ngraph::opset1::FakeQuantize::AlignedParam originalAlignedParam {};
+        float alignedOutputRange{0.0};
+        if (rtInfo.count("originalAlignedParam")) {
+            originalAlignedParam = rtInfo.at("originalAlignedParam").as<ngraph::opset1::FakeQuantize::AlignedParam>();
+            useAlignedQuantization = true;
+            alignedOutputRange = originalAlignedParam.aligned_oh - originalAlignedParam.aligned_ol;
+        }
+
+        binarization = (levels == 2 && !useAlignedQuantization);
 
         if (binarization) {
             for (int i = 0; i < outputLowAxisSize; i++) {
@@ -1100,6 +1140,8 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
             inputShiftSize = inputShift.size();
             outputScaleSize = outputScale.size();
             outputShiftSize = outputShift.size();
+            std::vector<float> inputScaleAligned(inputScaleSize);
+            std::vector<float> inputShiftAligned(inputShiftSize);
 
             if (everyone_is(1, cropLowSize, cropHighSize, inputScaleSize, inputShiftSize, outputScaleSize, outputShiftSize))
                 broadcastingPolicy = PerTensor;
@@ -1131,10 +1173,37 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
 #ifdef FQ_DOUBLE_PRECISION
                 inputScale[i] = (levels - 1.0) / (static_cast<double>(ih) - il);
                 inputShift[i] = -il * (levels - 1.0) / (static_cast<double>(ih) - il);
+                if (useAlignedQuantization) {
+                    inputScaleAligned[i] = static_cast<double>(alignedOutputRange) / (static_cast<double>(ih) - il);
+                    inputShiftAligned[i] = -il * static_cast<double>(alignedOutputRange) / (static_cast<double>(ih) - il);
+                    if (abs(inputShiftAligned[i] - originalParam.aligned_zp) > 0.0001f)
+                        useAlignedQuantization = false;
+                }
 #else
                 inputScale[i] = (levels - 1) / (ih - il);
                 inputShift[i] = -il * (levels - 1) / (ih - il);
+                if (useAlignedQuantization) {
+                    inputScaleAligned[i] = alignedOutputRange / (ih - il);
+                    inputShiftAligned[i] = originalAlignedParam.aligned_ol - il * alignedOutputRange / (ih - il);
+                    //FQ fusing with relu or fusing with add would causes input shift differs with original zero point.
+                    //Will not use the aligned quantization in these cases.
+                    //LPT would would fuse Multiply or others into FQ and update  input range. This can introduce related
+                    //calculation error.
+                    if (abs(inputShiftAligned[i] - originalAlignedParam.aligned_zp) > 0.0001f)
+                        useAlignedQuantization = false;
+                }
+
 #endif
+            }
+
+            //The FQ doesn't merge Relu in LPT so the output clamp range not changed. Replace input scale/shift based on rounding outputs with  scale/shift
+            //based on original outputs.
+            if (useAlignedQuantization) {
+                inputScale = inputScaleAligned;
+                inputShift = inputShiftAligned;
+                std::fill(outputLowData.begin(), outputLowData.end(), originalAlignedParam.aligned_ol);
+                std::fill(outputHighData.begin(), outputHighData.end(), originalAlignedParam.aligned_oh);
+                originalPerTensorInputShift = originalAlignedParam.aligned_zp;
             }
 
             for (int i = 0; i < outputScale.size(); i++) {
@@ -1147,10 +1216,15 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
                                        << "outputLow = " << ol << ", outputHigh = " << oh;
                 }
 #endif
+
+                if (useAlignedQuantization)
+                    outputScale[i] = 1.f;
+                else
 #ifdef FQ_DOUBLE_PRECISION
-                outputScale[i] = (static_cast<double>(oh) - ol) / (levels - 1.0);
+                    outputScale[i] = (static_cast<double>(oh) - ol) / (levels - 1.0);
 #else
-                outputScale[i] = (oh - ol) / (levels - 1);
+                    outputScale[i] = (oh - ol) / (levels - 1);
+
 #endif
 
                 if (outputScale[i] != 1.f)
@@ -1160,11 +1234,15 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
             for (int i = 0; i < outputShift.size(); i++) {
                 float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
 
-                outputShift[i] = ol;
+                if (useAlignedQuantization)
+                    outputShift[i] = 0.f;
+                else
+                    outputShift[i] = ol;
 
                 if (outputShift[i] != 0.f)
                     quantizationOnly = false;
             }
+
 
             bool isFakeQuantization = true;
             bool isFakeQuantizationWithScale = true;
@@ -1177,17 +1255,6 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
                 isFakeQuantization = isFakeQuantization && il == ol && ih == oh;
                 isFakeQuantizationWithScale = isFakeQuantizationWithScale && il != ih && ol != oh &&
                                               (abs(ol / (oh - ol) - il / (ih - il)) < 0.001f);
-            }
-
-            if (isFakeQuantizationWithScale) {
-                for (int i = 0; i < std::max(inputLowAxisSize, std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize))); i++) {
-                    float il = inputLowData[isInputLowBroadcasted ? 0 : i];
-                    float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
-                    float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
-                    float oh = outputHighData[isOutputHighBroadcasted ? 0 : i];
-
-                    fqScales.push_back(1 / ((ih - il) / (oh - ol)));
-                }
             }
 
             algorithm = quantizationOnly ? Algorithm::FQQuantization :
