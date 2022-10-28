@@ -14,6 +14,8 @@
 
 #include "gtest/gtest.h"
 
+#include "ngraph/pass/visualize_tree.hpp" // DEBUG
+
 namespace {
 
 using NodePtr = std::shared_ptr<ov::Node>;
@@ -60,7 +62,9 @@ template <typename PassT>
 class PassFactory : public IPassFactory {
 public:
     void registerPass(ov::pass::Manager& pass_manager) const override {
+        //pass_manager.register_pass<ngraph::pass::VisualizeTree>("./0before.png"); // DEBUG
         pass_manager.register_pass<PassT>();
+        //pass_manager.register_pass<ngraph::pass::VisualizeTree>("./1after.png"); // DEBUG
     }
 };
 
@@ -297,7 +301,7 @@ TEST_P(TransposeSinkingBinaryTestFixture, CompareFunctions) {
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingBinaryForwardTestSuite, TransposeSinkingBinaryTestFixture,
                          ::testing::Combine(::testing::ValuesIn(binary_factories),
-                                            ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingBinaryForward>()),
+                                            ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingElementwiseForward>()),
                                             ::testing::ValuesIn(binary_operations_numbers),
                        ::testing::Values(binary::single_consumer::forward::one_input_tranpose::CreateFunction),
                        ::testing::Values(binary::single_consumer::forward::one_input_tranpose::CreateReferenceFunction),
@@ -351,7 +355,7 @@ INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingBinaryTwoTransposeInputsForwardTestSuite,
     TransposeSinkingBinaryTwoTransposeInputsTestFixture,
     ::testing::Combine(::testing::ValuesIn(binary_factories),
-                       ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingBinaryForward>()),
+                       ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingElementwiseForward>()),
                        ::testing::ValuesIn(binary_operations_numbers),
                        ::testing::Values(binary::single_consumer::forward::double_transpose::CreateFunction),
                        ::testing::Values(binary::single_consumer::forward::double_transpose::CreateReferenceFunction),
@@ -606,7 +610,7 @@ TEST_P(TransposeSinkingConcatTestFixture, CompareFunctions) {
 }
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatForwardTestSuite, TransposeSinkingConcatTestFixture,
-                         ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingConcatForward>()),
+                         ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingElementwiseForward>()),
                                             ::testing::ValuesIn(concat_operations_numbers),
                        ::testing::Values(concat::single_consumer::forward::one_input_tranpose::CreateFunction),
                        ::testing::Values(concat::single_consumer::forward::one_input_tranpose::CreateReferenceFunction),
@@ -662,7 +666,7 @@ TEST_P(TransposeSinkingConcatAllTransposesInputTestFixture, CompareFunctions) {
 INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingConcatForwardAllTransposesTestSuite,
     TransposeSinkingConcatAllTransposesInputTestFixture,
-    ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingConcatForward>()),
+    ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingElementwiseForward>()),
                        ::testing::ValuesIn(concat_operations_numbers),
                        ::testing::Values(concat::single_consumer::forward::double_transpose::CreateFunction),
                        ::testing::Values(concat::single_consumer::forward::double_transpose::CreateReferenceFunction),
@@ -778,7 +782,7 @@ TEST_P(TransposeSinkingSplitForwardTestFixture, CompareFunctions) {
 INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingSplitForwardTestSuite,
     TransposeSinkingSplitForwardTestFixture,
-    ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingSplitForward>()),
+    ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingElementwiseForward>()),
                        ::testing::ValuesIn(split_operations_numbers),
                        ::testing::ValuesIn(split_outputs_numbers),
                        ::testing::Values(split::forward::CreateFunction),

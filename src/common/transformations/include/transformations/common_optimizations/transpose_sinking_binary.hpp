@@ -17,6 +17,7 @@ class TRANSFORMATIONS_API TransposeSinkingConcatForward;
 class TRANSFORMATIONS_API TransposeSinkingConcatBackward;
 class TRANSFORMATIONS_API TransposeSinkingSplitForward;
 class TRANSFORMATIONS_API TransposeSinkingSplitBackward;
+class TRANSFORMATIONS_API TransposeSinkingElementwiseForward;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -55,4 +56,10 @@ class ov::pass::TransposeSinkingSplitBackward : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ov::pass::TransposeSinkingSplitBackward", "0");
     TransposeSinkingSplitBackward();
+};
+
+class ov::pass::TransposeSinkingElementwiseForward : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ov::pass::TransposeSinkingElementwiseForward", "0");
+    TransposeSinkingElementwiseForward();
 };
