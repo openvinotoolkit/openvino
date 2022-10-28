@@ -131,6 +131,8 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
         return "";
     };
     auto checkPriorityConfig = [&] (const std::string& priString) {
+        if (priString.empty())
+            return false;
         std::string::size_type pos = 0;
         std::string::size_type endpos = 0;
         while ((endpos = priString.find(",", pos)) != std::string::npos) {
