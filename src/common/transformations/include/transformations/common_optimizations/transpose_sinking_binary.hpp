@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API TransposeSinkingElementwiseForward;
 class TRANSFORMATIONS_API TransposeSinkingElementwiseBackward;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 class ov::pass::TransposeSinkingSplitBackward : public ov::pass::MatcherPass {
 public:
