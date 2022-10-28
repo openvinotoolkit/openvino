@@ -11,7 +11,6 @@ from collections import OrderedDict
 from copy import deepcopy
 
 import numpy as np
-import torch
 
 try:
     import openvino_telemetry as tm
@@ -600,6 +599,7 @@ def get_onnx_temp_filename(output_dir):
 
 
 def to_torch_tensor(tensor):
+    import torch
     from openvino.runtime import Tensor
     if isinstance(tensor, torch.Tensor):
         return tensor
