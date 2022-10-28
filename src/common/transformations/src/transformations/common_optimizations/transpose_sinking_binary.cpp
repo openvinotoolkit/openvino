@@ -23,6 +23,8 @@ struct TrasposeInputsInfo {
     std::shared_ptr<ov::opset9::Transpose> transpose;
     std::shared_ptr<ov::opset9::Constant> transpose_const;
     size_t input_idx;
+
+    bool isEmpty() const { return !transpose || !transpose_const; }
 };
 
 TrasposeInputsInfo GetFirstTransposeInput(NodePtr node) {
@@ -48,19 +50,8 @@ TrasposeInputsInfo GetFirstTransposeInput(NodePtr node) {
 }
 
 bool IfNodeHasTransposeInputs(const ov::Output<ov::Node>& output) {
-    for (size_t input_idx = 0; input_idx < output.get_node()->get_input_size(); ++input_idx) {
-        NodePtr input_node = output.get_node()->get_input_node_shared_ptr(input_idx);
-        auto transpose_node = ov::as_type_ptr<ov::opset9::Transpose>(input_node);
-        if (!transpose_node)
-            continue;
-        auto constant_node =
-            ov::as_type_ptr<ov::opset9::Constant>(transpose_node->input_value(1).get_node_shared_ptr());
-        if (!constant_node)
-            continue;
-        return true;
-    }
-
-    return false;
+    TrasposeInputsInfo inputs_info = GetFirstTransposeInput(output.get_node_shared_ptr());
+    return !inputs_info.isEmpty();
 }
 
 // --------------------------------------------------------------------------------------
@@ -406,6 +397,7 @@ ov::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
 // --------------------------------------------------------------------------------------
 
 struct OutputTranspose {
+    OutputTranspose() : transpose(nullptr), transpose_const(nullptr) {}
     ov::opset9::Transpose* transpose;
     ov::opset9::Constant* transpose_const;
 };
