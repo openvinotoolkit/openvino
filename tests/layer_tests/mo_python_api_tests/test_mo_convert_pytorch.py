@@ -45,7 +45,7 @@ def create_pytorch_nn_module_case1(tmp_dir):
     function = Model([sigm], parameter_list, "test")
 
     return NeuralNetwork(), function, {'input_shape': [PartialShape([-1, 3, -1, -1]), PartialShape([-1, 3, -1, -1])],
-                                       'sample_input': sample_input}
+                                       'example_inputs': sample_input}
 
 
 def create_pytorch_nn_module_case2(tmp_dir):
@@ -80,7 +80,7 @@ def create_pytorch_nn_module_case2(tmp_dir):
     function = Model([sigm], parameter_list, "test")
 
     return NeuralNetwork(), function, {'input_shape': ["[?,3,?,?]", PartialShape([-1, 3, -1, -1])],
-                                       'sample_input': sample_input, 'onnx_opset_version': 11}
+                                       'example_inputs': sample_input, 'onnx_opset_version': 11}
 
 
 def create_pytorch_nn_module_case3(tmp_dir):
@@ -114,7 +114,7 @@ def create_pytorch_nn_module_case3(tmp_dir):
     parameter_list = [param1, param2]
     function = Model([sigm], parameter_list, "test")
 
-    return NeuralNetwork(), function, {'input_shape': "[?,3,?,?],[?,3,?,?]", 'sample_input': sample_input}
+    return NeuralNetwork(), function, {'input_shape': "[?,3,?,?],[?,3,?,?]", 'example_inputs': sample_input}
 
 
 def create_pytorch_nn_module_case4(tmp_dir):
@@ -144,7 +144,7 @@ def create_pytorch_nn_module_case4(tmp_dir):
     parameter_list = [param1]
     function = Model([sigm], parameter_list, "test")
 
-    return NeuralNetwork(), function, {'sample_input': sample_input}
+    return NeuralNetwork(), function, {'example_inputs': sample_input}
 
 
 def create_pytorch_nn_module_case5(tmp_dir):
@@ -174,7 +174,7 @@ def create_pytorch_nn_module_case5(tmp_dir):
     parameter_list = [param1]
     function = Model([sigm], parameter_list, "test")
 
-    return NeuralNetwork(), function, {'sample_input': sample_input,
+    return NeuralNetwork(), function, {'example_inputs': sample_input,
                                        'input_shape': PartialShape([-1, 3, Dimension(2, -1), Dimension(-1, 10)])}
 
 
@@ -261,7 +261,7 @@ def create_pytorch_nn_module_sample_input_int32(tmp_dir):
     parameter_list = [param1]
     function = Model([sigm], parameter_list, "test")
 
-    return NeuralNetwork(), function, {'sample_input': sample_input,
+    return NeuralNetwork(), function, {'example_inputs': sample_input,
                                        'input_shape': PartialShape([-1, 3, Dimension(2, -1), Dimension(-1, 10)])}
 
 
@@ -297,7 +297,7 @@ def create_pytorch_nn_module_sample_input_int32_two_inputs(tmp_dir):
     function = Model([sigm], parameter_list, "test")
 
     return NeuralNetwork(), function, {'input_shape': ["[?,3,?,?]", PartialShape([-1, 3, -1, -1])],
-                                       'sample_input': sample_input, 'onnx_opset_version': 11}
+                                       'example_inputs': sample_input, 'onnx_opset_version': 11}
 
 
 def create_pytorch_nn_module_compare_convert_paths_case1(tmp_dir):
@@ -321,7 +321,7 @@ def create_pytorch_nn_module_compare_convert_paths_case1(tmp_dir):
     torch.onnx.export(pt_model, sample_input, onnx_model_path, opset_version=16)
 
     ref_model = convert_model(onnx_model_path)
-    return NeuralNetwork(), ref_model, {'sample_input': sample_input, 'onnx_opset_version': 16}
+    return NeuralNetwork(), ref_model, {'example_inputs': sample_input, 'onnx_opset_version': 16}
 
 
 def create_pytorch_nn_module_compare_convert_paths_case2(tmp_dir):
@@ -345,7 +345,7 @@ def create_pytorch_nn_module_compare_convert_paths_case2(tmp_dir):
     torch.onnx.export(pt_model, sample_input, onnx_model_path, opset_version=16)
 
     ref_model = convert_model(onnx_model_path)
-    return NeuralNetwork(), ref_model, {'sample_input': sample_input,
+    return NeuralNetwork(), ref_model, {'example_inputs': sample_input,
                                         'input_shape': [1, 3, 10, 10],
                                         'onnx_opset_version': 16}
 
@@ -399,7 +399,7 @@ def create_pytorch_nn_module_compare_convert_paths_case4(tmp_dir):
 
     ref_model = convert_model(onnx_model_path)
 
-    return NeuralNetwork(), ref_model, {'sample_input': sample_input, 'onnx_opset_version': 16}
+    return NeuralNetwork(), ref_model, {'example_inputs': sample_input, 'onnx_opset_version': 16}
 
 
 def create_pytorch_nn_module_compare_convert_paths_case5(tmp_dir):
@@ -427,7 +427,7 @@ def create_pytorch_nn_module_compare_convert_paths_case5(tmp_dir):
 
     ref_model = convert_model(onnx_model_path)
 
-    return NeuralNetwork(), ref_model, {'sample_input': sample_input,
+    return NeuralNetwork(), ref_model, {'example_inputs': sample_input,
                                         'input_shape': [torch.Size([1, 3, 10, 10]), PartialShape([1, 3, 10, 10])],
                                         'onnx_opset_version': 16}
 
@@ -532,13 +532,13 @@ def create_pytorch_nn_module_sample_input_numpy(tmp_dir):
             logits = self.linear_relu_stack(x)
             return logits
 
-    sample_input = np.array(torch.zeros(1, 3, 10, 10, dtype=torch.int32))
+    example_inputs = np.array(torch.zeros(1, 3, 10, 10, dtype=torch.int32))
     pt_model = NeuralNetwork()
     onnx_model_path = os.path.join(tmp_dir, 'export.onnx')
     torch.onnx.export(pt_model, torch.zeros(1, 3, 10, 10, dtype=torch.int32), onnx_model_path, opset_version=16)
 
     ref_model = convert_model(onnx_model_path)
-    return NeuralNetwork(), ref_model, {'sample_input': sample_input,
+    return NeuralNetwork(), ref_model, {'example_inputs': example_inputs,
                                         'input_shape': [1, 3, 10, 10],
                                         'onnx_opset_version': 16}
 
@@ -565,7 +565,7 @@ def create_pytorch_nn_module_sample_input_ov_host_tensor(tmp_dir):
     torch.onnx.export(pt_model, torch.zeros(1, 3, 10, 10, dtype=torch.int32), onnx_model_path, opset_version=16)
 
     ref_model = convert_model(onnx_model_path)
-    return NeuralNetwork(), ref_model, {'sample_input': sample_input,
+    return NeuralNetwork(), ref_model, {'example_inputs': sample_input,
                                         'input_shape': [1, 3, 10, 10],
                                         'onnx_opset_version': 16}
 
@@ -599,7 +599,7 @@ def create_pytorch_nn_module_sample_input_ov_host_tensor_two_inputs(tmp_dir):
 
     ref_model = convert_model(onnx_model_path)
 
-    return NeuralNetwork(), ref_model, {'sample_input': sample_input,
+    return NeuralNetwork(), ref_model, {'example_inputs': sample_input,
                                         'onnx_opset_version': 16}
 
 

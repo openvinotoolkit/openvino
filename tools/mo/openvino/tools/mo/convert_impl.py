@@ -610,17 +610,17 @@ def to_torch_tensor(tensor):
     if isinstance(tensor, Tensor):
         return torch.tensor(tensor.data)
     else:
-        raise Error("Unexpected type of sample_input. Supported types torch.Tensor, np.array or ov.Tensor. "
+        raise Error("Unexpected type of example_inputs. Supported types torch.Tensor, np.array or ov.Tensor. "
                     "Got {}".format(type(tensor)))
 
 
-def convert_pytorch_to_onnx(model, input_shape, opset_version, sample_input, output_dir):
+def convert_pytorch_to_onnx(model, input_shape, opset_version, example_inputs, output_dir):
     import io
     import torch
     from collections.abc import Iterable
 
-    if sample_input is not None:
-        inputs = sample_input
+    if example_inputs is not None:
+        inputs = example_inputs
         if isinstance(inputs, list) or isinstance(inputs, tuple):
             inputs = [to_torch_tensor(x) for x in inputs]
             inputs = tuple(inputs)
@@ -631,12 +631,12 @@ def convert_pytorch_to_onnx(model, input_shape, opset_version, sample_input, out
         for shape_idx, shape in enumerate(input_shape):
             static_shape = get_static_shape(shape,
                                             "For converting PyTorch model with dynamic dimensions please provide "
-                                            "sample input using sample_input parameter or provide input shapes "
+                                            "sample input using example_inputs parameter or provide input shapes "
                                             "with boundaries.")
             inputs.append(torch.zeros(static_shape))
         inputs = tuple(inputs)
     else:
-        raise Error("Please provide input_shape or sample_input for converting PyTorch model.")
+        raise Error("Please provide input_shape or example_inputs for converting PyTorch model.")
 
     dynamic_axes_params = {}
     dynamic_dims_dict = {}
@@ -793,16 +793,16 @@ def _convert(**args):
             if 'onnx_opset_version' in args and args['onnx_opset_version'] is not None:
                 opset_version = args['onnx_opset_version']
 
-            sample_input = None
-            if 'sample_input' in args and args['sample_input'] is not None:
-                sample_input = args['sample_input']
+            example_inputs = None
+            if 'example_inputs' in args and args['example_inputs'] is not None:
+                example_inputs = args['example_inputs']
 
             out_dir = args['output_dir'] if 'output_dir' in args else None
 
             model_onnx = convert_pytorch_to_onnx(args['input_model'],
                                                  parse_input_shapes(args),
                                                  opset_version,
-                                                 sample_input,
+                                                 example_inputs,
                                                  out_dir)
 
 
@@ -810,7 +810,7 @@ def _convert(**args):
             if os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):
                 args['use_legacy_frontend'] = True
             args['input_shape'] = None
-            args['sample_input'] = None
+            args['example_inputs'] = None
             args['onnx_opset_version'] = None
             ov_model = _convert(**args)
 
