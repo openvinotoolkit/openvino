@@ -792,15 +792,13 @@ static bool is_node_for_onednn(reduce_node const& node, format preferred_format)
     }
 
     // oneDNN reduction selects ref kernel for simple formats(bfyx..) which has perf regression with a decent tensor size.
-    if (format::is_simple_data_format(preferred_format)) {
+    if (format::is_simple_data_format(preferred_format))
         return false;
-    } else {
-        // Onednn reduction does NOT support reordering of unreduced-axes.
-        // Currently, an Onednn reduce layer which contains reduction of blocked axes(b-f) is expected to select planar format.
-        if (is_reduce_blocked_axes(node)) {
-            return false;
-        }
-    }
+
+    // Onednn reduction does NOT support reordering of unreduced-axes.
+    // Currently, an Onednn reduce layer which contains reduction of blocked axes(b-f) is expected to select planar format.
+    if (is_reduce_blocked_axes(node))
+        return false;
 
     return true;
 }

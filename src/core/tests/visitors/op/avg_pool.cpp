@@ -29,7 +29,7 @@ TEST(attributes, avg_pool_op) {
     auto avg_pool =
         make_shared<opset1::AvgPool>(data, strides, pads_begin, pads_end, kernel, exclude_pad, rounding_mode, auto_pad);
 
-    NodeBuilder builder(avg_pool);
+    NodeBuilder builder(avg_pool, {data});
     auto g_avg_pool = ov::as_type_ptr<opset1::AvgPool>(builder.create());
 
     EXPECT_EQ(g_avg_pool->get_strides(), avg_pool->get_strides());
@@ -54,7 +54,7 @@ TEST(attributes, avg_pool_v8_op) {
 
     const auto avg_pool =
         make_shared<opset8::AvgPool>(data, strides, pads_begin, pads_end, kernel, exclude_pad, rounding_mode, auto_pad);
-    NodeBuilder builder(avg_pool);
+    NodeBuilder builder(avg_pool, {data});
     auto g_avg_pool = ov::as_type_ptr<opset8::AvgPool>(builder.create());
 
     EXPECT_EQ(g_avg_pool->get_strides(), avg_pool->get_strides());
