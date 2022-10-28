@@ -4,7 +4,7 @@
 
 if (ENABLE_INTEL_MYRIAD)
     if(CMAKE_COMPILER_IS_GNUCC OR OV_COMPILER_IS_CLANG)
-        ie_add_compiler_flags(-Wno-enum-conversion -Wno-missing-declarations -Wno-format-truncation -Wunknown-warning-option)
+        ie_add_compiler_flags(-Wno-enum-conversion -Wno-missing-declarations -Wno-format-truncation)
     endif()
     add_definitions(-DXLINK_USE_BUS)
 
@@ -16,7 +16,7 @@ if (ENABLE_INTEL_MYRIAD)
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
     endif()
 
-    set(XLINK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/XLink" CACHE PATH "path to s" FORCE)
+    set(XLINK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/XLink" CACHE PATH "path to Xlink" FORCE)
     add_subdirectory(
         "${XLINK_DIR}"
         "${CMAKE_CURRENT_BINARY_DIR}/XLink")
