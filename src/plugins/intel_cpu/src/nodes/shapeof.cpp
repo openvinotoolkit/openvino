@@ -4,12 +4,46 @@
 
 #include "shapeof.h"
 #include <ngraph/opsets/opset1.hpp>
+#include <utils/shape_inference/shape_inference_cpu.hpp>
 
 using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
+
+namespace {
+class ShapeOfShapeInfer final : public IShapeInfer {
+public:
+    ShapeOfShapeInfer() = default;
+    std::vector<VectorDims> infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        IE_ASSERT(!input_shapes.empty());
+        return {VectorDims{input_shapes.front().get().size()}};
+    }
+
+    const ov::CoordinateDiff& get_pads_begin() override {
+        return empty_vec;
+    }
+    const ov::CoordinateDiff& get_pads_end() override {
+        return empty_vec;
+    }
+    port_mask_t get_port_mask() const override {
+        return 0x00;
+    }
+
+private:
+    ov::CoordinateDiff empty_vec;
+};
+
+class ShapeOfShapeInferFactory final : public ShapeInferFactory {
+public:
+    ShapeInferPtr makeShapeInfer() const override {
+        return std::make_shared<ShapeOfShapeInfer>();
+    }
+};
+} // namespace
 
 bool ShapeOf::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -26,7 +60,7 @@ bool ShapeOf::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
 }
 
 ShapeOf::ShapeOf(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache, DefaultShapeInferFactory(op, 0x00)) {
+                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache, ShapeOfShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "ShapeOf layer with name '" + getName() + "' ";
