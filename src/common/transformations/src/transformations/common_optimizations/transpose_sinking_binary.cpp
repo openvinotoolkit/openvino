@@ -13,6 +13,8 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
 
+using namespace ov::pass::pattern;
+
 namespace {
 
 using NodePtr = std::shared_ptr<ov::Node>;
@@ -92,20 +94,20 @@ void SwapNames(NodePtr node1, NodePtr node2) {
 ov::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
     MATCHER_SCOPE(TransposeSinkingBinaryForward);
 
-    auto transpose_label = ov::pass::pattern::wrap_type<ov::opset9::Transpose>(
-        {ov::pass::pattern::any_input(), ngraph::pattern::wrap_type<ov::opset9::Constant>()},
-        ov::pass::pattern::consumers_count(1));
-    auto binary_label_left = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>(
-        {transpose_label, ov::pass::pattern::any_input()},
-        ov::pass::pattern::consumers_count(1));
+    auto transpose_label = wrap_type<ov::opset9::Transpose>(
+        {any_input(), ngraph::pattern::wrap_type<ov::opset9::Constant>()},
+        consumers_count(1));
+    auto binary_label_left = wrap_type<ov::op::util::BinaryElementwiseArithmetic>(
+        {transpose_label, any_input()},
+        consumers_count(1));
 
-    auto binary_label_right = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>(
-        {ov::pass::pattern::any_input(), transpose_label},
-        ov::pass::pattern::consumers_count(1));
+    auto binary_label_right = wrap_type<ov::op::util::BinaryElementwiseArithmetic>(
+        {any_input(), transpose_label},
+        consumers_count(1));
     auto binary_label =
         std::make_shared<ov::pass::pattern::op::Or>(ngraph::OutputVector{binary_label_left, binary_label_right});
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         auto binary = m.get_match_root();
         TrasposeInputsInfo transpose_input_info = GetFirstTransposeInput(binary);
 
@@ -152,23 +154,23 @@ ov::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
         return true;
     };
 
-    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(binary_label, matcher_name);
+    auto matcher = std::make_shared<Matcher>(binary_label, matcher_name);
     register_matcher(matcher, matcher_pass_callback);
 }
 
 ov::pass::TransposeSinkingBinaryBackward::TransposeSinkingBinaryBackward() {
     MATCHER_SCOPE(TransposeSinkingBinaryBackward);
 
-    auto binary_label = ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>(
-        {ov::pass::pattern::any_input(), ov::pass::pattern::any_input()},
-        ov::pass::pattern::consumers_count(1));
+    auto binary_label = wrap_type<ov::op::util::BinaryElementwiseArithmetic>(
+        {any_input(), any_input()},
+        consumers_count(1));
 
     auto transpose_const_label =
-        ov::pass::pattern::wrap_type<ov::opset9::Constant>(ov::pass::pattern::consumers_count(1));
-    auto transpose_label = ov::pass::pattern::wrap_type<ov::opset9::Transpose>({binary_label, transpose_const_label},
-                                                                               ov::pass::pattern::consumers_count(1));
+        wrap_type<ov::opset9::Constant>(consumers_count(1));
+    auto transpose_label = wrap_type<ov::opset9::Transpose>({binary_label, transpose_const_label},
+                                                                               consumers_count(1));
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_const =
             ov::as_type_ptr<ov::opset9::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
@@ -202,7 +204,7 @@ ov::pass::TransposeSinkingBinaryBackward::TransposeSinkingBinaryBackward() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_label, matcher_name);
+    auto m = std::make_shared<Matcher>(transpose_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
 
@@ -221,9 +223,9 @@ T TransposeAxis(T axis, const ov::AxisVector& transpose_order) {
 ov::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
     MATCHER_SCOPE(TransposeSinkingConcatForward);
 
-    auto concat_label = ov::pass::pattern::wrap_type<ov::opset9::Concat>(IfNodeHasTransposeInputs);
+    auto concat_label = wrap_type<ov::opset9::Concat>(IfNodeHasTransposeInputs);
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto& concat_output = pattern_to_output.at(concat_label);
         auto concat = ov::as_type_ptr<ov::opset9::Concat>(concat_output.get_node_shared_ptr());
@@ -277,21 +279,21 @@ ov::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(concat_label, matcher_name);
+    auto m = std::make_shared<Matcher>(concat_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
 
 ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
     MATCHER_SCOPE(TransposeSinkingConcatBackward);
 
-    auto concat_label = ov::pass::pattern::wrap_type<ov::opset9::Concat>(ov::pass::pattern::consumers_count(1));
+    auto concat_label = wrap_type<ov::opset9::Concat>(consumers_count(1));
 
     auto transpose_const_label =
-        ov::pass::pattern::wrap_type<ov::opset9::Constant>(ov::pass::pattern::consumers_count(1));
-    auto transpose_label = ov::pass::pattern::wrap_type<ov::opset9::Transpose>({concat_label, transpose_const_label},
-                                                                               ov::pass::pattern::consumers_count(1));
+        wrap_type<ov::opset9::Constant>(consumers_count(1));
+    auto transpose_label = wrap_type<ov::opset9::Transpose>({concat_label, transpose_const_label},
+                                                                               consumers_count(1));
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_const =
             ov::as_type_ptr<ov::opset9::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
@@ -330,7 +332,7 @@ ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_label, matcher_name);
+    auto m = std::make_shared<Matcher>(transpose_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
 
@@ -340,16 +342,16 @@ ov::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
     MATCHER_SCOPE(TransposeSinkingSplitForward);
 
     auto transpose_const_label =
-        ov::pass::pattern::wrap_type<ov::opset9::Constant>(ov::pass::pattern::consumers_count(1));
+        wrap_type<ov::opset9::Constant>(consumers_count(1));
     auto transpose_label =
-        ov::pass::pattern::wrap_type<ov::opset9::Transpose>({ov::pass::pattern::any_input(), transpose_const_label},
-                                                            ov::pass::pattern::consumers_count(1));
+        wrap_type<ov::opset9::Transpose>({any_input(), transpose_const_label},
+                                                            consumers_count(1));
 
     auto split_label =
-        ov::pass::pattern::wrap_type<ov::opset9::Split>({transpose_label, ov::pass::pattern::any_input()},
-                                                        ov::pass::pattern::consumers_count(1));
+        wrap_type<ov::opset9::Split>({transpose_label, any_input()},
+                                                        consumers_count(1));
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_const =
             ov::as_type_ptr<ov::opset9::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
@@ -397,7 +399,7 @@ ov::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(split_label, matcher_name);
+    auto m = std::make_shared<Matcher>(split_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
 
@@ -490,12 +492,12 @@ ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
     MATCHER_SCOPE(TransposeSinkingSplitBackward);
 
     auto transpose_const_label =
-        ov::pass::pattern::wrap_type<ov::opset9::Constant>(ov::pass::pattern::consumers_count(1));
+        wrap_type<ov::opset9::Constant>(consumers_count(1));
     auto transpose_label =
-        ov::pass::pattern::wrap_type<ov::opset9::Transpose>({ov::pass::pattern::any_input(), transpose_const_label},
+        wrap_type<ov::opset9::Transpose>({any_input(), transpose_const_label},
                                                             HasInputSplitAndTransposeSiblings);
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_label_node = pattern_to_output.at(transpose_label).get_node();
 
@@ -544,6 +546,6 @@ ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_label, matcher_name);
+    auto m = std::make_shared<Matcher>(transpose_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
