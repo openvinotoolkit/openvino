@@ -164,6 +164,10 @@ std::vector<std::string> disabledTestPatterns() {
         // is shared across plugins
         // passed local test and cpu has specific test cases with nms9 to cover
         R"(smoke_NmsLayerTest.*)",
+
+        // Issue: 95239
+        // HETERO plugin lacks caching_properties definition
+        R"(smoke_Hetero_CachingSupportCase.*)",
     };
 
 #define FIX_62820 0
