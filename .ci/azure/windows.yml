@@ -9,6 +9,7 @@ trigger:
     - /**/docs/*
     - /**/*.md
     - README.md
+    - /**/layer_tests_summary/**
 
 pr:
   branches:
@@ -21,6 +22,7 @@ pr:
     - /**/docs/*
     - /**/*.md
     - README.md
+    - /**/layer_tests_summary/**
 
 resources:
   repositories:
@@ -72,7 +74,7 @@ jobs:
     IB_DIR: C:\Program Files (x86)\IncrediBuild
     IB_TESTCONSOLE: $(IB_DIR)\IBTestConsole.exe
     PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.7.6\x64
-    CMAKE_VERSION: 3.21.0
+    CMAKE_VERSION: 3.24.0
     CMAKE_CMD: $(WORK_DIR)\cmake-$(CMAKE_VERSION)-windows-x86_64\cmake-$(CMAKE_VERSION)-windows-x86_64\bin\cmake.exe
     OV_CMAKE_TOOLCHAIN_FILE: $(REPO_DIR)\cmake\toolchains\mt.runtime.win32.toolchain.cmake
 
@@ -165,7 +167,7 @@ jobs:
         -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.7.6\x64\python.exe" ^
         -DPYTHON_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.7.6\x64\include" ^
         -DPYTHON_LIBRARY="C:\hostedtoolcache\windows\Python\3.7.6\x64\libs\python37.lib" ^
-        -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules ^
+        -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules ^
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -S $(REPO_DIR) -B $(BUILD_DIR)

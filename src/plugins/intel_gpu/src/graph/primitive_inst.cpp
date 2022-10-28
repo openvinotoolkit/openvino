@@ -154,9 +154,8 @@ void primitive_inst::update_shape() {
         }
     }
 
-    // We assume that tensor ranks are static, thus shape_of doesn't need to update anything even if input shape is dynamic
-    if (_node.is_type<shape_of>() && !input_shape_changed)
-        return;
+    if (input_shape_changed)
+        set_shape_change();
 
     // Even though the predecessors' shapes are not changed, the output shape might be udpated by the mem_dep
     auto memory_deps = _node.get_const_memory_deps();
@@ -166,6 +165,10 @@ void primitive_inst::update_shape() {
         }
         input_shape_changed = true;
     }
+
+    // We assume that tensor ranks are static, thus shape_of doesn't need to update anything even if input shape is dynamic
+    if (_node.is_type<shape_of>() && !input_shape_changed)
+        return;
 
     // Strided slice loads data from {1,2,3} dependencies in impl::create method.
     // It means that this data must be put into impl_params map
@@ -181,9 +184,6 @@ void primitive_inst::update_shape() {
 
     if (!strided_slice_wa && !input_shape_changed && !_node.generates_dynamic_output() && _impl_params->output_layout.is_static())
         return;
-
-    if (input_shape_changed)
-        set_shape_change();
 
     std::vector<event::ptr> dependencies_events;
     auto queue_type = get_network().get_stream().get_queue_type();
@@ -296,14 +296,11 @@ void primitive_inst::update_impl() {
         } else {
             auto lru = cache.get_lru_element();
             _impl = _node.type()->choose_impl(_node, *_impl_params);
-            bool lru_popped = cache.add(layout_key, _impl->clone());
-            if (lru_popped) {
-                for (auto& id : lru->get_kernel_ids())
-                    _network.get_program()->remove_kernel(id);
-            }
             _network.get_program()->compile();
+            _impl->init_kernels(_network.get_program()->get_kernels_cache());
+            cache.add(layout_key, _impl->clone());
+            _network.get_program()->get_kernels_cache().reset();
         }
-        _impl->init_kernels(_network.get_program()->get_kernels_cache());
 
         reset_shape_change();
         GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -438,6 +435,7 @@ void primitive_inst::build_deps() {
 primitive_inst::primitive_inst(network& network, program_node const& node, bool allocate_memory)
     : _network(network)
     , _node(node)
+    , _node_output_layout(node.get_output_layout())
     , _impl_params(node.get_kernel_impl_params())
     , _impl(node.get_selected_impl() ? node.get_selected_impl()->clone() : nullptr)
     , _outputs({memory::ptr()})
@@ -795,14 +793,21 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                 // which doesn't exist anymore in the graph
                 // Thus we update dependency name used dependencies idx stored in fused descriptor.
                 if (std::find(dep_ids.begin(), dep_ids.end(), in) == dep_ids.end()) {
-                    size_t dep_id = fd.dep_start_idx + i;
+                    size_t dep_id = fd.dep_start_idx;
                     in = _node.get_dependency(dep_id).id();
                 }
             }
             t.add_primitive(prim);
             dep_ids.push_back(prim->id);
         }
-
+        // Samely, need to update dependency of the current fused nodes' input primitive ids with those in the current program
+        auto prim_of_fused_node = std::const_pointer_cast<primitive>(_impl_params->desc);
+        for (size_t i = 0; i < prim_of_fused_node->input.size(); ++i) {
+            auto& in = prim_of_fused_node->input[i];
+            if (std::find(dep_ids.begin(), dep_ids.end(), in) == dep_ids.end()) {
+                in = _node.get_dependency(i).id();
+            }
+        }
         build_options bo;
         bo.set_option(build_option::allow_static_input_reorder(true));
         bo.set_option(build_option::allow_new_shape_infer(true));

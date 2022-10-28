@@ -195,11 +195,14 @@ public:
     const std::unordered_map<size_t, std::tuple<int64_t, size_t>>& get_profiling_data() const { return _profiling_data; }
     const std::unordered_map<size_t, instrumentation::perf_counter_key>& get_profiling_info() const { return _profiling_info; }
 
+    layout get_node_output_layout() const { return _node_output_layout; }
+
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
 
     network& _network;
     program_node const& _node;
+    const layout _node_output_layout;
 
     std::unique_ptr<kernel_impl_params> _impl_params;
     std::unique_ptr<primitive_impl> _impl;
@@ -363,7 +366,7 @@ protected:
 
 private:
     bool do_allocate_memory(typed_node const& typ_node) {
-        if (typ_node.is_dynamic())
+        if (typ_node.get_output_layout().is_dynamic())
             return false;
 
         if (typ_node.template have_user_with_type<concatenation>() && typ_node.get_users().size() == 1 &&
