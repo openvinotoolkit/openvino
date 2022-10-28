@@ -31,7 +31,7 @@ using namespace cldnn;
 thread_local size_t program_node::cur_id = 0;
 
 program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
-    : desc(prim), myprog(prog), required_input0(format::any), required_output(format::any), org_id(prim ? (prim->id) : 0) {
+    : desc(prim), myprog(prog), preferred_input_fmts({}), preferred_output_fmts({}), org_id(prim ? (prim->id) : 0) {
     if (prim) {
         output_layout.data_padding = prim->output_padding;
         num_outputs = prim->num_outputs;
@@ -211,6 +211,26 @@ void program_node::remove_dependency(program_node& node) {
             remove_dependency(i);
 }
 
+size_t program_node::get_user_index(program_node& node) const {
+    size_t idx = 0;
+    for (auto& user : users) {
+        if (user == &node)
+            return idx;
+        else
+            idx++;
+    }
+
+    OPENVINO_ASSERT(false, "Search invalid user node" + node.id() + " node");
+}
+
+size_t program_node::get_dependency_index(program_node& node) const {
+    for (size_t i = 0; i < dependencies.size(); ++i)
+        if (dependencies[i] == &node)
+            return i;
+
+    OPENVINO_ASSERT(false, "Search invalid dependency node" + node.id() + " node");
+}
+
 bool program_node::is_detached(bool whole_branch) {
     if (!users.empty())
         return false;
@@ -353,7 +373,7 @@ std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
 void program_node::invalidate_users() const {
     for (auto& user : users) {
         if (user->valid_output_layout) {
-            if (user->get_required_output() != format::any)
+            if (user->get_preferred_output_fmt() != format::any)
                 continue;
             user->valid_output_layout = false;
             user->invalidate_users();
@@ -405,6 +425,25 @@ bool program_node::need_lockable_memory() const {
     });
 
     return need_lockable_mem;
+}
+
+void program_node::init_preferred_fmt(size_t dep_node, size_t user_node) {
+    preferred_input_fmts.resize(dep_node, format::any);
+    preferred_output_fmts.resize(user_node, format::any);
+}
+
+void program_node::set_preferred_input_fmt(size_t idx, format::type type) {
+    if (idx >= preferred_input_fmts.size())
+        preferred_input_fmts.resize(idx+1, format::any);
+
+    preferred_input_fmts.at(idx) = type;
+}
+
+void program_node::set_preferred_output_fmt(size_t idx, format::type type) {
+    if (idx >= preferred_output_fmts.size())
+        preferred_output_fmts.resize(idx+1, format::any);
+
+    preferred_output_fmts.at(idx) = type;
 }
 
     /* ----------------------------------------- */
@@ -989,16 +1028,23 @@ void program_node::init_onednn_primitive_attributes() {
                     update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx);
                 }
             } else {
-                // convolution using post-op output scales can only be int8/uint8
-                if (idx == 0 && !has_out_scales(attrs) && !is_type<pooling>() && !is_type<reduce>() &&
-                    !(is_type<convolution>() && data_type_traits::is_floating_point(output_layout.data_type))) {
-                    int mask = in.count() > 1 ? 2 : 0;
-                    attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
-                    update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx);
-                } else {
+                auto input_datatype = get_dependency(0).get_output_layout().data_type;
+                // convolution using post-op output scales can only be used when i8/u8 input (which use integer accumulator)
+                bool cant_use_output_scales =
+                    idx != 0 ||
+                    has_out_scales(attrs) ||
+                    is_type<pooling>() ||
+                    is_type<reduce>() ||
+                    (is_type<convolution>() && data_type_traits::is_floating_point(input_datatype)) ||
+                    (is_type<deconvolution>() && data_type_traits::is_floating_point(input_datatype));
+                if (cant_use_output_scales) {
                     dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab, true);
                     post_ops.append_binary(dnnl::algorithm::binary_mul, in_desc);
                     update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx);
+                } else {
+                    int mask = in.count() > 1 ? 2 : 0;
+                    attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
+                    update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx);
                 }
             }
         } else if (desc.is_type<quantize>()) {
@@ -1246,5 +1292,6 @@ void program_node::init_onednn_primitive_attributes() {
 
     add_onednn_attrs(attrs);
 }
+
 
 #endif // ENABLE_ONEDNN_FOR_GPU

@@ -110,6 +110,9 @@ if(NOT TARGET gflags)
             if(TARGET gflags_nothreads-static)
                 # arm cross-compilation
                 set(GFLAGS_TARGET gflags_nothreads-static)
+            elseif(TARGET gflags_nothreads-shared)
+                # centos/rhel8
+                set(GFLAGS_TARGET gflags_nothreads-shared)    
             else()
                 message(FATAL_ERROR "Failed to set GFLAGS_TARGET target")
             endif()
