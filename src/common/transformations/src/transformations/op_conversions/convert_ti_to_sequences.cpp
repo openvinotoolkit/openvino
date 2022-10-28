@@ -108,8 +108,7 @@ bool convertTensorIteratorToSequence(const std::shared_ptr<ngraph::opset5::Tenso
 
     std::shared_ptr<ngraph::Node> seq_len_input;
     if (ti->get_num_iterations() >= 0) {
-        seq_len_input = ngraph::opset5::Constant::create(ngraph::element::i32, {},
-                                                                   {ti->get_num_iterations()});
+        seq_len_input = ngraph::opset5::Constant::create(ngraph::element::i32, {}, {ti->get_num_iterations()});
     } else {
         // negative value in num_iterations member of TensorIterator op means that we can't
         // define the actual number iterations, most probably the shape of data input is dynamic
