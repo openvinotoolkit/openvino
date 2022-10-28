@@ -44,9 +44,9 @@ bool ov::pass::MarkPrecisionSensitiveSubgraphs::run_on_model(const std::shared_p
         for (const auto& input : curr_node->inputs()) {
             if (ov::is_precision_sensitive(input)) {
                 visited.insert(input.get_source_output().get_node());
-                ngraph::op::util::visit_shape_path(input.get_source_output().get_node(),
-                                                   precision_sensitive_visited,
-                                                   markup_func);
+                ov::op::util::visit_shape_path(input.get_source_output().get_node(),
+                                               precision_sensitive_visited,
+                                               markup_func);
             }
         }
 

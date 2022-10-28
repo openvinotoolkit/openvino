@@ -35,8 +35,8 @@ ngraph::pass::ConvertSeluToSeluIEMatcher::ConvertSeluToSeluIEMatcher() {
         }
 
         float alpha, gamma;
-        if (!ngraph::op::util::get_single_value(alpha_const, alpha) ||
-            !ngraph::op::util::get_single_value(gamma_const, gamma)) {
+        if (!ov::op::util::get_single_value(alpha_const, alpha) ||
+            !ov::op::util::get_single_value(gamma_const, gamma)) {
             return false;
         }
 

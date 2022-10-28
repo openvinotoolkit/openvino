@@ -41,7 +41,7 @@ TEST_F(TransformationTestsF, MVNFusionTestOutside) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
 
-        manager.register_pass<ngraph::pass::MVNFusion>();
+        manager.register_pass<ov::pass::MVNFusion>();
     }
 
     {
@@ -73,7 +73,7 @@ TEST_F(TransformationTestsF, MVNFusionTestReuseSub) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
 
-        manager.register_pass<ngraph::pass::MVNFusion>();
+        manager.register_pass<ov::pass::MVNFusion>();
     }
 
     {
@@ -106,7 +106,7 @@ TEST_F(TransformationTestsF, MVNFusionTestWithConvert) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
 
-        manager.register_pass<ngraph::pass::MVNFusion>();
+        manager.register_pass<ov::pass::MVNFusion>();
     }
 
     {
@@ -137,7 +137,7 @@ TEST_F(TransformationTestsF, MVNFusionTestSqrt) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
 
-        manager.register_pass<ngraph::pass::MVNFusion>();
+        manager.register_pass<ov::pass::MVNFusion>();
     }
 
     {
@@ -167,7 +167,7 @@ TEST_F(TransformationTestsF, MVNFusionTestAltDiv) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
 
-        manager.register_pass<ngraph::pass::MVNFusion>();
+        manager.register_pass<ov::pass::MVNFusion>();
     }
 
     {
@@ -202,7 +202,7 @@ TEST_F(TransformationTestsF, MVNFusionTestInsideSqrt) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
 
-        manager.register_pass<ngraph::pass::MVNFusion>();
+        manager.register_pass<ov::pass::MVNFusion>();
     }
 
     {
@@ -234,7 +234,7 @@ TEST_F(TransformationTestsF, MVNFusionTestReuseSubInsideSqrt) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
 
-        manager.register_pass<ngraph::pass::MVNFusion>();
+        manager.register_pass<ov::pass::MVNFusion>();
     }
 
     {
@@ -267,7 +267,7 @@ TEST_F(TransformationTestsF, MVNFusionTestWithConvertInsideSqrt) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
 
-        manager.register_pass<ngraph::pass::MVNFusion>();
+        manager.register_pass<ov::pass::MVNFusion>();
     }
 
     {
@@ -298,7 +298,7 @@ TEST_F(TransformationTestsF, MVNFusionTestSqrtInsideSqrt) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
 
-        manager.register_pass<ngraph::pass::MVNFusion>();
+        manager.register_pass<ov::pass::MVNFusion>();
     }
 
     {
@@ -328,7 +328,7 @@ TEST_F(TransformationTestsF, MVNFusionTestAltDivInsideSqrt) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
 
-        manager.register_pass<ngraph::pass::MVNFusion>();
+        manager.register_pass<ov::pass::MVNFusion>();
     }
 
     {
@@ -362,7 +362,7 @@ TEST_F(TransformationTestsF, MVNFusionTestWithParametersInside) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
 
-        manager.register_pass<ngraph::pass::MVNFusion>();
+        manager.register_pass<ov::pass::MVNFusion>();
     }
 
     {

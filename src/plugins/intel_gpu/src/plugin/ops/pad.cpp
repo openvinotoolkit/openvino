@@ -25,7 +25,7 @@ static void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& 
         if (!const_node) {
             IE_THROW() << "Unsupported const node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         }
-        ngraph::op::util::get_single_value(const_node, pad_value);
+        ov::op::util::get_single_value(const_node, pad_value);
     }
 
     auto pads_begin = op->get_pads_begin();

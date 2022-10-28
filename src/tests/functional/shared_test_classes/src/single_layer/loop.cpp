@@ -258,7 +258,7 @@ namespace LayerTestsDefinitions {
                 params);
         if (unrolling) {
             ngraph::pass::Manager manager;
-            manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+            manager.register_pass<ov::pass::UnrollTensorIterator>();
             manager.run_passes(function);
         }
     }

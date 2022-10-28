@@ -62,7 +62,7 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
     auto type_relaxed_opset = []() {
         ngraph::OpSet opset;
 
-#define NGRAPH_OP(NAME, NAMESPACE) opset.insert<ngraph::op::TypeRelaxed<NAMESPACE::NAME>>();
+#define NGRAPH_OP(NAME, NAMESPACE) opset.insert<ov::op::TypeRelaxed<NAMESPACE::NAME>>();
         NGRAPH_OP(Add, ngraph::op::v1)
         NGRAPH_OP(AvgPool, ngraph::op::v1)
         NGRAPH_OP(Clamp, ngraph::op::v0)

@@ -25,7 +25,7 @@ using TargetShape = Shape;
 
 void eliminate_broadcast_test(std::shared_ptr<Function> f, std::shared_ptr<Function> f_ref) {
     pass::Manager manager;
-    manager.register_pass<ngraph::pass::BroadcastElementwiseFusion>();
+    manager.register_pass<ov::pass::BroadcastElementwiseFusion>();
     manager.run_passes(f);
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;

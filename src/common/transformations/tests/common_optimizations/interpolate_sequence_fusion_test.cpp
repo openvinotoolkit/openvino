@@ -58,7 +58,7 @@ TEST_F(TransformationTestsF, InterpolateSequenceFusion4D1) {
         auto snd_interpolate = std::make_shared<ngraph::opset8::Interpolate>(fst_interpolate, snd_sizes_node, snd_scales_node, snd_axis_node, attributes[1]);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ snd_interpolate }, ngraph::ParameterVector{ input });
-        manager.register_pass<ngraph::pass::InterpolateSequenceFusion>();
+        manager.register_pass<ov::pass::InterpolateSequenceFusion>();
     }
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
@@ -122,7 +122,7 @@ TEST_F(TransformationTestsF, InterpolateSequenceFusion4D2) {
                                                                                attributes[2]);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ third_interpolate }, ngraph::ParameterVector{ input });
-        manager.register_pass<ngraph::pass::InterpolateSequenceFusion>();
+        manager.register_pass<ov::pass::InterpolateSequenceFusion>();
     }
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
@@ -184,7 +184,7 @@ TEST_F(TransformationTestsF, InterpolateSequenceFusion4D3) {
         auto snd_interpolate = std::make_shared<ngraph::opset8::Interpolate>(fst_interpolate, snd_sizes_node, snd_scales_node, snd_axis_node, attributes[1]);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ snd_interpolate }, ngraph::ParameterVector{ input });
-        manager.register_pass<ngraph::pass::InterpolateSequenceFusion>();
+        manager.register_pass<ov::pass::InterpolateSequenceFusion>();
     }
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
@@ -245,7 +245,7 @@ TEST_F(TransformationTestsF, InterpolateSequenceFusion5D1) {
                                                                                attributes[2]);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ third_interpolate }, ngraph::ParameterVector{ input });
-        manager.register_pass<ngraph::pass::InterpolateSequenceFusion>();
+        manager.register_pass<ov::pass::InterpolateSequenceFusion>();
     }
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
@@ -309,7 +309,7 @@ TEST_F(TransformationTestsF, InterpolateSequenceFusion5D2) {
                                                                                attributes[2]);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ third_interpolate }, ngraph::ParameterVector{ input });
-        manager.register_pass<ngraph::pass::InterpolateSequenceFusion>();
+        manager.register_pass<ov::pass::InterpolateSequenceFusion>();
     }
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);

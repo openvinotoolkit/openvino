@@ -132,9 +132,9 @@ TEST(TransformationTests, ConvertToInteractionTest1) {
         {
             f = makeInteraction(inputShape);
             pass::Manager m;
-            m.register_pass<ngraph::pass::InitNodeInfo>();
-            m.register_pass<ngraph::pass::NopElimination>();
-            m.register_pass<ngraph::pass::TransposeMatMul>();
+            m.register_pass<ov::pass::InitNodeInfo>();
+            m.register_pass<ov::pass::NopElimination>();
+            m.register_pass<ov::pass::TransposeMatMul>();
             m.register_pass<ConvertToInteraction>();
             m.run_passes(f);
         }

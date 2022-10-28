@@ -97,16 +97,16 @@ private:
         const_node = ngraph::opset5::Constant::create(ngraph::element::f32, eltwise_shape, {1.1});
         if (eltwise_type == ngraph::opset5::Add::get_type_info_static()) {
             if (eltwise_shape.size() != 1) {
-                const_node = ngraph::op::util::reshapeTo(const_node, ngraph::Shape{ngraph::shape_size(eltwise_shape)});
+                const_node = ov::op::util::reshapeTo(const_node, ngraph::Shape{ngraph::shape_size(eltwise_shape)});
             }
             conv = conv.get_node_shared_ptr()->copy_with_new_inputs({input, weights, const_node});
         } else if (eltwise_type == ngraph::opset5::Multiply::get_type_info_static()) {
             if (eltwise_shape.size() > 1) {
-                const_node = ngraph::op::util::reshapeTo(const_node, ngraph::Shape{ngraph::shape_size(eltwise_shape)});
+                const_node = ov::op::util::reshapeTo(const_node, ngraph::Shape{ngraph::shape_size(eltwise_shape)});
             }
             ngraph::Shape const_shape(weights_shape.size(), 1);
             const_shape[0] = weights_shape[0];
-            weights = std::make_shared<ngraph::opset5::Multiply>(weights, ngraph::op::util::reshapeTo(const_node, const_shape));
+            weights = std::make_shared<ngraph::opset5::Multiply>(weights, ov::op::util::reshapeTo(const_node, const_shape));
             conv = conv.get_node_shared_ptr()->copy_with_new_inputs({input, weights});
         } else {
             throw ngraph::ngraph_error("Unsupported element type");
@@ -120,7 +120,7 @@ TEST_P(ConvFusionTests, CompareFunctions) {
     auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::ConvFusion>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);

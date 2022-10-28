@@ -871,7 +871,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReference(
     input2->set_friendly_name("input2");
     const auto fakeQuantize2 = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(input2, precision, fqOnData2);
 
-    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Concat>>(
+    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Concat>>(
         ngraph::OutputVector{ fakeQuantize1->output(0), fakeQuantize2->output(0) }, 1);
     auto& rtInfo = concat->get_rt_info();
     rtInfo["Variant::std::string"] = "concat";
@@ -1390,10 +1390,10 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediateAv
     const std::shared_ptr<ngraph::Node> parent1 = makeDequantization(concat, dequantizationAfter1);
     parent1->set_friendly_name("concat");
 
-    std::shared_ptr<Node> parent2 = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::AvgPool>>(
+    std::shared_ptr<Node> parent2 = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::AvgPool>>(
         std::vector<ngraph::element::Type>{ element::f32, element::f32 },
         std::vector<ngraph::element::Type>{ element::f32 },
-        ngraph::op::TemporaryReplaceOutputType(intermediateOp, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(intermediateOp, element::f32).get(),
         Strides{ 1, 1 },
         Shape{ 1, 1 },
         Shape{ 0, 0 },

@@ -214,7 +214,7 @@ bool squeezes_perform_the_same(std::shared_ptr<ov::opset5::Squeeze> lhs, std::sh
 
 }  // namespace
 
-bool ngraph::pass::SharedSqueeze::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+bool ov::pass::SharedSqueeze::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(SharedSqueeze);
 
     bool graph_rewritten = false;

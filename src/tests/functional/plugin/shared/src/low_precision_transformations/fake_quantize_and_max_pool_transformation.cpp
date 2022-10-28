@@ -39,7 +39,7 @@ void FakeQuantizeAndMaxPoolTransformation::SetUp() {
         inputShape,
         fakeQuantize);
 
-    ngraph::pass::InitNodeInfo().run_on_function(function);
+    ov::pass::InitNodeInfo().run_on_function(function);
 }
 
 TEST_P(FakeQuantizeAndMaxPoolTransformation, CompareWithRefImpl) {

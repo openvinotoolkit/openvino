@@ -33,7 +33,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerCase1) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
+        manager.register_pass<ov::pass::DropoutWithRandomUniformReplacer>();
     }
 
     {
@@ -66,7 +66,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerCase2) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
+        manager.register_pass<ov::pass::DropoutWithRandomUniformReplacer>();
     }
 
     {
@@ -100,7 +100,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerWithConvert) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
+        manager.register_pass<ov::pass::DropoutWithRandomUniformReplacer>();
     }
 
     {
@@ -135,7 +135,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerAddConstNegative) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
+        manager.register_pass<ov::pass::DropoutWithRandomUniformReplacer>();
     }
 
     {
@@ -174,7 +174,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerNonFloatRUNegative)
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
+        manager.register_pass<ov::pass::DropoutWithRandomUniformReplacer>();
     }
 
     {
@@ -212,7 +212,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerInvalidMinNegative)
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
+        manager.register_pass<ov::pass::DropoutWithRandomUniformReplacer>();
     }
 
     {
@@ -250,7 +250,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerInvalidMaxNegative)
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
+        manager.register_pass<ov::pass::DropoutWithRandomUniformReplacer>();
     }
 
     {
@@ -289,7 +289,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerInvalidAddConstRank
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
+        manager.register_pass<ov::pass::DropoutWithRandomUniformReplacer>();
     }
 
     {

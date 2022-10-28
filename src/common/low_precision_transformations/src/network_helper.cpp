@@ -269,15 +269,15 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
     std::shared_ptr<opset1::Add> newAdd = std::make_shared<op::TypeRelaxed<opset1::Add>>(
         std::vector<element::Type>{element::f32, element::f32},
         std::vector<element::Type>{ x.get_element_type() },
-        ngraph::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
+        ov::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
     copyInfo(addAfterMultiply, newAdd);
 
     auto newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
             std::vector<element::Type>{element::f32, element::f32},
             std::vector<element::Type>{ multiply->get_output_element_type(0) },
-            ngraph::op::TemporaryReplaceOutputType(newAdd->output(0), element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(a->output(0), element::f32).get());
+            ov::op::TemporaryReplaceOutputType(newAdd->output(0), element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(a->output(0), element::f32).get());
     copyInfo({ multiply, newMultiply }, newMultiply);
 
     replace_node(addAfterMultiply, newMultiply);
@@ -477,8 +477,8 @@ std::shared_ptr<ngraph::opset1::Multiply> NetworkHelper::optimizeMultipliesAfter
                     std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
                             std::vector<element::Type>{ inputPrecision0, inputPrecision1 },
                             std::vector<element::Type>{ outputPrecision },
-                            ngraph::op::TemporaryReplaceOutputType(newInput, inputPrecision0).get(),
-                            ngraph::op::TemporaryReplaceOutputType(multiplyResult, inputPrecision1).get());
+                            ov::op::TemporaryReplaceOutputType(newInput, inputPrecision0).get(),
+                            ov::op::TemporaryReplaceOutputType(multiplyResult, inputPrecision1).get());
             copy_runtime_info(multiply, newMultiply);
             replace_node(nextMultiply, newMultiply);
             return newMultiply;
@@ -653,14 +653,14 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::fuseConvert(const std::shar
     }
 
 
-    std::shared_ptr<opset1::FakeQuantize> newFakeQuantize = std::make_shared<ngraph::op::TypeRelaxed<opset1::FakeQuantize>>(
+    std::shared_ptr<opset1::FakeQuantize> newFakeQuantize = std::make_shared<ov::op::TypeRelaxed<opset1::FakeQuantize>>(
         std::vector<ngraph::element::Type>{ element::f32, element::f32, element::f32, element::f32, element::f32 },
         std::vector<ngraph::element::Type>{},
-        ngraph::op::TemporaryReplaceOutputType(fakeQuantize->input_value(0), element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(fakeQuantize->input_value(1), element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(fakeQuantize->input_value(2), element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(fakeQuantize->input_value(3), element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(fakeQuantize->input_value(4), element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(fakeQuantize->input_value(0), element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(fakeQuantize->input_value(1), element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(fakeQuantize->input_value(2), element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(fakeQuantize->input_value(3), element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(fakeQuantize->input_value(4), element::f32).get(),
         fakeQuantize->get_levels());
     NetworkHelper::setOutDataPrecisionForTypeRelaxed(newFakeQuantize, node->get_output_element_type(0));
     newFakeQuantize->set_friendly_name(node->get_friendly_name());
@@ -1098,7 +1098,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
     // TODO: why type relaxed?
     const std::shared_ptr<ngraph::Node> sub = shift == nullptr ?
         nullptr :
-        std::make_shared<ngraph::op::TypeRelaxed<opset1::Subtract>>(convert2 == nullptr ? newFQ : convert2, shift);
+        std::make_shared<ov::op::TypeRelaxed<opset1::Subtract>>(convert2 == nullptr ? newFQ : convert2, shift);
     if (sub != nullptr) {
         sub->set_friendly_name(newFQ->get_friendly_name() + "/DequantizationSubtract");
         ngraph::copy_runtime_info({ newFQ, sub }, sub);
@@ -1108,8 +1108,8 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
         std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{ fq->get_output_element_type(0) },
-            ngraph::op::TemporaryReplaceOutputType(sub == nullptr ? (convert2 == nullptr ? newFQ : convert2) : sub, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(scale, element::f32).get());
+            ov::op::TemporaryReplaceOutputType(sub == nullptr ? (convert2 == nullptr ? newFQ : convert2) : sub, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(scale, element::f32).get());
     dequantize->set_friendly_name(newFQ->get_friendly_name() + "/DequantizationMultiply");
     ngraph::copy_runtime_info({ newFQ, dequantize }, dequantize);
 
@@ -1129,7 +1129,7 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::updateFakeQuantize(
     auto newOutMin = std::make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, min);
     auto newOutMax = std::make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, max);
 
-    std::shared_ptr<opset1::FakeQuantize> newFQ = std::make_shared<ngraph::op::TypeRelaxed<opset1::FakeQuantize>>(
+    std::shared_ptr<opset1::FakeQuantize> newFQ = std::make_shared<ov::op::TypeRelaxed<opset1::FakeQuantize>>(
             fq->input_value(0),
             newInMin,
             newInMax,
@@ -1174,7 +1174,7 @@ FakeQuantizeDequantization NetworkHelper::makeDequantization(
     std::shared_ptr<opset1::Subtract> subtract;
     std::shared_ptr<opset1::Constant> subtractConstant;
     if (std::abs(dequantizationSub) > 1e-6) {
-        subtract = std::make_shared<ngraph::op::TypeRelaxed<opset1::Subtract>>(
+        subtract = std::make_shared<ov::op::TypeRelaxed<opset1::Subtract>>(
             parent,
             std::make_shared<ngraph::opset1::Constant>(deqPrecision, ngraph::Shape({}), std::vector<float>({ dequantizationSub })));
         subtract->set_output_type(0, deqPrecision, subtract->get_output_partial_shape(0));
@@ -1254,7 +1254,7 @@ FakeQuantizeDequantization NetworkHelper::createDequantizationFromFakeQuantize(
 
     std::shared_ptr<ngraph::opset1::Subtract> subtract;
     if (shift != nullptr) {
-        subtract = std::make_shared<ngraph::op::TypeRelaxed<opset1::Subtract>>(parent, shift);
+        subtract = std::make_shared<ov::op::TypeRelaxed<opset1::Subtract>>(parent, shift);
         subtract->set_output_type(0, deqPrecision, subtract->get_output_partial_shape(0));
         parent = subtract;
     } else {
@@ -1624,7 +1624,7 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
     newOperation->set_friendly_name(operation->get_friendly_name());
     ngraph::copy_runtime_info(operation, newOperation);
 
-    if (const auto op = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(newOperation)) {
+    if (const auto op = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(newOperation)) {
         op->set_overridden_output_type(updatePrecision ?
             newOperation->get_input_element_type(0) :
             dequantization.multiplyConstant->get_element_type());
@@ -1745,8 +1745,8 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationBefor
                 auto subtractConstant = subtractConstants.size() ? subtractConstants[0][i] : dequantization.subtractConstant;
                 parent = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(
                     std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ element::f32 },
-                    ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get(),
-                    ngraph::op::TemporaryReplaceOutputType(
+                    ov::op::TemporaryReplaceOutputType(parent, element::f32).get(),
+                    ov::op::TemporaryReplaceOutputType(
                         subtractConstant->output(0).get_element_type() == parentPrecision ?
                         subtractConstant :
                         foldConvert(subtractConstant, parentPrecision), element::f32).get());
@@ -1791,7 +1791,7 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationBefor
     }
     replace_node(dequantization.multiply, newOperation);
 
-    if (const auto op = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(newOperation)) {
+    if (const auto op = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(newOperation)) {
         op->set_overridden_output_type(updatePrecision ?
             newOperation->get_input_element_type(0) :
             dequantization.multiplyConstant->get_element_type());

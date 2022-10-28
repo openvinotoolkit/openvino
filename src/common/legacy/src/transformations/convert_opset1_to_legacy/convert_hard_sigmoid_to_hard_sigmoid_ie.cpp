@@ -37,7 +37,7 @@ ngraph::pass::ConvertHardSigmoidToLegacyMatcher::ConvertHardSigmoidToLegacyMatch
 
         float alpha_value;
         float beta_value;
-        if (!ngraph::op::util::get_single_value(alpha, alpha_value) || !ngraph::op::util::get_single_value(beta, beta_value))
+        if (!ov::op::util::get_single_value(alpha, alpha_value) || !ov::op::util::get_single_value(beta, beta_value))
             return false;
 
         auto hard_sigmoid_ie = std::make_shared<ngraph::op::HardSigmoid_IE> (hard_sigmoid->input(0).get_source_output(),

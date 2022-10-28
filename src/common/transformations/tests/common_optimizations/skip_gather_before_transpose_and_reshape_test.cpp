@@ -35,7 +35,7 @@ TEST_F(TransformationTestsF, SkipGatherBeforeTransposeAndReshapeStaticShapeFpDat
         auto reshape = std::make_shared<opset8::Reshape>(transpose, reshape_const, true);
 
         function = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
-        manager.register_pass<ngraph::pass::SkipGatherBeforeTransposeAndReshape>();
+        manager.register_pass<ov::pass::SkipGatherBeforeTransposeAndReshape>();
     }
     {
         auto data = std::make_shared<opset8::Parameter>(element::f32, data_shape);
@@ -66,7 +66,7 @@ TEST_F(TransformationTestsF, SkipGatherBeforeTransposeAndReshapeStaticShapeIntDa
         auto reshape = std::make_shared<opset8::Reshape>(transpose, reshape_const, true);
 
         function = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
-        manager.register_pass<ngraph::pass::SkipGatherBeforeTransposeAndReshape>();
+        manager.register_pass<ov::pass::SkipGatherBeforeTransposeAndReshape>();
     }
     {
         auto data = std::make_shared<opset8::Parameter>(element::i64, data_shape);
@@ -97,7 +97,7 @@ TEST_F(TransformationTestsF, SkipGatherBeforeTransposeAndReshapeDynamicShapeStat
         auto reshape = std::make_shared<opset8::Reshape>(transpose, reshape_const, true);
 
         function = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
-        manager.register_pass<ngraph::pass::SkipGatherBeforeTransposeAndReshape>();
+        manager.register_pass<ov::pass::SkipGatherBeforeTransposeAndReshape>();
     }
     {
         auto data = std::make_shared<opset8::Parameter>(element::f32, data_shape);
@@ -128,7 +128,7 @@ TEST_F(TransformationTestsF, SkipGatherBeforeTransposeAndReshapeIncorrectGatherA
         auto reshape = std::make_shared<opset8::Reshape>(transpose, reshape_const, true);
 
         function = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
-        manager.register_pass<ngraph::pass::SkipGatherBeforeTransposeAndReshape>();
+        manager.register_pass<ov::pass::SkipGatherBeforeTransposeAndReshape>();
     }
 }
 
@@ -148,7 +148,7 @@ TEST_F(TransformationTestsF, SkipGatherBeforeTransposeAndReshapeDynamicBatch) {
         auto reshape = std::make_shared<opset8::Reshape>(transpose, reshape_const, true);
 
         function = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
-        manager.register_pass<ngraph::pass::SkipGatherBeforeTransposeAndReshape>();
+        manager.register_pass<ov::pass::SkipGatherBeforeTransposeAndReshape>();
     }
 }
 
@@ -168,7 +168,7 @@ TEST_F(TransformationTestsF, SkipGatherBeforeTransposeAndReshapeDynamicRank) {
         auto reshape = std::make_shared<opset8::Reshape>(transpose, reshape_const, true);
 
         function = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
-        manager.register_pass<ngraph::pass::SkipGatherBeforeTransposeAndReshape>();
+        manager.register_pass<ov::pass::SkipGatherBeforeTransposeAndReshape>();
     }
 }
 
@@ -188,7 +188,7 @@ TEST_F(TransformationTestsF, SkipGatherBeforeTransposeAndReshapeBatchNotEqualTo1
         auto reshape = std::make_shared<opset8::Reshape>(transpose, reshape_const, true);
 
         function = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
-        manager.register_pass<ngraph::pass::SkipGatherBeforeTransposeAndReshape>();
+        manager.register_pass<ov::pass::SkipGatherBeforeTransposeAndReshape>();
     }
 }
 
@@ -208,6 +208,6 @@ TEST_F(TransformationTestsF, SkipGatherBeforeTransposeAndReshapeUnsuitableReshap
         auto reshape = std::make_shared<opset8::Reshape>(transpose, reshape_const, true);
 
         function = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
-        manager.register_pass<ngraph::pass::SkipGatherBeforeTransposeAndReshape>();
+        manager.register_pass<ov::pass::SkipGatherBeforeTransposeAndReshape>();
     }
 }

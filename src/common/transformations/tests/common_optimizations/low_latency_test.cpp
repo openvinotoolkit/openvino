@@ -73,11 +73,11 @@ TEST(TransformationTests, LowLatencyLSTM) {
                                                ngraph::ParameterVector{X, H_init, C_init});
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         NGRAPH_SUPPRESS_DEPRECATED_START
         manager.register_pass<ngraph::pass::LowLatency>();
         NGRAPH_SUPPRESS_DEPRECATED_END
-        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
     }
     {
@@ -158,11 +158,11 @@ TEST(TransformationTests, LowLatencyGRU) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y});
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         NGRAPH_SUPPRESS_DEPRECATED_START
         manager.register_pass<ngraph::pass::LowLatency>();
         NGRAPH_SUPPRESS_DEPRECATED_END
-        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -239,11 +239,11 @@ TEST(TransformationTests, LowLatencyRNN) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y});
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         NGRAPH_SUPPRESS_DEPRECATED_START
         manager.register_pass<ngraph::pass::LowLatency>();
         NGRAPH_SUPPRESS_DEPRECATED_END
-        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -334,11 +334,11 @@ TEST(TransformationTests, LowLatencyLSTMReshape) {
         f->validate_nodes_and_infer_types();
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         NGRAPH_SUPPRESS_DEPRECATED_START
         manager.register_pass<ngraph::pass::LowLatency>();
         NGRAPH_SUPPRESS_DEPRECATED_END
-        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
     }
     {
@@ -434,11 +434,11 @@ TEST(TransformationTests, LowLatencyLSTM_Loop) {
                                                ngraph::ParameterVector{X, H_init, C_init});
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         NGRAPH_SUPPRESS_DEPRECATED_START
         manager.register_pass<ngraph::pass::LowLatency>();
         NGRAPH_SUPPRESS_DEPRECATED_END
-        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
     }
     {

@@ -117,7 +117,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngraph::
                         return ov::as_type<opset8::Result>(target_inp.get_node()) != nullptr;
                     })) {
                     NGRAPH_SUPPRESS_DEPRECATED_START
-                    insert_to.get_tensor().set_name(ngraph::op::util::create_ie_output_name(ti_output));
+                    insert_to.get_tensor().set_name(ov::op::util::create_ie_output_name(ti_output));
                     NGRAPH_SUPPRESS_DEPRECATED_END
                 }
             };

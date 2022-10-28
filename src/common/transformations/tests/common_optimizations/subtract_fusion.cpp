@@ -32,8 +32,8 @@ TEST(TransformationTests, SubtractFusionMultiply) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{data1, data2});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::SubtractFusion>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::SubtractFusion>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -65,8 +65,8 @@ TEST(TransformationTests, SubtractFusionMultiplyNegative) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{data1, data2});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::SubtractFusion>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::SubtractFusion>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -99,8 +99,8 @@ TEST(TransformationTests, SubtractFusionNeg) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{data1, data2});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::SubtractFusion>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::SubtractFusion>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

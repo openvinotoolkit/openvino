@@ -26,7 +26,7 @@ TEST_F(TransformationTestsF, ConvertMVN1ToMVN6) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mvn }, ngraph::ParameterVector{ data });
 
-        manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
+        manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
     }
 
     {
@@ -45,7 +45,7 @@ TEST_F(TransformationTestsF, ConvertMVN1ToMVN6_across_channels) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mvn }, ngraph::ParameterVector{ data });
 
-        manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
+        manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
     }
 
     {
@@ -64,7 +64,7 @@ TEST_F(TransformationTestsF, ConvertMVN1ToMVN6_5D) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mvn }, ngraph::ParameterVector{ data });
 
-        manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
+        manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
     }
 
     {

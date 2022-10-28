@@ -91,8 +91,8 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequence) {
                                                ngraph::ParameterVector{X, Y, Z});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertTensorIteratorToLSTMSequence>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -179,8 +179,8 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequenceDynamicReshapeCase)
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_ti_1 }, ngraph::ParameterVector{ X, Y, Z });
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertTensorIteratorToLSTMSequence>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -262,8 +262,8 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequenceDynamicSqueezeCase)
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y, Z});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertTensorIteratorToLSTMSequence>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertTensorIteratorToLSTMSequence>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -348,8 +348,8 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequence) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertTensorIteratorToRNNSequence>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -421,8 +421,8 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequenceDynamicReshapeCase) 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_ti_1 }, ngraph::ParameterVector{ X, Y });
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertTensorIteratorToRNNSequence>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -495,8 +495,8 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequenceDynamicSqueezeCase) 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertTensorIteratorToRNNSequence>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -575,8 +575,8 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequence) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertTensorIteratorToGRUSequence>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -648,8 +648,8 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequenceDynamicReshapeCase) 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_ti_1 }, ngraph::ParameterVector{ X, Y });
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertTensorIteratorToGRUSequence>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -722,8 +722,8 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequenceDynamicSqueezeCase) 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertTensorIteratorToGRUSequence>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertTensorIteratorToGRUSequence>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

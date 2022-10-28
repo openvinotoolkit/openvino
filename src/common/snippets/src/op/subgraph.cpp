@@ -50,7 +50,7 @@ snippets::op::Subgraph::Subgraph(const OutputVector& args, std::shared_ptr<ov::M
     const auto ops = body_ptr()->get_ops();
     for (const auto& op : ops) {
         config.m_is_quantized = config.m_is_quantized || ov::is_type<ov::op::v0::FakeQuantize>(op);
-        config.m_has_type_relaxed_ops = config.m_has_type_relaxed_ops || std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(op);
+        config.m_has_type_relaxed_ops = config.m_has_type_relaxed_ops || std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(op);
         config.m_is_needed_to_align_precision = config.m_is_needed_to_align_precision || is_quantized() || has_type_relaxed_ops() ||
             snippets::pass::AlignElementType::opNeedsAlignElementType(op, execution_element_type);
     }
@@ -163,7 +163,7 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
 void snippets::op::Subgraph::fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     auto out_tensor = target_output_node.get_tensor_ptr();
-    const std::string new_name = ngraph::op::util::get_ie_output_name(replacement_output_node);
+    const std::string new_name = ov::op::util::get_ie_output_name(replacement_output_node);
     if (out_tensor->get_name().empty()) {
         out_tensor->set_name(new_name);
     }
@@ -310,7 +310,7 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
     ngraph::pass::Manager manager;
     if (config.m_is_needed_to_align_precision) {
         manager.register_pass<snippets::pass::AlignElementType>(execution_element_type);
-        manager.register_pass<ngraph::pass::ConstantFolding>();
+        manager.register_pass<ov::pass::ConstantFolding>();
     }
     manager.run_passes(body_ptr());
 }

@@ -39,7 +39,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial2D1) {
 
         auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs_vec, axis);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
-        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>(false);
+        manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>(false);
     }
     {
         ngraph::opset8::Interpolate::InterpolateAttrs attrs;
@@ -95,7 +95,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial2D2) {
         auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs_vec, axis);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
-        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>(false);
+        manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>(false);
     }
     {
         ngraph::opset8::Interpolate::InterpolateAttrs attrs;
@@ -151,7 +151,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial3D1) {
         auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs_vec, axis);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
-        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>(false);
+        manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>(false);
     }
     {
         ngraph::opset8::Interpolate::InterpolateAttrs attrs;
@@ -206,7 +206,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial3D2) {
 
         auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs_vec, axis);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
-        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>(false);
+        manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>(false);
     }
     {
         ngraph::opset8::Interpolate::InterpolateAttrs attrs;
@@ -258,7 +258,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionTwoSplitsOneConca
 
         auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs_vec, axis);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input1, input2 });
-        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>();
+        manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>();
     }
     {
         auto input1 = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 13, 13, 3, 2 });
@@ -298,7 +298,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial2D1WithCon
 
         auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs_vec, axis);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
-        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>();
+        manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>();
     }
     {
         ngraph::opset8::Interpolate::InterpolateAttrs attrs;
@@ -343,7 +343,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial2D2WithCon
 
         auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs_vec, axis);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
-        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>();
+        manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>();
     }
     {
         ngraph::opset8::Interpolate::InterpolateAttrs attrs;
@@ -389,7 +389,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial3D1WithCon
         auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs_vec, axis);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
-        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>();
+        manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>();
     }
     {
         ngraph::opset8::Interpolate::InterpolateAttrs attrs;
@@ -435,7 +435,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial3D2WithCon
         auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs_vec, axis);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
-        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>();
+        manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>();
     }
     {
         ngraph::opset8::Interpolate::InterpolateAttrs attrs;
@@ -479,7 +479,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial2D1Dynamic
 
         auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs_vec, axis);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
-        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>(false);
+        manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>(false);
     }
     {
         ngraph::opset8::Interpolate::InterpolateAttrs attrs;
@@ -535,7 +535,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial2D2Dynamic
         auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs_vec, axis);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
-        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>(false);
+        manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>(false);
     }
     {
         ngraph::opset8::Interpolate::InterpolateAttrs attrs;
@@ -592,7 +592,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial3D1Dynamic
         auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs_vec, axis);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
-        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>(false);
+        manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>(false);
     }
     {
         ngraph::opset8::Interpolate::InterpolateAttrs attrs;
@@ -648,7 +648,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial3D2Dynamic
 
         auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs_vec, axis);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ concat }, ngraph::ParameterVector{ input });
-        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>(false);
+        manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>(false);
     }
     {
         ngraph::opset8::Interpolate::InterpolateAttrs attrs;
@@ -705,6 +705,6 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSplitWithEmptyPor
 
         auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs_vec, axis);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{input1});
-        manager.register_pass<ngraph::pass::SplitConcatPairToInterpolateFusion>();
+        manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>();
     }
 }

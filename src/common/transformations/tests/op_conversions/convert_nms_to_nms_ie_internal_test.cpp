@@ -38,8 +38,8 @@ TEST_F(TransformationTestsF, ConvertNMS1ToNMSIEInternal) {
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
-        manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
+        manager.register_pass<ov::pass::ConvertNMS1ToNMS5>();
+        manager.register_pass<ov::pass::ConvertNMSToNMSIEInternal>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
 
         // as inside test infrastructure we can not predict output names for given Function
@@ -73,8 +73,8 @@ TEST_F(TransformationTestsF, ConvertNMS3ToNMSIEInternal) {
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
-        manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
+        manager.register_pass<ov::pass::ConvertNMS3ToNMS5>();
+        manager.register_pass<ov::pass::ConvertNMSToNMSIEInternal>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
 
@@ -103,8 +103,8 @@ TEST_F(TransformationTestsF, ConvertNMS4ToNMSIEInternal) {
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
-        manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
+        manager.register_pass<ov::pass::ConvertNMS4ToNMS5>();
+        manager.register_pass<ov::pass::ConvertNMSToNMSIEInternal>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
 
@@ -134,7 +134,7 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEInternal) {
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
+        manager.register_pass<ov::pass::ConvertNMSToNMSIEInternal>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
 

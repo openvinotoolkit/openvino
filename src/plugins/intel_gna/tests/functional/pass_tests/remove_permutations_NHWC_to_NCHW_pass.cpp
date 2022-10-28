@@ -173,7 +173,7 @@ class RemovePermutationsNHWCToNCHWPassTest : public testing::WithParamInterface<
             function = std::make_shared<ngraph::Function>(results, params, "RemovePermutationsTest");
             if (transpose_to_reshape) {
                 ngraph::pass::Manager manager;
-                manager.register_pass<ngraph::pass::TransposeToReshape>();
+                manager.register_pass<ov::pass::TransposeToReshape>();
                 manager.run_passes(function);
             }
         }
@@ -304,7 +304,7 @@ class RemovePermutationsWithPoolAndActTest : public testing::WithParamInterface<
 
             if (transpose_to_reshape) {
                 ngraph::pass::Manager manager;
-                manager.register_pass<ngraph::pass::TransposeToReshape>();
+                manager.register_pass<ov::pass::TransposeToReshape>();
                 manager.run_passes(function);
             }
         }

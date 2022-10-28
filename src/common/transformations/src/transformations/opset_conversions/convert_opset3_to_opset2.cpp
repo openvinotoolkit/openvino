@@ -20,11 +20,11 @@ bool ov::pass::ConvertOpSet3ToOpSet2::run_on_model(const std::shared_ptr<ngraph:
     ngraph::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
 
-    manager.register_pass<ngraph::pass::ConvertBroadcast3>();
-    manager.register_pass<ngraph::pass::ConvertShapeOf3>();
-    manager.register_pass<ngraph::pass::ConvertShuffleChannels3>();
-    manager.register_pass<ngraph::pass::ConvertTopK3>();
-    manager.register_pass<ngraph::pass::SoftPlusDecomposition>();
+    manager.register_pass<ov::pass::ConvertBroadcast3>();
+    manager.register_pass<ov::pass::ConvertShapeOf3>();
+    manager.register_pass<ov::pass::ConvertShuffleChannels3>();
+    manager.register_pass<ov::pass::ConvertTopK3>();
+    manager.register_pass<ov::pass::SoftPlusDecomposition>();
 
     manager.run_passes(f);
 

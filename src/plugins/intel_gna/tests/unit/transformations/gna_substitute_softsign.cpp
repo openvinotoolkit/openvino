@@ -51,7 +51,7 @@ TEST(TransformationTests, SubstituteSoftSignMulPower) {
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{results},
                                                   ngraph::ParameterVector{input_params});
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
@@ -82,7 +82,7 @@ TEST(TransformationTests, SubstituteSoftSignDivide) {
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{results},
                                                   ngraph::ParameterVector{input_params});
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
@@ -116,7 +116,7 @@ TEST(TransformationTests, SubstituteSoftSignMulPowerInvalidAddConst) {
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{results},
                                                   ngraph::ParameterVector{input_params});
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));
@@ -150,7 +150,7 @@ TEST(TransformationTests, SubstituteSoftSignMulPowerInvalidPowerConst) {
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{results},
                                                   ngraph::ParameterVector{input_params});
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));

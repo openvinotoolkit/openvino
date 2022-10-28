@@ -37,7 +37,7 @@ void RunTest(const std::shared_ptr<ngraph::Function>& func,
     double max_error_percent = 1;
     {
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::intel_gna::pass::PWLApproximation>(max_error_percent);
         m.run_passes(func);
         ASSERT_NO_THROW(check_rt_info(func));

@@ -265,7 +265,7 @@ void execute_test(std::shared_ptr<ngraph::Function> function, std::shared_ptr<ng
 template <typename TransformationT>
 ngraph::pass::Manager createPassManager() {
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<TransformationT>();
     return manager;
 }

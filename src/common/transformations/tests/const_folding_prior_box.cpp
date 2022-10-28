@@ -38,7 +38,7 @@ TEST(TransformationTests, ConstFoldingPriorBox) {
         auto res = std::make_shared<ngraph::opset3::Result>(pb);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res}, ngraph::ParameterVector{in});
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -81,7 +81,7 @@ TEST(TransformationTests, ConstFoldingPriorBoxClustered) {
         auto res = std::make_shared<ngraph::opset3::Result>(pb);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res}, ngraph::ParameterVector{in});
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -142,7 +142,7 @@ TEST(TransformationTests, ConstFoldingPriorBoxSubgraph) {
         auto res = std::make_shared<ngraph::opset3::Result>(pb);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res}, ngraph::ParameterVector{in, in_2});
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -194,7 +194,7 @@ TEST(TransformationTests, ConstFoldingPriorBoxClusteredSubgraph) {
         auto res = std::make_shared<ngraph::opset3::Result>(pb);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res}, ngraph::ParameterVector{in, in_2});
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -245,7 +245,7 @@ TEST(TransformationTests, ConstFoldingPriorBox8) {
         auto res = std::make_shared<ngraph::opset8::Result>(pb);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector {res}, ngraph::ParameterVector {in});
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -303,7 +303,7 @@ TEST(TransformationTests, ConstFoldingPriorBox8Subgraph) {
         auto res = std::make_shared<ngraph::opset8::Result>(pb);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector {res}, ngraph::ParameterVector {in, in_2});
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));

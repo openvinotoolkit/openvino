@@ -28,7 +28,7 @@ TEST_F(TransformationTestsF, SoftPlusFusing) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{log}, ngraph::ParameterVector{input0});
 
-        manager.register_pass<ngraph::pass::SoftPlusFusion>();
+        manager.register_pass<ov::pass::SoftPlusFusion>();
     }
 
     {
@@ -49,7 +49,7 @@ TEST_F(TransformationTestsF, SoftPlusFusingDynamic) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{log}, ngraph::ParameterVector{input0});
 
-        manager.register_pass<ngraph::pass::SoftPlusFusion>();
+        manager.register_pass<ov::pass::SoftPlusFusion>();
     }
 
     {
@@ -70,7 +70,7 @@ TEST_F(TransformationTestsF, SoftPlusFusingNegative) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{log}, ngraph::ParameterVector{input0});
 
-        manager.register_pass<ngraph::pass::SoftPlusFusion>();
+        manager.register_pass<ov::pass::SoftPlusFusion>();
     }
 
     {

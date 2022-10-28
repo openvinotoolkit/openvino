@@ -201,7 +201,7 @@ void BackEnd::serializeParamsAndResults(const Model& model, const mv_blob_header
         if (isResult) {
             totalNetworkInfoOffset +=
                 sizeof(size_t) +
-                ngraph::op::util::create_ie_output_name(node->input_value(0)).size();
+                ov::op::util::create_ie_output_name(node->input_value(0)).size();
         }
 
         blob.resize(totalNetworkInfoOffset);
@@ -246,7 +246,7 @@ void BackEnd::serializeParamsAndResults(const Model& model, const mv_blob_header
 
         if (isResult) {
             const auto inputNameForResult =
-                ngraph::op::util::create_ie_output_name(node->input_value(0));
+                ov::op::util::create_ie_output_name(node->input_value(0));
             inputNameForResultSerializer.append(inputNameForResult.size());
             for (const auto ch : inputNameForResult) {
                 inputNameForResultSerializer.append(ch);

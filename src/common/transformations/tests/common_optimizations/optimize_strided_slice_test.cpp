@@ -38,7 +38,7 @@ TEST_F(TransformationTestsF, OptimizeSS_UselessDeletion_Negative1) {
         auto ss = std::make_shared<ngraph::opset1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ov::pass::StridedSliceOptimization>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
 }
@@ -57,7 +57,7 @@ TEST_F(TransformationTestsF, OptimizeSS_UselessDeletion_Negative2) {
         auto ss = std::make_shared<ngraph::opset1::StridedSlice>(relu, begin, end, stride, begin_mask, end_mask);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ov::pass::StridedSliceOptimization>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
 }
@@ -76,7 +76,7 @@ TEST_F(TransformationTestsF, OptimizeSS_UselessDeletion) {
         auto ss = std::make_shared<ngraph::opset1::StridedSlice>(relu, begin, end, stride, begin_mask, end_mask);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ov::pass::StridedSliceOptimization>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     {
@@ -100,7 +100,7 @@ TEST_F(TransformationTestsF, OptimizeSS_SkipUselessDeletionRevertCase) {
         auto relu = std::make_shared<ngraph::opset3::Relu>(ss);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ov::pass::StridedSliceOptimization>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     {
@@ -132,7 +132,7 @@ TEST_F(TransformationTestsF, OptimizeSS_Usefull_Test) {
         auto ss = std::make_shared<ngraph::opset1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ov::pass::StridedSliceOptimization>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     {
@@ -171,7 +171,7 @@ TEST_F(TransformationTestsF, OptimizeSS_Shared_Test) {
         auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::NodeVector{ss1, ss2}, 0);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{source});
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ov::pass::StridedSliceOptimization>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     {
@@ -214,7 +214,7 @@ TEST_F(TransformationTestsF, OptimizeSS_NotShared_Test) {
         auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::NodeVector{ss1, ss2}, 0);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{source});
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ov::pass::StridedSliceOptimization>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     {
@@ -264,7 +264,7 @@ TEST_F(TransformationTestsF, OptimizeSS_Groupped_Test) {
         auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::NodeVector{ss1, ss2}, 1);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{source});
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ov::pass::StridedSliceOptimization>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     {
@@ -294,7 +294,7 @@ TEST_F(TransformationTestsF, OptimizeSS_UselessDeletion_use_shapes_false) {
         auto ss = std::make_shared<ngraph::opset1::StridedSlice>(relu, begin, end, stride, begin_mask, end_mask);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>(false);
+        manager.register_pass<ov::pass::StridedSliceOptimization>(false);
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     // No UselessStridedSliceEraser transformation if use_shapes == false
@@ -321,7 +321,7 @@ TEST_F(TransformationTestsF, OptimizeSS_Shared_Test_use_shapes_false) {
         auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::NodeVector{ss1, ss2}, 0);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{source});
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>(false);
+        manager.register_pass<ov::pass::StridedSliceOptimization>(false);
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     // No SharedStridedSliceEraser transformation if use_shapes == false
@@ -348,7 +348,7 @@ TEST_F(TransformationTestsF, OptimizeSS_Groupped_Test_use_shapes_false) {
         auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::NodeVector{ss1, ss2}, 1);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{source});
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>(false);
+        manager.register_pass<ov::pass::StridedSliceOptimization>(false);
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     // No GroupedStridedSliceOptimizer transformation if use_shapes == false
@@ -364,7 +364,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_default_axes) {
         auto slice = std::make_shared<ngraph::opset8::Slice>(data, begin, end, step);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{slice}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ov::pass::StridedSliceOptimization>();
     }
     {
         auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 4, 3, 5});
@@ -395,7 +395,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_axes_const_sorted_full) {
         auto slice = std::make_shared<ngraph::opset8::Slice>(data, begin, end, step, axes);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{slice}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ov::pass::StridedSliceOptimization>();
     }
     {
         auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 4, 3, 5});
@@ -426,7 +426,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_all_const) {
         auto slice = std::make_shared<ngraph::opset8::Slice>(data, begin, end, step, axes);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{slice}, ngraph::ParameterVector{});
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ov::pass::StridedSliceOptimization>();
     }
     {
         auto data = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{4}, {2, 3, 4, 5});
@@ -455,7 +455,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_all_const_fold) {
         auto slice = std::make_shared<ngraph::opset8::Slice>(data, begin, end, step, axes);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{slice}, ngraph::ParameterVector{});
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ov::pass::StridedSliceOptimization>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     {
@@ -478,7 +478,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_axes_const_sorted_le
         auto slice = std::make_shared<ngraph::opset8::Slice>(data, begin, end, step, axes);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{slice}, ngraph::ParameterVector{data, begin, end, step});
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ov::pass::StridedSliceOptimization>();
     }
     {
         auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 4, 3, 5});
@@ -527,7 +527,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_axes_const_unsorted)
         auto slice = std::make_shared<ngraph::opset8::Slice>(data, begin, end, step, axes);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{slice}, ngraph::ParameterVector{data, begin, end, step});
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ov::pass::StridedSliceOptimization>();
     }
     {
         auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 4, 3, 5});
@@ -577,7 +577,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_axes_const_negative_
         auto slice = std::make_shared<ngraph::opset8::Slice>(data, begin, end, step, axes);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{slice}, ngraph::ParameterVector{data, begin, end, step});
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ov::pass::StridedSliceOptimization>();
     }
     {
         auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 4, 3, 5});
@@ -609,7 +609,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_dyn_shape_axes_const
         auto slice = std::make_shared<ngraph::opset8::Slice>(data, begin, end, step, axes);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{slice}, ngraph::ParameterVector{data, begin, end, step});
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ov::pass::StridedSliceOptimization>();
     }
     {
         auto data_shape = ov::PartialShape{ov::Dimension(-1), ov::Dimension(2, 6), 4, ov::Dimension(-1)};
@@ -660,7 +660,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_static_shape_axes_co
         auto slice = std::make_shared<ngraph::opset8::Slice>(data, begin, end, step, axes);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{slice}, ngraph::ParameterVector{data, begin, end, step});
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ov::pass::StridedSliceOptimization>();
     }
     {
         auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{2, 4, 3, 5});
@@ -710,7 +710,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_dyn_rank_axes_const_positive) {
         auto slice = std::make_shared<ngraph::opset8::Slice>(data, begin, end, step, axes);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{slice}, ngraph::ParameterVector{data, begin, end, step});
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ov::pass::StridedSliceOptimization>();
     }
     {
         auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ov::PartialShape::dynamic());
@@ -741,7 +741,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_dyn_rank_axes_const_negative) {
         auto slice = std::make_shared<ngraph::opset8::Slice>(data, begin, end, step, axes);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{slice}, ngraph::ParameterVector{data, begin, end, step});
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ov::pass::StridedSliceOptimization>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     // No transformation for negative axes and dynamic data rank
@@ -759,7 +759,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_axes_param) {
         auto slice = std::make_shared<ngraph::opset8::Slice>(data, begin, end, step, axes);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{slice}, ngraph::ParameterVector{data, axes});
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
+        manager.register_pass<ov::pass::StridedSliceOptimization>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     // No transformation for non-const axes input
@@ -784,7 +784,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_begin_param_shape_of_use_shapes
         auto slice = std::make_shared<ngraph::opset8::Slice>(shape_of_data, begin, end, step, axes);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{slice}, ngraph::ParameterVector{data, begin});
 
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>(true);
+        manager.register_pass<ov::pass::StridedSliceOptimization>(true);
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     {
@@ -825,7 +825,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_begin_param_shape_of_use_shapes
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{slice}, ngraph::ParameterVector{data, begin});
 
         manager.register_pass<ngraph::pass::ConstantFolding>();
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>(false);
+        manager.register_pass<ov::pass::StridedSliceOptimization>(false);
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     {
@@ -866,7 +866,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_const_fold_params_slice_shape_o
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{slice}, ngraph::ParameterVector{data});
 
         manager.register_pass<ngraph::pass::ConstantFolding>();
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>(true);
+        manager.register_pass<ov::pass::StridedSliceOptimization>(true);
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     {
@@ -897,7 +897,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_const_fold_params_slice_shape_o
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{slice}, ngraph::ParameterVector{data});
 
         manager.register_pass<ngraph::pass::ConstantFolding>();
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>(false);
+        manager.register_pass<ov::pass::StridedSliceOptimization>(false);
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     {
@@ -926,7 +926,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_slice_all_use_shapes_true) {
         auto slice = std::make_shared<ngraph::opset8::Slice>(relu, begin, end, step);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{slice}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>(true);
+        manager.register_pass<ov::pass::StridedSliceOptimization>(true);
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     {
@@ -964,7 +964,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_slice_all_use_shapes_false) {
         auto slice = std::make_shared<ngraph::opset8::Slice>(relu, begin, end, step);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{slice}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>(false);
+        manager.register_pass<ov::pass::StridedSliceOptimization>(false);
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     {

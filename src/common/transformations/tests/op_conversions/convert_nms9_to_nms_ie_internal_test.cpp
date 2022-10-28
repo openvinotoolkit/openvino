@@ -35,8 +35,8 @@ TEST_F(TransformationTestsF, ConvertPreviousNMSToNMSIEInternal) {
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<ngraph::pass::ConvertNMS1ToNMS9>();
-        manager.register_pass<ngraph::pass::ConvertNMS9ToNMSIEInternal>();
+        manager.register_pass<ov::pass::ConvertNMS1ToNMS9>();
+        manager.register_pass<ov::pass::ConvertNMS9ToNMSIEInternal>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
 
         // as inside test infrastructure we can not predict output names for given Function
@@ -71,7 +71,7 @@ TEST_F(TransformationTestsF, ConvertNMS9ToNMSIEInternal) {
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<ngraph::pass::ConvertNMS9ToNMSIEInternal>();
+        manager.register_pass<ov::pass::ConvertNMS9ToNMSIEInternal>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
 

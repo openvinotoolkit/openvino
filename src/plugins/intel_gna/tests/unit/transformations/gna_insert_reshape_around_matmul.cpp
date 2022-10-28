@@ -113,7 +113,7 @@ namespace {
 void RunTest(const std::shared_ptr<ngraph::Function>& func, const std::shared_ptr<ngraph::Function>& reference_func) {
     {
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmulWithTranspose>();
         m.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmulWithFq>();
         m.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmulWithAdd>();

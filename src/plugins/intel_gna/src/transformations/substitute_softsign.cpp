@@ -39,7 +39,7 @@ public:
             return false;
 
         float value;
-        if (!ngraph::op::util::get_single_value(node, value)) {
+        if (!ov::op::util::get_single_value(node, value)) {
             return false;
         }
 

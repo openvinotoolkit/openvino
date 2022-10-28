@@ -85,7 +85,7 @@ TEST(nop_elimination, eliminate_broadcast) {
 }
 
 TEST(nop_elimination, pass_property) {
-    auto pass = std::make_shared<ngraph::pass::NopElimination>();
+    auto pass = std::make_shared<ov::pass::NopElimination>();
     ASSERT_FALSE(pass->get_property(pass::PassProperty::CHANGE_DYNAMIC_STATE));
 }
 
@@ -624,7 +624,7 @@ TEST(nop_elimination, unsqueeze_squeeze_elimination) {
         auto baseline_f = generate_func(shape, axes_val);
         auto optimized_f = generate_func(shape, axes_val);
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.register_pass<ov::pass::NopElimination>();
         manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::v0::Squeeze>(baseline_f), 1);
@@ -656,7 +656,7 @@ TEST(nop_elimination, reshape_unsqueeze_elimination) {
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.register_pass<ov::pass::NopElimination>();
         manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(baseline_f), 1);
@@ -687,7 +687,7 @@ TEST(nop_elimination, reshape_squeeze_elimination) {
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.register_pass<ov::pass::NopElimination>();
         manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(baseline_f), 1);
@@ -715,7 +715,7 @@ TEST(nop_elimination, reshape_reshape_elimination) {
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.register_pass<ov::pass::NopElimination>();
         manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(baseline_f), 2);
@@ -742,7 +742,7 @@ TEST(nop_elimination, squeeze_reshape_elimination) {
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.register_pass<ov::pass::NopElimination>();
         manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(baseline_f), 1);
@@ -770,7 +770,7 @@ TEST(nop_elimination, unsqueeze_reshape_elimination) {
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.register_pass<ov::pass::NopElimination>();
         manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(baseline_f), 1);
@@ -793,7 +793,7 @@ TEST(nop_elimination, squeeze_unsqueeze_elimination_negative) {
         auto baseline_f = make_shared<Function>(squeeze, ParameterVector{input});
         auto optimized_f = clone_function(*baseline_f);
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.register_pass<ov::pass::NopElimination>();
         manager.run_passes(optimized_f);
         ASSERT_EQ(count_ops_of_type<ngraph::opset1::Squeeze>(baseline_f), 1);
         ASSERT_EQ(count_ops_of_type<ngraph::opset1::Squeeze>(optimized_f), 1);
@@ -811,7 +811,7 @@ TEST(nop_elimination, topk_convert_elimination) {
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(C), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.register_pass<ov::pass::NopElimination>();
         manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::Convert>(baseline_f), 1);

@@ -699,7 +699,7 @@ TEST_F(TransformationTestsF, FuseConvertLayout) {
         p.input(0).preprocess().convert_layout({2, 0, 1});
         p.build();
 
-        manager.register_pass<ngraph::pass::TransposeSinking>();
+        manager.register_pass<ov::pass::TransposeSinking>();
     }
 
     {
@@ -816,7 +816,7 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiply) {
         function = std::make_shared<ngraph::Function>(conv, ParameterVector{parameter});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
     }
-    manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
+    manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     {
         auto parameter = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 14, 14});
         std::shared_ptr<Node> activations = std::make_shared<opset8::FakeQuantize>(parameter,
@@ -863,7 +863,7 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyGroupConv) {
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
     }
-    manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
+    manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     {
         auto data = std::make_shared<opset8::Parameter>(element::f32, data_shape);
         std::shared_ptr<Node> weights = opset8::Constant::create(element::f32, Shape{3, 3, 1, 4, 4}, {-2});
@@ -914,7 +914,7 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyNegative1) {
         function = std::make_shared<ngraph::Function>(conv, ParameterVector{parameter});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
     }
-    manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
+    manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     {
         auto parameter = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 14, 14});
         std::shared_ptr<Node> activations = std::make_shared<opset8::FakeQuantize>(parameter,
@@ -973,7 +973,7 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyNegativeBroadcast) {
         function = std::make_shared<ngraph::Function>(conv, ParameterVector{parameter});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
     }
-    manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
+    manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     {
         auto parameter = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 14, 14});
         std::shared_ptr<Node> activations = std::make_shared<opset8::FakeQuantize>(parameter,
@@ -1053,7 +1053,7 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyNonScalarFQInput) {
         function = std::make_shared<ngraph::Function>(conv, ParameterVector{parameter});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
     }
-    manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
+    manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     {
         auto parameter = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 14, 14});
         auto gather = create_gather(std::make_shared<opset8::Constant>(element::f32, Shape{1, 3, 14, 14}), {2, 1, 0}, 1);
@@ -1113,7 +1113,7 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplySkipIfFQLowNonConst) {
         function = std::make_shared<ngraph::Function>(conv, ParameterVector{parameter, input_low});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
     }
-    manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
+    manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
 }
 
 TEST_F(TransformationTestsF, RICFusionTwoConvolutions) {

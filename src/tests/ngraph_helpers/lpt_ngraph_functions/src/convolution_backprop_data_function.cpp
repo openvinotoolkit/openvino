@@ -150,8 +150,8 @@ std::shared_ptr<Function>  ConvolutionBackpropDataFunction::getReference(
     auto convolutionBackpropData = std::make_shared<op::TypeRelaxed<opset1::ConvolutionBackpropData>>(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{ dequantizationAfter.empty() ? netPrecision : element::f32 },
-            ngraph::op::TemporaryReplaceOutputType(activations, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(weights, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(activations, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(weights, element::f32).get(),
             Strides{ 1, 1 },
             CoordinateDiff{ 0, 0 },
             CoordinateDiff{ 0, 0 },

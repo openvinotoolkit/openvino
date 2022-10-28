@@ -138,10 +138,10 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
             values.fakeQuantizeOnWeights.outputLowValues,
             values.fakeQuantizeOnWeights.outputHighValues);
 
-    std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Convolution>>(
+    std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Convolution>>(
         std::vector<element::Type>{ element::f32, element::f32 }, std::vector<element::Type>{},
-        ngraph::op::TemporaryReplaceOutputType(branch1Pooling, element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(onWeights, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(branch1Pooling, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(onWeights, element::f32).get(),
         ngraph::Strides{ 1, 1 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::CoordinateDiff{ 0, 0 },
@@ -165,7 +165,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize, values.fakeQuantizeOnDataOutPrecision);
 
         if (values.operationBeforeLimitedOperationIsPrecisionTransparent) {
-            auto intermediateOpTr = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(branch1Pooling);
+            auto intermediateOpTr = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(branch1Pooling);
             if (intermediateOpTr != nullptr) {
                 ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(branch1Pooling, values.fakeQuantizeOnDataOutPrecision);
             } else {

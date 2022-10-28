@@ -172,7 +172,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph, const Ex
 
         if (op->get_type_info() == ngraph::op::v0::Result::get_type_info_static()) {
             const auto prev = op->input_value(0);
-            const std::string inputID = ngraph::op::util::get_ie_output_name(prev);
+            const std::string inputID = ov::op::util::get_ie_output_name(prev);
 
             outputNodesMap[inputID] = node;
         }
@@ -293,7 +293,7 @@ void Graph::Replicate(const CNNNetwork &network, const ExtensionManager::Ptr& ex
 
         if (op->get_type_info() == ngraph::op::v0::Result::get_type_info_static()) {
             const auto &input = op->input_value(0);
-            const auto name = ngraph::op::util::get_ie_output_name(input);
+            const auto name = ov::op::util::get_ie_output_name(input);
 
             if (outputsInfo.count(name) != 0) {
                 outputNodesMap[name] = node;

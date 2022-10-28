@@ -121,7 +121,7 @@ TEST(TransformationTests, make_stateful_by_tensor_name) {
         std::map<std::string, std::string> tensor_names = {{"x", "res0"}, {"y", "res1"}};
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::MakeStateful>(tensor_names);
 
         manager.run_passes(f);
@@ -143,7 +143,7 @@ TEST(TransformationTests, make_stateful_by_param_res) {
                                                            {f->get_parameters()[1], f->get_results()[1]}};
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::MakeStateful>(pairs);
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -176,7 +176,7 @@ TEST(TransformationTests, make_stateful_dynamic_shapes) {
         f->validate_nodes_and_infer_types();
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::MakeStateful>(pair_names);
 
         try {
@@ -196,7 +196,7 @@ TEST(TransformationTests, make_stateful_one_out_to_several_results_by_tensor_nam
         std::map<std::string, std::string> tensor_names = {{"x", "res0"}, {"y", "res1"}};
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::MakeStateful>(tensor_names);
 
         manager.run_passes(f);
@@ -218,7 +218,7 @@ TEST(TransformationTests, make_stateful_one_out_to_several_results_by_param_res)
                                                            {f->get_parameters()[1], f->get_results()[1]}};
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::MakeStateful>(pairs);
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));

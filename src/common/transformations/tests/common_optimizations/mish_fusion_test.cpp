@@ -33,7 +33,7 @@ TEST_F(TransformationTestsF, MishFusing) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input0});
 
-        manager.register_pass<ngraph::pass::MishFusion>();
+        manager.register_pass<ov::pass::MishFusion>();
     }
 
     {
@@ -54,7 +54,7 @@ TEST_F(TransformationTestsF, MishWithSoftPlusFusing) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input0});
 
-        manager.register_pass<ngraph::pass::SoftPlusToMishFusion>();
+        manager.register_pass<ov::pass::SoftPlusToMishFusion>();
     }
 
     {

@@ -117,5 +117,5 @@ TEST(TransformationTests, DynamiShapeInterpolate1To4) {
     manager.register_pass<pass::ConvertInterpolate1ToInterpolate4>();
     manager.run_passes(f);
 
-    ASSERT_TRUE(ngraph::op::util::has_op_with_type<opset4::Interpolate>(f));
+    ASSERT_TRUE(ov::op::util::has_op_with_type<opset4::Interpolate>(f));
 }

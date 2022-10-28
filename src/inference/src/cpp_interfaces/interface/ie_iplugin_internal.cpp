@@ -317,7 +317,7 @@ std::unordered_set<std::string> GetRemovedNodes(const std::shared_ptr<const ov::
 
     for (auto&& node : transformedFunction->get_ops()) {
         transformedNodeNames.emplace(node->get_friendly_name());
-        for (auto&& fusedLayerName : ngraph::getFusedNamesVector(node))
+        for (auto&& fusedLayerName : ov::getFusedNamesVector(node))
             transformedNodeNames.emplace(fusedLayerName);
     }
 
@@ -360,7 +360,7 @@ std::unordered_set<std::string> GetSupportedNodes(
             }
         }
 
-        for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
+        for (auto&& fusedLayerName : ov::getFusedNamesVector(op)) {
             if (InferenceEngine::details::contains(original_ops, fusedLayerName)) {
                 if (!is_checked) {
                     is_supported = is_node_supported(op);
@@ -485,7 +485,7 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
     for (const auto& result : function->get_results()) {
         auto fake_param = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
                                                                   result->get_output_partial_shape(0));
-        const std::string res_name = ngraph::op::util::create_ie_output_name(result->input_value(0));
+        const std::string res_name = ov::op::util::create_ie_output_name(result->input_value(0));
         fake_param->set_friendly_name(res_name);
         fake_param->set_element_type(
             InferenceEngine::details::convertPrecision(outputsInfo.at(res_name)->getPrecision()));

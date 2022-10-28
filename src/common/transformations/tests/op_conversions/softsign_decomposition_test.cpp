@@ -23,7 +23,7 @@ TEST_F(TransformationTestsF, SoftSignDecomposition) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{softsign}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::SoftSignDecomposition>();
+        manager.register_pass<ov::pass::SoftSignDecomposition>();
     }
 
     {
@@ -45,7 +45,7 @@ TEST_F(TransformationTestsF, SoftSignDecompositionFP16) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{softsign}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::SoftSignDecomposition>();
+        manager.register_pass<ov::pass::SoftSignDecomposition>();
     }
 
     {

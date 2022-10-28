@@ -28,7 +28,7 @@ TEST(TransformationTests, ReshapePReluTest1) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ prelu }, ngraph::ParameterVector{ input });
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ReshapePRelu>();
         m.run_passes(f);
     }
@@ -55,7 +55,7 @@ TEST(TransformationTests, ReshapePReluTest2) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ prelu }, ngraph::ParameterVector{ input });
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ReshapePRelu>();
         m.run_passes(f);
     }
@@ -82,7 +82,7 @@ TEST(TransformationTests, ReshapePReluTest3) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ prelu }, ngraph::ParameterVector{ input });
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ReshapePRelu>();
         m.run_passes(f);
     }
@@ -110,7 +110,7 @@ TEST(TransformationTests, ReshapePReluTest4) {
         f_ref = f;
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ReshapePRelu>();
         m.run_passes(f);
     }
@@ -130,7 +130,7 @@ TEST(TransformationTests, ReshapePReluTest5) {
         f_ref = f;
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ReshapePRelu>();
         m.run_passes(f);
     }
@@ -150,7 +150,7 @@ TEST(TransformationTests, ReshapePReluTest6) {
         f_ref = f;
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ReshapePRelu>();
         m.run_passes(f);
     }
@@ -164,15 +164,15 @@ TEST(TransformationTests, ReshapePReluTest7) {
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::u8, ngraph::Shape{ 1, 3, 16, 16 });
         auto slope = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{ 3 }, { -2.f, -1.f, -2.f });
-        auto relaxed_prelu = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::PRelu>>(
+        auto relaxed_prelu = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::PRelu>>(
             ngraph::element::TypeVector{ ngraph::element::f32, ngraph::element::f32 },
             ngraph::element::TypeVector{ ngraph::element::f32 },
-            ngraph::op::TemporaryReplaceOutputType(input, ngraph::element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(slope, ngraph::element::f32).get());
+            ov::op::TemporaryReplaceOutputType(input, ngraph::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(slope, ngraph::element::f32).get());
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ relaxed_prelu }, ngraph::ParameterVector{ input });
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ReshapePRelu>();
         m.run_passes(f);
     }
@@ -180,11 +180,11 @@ TEST(TransformationTests, ReshapePReluTest7) {
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::u8, ngraph::Shape{ 1, 3, 16, 16 });
         auto slope = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 3, 1, 1 }, { -2.f, -1.f, -2.f });
-        auto relaxed_prelu = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::PRelu>>(
+        auto relaxed_prelu = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::PRelu>>(
             ngraph::element::TypeVector{ ngraph::element::f32, ngraph::element::f32 },
             ngraph::element::TypeVector{ ngraph::element::f32 },
-            ngraph::op::TemporaryReplaceOutputType(input, ngraph::element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(slope, ngraph::element::f32).get());
+            ov::op::TemporaryReplaceOutputType(input, ngraph::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(slope, ngraph::element::f32).get());
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ relaxed_prelu }, ngraph::ParameterVector{ input });
     }
@@ -202,7 +202,7 @@ TEST(TransformationTests, ReshapePReluTest8) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ prelu }, ngraph::ParameterVector{ input });
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ReshapePRelu>();
         m.run_passes(f);
     }
@@ -228,7 +228,7 @@ TEST(TransformationTests, ReshapePReluTest9) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ prelu }, ngraph::ParameterVector{ input, slope });
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ReshapePRelu>();
         m.run_passes(f);
     }

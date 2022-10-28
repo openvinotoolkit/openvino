@@ -30,7 +30,7 @@ TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenTest) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data, seq_len });
 
-        manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
+        manager.register_pass<ov::pass::SimplifyCTCGreedyDecoderSeqLen>();
     }
 
     {
@@ -114,7 +114,7 @@ TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenDynamicInputShapeTest
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data, seq_len });
 
-        manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
+        manager.register_pass<ov::pass::SimplifyCTCGreedyDecoderSeqLen>();
     }
 
     {
@@ -198,7 +198,7 @@ TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenDynamicBatchTest) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data, seq_len });
 
-        manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
+        manager.register_pass<ov::pass::SimplifyCTCGreedyDecoderSeqLen>();
     }
 
     {
@@ -282,7 +282,7 @@ TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenTest) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data, seq_len });
 
-        manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
+        manager.register_pass<ov::pass::SimplifyCTCGreedyDecoderSeqLen>();
     }
 
     {
@@ -369,7 +369,7 @@ TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenWrongBlankIndexTest) 
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data, seq_len });
 
-        manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
+        manager.register_pass<ov::pass::SimplifyCTCGreedyDecoderSeqLen>();
     }
 
     {
@@ -399,7 +399,7 @@ TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenWithBlan
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data, seq_len });
 
-        manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
+        manager.register_pass<ov::pass::SimplifyCTCGreedyDecoderSeqLen>();
     }
 
     {
@@ -486,7 +486,7 @@ TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenParamWit
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data, seq_len, blank_index });
 
-        manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
+        manager.register_pass<ov::pass::SimplifyCTCGreedyDecoderSeqLen>();
     }
 
     {

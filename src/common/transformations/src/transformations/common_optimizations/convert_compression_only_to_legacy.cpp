@@ -33,7 +33,7 @@ ov::pass::EnableDecompressionConvertConstantFolding::EnableDecompressionConvertC
 
 bool ov::pass::ConvertCompressedOnlyToLegacy::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_MODEL_SCOPE(ConvertCompressedOnlyToLegacy);
-    if (ngraph::op::util::has_decompression_converts(f)) {
+    if (ov::op::util::has_decompression_converts(f)) {
         Manager manager(get_pass_config());
         // Skip precision sensitive nodes with marking and pass_callback:
         // callback skips (returns true) for nodes marked as precision sensitive/disabled_f16_compression.

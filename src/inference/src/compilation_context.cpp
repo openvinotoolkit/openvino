@@ -73,7 +73,7 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
     // 1. Calculate hash on function
     CNNNetwork net(network);
     ov::pass::Manager m;
-    m.register_pass<ngraph::pass::FixRtInfo>();
+    m.register_pass<ov::pass::FixRtInfo>();
     m.register_pass<ov::pass::Hash>(seed);
     m.run_passes(net.getFunction());
 

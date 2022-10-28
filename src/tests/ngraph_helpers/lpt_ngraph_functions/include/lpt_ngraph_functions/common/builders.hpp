@@ -50,8 +50,8 @@ std::shared_ptr<Node> makeElementwise(const std::shared_ptr<ngraph::Node> data, 
     } else {
         operation = std::make_shared<op::TypeRelaxed<Operation>>(
             std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{},
-            ngraph::op::TemporaryReplaceOutputType(data, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(operationConst, element::f32).get());
+            ov::op::TemporaryReplaceOutputType(data, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(operationConst, element::f32).get());
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(operation, description.outPrecision);
     }
 

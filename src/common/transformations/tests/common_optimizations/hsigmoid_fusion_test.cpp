@@ -31,7 +31,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithReluDivF16) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSigmoidFusion>();
+        manager.register_pass<ov::pass::HSigmoidFusion>();
     }
 
     {
@@ -55,7 +55,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithReluDivF32) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSigmoidFusion>();
+        manager.register_pass<ov::pass::HSigmoidFusion>();
     }
 
     {
@@ -79,7 +79,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithReluMul) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_second}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSigmoidFusion>();
+        manager.register_pass<ov::pass::HSigmoidFusion>();
     }
 
     {
@@ -104,7 +104,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithoutRelu) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSigmoidFusion>();
+        manager.register_pass<ov::pass::HSigmoidFusion>();
     }
 
     {
@@ -126,7 +126,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithClampMul) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_first}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSigmoidFusion>();
+        manager.register_pass<ov::pass::HSigmoidFusion>();
     }
 
     {
@@ -148,7 +148,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithClampDiv) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSigmoidFusion>();
+        manager.register_pass<ov::pass::HSigmoidFusion>();
     }
 
     {
@@ -172,7 +172,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithReluMulWrongConstValue) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_second}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSigmoidFusion>();
+        manager.register_pass<ov::pass::HSigmoidFusion>();
     }
 
     {
@@ -202,7 +202,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithReluDivWrongConstValue) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSigmoidFusion>();
+        manager.register_pass<ov::pass::HSigmoidFusion>();
     }
 
     {
@@ -233,7 +233,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithoutReluWrongConstValue) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSigmoidFusion>();
+        manager.register_pass<ov::pass::HSigmoidFusion>();
     }
 
     {
@@ -262,7 +262,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithClampWrongConstValue) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_first}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSigmoidFusion>();
+        manager.register_pass<ov::pass::HSigmoidFusion>();
     }
 
     {

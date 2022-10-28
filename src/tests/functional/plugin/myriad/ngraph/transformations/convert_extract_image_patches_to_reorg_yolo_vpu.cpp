@@ -52,7 +52,7 @@ protected:
                 "Actual");
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<vpu::ConvertExtractImagePatchesToReorgYolo>();
         manager.run_passes(function);
 

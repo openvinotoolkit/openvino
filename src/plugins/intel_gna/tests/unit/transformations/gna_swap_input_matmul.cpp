@@ -87,7 +87,7 @@ static std::shared_ptr<ngraph::Function> CreateMatMulFunction(const ngraph::Shap
 
 static void Execute(std::shared_ptr<ngraph::Function> function, std::shared_ptr<ngraph::Function> reference_function) {
     ngraph::pass::Manager m;
-    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::intel_gna::pass::SwapInputMatMulWithTrailingTranspose>();
     m.register_pass<ov::intel_gna::pass::SwapInputMatMulWithAct>();
     m.register_pass<ov::intel_gna::pass::SwapInputMatMulWithFq>();

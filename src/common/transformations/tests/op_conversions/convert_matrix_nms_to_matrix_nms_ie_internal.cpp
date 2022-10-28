@@ -34,7 +34,7 @@ TEST_F(TransformationTestsF, ConvertMatrixNmsToMatrixNmsIE) {
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
+        manager.register_pass<ov::pass::ConvertMatrixNmsToMatrixNmsIE>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
 

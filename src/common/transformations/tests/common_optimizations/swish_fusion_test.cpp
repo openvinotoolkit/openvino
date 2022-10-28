@@ -31,7 +31,7 @@ TEST_F(TransformationTestsF, SwishFusionWithBeta) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input, beta});
 
-        manager.register_pass<ngraph::pass::SwishFusion>();
+        manager.register_pass<ov::pass::SwishFusion>();
     }
 
     {
@@ -54,7 +54,7 @@ TEST_F(TransformationTestsF, SwishFusionWithoutBeta) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::SwishFusion>();
+        manager.register_pass<ov::pass::SwishFusion>();
     }
 
     {
@@ -76,7 +76,7 @@ TEST_F(TransformationTestsF, SwishFusionWithoutBetaNonOneAddConstant) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::SwishFusion>();
+        manager.register_pass<ov::pass::SwishFusion>();
     }
 
     {
@@ -101,7 +101,7 @@ TEST_F(TransformationTestsF, SwishFusionWithSigmoid) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::SwishFusion>();
+        manager.register_pass<ov::pass::SwishFusion>();
     }
 
     {
@@ -122,7 +122,7 @@ TEST_F(TransformationTestsF, SwishFusionWithSigmoidWithBeta) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input, beta});
 
-        manager.register_pass<ngraph::pass::SwishFusion>();
+        manager.register_pass<ov::pass::SwishFusion>();
     }
 
     {
@@ -145,7 +145,7 @@ TEST_F(TransformationTestsF, SwishFusionWithSigmoidWithBetaConstant) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::SwishFusion>();
+        manager.register_pass<ov::pass::SwishFusion>();
     }
 
     {

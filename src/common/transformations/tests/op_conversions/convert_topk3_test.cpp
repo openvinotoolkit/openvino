@@ -31,7 +31,7 @@ TEST_F(TransformationTestsF, ConvertTopK3I32Output0) {
 
         // due to the 'compare_functions' limitation we will check only one output
         function = std::make_shared<ngraph::Function>(ngraph::OutputVector{topk->output(0)}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::ConvertTopK3>();
+        manager.register_pass<ov::pass::ConvertTopK3>();
     }
 
     {
@@ -54,7 +54,7 @@ TEST_F(TransformationTestsF, ConvertTopK3I32Output1) {
 
         // due to the 'compare_functions' limitation we will check only one output
         function = std::make_shared<ngraph::Function>(ngraph::OutputVector{topk->output(1)}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::ConvertTopK3>();
+        manager.register_pass<ov::pass::ConvertTopK3>();
     }
 
     {
@@ -76,7 +76,7 @@ TEST_F(TransformationTestsF, ConvertTopK3I64Output0) {
 
         // due to the 'compare_functions' limitation we will check only one output
         function = std::make_shared<ngraph::Function>(ngraph::OutputVector{topk->output(0)}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::ConvertTopK3>();
+        manager.register_pass<ov::pass::ConvertTopK3>();
     }
 
     {
@@ -98,7 +98,7 @@ TEST_F(TransformationTestsF, ConvertTopK3I64Output1) {
 
         // due to the 'compare_functions' limitation we will check only one output
         function = std::make_shared<ngraph::Function>(ngraph::OutputVector{topk->output(1)}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::ConvertTopK3>();
+        manager.register_pass<ov::pass::ConvertTopK3>();
     }
 
     {

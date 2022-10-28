@@ -179,17 +179,17 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     auto nGraphFunc = network.getFunction();
 
     ngraph::pass::Manager manager;
-    manager.register_pass<::ngraph::pass::InitNodeInfo>();
-    manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
-    manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
-    manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
-    manager.register_pass<ngraph::pass::ConvertGather8ToGather7>();
-    manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();
+    manager.register_pass<::ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::ConvertNMS1ToNMS5>();
+    manager.register_pass<ov::pass::ConvertNMS3ToNMS5>();
+    manager.register_pass<ov::pass::ConvertNMS4ToNMS5>();
+    manager.register_pass<ov::pass::ConvertGather8ToGather7>();
+    manager.register_pass<ov::pass::ConvertGather7ToGather1>();
     manager.register_pass<vpu::ConvertGatherND8ToGatherND5>();
     manager.register_pass<vpu::MergeGatherGatherElements>();
-    manager.register_pass<ngraph::pass::CommonOptimizations>();
-    manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
-    manager.register_pass<ngraph::pass::TransposeSinking>();
+    manager.register_pass<ov::pass::CommonOptimizations>();
+    manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
+    manager.register_pass<ov::pass::TransposeSinking>();
     manager.register_pass<vpu::ConvertTransposePrecision>();
 
     manager.register_pass<vpu::ExtractBatch>(std::unordered_set<ngraph::Node::type_info_t> {
@@ -206,8 +206,8 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     // For example evaluate_greater_equal calls set_broadcast function with hardcoded BOOL precision.
     // In set_broadcast function we compare original node's precision with hardcoded so we get an error if we change precision before.
     manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
-    manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+    manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
+    manager.register_pass<ov::pass::ConvertOpSet2ToOpSet1>();
     // ConvertPrecision must be executed before ConvertOpSet1ToLegacy due to this pass works with operations from opsets only
     static const precisions_array precisions = {
         { ngraph::element::i64, ngraph::element::i32 },
@@ -215,21 +215,21 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
         { ngraph::element::u32, ngraph::element::i32 },
         { ngraph::element::boolean, ngraph::element::i32 }
     };
-    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions, myriadTypeToFuseMap);
+    manager.register_pass<ov::pass::ConvertPrecision>(precisions, myriadTypeToFuseMap);
 
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
     //  ConvertOpSet1ToLegacy can produce constants with I64 precision
-    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }}, myriadTypeToFuseMap);
+    manager.register_pass<ov::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }}, myriadTypeToFuseMap);
     manager.register_pass<vpu::MergeSubsequentDSROperations>();
 
     auto pass_config = manager.get_pass_config();
     pass_config->disable<ngraph::pass::ConvertGatherToGatherIEMatcher>();
-    pass_config->disable<ngraph::pass::ConvertGELU>();
-    pass_config->disable<ngraph::pass::SoftPlusDecomposition>();
-    pass_config->disable<ngraph::pass::ConvertMinimum>();
-    pass_config->disable<ngraph::pass::HSwishDecomposition>();
-    pass_config->disable<ngraph::pass::MVN6Decomposition>();
-    pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
+    pass_config->disable<ov::pass::ConvertGELU>();
+    pass_config->disable<ov::pass::SoftPlusDecomposition>();
+    pass_config->disable<ov::pass::ConvertMinimum>();
+    pass_config->disable<ov::pass::HSwishDecomposition>();
+    pass_config->disable<ov::pass::MVN6Decomposition>();
+    pass_config->disable<ov::pass::SimplifyCTCGreedyDecoderSeqLen>();
 
     auto transformationPredicate = [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
         return !!std::dynamic_pointer_cast<const ngraph::vpu::op::DynamicShapeResolver>(node->input_value(0).get_node_shared_ptr());

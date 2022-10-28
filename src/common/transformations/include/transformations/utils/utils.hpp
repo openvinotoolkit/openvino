@@ -13,7 +13,7 @@
 #include <openvino/opsets/opset4.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/graph_rewrite.hpp>
-#include <transformations/rt_info/attributes.hpp >
+#include <transformations/rt_info/attributes.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>
 
