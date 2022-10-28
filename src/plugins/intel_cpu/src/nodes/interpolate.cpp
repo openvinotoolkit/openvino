@@ -1558,9 +1558,9 @@ public:
         const auto &attr = interp->get_attrs();
 
         if (attr.shape_calculation_mode == ngInterpShapeCalcMode::SCALES) {
-            port_mask = PortMask(Interpolate::TARGET_SHAPE_ID, Interpolate::AXES_ID);
-        } else if (attr.shape_calculation_mode == ngInterpShapeCalcMode::SIZES) {
             port_mask = PortMask(Interpolate::SCALES_ID, Interpolate::AXES_ID);
+        } else if (attr.shape_calculation_mode == ngInterpShapeCalcMode::SIZES) {
+            port_mask = PortMask(Interpolate::TARGET_SHAPE_ID, Interpolate::AXES_ID);
         } else {
             IE_ASSERT(false) << "Unsupported interpolate shape calculation mode";
         }
@@ -1573,7 +1573,7 @@ private:
 } // namespace
 
 Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache, DefaultShapeInferFactory(op, 0x00)) {
+        : Node(op, eng, cache, InterpolateShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Interpolate node with name '" + getName() + "'";
