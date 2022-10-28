@@ -10,7 +10,6 @@
 namespace ov {
 namespace frontend {
 namespace pytorch {
-int COUNTER = 0;
 
 Output<Node> make_optional_bias(const Output<Node>& base_op,
                                 const NodeContext& context,
@@ -85,14 +84,37 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context,
 }
 
 OutputVector make_framework_node(NodeContext* context) {
-    auto fw_node = std::make_shared<PtFrameworkNode>(context->get_decoder(),
-                                                     context->inputs(),
-                                                     context->get_decoder()->num_of_outputs());
-    fw_node->set_friendly_name(context->get_op_type() + ":" + std::to_string(COUNTER++));
+    auto schema = context->get_schema();
+    // TODO: properly process schema to get the actual position of mutable input
+    // Hack. Can indicate mutable inputs, but can it be reliable?
+    if (schema.find('!') != std::string::npos) {
+        // We create additional output for such nodes. It contains new tensor that represents input that was changed.
+        auto fw_node =
+            std::make_shared<PtFrameworkNode>(context->get_decoder(), context->inputs(), context->num_of_outputs() + 1);
+        fw_node->set_friendly_name(context->get_op_type());
+        auto outputs = fw_node->outputs();
+        // Usually mutated input index is 0, because it is usually "self" input, so we need to replace this tensor with
+        // output we created.
+        context->mutate_input(0, outputs.back());
+        // std::cerr << "[ WARNING ] Created node with mutated 0 input. Schema: " << schema << std::endl;
+        context->mark_node(fw_node);
+        // For simplification we do not expect such operations to have extra bodies
+        FRONT_END_OP_CONVERSION_CHECK(context->get_decoder()->get_subgraph_size() == 0,
+                                      "Mutable operation has subgraphs.");
+        return outputs;
+    }
+
+    // Pay attention to subgraphs that may appear in the node
+    auto fw_node =
+        std::make_shared<PtFrameworkNode>(context->get_decoder(), context->inputs(), context->num_of_outputs());
+    fw_node->set_friendly_name(context->get_op_type());
 
     std::map<size_t, ParameterVector> inputs_map;
-    std::map<size_t, ResultVector> outputs_map;
-    std::set<size_t> input_idxs;
+    std::map<size_t, ResultVector> extra_outputs_map;
+    std::set<size_t> input_idxs;  // initial inputs
+    // We need to remember initial inputs to be able to find extra inputs to body that were created to propagate
+    // external context
+    int num_body_outs = 0;
     for (size_t i = 0; i < context->get_decoder()->get_subgraph_size(); ++i) {
         auto subgraph_decoder = context->get_decoder()->get_subgraph_decoder(i);
         auto inputs = subgraph_decoder->inputs();
@@ -104,14 +126,25 @@ OutputVector make_framework_node(NodeContext* context) {
             size_t input_idx = (size_t)std::stoll(name);
             inputs_map[input_idx].push_back(param);
         }
-        for (const auto& result : body->get_results()) {
-            auto name = result->input(0).get_tensor().get_any_name();
+        auto body_outputs = subgraph_decoder->outputs();
+        if (i == 0) {
+            num_body_outs = body_outputs.size();
+        } else {
+            FRONT_END_OP_CONVERSION_CHECK(
+                num_body_outs == body_outputs.size(),
+                "Number of outputs of this body is different from number of outputs of first body");
+        }
+        // Some bodies may have mutated inputs which we need to propagate to external context
+        auto body_results = body->get_results();
+        for (int i = num_body_outs; i < body_results.size(); i++) {
+            auto name = body_results[i]->input(0).get_tensor().get_any_name();
             size_t out_idx = (size_t)std::stoll(name);
-            FRONT_END_OP_CONVERSION_CHECK(outputs_map.count(out_idx) == 0,
+            FRONT_END_OP_CONVERSION_CHECK(extra_outputs_map.count(out_idx) == 0,
                                           "More then one body output with same tensor name.");
-            outputs_map[out_idx].push_back(result);
+            extra_outputs_map[out_idx].push_back(body_results[i]);
         }
     }
+    // Connect inputs with external context
     for (const auto& input : inputs_map) {
         if (!input_idxs.count(input.first)) {
             auto external_output = context->get_tensor_from_model_or_create_input(input.first);
@@ -123,10 +156,34 @@ OutputVector make_framework_node(NodeContext* context) {
             }
         }
     }
-    for (const auto& output : outputs_map) {
+    // Number of body outputs can be higher then number of pt node outputs, e.g. in case of loop first body output is
+    // condition, we have to skip such outputs
+    int num_skip_body_outputs =
+        num_body_outs > context->num_of_outputs() ? num_body_outs - context->num_of_outputs() : 0;
+    // We need to reduce number of outputs, because some outputs are outputs from body
+    fw_node->set_output_size(context->num_of_outputs() - num_body_outs + num_skip_body_outputs);
+    OutputVector res(context->mark_node(fw_node)->outputs());
+    if (fw_node->get_internal_subgraphs_size() > 0) {
+        auto first_body_results = fw_node->get_function(0)->get_results();
+        std::vector<ResultVector> outputs;
+        for (int i = num_skip_body_outputs; i < num_body_outs; i++) {
+            outputs.push_back({first_body_results[i]});
+        }
+        for (int i = 1; i < fw_node->get_internal_subgraphs_size(); i++) {
+            auto current_body_results = fw_node->get_function(i)->get_results();
+            for (int i = num_skip_body_outputs; i < num_body_outs; i++) {
+                outputs[i].push_back(current_body_results[i]);
+            }
+        }
+        for (const auto& res_vec : outputs) {
+            res.push_back(fw_node->set_body_outputs(res_vec));
+        }
+    }
+    // Propagate extra outputs to external context
+    for (const auto& output : extra_outputs_map) {
         context->add_tensor_to_context(output.first, fw_node->set_body_outputs(output.second));
     }
-    return context->get_decoder()->mark_node(fw_node)->outputs();
+    return res;
 }
 
 OutputVector convert_node(NodeContext* context) {
@@ -158,23 +215,6 @@ OutputVector convert_node(NodeContext* context) {
                   << std::endl;
     }
     // Create PtFrameworkNode for everything that wasn't able to be converted normally
-    // Pay attention to subgraphs that may appear in the node
-
-    auto schema = context->get_schema();
-    if (schema.find('!') != std::string::npos) {
-        // Hack. Can indicate mutable inputs, but can it be reliable?
-        auto fw_node = std::make_shared<PtFrameworkNode>(context->get_decoder(),
-                                                         context->inputs(),
-                                                         context->get_decoder()->num_of_outputs() + 1);
-        fw_node->set_friendly_name(context->get_op_type() + ":" + std::to_string(COUNTER++));
-        auto outputs = fw_node->outputs();
-        // update writes to input 0, so we need to replace this input with output from update
-        context->mutate_input(0, outputs.back());
-        // std::cerr << "[ WARNING ] Created node with mutated 0 input. Schema: " << schema << std::endl;
-        context->get_decoder()->mark_node(fw_node);
-        return outputs;
-    }
-    
     return make_framework_node(context);
 }
 
@@ -191,8 +231,7 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
         for (int i = 0; i < inputs.size(); ++i) {
             PartialShape ps = pytorch_model->get_input_shape(i);
             auto type = simplified_type_interpret(pytorch_model->get_input_type(i));
-            auto parameter =
-                std::make_shared<opset8::Parameter>(ov::element::custom, type, ps);
+            auto parameter = std::make_shared<opset8::Parameter>(ov::element::custom, type, ps);
             parameter->get_output_tensor(0).add_names({std::to_string(pytorch_model->input(i))});
             parameters.push_back(parameter);
             auto order = pytorch_model->get_input_transpose_order(i);
@@ -215,21 +254,16 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
 
         auto node_visitor = [&](std::shared_ptr<Decoder> node) {
             // Explore all inputs of node. Node may refer to input value that hasn't been created in the current scope.
-            // But this value can be found in the outer scope, for this purpose we need to search node in
-            // external_tensor_map as well
+            // But this value can be found in the outer scope, for this purpose we create new input for the model to
+            // link with external scope on a higher level.
 
-            // std::cout << "Node visitor start: " << node->get_op_type() << ", schema: " << node->get_schema() <<
-            // std::endl;
             auto raw_inputs = node->inputs();
             for (size_t i = 0; i < raw_inputs.size(); ++i) {
                 auto input = node->input(i);
                 if (tensor_map.find(input) == tensor_map.end()) {
-                    //   input refers value in the outer scope, need to create a new Parameter in the current scope
-                    //   TODO: Connect outer scope and inner scope properly -- should be handled at the level of that
-                    //   operation that introduced this nest of scopes (e.g. loop or if)
-                    //   TODO: Eliminate duplication with the main code for Parameters creation
-                    //   TODO: There is no real search for values in outer scope because we don't need to link the usage
-                    //   and definition together at this point -- need to do that otherwise graph will fall apart
+                    // Input refers value in the outer scope, need to create a new Parameter in the current scope
+                    // Linkage to external scope will be performed on the level of the parent operation (if or loop)
+                    // TODO: Eliminate duplication with the main code for Parameters creation
                     PartialShape ps = node->get_input_shape(i);
                     auto type = simplified_type_interpret(node->get_input_type(i));
                     auto parameter = std::make_shared<opset8::Parameter>(element::custom, type, ps);
@@ -247,7 +281,7 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
             mutated_tensors.insert(mutated_t.begin(), mutated_t.end());
 
             auto fw_outputs = node->outputs();
-            // ops with subgraphs has more outputs
+            // Ops with subgraphs or with mutated inputs may have more outputs after conversion compared to pytorch ones
             FRONT_END_OP_CONVERSION_CHECK(fw_outputs.size() <= converted_outputs.size(),
                                           "Number of ",
                                           node->get_op_type(),
@@ -277,9 +311,7 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
         for (size_t i = 0; i < pytorch_model->num_of_outputs(); ++i) {
             size_t id = pytorch_model->output(i);
             if (tensor_map.find(id) == tensor_map.end()) {
-                // Not found in this scope, searching in the outer scope
-                // TODO: do real search here, skipped for now
-
+                // Not found in this scope, adding Parameter to connect to external scope
                 auto parameter = std::make_shared<opset8::Parameter>(element::dynamic, PartialShape::dynamic());
                 parameter->get_output_tensor(0).add_names({std::to_string(id)});
                 parameters.push_back(parameter);
@@ -290,8 +322,12 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
             if (order.size() > 0 && !std::is_sorted(order.begin(), order.end())) {
                 throw "Output strides have wrong order.";
             }
-            // TODO: remove when all nodes has ids
-            ov_output.add_names({std::to_string(id)});
+            FRONT_END_GENERAL_CHECK(ov_output.get_names().size() > 0,
+                                    "Tensor doesn't have name, while it should have name: ",
+                                    id);
+            FRONT_END_GENERAL_CHECK(ov_output.get_any_name().find(std::to_string(id)) != std::string::npos,
+                                    "any_name of tensor doesn't contain actual name: ",
+                                    id);
             auto result = std::make_shared<opset8::Result>(ov_output);
             results.push_back(result);
         }
@@ -329,12 +365,13 @@ std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> 
     return fw_node;
 }
 
-Any simplified_type_interpret (Any type) {
+Any simplified_type_interpret(Any type) {
     // Interpret Tensor[type] as just type
-    // After applying of this interpretation we cannot distinguish true scalars (not tensors) and tensors with elements of the same types
-    if(type.is<Type::Tensor>()) {
+    // After applying of this interpretation we cannot distinguish true scalars (not tensors) and tensors with elements
+    // of the same types
+    if (type.is<Type::Tensor>()) {
         auto tensor = type.as<Type::Tensor>();
-        if(tensor.element_type.is<element::Type>()) {
+        if (tensor.element_type.is<element::Type>()) {
             return tensor.element_type;
         }
     }

@@ -63,6 +63,7 @@ OutputVector translate_if(NodeContext& context) {
     for (int i = 0; i < num_outs; i++) {
         res.push_back(if_node->set_output(then_results[i], else_results[i]));
     }
+    // Each body can have mutated outputs that are not included into pytorch node outputs.
     std::map<size_t, std::shared_ptr<opset8::Result>> extra_then_body_results;
     std::map<size_t, std::shared_ptr<opset8::Result>> extra_else_body_results;
     std::set<size_t> extra_output_idxs;
@@ -94,6 +95,8 @@ OutputVector translate_if(NodeContext& context) {
         extra_else_body_results[output_idx] = result;
         extra_output_idxs.insert(output_idx);
     }
+    // Each extra output may not have same extra output in the other body, so we need to create Parameter->Result
+    // pattern in the body.
     for (const auto& output_idx : extra_output_idxs) {
         if (!extra_then_body_results.count(output_idx)) {
             // Need to add Parameter->Result construction in then body

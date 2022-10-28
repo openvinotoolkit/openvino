@@ -117,6 +117,10 @@ OutputVector translate_as_tensor(NodeContext& context) {
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
+        {"prim::is_cuda", return_false_scalar},
+        {"prim::requires_grad", return_false_scalar},
+        {"aten::is_grad_enabled", return_false_scalar},
+
         {"aten::relu", translate_1to1_match_1_inputs<opset8::Relu>},
         {"aten::relu_", inplace_op<translate_1to1_match_1_inputs<opset8::Relu>>},
 
@@ -305,7 +309,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
          [](NodeContext& context) -> OutputVector {
              auto axis = context.const_input<int64_t>(1);
              return {
-                 context.mark_node(std::make_shared<opset8::Softmax>(context.get_input(0), static_cast<size_t>(axis)))};
+                 context.mark_node(std::make_shared<opset8::Softmax>(context.get_input(0), axis))};
          }},
 
         //{"aten::cat", done as transformation},

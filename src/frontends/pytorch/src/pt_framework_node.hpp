@@ -1,4 +1,5 @@
 #include <openvino/op/util/framework_node.hpp>
+
 #include "utils.hpp"
 
 #pragma once
@@ -86,12 +87,12 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override {
         bool parent_visit_result = FrameworkNode::visit_attributes(visitor);
-        // TODO: serialize bodies and descriptors
-        /*for (size_t i = 0; i < m_bodies.size(); ++i) {
-            //visitor.on_attribute("body", m_bodies[i]);
-            //visitor.on_attribute("input_descriptions", m_input_descriptions[i]);
-            //visitor.on_attribute("output_descriptions", m_output_descriptions[i]);
-        }*/
+        // TODO: correctly serialize bodies and descriptors. Only 1st body information can be serialized.
+        for (size_t i = 0; i < m_bodies.size(); ++i) {
+            visitor.on_attribute("body" + std::to_string(i), m_bodies[i]);
+            //visitor.on_attribute("input_descriptions" + std::to_string(i), m_input_descriptions[i]);
+            // visitor.on_attribute("output_descriptions", m_output_descriptions[i]);
+        }
         return parent_visit_result;
     }
 
@@ -119,16 +120,16 @@ public:
             for (const auto& output_description : m_output_descriptions[i]) {
                 auto index = output_description->m_output_index;
 
-                const auto& body_value = m_bodies[i]->get_results().at(output_description->m_body_value_index)->input_value(0).get_tensor();
+                const auto& body_value =
+                    m_bodies[i]->get_results().at(output_description->m_body_value_index)->input_value(0).get_tensor();
 
                 if (auto body_output_description =
                         ov::as_type_ptr<op::v0::TensorIterator::BodyOutputDescription>(output_description)) {
                     const ov::PartialShape& ps = body_value.get_partial_shape();
                     auto et = body_value.get_element_type();
-                    if(et == element::custom) {
+                    if (et == element::custom) {
                         output(index).get_tensor().set_custom_element_type(body_value.get_custom_element_type());
-                    }
-                    else {
+                    } else {
                         set_output_type(index, et, ps);
                     }
                 }

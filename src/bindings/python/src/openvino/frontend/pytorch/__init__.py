@@ -29,7 +29,9 @@ try:
         'float': OVType.f32,
         'int': OVType.i32,
         'torch.float32': OVType.f32,
-        'torch.int32': OVType.i32
+        'torch.int32': OVType.i32,        
+        "torch.FloatTensor": OVType.f32,
+        "torch.IntTensor": OVType.i32,
     }
 
     pt_to_py_type_map = {
@@ -37,6 +39,11 @@ try:
         'int': 'int',
         'torch.float32': 'float',
         'torch.int32': 'int'
+    }
+
+    np_to_ov_type_map = {
+        'float32': OVType.f32,
+        'int32': OVType.i32,
     }
 
     class TorchScriptPythonDecoder (Decoder):
@@ -75,6 +82,8 @@ try:
             #print(f'Trying to parse type {type} of class {type.__class__}')
             # Check for simple scalar types first
             # TODO: Don't use str, use native types
+            if type is None:
+                return OVAny(OVType.dynamic)
             if str(type) in pt_to_ov_type_map:
                 #print(f'Recognized native type, type.__class__ = {type.__class__}')
                 return OVAny(pt_to_ov_type_map[str(type)])
@@ -194,33 +203,24 @@ try:
                 #print(f'[ ERROR ] Requested const value {self._raw_output(0)} from a non const prim {self.get_op_type()}')
                 return None
             pt_value = self._raw_output(0)
-            is_tensor = pt_value.isCompleteTensor()
 
-            #print(f'Decoding value type for constant value {pt_value}')
-            # DecoderType.print(self._get_known_type_for_value(pt_value.type()))
-
-            if is_tensor and str(pt_value.type().dtype()) in pt_to_py_type_map:
+            pt_type_class = pt_value.type().__class__
+            #print(f'Not a tensor, type = {pt_value.type()}\ndir = {dir(pt_value.type())}\n__class__ = {pt_value.type().__class__}')
+            if pt_type_class is torch.TensorType:
                 return self.as_constant_tensor(pt_value)
-
-            if not is_tensor:
-                pt_type_class = pt_value.type().__class__
-                #print(f'Not a tensor, type = {pt_value.type()}\ndir = {dir(pt_value.type())}\n__class__ = {pt_value.type().__class__}')
-                if pt_type_class is torch.ListType:
-                    return self.as_constant_list(pt_value)
-                #print(f'Trying to recognize value {pt_value}, type = {type(pt_value.toIValue())}, ivalue = {pt_value.toIValue()}')
-                if str(pt_value.type()) in ['torch.int32', 'int']:
-                    #print(f'Found int value=  {pt_value}, type = {type(pt_value.toIValue())}, ivalue = {pt_value.toIValue()}')
-                    return make_constant(OVType.i32, Shape([]), [pt_value.toIValue()]).outputs()
-                if str(pt_value.type()) in ['torch.float', 'torch.FloatType', 'float']:
-                    #print(f'Found float value=  {pt_value}, type = {type(pt_value.toIValue())}, ivalue = {pt_value.toIValue()}')
-                    return make_constant(OVType.f32, Shape([]), [pt_value.toIValue()]).outputs()
-                if str(pt_value.type()) in ['torch.bool', 'bool']:
-                    #print('Scalar bool detected')
-                    return make_constant(OVType.boolean, Shape([]), [pt_value.toIValue()]).outputs()
-                #print(f'Left value not converted to const, value = {pt_value}')
-            else:
-                pass
-                #print(f'Not a known type, dtype = {pt_value.type().dtype()}')
+            if pt_type_class is torch.ListType:
+                return self.as_constant_list(pt_value)
+            #print(f'Trying to recognize value {pt_value}, type = {type(pt_value.toIValue())}, ivalue = {pt_value.toIValue()}')
+            if str(pt_value.type()) in ['torch.int32', 'int']:
+                #print(f'Found int value=  {pt_value}, type = {type(pt_value.toIValue())}, ivalue = {pt_value.toIValue()}')
+                return make_constant(OVType.i32, Shape([]), [pt_value.toIValue()]).outputs()
+            if str(pt_value.type()) in ['torch.float', 'torch.FloatType', 'float']:
+                #print(f'Found float value=  {pt_value}, type = {type(pt_value.toIValue())}, ivalue = {pt_value.toIValue()}')
+                return make_constant(OVType.f32, Shape([]), [pt_value.toIValue()]).outputs()
+            if str(pt_value.type()) in ['torch.bool', 'bool']:
+                #print('Scalar bool detected')
+                return make_constant(OVType.boolean, Shape([]), [pt_value.toIValue()]).outputs()
+            #print(f'Left value not converted to const, value = {pt_value}')
 
             return None
 
@@ -234,24 +234,44 @@ try:
             return None
 
         def as_constant_tensor(self, pt_value):
-            # Constant interpretation doesn't respect new-full type of PT
-            # It recognizes only tensors, and give lists as 1D tensors, and scalars as Tensor scalars
-            # So only tensor-type constants are supported
-            ovshape = PartialShape(pt_value.type().sizes())
-            ovtype = pt_to_ov_type_map[str(pt_value.type().dtype())]
+            if pt_value.isCompleteTensor():
+                if str(pt_value.type().dtype()) in pt_to_py_type_map:
+                    # Constant interpretation doesn't respect new-full type of PT
+                    # It recognizes only tensors, and give lists as 1D tensors, and scalars as Tensor scalars
+                    # So only tensor-type constants are supported
+                    ovshape = PartialShape(pt_value.type().sizes())
+                    ovtype = pt_to_ov_type_map[str(pt_value.type().dtype())]
 
-            # TODO: try-except here is a temporary WA for issues with data_ptr that we currently cannot predict; provide better solution
-            try:
-                # this is only possible with adding a new ctor for Constant Python binding
-                #TODO Check strides and pass them somehow
-                values = pt_value.toIValue().detach().cpu().data_ptr()
-                ov_const = make_constant(ovtype, ovshape.get_shape(), values)
-            except:
-                # old variant that makes a slow data copying
-                values = pt_value.toIValue().detach().cpu().flatten().tolist()
-                ov_const = make_constant(ovtype, ovshape.get_shape(), values)
-
-            return ov_const.outputs()
+                    # TODO: try-except here is a temporary WA for issues with data_ptr that we currently cannot predict; provide better solution
+                    try:
+                        # this is only possible with adding a new ctor for Constant Python binding
+                        # TODO Check strides and pass them somehow
+                        values = pt_value.toIValue().detach().cpu().data_ptr()
+                        ov_const = make_constant(ovtype, ovshape.get_shape(), values)
+                    except:
+                        # old variant that makes a slow data copying
+                        print(f"[ WARNING ] Constant wasn't able to convert from data_ptr.")
+                        values = pt_value.toIValue().detach().cpu().flatten().tolist()
+                        ov_const = make_constant(ovtype, ovshape.get_shape(), values)
+                    return ov_const.outputs()
+            else:
+                # Incomplete tensor
+                # TODO: verify that it correctly reads incomplete consts
+                values = pt_value.toIValue().detach().cpu()
+                if values.type() in pt_to_ov_type_map:
+                    try:
+                        ovshape = PartialShape(values.size())
+                        ovtype = pt_to_ov_type_map[values.type()]
+                        ov_const = make_constant(ovtype, ovshape.get_shape(), values.data_ptr())
+                    except:
+                        # old variant that makes a slow data copying
+                        print(f"[ WARNING ] Constant wasn't able to convert from data_ptr.")
+                        nvalues = values.numpy()
+                        ovtype = np_to_ov_type_map[str(nvalues.dtype)]
+                        ovshape = PartialShape(nvalues.shape)
+                        ov_const = make_constant(ovtype, ovshape.get_shape(), nvalues.flatten().tolist())
+                    return ov_const.outputs()
+            return None
 
         def as_constant_list(self, pt_value):
             # For now it is treat a list as a 1D tensor; it is required by converters to avoid need to massively rewrite them in that part where constant attributes are queried
