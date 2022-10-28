@@ -7,7 +7,6 @@ on:
     paths:
       - 'openvino/tools/mo/**'
 
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
