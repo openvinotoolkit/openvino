@@ -32,6 +32,7 @@
 // TODO: remove this pass usage
 #include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
+#include <openvino/cc/pass/itt.hpp>
 #include <transformations/common_optimizations/dimension_tracking.hpp>
 #include <transformations/common_optimizations/fold_subgraph_empty_inputs.hpp>
 #include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
@@ -146,10 +147,10 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
       _new_api(newAPI) {
     {
         ov::pass::Manager m;
-        m.register_pass<ngraph::pass::FixRtInfo>();
-        m.register_pass<ov::pass::RemoveConcatZeroDimInput>();
-        m.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParams>();
-        m.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
+        REGISTER_PASS_SCOPE(m, ngraph::pass, FixRtInfo)
+        REGISTER_PASS_SCOPE(m, ov::pass, RemoveConcatZeroDimInput)
+        REGISTER_PASS_SCOPE(m, ov::pass, RemoveMultiSubGraphOpDanglingParams)
+        REGISTER_PASS_SCOPE(m, ov::pass, FoldSubgraphEmptyInputs)
         m.run_passes(_ngraph_function);
     }
     // Restore usual attributes for CNNNetwork
@@ -210,7 +211,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
     _ngraph_function = ngraph::clone_function(*network.getFunction());
     {
         ov::pass::Manager m;
-        m.register_pass<ngraph::pass::FixRtInfo>();
+        REGISTER_PASS_SCOPE(m, ngraph::pass, FixRtInfo)
         m.run_passes(_ngraph_function);
     }
     validateFunctionNames();
@@ -393,7 +394,7 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
 
         try {
             ngraph::pass::Manager ssr_manager;
-            ssr_manager.register_pass<ngraph::pass::SmartReshape>();
+            REGISTER_PASS_SCOPE(ssr_manager, ngraph::pass, SmartReshape)
             ssr_manager.run_passes(_ngraph_function);
 
             reshape(inputShapes);
@@ -455,14 +456,14 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
                 OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::ConvertToLegacy");
                 ::ngraph::pass::Manager manager;
                 // resolves dynamism by replacing dynamic operation with static version
-                manager.register_pass<::ngraph::pass::ConvertNMS5ToLegacyMatcher>(false);
-                manager.register_pass<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>(false);
-                manager.register_pass<::ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>(false);
-                manager.register_pass<::ngraph::pass::ConvertNMS9ToNMSIEInternal>();
-                manager.register_pass<::ngraph::pass::ConvertGP9ToGPIEInternal>();
-                manager.register_pass<::ngraph::pass::DisableConvertConstantFoldingOnConstPath>();
-                manager.register_pass<::ov::pass::DisableDecompressionConvertConstantFolding>();
-                manager.register_pass<::ngraph::pass::ConstantFolding>();
+                REGISTER_PASS_SCOPE(manager, ::ngraph::pass, ConvertNMS5ToLegacyMatcher, false)
+                REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertMulticlassNmsToMulticlassNmsIE, false)
+                REGISTER_PASS_SCOPE(manager, ::ngraph::pass, ConvertMatrixNmsToMatrixNmsIE, false)
+                REGISTER_PASS_SCOPE(manager, ::ngraph::pass, ConvertNMS9ToNMSIEInternal)
+                REGISTER_PASS_SCOPE(manager, ::ngraph::pass, ConvertGP9ToGPIEInternal)
+                REGISTER_PASS_SCOPE(manager, ::ngraph::pass, DisableConvertConstantFoldingOnConstPath)
+                REGISTER_PASS_SCOPE(manager, ::ov::pass, DisableDecompressionConvertConstantFolding)
+                REGISTER_PASS_SCOPE(manager, ::ngraph::pass, ConstantFolding)
                 // OneHotToLegacy changes output precision
                 manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(
                     specialized_ngraph_function);
@@ -542,10 +543,13 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
             custom_opsets.insert(begin(opset), end(opset));
         }
         ngraph::pass::Manager manager;
-        manager.register_pass<ov::pass::Serialize>(xmlPath,
-                                                   binPath,
-                                                   custom_opsets,
-                                                   ov::pass::Serialize::Version::IR_V10);
+        REGISTER_PASS_SCOPE(manager,
+                            ov::pass,
+                            Serialize,
+                            xmlPath,
+                            binPath,
+                            custom_opsets,
+                            ov::pass::Serialize::Version::IR_V10)
         manager.run_passes(_ngraph_function);
     } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
@@ -566,7 +570,13 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& b
             custom_opsets.insert(begin(opset), end(opset));
         }
         ngraph::pass::Manager manager;
-        manager.register_pass<ov::pass::Serialize>(xmlBuf, binBuf, custom_opsets, ov::pass::Serialize::Version::IR_V10);
+        REGISTER_PASS_SCOPE(manager,
+                            ov::pass,
+                            Serialize,
+                            xmlBuf,
+                            binBuf,
+                            custom_opsets,
+                            ov::pass::Serialize::Version::IR_V10)
         manager.run_passes(_ngraph_function);
     } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
@@ -589,7 +599,13 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binB
 
         std::stringstream binBuf;
         ngraph::pass::Manager manager;
-        manager.register_pass<ov::pass::Serialize>(xmlBuf, binBuf, custom_opsets, ov::pass::Serialize::Version::IR_V10);
+        REGISTER_PASS_SCOPE(manager,
+                            ov::pass,
+                            Serialize,
+                            xmlBuf,
+                            binBuf,
+                            custom_opsets,
+                            ov::pass::Serialize::Version::IR_V10)
         manager.run_passes(_ngraph_function);
 
         std::streambuf* pbuf = binBuf.rdbuf();
@@ -672,7 +688,7 @@ StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* respons
             inShapes[parameter->get_friendly_name()] = shape;
         }
         ngraph::pass::Manager ssr_manager;
-        ssr_manager.register_pass<ngraph::pass::SetBatchSize>();
+        REGISTER_PASS_SCOPE(ssr_manager, ngraph::pass, SetBatchSize)
         ssr_manager.run_passes(_ngraph_function);
 
         return reshape(inShapes, responseDesc);
