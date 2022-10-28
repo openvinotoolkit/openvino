@@ -88,12 +88,6 @@ void EmbeddingSegmentsSum::initFromInputs() {
     segmentIds_ = reinterpret_cast<const int *>(getParentEdgeAt(SEGMENT_ID_IDX)->getMemoryPtr()->GetPtr());
     lastNumSegments_ = getNumSegments();
 
-    if (getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetShape().isDynamic()) {
-        auto newDims = getParentEdgesAtPort(EMB_TABLE_IDX)[0]->getMemory().getStaticDims();
-        newDims[0] = numSegments_;
-        redefineOutputMemory({newDims});
-    }
-
     if (getParentEdges().size() > DEFAULT_INDEX_IDX) {
         defaultIndices_ = reinterpret_cast<const int *>(getParentEdgeAt(DEFAULT_INDEX_IDX)->getMemoryPtr()->GetPtr());
     }
