@@ -753,6 +753,7 @@ void Deconvolution::prepareParams() {
     } else {
         pAttrLocal = makePrimitiveAttr(dstMemPtr->getStaticDims());
     }
+    (*pAttrLocal).set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
     DnnlMemoryDescCPtr wghDesc;
     if (isInt8) {

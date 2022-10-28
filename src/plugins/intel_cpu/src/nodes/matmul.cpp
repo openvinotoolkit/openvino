@@ -196,6 +196,8 @@ Node::AttrPtr MatMul::initPrimitiveAttr(const VectorDims &dims) {
 
     setPostOps(*attr, dims, true);
 
+    (*attr).set_scratchpad_mode(dnnl::scratchpad_mode::user);
+
     return attr;
 }
 

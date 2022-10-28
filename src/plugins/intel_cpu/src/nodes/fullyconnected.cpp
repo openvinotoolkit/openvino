@@ -226,6 +226,7 @@ void FullyConnected::prepareParams() {
 
     AttrPtr attr = std::make_shared<dnnl::primitive_attr>();
     setPostOps(*attr, dstMemPtr->getStaticDims());
+    (*attr).set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
     DnnlMemoryDescCPtr weightDesc = wghMemPtr->GetDescWithType<DnnlMemoryDesc>();
     DnnlMemoryDescCPtr biasDesc = nullptr;

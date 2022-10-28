@@ -178,8 +178,10 @@ void Lrn::prepareParams() {
         DnnlDesriptor desc(std::shared_ptr<dnnl::lrn_forward::desc>(
             new dnnl::lrn_forward::desc(dnnl::prop_kind::forward_scoring, key.alg, key.inp0->getDnnlDesc(), key.size, key.alpha, key.beta, key.k)));
 
+        dnnl::primitive_attr attr;
+        attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
         dnnl::lrn_forward::primitive_desc prim_desc;
-        dnnl::primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine);
+        dnnl::primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, attr);
         while (static_cast<bool>(itpd)) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
             if (impl_type == key.implType) {

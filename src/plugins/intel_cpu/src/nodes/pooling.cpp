@@ -620,6 +620,8 @@ Node::AttrPtr Pooling::initPrimitiveAttr() {
 
     setPostOps(*attr);
 
+    (*attr).set_scratchpad_mode(dnnl::scratchpad_mode::user);
+
     return attr;
 }
 
