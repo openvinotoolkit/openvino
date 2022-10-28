@@ -5,9 +5,8 @@
 #include <openvino/core/validation_util.hpp>
 #include <openvino/op/gru_cell.hpp>
 
-#include "gru_sequence_shape_inference.hpp"
 #include "gru_cell_shape_inference.hpp"
-
+#include "gru_sequence_shape_inference.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -18,22 +17,22 @@ namespace rnn_seq {
 // output_shapes[0]: [batch_size, hidden_size] // Rank always 2
 template <class OpType, class ShapeType>
 void gru_cell_shape_infer(const OpType* op,
-                     const std::vector<ShapeType>& input_shapes,
-                     std::vector<ShapeType>& output_shapes) {
+                          const std::vector<ShapeType>& input_shapes,
+                          std::vector<ShapeType>& output_shapes) {
     NODE_VALIDATION_CHECK(op,
                           input_shapes.size() >= 5 && output_shapes.size() == 1,
                           "Incorrect number of shapes has been provided.");
 
     auto& y_out_shape = output_shapes[0];
-    y_out_shape.resize(2);   // Rank always 2
+    y_out_shape.resize(2);  // Rank always 2
 
     rnn_seq::validate_inputs_rank(op, input_shapes, {2, 2, 2, 2, 1});
 
-    const auto& x_pshape = input_shapes[0]; // [batch_size, input_size]
-    const auto& ht_pshape = input_shapes[1]; // [batch_size, hidden_size]
-    const auto& w_pshape = input_shapes[2]; // [3 * hidden_size, input_size]
-    const auto& r_pshape = input_shapes[3]; // [3 * hidden_size, hidden_size]
-    const auto& b_pshape = input_shapes[4]; // if linear_before_reset [4 * hidden_size], otherwise [3 * hidden_size]
+    const auto& x_pshape = input_shapes[0];   // [batch_size, input_size]
+    const auto& ht_pshape = input_shapes[1];  // [batch_size, hidden_size]
+    const auto& w_pshape = input_shapes[2];   // [3 * hidden_size, input_size]
+    const auto& r_pshape = input_shapes[3];   // [3 * hidden_size, hidden_size]
+    const auto& b_pshape = input_shapes[4];   // if linear_before_reset [4 * hidden_size], otherwise [3 * hidden_size]
 
     using DimType = typename std::iterator_traits<typename ShapeType::iterator>::value_type;
 
@@ -50,11 +49,10 @@ void gru_cell_shape_infer(const OpType* op,
     // Merge hidden_size dimension across all inputs to evaluate output dimension
     // `hidden_size` attribute is not used for backward compatibility
     DimType merged_hidden_size = ht_pshape.rank().is_static() ? ht_pshape[1] : DimType();
-    NODE_VALIDATION_CHECK(op,
-                              DimType::merge(merged_hidden_size,
-                                             merged_hidden_size,
-                                             r_pshape.rank().is_static() ? r_pshape[1] : DimType()),
-                          "Dimension `hidden_size` is not matched between inputs.");
+    NODE_VALIDATION_CHECK(
+        op,
+        DimType::merge(merged_hidden_size, merged_hidden_size, r_pshape.rank().is_static() ? r_pshape[1] : DimType()),
+        "Dimension `hidden_size` is not matched between inputs.");
 
     // Validate dimensions related to hidden_size for W, R, B inputs
     if (merged_hidden_size.is_static()) {
