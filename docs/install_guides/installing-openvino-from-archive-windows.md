@@ -56,24 +56,31 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
 
 ### <a name="install-openvino"></a>Step 1: Download and Install OpenVINO Core Components
 
-1. Create an 'Intel' folder in the `C:\Program Files (x86)\` directory for OpenVINO and browse to it. 
-   You can also do this via command-lines by opening a command prompt window as administrator and running the following commands (skip the `mkdir` command if the `C:\Program Files (x86)\Intel` folder already exists):
+1. Create an 'Intel' folder in the `C:\Program Files (x86)\` directory. Skip this step if the folder already exists.
+   You can also do this via command-lines. Open a new command prompt window as administrator by right-clicking **Command Prompt** from the Start menu and select **Run as administrator**, and then run the following commands:
    ```sh
    mkdir "C:\Program Files (x86)\Intel"
-   cd "C:\Program Files (x86)\Intel"
    ```
    > **NOTE**: C:\Program Files (x86)\Intel is the recommended folder. You may also use a different path if desired or if you don't have administrator privileges on your computer.
 
-2. Download the OpenVINO Runtime archive file for Windows from the [OpenVINO releases page](https://github.com/openvinotoolkit/openvino/releases/tag/2022.2.0), extract it to `C:\Program Files (x86)\Intel`, and rename the extracted folder to `openvino_2022.2.0.7713`.
-   If you want to use command-lines for this step, run the following commands in the command prompt window you opened:
+2. Download the OpenVINO Runtime archive file for Windows from the [OpenVINO releases page](https://github.com/openvinotoolkit/openvino/releases/tag/2022.2.0) to your local `Downloads` folder.
+   If you prefer using command-lines, run the following commands in the command prompt window you opened:
    ```sh
+   cd <user_home>/Downloads
    curl -L https://github.com/openvinotoolkit/openvino/releases/download/2022.2.0/w_openvino_toolkit_windows_2022.2.0.7713.af16ea1d79a_x86_64.zip --output openvino_2022.2.0.7713.zip
-   tar -xf openvino_2022.2.0.7713.zip
-   ren w_openvino_toolkit_windows_2022.2.0.7713.af16ea1d79a_x86_64 openvino_2022.2.0.7713
    ```
 
-3. For simplicity, it is useful to create a symbolic link. Browse to `C:\Program Files (x86)\Intel` and run the following command in a command prompt window:
+3. Use your favorite tool to extract the archive file, rename the extracted folder as `openvino_2022.2.0.7713`, and move it to the `C:\Program Files (x86)\Intel` directory.
+   To do this step using command-lines, run the following commands in the command prompt window you opened:
    ```sh
+   tar -xf openvino_2022.2.0.7713.zip
+   ren w_openvino_toolkit_windows_2022.2.0.7713.af16ea1d79a_x86_64 openvino_2022.2.0.7713
+   move openvino_2022.2.0.7713 "C:\Program Files (x86)\Intel"
+   ```
+
+4. For simplicity, it is useful to create a symbolic link. Open a command prompt window as administrator (if you haven't done it yet, refer to Step 1), and run the following command:
+   ```sh
+   cd C:\Program Files (x86)\Intel
    mklink /D openvino_2022 openvino_2022.2.0.7713
    ```
    > **NOTE**: If you have already installed a previous release of OpenVINO 2022, a symbolic link to the `openvino_2022` folder may already exist. If you want to override it, nagivate to the `C:\Program Files (x86)\Intel` folder and delete the existing linked folder before running the `mklink` command.
