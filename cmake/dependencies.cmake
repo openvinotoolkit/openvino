@@ -295,7 +295,7 @@ if(ENABLE_INTEL_GNA)
             libGNA_INCLUDE_DIRS
             libGNA_LIBRARIES_BASE_PATH)
         set(GNA_VERSION "03.05.00.1868")
-        set(GNA_HASH "5dc0ee62b21d7c2c348c226ab9c8f6b98481e23095ab99debf5c33854da8a475")
+        set(GNA_HASH "f28223d4de4ae62bc8ac286b269d5611b06ddb11b8e4bff41d278c1b9a200a29")
 
         set(FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/include)
         if(WIN32)
@@ -304,13 +304,15 @@ if(ENABLE_INTEL_GNA)
             LIST(APPEND FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/linux)
         endif()
 
+        set(IE_PATH_TO_DEPS "http://10-211-120-125.iotg.sclab.intel.com/dl_score_engine")
         RESOLVE_DEPENDENCY(GNA_EXT_DIR
-                ARCHIVE_UNIFIED "gna/GNA_${GNA_VERSION}.zip"
+                ARCHIVE_UNIFIED "GNA/GNA_${GNA_VERSION}.zip"
                 TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"
                 VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
                 FILES_TO_EXTRACT FILES_TO_EXTRACT_LIST
                 SHA256 ${GNA_HASH}
-                USE_NEW_LOCATION TRUE)
+                USE_NEW_LOCATION FALSE)
+        unset(IE_PATH_TO_DEPS)
     update_deps_cache(GNA_EXT_DIR "${GNA_EXT_DIR}" "Path to GNA root folder")
     debug_message(STATUS "gna=" ${GNA_EXT_DIR})
 
