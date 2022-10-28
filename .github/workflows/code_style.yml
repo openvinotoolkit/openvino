@@ -40,13 +40,12 @@ jobs:
           cmake --build build --target clang_format_fix_all -j8
           git diff > code_style_diff.diff
 
-      - name: Install reviewdog
+      - name: suggester / clang-format
         if: failure() && startsWith(github.event_name, 'pull_request')
-        uses: reviewdog/action-setup@v1
-
-      - name: Run reviewdog
-        if: failure() && startsWith(github.event_name, 'pull_request')
-        run: reviewdog -f=diff -f.diff.strip=1 -reporter=github-pr-review < code_style_diff.diff
+        uses: reviewdog/action-suggester@v1
+        with:
+          level: error
+          tool_name: clang-format
 
       - uses: actions/upload-artifact@v2
         if: failure()
