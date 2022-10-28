@@ -4,6 +4,7 @@
 from openvino.tools.mo.back.replacement import BackReplacementPattern
 from openvino.tools.mo.graph.graph import Graph, rename_nodes
 from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined
 
 
 class ShapeOfConstFolding(BackReplacementPattern):
