@@ -155,10 +155,6 @@ void shape_infer(const StridedSlice* op,
             }
             // skip this dimension if shrink_axis_mask is set
             else if (shrink_axis_mask.count(axis)) {
-                auto shrink_dim = input_shape[input_shape_idx];
-                NODE_VALIDATION_CHECK(op,
-                                      shrink_dim.is_dynamic() || shrink_dim.get_length() == 1,
-                                      "Shrunk dimension must be dynamic or equal to one.");
                 input_shape_idx++;
             }
             // calculating dimension (begin, end, begin_mask, end_mask, stride)
