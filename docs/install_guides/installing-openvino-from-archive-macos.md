@@ -11,9 +11,14 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
 ## System Requirements
 
 @sphinxdirective
+
 .. tab:: Operating Systems
 
   macOS 10.15
+  
+   .. note::
+   
+      The package can also be installed on macOS x86 versions higher than 10.15, but only the specific versions listed here are fully validated.
 
 .. tab:: Hardware
 
@@ -35,8 +40,6 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
   * Apple Xcode Command Line Tools. In the terminal, run `xcode-select --install` from any directory
   * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
 
-.. note::
-   The package can also be installed on macOS x86 versions higher than 10.15, but only the specific versions listed here are fully validated.
 @endsphinxdirective
 
 ## Installing OpenVINO Runtime
@@ -44,21 +47,25 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
 ### <a name="install-core"></a>Step 1: Install OpenVINO Core Components
 
 1. Open a command prompt terminal window. 
-2. Create the `/opt/intel` folder for OpenVINO and switch to it by using the following commands. If the folder already exists, skip the `mkdir` command.
+2. Create the `/opt/intel` folder for OpenVINO by using the following command. If the folder already exists, skip this command.
    ```sh
    sudo mkdir /opt/intel
-   cd /opt/intel
    ```
    > **NOTE**: The `/opt/intel` path is the recommended folder path for installing OpenVINO. You may use a different path if desired.
 
-3. Download the OpenVINO Runtime archive file for macOS from the [OpenVINO releases page](https://github.com/openvinotoolkit/openvino/releases/tag/2022.2.0), extract it, and rename the extracted folder to `openvino_2022.2.0.7713` by using the following commands:
+3. Browse to the current user's `Downloads` folder:
    ```sh
-   sudo curl -L https://github.com/openvinotoolkit/openvino/releases/download/2022.2.0/m_openvino_toolkit_osx_2022.2.0.7713.af16ea1d79a_x86_64.tgz --output openvino_2022.2.0.7713.tgz
-   sudo tar -xf openvino_2022.2.0.7713.tgz
-   sudo mv m_openvino_toolkit_osx_2022.2.0.7713.af16ea1d79a_x86_64 openvino_2022.2.0.7713
+    cd <user_home>/Downloads
+    ```
+    
+4. Download the OpenVINO Runtime archive file for macOS from the [OpenVINO releases page](https://github.com/openvinotoolkit/openvino/releases/tag/2022.2.0), extract the files, rename the extracted folder and move it to the desired path::
+   ```sh
+   curl -L https://github.com/openvinotoolkit/openvino/releases/download/2022.2.0/m_openvino_toolkit_osx_2022.2.0.7713.af16ea1d79a_x86_64.tgz --output openvino_2022.2.0.7713.tgz
+   tar -xf openvino_2022.2.0.7713.tgz
+   sudo mv m_openvino_toolkit_osx_2022.2.0.7713.af16ea1d79a_x86_64 /opt/intel/openvino_2022.2.0.7713
    ```
 
-4. For simplicity, it is useful to create a symbolic link as below:
+5. For simplicity, it is useful to create a symbolic link as below:
    ```
    sudo ln -s openvino_2022.2.0.7713 openvino_2022
    ```
