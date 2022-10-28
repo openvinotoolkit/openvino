@@ -230,10 +230,7 @@ ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
         // remote split output transposes
         for (size_t output_idx = 0; output_idx < split->get_output_size(); ++output_idx) {
             for (auto& input : split->get_output_target_inputs(output_idx)) {
-                auto transpose_consumers = input.get_node()->output(0).get_target_inputs();
-                for (auto& consumer : transpose_consumers) {
-                    consumer.replace_source_output(split->output(output_idx));
-                }
+                input.get_node()->output(0).replace(split->output(output_idx));
             }
         }
         return true;
@@ -369,10 +366,7 @@ ov::pass::TransposeSinkingElementwiseBackward::TransposeSinkingElementwiseBackwa
         }
 
         // remove transpose after main node
-        auto transpose_consumers = transpose->output(0).get_target_inputs();
-        for (auto& consumer : transpose_consumers) {
-            consumer.replace_source_output(main_node);
-        }
+        transpose->output(0).replace(main_node);
 
         SwapNames(transpose, main_node);
 
