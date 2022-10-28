@@ -39,7 +39,7 @@ TEST(attributes, gru_cell_op) {
                                                        activations_beta,
                                                        clip,
                                                        false);
-    NodeBuilder builder(gru_cell);
+    NodeBuilder builder(gru_cell, {X, initial_hidden_state, W, R});
     auto g_gru_cell = ov::as_type_ptr<opset5::GRUCell>(builder.create());
 
     EXPECT_EQ(g_gru_cell->get_hidden_size(), gru_cell->get_hidden_size());
