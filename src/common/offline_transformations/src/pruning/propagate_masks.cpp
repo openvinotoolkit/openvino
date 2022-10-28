@@ -1474,11 +1474,12 @@ public:
             }
 
             uint64_t split_start = 0;
-            uint64_t split_end = split_lengths[0];
+            uint64_t split_end = 0;
             std::vector<Mask::Ptr> output_masks;
             std::vector<Mask*> output_masks_raw;
             Mask* input_mask_raw = input_mask.get();
             for (size_t i = 0; i < split->get_output_size(); i++) {
+                split_end += split_lengths[i];
                 auto output_mask = std::make_shared<Mask>();
                 output_mask->copy_and_slice_mask_from(input_mask_raw, axis, split_start, split_end);
                 output_masks.push_back(output_mask);
@@ -1490,15 +1491,12 @@ public:
                     },
                     input_mask);
                 split_start = split_end;
-                if (i + 1 < split_lengths.size())
-                    split_end += split_lengths[i + 1];
                 setMask(split->output(i), output_masks[i]);
             }
 
             auto input_mask_callback = [output_masks_raw, axis, split_lengths](Mask::Ptr cur_mask) -> bool {
                 cur_mask->clean_dim_values();
                 uint64_t split_start = 0;
-                uint64_t split_end = split_lengths[0];
                 for (size_t i = 0; i < output_masks_raw.size(); i++) {
                     auto mask = output_masks_raw[i];
                     for (size_t j = 0; j < mask->size(); j++) {
@@ -1510,11 +1508,8 @@ public:
                             (*cur_mask)[j] = set;
                         }
                     }
-                    split_start = split_end;
-                    if (i + 1 < split_lengths.size())
-                        split_end += split_lengths[i + 1];
+                    split_start += split_lengths[i];
                 }
-                cur_mask->initialize_dependencies();
                 return true;
             };
 
@@ -1583,9 +1578,7 @@ public:
                 [output_masks_raw, axis, split_dim, split_step, num_splits](Mask::Ptr cur_mask) -> bool {
                 cur_mask->clean_dim_values();
                 uint64_t split_start = 0;
-                uint64_t split_end = split_step;
-                for (size_t i = 0; i < output_masks_raw.size(); i++) {
-                    auto mask = output_masks_raw[i];
+                for (auto mask : output_masks_raw) {
                     for (size_t j = 0; j < mask->size(); j++) {
                         const auto& set = (*mask)[j];
                         if (j == axis) {
@@ -1595,8 +1588,7 @@ public:
                             (*cur_mask)[j] = set;
                         }
                     }
-                    split_start = split_end;
-                    split_end += split_step;
+                    split_start += split_step;
                 }
                 cur_mask->initialize_dependencies();
                 return true;

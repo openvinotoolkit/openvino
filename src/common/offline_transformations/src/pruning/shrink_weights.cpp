@@ -93,7 +93,6 @@ static bool handle_variadic_split(const std::shared_ptr<ov::Node>& split) {
 
     std::vector<int64_t> sub_values;
     bool sub_with_zero = true;
-    bool negative_split_lengths = true;
 
     // adjust split_lengths by size of the set for axis in mask
     for (size_t i = 0; i < split->get_output_size(); i++) {
@@ -104,7 +103,6 @@ static bool handle_variadic_split(const std::shared_ptr<ov::Node>& split) {
         if (split_lengths[i] == -1 && set_size > 0) {
             const auto& shape = split->get_output_partial_shape(i);
             sub_values.push_back(-1 - (shape[axis].get_length() - set_size));
-            negative_split_lengths = true;
         } else {
             sub_values.push_back(set_size);
         }
