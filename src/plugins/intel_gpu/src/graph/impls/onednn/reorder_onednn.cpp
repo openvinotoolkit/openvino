@@ -46,7 +46,7 @@ protected:
 
         auto input_layout = impl_params.get_input_layout(0);
         auto output_layout = impl_params.output_layout;
-        auto& engine = impl_params.prog.get_engine();
+        auto& engine = impl_params.prog->get_engine();
 
         auto input_md = onednn::layout_to_memory_desc(input_layout);
         auto output_md = onednn::layout_to_memory_desc(output_layout);
@@ -61,7 +61,7 @@ protected:
 
 public:
     static primitive_impl* create(const reorder_node& arg, const kernel_impl_params& impl_params) {
-        auto& engine = impl_params.prog.get_engine();
+        auto& engine = impl_params.prog->get_engine();
         auto attr = arg.get_onednn_primitive_attributes();
         auto desc = get_reorder_descriptor(impl_params, *attr);
 

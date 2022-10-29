@@ -86,7 +86,7 @@ protected:
 
 public:
     static primitive_impl* create(const reduce_node& arg, const kernel_impl_params& impl_params) {
-        auto& engine = impl_params.prog.get_engine();
+        auto& engine = impl_params.prog->get_engine();
         auto desc = get_reduction_descriptor(impl_params);
         auto attr = arg.get_onednn_primitive_attributes();
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};

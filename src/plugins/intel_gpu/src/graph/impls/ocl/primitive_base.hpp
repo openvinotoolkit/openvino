@@ -173,8 +173,8 @@ protected:
             std::vector<event::ptr> new_events;
             for (decltype(split) i = 0; i < split; i++) {
                 // is any user of the prim's users is an detecion output, set prim as a output event (event won't be nullptr)
-                auto users = instance.node.get_users();
-                bool is_output_event = is_any_user_cpu(users) || instance.node.is_output();
+                auto users = instance.node->get_users();
+                bool is_output_event = is_any_user_cpu(users) || instance.node->is_output();
 
                 auto args = get_arguments(instance, i);
                 args.scalars = &_kernel_data.kernels[k].params.scalars;

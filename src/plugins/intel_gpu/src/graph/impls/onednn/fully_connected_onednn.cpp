@@ -36,7 +36,7 @@ protected:
         bool res = true;
 
         auto outer_id = instance.id();
-        auto data_type = instance.node.input().get_output_layout().data_type;
+        auto data_type = instance.node->input().get_output_layout().data_type;
 
         // Integer signed/unsigned is ok for fully connected
         CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(outer_id,
@@ -165,7 +165,7 @@ protected:
 
 public:
     static primitive_impl* create(const fully_connected_node& arg, const kernel_impl_params& impl_params) {
-        auto& engine = impl_params.prog.get_engine();
+        auto& engine = impl_params.prog->get_engine();
         auto desc = get_fully_connected_descriptor(impl_params);
         auto attr = arg.get_onednn_primitive_attributes();
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};

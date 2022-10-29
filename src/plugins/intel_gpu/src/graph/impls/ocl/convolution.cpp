@@ -46,14 +46,14 @@ protected:
     bool validate_impl(const typed_primitive_inst<convolution>& instance) const override {
         bool res = true;
 
-        auto data_type = instance.node.input().get_output_layout().data_type;
+        auto data_type = instance.node->input().get_output_layout().data_type;
 
         // Integer signed/unsigned is ok for convoluiton
         CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(_node_id,
                                                     "Input memory",
                                                     data_type,
                                                     "filter memory",
-                                                    instance.node.weights().get_output_layout().data_type,
+                                                    instance.node->weights().get_output_layout().data_type,
                                                     "");
 
         return res;

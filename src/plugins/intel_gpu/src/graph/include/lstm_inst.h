@@ -60,12 +60,12 @@ public:
         return dep_memory(bias_term() ? (initial_hidden_term() ? 5 : 4) : (initial_hidden_term() ? 4 : 2));
     }
     memory& peepholes_memory() const { return dep_memory(6); }
-    bool bias_term() const { return !argument.bias.empty(); }
-    bool peepholes_term() const { return !argument.peepholes.empty(); }
-    bool initial_hidden_term() const { return !argument.initial_hidden.empty(); }
-    bool initial_cell_term() const { return !argument.initial_cell.empty(); }
-    std::vector<activation_func> activations() const { return argument.activations; }
-    std::vector<activation_additional_params> activation_params() const { return argument.activation_params; }
+    bool bias_term() const { return !argument->bias.empty(); }
+    bool peepholes_term() const { return !argument->peepholes.empty(); }
+    bool initial_hidden_term() const { return !argument->initial_hidden.empty(); }
+    bool initial_cell_term() const { return !argument->initial_cell.empty(); }
+    std::vector<activation_func> activations() const { return argument->activations; }
+    std::vector<activation_additional_params> activation_params() const { return argument->activation_params; }
 };
 
 using lstm_inst = typed_primitive_inst<lstm>;

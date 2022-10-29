@@ -44,7 +44,7 @@ protected:
 
         CLDNN_ERROR_NOT_EQUAL(_node_id,
                               "deconvolution filling value",
-                              instance.node.get_output_layout().data_padding.filling_value(),
+                              instance.node->get_output_layout().data_padding.filling_value(),
                               "padding mode",
                               0.0f,
                               "Unknown padding mode in deconvolution.");

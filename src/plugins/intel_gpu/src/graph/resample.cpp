@@ -79,7 +79,7 @@ std::vector<layout> resample_inst::calc_output_layouts(resample_node const& /*no
     if (memory_deps.count(1)) {
         auto pattern_mem = memory_deps.at(1);
 
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> pattern_lock(pattern_mem, impl_param.prog.get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> pattern_lock(pattern_mem, impl_param.prog->get_stream());
 
         auto pattern_ptr = pattern_lock.data();
         auto pattern_tensor = make_host_tensor(pattern_mem->get_layout(), pattern_ptr);

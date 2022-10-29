@@ -16,10 +16,10 @@ struct assign_impl : public typed_primitive_impl<assign> {
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, assign_inst& instance) override {
         const auto arg = instance.argument;
-        const auto variable_id = arg.variable_id;
+        const auto variable_id = arg->variable_id;
         auto& variable = instance.get_network().get_variable_memory(variable_id);
 
-        if (variable.memory->get_layout() != arg.output_layout) {
+        if (variable.memory->get_layout() != arg->output_layout) {
             CLDNN_ERROR_MESSAGE(instance.id(), "Layout mismatch");
         }
 

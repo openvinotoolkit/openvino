@@ -53,8 +53,8 @@ public:
         CLDNN_ERROR_BOOL(id(), "Bias term", !bias_term(), "Trying to get non existing bias memory.");
         return dep_memory_ptr(3);
     }
-    int32_t direction() const { return node.direction(); }
-    bool bias_term() const { return node.bias_term(); }
+    int32_t direction() const { return node->direction(); }
+    bool bias_term() const { return node->bias_term(); }
 };
 
 using lstm_dynamic_input_inst = typed_primitive_inst<lstm_dynamic_input>;

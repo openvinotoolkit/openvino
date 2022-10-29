@@ -52,11 +52,11 @@ public:
     typed_primitive_inst(network& network, fully_connected_node const& node);
 
     memory::ptr weights_memory() const {
-        return _node.is_dynamic() && _impl_params->reordered_weights != nullptr ? _impl_params->reordered_weights : dep_memory_ptr(1);
+        return _node->is_dynamic() && _impl_params->reordered_weights != nullptr ? _impl_params->reordered_weights : dep_memory_ptr(1);
     }
     memory::ptr bias_memory() const { return dep_memory_ptr(2); }
 
-    bool bias_term() const { return !argument.bias.empty(); }
+    bool bias_term() const { return !argument->bias.empty(); }
 };
 
 using fully_connected_inst = typed_primitive_inst<fully_connected>;

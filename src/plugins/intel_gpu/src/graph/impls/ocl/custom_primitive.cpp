@@ -70,7 +70,7 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
             args.inputs.push_back(dep->output_memory_ptr());
         }
         args.outputs = { instance.output_memory_ptr() };
-        return stream.enqueue_kernel(*_kernels.front(), cl_kernel.get()->params, args, events, instance.node.is_output());
+        return stream.enqueue_kernel(*_kernels.front(), cl_kernel.get()->params, args, events, instance.node->is_output());
     }
 
     std::vector<std::string> get_kernel_ids() override {

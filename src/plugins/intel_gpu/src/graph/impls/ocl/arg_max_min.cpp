@@ -48,7 +48,7 @@ protected:
     kernel_arguments_data get_arguments(typed_primitive_inst<arg_max_min>& instance, int32_t) const override {
         kernel_arguments_data args = parent::get_arguments(instance, 0);
 
-        if (instance.node.has_second_output()) {
+        if (instance.node->has_second_output()) {
             args.inputs.erase(args.inputs.begin() + 1);  // erase constant input in case of TOP_K
         }
 

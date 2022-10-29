@@ -45,7 +45,7 @@ protected:
     kernel_arguments_data get_arguments(typed_primitive_inst<roi_pooling>& instance, int32_t) const override {
         kernel_arguments_data args;
 
-        if (instance.argument.mode == pooling_mode::deformable_bilinear && !instance.argument.no_trans)
+        if (instance.argument->mode == pooling_mode::deformable_bilinear && !instance.argument->no_trans)
             args.inputs = {
                 instance.input_memory_ptr(),
                 instance.rois_memory(),

@@ -30,8 +30,8 @@ protected:
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
             args.inputs.push_back(instance.input_memory_ptr(i));
         }
-        if (instance.node.get_scale_shift_opt()) {
-            if (instance.node.get_dependencies().size() == 9) {
+        if (instance.node->get_scale_shift_opt()) {
+            if (instance.node->get_dependencies().size() == 9) {
                 args.inputs.push_back(instance.dep_memory_ptr(5));
                 args.inputs.push_back(instance.dep_memory_ptr(6));
                 args.inputs.push_back(instance.dep_memory_ptr(7));
