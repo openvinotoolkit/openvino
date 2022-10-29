@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os.path
-# import os.readlink, os.unlink, os.rename
 import sys
 import errno
 import subprocess  # nosec
@@ -401,7 +400,6 @@ def set_rpath(rpath, executable):
             if file.read(1) != b"\x7f":
                 log.warn(f"WARNING: {executable}: missed ELF header")
                 return
-        # TODO: use patchelf module
         rpath_tool = "patchelf"
         cmd = [rpath_tool, "--set-rpath", rpath, executable]
     elif sys.platform == "darwin":
