@@ -28,7 +28,6 @@ protected:
         char* info = nullptr;
         const char* key = ov_property_key_available_devices;
         if (ov_core_get_property(core, "GPU", key, &info) != ov_status_e::OK) {
-            ov_core_free(core);
             GTEST_SKIP();
         }
         ov_free(info);
@@ -382,29 +381,29 @@ TEST_P(ov_remote_context_ocl, create_remote_tensor_inference) {
         size *= shape.dims[i];
     }
 
-    switch(tensor_type){
-        case ov_element_type_e::BF16:
-        case ov_element_type_e::F16:
-        case ov_element_type_e::I16:
-        case ov_element_type_e::U16:
-            size *= 2;
-            break;
-        case ov_element_type_e::F32:
-        case ov_element_type_e::U32:
-        case ov_element_type_e::I32:
-            size *= 4;
-            break;
-        case ov_element_type_e::I8:
-        case ov_element_type_e::U8:
-            size *= 1;
-        case ov_element_type_e::U64:
-        case ov_element_type_e::I64:
-            size *= 8;
-            break;
-        default:
-            break;
+    switch (tensor_type) {
+    case ov_element_type_e::BF16:
+    case ov_element_type_e::F16:
+    case ov_element_type_e::I16:
+    case ov_element_type_e::U16:
+        size *= 2;
+        break;
+    case ov_element_type_e::F32:
+    case ov_element_type_e::U32:
+    case ov_element_type_e::I32:
+        size *= 4;
+        break;
+    case ov_element_type_e::I8:
+    case ov_element_type_e::U8:
+        size *= 1;
+    case ov_element_type_e::U64:
+    case ov_element_type_e::I64:
+        size *= 8;
+        break;
+    default:
+        break;
     }
-  
+
     cl_int err = 0;
     cl::Buffer cl_buffer_tmp = cl::Buffer(cl_context, CL_MEM_READ_WRITE, static_cast<cl::size_type>(size), NULL, &err);
     OV_EXPECT_OK(ov_remote_context_create_tensor(context,
