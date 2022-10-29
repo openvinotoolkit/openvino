@@ -286,21 +286,13 @@ class PrepareLibs(build_clib):
             for file_path in local_base_dir.rglob("*"):
                 file_name = os.path.basename(file_path)
                 if file_path.is_symlink():
-                    # XXXX
-                    from os import readlink, link, remove, unlink, rename
-                    real_file = readlink(file_path)
-                    if not os.path.isabs(real_file):
-                        real_file = os.path.join(os.path.dirname(file_path), real_file)
-                    unlink(file_path)
-                    self.announce(f"Resolved {file_path} as {real_file}", level=3)
-                    rename(real_file, file_path)
-
+                    sys.exit(f"Wheel package content must not contain symlinks: {file_path}")
                 if file_path.is_file() and not any(file_name.endswith(ext) for ext in blacklist):
                     dst_file = os.path.join(package_dir, os.path.relpath(file_path, local_base_dir))
                     os.makedirs(os.path.dirname(dst_file), exist_ok=True)
                     copyfile(file_path, dst_file)
                     self.announce(f"Copy {file_path} to {dst_file}", level=3)
-                
+
         self.announce(f"!!!!!!!!!!!!! End copy after installation", level=3)
 
         # TODO: adding extra stuff
@@ -329,7 +321,7 @@ class CopyExt(build_ext):
             # setting relative path to find dlls
             if sys.platform != "win32":
                 rpath = os.path.relpath(get_package_dir(PY_INSTALL_CFG), os.path.dirname(src))
-                # TODO: print this 
+                # TODO: print this
                 rpath = os.path.join(LIBS_RPATH, rpath, WHEEL_LIBS_INSTALL_DIR)
                 set_rpath(rpath, os.path.realpath(src))
 
