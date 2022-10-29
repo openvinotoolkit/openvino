@@ -49,6 +49,7 @@ if [ -f /etc/lsb-release ]; then
             unzip \
             shellcheck \
             patchelf \
+            fdupes \
             lintian \
             file \
             gzip \
@@ -121,6 +122,7 @@ elif [ -f /etc/redhat-release ]; then
             gcc-c++ \
             make \
             patchelf \
+            fdupes \
             pkg-config \
             gflags-devel.i686 \
             zlib-devel.i686 \

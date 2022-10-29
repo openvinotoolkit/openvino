@@ -267,7 +267,7 @@ class PrepareLibs(build_clib):
             # set rpath if applicable
             if sys.platform != "win32" and comp_data.get("rpath"):
                 for path in filter(
-                    lambda x: any(item in ([".so"] if sys.platform == "linux" else [".dylib", ".so"]) \
+                    lambda x: any(item in ([".so"] if sys.platform == "linux" else [".dylib", ".so"])
                         for item in x.suffixes), Path(install_dir).glob("*"),
                 ):
                     set_rpath(comp_data["rpath"], os.path.realpath(path))
@@ -280,7 +280,7 @@ class PrepareLibs(build_clib):
 
         for src_dir in src_dirs:
             local_base_dir = Path(src_dir)
-            
+
             # skip symlinks of higher level like libX.so or libX.dylib
             for symlink in local_base_dir.rglob("*"):
                 if symlink.is_symlink():
@@ -443,8 +443,7 @@ def find_prebuilt_extensions(search_dirs):
         ext_pattern = "**/*.so"
     for base_dir in search_dirs:
         for path in Path(base_dir).glob(ext_pattern):
-            if path.match("openvino/libs/*") or \
-               path.match(f"openvino/libs/openvino-{openvino_version}/*"):
+            if path.match("openvino/libs/*") or path.match(f"openvino/libs/openvino-{openvino_version}/*"):
                 continue
             relpath = path.relative_to(base_dir)
             if relpath.parent != ".":
@@ -453,7 +452,6 @@ def find_prebuilt_extensions(search_dirs):
                 package_names = []
             package_names.append(path.name.split(".", 1)[0])
             name = ".".join(package_names)
-            print(f"Add {name} as a prebuilt extesions")
             extensions.append(PrebuiltExtension(name, sources=[str(path)]))
     if not extensions:
         extensions.append(PrebuiltExtension("openvino", sources=[str("setup.py")]))
