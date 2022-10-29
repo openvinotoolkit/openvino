@@ -281,15 +281,28 @@ class PrepareLibs(build_clib):
         for src_dir in src_dirs:
             local_base_dir = Path(src_dir)
             
-            for file_path in local_base_dir.rglob("*"):
-                if file_path.is_symlink():
-                    real_file = os.readlink(file_path)
-                    if not os.path.isabs(real_file):
-                        real_file = os.path.join(os.path.dirname(file_path), real_file)
-                    os.unlink(file_path)
-                    os.rename(real_file, file_path)
-                    self.announce(f"Resolved symlink {file_path} as {real_file}", level=3)
+            # skip symlinks of higher level like libX.so or libX.dylib
+            for symlink in local_base_dir.rglob("*"):
+                if symlink.is_symlink():
+                    file_name = os.readlink(symlink)
+                    if not os.path.isabs(file_name):
+                        file_name = os.path.join(os.path.dirname(symlink), file_name)
+                    if Path(file_name).is_symlink():
+                        self.announce(f"Unlink symlink {symlink}, use {file_name} instead", level=3)
+                        os.unlink(symlink)
 
+            # transform libX.so.Y / libX.Y.dylib symlinks to real files
+            for symlink in local_base_dir.rglob("*"):
+                if symlink.is_symlink():
+                    file_name = os.readlink(symlink)
+                    if not os.path.isabs(file_name):
+                        file_name = os.path.join(os.path.dirname(symlink), file_name)
+
+                    os.unlink(symlink)
+                    os.rename(file_name, symlink)
+                    self.announce(f"Resolved symlink {symlink} as {file_name}", level=3)
+
+            # copy so / dylib files to WHEEL_LIBS_INSTALL_DIR
             for file_path in local_base_dir.rglob("*"):
                 file_name = os.path.basename(file_path)
                 if file_path.is_symlink():
