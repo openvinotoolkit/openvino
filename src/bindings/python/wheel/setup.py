@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os.path
+# import os.readlink, os.unlink, os.rename
 import sys
 import errno
 import subprocess  # nosec
@@ -60,31 +61,31 @@ LIB_INSTALL_CFG = {
     },
     "hetero_plugin": {
         "name": "hetero",
-        "prefix": "libs.core",
+        "prefix": "libs.hetero",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "binary_dir": OPENVINO_BUILD_DIR,
     },
     "gpu_plugin": {
         "name": "gpu",
-        "prefix": "libs.core",
+        "prefix": "libs.gpu",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "binary_dir": OPENVINO_BUILD_DIR,
     },
     "cpu_plugin": {
         "name": "cpu",
-        "prefix": "libs.core",
+        "prefix": "libs.cpu",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "binary_dir": OPENVINO_BUILD_DIR,
     },
     "multi_plugin": {
         "name": "multi",
-        "prefix": "libs.core",
+        "prefix": "libs.multi",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "binary_dir": OPENVINO_BUILD_DIR,
     },
     "batch_plugin": {
         "name": "batch",
-        "prefix": "libs.core",
+        "prefix": "libs.batch",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "binary_dir": OPENVINO_BUILD_DIR,
     },
@@ -102,19 +103,19 @@ LIB_INSTALL_CFG = {
     },
     "ir_libs": {
         "name": "ir",
-        "prefix": "libs.core",
+        "prefix": "libs.ir",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "binary_dir": OPENVINO_BUILD_DIR,
     },
     "paddle_libs": {
         "name": "paddle",
-        "prefix": "libs.core",
+        "prefix": "libs.paddle",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "binary_dir": OPENVINO_BUILD_DIR,
     },
     "onnx_libs": {
         "name": "onnx",
-        "prefix": "libs.core",
+        "prefix": "libs.onnx",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "binary_dir": OPENVINO_BUILD_DIR,
     },
@@ -275,32 +276,35 @@ class PrepareLibs(build_clib):
     def generate_package(self, src_dirs):
         """Collect package data files from preinstalled dirs and put all runtime libraries to the subpackage."""
         # additional blacklist filter, just to fix cmake install issues
-        # TODO: remove these !!!!!!!!!!!
-        blacklist = [".lib", ".pdb", "_debug.dll", "_debug.dylib", f"{openvino_version}.dylib"]
+        blacklist = [".lib", ".pdb", "_debug.dll", "_debug.dylib"]
         package_dir = os.path.join(get_package_dir(PY_INSTALL_CFG), WHEEL_LIBS_INSTALL_DIR)
-        self.announce(f"Package dir is {package_dir}", level=3)
 
-        self.announce(f"!!!!!!!!!!!!! Start copy after installation", level=3)
         for src_dir in src_dirs:
             local_base_dir = Path(src_dir)
+            
+            for file_path in local_base_dir.rglob("*"):
+                if file_path.is_symlink():
+                    real_file = os.readlink(file_path)
+                    if not os.path.isabs(real_file):
+                        real_file = os.path.join(os.path.dirname(file_path), real_file)
+                    os.unlink(file_path)
+                    os.rename(real_file, file_path)
+                    self.announce(f"Resolved symlink {file_path} as {real_file}", level=3)
+
             for file_path in local_base_dir.rglob("*"):
                 file_name = os.path.basename(file_path)
                 if file_path.is_symlink():
-                    sys.exit(f"Wheel package content must not contain symlinks: {file_path}")
+                    sys.exit(f"Wheel package content must not contain symlinks {file_path}")
                 if file_path.is_file() and not any(file_name.endswith(ext) for ext in blacklist):
                     dst_file = os.path.join(package_dir, os.path.relpath(file_path, local_base_dir))
                     os.makedirs(os.path.dirname(dst_file), exist_ok=True)
                     copyfile(file_path, dst_file)
                     self.announce(f"Copy {file_path} to {dst_file}", level=3)
 
-        self.announce(f"!!!!!!!!!!!!! End copy after installation", level=3)
-
-        # TODO: adding extra stuff
         if Path(package_dir).exists():
-            self.announce(f"!!!!!!!!!!!!! Adding {WHEEL_LIBS_PACKAGE} package", level=3)
+            self.announce(f"Adding {WHEEL_LIBS_PACKAGE} package", level=3)
             packages.append(WHEEL_LIBS_PACKAGE)
             package_data.update({WHEEL_LIBS_PACKAGE: ["*"]})
-            self.announce(f"!!!!!!!!!!!!! End of Adding {WHEEL_LIBS_PACKAGE} package", level=3)
 
 
 class CopyExt(build_ext):
@@ -315,17 +319,14 @@ class CopyExt(build_ext):
             if not isinstance(extension, PrebuiltExtension):
                 raise DistutilsSetupError(f"copy_ext can accept PrebuiltExtension only, but got {extension.name}")
             src = extension.sources[0]
-            # where do we copy?
             dst = self.get_ext_fullpath(extension.name)
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             # setting relative path to find dlls
             if sys.platform != "win32":
                 rpath = os.path.relpath(get_package_dir(PY_INSTALL_CFG), os.path.dirname(src))
-                # TODO: print this
                 rpath = os.path.join(LIBS_RPATH, rpath, WHEEL_LIBS_INSTALL_DIR)
                 set_rpath(rpath, os.path.realpath(src))
 
-            self.announce(f"Adding {WHEEL_LIBS_PACKAGE} package", level=3)
             copy_file(src, dst, verbose=self.verbose, dry_run=self.dry_run)
 
 
@@ -344,8 +345,8 @@ class CustomClean(clean):
         for comp, comp_data in install_cfg.items():
             install_prefix = comp_data.get("prefix")
             self.announce(f"Cleaning {comp}: {install_prefix}", level=3)
-            # if os.path.exists(install_prefix):
-                # rmtree(install_prefix)
+            if os.path.exists(install_prefix):
+                rmtree(install_prefix)
 
     def run(self):
         self.clean(LIB_INSTALL_CFG)
@@ -411,7 +412,6 @@ def set_rpath(rpath, executable):
 
     if is_tool(rpath_tool):
         if sys.platform == "darwin":
-            # TODO: check install path
             remove_rpath(executable)
         ret_info = subprocess.run(cmd, check=True, shell=False)  # nosec
         if ret_info.returncode != 0:
@@ -442,7 +442,7 @@ def find_prebuilt_extensions(search_dirs):
                 package_names = []
             package_names.append(path.name.split(".", 1)[0])
             name = ".".join(package_names)
-            print(f"Create {name} as a prebuilt extesions")
+            print(f"Add {name} as a prebuilt extesions")
             extensions.append(PrebuiltExtension(name, sources=[str(path)]))
     if not extensions:
         extensions.append(PrebuiltExtension("openvino", sources=[str("setup.py")]))
@@ -481,7 +481,6 @@ def get_package_dir(install_cfg):
     """Get python package path based on config. All the packages should be located in one directory."""
     py_package_path = ""
     dirs = get_install_dirs_list(install_cfg)
-    # TODO: why do we need to return only a single directory
     if len(dirs) != 0:
         # setup.py support only one package directory, all modules should be located there
         py_package_path = dirs[0]

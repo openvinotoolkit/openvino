@@ -34,6 +34,11 @@ execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.bdist_wheel ; prin
 execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.vendored.packaging.tags as tags ; print(f'{next(tags._platform_tags())}')"
                 OUTPUT_VARIABLE PLATFORM_TAG OUTPUT_STRIP_TRAILING_WHITESPACE)
 
+#
+# Define proper package name
+#
+
+# defines wheel architecture part of `PLATFORM_TAG`
 macro(_ov_platform_arch)
     if(AARCH64)
         if(APPLE)
