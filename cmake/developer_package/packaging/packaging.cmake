@@ -100,11 +100,19 @@ endif()
 #
 function(ov_install_with_name file component)
     if((APPLE AND file MATCHES "^[^\.]+\.[0-9]+${CMAKE_SHARED_LIBRARY_SUFFIX}$") OR
-                (file MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)+$"))
+                (file MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}\.[0-9]+$"))
+        if(IS_SYMLINK "${file}")
+            message("Original ${file}")
+            get_filename_component(actual_name "${file}" NAME)
+            get_filename_component(file "${file}" REALPATH)
+            set(install_rename RENAME "${actual_name}")
+        endif()
+
         install(FILES "${file}"
                 DESTINATION runtime/3rdparty/${component}/lib
                 COMPONENT ${component}
-                EXCLUDE_FROM_ALL)
+                EXCLUDE_FROM_ALL
+                ${install_rename})
 
         set("${component}_INSTALLED" ON PARENT_SCOPE)
     endif()
