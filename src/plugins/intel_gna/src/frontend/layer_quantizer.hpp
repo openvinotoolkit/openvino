@@ -10,6 +10,7 @@
 #include "backend/gna_types.h"
 #include "quantization.hpp"
 #include "weights_converter.hpp"
+#include "gna_graph_tools.hpp"
 
 
 namespace GNAPluginNS {
@@ -192,7 +193,7 @@ static size_t GetBiasSizeForLayer(InferenceEngine::WeightableLayer& wl) {
         return wl._biases->size();
     } else if (LayerInfo(wl).isConvolution()) {
         // calculating biases len using outdata dims: biases number should be equal to output channels number
-        size_t size = InferenceEngine::GetDataDimSize(wl.outData.front(), InferenceEngine::DataDimName::C);
+        size_t size = InferenceEngine::GetDataDimByName(wl.outData.front(), InferenceEngine::DataDimName::C);
         return size;
     } else {
         // calculating biases size using outData dimensions
