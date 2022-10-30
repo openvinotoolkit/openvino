@@ -51,22 +51,27 @@ const std::vector<int64_t> adjust_axes(const std::vector<int64_t>& axes_to_align
 // - Reshape(input_shape={5,10,15}, target_shape={1,5,10,15}), 0 axis returned
 // - Reshape(input_shape={5,10,15}, target_shape={1,5,10,15,1}), 0 and 3 axes returned
 // - Reshape(input_shape={5,10,15}, target_shape={5,10,1,15}), 2 axis is returned
-std::vector<int64_t> try_get_unsqueeze_axes_from_reshape(const ov::Shape& reshape_shape,
-                                                         const ov::Shape& reduce_shape) {
+std::vector<int64_t> try_get_unsqueeze_axes_from_reshape(const ov::Shape& target_shape, const ov::Shape& input_shape) {
     std::vector<int64_t> result;
-    auto cur_elem_idx = 0;
-    auto current_reduce_elem = reduce_shape[cur_elem_idx];
-    auto reshape_shape_idx = 0;
-    for (; reshape_shape_idx < reshape_shape.size(); ++reshape_shape_idx) {
-        if (current_reduce_elem == reshape_shape[reshape_shape_idx] && cur_elem_idx + 1 < reduce_shape.size()) {
-            ++cur_elem_idx;
-            current_reduce_elem = reduce_shape[cur_elem_idx];
-        } else if (reshape_shape[reshape_shape_idx] == 1 &&
-                   (reshape_shape_idx >= reduce_shape.size() + result.size() || current_reduce_elem != 1)) {
-            result.push_back(reshape_shape_idx);
+    if (input_shape.size() == 0) {  // scalar case - can be reshaped only to [1,..,1] shape
+        result.resize(target_shape.size());
+        std::iota(std::begin(result), std::end(result), 0);
+        return result;
+    }
+    auto cur_input_shape_elem_idx = 0;
+    auto cur_input_shape_elem = input_shape[cur_input_shape_elem_idx];
+    auto target_shape_idx = 0;
+    for (; target_shape_idx < target_shape.size(); ++target_shape_idx) {
+        if (cur_input_shape_elem == target_shape[target_shape_idx] &&
+            cur_input_shape_elem_idx + 1 < input_shape.size()) {
+            ++cur_input_shape_elem_idx;
+            cur_input_shape_elem = input_shape[cur_input_shape_elem_idx];
+        } else if (target_shape[target_shape_idx] == 1 &&
+                   (target_shape_idx >= input_shape.size() + result.size() || cur_input_shape_elem != 1)) {
+            result.push_back(target_shape_idx);
         }
     }
-    if (cur_elem_idx == reduce_shape.size() - 1 && reshape_shape_idx == reshape_shape.size()) {
+    if (cur_input_shape_elem_idx == input_shape.size() - 1 && target_shape_idx == target_shape.size()) {
         return result;
     } else {
         return {};
