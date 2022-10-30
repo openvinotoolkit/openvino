@@ -30,7 +30,18 @@ endforeach()
 file(GLOB_RECURSE compat_ngraph_py_files ${OpenVINOPython_SOURCE_DIR}/src/compatibility/*.py)
 file(GLOB_RECURSE openvino_py_files ${OpenVINOPython_SOURCE_DIR}/src/openvino/*.py)
 
-list(APPEND openvino_wheel_deps ${openvino_py_files} ${compat_ngraph_py_files})
+list(APPEND openvino_wheel_deps
+    ${openvino_py_files}
+    ${compat_ngraph_py_files}
+    "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
+    "${CMAKE_CURRENT_SOURCE_DIR}/requirements.txt"
+    "${OpenVINO_SOURCE_DIR}/LICENSE"
+    "${OpenVINO_SOURCE_DIR}/docs/install_guides/pypi-openvino-rt.md")
+
+if(DEFINED ENV{CI_BUILD_DEV_TAG})
+    list(APPEND openvino_wheel_deps
+        "${OpenVINO_SOURCE_DIR}/docs/install_guides/pre-release-note.md")
+endif()
 
 #
 # Define proper package name
@@ -120,7 +131,6 @@ add_custom_command(OUTPUT ${openvino_wheel_path}
             --plat-name=${PLATFORM_TAG}
             --quiet
     DEPENDS ${openvino_wheel_deps}
-           "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Building Python wheel ${openvino_wheel_name}"
     VERBATIM)
