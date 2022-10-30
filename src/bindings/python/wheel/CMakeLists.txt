@@ -116,24 +116,28 @@ set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 # create target for openvino.wheel
 #
 
+set(wheel_env ${CMAKE_COMMAND} -E env
+    WHEEL_VERSION=${WHEEL_VERSION}
+    WHEEL_BUILD=${WHEEL_BUILD}
+    OPENVINO_BUILD_DIR=${OpenVINO_BINARY_DIR}
+    OPENVINO_PYTHON_BUILD_DIR=${OpenVINOPython_BINARY_DIR}
+    OV_RUNTIME_LIBS_DIR=${OV_WHEEL_RUNTIMEDIR}
+    TBB_LIBS_DIR=${TBB_LIBS_DIR}
+    PUGIXML_LIBS_DIR=${PUGIXML_LIBS_DIR}
+    PY_PACKAGES_DIR=${PY_PACKAGES_DIR})
+
 add_custom_command(OUTPUT ${openvino_wheel_path}
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}"
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${OpenVINO_SOURCE_DIR}/licensing" "${CMAKE_BINARY_DIR}/licensing"
     COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/site-packages"
-    COMMAND ${CMAKE_COMMAND} -E env
-            WHEEL_VERSION=${WHEEL_VERSION}
-            WHEEL_BUILD=${WHEEL_BUILD}
-            OPENVINO_BUILD_DIR=${OpenVINO_BINARY_DIR}
-            OPENVINO_PYTHON_BUILD_DIR=${OpenVINOPython_BINARY_DIR}
-            OV_RUNTIME_LIBS_DIR=${OV_WHEEL_RUNTIMEDIR}
-            TBB_LIBS_DIR=${TBB_LIBS_DIR}
-            PUGIXML_LIBS_DIR=${PUGIXML_LIBS_DIR}
-            PY_PACKAGES_DIR=${PY_PACKAGES_DIR}
-        ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py" clean bdist_wheel
+    COMMAND ${wheel_env}
+        ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py" bdist_wheel
             --dist-dir ${openvino_wheels_output_dir}
             --build-number=${WHEEL_BUILD}
             --plat-name=${PLATFORM_TAG}
             --quiet
+    COMMAND ${wheel_env}
+        ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py" clean
     DEPENDS ${openvino_wheel_deps}
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Building Python wheel ${openvino_wheel_name}"

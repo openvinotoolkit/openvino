@@ -102,7 +102,6 @@ function(ov_install_with_name file component)
     if((APPLE AND file MATCHES "^[^\.]+\.[0-9]+${CMAKE_SHARED_LIBRARY_SUFFIX}$") OR
                 (file MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}\.[0-9]+$"))
         if(IS_SYMLINK "${file}")
-            message("Original ${file}")
             get_filename_component(actual_name "${file}" NAME)
             get_filename_component(file "${file}" REALPATH)
             set(install_rename RENAME "${actual_name}")
