@@ -229,6 +229,8 @@ public:
             // check if can share memory of "from" to "to"
             m_shareable = check_shareable();
 
+            std::cout << __LINE__ << " backedge: " << m_from->getName() << " -> " << m_to->getName() << " shareable: " << m_shareable << std::endl;
+
             if (m_shareable) {
                 for (size_t i = 0; i < childEdges.size(); ++i) {
                     auto to_mem_ptr = childEdges[i]->getMemoryPtr();
@@ -301,6 +303,8 @@ protected:
         //     }
         // }
         if (edges_at_same_port.size() > 1) return false;
+
+        // 3. if the backedge's "to" is also the input of others. 
 
 
         return true;
