@@ -19,11 +19,11 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
             e->wait();
         }
         const auto arg = instance.argument;
-        const auto variable_id = arg.variable_id;
+        const auto variable_id = arg->variable_id;
 
         auto& variable = instance.get_network().get_variable_memory(variable_id);
 
-        if (variable.memory->get_layout() != arg.output_layout) {
+        if (variable.memory->get_layout() != arg->output_layout) {
             CLDNN_ERROR_MESSAGE(instance.id(), "Layout mismatch");
         }
 
