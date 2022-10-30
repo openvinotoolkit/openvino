@@ -73,14 +73,13 @@
 #include "low_precision/move_fake_quantize.hpp"
 
 // cleanup transformations
+#include "itt.hpp"
 #include "low_precision/convert.hpp"
 #include "low_precision/fold_fake_quantize.hpp"
 #include "low_precision/fuse_convert.hpp"
-#include "low_precision/fuse_subtract_to_fake_quantize.hpp"
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
+#include "low_precision/fuse_subtract_to_fake_quantize.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
-
-#include "itt.hpp"
 
 ngraph::pass::low_precision::LowPrecision::LowPrecision(
     const std::vector<PrecisionsRestriction>& precisionRestrictions,
@@ -207,7 +206,9 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
     manager.register_pass<TypeRelaxedReplacer>();
 
     AttributeParameters attributeParams(params.deqPrecision, params.defaultPrecisions);
-    manager.register_pass<ngraph::pass::low_precision::MarkupOptimizations>(precisionRestrictions, quantizationRestrictions, attributeParams);
+    manager.register_pass<ngraph::pass::low_precision::MarkupOptimizations>(precisionRestrictions,
+                                                                            quantizationRestrictions,
+                                                                            attributeParams);
 
     std::shared_ptr<ngraph::pass::GraphRewrite> common = manager.register_pass<ngraph::pass::GraphRewrite>();
     ADD_MATCHER_SCOPE(common, ngraph::pass::low_precision, AddTransformation, params)
