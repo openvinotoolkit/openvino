@@ -150,6 +150,7 @@ OPENVINO_C_API(void) ov_remote_context_free(ov_remote_context_t* context);
  * etc. Content of the returned map depends on remote execution context that is
  * currently set on the device (working scenario).
  * One example: "MEM_HANDLE:0x559ff6904b00,OCL_CONTEXT:0x559ff71d62f0,SHARED_MEM_TYPE:OCL_BUFFER"
+ * @ingroup remote_context
  * @param tensor Pointer to ov_tensor_t that contains host tensor.
  * @param size The size of param pairs.
  * @param params Param name:value list.
@@ -157,3 +158,13 @@ OPENVINO_C_API(void) ov_remote_context_free(ov_remote_context_t* context);
  */
 OPENVINO_C_API(ov_status_e)
 ov_remote_tensor_get_params(ov_tensor_t* tensor, size_t* size, char** params);
+
+/**
+ * @brief Returns name of a device on which underlying object is allocated.
+ * @ingroup remote_context
+ * @param remote_tensor A pointer to the remote tensor instance.
+ * @param device_name Device name will be return.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_remote_tensor_get_device_name(ov_tensor_t* remote_tensor, char** device_name);

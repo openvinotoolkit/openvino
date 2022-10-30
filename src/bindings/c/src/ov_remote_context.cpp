@@ -177,9 +177,27 @@ ov_status_e ov_remote_tensor_get_params(ov_tensor_t* tensor, size_t* size, char*
     }
 
     try {
-        auto remote_tensor = tensor->object->as<ov::RemoteTensor>();
+        auto& remote_tensor = tensor->object->as<ov::RemoteTensor>();
         auto paramsMap = remote_tensor.get_params();
         convert_params_to_string(paramsMap, *params, *size);
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_remote_tensor_get_device_name(ov_tensor_t* remote_tensor, char** device_name) {
+    if (!remote_tensor || !device_name) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    if (!remote_tensor->object->is<ov::RemoteTensor>()) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    try {
+        auto& _remote_tensor = remote_tensor->object->as<ov::RemoteTensor>();
+        auto value = _remote_tensor.get_device_name();
+        *device_name = str_to_char_array(value);
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
