@@ -268,7 +268,7 @@ class PrepareLibs(build_clib):
             if sys.platform != "win32" and comp_data.get("rpath"):
                 for path in filter(
                     lambda x: any(item in ([".so"] if sys.platform == "linux" else [".dylib", ".so"])
-                        for item in x.suffixes), Path(install_dir).glob("*"),
+                                  for item in x.suffixes), Path(install_dir).glob("*"),
                 ):
                     set_rpath(comp_data["rpath"], os.path.realpath(path))
 
