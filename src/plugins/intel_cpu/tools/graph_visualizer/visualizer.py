@@ -628,9 +628,9 @@ if __name__ == "__main__":
         print("{} is saved!".format(dest_file))
 
     if args.raw:
-        dest_file = "visual_{}_raw.html".format(model_fname)
+        dest_file = "visual_{}_raw.xml".format(model_fname)
         print("saving {} ...".format(dest_file))
-        model.visualize(filename=dest_file)
+        model.serialize(dest_file)
         print("{} is saved!".format(dest_file))
 
     print("Compiling model for {} device with properties: ".format(device))
@@ -658,7 +658,12 @@ if __name__ == "__main__":
             if isinstance(static_shape, str):
                 all_input[port] = np.load(static_shape, allow_pickle=True)
             else:
-                all_input[port] = fill_tensors_with_random(input, static_shape)
+                all_input[port] = fill_tensors_with_random(input, static_shape)     
+        # all_input[0] = np.float32(0.0)
+        # all_input[1] = np.float32(1.0)
+        # tensor2 = ov.Tensor(ov.Type.f32, ov.Shape([10]))
+        # tensor2.data[:] = [np.float32(1.0)] * 10           
+        # all_input[2] = tensor2
 
         latency_list, prof_list, fps, wtime = test_infer_queue(compiled_model, all_input, 2, 20000, time_limit=args.time)
         avg_latency = np.mean(latency_list)
