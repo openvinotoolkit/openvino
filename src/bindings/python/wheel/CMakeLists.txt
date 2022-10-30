@@ -35,7 +35,11 @@ list(APPEND openvino_wheel_deps
     ${compat_ngraph_py_files}
     "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
     "${OpenVINOPython_SOURCE_DIR}/requirements.txt"
+    "${OpenVINOPython_SOURCE_DIR}/wheel/readme.txt"
     "${OpenVINO_SOURCE_DIR}/LICENSE"
+    "${OpenVINO_SOURCE_DIR}/licensing/onednn_third-party-programs.txt"
+    "${OpenVINO_SOURCE_DIR}/licensing/runtime-third-party-programs.txt"
+    "${OpenVINO_SOURCE_DIR}/licensing/tbb_third-party-programs.txt"
     "${OpenVINO_SOURCE_DIR}/docs/install_guides/pypi-openvino-rt.md")
 
 if(DEFINED ENV{CI_BUILD_DEV_TAG})
