@@ -34,7 +34,7 @@ list(APPEND openvino_wheel_deps
     ${openvino_py_files}
     ${compat_ngraph_py_files}
     "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
-    "${CMAKE_CURRENT_SOURCE_DIR}/requirements.txt"
+    "${OpenVINOPython_SOURCE_DIR}/requirements.txt"
     "${OpenVINO_SOURCE_DIR}/LICENSE"
     "${OpenVINO_SOURCE_DIR}/docs/install_guides/pypi-openvino-rt.md")
 
