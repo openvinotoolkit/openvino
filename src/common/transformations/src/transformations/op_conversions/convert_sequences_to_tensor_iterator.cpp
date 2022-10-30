@@ -20,10 +20,12 @@ ngraph::Output<ngraph::Node> get_current_iter(ngraph::ParameterVector& body_para
                                               const ngraph::Output<ngraph::Node>& seq_lengths) {
     auto curr_iter_body_param =
         std::make_shared<ngraph::opset5::Parameter>(seq_lengths.get_element_type(), ngraph::Shape{1});
+    curr_iter_body_param->set_friendly_name("curr_iter_body_param");
     // increment current iteration
     auto one = ngraph::opset5::Constant::create(seq_lengths.get_element_type(), ngraph::Shape{1}, {1});
     auto add = std::make_shared<ngraph::opset5::Add>(curr_iter_body_param, one);
     auto curr_iter_result = std::make_shared<ngraph::opset5::Result>(add);
+    curr_iter_result->set_friendly_name("curr_iter_result");
     body_params.push_back(curr_iter_body_param);
     body_results.push_back(curr_iter_result);
     return curr_iter_body_param;
@@ -34,10 +36,12 @@ ngraph::Output<ngraph::Node> get_masked_value(const std::shared_ptr<ngraph::opse
                                               ngraph::ResultVector& body_results,
                                               const ngraph::Output<ngraph::Node>& current_iter,
                                               const ngraph::Output<ngraph::Node>& data,
-                                              const ngraph::Output<ngraph::Node>& seq_lengths) {
+                                              const ngraph::Output<ngraph::Node>& seq_lengths,
+                                              const std::string domain) {
     // body parameters
     auto aggregated_Y_h_body_param =
         std::make_shared<ngraph::opset5::Parameter>(data.get_element_type(), data.get_partial_shape());
+    aggregated_Y_h_body_param->set_friendly_name(domain + "aggregated_Y_h_body_param");
 
     body_params.push_back(aggregated_Y_h_body_param);
 
@@ -56,12 +60,16 @@ ngraph::Output<ngraph::Node> get_masked_value(const std::shared_ptr<ngraph::opse
     // Select values depending on mask.
     // Select(<condition>, <true_value>, <false_value>)
     auto select_aggregated_H = std::make_shared<ngraph::opset5::Select>(mask_Y_h, data, aggregated_Y_h_body_param);
+    select_aggregated_H->set_friendly_name(domain + "select_aggregated_H");
     auto aggregated_result = std::make_shared<ngraph::opset5::Result>(select_aggregated_H);
+    aggregated_result->set_friendly_name(domain + "aggregated_result");
     body_results.push_back(aggregated_result);
 
     auto scalar_mask_value = ngraph::opset5::Constant::create(data.get_element_type(), {}, {0.f});
     auto mask_value = ngraph::op::util::make_try_fold<ngraph::opset5::Broadcast>(scalar_mask_value, data_shape);
-    return ngraph::op::util::make_try_fold<ngraph::opset5::Select>(mask_condition, mask_value, data);
+    auto select_mask = ngraph::op::util::make_try_fold<ngraph::opset5::Select>(mask_condition, mask_value, data);
+    select_mask->set_friendly_name(domain + "select_mask");
+    return select_mask;
 }
 
 bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
@@ -85,6 +93,7 @@ bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
     std::shared_ptr<ngraph::Node> reverse_seq_before;
     if (is_reverse && enable_mask) {
         reverse_seq_before = std::make_shared<ngraph::opset5::ReverseSequence>(X, seq_lengths, 0, 1);
+        reverse_seq_before->set_friendly_name("reverse_seq_before");
     }
 
     auto axis_0 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
@@ -94,12 +103,17 @@ bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
     auto X_param_pshape = X_pshape;
     X_param_pshape[1] = 1;  // split by seq_lengths dimension
     auto X_body_param = std::make_shared<ngraph::opset5::Parameter>(X.get_element_type(), X_param_pshape);
+    X_body_param->set_friendly_name("X_body_param");
 
     const auto squeezed_h = ngraph::op::util::make_try_fold<ngraph::opset5::Squeeze>(H_t, axis_1);
+    squeezed_h->set_friendly_name("squeezed_h");
     auto H_body_param = std::make_shared<ngraph::opset5::Parameter>(squeezed_h->get_element_type(),
                                                                     squeezed_h->get_output_partial_shape(0));
+    H_body_param->set_friendly_name("H_body_param");
+
     auto seq_body_param =
         std::make_shared<ngraph::opset5::Parameter>(seq_lengths.get_element_type(), seq_lengths.get_partial_shape());
+    seq_body_param->set_friendly_name("seq_body_param");
 
     // LSTM sequence case
     const bool cell_state_defined = C_t.get_node_shared_ptr() != nullptr;
@@ -109,6 +123,7 @@ bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
         squeezed_c = ngraph::op::util::make_try_fold<ngraph::opset5::Squeeze>(C_t, axis_1);
         C_body_param = std::make_shared<ngraph::opset5::Parameter>(squeezed_c->get_element_type(),
                                                                    squeezed_c->get_output_partial_shape(0));
+        C_body_param->set_friendly_name("C_body_param");
     }
 
     const auto squeezed_x = ngraph::op::util::make_try_fold<ngraph::opset5::Squeeze>(X_body_param, axis_1);
@@ -155,6 +170,7 @@ bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
     } else {
         return false;
     }
+    cell->set_friendly_name("cell");
 
     ngraph::ParameterVector body_params;
     ngraph::ResultVector body_results;
@@ -168,16 +184,20 @@ bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
     if (enable_mask) {
         const auto current_iter = get_current_iter(body_params, body_results, seq_body_param);
         hidden_state =
-            get_masked_value(tensor_iterator, body_params, body_results, current_iter, hidden_state, seq_body_param);
+            get_masked_value(tensor_iterator, body_params, body_results, current_iter, hidden_state, seq_body_param, "hidden_state");
         if (cell_state_defined)
             cell_state =
-                get_masked_value(tensor_iterator, body_params, body_results, current_iter, cell_state, seq_body_param);
+                get_masked_value(tensor_iterator, body_params, body_results, current_iter, cell_state, seq_body_param, "cell_state");
     }
 
     auto H_res = std::make_shared<ngraph::opset5::Result>(hidden_state);
+    H_res->set_friendly_name("H_res");
     auto C_res = cell_state_defined ? std::make_shared<ngraph::opset5::Result>(cell_state) : nullptr;
+    if (cell_state_defined) C_res->set_friendly_name("C_res");
     auto hidden_state_unsqueezed = std::make_shared<ngraph::opset5::Unsqueeze>(hidden_state, axis_1);
+    hidden_state_unsqueezed->set_friendly_name("hidden_state_unsqueezed");
     auto concat_res = std::make_shared<ngraph::opset5::Result>(hidden_state_unsqueezed);
+    concat_res->set_friendly_name("concat_res");
 
     body_params.push_back(X_body_param);
     body_params.push_back(H_body_param);
