@@ -7,6 +7,7 @@ set(TARGET_NAME "ov_tensorflow_frontend_tests")
 file(GLOB SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
 add_executable(${TARGET_NAME} ${SRC})
+add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE
         gtest_main_manifest frontend_shared_test_classes openvino_tensorflow_frontend

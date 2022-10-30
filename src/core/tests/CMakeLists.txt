@@ -477,6 +477,7 @@ endforeach()
 add_clang_format_target(unit-test_clang FOR_SOURCES ${full_src_names})
 
 add_executable(ov_core_unit_tests ${SRC} ${OP_EVAL_TEST_SRC})
+add_test(NAME ov_core_unit_tests COMMAND ov_core_unit_tests)
 
 add_dependencies(ov_core_unit_tests template_extension)
 
