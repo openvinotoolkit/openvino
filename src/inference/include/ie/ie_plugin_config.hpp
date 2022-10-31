@@ -463,6 +463,13 @@ DECLARE_CONFIG_KEY(CACHE_DIR);
  */
 DECLARE_CONFIG_KEY(FORCE_TBB_TERMINATE);
 
+/**
+ * @brief The devices that the inference tasks been executed on.
+ *
+ * value type: string
+ *
+ */
+DECLARE_CONFIG_KEY(EXECUTION_DEVICES);
 }  // namespace PluginConfigParams
 
 /**

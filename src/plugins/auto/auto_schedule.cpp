@@ -159,7 +159,6 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
             deviceName += device.deviceName;
             deviceName += ((device.deviceName == validDevices.back().deviceName) ? "" : ",");
         }
-
         _loadContext[ACTUALDEVICE].deviceInfo.deviceName = deviceName;
         _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
             InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT;
@@ -175,15 +174,18 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     }
     LOG_INFO_TAG("select device:%s", _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
     bool isActualDevCPU =
-        _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") !=std::string::npos;
+        _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") !=std::string::npos && !isCumulative;
     // if Actual device is CPU, disabled _loadContext[CPU], only use _loadContext[ACTUALDEVICE]
     if (isActualDevCPU || isCumulative) {
         _loadContext[CPU].isEnabled = false;
+        _autoSContext->_exeDevices = isActualDevCPU ? "CPU"
+                        : _loadContext[ACTUALDEVICE].deviceInfo.deviceName.substr(_loadContext[ACTUALDEVICE].deviceInfo.deviceName.find(":") + 1);
     } else {
         const auto CPUIter = std::find_if(_autoSContext->_devicePriorities.begin(), _autoSContext->_devicePriorities.end(),
                                           [=](const DeviceInformation& d) -> bool { return d.deviceName.find("CPU") != std::string::npos; });
         // if have CPU Device,  enable _loadContext[CPU]
         if (CPUIter != _autoSContext->_devicePriorities.end()) {
+            _autoSContext->_exeDevices = "(CPU)";
             _loadContext[CPU].isEnabled = true;
             _loadContext[CPU].deviceInfo = *CPUIter;
             _loadContext[CPU].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
@@ -192,6 +194,8 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
             LOG_INFO_TAG("will load CPU for accelerator");
         } else {
             _loadContext[CPU].isEnabled = false;
+            _autoSContext->_exeDevices =
+                _loadContext[ACTUALDEVICE].deviceInfo.deviceName.substr(_loadContext[ACTUALDEVICE].deviceInfo.deviceName.find(":") + 1);
         }
     }
     // initialize the rest members of load context
@@ -270,6 +274,9 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         auto recycleTask = [this]() mutable {
             WaitActualNetworkReady();
             while (!_exitFlag && _loadContext[ACTUALDEVICE].isAlready) {
+                // when gpu loads much faster than CPU, like cache enabled
+                if (!_loadContext[CPU].isAlready)
+                    _autoSContext->_exeDevices = _loadContext[ACTUALDEVICE].deviceInfo.deviceName;
                 // handle the case of ACTUAL faster than CPU
                 _loadContext[CPU].future.wait();
                 // clean up helper infer requests
@@ -314,6 +321,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                     _loadContext[CPU].executableNetwork._ptr.reset();
                     _loadContext[CPU].executableNetwork._so.reset();
                     LOG_INFO_TAG("helper released!!");
+                    _autoSContext->_exeDevices = _loadContext[ACTUALDEVICE].deviceInfo.deviceName;
                     break;
                 }
             }

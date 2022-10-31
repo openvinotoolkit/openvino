@@ -3,7 +3,7 @@
 //
 
 #include "behavior/ov_plugin/properties_tests.hpp"
-#include <openvino/runtime/intel_auto/properties.hpp>
+#include <openvino/runtime/auto/properties.hpp>
 
 using namespace ov::test::behavior;
 using namespace InferenceEngine::PluginConfigParams;
@@ -88,4 +88,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBehaviorTests, OVPropertiesDefaultTests,
                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                 ::testing::ValuesIn(default_properties)),
         OVPropertiesDefaultTests::getTestCaseName);
+
+const std::vector<std::pair<ov::AnyMap, std::string>> autoExeDeviceConfigs = {
+            std::make_pair(ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_CPU)}}, "CPU"),
+            std::make_pair(ov::AnyMap{{ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}}, "undefined"),
+            std::make_pair(ov::AnyMap{}, "undefined")
+    };
+
+INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiCompileModelBehaviorTests,
+                         OVCompileModelGetExecutionDeviceTests,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                            ::testing::ValuesIn(autoExeDeviceConfigs)),
+                         OVCompileModelGetExecutionDeviceTests::getTestCaseName);
 } // namespace
