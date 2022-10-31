@@ -37,7 +37,7 @@ class TestBOMFile(unittest.TestCase):
                 cls.existing_files = [name.rstrip() for name in bom_file.readlines()]
 
         # dirs_to_search is the root directory where MO is located, 'openvino_project_root/tools/mo/openvino/tools'
-        cls.dirs_to_search = os.path.normpath(get_mo_root_dir())
+        cls.dirs_to_search = os.path.normpath(get_mo_root_dir() + '/mo/')
         cls.prefix = os.path.normpath(get_mo_root_dir() + '../../../')  # prefix which is used in BOM file
         cls.expected_header = [re.compile(pattern) for pattern in [
             r'^# Copyright \([cC]\) [0-9\-]+ Intel Corporation$',
