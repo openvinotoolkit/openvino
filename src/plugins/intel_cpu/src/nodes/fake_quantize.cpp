@@ -1998,14 +1998,12 @@ void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
     }
 
     // we can save an additional eltwise linear for negligible shift
-    /*
     if (f.ish.size() == 1 && f.clo.size() == 1 && f.chi.size() == 1) {
         auto range = (f.chi[0] - f.clo[0]);
         if (abs(f.ish[0]) < range * 0.00001f) {
             f.ish[0] = 0.0f;
         }
     }
-    */
 }
 
 // map FQ to oneDNN's attribuites & postOps
