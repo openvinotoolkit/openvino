@@ -14,8 +14,8 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 shared_ptr<Node> compute_sequence_lengths(const Output<Node>& input_shape, int64_t batch_axis, int64_t seq_axis) {
-    auto batch_axis_const = make_shared<Constant>(element::i64, Shape{1}, batch_axis);
-    auto seq_axis_const = make_shared<Constant>(element::i64, Shape{1}, seq_axis);
+    auto batch_axis_const = make_shared<Constant>(element::i32, Shape{1}, batch_axis);
+    auto seq_axis_const = make_shared<Constant>(element::i32, Shape{1}, seq_axis);
     auto gather_axis = make_shared<Constant>(element::i32, Shape{}, 0);
     auto batch_dim = make_shared<Gather>(input_shape, batch_axis_const, gather_axis);
     auto seq_dim = make_shared<Gather>(input_shape, seq_axis_const, gather_axis);
@@ -27,20 +27,10 @@ shared_ptr<Node> compute_sequence_lengths(const Output<Node>& input_shape, int64
 OutputVector translate_reverse_base_op(const NodeContext& node,
                                        const Output<Node>& input,
                                        const std::vector<int64_t>& axes) {
-    // static rank for the input is required since the input can be a scalar and
-    // it is not clear how to define batch_axis and seq_axis that will be general
-    // for cases of multi-rank tensor and a scalar
-    auto input_rank = input.get_partial_shape().rank();
-    TENSORFLOW_OP_VALIDATION(
-        node,
-        input_rank.is_static(),
-        "OpenVINO TensorFlow Frontend does not support Reverse or ReverseV2 with input of undefined rank.");
-    auto input_rank_value = input_rank.get_length();
-
-    auto reverse_v2_node_name = node.get_name();
-    if (axes.size() == 0 || input_rank_value == 0) {
+    auto reverse_node_name = node.get_name();
+    if (axes.size() == 0) {
         // there is nothing to reverse
-        input.get_tensor().add_names({reverse_v2_node_name + ":0"});
+        input.get_tensor().add_names({reverse_node_name + ":0"});
         return {input};
     }
 
@@ -52,25 +42,21 @@ OutputVector translate_reverse_base_op(const NodeContext& node,
     int64_t seq_axis = axes[0];
     int64_t batch_axis = 0;
 
-    // normalize seq_axis if it is negative
-    seq_axis = (seq_axis < 0) ? seq_axis + input_rank_value : seq_axis;
-
-    // in case of 1D tensor, it requires to create additional dimension
-    // to have separate batch and sequence dimensions
+    // when we are not sure that input rank greater than 1
+    // based on seq_axis, introduce the auxiliary dimension for the batch
     std::vector<int64_t> unsqueeze_axes;
-    if (input_rank_value == 1) {
+    if (seq_axis == 0 || seq_axis == -1) {
         unsqueeze_axes.push_back(0);
-        seq_axis = 1;
     }
 
-    // make sure that batch_axis and seq_axis are different
-    // and adjust it if this is required
-    batch_axis = (seq_axis == 0 ? 1 : 0);
-
+    // make sure that batch and sequence dimensions are different
+    // in case seq_axis is zero, we added the temporal dimension in the previous step
+    // so we have to shift it by one
+    seq_axis = (seq_axis == 0) ? 1 : seq_axis;
     auto batched_input = input;
     if (unsqueeze_axes.size() > 0) {
         // prepare input to issue auxiliary dimensions for batch
-        auto unsqueeze_axes_const = make_shared<Constant>(element::i64, Shape{unsqueeze_axes.size()}, unsqueeze_axes);
+        auto unsqueeze_axes_const = make_shared<Constant>(element::i32, Shape{unsqueeze_axes.size()}, unsqueeze_axes);
         batched_input = make_shared<Unsqueeze>(input, unsqueeze_axes_const);
     }
 
@@ -80,7 +66,7 @@ OutputVector translate_reverse_base_op(const NodeContext& node,
 
     if (unsqueeze_axes.size() > 0) {
         // remove earlier added additional dimensions from the result
-        auto squeeze_axes_const = make_shared<Constant>(element::i64, Shape{unsqueeze_axes.size()}, unsqueeze_axes);
+        auto squeeze_axes_const = make_shared<Constant>(element::i32, Shape{unsqueeze_axes.size()}, unsqueeze_axes);
         reverse_sequence = make_shared<Squeeze>(reverse_sequence, squeeze_axes_const);
     }
 

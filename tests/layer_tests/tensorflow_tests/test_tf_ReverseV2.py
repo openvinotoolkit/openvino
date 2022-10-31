@@ -22,7 +22,7 @@ class TestReverseV2(CommonTFLayerTest):
         dict(shape=[3], axis=[-1]),
         dict(shape=[2, 3], axis=[1]),
         dict(shape=[2, 3, 5], axis=[-2]),
-        dict(shape=[2, 3, 5, 7], axis=[0]),
+        dict(shape=[2, 3, 5, 7], axis=[3]),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
