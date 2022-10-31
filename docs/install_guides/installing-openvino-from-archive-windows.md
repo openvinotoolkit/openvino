@@ -13,8 +13,8 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
 @sphinxdirective
 .. tab:: Operating Systems
 
-  * Microsoft Windows 10, 64-bit
-  * Microsoft Windows 11, 64-bit
+  * Microsoft Windows 10, x86, 64-bit
+  * Microsoft Windows 11, x86, 64-bit
 
 .. tab:: Hardware
 
@@ -58,15 +58,15 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
 
 ### <a name="install-openvino"></a>Step 1: Download and Install OpenVINO Core Components
 
-1. Create an 'Intel' folder in the `C:\Program Files (x86)\` directory. Skip this step if the folder already exists.
+1. Create an `Intel` folder in the `C:\Program Files (x86)\` directory. Skip this step if the folder already exists.
    
    You can also do this via command-lines. Open a new command prompt window as administrator by right-clicking **Command Prompt** from the Start menu and select **Run as administrator**, and then run the following command:
    ```sh
    mkdir "C:\Program Files (x86)\Intel"
    ```
-   > **NOTE**: C:\Program Files (x86)\Intel is the recommended folder. You may also use a different path if desired or if you don't have administrator privileges on your computer.
+   > **NOTE**: `C:\Program Files (x86)\Intel` is the recommended folder. You may also use a different path if desired or if you don't have administrator privileges on your computer.
 
-2. Download the OpenVINO Runtime archive file for Windows from the [OpenVINO releases page](https://github.com/openvinotoolkit/openvino/releases/tag/2022.2.0) to your local `Downloads` folder.
+2. Download the **OpenVINO Runtime archive file for Windows** from the [OpenVINO releases page](https://github.com/openvinotoolkit/openvino/releases/tag/2022.2.0) to your local `Downloads` folder.
    
    If you prefer using command-lines, run the following commands in the command prompt window you opened:
    ```sh
@@ -83,7 +83,7 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
    move openvino_2022.2.0.7713 "C:\Program Files (x86)\Intel"
    ```
 
-4. For simplicity, it is useful to create a symbolic link. Open a command prompt window as administrator (if you haven't done it yet, refer to Step 1), and run the following command:
+4. For simplicity, it is useful to create a symbolic link. Open a command prompt window as administrator (see Step 1 for how to do this) and run the following commands:
    ```sh
    cd C:\Program Files (x86)\Intel
    mklink /D openvino_2022 openvino_2022.2.0.7713
@@ -143,24 +143,28 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 @sphinxdirective
 .. tab:: Get started with Python
 
-   <img src="https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif" width=400>
+   Try the `Python Quick Start Example <https://docs.openvino.ai/2022.2/notebooks/201-vision-monodepth-with-output.html>`_ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+   
+   .. image:: "https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif"
+      :width: 400
 
-   Try the [Python Quick Start Example](https://docs.openvino.ai/2022.2/notebooks/201-vision-monodepth-with-output.html) to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+   Visit the :ref:`Tutorials <notebook tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
+   
+   * `OpenVINO Python API Tutorial <https://docs.openvino.ai/2022.2/notebooks/002-openvino-api-with-output.html>`_
+   * `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/2022.2/notebooks/001-hello-world-with-output.html>`_
+   * `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/2022.2/notebooks/205-vision-background-removal-with-output.html>`_
 
-   Visit the [Tutorials](../tutorials.md) page for more Jupyter Notebooks to get you started with OpenVINO, such as:
-   * [OpenVINO Python API Tutorial](https://docs.openvino.ai/2022.2/notebooks/002-openvino-api-with-output.html)
-   * [Basic image classification program with Hello Image Classification](https://docs.openvino.ai/2022.2/notebooks/001-hello-world-with-output.html)
-   * [Convert a PyTorch model and use it for image background removal](https://docs.openvino.ai/2022.2/notebooks/205-vision-background-removal-with-output.html)
-
-.. tab:: Get started with Python C++
-
-   <img src="https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg" width=400>
+.. tab:: Get started with C++
 
    Try the [C++ Quick Start Example](@ref openvino_docs_get_started_get_started_demos) for step-by-step instructions on building and running a basic image classification C++ application.
+   
+   .. image:: "https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg"
+      :width: 400
 
-   Visit the [Samples](../OV_Runtime_UG/Samples_Overview.md) page for other C++ example applications to get you started with OpenVINO, such as:
-   * [Basic object detection with the Hello Reshape SSD C++ sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
-   * [Automatic speech recognition C++ sample](@ref openvino_inference_engine_samples_speech_sample_README)
+   Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
+   
+   * :ref:`Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README>`
+   * :ref:`Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README>`
 
 @endsphinxdirective
 
