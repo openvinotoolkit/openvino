@@ -10,6 +10,18 @@ trigger:
     - /**/*.md
     - README.md
 
+pr:
+  branches:
+    include:
+    - master
+    - releases/*
+  paths:
+    exclude:
+    - docs/
+    - /**/docs/*
+    - /**/*.md
+    - README.md
+
 jobs:
 - job: onnxruntime
   timeoutInMinutes: 90
