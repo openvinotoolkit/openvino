@@ -350,9 +350,84 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
     return os;
 }
 
+class OstreamAttributeVisitor : public ngraph::AttributeVisitor {
+    std::ostream & os;
+
+public:
+    OstreamAttributeVisitor(std::ostream & os) : os(os) {}
+
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
+        if (auto a = ov::as_type<ov::AttributeAdapter<std::set<std::string>>>(&adapter)) {
+            const auto& value = join(a->get());
+            append_attribute(name.c_str(), value.c_str());
+        } else if (auto a = ov::as_type<ov::AttributeAdapter<std::vector<ov::element::Type>>>(&adapter)) {
+            const auto& value = join(a->get());
+            append_attribute(name.c_str(), value.c_str());
+        } else {
+            append_attribute(name.c_str(), "?");
+        }
+    }
+
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<bool>& adapter) override {
+        append_attribute(name.c_str(), std::to_string(adapter.get()).c_str());
+    }
+
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& adapter) override {
+        append_attribute(name.c_str(), adapter.get().c_str());
+    }
+
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override {
+        append_attribute(name.c_str(), std::to_string(adapter.get()).c_str());
+    }
+
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<double>& adapter) override {
+        append_attribute(name.c_str(), std::to_string(adapter.get()).c_str());
+    }
+
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int>>& adapter) override {
+        const auto& value = join(adapter.get());
+        append_attribute(name.c_str(), value.c_str());
+    }
+
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int64_t>>& adapter) override {
+        const auto& value = join(adapter.get());
+        append_attribute(name.c_str(), value.c_str());
+    }
+
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<uint64_t>>& adapter) override {
+        const auto& value = join(adapter.get());
+        append_attribute(name.c_str(), value.c_str());
+    }
+
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<float>>& adapter) override {
+        const auto& value = join(adapter.get());
+        append_attribute(name.c_str(), value.c_str());
+    }
+
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<std::string>>& adapter) override {
+        const auto& value = join(adapter.get());
+        append_attribute(name.c_str(), value.c_str());
+    }
+
+    void append_attribute(const char * name, const char * value) {
+        os << " " << name << "=" << value;
+    }
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
+        append_attribute(name.c_str(), "Model");
+    }
+
+    template<class Container>
+    inline std::string join(const Container& strs) {
+        std::stringstream ss;
+        ss << "[" << ov::intel_cpu::join(strs, ',') << "]";
+        return ss.str();
+    }
+};
+
 std::ostream & operator<<(std::ostream & os, const PrintableModel& model) {
     const ov::Model& f = model.model;
     const std::string& tag = model.tag;
+    OstreamAttributeVisitor osvis(os);
     std::string sep = "";
     for (auto op : f.get_results()) {
         os << sep << op->get_name();
@@ -407,7 +482,8 @@ std::ostream & operator<<(std::ostream & os, const PrintableModel& model) {
             }
         }
 
-        os << ")";
+        os << ") \t attrs:";
+        op->visit_attributes(osvis);
         os << std::endl;
     }
     os << "}\n";
