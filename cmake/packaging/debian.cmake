@@ -360,6 +360,9 @@ macro(ov_cpack_settings)
 
     ov_debian_add_latest_component(libraries_dev)
     ov_debian_add_latest_component(openvino)
+    ov_debian_add_lintian_suppression(openvino_latest
+        # reproduced only on ubu18
+        "description-starts-with-package-name")
 
     # users can manually install specific version of package
     # e.g. sudo apt-get install openvino=2022.1.0
