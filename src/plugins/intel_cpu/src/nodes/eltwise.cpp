@@ -2132,6 +2132,16 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
         default: IE_THROW() << errorPrefix << "as post operation is not supported";
         }
     } else {
+        // per-tensor EltwisePowerStatic can be implemented with more well-supported eltwise postOps
+        if (getAlgorithm() == Algorithm::EltwisePowerStatic) {
+            // d = s*beta + gamma
+            ops.append_eltwise(1.0, dnnl::algorithm::eltwise_linear, getBeta(), getGamma());
+            if (getAlpha() != 1.0f) {
+                // d = 1 * s^alpha
+                ops.append_eltwise(1.0, dnnl::algorithm::eltwise_pow, 1.0f, getAlpha());
+            }
+            return;
+        }
         int channelSize = 1;
         if (channelAxis >= 0) {
             const auto chIdx = postOpDims.size() > 1 ? channelAxis : 0;
