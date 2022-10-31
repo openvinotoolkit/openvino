@@ -136,8 +136,7 @@ int main(int argc, char* argv[]) {
         slog::info << "Duration:   " << duration << " ms" << slog::endl;
         slog::info << "Latency:" << slog::endl;
         size_t percent = 50;
-        LatencyMetrics latency_metrics{latencies, "", percent};
-        latency_metrics.write_to_slog();
+        LatencyMetrics{latencies, "", percent}.write_to_slog();
         slog::info << "Throughput: " << double_to_string(1000 * latencies.size() / duration) << " FPS" << slog::endl;
     } catch (const std::exception& ex) {
         slog::err << ex.what() << slog::endl;
