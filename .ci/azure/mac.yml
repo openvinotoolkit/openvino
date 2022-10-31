@@ -9,6 +9,7 @@ trigger:
     - /**/docs/*
     - /**/*.md
     - README.md
+    - /**/layer_tests_summary/**
 
 pr:
   branches:
@@ -21,6 +22,7 @@ pr:
     - /**/docs/*
     - /**/*.md
     - README.md
+    - /**/layer_tests_summary/**
 
 resources:
   repositories:
@@ -116,14 +118,15 @@ jobs:
       export PATH="/usr/local/opt/cython/bin:$PATH"
       export CC=gcc
       export CXX=g++
-      cmake -GNinja -DVERBOSE_BUILD=ON \
+      cmake -GNinja \
+        -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DENABLE_REQUIREMENTS_INSTALL=OFF \
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
-        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
         -DENABLE_PYTHON=ON \
         -DENABLE_TESTS=OFF \
         -DENABLE_STRICT_DEPENDENCIES=OFF \
-        -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules \
+        -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules \
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
         -DCMAKE_C_COMPILER_LAUNCHER=ccache \
         -DCMAKE_CXX_LINKER_LAUNCHER=ccache \
@@ -178,6 +181,11 @@ jobs:
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-NGraphUT.xml
     displayName: 'OV Core UT'
+    continueOnError: false
+    enabled: false
+
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-IRFrontend.xml
+    displayName: 'IR Frontend Tests'
     continueOnError: false
     enabled: false
 

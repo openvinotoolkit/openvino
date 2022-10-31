@@ -23,8 +23,12 @@ macro(ov_rpm_cpack_set_dirs)
     set(OV_CPACK_OPENVINO_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/openvino${OpenVINO_VERSION})
     set(OV_CPACK_DOCDIR ${CMAKE_INSTALL_DATADIR}/doc/openvino-${OpenVINO_VERSION})
 
+    ov_get_pyversion(pyversion)
+    if(pyversion)
+        set(OV_CPACK_PYTHONDIR ${CMAKE_INSTALL_LIBDIR}/${pyversion}/site-packages)
+    endif()
+
     # non-native stuff
-    set(OV_CPACK_PYTHONDIR ${OV_CPACK_PLUGINSDIR})
     set(OV_CPACK_SHAREDIR ${CMAKE_INSTALL_DATADIR}/openvino-${OpenVINO_VERSION}) # internal
     set(OV_CPACK_SAMPLESDIR ${OV_CPACK_SHAREDIR}/samples)
     set(OV_CPACK_DEVREQDIR ${OV_CPACK_SHAREDIR})
@@ -247,7 +251,7 @@ macro(ov_rpm_add_latest_component comp)
 
     ov_rpm_add_rpmlint_suppression(${comp_name}
         # it's umbrella package
-        "empty-binary-package")
+        "no-binary")
 
     # add latest to a list of rpm packages
     list(APPEND CPACK_COMPONENTS_ALL ${comp_name})

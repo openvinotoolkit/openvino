@@ -68,7 +68,7 @@ protected:
 
 public:
     static primitive_impl* create(const pooling_node& arg, const kernel_impl_params& impl_params) {
-        auto& engine = impl_params.prog.get_engine();
+        auto& engine = impl_params.prog->get_engine();
         auto desc = get_pooling_descriptor(impl_params);
         auto attr = arg.get_onednn_primitive_attributes();
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
@@ -93,9 +93,11 @@ attach_pooling_onednn::attach_pooling_onednn() {
         format::b_fs_yx_fsv32,
         format::b_fs_zyx_fsv32,
         format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv16_fsv32,
         format::bs_fs_yx_bsv32_fsv16,
         format::bs_fs_yx_bsv32_fsv32,
         format::bs_fs_zyx_bsv16_fsv16,
+        format::bs_fs_zyx_bsv16_fsv32,
         format::bs_fs_zyx_bsv32_fsv16,
         format::bs_fs_zyx_bsv32_fsv32,
     };

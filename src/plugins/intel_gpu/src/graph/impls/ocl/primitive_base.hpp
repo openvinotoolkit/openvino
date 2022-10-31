@@ -76,8 +76,10 @@ protected:
                 args.fused_op_inputs.push_back(instance.fused_memory(i));
             }
         }
-        // TODO: support multiple outputs
-        args.outputs.push_back(instance.output_memory_ptr());
+
+        for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
+            args.outputs.push_back(instance.output_memory_ptr(i));
+        }
 
         return args;
     }
@@ -171,8 +173,8 @@ protected:
             std::vector<event::ptr> new_events;
             for (decltype(split) i = 0; i < split; i++) {
                 // is any user of the prim's users is an detecion output, set prim as a output event (event won't be nullptr)
-                auto users = instance.node.get_users();
-                bool is_output_event = is_any_user_cpu(users) || instance.node.is_output();
+                auto users = instance.node->get_users();
+                bool is_output_event = is_any_user_cpu(users) || instance.node->is_output();
 
                 auto args = get_arguments(instance, i);
                 args.scalars = &_kernel_data.kernels[k].params.scalars;
