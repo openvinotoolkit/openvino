@@ -418,7 +418,7 @@ def add_meta_data_elem(meta: Element, key, value):
                 continue
             add_meta_data_elem(sub_elem, sub_key, sub_value)
     else:
-        SubElement(meta, key).set('value', value)
+        SubElement(meta, key).set('value', str(value))
 
 
 def add_net_rt_info(net: Element, meta_info: dict):
