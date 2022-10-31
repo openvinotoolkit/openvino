@@ -42,6 +42,7 @@ void register_implementations() {
     REGISTER_OCL(gather_nd);
     REGISTER_OCL(gemm);
     REGISTER_OCL(generate_proposals);
+    REGISTER_OCL(grid_sample);
     REGISTER_OCL(lrn);
     REGISTER_OCL(lstm_gemm);
     REGISTER_OCL(lstm_elt);

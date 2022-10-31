@@ -48,6 +48,7 @@ enum class KernelType {
     BROADCAST,
     BUCKETIZE,
     GEMM,
+    GRID_SAMPLE,
     PYRAMID_ROI_ALIGN,
     CONTRACT,
     ONE_HOT,
