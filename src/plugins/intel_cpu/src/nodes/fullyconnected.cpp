@@ -888,6 +888,7 @@ MemoryPtr FullyConnected::prepareWeightMemory(const DnnlMemoryDescPtr weightDesc
                                         + "_" + std::to_string(data_hash);
 
         ptr = *weightCache->findOrCreate(string_hash, create);
+        privateWeightCache[weightDesc->serializeFormat()] = ptr;
     } else {
         if (!privateWeightCache[weightDesc->serializeFormat()]) {
             ptr = create();

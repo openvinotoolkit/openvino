@@ -85,6 +85,8 @@ private:
     MemoryDescPtr weightDescIP;
     // when weightCache does not enable(such as stream=1) brgconv weights may change due to
     // different shapes. Weights will cache in privateWeightCache
+    // when weightCache enabled hold weight ptr reference since weightCache does not hold the
+    // reference
     std::map<std::string, MemoryPtr> privateWeightCache;
 
     class ExecutorInnerProduct : public DnnlExecutor {
