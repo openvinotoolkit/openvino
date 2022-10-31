@@ -84,7 +84,7 @@ std::vector<ReductionParams> generateReductionParams(const bool keep_dims) {
 
 std::vector<ReductionParams> generateReductionParamsFloat(const bool keep_dims) {
     std::vector<float> in = generateRandomVector(1000000);
-    float res = static_cast<float>(std::accumulate(std::begin(in), std::end(in), 0));
+    float res = static_cast<float>(std::accumulate(std::begin(in), std::end(in), 0.f));
     std::vector<ReductionParams> params = {
         ReductionParams(ReductionType::Sum, keep_dims, std::vector<int64_t>{0},
                         reference_tests::Tensor({1000000}, element::f32, in),
