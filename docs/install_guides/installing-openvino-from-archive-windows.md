@@ -156,7 +156,7 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 
 .. tab:: Get started with C++
 
-   Try the `C++ Quick Start Example <../get_started/get_started_demos.md>`_ for step-by-step instructions on building and running a basic image classification C++ application.
+   Try the <a href="openvino_docs_get_started_get_started_demos.html">C++ Quick Start Example</a> for step-by-step instructions on building and running a basic image classification C++ application.
    
    .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
       :width: 400
