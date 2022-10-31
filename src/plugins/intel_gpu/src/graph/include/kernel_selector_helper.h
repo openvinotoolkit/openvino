@@ -131,10 +131,6 @@ struct kernel_impl_params {
 
     memory::ptr reordered_weights = nullptr;
 
-    optional_value<uint32_t> groups;
-    optional_value<int32_t> split;
-    optional_value<int32_t> deform_conv_dep_offset;
-
     primitive_type_id type;
     primitive_id id;
     primitive_id org_id;
