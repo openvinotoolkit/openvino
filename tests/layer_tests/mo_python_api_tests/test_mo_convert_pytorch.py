@@ -288,6 +288,34 @@ def create_pytorch_nn_module_sample_input_numpy(tmp_dir):
                                  'onnx_opset_version': 16}
 
 
+def create_pytorch_nn_module_sample_input_dict(tmp_dir):
+    from openvino.tools.mo import convert_model
+    pt_model = make_pt_model_one_input()
+
+    example_inputs = {"x": np.array(torch.zeros(1, 3, 10, 10, dtype=torch.int32))}
+    onnx_model_path = os.path.join(tmp_dir, 'export.onnx')
+    torch.onnx.export(pt_model, torch.zeros(1, 3, 10, 10, dtype=torch.int32), onnx_model_path, opset_version=16)
+
+    ref_model = convert_model(onnx_model_path)
+    return pt_model, ref_model, {'example_inputs': example_inputs,
+                                 'onnx_opset_version': 16}
+
+
+def create_pytorch_nn_module_sample_input_dict_two_inputs(tmp_dir):
+    from openvino.tools.mo import convert_model
+    pt_model = make_pt_model_two_inputs()
+
+    example_inputs = {"y": np.array(torch.zeros(1, 3, 10, 10, dtype=torch.int32)),
+                      "x": np.array(torch.zeros(1, 3, 10, 10, dtype=torch.int32))}
+    onnx_model_path = os.path.join(tmp_dir, 'export.onnx')
+    torch.onnx.export(pt_model, {"y": torch.zeros(1, 3, 10, 10, dtype=torch.int32),
+                                 "x": torch.zeros(1, 3, 10, 10, dtype=torch.int32)}, onnx_model_path, opset_version=16)
+
+    ref_model = convert_model(onnx_model_path)
+    return pt_model, ref_model, {'example_inputs': example_inputs,
+                                 'onnx_opset_version': 16}
+
+
 def create_pytorch_nn_module_sample_input_ov_host_tensor(tmp_dir):
     from openvino.tools.mo import convert_model
     from openvino.runtime import Tensor
@@ -342,6 +370,8 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_nn_module_sample_input_numpy,
         create_pytorch_nn_module_sample_input_ov_host_tensor,
         create_pytorch_nn_module_sample_input_ov_host_tensor_two_inputs,
+        create_pytorch_nn_module_sample_input_dict,
+        create_pytorch_nn_module_sample_input_dict_two_inputs,
         create_pytorch_jit_script_module,
         create_pytorch_jit_script_function,
     ]

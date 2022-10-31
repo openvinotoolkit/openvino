@@ -619,11 +619,21 @@ def convert_pytorch_to_onnx(model, input_shape, opset_version, example_inputs, o
     import torch
     from collections.abc import Iterable
 
+    input_names = None
     if example_inputs is not None:
         inputs = example_inputs
         if isinstance(inputs, list) or isinstance(inputs, tuple):
             inputs = [to_torch_tensor(x) for x in inputs]
             inputs = tuple(inputs)
+        elif isinstance(inputs, dict):
+            input_names = []
+            inputs_list = []
+            for name, tensor in inputs.items():
+                assert isinstance(name, str), "Expected dictionary where keys are input names of string type and" \
+                                              " values are tensors. Got key of type {}".format(type(name))
+                input_names.append(name)
+                inputs_list.append(to_torch_tensor(tensor))
+            inputs = tuple(inputs_list)
         else:
             inputs = to_torch_tensor(inputs)
     elif input_shape is not None:
@@ -638,16 +648,18 @@ def convert_pytorch_to_onnx(model, input_shape, opset_version, example_inputs, o
     else:
         raise Error("Please provide input_shape or example_inputs for converting PyTorch model.")
 
-    dynamic_axes_params = {}
     dynamic_dims_dict = {}
-    if input_shape is not None:
+    if input_shape is not None and input_names is None:
         input_names = ["input_{}".format(idx) for idx in range(len(input_shape))]
         for shape_idx, shape in enumerate(input_shape):
             dynamic_dims = get_dynamic_dims(shape)
             if len(dynamic_dims) > 0:
                 dynamic_dims_dict[input_names[shape_idx]] = dynamic_dims
+    additional_params = {}
     if len(dynamic_dims_dict) > 0:
-        dynamic_axes_params = {'dynamic_axes': dynamic_dims_dict, 'input_names': input_names}
+        additional_params.update({'dynamic_axes': dynamic_dims_dict})
+    if input_names is not None and len(input_names) > 0:
+        additional_params.update({'input_names': input_names})
 
     if os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):
         model_onnx = io.BytesIO()
@@ -657,7 +669,7 @@ def convert_pytorch_to_onnx(model, input_shape, opset_version, example_inputs, o
                       inputs,
                       model_onnx,
                       opset_version=opset_version,
-                      **dynamic_axes_params)
+                      **additional_params)
     return model_onnx
 
 
