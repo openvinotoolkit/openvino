@@ -66,6 +66,7 @@ protected:
     void decode_to_framework_nodes();
     void convert_to_ngraph_nodes();
     void remove_dangling_parameters();
+    void set_metadata(std::shared_ptr<ov::Model>& model) const;
     std::shared_ptr<Function> create_function();
 
     ParameterVector m_parameters;

@@ -262,10 +262,21 @@ void Graph::remove_dangling_parameters() {
     }
 }
 
+void Graph::set_metadata(std::shared_ptr<ov::Model>& model) const {
+    const std::string framework_section = "framework";
+    const auto metadata = m_model->get_metadata();
+
+    for (const auto& pair : metadata) {
+        model->set_rt_info(pair.second, framework_section, pair.first);
+    }
+}
+
 std::shared_ptr<Function> Graph::convert() {
     convert_to_ngraph_nodes();
     remove_dangling_parameters();
-    return create_function();
+    auto function = create_function();
+    set_metadata(function);
+    return function;
 }
 
 OutputVector Graph::make_framework_nodes(const Node& onnx_node) {
