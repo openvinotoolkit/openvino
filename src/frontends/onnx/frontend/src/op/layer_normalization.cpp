@@ -85,7 +85,7 @@ OutputVector layer_normalization(const Node& node) {
     // input
     Output<ngraph::Node> input = nodes[0];
 
-    double eps = node.get_attribute_value<float>("epsilon", 1e-5);
+    double eps = node.get_attribute_value<double>("epsilon", 1e-5);
     const auto reduction_axes = get_reduction_axes_from_attr(node);
     std::shared_ptr<ngraph::Node> result =
         std::make_shared<default_opset::MVN>(input, reduction_axes, true, eps, ngraph::op::MVNEpsMode::INSIDE_SQRT);
