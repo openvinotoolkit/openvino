@@ -1115,6 +1115,11 @@ void Node::appendPostOpArgs(const dnnl::primitive_attr& attr,
             primArgs[DNNL_ARG_ATTR_POST_OP_DW | DNNL_ARG_BIAS] = postOpsArgs[idx++]->GetPrimitive();
         }
     }
+
+    if (!attr.get()->output_scales_.defined()) {
+        IE_ASSERT(idx < postOpsArgs.size());
+        primArgs[DNNL_ARG_ATTR_OUTPUT_SCALES] = postOpsArgs[idx++]->GetPrimitive();
+    }
 }
 
 bool Node::isFusedWith(Type fusedNodeType) const {

@@ -32,6 +32,7 @@ public:
                         const VectorDims& outputDims,
                         int indexOfOutputChannelDim,
                         bool isINT8);
+    ~DnnlPostOpsComposer();
 
     void appendBinary(const dnnl::algorithm alg, const std::vector<float>& data);
     void appendEltwise(float scale, const dnnl::algorithm alg, float alpha, float beta);
@@ -56,6 +57,8 @@ private:
     Dim OC;
     const bool isINT8;  // isINT8 has no output scale
     ov::intel_cpu::Node* node;
+    int oscale_mask;
+    std::vector<float> oscale_values;
 };
 
 }  // namespace intel_cpu

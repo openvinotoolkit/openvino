@@ -29,6 +29,22 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(ov::intel_cpu::Node* node,
     OC = outputDims[idxOC];
     dimsPerOC = dimsPerTensor = VectorDims(outputDims.size(), 1);
     dimsPerOC[idxOC] = OC;
+    oscale_mask = 0;
+    oscale_values = {1.0f};
+}
+
+DnnlPostOpsComposer::~DnnlPostOpsComposer() {
+    if (oscale_mask == 0 && oscale_values[0] == 1.0f)
+        return;
+
+    attr.set_output_scales(oscale_mask, {DNNL_RUNTIME_F32_VAL});
+
+    // append runtime output scales to the end of vector
+    DnnlBlockedMemoryDesc memoryDesc(InferenceEngine::Precision::FP32, Shape({oscale_values.size()}));
+    auto mem = std::make_shared<Memory>(node->getEngine());
+    mem->Create(memoryDesc);
+    memcpy(mem->GetPtr(), oscale_values.data(), oscale_values.size() * sizeof(float));
+    args.emplace_back(std::move(mem));
 }
 
 void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vector<float>& data) {
@@ -98,28 +114,36 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool allo
     }
 
     if (can_fuse_into_oscale) {
-        int mask;
-        std::vector<float> outScales;
-        attr.get_output_scales(mask, outScales);
         if (scale.size() > 1) {
-            if (mask == 0)
-                outScales.resize(scale.size(), outScales[0]);
+            if (oscale_mask == 0)
+                oscale_values.resize(scale.size(), oscale_values[0]);
             else
-                IE_ASSERT(outScales.size() == OC);
+                IE_ASSERT(oscale_values.size() == OC);
             for (int j = 0; j < OC; j++)
-                outScales[j] *= scale[j];
+                oscale_values[j] *= scale[j];
         } else {
-            for (int j = 0; j < outScales.size(); j++)
-                outScales[j] *= scale[0];
+            for (int j = 0; j < oscale_values.size(); j++)
+                oscale_values[j] *= scale[0];
         }
 
-        if (outScales.size() == 1)
-            mask = 0;
+        if (oscale_values.size() == 1)
+            oscale_mask = 0;
         else
-            mask = 1 << 1;  // it works for both Conv/Matmul
+            oscale_mask = 1 << 1;  // it works for both Conv/Matmul
 
-        attr.set_output_scales(mask, outScales);
         return true;
+    }
+
+    // (eltwise(x, scale, alpha, beta) + dst[:])*s = (eltwise(x, scale*s, alpha, beta) + s*dst[:])
+    if (scale.size() == 1 && ops.len() > 1) {
+        auto N = ops.len();
+        auto& cur_op = ops.get()->entry_[N-1];
+        auto& prev_op = ops.get()->entry_[N-2];
+        if (cur_op.kind == dnnl::impl::primitive_kind::sum && prev_op.is_eltwise()) {
+            cur_op.sum.scale *= scale[0];
+            prev_op.eltwise.scale *= scale[0];
+            return true;
+        }
     }
 
     // eltwise(x, scale, alpha, beta)*s = eltwise(x, (scale*s), alpha, beta)
@@ -145,8 +169,9 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool allo
 
 void DnnlPostOpsComposer::appendShift(const std::vector<float>& shift) {
     if (shift.size() == 1) {
-        if (shift[0] != 0.0f)
+        if (shift[0] != 0.0f) {
             ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, shift[0]);
+        }
     } else {
         appendBinary(dnnl::algorithm::binary_add, shift);
     }
@@ -156,7 +181,10 @@ bool DnnlPostOpsComposer::appendLinear(const std::vector<float>& scale,
                                        const std::vector<float>& shift,
                                        bool allowBinary) {
     if (scale.size() == 1 && shift.size() == 1) {
-        ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, scale[0], shift[0]);
+        if (shift[0] == 0.0f)
+            appendScale(scale, allowBinary);
+        else
+            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, scale[0], shift[0]);
     } else {
         // return before committing any changes
         if (!allowBinary && shift.size() > 1)
