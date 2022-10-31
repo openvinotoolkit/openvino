@@ -16,6 +16,7 @@
 
 #include <cpp/ie_cnn_network.h>
 #include <ngraph/function.hpp>
+#include <openvino/opsets/opset.hpp>
 
 namespace InferenceEngine {
 class CNNLayer;
@@ -186,6 +187,6 @@ inline std::ostream& operator<<(std::ostream& os, const std::map<std::string, st
     return os;
 }
 
-std::vector<ov::OpSet> getOpSets(void);
-std::string getOpVersion(const ov::NodeTypeInfo& type_info);
+extern std::vector<ov::OpSet> getOpSets(void);
+extern std::string getOpVersion(const ov::NodeTypeInfo& type_info);
 }  // namespace CommonTestUtils

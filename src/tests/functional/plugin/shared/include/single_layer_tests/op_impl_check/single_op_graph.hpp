@@ -6,6 +6,7 @@
 
 #include <functional_test_utils/summary/op_summary.hpp>
 #include <ngraph_functions/subgraph_builders.hpp>
+#include "common_test_utils/common_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -16,7 +17,7 @@ OpGenerator getOpGeneratorMap();
 
 static const std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>>> createFunctions() {
     std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>>> res;
-    auto opsets = ov::test::utils::OpSummary::getInstance().getOpSets();
+    auto opsets = CommonTestUtils::getOpSets();
     auto opGenerator = getOpGeneratorMap();
     std::set<ngraph::NodeTypeInfo> opsInfo;
     for (const auto& opset : opsets) {

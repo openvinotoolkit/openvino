@@ -28,17 +28,6 @@ void OpSummaryDestroyer::initialize(OpSummary *p) {
 
 OpSummary::OpSummary() {
     reportFilename = CommonTestUtils::OP_REPORT_FILENAME;
-    // TODO: replace to get_available_opsets()
-    opsets.push_back(ngraph::get_opset1());
-    opsets.push_back(ngraph::get_opset2());
-    opsets.push_back(ngraph::get_opset3());
-    opsets.push_back(ngraph::get_opset4());
-    opsets.push_back(ngraph::get_opset5());
-    opsets.push_back(ngraph::get_opset6());
-    opsets.push_back(ngraph::get_opset7());
-    opsets.push_back(ngraph::get_opset8());
-    opsets.push_back(ngraph::get_opset9());
-    opsets.push_back(ngraph::get_opset10());
 }
 
 OpSummary &OpSummary::getInstance() {
@@ -241,7 +230,7 @@ void OpSummary::saveReport() {
     std::string outputFilePath = outputFolder + std::string(CommonTestUtils::FileSeparator) + filename;
 
     std::set<ngraph::NodeTypeInfo> opsInfo;
-    for (const auto &opset : getOpSets()) {
+    for (const auto &opset : CommonTestUtils::getOpSets()) {
         const auto &type_info_set = opset.get_type_info_set();
         opsInfo.insert(type_info_set.begin(), type_info_set.end());
     }
@@ -281,7 +270,7 @@ void OpSummary::saveReport() {
 
     pugi::xml_node opsNode = root.append_child("ops_list");
     for (const auto &op : opsInfo) {
-        std::string name = std::string(op.name) + "-" + getOpVersion(op);
+        std::string name = std::string(op.name) + "-" + CommonTestUtils::getOpVersion(op);
         pugi::xml_node entry = opsNode.append_child(name.c_str());
         (void) entry;
     }
@@ -290,7 +279,7 @@ void OpSummary::saveReport() {
     pugi::xml_node currentDeviceNode = resultsNode.append_child(summary.deviceName.c_str());
     std::unordered_set<std::string> opList;
     for (const auto &it : stats) {
-        std::string name = std::string(it.first.name) + "-" + getOpVersion(it.first);
+        std::string name = std::string(it.first.name) + "-" + CommonTestUtils::getOpVersion(it.first);
         opList.insert(name);
         pugi::xml_node entry = currentDeviceNode.append_child(name.c_str());
         entry.append_attribute("implemented").set_value(it.second.isImplemented);

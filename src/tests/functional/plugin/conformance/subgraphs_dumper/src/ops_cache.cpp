@@ -189,7 +189,7 @@ OPCache::serialize_function(const std::pair<std::shared_ptr<ov::Node>, LayerTest
         auto op_el_type = op.first->get_output_element_type(0).get_type_name();
         auto current_op_folder = serialization_dir + CommonTestUtils::FileSeparator +
                                  (is_dynamic ? "dynamic" : "static") + CommonTestUtils::FileSeparator +
-                                 op.first->get_type_info().name + "-" + getOpVersion(op.first->get_type_info()) +
+                                 op.first->get_type_info().name + "-" + CommonTestUtils::getOpVersion(op.first->get_type_info()) +
                                  CommonTestUtils::FileSeparator + op_el_type;
         auto op_name = op.first->get_name();
         std::cout << op_name << " will be serialized to " << current_op_folder << std::endl;

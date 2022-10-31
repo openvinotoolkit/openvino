@@ -4,7 +4,6 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include <legacy/details/ie_cnn_network_iterator.hpp>
-#include "openvino/opsets/opset.hpp"
 
 namespace CommonTestUtils {
 
