@@ -99,8 +99,8 @@ public:
     }
     memory& output_memory(size_t index = 0) const { return *_outputs[index]; }
     memory::ptr output_memory_ptr(size_t index = 0) const { return _outputs[index]; }
-    size_t inputs_memory_count() const { return _impl_params->inputs_memory_count; }
-    size_t outputs_memory_count() const { return _impl_params->outputs_memory_count; }
+    size_t inputs_memory_count() const { return _inputs_memory_count; }
+    size_t outputs_memory_count() const { return _outputs_memory_count; }
     bool outputs_allocated() const {
         if (_outputs.empty()) return false;
         for (const auto& output : _outputs) {
@@ -108,10 +108,10 @@ public:
         }
         return true;
     }
-    primitive_type_id type() const { return _impl_params->type; }
-    primitive_id id() const { return _impl_params->id; }
-    primitive_id org_id() const { return _impl_params->org_id; }
-    bool can_be_optimized() const { return _impl_params->can_be_optimized; }
+    primitive_type_id type() const { return _type; }
+    primitive_id id() const { return _id; }
+    primitive_id org_id() const { return _org_id; }
+    bool can_be_optimized() const { return _can_be_optimized; }
     std::shared_ptr<const primitive> desc() const { return _node->get_primitive(); }
     program_node const& get_node() const { return *_node; }
     network& get_network() const { return _network; }
@@ -160,32 +160,17 @@ public:
     }
 
     bool has_fused_primitives() const { return _impl_params->has_fused_primitives(); }
-    size_t get_fused_mem_count() const { return _impl_params->fused_mem_count; }
-    size_t get_fused_mem_offset() const { return _impl_params->fused_mem_offset; }
+    size_t get_fused_mem_count() const { return _fused_mem_count; }
+    size_t get_fused_mem_offset() const { return _fused_mem_offset; }
+    bool has_mutable_input() const { return _has_mutable_input; }
+    void set_mutable_input(bool val) { _has_mutable_input = val; }
+    bool is_input() const { return _is_input; }
+    bool is_output() const { return _is_output; }
+    bool mem_allocated() const { return _mem_allocated; }
+    bool is_dynamic() const { return _is_dynamic; }
+    bool can_share_buffer() const { return _can_share_buffer; }
+    bool is_constant() const { return _is_constant; }
 
-    bool has_mutable_input() const {
-        return _has_mutable_input;
-    }
-
-    void set_mutable_input(bool val) {
-        _has_mutable_input = val;
-    }
-
-    bool is_input() const {
-        return _impl_params->is_input;
-    }
-
-    bool is_output() const {
-        return _impl_params->is_output;
-    }
-
-    bool mem_allocated() const {
-        return _mem_allocated;
-    }
-
-    bool is_dynamic() const {
-        return _is_dynamic;
-    }
 
     void allocate_internal_buffers();
     static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node,
@@ -247,6 +232,18 @@ protected:
     bool _has_mutable_input = false;
     bool _mem_allocated = false;
     bool _is_dynamic = false;
+    primitive_type_id _type;
+    primitive_id _id;
+    primitive_id _org_id;
+    bool _is_input = false;
+    bool _is_output = false;
+    size_t _inputs_memory_count = 0;
+    size_t _outputs_memory_count = 0;
+    size_t _fused_mem_count = 0;
+    size_t _fused_mem_offset = 0;
+    bool _can_be_optimized = false;
+    bool _can_share_buffer = true;
+    bool _is_constant = false;
 
     size_t max_output_layout_size = 0;
 

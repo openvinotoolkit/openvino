@@ -105,21 +105,6 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
         params->fused_desc_onednn = get_fused_primitives_onednn();
 #endif // ENABLE_ONEDNN_FOR_GPU
-
-        params->type = type();
-        params->is_input = is_input();
-        params->is_output = is_output();
-        params->inputs_memory_count = get_primitive()->input_size();
-        params->outputs_memory_count = get_primitive()->output_size();
-        params->fused_mem_count = get_fused_inputs_count();
-        if (params->fused_mem_count > 0)
-            params->fused_mem_offset = get_fused_primitives()[0].dep_start_idx;
-        params->can_be_optimized = can_be_optimized();
-        params->can_share_buffer = can_share_buffer();
-        params->is_constant = is_constant();
-        params->id = id();
-        params->org_id = get_org_primitive_id();
-
         return params;
     }
 

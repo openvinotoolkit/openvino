@@ -131,19 +131,6 @@ struct kernel_impl_params {
 
     memory::ptr reordered_weights = nullptr;
 
-    primitive_type_id type;
-    primitive_id id;
-    primitive_id org_id;
-    bool is_input = false;
-    bool is_output = false;
-    size_t inputs_memory_count = 0;
-    size_t outputs_memory_count = 0;
-    size_t fused_mem_count = 0;
-    size_t fused_mem_offset = 0;
-    bool can_be_optimized = false;
-    bool can_share_buffer = true;
-    bool is_constant;
-
     kernel_impl_params() {}
 
     kernel_impl_params(program& _prog,

@@ -134,7 +134,7 @@ void primitive_inst::set_output_memory(memory::ptr mem_new, bool check, size_t i
     if (check)
         check_memory_to_set(*mem_new, ol);
 
-    if (_impl_params->is_constant) {
+    if (is_constant()) {
         mem_new->copy_from(_network.get_stream(), *_outputs[idx]);
     } else {
         _outputs[idx] = mem_new;
@@ -440,7 +440,19 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     , _outputs({memory::ptr()})
     , _output_changed(false)
     , _mem_allocated(allocate_memory)
-    , _is_dynamic(_node->is_dynamic() || _node->generates_dynamic_output()) {
+    , _is_dynamic(node.is_dynamic() || node.generates_dynamic_output())
+    , _type(node.type())
+    , _id(node.id())
+    , _org_id(node.get_org_primitive_id())
+    , _is_input(node.is_input())
+    , _is_output(node.is_output())
+    , _inputs_memory_count(node.get_primitive()->input_size())
+    , _outputs_memory_count(node.get_primitive()->output_size())
+    , _fused_mem_count(node.get_fused_inputs_count())
+    , _fused_mem_offset(_fused_mem_count > 0 ? node.get_fused_primitives()[0].dep_start_idx : 0)
+    , _can_be_optimized(node.can_be_optimized())
+    , _can_share_buffer(node.can_share_buffer())
+    , _is_constant(node.is_constant()) {
     if (allocate_memory) {
         // In case when output is mutable_data primitive, and other users dependencies are only used for
         // suychronization, The output memory of such primitive will be fused with mutable_data
