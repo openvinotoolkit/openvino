@@ -32,7 +32,7 @@ find_package(Threads REQUIRED)
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime format_reader gflags Threads::Threads)
 
-find_package(OpenCV 3 QUIET COMPONENTS core)
+find_package(OpenCV QUIET COMPONENTS core)
 if(NOT OpenCV_FOUND)
     message(WARNING "OpenCV is disabled or not found, ${TARGET_NAME} will be built without OpenCV support. Set OpenCV_DIR")
 else()

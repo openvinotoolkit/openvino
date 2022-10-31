@@ -4,7 +4,7 @@
 
 function(ie_generate_dev_package_config)
     # dummy check that OpenCV is here
-    find_package(OpenCV 3 QUIET)
+    find_package(OpenCV QUIET)
 
     foreach(component IN LISTS openvino_export_components)
         # export all targets with prefix and use them during extra modules build
@@ -32,7 +32,7 @@ endfunction()
 
 function(ov_generate_dev_package_config)
     # dummy check that OpenCV is here
-    find_package(OpenCV 3 QUIET)
+    find_package(OpenCV QUIET)
 
     foreach(component IN LISTS openvino_export_components)
         # TODO: remove legacy targets from tests

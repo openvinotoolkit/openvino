@@ -70,7 +70,7 @@ if(NOT ANDROID)
 endif()
 
 # remove OpenCV related sources
-find_package(OpenCV 3 QUIET COMPONENTS core imgcodecs)
+find_package(OpenCV QUIET COMPONENTS core imgcodecs)
 if(NOT OpenCV_FOUND)
     list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ShapeInference.cpp")
 endif()

@@ -305,9 +305,6 @@ ov_install_static_lib(nlohmann_json_schema_validator ${OV_CPACK_COMP_CORE})
 if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
     # These libraries are dependencies for openvino-samples package
 
-    # TODO: support system libraries for CentOS 7
-    # and remove 'AND NOT LINUX_OS_NAME STREQUAL "CentOS 7"' below
-
     if(NOT gflags_FOUND)
         message(FATAL_ERROR "gflags must be used as a ${CPACK_GENERATOR} package. Install libgflags-dev / gflags-devel")
     endif()
