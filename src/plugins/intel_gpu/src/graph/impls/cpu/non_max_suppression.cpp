@@ -330,7 +330,7 @@ void store_third_output(stream& stream, memory::ptr mem, const std::vector<resul
 }
 
 void run(non_max_suppression_inst& instance) {
-    auto prim = instance.node.get_primitive();
+    auto prim = instance.node->get_primitive();
     auto& stream = instance.get_network().get_stream();
 
     auto boxes = load_boxes(stream, instance.input_boxes_mem(), prim->center_point_box);

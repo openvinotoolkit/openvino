@@ -66,8 +66,8 @@ std::string binary_convolution_inst::to_string(binary_convolution_node const& no
 
 binary_convolution_inst::typed_primitive_inst(network& network, binary_convolution_node const& node)
     : parent(network, node) {
-    auto stride = argument.stride;
-    auto pad = argument.pad;
+    auto stride = argument->stride;
+    auto pad = argument->pad;
 
     auto input_layout = node.input().get_output_layout();
     auto output_layout = node.get_output_layout();
