@@ -5,7 +5,10 @@ trigger:
     - releases/*
   paths:
     exclude:
-    - docs/*
+    - docs/
+    - /**/docs/*
+    - /**/*.md
+    - README.md
 
 jobs:
 - job: OpenVINO_ONNX_CI
