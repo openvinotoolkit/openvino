@@ -118,7 +118,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                 if(tbb_file MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)*$")
                     # since the setup.py for pip installs tbb component
                     # explicitly, it's OK to put EXCLUDE_FROM_ALL to such component
-                    # to ignore from IRC / apt / yum distribution;
+                    # to ignore from IRC / apt / yum / brew distribution;
                     # but they will be present in .wheel
                     install(FILES "${tbb_file}"
                             DESTINATION runtime/3rdparty/tbb/lib
