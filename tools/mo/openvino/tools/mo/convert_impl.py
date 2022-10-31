@@ -542,7 +542,13 @@ def pack_params_to_args_namespace(**kwargs):
         if value is not None:
             setattr(argv, key, value)
     send_params_info(argv, cli_parser)
-    return argv
+
+    non_default_params = {}
+    for arg in vars(argv):
+        arg_value = getattr(argv, arg)
+        if arg_value != cli_parser.get_default(arg):
+            non_default_params[arg] = arg_value
+    return argv, non_default_params
 
 
 def params_to_string(**kwargs):
@@ -570,7 +576,7 @@ def _convert(**args):
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', get_simplified_mo_version())
     args = params_to_string(**args)
-    argv = pack_params_to_args_namespace(**args)
+    argv, non_default_params = pack_params_to_args_namespace(**args)
 
     if argv.model_name is None:
         argv.model_name = get_model_name_from_args(argv)
@@ -587,8 +593,7 @@ def _convert(**args):
         ov_model.set_rt_info(get_version(), "MO_version")
         ov_model.set_rt_info(get_rt_version(), "Runtime_version")
         ov_model.set_rt_info(str(legacy_path), "legacy_path")
-        meta_info = get_meta_info(argv)
-        for key, value in meta_info.items():
+        for key, value in non_default_params.items():
             ov_model.set_rt_info(str(value), ["conversion_parameters", str(key)])
 
         telemetry.send_event('mo', 'conversion_result', 'success')
