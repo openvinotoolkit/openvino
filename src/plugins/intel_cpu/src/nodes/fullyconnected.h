@@ -82,6 +82,7 @@ private:
     executorPtr execPtr = nullptr;
     bool shouldUseConv1x1 = false;
     impl_desc_type implementationTypeIP;
+    MemoryDescPtr weightDescIP;
     // when weightCache does not enable(such as stream=1) brgconv weights may change due to
     // different shapes. Weights will cache in privateWeightCache
     std::map<std::string, MemoryPtr> privateWeightCache;

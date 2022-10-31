@@ -210,14 +210,11 @@ void FullyConnected::getSupportedDescriptors() {
 
 void FullyConnected::prepareParams() {
     auto srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
-    auto wghMemPtr = getParentEdgesAtPort(1)[0]->getMemoryPtr();
     auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << "Destination memory hasn't been allocated.";
     if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << "Input memory hasn't been allocated.";
-    if (!wghMemPtr || !wghMemPtr->isAllocated())
-        IE_THROW() << "Weight memory hasn't been allocated.";
     MemoryPtr biasMemPtr = nullptr;
     if (withBiases) {
         biasMemPtr = getParentEdgesAtPort(2)[0]->getMemoryPtr();
@@ -232,7 +229,7 @@ void FullyConnected::prepareParams() {
     AttrPtr attr = std::make_shared<dnnl::primitive_attr>();
     setPostOps(*attr, dstMemPtr->getStaticDims());
 
-    DnnlMemoryDescCPtr weightDesc = wghMemPtr->GetDescWithType<DnnlMemoryDesc>();
+    DnnlMemoryDescPtr weightDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weightDescIP);
     DnnlMemoryDescCPtr biasDesc = nullptr;
     if (biasMemPtr) {
         biasDesc = biasMemPtr->GetDescWithType<DnnlMemoryDesc>();
@@ -353,13 +350,12 @@ void FullyConnected::prepareParams() {
             primArgs[DNNL_ARG_SRC] = dnnl::memory(ptr->getSrcDesc(), oldMem.get_engine(), oldMem.get_data_handle());
             oldMem = dstMemPtr->GetPrimitive();
             primArgs[DNNL_ARG_DST] = dnnl::memory(ptr->getDstDesc(), oldMem.get_engine(), oldMem.get_data_handle());
-            oldMem = wghMemPtr->GetPrimitive();
             primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(DnnlExtensionUtils::makeDescriptor(ptr->getWeightDesc()))->GetPrimitive();
             selected_pd->setImplementationType(ptr->getImplementationType());
         } else {
             shouldUseConv1x1 = false;
             primArgs[DNNL_ARG_SRC] = srcMemPtr->GetPrimitive();
-            primArgs[DNNL_ARG_WEIGHTS] = wghMemPtr->GetPrimitive();
+            primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(weightDesc)->GetPrimitive();;
             primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();
             selected_pd->setImplementationType(implementationTypeIP);
         }
@@ -741,7 +737,15 @@ InferenceEngine::Precision FullyConnected::getRuntimePrecision() const {
 
 void FullyConnected::initOptimalPrimitiveDescriptor() {
     Node::initOptimalPrimitiveDescriptor();
-    implementationTypeIP = getSelectedPrimitiveDescriptor()->getImplementationType();
+    auto selectedPD = getSelectedPrimitiveDescriptor();
+    implementationTypeIP = selectedPD->getImplementationType();
+    // if convolution selected the reorder for ip is useless. Delay the reoder for ip to prepareParams
+    const auto constParent = getParentEdgeAt(1)->getParent();
+    const auto selectedParentPD = constParent->getSelectedPrimitiveDescriptor();
+    auto config = selectedPD->getConfig();
+    weightDescIP = config.inConfs[1].getMemDesc();
+    config.inConfs[1].setMemDesc(selectedParentPD->getConfig().outConfs[0].getMemDesc());
+    selectedPD->setConfig(config);
 }
 
 DnnlDesriptor FullyConnected::createDescriptorInternalForConv(const dnnl::memory::desc &inputDesc,
@@ -850,15 +854,7 @@ FullyConnected::ExecutorConv1x1::ExecutorConv1x1(const dnnl::convolution_forward
 }
 
 MemoryPtr FullyConnected::prepareWeightMemory(const DnnlMemoryDescPtr weightDesc) {
-    const auto parentNode = getParentEdgeAt(1)->getParent();
-    std::shared_ptr<Input> constNode;
-    if (parentNode->getParentEdges().size()) {
-        // parent is reorder
-        constNode = std::dynamic_pointer_cast<Input>(parentNode->getParentEdgeAt(0)->getParent());
-    } else {
-        // parent is constant
-        constNode = std::dynamic_pointer_cast<Input>(getParentEdgeAt(1)->getParent());
-    }
+    auto constNode = std::dynamic_pointer_cast<Input>(getParentEdgeAt(1)->getParent());
     if (!constNode)
         IE_THROW() << "Cannot cast const input node for node " << getName() << ".";
     auto blob = constNode->getMemoryPtr();
