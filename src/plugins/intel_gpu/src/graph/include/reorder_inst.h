@@ -7,8 +7,8 @@
 
 #include "intel_gpu/primitives/reorder.hpp"
 #include "primitive_inst.h"
-#include "kernel_selector/core/actual_kernels/reorder/reorder_kernel_base.h"
-#include "kernel_selector/common/tensor_type.h"
+#include "kernel_selector/kernels/reorder/reorder_kernel_base.h"
+#include "kernel_selector/tensor_type.h"
 
 #include <string>
 #include <memory>
@@ -65,7 +65,7 @@ public:
     memory::ptr mean_nv12_memory() const { return dep_memory_ptr(2); }
     memory::ptr mean_memory() const { return dep_memory_ptr(1); }
 
-    bool has_mean() const { return !argument.mean.empty(); }
+    bool has_mean() const { return !argument->mean.empty(); }
 
 private:
     void on_execute() override;
