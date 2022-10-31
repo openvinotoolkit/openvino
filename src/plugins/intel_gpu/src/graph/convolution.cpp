@@ -272,8 +272,8 @@ std::string convolution_inst::to_string(convolution_node const& node) {
 }
 
 convolution_inst::typed_primitive_inst(network& network, convolution_node const& node) : parent(network, node) {
-    auto stride = argument.stride;
-    auto pad = argument.pad;
+    auto stride = argument->stride;
+    auto pad = argument->pad;
 
     auto input_layout = node.input().get_output_layout();
     auto output_layout = node.get_output_layout();
@@ -288,7 +288,7 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
 
     auto split = node.get_split();
     for (decltype(split) j = 0; j < split; j++) {
-        auto filter_inst = node.weights(j).get_output_layout().convert_to_weights_layout(argument.grouped_weights_shape);
+        auto filter_inst = node.weights(j).get_output_layout().convert_to_weights_layout(argument->grouped_weights_shape);
 
         if (bias_term()) {
             auto bias_inst = node.bias(j).get_output_layout();
@@ -324,7 +324,7 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
                                   "Biases isn't 1D vector.");
         }
 
-        auto pad = argument.pad;
+        auto pad = argument->pad;
 
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Convolution padding mode",
