@@ -194,7 +194,7 @@ void loop_inst::update_mapped_memory() {
         return;
     }
     // update output memory
-    const auto& output_primitive_maps = node.get_output_primitive_maps();
+    const auto& output_primitive_maps = node->get_output_primitive_maps();
     for (size_t i = 0; i < output_primitive_maps.size(); ++i) {
         const auto& output_mapping = output_primitive_maps.at(i);
         const primitive_id& external_id = output_mapping.external_id;
@@ -214,10 +214,10 @@ void loop_inst::update_mapped_memory() {
     // update input memory
     for (size_t memory_num = 0; memory_num < inputs_memory_count(); memory_num++) {
         const primitive_id& input_external_id = dependencies().at(memory_num)->id();
-        auto input_map_ptrs = node.find_io_primitive_maps(input_external_id, true);
+        auto input_map_ptrs = node->find_io_primitive_maps(input_external_id, true);
         if (input_map_ptrs.empty()) {
-            if (input_external_id == node.get_trip_count_id() ||
-                input_external_id == node.get_initial_execution_id()) {
+            if (input_external_id == node->get_trip_count_id() ||
+                input_external_id == node->get_initial_execution_id()) {
                 continue;
             }
         }
@@ -239,11 +239,11 @@ void loop_inst::update_mapped_memory() {
         }
     }
     //update backedges memory
-    const auto& back_edges = node.get_back_edges();
+    const auto& back_edges = node->get_back_edges();
     // checking if memory is a destination of a backedge
     for (const auto& back_edge : back_edges) {
         //find corresponding input of the backedge
-        const auto input_map_ptrs = node.find_io_primitive_maps(back_edge.to, false);
+        const auto input_map_ptrs = node->find_io_primitive_maps(back_edge.to, false);
         assert(input_map_ptrs.size() == 1);
         const auto& input_map = input_map_ptrs.front();
         auto backedged_sliced_output_mems = get_sliced_mem(back_edge.from);
@@ -257,7 +257,7 @@ void loop_inst::update_mapped_memory() {
                 if (backedged_sliced_output_mems.empty()) {
                     // backedge output which does not need concatenation
                     // input memory = output memory = loop output memory
-                    const auto output_mapping = node.find_io_primitive_maps(back_edge.from, false);
+                    const auto output_mapping = node->find_io_primitive_maps(back_edge.from, false);
                     memory::ptr backedge_mem;
                     if (output_mapping.empty()) {
                         // from and to primitives in backedge are connected directly
@@ -294,7 +294,7 @@ void loop_inst::set_output_memory(memory::ptr mem, bool check, size_t idx) {
 
 void loop_inst::preprocess_output_memory() {
     auto& engine = _network.get_engine();
-    const auto& output_primitive_maps = node.get_output_primitive_maps();
+    const auto& output_primitive_maps = node->get_output_primitive_maps();
     concatenated_output_mem_mappings.reserve(output_primitive_maps.size());
     for (size_t i = 0; i < output_primitive_maps.size(); ++i) {
         const auto& output_mapping = output_primitive_maps.at(i);
@@ -308,7 +308,7 @@ void loop_inst::preprocess_output_memory() {
             auto output_prim = body_network->get_primitive(internal_id);
             layout sliced_layout = output_prim->output_memory().get_layout();
 
-            const int64_t max_iteration = node.get_max_iteration();
+            const int64_t max_iteration = node->get_max_iteration();
             std::vector<memory::ptr> sliced_mems;
             sliced_mems.reserve(max_iteration);
             for (int j=0; j < max_iteration; ++j) {
@@ -319,7 +319,7 @@ void loop_inst::preprocess_output_memory() {
             const int64_t num_elements_batch = concatenated_memory_mapping::get_batch_size(
                 sliced_layout, output_mapping.axis);
             const int64_t num_elements_iteration = sliced_layout.count() / num_elements_batch;
-            const int64_t start = output_mapping.start < 0? node.get_max_iteration() - 1: output_mapping.start;
+            const int64_t start = output_mapping.start < 0? node->get_max_iteration() - 1: output_mapping.start;
             concatenated_memory_mapping memory_mapping_info(
                 output_mapping.axis, to_mem, sliced_mems, _network.get_stream(),
                 num_elements_iteration, output_mapping.stride, start);
@@ -334,10 +334,10 @@ void loop_inst::preprocess_input_memory() {
     auto& iteration_mem = concatenated_input_mem_mappings;
     for (size_t memory_num = 0; memory_num < inputs_memory_count(); memory_num++) {
         const primitive_id& input_external_id = dependencies().at(memory_num)->id();
-        auto input_map_ptrs = node.find_io_primitive_maps(input_external_id, true);
+        auto input_map_ptrs = node->find_io_primitive_maps(input_external_id, true);
         if (input_map_ptrs.size() == 0) {
-            if (input_external_id == node.get_trip_count_id() ||
-                input_external_id == node.get_initial_execution_id()) {
+            if (input_external_id == node->get_trip_count_id() ||
+                input_external_id == node->get_initial_execution_id()) {
                 continue;
             }
             CLDNN_ERROR_MESSAGE(id(), "loop primitive_map is incomplete");
@@ -350,7 +350,7 @@ void loop_inst::preprocess_input_memory() {
             if (is_concatenated_input) {
                 layout sliced_layout
                     = body_network->get_primitive(input_map->internal_id)->output_memory().get_layout();
-                const int64_t max_iteration = node.get_max_iteration();
+                const int64_t max_iteration = node->get_max_iteration();
                 std::vector<memory::ptr> sliced_mems;
                 sliced_mems.reserve(max_iteration);
                 for (int j=0; j < max_iteration; ++j) {
@@ -360,7 +360,7 @@ void loop_inst::preprocess_input_memory() {
                 const int64_t num_elements_batch = concatenated_memory_mapping::get_batch_size(
                     sliced_layout, input_map->axis);
                 const int64_t num_elements_iteration = sliced_layout.count() / num_elements_batch;
-                const int64_t start = input_map->start < 0? node.get_max_iteration() - 1: input_map->start;
+                const int64_t start = input_map->start < 0? node->get_max_iteration() - 1: input_map->start;
                 concatenated_memory_mapping concatenated_input_mem_mapping_info(
                     input_map->axis, memory, sliced_mems, _network.get_stream(),
                     num_elements_iteration, input_map->stride, start);
@@ -377,16 +377,16 @@ void loop_inst::preprocess_input_memory() {
 }
 
 void loop_inst::preprocess_backedge_memory() {
-    const auto& back_edges = node.get_back_edges();
+    const auto& back_edges = node->get_back_edges();
     // checking if memory is a destination of a backedge
     for (const auto& back_edge : back_edges) {
         //find corresponding input of the backedge
-        const auto input_map_ptrs = node.find_io_primitive_maps(back_edge.to, false);
+        const auto input_map_ptrs = node->find_io_primitive_maps(back_edge.to, false);
         const auto backedge_to_prim = body_network->get_primitive(back_edge.to);
         const auto backedge_from_prim = body_network->get_primitive(back_edge.from);
 
         memory::ptr initial_mem;
-        if (back_edge.to == node.get_current_iteration_id()) {
+        if (back_edge.to == node->get_current_iteration_id()) {
             const layout current_iteration_layout = backedge_to_prim->output_memory().get_layout();
             initial_mem = get_network().get_engine().allocate_memory(current_iteration_layout);
             auto& stream = get_network().get_stream();
@@ -403,7 +403,7 @@ void loop_inst::preprocess_backedge_memory() {
         if (backedged_sliced_output_mems.empty()) {
             // backedge output which does not need concatenation
             // input memory = output memory = loop output memory
-            const auto output_mapping = node.find_io_primitive_maps(back_edge.from, false);
+            const auto output_mapping = node->find_io_primitive_maps(back_edge.from, false);
             memory::ptr backedge_mem;
             if (output_mapping.empty()) {
                 // from and to primitives in backedge are connected directly
