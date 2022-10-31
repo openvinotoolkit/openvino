@@ -14,6 +14,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <transformations/common_optimizations/fused_names_cleanup.hpp>
 #include <unordered_set>
 
 #include "any_copy.hpp"
@@ -33,6 +34,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/pass/manager.hpp"
 #include "threading/ie_executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -339,6 +341,12 @@ std::unordered_set<std::string> GetSupportedNodes(
     }
 
     auto transformed_model = model->clone();
+
+    // Cleanup fused names if there are present in original model
+    ov::pass::Manager m;
+    m.register_pass<ov::pass::FusedNamesCleanup>();
+    m.run_passes(transformed_model);
+
     transform(transformed_model);
     auto ops = transformed_model->get_ordered_ops();
 
@@ -346,68 +354,83 @@ std::unordered_set<std::string> GetSupportedNodes(
     std::unordered_set<std::string> supported = GetRemovedNodes(model, transformed_model);
     std::unordered_set<std::string> unsupported;
 
-    for (auto&& op : ops) {
-        bool is_supported = false;
-        bool is_checked = false;
-        if (InferenceEngine::details::contains(original_ops, op->get_friendly_name())) {
-            is_supported = is_node_supported(op);
-            is_checked = true;
-            if (is_supported) {
-                supported.emplace(op->get_friendly_name());
-            } else {
-                unsupported.emplace(op->get_friendly_name());
-            }
-        }
+    auto get_names_set = [](const std::shared_ptr<ov::Node>& op) -> std::unordered_set<std::string> {
+        auto fused_names = ngraph::getFusedNamesVector(op);
+        std::unordered_set<std::string> names(fused_names.begin(), fused_names.end());
+        names.insert(op->get_friendly_name());
+        return names;
+    };
 
-        for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
-            if (InferenceEngine::details::contains(original_ops, fusedLayerName)) {
-                if (!is_checked) {
-                    is_supported = is_node_supported(op);
-                    is_checked = true;
-                }
-                if (is_supported) {
-                    supported.emplace(fusedLayerName);
-                } else {
-                    unsupported.emplace(fusedLayerName);
-                }
-            }
+    // Collect all operation names even there are no such names in original model
+    for (auto&& op : ops) {
+        auto names = get_names_set(op);
+        if (is_node_supported(op)) {
+            supported.insert(names.begin(), names.end());
+        } else {
+            unsupported.insert(names.begin(), names.end());
         }
     }
-    for (auto&& unsupportedNode : unsupported) {
-        supported.erase(unsupportedNode);
+
+    // If operation was fused into several operations where one is supported
+    // but another one is not supported remove it from supported
+    for (auto&& name : unsupported) {
+        supported.erase(name);
     }
-    for (auto&& node : model->get_ops()) {
-        if (InferenceEngine::details::contains(supported, node->get_friendly_name())) {
-            for (auto&& inputNodeOutput : node->input_values()) {
-                if (ov::op::util::is_constant(inputNodeOutput.get_node()) ||
-                    ov::op::util::is_parameter(inputNodeOutput.get_node())) {
-                    supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
+    // Walk over transformed model for special handing of Parameters/Constants/Results
+    for (auto&& op : ops) {
+        // Mark Parameter/Constants/Result as supported if they are connected
+        // to supported node
+        if (InferenceEngine::details::contains(supported, op->get_friendly_name())) {
+            for (auto&& input : op->input_values()) {
+                if (ov::op::util::is_constant(input.get_node()) || ov::op::util::is_parameter(input.get_node())) {
+                    auto names = get_names_set(input.get_node_shared_ptr());
+                    supported.insert(names.begin(), names.end());
                 }
             }
-            for (auto&& outputs : node->outputs()) {
-                for (auto&& outputNodeInput : outputs.get_target_inputs()) {
-                    if (ov::op::util::is_output(outputNodeInput.get_node())) {
-                        supported.emplace(outputNodeInput.get_node()->get_friendly_name());
+            for (auto&& outputs : op->outputs()) {
+                for (auto&& input : outputs.get_target_inputs()) {
+                    if (ov::op::util::is_output(input.get_node())) {
+                        supported.emplace(input.get_node()->get_friendly_name());
                     }
                 }
             }
         }
-
-        if (ov::op::util::is_constant(node) || ov::op::util::is_parameter(node)) {
-            if (node->output(0).get_target_inputs().size() &&
-                !InferenceEngine::details::contains(
-                    supported,
-                    node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
-                supported.erase(node->get_friendly_name());
+        // Mark Parameter/Constants/Result as supported if they are have no
+        // supported consumers/sources
+        if (ov::op::util::is_constant(op) || ov::op::util::is_parameter(op)) {
+            bool all_consumers_unsupported = true;
+            for (auto&& input : op->output(0).get_target_inputs()) {
+                auto check_node = input.get_node()->shared_from_this();
+                for (auto& name : get_names_set(check_node)) {
+                    if (InferenceEngine::details::contains(supported, name)) {
+                        all_consumers_unsupported = false;
+                        break;
+                    }
+                }
             }
-        } else if (ov::op::util::is_output(node)) {
+            if (all_consumers_unsupported) {
+                for (auto&& name : get_names_set(op)) {
+                    supported.erase(name);
+                }
+            }
+        } else if (ov::op::util::is_output(op)) {
             if (!InferenceEngine::details::contains(supported,
-                                                    node->input_values().begin()->get_node()->get_friendly_name())) {
-                supported.erase(node->get_friendly_name());
+                                                    op->input_values().begin()->get_node()->get_friendly_name())) {
+                supported.erase(op->get_friendly_name());
             }
         }
     }
-    return supported;
+
+    // Finally get intersection of all supported operation names
+    // and operation names from original model
+    std::unordered_set<std::string> res;
+    for (auto& name : original_ops) {
+        if (InferenceEngine::details::contains(supported, name)) {
+            res.insert(name);
+        }
+    }
+
+    return res;
 }
 
 void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,

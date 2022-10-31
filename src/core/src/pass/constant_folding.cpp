@@ -73,11 +73,12 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                 auto node_output = node->output(i);
                 auto replacement = replacements.at(i);
                 if (replacement.get_node_shared_ptr() && (node_output != replacement)) {
+                    // Propagate runtime info attributes from input values
+                    copy_runtime_info_from_input_values(node, replacement);
+
                     replacement.get_node()->set_friendly_name(friendly_name_from(*node, replacements.size(), i));
 
                     node_output.replace(replacement);
-                    // Propagate runtime info attributes to replacement consumer nodes
-                    copy_runtime_info_to_target_inputs(node, replacement);
 
                     rewritten = true;
                 }
@@ -96,12 +97,13 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
     return rewritten;
 }
 
-void ov::pass::ConstantFolding::copy_runtime_info_to_target_inputs(const std::shared_ptr<Node>& node,
-                                                                   const Output<Node>& replacement) {
-    for (auto& input : replacement.get_target_inputs()) {
-        auto consumer = input.get_node()->shared_from_this();
-        copy_runtime_info({node, consumer}, consumer);
+void ov::pass::ConstantFolding::copy_runtime_info_from_input_values(const std::shared_ptr<Node>& node,
+                                                                    const Output<Node>& replacement) {
+    ov::NodeVector from = {node};
+    for (auto& input : node->input_values()) {
+        from.push_back(input.get_node_shared_ptr());
     }
+    copy_runtime_info(from, replacement.get_node_shared_ptr());
 }
 
 bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_ptr<ov::Model>& model) {
@@ -147,12 +149,13 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
                 auto input_node = output.get_node_shared_ptr();
                 auto replacement = std::make_shared<ov::op::v0::Constant>(output.get_tensor().get_lower_value());
                 if (replacement && !ov::is_type<ov::op::v0::Constant>(input_node)) {
+                    // Propagate runtime info attributes from input values
+                    copy_runtime_info_from_input_values(input_node, replacement);
+
                     replacement->set_friendly_name(
                         friendly_name_from(*input_node, input_node->get_output_size(), output.get_index()));
 
                     output.replace(replacement);
-                    // Propagate runtime info attributes to replacement consumer nodes
-                    copy_runtime_info_to_target_inputs(input_node, replacement);
 
                     rewritten = true;
                 }
