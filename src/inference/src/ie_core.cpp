@@ -988,7 +988,8 @@ public:
                         "set_property is supported only for BATCH itself (without devices). "
                         "You can configure the devices with set_property before creating the BATCH on top.");
 
-        ExtractAndSetDeviceConfig(properties);
+        if (device_name != "AUTO" && device_name != "MULTI")
+            ExtractAndSetDeviceConfig(properties);
         SetConfigForPlugins(properties, device_name);
     }
 

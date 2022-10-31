@@ -357,6 +357,23 @@ TEST(OVClassBasicTest, smoke_SetConfigAutoNoThrows) {
     EXPECT_EQ(value, ov::hint::Priority::HIGH);
 }
 
+TEST(OVClassBasicTest, smoke_SetConfigWithNoChangeToHWPluginThroughMetaPluginNoThrows) {
+    ov::Core ie = createCoreWithTemplate();
+    int32_t preValue = -1, curValue = -1;
+
+    ASSERT_NO_THROW(preValue = ie.get_property(CommonTestUtils::DEVICE_CPU, ov::num_streams));
+    ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO,
+                                    {ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::num_streams(10))}));
+    ASSERT_NO_THROW(curValue = ie.get_property(CommonTestUtils::DEVICE_CPU, ov::num_streams));
+    EXPECT_EQ(curValue, preValue);
+
+    ASSERT_NO_THROW(preValue = ie.get_property(CommonTestUtils::DEVICE_CPU, ov::num_streams));
+    ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_MULTI,
+                                    {ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::num_streams(20))}));
+    ASSERT_NO_THROW(curValue = ie.get_property(CommonTestUtils::DEVICE_CPU, ov::num_streams));
+    EXPECT_EQ(curValue, preValue);
+}
+
 TEST_P(OVClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
