@@ -88,11 +88,11 @@ static void CreateConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1
     auto pads_end = op->get_pads_end();
     auto dilations = op->get_dilations();
 
-    // Extend 1d vectors to 2d as 1d can't be handled properly by the graph optimizer for now
-    pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
-    pads_end.resize(std::max<size_t>(2, pads_end.size()), 0);
-
     if (!op->is_dynamic()) {
+        // Extend 1d vectors to 2d as 1d can't be handled properly by the graph optimizer for now
+        strides.resize(std::max<size_t>(2, strides.size()), 1);
+        dilations.resize(std::max<size_t>(2, strides.size()), 1);
+        pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
         auto convPrim = cldnn::convolution(layerName,
                                            inputs[0],
                                            weights,
