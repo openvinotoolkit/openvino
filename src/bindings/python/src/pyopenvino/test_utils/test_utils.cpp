@@ -18,8 +18,8 @@ PYBIND11_MODULE(test_utils_api, m) {
             const auto rhs_ptr = std::const_pointer_cast<ov::Model>(rhs.shared_from_this());
 
             auto fc = FunctionsComparator::with_default()
-                                .enable(FunctionsComparator::ATTRIBUTES)
-                                .enable(FunctionsComparator::CONST_VALUES);
+                          .enable(FunctionsComparator::ATTRIBUTES)
+                          .enable(FunctionsComparator::CONST_VALUES);
 
             if (!compareTensorNames)
                 fc.disable(FunctionsComparator::TENSOR_NAMES);
