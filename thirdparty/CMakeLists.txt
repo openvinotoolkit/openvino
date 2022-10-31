@@ -305,13 +305,16 @@ ov_install_static_lib(nlohmann_json_schema_validator ${OV_CPACK_COMP_CORE})
 if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
     # These libraries are dependencies for openvino-samples package
 
-    if(NOT gflags_FOUND)
+    # TODO: support system libraries for CentOS 7
+    # and remove 'AND NOT LINUX_OS_NAME STREQUAL "CentOS 7"' below
+
+    if(NOT gflags_FOUND AND NOT LINUX_OS_NAME STREQUAL "CentOS 7")
         message(FATAL_ERROR "gflags must be used as a ${CPACK_GENERATOR} package. Install libgflags-dev")
     endif()
     if(NOT zlib_FOUND)
         message(FATAL_ERROR "zlib must be used as a ${CPACK_GENERATOR} package. Install zlib1g-dev")
     endif()
-    if(NOT ENABLE_SYSTEM_PUGIXML)
+    if(NOT ENABLE_SYSTEM_PUGIXML AND NOT LINUX_OS_NAME STREQUAL "CentOS 7")
         message(FATAL_ERROR "Pugixml must be used as a ${CPACK_GENERATOR} package. Install libpugixml-dev")
     endif()
 else()

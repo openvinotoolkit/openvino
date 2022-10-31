@@ -27,7 +27,7 @@ ov_add_test_target(
             TEMPLATE
 )
 
-find_package(OpenCV QUIET COMPONENTS core imgproc)
+find_package(OpenCV 3 QUIET COMPONENTS core imgproc)
 
 if(OpenCV_FOUND)
     message("-- Reference preprocessing: OpenCV tests are enabled")
