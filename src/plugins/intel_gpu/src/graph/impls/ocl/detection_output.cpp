@@ -54,7 +54,7 @@ protected:
     bool optimized_out(detection_output_inst& instance) const override {
         /// purpose: To optimize out detection_output for perf measurement.
         /// how-to: update nms_threshold to '-100' from ir file.
-        return (instance.argument.nms_threshold < -1);
+        return (instance.argument->nms_threshold < -1);
     }
 
 public:
