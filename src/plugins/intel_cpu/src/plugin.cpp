@@ -328,6 +328,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     manager.register_pass<ngraph::pass::EliminateConvert>();
     manager.register_pass<SwapConvertTranspose>();
     manager.register_pass<ConvertToInteraction>();
+    manager.register_pass<ConvertInteractionInt8>();
 
     auto pass_config = manager.get_pass_config();
 
