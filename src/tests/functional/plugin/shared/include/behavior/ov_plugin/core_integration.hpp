@@ -367,11 +367,11 @@ TEST_P(OVClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
         deviceID =  target_device.substr(pos + 1,  target_device.size());
     }
     if (!supportsDeviceID(ie, cleartarget_device) || !supportsAvaliableDevices(ie, cleartarget_device)) {
-        GTEST_SKIP();
+        GTEST_FAIL();
     }
     auto deviceIDs = ie.get_property(cleartarget_device, ov::available_devices);
     if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
-        GTEST_SKIP();
+        GTEST_FAIL();
     }
 
     OV_ASSERT_NO_THROW(ie.set_property(target_device, ov::enable_profiling(true)));
@@ -516,11 +516,11 @@ TEST_P(OVClassSeveralDevicesTestQueryNetwork, QueryNetworkActualSeveralDevicesNo
         cleartarget_device = target_devices.begin()->substr(0, pos);
     }
     if (!supportsDeviceID(ie, cleartarget_device) || !supportsAvaliableDevices(ie, cleartarget_device)) {
-        GTEST_SKIP();
+        GTEST_FAIL();
     }
     auto deviceIDs = ie.get_property(cleartarget_device, ov::available_devices);
     if (deviceIDs.size() < target_devices.size())
-        GTEST_SKIP();
+        GTEST_FAIL();
 
     std::string multitarget_device = CommonTestUtils::DEVICE_MULTI + std::string(":");
     for (auto& dev_name : target_devices) {
@@ -706,7 +706,7 @@ TEST_P(OVClassGetMetricTest_FULL_DEVICE_NAME_with_DEVICE_ID, GetMetricAndPrintNo
         std::cout << "Device " << device_ids.front() << " " <<  ", Full device name: " << std::endl << t << std::endl;
         OV_ASSERT_PROPERTY_SUPPORTED(ov::device::full_name);
     } else {
-        GTEST_SKIP() << "Device id is not supported";
+        GTEST_FAIL() << "Device id is not supported";
     }
 }
 
@@ -850,11 +850,11 @@ TEST_P(OVClassSpecificDeviceTestGetConfig, GetConfigSpecificDeviceNoThrow) {
         deviceID =  target_device.substr(pos + 1,  target_device.size());
     }
     if (!supportsDeviceID(ie, cleartarget_device) || !supportsAvaliableDevices(ie, cleartarget_device)) {
-        GTEST_SKIP();
+        GTEST_FAIL();
     }
     auto deviceIDs = ie.get_property(cleartarget_device, ov::available_devices);
     if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
-        GTEST_SKIP();
+        GTEST_FAIL();
     }
 
     std::vector<ov::PropertyName> configValues;
@@ -896,12 +896,12 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkHETEROWithDeviceIDNoThrow) {
     if (supportsDeviceID(ie, target_device)) {
         auto deviceIDs = ie.get_property(target_device, ov::available_devices);
         if (deviceIDs.empty())
-            GTEST_SKIP();
+            GTEST_FAIL();
         OV_ASSERT_NO_THROW(ie.query_model(actualNetwork,
                                           CommonTestUtils::DEVICE_HETERO,
                                           ov::device::priorities(target_device + "." + deviceIDs[0], target_device)));
     } else {
-        GTEST_SKIP();
+        GTEST_FAIL();
     }
 }
 
@@ -916,7 +916,7 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkWithDeviceID) {
             ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
         }
     } else {
-        GTEST_SKIP();
+        GTEST_FAIL();
     }
 }
 
@@ -926,7 +926,7 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkWithBigDeviceIDThrows) {
     if (supportsDeviceID(ie, target_device)) {
         ASSERT_THROW(ie.query_model(actualNetwork, target_device + ".110"), ov::Exception);
     } else {
-        GTEST_SKIP();
+        GTEST_FAIL();
     }
 }
 
@@ -936,7 +936,7 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkWithInvalidDeviceIDThrows) {
     if (supportsDeviceID(ie, target_device)) {
         ASSERT_THROW(ie.query_model(actualNetwork, target_device + ".l0"), ov::Exception);
     } else {
-        GTEST_SKIP();
+        GTEST_FAIL();
     }
 }
 
@@ -949,7 +949,7 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkHETEROWithBigDeviceIDThrows) {
                                     ov::device::priorities(target_device + ".100", target_device)),
                      ov::Exception);
     } else {
-        GTEST_SKIP();
+        GTEST_FAIL();
     }
 }
 
@@ -1034,11 +1034,11 @@ TEST_P(OVClassSeveralDevicesTestLoadNetwork, LoadNetworkActualSeveralDevicesNoTh
         cleartarget_device = target_devices.begin()->substr(0, pos);
     }
     if (!supportsDeviceID(ie, cleartarget_device) || !supportsAvaliableDevices(ie, cleartarget_device)) {
-        GTEST_SKIP();
+        GTEST_FAIL();
     }
     auto deviceIDs = ie.get_property(cleartarget_device, ov::available_devices);
     if (deviceIDs.size() < target_devices.size())
-        GTEST_SKIP();
+        GTEST_FAIL();
 
     std::string multitarget_device = CommonTestUtils::DEVICE_MULTI + std::string(":");
     for (auto& dev_name : target_devices) {
@@ -1059,12 +1059,12 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROWithDeviceIDNoThrow) {
     if (supportsDeviceID(ie, target_device)) {
         auto deviceIDs = ie.get_property(target_device, ov::available_devices);
         if (deviceIDs.empty())
-            GTEST_SKIP();
+            GTEST_FAIL();
         std::string heteroDevice =
                 CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device + "." + deviceIDs[0] + "," + target_device;
         OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, heteroDevice));
     } else {
-        GTEST_SKIP();
+        GTEST_FAIL();
     }
 }
 
@@ -1074,10 +1074,10 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkWithDeviceIDNoThrow) {
     if (supportsDeviceID(ie, target_device)) {
         auto deviceIDs = ie.get_property(target_device, ov::available_devices);
         if (deviceIDs.empty())
-            GTEST_SKIP();
+            GTEST_FAIL();
         OV_ASSERT_NO_THROW(ie.compile_model(simpleNetwork, target_device + "." + deviceIDs[0]));
     } else {
-        GTEST_SKIP();
+        GTEST_FAIL();
     }
 }
 
@@ -1087,7 +1087,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkWithBigDeviceIDThrows) {
     if (supportsDeviceID(ie, target_device)) {
         ASSERT_THROW(ie.compile_model(actualNetwork, target_device + ".10"), ov::Exception);
     } else {
-        GTEST_SKIP();
+        GTEST_FAIL();
     }
 }
 
@@ -1120,7 +1120,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkWithInvalidDeviceIDThrows) {
     if (supportsDeviceID(ie, target_device)) {
         ASSERT_THROW(ie.compile_model(actualNetwork, target_device + ".l0"), ov::Exception);
     } else {
-        GTEST_SKIP();
+        GTEST_FAIL();
     }
 }
 
@@ -1133,7 +1133,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROWithBigDeviceIDThrows) {
                                        ov::device::priorities(target_device + ".100", CommonTestUtils::DEVICE_CPU)),
                      ov::Exception);
     } else {
-        GTEST_SKIP();
+        GTEST_FAIL();
     }
 }
 
@@ -1147,7 +1147,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROAndDeviceIDThrows) {
                                       ov::device::id("110")),
                      ov::Exception);
     } else {
-        GTEST_SKIP();
+        GTEST_FAIL();
     }
 }
 
@@ -1172,7 +1172,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkMULTIwithAUTONoThrow) {
                              ov::device::properties(CommonTestUtils::DEVICE_MULTI,
                                                     ov::device::priorities(CommonTestUtils::DEVICE_AUTO, target_device))));
     } else {
-        GTEST_SKIP();
+        GTEST_FAIL();
     }
 }
 
@@ -1199,7 +1199,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROwithMULTINoThrow) {
                              ov::device::properties(CommonTestUtils::DEVICE_HETERO,
                                                ov::device::priorities(CommonTestUtils::DEVICE_MULTI, target_device))));
     } else {
-        GTEST_SKIP();
+        GTEST_FAIL();
     }
 }
 
@@ -1221,7 +1221,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkMULTIwithHETERONoThrow) {
             ov::device::properties(CommonTestUtils::DEVICE_MULTI, ov::device::priorities(devices)),
             ov::device::properties(CommonTestUtils::DEVICE_HETERO, ov::device::priorities(target_device, target_device))));
     } else {
-        GTEST_SKIP();
+        GTEST_FAIL();
     }
 }
 
@@ -1264,7 +1264,7 @@ TEST_P(OVClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
         }
         ASSERT_EQ(expectedLayers, actualLayers);
     } else {
-        GTEST_SKIP();
+        GTEST_FAIL();
     }
 }
 
@@ -1300,7 +1300,7 @@ TEST_P(OVClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
         }
         ASSERT_EQ(expectedLayers, actualLayers);
     } else {
-        GTEST_SKIP();
+        GTEST_FAIL();
     }
 }
 
@@ -1329,7 +1329,7 @@ TEST_P(OVClassSetDefaultDeviceIDTest, SetDefaultDeviceIDNoThrow) {
 
     auto deviceIDs = ie.get_property(target_device, ov::available_devices);
     if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
-        GTEST_SKIP();
+        GTEST_FAIL();
     }
     std::string value;
     OV_ASSERT_NO_THROW(ie.set_property(target_device, ov::device::id(deviceID), ov::enable_profiling(true)));
@@ -1364,11 +1364,11 @@ TEST_P(OVClassSeveralDevicesTestDefaultCore, DefaultCoreSeveralDevicesNoThrow) {
         cleartarget_device = target_devices.begin()->substr(0, pos);
     }
     if (!supportsDeviceID(ie, cleartarget_device) || !supportsAvaliableDevices(ie, cleartarget_device)) {
-        GTEST_SKIP();
+        GTEST_FAIL();
     }
     auto deviceIDs = ie.get_property(cleartarget_device, ov::available_devices);
     if (deviceIDs.size() < target_devices.size())
-        GTEST_SKIP();
+        GTEST_FAIL();
 
     for (size_t i = 0; i < target_devices.size(); ++i) {
         OV_ASSERT_NO_THROW(ie.set_property(target_devices[i], ov::enable_profiling(true)));
