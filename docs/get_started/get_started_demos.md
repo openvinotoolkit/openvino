@@ -99,30 +99,27 @@ Options to find a model suitable for the OpenVINO™ toolkit:
 This guide uses the OpenVINO™ Model Downloader to get pre-trained models. You can use one of the following commands to find a model:
 
 * List the models available in the downloader
-
-``` sh
-   omz_info_dumper --print_all
-```
+  ``` sh
+     omz_info_dumper --print_all
+  ```
 
 * Use `grep` to list models that have a specific name pattern
-
-``` sh
-   omz_info_dumper --print_all | grep <model_name>
-```
+  ``` sh
+     omz_info_dumper --print_all | grep <model_name>
+  ```
 
 * Use Model Downloader to download models.
 
- This guide uses `<models_dir>` and `<models_name>` as placeholders for the models directory and model name:
-
-``` sh
-   omz_downloader --name <model_name> --output_dir <models_dir>
-```
+  This guide uses `<models_dir>` and `<models_name>` as placeholders for the models directory and model name:
+  ``` sh
+     omz_downloader --name <model_name> --output_dir <models_dir>
+  ```
 
 * Download the following models to run the Image Classification Sample:
 
-|Model Name                                     | Code Sample or Demo App                  |
-|-----------------------------------------------|------------------------------------------|
-|`googlenet-v1`                                 | Image Classification Sample              |
+  |Model Name                                     | Code Sample or Demo App                  |
+  |-----------------------------------------------|------------------------------------------|
+  |`googlenet-v1`                                 | Image Classification Sample              |
 
 @sphinxdirective
 .. raw:: html
@@ -350,7 +347,6 @@ To run the **Image Classification** code sample with an input image using the IR
 @endsphinxdirective
 
 3. Run the code sample executable, specifying the input media file, the IR for your model, and a target device for performing inference:
-
 @sphinxdirective
 .. tab:: Linux
 

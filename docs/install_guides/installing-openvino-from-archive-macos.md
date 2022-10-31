@@ -43,8 +43,8 @@ You can also check the [Release Notes](https://software.intel.com/en-us/articles
 
 1. Select and download the OpenVINO™ archive files from [Intel® Distribution of OpenVINO™ toolkit for macOS download page](https://software.intel.com/en-us/openvino-toolkit/choose-download/free-download-macos). There are typically two files for you to download: 
    ```sh
-   m_openvino_toolkit_<operating system>_<release version>_<package ID>.tgz
-   m_openvino_toolkit_<operating system>_<release version>_<package ID>.tgz.sha256
+   m_openvino_toolkit_<operating system>_<release version>_<package ID>_x86_64.tgz
+   m_openvino_toolkit_<operating system>_<release version>_<package ID>_x86_64.tgz.sha256
    ``` 
    where the `.sha256` file is used to verify the success of the download process.
 
@@ -104,7 +104,7 @@ Start with some Python tutorials:
    * [Convert TensorFlow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
    * [Convert a PyTorch model and remove the image background](https://docs.openvino.ai/latest/notebooks/205-vision-background-removal-with-output.html)
 
-To start with C++ samples, see [Build Sample Applications on macOS](../OV_Runtime_UG/Samples_Overview.md#build_samples_macos) first, and then you can try the following samples:
+To start with C++ samples, see <a href="openvino_docs_OV_UG_Samples_Overview.html#build-samples-macos">Build Sample Applications on macOS</a> first, and then you can try the following samples:
    * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
    * [Hello Reshape SSD C++ Sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
    * [Image Classification Async C++ Sample](@ref openvino_inference_engine_samples_classification_sample_async_README)
