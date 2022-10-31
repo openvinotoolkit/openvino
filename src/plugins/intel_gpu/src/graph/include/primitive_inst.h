@@ -361,9 +361,6 @@ public:
     typed_primitive_inst_base(network& network, typed_node const& node)
         : typed_primitive_inst_base(network, node, do_allocate_memory(node)) {}
 
-    typed_primitive_inst_base(network& network)
-        : primitive_inst(network), node(nullptr), argument(nullptr) {}
-
 protected:
     typed_primitive_inst_base(network& network, typed_node const& node, bool allocate_memory)
         : primitive_inst(network, node, allocate_memory), node(&node), argument(node.get_primitive()) {}
