@@ -66,7 +66,7 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
    ```
    > **NOTE**: `C:\Program Files (x86)\Intel` is the recommended folder. You may also use a different path if desired or if you don't have administrator privileges on your computer.
 
-2. Download the **OpenVINO Runtime archive file for Windows** from the [OpenVINO releases page](https://github.com/openvinotoolkit/openvino/releases/tag/2022.2.0) to your local `Downloads` folder.
+2. Download the [OpenVINO Runtime archive file for Windows](https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.2/windows/) to your local `Downloads` folder.
    
    If you prefer using command-lines, run the following commands in the command prompt window you opened:
    ```sh
