@@ -183,7 +183,7 @@ TEST(TransformationTests, UnrollIfCondIsTrueMultiOutput) {
         auto X = std::make_shared<ngraph::opset6::VariadicSplit>(data, ngraph::opset6::Constant::create(ngraph::element::i32, {1}, {0}),
             ngraph::opset6::Constant::create(ngraph::element::i32, {2}, {1, 2}));
         auto cond = std::make_shared<ngraph::opset1::Constant>(ngraph::element::boolean, ngraph::Shape{ 1 }, true);
-        auto if_op = std::make_shared<ngraph::opset8::If>(cond);
+        auto if_op = std::make_shared<ov::opset9::If>(cond);
         auto Xt = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 2 });
         auto then_op_result = std::make_shared<ngraph::opset1::Result>(Xt);
         auto then_body = std::make_shared<ngraph::Function>(ngraph::OutputVector{ then_op_result }, ngraph::ParameterVector{ Xt });

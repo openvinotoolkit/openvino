@@ -108,7 +108,7 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
 
 struct kernel_impl_params {
     bool has_runtime_layouts = false;
-    const program& prog;
+    const program *prog;
     std::shared_ptr<const primitive> desc;
     size_t unique_id;
     std::vector<layout> input_layouts;
@@ -139,7 +139,7 @@ struct kernel_impl_params {
                        const std::vector<activation_func>& _fused_act_funcs,
                        const std::vector<activation_additional_params>& _act_params)
                        : has_runtime_layouts(true)
-                       , prog(_prog)
+                       , prog(&_prog)
                        , desc(_desc)
                        , unique_id(_uid)
                        , input_layouts(_in_layouts)

@@ -82,9 +82,7 @@ void shape_infer(const StridedSlice* op,
     auto number_axes = number_elements_in_1d(op, begin_shape);
     auto end_number_axes = number_elements_in_1d(op, end_shape);
     if (number_axes != -1 && end_number_axes != -1) {
-        NODE_VALIDATION_CHECK(op,
-                              number_axes == end_number_axes,
-                              "Lower bounds and Upper bounds need to have same number of values");
+        NODE_VALIDATION_CHECK(op, number_axes == end_number_axes, "Begin and end need to have same number of values.");
     } else if (end_number_axes != -1) {
         number_axes = end_number_axes;
     }
@@ -92,7 +90,7 @@ void shape_infer(const StridedSlice* op,
     if (number_axes != -1 && strides_number_axes != -1) {
         NODE_VALIDATION_CHECK(op,
                               number_axes == strides_number_axes,
-                              "Stride needs to have same number of values as Lower and Upper bounds");
+                              "Stride needs to have same number of values as begin and end.");
     } else if (strides_number_axes != -1) {
         number_axes = strides_number_axes;
     }
