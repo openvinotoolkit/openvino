@@ -1,10 +1,12 @@
 # Install OpenVINO™ Runtime on Windows from an Archive File {#openvino_docs_install_guides_installing_openvino_from_archive_windows}
 
-With the OpenVINO™ 2022.2 release, you can download and use archive files to install OpenVINO Runtime. The archive files contain pre-built binaries and library files needed for OpenVINO Runtime, as well as code samples. This page provides instructions showing how to install OpenVINO Runtime using archive files. Check the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes) for more information on updates in the 2022.2 release.
+With the OpenVINO™ 2022.2 release, you can download and use archive files to install OpenVINO Runtime. The archive files contain pre-built binaries and library files needed for OpenVINO Runtime, as well as code samples. 
 
-Installing OpenVINO Runtime from archive files is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. Visit the [Install OpenVINO from PyPI](installing-openvino-pip.md) page for instructions on how to install OpenVINO Runtime for Python using PyPI.
+Installing OpenVINO Runtime from archive files is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. See the [Install OpenVINO from PyPI](installing-openvino-pip.md) page for instructions on how to install OpenVINO Runtime for Python using PyPI.
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via [pypi.org](https://pypi.org/project/openvino-dev/) only.
+
+See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes) for more information on updates in the latest release.
 
 ## System Requirements
 
@@ -57,6 +59,7 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
 ### <a name="install-openvino"></a>Step 1: Download and Install OpenVINO Core Components
 
 1. Create an 'Intel' folder in the `C:\Program Files (x86)\` directory. Skip this step if the folder already exists.
+   
    You can also do this via command-lines. Open a new command prompt window as administrator by right-clicking **Command Prompt** from the Start menu and select **Run as administrator**, and then run the following command:
    ```sh
    mkdir "C:\Program Files (x86)\Intel"
@@ -64,6 +67,7 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
    > **NOTE**: C:\Program Files (x86)\Intel is the recommended folder. You may also use a different path if desired or if you don't have administrator privileges on your computer.
 
 2. Download the OpenVINO Runtime archive file for Windows from the [OpenVINO releases page](https://github.com/openvinotoolkit/openvino/releases/tag/2022.2.0) to your local `Downloads` folder.
+   
    If you prefer using command-lines, run the following commands in the command prompt window you opened:
    ```sh
    cd <user_home>/Downloads
@@ -71,6 +75,7 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
    ```
 
 3. Use your favorite tool to extract the archive file, rename the extracted folder as `openvino_2022.2.0.7713`, and move it to the `C:\Program Files (x86)\Intel` directory.
+   
    To do this step using command-lines, run the following commands in the command prompt window you opened:
    ```sh
    tar -xf openvino_2022.2.0.7713.zip
@@ -85,9 +90,8 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
    ```
    > **NOTE**: If you have already installed a previous release of OpenVINO 2022, a symbolic link to the `openvino_2022` folder may already exist. If you want to override it, nagivate to the `C:\Program Files (x86)\Intel` folder and delete the existing linked folder before running the `mklink` command.
 
-Congratulations, you finished the installation! The `C:\Program Files (x86)\Intel\openvino_2022` folder now contains the core components for OpenVINO. If you used a different path in Step 1, you will find the `openvino_2022` folder there.
 
-The path to the `openvino_2022` directory is also referred as `<INSTALL_DIR>` throughout the OpenVINO documentation.
+Congratulations, you finished the installation! The `C:\Program Files (x86)\Intel\openvino_2022` folder now contains the core components for OpenVINO. If you used a different path in Step 1, you will find the `openvino_2022` folder there. The path to the `openvino_2022` directory is also referred as `<INSTALL_DIR>` throughout the OpenVINO documentation.
 
 ### <a name="set-the-environment-variables"></a>Step 2: Configure the Environment
 
@@ -136,38 +140,43 @@ OpenVINO Runtime has a plugin architecture that enables you to run inference on 
 ## <a name="get-started"></a>What's Next?
 Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials.
 
-### Get started with Python
-<img src="https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif" width=400>
+@sphinxdirective
+.. tab:: Get started with Python
 
-Try the [Python Quick Start Example](https://docs.openvino.ai/2022.2/notebooks/201-vision-monodepth-with-output.html) to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+   <img src="https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif" width=400>
 
-Visit the [Tutorials](../tutorials.md) page for more Jupyter Notebooks to get you started with OpenVINO, such as:
-* [OpenVINO Python API Tutorial](https://docs.openvino.ai/2022.2/notebooks/002-openvino-api-with-output.html)
-* [Basic image classification program with Hello Image Classification](https://docs.openvino.ai/2022.2/notebooks/001-hello-world-with-output.html)
-* [Convert a PyTorch model and use it for image background removal](https://docs.openvino.ai/2022.2/notebooks/205-vision-background-removal-with-output.html)
+   Try the [Python Quick Start Example](https://docs.openvino.ai/2022.2/notebooks/201-vision-monodepth-with-output.html) to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
 
-### Get started with C++
-<img src="https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg" width=400>
+   Visit the [Tutorials](../tutorials.md) page for more Jupyter Notebooks to get you started with OpenVINO, such as:
+   * [OpenVINO Python API Tutorial](https://docs.openvino.ai/2022.2/notebooks/002-openvino-api-with-output.html)
+   * [Basic image classification program with Hello Image Classification](https://docs.openvino.ai/2022.2/notebooks/001-hello-world-with-output.html)
+   * [Convert a PyTorch model and use it for image background removal](https://docs.openvino.ai/2022.2/notebooks/205-vision-background-removal-with-output.html)
 
-Try the [C++ Quick Start Example](@ref openvino_docs_get_started_get_started_demos) for step-by-step instructions on building and running a basic image classification C++ application.
+.. tab:: Get started with Python C++
 
-Visit the [Samples](../OV_Runtime_UG/Samples_Overview.md) page for other C++ example applications to get you started with OpenVINO, such as:
-* [Basic object detection with the Hello Reshape SSD C++ sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
-* [Automatic speech recognition C++ sample](@ref openvino_inference_engine_samples_speech_sample_README)
+   <img src="https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg" width=400>
+
+   Try the [C++ Quick Start Example](@ref openvino_docs_get_started_get_started_demos) for step-by-step instructions on building and running a basic image classification C++ application.
+
+   Visit the [Samples](../OV_Runtime_UG/Samples_Overview.md) page for other C++ example applications to get you started with OpenVINO, such as:
+   * [Basic object detection with the Hello Reshape SSD C++ sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
+   * [Automatic speech recognition C++ sample](@ref openvino_inference_engine_samples_speech_sample_README)
+
+@endsphinxdirective
 
 ## <a name="uninstall"></a>Uninstalling the Intel® Distribution of OpenVINO™ Toolkit
 
 To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
 
+## Additional Resources
+
 @sphinxdirective
 
-.. dropdown:: Additional Resources
-      
-   * Converting models for use with OpenVINO™: :ref:`Model Optimizer Developer Guide <deep learning model optimizer>`
-   * Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
-   * Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
-   * Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
-   * IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_ 
+* Converting models for use with OpenVINO™: :ref:`Model Optimizer Developer Guide <deep learning model optimizer>`
+* Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
+* Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
+* Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
+* IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_ 
       
 <!---  
    To learn more about converting models from specific frameworks, go to: 
@@ -177,6 +186,6 @@ To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalli
    * :ref:`Convert Your Kaldi Model <convert model kaldi>`
    * :ref:`Convert Your ONNX Model <convert model onnx>`
 --->    
-   .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
+.. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
 @endsphinxdirective
