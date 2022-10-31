@@ -30,7 +30,7 @@ from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
     get_common_cli_options, get_freeze_placeholder_values, get_kaldi_cli_options, get_layout_values, \
     get_mean_scale_dictionary, get_meta_info, get_mxnet_cli_options, get_onnx_cli_options, \
     get_placeholder_shapes, get_tf_cli_options, get_tuple_values, parse_transform, parse_tuple_pairs, \
-    get_all_cli_parser, mo_convert_params, get_model_name_from_args
+    get_all_cli_parser, mo_convert_params, get_model_name_from_args, depersonalize
 
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.find_ie_version import find_ie_version
@@ -547,7 +547,7 @@ def pack_params_to_args_namespace(**kwargs):
     for arg in vars(argv):
         arg_value = getattr(argv, arg)
         if arg_value != cli_parser.get_default(arg):
-            non_default_params[arg] = arg_value
+            non_default_params[arg] = depersonalize(arg_value, arg)
     return argv, non_default_params
 
 

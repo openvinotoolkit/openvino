@@ -2225,6 +2225,13 @@ def depersonalize(value: str, key: str):
     dir_keys = [
         'output_dir', 'extensions', 'saved_model_dir', 'tensorboard_logdir', 'caffe_parser_path'
     ]
+
+    if isinstance(value, list):
+        updated_value = []
+        for elem in value:
+            updated_value.append(depersonalize(elem, key))
+        return updated_value
+
     if not isinstance(value, str):
         return value
     res = []

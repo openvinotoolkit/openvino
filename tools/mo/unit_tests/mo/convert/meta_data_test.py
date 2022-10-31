@@ -66,55 +66,7 @@ class MetaDataTest(UnitTestWithMockedTelemetry):
                 'Runtime_version': get_rt_version(),
                 'legacy_path': "False",
                 'conversion_parameters': {
-                    'caffe_parser_path': Path("DIR"),
-                    'compress_fp16': "False",
-                    'data_type': "float",
-                    'disable_nhwc_to_nchw': "False",
-                    'disable_omitting_optional': "False",
-                    'disable_resnet_optimization': "False",
-                    'disable_weights_compression': "False",
-                    'enable_concat_optimization': "False",
-                    'enable_flattening_nested_params': "False",
-                    'enable_ssd_gluoncv': "False",
-                    'extensions': Path("['" + import_extensions.default_path() + "']"),
-                    'framework': "onnx",
-                    'freeze_placeholder_with_value': "{}",
                     'input_model': Path.joinpath(Path("DIR"), Path("model.onnx")),
-                    'input_model_is_text': "False",
-                    'inputs_list': "[]",
-                    'k': Path.joinpath(Path("DIR"), Path("CustomLayersMapping.xml")),
-                    'layout': "()",
-                    'layout_values': "{}",
-                    'legacy_mxnet_model': "False",
-                    'log_level': "ERROR",
-                    'mean_scale_values': "{}",
-                    'mean_values': "()",
-                    'model_name': "model",
-                    'output_dir': Path("DIR"),
-                    'placeholder_data_types': "{}",
-                    'progress': "False",
-                    'remove_memory': "False",
-                    'remove_output_softmax': "False",
-                    'reverse_input_channels': "False",
-                    'save_params_from_nd': "False",
-                    'scale_values': "()",
-                    'silent': "True",
-                    'source_layout': "()",
-                    'static_shape': "False",
-                    'stream_output': "False",
-                    'target_layout': "()",
-                    'transform': "",
-                    'unset': "['input_shape', 'scale', 'input', 'output', 'disable_fusing', 'finegrain_fusing', "
-                             "'batch', 'transformations_config', 'input_checkpoint', 'input_meta_graph', "
-                             "'saved_model_dir', 'saved_model_tags', 'tensorflow_custom_operations_config_update', "
-                             "'tensorflow_use_custom_operations_config', "
-                             "'tensorflow_object_detection_api_pipeline_config', 'tensorboard_logdir', "
-                             "'tensorflow_custom_layer_libraries', 'input_proto', 'mean_file', 'mean_file_offsets', "
-                             "'input_symbol', 'nd_prefix_name', 'pretrained_model_name', 'counts', "
-                             "'placeholder_shapes']",
-                    'use_legacy_frontend': "False",
-                    'use_new_frontend': "False",
-
                 }
 
             }
