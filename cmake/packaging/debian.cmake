@@ -327,19 +327,12 @@ macro(ov_cpack_settings)
     set(CPACK_DEBIAN_LIBRARIES_PACKAGE_NAME "openvino-libraries-${cpack_name_ver}")
     set(CPACK_DEBIAN_LIBRARIES_PACKAGE_ARCHITECTURE "all")
 
-    ov_debian_add_lintian_suppression(libraries
-        # it's umbrella package
-        "empty-binary-package")
-
     # all libraries-dev
     set(CPACK_COMPONENT_LIBRARIES_DEV_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit Libraries and Development files")
     set(CPACK_COMPONENT_LIBRARIES_DEV_DEPENDS "${OV_CPACK_COMP_CORE_DEV};libraries")
     set(CPACK_DEBIAN_LIBRARIES_DEV_PACKAGE_NAME "openvino-libraries-dev-${cpack_name_ver}")
     set(CPACK_DEBIAN_LIBRARIES_DEV_PACKAGE_ARCHITECTURE "all")
     ov_debian_generate_conflicts(libraries_dev ${conflicting_versions})
-    ov_debian_add_lintian_suppression(libraries_dev
-        # it's umbrella package
-        "empty-binary-package")
 
     # all openvino
     set(CPACK_COMPONENT_OPENVINO_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit Libraries and Development files")
@@ -348,8 +341,6 @@ macro(ov_cpack_settings)
     set(CPACK_DEBIAN_OPENVINO_PACKAGE_ARCHITECTURE "all")
     ov_debian_generate_conflicts(openvino ${conflicting_versions})
     ov_debian_add_lintian_suppression(openvino
-        # it's umbrella package
-        "empty-binary-package"
         # reproduced only on ubu18
         "description-starts-with-package-name")
 
