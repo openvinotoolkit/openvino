@@ -115,6 +115,7 @@ struct kernel_impl_params {
     layout output_layout;
     std::vector<tensor> input_offsets;
     std::vector<cldnn::fused_primitive_desc> fused_desc;
+    std::vector<cldnn::fused_primitive_desc_onednn> fused_desc_onednn;
     std::vector<activation_func> fused_act_funcs;
     std::vector<activation_additional_params> activation_params;
 
@@ -129,6 +130,25 @@ struct kernel_impl_params {
     size_t primary_input_idx = 0;
 
     memory::ptr reordered_weights = nullptr;
+
+    optional_value<uint32_t> groups;
+    optional_value<int32_t> split;
+    optional_value<int32_t> deform_conv_dep_offset;
+
+    primitive_type_id type;
+    primitive_id id;
+    primitive_id org_id;
+    bool is_input = false;
+    bool is_output = false;
+    size_t inputs_memory_count = 0;
+    size_t outputs_memory_count = 0;
+    size_t fused_mem_count = 0;
+    size_t fused_mem_offset = 0;
+    bool can_be_optimized = false;
+    bool can_share_buffer = true;
+    bool is_constant;
+
+    kernel_impl_params() {}
 
     kernel_impl_params(program& _prog,
                        std::shared_ptr<const primitive> _desc,

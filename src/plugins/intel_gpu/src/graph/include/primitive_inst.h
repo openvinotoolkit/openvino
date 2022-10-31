@@ -99,8 +99,8 @@ public:
     }
     memory& output_memory(size_t index = 0) const { return *_outputs[index]; }
     memory::ptr output_memory_ptr(size_t index = 0) const { return _outputs[index]; }
-    size_t inputs_memory_count() const { return _node->get_primitive()->input_size(); }
-    size_t outputs_memory_count() const { return _node->get_primitive()->output_size(); }
+    size_t inputs_memory_count() const { return _impl_params->inputs_memory_count; }
+    size_t outputs_memory_count() const { return _impl_params->outputs_memory_count; }
     bool outputs_allocated() const {
         if (_outputs.empty()) return false;
         for (const auto& output : _outputs) {
@@ -108,10 +108,10 @@ public:
         }
         return true;
     }
-    primitive_type_id type() const { return _node->type(); }
-    primitive_id id() const { return _node->id(); }
-    primitive_id org_id() const { return _node->get_org_primitive_id(); }
-    bool can_be_optimized() const { return _node->can_be_optimized(); }
+    primitive_type_id type() const { return _impl_params->type; }
+    primitive_id id() const { return _impl_params->id; }
+    primitive_id org_id() const { return _impl_params->org_id; }
+    bool can_be_optimized() const { return _impl_params->can_be_optimized; }
     std::shared_ptr<const primitive> desc() const { return _node->get_primitive(); }
     program_node const& get_node() const { return *_node; }
     network& get_network() const { return _network; }
@@ -159,9 +159,9 @@ public:
         return dep_memory_ptr(get_fused_mem_offset() + dep_id);
     }
 
-    bool has_fused_primitives() const { return !_node->get_fused_primitives().empty(); }
-    size_t get_fused_mem_count() const { return _node->get_fused_inputs_count(); }
-    size_t get_fused_mem_offset() const { return _node->get_fused_primitives()[0].dep_start_idx; }
+    bool has_fused_primitives() const { return _impl_params->has_fused_primitives(); }
+    size_t get_fused_mem_count() const { return _impl_params->fused_mem_count; }
+    size_t get_fused_mem_offset() const { return _impl_params->fused_mem_offset; }
 
     bool has_mutable_input() const {
         return _has_mutable_input;
@@ -171,8 +171,12 @@ public:
         _has_mutable_input = val;
     }
 
+    bool is_input() const {
+        return _impl_params->is_input;
+    }
+
     bool is_output() const {
-        return _node->is_output();
+        return _impl_params->is_output;
     }
 
     bool mem_allocated() const {
@@ -195,7 +199,9 @@ public:
     const std::unordered_map<size_t, std::tuple<int64_t, size_t>>& get_profiling_data() const { return _profiling_data; }
     const std::unordered_map<size_t, instrumentation::perf_counter_key>& get_profiling_info() const { return _profiling_info; }
 
-    layout get_node_output_layout() const { return _node_output_layout; }
+    layout get_node_input_layout() const { return _impl_params->get_input_layout(0); }
+    layout get_node_output_layout() const { return _impl_params->output_layout; }
+    std::vector<cldnn::fused_primitive_desc_onednn>& get_fused_primitives_onednn() const { return _impl_params->fused_desc_onednn; }
 
     virtual void update_output_memory() {}
 
@@ -204,7 +210,6 @@ protected:
 
     network& _network;
     program_node const* _node;
-    const layout _node_output_layout;
 
     std::unique_ptr<kernel_impl_params> _impl_params;
     std::unique_ptr<primitive_impl> _impl;
@@ -356,6 +361,9 @@ public:
 
     typed_primitive_inst_base(network& network, typed_node const& node)
         : typed_primitive_inst_base(network, node, do_allocate_memory(node)) {}
+
+    typed_primitive_inst_base(network& network)
+        : primitive_inst(network), node(nullptr), argument(nullptr) {}
 
 protected:
     typed_primitive_inst_base(network& network, typed_node const& node, bool allocate_memory)

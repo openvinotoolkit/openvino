@@ -129,12 +129,12 @@ void primitive_inst::set_output_memory(memory::ptr mem_new, bool check, size_t i
         return;
     }
 
-    auto ol = _node->get_output_layout();
+    auto ol = _impl_params->output_layout;
 
     if (check)
         check_memory_to_set(*mem_new, ol);
 
-    if (_node->is_constant()) {
+    if (_impl_params->is_constant) {
         mem_new->copy_from(_network.get_stream(), *_outputs[idx]);
     } else {
         _outputs[idx] = mem_new;
@@ -435,7 +435,6 @@ void primitive_inst::build_deps() {
 primitive_inst::primitive_inst(network& network, program_node const& node, bool allocate_memory)
     : _network(network)
     , _node(&node)
-    , _node_output_layout(node.get_output_layout())
     , _impl_params(node.get_kernel_impl_params())
     , _impl(node.get_selected_impl() ? node.get_selected_impl()->clone() : nullptr)
     , _outputs({memory::ptr()})

@@ -306,6 +306,7 @@ opt pass).
 */
 network::network(program::ptr program, stream::ptr stream, bool is_internal, bool is_primary_stream)
     : _program(program)
+    , _engine(&program->get_engine())
     , _stream(stream)
     , _memory_pool(new memory_pool(program->get_engine()))
     , _internal(is_internal)
@@ -768,8 +769,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     set_arguments();
     for (auto& inst : _exec_order) {
         GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
-            auto& node = _program->get_node(inst->id());
-            const std::string layer_name = node.id();
+            const std::string layer_name = inst->id();
             GPU_DEBUG_IF(debug_config->verbose >= 2) {
                 std::cerr << get_primitive_info(inst->id()) << std::endl;
             }
@@ -787,9 +787,8 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 
         GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
             get_stream().finish();
-            auto& node = _program->get_node(inst->id());
-            const std::string layer_name = node.id();
-            GPU_DEBUG_IF(debug_config->is_dumped_layer(layer_name, node.is_output())) {
+            const std::string layer_name = inst->id();
+            GPU_DEBUG_IF(debug_config->is_dumped_layer(layer_name, inst->is_output())) {
                 log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(), get_stream(), layer_name + "_dst_0");
             }
         }
