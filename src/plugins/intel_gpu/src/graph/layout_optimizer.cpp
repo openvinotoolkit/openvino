@@ -785,9 +785,6 @@ static bool is_node_for_onednn(reduce_node const& node, format preferred_format)
     }
 
     auto input_layout = input.get_output_layout();
-    if (input_layout.get_partial_shape().size() > 4) {
-        return false;
-    }
 
     // redundant reduce is not acceptable on oneDNN reduction
     if (node.get_output_layout() == input_layout) {
@@ -795,15 +792,13 @@ static bool is_node_for_onednn(reduce_node const& node, format preferred_format)
     }
 
     // oneDNN reduction selects ref kernel for simple formats(bfyx..) which has perf regression with a decent tensor size.
-    if (format::is_simple_data_format(preferred_format)) {
+    if (format::is_simple_data_format(preferred_format))
         return false;
-    } else {
-        // Onednn reduction does NOT support reordering of unreduced-axes.
-        // Currently, an Onednn reduce layer which contains reduction of blocked axes(b-f) is expected to select planar format.
-        if (is_reduce_blocked_axes(node)) {
-            return false;
-        }
-    }
+
+    // Onednn reduction does NOT support reordering of unreduced-axes.
+    // Currently, an Onednn reduce layer which contains reduction of blocked axes(b-f) is expected to select planar format.
+    if (is_reduce_blocked_axes(node))
+        return false;
 
     return true;
 }
@@ -816,7 +811,6 @@ static bool is_node_for_onednn(deconvolution_node const& node) {
     if (input_layout.is_dynamic() || output_layout.is_dynamic())
         return false;
 
-    // Onednn deconv does not support cross-precision
     bool onednn_valid_dt = layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node);
 
     bool onednn_valid_params = onednn_valid_dt &&
@@ -1128,7 +1122,6 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     auto expected_data_type = current_layout.data_type;
     auto expected_format = current_layout.format;
     bool use_onednn_impls = _optimization_attributes.use_onednn_impls;
-    const auto& device_info = node.get_program().get_engine().get_device_info();
 
     if (use_onednn_impls && is_node_for_onednn(node)) {
         // XXX: need to take the situation into consideration where it is called from prepare_primitive_fusing
@@ -1140,7 +1133,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
             expected_format = cldnn::format::bs_fs_zyx_bsv16_fsv16;
         else
             expected_format = cldnn::format::b_fs_zyx_fsv16;
-    } else if ((_optimization_attributes.b_fs_yx_fsv16_network || device_info.supports_immad) &&
+    } else if ((_optimization_attributes.b_fs_yx_fsv16_network) &&
                deconvolution_b_fs_yx_fsv16_opt(current_layout, output_or_weights_layout, prim)) {
         auto input_tensor = node.get_dependency(0).get_output_layout().get_tensor();
         int input_features = input_tensor.feature[0];
@@ -1469,16 +1462,6 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             impl_candidate = impl_types::ocl;
         }
 
-        // WA: fallback cldnn if onednn pooling's layout is b_fs_zyx_fsv32 and i8.
-        if (node.is_type<pooling>()) {
-            auto pool_layout = node.get_output_layout();
-            if (pool_layout.data_type == data_types::i8) {
-                if (pool_layout.format == format::b_fs_zyx_fsv32 || pool_layout.format == format::bs_fs_zyx_bsv16_fsv32 ||
-                    pool_layout.format == format::bs_fs_zyx_bsv32_fsv32)
-                    impl_candidate = impl_types::ocl;
-            }
-        }
-
         if (node.is_type<deconvolution>()) {
             if (!is_node_for_onednn(node.as<deconvolution>()))
                 impl_candidate = impl_types::ocl;
@@ -1763,7 +1746,7 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
 
             // Conv or deconv gets a preferred format for its data input based on source memory description
             // But an input format for fused post-ops should be same with an output format of conv/deconv
-            size_t prim_input(0);
+            size_t prim_input(-1);
             if (node.is_type<convolution>())
                 prim_input = node.get_dependency_index(node.as<convolution>().input());
             if (node.is_type<deconvolution>())
@@ -1775,6 +1758,12 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
                 src_fmt = onednn::find_data_format(prim_desc.src_desc());
             else  // Dep for fused post ops
                 src_fmt = onednn::find_data_format(prim_desc.dst_desc());
+
+            // WA: shallow convolution needs to set input format by bfyx.
+            //     onednn recommended byxf for input format. It will insert reorder before shallow conv.
+            if (node.is_type<convolution>() && node.get_input_layouts()[0].feature() == 3) {
+                src_fmt = format::get_default_format(node.get_input_layouts()[0].get_rank(), false, false);
+            }
 
             node.set_preferred_input_fmt(idx, src_fmt);
 
