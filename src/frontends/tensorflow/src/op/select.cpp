@@ -3,11 +3,11 @@
 //
 
 #include "op_table.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/opsets/opset10.hpp"
 
 using namespace std;
 using namespace ov;
-using namespace ov::opset9;
+using namespace ov::opset10;
 
 namespace ov {
 namespace frontend {
@@ -18,7 +18,7 @@ OutputVector translate_select_base_op(const NodeContext& node,
                                       const Output<Node>& x,
                                       const Output<Node>& y) {
     // at this point all inputs are NumPy broadcastable
-    auto select = make_shared<Select>(condition, x, y);
+    auto select = make_shared<opset10::Select>(condition, x, y);
     set_node_name(node.get_name(), select);
     return {select};
 }
@@ -50,51 +50,20 @@ OutputVector translate_select_op(const NodeContext& node) {
     auto condition = node.get_input(0);
     auto x = node.get_input(1);
     auto y = node.get_input(2);
-    auto cond_rank = condition.get_partial_shape().rank();
-    TENSORFLOW_OP_VALIDATION(node,
-                             cond_rank.is_static(),
-                             "TensorFlow Frontend supports Select operation only with condition of static rank.");
-    auto x_rank = x.get_partial_shape().rank();
-    auto y_rank = y.get_partial_shape().rank();
-    TENSORFLOW_OP_VALIDATION(node,
-                             x_rank.is_static() || y_rank.is_static(),
-                             "TensorFlow Frontend supports Select operation only with condition of static rank.");
 
-    auto cond_rank_value = cond_rank.get_length();
-    if (cond_rank_value == 0) {
-        // the condition is a scalar that means all inputs are ready
-        return translate_select_base_op(node, condition, x, y);
-    }
+    // compute number of dimensions to unsqueeze the condition
+    auto cond_rank = compute_subgraph_scalar_rank(condition, element::i32);
+    auto x_rank = compute_subgraph_scalar_rank(x, element::i32);
+    auto num_new_axes = make_shared<Subtract>(x_rank, cond_rank);
 
-    auto op_rank_value = (x_rank.is_static()) ? x_rank.get_length() : -1;
-    if (y_rank.is_static() && op_rank_value > 0) {
-        auto y_rank_value = y_rank.get_length();
-        TENSORFLOW_OP_VALIDATION(
-            node,
-            op_rank_value == y_rank_value,
-            "Internal TensorFlow Frontend error or incorrect model: x and y of Select must be of the same rank.");
-    } else if (y_rank.is_static()) {
-        op_rank_value = y_rank.get_length();
-    }
+    // generate a new shape for the condition
+    auto const_one = make_shared<opset10::Constant>(element::i32, Shape{1}, 1);
+    auto new_subshape = make_shared<opset10::Broadcast>(const_one, num_new_axes);
+    auto cond_shape = make_shared<opset10::ShapeOf>(condition, element::i32);
+    auto new_cond_shape = make_shared<opset10::Concat>(OutputVector{cond_shape, new_subshape}, 0);
 
-    if (cond_rank_value == op_rank_value) {
-        // there is nothing to unsqueeze
-        // the condition is ready
-        return translate_select_base_op(node, condition, x, y);
-    }
-
-    TENSORFLOW_OP_VALIDATION(node,
-                             cond_rank_value <= op_rank_value,
-                             "Internal TensorFlow Frontend error or incorrect model: rank of condition must be not "
-                             "greater than ranks of x and y in Select.");
-
-    // generate a range of indices [cond_rank_value, cond_rank_value + 1, ...]
-    std::vector<int> axes(op_rank_value - cond_rank_value);
-    std::iota(axes.begin(), axes.end(), cond_rank_value);
-    auto unsqueeze_axes = make_shared<Constant>(element::i32, Shape{axes.size()}, axes);
-
-    // prepare the condition by inserting the required dimensions
-    auto prep_cond = make_shared<Unsqueeze>(condition, unsqueeze_axes);
+    // prepare the condition to have the same rank as operands `x` and `y`
+    auto prep_cond = make_shared<opset10::Reshape>(condition, new_cond_shape, false);
 
     return translate_select_base_op(node, prep_cond, x, y);
 }

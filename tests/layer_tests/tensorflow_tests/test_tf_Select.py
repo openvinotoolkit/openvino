@@ -38,7 +38,7 @@ class TestSelect(CommonTFLayerTest):
     test_data_basic = [
         dict(cond_shape=[], x_shape=[3, 2, 4], y_shape=[3, 2, 4]),
         dict(cond_shape=[2], x_shape=[2, 4, 5], y_shape=[2, 4, 5]),
-        dict(cond_shape=[3, 1], x_shape=[3, 1], y_shape=[3, 1]),
+        dict(cond_shape=[2, 3, 4], x_shape=[2, 3, 4], y_shape=[2, 3, 4]),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
