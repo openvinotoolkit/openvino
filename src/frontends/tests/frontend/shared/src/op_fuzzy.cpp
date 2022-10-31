@@ -81,6 +81,8 @@ void FrontEndFuzzyOpTest::runConvertedModel(const std::shared_ptr<ngraph::Functi
             addInputOutput<int32_t>(input, testCase, true);
         } else if (input_dtype == element::i64) {
             addInputOutput<int64_t>(input, testCase, true);
+        } else if (input_dtype == element::boolean) {
+            addInputOutput<bool>(input, testCase, true);
         } else {
             throw std::runtime_error("not supported dtype in" + input_dtype.get_type_name());
         }

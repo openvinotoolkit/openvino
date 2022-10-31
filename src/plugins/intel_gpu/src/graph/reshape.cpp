@@ -61,13 +61,11 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node
     // we return output_partial_shape taken from the original model intead of something like PartialShape::dynamic(rank)
     // as ngraph may refine output shape using interval arithmetic
     if ((memory_deps.empty() && prim->output_pattern.empty()) || input_layout.is_dynamic()) {
-        if (prim->output_partial_shape.size() > 0) {
-            auto fm = format::adjust_to_rank(input_layout.format, prim->output_partial_shape.size());
-            return { layout{prim->output_partial_shape, input_layout.data_type, fm} };
-        } else if (prim->output_shape != tensor()) {
+        if (prim->output_shape.count() != 0) {
             return { layout{input_layout.data_type, input_layout.format, prim->output_shape} };
         } else {
-            OPENVINO_ASSERT("There are no output pattern, predefined output partial shape, and output shape!");
+            auto fm = format::adjust_to_rank(input_layout.format, prim->output_partial_shape.size());
+            return { layout{prim->output_partial_shape, input_layout.data_type, fm} };
         }
     }
 
@@ -110,7 +108,7 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node
     if (memory_deps.count(1) > 0) {
         auto pattern_mem = memory_deps.at(1);
 
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> pattern_lock(pattern_mem, impl_param.prog.get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> pattern_lock(pattern_mem, impl_param.prog->get_stream());
 
         auto pattern_ptr = pattern_lock.data();
         auto pattern_tensor = make_host_tensor(pattern_mem->get_layout(), pattern_ptr);
@@ -168,10 +166,12 @@ reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
     // if reshape operated in-place, postpone creation of the output until network run,
     // then create new memory object as the reinterpreted output of the previous primitive
     if (input_layout.is_static() && output_layout.is_static()) {
-        if (!node.can_be_optimized())
+        if (!node.can_be_optimized()) {
             _outputs = allocate_outputs();
-        else
+            _mem_allocated = true;
+        } else {
             reuse_input();
+        }
     } else {
         if (_exec_deps.size() > 0 && input_memory_ptr())
             reuse_input();
@@ -179,7 +179,7 @@ reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
 }
 
 void reshape_inst::on_execute() {
-    if (!node.can_be_optimized())
+    if (!node->can_be_optimized())
         return;
 
     if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))

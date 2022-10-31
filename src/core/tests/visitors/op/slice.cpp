@@ -20,7 +20,7 @@ TEST(attributes, slice_op_no_axes) {
     const auto step = make_shared<op::Parameter>(element::i32, Shape{4});
 
     const auto op = make_shared<opset8::Slice>(data, start, stop, step);
-    NodeBuilder builder(op);
+    NodeBuilder builder(op, {data, start, stop, step});
 
     const auto expected_attr_count = 0;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
@@ -35,7 +35,7 @@ TEST(attributes, slice_op_with_axes) {
     const auto axes = make_shared<op::Parameter>(element::i32, Shape{4});
 
     const auto op = make_shared<opset8::Slice>(data, start, stop, step, axes);
-    NodeBuilder builder(op);
+    NodeBuilder builder(op, {data, start, stop, step, axes});
 
     const auto expected_attr_count = 0;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

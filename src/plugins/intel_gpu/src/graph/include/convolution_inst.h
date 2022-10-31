@@ -158,56 +158,56 @@ public:
     typed_primitive_inst(network& network, convolution_node const& node);
 
     memory::ptr weights_memory(size_t index) const {
-        if (_node.is_dynamic() && _impl_params->reordered_weights != nullptr) {
+        if (_node->is_dynamic() && _impl_params->reordered_weights != nullptr) {
             return _impl_params->reordered_weights;
-        } else if (node.get_groups() == 1) {
-            if (static_cast<int32_t>(index) >= node.get_split())
+        } else if (node->get_groups() == 1) {
+            if (static_cast<int32_t>(index) >= node->get_split())
                 throw std::range_error("weights offset too big");
-            return dep_memory_ptr(1 + index + node.get_deform_conv_dep_offset());
+            return dep_memory_ptr(1 + index + node->get_deform_conv_dep_offset());
         } else {  // all weights are in one buffer
-            return dep_memory_ptr(1 + node.get_deform_conv_dep_offset());
+            return dep_memory_ptr(1 + node->get_deform_conv_dep_offset());
         }
     }
 
     memory::ptr bias_memory(size_t index) const {
-        if (node.get_groups() == 1) {
-            if (static_cast<int32_t>(index) >= node.get_split())
+        if (node->get_groups() == 1) {
+            if (static_cast<int32_t>(index) >= node->get_split())
                 throw std::range_error("bias offset too big");
-            return dep_memory_ptr(1 + node.get_split() + index + node.get_deform_conv_dep_offset());
+            return dep_memory_ptr(1 + node->get_split() + index + node->get_deform_conv_dep_offset());
         } else {  // all bias are in one buffer
-            return dep_memory_ptr(2 + node.get_deform_conv_dep_offset());
+            return dep_memory_ptr(2 + node->get_deform_conv_dep_offset());
         }
     }
 
     memory::ptr weights_zero_points_memory(size_t) const {
-        if (node.get_split() > 1)
+        if (node->get_split() > 1)
             throw std::range_error("Split is unsupported for quantized convolutions");
-        return dep_memory_ptr(2 + 1 * bias_term() + node.get_deform_conv_dep_offset());
+        return dep_memory_ptr(2 + 1 * bias_term() + node->get_deform_conv_dep_offset());
     }
 
     memory::ptr trans_memory() const {
-        if (!node.get_deform_conv_dep_offset())
+        if (!node->get_deform_conv_dep_offset())
             throw std::range_error("trans input exists only in deformable mode");
         return dep_memory_ptr(1);
     }
 
     memory::ptr activations_zero_points_memory(size_t) const {
-        if (node.get_split() > 1)
+        if (node->get_split() > 1)
             throw std::range_error("Split is unsupported for quantized convolutions");
-        return dep_memory_ptr(2 + 1 * bias_term() + 1 * weights_zero_points_term() + node.get_deform_conv_dep_offset());
+        return dep_memory_ptr(2 + 1 * bias_term() + 1 * weights_zero_points_term() + node->get_deform_conv_dep_offset());
     }
 
     memory::ptr compensation_memory(size_t) const {
-        if (node.get_split() > 1)
+        if (node->get_split() > 1)
             throw std::range_error("Split is unsupported for quantized convolutions");
-        return dep_memory_ptr(2 + 1 * bias_term() + 1 * weights_zero_points_term() + 1*activations_zero_points_term() + node.get_deform_conv_dep_offset());
+        return dep_memory_ptr(2 + 1 * bias_term() + 1 * weights_zero_points_term() + 1*activations_zero_points_term() + node->get_deform_conv_dep_offset());
     }
 
-    bool bias_term() const { return node.bias_term(); }
+    bool bias_term() const { return node->bias_term(); }
 
-    bool weights_zero_points_term() const { return node.weights_zero_points_term(); }
-    bool compensation_term() const { return node.compensation_term(); }
-    bool activations_zero_points_term() const { return node.activations_zero_points_term(); }
+    bool weights_zero_points_term() const { return node->weights_zero_points_term(); }
+    bool compensation_term() const { return node->compensation_term(); }
+    bool activations_zero_points_term() const { return node->activations_zero_points_term(); }
 };
 
 using convolution_inst = typed_primitive_inst<convolution>;
