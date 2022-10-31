@@ -101,7 +101,7 @@ public:
                                 bool is_primary_stream = false);
     program::cptr get_program() const { return _program; }
     program::ptr get_program() { return _program; }
-    engine& get_engine() const { return *_engine; }
+    engine& get_engine() const { return _engine; }
 
     void reset_execution(bool wait = true);
     void set_input_data(const primitive_id& id, memory::ptr data);
@@ -220,7 +220,7 @@ private:
     using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;
     uint32_t net_id = 0;
     program::ptr _program;
-    engine* _engine;
+    engine& _engine;
     stream::ptr _stream;
     std::unique_ptr<memory_pool> _memory_pool;
     bool _internal;

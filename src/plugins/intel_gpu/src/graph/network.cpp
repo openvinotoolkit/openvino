@@ -306,7 +306,7 @@ opt pass).
 */
 network::network(program::ptr program, stream::ptr stream, bool is_internal, bool is_primary_stream)
     : _program(program)
-    , _engine(&program->get_engine())
+    , _engine(program->get_engine())
     , _stream(stream)
     , _memory_pool(new memory_pool(program->get_engine()))
     , _internal(is_internal)
