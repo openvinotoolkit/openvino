@@ -18,6 +18,8 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/cpu_utils.hpp"
 #include <common/primitive_hashing_utils.hpp>
+#include <common/primitive_desc.hpp>
+#include <common/primitive_desc_iface.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -270,6 +272,10 @@ void FullyConnected::prepareParams() {
 
             if (prim_desc) {
                 execPtr = std::make_shared<ExecutorConv1x1>(prim_desc);
+#ifdef CPU_DEBUG_CAPS
+                auto* pd_inner = reinterpret_cast<const dnnl_primitive_desc*>(prim_desc.get());
+                DEBUG_LOG("verbose##", getName(), "##", pd_inner->info(), "\n");
+#endif
             } else {
                 shouldTryConv1x1 = false;
             }
@@ -320,6 +326,10 @@ void FullyConnected::prepareParams() {
             }
 
             execPtr = std::make_shared<ExecutorInnerProduct>(prim_desc);
+#ifdef CPU_DEBUG_CAPS
+            auto* pd_inner = reinterpret_cast<const dnnl_primitive_desc*>(prim_desc.get());
+            DEBUG_LOG("verbose##", getName(), "##", pd_inner->info(), "\n");
+#endif
         }
         return execPtr;
     };
@@ -821,6 +831,11 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
         // brg convolution does not support stride
         if (outDesc->getDnnlDesc().data.offset0 == 0)
             shouldTry = true;
+    }
+
+    auto p = getenv("USE_BRG");
+    if (p) {
+        shouldTry = p[0] == '1';
     }
 
     return shouldTry;

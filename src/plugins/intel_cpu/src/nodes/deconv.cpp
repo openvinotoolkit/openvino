@@ -23,6 +23,8 @@
 #include <ie_ngraph_utils.hpp>
 #include "convolution_shape_inference.hpp"
 #include <common/primitive_hashing_utils.hpp>
+#include <common/primitive_desc.hpp>
+#include <common/primitive_desc_iface.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -772,7 +774,7 @@ void Deconvolution::prepareParams() {
                      selected_pd->getImplementationType()};
 
     auto engine = getEngine();
-    auto builder = [&engine](const DeconvKey& key) -> executorPtr {
+    auto builder = [this, &engine](const DeconvKey& key) -> executorPtr {
         std::shared_ptr<DnnlDesriptor> desc;
         if (key.isInt8) {
             desc = createInt8MkldnnDeconvDesc(key.inp0->getDnnlDesc(), key.inp1->getDnnlDesc(), key.out->getDnnlDesc(),
@@ -797,6 +799,10 @@ void Deconvolution::prepareParams() {
                                                                    key.inp1->getDnnlDesc(),
                                                                    key.out->getDnnlDesc(),
                                                                    engine);
+#ifdef CPU_DEBUG_CAPS
+                    auto* pd_inner = reinterpret_cast<const dnnl_primitive_desc*>(prim_desc.get());
+                    DEBUG_LOG("verbose##", getName(), "##", pd_inner->info(), "\n");
+#endif
                 } else {
                     auto prim_desc = convolution_backward_data::primitive_desc(itpd.get());
                     execPtr = std::make_shared<DeconvExecutorDefault>(prim_desc,
@@ -804,6 +810,10 @@ void Deconvolution::prepareParams() {
                                                                       key.inp1->getDnnlDesc(),
                                                                       key.out->getDnnlDesc(),
                                                                       engine);
+#ifdef CPU_DEBUG_CAPS
+                    auto* pd_inner = reinterpret_cast<const dnnl_primitive_desc*>(prim_desc.get());
+                    DEBUG_LOG("verbose##", getName(), "##", pd_inner->info(), "\n");
+#endif
                 }
                 break;
             }
