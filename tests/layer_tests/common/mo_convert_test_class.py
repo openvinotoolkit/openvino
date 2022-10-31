@@ -52,5 +52,5 @@ class CommonMOConvertTest:
         test_params.update({"model_name": 'model_test', "output_dir": temp_dir})
         self.generate_ir_python_api(**test_params)
         ir_test = core.read_model(Path(temp_dir, 'model_test.xml'))
-        flag, msg = compare_functions(ir_test, ref_graph, compareTensorNames=compare_tensor_names)
+        flag, msg = compare_functions(ir_test, ref_graph, compare_tensor_names=compare_tensor_names)
         assert flag, msg
