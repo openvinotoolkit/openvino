@@ -186,7 +186,9 @@ public:
 
     layout get_node_input_layout() const { return _impl_params->get_input_layout(0); }
     layout get_node_output_layout() const { return _impl_params->output_layout; }
+#ifdef ENABLE_ONEDNN_FOR_GPU
     std::vector<cldnn::fused_primitive_desc_onednn>& get_fused_primitives_onednn() const { return _impl_params->fused_desc_onednn; }
+#endif // ENABLE_ONEDNN_FOR_GPU
 
     virtual void update_output_memory() {}
 
