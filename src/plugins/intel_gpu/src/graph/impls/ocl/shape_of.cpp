@@ -33,13 +33,9 @@ struct shape_of_impl : typed_primitive_impl_ocl<shape_of> {
         shape_of_params.input_dims = input_layout.get_dims();
 
         auto& kernel_selector = kernel_selector::shape_of_instance();
-        auto best_kernels = kernel_selector.GetBestKernels(shape_of_params, shape_of_optional_params);
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
+        auto best_kernel = kernel_selector.get_best_kernel(shape_of_params, shape_of_optional_params);
 
-        auto shape_of = new shape_of_impl(arg, best_kernels[0]);
+        auto shape_of = new shape_of_impl(arg, best_kernel);
 
         return shape_of;
     }

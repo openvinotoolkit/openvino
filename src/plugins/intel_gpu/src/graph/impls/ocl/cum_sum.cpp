@@ -71,14 +71,10 @@ public:
         cum_sum_params.reverse = arg.get_primitive()->reverse;
 
         auto& kernel_selector = kernel_selector::cum_sum_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(cum_sum_params, cum_sum_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(cum_sum_params, cum_sum_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
 
-        auto cum_sum = new cum_sum_impl(arg, best_kernels[0]);
+        auto cum_sum = new cum_sum_impl(arg, best_kernel);
 
         return cum_sum;
     }

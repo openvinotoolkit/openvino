@@ -72,14 +72,10 @@ public:
         set_detection_output_specific_params(detect_out_params.detectOutParams, arg);
 
         auto& kernel_selector = kernel_selector::detection_output_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(detect_out_params, detect_out_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(detect_out_params, detect_out_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
 
-        auto detection_output = new detection_output_impl(arg, best_kernels[0]);
+        auto detection_output = new detection_output_impl(arg, best_kernel);
 
         return detection_output;
     }

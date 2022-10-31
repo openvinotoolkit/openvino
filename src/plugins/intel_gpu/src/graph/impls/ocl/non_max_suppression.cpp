@@ -133,14 +133,10 @@ public:
         params.box_encoding = primitive->center_point_box ? kernel_selector::BoxEncodingType::BOX_ENCODING_CENTER
                                                           : kernel_selector::BoxEncodingType::BOX_ENCODING_CORNER;
         auto& kernel_selector = kernel_selector::non_max_suppression_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
 
-        auto non_max_suppression_node = new non_max_suppression_impl(arg, best_kernels[0]);
+        auto non_max_suppression_node = new non_max_suppression_impl(arg, best_kernel);
 
         return non_max_suppression_node;
     }

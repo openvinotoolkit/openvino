@@ -87,12 +87,10 @@ public:
         reduce_params.reduceMode = cldnn_2_reduce_mode(prim->mode);
 
         auto& kernel_selector = kernel_selector::reduce_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(reduce_params, reduce_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(reduce_params, reduce_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(), "Best_kernel.empty()", best_kernels.empty(), "Cannot find a proper kernel with this arguments");
-
-        auto reduce = new reduce_impl(arg, best_kernels[0]);
-        reduce->can_reuse_memory = best_kernels[0].can_reuse_memory;
+        auto reduce = new reduce_impl(arg, best_kernel);
+        reduce->can_reuse_memory = best_kernel.can_reuse_memory;
 
         return reduce;
     }

@@ -133,14 +133,10 @@ public:
         }
 
         auto& kernel_selector = kernel_selector::strided_slice_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(params, op_params);
+        auto best_kernel = kernel_selector.get_best_kernel(params, op_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
 
-        auto strided_slice = new strided_slice_impl(arg, best_kernels[0]);
+        auto strided_slice = new strided_slice_impl(arg, best_kernel);
 
         return strided_slice;
     }

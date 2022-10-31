@@ -99,14 +99,10 @@ public:
 
         auto& kernel_selector = kernel_selector::arg_max_min_kernel_selector::Instance();
 
-        kernel_selector::KernelsData best_kernels = kernel_selector.GetBestKernels(argm_params, argm_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(argm_params, argm_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
 
-        auto conv = new arg_max_min_impl(arg, best_kernels[0]);
+        auto conv = new arg_max_min_impl(arg, best_kernel);
 
         return conv;
     }

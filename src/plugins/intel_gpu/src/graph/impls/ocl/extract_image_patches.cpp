@@ -37,14 +37,10 @@ public:
         params.auto_pad = prim->auto_pad;
 
         auto& kernel_selector = kernel_selector::extract_image_patches_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
 
-        auto extract_image_patches = new extract_image_patches_impl(arg, best_kernels[0]);
+        auto extract_image_patches = new extract_image_patches_impl(arg, best_kernel);
 
         return extract_image_patches;
     }

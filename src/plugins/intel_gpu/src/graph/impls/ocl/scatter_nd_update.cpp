@@ -37,14 +37,10 @@ public:
         scatter_nd_update_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
 
         auto& kernel_selector = kernel_selector::scatter_nd_update_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(scatter_nd_update_params, scatter_nd_update_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(scatter_nd_update_params, scatter_nd_update_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
 
-        auto scatter_nd_update = new scatter_nd_update_impl(arg, best_kernels[0]);
+        auto scatter_nd_update = new scatter_nd_update_impl(arg, best_kernel);
 
         return scatter_nd_update;
     }

@@ -26,19 +26,13 @@ struct random_uniform_impl : typed_primitive_impl_ocl<random_uniform> {
     static primitive_impl *create(const random_uniform_node &arg, const kernel_impl_params& impl_param) {
         const auto &primitive = arg.get_primitive();
         auto params = get_default_params<kernel_selector::random_uniform_params>(impl_param);
-        auto &random_uniform_kernel_selector =
-                kernel_selector::random_uniform_kernel_selector::Instance();
+        auto& kernel_selector = kernel_selector::random_uniform_kernel_selector::Instance();
         params.global_seed = primitive->global_seed;
         params.op_seed = primitive->op_seed;
         params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
         params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
-        auto best_kernels = random_uniform_kernel_selector.GetBestKernels(params,
-                                                                          kernel_selector::random_uniform_optional_params());
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-        return new random_uniform_impl(arg, best_kernels[0]);
+        auto best_kernel = kernel_selector.get_best_kernel(params, kernel_selector::random_uniform_optional_params());
+        return new random_uniform_impl(arg, best_kernel);
     }
 };
 

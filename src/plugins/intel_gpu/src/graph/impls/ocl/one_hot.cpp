@@ -40,14 +40,9 @@ struct one_hot_impl : typed_primitive_impl_ocl<one_hot> {
         oh_params.one_hot_limit = output_sizes[oh_params.one_hot_axis];
 
         auto& kernel_selector = kernel_selector::one_hot_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(oh_params, oh_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(oh_params, oh_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with these arguments");
-
-        return new one_hot_impl(arg, best_kernels[0]);
+        return new one_hot_impl(arg, best_kernel);
     }
 };
 

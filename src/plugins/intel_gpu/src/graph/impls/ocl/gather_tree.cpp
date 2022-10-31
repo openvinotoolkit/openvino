@@ -34,14 +34,9 @@ struct gather_tree_impl : typed_primitive_impl_ocl<gather_tree> {
         }
 
         auto& kernel_selector = kernel_selector::gather_tree_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(b_params, b_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(b_params, b_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-            "Best_kernel.empty()",
-            best_kernels.empty(),
-            "Cannot find a proper kernel with this arguments");
-
-        return new gather_tree_impl(arg, best_kernels[0]);
+        return new gather_tree_impl(arg, best_kernel);
     }
 };
 namespace detail {

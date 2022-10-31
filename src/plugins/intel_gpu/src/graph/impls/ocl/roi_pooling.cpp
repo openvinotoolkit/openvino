@@ -100,14 +100,10 @@ public:
         roi_params.group_size = primitive->group_size;
 
         auto& kernel_selector = kernel_selector::roi_pooling_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(roi_params, roi_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(roi_params, roi_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
 
-        auto roi_pool = new roi_pooling_impl(arg, best_kernels[0]);
+        auto roi_pool = new roi_pooling_impl(arg, best_kernel);
 
         return roi_pool;
     }

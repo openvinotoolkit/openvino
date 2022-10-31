@@ -49,14 +49,10 @@ public:
         convert_color_params.mem_type = static_cast<kernel_selector::memory_type>(primitive->mem_type);
 
         auto& kernel_selector = kernel_selector::convert_color_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(convert_color_params, convert_color_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(convert_color_params, convert_color_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
 
-        auto convert_color = new convert_color_impl(arg, best_kernels[0]);
+        auto convert_color = new convert_color_impl(arg, best_kernel);
 
         return convert_color;
     }

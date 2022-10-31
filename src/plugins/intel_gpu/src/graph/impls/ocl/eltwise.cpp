@@ -109,14 +109,10 @@ public:
         ew_params.int8_quantization = quantization;
 
         auto& kernel_selector = kernel_selector::eltwise_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(ew_params, ew_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(ew_params, ew_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
 
-        auto eltwise = new eltwise_impl(arg, best_kernels[0]);
+        auto eltwise = new eltwise_impl(arg, best_kernel);
 
         return eltwise;
     }

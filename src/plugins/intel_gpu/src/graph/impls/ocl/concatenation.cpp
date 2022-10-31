@@ -114,13 +114,9 @@ public:
         concat_optional_params.kernelPerInput = true;
 
         auto& kernel_selector = kernel_selector::concatenation_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(concat_params, concat_optional_params);
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
+        auto best_kernel = kernel_selector.get_best_kernel(concat_params, concat_optional_params);
 
-        auto concat = new concatenation_impl(arg, best_kernels[0]);
+        auto concat = new concatenation_impl(arg, best_kernel);
 
         return concat;
     }

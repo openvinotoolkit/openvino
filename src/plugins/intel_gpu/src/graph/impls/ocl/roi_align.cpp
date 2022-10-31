@@ -89,14 +89,10 @@ public:
         roi_align_params.spatial_scale = primitive->spatial_scale;
 
         auto& kernel_selector = kernel_selector::roi_align_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(roi_align_params, roi_align_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(roi_align_params, roi_align_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
 
-        auto roi_align = new roi_align_impl(arg, best_kernels[0]);
+        auto roi_align = new roi_align_impl(arg, best_kernel);
 
         return roi_align;
     }

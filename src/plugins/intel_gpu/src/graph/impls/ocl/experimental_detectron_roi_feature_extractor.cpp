@@ -68,10 +68,9 @@ public:
         params.number_of_inputs = number_of_inputs;
 
         auto& kernel_selector = kernel_selector::experimental_detectron_roi_feature_extractor_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(), "best_kernels.empty()", best_kernels.empty(), "Cannot find a proper kernel with this arguments");
-        return new experimental_detectron_roi_feature_extractor_impl(arg, best_kernels.front());
+        return new experimental_detectron_roi_feature_extractor_impl(arg, best_kernel);
     }
 };
 

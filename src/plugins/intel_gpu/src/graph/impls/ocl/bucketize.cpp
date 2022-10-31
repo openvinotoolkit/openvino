@@ -31,14 +31,10 @@ struct bucketize_impl : typed_primitive_impl_ocl<bucketize> {
         params.inputs.push_back(convert_data_tensor(arg.buckets().get_output_layout()));
 
         const auto& kernel_selector = kernel_selector::bucketize_kernel_selector::Instance();
-        const auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
+        const auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
 
-        return new bucketize_impl(arg, best_kernels.front());
+        return new bucketize_impl(arg, best_kernel);
     }
 };
 

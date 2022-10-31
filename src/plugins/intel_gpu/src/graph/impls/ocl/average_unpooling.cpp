@@ -47,14 +47,10 @@ public:
         params.unpoolStride = {(uint32_t)stride.spatial[0], (uint32_t)stride.spatial[1]};
 
         auto& kernel_selector = kernel_selector::average_unpooling_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(average_unpooling_params, average_unpooling_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(average_unpooling_params, average_unpooling_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
 
-        auto average_unpool = new average_unpooling_impl(arg, best_kernels[0]);
+        auto average_unpool = new average_unpooling_impl(arg, best_kernel);
 
         return average_unpool;
     }

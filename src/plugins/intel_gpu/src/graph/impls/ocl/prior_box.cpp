@@ -77,12 +77,8 @@ struct prior_box_impl : typed_primitive_impl_ocl<prior_box> {
         params.num_priors_4 = output_shape[1] / (params.width * params.height);
 
         params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
-        const auto best_kernels = kernel_selector.GetBestKernels(params, kernel_selector::prior_box_optional_params());
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-        return new prior_box_impl(arg, best_kernels[0]);
+        const auto best_kernel = kernel_selector.get_best_kernel(params, kernel_selector::prior_box_optional_params());
+        return new prior_box_impl(arg, best_kernel);
     }
 };
 

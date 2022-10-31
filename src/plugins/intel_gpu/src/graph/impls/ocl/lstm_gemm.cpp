@@ -81,14 +81,10 @@ public:
             get_default_optional_params<kernel_selector::lstm_gemm_optional_params>(arg.get_program());
 
         auto& kernel_selector = kernel_selector::lstm_gemm_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(lstm_gemm_params, lstm_gemm_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(lstm_gemm_params, lstm_gemm_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
 
-        auto lstm_gemm = new lstm_gemm_impl(arg, best_kernels[0]);
+        auto lstm_gemm = new lstm_gemm_impl(arg, best_kernel);
 
         return lstm_gemm;
     }

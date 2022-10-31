@@ -97,13 +97,9 @@ public:
         };
 
         auto& kernel_selector = kernel_selector::deformable_conv_kernel_selector::Instance();
-        kernel_selector::KernelsData best_kernels = kernel_selector.GetBestKernels(conv_params, conv_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(conv_params, conv_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with these arguments");
-        auto conv = new deformable_conv_impl(arg, best_kernels[0]);
+        auto conv = new deformable_conv_impl(arg, best_kernel);
 
         return conv;
     }
@@ -180,13 +176,9 @@ public:
                                    (uint32_t)kernel_size.spatial[2] };
 
         auto& kernel_selector = kernel_selector::deformable_interp_kernel_selector::Instance();
-        kernel_selector::KernelsData best_kernels = kernel_selector.GetBestKernels(conv_params, conv_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(conv_params, conv_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with these arguments");
-        auto conv = new deformable_interp_impl(arg, best_kernels[0]);
+        auto conv = new deformable_interp_impl(arg, best_kernel);
 
         return conv;
     }

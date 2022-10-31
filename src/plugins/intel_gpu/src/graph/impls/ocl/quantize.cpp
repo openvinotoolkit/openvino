@@ -83,14 +83,10 @@ public:
         quantize_params.outputs = { convert_data_tensor(output_layout) };
 
         auto& kernel_selector = kernel_selector::quantize_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(quantize_params, quantize_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(quantize_params, quantize_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
 
-        auto quantize = new quantize_impl(arg, best_kernels[0]);
+        auto quantize = new quantize_impl(arg, best_kernel);
 
         return quantize;
     }

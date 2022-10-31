@@ -45,15 +45,11 @@ public:
         }
 
         auto& kernel_selector = kernel_selector::ctc_greedy_decoder_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(
+        auto best_kernel = kernel_selector.get_best_kernel(
             ctc_gd_params, ctc_gd_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
 
-        auto grn = new ctc_greedy_decoder_impl(arg, best_kernels[0]);
+        auto grn = new ctc_greedy_decoder_impl(arg, best_kernel);
 
         return grn;
     }

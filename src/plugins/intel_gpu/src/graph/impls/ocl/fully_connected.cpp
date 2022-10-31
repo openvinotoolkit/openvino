@@ -120,14 +120,10 @@ public:
             std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), arg.get_program().get_id(), true);
 
         auto& kernel_selector = kernel_selector::fully_connected_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(fc_params, fc_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(fc_params, fc_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
 
-        auto fc = new fully_connected_impl(arg, best_kernels[0]);
+        auto fc = new fully_connected_impl(arg, best_kernel);
 
         return fc;
     }

@@ -127,14 +127,10 @@ public:
         deconv_params.dilation = {dilation_x, dilation_y, dilation_z};
 
         auto& kernel_selector = kernel_selector::deconvolution_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(deconv_params, deconv_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(deconv_params, deconv_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with these arguments");
-        auto deconv = new deconvolution_impl(arg, best_kernels[0]);
-        deconv->can_reuse_memory = best_kernels[0].can_reuse_memory;
+        auto deconv = new deconvolution_impl(arg, best_kernel);
+        deconv->can_reuse_memory = best_kernel.can_reuse_memory;
 
         return deconv;
     }

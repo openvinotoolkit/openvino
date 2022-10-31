@@ -62,14 +62,9 @@ struct permute_impl : typed_primitive_impl_ocl<permute> {
         auto permute_order = convert_permute_order(prim->permute_order, in_rank);
         permute_params.order = permute_order;
         auto& kernel_selector = kernel_selector::permute_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(permute_params, permute_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(permute_params, permute_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto permute = new permute_impl(arg, best_kernels[0]);
+        auto permute = new permute_impl(arg, best_kernel);
 
         return permute;
     }

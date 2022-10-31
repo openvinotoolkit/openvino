@@ -35,14 +35,10 @@ struct ctc_loss_impl : typed_primitive_impl_ocl<ctc_loss> {
         }
 
         const auto& kernel_selector = kernel_selector::ctc_loss_kernel_selector::Instance();
-        const auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
+        const auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
 
-        return new ctc_loss_impl(arg, best_kernels.front());
+        return new ctc_loss_impl(arg, best_kernel);
     }
 };
 

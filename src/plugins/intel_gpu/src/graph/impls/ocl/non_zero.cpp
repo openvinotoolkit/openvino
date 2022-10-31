@@ -33,11 +33,9 @@ struct count_nonzero_impl : typed_primitive_impl_ocl<count_nonzero> {
             get_default_optional_params<kernel_selector::count_nonzero_optional_params>(arg.get_program());
 
         auto& kernel_selector = kernel_selector::count_nonzero_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(nonzero_params, nonzero_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(nonzero_params, nonzero_optional_params);
 
-        OPENVINO_ASSERT(!best_kernels.empty(), "Cannot find a proper kernel for ", arg.id());
-
-        auto count_nonzero = new count_nonzero_impl(arg, best_kernels[0]);
+        auto count_nonzero = new count_nonzero_impl(arg, best_kernel);
 
         return count_nonzero;
     }
@@ -63,11 +61,9 @@ public:
         nonzero_params.ov_input_rank = impl_param.get_input_layout().get_shape().size();
 
         auto& kernel_selector = kernel_selector::gather_nonzero_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(nonzero_params, nonzero_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(nonzero_params, nonzero_optional_params);
 
-        OPENVINO_ASSERT(!best_kernels.empty(), "Cannot find a proper kernel for ", arg.id());
-
-        auto gather_nonzero = new gather_nonzero_impl(arg, best_kernels[0]);
+        auto gather_nonzero = new gather_nonzero_impl(arg, best_kernel);
 
         return gather_nonzero;
     }

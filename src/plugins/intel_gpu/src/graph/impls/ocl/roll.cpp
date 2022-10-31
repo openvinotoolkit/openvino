@@ -29,14 +29,10 @@ struct roll_impl : typed_primitive_impl_ocl<roll> {
         roll_params.shift = convert_dim_vector(primitive->shift);
 
         const auto& kernel_selector = kernel_selector::roll_kernel_selector::Instance();
-        const auto best_kernels = kernel_selector.GetBestKernels(roll_params, roll_optional_params);
+        const auto best_kernel = kernel_selector.get_best_kernel(roll_params, roll_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
 
-        return new roll_impl(arg, best_kernels.front());
+        return new roll_impl(arg, best_kernel);
     }
 };
 

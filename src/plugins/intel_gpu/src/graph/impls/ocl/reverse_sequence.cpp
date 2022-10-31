@@ -37,14 +37,10 @@ public:
         reverse_sequence_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
 
         auto& kernel_selector = kernel_selector::reverse_sequence_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(reverse_sequence_params, reverse_sequence_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(reverse_sequence_params, reverse_sequence_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
 
-        auto reverse_sequence = new reverse_sequence_impl(arg, best_kernels[0]);
+        auto reverse_sequence = new reverse_sequence_impl(arg, best_kernel);
 
         return reverse_sequence;
     }

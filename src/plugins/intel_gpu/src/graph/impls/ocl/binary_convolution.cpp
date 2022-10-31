@@ -141,14 +141,10 @@ public:
                 std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), arg.get_program().get_id(), true);
         }
 
-        kernel_selector::KernelsData best_kernels = kernel_selector.GetBestKernels(conv_params, conv_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(conv_params, conv_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
 
-        auto conv = new binary_convolution_impl(arg, best_kernels[0]);
+        auto conv = new binary_convolution_impl(arg, best_kernel);
 
         return conv;
     }

@@ -32,14 +32,10 @@ struct reorg_yolo_impl : typed_primitive_impl_ocl<reorg_yolo> {
         ry_params.stride = primitive->stride;
 
         auto& kernel_selector = kernel_selector::reorg_yolo_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(ry_params, ry_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(ry_params, ry_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
 
-        auto reorg_yolo_node = new reorg_yolo_impl(arg, best_kernels[0]);
+        auto reorg_yolo_node = new reorg_yolo_impl(arg, best_kernel);
 
         return reorg_yolo_node;
     }

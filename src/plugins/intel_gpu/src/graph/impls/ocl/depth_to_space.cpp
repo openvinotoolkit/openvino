@@ -38,14 +38,10 @@ public:
                                                                                                     : kernel_selector::depth_to_space_mode::DEPTH_FIRST;
 
         auto& kernel_selector = kernel_selector::depth_to_space_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(depth_to_space_params, depth_to_space_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(depth_to_space_params, depth_to_space_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
 
-        auto depth_to_space = new depth_to_space_impl(arg, best_kernels[0]);
+        auto depth_to_space = new depth_to_space_impl(arg, best_kernel);
 
         return depth_to_space;
     }

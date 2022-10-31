@@ -71,14 +71,9 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
         auto optional_params = get_default_optional_params<kernel_selector::dft_optional_params>(arg.get_program());
 
         auto& kernel_selector = kernel_selector::dft_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        return new dft_impl{arg, best_kernels.front()};
+        return new dft_impl{arg, best_kernel};
     }
 };
 
