@@ -38,10 +38,6 @@ void Add::SetUp() {
     setInferenceType(type);
 }
 
-void Add::setInferenceType(ov::element::Type type) {
-    configuration.emplace(ov::hint::inference_precision(type));
-}
-
 void AddSinh::SetUp() {
     ov::Shape inputShape0, inputShape1;
     ov::element::Type type;
@@ -78,10 +74,6 @@ void AddSinhConst::SetUp() {
     auto f = ov::test::snippets::AddSinhConstFunction({inputShape});
     function = f.getOriginal();
     setInferenceType(type);
-}
-
-void AddSinhConst::setInferenceType(ov::element::Type type) {
-    configuration.emplace(ov::hint::inference_precision(type));
 }
 
 void AddRollConst::SetUp() {

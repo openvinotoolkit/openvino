@@ -34,8 +34,6 @@ public:
 
 protected:
     void SetUp() override;
-
-    void setInferenceType(ov::element::Type type);
 };
 
 class AddSinh : public Add {
@@ -49,8 +47,6 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddConstParams> obj);
 protected:
     void SetUp() override;
-
-    void setInferenceType(ov::element::Type type);
 };
 
 class AddRollConst : public AddSinhConst {

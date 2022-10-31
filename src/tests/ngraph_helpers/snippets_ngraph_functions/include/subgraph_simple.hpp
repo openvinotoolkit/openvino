@@ -61,7 +61,9 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 //    std::shared_ptr<ov::Model> initReference() const override;
 };
-/// Like AddSinhConst but with a Roll instead of Sinh
+// Function is to check for different model precision
+/// Like AddSinhConst but with a Roll instead of Sinh because Roll is movement operation which
+//  supports different precisions but Sinh supports only FP32 in CPU Plugin
 //   in1
 //   Roll     Const
 //        Add

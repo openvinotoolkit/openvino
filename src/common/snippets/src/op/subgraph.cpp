@@ -295,13 +295,11 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
     //  - Insert reverse Convert before operations that support original element type
     //    but have inputs that doesn't support it (because before them will be inserted Convert with exec_type - first point)
     // Then we should use ConstantFolding pass to convert element type of Scalars before inference.
-    // At the end eliminate redundant Convert that could be inserted
     ngraph::pass::Manager manager;
     if (config.m_is_needed_to_align_precision) {
         manager.register_pass<snippets::pass::AlignElementType>(execution_element_type);
+        manager.register_pass<ngraph::pass::ConstantFolding>();
     }
-    manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::EliminateConvert>();
     manager.run_passes(m_body);
 }
 
