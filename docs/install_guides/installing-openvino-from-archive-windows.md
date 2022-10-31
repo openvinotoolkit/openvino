@@ -145,7 +145,7 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 
    Try the `Python Quick Start Example <https://docs.openvino.ai/2022.2/notebooks/201-vision-monodepth-with-output.html>`_ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
    
-   .. image:: "https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif"
+   .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
       :width: 400
 
    Visit the :ref:`Tutorials <notebook tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
@@ -156,21 +156,21 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 
 .. tab:: Get started with C++
 
-   Try the [C++ Quick Start Example](@ref openvino_docs_get_started_get_started_demos) for step-by-step instructions on building and running a basic image classification C++ application.
+   Try the `C++ Quick Start Example <../get_started/get_started_demos.md>`_ for step-by-step instructions on building and running a basic image classification C++ application.
    
-   .. image:: "https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg"
+   .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
       :width: 400
 
    Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
    
-   * :ref:`Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README>`
-   * :ref:`Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README>`
+   * `Basic object detection with the Hello Reshape SSD C++ sample <../../samples/cpp/hello_reshape_ssd/README.md>`_
+   * `Automatic speech recognition C++ sample <../../samples/cpp/speech_sample/README.md>`_
 
 @endsphinxdirective
 
-## <a name="uninstall"></a>Uninstalling the Intel® Distribution of OpenVINO™ Toolkit
+## <a name="uninstall"></a>Uninstalling OpenVINO Runtime
 
-To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
+To uninstall OpenVINO, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
 
 ## Additional Resources
 
