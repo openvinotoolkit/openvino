@@ -20,6 +20,8 @@ namespace ocl {
 struct convolution_impl : typed_primitive_impl_ocl<convolution> {
     using parent = typed_primitive_impl_ocl<convolution>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::convolution_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::convolution_params, kernel_selector::convolution_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -95,7 +97,7 @@ public:
     }
 
     static std::unique_ptr<primitive_impl> create(const convolution_node& arg, const kernel_impl_params& impl_param) {
-        const auto& primitive = arg.get_primitive();
+        const auto& primitive = impl_param.typed_desc<convolution>();
 
         const auto &split = primitive->split();
         auto stride = primitive->stride;
@@ -108,7 +110,7 @@ public:
         auto conv_params = get_weight_bias_zero_point_default_params<kernel_selector::convolution_params>(
             impl_param, split, 1, primitive->grouped_weights_shape);
         auto conv_optional_params =
-            get_default_weights_bias_optional_params<kernel_selector::convolution_optional_params>(arg.get_program());
+            get_default_weights_bias_optional_params<kernel_selector::convolution_optional_params>(impl_param.get_program());
 
         if (primitive->deformable_mode) {
             conv_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));

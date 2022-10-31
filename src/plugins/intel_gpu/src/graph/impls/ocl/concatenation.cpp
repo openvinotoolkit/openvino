@@ -48,6 +48,8 @@ kernel_selector::concat_axis convert_axis(int64_t axis, size_t rank) {
 struct concatenation_impl : typed_primitive_impl_ocl<concatenation> {
     using parent = typed_primitive_impl_ocl<concatenation>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::concatenation_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::concatenation_params, kernel_selector::concatenation_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -95,26 +97,33 @@ public:
         ib >> _can_be_optimized;
     }
 
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<concatenation>();
+        auto params = get_default_params<kernel_selector::concatenation_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::concatenation_optional_params>(impl_param.get_program());
+        auto axis = primitive->axis;
+
+        auto inputs_count = primitive->input.size();
+        params.inputs.resize(inputs_count);
+        for (size_t i = 0; i < inputs_count; ++i) {
+            const layout& input_layout = impl_param.input_layouts[i];
+            params.inputs[i] = convert_data_tensor(input_layout);
+        }
+
+        params.axis = convert_axis(axis, impl_param.output_layout.get_rank());
+        optional_params.kernelPerInput = true;
+
+        return {params, optional_params};
+    }
+
     static std::unique_ptr<primitive_impl> create(const concatenation_node& arg, const kernel_impl_params& impl_param) {
         if (arg.can_be_optimized()) {
             return make_unique<concatenation_impl>(arg, kernel_selector::kernel_data{});
         }
-        const auto& primitive = arg.get_primitive();
-        auto concat_params = get_default_params<kernel_selector::concatenation_params>(impl_param);
-        auto concat_optional_params = get_default_optional_params<kernel_selector::concatenation_optional_params>(arg.get_program());
-        auto axis = primitive->axis;
 
-        concat_params.inputs.resize(arg.inputs_count());
-        for (size_t i = 0; i < arg.inputs_count(); ++i) {
-            const layout& input_layout = impl_param.input_layouts[i];
-            concat_params.inputs[i] = convert_data_tensor(input_layout);
-        }
-
-        concat_params.axis = convert_axis(axis, impl_param.output_layout.get_rank());
-        concat_optional_params.kernelPerInput = true;
-
-        auto& kernel_selector = kernel_selector::concatenation_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(concat_params, concat_optional_params);
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<concatenation_impl>(arg, best_kernel);
     }

@@ -16,6 +16,8 @@ namespace ocl {
 struct random_uniform_impl : typed_primitive_impl_ocl<random_uniform> {
     using parent = typed_primitive_impl_ocl<random_uniform>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::random_uniform_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::random_uniform_params, kernel_selector::random_uniform_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -23,15 +25,21 @@ struct random_uniform_impl : typed_primitive_impl_ocl<random_uniform> {
         return make_unique<random_uniform_impl>(*this);
     }
 
-    static std::unique_ptr<primitive_impl> create(const random_uniform_node &arg, const kernel_impl_params& impl_param) {
-        const auto &primitive = arg.get_primitive();
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<random_uniform>();
         auto params = get_default_params<kernel_selector::random_uniform_params>(impl_param);
-        auto& kernel_selector = kernel_selector::random_uniform_kernel_selector::Instance();
         params.global_seed = primitive->global_seed;
         params.op_seed = primitive->op_seed;
-        params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
-        params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
-        auto best_kernel = kernel_selector.get_best_kernel(params, kernel_selector::random_uniform_optional_params());
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
+
+        return {params, {}};
+    }
+
+    static std::unique_ptr<primitive_impl> create(const random_uniform_node &arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<random_uniform_impl>(arg, best_kernel);
     }

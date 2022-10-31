@@ -58,6 +58,8 @@ std::vector<std::int32_t> extractShape(kernel_selector::Tensor::DataTensor& tens
 struct slice_impl : typed_primitive_impl_ocl<slice> {
     using parent = typed_primitive_impl_ocl<slice>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::slice_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::slice_params, kernel_selector::slice_optional_params>;
 
     enum InputIndices {
         kData,

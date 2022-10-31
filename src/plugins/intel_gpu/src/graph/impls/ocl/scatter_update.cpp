@@ -15,8 +15,7 @@ using namespace cldnn;
 namespace cldnn {
 namespace ocl {
 namespace {
-kernel_selector::scatter_update_axis convert_axis(int64_t axis, const scatter_update_node& arg) {
-    auto rank = arg.input(0).get_output_layout().get_rank();
+kernel_selector::scatter_update_axis convert_axis(int64_t axis, size_t rank) {
     if (axis < 0) {
         axis += rank;
     }
@@ -35,7 +34,7 @@ kernel_selector::scatter_update_axis convert_axis(int64_t axis, const scatter_up
         case 3: return kernel_selector::scatter_update_axis::Y;
         case 4: return kernel_selector::scatter_update_axis::Z;
         case 5: return kernel_selector::scatter_update_axis::W;
-        default: CLDNN_ERROR_MESSAGE(arg.id(), "Unsupported Axis");
+        default: OPENVINO_ASSERT(false, "[GPU] Unsupported scatter update axis");
     }
     return kernel_selector::scatter_update_axis::X;
 }
@@ -44,6 +43,8 @@ kernel_selector::scatter_update_axis convert_axis(int64_t axis, const scatter_up
 struct scatter_update_impl : typed_primitive_impl_ocl<scatter_update> {
     using parent = typed_primitive_impl_ocl<scatter_update>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::scatter_update_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::scatter_update_params, kernel_selector::scatter_update_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -52,18 +53,22 @@ struct scatter_update_impl : typed_primitive_impl_ocl<scatter_update> {
     }
 
 public:
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<scatter_update>();
+        auto params = get_default_params<kernel_selector::scatter_update_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::scatter_update_optional_params>(impl_param.get_program());
+
+        params.axis = convert_axis(primitive->axis, impl_param.get_input_layout(0).get_rank());
+
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
+        return {params, optional_params};
+    }
+
     static std::unique_ptr<primitive_impl> create(const scatter_update_node& arg, const kernel_impl_params& impl_param) {
-        auto scatter_update_params = get_default_params<kernel_selector::scatter_update_params>(impl_param);
-        auto scatter_update_optional_params =
-            get_default_optional_params<kernel_selector::scatter_update_optional_params>(arg.get_program());
-
-        scatter_update_params.axis = convert_axis(arg.get_primitive()->axis, arg);
-
-        scatter_update_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
-        scatter_update_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
-
-        auto& kernel_selector = kernel_selector::scatter_update_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(scatter_update_params, scatter_update_optional_params);
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<scatter_update_impl>(arg, best_kernel);
     }

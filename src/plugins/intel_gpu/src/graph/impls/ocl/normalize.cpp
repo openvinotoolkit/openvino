@@ -20,6 +20,8 @@ namespace ocl {
 struct normalize_impl : typed_primitive_impl_ocl<normalize> {
     using parent = typed_primitive_impl_ocl<normalize>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::normalize_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::normalize_params, kernel_selector::normalize_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -35,25 +37,28 @@ protected:
     }
 
 public:
-    static std::unique_ptr<primitive_impl> create(const normalize_node& arg, const kernel_impl_params& impl_param) {
-        const auto& prim = arg.get_primitive();
-        auto norm_params = get_default_params<kernel_selector::normalize_params>(impl_param);
-        auto norm_optional_params =
-            get_default_optional_params<kernel_selector::normalize_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<normalize>();
+        auto params = get_default_params<kernel_selector::normalize_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::normalize_optional_params>(impl_param.get_program());
 
-        const auto& scale_layout = impl_param.input_layouts[1];
+        auto scale_layout = impl_param.get_input_layout(1);
 
-        norm_params.normMode = prim->across_spatial ? kernel_selector::normalize_mode::ACROSS_SPATIAL
-                                                                   : kernel_selector::normalize_mode::WITHIN_SPATIAL;
-        norm_params.epsilon = prim->epsilon;
+        params.normMode = primitive->across_spatial ? kernel_selector::normalize_mode::ACROSS_SPATIAL
+                                                    : kernel_selector::normalize_mode::WITHIN_SPATIAL;
+        params.epsilon = primitive->epsilon;
         if (format::is_simple_data_format(scale_layout.format)) {
-            norm_params.scaleTable = convert_data_tensor(scale_layout).FlattenFeatureAndSpatials();
+            params.scaleTable = convert_data_tensor(scale_layout).FlattenFeatureAndSpatials();
         } else {
-            norm_params.scaleTable = convert_data_tensor(scale_layout);
+            params.scaleTable = convert_data_tensor(scale_layout);
         }
+        return {params, optional_params};
+    }
 
-        auto& kernel_selector = kernel_selector::normalize_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(norm_params, norm_optional_params);
+    static std::unique_ptr<primitive_impl> create(const normalize_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<normalize_impl>(arg, best_kernel);
     }

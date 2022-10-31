@@ -18,6 +18,8 @@ namespace ocl {
 struct depth_to_space_impl : typed_primitive_impl_ocl<depth_to_space> {
     using parent = typed_primitive_impl_ocl<depth_to_space>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::depth_to_space_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::depth_to_space_params, kernel_selector::depth_to_space_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -26,19 +28,21 @@ struct depth_to_space_impl : typed_primitive_impl_ocl<depth_to_space> {
     }
 
 public:
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<depth_to_space>();
+        auto params = get_default_params<kernel_selector::depth_to_space_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::depth_to_space_optional_params>(impl_param.get_program());
+
+        params.block_size = primitive->block_size;
+        params.mode = primitive->mode == depth_to_space_mode::blocks_first ? kernel_selector::depth_to_space_mode::BLOCKS_FIRST
+                                                                           : kernel_selector::depth_to_space_mode::DEPTH_FIRST;
+        return {params, optional_params};
+    }
+
     static std::unique_ptr<primitive_impl> create(const depth_to_space_node& arg, const kernel_impl_params& impl_param) {
-        const auto& prim = arg.get_primitive();
-
-        auto depth_to_space_params = get_default_params<kernel_selector::depth_to_space_params>(impl_param);
-        auto depth_to_space_optional_params =
-            get_default_optional_params<kernel_selector::depth_to_space_optional_params>(arg.get_program());
-
-        depth_to_space_params.block_size = prim->block_size;
-        depth_to_space_params.mode = prim->mode == depth_to_space_mode::blocks_first ? kernel_selector::depth_to_space_mode::BLOCKS_FIRST
-                                                                                                    : kernel_selector::depth_to_space_mode::DEPTH_FIRST;
-
-        auto& kernel_selector = kernel_selector::depth_to_space_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(depth_to_space_params, depth_to_space_optional_params);
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<depth_to_space_impl>(arg, best_kernel);
     }

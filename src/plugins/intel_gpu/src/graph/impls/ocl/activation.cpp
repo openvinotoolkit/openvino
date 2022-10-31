@@ -16,6 +16,8 @@ namespace ocl {
 struct activation_impl : typed_primitive_impl_ocl<activation> {
     using parent = typed_primitive_impl_ocl<activation>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::activation_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::activation_params, kernel_selector::activation_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -58,33 +60,32 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
         ib >> _is_parameterized;
     }
 
-    static std::unique_ptr<primitive_impl> create(const activation_node& arg, const kernel_impl_params& impl_param) {
-        const auto& prim = arg.get_primitive();
-        auto activation_params = get_default_params<kernel_selector::activation_params>(impl_param);
-        auto activation_optional_params =
-            get_default_optional_params<kernel_selector::activation_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<activation>();
+        auto params = get_default_params<kernel_selector::activation_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::activation_optional_params>(impl_param.get_program());
 
-        convert_new_activation_func(prim, activation_params.activations);
+        convert_new_activation_func(primitive, params.activations);
 
-        if (arg.is_parameterized()) {
+        bool is_parameterized = !primitive->additional_params_input.empty();
+        if (is_parameterized) {
             const auto& slope_layout = impl_param.input_layouts[1];
             const auto& output_layout = impl_param.output_layout;
 
-            const auto params_num =
-                kernel_selector::GetActivationAdditionalParamsNumber(activation_params.activations[0].function);
+            const auto params_num = kernel_selector::GetActivationAdditionalParamsNumber(params.activations[0].function);
 
-            CLDNN_ERROR_LESS_THAN(arg.id(),
-                                  "Slope layout size count",
-                                  slope_layout.count(),
-                                  "output_layout.feature() * params_num",
-                                  static_cast<size_t>(output_layout.feature() * params_num),
-                                  "Error - not enough data inside additional params buffer");
+            OPENVINO_ASSERT(slope_layout.count() >= static_cast<size_t>(output_layout.feature() * params_num), "[GPU] Invalid slope size in ", primitive->id);
 
-            activation_params.inputActivationParams.push_back(convert_data_tensor(slope_layout));
+            params.inputActivationParams.push_back(convert_data_tensor(slope_layout));
         }
 
-        auto& kernel_selector = kernel_selector::activation_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(activation_params, activation_optional_params);
+        return {params, optional_params};
+    }
+
+    static std::unique_ptr<primitive_impl> create(const activation_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<activation_impl>(arg, best_kernel);
     }

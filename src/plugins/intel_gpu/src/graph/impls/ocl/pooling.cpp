@@ -58,6 +58,8 @@ kernel_selector::kernel_divider_mode cldnn_2_kernel_divider_mode(pooling_mode mo
 struct pooling_impl : typed_primitive_impl_ocl<pooling> {
     using parent = typed_primitive_impl_ocl<pooling>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::pooling_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::pooling_params, kernel_selector::pooling_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -72,28 +74,26 @@ protected:
     }
 
 public:
-    static std::unique_ptr<primitive_impl> create(const pooling_node& arg, const kernel_impl_params& impl_param) {
-        validate_args(arg);
-        const auto primitive = arg.get_primitive();
-        auto pool_params = get_default_params<kernel_selector::pooling_params>(impl_param);
-        auto pool_optional_params =
-            get_default_optional_params<kernel_selector::pooling_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<pooling>();
+        auto params = get_default_params<kernel_selector::pooling_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::pooling_optional_params>(impl_param.get_program());
 
-        pool_params.maxPoolOpset8Features = primitive->maxPoolOpset8Features;
-        if (pool_params.maxPoolOpset8Features) {
+        params.maxPoolOpset8Features = primitive->maxPoolOpset8Features;
+        if (params.maxPoolOpset8Features) {
             switch (primitive->index_element_type) {
                 case cldnn::data_types::i32: {
-                    pool_params.poolIndexElementType = kernel_selector::Datatype::INT32;
+                    params.poolIndexElementType = kernel_selector::Datatype::INT32;
                     break;
                 }
                 case cldnn::data_types::i64: {
-                    pool_params.poolIndexElementType = kernel_selector::Datatype::INT64;
+                    params.poolIndexElementType = kernel_selector::Datatype::INT64;
                     break;
                 }
                 default:
                     throw std::runtime_error{"Not supported index element type"};
             }
-            pool_params.poolAxis = primitive->axis;
+            params.poolAxis = primitive->axis;
         }
 
         const auto& input_layout = impl_param.input_layouts[0];
@@ -132,7 +132,7 @@ public:
         pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
         pads_end.resize(std::max<size_t>(2, pads_end.size()), 0);
 
-        auto& pp = pool_params;
+        auto& pp = params;
 
         pp.poolType = cldnn_2_pool_type(primitive->mode);
         pp.remainderAction = primitive->rounding_type == ov::op::RoundingType::CEIL ? kernel_selector::pool_remainder::CEIL
@@ -171,8 +171,14 @@ public:
         uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
         pp.poolDilation = {dilation_x, dilation_y, dilation_z};
 
-        auto& kernel_selector = kernel_selector::pooling_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(pool_params, pool_optional_params);
+        return {params, optional_params};
+    }
+
+    static std::unique_ptr<primitive_impl> create(const pooling_node& arg, const kernel_impl_params& impl_param) {
+        validate_args(arg);
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<pooling_impl>(arg, best_kernel);
     }

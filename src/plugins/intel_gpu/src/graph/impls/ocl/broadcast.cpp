@@ -17,6 +17,8 @@ namespace ocl {
 struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
     using parent = typed_primitive_impl_ocl<broadcast>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::broadcast_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::broadcast_params, kernel_selector::broadcast_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -24,11 +26,10 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
         return make_unique<broadcast_impl>(*this);
     }
 
-    static std::unique_ptr<primitive_impl> create(const broadcast_node& arg, const kernel_impl_params& impl_param) {
-        const auto& primitive = arg.get_primitive();
-        auto bc_params = get_default_params<kernel_selector::broadcast_params>(impl_param, 1);
-        auto bc_optional_params =
-            get_default_optional_params<kernel_selector::broadcast_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<broadcast>();
+        auto params = get_default_params<kernel_selector::broadcast_params>(impl_param, 1);
+        auto optional_params = get_default_optional_params<kernel_selector::broadcast_optional_params>(impl_param.get_program());
 
         const auto format = impl_param.output_layout.format;
         size_t max_axes_num = format.dimension();
@@ -40,16 +41,21 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
         // bfyx, bfzyx format
         for (size_t i = 0; i < max_axes_num; ++i) {
             if (std::find(broadcast_axes.begin(), broadcast_axes.end(), i) != broadcast_axes.end()) {
-                bc_params.input_order.push_back(index);
+                params.input_order.push_back(index);
                 ++index;
             } else {
-                bc_params.input_order.push_back(input_index);
+                params.input_order.push_back(input_index);
                 ++input_index;
             }
         }
 
-        auto& kernel_selector = kernel_selector::broadcast_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(bc_params, bc_optional_params);
+        return {params, optional_params};
+    }
+
+    static std::unique_ptr<primitive_impl> create(const broadcast_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<broadcast_impl>(arg, best_kernel);
     }

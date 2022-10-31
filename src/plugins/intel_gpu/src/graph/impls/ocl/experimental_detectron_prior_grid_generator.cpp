@@ -21,6 +21,9 @@ struct experimental_detectron_prior_grid_generator_impl
     : typed_primitive_impl_ocl<experimental_detectron_prior_grid_generator> {
     using parent = typed_primitive_impl_ocl<experimental_detectron_prior_grid_generator>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::experimental_detectron_prior_grid_generator_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::experimental_detectron_prior_grid_generator_params,
+                                      kernel_selector::experimental_detectron_prior_grid_generator_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -28,23 +31,26 @@ struct experimental_detectron_prior_grid_generator_impl
         return make_unique<experimental_detectron_prior_grid_generator_impl>(*this);
     }
 
-    static std::unique_ptr<primitive_impl> create(const experimental_detectron_prior_grid_generator_node& arg, const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<experimental_detectron_prior_grid_generator>();
         auto params = get_default_params<kernel_selector::experimental_detectron_prior_grid_generator_params>(impl_param);
-        auto primPtr = arg.get_primitive();
-        auto& prim = *primPtr;
 
-        params.flatten = prim.flatten;
-        params.layer_height = prim.h ? prim.h : prim.featmap_height;
-        params.layer_width = prim.w ? prim.w : prim.featmap_width;
-        params.step_x = prim.stride_x ? prim.stride_x : static_cast<float>(prim.image_width) / params.layer_width;
-        params.step_y = prim.stride_y ? prim.stride_y : static_cast<float>(prim.image_height) / params.layer_height;
+        params.flatten = primitive->flatten;
+        params.layer_height = primitive->h ? primitive->h : primitive->featmap_height;
+        params.layer_width = primitive->w ? primitive->w : primitive->featmap_width;
+        params.step_x = primitive->stride_x ? primitive->stride_x : static_cast<float>(primitive->image_width) / params.layer_width;
+        params.step_y = primitive->stride_y ? primitive->stride_y : static_cast<float>(primitive->image_height) / params.layer_height;
 
-        auto optional_params =
-            get_default_optional_params<kernel_selector::experimental_detectron_prior_grid_generator_optional_params>(
-                arg.get_program());
+        auto optional_params = get_default_optional_params<kernel_selector::experimental_detectron_prior_grid_generator_optional_params>(
+                impl_param.get_program());
 
-        auto& kernel_selector = kernel_selector::experimental_detectron_prior_grid_generator_instance();
-        auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
+        return {params, optional_params};
+    }
+
+    static std::unique_ptr<primitive_impl> create(const experimental_detectron_prior_grid_generator_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<experimental_detectron_prior_grid_generator_impl>(arg, best_kernel);
     }

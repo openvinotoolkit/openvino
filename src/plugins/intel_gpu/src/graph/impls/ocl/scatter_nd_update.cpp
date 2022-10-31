@@ -18,6 +18,8 @@ namespace ocl {
 struct scatter_nd_update_impl : typed_primitive_impl_ocl<scatter_nd_update> {
     using parent = typed_primitive_impl_ocl<scatter_nd_update>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::scatter_nd_update_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::scatter_nd_update_params, kernel_selector::scatter_nd_update_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -26,18 +28,23 @@ struct scatter_nd_update_impl : typed_primitive_impl_ocl<scatter_nd_update> {
     }
 
 public:
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<scatter_nd_update>();
+        auto params = get_default_params<kernel_selector::scatter_nd_update_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::scatter_nd_update_optional_params>(impl_param.get_program());
+
+        params.indices_rank = primitive->indices_rank;
+
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
+
+        return {params, optional_params};
+    }
+
     static std::unique_ptr<primitive_impl> create(const scatter_nd_update_node& arg, const kernel_impl_params& impl_param) {
-        auto scatter_nd_update_params = get_default_params<kernel_selector::scatter_nd_update_params>(impl_param);
-        auto scatter_nd_update_optional_params =
-            get_default_optional_params<kernel_selector::scatter_nd_update_optional_params>(arg.get_program());
-
-        scatter_nd_update_params.indices_rank = arg.get_primitive()->indices_rank;
-
-        scatter_nd_update_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
-        scatter_nd_update_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
-
-        auto& kernel_selector = kernel_selector::scatter_nd_update_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(scatter_nd_update_params, scatter_nd_update_optional_params);
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<scatter_nd_update_impl>(arg, best_kernel);
     }

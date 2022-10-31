@@ -20,6 +20,8 @@ namespace ocl {
 struct ctc_greedy_decoder_impl : typed_primitive_impl_ocl<ctc_greedy_decoder> {
     using parent = typed_primitive_impl_ocl<ctc_greedy_decoder>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::ctc_greedy_decoder_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::ctc_greedy_decoder_params, kernel_selector::ctc_greedy_decoder_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -28,25 +30,27 @@ struct ctc_greedy_decoder_impl : typed_primitive_impl_ocl<ctc_greedy_decoder> {
     }
 
 public:
-    static std::unique_ptr<primitive_impl> create(const ctc_greedy_decoder_node& arg, const kernel_impl_params& impl_param) {
-        auto prim = arg.get_primitive();
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<ctc_greedy_decoder>();
+        auto params = get_default_params<kernel_selector::ctc_greedy_decoder_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::ctc_greedy_decoder_optional_params>(impl_param.get_program());
 
-        auto ctc_gd_params = get_default_params<kernel_selector::ctc_greedy_decoder_params>(impl_param);
-        auto ctc_gd_optional_params = get_default_optional_params<kernel_selector::ctc_greedy_decoder_optional_params>(arg.get_program());
+        auto has_second_output = !primitive->second_output.empty();
+        params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
+        params.merge_repeated = primitive->ctc_merge_repeated;
+        params.blank_index = primitive->blank_index;
+        params.outputs_num = has_second_output ? 2 : 1;
 
-        ctc_gd_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
-        ctc_gd_params.merge_repeated = prim->ctc_merge_repeated;
-        ctc_gd_params.blank_index = prim->blank_index;
-        ctc_gd_params.outputs_num = arg.has_second_output() ? 2 : 1;
-
-        if (ctc_gd_params.outputs_num == 2) {
-            const auto& second_output_layout = impl_param.input_layouts[1];
-            ctc_gd_params.inputs.push_back(convert_data_tensor(second_output_layout));
+        if (params.outputs_num == 2) {
+            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
         }
+        return {params, optional_params};
+    }
 
-        auto& kernel_selector = kernel_selector::ctc_greedy_decoder_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(
-            ctc_gd_params, ctc_gd_optional_params);
+    static std::unique_ptr<primitive_impl> create(const ctc_greedy_decoder_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<ctc_greedy_decoder_impl>(arg, best_kernel);
     }

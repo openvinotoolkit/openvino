@@ -45,6 +45,8 @@ inline std::vector<uint16_t> convert_permute_order(const std::vector<uint16_t>& 
 struct permute_impl : typed_primitive_impl_ocl<permute> {
     using parent = typed_primitive_impl_ocl<permute>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::permute_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::permute_params, kernel_selector::permute_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -52,17 +54,22 @@ struct permute_impl : typed_primitive_impl_ocl<permute> {
         return make_unique<permute_impl>(*this);
     }
 
-    static std::unique_ptr<primitive_impl> create(const permute_node& arg, const kernel_impl_params& impl_param) {
-        const auto& prim = arg.get_primitive();
-        auto permute_params = get_default_params<kernel_selector::permute_params>(impl_param);
-        auto permute_optional_params =
-            get_default_optional_params<kernel_selector::permute_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<permute>();
+        auto params = get_default_params<kernel_selector::permute_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::permute_optional_params>(impl_param.get_program());
 
-        auto in_rank = impl_param.input_layouts[0].get_rank();
-        auto permute_order = convert_permute_order(prim->permute_order, in_rank);
-        permute_params.order = permute_order;
-        auto& kernel_selector = kernel_selector::permute_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(permute_params, permute_optional_params);
+        auto in_rank = impl_param.get_input_layout(0).get_rank();
+        auto permute_order = convert_permute_order(primitive->permute_order, in_rank);
+        params.order = permute_order;
+
+        return {params, optional_params};
+    }
+
+    static std::unique_ptr<primitive_impl> create(const permute_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<permute_impl>(arg, best_kernel);
     }

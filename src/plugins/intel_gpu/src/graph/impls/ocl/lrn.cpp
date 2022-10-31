@@ -16,6 +16,8 @@ namespace ocl {
 struct lrn_impl : typed_primitive_impl_ocl<lrn> {
     using parent = typed_primitive_impl_ocl<lrn>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::lrn_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::lrn_params, kernel_selector::lrn_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -23,22 +25,27 @@ struct lrn_impl : typed_primitive_impl_ocl<lrn> {
         return make_unique<lrn_impl>(*this);
     }
 
-    static std::unique_ptr<primitive_impl> create(const lrn_node& arg, const kernel_impl_params& impl_param) {
-        const auto& primitive = arg.get_primitive();
-        auto lrn_params = get_default_params<kernel_selector::lrn_params>(impl_param);
-        auto lrn_optional_params = get_default_optional_params<kernel_selector::lrn_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<lrn>();
+        auto params = get_default_params<kernel_selector::lrn_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::lrn_optional_params>(impl_param.get_program());
 
-        lrn_params.alpha = primitive->alpha;
-        lrn_params.beta = primitive->beta;
-        lrn_params.k = primitive->k;
-        lrn_params.localSize = primitive->size;
-        lrn_params.divMode = kernel_selector::kernel_divider_mode::FIXED;
-        lrn_params.normMode = primitive->norm_region == lrn_norm_region_within_channel
+        params.alpha = primitive->alpha;
+        params.beta = primitive->beta;
+        params.k = primitive->k;
+        params.localSize = primitive->size;
+        params.divMode = kernel_selector::kernel_divider_mode::FIXED;
+        params.normMode = primitive->norm_region == lrn_norm_region_within_channel
                                   ? kernel_selector::lrn_mode::WITHIN_CHANNEL
                                   : kernel_selector::lrn_mode::ACROSS_CHANNEL;
 
-        auto& kernel_selector = kernel_selector::lrn_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(lrn_params, lrn_optional_params);
+        return {params, optional_params};
+    }
+
+    static std::unique_ptr<primitive_impl> create(const lrn_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<lrn_impl>(arg, best_kernel);
     }

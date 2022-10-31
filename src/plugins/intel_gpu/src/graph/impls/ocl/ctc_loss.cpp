@@ -14,6 +14,8 @@ namespace ocl {
 struct ctc_loss_impl : typed_primitive_impl_ocl<ctc_loss> {
     using parent = typed_primitive_impl_ocl<ctc_loss>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::ctc_loss_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::ctc_loss_params, kernel_selector::ctc_loss_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -21,21 +23,24 @@ struct ctc_loss_impl : typed_primitive_impl_ocl<ctc_loss> {
         return make_unique<ctc_loss_impl>(*this);
     }
 
-    static std::unique_ptr<primitive_impl> create(const ctc_loss_node& arg, const kernel_impl_params& impl_param) {
-        auto params = get_default_params<kernel_selector::ctc_loss_params>(impl_param);
-        auto optional_params =
-            get_default_optional_params<kernel_selector::ctc_loss_optional_params>(arg.get_program());
-
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<ctc_loss>();
+        auto params = get_default_params<kernel_selector::ctc_loss_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::ctc_loss_optional_params>(impl_param.get_program());
+
         params.preprocess_collapse_repeated = primitive->preprocess_collapse_repeated;
         params.ctc_merge_repeated = primitive->ctc_merge_repeated;
         params.unique = primitive->unique;
         for (size_t i = 1; i < impl_param.input_layouts.size(); ++i) {
-            params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
+            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
+        return {params, optional_params};
+    }
 
-        const auto& kernel_selector = kernel_selector::ctc_loss_kernel_selector::Instance();
-        const auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
+    static std::unique_ptr<primitive_impl> create(const ctc_loss_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<ctc_loss_impl>(arg, best_kernel);
     }

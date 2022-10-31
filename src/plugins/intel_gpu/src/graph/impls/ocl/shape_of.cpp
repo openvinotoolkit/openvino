@@ -16,6 +16,8 @@ namespace ocl {
 struct shape_of_impl : typed_primitive_impl_ocl<shape_of> {
     using parent = typed_primitive_impl_ocl<shape_of>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::shape_of_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::shape_of_params, kernel_selector::shape_of_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -23,17 +25,21 @@ struct shape_of_impl : typed_primitive_impl_ocl<shape_of> {
         return make_unique<shape_of_impl>(*this);
     }
 
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        auto params = get_default_params<kernel_selector::shape_of_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::shape_of_optional_params>(impl_param.get_program());
+
+        auto input_layout = impl_param.get_input_layout(0);
+        params.input_rank = input_layout.get_rank();
+        params.input_dims = input_layout.get_dims();
+
+        return {params, optional_params};
+    }
+
     static std::unique_ptr<primitive_impl> create(const shape_of_node& arg, const kernel_impl_params& impl_param) {
-        auto shape_of_params = get_default_params<kernel_selector::shape_of_params>(impl_param);
-        auto shape_of_optional_params =
-            get_default_optional_params<kernel_selector::shape_of_optional_params>(arg.get_program());
-
-        auto input_layout = impl_param.input_layouts[0];
-        shape_of_params.input_rank = input_layout.get_rank();
-        shape_of_params.input_dims = input_layout.get_dims();
-
-        auto& kernel_selector = kernel_selector::shape_of_instance();
-        auto best_kernel = kernel_selector.get_best_kernel(shape_of_params, shape_of_optional_params);
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<shape_of_impl>(arg, best_kernel);
     }

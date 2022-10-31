@@ -50,6 +50,8 @@ kernel_selector::cum_sum_axis convert_axis(int64_t axis, size_t rank) {
 struct cum_sum_impl : typed_primitive_impl_ocl<cum_sum> {
     using parent = typed_primitive_impl_ocl<cum_sum>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::cum_sum_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::cum_sum_params, kernel_selector::cum_sum_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -58,20 +60,22 @@ struct cum_sum_impl : typed_primitive_impl_ocl<cum_sum> {
     }
 
 public:
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<cum_sum>();
+        auto params = get_default_params<kernel_selector::cum_sum_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::cum_sum_optional_params>(impl_param.get_program());
+
+        size_t rank = impl_param.output_layout.get_rank();
+        params.axis = convert_axis(primitive->axis, rank);
+        params.exclusive = primitive->exclusive;
+        params.reverse = primitive->reverse;
+        return {params, optional_params};
+    }
+
     static std::unique_ptr<primitive_impl> create(const cum_sum_node& arg, const kernel_impl_params& impl_param) {
-        const auto& prim = arg.get_primitive();
-
-        auto cum_sum_params = get_default_params<kernel_selector::cum_sum_params>(impl_param);
-        auto cum_sum_optional_params =
-            get_default_optional_params<kernel_selector::cum_sum_optional_params>(arg.get_program());
-
-        size_t rank = arg.get_output_layout().get_rank();
-        cum_sum_params.axis = convert_axis(prim->axis, rank);
-        cum_sum_params.exclusive = arg.get_primitive()->exclusive;
-        cum_sum_params.reverse = arg.get_primitive()->reverse;
-
-        auto& kernel_selector = kernel_selector::cum_sum_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(cum_sum_params, cum_sum_optional_params);
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<cum_sum_impl>(arg, best_kernel);
     }

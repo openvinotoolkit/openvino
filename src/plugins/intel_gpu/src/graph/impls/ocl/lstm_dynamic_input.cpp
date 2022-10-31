@@ -18,6 +18,8 @@ namespace ocl {
 struct lstm_dynamic_input_impl : typed_primitive_impl_ocl<lstm_dynamic_input> {
     using parent = typed_primitive_impl_ocl<lstm_dynamic_input>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::lstm_dynamic_input_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::lstm_dynamic_input_params, kernel_selector::lstm_dynamic_input_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -36,33 +38,36 @@ protected:
     }
 
 public:
-    static std::unique_ptr<primitive_impl> create(const lstm_dynamic_input_node& arg, const kernel_impl_params& impl_param) {
-        auto dlstm_input_params = get_default_params<kernel_selector::lstm_dynamic_input_params>(impl_param);
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<lstm_dynamic_input>();
+        auto params = get_default_params<kernel_selector::lstm_dynamic_input_params>(impl_param);
 
         const auto dyn_len_idx = 1;
         const auto weights_idx = 2;
         const auto bias_idx = 3;
 
-        const auto& weights_layout = impl_param.input_layouts[weights_idx];
-        dlstm_input_params.weights = convert_weights_tensor(weights_layout);
+        const auto& weights_layout = impl_param.get_input_layout(weights_idx);
+        params.weights = convert_weights_tensor(weights_layout);
 
-        if (arg.bias_term()) {
-            const auto& bias_layout = impl_param.input_layouts[bias_idx];
-            dlstm_input_params.bias.push_back(convert_data_tensor(bias_layout));
+        auto has_bias = !primitive->bias.empty();
+        if (has_bias) {
+            const auto& bias_layout = impl_param.get_input_layout(bias_idx);
+            params.bias.push_back(convert_data_tensor(bias_layout));
         }
 
-        // dyn length
         const auto& dyn_length_tensor = impl_param.input_layouts[dyn_len_idx];
-        dlstm_input_params.inputs.push_back(convert_data_tensor(dyn_length_tensor));
+        params.inputs.push_back(convert_data_tensor(dyn_length_tensor));
 
-        dlstm_input_params.direction = arg.direction();
+        params.direction = weights_layout.feature();
 
-        // finially get best kernel
-        auto lstm_dynamic_optional_params =
-            get_default_weights_bias_optional_params<kernel_selector::lstm_dynamic_input_optional_params>(arg.get_program());
+        auto optional_params = get_default_weights_bias_optional_params<kernel_selector::lstm_dynamic_input_optional_params>(impl_param.get_program());
+        return {params, optional_params};
+    }
 
-        auto& kernel_selector = kernel_selector::lstm_dynamic_input_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(dlstm_input_params, lstm_dynamic_optional_params);
+    static std::unique_ptr<primitive_impl> create(const lstm_dynamic_input_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<lstm_dynamic_input_impl>(arg, best_kernel);
     }

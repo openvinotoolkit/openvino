@@ -17,6 +17,8 @@ namespace ocl {
 struct extract_image_patches_impl : typed_primitive_impl_ocl<extract_image_patches> {
     using parent = typed_primitive_impl_ocl<extract_image_patches>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::extract_image_patches_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::extract_image_patches_params, kernel_selector::extract_image_patches_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -25,19 +27,23 @@ struct extract_image_patches_impl : typed_primitive_impl_ocl<extract_image_patch
     }
 
 public:
-    static std::unique_ptr<primitive_impl> create(const extract_image_patches_node& arg, const kernel_impl_params& impl_param) {
-        const auto& prim = arg.get_primitive();
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<extract_image_patches>();
         auto params = get_default_params<kernel_selector::extract_image_patches_params>(impl_param);
-        auto optional_params =
-            get_default_optional_params<kernel_selector::extract_image_patches_optional_params>(arg.get_program());
+        auto optional_params =get_default_optional_params<kernel_selector::extract_image_patches_optional_params>(impl_param.get_program());
 
-        params.sizes = prim->sizes;
-        params.strides = prim->strides;
-        params.rates = prim->rates;
-        params.auto_pad = prim->auto_pad;
+        params.sizes = primitive->sizes;
+        params.strides = primitive->strides;
+        params.rates = primitive->rates;
+        params.auto_pad = primitive->auto_pad;
 
-        auto& kernel_selector = kernel_selector::extract_image_patches_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
+        return {params, optional_params};
+    }
+
+    static std::unique_ptr<primitive_impl> create(const extract_image_patches_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<extract_image_patches_impl>(arg, best_kernel);
     }

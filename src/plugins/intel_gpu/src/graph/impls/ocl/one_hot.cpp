@@ -18,6 +18,8 @@ namespace ocl {
 struct one_hot_impl : typed_primitive_impl_ocl<one_hot> {
     using parent = typed_primitive_impl_ocl<one_hot>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::one_hot_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::one_hot_params, kernel_selector::one_hot_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -25,22 +27,25 @@ struct one_hot_impl : typed_primitive_impl_ocl<one_hot> {
         return make_unique<one_hot_impl>(*this);
     }
 
-    static std::unique_ptr<primitive_impl> create(const one_hot_node& arg, const kernel_impl_params& impl_param) {
-        const auto& prim = arg.get_primitive();
-        auto oh_params = get_default_params<kernel_selector::one_hot_params>(impl_param, 1);
-        auto oh_optional_params =
-            get_default_optional_params<kernel_selector::one_hot_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<one_hot>();
+        auto params = get_default_params<kernel_selector::one_hot_params>(impl_param, 1);
+        auto optional_params = get_default_optional_params<kernel_selector::one_hot_optional_params>(impl_param.get_program());
 
-        oh_params.one_hot_axis = prim->one_hot_axis;
-        oh_params.on_value = prim->on_value;
-        oh_params.off_value = prim->off_value;
+        params.one_hot_axis = primitive->one_hot_axis;
+        params.on_value = primitive->on_value;
+        params.off_value = primitive->off_value;
 
         auto output_sizes = impl_param.output_layout.get_dims();
 
-        oh_params.one_hot_limit = output_sizes[oh_params.one_hot_axis];
+        params.one_hot_limit = output_sizes[params.one_hot_axis];
+        return {params, optional_params};
+    }
 
-        auto& kernel_selector = kernel_selector::one_hot_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(oh_params, oh_optional_params);
+    static std::unique_ptr<primitive_impl> create(const one_hot_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<one_hot_impl>(arg, best_kernel);
     }

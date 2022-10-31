@@ -40,6 +40,8 @@ kernel_selector::roi_aligned_mode from(roi_align::AlignedMode mode) {
 struct roi_align_impl : typed_primitive_impl_ocl<roi_align> {
     using parent = typed_primitive_impl_ocl<roi_align>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::roi_align_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::roi_align_params, kernel_selector::roi_align_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -57,39 +59,32 @@ protected:
     }
 
 public:
-    static std::unique_ptr<primitive_impl> create(const roi_align_node& arg, const kernel_impl_params& impl_param) {
-        const auto& input_layout = impl_param.input_layouts[0];
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<roi_align>();
+        const auto& input_layout = impl_param.get_input_layout(0);
+        const auto& rois_layout = impl_param.get_input_layout(1);
+        const auto& batches_layout = impl_param.get_input_layout(2);
         const auto& output_layout = impl_param.output_layout;
-        const auto& rois_layout = impl_param.input_layouts[1];
-        const auto& batches_layout = impl_param.input_layouts[2];
-        const auto& primitive = arg.get_primitive();
 
         const auto padding_filling_value = output_layout.data_padding.filling_value();
 
-        CLDNN_ERROR_NOT_EQUAL(arg.id(),
-                              "roi_align padding filling value",
-                              padding_filling_value,
-                              "padding mode",
-                              0.0f,
-                              "Unknown padding mode in roi_align.");
-        CLDNN_ERROR_NOT_PROPER_FORMAT(arg.id(),
-                                      "Input_layout.format",
-                                      input_layout.format.value,
-                                      "output_layout.format",
-                                      output_layout.format);
-        auto roi_align_params = get_default_params<kernel_selector::roi_align_params>(impl_param);
-        auto roi_align_optional_params =
-            get_default_optional_params<kernel_selector::roi_align_optional_params>(arg.get_program());
+        auto params = get_default_params<kernel_selector::roi_align_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::roi_align_optional_params>(impl_param.get_program());
 
-        roi_align_params.inputs.push_back(convert_data_tensor(rois_layout));
-        roi_align_params.inputs.push_back(convert_data_tensor(batches_layout));
-        roi_align_params.pooling_mode = from(primitive->pooling_mode);
-        roi_align_params.aligned_mode = from(primitive->aligned_mode);
-        roi_align_params.sampling_ratio = primitive->sampling_ratio;
-        roi_align_params.spatial_scale = primitive->spatial_scale;
+        params.inputs.push_back(convert_data_tensor(rois_layout));
+        params.inputs.push_back(convert_data_tensor(batches_layout));
+        params.pooling_mode = from(primitive->pooling_mode);
+        params.aligned_mode = from(primitive->aligned_mode);
+        params.sampling_ratio = primitive->sampling_ratio;
+        params.spatial_scale = primitive->spatial_scale;
 
-        auto& kernel_selector = kernel_selector::roi_align_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(roi_align_params, roi_align_optional_params);
+        return {params, optional_params};
+    }
+
+    static std::unique_ptr<primitive_impl> create(const roi_align_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<roi_align_impl>(arg, best_kernel);
     }

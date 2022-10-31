@@ -15,6 +15,9 @@ namespace ocl {
 struct experimental_detectron_roi_feature_extractor_impl : public typed_primitive_impl_ocl<experimental_detectron_roi_feature_extractor> {
     using parent = typed_primitive_impl_ocl<experimental_detectron_roi_feature_extractor>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::experimental_detectron_roi_feature_extractor_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::experimental_detectron_roi_feature_extractor_params,
+                                      kernel_selector::experimental_detectron_roi_feature_extractor_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -41,22 +44,17 @@ protected:
     }
 
 public:
-    static std::unique_ptr<primitive_impl> create(const experimental_detectron_roi_feature_extractor_node& arg, const kernel_impl_params& impl_param) {
-        const auto& primitive = arg.get_primitive();
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<experimental_detectron_roi_feature_extractor>();
         const auto output_layout = impl_param.output_layout;
         const auto padding_filling_value = output_layout.data_padding.filling_value();
-        CLDNN_ERROR_NOT_EQUAL(arg.id(),
-                              "experimental_detectron_roi_feature_extractor padding filling value",
-                              padding_filling_value,
-                              "padding mode",
-                              0.0f,
-                              "Unknown padding mode in experimental_detectron_roi_feature_extractor.");
         auto params = get_default_params<kernel_selector::experimental_detectron_roi_feature_extractor_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::experimental_detectron_roi_feature_extractor_optional_params>(arg.get_program());
+        auto optional_params = get_default_optional_params<kernel_selector::experimental_detectron_roi_feature_extractor_optional_params>(
+            impl_param.get_program());
 
         size_t number_of_inputs = primitive->input_size() - 1;
         for (std::size_t i = 1; i < number_of_inputs; i++) {
-            params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
+            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
 
         params.output_dim = primitive->output_dim;
@@ -67,8 +65,13 @@ public:
         params.aligned = primitive->aligned;
         params.number_of_inputs = number_of_inputs;
 
-        auto& kernel_selector = kernel_selector::experimental_detectron_roi_feature_extractor_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
+        return {params, optional_params};
+    }
+
+    static std::unique_ptr<primitive_impl> create(const experimental_detectron_roi_feature_extractor_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<experimental_detectron_roi_feature_extractor_impl>(arg, best_kernel);
     }

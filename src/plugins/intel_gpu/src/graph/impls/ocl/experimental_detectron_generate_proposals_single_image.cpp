@@ -16,6 +16,9 @@ struct experimental_detectron_generate_proposals_single_image_impl
         : public typed_primitive_impl_ocl<experimental_detectron_generate_proposals_single_image> {
     using parent = typed_primitive_impl_ocl<experimental_detectron_generate_proposals_single_image>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::experimental_detectron_generate_proposals_single_image_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::experimental_detectron_generate_proposals_single_image_params,
+                                      kernel_selector::experimental_detectron_generate_proposals_single_image_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -39,26 +42,27 @@ protected:
     }
 
 public:
-    static std::unique_ptr<primitive_impl> create(const experimental_detectron_generate_proposals_single_image_node& arg, const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<experimental_detectron_generate_proposals_single_image>();
         auto params = get_default_params<kernel_selector::experimental_detectron_generate_proposals_single_image_params>(impl_param);
-        auto optional_params = get_default_optional_params<
-                kernel_selector::experimental_detectron_generate_proposals_single_image_optional_params>(arg.get_program());
-
-        const auto& primitive = arg.get_primitive();
+        auto optional_params = get_default_optional_params<kernel_selector::experimental_detectron_generate_proposals_single_image_optional_params>(impl_param.get_program());
 
         params.min_size = primitive->min_size;
         params.nms_threshold  = primitive->nms_threshold;
         params.pre_nms_count = primitive->pre_nms_count;
         params.post_nms_count = primitive->post_nms_count;
 
-        params.inputs.push_back(convert_data_tensor(arg.anchors().get_output_layout()));
-        params.inputs.push_back(convert_data_tensor(arg.deltas().get_output_layout()));
-        params.inputs.push_back(convert_data_tensor(arg.scores().get_output_layout()));
+        for (size_t i = 1; i < impl_param.input_layouts.size(); i++) {
+            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
+        }
 
-        params.inputs.push_back(convert_data_tensor(arg.output_roi_scores_node().get_output_layout()));
+        return {params, optional_params};
+    }
 
-        const auto& kernel_selector = kernel_selector::experimental_detectron_generate_proposals_single_image_kernel_selector::Instance();
-        const auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
+    static std::unique_ptr<primitive_impl> create(const experimental_detectron_generate_proposals_single_image_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<experimental_detectron_generate_proposals_single_image_impl>(arg, best_kernel);
     }

@@ -16,6 +16,8 @@ namespace ocl {
 struct reorg_yolo_impl : typed_primitive_impl_ocl<reorg_yolo> {
     using parent = typed_primitive_impl_ocl<reorg_yolo>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::reorg_yolo_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::reorg_yolo_params, kernel_selector::reorg_yolo_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -23,16 +25,19 @@ struct reorg_yolo_impl : typed_primitive_impl_ocl<reorg_yolo> {
         return make_unique<reorg_yolo_impl>(*this);
     }
 
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<reorg_yolo>();
+        auto params = get_default_params<kernel_selector::reorg_yolo_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::reorg_yolo_optional_params>(impl_param.get_program());
+
+        params.stride = primitive->stride;
+        return {params, optional_params};
+    }
+
     static std::unique_ptr<primitive_impl> create(const reorg_yolo_node& arg, const kernel_impl_params& impl_param) {
-        const auto& primitive = arg.get_primitive();
-        auto ry_params = get_default_params<kernel_selector::reorg_yolo_params>(impl_param);
-        auto ry_optional_params =
-            get_default_optional_params<kernel_selector::reorg_yolo_optional_params>(arg.get_program());
-
-        ry_params.stride = primitive->stride;
-
-        auto& kernel_selector = kernel_selector::reorg_yolo_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(ry_params, ry_optional_params);
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<reorg_yolo_impl>(arg, best_kernel);
     }

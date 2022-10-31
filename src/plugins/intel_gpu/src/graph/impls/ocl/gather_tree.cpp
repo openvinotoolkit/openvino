@@ -17,6 +17,8 @@ namespace ocl {
 struct gather_tree_impl : typed_primitive_impl_ocl<gather_tree> {
     using parent = typed_primitive_impl_ocl<gather_tree>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::gather_tree_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::gather_tree_params, kernel_selector::gather_tree_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -24,17 +26,21 @@ struct gather_tree_impl : typed_primitive_impl_ocl<gather_tree> {
         return make_unique<gather_tree_impl>(*this);
     }
 
-    static std::unique_ptr<primitive_impl> create(const gather_tree_node& arg, const kernel_impl_params& impl_param) {
-        auto desc = arg.get_primitive();
-        auto b_params = get_default_params<kernel_selector::gather_tree_params>(impl_param, 1);
-        auto b_optional_params = get_default_optional_params<kernel_selector::gather_tree_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<gather_tree>();
+        auto params = get_default_params<kernel_selector::gather_tree_params>(impl_param, 1);
+        auto optional_params = get_default_optional_params<kernel_selector::gather_tree_optional_params>(impl_param.get_program());
 
-        for (size_t i = 1; i < arg.get_dependencies().size(); i++) {
-            b_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i], 1));
+        for (size_t i = 1; i < impl_param.input_layouts.size(); i++) {
+            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i), 1));
         }
+        return {params, optional_params};
+    }
 
-        auto& kernel_selector = kernel_selector::gather_tree_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(b_params, b_optional_params);
+    static std::unique_ptr<primitive_impl> create(const gather_tree_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<gather_tree_impl>(arg, best_kernel);
     }

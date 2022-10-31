@@ -18,6 +18,8 @@ namespace ocl {
 struct reverse_impl : typed_primitive_impl_ocl<reverse> {
     using parent = typed_primitive_impl_ocl<reverse>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::reverse_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::reverse_params, kernel_selector::reverse_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -26,17 +28,21 @@ struct reverse_impl : typed_primitive_impl_ocl<reverse> {
     }
 
 public:
-    static std::unique_ptr<primitive_impl> create(const reverse_node& arg, const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<reverse>();
         auto params = get_default_params<kernel_selector::reverse_params>(impl_param);
-        const auto optional_params =
-            get_default_optional_params<kernel_selector::reverse_optional_params>(arg.get_program());
+        auto optional_params = get_default_optional_params<kernel_selector::reverse_optional_params>(impl_param.get_program());
 
-        params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
-        params.reverseMode = arg.get_primitive()->mode == reverse_mode::index ? kernel_selector::reverse_mode::index
-                                                                              : kernel_selector::reverse_mode::mask;
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
+        params.reverseMode = primitive->mode == reverse_mode::index ? kernel_selector::reverse_mode::index
+                                                                    : kernel_selector::reverse_mode::mask;
+        return {params, optional_params};
+    }
 
-        const auto& kernel_selector = kernel_selector::reverse_kernel_selector::Instance();
-        const auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
+    static std::unique_ptr<primitive_impl> create(const reverse_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<reverse_impl>(arg, best_kernel);
     }

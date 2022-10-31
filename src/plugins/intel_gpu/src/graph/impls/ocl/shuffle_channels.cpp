@@ -18,6 +18,8 @@ namespace ocl {
 struct shuffle_channels_impl : typed_primitive_impl_ocl<shuffle_channels> {
     using parent = typed_primitive_impl_ocl<shuffle_channels>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::shuffle_channels_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::shuffle_channels_params, kernel_selector::shuffle_channels_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -26,23 +28,27 @@ struct shuffle_channels_impl : typed_primitive_impl_ocl<shuffle_channels> {
     }
 
 public:
-    static std::unique_ptr<primitive_impl> create(const shuffle_channels_node& arg, const kernel_impl_params& impl_param) {
-        const auto& prim = arg.get_primitive();
-        auto shuffle_channels_params = get_default_params<kernel_selector::shuffle_channels_params>(impl_param);
-        auto shuffle_channels_optional_params =
-            get_default_optional_params<kernel_selector::shuffle_channels_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<shuffle_channels>();
+        auto params = get_default_params<kernel_selector::shuffle_channels_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::shuffle_channels_optional_params>(impl_param.get_program());
 
         const int32_t number_of_dims = 4;
-        int32_t axis = prim->axis;
+        int32_t axis = primitive->axis;
 
         if (axis < 0)
             axis += number_of_dims;
 
-        shuffle_channels_params.group = prim->group;
-        shuffle_channels_params.axis = axis;
+        params.group = primitive->group;
+        params.axis = axis;
 
-        auto& kernel_selector = kernel_selector::shuffle_channels_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(shuffle_channels_params, shuffle_channels_optional_params);
+        return {params, optional_params};
+    }
+
+    static std::unique_ptr<primitive_impl> create(const shuffle_channels_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<shuffle_channels_impl>(arg, best_kernel);
     }

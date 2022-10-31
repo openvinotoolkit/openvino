@@ -20,6 +20,8 @@ namespace ocl {
 struct count_nonzero_impl : typed_primitive_impl_ocl<count_nonzero> {
     using parent = typed_primitive_impl_ocl<count_nonzero>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::count_nonzero_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::count_nonzero_params, kernel_selector::count_nonzero_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -27,13 +29,16 @@ struct count_nonzero_impl : typed_primitive_impl_ocl<count_nonzero> {
         return make_unique<count_nonzero_impl>(*this);
     }
 
-    static std::unique_ptr<primitive_impl> create(const count_nonzero_node& arg, const kernel_impl_params& impl_param) {
-        auto nonzero_params = get_default_params<kernel_selector::count_nonzero_params>(impl_param);
-        auto nonzero_optional_params =
-            get_default_optional_params<kernel_selector::count_nonzero_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        auto params = get_default_params<kernel_selector::count_nonzero_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::count_nonzero_optional_params>(impl_param.get_program());
+        return {params, optional_params};
+    }
 
-        auto& kernel_selector = kernel_selector::count_nonzero_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(nonzero_params, nonzero_optional_params);
+    static std::unique_ptr<primitive_impl> create(const count_nonzero_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<count_nonzero_impl>(arg, best_kernel);
     }
@@ -42,6 +47,8 @@ struct count_nonzero_impl : typed_primitive_impl_ocl<count_nonzero> {
 struct gather_nonzero_impl : typed_primitive_impl_ocl<gather_nonzero> {
     using parent = typed_primitive_impl_ocl<gather_nonzero>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::gather_nonzero_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::gather_nonzero_params, kernel_selector::gather_nonzero_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -50,16 +57,19 @@ struct gather_nonzero_impl : typed_primitive_impl_ocl<gather_nonzero> {
     }
 
 public:
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        auto params = get_default_params<kernel_selector::gather_nonzero_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::gather_nonzero_optional_params>(impl_param.get_program());
+
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
+        params.ov_input_rank = impl_param.get_input_layout().get_shape().size();
+        return {params, optional_params};
+    }
+
     static std::unique_ptr<primitive_impl> create(const gather_nonzero_node& arg, const kernel_impl_params& impl_param) {
-        auto nonzero_params = get_default_params<kernel_selector::gather_nonzero_params>(impl_param);
-        auto nonzero_optional_params =
-            get_default_optional_params<kernel_selector::gather_nonzero_optional_params>(arg.get_program());
-
-        nonzero_params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
-        nonzero_params.ov_input_rank = impl_param.get_input_layout().get_shape().size();
-
-        auto& kernel_selector = kernel_selector::gather_nonzero_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(nonzero_params, nonzero_optional_params);
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<gather_nonzero_impl>(arg, best_kernel);
     }

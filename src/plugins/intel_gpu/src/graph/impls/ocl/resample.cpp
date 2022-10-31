@@ -128,6 +128,8 @@ inline kernel_selector::interpolate_axis convert_axis(int64_t axis, size_t rank)
 struct resample_impl : typed_primitive_impl_ocl<resample> {
     using parent = typed_primitive_impl_ocl<resample>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::resample_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::resample_params, kernel_selector::resample_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -135,22 +137,21 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
         return make_unique<resample_impl>(*this);
     }
 
-    static std::unique_ptr<primitive_impl> create(const resample_node& arg, const kernel_impl_params& impl_param) {
-        const auto& primitive = arg.get_primitive();
-        auto us_params = get_default_params<kernel_selector::resample_params>(impl_param);
-        auto us_optional_params =
-            get_default_optional_params<kernel_selector::resample_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<resample>();
+        auto params = get_default_params<kernel_selector::resample_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::resample_optional_params>(impl_param.get_program());
 
         size_t dimsNum = impl_param.output_layout.get_rank();
-        us_params.resampleType = convert_to_sample_type(primitive->operation_type);
-        us_params.nearestMode = convert_to_nearest_mode(primitive->round_mode);
-        us_params.coordTransMode = convert_to_coord_transform_mode(primitive->coord_trans_mode);
-        us_params.shapeCalculationMode = convert_to_shape_calculation_mode(primitive->shape_calc_mode);
-        us_params.antialias = primitive->antialias;
-        us_params.cube_coeff = primitive->cube_coeff;
+        params.resampleType = convert_to_sample_type(primitive->operation_type);
+        params.nearestMode = convert_to_nearest_mode(primitive->round_mode);
+        params.coordTransMode = convert_to_coord_transform_mode(primitive->coord_trans_mode);
+        params.shapeCalculationMode = convert_to_shape_calculation_mode(primitive->shape_calc_mode);
+        params.antialias = primitive->antialias;
+        params.cube_coeff = primitive->cube_coeff;
 
-        us_params.pads_begin = convert_pads(primitive->pads_begin, dimsNum);
-        us_params.pads_end = convert_pads(primitive->pads_end, dimsNum);
+        params.pads_begin = convert_pads(primitive->pads_begin, dimsNum);
+        params.pads_end = convert_pads(primitive->pads_end, dimsNum);
 
         auto scales = primitive->scales;
         bool scales_calc_mod = primitive->shape_calc_mode == resample::InterpolateOp::ShapeCalcMode::SCALES;
@@ -161,11 +162,16 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
         }
 
         for (size_t i = 0; i < scales.size(); ++i) {
-            us_params.axesAndScales[convert_axis(primitive->axes[i], dimsNum)] = scales[i];
+            params.axesAndScales[convert_axis(primitive->axes[i], dimsNum)] = scales[i];
         }
 
-        auto& kernel_selector = kernel_selector::resample_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(us_params, us_optional_params);
+        return {params, optional_params};
+    }
+
+    static std::unique_ptr<primitive_impl> create(const resample_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<resample_impl>(arg, best_kernel);
     }

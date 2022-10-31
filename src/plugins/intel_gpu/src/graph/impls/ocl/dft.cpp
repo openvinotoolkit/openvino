@@ -17,6 +17,8 @@ namespace ocl {
 
 struct dft_impl : typed_primitive_impl_ocl<dft> {
     using typed_primitive_impl_ocl::typed_primitive_impl_ocl;
+    using kernel_selector_t = kernel_selector::dft_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::dft_params, kernel_selector::dft_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -24,9 +26,9 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
         return make_unique<dft_impl>(*this);
     }
 
-    static std::unique_ptr<primitive_impl> create(const dft_node& arg, const kernel_impl_params& impl_param) {
-        auto params = get_default_params<kernel_selector::dft_params>(impl_param);
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto primitive = impl_param.typed_desc<dft>();
+        auto params = get_default_params<kernel_selector::dft_params>(impl_param);
         params.axes = primitive->axes;
 
         if (primitive->signal_size.empty()) {
@@ -68,10 +70,14 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
             }
         }
 
-        auto optional_params = get_default_optional_params<kernel_selector::dft_optional_params>(arg.get_program());
+        auto optional_params = get_default_optional_params<kernel_selector::dft_optional_params>(impl_param.get_program());
+        return {params, optional_params};
+    }
 
-        auto& kernel_selector = kernel_selector::dft_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
+    static std::unique_ptr<primitive_impl> create(const dft_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<dft_impl>(arg, best_kernel);
     }

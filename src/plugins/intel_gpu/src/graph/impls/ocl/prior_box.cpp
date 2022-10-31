@@ -18,6 +18,8 @@ namespace ocl {
 struct prior_box_impl : typed_primitive_impl_ocl<prior_box> {
     using parent = typed_primitive_impl_ocl<prior_box>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::prior_box_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::prior_box_params, kernel_selector::prior_box_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -25,10 +27,10 @@ struct prior_box_impl : typed_primitive_impl_ocl<prior_box> {
         return make_unique<prior_box_impl>(*this);
     }
 
-    static std::unique_ptr<primitive_impl> create(const prior_box_node& arg, const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<prior_box>();
         auto params = get_default_params<kernel_selector::prior_box_params>(impl_param);
         const auto& kernel_selector = kernel_selector::prior_box_kernel_selector::Instance();
-        const auto& primitive = arg.get_primitive();
 
         const auto width = primitive->output_size.spatial[0];
         const auto height = primitive->output_size.spatial[1];
@@ -76,8 +78,14 @@ struct prior_box_impl : typed_primitive_impl_ocl<prior_box> {
         const auto output_shape = impl_param.output_layout.get_shape();
         params.num_priors_4 = output_shape[1] / (params.width * params.height);
 
-        params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
-        const auto best_kernel = kernel_selector.get_best_kernel(params, kernel_selector::prior_box_optional_params());
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
+        return {params, {}};
+    }
+
+    static std::unique_ptr<primitive_impl> create(const prior_box_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<prior_box_impl>(arg, best_kernel);
     }

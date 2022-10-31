@@ -16,6 +16,9 @@ namespace ocl {
 struct experimental_detectron_topk_rois_impl : typed_primitive_impl_ocl<experimental_detectron_topk_rois> {
     using parent = typed_primitive_impl_ocl<experimental_detectron_topk_rois>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::experimental_detectron_topk_rois_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::experimental_detectron_topk_roi_params,
+                                      kernel_selector::experimental_detectron_topk_roi_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -23,14 +26,19 @@ struct experimental_detectron_topk_rois_impl : typed_primitive_impl_ocl<experime
         return make_unique<experimental_detectron_topk_rois_impl>(*this);
     }
 
-    static std::unique_ptr<primitive_impl> create(const experimental_detectron_topk_rois_node &arg, const kernel_impl_params& impl_param) {
-        const auto& primitive = arg.get_primitive();
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<experimental_detectron_topk_rois>();
         auto params = get_default_params<kernel_selector::experimental_detectron_topk_roi_params>(impl_param);
-        const auto& kernel_selector =
-                kernel_selector::experimental_detectron_topk_rois_kernel_selector::Instance();
-        params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
         params.max_rois = primitive->max_rois;
-        auto best_kernel = kernel_selector.get_best_kernel(params, kernel_selector::experimental_detectron_topk_roi_optional_params());
+
+        return {params, {}};
+    }
+
+    static std::unique_ptr<primitive_impl> create(const experimental_detectron_topk_rois_node &arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<experimental_detectron_topk_rois_impl>(arg, best_kernel);
     }

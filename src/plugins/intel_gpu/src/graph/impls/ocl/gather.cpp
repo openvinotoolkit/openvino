@@ -62,6 +62,8 @@ static kernel_selector::gather_axis convert_axis(int64_t axis, size_t rank) {
 struct gather_impl : typed_primitive_impl_ocl<gather> {
     using parent = typed_primitive_impl_ocl<gather>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::gather_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::gather_params, kernel_selector::gather_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -70,21 +72,24 @@ struct gather_impl : typed_primitive_impl_ocl<gather> {
     }
 
 public:
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<gather>();
+        auto params = get_default_params<kernel_selector::gather_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::gather_optional_params>(impl_param.get_program());
+
+        auto input_layout = impl_param.get_input_layout(0);
+        params.axis = convert_axis(primitive->axis, input_layout.get_rank());
+        params.batch_dim = size_t(primitive->batch_dim);
+        params.support_neg_ind = primitive->support_neg_ind;
+
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
+        return {params, optional_params};
+    }
+
     static std::unique_ptr<primitive_impl> create(const gather_node& arg, const kernel_impl_params& impl_param) {
-        const auto& prim = arg.get_primitive();
-        auto gather_params = get_default_params<kernel_selector::gather_params>(impl_param);
-        auto gather_optional_params =
-            get_default_optional_params<kernel_selector::gather_optional_params>(arg.get_program());
-
-        auto input_layout = impl_param.input_layouts[0];
-        gather_params.axis = convert_axis(prim->axis, input_layout.get_rank());
-        gather_params.batch_dim = size_t(prim->batch_dim);
-        gather_params.support_neg_ind = prim->support_neg_ind;
-
-        gather_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
-
-        auto& kernel_selector = kernel_selector::gather_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(gather_params, gather_optional_params);
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<gather_impl>(arg, best_kernel);
     }

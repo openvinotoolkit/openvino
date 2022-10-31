@@ -18,6 +18,8 @@ namespace ocl {
 struct embedding_bag_impl : typed_primitive_impl_ocl<embedding_bag> {
     using parent = typed_primitive_impl_ocl<embedding_bag>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::embedding_bag_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::embedding_bag_params, kernel_selector::embedding_bag_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -26,35 +28,38 @@ struct embedding_bag_impl : typed_primitive_impl_ocl<embedding_bag> {
     }
 
 public:
-    static std::unique_ptr<primitive_impl> create(const embedding_bag_node& arg, const kernel_impl_params& impl_param) {
-        const auto& primitive = arg.get_primitive();
-        auto embedding_bag_params = get_default_params<kernel_selector::embedding_bag_params>(impl_param);
-        auto embedding_bag_optional_params =
-            get_default_optional_params<kernel_selector::embedding_bag_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<embedding_bag>();
+        auto params = get_default_params<kernel_selector::embedding_bag_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::embedding_bag_optional_params>(impl_param.get_program());
+
+        auto inputs_count = impl_param.input_layouts.size();
 
         switch (primitive->type) {
         case embedding_bag::packed_sum:
-            embedding_bag_params.type = kernel_selector::EmbeddingBagType::PACKED_SUM;
+            params.type = kernel_selector::EmbeddingBagType::PACKED_SUM;
             break;
         case embedding_bag::offsets_sum:
-            embedding_bag_params.type = kernel_selector::EmbeddingBagType::OFFSETS_SUM;
+            params.type = kernel_selector::EmbeddingBagType::OFFSETS_SUM;
             break;
         case embedding_bag::segments_sum:
-            embedding_bag_params.type = kernel_selector::EmbeddingBagType::SEGMENTS_SUM;
+            params.type = kernel_selector::EmbeddingBagType::SEGMENTS_SUM;
             break;
-        default:
-            CLDNN_ERROR_MESSAGE(arg.id(), "Unknown EmbeddingBag type");
-            break;
+        default: OPENVINO_ASSERT(false, "[GPU] Unknown embedding_bag type in primitive ", primitive->id);
         }
 
-        for (size_t i = 1; i < arg.inputs_count(); i++) {
-            embedding_bag_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
+        for (size_t i = 1; i < inputs_count; i++) {
+            params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
         }
 
-        embedding_bag_params.default_index = arg.get_primitive()->default_index;
+        params.default_index = primitive->default_index;
+        return {params, optional_params};
+    }
 
-        auto& kernel_selector = kernel_selector::embedding_bag_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(embedding_bag_params, embedding_bag_optional_params);
+    static std::unique_ptr<primitive_impl> create(const embedding_bag_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<embedding_bag_impl>(arg, best_kernel);
     }

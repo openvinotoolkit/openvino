@@ -18,6 +18,8 @@ namespace ocl {
 struct lstm_gemm_impl : typed_primitive_impl_ocl<lstm_gemm> {
     using parent = typed_primitive_impl_ocl<lstm_gemm>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::lstm_gemm_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::lstm_gemm_params, kernel_selector::lstm_gemm_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -78,7 +80,7 @@ public:
         }
 
         auto lstm_gemm_optional_params =
-            get_default_optional_params<kernel_selector::lstm_gemm_optional_params>(arg.get_program());
+            get_default_optional_params<kernel_selector::lstm_gemm_optional_params>(impl_param.get_program());
 
         auto& kernel_selector = kernel_selector::lstm_gemm_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(lstm_gemm_params, lstm_gemm_optional_params);

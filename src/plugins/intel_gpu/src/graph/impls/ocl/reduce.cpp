@@ -69,6 +69,8 @@ kernel_selector::reduce_mode cldnn_2_reduce_mode(reduce_mode mode) {
 struct reduce_impl : typed_primitive_impl_ocl<reduce> {
     using parent = typed_primitive_impl_ocl<reduce>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::reduce_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::reduce_params, kernel_selector::reduce_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -77,17 +79,22 @@ struct reduce_impl : typed_primitive_impl_ocl<reduce> {
     }
 
 public:
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<reduce>();
+        auto params = get_default_params<kernel_selector::reduce_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::reduce_optional_params>(impl_param.get_program());
+
+        params.reduceAxes = convert_axes(primitive->axes, impl_param.output_layout.get_rank());
+        params.keepDims = primitive->keep_dims;
+        params.reduceMode = cldnn_2_reduce_mode(primitive->mode);
+
+        return {params, optional_params};
+    }
+
     static std::unique_ptr<primitive_impl> create(const reduce_node& arg, const kernel_impl_params& impl_param) {
-        const auto& prim = arg.get_primitive();
-        auto reduce_params = get_default_params<kernel_selector::reduce_params>(impl_param);
-        auto reduce_optional_params = get_default_optional_params<kernel_selector::reduce_optional_params>(arg.get_program());
-
-        reduce_params.reduceAxes = convert_axes(prim->axes, arg.get_output_layout().get_rank());
-        reduce_params.keepDims = prim->keep_dims;
-        reduce_params.reduceMode = cldnn_2_reduce_mode(prim->mode);
-
-        auto& kernel_selector = kernel_selector::reduce_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(reduce_params, reduce_optional_params);
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<reduce_impl>(arg, best_kernel);
     }

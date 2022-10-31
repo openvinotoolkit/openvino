@@ -19,6 +19,8 @@ namespace ocl {
 struct space_to_batch_impl : typed_primitive_impl_ocl<space_to_batch> {
     using parent = typed_primitive_impl_ocl<space_to_batch>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::space_to_batch_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::space_to_batch_params, kernel_selector::space_to_batch_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -27,18 +29,22 @@ struct space_to_batch_impl : typed_primitive_impl_ocl<space_to_batch> {
     }
 
 public:
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<space_to_batch>();
+        auto params = get_default_params<kernel_selector::space_to_batch_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::space_to_batch_optional_params>(impl_param.get_program());
+
+        params.block_shape = convert_dim_vector(primitive->block_shape);
+        params.pads_begin = convert_dim_vector(primitive->pads_begin);
+        params.pads_end = convert_dim_vector(primitive->pads_end);
+
+        return {params, optional_params};
+    }
+
     static std::unique_ptr<primitive_impl> create(const space_to_batch_node& arg, const kernel_impl_params& impl_param) {
-        auto primitive = arg.get_primitive();
-        auto space_to_batch_params = get_default_params<kernel_selector::space_to_batch_params>(impl_param);
-        auto space_to_batch_optional_params =
-            get_default_optional_params<kernel_selector::space_to_batch_optional_params>(arg.get_program());
-
-        space_to_batch_params.block_shape = convert_dim_vector(primitive->block_shape);
-        space_to_batch_params.pads_begin = convert_dim_vector(primitive->pads_begin);
-        space_to_batch_params.pads_end = convert_dim_vector(primitive->pads_end);
-
-        auto& kernel_selector = kernel_selector::space_to_batch_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(space_to_batch_params, space_to_batch_optional_params);
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<space_to_batch_impl>(arg, best_kernel);
     }

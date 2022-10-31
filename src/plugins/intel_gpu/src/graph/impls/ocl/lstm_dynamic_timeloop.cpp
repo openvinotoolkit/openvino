@@ -18,6 +18,8 @@ namespace ocl {
 struct lstm_dynamic_timeloop_impl : typed_primitive_impl_ocl<lstm_dynamic_timeloop> {
     using parent = typed_primitive_impl_ocl<lstm_dynamic_timeloop>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::lstm_dynamic_timeloop_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::lstm_dynamic_timeloop_params, kernel_selector::lstm_dynamic_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -76,7 +78,7 @@ public:
 
         // finially get best kernel
         auto dlstm_timeloop_optional_params =
-            get_default_optional_params<kernel_selector::lstm_dynamic_optional_params>(arg.get_program());
+            get_default_optional_params<kernel_selector::lstm_dynamic_optional_params>(impl_param.get_program());
 
         auto& kernel_selector = kernel_selector::lstm_dynamic_timeloop_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(dlstm_timeloop_params, dlstm_timeloop_optional_params);

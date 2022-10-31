@@ -17,6 +17,8 @@ namespace ocl {
 struct border_impl : typed_primitive_impl_ocl<border> {
     using parent = typed_primitive_impl_ocl<border>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::border_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::border_params, kernel_selector::border_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -24,42 +26,43 @@ struct border_impl : typed_primitive_impl_ocl<border> {
         return make_unique<border_impl>(*this);
     }
 
-    static std::unique_ptr<primitive_impl> create(const border_node& arg, const kernel_impl_params& impl_param) {
-        auto desc = arg.get_primitive();
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<border>();
+        auto params = get_default_params<kernel_selector::border_params>(impl_param, 1);
+        auto optional_params = get_default_optional_params<kernel_selector::border_optional_params>(impl_param.get_program());
 
-        auto b_params = get_default_params<kernel_selector::border_params>(impl_param, 1);
-        auto b_optional_params =
-            get_default_optional_params<kernel_selector::border_optional_params>(arg.get_program());
+        format pads_format = format::adjust_to_rank(format::bfyx, impl_param.get_input_layout(0).get_rank());
+        std::vector<tensor::value_type> pads_begin(primitive->pads_begin.begin(), primitive->pads_begin.end());
+        std::vector<tensor::value_type> pads_end(primitive->pads_end.begin(), primitive->pads_end.end());
 
-        format pads_format = format::adjust_to_rank(format::bfyx, arg.get_input_layouts().front().get_rank());
-        std::vector<tensor::value_type> pads_begin(desc->pads_begin.begin(), desc->pads_begin.end());
-        std::vector<tensor::value_type> pads_end(desc->pads_end.begin(), desc->pads_end.end());
+        params.lt_sizes = convert_dim_vector(tensor(pads_format, pads_begin, 0));
+        params.rb_sizes = convert_dim_vector(tensor(pads_format, pads_end, 0));
+        params.border_value = primitive->pad_value;
 
-        b_params.lt_sizes = convert_dim_vector(tensor(pads_format, pads_begin, 0));
-        b_params.rb_sizes = convert_dim_vector(tensor(pads_format, pads_end, 0));
-        b_params.border_value = desc->pad_value;
-
-        switch (desc->pad_mode) {
+        switch (primitive->pad_mode) {
             case ov::op::PadMode::CONSTANT:
-                b_params.b_type = kernel_selector::border_type::CONSTANT;
+                params.b_type = kernel_selector::border_type::CONSTANT;
                 break;
             case ov::op::PadMode::EDGE:
-                b_params.b_type = kernel_selector::border_type::EDGE;
+                params.b_type = kernel_selector::border_type::EDGE;
                 break;
             case ov::op::PadMode::SYMMETRIC:
-                b_params.b_type = kernel_selector::border_type::MIRROR;
+                params.b_type = kernel_selector::border_type::MIRROR;
                 break;
             case ov::op::PadMode::REFLECT:
-                b_params.b_type = kernel_selector::border_type::MIRROR_101;
+                params.b_type = kernel_selector::border_type::MIRROR_101;
                 break;
             default:
-                assert(
-                    false &&
-                    "Encountered unhandled enum case: PadMode during translation to kernel selector enumeration.");
+                OPENVINO_ASSERT(false, "[GPU] Encountered unhandled enum case: PadMode during translation to kernel selector enumeration.");
         }
 
-        auto& kernel_selector = kernel_selector::border_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(b_params, b_optional_params);
+        return {params, optional_params};
+    }
+
+    static std::unique_ptr<primitive_impl> create(const border_node& arg, const kernel_impl_params& impl_param) {
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<border_impl>(arg, best_kernel);
     }

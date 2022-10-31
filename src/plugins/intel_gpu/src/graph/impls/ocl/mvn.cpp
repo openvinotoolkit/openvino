@@ -20,6 +20,8 @@ namespace ocl {
 struct mvn_impl : typed_primitive_impl_ocl<mvn> {
     using parent = typed_primitive_impl_ocl<mvn>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::mvn_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::mvn_params, kernel_selector::mvn_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -28,21 +30,25 @@ struct mvn_impl : typed_primitive_impl_ocl<mvn> {
     }
 
 public:
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<mvn>();
+        auto params = get_default_params<kernel_selector::mvn_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::mvn_optional_params>(impl_param.get_program());
+
+        params.mvnMode = primitive->across_channels ? kernel_selector::mvn_mode::ACROSS_CHANNELS
+                                                    : kernel_selector::mvn_mode::WITHIN_CHANNELS;
+        params.mvnNormalizeVariance = primitive->normalize_variance;
+        params.epsilon = primitive->epsilon;
+
+        params.mvnEpsMode = primitive->eps_inside_sqrt ? kernel_selector::mvn_eps_mode::INSIDE_SQRT
+                                                       : kernel_selector::mvn_eps_mode::OUTSIDE_SQRT;
+        return {params, optional_params};
+    }
+
     static std::unique_ptr<primitive_impl> create(const mvn_node& arg, const kernel_impl_params& impl_param) {
-        const auto& prim = arg.get_primitive();
-        auto mvn_params = get_default_params<kernel_selector::mvn_params>(impl_param);
-        auto mvn_optional_params = get_default_optional_params<kernel_selector::mvn_optional_params>(arg.get_program());
-
-        mvn_params.mvnMode = prim->across_channels ? kernel_selector::mvn_mode::ACROSS_CHANNELS
-                                                                  : kernel_selector::mvn_mode::WITHIN_CHANNELS;
-        mvn_params.mvnNormalizeVariance = prim->normalize_variance;
-        mvn_params.epsilon = prim->epsilon;
-
-        mvn_params.mvnEpsMode = prim->eps_inside_sqrt ? kernel_selector::mvn_eps_mode::INSIDE_SQRT
-                                                                     : kernel_selector::mvn_eps_mode::OUTSIDE_SQRT;
-
-        auto& kernel_selector = kernel_selector::mvn_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(mvn_params, mvn_optional_params);
+        auto kernel_params = get_kernel_params(impl_param);
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
         return make_unique<mvn_impl>(arg, best_kernel);
     }
