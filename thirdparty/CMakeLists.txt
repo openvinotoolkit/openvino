@@ -185,7 +185,7 @@ if(NOT APPLE OR CPACK_GENERATOR MATCHES "^(BREW|CONDA-FORGE)$")
     # - on Apple only dynamic libraries are available
     #   also, we can easily mix arm64 and x86_64 binaries when cross-compile for Intel CPU
 
-    if(CPACK_GENERATOR MATCHES "^(BREW|CONDA-FORGE)$" OR DEFINED ENV{HOMEBREW_PREFIX})
+    if(CPACK_GENERATOR MATCHES "^(BREW|CONDA-FORGE)$" OR DEFINED ENV{HOMEBREW_PREFIX} OR LINUX_OS_NAME MATCHES "(Fedora|CentOS)")
         # conda-forge and brew contains only shared version of gflags
         find_package(gflags QUIET COMPONENTS nothreads_shared)
     else()
@@ -196,6 +196,10 @@ endif()
 if(gflags_FOUND)
     if(TARGET gflags)
         set_target_properties(gflags PROPERTIES IMPORTED_GLOBAL ON)
+    elseif(TARGET gflags_nothreads-shared)
+        # gflags shared case for CentOS/RHEL8
+        set_target_properties(gflags_nothreads-shared PROPERTIES IMPORTED_GLOBAL ON)
+        add_library(gflags ALIAS gflags_nothreads-shared)
     elseif(TARGET gflags_nothreads-static)
         # debian_9_arm case
         set_target_properties(gflags_nothreads-static PROPERTIES IMPORTED_GLOBAL ON)
