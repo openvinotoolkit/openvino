@@ -80,7 +80,7 @@ OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_va_plane;
  * @param type Defines the element type of the tensor.
  * @param shape Defines the shape of the tensor.
  * @param object_args_size Size of the low-level tensor object parameters.
- * @param remote_tensor Pointer to ov_tensor_t that contains remote tensor.
+ * @param remote_tensor Pointer to returned ov_tensor_t that contains remote tensor instance.
  * @param variadic params Contains low-level tensor object parameters.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -96,7 +96,7 @@ ov_remote_context_create_tensor(const ov_remote_context_t* context,
  * @brief Returns name of a device on which underlying object is allocated.
  * @ingroup remote_context
  * @param context A pointer to the ov_remote_context_t instance.
- * @param device_name Device name will be return.
+ * @param device_name Device name will be returned.
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
@@ -108,7 +108,7 @@ ov_remote_context_get_device_name(const ov_remote_context_t* context, char** dev
  * Parameters include device/context handles, access flags,
  * etc. Content of the returned map depends on a remote execution context that is
  * currently set on the device (working scenario).
- * One example: "CONTEXT_TYPE:OCL,OCL_CONTEXT:0x559ff6dab620,OCL_QUEUE:0x559ff6df06a0,"
+ * One actaul example: "CONTEXT_TYPE:OCL;OCL_CONTEXT:0x559ff6dab620;OCL_QUEUE:0x559ff6df06a0;"
  * @ingroup remote_context
  * @param context A pointer to the ov_remote_context_t instance.
  * @param size The size of param pairs.
@@ -149,7 +149,7 @@ OPENVINO_C_API(void) ov_remote_context_free(ov_remote_context_t* context);
  * Parameters include device/context/surface/buffer handles, access flags,
  * etc. Content of the returned map depends on remote execution context that is
  * currently set on the device (working scenario).
- * One example: "MEM_HANDLE:0x559ff6904b00,OCL_CONTEXT:0x559ff71d62f0,SHARED_MEM_TYPE:OCL_BUFFER"
+ * One example: "MEM_HANDLE:0x559ff6904b00;OCL_CONTEXT:0x559ff71d62f0;SHARED_MEM_TYPE:OCL_BUFFER;"
  * @ingroup remote_context
  * @param tensor Pointer to ov_tensor_t that contains host tensor.
  * @param size The size of param pairs.

@@ -704,7 +704,7 @@ TEST(ov_preprocess, ov_preprocess_prepostprocessor_build_apply) {
     ov_core_free(core);
 }
 
-TEST(ov_preprocess, ov_preprocess_prepostprocessor_for_nv12) {
+TEST(ov_preprocess, ov_preprocess_prepostprocessor_for_nv12_input) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -732,11 +732,13 @@ TEST(ov_preprocess, ov_preprocess_prepostprocessor_for_nv12) {
                                                                   "y",
                                                                   "uv"));
     OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_memory_type(preprocess_input_tensor_info, "GPU_SURFACE"));
+    OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_spatial_static_shape(preprocess_input_tensor_info, 640, 480));
 
     ov_preprocess_preprocess_steps_t* preprocess_input_steps = nullptr;
     OV_EXPECT_OK(ov_preprocess_input_info_get_preprocess_steps(preprocess_input_info, &preprocess_input_steps));
     EXPECT_NE(nullptr, preprocess_input_steps);
     OV_EXPECT_OK(ov_preprocess_preprocess_steps_convert_color(preprocess_input_steps, ov_color_format_e::BGR));
+    OV_EXPECT_OK(ov_preprocess_preprocess_steps_resize(preprocess_input_steps, RESIZE_LINEAR));
 
     ov_preprocess_input_model_info_t* preprocess_input_model_info = nullptr;
     OV_EXPECT_OK(ov_preprocess_input_info_get_model_info(preprocess_input_info, &preprocess_input_model_info));

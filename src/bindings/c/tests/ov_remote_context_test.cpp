@@ -251,7 +251,7 @@ TEST_P(ov_remote_context_ocl, compile_mode_with_remote_context) {
     EXPECT_NE(nullptr, compiled_model);
 }
 
-TEST_P(ov_remote_context_ocl, create_remote_tensor_from_cl_buffer) {
+TEST_P(ov_remote_context_ocl, create_remote_tensor_from_ocl_buffer) {
     const char* context_type = "OCL";
     OV_EXPECT_OK(ov_core_create_context(core,
                                         "GPU",
@@ -293,7 +293,7 @@ TEST_P(ov_remote_context_ocl, create_remote_tensor_from_cl_buffer) {
     ov_free(device_name);
 }
 
-TEST_P(ov_remote_context_ocl, create_remote_tensor_from_cl_image2D) {
+TEST_P(ov_remote_context_ocl, create_remote_tensor_from_ocl_image2D) {
     const char* context_type = "OCL";
     OV_EXPECT_OK(ov_core_create_context(core,
                                         "GPU",
@@ -344,7 +344,7 @@ TEST_P(ov_remote_context_ocl, create_remote_tensor_from_cl_image2D) {
     ov_free(params);
 }
 
-TEST_P(ov_remote_context_ocl, create_remote_tensor_nv12_from_cl_image2D) {
+TEST_P(ov_remote_context_ocl, create_remote_tensor_nv12_from_ocl_image2D) {
     const char* context_type = "OCL";
     OV_EXPECT_OK(ov_core_create_context(core,
                                         "GPU",

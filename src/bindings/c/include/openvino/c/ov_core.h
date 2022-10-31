@@ -337,26 +337,25 @@ OPENVINO_C_API(void) ov_core_versions_free(ov_core_version_list_t* versions);
  * @ingroup Core
  * @param core A pointer to the ov_core_t instance.
  * @param device_name Device name to identify a plugin.
- * @param property_args_size How many args will be for this remote context creation.
+ * @param context_args_size How many property args will be for this remote context creation.
  * @param context A pointer to the newly created remote context.
- * @param variadic parmameters Actual property parameter for remote context
+ * @param variadic parmameters Actual context property parameter for remote context
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
 ov_core_create_context(const ov_core_t* core,
                        const char* device_name,
-                       const size_t property_args_size,
+                       const size_t context_args_size,
                        ov_remote_context_t** context,
                        ...);
 
 /**
- * @brief Creates a new remote shared context object on the specified accelerator device
- * using specified plugin-specific low-level device API parameters (device handle, pointer, context, etc.).
+ * @brief Creates a compiled model from a source model within a specified remote context.
  * @ingroup Core
  * @param core A pointer to the ov_core_t instance.
  * @param model Model object acquired from ov_core_read_model.
  * @param context A pointer to the newly created remote context.
- * @param property_args_size How many args will be for this remote context creation.
+ * @param property_args_size How many args will be for this compiled model.
  * @param compiled_model A pointer to the newly created compiled_model.
  * @param variadic parmameters Actual property parameter for remote context
  * @return Status code of the operation: OK(0) for success.

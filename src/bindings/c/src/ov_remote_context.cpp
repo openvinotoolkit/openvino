@@ -30,6 +30,8 @@ inline bool check_intel_gpu_property_value_is_ptr(std::string& key) {
 
 //!< Properties of intel gpu cannot be compeletly handled by (char*) type, because it contains non-char pointer which
 //!< points to memory block, so we have to use (void *) type to parse it from va_arg list.
+//!< (char *) type data will be copied before pass to ov::AnyMap, to prevent it from being freed out of ov api calling.
+//!< (void *) type data is memory block or gpu object handle, it cannot be copied into a new place.
 #define GET_INTEL_GPU_PROPERTY_FROM_ARGS_LIST(property_size)       \
     for (size_t i = 0; i < property_size; i++) {                   \
         std::string property_key = va_arg(args_ptr, char*);        \
@@ -115,13 +117,15 @@ ov_status_e ov_remote_context_get_device_name(const ov_remote_context_t* context
     return ov_status_e::OK;
 }
 
+//!< Output ov::AnyMap to be C string style data:
+//!<    "key_name_1:key_value_str_1;key_name_2:key_value_str_2;..."
 inline void convert_params_to_string(ov::AnyMap& paramsMap, char*& res_str, size_t& size) {
     std::string res = "";
     for (auto& param : paramsMap) {
         res += param.first;
         res += ":";
         res += param.second.as<std::string>();
-        res += ",";
+        res += ";";
         size++;
     }
     res_str = str_to_char_array(res);
