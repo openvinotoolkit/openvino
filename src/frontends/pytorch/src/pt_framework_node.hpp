@@ -53,7 +53,9 @@ public:
             // std::cout << "Can be represented as element::Type: " << type.is<element::Type>() << std::endl;
             // std::cout << "element::Type value: " << type.as<element::Type>() << "\n";
             // std::exit(0);
-            set_custom_output_type(i, type, ps);
+            
+            // TODO: Set custom `type` via special API
+            set_output_type(i, element::dynamic, ps);
         }
     }
 
@@ -127,11 +129,8 @@ public:
                         ov::as_type_ptr<op::v0::TensorIterator::BodyOutputDescription>(output_description)) {
                     const ov::PartialShape& ps = body_value.get_partial_shape();
                     auto et = body_value.get_element_type();
-                    if (et == element::custom) {
-                        output(index).get_tensor().set_custom_element_type(body_value.get_custom_element_type());
-                    } else {
-                        set_output_type(index, et, ps);
-                    }
+                    // TODO: Propagate custom type from body to the external in case if et is dynamic
+                    set_output_type(index, et, ps);
                 }
             }
         }

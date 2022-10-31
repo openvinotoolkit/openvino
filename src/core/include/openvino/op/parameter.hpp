@@ -28,8 +28,6 @@ public:
     /// \param pshape The partial shape of the parameter.
     Parameter(const ov::element::Type& element_type, const PartialShape& pshape);
 
-    Parameter(const ov::element::Type& element_type, const ov::Any& element_custom_type, const PartialShape& pshape);
-
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     void validate_and_infer_types() override;
@@ -66,7 +64,6 @@ public:
 protected:
     PartialShape m_partial_shape;
     element::Type m_element_type;
-    Any m_element_custom_type;
     bool m_is_relevant_to_shapes{false};
 };
 }  // namespace v0

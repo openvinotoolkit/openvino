@@ -12,16 +12,7 @@ ov::descriptor::Tensor::Tensor(const element::Type& element_type, const PartialS
     : m_element_type(element_type),
       m_partial_shape(pshape),
       m_name(name),
-      m_shape_changed(true) {
-    if(element_type == element::custom) {
-        throw std::runtime_error("Called Tensor::Tensor with custom element type, but custom element type was not provided. Use another constructor to pass custom element type.");
-    }
-}
-
-ov::descriptor::Tensor::Tensor(const ov::Any& custom_element_type, const PartialShape& pshape, const std::string& name)
-    : ov::descriptor::Tensor::Tensor(ov::element::custom, pshape, name) {
-    this->m_custom_element_type = custom_element_type;
-}
+      m_shape_changed(true) {}
 
 ov::descriptor::Tensor::Tensor(const ov::element::Type& element_type,
                                const PartialShape& pshape,
@@ -29,19 +20,7 @@ ov::descriptor::Tensor::Tensor(const ov::element::Type& element_type,
                                size_t node_output_number)
     : m_element_type(element_type),
       m_partial_shape(pshape),
-      m_shape_changed(true) {
-    if(element_type == element::custom) {
-        throw std::runtime_error("Called Tensor::Tensor with custom element type, but custom element type was not provided. Use another constructor to pass custom element type.");
-    }
-}
-
-ov::descriptor::Tensor::Tensor(const ov::Any& custom_element_type,
-                               const PartialShape& pshape,
-                               Node* node,
-                               size_t node_output_number)
-    : ov::descriptor::Tensor::Tensor(element::dynamic, pshape, node, node_output_number) {
-    set_custom_element_type(custom_element_type);
-}
+      m_shape_changed(true) {}
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 void ov::descriptor::Tensor::set_tensor_type(const element::Type& element_type, const PartialShape& pshape) {
@@ -49,28 +28,8 @@ void ov::descriptor::Tensor::set_tensor_type(const element::Type& element_type, 
     set_partial_shape(pshape);
 }
 
-void ov::descriptor::Tensor::set_custom_tensor_type(ov::Any custom_element_type, const PartialShape& pshape) {
-    set_custom_element_type(custom_element_type);
-    set_partial_shape(pshape);
-}
-
 void ov::descriptor::Tensor::set_element_type(const element::Type& element_type) {
-    if (element_type == element::custom && m_custom_element_type.empty()) {
-        throw std::runtime_error("Called Tensor::set_element_type with custom, but custom element type is not initialized. Use set_custom_element_type.");
-    }
     m_element_type = element_type;
-}
-
-void ov::descriptor::Tensor::set_custom_element_type(ov::Any custom_element_type) {
-    // Check if custom_element_type is actually element::Type_t, in this case the type is regular, not a custom one
-    if (custom_element_type.is<element::Type>()) {
-        set_element_type(custom_element_type.as<element::Type>());
-    } else if (custom_element_type.empty()) {
-        throw std::runtime_error("Called Tensor::set_custom_element_type with uninitialized Any as an argument. This is prohibited.");
-    } else {
-        m_custom_element_type = custom_element_type;
-        set_element_type(element::custom);
-    }
 }
 
 void ov::descriptor::Tensor::set_partial_shape(const PartialShape& partial_shape) {
