@@ -18,7 +18,9 @@ TEST(attributes, non_zero_op_default) {
     const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1});
     const auto non_zero = make_shared<op::NonZero>(data_node);
 
-    NodeBuilder builder(non_zero);
+    NodeBuilder builder(non_zero, {data_node});
+    EXPECT_NO_THROW(auto g_non_zero = ov::as_type_ptr<opset3::NonZero>(builder.create()));
+
     const auto expected_attr_count = 1;
 
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
@@ -30,7 +32,8 @@ TEST(attributes, non_zero_op_i32) {
     const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1});
     const auto non_zero = make_shared<op::NonZero>(data_node, element::i32);
 
-    NodeBuilder builder(non_zero);
+    NodeBuilder builder(non_zero, {data_node});
+    EXPECT_NO_THROW(auto g_non_zero = ov::as_type_ptr<opset3::NonZero>(builder.create()));
     const auto expected_attr_count = 1;
 
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
@@ -42,7 +45,8 @@ TEST(attributes, non_zero_op_i32_string) {
     const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1});
     const auto non_zero = make_shared<op::NonZero>(data_node, "i32");
 
-    NodeBuilder builder(non_zero);
+    NodeBuilder builder(non_zero, {data_node});
+    EXPECT_NO_THROW(auto g_non_zero = ov::as_type_ptr<opset3::NonZero>(builder.create()));
     const auto expected_attr_count = 1;
 
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
@@ -54,7 +58,8 @@ TEST(attributes, non_zero_op_i64) {
     const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1});
     const auto non_zero = make_shared<op::NonZero>(data_node, element::i64);
 
-    NodeBuilder builder(non_zero);
+    NodeBuilder builder(non_zero, {data_node});
+    EXPECT_NO_THROW(auto g_non_zero = ov::as_type_ptr<opset3::NonZero>(builder.create()));
     const auto expected_attr_count = 1;
 
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
@@ -66,7 +71,8 @@ TEST(attributes, non_zero_op_i64_string) {
     const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1});
     const auto non_zero = make_shared<op::NonZero>(data_node, "i64");
 
-    NodeBuilder builder(non_zero);
+    NodeBuilder builder(non_zero, {data_node});
+    EXPECT_NO_THROW(auto g_non_zero = ov::as_type_ptr<opset3::NonZero>(builder.create()));
     const auto expected_attr_count = 1;
 
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
