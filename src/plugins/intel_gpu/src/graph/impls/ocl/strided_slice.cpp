@@ -56,7 +56,7 @@ struct strided_slice_impl : typed_primitive_impl_ocl<strided_slice> {
     }
 
 public:
-    static primitive_impl* create(const strided_slice_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const strided_slice_node& arg, const kernel_impl_params& impl_param) {
         const auto& prim = impl_param.typed_desc<strided_slice>();
         auto params = get_default_params<kernel_selector::strided_slice_params>(impl_param);
         auto op_params = get_default_optional_params<kernel_selector::strided_slice_optional_params>(arg.get_program());
@@ -135,10 +135,7 @@ public:
         auto& kernel_selector = kernel_selector::strided_slice_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(params, op_params);
 
-
-        auto strided_slice = new strided_slice_impl(arg, best_kernel);
-
-        return strided_slice;
+        return make_unique<strided_slice_impl>(arg, best_kernel);
     }
 };
 

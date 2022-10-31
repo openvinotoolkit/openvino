@@ -24,7 +24,7 @@ struct border_impl : typed_primitive_impl_ocl<border> {
         return make_unique<border_impl>(*this);
     }
 
-    static primitive_impl* create(const border_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const border_node& arg, const kernel_impl_params& impl_param) {
         auto desc = arg.get_primitive();
 
         auto b_params = get_default_params<kernel_selector::border_params>(impl_param, 1);
@@ -61,8 +61,7 @@ struct border_impl : typed_primitive_impl_ocl<border> {
         auto& kernel_selector = kernel_selector::border_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(b_params, b_optional_params);
 
-
-        return new border_impl(arg, best_kernel);
+        return make_unique<border_impl>(arg, best_kernel);
     }
 };
 

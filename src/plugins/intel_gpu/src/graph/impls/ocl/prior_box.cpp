@@ -25,7 +25,7 @@ struct prior_box_impl : typed_primitive_impl_ocl<prior_box> {
         return make_unique<prior_box_impl>(*this);
     }
 
-    static primitive_impl* create(const prior_box_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const prior_box_node& arg, const kernel_impl_params& impl_param) {
         auto params = get_default_params<kernel_selector::prior_box_params>(impl_param);
         const auto& kernel_selector = kernel_selector::prior_box_kernel_selector::Instance();
         const auto& primitive = arg.get_primitive();
@@ -78,7 +78,8 @@ struct prior_box_impl : typed_primitive_impl_ocl<prior_box> {
 
         params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
         const auto best_kernel = kernel_selector.get_best_kernel(params, kernel_selector::prior_box_optional_params());
-        return new prior_box_impl(arg, best_kernel);
+
+        return make_unique<prior_box_impl>(arg, best_kernel);
     }
 };
 

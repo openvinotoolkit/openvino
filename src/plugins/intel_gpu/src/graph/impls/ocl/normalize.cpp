@@ -35,7 +35,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const normalize_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const normalize_node& arg, const kernel_impl_params& impl_param) {
         const auto& prim = arg.get_primitive();
         auto norm_params = get_default_params<kernel_selector::normalize_params>(impl_param);
         auto norm_optional_params =
@@ -55,10 +55,7 @@ public:
         auto& kernel_selector = kernel_selector::normalize_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(norm_params, norm_optional_params);
 
-
-        auto lrn = new normalize_impl(arg, best_kernel);
-
-        return lrn;
+        return make_unique<normalize_impl>(arg, best_kernel);
     }
 };
 

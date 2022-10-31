@@ -24,7 +24,7 @@ struct gather_tree_impl : typed_primitive_impl_ocl<gather_tree> {
         return make_unique<gather_tree_impl>(*this);
     }
 
-    static primitive_impl* create(const gather_tree_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const gather_tree_node& arg, const kernel_impl_params& impl_param) {
         auto desc = arg.get_primitive();
         auto b_params = get_default_params<kernel_selector::gather_tree_params>(impl_param, 1);
         auto b_optional_params = get_default_optional_params<kernel_selector::gather_tree_optional_params>(arg.get_program());
@@ -36,7 +36,7 @@ struct gather_tree_impl : typed_primitive_impl_ocl<gather_tree> {
         auto& kernel_selector = kernel_selector::gather_tree_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(b_params, b_optional_params);
 
-        return new gather_tree_impl(arg, best_kernel);
+        return make_unique<gather_tree_impl>(arg, best_kernel);
     }
 };
 namespace detail {

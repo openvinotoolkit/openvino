@@ -28,7 +28,7 @@ struct experimental_detectron_prior_grid_generator_impl
         return make_unique<experimental_detectron_prior_grid_generator_impl>(*this);
     }
 
-    static primitive_impl* create(const experimental_detectron_prior_grid_generator_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const experimental_detectron_prior_grid_generator_node& arg, const kernel_impl_params& impl_param) {
         auto params = get_default_params<kernel_selector::experimental_detectron_prior_grid_generator_params>(impl_param);
         auto primPtr = arg.get_primitive();
         auto& prim = *primPtr;
@@ -46,7 +46,7 @@ struct experimental_detectron_prior_grid_generator_impl
         auto& kernel_selector = kernel_selector::experimental_detectron_prior_grid_generator_instance();
         auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
 
-        return new experimental_detectron_prior_grid_generator_impl{arg, best_kernel};
+        return make_unique<experimental_detectron_prior_grid_generator_impl>(arg, best_kernel);
     }
 };
 

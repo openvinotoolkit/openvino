@@ -94,7 +94,7 @@ public:
         ib >> _depthwise_sep_opt;
     }
 
-    static primitive_impl* create(const convolution_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const convolution_node& arg, const kernel_impl_params& impl_param) {
         const auto& primitive = arg.get_primitive();
 
         const auto &split = primitive->split();
@@ -183,9 +183,7 @@ public:
 
         auto best_kernel = kernel_selector.get_best_kernel(conv_params, conv_optional_params);
 
-        auto conv = new convolution_impl(arg, best_kernel);
-
-        return conv;
+        return make_unique<convolution_impl>(arg, best_kernel);
     }
 
 private:

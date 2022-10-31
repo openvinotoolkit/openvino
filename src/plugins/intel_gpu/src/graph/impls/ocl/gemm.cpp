@@ -25,7 +25,7 @@ struct gemm_impl : typed_primitive_impl_ocl<gemm> {
     }
 
 public:
-    static primitive_impl* create(const gemm_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const gemm_node& arg, const kernel_impl_params& impl_param) {
         auto desc = arg.get_primitive();
         auto get_gemm_input_layouts = [desc](const std::vector<layout>& input_layouts, const layout& output_layout) {
             auto get_updated_input_shape = [&](const ov::Shape& input_shape, size_t input_rank, bool transpose, bool first_input) {
@@ -131,8 +131,7 @@ public:
         auto& kernel_selector = kernel_selector::gemm_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(gemm_params, gemm_optional_params);
 
-
-        return new gemm_impl(arg, best_kernel);
+        return make_unique<gemm_impl>(arg, best_kernel);
     }
 };
 

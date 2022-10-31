@@ -21,7 +21,7 @@ struct ctc_loss_impl : typed_primitive_impl_ocl<ctc_loss> {
         return make_unique<ctc_loss_impl>(*this);
     }
 
-    static primitive_impl* create(const ctc_loss_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const ctc_loss_node& arg, const kernel_impl_params& impl_param) {
         auto params = get_default_params<kernel_selector::ctc_loss_params>(impl_param);
         auto optional_params =
             get_default_optional_params<kernel_selector::ctc_loss_optional_params>(arg.get_program());
@@ -37,8 +37,7 @@ struct ctc_loss_impl : typed_primitive_impl_ocl<ctc_loss> {
         const auto& kernel_selector = kernel_selector::ctc_loss_kernel_selector::Instance();
         const auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
 
-
-        return new ctc_loss_impl(arg, best_kernel);
+        return make_unique<ctc_loss_impl>(arg, best_kernel);
     }
 };
 

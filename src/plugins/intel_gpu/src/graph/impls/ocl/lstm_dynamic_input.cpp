@@ -36,7 +36,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const lstm_dynamic_input_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const lstm_dynamic_input_node& arg, const kernel_impl_params& impl_param) {
         auto dlstm_input_params = get_default_params<kernel_selector::lstm_dynamic_input_params>(impl_param);
 
         const auto dyn_len_idx = 1;
@@ -64,10 +64,7 @@ public:
         auto& kernel_selector = kernel_selector::lstm_dynamic_input_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(dlstm_input_params, lstm_dynamic_optional_params);
 
-
-        auto lstm_dynamic = new lstm_dynamic_input_impl(arg, best_kernel);
-
-        return lstm_dynamic;
+        return make_unique<lstm_dynamic_input_impl>(arg, best_kernel);
     }
 };
 

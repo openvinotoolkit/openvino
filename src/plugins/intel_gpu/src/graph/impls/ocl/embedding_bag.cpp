@@ -26,7 +26,7 @@ struct embedding_bag_impl : typed_primitive_impl_ocl<embedding_bag> {
     }
 
 public:
-    static primitive_impl* create(const embedding_bag_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const embedding_bag_node& arg, const kernel_impl_params& impl_param) {
         const auto& primitive = arg.get_primitive();
         auto embedding_bag_params = get_default_params<kernel_selector::embedding_bag_params>(impl_param);
         auto embedding_bag_optional_params =
@@ -56,10 +56,7 @@ public:
         auto& kernel_selector = kernel_selector::embedding_bag_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(embedding_bag_params, embedding_bag_optional_params);
 
-
-        auto embedding_bag = new embedding_bag_impl(arg, best_kernel);
-
-        return embedding_bag;
+        return make_unique<embedding_bag_impl>(arg, best_kernel);
     }
 };
 

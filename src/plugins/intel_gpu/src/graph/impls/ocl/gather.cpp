@@ -70,7 +70,7 @@ struct gather_impl : typed_primitive_impl_ocl<gather> {
     }
 
 public:
-    static primitive_impl* create(const gather_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const gather_node& arg, const kernel_impl_params& impl_param) {
         const auto& prim = arg.get_primitive();
         auto gather_params = get_default_params<kernel_selector::gather_params>(impl_param);
         auto gather_optional_params =
@@ -86,10 +86,7 @@ public:
         auto& kernel_selector = kernel_selector::gather_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(gather_params, gather_optional_params);
 
-
-        auto gather = new gather_impl(arg, best_kernel);
-
-        return gather;
+        return make_unique<gather_impl>(arg, best_kernel);
     }
 };
 

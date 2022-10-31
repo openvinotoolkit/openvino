@@ -24,7 +24,7 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
         return make_unique<broadcast_impl>(*this);
     }
 
-    static primitive_impl* create(const broadcast_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const broadcast_node& arg, const kernel_impl_params& impl_param) {
         const auto& primitive = arg.get_primitive();
         auto bc_params = get_default_params<kernel_selector::broadcast_params>(impl_param, 1);
         auto bc_optional_params =
@@ -51,8 +51,7 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
         auto& kernel_selector = kernel_selector::broadcast_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(bc_params, bc_optional_params);
 
-
-        return new broadcast_impl(arg, best_kernel);
+        return make_unique<broadcast_impl>(arg, best_kernel);
     }
 };
 

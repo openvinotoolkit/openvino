@@ -72,7 +72,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const reorder_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const reorder_node& arg, const kernel_impl_params& impl_param) {
         const auto& prim = arg.get_primitive();
         auto&& output_layout = impl_param.output_layout;
         auto reorder_params = get_default_params<kernel_selector::reorder_params>(impl_param);
@@ -134,10 +134,7 @@ public:
         auto& kernel_selector = kernel_selector::reorder_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(reorder_params, reorder_optional_params);
 
-
-        auto reorder = new reorder_impl(arg, best_kernel);
-
-        return reorder;
+        return make_unique<reorder_impl>(arg, best_kernel);
     }
 
 private:

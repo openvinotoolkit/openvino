@@ -32,6 +32,7 @@ struct deconvolution_impl : typed_primitive_impl_ocl<deconvolution> {
 
     deconvolution_impl(const deconvolution_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
         set_node_params(arg);
+        this->can_reuse_memory = kd.can_reuse_memory;
     }
 
     void set_node_params(const program_node& arg) override {
@@ -82,7 +83,7 @@ protected:
     uint32_t get_groups() const override { return _groups; }
 
 public:
-    static primitive_impl* create(const deconvolution_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const deconvolution_node& arg, const kernel_impl_params& impl_param) {
         const auto& primitive = arg.get_primitive();
         const auto& split = primitive->split();
         const auto& stride = primitive->stride;
@@ -129,10 +130,7 @@ public:
         auto& kernel_selector = kernel_selector::deconvolution_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(deconv_params, deconv_optional_params);
 
-        auto deconv = new deconvolution_impl(arg, best_kernel);
-        deconv->can_reuse_memory = best_kernel.can_reuse_memory;
-
-        return deconv;
+        return make_unique<deconvolution_impl>(arg, best_kernel);
     }
 
 private:

@@ -95,9 +95,9 @@ public:
         ib >> _can_be_optimized;
     }
 
-    static primitive_impl* create(const concatenation_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const concatenation_node& arg, const kernel_impl_params& impl_param) {
         if (arg.can_be_optimized()) {
-            return new concatenation_impl(arg, {});
+            return make_unique<concatenation_impl>(arg, kernel_selector::kernel_data{});
         }
         const auto& primitive = arg.get_primitive();
         auto concat_params = get_default_params<kernel_selector::concatenation_params>(impl_param);
@@ -116,9 +116,7 @@ public:
         auto& kernel_selector = kernel_selector::concatenation_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(concat_params, concat_optional_params);
 
-        auto concat = new concatenation_impl(arg, best_kernel);
-
-        return concat;
+        return make_unique<concatenation_impl>(arg, best_kernel);
     }
 
 private:

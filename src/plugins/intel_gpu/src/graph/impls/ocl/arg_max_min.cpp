@@ -58,7 +58,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const arg_max_min_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const arg_max_min_node& arg, const kernel_impl_params& impl_param) {
         const auto& primitive = arg.get_primitive();
         const auto& axis = primitive->axis;
         const auto& top_k = primitive->top_k;
@@ -98,13 +98,9 @@ public:
         argm_params.values_first = values_first;
 
         auto& kernel_selector = kernel_selector::arg_max_min_kernel_selector::Instance();
-
         auto best_kernel = kernel_selector.get_best_kernel(argm_params, argm_optional_params);
 
-
-        auto conv = new arg_max_min_impl(arg, best_kernel);
-
-        return conv;
+        return make_unique<arg_max_min_impl>(arg, best_kernel);
     }
 };
 

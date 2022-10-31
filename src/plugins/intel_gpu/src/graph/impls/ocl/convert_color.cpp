@@ -33,7 +33,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const convert_color_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const convert_color_node& arg, const kernel_impl_params& impl_param) {
         auto primitive = arg.get_primitive();
 
         auto convert_color_params = get_default_params<kernel_selector::convert_color_params>(impl_param);
@@ -51,10 +51,7 @@ public:
         auto& kernel_selector = kernel_selector::convert_color_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(convert_color_params, convert_color_optional_params);
 
-
-        auto convert_color = new convert_color_impl(arg, best_kernel);
-
-        return convert_color;
+        return make_unique<convert_color_impl>(arg, best_kernel);
     }
 };
 

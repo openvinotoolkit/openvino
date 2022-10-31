@@ -104,17 +104,17 @@ public:
         _prim = dnnl::concat(_pd, prim_cache);
     }
 
-    static primitive_impl* create(const concatenation_node& arg, const kernel_impl_params& impl_params) {
+    static std::unique_ptr<primitive_impl> create(const concatenation_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         if (arg.can_be_optimized())
-            return new concatenation_onednn(engine);
+            return make_unique<concatenation_onednn>(engine);
         auto prim = impl_params.typed_desc<concatenation>();
         auto desc = get_concatenation_descriptor(impl_params, prim->axis, impl_params.prog->get_engine());
         auto attr = arg.get_onednn_primitive_attributes();
 
         std::shared_ptr<void> dummy = nullptr;
 
-        return new concatenation_onednn(engine, dummy, attr, *desc);
+        return make_unique<concatenation_onednn>(engine, dummy, attr, *desc);
     }
 };
 

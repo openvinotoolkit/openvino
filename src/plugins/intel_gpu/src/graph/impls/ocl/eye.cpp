@@ -28,7 +28,7 @@ struct eye_impl : typed_primitive_impl_ocl<eye> {
         return make_unique<eye_impl>(*this);
     }
 
-    static primitive_impl* create(const eye_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const eye_node& arg, const kernel_impl_params& impl_param) {
         auto params = get_default_params<kernel_selector::eye_params>(impl_param);
         auto op_params = get_default_optional_params<kernel_selector::eye_optional_params>(arg.get_program());
 
@@ -38,8 +38,7 @@ struct eye_impl : typed_primitive_impl_ocl<eye> {
         auto& kernel_selector = kernel_selector::eye_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(params, op_params);
 
-
-        return new eye_impl(arg, best_kernel);
+        return make_unique<eye_impl>(arg, best_kernel);
     }
 };
 

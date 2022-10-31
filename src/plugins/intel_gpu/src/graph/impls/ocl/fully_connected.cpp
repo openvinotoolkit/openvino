@@ -43,7 +43,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const fully_connected_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const fully_connected_node& arg, const kernel_impl_params& impl_param) {
         const auto primitive = arg.get_primitive();
 
         auto get_fc_input_layouts = [primitive](const std::vector<layout>& input_layouts) {
@@ -122,10 +122,7 @@ public:
         auto& kernel_selector = kernel_selector::fully_connected_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(fc_params, fc_optional_params);
 
-
-        auto fc = new fully_connected_impl(arg, best_kernel);
-
-        return fc;
+        return make_unique<fully_connected_impl>(arg, best_kernel);
     }
 };
 

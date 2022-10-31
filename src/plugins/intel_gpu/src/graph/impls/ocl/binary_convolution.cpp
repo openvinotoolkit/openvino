@@ -85,7 +85,7 @@ public:
         ib >> _split;
     }
 
-    static primitive_impl* create(const binary_convolution_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const binary_convolution_node& arg, const kernel_impl_params& impl_param) {
         const auto& primitive = arg.get_primitive();
         const auto& weights_layout = (*impl_param.weights_layout).convert_to_weights_layout(false);
         const auto& weights_size = weights_layout.get_tensor();
@@ -143,10 +143,7 @@ public:
 
         auto best_kernel = kernel_selector.get_best_kernel(conv_params, conv_optional_params);
 
-
-        auto conv = new binary_convolution_impl(arg, best_kernel);
-
-        return conv;
+        return make_unique<binary_convolution_impl>(arg, best_kernel);
     }
 
 private:

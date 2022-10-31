@@ -52,7 +52,7 @@ struct permute_impl : typed_primitive_impl_ocl<permute> {
         return make_unique<permute_impl>(*this);
     }
 
-    static primitive_impl* create(const permute_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const permute_node& arg, const kernel_impl_params& impl_param) {
         const auto& prim = arg.get_primitive();
         auto permute_params = get_default_params<kernel_selector::permute_params>(impl_param);
         auto permute_optional_params =
@@ -64,9 +64,7 @@ struct permute_impl : typed_primitive_impl_ocl<permute> {
         auto& kernel_selector = kernel_selector::permute_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(permute_params, permute_optional_params);
 
-        auto permute = new permute_impl(arg, best_kernel);
-
-        return permute;
+        return make_unique<permute_impl>(arg, best_kernel);
     }
 };
 

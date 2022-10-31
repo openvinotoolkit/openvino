@@ -31,7 +31,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const eltwise_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const eltwise_node& arg, const kernel_impl_params& impl_param) {
         const auto& primitive = arg.get_primitive();
 
         auto ew_params = get_default_params<kernel_selector::eltwise_params>(impl_param);
@@ -111,10 +111,7 @@ public:
         auto& kernel_selector = kernel_selector::eltwise_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(ew_params, ew_optional_params);
 
-
-        auto eltwise = new eltwise_impl(arg, best_kernel);
-
-        return eltwise;
+        return make_unique<eltwise_impl>(arg, best_kernel);
     }
 };
 

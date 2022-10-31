@@ -41,7 +41,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const experimental_detectron_roi_feature_extractor_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const experimental_detectron_roi_feature_extractor_node& arg, const kernel_impl_params& impl_param) {
         const auto& primitive = arg.get_primitive();
         const auto output_layout = impl_param.output_layout;
         const auto padding_filling_value = output_layout.data_padding.filling_value();
@@ -70,7 +70,7 @@ public:
         auto& kernel_selector = kernel_selector::experimental_detectron_roi_feature_extractor_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
 
-        return new experimental_detectron_roi_feature_extractor_impl(arg, best_kernel);
+        return make_unique<experimental_detectron_roi_feature_extractor_impl>(arg, best_kernel);
     }
 };
 

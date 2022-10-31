@@ -60,7 +60,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const detection_output_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const detection_output_node& arg, const kernel_impl_params& impl_param) {
         auto detect_out_params = get_default_params<kernel_selector::detection_output_params>(impl_param);
         auto detect_out_optional_params =
             get_default_optional_params<kernel_selector::detection_output_optional_params>(arg.get_program());
@@ -74,10 +74,7 @@ public:
         auto& kernel_selector = kernel_selector::detection_output_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(detect_out_params, detect_out_optional_params);
 
-
-        auto detection_output = new detection_output_impl(arg, best_kernel);
-
-        return detection_output;
+        return make_unique<detection_output_impl>(arg, best_kernel);
     }
 };
 

@@ -33,7 +33,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const generate_proposals_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const generate_proposals_node& arg, const kernel_impl_params& impl_param) {
         auto params = get_default_params<kernel_selector::generate_proposals_params>(impl_param);
         auto optional_params = get_default_optional_params<
                 kernel_selector::generate_proposals_optional_params>(arg.get_program());
@@ -59,7 +59,7 @@ public:
         const auto& kernel_selector = kernel_selector::generate_proposals_kernel_selector::Instance();
         const auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
 
-        return new generate_proposals_impl(arg, best_kernel);
+        return make_unique<generate_proposals_impl>(arg, best_kernel);
     }
 };
 

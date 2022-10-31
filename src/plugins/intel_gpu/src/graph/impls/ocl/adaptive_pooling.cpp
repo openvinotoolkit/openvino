@@ -36,7 +36,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const adaptive_pooling_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const adaptive_pooling_node& arg, const kernel_impl_params& impl_param) {
         auto params = get_default_params<kernel_selector::adaptive_pooling_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::adaptive_pooling_optional_params>(arg.get_program());
 
@@ -65,7 +65,7 @@ public:
         const auto& kernel_selector = kernel_selector::adaptive_pooling_kernel_selector::Instance();
         const auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
 
-        return new adaptive_pooling_impl(arg, best_kernel);
+        return make_unique<adaptive_pooling_impl>(arg, best_kernel);
     }
 };
 

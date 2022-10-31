@@ -23,7 +23,7 @@ struct region_yolo_impl : typed_primitive_impl_ocl<region_yolo> {
         return make_unique<region_yolo_impl>(*this);
     }
 
-    static primitive_impl* create(const region_yolo_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const region_yolo_node& arg, const kernel_impl_params& impl_param) {
         auto ry_params = get_default_params<kernel_selector::region_yolo_params>(impl_param);
         auto ry_optional_params =
             get_default_optional_params<kernel_selector::region_yolo_optional_params>(arg.get_program());
@@ -38,10 +38,7 @@ struct region_yolo_impl : typed_primitive_impl_ocl<region_yolo> {
         auto& kernel_selector = kernel_selector::region_yolo_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(ry_params, ry_optional_params);
 
-
-        auto region_yolo_node = new region_yolo_impl(arg, best_kernel);
-
-        return region_yolo_node;
+        return make_unique<region_yolo_impl>(arg, best_kernel);
     }
 };
 

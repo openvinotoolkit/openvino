@@ -68,7 +68,7 @@ protected:
     uint32_t get_groups() const override { return _groups; }
 
 public:
-    static primitive_impl* create(const deformable_conv_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const deformable_conv_node& arg, const kernel_impl_params& impl_param) {
         const auto& primitive = arg.get_primitive();
         const auto& split = primitive->split();
         const auto& groups = primitive->groups;
@@ -99,9 +99,7 @@ public:
         auto& kernel_selector = kernel_selector::deformable_conv_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(conv_params, conv_optional_params);
 
-        auto conv = new deformable_conv_impl(arg, best_kernel);
-
-        return conv;
+        return make_unique<deformable_conv_impl>(arg, best_kernel);
     }
 
 private:
@@ -125,7 +123,7 @@ protected:
     uint32_t get_groups() const override { return 1; }
 
 public:
-    static primitive_impl* create(const deformable_interp_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const deformable_interp_node& arg, const kernel_impl_params& impl_param) {
         const auto input_idx = 0;
         const auto trans_idx = 1;
         const auto mask_idx = 2;
@@ -178,9 +176,7 @@ public:
         auto& kernel_selector = kernel_selector::deformable_interp_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(conv_params, conv_optional_params);
 
-        auto conv = new deformable_interp_impl(arg, best_kernel);
-
-        return conv;
+        return make_unique<deformable_interp_impl>(arg, best_kernel);
     }
 };
 

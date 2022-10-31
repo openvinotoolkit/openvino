@@ -55,7 +55,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const non_max_suppression_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const non_max_suppression_node& arg, const kernel_impl_params& impl_param) {
         const auto& primitive = arg.get_primitive();
         auto params = get_default_params<kernel_selector::non_max_suppression_params>(impl_param);
         auto optional_params =
@@ -135,10 +135,7 @@ public:
         auto& kernel_selector = kernel_selector::non_max_suppression_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
 
-
-        auto non_max_suppression_node = new non_max_suppression_impl(arg, best_kernel);
-
-        return non_max_suppression_node;
+        return make_unique<non_max_suppression_impl>(arg, best_kernel);
     }
 
 private:

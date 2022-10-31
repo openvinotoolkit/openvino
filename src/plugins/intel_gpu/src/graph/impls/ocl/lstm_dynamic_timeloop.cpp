@@ -41,7 +41,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const lstm_dynamic_timeloop_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const lstm_dynamic_timeloop_node& arg, const kernel_impl_params& impl_param) {
         auto dlstm_timeloop_params = get_default_params<kernel_selector::lstm_dynamic_timeloop_params>(impl_param);
 
         // dyn length
@@ -81,10 +81,7 @@ public:
         auto& kernel_selector = kernel_selector::lstm_dynamic_timeloop_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(dlstm_timeloop_params, dlstm_timeloop_optional_params);
 
-
-        auto lstm_dynamic = new lstm_dynamic_timeloop_impl(arg, best_kernel);
-
-        return lstm_dynamic;
+        return make_unique<lstm_dynamic_timeloop_impl>(arg, best_kernel);
     }
 };
 

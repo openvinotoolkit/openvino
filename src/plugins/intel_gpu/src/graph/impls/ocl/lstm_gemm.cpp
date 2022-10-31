@@ -39,7 +39,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const lstm_gemm_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const lstm_gemm_node& arg, const kernel_impl_params& impl_param) {
         const auto input_idx = 0;
         const auto weight_idx = 1;
         const auto recurrent_idx = 2;
@@ -83,10 +83,7 @@ public:
         auto& kernel_selector = kernel_selector::lstm_gemm_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(lstm_gemm_params, lstm_gemm_optional_params);
 
-
-        auto lstm_gemm = new lstm_gemm_impl(arg, best_kernel);
-
-        return lstm_gemm;
+        return make_unique<lstm_gemm_impl>(arg, best_kernel);
     }
 };
 

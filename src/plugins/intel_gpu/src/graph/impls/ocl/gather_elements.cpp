@@ -57,7 +57,7 @@ struct gather_elements_impl : typed_primitive_impl_ocl<gather_elements> {
     }
 
 public:
-    static primitive_impl* create(const gather_elements_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const gather_elements_node& arg, const kernel_impl_params& impl_param) {
         const auto& prim = arg.get_primitive();
         auto gather_elements_params = get_default_params<kernel_selector::gather_elements_params>(impl_param);
         auto gather_elements_optional_params =
@@ -71,10 +71,7 @@ public:
         auto& kernel_selector = kernel_selector::gather_elements_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(gather_elements_params, gather_elements_optional_params);
 
-
-        auto gather_elements = new gather_elements_impl(arg, best_kernel);
-
-        return gather_elements;
+        return make_unique<gather_elements_impl>(arg, best_kernel);
     }
 };
 

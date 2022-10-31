@@ -33,7 +33,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const experimental_detectron_detection_output_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const experimental_detectron_detection_output_node& arg, const kernel_impl_params& impl_param) {
         auto params = get_default_params<kernel_selector::experimental_detectron_detection_output_params>(impl_param);
         auto optional_params =
             get_default_optional_params<kernel_selector::experimental_detectron_detection_output_optional_params>(
@@ -60,7 +60,7 @@ public:
         const auto& kernel_selector = kernel_selector::experimental_detectron_detection_output_kernel_selector::Instance();
         const auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
 
-        return new experimental_detectron_detection_output_impl(arg, best_kernel);
+        return make_unique<experimental_detectron_detection_output_impl>(arg, best_kernel);
     }
 };
 

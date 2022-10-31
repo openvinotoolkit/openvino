@@ -21,7 +21,7 @@ struct bucketize_impl : typed_primitive_impl_ocl<bucketize> {
         return make_unique<bucketize_impl>(*this);
     }
 
-    static primitive_impl* create(const bucketize_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const bucketize_node& arg, const kernel_impl_params& impl_param) {
         auto params = get_default_params<kernel_selector::bucketize_params>(impl_param);
         auto optional_params =
             get_default_optional_params<kernel_selector::bucketize_optional_params>(arg.get_program());
@@ -33,8 +33,7 @@ struct bucketize_impl : typed_primitive_impl_ocl<bucketize> {
         const auto& kernel_selector = kernel_selector::bucketize_kernel_selector::Instance();
         const auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
 
-
-        return new bucketize_impl(arg, best_kernel);
+        return make_unique<bucketize_impl>(arg, best_kernel);
     }
 };
 

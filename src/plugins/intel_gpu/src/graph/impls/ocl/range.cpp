@@ -22,7 +22,7 @@ struct range_impl : typed_primitive_impl_ocl<range> {
         return make_unique<range_impl>(*this);
     }
 
-    static primitive_impl* create(const range_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const range_node& arg, const kernel_impl_params& impl_param) {
         auto params = get_default_params<kernel_selector::range_params>(impl_param);
         for (int i : {1, 2})
             params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
@@ -32,7 +32,7 @@ struct range_impl : typed_primitive_impl_ocl<range> {
         auto& kernel_selector = kernel_selector::range_instance();
         auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
 
-        return new range_impl{arg, best_kernel};
+        return make_unique<range_impl>(arg, best_kernel);
     }
 };
 

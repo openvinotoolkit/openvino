@@ -25,7 +25,7 @@ struct reverse_sequence_impl : typed_primitive_impl_ocl<reverse_sequence> {
     }
 
 public:
-    static primitive_impl* create(const reverse_sequence_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const reverse_sequence_node& arg, const kernel_impl_params& impl_param) {
         const auto& prim = arg.get_primitive();
         auto reverse_sequence_params = get_default_params<kernel_selector::reverse_sequence_params>(impl_param);
         auto reverse_sequence_optional_params =
@@ -39,10 +39,7 @@ public:
         auto& kernel_selector = kernel_selector::reverse_sequence_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(reverse_sequence_params, reverse_sequence_optional_params);
 
-
-        auto reverse_sequence = new reverse_sequence_impl(arg, best_kernel);
-
-        return reverse_sequence;
+        return make_unique<reverse_sequence_impl>(arg, best_kernel);
     }
 };
 

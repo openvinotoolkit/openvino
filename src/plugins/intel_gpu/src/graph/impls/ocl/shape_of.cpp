@@ -23,7 +23,7 @@ struct shape_of_impl : typed_primitive_impl_ocl<shape_of> {
         return make_unique<shape_of_impl>(*this);
     }
 
-    static primitive_impl* create(const shape_of_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const shape_of_node& arg, const kernel_impl_params& impl_param) {
         auto shape_of_params = get_default_params<kernel_selector::shape_of_params>(impl_param);
         auto shape_of_optional_params =
             get_default_optional_params<kernel_selector::shape_of_optional_params>(arg.get_program());
@@ -35,9 +35,7 @@ struct shape_of_impl : typed_primitive_impl_ocl<shape_of> {
         auto& kernel_selector = kernel_selector::shape_of_instance();
         auto best_kernel = kernel_selector.get_best_kernel(shape_of_params, shape_of_optional_params);
 
-        auto shape_of = new shape_of_impl(arg, best_kernel);
-
-        return shape_of;
+        return make_unique<shape_of_impl>(arg, best_kernel);
     }
 };
 

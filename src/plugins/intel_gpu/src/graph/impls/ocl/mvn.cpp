@@ -28,7 +28,7 @@ struct mvn_impl : typed_primitive_impl_ocl<mvn> {
     }
 
 public:
-    static primitive_impl* create(const mvn_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const mvn_node& arg, const kernel_impl_params& impl_param) {
         const auto& prim = arg.get_primitive();
         auto mvn_params = get_default_params<kernel_selector::mvn_params>(impl_param);
         auto mvn_optional_params = get_default_optional_params<kernel_selector::mvn_optional_params>(arg.get_program());
@@ -44,10 +44,7 @@ public:
         auto& kernel_selector = kernel_selector::mvn_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(mvn_params, mvn_optional_params);
 
-
-        auto mvn = new mvn_impl(arg, best_kernel);
-
-        return mvn;
+        return make_unique<mvn_impl>(arg, best_kernel);
     }
 };
 

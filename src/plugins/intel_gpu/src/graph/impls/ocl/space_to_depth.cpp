@@ -25,7 +25,7 @@ struct space_to_depth_impl : typed_primitive_impl_ocl<space_to_depth> {
     }
 
 public:
-    static primitive_impl* create(const space_to_depth_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const space_to_depth_node& arg, const kernel_impl_params& impl_param) {
         const auto& prim = arg.get_primitive();
         auto space_to_depth_params = get_default_params<kernel_selector::space_to_depth_params>(impl_param);
         auto space_to_depth_optional_params =
@@ -40,10 +40,7 @@ public:
         auto& kernel_selector = kernel_selector::space_to_depth_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(space_to_depth_params, space_to_depth_optional_params);
 
-
-        auto space_to_depth = new space_to_depth_impl(arg, best_kernel);
-
-        return space_to_depth;
+        return make_unique<space_to_depth_impl>(arg, best_kernel);
     }
 };
 

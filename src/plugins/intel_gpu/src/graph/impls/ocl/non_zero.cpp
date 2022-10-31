@@ -27,7 +27,7 @@ struct count_nonzero_impl : typed_primitive_impl_ocl<count_nonzero> {
         return make_unique<count_nonzero_impl>(*this);
     }
 
-    static primitive_impl* create(const count_nonzero_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const count_nonzero_node& arg, const kernel_impl_params& impl_param) {
         auto nonzero_params = get_default_params<kernel_selector::count_nonzero_params>(impl_param);
         auto nonzero_optional_params =
             get_default_optional_params<kernel_selector::count_nonzero_optional_params>(arg.get_program());
@@ -35,9 +35,7 @@ struct count_nonzero_impl : typed_primitive_impl_ocl<count_nonzero> {
         auto& kernel_selector = kernel_selector::count_nonzero_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(nonzero_params, nonzero_optional_params);
 
-        auto count_nonzero = new count_nonzero_impl(arg, best_kernel);
-
-        return count_nonzero;
+        return make_unique<count_nonzero_impl>(arg, best_kernel);
     }
 };
 
@@ -52,7 +50,7 @@ struct gather_nonzero_impl : typed_primitive_impl_ocl<gather_nonzero> {
     }
 
 public:
-    static primitive_impl* create(const gather_nonzero_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const gather_nonzero_node& arg, const kernel_impl_params& impl_param) {
         auto nonzero_params = get_default_params<kernel_selector::gather_nonzero_params>(impl_param);
         auto nonzero_optional_params =
             get_default_optional_params<kernel_selector::gather_nonzero_optional_params>(arg.get_program());
@@ -63,9 +61,7 @@ public:
         auto& kernel_selector = kernel_selector::gather_nonzero_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(nonzero_params, nonzero_optional_params);
 
-        auto gather_nonzero = new gather_nonzero_impl(arg, best_kernel);
-
-        return gather_nonzero;
+        return make_unique<gather_nonzero_impl>(arg, best_kernel);
     }
 };
 

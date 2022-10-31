@@ -57,7 +57,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const roi_align_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const roi_align_node& arg, const kernel_impl_params& impl_param) {
         const auto& input_layout = impl_param.input_layouts[0];
         const auto& output_layout = impl_param.output_layout;
         const auto& rois_layout = impl_param.input_layouts[1];
@@ -91,10 +91,7 @@ public:
         auto& kernel_selector = kernel_selector::roi_align_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(roi_align_params, roi_align_optional_params);
 
-
-        auto roi_align = new roi_align_impl(arg, best_kernel);
-
-        return roi_align;
+        return make_unique<roi_align_impl>(arg, best_kernel);
     }
 };
 

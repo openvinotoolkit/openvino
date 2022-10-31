@@ -30,7 +30,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const average_unpooling_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const average_unpooling_node& arg, const kernel_impl_params& impl_param) {
         auto primitive = arg.get_primitive();
         auto average_unpooling_params = get_default_params<kernel_selector::average_unpooling_params>(impl_param);
         auto average_unpooling_optional_params =
@@ -49,10 +49,7 @@ public:
         auto& kernel_selector = kernel_selector::average_unpooling_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(average_unpooling_params, average_unpooling_optional_params);
 
-
-        auto average_unpool = new average_unpooling_impl(arg, best_kernel);
-
-        return average_unpool;
+        return make_unique<average_unpooling_impl>(arg, best_kernel);
     }
 };
 

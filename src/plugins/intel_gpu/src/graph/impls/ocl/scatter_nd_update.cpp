@@ -26,7 +26,7 @@ struct scatter_nd_update_impl : typed_primitive_impl_ocl<scatter_nd_update> {
     }
 
 public:
-    static primitive_impl* create(const scatter_nd_update_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const scatter_nd_update_node& arg, const kernel_impl_params& impl_param) {
         auto scatter_nd_update_params = get_default_params<kernel_selector::scatter_nd_update_params>(impl_param);
         auto scatter_nd_update_optional_params =
             get_default_optional_params<kernel_selector::scatter_nd_update_optional_params>(arg.get_program());
@@ -39,10 +39,7 @@ public:
         auto& kernel_selector = kernel_selector::scatter_nd_update_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(scatter_nd_update_params, scatter_nd_update_optional_params);
 
-
-        auto scatter_nd_update = new scatter_nd_update_impl(arg, best_kernel);
-
-        return scatter_nd_update;
+        return make_unique<scatter_nd_update_impl>(arg, best_kernel);
     }
 };
 

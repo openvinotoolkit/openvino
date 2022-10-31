@@ -45,7 +45,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const quantize_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const quantize_node& arg, const kernel_impl_params& impl_param) {
         auto quantize_params = get_default_params<kernel_selector::quantize_params>(impl_param);
         auto quantize_optional_params =
             get_default_optional_params<kernel_selector::quantize_optional_params>(arg.get_program());
@@ -85,10 +85,7 @@ public:
         auto& kernel_selector = kernel_selector::quantize_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(quantize_params, quantize_optional_params);
 
-
-        auto quantize = new quantize_impl(arg, best_kernel);
-
-        return quantize;
+        return make_unique<quantize_impl>(arg, best_kernel);
     }
 };
 

@@ -25,7 +25,7 @@ struct pyramid_roi_align_impl : typed_primitive_impl_ocl<pyramid_roi_align> {
         return make_unique<pyramid_roi_align_impl>(*this);
     }
 
-    static primitive_impl* create(const pyramid_roi_align_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const pyramid_roi_align_node& arg, const kernel_impl_params& impl_param) {
         auto prim = arg.get_primitive();
         auto params = get_default_params<kernel_selector::PyramidROIAlign_params>(impl_param, 1);
         auto optional_params =
@@ -54,8 +54,7 @@ struct pyramid_roi_align_impl : typed_primitive_impl_ocl<pyramid_roi_align> {
         auto& kernel_selector = kernel_selector::PyramidROIAlign_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
 
-
-        return new pyramid_roi_align_impl(arg, best_kernel);
+        return make_unique<pyramid_roi_align_impl>(arg, best_kernel);
     }
 };
 

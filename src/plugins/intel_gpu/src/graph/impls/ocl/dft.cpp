@@ -24,7 +24,7 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
         return make_unique<dft_impl>(*this);
     }
 
-    static primitive_impl* create(const dft_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const dft_node& arg, const kernel_impl_params& impl_param) {
         auto params = get_default_params<kernel_selector::dft_params>(impl_param);
         const auto primitive = impl_param.typed_desc<dft>();
         params.axes = primitive->axes;
@@ -73,7 +73,7 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
         auto& kernel_selector = kernel_selector::dft_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
 
-        return new dft_impl{arg, best_kernel};
+        return make_unique<dft_impl>(arg, best_kernel);
     }
 };
 

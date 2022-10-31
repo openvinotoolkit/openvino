@@ -25,7 +25,7 @@ struct one_hot_impl : typed_primitive_impl_ocl<one_hot> {
         return make_unique<one_hot_impl>(*this);
     }
 
-    static primitive_impl* create(const one_hot_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const one_hot_node& arg, const kernel_impl_params& impl_param) {
         const auto& prim = arg.get_primitive();
         auto oh_params = get_default_params<kernel_selector::one_hot_params>(impl_param, 1);
         auto oh_optional_params =
@@ -42,7 +42,7 @@ struct one_hot_impl : typed_primitive_impl_ocl<one_hot> {
         auto& kernel_selector = kernel_selector::one_hot_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(oh_params, oh_optional_params);
 
-        return new one_hot_impl(arg, best_kernel);
+        return make_unique<one_hot_impl>(arg, best_kernel);
     }
 };
 

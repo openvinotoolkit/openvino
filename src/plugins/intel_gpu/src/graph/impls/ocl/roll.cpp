@@ -20,7 +20,7 @@ struct roll_impl : typed_primitive_impl_ocl<roll> {
         return make_unique<roll_impl>(*this);
     }
 
-    static primitive_impl* create(const roll_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const roll_node& arg, const kernel_impl_params& impl_param) {
         auto roll_params = get_default_params<kernel_selector::roll_params>(impl_param);
         auto roll_optional_params =
             get_default_optional_params<kernel_selector::roll_optional_params>(arg.get_program());
@@ -31,8 +31,7 @@ struct roll_impl : typed_primitive_impl_ocl<roll> {
         const auto& kernel_selector = kernel_selector::roll_kernel_selector::Instance();
         const auto best_kernel = kernel_selector.get_best_kernel(roll_params, roll_optional_params);
 
-
-        return new roll_impl(arg, best_kernel);
+        return make_unique<roll_impl>(arg, best_kernel);
     }
 };
 

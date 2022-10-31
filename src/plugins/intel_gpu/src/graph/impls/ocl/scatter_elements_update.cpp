@@ -53,7 +53,7 @@ struct scatter_elements_update_impl : typed_primitive_impl_ocl<scatter_elements_
     }
 
 public:
-    static primitive_impl* create(const scatter_elements_update_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const scatter_elements_update_node& arg, const kernel_impl_params& impl_param) {
         const auto& prim = arg.get_primitive();
         auto scatter_elements_update_params = get_default_params<kernel_selector::scatter_elements_update_params>(impl_param);
         auto scatter_elements_update_optional_params =
@@ -67,10 +67,7 @@ public:
         auto& kernel_selector = kernel_selector::scatter_elements_update_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(scatter_elements_update_params, scatter_elements_update_optional_params);
 
-
-        auto scatter_elements_update = new scatter_elements_update_impl(arg, best_kernel);
-
-        return scatter_elements_update;
+        return make_unique<scatter_elements_update_impl>(arg, best_kernel);
     }
 };
 

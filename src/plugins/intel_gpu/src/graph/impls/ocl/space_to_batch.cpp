@@ -27,7 +27,7 @@ struct space_to_batch_impl : typed_primitive_impl_ocl<space_to_batch> {
     }
 
 public:
-    static primitive_impl* create(const space_to_batch_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const space_to_batch_node& arg, const kernel_impl_params& impl_param) {
         auto primitive = arg.get_primitive();
         auto space_to_batch_params = get_default_params<kernel_selector::space_to_batch_params>(impl_param);
         auto space_to_batch_optional_params =
@@ -40,10 +40,7 @@ public:
         auto& kernel_selector = kernel_selector::space_to_batch_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(space_to_batch_params, space_to_batch_optional_params);
 
-
-        auto space_to_batch = new space_to_batch_impl(arg, best_kernel);
-
-        return space_to_batch;
+        return make_unique<space_to_batch_impl>(arg, best_kernel);
     }
 };
 

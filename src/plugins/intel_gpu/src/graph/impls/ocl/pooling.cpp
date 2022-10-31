@@ -72,7 +72,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const pooling_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const pooling_node& arg, const kernel_impl_params& impl_param) {
         validate_args(arg);
         const auto primitive = arg.get_primitive();
         auto pool_params = get_default_params<kernel_selector::pooling_params>(impl_param);
@@ -174,10 +174,7 @@ public:
         auto& kernel_selector = kernel_selector::pooling_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(pool_params, pool_optional_params);
 
-
-        auto pool = new pooling_impl(arg, best_kernel);
-
-        return pool;
+        return make_unique<pooling_impl>(arg, best_kernel);
     }
 };
 

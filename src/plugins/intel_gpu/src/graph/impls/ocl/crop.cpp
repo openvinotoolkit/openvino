@@ -54,7 +54,7 @@ public:
         ib >> _can_be_optimized;
     }
 
-    static primitive_impl* create(const crop_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const crop_node& arg, const kernel_impl_params& impl_param) {
         auto ew_params = get_default_params<kernel_selector::eltwise_params>(impl_param, 1);
         auto ew_optional_params = get_default_optional_params<kernel_selector::eltwise_optional_params>(arg.get_program());
 
@@ -65,10 +65,7 @@ public:
         auto& kernel_selector = kernel_selector::eltwise_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(ew_params, ew_optional_params);
 
-
-        auto crop = new crop_impl(arg, best_kernel);
-
-        return crop;
+        return make_unique<crop_impl>(arg, best_kernel);
     }
 
 private:

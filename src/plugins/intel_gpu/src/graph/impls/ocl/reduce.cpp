@@ -77,7 +77,7 @@ struct reduce_impl : typed_primitive_impl_ocl<reduce> {
     }
 
 public:
-    static primitive_impl* create(const reduce_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const reduce_node& arg, const kernel_impl_params& impl_param) {
         const auto& prim = arg.get_primitive();
         auto reduce_params = get_default_params<kernel_selector::reduce_params>(impl_param);
         auto reduce_optional_params = get_default_optional_params<kernel_selector::reduce_optional_params>(arg.get_program());
@@ -89,10 +89,7 @@ public:
         auto& kernel_selector = kernel_selector::reduce_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(reduce_params, reduce_optional_params);
 
-        auto reduce = new reduce_impl(arg, best_kernel);
-        reduce->can_reuse_memory = best_kernel.can_reuse_memory;
-
-        return reduce;
+        return make_unique<reduce_impl>(arg, best_kernel);
     }
 };
 

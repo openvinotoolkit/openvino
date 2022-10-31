@@ -28,7 +28,7 @@ struct ctc_greedy_decoder_impl : typed_primitive_impl_ocl<ctc_greedy_decoder> {
     }
 
 public:
-    static primitive_impl* create(const ctc_greedy_decoder_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const ctc_greedy_decoder_node& arg, const kernel_impl_params& impl_param) {
         auto prim = arg.get_primitive();
 
         auto ctc_gd_params = get_default_params<kernel_selector::ctc_greedy_decoder_params>(impl_param);
@@ -48,10 +48,7 @@ public:
         auto best_kernel = kernel_selector.get_best_kernel(
             ctc_gd_params, ctc_gd_optional_params);
 
-
-        auto grn = new ctc_greedy_decoder_impl(arg, best_kernel);
-
-        return grn;
+        return make_unique<ctc_greedy_decoder_impl>(arg, best_kernel);
     }
 };
 

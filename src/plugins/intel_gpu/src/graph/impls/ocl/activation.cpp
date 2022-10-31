@@ -58,7 +58,7 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
         ib >> _is_parameterized;
     }
 
-    static primitive_impl* create(const activation_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const activation_node& arg, const kernel_impl_params& impl_param) {
         const auto& prim = arg.get_primitive();
         auto activation_params = get_default_params<kernel_selector::activation_params>(impl_param);
         auto activation_optional_params =
@@ -86,9 +86,7 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
         auto& kernel_selector = kernel_selector::activation_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(activation_params, activation_optional_params);
 
-        auto activation = new activation_impl(arg, best_kernel);
-
-        return activation;
+        return make_unique<activation_impl>(arg, best_kernel);
     }
 
 private:

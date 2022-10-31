@@ -36,7 +36,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const lstm_elt_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const lstm_elt_node& arg, const kernel_impl_params& impl_param) {
         const auto& prim = arg.get_primitive();
         auto lstm_elt_params = get_default_params<kernel_selector::lstm_elt_params>(impl_param);
         auto lstm_elt_optional_params =
@@ -82,10 +82,7 @@ public:
         auto& kernel_selector = kernel_selector::lstm_elt_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(lstm_elt_params, lstm_elt_optional_params);
 
-
-        auto lstm_elt = new lstm_elt_impl(arg, best_kernel);
-
-        return lstm_elt;
+        return make_unique<lstm_elt_impl>(arg, best_kernel);
     }
 };
 

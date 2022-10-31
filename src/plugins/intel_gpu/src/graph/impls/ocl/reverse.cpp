@@ -26,7 +26,7 @@ struct reverse_impl : typed_primitive_impl_ocl<reverse> {
     }
 
 public:
-    static primitive_impl* create(const reverse_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const reverse_node& arg, const kernel_impl_params& impl_param) {
         auto params = get_default_params<kernel_selector::reverse_params>(impl_param);
         const auto optional_params =
             get_default_optional_params<kernel_selector::reverse_optional_params>(arg.get_program());
@@ -38,10 +38,7 @@ public:
         const auto& kernel_selector = kernel_selector::reverse_kernel_selector::Instance();
         const auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
 
-
-        auto reverse = new reverse_impl(arg, best_kernel);
-
-        return reverse;
+        return make_unique<reverse_impl>(arg, best_kernel);
     }
 };
 
