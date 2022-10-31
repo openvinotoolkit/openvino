@@ -20,6 +20,7 @@
 #include <common/primitive_hashing_utils.hpp>
 #include <common/primitive_desc.hpp>
 #include <common/primitive_desc_iface.hpp>
+#include "onednn/dnnl.h"
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -353,8 +354,7 @@ void FullyConnected::prepareParams() {
             oldMem = dstMemPtr->GetPrimitive();
             primArgs[DNNL_ARG_DST] = dnnl::memory(ptr->getDstDesc(), oldMem.get_engine(), oldMem.get_data_handle());
             oldMem = wghMemPtr->GetPrimitive();
-            primArgs[DNNL_ARG_WEIGHTS] = dnnl::memory(ptr->getWeightDesc(), oldMem.get_engine());
-            convWeightInit = false;
+            primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(DnnlExtensionUtils::makeDescriptor(ptr->getWeightDesc()))->GetPrimitive();
             selected_pd->setImplementationType(ptr->getImplementationType());
         } else {
             shouldUseConv1x1 = false;
@@ -444,10 +444,6 @@ void FullyConnected::execute(dnnl::stream strm) {
 
     updateMemoryPtr(DNNL_ARG_SRC);
     updateMemoryPtr(DNNL_ARG_DST);
-    if (shouldUseConv1x1 && !convWeightInit) {
-        convWeightInit = true;
-        InitWeiMemoryForConv(strm, primArgs[DNNL_ARG_WEIGHTS]);
-    }
 
     execPtr->exec(primArgs, strm);
 }
@@ -853,28 +849,59 @@ FullyConnected::ExecutorConv1x1::ExecutorConv1x1(const dnnl::convolution_forward
     implementationType = parse_impl_name(pd.impl_info_str());
 }
 
-void FullyConnected::InitWeiMemoryForConv(dnnl::stream strm, dnnl::memory mem) {
-    const dnnl::memory::desc& desc = mem.get_desc();
-
-    MemoryPtr wghMemPtr;
+MemoryPtr FullyConnected::prepareWeightMemory(const DnnlMemoryDescPtr weightDesc) {
     const auto parentNode = getParentEdgeAt(1)->getParent();
+    std::shared_ptr<Input> constNode;
     if (parentNode->getParentEdges().size()) {
         // parent is reorder
-        wghMemPtr = parentNode->getParentEdgesAtPort(0)[0]->getMemoryPtr();
+        constNode = std::dynamic_pointer_cast<Input>(parentNode->getParentEdgeAt(0)->getParent());
     } else {
         // parent is constant
-        wghMemPtr = getParentEdgesAtPort(1)[0]->getMemoryPtr();
+        constNode = std::dynamic_pointer_cast<Input>(getParentEdgeAt(1)->getParent());
+    }
+    if (!constNode)
+        IE_THROW() << "Cannot cast const input node for node " << getName() << ".";
+    auto blob = constNode->getMemoryPtr();
+    if (!blob)
+        IE_THROW() << "Cannot get const weights blob for node " << getName() << ".";
+
+    MemoryDescPtr constMemOutDesc = constNode->getChildEdgeAt(0)->getMemoryPtr()->getDescPtr();
+    DnnlMemoryDescPtr coonstDnnlMemOutDesc = MemoryDescUtils::convertToDnnlMemoryDesc(constMemOutDesc);
+    auto weightSrcDesc = coonstDnnlMemOutDesc->getDnnlDesc();
+    weightSrcDesc = weightSrcDesc.reshape(weightDesc->getDnnlDesc().dims());
+    auto create = [&] () {
+        auto newSrcDesc = DnnlExtensionUtils::makeDescriptor(weightSrcDesc);
+
+        Memory srcMemory{ getEngine() };
+        srcMemory.Create(newSrcDesc, blob->GetData());
+
+        MemoryPtr _ptr = MemoryPtr(new Memory(getEngine()));
+        _ptr->Create(weightDesc);
+        _ptr->SetData(srcMemory);
+
+        return _ptr;
+    };
+
+    MemoryPtr ptr;
+    if (weightCache != nullptr) {
+        const uint64_t data_hash = weightCache->GetHashFunc().hash(
+            static_cast<const unsigned char*>(blob->GetData()), blob->GetSize());
+
+        const std::string string_hash = getName() + "_" + weightDesc->serializeFormat()
+                                        + "_" + std::to_string(blob->GetSize())
+                                        + "_" + std::to_string(data_hash);
+
+        ptr = *weightCache->findOrCreate(string_hash, create);
+    } else {
+        if (!privateWeightCache[weightDesc->serializeFormat()]) {
+            ptr = create();
+            privateWeightCache[weightDesc->serializeFormat()] = ptr;
+        } else {
+            ptr = privateWeightCache[weightDesc->serializeFormat()];
+        }
     }
 
-    if (!wghMemPtr || !wghMemPtr->isAllocated())
-        IE_THROW() << "Weight memory hasn't been allocated.";
-    DnnlMemoryDescCPtr weightMemDesc = wghMemPtr->GetDescWithType<DnnlMemoryDesc>();
-    auto weightDesc = weightMemDesc->getDnnlDesc();
-    weightDesc = weightDesc.reshape(desc.dims());
-    auto reorderPd = dnnl::reorder::primitive_desc(getEngine(), weightDesc, getEngine(), desc);
-    auto reorder = dnnl::reorder(reorderPd);
-    dnnl::memory memSrc(weightMemDesc->getDnnlDesc(), getEngine(), wghMemPtr->GetData());
-    reorder.execute(strm, memSrc, mem);
+    return ptr;
 }
 
 }   // namespace node

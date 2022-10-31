@@ -80,9 +80,11 @@ private:
 
     using executorPtr = std::shared_ptr<DnnlExecutor>;
     executorPtr execPtr = nullptr;
-    bool convWeightInit = false;
     bool shouldUseConv1x1 = false;
     impl_desc_type implementationTypeIP;
+    // when weightCache does not enable(such as stream=1) brgconv weights may change due to
+    // different shapes. Weights will cache in privateWeightCache
+    std::map<std::string, MemoryPtr> privateWeightCache;
 
     class ExecutorInnerProduct : public DnnlExecutor {
         public:
@@ -109,7 +111,7 @@ private:
                                 const dnnl::memory::desc &outputDesc) const;
 
     bool canBeExecutedInConv1x1() const;
-    void InitWeiMemoryForConv(dnnl::stream strm, dnnl::memory mem);
+    MemoryPtr prepareWeightMemory(const DnnlMemoryDescPtr weightDesc);
 };
 
 }   // namespace node
