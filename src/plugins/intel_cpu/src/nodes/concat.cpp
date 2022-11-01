@@ -609,8 +609,13 @@ void Concat::execRef() {
         srcPtrs.push_back(reinterpret_cast<const uint8_t*>(src_mem.GetData()) + srcsOffset[i] * elemSize);
     }
     const auto& outputStride = dstMemory.getDescPtr()->as<BlockedMemoryDesc>()->getStrides();
-
-    if (reorderedAxis == 0) {
+    bool hasOuterLoop = false;
+    for (size_t i = 0; i < reorderedAxis; i++) {
+        if (outputShape[i] != 1) {
+            hasOuterLoop = true;
+        }
+    }
+    if (!hasOuterLoop) {
         int nthr = parallel_get_max_threads();
         if (nthr == 1) {
             for (size_t a = 0; a < srcPtrs.size(); ++a) {
