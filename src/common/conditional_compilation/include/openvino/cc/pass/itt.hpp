@@ -26,7 +26,7 @@ OV_CC_DOMAINS(ov_pass);
 #    define ADD_MATCHER_SCOPE_WITHOUT_OBJ_NSPACE(region, ...)   add_matcher<region>(__VA_ARGS__);
 #    define ADD_MATCHER_SCOPE(obj, nspace, region, ...)         obj->add_matcher<nspace::region>(__VA_ARGS__);
 #    define REGISTER_PASS_SCOPE(obj, nspace, region, flag, ...) obj.register_pass<nspace::region>(__VA_ARGS__);
-#    define REGISTER_PASS_SCOPE_WITH_FALSE(obj, nspace, region, ...) \
+#    define REGISTER_DISABLED_PASS_SCOPE_WITH(obj, nspace, region, ...) \
         obj.register_pass<nspace::region, false>(__VA_ARGS__);
 #    define REGISTER_PASS_MODEL_SCOPE_IF(region)
 #elif defined(SELECTIVE_BUILD)
@@ -66,13 +66,13 @@ OV_CC_DOMAINS(ov_pass);
 
 #    define REGISTER_PASS_1(obj, nspace, region, ...) obj.register_pass<nspace::region>(__VA_ARGS__);
 #    define REGISTER_PASS_0(obj, nspace, region, ...)
-#    define REGISTER_PASS_SCOPE(obj, nspace, region, flag, ...)                                 \
+#    define REGISTER_PASS_SCOPE(obj, nspace, region, flag, ...)                                            \
         OV_PP_CAT(REGISTER_PASS_, OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, OV_PP_CAT(region, flag)))) \
         (obj, nspace, region, __VA_ARGS__)
 
 #    define REGISTER_PASS_WITH_FALSE_1(obj, nspace, region, ...) obj.register_pass<nspace::region, false>(__VA_ARGS__);
 #    define REGISTER_PASS_WITH_FALSE_0(obj, nspace, region, ...)
-#    define REGISTER_PASS_SCOPE_WITH_FALSE(obj, nspace, region, ...)                                 \
+#    define REGISTER_DISABLED_PASS_SCOPE_WITH(obj, nspace, region, ...)                              \
         OV_PP_CAT(REGISTER_PASS_WITH_FALSE_, OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, region))) \
         (obj, nspace, region, __VA_ARGS__)
 
@@ -89,7 +89,7 @@ OV_CC_DOMAINS(ov_pass);
 #    define ADD_MATCHER_SCOPE_WITHOUT_OBJ_NSPACE(region, ...)   add_matcher<region>(__VA_ARGS__);
 #    define ADD_MATCHER_SCOPE(obj, nspace, region, ...)         obj->add_matcher<nspace::region>(__VA_ARGS__);
 #    define REGISTER_PASS_SCOPE(obj, nspace, region, flag, ...) obj.register_pass<nspace::region>(__VA_ARGS__);
-#    define REGISTER_PASS_SCOPE_WITH_FALSE(obj, nspace, region, ...) \
+#    define REGISTER_DISABLED_PASS_SCOPE_WITH(obj, nspace, region, ...) \
         obj.register_pass<nspace::region, false>(__VA_ARGS__);
 #    define REGISTER_PASS_MODEL_SCOPE_IF(region)
 #endif

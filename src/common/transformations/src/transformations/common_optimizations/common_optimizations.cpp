@@ -134,8 +134,8 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     }
 
     manager.register_pass<ngraph::pass::ConcatReduceFusion>();
-    REGISTER_PASS_SCOPE_WITH_FALSE(manager, ngraph::pass, ConvertPadToGroupConvolution)
-    REGISTER_PASS_SCOPE_WITH_FALSE(manager, ngraph::pass, ConvertInterpolate1ToInterpolate4)
+    REGISTER_DISABLED_PASS_SCOPE_WITH(manager, ngraph::pass, ConvertPadToGroupConvolution)
+    REGISTER_DISABLED_PASS_SCOPE_WITH(manager, ngraph::pass, ConvertInterpolate1ToInterpolate4)
 
     REGISTER_PASS_MODEL_SCOPE_IF(GraphRewrite) {
         auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
@@ -194,17 +194,17 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertGather8ToGather7, )  // not plugins implemented gather8
     REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertGather7ToGather1, )  // not plugins implemented gather7
 
-    REGISTER_PASS_SCOPE_WITH_FALSE(manager, ngraph::pass, ConvertGather1ToGather7)
-    REGISTER_PASS_SCOPE_WITH_FALSE(manager, ngraph::pass, ConvertGather7ToGather8)
+    REGISTER_DISABLED_PASS_SCOPE_WITH(manager, ngraph::pass, ConvertGather1ToGather7)
+    REGISTER_DISABLED_PASS_SCOPE_WITH(manager, ngraph::pass, ConvertGather7ToGather8)
     REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertDeformableConv8To1, )
     REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertSoftMax8ToSoftMax1, )
-    REGISTER_PASS_SCOPE_WITH_FALSE(manager, ngraph::pass, ConvertSoftMax1ToSoftMax8)
+    REGISTER_DISABLED_PASS_SCOPE_WITH(manager, ngraph::pass, ConvertSoftMax1ToSoftMax8)
     REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertMaxPool8ToMaxPool1, )
-    REGISTER_PASS_SCOPE_WITH_FALSE(manager, ngraph::pass, ConvertMaxPool1ToMaxPool8)
+    REGISTER_DISABLED_PASS_SCOPE_WITH(manager, ngraph::pass, ConvertMaxPool1ToMaxPool8)
     REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertPriorBox8To0, )
-    REGISTER_PASS_SCOPE_WITH_FALSE(manager, ngraph::pass, ConvertDetectionOutput1ToDetectionOutput8)
+    REGISTER_DISABLED_PASS_SCOPE_WITH(manager, ngraph::pass, ConvertDetectionOutput1ToDetectionOutput8)
     REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertDetectionOutput8ToDetectionOutput1, )
-    REGISTER_PASS_SCOPE_WITH_FALSE(manager, ngraph::pass, ConvertROIAlign3To9)
+    REGISTER_DISABLED_PASS_SCOPE_WITH(manager, ngraph::pass, ConvertROIAlign3To9)
     REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertROIAlign9To3, )
     REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertMulticlassNms8ToMulticlassNms9, )
 
