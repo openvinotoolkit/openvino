@@ -167,14 +167,17 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool allo
     return true;
 }
 
-void DnnlPostOpsComposer::appendShift(const std::vector<float>& shift) {
+bool DnnlPostOpsComposer::appendShift(const std::vector<float>& shift, bool allowBinary) {
     if (shift.size() == 1) {
         if (shift[0] != 0.0f) {
             ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, shift[0]);
         }
     } else {
+        if (!allowBinary)
+            return false;
         appendBinary(dnnl::algorithm::binary_add, shift);
     }
+    return true;
 }
 
 bool DnnlPostOpsComposer::appendLinear(const std::vector<float>& scale,
@@ -182,7 +185,7 @@ bool DnnlPostOpsComposer::appendLinear(const std::vector<float>& scale,
                                        bool allowBinary) {
     if (scale.size() == 1 && shift.size() == 1) {
         if (shift[0] == 0.0f)
-            appendScale(scale, allowBinary);
+            return appendScale(scale, allowBinary);
         else
             ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, scale[0], shift[0]);
     } else {
@@ -194,8 +197,10 @@ bool DnnlPostOpsComposer::appendLinear(const std::vector<float>& scale,
             if (!appendScale(scale, allowBinary))
                 return false;
         }
-        if (shift.size() > 0)
-            appendShift(shift);
+        if (shift.size() > 0) {
+            if (!appendShift(shift, allowBinary))
+                return false;
+        }
     }
     return true;
 }

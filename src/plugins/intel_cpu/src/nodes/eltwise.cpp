@@ -2212,7 +2212,7 @@ void Eltwise::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, s
     appendPostOpsImpl(ops, postOpDims, postOpsMem, channelAxis);
 }
 
-void Eltwise::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp, dnnl::memory::data_type outDataType) {
+bool Eltwise::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp, dnnl::memory::data_type outDataType, bool allowBinary) {
     const std::string errorPrefix = "Appending Eltwise node with name '" + getName() + "' as binary post op ";
 
     if (getOneDnnAlgorithm() != dnnl::algorithm::undef) {
@@ -2248,31 +2248,31 @@ void Eltwise::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp,
         switch (getAlgorithm()) {
         case Algorithm::EltwiseAdd:
         case Algorithm::EltwiseSubtract:
-            dnnlpoc.appendShift(shifts);
-            break;
+            return dnnlpoc.appendShift(shifts, allowBinary);
         case Algorithm::EltwiseDivide:
         case Algorithm::EltwiseMultiply:
-            dnnlpoc.appendScale(scales);
-            break;
+            return dnnlpoc.appendScale(scales, allowBinary);
         case Algorithm::EltwiseMulAdd:
-            dnnlpoc.appendLinear(scales, shifts);
-            break;
+            return dnnlpoc.appendLinear(scales, shifts, allowBinary);
         case Algorithm::EltwisePowerStatic:
             if (beta != 1.0f && gamma != 0.0f) {
-                dnnlpoc.appendLinear(scales, shifts);
+                return dnnlpoc.appendLinear(scales, shifts, allowBinary);
             } else if (beta != 1.0f) {// Multiply if has scales
-                dnnlpoc.appendScale(scales);
+                return dnnlpoc.appendScale(scales, allowBinary);
             } else if (gamma != 0.0f) {// Add only if has shifts
-                dnnlpoc.appendShift(shifts);
+                return dnnlpoc.appendShift(shifts, allowBinary);
             }
             break;
         case Algorithm::EltwisePrelu:
+            if (!allowBinary)
+                return false;
             dnnlpoc.appendBinary(dnnl::algorithm::binary_prelu, scales);
             break;
         default:
             IE_THROW() << errorPrefix << "as post operation is not supported";
         }
     }
+    return true;
 }
 
 bool Eltwise::canFuse(const NodePtr& node) const {

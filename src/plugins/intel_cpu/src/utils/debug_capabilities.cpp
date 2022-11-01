@@ -315,7 +315,19 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
         auto eltwise_node = reinterpret_cast<intel_cpu::node::Eltwise *>(&node);
         os << " | Alpha=" << eltwise_node->getAlpha()
         << ", Beta=" << eltwise_node->getBeta()
-        << ", Gamma=" << eltwise_node->getGamma();
+        << ", Gamma=" << eltwise_node->getGamma()
+        << ", BroadcastingPolicy=";
+
+        switch (eltwise_node->getBroadcastingPolicy()) {
+            case intel_cpu::node::Eltwise::BroadcastingPolicy::PerChannel:
+                os << "PerChannel";
+                break;
+            case intel_cpu::node::Eltwise::BroadcastingPolicy::PerTensor:
+                os << "PerTensor";
+                break;
+            default:
+                os << "?";
+        }
     }
 
     os << ")  ";

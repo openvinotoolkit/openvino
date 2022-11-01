@@ -38,7 +38,7 @@ public:
     void appendEltwise(float scale, const dnnl::algorithm alg, float alpha, float beta);
     void appendRoundHTE();
     bool appendScale(const std::vector<float>& scale, bool allowBinary = true);
-    void appendShift(const std::vector<float>& shift);
+    bool appendShift(const std::vector<float>& shift, bool allowBinary = true);
     bool appendLinear(const std::vector<float>& scale, const std::vector<float>& shift, bool allowBinary = true);
     void appendClip(const std::vector<float>& low, const std::vector<float>& high);
 

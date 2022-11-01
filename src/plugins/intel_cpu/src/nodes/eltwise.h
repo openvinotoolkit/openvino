@@ -101,7 +101,7 @@ public:
     bool canFuse(const NodePtr& node) const override;
     void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem, const int channelAxis = 1) override;
     void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1) override;
-    void appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp, dnnl::memory::data_type outDataType);
+    bool appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp, dnnl::memory::data_type outDataType, bool allowBinary = true);
     void fuseInto(NodePtr& parentNode) override;
     InferenceEngine::Precision getRuntimePrecision() const override;
 

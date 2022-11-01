@@ -618,6 +618,10 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
                 ops.append_sum(1.0, DnnlExtensionUtils::IEPrecisionToDataType(eltwisePrecision));
             } else {
                 if (useLegacyPostOps) {
+                    // try mapping with optimization w/o using binary postOps
+                    if (eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, false)) {
+                        continue;
+                    }
                     eltwiseNode->appendPostOps(ops, dims, args);
                 } else {
                     eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType);
