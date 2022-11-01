@@ -7,14 +7,15 @@ from common.tf_layer_test_class import CommonTFLayerTest
 from common.utils.tf_utils import permute_nchw_to_nhwc
 
 
-class TestSelect(CommonTFLayerTest):
-    def create_select_net(self, shape_condition, shape_input, ir_version, use_new_frontend):
+# TODO: refactor and correct this test in the scope of 92881 ticket
+class TestWhere(CommonTFLayerTest):
+    def create_where_net(self, shape_condition, shape_input, ir_version, use_new_frontend):
         """
             Tensorflow net                 IR net
 
             Condition --|               Condition --|
                         v                           v
-            Input_1-> Select            Input_1-> Select
+            Input_1-> Where             Input_1-> Select
                         ^                           ^
             Input_2-----|               Input_2-----|
         """
@@ -52,10 +53,10 @@ class TestSelect(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_1D)
     @pytest.mark.nightly
-    def test_select_1D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                       use_old_api):
-        self._test(*self.create_select_net(**params, ir_version=ir_version,
-                                           use_new_frontend=use_new_frontend),
+    def test_where_1D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
+                      use_old_api):
+        self._test(*self.create_where_net(**params, ir_version=ir_version,
+                                          use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
@@ -66,10 +67,10 @@ class TestSelect(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_2D)
     @pytest.mark.nightly
-    def test_select_2D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                       use_old_api):
-        self._test(*self.create_select_net(**params, ir_version=ir_version,
-                                           use_new_frontend=use_new_frontend),
+    def test_where_2D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
+                      use_old_api):
+        self._test(*self.create_where_net(**params, ir_version=ir_version,
+                                          use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
@@ -80,10 +81,10 @@ class TestSelect(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
-    def test_select_3D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                       use_old_api):
-        self._test(*self.create_select_net(**params, ir_version=ir_version,
-                                           use_new_frontend=use_new_frontend),
+    def test_where_3D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
+                      use_old_api):
+        self._test(*self.create_where_net(**params, ir_version=ir_version,
+                                          use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
@@ -95,10 +96,10 @@ class TestSelect(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_select_4D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                       use_old_api):
-        self._test(*self.create_select_net(**params, ir_version=ir_version,
-                                           use_new_frontend=use_new_frontend),
+    def test_where_4D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
+                      use_old_api):
+        self._test(*self.create_where_net(**params, ir_version=ir_version,
+                                          use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
@@ -110,9 +111,9 @@ class TestSelect(CommonTFLayerTest):
     # TODO mark as precommit (after successfully passing in nightly)
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
-    def test_select_5D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                       use_old_api):
-        self._test(*self.create_select_net(**params, ir_version=ir_version,
-                                           use_new_frontend=use_new_frontend),
+    def test_where_5D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
+                      use_old_api):
+        self._test(*self.create_where_net(**params, ir_version=ir_version,
+                                          use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)

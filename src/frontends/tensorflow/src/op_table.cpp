@@ -95,6 +95,7 @@ OP_CONVERTER(translate_reciprocal_op);
 OP_CONVERTER(translate_reshape_op);
 OP_CONVERTER(translate_resource_gather_op);
 OP_CONVERTER(translate_reverse_op);
+OP_CONVERTER(translate_reverse_v2_op);
 OP_CONVERTER(translate_reverse_sequence_op);
 OP_CONVERTER(translate_roll_op);
 OP_CONVERTER(translate_round_op);
@@ -146,6 +147,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Erf", translate_unary_op<opset8::Erf>},
         {"Exp", translate_unary_op<opset8::Exp>},
         {"Floor", translate_unary_op<opset8::Floor>},
+        {"IsFinite", translate_unary_op<opset10::IsFinite>},
         {"IsInf", translate_unary_op<opset10::IsInf>},
         {"IsNan", translate_unary_op<opset10::IsNaN>},
         {"Log", translate_unary_op<opset8::Log>},
@@ -239,7 +241,6 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"GatherNd", translate_gather_nd_op},
         {"Identity", translate_identity_op},
         {"IdentityN", translate_identity_n_op},
-        {"IsFinite", translate_is_finite_op},
         {"L2Loss", translate_l2_loss_op},
         {"LeakyRelu", translate_leaky_relu_op},
         {"LinSpace", translate_linspace_op},
@@ -278,7 +279,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Reshape", translate_reshape_op},
         {"Reverse", translate_reverse_op},
         {"ReverseSequence", translate_reverse_sequence_op},
-        {"ReverseV2", translate_reverse_op},
+        {"ReverseV2", translate_reverse_v2_op},
         {"ResizeBilinear", translate_interpolate_op},
         {"ResizeNearestNeighbor", translate_interpolate_op},
         {"ResourceGather", translate_resource_gather_op},
