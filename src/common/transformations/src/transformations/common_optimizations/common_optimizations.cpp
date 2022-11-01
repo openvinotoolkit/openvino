@@ -111,17 +111,17 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     ngraph::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
 
-    REGISTER_PASS_SCOPE(manager, ov::pass, DisableDecompressionConvertConstantFolding)
+    REGISTER_PASS_SCOPE(manager, ov::pass, DisableDecompressionConvertConstantFolding, )
 
     // Disable low_precision_enabled as all plugins handle low-precision sub-graph manually
     // before CommonOptimization pipeline execution
-    REGISTER_PASS_FUNCTION_SCOPE(manager, ngraph::pass, MOCTransformations, true, false)
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, MOCTransformations, _run_on_function, true, false)
 
     // Enabling conversion of FP16 IR to legacy representation, each plugin have to disable it
     // after support for FP16 IR is implemented
-    REGISTER_PASS_MODEL_SCOPE(manager, ov::pass, ConvertCompressedOnlyToLegacy)
-    REGISTER_PASS_MODEL_SCOPE(manager, ov::pass, MarkPrecisionSensitiveDivides)
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, WeightsDequantizeToFakeQuantize)
+    REGISTER_PASS_SCOPE(manager, ov::pass, ConvertCompressedOnlyToLegacy, _run_on_model)
+    REGISTER_PASS_SCOPE(manager, ov::pass, MarkPrecisionSensitiveDivides, _run_on_model)
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, WeightsDequantizeToFakeQuantize, )
 
     REGISTER_PASS_MODEL_SCOPE_IF(GraphRewrite) {
         auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
@@ -170,11 +170,11 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
         decomp->set_name("ngraph::pass::CommonDecompositions");
     }
     // CF is required after all decompositions
-    REGISTER_PASS_MODEL_SCOPE(manager, ngraph::pass, ConstantFolding)
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConstantFolding, _run_on_model)
 
     // LinOpSequenceFusion must be executed after all decompositions
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
-    REGISTER_PASS_FUNCTION_SCOPE(manager, ngraph::pass, UnrollIf)
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, UnrollIf, _run_on_function)
 
     REGISTER_PASS_MODEL_SCOPE_IF(GraphRewrite) {
         auto multiply_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
@@ -190,23 +190,23 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
         multiply_fusions->set_name("ngraph::pass::MultiplyFusions");
     }
 
-    REGISTER_PASS_MODEL_SCOPE(manager, ngraph::pass, ConstantFolding)
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertGather8ToGather7)  // not plugins implemented gather8
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertGather7ToGather1)  // not plugins implemented gather7
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConstantFolding, _run_on_model)
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertGather8ToGather7, )  // not plugins implemented gather8
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertGather7ToGather1, )  // not plugins implemented gather7
 
     REGISTER_PASS_SCOPE_WITH_FALSE(manager, ngraph::pass, ConvertGather1ToGather7)
     REGISTER_PASS_SCOPE_WITH_FALSE(manager, ngraph::pass, ConvertGather7ToGather8)
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertDeformableConv8To1)
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertSoftMax8ToSoftMax1)
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertDeformableConv8To1, )
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertSoftMax8ToSoftMax1, )
     REGISTER_PASS_SCOPE_WITH_FALSE(manager, ngraph::pass, ConvertSoftMax1ToSoftMax8)
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertMaxPool8ToMaxPool1)
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertMaxPool8ToMaxPool1, )
     REGISTER_PASS_SCOPE_WITH_FALSE(manager, ngraph::pass, ConvertMaxPool1ToMaxPool8)
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertPriorBox8To0)
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertPriorBox8To0, )
     REGISTER_PASS_SCOPE_WITH_FALSE(manager, ngraph::pass, ConvertDetectionOutput1ToDetectionOutput8)
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertDetectionOutput8ToDetectionOutput1)
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertDetectionOutput8ToDetectionOutput1, )
     REGISTER_PASS_SCOPE_WITH_FALSE(manager, ngraph::pass, ConvertROIAlign3To9)
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertROIAlign9To3)
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertMulticlassNms8ToMulticlassNms9)
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertROIAlign9To3, )
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertMulticlassNms8ToMulticlassNms9, )
 
     REGISTER_PASS_MODEL_SCOPE_IF(GraphRewrite) {
         auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
@@ -223,7 +223,7 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     // because we cannot insert any MaxPools since they may prevent
     // other optimizations
     manager.register_pass<ngraph::pass::StridesOptimization>();
-    REGISTER_PASS_MODEL_SCOPE(manager, ngraph::pass, Validate)
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, Validate, _run_on_model)
     manager.run_passes(f);
 
     // Returning value is false because pass::Manager always apply Validation pass

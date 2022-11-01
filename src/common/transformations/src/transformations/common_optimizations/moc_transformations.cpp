@@ -88,7 +88,7 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
 
     ngraph::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
-    REGISTER_PASS_MODEL_SCOPE(manager, ngraph::pass, InitNodeInfo)
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, InitNodeInfo, _run_on_model)
     if (m_low_precision_enabled) {
         manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
             element::TypeVector{ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4});
@@ -102,38 +102,38 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     // Zero dimensions in shape causes creation empty tensors, which are incorrect during CF.
     // In particular, if zero dim tensor is consumed in body of MultiSubGraphOp
     // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParams should be called together.
-    REGISTER_PASS_SCOPE(manager, ov::pass, RemoveConcatZeroDimInput)
-    REGISTER_PASS_SCOPE(manager, ov::pass, Validate)
-    REGISTER_PASS_SCOPE(manager, ov::pass, RemoveMultiSubGraphOpDanglingParams)
-    REGISTER_PASS_SCOPE(manager, ov::pass, FoldSubgraphEmptyInputs)
+    REGISTER_PASS_SCOPE(manager, ov::pass, RemoveConcatZeroDimInput, )
+    REGISTER_PASS_SCOPE(manager, ov::pass, Validate, )
+    REGISTER_PASS_SCOPE(manager, ov::pass, RemoveMultiSubGraphOpDanglingParams, )
+    REGISTER_PASS_SCOPE(manager, ov::pass, FoldSubgraphEmptyInputs, )
 
     manager.register_pass<ngraph::pass::DisableRandomUniformConstantFolding>();
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConstantFolding)
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, Validate)
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConstantFolding, )
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, Validate, )
 
     // FusedFilteringBoxesBySize transformation has the complex pattern
     // which can be affected by further transformations. So we have to
     // execute it at the beginning of the pipeline. Also, this pass resolves
     // dynamism, so we have to execute type/shape propagation after.
     manager.register_pass<ngraph::pass::FuseFilteringBoxesBySize>();
-    REGISTER_PASS_MODEL_SCOPE(manager, ngraph::pass, Validate)
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, Validate, _run_on_model)
 
     if (!m_use_shapes) {  // Approved Smart Reshape
-        REGISTER_PASS_FUNCTION_SCOPE(manager, ov::pass, LSTMStatesBroadcast)
-        REGISTER_PASS_MODEL_SCOPE(manager, ov::pass, Validate)
-        REGISTER_PASS_SCOPE(manager, ov::pass, ReshapeSinkingMatMul)
-        REGISTER_PASS_MODEL_SCOPE(manager, ov::pass, Validate)
+        REGISTER_PASS_SCOPE(manager, ov::pass, LSTMStatesBroadcast, _run_on_function)
+        REGISTER_PASS_SCOPE(manager, ov::pass, Validate, _run_on_model)
+        REGISTER_PASS_SCOPE(manager, ov::pass, ReshapeSinkingMatMul, )
+        REGISTER_PASS_SCOPE(manager, ov::pass, Validate, _run_on_model)
     }
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertQuantizeDequantize)
-    REGISTER_PASS_FUNCTION_SCOPE(manager, ngraph::pass, SimplifyShapeOfSubGraph)
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertQuantizeDequantize, )
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, SimplifyShapeOfSubGraph, _run_on_function)
 
     if (!m_use_shapes) {
         manager.register_pass<ngraph::pass::DisableShapeOfConstantFolding>();
     }
     // workaround until dynamism in NMS is not supported
     manager.register_pass<ngraph::pass::ConvertNmsGatherPathToUnsigned>();
-    REGISTER_PASS_FUNCTION_SCOPE(manager, ngraph::pass, StridedSliceOptimization, m_use_shapes)
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, BroadcastElementwiseFusion)
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, StridedSliceOptimization, _run_on_function, m_use_shapes)
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, BroadcastElementwiseFusion, )
     REGISTER_PASS_MODEL_SCOPE_IF(GraphRewrite) {
         auto transpose_sinking = manager.register_pass<ngraph::pass::GraphRewrite>();
         ADD_MATCHER_SCOPE(transpose_sinking, ngraph::pass, TransposeSinking)
@@ -185,8 +185,8 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
         common_fusions->set_name("ngraph::pass::CommonFusions");
     }
 
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, BinarizeWeights)
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvToBinaryConv)
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, BinarizeWeights, )
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvToBinaryConv, )
 
     REGISTER_PASS_MODEL_SCOPE_IF(GraphRewrite) {
         auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
@@ -209,7 +209,7 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
         multiply_fusions->set_name("ngraph::pass::MultiplyFusions");
     }
 
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConstantFolding)
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConstantFolding, )
 
     REGISTER_PASS_MODEL_SCOPE_IF(GraphRewrite) {
         auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
@@ -224,7 +224,7 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
 
     manager.register_pass<ngraph::pass::AlignEltwiseInputRanks>();
-    REGISTER_PASS_MODEL_SCOPE(manager, ngraph::pass, ConstantFolding)
+    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConstantFolding, _run_on_model)
 
     manager.run_passes(f);
 

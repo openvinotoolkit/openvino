@@ -21,16 +21,14 @@ OV_CC_DOMAINS(ov_pass);
 #    define MATCHER_SCOPE(region)         const std::string matcher_name(OV_PP_TOSTRING(region))
 #    define RUN_ON_MODEL_SCOPE(region)    OV_SCOPE(ov_pass, OV_PP_CAT(region, _run_on_model))
 
-#    define ADD_MATCHER_SCOPE_WITHOUT_OBJ(nspace, region, ...) add_matcher<nspace::region>(__VA_ARGS__);
-#    define ADD_MATCHER_SCOPE_WITHOUT_NSPACE(obj, region, ...) obj->add_matcher<region>(__VA_ARGS__);
-#    define ADD_MATCHER_SCOPE_WITHOUT_OBJ_NSPACE(region, ...)  add_matcher<region>(__VA_ARGS__);
-#    define ADD_MATCHER_SCOPE(obj, nspace, region, ...)        obj->add_matcher<nspace::region>(__VA_ARGS__);
-#    define REGISTER_PASS_SCOPE(obj, nspace, region, ...)      obj.register_pass<nspace::region>(__VA_ARGS__);
+#    define ADD_MATCHER_SCOPE_WITHOUT_OBJ(nspace, region, ...)  add_matcher<nspace::region>(__VA_ARGS__);
+#    define ADD_MATCHER_SCOPE_WITHOUT_NSPACE(obj, region, ...)  obj->add_matcher<region>(__VA_ARGS__);
+#    define ADD_MATCHER_SCOPE_WITHOUT_OBJ_NSPACE(region, ...)   add_matcher<region>(__VA_ARGS__);
+#    define ADD_MATCHER_SCOPE(obj, nspace, region, ...)         obj->add_matcher<nspace::region>(__VA_ARGS__);
+#    define REGISTER_PASS_SCOPE(obj, nspace, region, flag, ...) obj.register_pass<nspace::region>(__VA_ARGS__);
 #    define REGISTER_PASS_SCOPE_WITH_FALSE(obj, nspace, region, ...) \
         obj.register_pass<nspace::region, false>(__VA_ARGS__);
-#    define REGISTER_PASS_MODEL_SCOPE(obj, nspace, region, ...) obj.register_pass<nspace::region>(__VA_ARGS__);
 #    define REGISTER_PASS_MODEL_SCOPE_IF(region)
-#    define REGISTER_PASS_FUNCTION_SCOPE(obj, nspace, region, ...) obj.register_pass<nspace::region>(__VA_ARGS__);
 #elif defined(SELECTIVE_BUILD)
 
 #    define MATCHER_SCOPE_(scope, region)                              \
@@ -68,8 +66,8 @@ OV_CC_DOMAINS(ov_pass);
 
 #    define REGISTER_PASS_1(obj, nspace, region, ...) obj.register_pass<nspace::region>(__VA_ARGS__);
 #    define REGISTER_PASS_0(obj, nspace, region, ...)
-#    define REGISTER_PASS_SCOPE(obj, nspace, region, ...)                                 \
-        OV_PP_CAT(REGISTER_PASS_, OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, region))) \
+#    define REGISTER_PASS_SCOPE(obj, nspace, region, flag, ...)                                 \
+        OV_PP_CAT(REGISTER_PASS_, OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, OV_PP_CAT(region, flag)))) \
         (obj, nspace, region, __VA_ARGS__)
 
 #    define REGISTER_PASS_WITH_FALSE_1(obj, nspace, region, ...) obj.register_pass<nspace::region, false>(__VA_ARGS__);
@@ -78,30 +76,20 @@ OV_CC_DOMAINS(ov_pass);
         OV_PP_CAT(REGISTER_PASS_WITH_FALSE_, OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, region))) \
         (obj, nspace, region, __VA_ARGS__)
 
-#    define REGISTER_PASS_MODEL_SCOPE(obj, nspace, region, ...)                                                     \
-        OV_PP_CAT(REGISTER_PASS_, OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, OV_PP_CAT(region, _run_on_model)))) \
-        (obj, nspace, region, __VA_ARGS__)
-
 #    define REGISTER_PASS_MODEL_SCOPE_IF(region) \
         if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, OV_PP_CAT(region, _run_on_model))) == 1)
-
-#    define REGISTER_PASS_FUNCTION_SCOPE(obj, nspace, region, ...)                                                     \
-        OV_PP_CAT(REGISTER_PASS_, OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, OV_PP_CAT(region, _run_on_function)))) \
-        (obj, nspace, region, __VA_ARGS__)
 #else
 
 #    define MATCHER_SCOPE(region) const std::string matcher_name(OV_PP_TOSTRING(region))
 #    define RUN_ON_FUNCTION_SCOPE(region)
 #    define RUN_ON_MODEL_SCOPE(region)
 
-#    define ADD_MATCHER_SCOPE_WITHOUT_OBJ(nspace, region, ...) add_matcher<nspace::region>(__VA_ARGS__);
-#    define ADD_MATCHER_SCOPE_WITHOUT_NSPACE(obj, region, ...) obj->add_matcher<region>(__VA_ARGS__);
-#    define ADD_MATCHER_SCOPE_WITHOUT_OBJ_NSPACE(region, ...)  add_matcher<region>(__VA_ARGS__);
-#    define ADD_MATCHER_SCOPE(obj, nspace, region, ...)        obj->add_matcher<nspace::region>(__VA_ARGS__);
-#    define REGISTER_PASS_SCOPE(obj, nspace, region, ...)      obj.register_pass<nspace::region>(__VA_ARGS__);
+#    define ADD_MATCHER_SCOPE_WITHOUT_OBJ(nspace, region, ...)  add_matcher<nspace::region>(__VA_ARGS__);
+#    define ADD_MATCHER_SCOPE_WITHOUT_NSPACE(obj, region, ...)  obj->add_matcher<region>(__VA_ARGS__);
+#    define ADD_MATCHER_SCOPE_WITHOUT_OBJ_NSPACE(region, ...)   add_matcher<region>(__VA_ARGS__);
+#    define ADD_MATCHER_SCOPE(obj, nspace, region, ...)         obj->add_matcher<nspace::region>(__VA_ARGS__);
+#    define REGISTER_PASS_SCOPE(obj, nspace, region, flag, ...) obj.register_pass<nspace::region>(__VA_ARGS__);
 #    define REGISTER_PASS_SCOPE_WITH_FALSE(obj, nspace, region, ...) \
         obj.register_pass<nspace::region, false>(__VA_ARGS__);
-#    define REGISTER_PASS_MODEL_SCOPE(obj, nspace, region, ...) obj.register_pass<nspace::region>(__VA_ARGS__);
 #    define REGISTER_PASS_MODEL_SCOPE_IF(region)
-#    define REGISTER_PASS_FUNCTION_SCOPE(obj, nspace, region, ...) obj.register_pass<nspace::region>(__VA_ARGS__);
 #endif

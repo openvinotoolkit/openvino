@@ -842,7 +842,7 @@ bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_pt
         ADD_MATCHER_SCOPE(ric_back_prop, back_prop, ConvertPassThrough)
     }
 
-    REGISTER_PASS_FUNCTION_SCOPE(m, back_prop, Constant)
+    REGISTER_PASS_SCOPE(m, back_prop, Constant, _run_on_function)
     // TODO: validate attributes by request
 
     // Second we fuse available RIC into nodes and remove original nodes related to fused RIC
