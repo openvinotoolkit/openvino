@@ -227,17 +227,18 @@ public:
             auto& childEdges = m_to->getChildEdgesAtPort(outputNodePortIdx);
 
             // check if can share memory of "from" to "to"
-            m_shareable = check_shareable();
+            //m_shareable = check_shareable();
+            m_shareable = false;
 
             std::cout << __LINE__ << " backedge: " << m_from->getName() << " -> " << m_to->getName() << " shareable: " << m_shareable << std::endl;
 
             if (m_shareable) {
                 for (size_t i = 0; i < childEdges.size(); ++i) {
                     auto to_mem_ptr = childEdges[i]->getMemoryPtr();
-                    std::cout << __LINE__ << from_mem_ptr->GetPtr() << std::endl;
-                    std::cout << __LINE__ << to_mem_ptr->GetPtr() << std::endl;
-                    to_mem_ptr->Create(to_mem_ptr->getDesc(), memMngPtr);
-                    std::cout << __LINE__ << to_mem_ptr->GetPtr() << std::endl;
+                    std::cout << __LINE__ << from_mem_ptr->GetPtr() << ", " << from_mem_ptr->GetData() << ", memman = " << from_mem_ptr->getDnnlMemoryMngr() << std::endl;
+                    std::cout << __LINE__ << to_mem_ptr->GetPtr() << ", " << to_mem_ptr->GetData() << ", memman = " << to_mem_ptr->getDnnlMemoryMngr() << std::endl;
+                    to_mem_ptr->Create(to_mem_ptr->getDesc(), memMngPtr); // FIXME: to_mem larger than from_mem, OR, from_mem is resued by memman??
+                    std::cout << __LINE__ << to_mem_ptr->GetPtr() << ", " << to_mem_ptr->GetData() << ", memman = " << to_mem_ptr->getDnnlMemoryMngr() << std::endl;
                 }
             }
         }
@@ -253,7 +254,13 @@ public:
         auto dims = mem_from.getStaticDims();
         if (last_dims != dims) {
             m_to->redefineOutputMemory({dims}); // we exploit the fact that the target edges are connected to port 0
-            if (!m_compatible) {
+            auto& to_memptr = m_to->getChildEdgesAtPort(outputNodePortIdx)[0]->getMemoryPtr();
+            std::cout << __LINE__
+            << "m_from = " << mem_from.GetData()
+            << ", memman = " << mem_from.getDnnlMemoryMngr()
+            << ", m_to = " << to_memptr->GetData()
+            << ", memman << " << to_memptr->getDnnlMemoryMngr() << std::endl;
+            if (!m_shareable) {
                 mem_holder_src = mem_from.GetPrimitive();
                 mem_holder_dst = m_to->getChildEdgesAtPort(outputNodePortIdx)[0]->getMemory().GetPrimitive();
                 reorder = {mem_holder_src, mem_holder_dst};
@@ -304,8 +311,22 @@ protected:
         // }
         if (edges_at_same_port.size() > 1) return false;
 
-        // 3. if the backedge's "to" is also the input of others. 
+        // 3. if the backedge's "to" is also the input of others.
+        const auto& edges_to = m_to->getChildEdgesAtPort(outputNodePortIdx);
+        if (edges_to.size() > 1) return false;
 
+        // 4. Backedge from’s parent node has input edges that share memory with the output edge of “to” node.
+        for (auto &input_parent : parent_from->getParentEdges()) {
+            if (input_parent.lock()->getMemoryPtr() == edges_to[0]->getMemoryPtr()) // based on #3.
+                return false;
+        }
+
+        // 5. Disable backedge memory share for nested-loop/if
+        for (auto& node : const_cast<TensorIterator*>(m_tiOp)->getSubGraphs()[0]->GetNodes()) {
+            if (one_of(node->getType(), Type::TensorIterator, Type::If)) {
+                return false;
+            }
+        }
 
         return true;
     }
