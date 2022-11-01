@@ -25,6 +25,7 @@
 #include "intel_gpu/primitives/depth_to_space.hpp"
 #include "intel_gpu/primitives/detection_output.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/primitives/experimental_detectron_detection_output.hpp"
 #include "intel_gpu/primitives/experimental_detectron_prior_grid_generator.hpp"
 #include "intel_gpu/primitives/experimental_detectron_roi_feature_extractor.hpp"
 #include "intel_gpu/primitives/experimental_detectron_topk_rois.hpp"
