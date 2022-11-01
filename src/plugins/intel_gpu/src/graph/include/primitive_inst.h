@@ -197,6 +197,8 @@ public:
 
     layout get_node_output_layout() const { return _node_output_layout; }
 
+    virtual void update_output_memory() {}
+
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
 
