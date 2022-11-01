@@ -120,6 +120,7 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
         load_scalar_with_fill_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, scalar_step, Precision::FP32, true, "zero"));
 
         this->preamble();
+        mov(reg_table, l_table);
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);
         if (jcp_.normalize_variance) {
             mov(reg_mean, ptr[reg_params + GET_OFF(mean)]);
@@ -246,6 +247,8 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
         load_tail_emitter->emit_data();
         load_tail_with_fill_emitter->emit_data();
         load_scalar_with_fill_emitter->emit_data();
+
+        prepare_table();
     }
 
 private:
@@ -269,6 +272,8 @@ private:
     Xbyak::Reg64 reg_aux = r15;
 
     Xbyak::Reg64 reg_oc_off = rax;
+    Xbyak::Reg64 reg_table = rdx;
+    Xbyak::Label l_table;
 
     Vmm vmm_val = Vmm(1);
     Vmm vmm_mean = Vmm(2);
@@ -421,6 +426,54 @@ private:
     }
 
     inline void worker_unroll(bool is_tail = false) {
+        // if mean(sum) for continous data, then fast pass for major part
+        if (!jcp_.normalize_variance && jcp_.layout == MVNLayoutType::mvn_planar) {
+            Vmm vmm_one = Vmm(15);
+            // i8/u8 fast path
+            if (mayiuse(avx512_core_vnni) && jcp_.src_data_size == 1) {
+                uni_vmovups(vmm_one, ptr[reg_table]);
+                Xbyak::Label loop_8bit_label;
+                Xbyak::Label loop_8bit_end_label;
+                L(loop_8bit_label);
+                {
+                    cmp(reg_work_amount, 4);
+                    jl(loop_8bit_end_label, T_NEAR);
+
+                    if (jcp_.src_prc == Precision::I8) {
+                        vpdpbusd(vmm_sum, vmm_one, ptr[reg_src]);
+                    } else {
+                        uni_vmovdqu(vmm_val, ptr[reg_src]);
+                        vpdpbusd(vmm_sum, vmm_val, vmm_one);
+                    }
+
+                    add(reg_src, vlen);
+                    sub(reg_work_amount, 4);
+
+                    jmp(loop_8bit_label, T_NEAR);
+                }
+                L(loop_8bit_end_label);
+            }
+            // bf16 fast path
+            if (mayiuse(avx512_core_bf16) && jcp_.src_prc == Precision::BF16) {
+                uni_vmovups(vmm_one, ptr[reg_table]);
+                Xbyak::Label loop_bf16_label;
+                Xbyak::Label loop_bf16_end_label;
+                L(loop_bf16_label);
+                {
+                    cmp(reg_work_amount, 2);
+                    jl(loop_bf16_end_label, T_NEAR);
+
+                    vdpbf16ps(vmm_sum, vmm_one, ptr[reg_src]);
+
+                    add(reg_src, vlen);
+                    sub(reg_work_amount, 2);
+
+                    jmp(loop_bf16_label, T_NEAR);
+                }
+                L(loop_bf16_end_label);
+            }
+        }
+
         Xbyak::Label loop_label;
         Xbyak::Label loop_end_label;
         L(loop_label);
@@ -538,6 +591,28 @@ private:
             uni_vaddps(xmm_aux2, xmm_aux2, xmm_aux3);
             uni_vaddps(xmm_aux1, xmm_aux1, xmm_aux2);
             reduce_sum_store_xmm(xmm_aux1);
+        }
+    }
+
+    void prepare_table() {
+        const unsigned int cvals[] = {
+            // 4 * 8 = 32 bit
+            0x01010101,  // one byte
+            0x3f803f80   // one bf16
+        };
+
+        align(64);
+        L(l_table);
+
+        if (mayiuse(avx512_core_vnni) && (jcp_.src_prc == Precision::U8 || jcp_.src_prc == Precision::I8)) {
+            for (size_t d = 0; d < vector_step; ++d) {
+                dd(cvals[0]);
+            }
+        }
+        if (mayiuse(avx512_core_bf16) && jcp_.src_prc == Precision::BF16) {
+            for (size_t d = 0; d < vector_step; ++d) {
+                dd(cvals[1]);
+            }
         }
     }
 };
@@ -1371,9 +1446,9 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, co
     size_t src_stride_size = static_cast<size_t>(blk_size * src_data_size);
     size_t dst_stride_size = static_cast<size_t>(blk_size * dst_data_size);
 
-    parallel_for(N, [&](int b) {
-        size_t cb = b * C3;
-        if (mvnAttrs.execAcrossChannels_) {
+    if (mvnAttrs.execAcrossChannels_) {
+        parallel_for(N, [&](int b) {
+            size_t cb = b * C3;
             // Calculate mean value for one instance in batch
             // Parallel sum for each channel
             float C3inv = 1.f / static_cast<float>(C3);
@@ -1448,48 +1523,50 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, co
                     (*mvn_kernel)(&arg);
                 });
             }
-        } else {  // per channel
+        });
+    } else {
+        parallel_for2d(N, C, [&](size_t b, size_t c) {
+            size_t cb = b * C3;
+            size_t cc = cb + c * C2;
             float C2inv = 1.f / static_cast<float>(C2);
-            parallel_for(C, [&](size_t c) {
-                // mean for this channel
-                float mean = 0.f;
-                size_t cc = cb + c * C2;
-                // the same arg for three kernels
-                auto arg = jit_mvn_call_args();
-                arg.src = src_data + cc * src_data_size;
-                arg.dst = dst_data + cc * dst_data_size;
-                arg.sum = static_cast<float*>(&mean);
-                arg.src_stride = src_stride_size;
-                arg.dst_stride = dst_stride_size;
-                arg.work_amount = static_cast<size_t>(C2 / blk_size);
-                arg.oc_off = static_cast<size_t>(c * sizeof(float));
-                arg.post_op_data = post_ops_data_;
-                (*mvn_mean_kernel)(&arg);
 
-                mean *= C2inv;
+            // mean for this channel
+            float mean = 0.f;
+            // the same arg for three kernels
+            auto arg = jit_mvn_call_args();
+            arg.src = src_data + cc * src_data_size;
+            arg.dst = dst_data + cc * dst_data_size;
+            arg.sum = static_cast<float*>(&mean);
+            arg.src_stride = src_stride_size;
+            arg.dst_stride = dst_stride_size;
+            arg.work_amount = static_cast<size_t>(C2 / blk_size);
+            arg.oc_off = static_cast<size_t>(c * sizeof(float));
+            arg.post_op_data = post_ops_data_;
+            (*mvn_mean_kernel)(&arg);
 
-                if (mvnAttrs.normalizeVariance_) {
-                    // variance for this channel
-                    float variance = 0.f;
-                    arg.mean = static_cast<float*>(&mean);
-                    arg.variance = static_cast<float*>(&variance);
-                    (*mvn_variance_kernel)(&arg);
+            mean *= C2inv;
 
-                    if (mvnAttrs.epsMode_ == INSIDE_SQRT)
-                        variance = 1.f / sqrtf(variance * C2inv + mvnAttrs.epsValue_);
-                    else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
-                        variance = 1.f / (sqrtf(variance * C2inv) + mvnAttrs.epsValue_);
+            if (mvnAttrs.normalizeVariance_) {
+                // variance for this channel
+                float variance = 0.f;
+                arg.mean = static_cast<float*>(&mean);
+                arg.variance = static_cast<float*>(&variance);
+                (*mvn_variance_kernel)(&arg);
 
-                    // mvn for this channel
-                    (*mvn_kernel)(&arg);
-                } else {
-                    // mvn for this channel
-                    arg.mean = static_cast<float*>(&mean);
-                    (*mvn_kernel)(&arg);
-                }
-            });
-        }
-    });
+                if (mvnAttrs.epsMode_ == INSIDE_SQRT)
+                    variance = 1.f / sqrtf(variance * C2inv + mvnAttrs.epsValue_);
+                else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
+                    variance = 1.f / (sqrtf(variance * C2inv) + mvnAttrs.epsValue_);
+
+                // mvn for this channel
+                (*mvn_kernel)(&arg);
+            } else {
+                // mvn for this channel
+                arg.mean = static_cast<float*>(&mean);
+                (*mvn_kernel)(&arg);
+            }
+        });
+    }
 }
 
 void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data) {
@@ -1769,8 +1846,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
 
     size_t CB = div_up(C, blk_size);
 
-    bool is_nhwc = mvnAttrs.layout == MVNLayoutType::mvn_by_channel;
-    size_t C0 = is_nhwc ? W * C : W * blk_size;
+    size_t C0 = W * blk_size;
     size_t C1 = C0 * H;
     size_t C2 = C1 * D;
     size_t C3 = C2 * CB;
@@ -1781,18 +1857,17 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
     std::vector<float> mean_buffer(aux_buffer_size * threads_num);
     std::vector<float> variance_buffer(aux_buffer_size * threads_num);
 
-    size_t src_stride_size = is_nhwc ? static_cast<size_t>(C * src_data_size) : static_cast<size_t>(blk_size * src_data_size);
-    size_t dst_stride_size = is_nhwc ? static_cast<size_t>(C * dst_data_size) : static_cast<size_t>(blk_size * dst_data_size);
+    size_t src_stride_size = static_cast<size_t>(blk_size * src_data_size);
+    size_t dst_stride_size = static_cast<size_t>(blk_size * dst_data_size);
 
     for (size_t b = 0lu; b < N; b++) {
-        size_t b_offset = is_nhwc ? b * C5 : b * C3;
+        size_t b_offset = b * C3;
         if (mvnAttrs.execAcrossChannels_) {
             // mean for this instance in batch
             float C5inv = 1.f / static_cast<float>(C5);
             float mean_temp = 0.0f;
             mean_temp = parallel_sum3d(CB, D, H, mean_temp, [&](size_t cb, size_t d, size_t h)->float {
-                size_t src_offset = is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
-                                            : b_offset + cb * C2 + d * C1 + h * C0;
+                size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
 
                 float mean_internal = 0.0f;
                 /////////////////////////////////
@@ -1827,8 +1902,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                 // variance: sum((x-mean)*(x-mean)) for one instance in batch
                 float variance_temp = 0.0f;
                 variance_temp = parallel_sum3d(CB, D, H, variance_temp, [&](size_t cb, size_t d, size_t h)->float {
-                    size_t src_offset = is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
-                                                : b_offset + cb * C2 + d * C1 + h * C0;
+                    size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
 
                     float variance_internal = 0.0f;
                     auto variance_buffer_ptr = &variance_buffer[blk_size * parallel_get_thread_num()];
@@ -1859,8 +1933,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
 
                 // mvn for one instance in batch
                 parallel_for3d(CB, D, H, [&](size_t cb, size_t d, size_t h) {
-                    size_t src_offset = is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
-                                                : b_offset + cb * C2 + d * C1 + h * C0;
+                    size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
                     auto arg = jit_mvn_call_args();
                     arg.src = src_data + src_offset * src_data_size;
                     arg.dst = dst_data + src_offset * dst_data_size;
@@ -1876,8 +1949,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
             } else {
                 // mvn for one instance in batch
                 parallel_for3d(CB, D, H, [&](size_t cb, size_t d, size_t h) {
-                    size_t src_offset = is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
-                                                : b_offset + cb * C2 + d * C1 + h * C0;
+                    size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
                     auto arg = jit_mvn_call_args();
                     arg.src = src_data + src_offset * src_data_size;
                     arg.dst = dst_data + src_offset * dst_data_size;
@@ -1899,8 +1971,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
             // keep the compute order the same as planar
             parallel_for2d(D, H, [&](size_t thr_idx, size_t d, size_t h) {
                 for (size_t cb = 0; cb < CB; cb++) {
-                    size_t src_offset = is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
-                                                : b_offset + cb * C2 + d * C1 + h * C0;
+                    size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
                     auto mean_buffer_ptr = &mean_buffer[blk_size * cb + aux_buffer_size * thr_idx];
 
                     auto arg = jit_mvn_call_args();
@@ -1927,8 +1998,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
 
                 parallel_for2d(D, H, [&](size_t thr_idx, size_t d, size_t h) {
                     for (size_t cb = 0; cb < CB; cb++) {
-                        size_t src_offset = is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
-                                                    : b_offset + cb * C2 + d * C1 + h * C0;
+                        size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
                         auto mean_buffer_ptr = &mean_buffer[blk_size * cb];
                         auto variance_buffer_ptr = &variance_buffer[blk_size * cb + aux_buffer_size * thr_idx];
 
@@ -1956,8 +2026,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
 
                 parallel_for2d(D, H, [&](size_t d, size_t h) {
                     for (size_t cb = 0; cb < CB; cb++) {
-                        size_t src_offset = is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
-                                                    : b_offset + cb * C2 + d * C1 + h * C0;
+                        size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
                         auto mean_buffer_ptr = &mean_buffer[blk_size * cb];
                         auto variance_buffer_ptr = &variance_buffer[blk_size * cb];
 
@@ -1978,8 +2047,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                 // normalizeVariance_ == false
                 parallel_for2d(D, H, [&](size_t d, size_t h) {
                     for (size_t cb = 0; cb < CB; cb++) {
-                        size_t src_offset = is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
-                                                    : b_offset + cb * C2 + d * C1 + h * C0;
+                        size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
                         auto mean_buffer_ptr = &mean_buffer[blk_size * cb];
 
                         auto arg = jit_mvn_call_args();
