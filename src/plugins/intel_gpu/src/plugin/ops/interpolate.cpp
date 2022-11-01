@@ -58,11 +58,7 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
         if (axes.size() != 2 && axes.size() != 3 && inputRank != axes.size())
             IE_THROW() << "mode 'linear_onnx' supports only axes with size 2, 3 or equal to input rank";
         bool correctAxes =
-<<<<<<< HEAD
-            (((axes.size() == 2 || axes.size() == 4) && inputRank < 5) &&
-=======
             (((axes.size() == 2 || axes.size() == 4) && inputRank != 5) &&
->>>>>>> 3-axis interpolation for linear-onnx mode
             ((axes[0] == 0 && axes[1] == 1) ||
             (axes[0] == 1 && axes[1] == 0) ||
             (axes[0] == 2 && axes[1] == 3) ||

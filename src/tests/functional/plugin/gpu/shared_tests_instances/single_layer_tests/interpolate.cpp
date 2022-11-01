@@ -194,7 +194,6 @@ const auto interpolate5dCasesLinearOnnxMode = ::testing::Combine(
         ::testing::ValuesIn(default5dAxes),
         ::testing::ValuesIn(default5dScales));
 
-<<<<<<< HEAD
 const auto interpolate5dCasesNearestMode = ::testing::Combine(
         ::testing::ValuesIn(nearestMode),
         ::testing::ValuesIn(shapeCalculationMode),
@@ -207,8 +206,6 @@ const auto interpolate5dCasesNearestMode = ::testing::Combine(
         ::testing::ValuesIn(default5dAxes),
         ::testing::ValuesIn(default5dScales));
 
-=======
->>>>>>> 3-axis interpolation for linear-onnx mode
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_Basic, InterpolateLayerTest, ::testing::Combine(
         interpolateCasesWithoutNearest,
         ::testing::ValuesIn(netPrecisions),
@@ -261,7 +258,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_5dLinearOnnx, GPUInterpolateLayerTest
         ::testing::Values(additional_config)),
     InterpolateLayerTest::getTestCaseName);
 
-<<<<<<< HEAD
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_5dNearest, GPUInterpolateLayerTest, ::testing::Combine(
         interpolate5dCasesNearestMode,
         ::testing::ValuesIn(netOnnx5dPrecisions),
@@ -274,7 +270,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_5dNearest, GPUInterpolateLayerTest, :
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::Values(additional_config)),
     InterpolateLayerTest::getTestCaseName);
-=======
 
->>>>>>> 3-axis interpolation for linear-onnx mode
 } // namespace
