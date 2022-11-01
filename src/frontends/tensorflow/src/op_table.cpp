@@ -104,6 +104,7 @@ OP_CONVERTER(translate_scatter_nd_op);
 OP_CONVERTER(translate_segment_sum_op);
 OP_CONVERTER(translate_sparse_to_dense_op);
 OP_CONVERTER(translate_select_op);
+OP_CONVERTER(translate_select_v2_op);
 OP_CONVERTER(translate_shape_op);
 OP_CONVERTER(translate_size_op);
 OP_CONVERTER(translate_slice_op);
@@ -289,7 +290,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"SegmentSum", translate_segment_sum_op},
         {"SparseToDense", translate_sparse_to_dense_op},
         {"Select", translate_select_op},
-        {"SelectV2", translate_select_op},
+        {"SelectV2", translate_select_v2_op},
         {"Shape", translate_shape_op},
         {"Size", translate_size_op},
         {"Slice", translate_slice_op},

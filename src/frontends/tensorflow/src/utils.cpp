@@ -4,10 +4,14 @@
 
 #include "utils.hpp"
 
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino_conversions.hpp"
 
+using namespace ov;
+using namespace ov::opset10;
 using namespace ov::opset8;
+using namespace std;
 
 void ov::frontend::tensorflow::set_node_name(const std::string& node_name, const std::shared_ptr<Node>& node) {
     const auto& outputs = node->outputs();
@@ -210,4 +214,16 @@ ov::Output<ov::Node> ov::frontend::tensorflow::get_elements_number_1d(const ov::
     auto shape = rg.make<ShapeOf>(output, output_type);
     auto num_elements = rg.make<Squeeze>(shape);
     return num_elements;
+}
+
+Output<Node> ov::frontend::tensorflow::compute_subgraph_scalar_rank(const Output<Node>& output,
+                                                                    element::Type output_type,
+                                                                    bool as_scalar) {
+    auto shape_of = make_shared<opset10::ShapeOf>(output, output_type);
+    auto rank_of = make_shared<opset10::ShapeOf>(shape_of, output_type);
+
+    if (as_scalar) {
+        return make_shared<opset10::Squeeze>(rank_of);
+    }
+    return rank_of;
 }

@@ -52,6 +52,9 @@ ov::Output<Node> get_elements_number_1d(const Output<Node>& output,
                                         ov::element::Type output_type,
                                         ov::pass::NodeRegistry& rg);
 
+Output<Node> compute_subgraph_scalar_rank(const Output<Node>& output,
+                                          element::Type output_type,
+                                          bool as_scalar = false);
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov
