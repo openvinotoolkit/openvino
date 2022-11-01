@@ -21,8 +21,9 @@ TEST(attributes, transpose_op) {
 
     const auto op = make_shared<Transpose>(data_input, axes_order_input);
 
-    NodeBuilder builder(op);
-    const auto expected_attr_count = 0;
+    NodeBuilder builder(op, {data_input, axes_order_input});
+    EXPECT_NO_THROW(auto g_op = ov::as_type_ptr<Transpose>(builder.create()));
 
+    const auto expected_attr_count = 0;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 }
