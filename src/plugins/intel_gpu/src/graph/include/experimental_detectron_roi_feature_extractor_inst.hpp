@@ -9,13 +9,6 @@
 #include "primitive_inst.h"
 
 namespace cldnn {
-template <>
-struct typed_program_node<experimental_detectron_roi_feature_extractor> : public typed_program_node_base<experimental_detectron_roi_feature_extractor> {
-    using parent = typed_program_node_base<experimental_detectron_roi_feature_extractor>;
-    using parent::parent;
-
-    program_node& input(size_t index = 0) const { return get_dependency(index); }
-};
 
 using experimental_detectron_roi_feature_extractor_node = typed_program_node<experimental_detectron_roi_feature_extractor>;
 

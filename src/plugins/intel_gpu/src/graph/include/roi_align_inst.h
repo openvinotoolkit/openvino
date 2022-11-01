@@ -9,16 +9,6 @@
 
 namespace cldnn {
 
-template <>
-struct typed_program_node<roi_align> : public typed_program_node_base<roi_align> {
-    using parent = typed_program_node_base<roi_align>;
-
-public:
-    using parent::parent;
-
-    program_node& input(std::size_t index = 0) const { return get_dependency(index); }
-};
-
 using roi_align_node = typed_program_node<roi_align>;
 
 template <>

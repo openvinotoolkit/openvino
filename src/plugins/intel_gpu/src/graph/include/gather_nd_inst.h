@@ -8,15 +8,6 @@
 #include <string>
 
 namespace cldnn {
-template <>
-struct typed_program_node<gather_nd> : public typed_program_node_base<gather_nd> {
-    using parent = typed_program_node_base<gather_nd>;
-
-public:
-    using parent::parent;
-
-    program_node& input(size_t index = 0) const { return get_dependency(index); }
-};
 
 using gather_nd_node = typed_program_node<gather_nd>;
 

@@ -11,16 +11,6 @@
 
 namespace cldnn {
 
-template <>
-struct typed_program_node<custom_gpu_primitive> : public typed_program_node_base<custom_gpu_primitive> {
-    using parent = typed_program_node_base<custom_gpu_primitive>;
-
-public:
-    using parent::parent;
-
-    program_node& input(size_t idx = 0) const { return get_dependency(idx); }
-};
-
 using custom_gpu_primitive_node = typed_program_node<custom_gpu_primitive>;
 
 template <>

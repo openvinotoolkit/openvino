@@ -10,18 +10,6 @@
 
 namespace cldnn {
 
-template <>
-struct typed_program_node<eye> : public typed_program_node_base<eye> {
-    using parent = typed_program_node_base<eye>;
-
-public:
-    using parent::parent;
-
-    program_node& input(std::size_t index = 0) const {
-        return get_dependency(index);
-    }
-};
-
 using eye_node = typed_program_node<eye>;
 
 template <>
