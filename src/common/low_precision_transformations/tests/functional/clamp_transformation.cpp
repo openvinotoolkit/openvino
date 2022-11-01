@@ -358,16 +358,16 @@ const std::vector<ClampTransformationTestValues> testValues = {
             ngraph::element::u8,
             {
                     {ngraph::element::f32},
-                    {{1e-14, 1e-12, 1e-15}},
-                    {{1e-14, 1e-12, 1e-15}}
+                    {{1e-14f, 1e-12f, 1e-15f}},
+                    {{1e-14f, 1e-12f, 1e-15f}}
             }
         },
         {
             ngraph::element::u8,
             {
                     {ngraph::element::f32},
-                    {{1e-14, 1e-12, 1e-15}},
-                    {{1e-14, 1e-12, 1e-15}}
+                    {{1e-14f, 1e-12f, 1e-15f}},
+                    {{1e-14f, 1e-12f, 1e-15f}}
             },
             ngraph::element::f32,
             {{}, {}, {}}

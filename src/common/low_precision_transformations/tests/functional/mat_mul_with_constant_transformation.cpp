@@ -163,7 +163,7 @@ std::vector<MatMullTransformationTestValues> testValues = {
             ngraph::element::u8,
             { ngraph::element::f32, {}, { 0.02f } },
             { std::vector<float>(1024 * 1024, 1.f), ngraph::element::f32, ngraph::Shape{ 1024, 1024 } },
-            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7f} },
             {}
         },
         {
@@ -224,7 +224,7 @@ std::vector<MatMullTransformationTestValues> testValues = {
             ngraph::element::u8,
             { ngraph::element::f32, {}, { {0.01f, 0.02f, 0.03f} } },
             { std::vector<float>(4 * 4, 1.f), ngraph::element::f32, ngraph::Shape{ 4, 4 } },
-            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7f} },
             {}
         },
         {
@@ -245,7 +245,7 @@ std::vector<MatMullTransformationTestValues> testValues = {
             ngraph::element::u8,
             { ngraph::element::f32, {128.f}, {0.01f} },
             { std::vector<float>(4 * 4, 1.f), ngraph::element::f32, ngraph::Shape{ 4, 4 } },
-            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7f} },
             {}
         },
         {
@@ -336,7 +336,7 @@ std::vector<MatMullTransformationTestValues> testValues = {
             ngraph::element::u8,
             { ngraph::element::f32, {}, { {0.01f, 0.02f, 0.03f, 0.01f}, ngraph::element::f32, ngraph::Shape{1, 1, 4} } },
             { std::vector<float>(4 * 4, 1.f), ngraph::element::f32, ngraph::Shape{ 4, 4 } },
-            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7f} },
             {}
         },
         {
@@ -345,7 +345,7 @@ std::vector<MatMullTransformationTestValues> testValues = {
             { std::vector<float>(4 * 4, 1.f), ngraph::element::f32, ngraph::Shape{ 4, 4 } },
             ngraph::element::f32,
             {},
-            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7f} },
             {}
         }
     },
@@ -432,7 +432,7 @@ std::vector<MatMullTransformationTestValues> testValues = {
             ngraph::element::u8,
             { ngraph::element::f32, {}, { 0.02f } },
             { std::vector<float>(2048 * 1000, 1.f), ngraph::element::f32, ngraph::Shape{ 2048, 1000 } },
-            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7f} },
             {}
         },
         {
@@ -474,7 +474,7 @@ std::vector<MatMullTransformationTestValues> testValues = {
             ngraph::element::i8,
             { ngraph::element::f32, {}, { 0.02f } },
             { std::vector<float>(2048 * 1000, 1.f), ngraph::element::f32, ngraph::Shape{ 2048, 1000 } },
-            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7f} },
             {}
         },
         {
@@ -537,7 +537,7 @@ std::vector<MatMullTransformationTestValues> testValues = {
             ngraph::element::f32,
             { {}, {}, { 0.02f } },
             { std::vector<float>(2048 * 1000, 1.f), ngraph::element::f32, ngraph::Shape{ 2048, 1000 } },
-            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7f} },
             {}
         },
         {
@@ -595,7 +595,7 @@ std::vector<MatMullTransformationTestValues> testValues = {
             ngraph::element::u8,
             { ngraph::element::f32, {}, { 0.02f } },
             { std::vector<float>(1024 * 1024, 1.f), ngraph::element::f32, ngraph::Shape{ 1024, 1024 } },
-            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7f} },
             {}
         },
         {
@@ -604,7 +604,7 @@ std::vector<MatMullTransformationTestValues> testValues = {
             { std::vector<float>(1024 * 1024, 1.f), ngraph::element::f32, ngraph::Shape{ 1024, 1024 } },
             ngraph::element::f32,
             {},
-            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7f} },
             {}
         }
     },
@@ -614,7 +614,7 @@ std::vector<MatMullTransformationTestValues> testValues = {
             ngraph::element::u8,
             { ngraph::element::f32, {}, { {0.01f, 0.02f, 0.03f} } },
             { std::vector<float>(4 * 4, 1.f), ngraph::element::f32, ngraph::Shape{ 4, 4 } },
-            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7f} },
             {}
         },
         {
@@ -623,7 +623,7 @@ std::vector<MatMullTransformationTestValues> testValues = {
             { std::vector<float>(4 * 4, 1.f), ngraph::element::f32, ngraph::Shape{ 4, 4 } },
             ngraph::element::f32,
             {},
-            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7f} },
             {}
         }
     },

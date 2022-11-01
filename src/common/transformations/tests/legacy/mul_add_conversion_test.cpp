@@ -107,7 +107,7 @@ public:
         float scale(1), shift(0);
         if (!mul_const.skip) scale = mul_const.value;
         if (!add_const.skip) shift = add_const.value;
-        auto pow = std::make_shared<ngraph::op::PowerIE>(input, 1., scale, shift);
+        auto pow = std::make_shared<ngraph::op::PowerIE>(input, 1.f, scale, shift);
         auto relu = std::make_shared<ngraph::opset1::Relu>(pow);
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{input});
     }

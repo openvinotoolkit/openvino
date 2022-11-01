@@ -56,7 +56,7 @@ TEST(TransformationTests, ConvToBinaryConvOutputLowZeroOutputHighOne) {
         uint8_t weights_val = 6;
         auto weights = std::make_shared<opset5::Constant>(element::u1, Shape{1, 3, 1, 1}, &weights_val);
         auto conv = std::make_shared<opset5::BinaryConvolution>(act_fq, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0},
-                Strides{1, 1}, opset5::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT, -1, op::PadType::EXPLICIT);
+                Strides{1, 1}, opset5::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT, -1.0f, op::PadType::EXPLICIT);
         auto add = std::make_shared<opset5::Add>(conv, opset5::Constant::create(element::f32, Shape{1, 1, 1}, {0.7f}));
         auto mul = std::make_shared<opset5::Multiply>(add, opset5::Constant::create(element::f32, Shape{}, {0.2f}));
 
@@ -100,7 +100,7 @@ TEST(TransformationTests, ConvToBinaryConvOutputLowMinusOneOutputHighOne) {
         uint8_t weights_val = 6;
         auto weights = std::make_shared<opset5::Constant>(element::u1, Shape{1, 3, 1, 1}, &weights_val);
         auto conv = std::make_shared<opset5::BinaryConvolution>(act_fq, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0},
-                Strides{1, 1}, opset5::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT, 0, op::PadType::EXPLICIT);
+                Strides{1, 1}, opset5::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT, 0.0f, op::PadType::EXPLICIT);
 
         f_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
     }
