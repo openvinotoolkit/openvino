@@ -235,10 +235,13 @@ public:
             if (m_shareable) {
                 for (size_t i = 0; i < childEdges.size(); ++i) {
                     auto to_mem_ptr = childEdges[i]->getMemoryPtr();
-                    std::cout << __LINE__ << from_mem_ptr->GetPtr() << ", " << from_mem_ptr->GetData() << ", memman = " << from_mem_ptr->getDnnlMemoryMngr() << std::endl;
-                    std::cout << __LINE__ << to_mem_ptr->GetPtr() << ", " << to_mem_ptr->GetData() << ", memman = " << to_mem_ptr->getDnnlMemoryMngr() << std::endl;
+                    std::cout << __LINE__ << from_mem_ptr->GetPtr() << ", "
+                    << from_mem_ptr->GetData() << ", memman = " << from_mem_ptr->getDnnlMemoryMngr() << std::endl;
+                    std::cout << __LINE__ << to_mem_ptr->GetPtr() << ", "
+                    << to_mem_ptr->GetData() << ", memman = " << to_mem_ptr->getDnnlMemoryMngr() << std::endl;
                     to_mem_ptr->Create(to_mem_ptr->getDesc(), memMngPtr); // FIXME: to_mem larger than from_mem, OR, from_mem is resued by memman??
-                    std::cout << __LINE__ << to_mem_ptr->GetPtr() << ", " << to_mem_ptr->GetData() << ", memman = " << to_mem_ptr->getDnnlMemoryMngr() << std::endl;
+                    std::cout << __LINE__ << to_mem_ptr->GetPtr() << ", "
+                    << to_mem_ptr->GetData() << ", memman = " << to_mem_ptr->getDnnlMemoryMngr() << std::endl;
                 }
             }
         }
@@ -575,7 +578,7 @@ void TensorIterator::getSupportedDescriptors() {
 
     const std::string &body_name = body->get_friendly_name();
     std::cout << "serialize " << body_name << std::endl;
-    serialize(body, body_name+".xml", body_name+".bin");    
+    serialize(body, body_name+".xml", body_name+".bin");
 
     const auto &inMap = sub_graph.GetInputNodesMap();
     for (const auto &param : tiOp->get_function()->get_parameters()) {
@@ -723,7 +726,7 @@ void TensorIterator::prepareParams() {
         prepareContinueCond();
         prepareLoopBodyCurrentIteration();
 
-        if(isDynamicNode() && isPredicable()) {//preallocate output memory
+        if (isDynamicNode() && isPredicable()) {//preallocate output memory
             int max_num_iter = trip_count_check->getStatus();
 
             after_mappers.clear();

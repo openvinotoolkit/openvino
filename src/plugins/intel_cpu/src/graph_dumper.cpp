@@ -324,7 +324,7 @@ void serialize(const Graph &graph) {
         return std::getenv(envVar);
     };
     const char* envVarValue = nullptr;
-    if (envVarValue = readEnv("OV_CPU_EXEC_GRAPH_PATH")) {      
+    if (envVarValue = readEnv("OV_CPU_EXEC_GRAPH_PATH")) {
         path = envVarValue;
     }
 
