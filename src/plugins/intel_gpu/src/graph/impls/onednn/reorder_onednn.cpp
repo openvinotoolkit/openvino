@@ -49,7 +49,7 @@ protected:
         auto prim = impl_params.typed_desc<reorder>();
 
         auto input_layout = impl_params.get_input_layout(0);
-        auto output_layout = impl_params.output_layout;
+        auto output_layout = impl_params.get_output_layout();
 
         auto input_md = onednn::layout_to_memory_desc(input_layout);
         auto output_md = onednn::layout_to_memory_desc(output_layout);
