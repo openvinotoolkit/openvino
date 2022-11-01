@@ -184,8 +184,9 @@ public:
     const std::unordered_map<size_t, std::tuple<int64_t, size_t>>& get_profiling_data() const { return _profiling_data; }
     const std::unordered_map<size_t, instrumentation::perf_counter_key>& get_profiling_info() const { return _profiling_info; }
 
-    layout get_node_input_layout() const { return _impl_params->get_input_layout(0); }
-    layout get_node_output_layout() const { return _impl_params->output_layout; }
+    layout get_input_layout(size_t idx = 0) const { return _impl_params->get_input_layout(idx); }
+    layout get_output_layout() const { return _impl_params->output_layout; }
+    layout get_node_output_layout() const { return _node_output_layout; }
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::vector<cldnn::fused_primitive_desc_onednn>& get_fused_primitives_onednn() const { return _impl_params->fused_desc_onednn; }
 #endif // ENABLE_ONEDNN_FOR_GPU
@@ -197,6 +198,7 @@ protected:
 
     network& _network;
     program_node const* _node;
+    const layout _node_output_layout;
 
     std::unique_ptr<kernel_impl_params> _impl_params;
     std::unique_ptr<primitive_impl> _impl;

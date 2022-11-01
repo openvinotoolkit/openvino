@@ -133,8 +133,6 @@ struct kernel_impl_params {
 
     memory::ptr reordered_weights = nullptr;
 
-    kernel_impl_params() {}
-
     kernel_impl_params(program& _prog,
                        std::shared_ptr<const primitive> _desc,
                        size_t _uid,
