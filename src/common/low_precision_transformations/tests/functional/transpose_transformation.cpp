@@ -178,7 +178,7 @@ const std::vector<TransposeTransformationTestValues> testValues = {
             {
                 { ngraph::element::f32 },
                 {{128.f}, element::undefined, {1, 3, 1, 1}, false, 1ul, element::u8, true},
-                {{0.1}, ngraph::element::f32, { 1, 3, 1, 1 }}
+                {{0.1f}, ngraph::element::f32, { 1, 3, 1, 1 }}
             }
         },
         {
@@ -188,7 +188,7 @@ const std::vector<TransposeTransformationTestValues> testValues = {
             {
                 { ngraph::element::f32 },
                 {{128.f}, element::undefined, {1, 1, 3, 1}, false, 1ul, element::u8, true},
-                {{0.1}, ngraph::element::f32, {1, 1, 3, 1}}
+                {{0.1f}, ngraph::element::f32, {1, 1, 3, 1}}
             }
         }
     },

@@ -401,7 +401,7 @@ const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
             },
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f }),
             {},
-            { ngraph::element::f32, {}, {0.01}}
+            { ngraph::element::f32, {}, {0.01f}}
         },
         // ExpectedValues
         {
@@ -447,7 +447,7 @@ const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
             {
                 ngraph::element::f32,
                 {{127}, ngraph::element::f32, {}, true, 1, ngraph::element::i8, true},
-                {0.01}
+                {0.01f}
             }
         },
         // ExpectedValues
