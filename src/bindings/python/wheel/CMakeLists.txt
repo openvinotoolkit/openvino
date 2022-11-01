@@ -6,8 +6,12 @@
 # Common vars used by setup.py
 #
 
-set(pyversion python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-set(WHEEL_VERSION "${OpenVINO_VERSION}" CACHE STRING "Version of this release" FORCE)
+if(DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT "$ENV{CI_BUILD_DEV_TAG}" STREQUAL "")
+    set(WHEEL_VERSION "${OpenVINO_VERSION}.$ENV{CI_BUILD_DEV_TAG}" CACHE STRING "Version of this release" FORCE)
+    set(wheel_pre_release ON)
+else()
+    set(WHEEL_VERSION ${OpenVINO_VERSION} CACHE STRING "Version of this release" FORCE)
+endif()
 set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
 
 set(PY_PACKAGES_DIR ${OV_CPACK_PYTHONDIR})
@@ -42,7 +46,7 @@ list(APPEND openvino_wheel_deps
     "${OpenVINO_SOURCE_DIR}/licensing/tbb_third-party-programs.txt"
     "${OpenVINO_SOURCE_DIR}/docs/install_guides/pypi-openvino-rt.md")
 
-if(DEFINED ENV{CI_BUILD_DEV_TAG})
+if(wheel_pre_release)
     list(APPEND openvino_wheel_deps
         "${OpenVINO_SOURCE_DIR}/docs/install_guides/pre-release-note.md")
 endif()
@@ -90,7 +94,7 @@ if(APPLE AND DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
     if(_arch AND _macos_min_version)
         set(PLATFORM_TAG "macosx_${_macos_min_version}_${_arch}")
     endif()
-elseif(LINUX AND OFF)
+elseif(LINUX)
     _ov_platform_arch()
 
     execute_process(COMMAND ldd --version
@@ -104,7 +108,12 @@ elseif(LINUX AND OFF)
 
     # common pattern manylinux_<libc major>_<libc minor>_<arch>
     if(_libc_major AND _libc_minor AND _arch)
-        set(PLATFORM_TAG "manylinux_${_libc_major}_${_libc_minor}_${_arch}")
+        if(CMAKE_CROSSCOMPILING)
+            # TODO: think which proper tag is needed for arm / aarch64
+            set(PLATFORM_TAG "linux_${_arch}")
+        else()
+            set(PLATFORM_TAG "manylinux_${_libc_major}_${_libc_minor}_${_arch}")
+        endif()
     endif()
 endif()
 
@@ -148,7 +157,7 @@ add_custom_command(OUTPUT "${fdupes_report}"
     COMMAND ${CMAKE_COMMAND}
         -D PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}
         -D WORKING_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}
-        -D OpenVINO_VERSION=${OpenVINO_VERSION}
+        -D WHEEL_VERSION=${WHEEL_VERSION}
         -D PACKAGE_FILE=${openvino_wheel_path}
         -D REPORT_FILE=${fdupes_report}
         -P "${CMAKE_CURRENT_SOURCE_DIR}/fdupes_check.cmake"

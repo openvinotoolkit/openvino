@@ -451,7 +451,7 @@ def find_prebuilt_extensions(search_dirs):
         ext_pattern = "**/*.so"
     for base_dir in search_dirs:
         for path in Path(base_dir).glob(ext_pattern):
-            if path.match("openvino/libs/*") or path.match(f"openvino/libs/openvino-{WHEEL_VERSION}/*"):
+            if path.match("openvino/libs/*") or path.match(f"openvino/libs/openvino-${OPENVINO_VERSION}/*"):
                 continue
             relpath = path.relative_to(base_dir)
             if relpath.parent != ".":
@@ -518,7 +518,7 @@ platforms = ["linux", "win32", "darwin"]
 if not any(pl in sys.platform for pl in platforms):
     sys.exit(f"Unsupported platform: {sys.platform}, expected: linux, win32, darwin")
 
-WHEEL_VERSION = os.getenv("WHEEL_VERSION", "0.0.0")
+OPENVINO_VERSION = WHEEL_VERSION = os.getenv("WHEEL_VERSION", "0.0.0")
 # copy license file into the build directory
 package_license = os.getenv("WHEEL_LICENSE", SCRIPT_DIR.parents[3] / "LICENSE")
 if os.path.exists(package_license):
@@ -538,7 +538,7 @@ if (os.getenv("CI_BUILD_DEV_TAG")):
     output.parent.mkdir(exist_ok=True)
     description_md = concat_files(output, md_files)
     docs_url = "https://docs.openvino.ai/nightly/index.html"
-
+    OPENVINO_VERSION = WHEEL_VERSION[0:8]
 
 setup(
     version=WHEEL_VERSION,

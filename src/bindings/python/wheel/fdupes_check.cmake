@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-foreach(var PYTHON_EXECUTABLE WORKING_DIRECTORY REPORT_FILE OpenVINO_VERSION PACKAGE_FILE)
+foreach(var PYTHON_EXECUTABLE WORKING_DIRECTORY REPORT_FILE WHEEL_VERSION PACKAGE_FILE)
     if(NOT DEFINED ${var})
         message(FATAL_ERROR "Variable ${var} is not defined")
     endif()
@@ -31,7 +31,7 @@ if(NOT exit_code EQUAL 0)
     message(FATAL_ERROR "Failed to unpack wheel package")
 endif()
 
-set(WORKING_DIRECTORY "${WORKING_DIRECTORY}/openvino-${OpenVINO_VERSION}")
+set(WORKING_DIRECTORY "${WORKING_DIRECTORY}/openvino-${WHEEL_VERSION}")
 if(NOT EXISTS "${WORKING_DIRECTORY}")
     message(FATAL_ERROR "Failed to find ${WORKING_DIRECTORY}")
 endif()
