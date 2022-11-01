@@ -270,9 +270,6 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         auto recycleTask = [this]() mutable {
             WaitActualNetworkReady();
             while (!_exitFlag && _loadContext[ACTUALDEVICE].isAlready) {
-                // when gpu loads much faster than CPU, like cache enabled
-                if (!_loadContext[CPU].isAlready)
-                    _autoSContext->_exeDevices = _loadContext[ACTUALDEVICE].deviceInfo.deviceName;
                 // handle the case of ACTUAL faster than CPU
                 _loadContext[CPU].future.wait();
                 // clean up helper infer requests
@@ -317,7 +314,10 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                     _loadContext[CPU].executableNetwork._ptr.reset();
                     _loadContext[CPU].executableNetwork._so.reset();
                     LOG_INFO_TAG("helper released!!");
-                    _autoSContext->_exeDevices = _loadContext[ACTUALDEVICE].deviceInfo.deviceName;
+                    {
+                        std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
+                        _autoSContext->_exeDevices = _loadContext[ACTUALDEVICE].deviceInfo.deviceName;
+                    }
                     break;
                 }
             }
@@ -327,7 +327,6 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         // only one device need to load network, do not need to load it async
         _loadContext[ACTUALDEVICE].task();
         _passthroughExeNet = _loadContext[ACTUALDEVICE].executableNetwork;
-        _autoSContext->_exeDevices = _loadContext[ACTUALDEVICE].deviceInfo.deviceName.substr(_loadContext[ACTUALDEVICE].deviceInfo.deviceName.find(":") + 1);
     }
     WaitFirstNetworkReady();
 }
@@ -437,6 +436,10 @@ void AutoSchedule::WaitFirstNetworkReady() {
     // check if there is any device that have loaded network successfully
     for (int i = CONTEXTNUM - 1; i >= 0; i--) {
         if (_loadContext[i].isEnabled && _loadContext[i].isAlready) {
+            if ( i != 0 ) {
+                std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
+                _autoSContext->_exeDevices = _loadContext[i].deviceInfo.deviceName.substr(_loadContext[i].deviceInfo.deviceName.find(":") + 1);
+            }
             return;
         }
     }
@@ -446,6 +449,8 @@ void AutoSchedule::WaitFirstNetworkReady() {
             _loadContext[i].future.wait();
             // check if loading is successful
             if (_loadContext[i].isAlready) {
+                std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
+                _autoSContext->_exeDevices = _loadContext[i].deviceInfo.deviceName.substr(_loadContext[i].deviceInfo.deviceName.find(":") + 1);
                 return;
             }
         }
