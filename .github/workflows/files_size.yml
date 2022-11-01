@@ -1,6 +1,10 @@
 name: Files Size
 on: [push, pull_request]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   Check_Files_Size:
     runs-on: ubuntu-22.04

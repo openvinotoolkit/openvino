@@ -67,7 +67,7 @@ public:
     typed_primitive_inst(network& network, binary_convolution_node const& node);
 
     memory::ptr weights_memory(size_t index) const {
-        if (static_cast<int32_t>(index) >= node.get_split())
+        if (static_cast<int32_t>(index) >= node->get_split())
             throw std::range_error("weights offset too big");
 
         return dep_memory_ptr(1 + index);
