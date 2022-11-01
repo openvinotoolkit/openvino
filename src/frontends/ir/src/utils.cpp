@@ -31,6 +31,14 @@ bool get_partial_shape_from_attribute(const pugi::xml_node& node, const std::str
     return true;
 }
 
+bool get_shape_from_attribute(const pugi::xml_node& node, const std::string& name, Shape& value) {
+    std::string param;
+    if (!getStrAttribute(node, name, param))
+        return false;
+    value = Shape(param);
+    return true;
+}
+
 bool get_dimension_from_attribute(const pugi::xml_node& node, const std::string& name, Dimension& value) {
     std::string param;
     if (!getStrAttribute(node, name, param))

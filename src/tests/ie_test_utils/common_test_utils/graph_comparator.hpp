@@ -438,6 +438,7 @@ class Storage : private AttributeStorage<MemoryChunk>,
                 private AttributeStorage<ov::op::util::FrameworkNodeAttrs>,
                 private AttributeStorage<std::shared_ptr<ngraph::Variable>>,
                 private AttributeStorage<ov::PartialShape>,
+                private AttributeStorage<ov::Shape>,
                 private AttributeStorage<ov::Dimension> {
 public:
     template <typename AttrValue>
@@ -472,7 +473,8 @@ public:
                storage<SubGraphOpOutputDescription>().get_attributes_number() +
                storage<ov::op::util::FrameworkNodeAttrs>().get_attributes_number() +
                storage<std::shared_ptr<ngraph::Variable>>().get_attributes_number() +
-               storage<ov::PartialShape>().get_attributes_number() + storage<ov::Dimension>().get_attributes_number();
+               storage<ov::PartialShape>().get_attributes_number() + storage<ov::Dimension>().get_attributes_number() +
+               storage<ov::Shape>().get_attributes_number();
     }
 };
 
@@ -763,6 +765,14 @@ template <>
 struct Equal<std::shared_ptr<ov::PartialShape>> {
     static bool equal_value(const std::shared_ptr<ov::PartialShape>& shape1,
                             const std::shared_ptr<ov::PartialShape>& shape2) {
+        return shape1 == shape2;
+    }
+};
+
+template <>
+struct Equal<std::shared_ptr<ov::Shape>> {
+    static bool equal_value(const std::shared_ptr<ov::Shape>& shape1,
+                            const std::shared_ptr<ov::Shape>& shape2) {
         return shape1 == shape2;
     }
 };

@@ -16,6 +16,7 @@ void operator>>(const std::stringstream& in, ov::element::Type& type);
 bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::string& value);
 bool get_dimension_from_attribute(const pugi::xml_node& node, const std::string& name, Dimension& value);
 bool get_partial_shape_from_attribute(const pugi::xml_node& node, const std::string& name, PartialShape& value);
+bool get_shape_from_attribute(const pugi::xml_node& node, const std::string& name, Shape& value);
 
 void str_to_container(const std::string& value, std::vector<std::string>& res);
 

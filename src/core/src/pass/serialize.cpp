@@ -456,11 +456,11 @@ public:
             m_xml_node.append_attribute(name.c_str()).set_value(join(attrs).c_str());
         } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ov::PartialShape>>(&adapter)) {
             const auto& attrs = a->get();
-            std::stringstream shape_str_stream;
-            shape_str_stream << attrs;
-            auto shape_str = shape_str_stream.str();
-            if (shape_str[0] == '{' && shape_str[shape_str.size() - 1] == '}')
-                shape_str = shape_str.substr(1, shape_str.size() - 2);
+            auto shape_str = attrs.to_string();
+            m_xml_node.append_attribute(name.c_str()).set_value(shape_str.c_str());
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ov::Shape>>(&adapter)) {
+            const auto& attrs = a->get();
+            auto shape_str = attrs.to_string();
             m_xml_node.append_attribute(name.c_str()).set_value(shape_str.c_str());
         } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ov::Dimension>>(&adapter)) {
             const auto& attrs = a->get();

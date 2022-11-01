@@ -264,10 +264,10 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
             return;
         a->set(dim);
     } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::Shape>>(&adapter)) {
-        std::vector<size_t> shape;
-        if (!getParameters<size_t>(m_node.child("data"), name, shape))
+        ngraph::Shape shape;
+        if (!get_shape_from_attribute(m_node.child("data"), name, shape))
             return;
-        static_cast<ngraph::Shape&>(*a) = ngraph::Shape(shape);
+        a->set(shape);
     } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::Strides>>(&adapter)) {
         std::vector<size_t> shape;
         if (!getParameters<size_t>(m_node.child("data"), name, shape))
