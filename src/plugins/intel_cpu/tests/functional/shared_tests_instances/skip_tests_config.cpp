@@ -166,6 +166,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_NmsLayerTest.*)",
         // Issue: 95590
         R"(.*CachingSupportCase.*CompileModelCacheTestBase.*(TIwithLSTMcell1|MatMulBias)_(u|i).*)",
+        // Issue: 95607
+        R"(.*OVClass.*QueryNetwork.*QueryNetwork.*)",
+        R"(.*OVClass.*LoadNetwork*(HETERO|MULTI).*)",
+        R"(.*OVClass.*LoadNetwork.*(DeviceID|MultiWithoutSettingDevicePrioritiesThrows).*)",
     };
 
 #define FIX_62820 0
