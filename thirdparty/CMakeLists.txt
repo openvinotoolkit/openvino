@@ -98,7 +98,7 @@ if(ENABLE_SYSTEM_PUGIXML)
         get_target_property(target_type ${pugixml_target} TYPE)
         if(target_type STREQUAL "SHARED_LIBRARY")
             get_target_property(imported_config ${pugixml_target} IMPORTED_CONFIGURATIONS)
-            get_target_property(pugixml_loc ${pugixml_target} IMPORTED_SONAME_${imported_config})
+            get_target_property(pugixml_loc ${pugixml_target} IMPORTED_LOCATION_${imported_config})
             get_filename_component(pugixml_dir "${pugixml_loc}" DIRECTORY)
             get_filename_component(name_we "${pugixml_loc}" NAME_WE)
             # grab all tbb files matching pattern
