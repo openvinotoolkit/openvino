@@ -109,7 +109,7 @@ class TestPRelu(OnnxRuntimeLayerTest):
         dict(shape=[6, 8, 10, 12], slope_shape=[1]),
         dict(shape=[4, 6, 8, 10, 12], slope_shape=[1])]
 
-    test_data_precommit = [dict(shape=[8, 10, 12], slope_shape=[10])]
+    test_data_precommit = [dict(shape=[8, 10, 12], slope_shape=[12])]
 
     @pytest.mark.parametrize("params", test_data_scalar)
     @pytest.mark.nightly
