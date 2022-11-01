@@ -451,7 +451,7 @@ def find_prebuilt_extensions(search_dirs):
         ext_pattern = "**/*.so"
     for base_dir in search_dirs:
         for path in Path(base_dir).glob(ext_pattern):
-            if path.match("openvino/libs/*") or path.match(f"openvino/libs/openvino-${OPENVINO_VERSION}/*"):
+            if path.match("openvino/libs/*") or path.match(f"openvino/libs/openvino-{OPENVINO_VERSION}/*"):
                 continue
             relpath = path.relative_to(base_dir)
             if relpath.parent != ".":
