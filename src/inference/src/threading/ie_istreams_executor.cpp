@@ -5,6 +5,7 @@
 #include "threading/ie_istreams_executor.hpp"
 
 #include <algorithm>
+#include <openvino/util/log.hpp>
 #include <string>
 #include <thread>
 #include <vector>
@@ -17,7 +18,6 @@
 #include "ie_system_conf.h"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
-#include <openvino/util/log.hpp>
 
 namespace InferenceEngine {
 IStreamsExecutor::~IStreamsExecutor() {}
