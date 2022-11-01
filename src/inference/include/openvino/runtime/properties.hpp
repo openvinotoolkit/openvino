@@ -885,7 +885,6 @@ inline std::istream& operator>>(std::istream& is, Affinity& affinity) {
  */
 static constexpr Property<Affinity> affinity{"AFFINITY"};
 
-
 /**
  * @brief The devices that the inference task been executed.
  * @ingroup ov_runtime_cpp_prop_api
