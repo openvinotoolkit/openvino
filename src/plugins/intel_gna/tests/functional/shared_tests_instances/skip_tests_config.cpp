@@ -86,6 +86,11 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 71068
         R"(.*OVInferRequestCancellationTests.*)",
         // TODO: Issue: 71070
-        R"(.*OVInferenceChaining.*(StaticOutputToStaticInput).*)"
+        R"(.*OVInferenceChaining.*(StaticOutputToStaticInput).*)",
+        // TODO: Issue: 95609
+        R"(.*CompileModelCacheTestBase.*(ConvPoolRelu|TIwithLSTMcell1).*batch2.*)",
+        R"(.*CompileModelCacheTestBase.*(SplitConvConcat|KSOFunction).*)",
+        R"(.*CompileModelCacheTestBase.*(SingleConv|NestedSplitConvConcat).*)",
+        R"(.*CompileModelCacheTestBase.*(Bias|ReadConcatSplitAssign).*)",
     };
 }
