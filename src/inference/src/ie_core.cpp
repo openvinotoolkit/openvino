@@ -988,7 +988,7 @@ public:
                         "set_property is supported only for BATCH itself (without devices). "
                         "You can configure the devices with set_property before creating the BATCH on top.");
 
-        ExtractAndSetDeviceConfig(properties);
+        ExtractAndSetDeviceConfig(properties, device_name);
         SetConfigForPlugins(properties, device_name);
     }
 
@@ -1368,7 +1368,7 @@ public:
      * @note  `device_name` is not allowed in form of MULTI:CPU, HETERO:GPU,CPU, AUTO:CPU
      *        just simple forms like CPU, GPU, MULTI, GPU.0, etc
      */
-    void ExtractAndSetDeviceConfig(const ov::AnyMap& configs) {
+    void ExtractAndSetDeviceConfig(const ov::AnyMap& configs, const std::string& targetDevice) {
         for (auto&& config : configs) {
             auto parsed = parseDeviceNameIntoConfig(config.first);
             auto devices = GetListOfDevicesInRegistry();
@@ -1377,6 +1377,9 @@ public:
                     return device == parsed._deviceName;
                 });
             if (config_is_device_name_in_regestry) {
+                OPENVINO_ASSERT(targetDevice != "AUTO" && targetDevice != "MULTI",
+                                "set_property is supported only for primary property for AUTO or MULIT. You can "
+                                "configure the HW devices through compile_model.");
                 SetConfigForPlugins(config.second.as<ov::AnyMap>(), config.first);
             }
         }
