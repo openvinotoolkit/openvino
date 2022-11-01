@@ -217,6 +217,7 @@ def test_concat():
             ng_results = run_node(node, np.array(values, dtype=np.int32))
             assert np.array_equal(ng_results, [expected_output])
 
+
 @xfail_issue_44968
 def test_squeeze():
     data = np.arange(6, dtype=np.int32).reshape([1, 2, 3, 1])
