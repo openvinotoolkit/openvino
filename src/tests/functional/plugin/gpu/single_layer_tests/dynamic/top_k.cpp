@@ -62,7 +62,8 @@ public:
         for (const auto configEntry : additionalConfig) {
             result << configEntry.first << ", " << configEntry.second << ":";
         }
-        result << ")";
+        result << ")_";
+        result << "TargetDevice=" << targetDevice;
 
         return result.str();
     }
@@ -158,7 +159,6 @@ private:
     ElementType netPrecision;
     bool staticShape;
 };
-
 
 TEST_P(TopKLayerGPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()

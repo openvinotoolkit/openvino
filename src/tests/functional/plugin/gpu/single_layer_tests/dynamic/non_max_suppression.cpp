@@ -47,7 +47,7 @@ using NmsLayerTestParams = std::tuple<InputShapeParams,                         
                                       ngraph::op::v9::NonMaxSuppression::BoxEncodingType, // Box encoding
                                       bool,                                               // Sort result descending
                                       ngraph::element::Type,                              // Output type
-                                      std::string,                                        // Device name
+                                      TargetDevice,                                       // Device name
                                       std::map<std::string, std::string>>;                // Additional network configuration
 
 class NmsLayerGPUTest : public testing::WithParamInterface<NmsLayerTestParams>, virtual public SubgraphBaseTest {
@@ -61,7 +61,7 @@ public:
         op::v9::NonMaxSuppression::BoxEncodingType boxEncoding;
         bool sortResDescend;
         element::Type outType;
-        std::string targetDevice;
+        TargetDevice targetDevice;
         std::map<std::string, std::string> additionalConfig;
         std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, thrValues, boxEncoding, sortResDescend, outType,
                  targetDevice, additionalConfig) = obj.param;
@@ -89,7 +89,13 @@ public:
         result << "maxOutBoxesPerClass=" << maxOutBoxesPerClass << "_";
         result << "iouThr=" << iouThr << "_scoreThr=" << scoreThr << "_softNmsSigma=" << softNmsSigma << "_";
         result << "boxEncoding=" << boxEncoding << "_sortResDescend=" << sortResDescend << "_outType=" << outType << "_";
+        result << "config=(";
+        for (const auto configEntry : additionalConfig) {
+            result << configEntry.first << ", " << configEntry.second << ":";
+        }
+        result << ")_";
         result << "TargetDevice=" << targetDevice;
+
         return result.str();
     }
 
@@ -390,8 +396,11 @@ private:
 
 TEST_P(NmsLayerGPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     run();
 }
+
+namespace {
 
 std::map<std::string, std::string> emptyAdditionalConfig;
 
@@ -412,21 +421,24 @@ const std::vector<op::v9::NonMaxSuppression::BoxEncodingType> encodType = {op::v
 const std::vector<bool> sortResDesc = {true, false};
 const std::vector<element::Type> outType = {element::i32};
 
-const auto nmsParams = ::testing::Combine(::testing::ValuesIn(inShapeParams),
-                                          ::testing::Combine(::testing::Values(ElementType::f32),
-                                                             ::testing::Values(ElementType::i32),
-                                                             ::testing::Values(ElementType::f32)),
-                                          ::testing::ValuesIn(maxOutBoxPerClass),
-                                          ::testing::Combine(::testing::ValuesIn(threshold),
-                                                             ::testing::ValuesIn(threshold),
-                                                             ::testing::ValuesIn(sigmaThreshold)),
-                                          ::testing::ValuesIn(encodType),
-                                          ::testing::ValuesIn(sortResDesc),
-                                          ::testing::ValuesIn(outType),
-                                          ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                                          ::testing::Values(emptyAdditionalConfig)
-);
+INSTANTIATE_TEST_SUITE_P(smoke_Nms_dynamic, NmsLayerGPUTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(inShapeParams),
+        ::testing::Combine(
+            ::testing::Values(ElementType::f32),
+            ::testing::Values(ElementType::i32),
+            ::testing::Values(ElementType::f32)),
+        ::testing::ValuesIn(maxOutBoxPerClass),
+        ::testing::Combine(
+            ::testing::ValuesIn(threshold),
+            ::testing::ValuesIn(threshold),
+            ::testing::ValuesIn(sigmaThreshold)),
+        ::testing::ValuesIn(encodType),
+        ::testing::ValuesIn(sortResDesc),
+        ::testing::ValuesIn(outType),
+        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(emptyAdditionalConfig)),
+    NmsLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Nms_dynamic, NmsLayerGPUTest, nmsParams, NmsLayerGPUTest::getTestCaseName);
-
+} // namespace
 } // namespace GPULayerTestsDefinitions
