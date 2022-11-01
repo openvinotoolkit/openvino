@@ -84,6 +84,15 @@ macro(ov_rpm_specific_settings)
     set(CPACK_RPM_ENABLE_COMPONENT_DEPENDS ON)
     # homepage
     set(CPACK_RPM_PACKAGE_URL "https://docs.openvino.ai/")
+    # ASL 2.0 # Apache Software License 2.0
+    set(CPACK_RPM_PACKAGE_LICENSE "ASL 2.0")
+    # group
+    set(CPACK_RPM_PACKAGE_GROUP "Developent/Libraries")
+    # changelog file
+    # TODO: fix "error: bad date in %changelog"
+    # set(CPACK_RPM_CHANGELOG_FILE "${OpenVINO_SOURCE_DIR}/cmake/developer_package/packaging/changelog-rpm")
+    # use rpmlint to check packages in post-build step
+    set(CPACK_POST_BUILD_SCRIPTS "${IEDevScripts_DIR}/packaging/rpm_post_build.cmake")
     # enable for debug cpack run
     if(NOT DEFINED CPACK_RPM_PACKAGE_DEBUG)
         set(CPACK_RPM_PACKAGE_DEBUG OFF)
@@ -99,17 +108,9 @@ endmacro()
 
 ov_rpm_specific_settings()
 
-# needed to override cmake auto generated files
-set(def_postinst "${OpenVINO_BINARY_DIR}/_CPack_Packages/postinst")
-set(def_postrm "${OpenVINO_BINARY_DIR}/_CPack_Packages/postrm")
+# needed to add triggers for packages with libraries
 set(def_triggers "${OpenVINO_BINARY_DIR}/_CPack_Packages/triggers")
-
 set(triggers_content "activate-noawait ldconfig\n\n")
-set(post_content "#!/bin/sh\n\nset -e;\nset -e\n\n")
-
-file(REMOVE ${def_postinst} ${def_postrm} ${def_triggers})
-file(WRITE "${def_postinst}" "${post_content}")
-file(WRITE "${def_postrm}" "${post_content}")
 file(WRITE "${def_triggers}" "${triggers_content}")
 
 #
@@ -117,9 +118,9 @@ file(WRITE "${def_triggers}" "${triggers_content}")
 #
 
 #
-# ov_rpm_add_changelog_and_copyright(<comp name>)
+# ov_rpm_copyright(<comp name>)
 #
-function(ov_rpm_add_changelog_and_copyright comp)
+function(ov_rpm_copyright comp)
     string(TOUPPER "${comp}" ucomp)
     if(NOT DEFINED CPACK_RPM_${ucomp}_PACKAGE_NAME)
         message(FATAL_ERROR "CPACK_RPM_${ucomp}_PACKAGE_NAME is not defined")
@@ -131,36 +132,6 @@ function(ov_rpm_add_changelog_and_copyright comp)
     # copyright
 
     install(FILES "${OpenVINO_SOURCE_DIR}/cmake/developer_package/packaging/copyright"
-            DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/${package_name}/
-            COMPONENT ${comp})
-
-    # create changelog.gz
-
-    find_host_program(gzip_PROGRAM NAMES gzip DOC "Path to gzip tool")
-    if(NOT gzip_PROGRAM)
-        message(FATAL_ERROR "Failed to find gzip tool")
-    endif()
-
-    set(changelog_src "${OpenVINO_SOURCE_DIR}/cmake/developer_package/packaging/changelog")
-    set(package_bin_dir "${OpenVINO_BINARY_DIR}/_CPack_Packages/${package_name}")
-    set(changelog_output "${package_bin_dir}/changelog")
-
-    file(REMOVE "${changelog_output}")
-    file(REMOVE "${changelog_output}.gz")
-
-    file(MAKE_DIRECTORY "${package_bin_dir}")
-    configure_file("${changelog_src}" "${changelog_output}" COPYONLY)
-
-    execute_process(COMMAND gzip -n -9 "${changelog_output}"
-        WORKING_DIRECTORY "${package_bin_dir}"
-        OUTPUT_VARIABLE output_message
-        ERROR_VARIABLE error_message
-        RESULT_VARIABLE exit_code
-        OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-    # install changelog.gz
-
-    install(FILES "${changelog_output}.gz"
             DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/${package_name}/
             COMPONENT ${comp})
 endfunction()
@@ -179,7 +150,7 @@ function(ov_rpm_add_rpmlint_suppression comp)
     endif()
 
     foreach(line IN LISTS lines)
-        set(line "${package_name} binary: ${line}")
+        set(line "addFilter(\"${line}\")")
         if(content)
             set(content "${content}\n${line}")
         else()
@@ -187,13 +158,20 @@ function(ov_rpm_add_rpmlint_suppression comp)
         endif()
     endforeach()
 
-    set(rpmlint_override_file "${OpenVINO_BINARY_DIR}/_CPack_Packages/rpmlint/${package_name}")
+    if(DEFINED CPACK_RPM_${ucomp}_PACKAGE_ARCHITECTURE)
+        set(arch "${CPACK_RPM_${ucomp}_PACKAGE_ARCHITECTURE}")
+    elseif(X86_64)
+        set(arch "x86_64")
+    elseif(X86)
+        set(arch "i686")
+    else()
+        message(FATAL_ERROR "RPM: Unsupported architecture ${CMAKE_SYSTEM_PROCESSOR}")
+    endif()
+
+    set(package_file_name "${package_name}-${OpenVINO_VERSION}-1.${arch}.rpm")
+    set(rpmlint_override_file "${OpenVINO_BINARY_DIR}/_CPack_Packages/rpmlint/${package_file_name}.rpmlintrc")
     file(REMOVE ${rpmlint_override_file})
     file(WRITE ${rpmlint_override_file} ${content})
-
-    install(FILES ${rpmlint_override_file}
-            DESTINATION ${CMAKE_INSTALL_DATADIR}/rpmlint/overrides/
-            COMPONENT ${comp})
 endfunction()
 
 #
@@ -237,8 +215,8 @@ macro(ov_rpm_add_latest_component comp)
     set(upper_case "${ucomp}_LATEST")
 
     set(CPACK_COMPONENT_${upper_case}_DESCRIPTION "${CPACK_COMPONENT_${ucomp}_DESCRIPTION}")
-    set(CPACK_COMPONENT_${upper_case}_ARCHITECTURE "${CPACK_COMPONENT_${ucomp}_ARCHITECTURE}")
     set(CPACK_COMPONENT_${upper_case}_DEPENDS "${comp}")
+    set(CPACK_RPM_${upper_case}_PACKAGE_ARCHITECTURE "noarch")
 
     # take package name
     if(DEFINED CPACK_RPM_${ucomp}_PACKAGE_NAME)
@@ -248,10 +226,6 @@ macro(ov_rpm_add_latest_component comp)
     else()
         message(FATAL_ERROR "CPACK_RPM_${ucomp}_PACKAGE_NAME is not defined")
     endif()
-
-    ov_rpm_add_rpmlint_suppression(${comp_name}
-        # it's umbrella package
-        "no-binary")
 
     # add latest to a list of rpm packages
     list(APPEND CPACK_COMPONENTS_ALL ${comp_name})

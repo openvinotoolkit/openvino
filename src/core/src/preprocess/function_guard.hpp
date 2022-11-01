@@ -61,7 +61,7 @@ public:
                 // Stress condition, can't recover function to original state
                 std::cerr << "Unrecoverable error occurred during preprocessing. Model is corrupted, exiting: "
                           << ex.what();
-                exit(EXIT_FAILURE);
+                // exit(EXIT_FAILURE);
             }
         }
     }
