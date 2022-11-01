@@ -178,8 +178,6 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     // if Actual device is CPU, disabled _loadContext[CPU], only use _loadContext[ACTUALDEVICE]
     if (isActualDevCPU || isCumulative) {
         _loadContext[CPU].isEnabled = false;
-        _autoSContext->_exeDevices = isActualDevCPU ? "CPU"
-                        : _loadContext[ACTUALDEVICE].deviceInfo.deviceName.substr(_loadContext[ACTUALDEVICE].deviceInfo.deviceName.find(":") + 1);
     } else {
         const auto CPUIter = std::find_if(_autoSContext->_devicePriorities.begin(), _autoSContext->_devicePriorities.end(),
                                           [=](const DeviceInformation& d) -> bool { return d.deviceName.find("CPU") != std::string::npos; });
@@ -194,8 +192,6 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
             LOG_INFO_TAG("will load CPU for accelerator");
         } else {
             _loadContext[CPU].isEnabled = false;
-            _autoSContext->_exeDevices =
-                _loadContext[ACTUALDEVICE].deviceInfo.deviceName.substr(_loadContext[ACTUALDEVICE].deviceInfo.deviceName.find(":") + 1);
         }
     }
     // initialize the rest members of load context
@@ -331,6 +327,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         // only one device need to load network, do not need to load it async
         _loadContext[ACTUALDEVICE].task();
         _passthroughExeNet = _loadContext[ACTUALDEVICE].executableNetwork;
+        _autoSContext->_exeDevices = _loadContext[ACTUALDEVICE].deviceInfo.deviceName.substr(_loadContext[ACTUALDEVICE].deviceInfo.deviceName.find(":") + 1);
     }
     WaitFirstNetworkReady();
 }

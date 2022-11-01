@@ -90,9 +90,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBehaviorTests, OVPropertiesDefaultTests,
         OVPropertiesDefaultTests::getTestCaseName);
 
 const std::vector<std::pair<ov::AnyMap, std::string>> autoExeDeviceConfigs = {
-            std::make_pair(ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_CPU)}}, "CPU"),
-            std::make_pair(ov::AnyMap{{ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}}, "undefined"),
-            std::make_pair(ov::AnyMap{}, "undefined")
+            std::make_pair(ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_CPU)}}, "CPU")
     };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiCompileModelBehaviorTests,
