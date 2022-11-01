@@ -263,6 +263,7 @@ set(SRC
     type_prop/top_k.cpp
     type_prop/transpose.cpp
     type_prop/unary_elementwise.cpp
+    type_prop/unique.cpp
     type_prop/unsqueeze.cpp
     type_prop/variadic_split.cpp
     type_prop_layers.cpp
@@ -436,6 +437,7 @@ set(SRC
     visitors/op/tile.cpp
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
+    visitors/op/unique.cpp
     visitors/op/unsqueeze.cpp
     visitors/op/variadic_split.cpp
     uint4.cpp
