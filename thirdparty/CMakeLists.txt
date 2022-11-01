@@ -296,13 +296,13 @@ if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
     # These libraries are dependencies for openvino-samples package
 
     if(NOT gflags_FOUND)
-        message(FATAL_ERROR "gflags must be used as a ${CPACK_GENERATOR} package. Install libgflags-dev")
+        message(FATAL_ERROR "gflags must be used as a ${CPACK_GENERATOR} package. Install libgflags-dev / gflags-devel")
     endif()
     if(NOT zlib_FOUND)
-        message(FATAL_ERROR "zlib must be used as a ${CPACK_GENERATOR} package. Install zlib1g-dev")
+        message(FATAL_ERROR "zlib must be used as a ${CPACK_GENERATOR} package. Install zlib1g-dev / zlib-devel")
     endif()
-    if(NOT ENABLE_SYSTEM_PUGIXML)
-        message(FATAL_ERROR "Pugixml must be used as a ${CPACK_GENERATOR} package. Install libpugixml-dev")
+    if(NOT ENABLE_SYSTEM_PUGIXML AND NOT LINUX_OS_NAME STREQUAL "CentOS 7")
+        message(FATAL_ERROR "Pugixml must be used as a ${CPACK_GENERATOR} package. Install libpugixml-dev / pugixml-devel")
     endif()
 else()
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags

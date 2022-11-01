@@ -54,6 +54,16 @@ public:
         return m_model_proto->producer_version();
     }
 
+    std::map<std::string, std::string> get_metadata() const {
+        std::map<std::string, std::string> metadata;
+
+        const auto& model_metadata = m_model_proto->metadata_props();
+        for (const auto& prop : model_metadata) {
+            metadata.emplace(prop.key(), prop.value());
+        }
+        return metadata;
+    }
+
     /// \brief Access an operator object by its type name and domain name
     /// The function will return the operator object if it exists, or report an error
     /// in case of domain or operator absence.
