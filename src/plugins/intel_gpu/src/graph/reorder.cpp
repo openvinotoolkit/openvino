@@ -243,6 +243,13 @@ void reorder_inst::on_execute() {
 }
 
 void reorder_inst::reuse_input() {
+    update_output_memory();
+}
+
+void reorder_inst::update_output_memory() {
+    if (!node->can_be_optimized())
+        return;
+
     if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
 

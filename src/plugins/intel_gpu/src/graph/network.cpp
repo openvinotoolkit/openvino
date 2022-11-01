@@ -643,6 +643,15 @@ void network::allocate_primitives() {
             }
         }
     }
+
+    // Update the output memory address of optimized-out layer if it is not valid.
+    for (auto const& node : po) {
+        if (node->can_be_optimized()) {
+            auto opt_inst = _primitives.at(node->id());
+            opt_inst->update_output_memory();
+        }
+    }
+
     // allocate intermediate buffers
     for (auto const& node : po) {
         auto prim = _primitives[node->id()];

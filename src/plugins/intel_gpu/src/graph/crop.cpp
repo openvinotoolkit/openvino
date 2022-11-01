@@ -256,4 +256,15 @@ void crop_inst::on_execute() {
 void crop_inst::reuse_input() {
     _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), node->get_output_layout());
 }
+
+void crop_inst::update_output_memory() {
+    if (!node->can_be_optimized())
+        return;
+
+    if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+        return;
+
+    _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), node->get_output_layout());
+}
+
 }  // namespace cldnn
