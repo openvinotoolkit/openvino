@@ -40,7 +40,7 @@ protected:
 
     template<typename F>
     F create_kernel() {
-        const status_t code = jit_generator::create_kernel();
+        const dnnl::impl::status_t code = jit_generator::create_kernel();
         if (code != dnnl::impl::status::success) {
             IE_THROW() << "Could not create kernel. Error code: " << std::to_string(code) << ". "
                        << "Xbyak error code: " << Xbyak::ConvertErrorToString(Xbyak::GetError());
