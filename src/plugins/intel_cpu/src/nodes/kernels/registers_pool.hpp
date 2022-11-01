@@ -14,7 +14,7 @@
 namespace ov {
 namespace intel_cpu {
 
-using namespace dnnl::impl::cpu;
+namespace x64 = dnnl::impl::cpu::x64;
 
 /**
  * The RegistersPool is the base class for the IsaRegistersPool template:
