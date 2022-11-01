@@ -64,7 +64,7 @@ class MetaDataTest(UnitTestWithMockedTelemetry):
             return {
                 'MO_version': get_version(),
                 'Runtime_version': get_rt_version(),
-                'legacy_path': "False",
+                'legacy_frontend': "False",
                 'conversion_parameters': {
                     'input_model': Path.joinpath(Path("DIR"), Path("model.onnx")),
                 }

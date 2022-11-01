@@ -592,7 +592,7 @@ def _convert(**args):
         # add MO meta data to model
         ov_model.set_rt_info(get_version(), "MO_version")
         ov_model.set_rt_info(get_rt_version(), "Runtime_version")
-        ov_model.set_rt_info(str(legacy_path), "legacy_path")
+        ov_model.set_rt_info(str(legacy_path), "legacy_frontend")
         for key, value in non_default_params.items():
             ov_model.set_rt_info(str(value), ["conversion_parameters", str(key)])
 
