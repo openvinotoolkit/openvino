@@ -1446,6 +1446,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::bucketize::type_id() &&
             prim.type() != cldnn::roll::type_id() &&
             prim.type() != cldnn::prior_box::type_id() &&
+<<<<<<< HEAD
             prim.type() != cldnn::resample::type_id() &&
             prim.type() != cldnn::eye::type_id() &&
             prim.type() != cldnn::generate_proposals::type_id() &&
@@ -1453,6 +1454,9 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::reorg_yolo::type_id() &&
             prim.type() != cldnn::scatter_elements_update::type_id() &&
             prim.type() != cldnn::experimental_detectron_detection_output::type_id()) {
+=======
+            prim.type() != cldnn::resample::type_id()) {
+>>>>>>> 3-axis interpolation for linear-onnx mode
             can_use_fsv16 = false;
         }
 

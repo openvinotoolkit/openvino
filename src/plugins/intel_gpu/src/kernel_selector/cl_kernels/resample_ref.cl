@@ -405,7 +405,13 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
 #else
         OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
 #endif
+<<<<<<< HEAD:src/plugins/intel_gpu/src/kernel_selector/cl_kernels/resample_ref.cl
     output[OUTPUT_GET_INDEX(batch, feature, oz, oy, ox)] = res;
+=======
+
+    output[OUTPUT_GET_INDEX(batch, feature, oz, oy, ox)] = res;
+
+>>>>>>> 3-axis interpolation for linear-onnx mode:src/plugins/intel_gpu/src/kernel_selector/core/cl_kernels/resample_ref.cl
 #endif // #if OUTPUT_DIMS == 5
 
 #elif defined(SAMPLE_TYPE_INTERP) // defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE
