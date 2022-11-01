@@ -183,7 +183,7 @@ TEST_P(OVCompileModelGetExecutionDeviceTests, CanGetExecutionDeviceInfo) {
     auto deviceList = core->get_available_devices();
     std::string updatedExpectDevices = expectedDeviceName;
     for (auto &iter : compileModelProperties) {
-        if (iter.first == ov::hint::performance_mode && iter.second == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT) {
+        if (iter.first == ov::hint::performance_mode && iter.second.as<ov::hint::PerformanceMode>() == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT) {
             std::vector<std::string> expected_devices = util::split(expectedDeviceName, ',');
             std::vector<std::string> sameTypeDevices;
             for (auto& deviceName : expected_devices) {

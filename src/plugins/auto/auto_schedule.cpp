@@ -314,10 +314,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                     _loadContext[CPU].executableNetwork._ptr.reset();
                     _loadContext[CPU].executableNetwork._so.reset();
                     LOG_INFO_TAG("helper released!!");
-                    {
-                        std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
-                        _autoSContext->_exeDevices = _loadContext[ACTUALDEVICE].deviceInfo.deviceName;
-                    }
+                    _autoSContext->_exeDevices = _loadContext[ACTUALDEVICE].deviceInfo.deviceName;
                     break;
                 }
             }
