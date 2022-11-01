@@ -3,12 +3,12 @@
 
 import pytest
 from common.layer_test_class import check_ir_version
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 from unit_tests.utils.graph import build_graph
 
 
-class TestReshape(Caffe2OnnxLayerTest):
+class TestReshape(OnnxRuntimeLayerTest):
     def create_reshape_net(self, input_shape, output_shape, ir_version):
         """
             ONNX net                                  IR net

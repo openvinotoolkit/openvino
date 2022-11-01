@@ -3,10 +3,10 @@
 
 import pytest
 
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 
-class TestScale(Caffe2OnnxLayerTest):
+class TestScale(OnnxRuntimeLayerTest):
     def create_net(self, shape, scale, ir_version):
         """
             ONNX net                     IR net
