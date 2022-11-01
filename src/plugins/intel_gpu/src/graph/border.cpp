@@ -106,6 +106,9 @@ std::string border_inst::to_string(border_node const& node) {
 
 border_inst::typed_primitive_inst(network& network, border_node const& node) : parent(network, node) {
     auto input_layout = node.input().get_output_layout();
+    if (input_layout.is_dynamic()) {
+        return;
+    }
 
     const auto& input_sizes = input_layout.get_dims();
     auto pad_mode = argument->pad_mode;
