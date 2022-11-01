@@ -120,8 +120,8 @@ public:
         network.set_input_data("input", input);
         const auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "out");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "out");
 
         auto output = outputs.at("out").get_memory();
         cldnn::mem_lock<T> output_ptr(output, get_test_stream());
@@ -2019,5 +2019,57 @@ INSTANTIATE_DFT_TEST_SUITE_WITH_TYPES(RDFT, 4d)
 
 INSTANTIATE_DFT_TEST_SUITE_WITH_TYPES(IRDFT, 4d)
 INSTANTIATE_DFT_TEST_SUITE_WITH_TYPES(IRDFT, 5d)
+
+// Check that output format is correctly calculated for IRDFT case
+TEST(dft_gpu_test, irdft_output_shape) {
+    dft_type type = IRDFT;
+    using T = float;
+    dft_params p = IRDFT_params_5d.front();
+    auto& engine = get_test_engine();
+
+    auto data_type = type_to_data_type<T>::value;
+    const layout data_layout(data_type, plain_format_5d, tensor(plain_format_5d, p.input_shape));
+    auto input = engine.allocate_memory(data_layout);
+    set_values(input, convert<T>(p.input_values));
+
+    for (auto& blocked_format : blocked_format_5d) {
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(reorder("reorder_input", "input", blocked_format, data_type));
+        topology.add(dft("dft", "reorder_input", p.axes, p.signal_size, p.output_shape, type.direction, type.mode));
+
+        {
+            network network(engine, topology);
+            network.set_input_data("input", input);
+            const auto outputs = network.execute();
+
+            ASSERT_EQ(outputs.size(), size_t(1));
+            ASSERT_EQ(outputs.begin()->first, "dft");
+
+            auto output = outputs.at("dft").get_memory();
+            auto output_format = output->get_layout().format;
+
+            EXPECT_EQ(output_format, format::adjust_to_rank(blocked_format, p.output_shape.size()));
+        }
+
+        topology.add(reorder("out", "dft", format::bfwzyx, data_type));
+
+        network network(engine, topology);
+        network.set_input_data("input", input);
+        const auto outputs = network.execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "out");
+
+        auto output = outputs.at("out").get_memory();
+        cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+
+        const auto expected_values = convert<T>(p.expected_values);
+        ASSERT_EQ(output_ptr.size(), expected_values.size());
+        for (size_t i = 0; i < output_ptr.size(); ++i) {
+            EXPECT_NEAR(expected_values[i], output_ptr[i], getThreshold<T>(type));
+        }
+    }
+}
 
 }  // namespace

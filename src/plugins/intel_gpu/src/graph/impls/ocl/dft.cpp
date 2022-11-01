@@ -40,7 +40,7 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
             params.mode = kernel_selector::dft_params::Mode::real;
         }
 
-        // Extend input layout for RDFT case to make input rank match output rank
+        // Extend input layout for RDFT case to make input rank match output rank for easier calculations
         if (primitive->direction == dft_direction::forward && primitive->mode == dft_mode::real) {
             const auto input_layout = impl_param.get_input_layout();
             const auto output_layout = impl_param.output_layout;
@@ -50,6 +50,19 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
                 new_dims.push_back(1);
                 const auto new_fmt = format::adjust_to_rank(input_layout.format, new_dims.size());
                 params.inputs[0] = convert_data_tensor({input_layout.data_type, new_fmt, tensor(new_fmt, new_dims)});
+            }
+        }
+
+        // Extend output layout for IRDFT case to make output rank match input rank for easier calculations
+        if (primitive->direction == dft_direction::inverse && primitive->mode == dft_mode::real) {
+            const auto input_layout = impl_param.get_input_layout();
+            const auto output_layout = impl_param.output_layout;
+            // No need to extend layout for output that has less than 4 dimensions
+            if (input_layout.get_rank() != output_layout.get_rank()) {
+                auto new_dims = output_layout.get_dims();
+                new_dims.push_back(1);
+                const auto new_fmt = format::adjust_to_rank(output_layout.format, new_dims.size());
+                params.outputs[0] = convert_data_tensor({output_layout.data_type, new_fmt, tensor(new_fmt, new_dims)});
             }
         }
 
