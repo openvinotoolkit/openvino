@@ -12,13 +12,14 @@ namespace op {
 namespace v0 {
 
 /**
- * \brief
+ * \brief Do Squeeze shape inference.
  *
- * \tparam T
- * \param op
- * \param input_shapes
- * \param output_shapes
- * \param constant_data
+ * \tparam T             Type of input/output shapes.
+ *
+ * \param op             Squeeze operator pointer.
+ * \param input_shapes   Squeeze input shapes.
+ * \param output_shapes  Output shapes result of squeeze shape inference.
+ * \param constant_data  Map of constant data.
  */
 template <class T>
 void shape_infer(const Squeeze* op,
@@ -36,15 +37,15 @@ void shape_infer(const Squeeze* op,
     std::set<int64_t> unique_axes;
     if (arg_shape.rank().is_static() && (input_shapes.size() == 2)) {
         const auto& axes_shape = input_shapes[1];
-        has_static_axes = axes_shape.is_static();
 
         NODE_VALIDATION_CHECK(op,
-                              !has_static_axes || is_rank_compatible_any_of(axes_shape.rank(), {0, 1}),
+                              axes_shape.is_dynamic() || is_rank_compatible_any_of(axes_shape.rank(), {0, 1}),
                               "Second input (axes) should not be of rank higher than 1. Got: ",
                               axes_shape.rank().get_length());
 
         std::vector<int64_t> axes;
-        if (get_data_as_int64<T>(1, op, axes, constant_data)) {
+        has_static_axes = axes_shape.is_static() && get_data_as_int64<T>(1, op, axes, constant_data);
+        if (has_static_axes) {
             normalize_axes(op, arg_shape.rank().get_length(), axes);
             unique_axes = std::set<int64_t>(axes.cbegin(), axes.cend());
         }
@@ -57,16 +58,16 @@ void shape_infer(const Squeeze* op,
         out_dims.reserve(arg_shape.rank().get_length());
 
         if (unique_axes.empty()) {
-            std::copy_if(arg_shape.begin(), arg_shape.end(), back_inserter(out_dims), [](const DimType& dim) {
+            std::copy_if(arg_shape.cbegin(), arg_shape.cend(), back_inserter(out_dims), [](const DimType& dim) {
                 return !dim.compatible(1);
             });
         } else {
             int64_t idx = 0;
-            auto rm_axis_iter = unique_axes.begin();
-            auto rm_axis_end = unique_axes.end();
+            auto rm_axis_iter = unique_axes.cbegin();
+            auto rm_axis_end = unique_axes.cend();
 
             // Returns true if dimension not squeezable on axis from input axes.
-            auto not_squeezable_at_axis = [&op, &rm_axis_iter, &rm_axis_end, &idx](const DimType& dim) {
+            const auto not_squeezable_at_axis = [&op, &rm_axis_iter, &rm_axis_end, &idx](const DimType& dim) {
                 if ((rm_axis_iter != rm_axis_end) && (*rm_axis_iter == idx++)) {
                     NODE_VALIDATION_CHECK(op,
                                           dim.compatible(1),
@@ -78,7 +79,7 @@ void shape_infer(const Squeeze* op,
                 }
             };
 
-            std::copy_if(arg_shape.begin(), arg_shape.end(), back_inserter(out_dims), not_squeezable_at_axis);
+            std::copy_if(arg_shape.cbegin(), arg_shape.cend(), back_inserter(out_dims), not_squeezable_at_axis);
         }
         output_shape = arg_shape.is_dynamic() && out_dims.empty() ? PartialShape::dynamic() : T(out_dims);
     } else {

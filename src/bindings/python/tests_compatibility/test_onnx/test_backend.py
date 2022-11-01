@@ -270,6 +270,7 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_44968,
+        "OnnxBackendNodeModelTest.test_squeeze_cpu",
         "OnnxBackendNodeModelTest.test_squeeze_negative_axes_cpu",
     ),
     (xfail_issue_58033, "OnnxBackendNodeModelTest.test_einsum_batch_diagonal_cpu"),

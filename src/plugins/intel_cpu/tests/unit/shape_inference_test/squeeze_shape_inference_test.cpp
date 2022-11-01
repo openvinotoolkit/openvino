@@ -33,6 +33,18 @@ TEST_F(SqueezeStaticShapeInferenceAssertTest, no_axes) {
                     HasSubstr("Check 'constant != nullptr'"));
 }
 
+TEST_F(SqueezeStaticShapeInferenceAssertTest, parameter_static_shape_axes_no_data) {
+    const auto arg = std::make_shared<op::v0::Parameter>(element::f64, Shape{2, 1, 3, 1});
+    const auto axes = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
+    const auto op = make_op(arg, axes);
+
+    input_shapes = ShapeVector{arg->get_shape(), axes->get_shape()};
+
+    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
+                    NodeValidationFailure,
+                    HasSubstr("Check 'constant != nullptr'"));
+}
+
 using TestParams = std::tuple<ShapeVector,           // Input shapes
                               std::vector<int64_t>,  // Squeeze axes
                               StaticShape            // Expected shape
