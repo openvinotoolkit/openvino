@@ -180,11 +180,27 @@ void OVCompileModelGetExecutionDeviceTests::SetUp() {
 
 TEST_P(OVCompileModelGetExecutionDeviceTests, CanGetExecutionDeviceInfo) {
     ov::CompiledModel exeNetWork;
+    auto deviceList = core->get_available_devices();
+    std::string updatedExpectDevices = expectedDeviceName;
+    for (auto &iter : compileModelProperties) {
+        if (iter.first == ov::hint::performance_mode && iter.second == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT) {
+            std::vector<std::string> expected_devices = util::split(expectedDeviceName, ',');
+            std::vector<std::string> sameTypeDevices;
+            for (auto& deviceName : expected_devices) {
+                for (auto&& device : deviceList) {
+                    if (device.find(deviceName) != std::string::npos) {
+                        sameTypeDevices.push_back(std::move(device));
+                    }
+                }
+            }
+            updatedExpectDevices = util::join(sameTypeDevices, ",");
+        }
+    }
     OV_ASSERT_NO_THROW(exeNetWork = core->compile_model(model, target_device, compileModelProperties));
     ov::Any property;
     OV_ASSERT_NO_THROW(property = exeNetWork.get_property(ov::execution_devices));
     if (expectedDeviceName.find("undefined") == std::string::npos)
-        ASSERT_EQ(property, expectedDeviceName);
+        ASSERT_EQ(property, updatedExpectDevices);
     else
         ASSERT_FALSE(property.empty());
 }

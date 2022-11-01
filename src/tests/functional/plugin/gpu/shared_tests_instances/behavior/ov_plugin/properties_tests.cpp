@@ -132,7 +132,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiCompileModelBehaviorTests,
                          OVSetPropComplieModleGetPropTests::getTestCaseName);
 
 const std::vector<std::pair<ov::AnyMap, std::string>> autoExeDeviceConfigs = {
-            std::make_pair(ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_GPU)}}, "GPU"),
+            std::make_pair(ov::AnyMap{{ov::device::priorities("GPU.0")}}, "GPU.0"),
             #ifdef ENABLE_INTEL_CPU
             std::make_pair(ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU)}}, "undefined"),
             std::make_pair(ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)}}, "CPU"),
