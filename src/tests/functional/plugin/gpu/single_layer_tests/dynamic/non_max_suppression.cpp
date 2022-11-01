@@ -155,7 +155,11 @@ protected:
         auto softNmsSigmaNode = builder::makeConstant(thrPrec, ngraph::Shape{}, std::vector<float>{softNmsSigma})->output(0);
         auto nms = std::make_shared<ngraph::op::v9::NonMaxSuppression>(params[0], params[1], maxOutBoxesPerClassNode, iouThrNode, scoreThrNode,
                                                                        softNmsSigmaNode, boxEncoding, sortResDescend, outType);
-        function = std::make_shared<ngraph::Function>(nms, params, "Nms");
+        ngraph::ResultVector results;
+        for (size_t i = 0; i < nms->get_output_size(); i++) {
+            results.push_back(std::make_shared<ngraph::opset4::Result>(nms->output(i)));
+        }
+        function = std::make_shared<ngraph::Function>(results, params, "Nms");
     }
 
 private:
@@ -406,7 +410,7 @@ const std::vector<float> sigmaThreshold = {0.0f, 0.5f};
 const std::vector<op::v9::NonMaxSuppression::BoxEncodingType> encodType = {op::v9::NonMaxSuppression::BoxEncodingType::CENTER,
                                                                            op::v9::NonMaxSuppression::BoxEncodingType::CORNER};
 const std::vector<bool> sortResDesc = {true, false};
-const std::vector<element::Type> outType = {element::i32, element::i64};
+const std::vector<element::Type> outType = {element::i32};
 
 const auto nmsParams = ::testing::Combine(::testing::ValuesIn(inShapeParams),
                                           ::testing::Combine(::testing::Values(ElementType::f32),

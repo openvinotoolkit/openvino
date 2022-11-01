@@ -145,7 +145,8 @@ void primitive_inst::update_shape() {
 
     bool input_shape_changed = false;
     for (size_t i = 0; i < _deps.size(); i++) {
-        auto new_shape = _deps[i]->_impl_params->get_output_layout();
+        auto idx = _deps_new.empty() ? 0 : _deps_new[i].second;
+        auto new_shape = _deps[i]->_impl_params->get_output_layout(idx);
         if (_impl_params->get_input_layout(i) != new_shape) {
             _impl_params->input_layouts[i] = new_shape;
             input_shape_changed = true;
@@ -274,6 +275,8 @@ void primitive_inst::realloc_if_needed() {
         _outputs = allocate_outputs();
         max_output_layout_size = _outputs[0]->get_layout().count();
     }
+    // intermediate memory allocation is required for primitives consisting of multiple kernels in dynamic case
+    allocate_internal_buffers();
 }
 
 void primitive_inst::update_impl() {
@@ -580,6 +583,8 @@ void primitive_inst::allocate_internal_buffers(void) {
         }
     }
 
+    // allocate intermediate memory for the updated layout of buffer
+    std::vector<memory::cptr> intermediates_memory;
     for (auto layout : ibuf_layouts) {
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
@@ -591,8 +596,9 @@ void primitive_inst::allocate_internal_buffers(void) {
         } else {
             alloc_type = engine.get_lockable_preferred_memory_allocation_type();
         }
-        _intermediates_memory.push_back(engine.allocate_memory(layout, alloc_type));
+        intermediates_memory.push_back(engine.allocate_memory(layout, alloc_type));
     }
+    _intermediates_memory = intermediates_memory;
 }
 
 event::ptr primitive_inst::update_weights() {

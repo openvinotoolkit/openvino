@@ -156,22 +156,22 @@ private:
         auto& stream = node.get_program().get_stream();
         switch (mem->get_layout().data_type) {
         case data_types::f16: {
-            mem_lock<half_t> lock(mem, stream);
+            mem_lock<half_t, mem_lock_type::read> lock(mem, stream);
             auto mem_value = static_cast<half_t*>(lock.data());
             retValue = static_cast<T>(*mem_value);
         } break;
         case data_types::f32: {
-            mem_lock<float> lock(mem, stream);
+            mem_lock<float, mem_lock_type::read> lock(mem, stream);
             auto mem_value = static_cast<float*>(lock.data());
             retValue = static_cast<T>(*mem_value);
         } break;
         case data_types::i32: {
-            mem_lock<int32_t> lock(mem, stream);
+            mem_lock<int32_t, mem_lock_type::read> lock(mem, stream);
             auto mem_value = static_cast<int32_t*>(lock.data());
             retValue = static_cast<T>(*mem_value);
         } break;
         case data_types::i64: {
-            mem_lock<int64_t> lock(mem, stream);
+            mem_lock<int64_t, mem_lock_type::read> lock(mem, stream);
             auto mem_value = static_cast<int64_t*>(lock.data());
             retValue = static_cast<T>(*mem_value);
         } break;
