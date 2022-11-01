@@ -31,14 +31,6 @@ struct roll_impl : typed_primitive_impl_ocl<roll> {
 
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const roll_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<roll_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
@@ -69,7 +61,7 @@ attach_roll_impl::attach_roll_impl() {
             keys.emplace(t, f);
         }
     }
-    implementation_map<roll>::add(impl_types::ocl, roll_impl::create, keys);
+    implementation_map<roll>::add(impl_types::ocl, typed_primitive_impl_ocl<roll>::create<roll_impl>, keys);
 }
 
 }  // namespace detail

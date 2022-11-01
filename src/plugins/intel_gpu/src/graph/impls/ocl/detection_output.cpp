@@ -78,14 +78,6 @@ public:
 
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const detection_output_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<detection_output_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
@@ -100,7 +92,7 @@ attach_detection_output_impl::attach_detection_output_impl() {
         format::bs_fs_yx_bsv16_fsv32,
         format::bs_fs_zyx_bsv16_fsv32,
     };
-    implementation_map<detection_output>::add(impl_types::ocl, detection_output_impl::create, dt, fmt);
+    implementation_map<detection_output>::add(impl_types::ocl, typed_primitive_impl_ocl<detection_output>::create<detection_output_impl>, dt, fmt);
 }
 
 }  // namespace detail

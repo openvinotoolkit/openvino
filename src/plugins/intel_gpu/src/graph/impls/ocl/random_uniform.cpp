@@ -35,20 +35,12 @@ struct random_uniform_impl : typed_primitive_impl_ocl<random_uniform> {
 
         return {params, {}};
     }
-
-    static std::unique_ptr<primitive_impl> create(const random_uniform_node &arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<random_uniform_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
 
 attach_random_uniform_impl::attach_random_uniform_impl() {
-    implementation_map<random_uniform>::add(impl_types::ocl, random_uniform_impl::create, {
+    implementation_map<random_uniform>::add(impl_types::ocl, typed_primitive_impl_ocl<random_uniform>::create<random_uniform_impl>, {
             std::make_tuple(data_types::f16, format::bfyx),
             std::make_tuple(data_types::f16, format::bfzyx),
             std::make_tuple(data_types::f16, format::bfwzyx),

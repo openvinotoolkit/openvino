@@ -120,20 +120,12 @@ public:
         optional_params.tuningParams.runner = std::make_shared<gpu::kernel_runner>(progam.get_engine(), progam.get_id(), true);
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const fully_connected_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<fully_connected_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
 
 attach_fully_connected_impl::attach_fully_connected_impl() {
-    implementation_map<fully_connected>::add(impl_types::ocl, fully_connected_impl::create, {
+    implementation_map<fully_connected>::add(impl_types::ocl, typed_primitive_impl_ocl<fully_connected>::create<fully_connected_impl>, {
         std::make_tuple(data_types::f32, format::yxfb),
         std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::f32, format::bfyx),

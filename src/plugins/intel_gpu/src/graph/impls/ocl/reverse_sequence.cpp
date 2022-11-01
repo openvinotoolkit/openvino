@@ -26,7 +26,6 @@ struct reverse_sequence_impl : typed_primitive_impl_ocl<reverse_sequence> {
         return make_unique<reverse_sequence_impl>(*this);
     }
 
-public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<reverse_sequence>();
         auto params = get_default_params<kernel_selector::reverse_sequence_params>(impl_param);
@@ -39,20 +38,12 @@ public:
 
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const reverse_sequence_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<reverse_sequence_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
 
 attach_reverse_sequence_impl::attach_reverse_sequence_impl() {
-    implementation_map<reverse_sequence>::add(impl_types::ocl, reverse_sequence_impl::create, {
+    implementation_map<reverse_sequence>::add(impl_types::ocl, typed_primitive_impl_ocl<reverse_sequence>::create<reverse_sequence_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::i32, format::bfyx),

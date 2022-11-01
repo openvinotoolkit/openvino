@@ -46,8 +46,6 @@ protected:
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<experimental_detectron_roi_feature_extractor>();
-        const auto output_layout = impl_param.output_layout;
-        const auto padding_filling_value = output_layout.data_padding.filling_value();
         auto params = get_default_params<kernel_selector::experimental_detectron_roi_feature_extractor_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::experimental_detectron_roi_feature_extractor_optional_params>(
             impl_param.get_program());
@@ -67,23 +65,17 @@ public:
 
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const experimental_detectron_roi_feature_extractor_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<experimental_detectron_roi_feature_extractor_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
 attach_experimental_detectron_roi_feature_extractor_impl::attach_experimental_detectron_roi_feature_extractor_impl() {
-    implementation_map<experimental_detectron_roi_feature_extractor>::add(impl_types::ocl,
-                                                                            experimental_detectron_roi_feature_extractor_impl::create, {
-                                                                                std::make_tuple(data_types::f16, format::bfyx),
-                                                                                std::make_tuple(data_types::f32, format::bfyx)
-                                                                                });
+    implementation_map<experimental_detectron_roi_feature_extractor>::add(
+        impl_types::ocl,
+        typed_primitive_impl_ocl<experimental_detectron_roi_feature_extractor>::create<experimental_detectron_roi_feature_extractor_impl>,
+        {
+            std::make_tuple(data_types::f16, format::bfyx),
+            std::make_tuple(data_types::f32, format::bfyx)
+        });
 }
 
 }  // namespace detail

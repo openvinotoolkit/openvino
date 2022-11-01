@@ -38,20 +38,12 @@ struct region_yolo_impl : typed_primitive_impl_ocl<region_yolo> {
 
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const region_yolo_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<region_yolo_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
 
 attach_region_yolo_impl::attach_region_yolo_impl() {
-    implementation_map<region_yolo>::add(impl_types::ocl, region_yolo_impl::create, {
+    implementation_map<region_yolo>::add(impl_types::ocl, typed_primitive_impl_ocl<region_yolo>::create<region_yolo_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::f32, format::byxf),

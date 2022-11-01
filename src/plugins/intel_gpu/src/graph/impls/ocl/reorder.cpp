@@ -135,14 +135,6 @@ public:
         return {params, optional_params};
     }
 
-    static std::unique_ptr<primitive_impl> create(const reorder_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<reorder_impl>(arg, best_kernel);
-    }
-
 private:
     bool _can_be_optimized;
     bool _has_mean;
@@ -151,7 +143,7 @@ private:
 namespace detail {
 
 attach_reorder_impl::attach_reorder_impl() {
-    implementation_map<reorder>::add(impl_types::ocl, reorder_impl::create, {});
+    implementation_map<reorder>::add(impl_types::ocl, typed_primitive_impl_ocl<reorder>::create<reorder_impl>, {});
 }
 
 }  // namespace detail

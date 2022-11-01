@@ -29,7 +29,6 @@ struct ctc_greedy_decoder_impl : typed_primitive_impl_ocl<ctc_greedy_decoder> {
         return make_unique<ctc_greedy_decoder_impl>(*this);
     }
 
-public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<ctc_greedy_decoder>();
         auto params = get_default_params<kernel_selector::ctc_greedy_decoder_params>(impl_param);
@@ -46,20 +45,12 @@ public:
         }
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const ctc_greedy_decoder_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<ctc_greedy_decoder_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
 
 attach_ctc_greedy_decoder_impl::attach_ctc_greedy_decoder_impl() {
-    implementation_map<ctc_greedy_decoder>::add(impl_types::ocl, ctc_greedy_decoder_impl::create, {
+    implementation_map<ctc_greedy_decoder>::add(impl_types::ocl, typed_primitive_impl_ocl<ctc_greedy_decoder>::create<ctc_greedy_decoder_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::i32, format::bfyx),

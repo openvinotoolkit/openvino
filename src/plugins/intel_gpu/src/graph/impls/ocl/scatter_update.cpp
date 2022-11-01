@@ -64,14 +64,6 @@ public:
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const scatter_update_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<scatter_update_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
@@ -95,7 +87,7 @@ attach_scatter_update_impl::attach_scatter_update_impl() {
         format::bfwzyx
     };
 
-    implementation_map<scatter_update>::add(impl_types::ocl, scatter_update_impl::create, types, formats);
+    implementation_map<scatter_update>::add(impl_types::ocl, typed_primitive_impl_ocl<scatter_update>::create<scatter_update_impl>, types, formats);
 }
 
 }  // namespace detail

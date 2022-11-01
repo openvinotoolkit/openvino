@@ -36,14 +36,6 @@ struct ctc_loss_impl : typed_primitive_impl_ocl<ctc_loss> {
         }
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const ctc_loss_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<ctc_loss_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
@@ -58,7 +50,7 @@ attach_ctc_loss_impl::attach_ctc_loss_impl() {
                     format::bs_fs_yx_bsv32_fsv32,
                     format::bs_fs_yx_bsv32_fsv16};
 
-    implementation_map<ctc_loss>::add(impl_types::ocl, ctc_loss_impl::create, types, formats);
+    implementation_map<ctc_loss>::add(impl_types::ocl, typed_primitive_impl_ocl<ctc_loss>::create<ctc_loss_impl>, types, formats);
 }
 
 }  // namespace detail

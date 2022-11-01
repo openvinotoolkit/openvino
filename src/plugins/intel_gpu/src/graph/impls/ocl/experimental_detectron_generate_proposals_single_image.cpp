@@ -58,14 +58,6 @@ public:
 
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const experimental_detectron_generate_proposals_single_image_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<experimental_detectron_generate_proposals_single_image_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
@@ -81,8 +73,10 @@ attach_experimental_detectron_generate_proposals_single_image_impl::attach_exper
         format::bs_fs_yx_bsv32_fsv32
     };
 
-    implementation_map<experimental_detectron_generate_proposals_single_image>::add(impl_types::ocl,
-        experimental_detectron_generate_proposals_single_image_impl::create, types, formats);
+    implementation_map<experimental_detectron_generate_proposals_single_image>::add(
+        impl_types::ocl,
+        typed_primitive_impl_ocl<experimental_detectron_generate_proposals_single_image>::create<experimental_detectron_generate_proposals_single_image_impl>,
+        types, formats);
 }
 }  // namespace detail
 }  // namespace ocl

@@ -95,7 +95,7 @@ attach_adaptive_pooling_impl::attach_adaptive_pooling_impl() {
         format::bs_fs_zyx_bsv32_fsv16
     };
 
-    implementation_map<adaptive_pooling>::add(impl_types::ocl, adaptive_pooling_impl::create, types, formats);
+    implementation_map<adaptive_pooling>::add(impl_types::ocl, typed_primitive_impl_ocl<adaptive_pooling>::create<adaptive_pooling_impl>, types, formats);
 }
 }  // namespace detail
 }  // namespace ocl

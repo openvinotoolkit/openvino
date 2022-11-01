@@ -54,20 +54,12 @@ public:
 
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const generate_proposals_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<generate_proposals_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
     attach_generate_proposals_impl::attach_generate_proposals_impl() {
         implementation_map<generate_proposals>::add(impl_types::ocl,
-                                                    generate_proposals_impl::create, {
+                                                    typed_primitive_impl_ocl<generate_proposals>::create<generate_proposals_impl>, {
                                                             std::make_tuple(data_types::f16, format::bfyx),
                                                             std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
                                                             std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),

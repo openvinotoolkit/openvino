@@ -63,20 +63,12 @@ public:
         auto optional_params = get_default_weights_bias_optional_params<kernel_selector::lstm_dynamic_input_optional_params>(impl_param.get_program());
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const lstm_dynamic_input_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<lstm_dynamic_input_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
 
 attach_lstm_dynamic_input_impl::attach_lstm_dynamic_input_impl() {
-    implementation_map<lstm_dynamic_input>::add(impl_types::ocl, lstm_dynamic_input_impl::create, {
+    implementation_map<lstm_dynamic_input>::add(impl_types::ocl, typed_primitive_impl_ocl<lstm_dynamic_input>::create<lstm_dynamic_input_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
     });

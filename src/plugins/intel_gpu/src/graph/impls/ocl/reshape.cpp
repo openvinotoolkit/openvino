@@ -25,31 +25,18 @@ struct reshape_impl : public typed_primitive_impl_ocl<reshape> {
         return make_unique<reshape_impl>(*this);
     }
 
-public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         auto params = get_default_params<kernel_selector::reshape_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::reshape_optional_params>(impl_param.get_program());
 
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(reshape_node const& arg, const kernel_impl_params& impl_param) {
-        if (arg.can_be_optimized()) {
-            return make_unique<reshape_impl>(arg, kernel_selector::kernel_data{});
-        }
-
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<reshape_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
 
 attach_reshape_impl::attach_reshape_impl() {
-    implementation_map<reshape>::add(impl_types::ocl, reshape_impl::create, {});
+    implementation_map<reshape>::add(impl_types::ocl, typed_primitive_impl_ocl<reshape>::create<reshape_impl>, {});
 }
 
 }  // namespace detail

@@ -51,20 +51,12 @@ public:
 
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const convert_color_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<convert_color_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
 
 attach_convert_color_impl::attach_convert_color_impl() {
-    implementation_map<convert_color>::add(impl_types::ocl, convert_color_impl::create, {
+    implementation_map<convert_color>::add(impl_types::ocl, typed_primitive_impl_ocl<convert_color>::create<convert_color_impl>, {
         std::make_tuple(data_types::f32, format::nv12),
         std::make_tuple(data_types::f16, format::nv12),
         std::make_tuple(data_types::u8,  format::nv12),

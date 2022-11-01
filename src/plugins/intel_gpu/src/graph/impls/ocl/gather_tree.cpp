@@ -36,15 +36,8 @@ struct gather_tree_impl : typed_primitive_impl_ocl<gather_tree> {
         }
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const gather_tree_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<gather_tree_impl>(arg, best_kernel);
-    }
 };
+
 namespace detail {
 attach_gather_tree_impl::attach_gather_tree_impl() {
     auto types = {data_types::i32, data_types::f32};
@@ -63,7 +56,7 @@ attach_gather_tree_impl::attach_gather_tree_impl() {
         format::bs_fs_yx_bsv32_fsv32,
     };
 
-    implementation_map<gather_tree>::add(impl_types::ocl, gather_tree_impl::create, types, formats);
+    implementation_map<gather_tree>::add(impl_types::ocl, typed_primitive_impl_ocl<gather_tree>::create<gather_tree_impl>, types, formats);
 }
 
 }  // namespace detail

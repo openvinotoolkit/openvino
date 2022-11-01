@@ -167,14 +167,6 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
 
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const resample_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<resample_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
@@ -209,7 +201,7 @@ attach_resample_impl::attach_resample_impl() {
     keys.emplace(data_types::f16, format::yxfb);
     keys.emplace(data_types::f16, format::fs_b_yx_fsv32);
 
-    implementation_map<resample>::add(impl_types::ocl, resample_impl::create, keys);
+    implementation_map<resample>::add(impl_types::ocl, typed_primitive_impl_ocl<resample>::create<resample_impl>, keys);
 }
 
 }  // namespace detail

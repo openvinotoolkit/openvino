@@ -38,20 +38,12 @@ struct gather_nd_impl : typed_primitive_impl_ocl<gather_nd> {
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const gather_nd_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<gather_nd_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
 
 attach_gather_nd_impl::attach_gather_nd_impl() {
-    implementation_map<gather_nd>::add(impl_types::ocl, gather_nd_impl::create, {
+    implementation_map<gather_nd>::add(impl_types::ocl, typed_primitive_impl_ocl<gather_nd>::create<gather_nd_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::i32, format::bfyx),

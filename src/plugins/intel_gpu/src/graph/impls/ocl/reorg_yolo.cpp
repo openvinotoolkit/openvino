@@ -33,14 +33,6 @@ struct reorg_yolo_impl : typed_primitive_impl_ocl<reorg_yolo> {
         params.stride = primitive->stride;
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const reorg_yolo_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<reorg_yolo_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
@@ -58,7 +50,7 @@ attach_reorg_yolo_impl::attach_reorg_yolo_impl() {
         format::bs_fs_yx_bsv32_fsv32,
     };
 
-    implementation_map<reorg_yolo>::add(impl_types::ocl, reorg_yolo_impl::create, types, formats);
+    implementation_map<reorg_yolo>::add(impl_types::ocl, typed_primitive_impl_ocl<reorg_yolo>::create<reorg_yolo_impl>, types, formats);
 }
 
 }  // namespace detail

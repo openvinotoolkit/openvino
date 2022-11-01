@@ -34,14 +34,6 @@ struct range_impl : typed_primitive_impl_ocl<range> {
 
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const range_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<range_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
@@ -49,7 +41,7 @@ namespace detail {
 attach_range_impl::attach_range_impl() {
     implementation_map<range>::add(
         impl_types::ocl,
-        range_impl::create,
+        typed_primitive_impl_ocl<range>::create<range_impl>,
         {
             std::make_tuple(data_types::u8, format::bfyx),
             std::make_tuple(data_types::i8, format::bfyx),

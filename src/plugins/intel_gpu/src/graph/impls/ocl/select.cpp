@@ -25,7 +25,6 @@ struct select_impl : typed_primitive_impl_ocl<select> {
         return make_unique<select_impl>(*this);
     }
 
-public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<select>();
         auto params = get_default_params<kernel_selector::select_params>(impl_param);
@@ -63,20 +62,12 @@ public:
         }
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const select_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<select_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
 
 attach_select_impl::attach_select_impl() {
-    implementation_map<select>::add(impl_types::ocl, select_impl::create, {
+    implementation_map<select>::add(impl_types::ocl, typed_primitive_impl_ocl<select>::create<select_impl>, {
         std::make_tuple(data_types::f32, format::yxfb),
         std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::i8, format::yxfb),

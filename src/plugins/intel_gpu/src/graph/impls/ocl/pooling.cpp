@@ -16,16 +16,6 @@ namespace cldnn {
 namespace ocl {
 
 namespace {
-void validate_args(const pooling_node& arg) {
-    auto input_rank = arg.input().get_output_layout().get_spatial_rank();
-    auto output_rank = arg.get_output_layout().get_spatial_rank();
-    auto stride_rank = std::max(arg.get_primitive()->stride.size(), static_cast<size_t>(2));
-    auto window_rank = std::max(arg.get_primitive()->size.size(), static_cast<size_t>(2));
-
-    CLDNN_ERROR_NOT_EQUAL(arg.id(), "input dimensions", input_rank, "output dimensions", output_rank, "");
-    CLDNN_ERROR_NOT_EQUAL(arg.id(), "stride dimensions", stride_rank, "output dimensions", output_rank, "");
-    CLDNN_ERROR_NOT_EQUAL(arg.id(), "window dimensions", window_rank, "output dimensions", output_rank, "");
-}
 
 kernel_selector::pool_type cldnn_2_pool_type(pooling_mode mode) {
     switch (mode) {
@@ -173,15 +163,6 @@ public:
 
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const pooling_node& arg, const kernel_impl_params& impl_param) {
-        validate_args(arg);
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<pooling_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
@@ -218,7 +199,7 @@ attach_pooling_impl::attach_pooling_impl() {
     keys.emplace(data_types::f16, format::fs_b_yx_fsv32);
     keys.emplace(data_types::f32, format::fs_b_yx_fsv32);
 
-    implementation_map<pooling>::add(impl_types::ocl, pooling_impl::create, keys);
+    implementation_map<pooling>::add(impl_types::ocl, typed_primitive_impl_ocl<pooling>::create<pooling_impl>, keys);
 }
 
 }  // namespace detail

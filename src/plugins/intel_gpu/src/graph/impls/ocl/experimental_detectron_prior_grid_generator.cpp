@@ -46,14 +46,6 @@ struct experimental_detectron_prior_grid_generator_impl
 
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const experimental_detectron_prior_grid_generator_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<experimental_detectron_prior_grid_generator_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
@@ -61,7 +53,7 @@ namespace detail {
 attach_experimental_detectron_prior_grid_generator_impl::attach_experimental_detectron_prior_grid_generator_impl() {
     implementation_map<experimental_detectron_prior_grid_generator>::add(
         impl_types::ocl,
-        experimental_detectron_prior_grid_generator_impl::create,
+        typed_primitive_impl_ocl<experimental_detectron_prior_grid_generator>::create<experimental_detectron_prior_grid_generator_impl>,
         {
             std::make_tuple(data_types::f16, format::bfyx),
             std::make_tuple(data_types::f32, format::bfyx),

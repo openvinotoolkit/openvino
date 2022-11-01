@@ -39,14 +39,6 @@ struct eye_impl : typed_primitive_impl_ocl<eye> {
 
         return {params, {}};
     }
-
-    static std::unique_ptr<primitive_impl> create(const eye_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<eye_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
@@ -74,7 +66,7 @@ attach_eye_impl::attach_eye_impl() {
         format::bs_fs_zyx_bsv32_fsv32,
         format::bs_fs_zyx_bsv32_fsv16,
     };
-    implementation_map<eye>::add(impl_types::ocl, eye_impl::create, types, formats);
+    implementation_map<eye>::add(impl_types::ocl, typed_primitive_impl_ocl<eye>::create<eye_impl>, types, formats);
 }
 
 }  // namespace detail

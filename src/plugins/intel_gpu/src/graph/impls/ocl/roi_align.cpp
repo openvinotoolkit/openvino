@@ -64,9 +64,6 @@ public:
         const auto& input_layout = impl_param.get_input_layout(0);
         const auto& rois_layout = impl_param.get_input_layout(1);
         const auto& batches_layout = impl_param.get_input_layout(2);
-        const auto& output_layout = impl_param.output_layout;
-
-        const auto padding_filling_value = output_layout.data_padding.filling_value();
 
         auto params = get_default_params<kernel_selector::roi_align_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::roi_align_optional_params>(impl_param.get_program());
@@ -79,14 +76,6 @@ public:
         params.spatial_scale = primitive->spatial_scale;
 
         return {params, optional_params};
-    }
-
-    static std::unique_ptr<primitive_impl> create(const roi_align_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<roi_align_impl>(arg, best_kernel);
     }
 };
 
@@ -102,7 +91,7 @@ attach_roi_align_impl::attach_roi_align_impl() {
                     format::bs_fs_yx_bsv32_fsv16,
                     format::bs_fs_yx_bsv32_fsv32};
 
-    implementation_map<roi_align>::add(impl_types::ocl, roi_align_impl::create, types, formats);
+    implementation_map<roi_align>::add(impl_types::ocl, typed_primitive_impl_ocl<roi_align>::create<roi_align_impl>, types, formats);
 }
 
 }  // namespace detail

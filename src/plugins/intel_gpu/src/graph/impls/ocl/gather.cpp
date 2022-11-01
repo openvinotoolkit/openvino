@@ -85,20 +85,12 @@ public:
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const gather_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<gather_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
 
 attach_gather_impl::attach_gather_impl() {
-    implementation_map<gather>::add(impl_types::ocl, gather_impl::create, {
+    implementation_map<gather>::add(impl_types::ocl, typed_primitive_impl_ocl<gather>::create<gather_impl>, {
         std::make_tuple(data_types::f32, format::fyxb),
         std::make_tuple(data_types::f16, format::fyxb),
         std::make_tuple(data_types::i32, format::fyxb),

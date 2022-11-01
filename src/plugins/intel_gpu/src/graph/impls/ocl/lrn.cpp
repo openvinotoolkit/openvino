@@ -41,20 +41,12 @@ struct lrn_impl : typed_primitive_impl_ocl<lrn> {
 
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const lrn_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<lrn_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
 
 attach_lrn_impl::attach_lrn_impl() {
-    implementation_map<lrn>::add(impl_types::ocl, lrn_impl::create, {
+    implementation_map<lrn>::add(impl_types::ocl, typed_primitive_impl_ocl<lrn>::create<lrn_impl>, {
         std::make_tuple(data_types::f32, format::yxfb),
         std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::u8, format::yxfb),

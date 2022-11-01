@@ -27,7 +27,6 @@ struct embedding_bag_impl : typed_primitive_impl_ocl<embedding_bag> {
         return make_unique<embedding_bag_impl>(*this);
     }
 
-public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<embedding_bag>();
         auto params = get_default_params<kernel_selector::embedding_bag_params>(impl_param);
@@ -55,20 +54,12 @@ public:
         params.default_index = primitive->default_index;
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const embedding_bag_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<embedding_bag_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
 
 attach_embedding_bag_impl::attach_embedding_bag_impl() {
-    implementation_map<embedding_bag>::add(impl_types::ocl, embedding_bag_impl::create, {
+    implementation_map<embedding_bag>::add(impl_types::ocl, typed_primitive_impl_ocl<embedding_bag>::create<embedding_bag_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
     });

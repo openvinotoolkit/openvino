@@ -130,14 +130,6 @@ public:
         }
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const gemm_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<gemm_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
@@ -166,7 +158,7 @@ attach_gemm_impl::attach_gemm_impl() {
         format::bfwzyx,
     };
 
-    implementation_map<gemm>::add(impl_types::ocl, gemm_impl::create, types, formats);
+    implementation_map<gemm>::add(impl_types::ocl, typed_primitive_impl_ocl<gemm>::create<gemm_impl>, types, formats);
 }
 
 }  // namespace detail

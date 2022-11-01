@@ -131,14 +131,6 @@ public:
         return {params, optional_params};
     }
 
-    static std::unique_ptr<primitive_impl> create(const deconvolution_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<deconvolution_impl>(arg, best_kernel);
-    }
-
 private:
     int32_t _split;
     uint32_t _groups;
@@ -168,7 +160,7 @@ attach_deconvolution_impl::attach_deconvolution_impl() {
         format::bs_fs_zyx_bsv32_fsv16,
     };
 
-    implementation_map<deconvolution>::add(impl_types::ocl, deconvolution_impl::create, types, formats);
+    implementation_map<deconvolution>::add(impl_types::ocl, typed_primitive_impl_ocl<deconvolution>::create<deconvolution_impl>, types, formats);
 }
 
 }  // namespace detail

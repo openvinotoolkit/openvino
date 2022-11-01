@@ -34,14 +34,6 @@ struct count_nonzero_impl : typed_primitive_impl_ocl<count_nonzero> {
         auto optional_params = get_default_optional_params<kernel_selector::count_nonzero_optional_params>(impl_param.get_program());
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const count_nonzero_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<count_nonzero_impl>(arg, best_kernel);
-    }
 };
 
 struct gather_nonzero_impl : typed_primitive_impl_ocl<gather_nonzero> {
@@ -56,7 +48,6 @@ struct gather_nonzero_impl : typed_primitive_impl_ocl<gather_nonzero> {
         return make_unique<gather_nonzero_impl>(*this);
     }
 
-public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         auto params = get_default_params<kernel_selector::gather_nonzero_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::gather_nonzero_optional_params>(impl_param.get_program());
@@ -65,20 +56,12 @@ public:
         params.ov_input_rank = impl_param.get_input_layout().get_shape().size();
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const gather_nonzero_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<gather_nonzero_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
 
 attach_count_nonzero_impl::attach_count_nonzero_impl() {
-    implementation_map<count_nonzero>::add(impl_types::ocl, count_nonzero_impl::create, {
+    implementation_map<count_nonzero>::add(impl_types::ocl, typed_primitive_impl_ocl<count_nonzero>::create<count_nonzero_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::i32, format::bfyx),
@@ -100,7 +83,7 @@ attach_count_nonzero_impl::attach_count_nonzero_impl() {
 }
 
 attach_gather_nonzero_impl::attach_gather_nonzero_impl() {
-    implementation_map<gather_nonzero>::add(impl_types::ocl, gather_nonzero_impl::create, {
+    implementation_map<gather_nonzero>::add(impl_types::ocl, typed_primitive_impl_ocl<gather_nonzero>::create<gather_nonzero_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::i32, format::bfyx),

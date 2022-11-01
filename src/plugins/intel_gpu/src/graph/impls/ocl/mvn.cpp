@@ -29,7 +29,6 @@ struct mvn_impl : typed_primitive_impl_ocl<mvn> {
         return make_unique<mvn_impl>(*this);
     }
 
-public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<mvn>();
         auto params = get_default_params<kernel_selector::mvn_params>(impl_param);
@@ -44,20 +43,12 @@ public:
                                                        : kernel_selector::mvn_eps_mode::OUTSIDE_SQRT;
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const mvn_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<mvn_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
 
 attach_mvn_impl::attach_mvn_impl() {
-    implementation_map<mvn>::add(impl_types::ocl, mvn_impl::create, {
+    implementation_map<mvn>::add(impl_types::ocl, typed_primitive_impl_ocl<mvn>::create<mvn_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::u8, format::bfyx),

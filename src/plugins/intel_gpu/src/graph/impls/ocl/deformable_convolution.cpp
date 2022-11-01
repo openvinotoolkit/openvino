@@ -97,14 +97,6 @@ public:
         return {params, optional_params};
     }
 
-    static std::unique_ptr<primitive_impl> create(const deformable_conv_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<deformable_conv_impl>(arg, best_kernel);
-    }
-
 private:
     int32_t _split;
     uint32_t _groups;
@@ -178,27 +170,19 @@ public:
                               (uint32_t)kernel_size.spatial[2] };
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const deformable_interp_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<deformable_interp_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
 
 attach_deformable_conv_impl::attach_deformable_conv_impl() {
-    implementation_map<deformable_conv>::add(impl_types::ocl, deformable_conv_impl::create, {
+    implementation_map<deformable_conv>::add(impl_types::ocl, typed_primitive_impl_ocl<deformable_conv>::create<deformable_conv_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
     });
 }
 
 attach_deformable_interp_impl::attach_deformable_interp_impl() {
-    implementation_map<deformable_interp>::add(impl_types::ocl, deformable_interp_impl::create, {
+    implementation_map<deformable_interp>::add(impl_types::ocl, typed_primitive_impl_ocl<deformable_interp>::create<deformable_interp_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
     });

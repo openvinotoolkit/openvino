@@ -110,20 +110,12 @@ public:
 
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const eltwise_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<eltwise_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
 
 attach_eltwise_impl::attach_eltwise_impl() {
-    implementation_map<eltwise>::add(impl_types::ocl, eltwise_impl::create, {
+    implementation_map<eltwise>::add(impl_types::ocl, typed_primitive_impl_ocl<eltwise>::create<eltwise_impl>, {
         std::make_tuple(data_types::f32, format::yxfb),
         std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::i8, format::yxfb),

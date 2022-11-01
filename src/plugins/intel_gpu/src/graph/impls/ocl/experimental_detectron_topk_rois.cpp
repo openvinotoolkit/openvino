@@ -34,14 +34,6 @@ struct experimental_detectron_topk_rois_impl : typed_primitive_impl_ocl<experime
 
         return {params, {}};
     }
-
-    static std::unique_ptr<primitive_impl> create(const experimental_detectron_topk_rois_node &arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<experimental_detectron_topk_rois_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
@@ -54,10 +46,11 @@ attach_experimental_detectron_topk_rois_impl::attach_experimental_detectron_topk
                     format::bs_fs_yx_bsv16_fsv16,
                     format::bs_fs_yx_bsv32_fsv16,
                     format::bs_fs_yx_bsv32_fsv32};
-    implementation_map<experimental_detectron_topk_rois>::add(impl_types::ocl,
-                                                              experimental_detectron_topk_rois_impl::create,
-                                                              types,
-                                                              formats);
+    implementation_map<experimental_detectron_topk_rois>::add(
+        impl_types::ocl,
+        typed_primitive_impl_ocl<experimental_detectron_topk_rois>::create<experimental_detectron_topk_rois_impl>,
+        types,
+        formats);
 }
 
 }  // namespace detail

@@ -27,7 +27,6 @@ struct reverse_impl : typed_primitive_impl_ocl<reverse> {
         return make_unique<reverse_impl>(*this);
     }
 
-public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<reverse>();
         auto params = get_default_params<kernel_selector::reverse_params>(impl_param);
@@ -37,14 +36,6 @@ public:
         params.reverseMode = primitive->mode == reverse_mode::index ? kernel_selector::reverse_mode::index
                                                                     : kernel_selector::reverse_mode::mask;
         return {params, optional_params};
-    }
-
-    static std::unique_ptr<primitive_impl> create(const reverse_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<reverse_impl>(arg, best_kernel);
     }
 };
 
@@ -77,7 +68,7 @@ attach_reverse_impl::attach_reverse_impl() {
             keys.emplace(t, f);
         }
     }
-    implementation_map<reverse>::add(impl_types::ocl, reverse_impl::create, keys);
+    implementation_map<reverse>::add(impl_types::ocl, typed_primitive_impl_ocl<reverse>::create<reverse_impl>, keys);
 }
 
 }  // namespace detail

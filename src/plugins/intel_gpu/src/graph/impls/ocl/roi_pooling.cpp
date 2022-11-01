@@ -91,14 +91,6 @@ public:
 
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const roi_pooling_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<roi_pooling_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
@@ -113,7 +105,7 @@ attach_roi_pooling_impl::attach_roi_pooling_impl() {
 
     auto types = {data_types::f16, data_types::f32};
 
-    implementation_map<roi_pooling>::add(impl_types::ocl, roi_pooling_impl::create, types, formats);
+    implementation_map<roi_pooling>::add(impl_types::ocl, typed_primitive_impl_ocl<roi_pooling>::create<roi_pooling_impl>, types, formats);
 }
 
 }  // namespace detail

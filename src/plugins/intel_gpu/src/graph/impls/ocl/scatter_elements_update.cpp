@@ -53,7 +53,6 @@ struct scatter_elements_update_impl : typed_primitive_impl_ocl<scatter_elements_
         return make_unique<scatter_elements_update_impl>(*this);
     }
 
-public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<scatter_elements_update>();
         auto params = get_default_params<kernel_selector::scatter_elements_update_params>(impl_param);
@@ -66,13 +65,6 @@ public:
         return {params, optional_params};
     }
 
-    static std::unique_ptr<primitive_impl> create(const scatter_elements_update_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<scatter_elements_update_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
@@ -97,7 +89,11 @@ attach_scatter_elements_update_impl::attach_scatter_elements_update_impl() {
             format::bfwzyx
     };
 
-    implementation_map<scatter_elements_update>::add(impl_types::ocl, scatter_elements_update_impl::create, types, formats);
+    implementation_map<scatter_elements_update>::add(
+        impl_types::ocl,
+        typed_primitive_impl_ocl<scatter_elements_update>::create<scatter_elements_update_impl>,
+        types,
+        formats);
 }
 
 }  // namespace detail

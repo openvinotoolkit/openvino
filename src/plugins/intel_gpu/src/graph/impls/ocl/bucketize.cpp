@@ -33,14 +33,6 @@ struct bucketize_impl : typed_primitive_impl_ocl<bucketize> {
 
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const bucketize_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<bucketize_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
@@ -71,7 +63,7 @@ attach_bucketize_impl::attach_bucketize_impl() {
             keys.emplace(t, f);
         }
     }
-    implementation_map<bucketize>::add(impl_types::ocl, bucketize_impl::create, keys);
+    implementation_map<bucketize>::add(impl_types::ocl, typed_primitive_impl_ocl<bucketize>::create<bucketize_impl>, keys);
 }
 }  // namespace detail
 

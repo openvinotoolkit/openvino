@@ -28,7 +28,6 @@ struct space_to_batch_impl : typed_primitive_impl_ocl<space_to_batch> {
         return make_unique<space_to_batch_impl>(*this);
     }
 
-public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<space_to_batch>();
         auto params = get_default_params<kernel_selector::space_to_batch_params>(impl_param);
@@ -40,20 +39,12 @@ public:
 
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const space_to_batch_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<space_to_batch_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
 
 attach_space_to_batch_impl::attach_space_to_batch_impl() {
-    implementation_map<space_to_batch>::add(impl_types::ocl, space_to_batch_impl::create, {
+    implementation_map<space_to_batch>::add(impl_types::ocl, typed_primitive_impl_ocl<space_to_batch>::create<space_to_batch_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::u8, format::bfyx),

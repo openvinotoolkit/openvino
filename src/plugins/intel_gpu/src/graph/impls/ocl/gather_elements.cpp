@@ -58,7 +58,6 @@ struct gather_elements_impl : typed_primitive_impl_ocl<gather_elements> {
         return make_unique<gather_elements_impl>(*this);
     }
 
-public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<gather_elements>();
         auto params = get_default_params<kernel_selector::gather_elements_params>(impl_param);
@@ -70,20 +69,12 @@ public:
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const gather_elements_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<gather_elements_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
 
 attach_gather_elements_impl::attach_gather_elements_impl() {
-    implementation_map<gather_elements>::add(impl_types::ocl, gather_elements_impl::create, {
+    implementation_map<gather_elements>::add(impl_types::ocl, typed_primitive_impl_ocl<gather_elements>::create<gather_elements_impl>, {
         std::make_tuple(data_types::i8, format::bfyx),
         std::make_tuple(data_types::u8, format::bfyx),
         std::make_tuple(data_types::f32, format::bfyx),

@@ -35,20 +35,12 @@ struct shape_of_impl : typed_primitive_impl_ocl<shape_of> {
 
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const shape_of_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<shape_of_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
 
 attach_shape_of_impl::attach_shape_of_impl() {
-    implementation_map<shape_of>::add(impl_types::ocl, shape_of_impl::create, {});
+    implementation_map<shape_of>::add(impl_types::ocl, typed_primitive_impl_ocl<shape_of>::create<shape_of_impl>, {});
 }
 
 }  // namespace detail

@@ -27,7 +27,6 @@ struct depth_to_space_impl : typed_primitive_impl_ocl<depth_to_space> {
         return make_unique<depth_to_space_impl>(*this);
     }
 
-public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<depth_to_space>();
         auto params = get_default_params<kernel_selector::depth_to_space_params>(impl_param);
@@ -37,14 +36,6 @@ public:
         params.mode = primitive->mode == depth_to_space_mode::blocks_first ? kernel_selector::depth_to_space_mode::BLOCKS_FIRST
                                                                            : kernel_selector::depth_to_space_mode::DEPTH_FIRST;
         return {params, optional_params};
-    }
-
-    static std::unique_ptr<primitive_impl> create(const depth_to_space_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<depth_to_space_impl>(arg, best_kernel);
     }
 };
 
@@ -66,7 +57,7 @@ attach_depth_to_space_impl::attach_depth_to_space_impl() {
         format::bs_fs_yx_bsv32_fsv16,
         format::bs_fs_yx_bsv32_fsv32,
     };
-    implementation_map<depth_to_space>::add(impl_types::ocl, depth_to_space_impl::create, dt, fmt);
+    implementation_map<depth_to_space>::add(impl_types::ocl, typed_primitive_impl_ocl<depth_to_space>::create<depth_to_space_impl>, dt, fmt);
 }
 
 }  // namespace detail

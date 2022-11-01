@@ -127,8 +127,6 @@ public:
         uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
         params.dilation = {dilation_x, dilation_y, dilation_z};
 
-        auto& kernel_selector = kernel_selector::binary_convolution_kernel_selector::Instance();
-
         const auto& tuning_config = impl_param.get_program().get_options().get<build_option_type::tuning_config>();
 
         if (tuning_config->config.mode == tuning_mode::tuning_tune_and_cache ||
@@ -140,14 +138,6 @@ public:
         return {params, optional_params};
     }
 
-    static std::unique_ptr<primitive_impl> create(const binary_convolution_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<binary_convolution_impl>(arg, best_kernel);
-    }
-
 private:
     int32_t _split;
 };
@@ -155,7 +145,7 @@ private:
 namespace detail {
 
 attach_binary_convolution_impl::attach_binary_convolution_impl() {
-    implementation_map<binary_convolution>::add(impl_types::ocl, binary_convolution_impl::create, {
+    implementation_map<binary_convolution>::add(impl_types::ocl, typed_primitive_impl_ocl<binary_convolution>::create<binary_convolution_impl>, {
         std::make_tuple(data_types::bin, format::b_fs_yx_32fp),
     });
 }

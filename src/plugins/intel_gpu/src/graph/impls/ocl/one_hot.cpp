@@ -41,20 +41,12 @@ struct one_hot_impl : typed_primitive_impl_ocl<one_hot> {
         params.one_hot_limit = output_sizes[params.one_hot_axis];
         return {params, optional_params};
     }
-
-    static std::unique_ptr<primitive_impl> create(const one_hot_node& arg, const kernel_impl_params& impl_param) {
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<one_hot_impl>(arg, best_kernel);
-    }
 };
 
 namespace detail {
 
 attach_one_hot_impl::attach_one_hot_impl() {
-    implementation_map<one_hot>::add(impl_types::ocl, one_hot_impl::create, {
+    implementation_map<one_hot>::add(impl_types::ocl, typed_primitive_impl_ocl<one_hot>::create<one_hot_impl>, {
         std::make_tuple(data_types::i8, format::bfyx),
         std::make_tuple(data_types::u8, format::bfyx),
         std::make_tuple(data_types::i32, format::bfyx),
