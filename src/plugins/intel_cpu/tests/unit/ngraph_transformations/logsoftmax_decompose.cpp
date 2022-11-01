@@ -22,21 +22,21 @@ using namespace testing;
 using namespace ov::intel_cpu;
 
 TEST(TransformationTests, ConvertLogSoftmax1) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     int compute_axis = 1;
     {
-        auto input = std::make_shared<ov::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{ 3, 2, 2 });
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{ 3, 2, 2 });
         auto logsoftmax = std::make_shared<ov::opset8::LogSoftmax>(input, compute_axis);
 
-        f = std::make_shared<ov::Model>(ngraph::NodeVector{ logsoftmax }, ngraph::ParameterVector{ input });
-        ngraph::pass::Manager m;
+        f = std::make_shared<ov::Model>(ov::NodeVector{ logsoftmax }, ov::ParameterVector{ input });
+        ov::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
         m.register_pass<ConvertLogSoftmax>();
         m.run_passes(f);
     }
 
     {
-        auto input = std::make_shared<ov::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{ 3, 2, 2 });
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{ 3, 2, 2 });
         auto axis = std::make_shared<ov::opset8::Constant>(ov::element::i64, ov::Shape{}, compute_axis);
         auto xMax = std::make_shared<ov::opset8::ReduceMax>(input->get_default_output(), axis->get_default_output(), true);
         auto subtract = std::make_shared<ov::opset8::Subtract>(input->get_default_output(), xMax->get_default_output());
@@ -45,7 +45,7 @@ TEST(TransformationTests, ConvertLogSoftmax1) {
         auto log = std::make_shared<ov::opset8::Log>(s);
         auto result = std::make_shared<ov::opset8::Subtract>(subtract, log);
 
-        f_ref = std::make_shared<ov::Model>(ngraph::NodeVector{ result }, ngraph::ParameterVector{ input });
+        f_ref = std::make_shared<ov::Model>(ov::NodeVector{ result }, ov::ParameterVector{ input });
     }
 
     auto res = compare_functions(f, f_ref);
