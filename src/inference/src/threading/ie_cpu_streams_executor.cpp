@@ -123,7 +123,9 @@ struct CPUStreamsExecutor::Impl {
                     const auto cpu_idx_offset =
                         core_type_size > 1 ? (selected_core_type == 0 ? _impl->_config._small_core_offset : 1) : 0;
 
-                    _taskArena.reset(new custom::task_arena{max_concurrency});
+                    _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
+                                                                .set_core_type(selected_core_type)
+                                                                .set_max_concurrency(max_concurrency)});
                     CpuSet processMask;
                     int ncpus = 0;
                     std::tie(processMask, ncpus) = GetProcessMask();

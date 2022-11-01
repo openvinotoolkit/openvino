@@ -634,7 +634,7 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator {
         return { *this, internal::make_shared(res, *this) };
     }
 
-    jit_kernel();
+    jit_kernel(const char *name);
 
     template<typename RegType>
     const RegType & reserve();
