@@ -145,11 +145,7 @@ void CompileModelCacheTestBase::SetUp() {
     APIBaseTest::SetUp();
     auto fGen = std::get<0>(funcPair);
     m_functionName = std::get<1>(funcPair);
-    try {
-        function = fGen(m_precision, m_batchSize);
-    } catch (...) {
-        GTEST_FAIL() << "Impossible to generate the function" << std::endl;
-    }
+    function = fGen(m_precision, m_batchSize);
 
     std::stringstream ss;
     auto hash = std::hash<std::string>()(SubgraphBaseTest::GetTestName());
