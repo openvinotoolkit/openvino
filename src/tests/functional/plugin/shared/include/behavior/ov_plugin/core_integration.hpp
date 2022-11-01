@@ -610,13 +610,12 @@ TEST(OVClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
 }
 
 
-// TODO: iefode
-// TEST(OVClassBasicTestP, smoke_GetMetricSupportedConfigKeysHeteroThrows) {
-//     ov::Core ie = createCoreWithTemplate();
-//     // TODO: check
-//     std::string real_target_device = CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device;
-//     ASSERT_THROW(ie.get_property(real_target_device, ov::supported_properties), ov::Exception);
-// }
+TEST_P(OVClassBasicTestP, smoke_GetMetricSupportedConfigKeysHeteroThrows) {
+    ov::Core ie = createCoreWithTemplate();
+    // TODO: check
+    std::string real_target_device = CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device;
+    ASSERT_THROW(ie.get_property(real_target_device, ov::supported_properties), ov::Exception);
+}
 
 TEST_P(OVClassGetMetricTest_SUPPORTED_METRICS, GetMetricAndPrintNoThrow) {
     ov::Core ie = createCoreWithTemplate();
