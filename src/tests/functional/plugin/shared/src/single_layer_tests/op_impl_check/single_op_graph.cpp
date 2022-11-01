@@ -1170,6 +1170,14 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::GridSample
     return std::make_shared<ov::Model>(results, ov::ParameterVector{data, grid}, "GridSampleGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v10::Unique>& node) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 10, 10});
+    const auto axis = ov::op::v0::Constant::create(element::i32, Shape{}, {-1});
+    const auto unique = std::make_shared<ov::op::v10::Unique>(data, axis);
+    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(unique)},
+                                       ov::ParameterVector{data}, "UniqueGraph");
+}
+
 std::shared_ptr<ov::Model> generateArithmeticReductionKeepDims(const std::shared_ptr<ov::op::Op> &node) {
     const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{3, 3});
     const auto axes = ov::op::v0::Constant::create(ov::element::i32, {1}, {1});
