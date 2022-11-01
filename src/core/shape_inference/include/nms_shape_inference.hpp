@@ -79,8 +79,12 @@ void shape_infer(const NonMaxSuppression* op,
                 max_output_boxes_per_class = op->max_boxes_output_from_input();
             }
 
-            out_shape[0] = static_output ? std::min(num_boxes, max_output_boxes_per_class) * num_classes * scores_ps[0].get_length()
-                                         : Dimension(0, std::min(num_boxes, max_output_boxes_per_class) * num_classes * scores_ps[0].get_length());
+            out_shape[0] =
+                static_output
+                    ? std::min(num_boxes, max_output_boxes_per_class) * num_classes * scores_ps[0].get_length()
+                    : Dimension(
+                          0,
+                          std::min(num_boxes, max_output_boxes_per_class) * num_classes * scores_ps[0].get_length());
         }
     }
     output_shapes[0] = out_shape;
