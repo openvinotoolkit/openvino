@@ -609,7 +609,7 @@ TEST(pre_post_process, unsupported_model_color_format_i420) {
         {
             auto p = PrePostProcessor(f);
             p.input().tensor().set_color_format(ColorFormat::I420_THREE_PLANES);
-            p.input().preprocess().scale(2.1).convert_color(ColorFormat::BGR);
+            p.input().preprocess().scale(2.1f).convert_color(ColorFormat::BGR);
             f = p.build();
         },
         ov::AssertFailure);
