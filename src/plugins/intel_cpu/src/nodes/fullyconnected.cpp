@@ -384,7 +384,7 @@ void FullyConnected::prepareParams() {
             reshapeMemory(DNNL_ARG_DST);
         }
     } else {
-        IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+        IE_THROW() << "Executor is not created for node " << getName() << ".";
     }
 }
 
@@ -768,8 +768,6 @@ DnnlDesriptor FullyConnected::createDescriptorInternalForConv(const dnnl::memory
         normalizedInDims = {inDims[0], inDims[2], dnnl::memory::dim{1}, inDims[1]};
     } else if (inDims.size() == 2) {
         normalizedInDims = {dnnl::memory::dim{1}, inDims[1], dnnl::memory::dim{1}, inDims[0]};
-    } else {
-        IE_THROW() << "TBD";
     }
     auto convInDesc = dnnl::memory::desc(normalizedInDims, inputDesc.data_type(), memory::format_tag::nhwc);
 
@@ -780,22 +778,16 @@ DnnlDesriptor FullyConnected::createDescriptorInternalForConv(const dnnl::memory
         normalizedOutDims = { outDims[0], outDims[2], dnnl::memory::dim{1}, outDims[1]};
     } else if (outDims.size() == 2) {
         normalizedOutDims = { dnnl::memory::dim{1}, outDims[1], dnnl::memory::dim{1}, outDims[0]};
-    } else {
-        IE_THROW() << "TBD";
     }
     auto convOutDesc = dnnl::memory::desc(normalizedOutDims, outputDesc.data_type(), memory::format_tag::nhwc);
 
     // make a fake shape: OC, IC, 1, 1
     auto weightDims = getInputShapeAtPort(WEIGHTS_ID).getStaticDims();
     dnnl::memory::dims normalizedWeightDims;
-    if (weightDims.size() == 2) {
-        normalizedWeightDims = {static_cast<dnnl::memory::dim>(weightDims[0]),
-                                static_cast<dnnl::memory::dim>(weightDims[1]),
-                                dnnl::memory::dim{1},
-                                dnnl::memory::dim{1}};
-    } else {
-        IE_THROW() << "TBD";
-    }
+    normalizedWeightDims = {static_cast<dnnl::memory::dim>(weightDims[0]),
+                            static_cast<dnnl::memory::dim>(weightDims[1]),
+                            dnnl::memory::dim{1},
+                            dnnl::memory::dim{1}};
     auto convWeightDescAny = dnnl::memory::desc(normalizedWeightDims, wdt, dnnl::memory::format_tag::any);
 
     std::shared_ptr<dnnl::convolution_forward::desc> desc;
@@ -822,7 +814,7 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
     bool shouldTry = false;
     const auto inRank = getInputShapeAtPort(DATA_ID).getMaxDims().size();
     const auto weightRank = getInputShapeAtPort(WEIGHTS_ID).getStaticDims().size();
-    // TBD: rank=4
+    // disable rank=4: rank == 4 means a matrix: N * IC * H * W --> N * (IC*H*W) --> N * IC * 1 * 1, it should not be efficient which acts as vector multiply
     if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
         getOriginalInputPrecisionAtPort(DATA_ID) == InferenceEngine::Precision::FP32 &&
         one_of(inRank, 2, 3) && weightRank == 2) {
@@ -831,11 +823,6 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
         // brg convolution does not support stride
         if (outDesc->getDnnlDesc().data.offset0 == 0)
             shouldTry = true;
-    }
-
-    auto p = getenv("USE_BRG");
-    if (p) {
-        shouldTry = p[0] == '1';
     }
 
     return shouldTry;
