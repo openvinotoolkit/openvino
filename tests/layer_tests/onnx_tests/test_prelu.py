@@ -4,12 +4,12 @@
 import numpy as np
 import pytest
 from common.layer_test_class import check_ir_version
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 from unit_tests.utils.graph import build_graph
 
 
-class TestPRelu(Caffe2OnnxLayerTest):
+class TestPRelu(OnnxRuntimeLayerTest):
     def create_net(self, shape, slope_shape, precision, ir_version, opset=None):
         """
             ONNX net                     IR net
