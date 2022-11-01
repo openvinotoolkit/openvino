@@ -231,7 +231,8 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
         for (int i = 0; i < inputs.size(); ++i) {
             PartialShape ps = pytorch_model->get_input_shape(i);
             auto type = simplified_type_interpret(pytorch_model->get_input_type(i));
-            auto parameter = std::make_shared<opset8::Parameter>(ov::element::custom, type, ps);
+            // TODO: Use special API to set custom type detalization
+            auto parameter = std::make_shared<opset8::Parameter>(ov::element::dynamic, ps);
             parameter->get_output_tensor(0).add_names({std::to_string(pytorch_model->input(i))});
             parameters.push_back(parameter);
             auto order = pytorch_model->get_input_transpose_order(i);
@@ -266,7 +267,8 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
                     // TODO: Eliminate duplication with the main code for Parameters creation
                     PartialShape ps = node->get_input_shape(i);
                     auto type = simplified_type_interpret(node->get_input_type(i));
-                    auto parameter = std::make_shared<opset8::Parameter>(element::custom, type, ps);
+                    // TODO: Use special API to set custom type detalization
+                    auto parameter = std::make_shared<opset8::Parameter>(element::dynamic, ps);
                     // TODO: Missing get_input_transpose_order handling for not trivial layouts
                     tensor_map[input] = parameter;
                     // set name of parameter to the index of node in the model

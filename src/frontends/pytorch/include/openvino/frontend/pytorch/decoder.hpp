@@ -31,6 +31,8 @@ struct List {
     Any element_type;
 };
 
+struct Str {};
+
 struct Optional;
 struct Dict;
 struct NamedTuple;

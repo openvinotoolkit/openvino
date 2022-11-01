@@ -21,10 +21,34 @@ using ov::pass::pattern::wrap_type;
 using std::make_shared;
 using std::shared_ptr;
 
+
+const Type::List* is_list (const descriptor::Tensor& tensor) {
+    // TODO: Use special API to get custom type detalization
+    /*if (falsetensor.get_element_type() == element::custom) {
+        auto custom_type = tensor.get_custom_element_type();
+        if(custom_type.is<Type::List>()) {
+            return &custom_type.as<Type::List>();
+        }
+    }*/
+
+    return nullptr;
+}
+
+
 std::tuple<bool, Any> is_list_of_tensors(const descriptor::Tensor& tensor) {
+    // TODO: Use special API to get custom type detalization
+    /*if (auto list = is_list(tensor)) {
+        if(list->element_type.is<Type::Tensor>()) {
+            return std::make_tuple(true, tensor.get_custom_element_type());  // UGLY: used custom type from the top again
+        }
+    }
+
+    return std::make_tuple(false, Any());
+
     if (tensor.get_element_type() != element::custom)
         return std::make_tuple(false, Any());
-    Any custom_type = tensor.get_custom_element_type();
+    Any custom_type = tensor.get_custom_element_type();*/
+    Any custom_type;
     if (custom_type.empty()) {
         return std::make_tuple(false, Any());
     }
@@ -42,12 +66,14 @@ std::tuple<bool, Any> is_list_of_tensors(const descriptor::Tensor& tensor) {
     return std::make_tuple(true, custom_type);
 }
 
+
 std::shared_ptr<FrameworkNode> make_list_pack(const OutputVector& inputs, Any output_type, const PartialShape& shape) {
     auto list_pack = make_shared<FrameworkNode>(inputs, 1);  // 6 inputs -- 1 output
     if(output_type.empty()) {
         throw std::runtime_error("Attemt to call make_list_pack with empty output_type");
     }
-    list_pack->set_custom_output_type(0, output_type, shape);
+    // TODO: Use special API to set custom type detalization
+    //list_pack->set_custom_output_type(0, output_type, shape);
     op::util::FrameworkNodeAttrs attrs;
     attrs.set_type_name("PTFE::ListPack");
     list_pack->set_attrs(attrs);
@@ -364,6 +390,8 @@ public:
         return at_least_one_decomposed;
     }
 };
+
+
 
 void apply_pytorch_conversion_transforms(std::shared_ptr<ov::Model> model) {
     // TODO: We have issues with List transformations, temporary disabled

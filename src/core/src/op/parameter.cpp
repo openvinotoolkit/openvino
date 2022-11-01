@@ -22,25 +22,6 @@ op::Parameter::Parameter(const element::Type& element_type, const ov::PartialSha
     constructor_validate_and_infer_types();
 }
 
-op::Parameter::Parameter(const element::Type& element_type,
-                         const ov::Any& element_custom_type,
-                         const ov::PartialShape& pshape)
-    : m_partial_shape(pshape),
-      m_is_relevant_to_shapes(false) {
-    OPENVINO_ASSERT(element_type == element::custom,
-                    "Parameter ctor with 3 arguments accept element_type = element::custom only");
-    // If element_type is custom, it doesn't mean that it is really custom, it may be just a way to hide normal type
-    // under Any In some circumstances it is simpler to wrap a regular type in Any and then pass through multi-layer API
-    // that works with Any only
-    if (element_custom_type.is<element::Type>()) {
-        m_element_type = element_custom_type.as<element::Type>();
-    } else {
-        m_element_custom_type = element_custom_type;
-        m_element_type = element_type;  // custom
-    }
-    constructor_validate_and_infer_types();
-}
-
 bool op::Parameter::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v0_Parameter_visit_attributes);
     visitor.on_attribute("shape", m_partial_shape);
@@ -51,20 +32,13 @@ bool op::Parameter::visit_attributes(AttributeVisitor& visitor) {
 void op::Parameter::validate_and_infer_types() {
     OV_OP_SCOPE(v0_Parameter_validate_and_infer_types);
     Op::validate_and_infer_types();
-    if (m_element_type == element::custom) {
-        set_custom_output_type(0, m_element_custom_type, m_partial_shape);
-    } else {
-        set_output_type(0, m_element_type, m_partial_shape);
-    }
+    set_output_type(0, m_element_type, m_partial_shape);
 }
 
 shared_ptr<Node> op::Parameter::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Parameter_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    if(m_element_type == element::custom)
-        return make_shared<Parameter>(m_element_type, m_element_custom_type, m_partial_shape);
-    else
-        return make_shared<Parameter>(m_element_type, m_partial_shape);
+    return make_shared<Parameter>(m_element_type, m_partial_shape);
 }
 
 bool op::Parameter::is_relevant_to_shapes() const {
