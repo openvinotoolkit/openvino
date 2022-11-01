@@ -765,6 +765,12 @@ bool layout_optimizer::deconvolution_b_fs_yx_fsv16_opt(layout const &input_layou
 static bool is_node_for_onednn(reduce_node const& node, format preferred_format) {
     auto& input = node.input();
     auto reduce_prim = node.get_primitive();
+
+    if (input.get_output_layout().data_type == data_types::f32
+        && node.get_users().front()->get_output_layout().data_type == data_types::f32) {
+        return false;
+    }
+
     // oneDNN reduction currently does not support logical_and, logical_or, log_sum and log_sum_exp.
     switch (reduce_prim->mode) {
         case reduce_mode::mean:
