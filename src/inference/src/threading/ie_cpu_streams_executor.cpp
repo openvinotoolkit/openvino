@@ -98,7 +98,7 @@ struct CPUStreamsExecutor::Impl {
                     // wrapping around total_streams (i.e. how many streams all different core types can handle
                     // together)
                     const auto total_streams = _impl->total_streams_on_core_types.back().second;
-                    const auto core_type_size = _impl->total_streams_on_core_types.size();
+                    const auto hybrid_core = _impl->total_streams_on_core_types.size() > 1;
                     const auto streamId_wrapped = _streamId % total_streams;
                     const auto& selected_core_type =
                         std::find_if(
@@ -109,19 +109,19 @@ struct CPUStreamsExecutor::Impl {
                             })
                             ->first;
                     const auto max_concurrency =
-                        core_type_size > 1 ? (selected_core_type == 0 ? _impl->_config._threads_per_stream_small
-                                                                      : _impl->_config._threads_per_stream_big)
-                                           : _impl->_config._threads_per_stream_big;
+                        hybrid_core ? (selected_core_type == 0 ? _impl->_config._threads_per_stream_small
+                                                               : _impl->_config._threads_per_stream_big)
+                                    : _impl->_config._threads_per_stream_big;
                     const auto stream_id =
-                        core_type_size > 1
-                            ? (selected_core_type == 0 ? _streamId - _impl->_config._big_core_streams : _streamId)
-                            : _streamId;
+                        hybrid_core ? (selected_core_type == 0 ? streamId_wrapped - _impl->_config._big_core_streams
+                                                               : streamId_wrapped)
+                                    : streamId_wrapped;
                     const auto thread_binding_step =
-                        core_type_size > 1 ? (selected_core_type == 0 ? _impl->_config._threadBindingStep : 2)
-                                           : _impl->_config._threadBindingStep;
+                        hybrid_core ? (selected_core_type == 0 ? _impl->_config._threadBindingStep : 2)
+                                    : _impl->_config._threadBindingStep;
                     // Prevent conflicts with system scheduling, so default cpu id on big core starts from 1
                     const auto cpu_idx_offset =
-                        core_type_size > 1 ? (selected_core_type == 0 ? _impl->_config._small_core_offset : 1) : 0;
+                        hybrid_core ? (selected_core_type == 0 ? _impl->_config._small_core_offset : 1) : 0;
 
                     _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                                 .set_core_type(selected_core_type)

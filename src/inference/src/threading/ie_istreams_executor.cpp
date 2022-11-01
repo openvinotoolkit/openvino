@@ -338,6 +338,9 @@ int IStreamsExecutor::Config::LimitHybridStreams(const int num_streams, const in
     if (num_threads > 0 && streams > num_threads) {
         streams = num_threads;
     }
+    if (streams != num_streams) {
+        OPENVINO_WARN << "Number of streams is updated from " << num_streams << " to " << streams;
+    }
     return streams;
 }
 
@@ -374,17 +377,19 @@ void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config,
                     std::min(remain_threads / config._small_core_streams, config._threads_per_stream_big * 2);
             }
         }
-    } else { // user not set nthreads
+    } else {  // user not set nthreads
         config._threads_per_stream_big =
             std::min(num_big_cores_phys, std::max(1, base_streams_total / config._streams));
         config._big_core_streams = std::min(config._streams, num_big_cores_phys / config._threads_per_stream_big);
         config._small_core_streams = config._streams - config._big_core_streams;
         config._threads_per_stream_small = config._small_core_streams > 0 ? config._threads_per_stream_big * 2 : 0;
+        // The threads's number on small core exceeds the number of small core due to threads indivisible on big core.
+        // We should add threads's number on big core, reduce the one on small core.
         if (num_small_cores < config._threads_per_stream_small) {
-            config._threads_per_stream_big = std::max(1, num_big_cores_phys / config._streams);
-            config._big_core_streams = std::min(config._streams, num_big_cores_phys / config._threads_per_stream_big);
-            config._small_core_streams = 0;
-            config._threads_per_stream_small = 0;
+            config._big_core_streams++;
+            config._small_core_streams--;
+            config._threads_per_stream_big = std::max(1, num_big_cores_phys / config._big_core_streams);
+            config._threads_per_stream_small = config._small_core_streams > 0 ? config._threads_per_stream_big * 2 : 0;
         }
     }
 }
