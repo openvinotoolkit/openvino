@@ -8,7 +8,7 @@ There are two inputs in this network: boolean `phase_train` which manages state 
 `batch_size` which is a part of batch joining pattern.
 
 
-![FaceNet model view](../../../img/FaceNet.png)
+![FaceNet model view](../../../img/FaceNet.svg)
 
 ## Converting a TensorFlow FaceNet Model to the IR
 
