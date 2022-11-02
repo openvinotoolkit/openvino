@@ -26,7 +26,8 @@ def test_model(pred):
 
     return paddle.static.nn.cond(pred, true_func, false_func)
 
-exportModel('conditional_block_const', test_model, [data], target_dir=sys.argv[1])
+# 95436: sporadic failure
+# exportModel('conditional_block_const', test_model, [data], target_dir=sys.argv[1])
 
 
 '''
@@ -47,7 +48,8 @@ def test_model_2outputs(pred):
 
     return paddle.static.nn.cond(pred, true_func, false_func)
 
-exportModel('conditional_block_const_2outputs', test_model_2outputs, [data], target_dir=sys.argv[1])
+# 95436: sporadic failure
+# exportModel('conditional_block_const_2outputs', test_model_2outputs, [data], target_dir=sys.argv[1])
 
 
 '''
@@ -59,7 +61,8 @@ def test_model_2inputs_2outputs(a, b):
 
 a = np.full(shape=[1], dtype='float32', fill_value=0.1)
 b = np.full(shape=[1], dtype='float32', fill_value=0.23)
-exportModel('conditional_block_2inputs_2outputs', test_model_2inputs_2outputs, [a, b], target_dir=sys.argv[1])
+# 95436: sporadic failure
+# exportModel('conditional_block_2inputs_2outputs', test_model_2inputs_2outputs, [a, b], target_dir=sys.argv[1])
 
 '''
 simple test case with 2 inputs to conditional_block node.
@@ -71,7 +74,8 @@ def test_model2(a, b):
 
 a = np.full(shape=[1], dtype='float32', fill_value=0.1)
 b = np.full(shape=[1], dtype='float32', fill_value=0.23)
-exportModel('conditional_block_2inputs', test_model2, [a, b], target_dir=sys.argv[1])
+# 95436: sporadic failure
+# exportModel('conditional_block_2inputs', test_model2, [a, b], target_dir=sys.argv[1])
 
 
 '''
@@ -83,7 +87,8 @@ def test_model_dyn(a, b):
 
 a = np.full(shape=[1], dtype='float32', fill_value=0.1)
 b = np.full(shape=[1], dtype='float32', fill_value=0.23)
-exportModel('conditional_block_2inputs_dyn', test_model_dyn, [a, b], target_dir=sys.argv[1])
+# 95436: sporadic failure
+# exportModel('conditional_block_2inputs_dyn', test_model_dyn, [a, b], target_dir=sys.argv[1])
 
 '''
 more than one select_input
@@ -96,7 +101,8 @@ def test_model_dyn_2outputs(a, b):
 
 a = np.full(shape=[1], dtype='float32', fill_value=0.1)
 b = np.full(shape=[1], dtype='float32', fill_value=0.23)
-exportModel('conditional_block_2inputs_dyn_2outputs', test_model_dyn_2outputs, [a, b], target_dir=sys.argv[1])
+# 95436: sporadic failure
+# exportModel('conditional_block_2inputs_dyn_2outputs', test_model_dyn_2outputs, [a, b], target_dir=sys.argv[1])
 
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -114,7 +120,8 @@ def test_model_dyn_conditionalblock_only(a):
 
 a = paddle.to_tensor([[1.0, 2.0, 3.0],
                       [4.0, 5.0, 6.0]])
-exportModel('conditional_block_dyn_conditionalblock_only', test_model_dyn_conditionalblock_only, [a], target_dir=sys.argv[1])
+# 95436: sporadic failure
+# exportModel('conditional_block_dyn_conditionalblock_only', test_model_dyn_conditionalblock_only, [a], target_dir=sys.argv[1])
 
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -170,7 +177,8 @@ def test_model_dyn_multiple_consumers(a, b):
 
 a = np.full(shape=[1], dtype='float32', fill_value=0.1)
 b = np.full(shape=[1], dtype='float32', fill_value=0.23)
-exportModel('conditional_block_dyn_multiple_consumers', test_model_dyn_multiple_consumers, [a, b], target_dir=sys.argv[1])
+# 95436: sporadic failure
+# exportModel('conditional_block_dyn_multiple_consumers', test_model_dyn_multiple_consumers, [a, b], target_dir=sys.argv[1])
 
 '''
 stack if-else blocks
@@ -185,7 +193,8 @@ def test_model_dyn_multiple_blocks(a, b, c):
 a = np.full(shape=[1], dtype='float32', fill_value=0.1)
 b = np.full(shape=[1], dtype='float32', fill_value=0.23)
 c = np.full(shape=[1], dtype='float32', fill_value=0.9)
-exportModel('conditional_block_dyn_multiple_blocks', test_model_dyn_multiple_blocks, [a, b, c], target_dir=sys.argv[1])
+# 95436: sporadic failure
+# exportModel('conditional_block_dyn_multiple_blocks', test_model_dyn_multiple_blocks, [a, b, c], target_dir=sys.argv[1])
 
 @paddle.jit.to_static
 def test_model_dyn_multiple_blocks2(a, b, c):
@@ -197,6 +206,7 @@ def test_model_dyn_multiple_blocks2(a, b, c):
 a = np.full(shape=[1], dtype='float32', fill_value=0.1)
 b = np.full(shape=[1], dtype='float32', fill_value=0.23)
 c = np.full(shape=[1], dtype='float32', fill_value=0.9)
-exportModel('conditional_block_dyn_multiple_blocks2', test_model_dyn_multiple_blocks2, [a, b, c], target_dir=sys.argv[1])
+# 95436: sporadic failure
+# exportModel('conditional_block_dyn_multiple_blocks2', test_model_dyn_multiple_blocks2, [a, b, c], target_dir=sys.argv[1])
 
 

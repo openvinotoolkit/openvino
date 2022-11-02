@@ -30,8 +30,8 @@ You can also check the [Release Notes](https://software.intel.com/en-us/articles
 .. tab:: Software Requirements
 
   * `CMake 3.13 or higher <https://cmake.org/download/>`_ (choose "macOS 10.13 or later"). Add `/Applications/CMake.app/Contents/bin` to path (for default install). 
-  * `Python 3.6 - 3.9 <https://www.python.org/downloads/mac-osx/>`_ (choose 3.6 - 3.10). Install and add to path.
-     * Note that OpenVINO is gradually stopping the support for Python 3.6. Python 3.7 - 3.10 are recommended.
+  * `Python 3.6 - 3.10 <https://www.python.org/downloads/mac-osx/>`_ (choose 3.6 - 3.10). Install and add to path.
+     * Note that OpenVINO is gradually stopping the support for Python 3.6. You are encouraged to use Python 3.7 - 3.10.
   * Apple Xcode Command Line Tools. In the terminal, run `xcode-select --install` from any directory
   * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
 
@@ -65,7 +65,7 @@ You can also check the [Release Notes](https://software.intel.com/en-us/articles
 
 For simplicity, you can create a symbolic link to the latest installation: `/opt/intel/openvino_2022/`. 
 
-The core components are now installed. Continue to the next section to configure environment.
+The core components are now installed. Continue to the next section to configure the environment.
 
 ### <a name="set-the-environment-variables"></a>Step 2: Configure the Environment
 
@@ -77,7 +77,7 @@ source <INSTALL_DIR>/setupvars.sh
 
 If you have more than one OpenVINO™ version on your machine, you can easily switch its version by sourcing `setupvars.sh` of your choice.
 
-> **NOTE**: You can also run this script every time when you start new terminal session. Open `~/.bashrc` in your favorite editor, and add `source <INSTALL_DIR>/setupvars.sh`. Next time when you open a terminal, you will see `[setupvars.sh] OpenVINO™ environment initialized`. Changing `.bashrc` is not recommended when you have many OpenVINO™ versions on your machine and want to switch among them, as each may require different setup.
+> **NOTE**: You can also run this script whenever you start a new terminal session. Open `~/.bashrc` in your favorite editor, and add `source <INSTALL_DIR>/setupvars.sh`. Next time when you open a terminal, you will see `[setupvars.sh] OpenVINO™ environment initialized`. Changing `.bashrc` is not recommended when you have many OpenVINO™ versions on your machine and want to switch among them, as each may require a different setup.
 
 The environment variables are set. Continue to the next section if you want to download any additional components.
 
@@ -85,7 +85,7 @@ The environment variables are set. Continue to the next section if you want to d
 
 Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO™ Development Tools can only be installed via PyPI now. See [Install OpenVINO™ Development Tools](installing-model-dev-tools.md) for detailed steps. 
 
-OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the [instructions on Github](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
+OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the [instructions on GitHub](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
 
 ### <a name="configure-ncs2"></a>Step 4 (Optional): Configure the Intel® Neural Compute Stick 2 
 
@@ -113,31 +113,17 @@ To start with C++ samples, see <a href="openvino_docs_OV_UG_Samples_Overview.htm
 
 To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
 
-@sphinxdirective
-.. raw:: html
-
-   </div>
-
-@endsphinxdirective
+## Additional Resources
 
 @sphinxdirective
-
-.. dropdown:: Additional Resources
       
-   * Converting models for use with OpenVINO™: :ref:`Model Optimizer Developer Guide <deep learning model optimizer>`
-   * Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
-   * Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
-   * Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
-   * IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_ 
+* :ref:`Troubleshooting Guide for OpenVINO Installation & Configuration <troubleshooting guide for install>`
+* Converting models for use with OpenVINO™: :ref:`Model Optimizer User Guide <deep learning model optimizer>`
+* Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
+* Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
+* Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
+* IoT libraries and code samples in the GitHub repository: `Intel® IoT Developer Kit`_ 
 
-<!---
-   To learn more about converting models from specific frameworks, go to:  
-   * :ref:`Convert Your Caffe Model <convert model caffe>`
-   * :ref:`Convert Your TensorFlow Model <convert model tf>`
-   * :ref:`Convert Your Apache MXNet Model <convert model mxnet>`
-   * :ref:`Convert Your Kaldi Model <convert model kaldi>`
-   * :ref:`Convert Your ONNX Model <convert model onnx>`
---->   
-   .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
+.. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
 @endsphinxdirective

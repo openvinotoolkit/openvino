@@ -18,7 +18,7 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
   * Red Hat Enterprise Linux 8 x86, 64-bit
 
   .. note::
-     Since the OpenVINO™ 2022.1 release, CentOS 7.6, 64-bit is not longer supported.
+     Since the OpenVINO™ 2022.1 release, CentOS 7.6, 64-bit is no longer supported.
 
 .. tab:: Hardware
 
@@ -45,7 +45,7 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
   * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
   * GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
   * `Python 3.6 - 3.10, 64-bit <https://www.python.org/downloads/windows/>`_
-     * Note that OpenVINO is gradually stopping the support for Python 3.6. Python 3.7 - 3.10 are recommended. 
+     * Note that OpenVINO is gradually stopping the support for Python 3.6. You are encouraged to use Python 3.7 - 3.10. 
 
 @endsphinxdirective
 
@@ -130,7 +130,7 @@ OpenVINO Development Tools is a set of utilities for working with OpenVINO and O
 
 See the [Install OpenVINO Development Tools](installing-model-dev-tools.md) page for step-by-step installation instructions.
 
-OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the [instructions on Github](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
+OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the [instructions on GitHub](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
 
 ### <a name="optional-steps"></a>Step 4 (Optional): Configure Inference on Non-CPU Devices
 OpenVINO Runtime has a plugin architecture that enables you to run inference on multiple devices without rewriting your code. Supported devices include integrated GPUs, discrete GPUs, NCS2, VPUs, and GNAs. See the instructions below to set up OpenVINO on these devices.
@@ -203,7 +203,7 @@ To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalli
 * Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
 * Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
 * Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
-* IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_ 
+* IoT libraries and code samples in the GitHub repository: `Intel® IoT Developer Kit`_ 
 
 .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
