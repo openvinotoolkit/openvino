@@ -273,7 +273,7 @@ struct StackAllocatorTestIsaParam { static constexpr x64::cpu_isa_t isa = Isa; }
 using StackAllocatorTestIsaParamTypes = ::testing::Types<
         StackAllocatorTestIsaParam<x64::sse41>,
         StackAllocatorTestIsaParam<x64::avx2>,
-        StackAllocatorTestIsaParam<x64::avx512_core>>;
+        StackAllocatorTestIsaParam<x64::avx512_core> >;
 
 TYPED_TEST_SUITE(AlignedStackAllocatorTest, StackAllocatorTestIsaParamTypes);
 
