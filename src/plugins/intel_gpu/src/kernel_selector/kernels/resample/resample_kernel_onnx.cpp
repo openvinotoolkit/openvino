@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "resample_kernel_onnx_5d.h"
+#include "resample_kernel_onnx.h"
 #include <vector>
 #include <kernel_selector_utils.h>
 
@@ -10,7 +10,7 @@ namespace kernel_selector {
 
 static constexpr size_t sub_group_size = 16;
 
-size_t ResampleKernelOnnx5d::GetOptimalBlockSize(const resample_params& params) const {
+size_t ResampleKernelOnnx::GetOptimalBlockSize(const resample_params& params) const {
     std::vector<size_t> block_width = { 16, 8, 4, 2, 1 };
     for (auto& w : block_width)
         if (params.outputs[0].X().v % w == 0)
@@ -27,7 +27,7 @@ static size_t GetOptimalDivisor(const size_t input_size, size_t max_val = 16) {
     return 1;
 }
 
-ParamsKey ResampleKernelOnnx5d::GetSupportedKey() const {
+ParamsKey ResampleKernelOnnx::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
@@ -62,7 +62,7 @@ ParamsKey ResampleKernelOnnx5d::GetSupportedKey() const {
     return k;
 }
 
-ResampleKernelBase::DispatchData ResampleKernelOnnx5d::SetDefault(const kernel_selector::resample_params &arg) const {
+ResampleKernelBase::DispatchData ResampleKernelOnnx::SetDefault(const kernel_selector::resample_params &arg) const {
     DispatchData dispatchData;
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
@@ -89,12 +89,15 @@ ResampleKernelBase::DispatchData ResampleKernelOnnx5d::SetDefault(const kernel_s
     return dispatchData;
 }
 
-KernelsPriority ResampleKernelOnnx5d::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ResampleKernelOnnx::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_4;
 }
 
-bool ResampleKernelOnnx5d::Validate(const Params& p, const optional_params& o) const {
+bool ResampleKernelOnnx::Validate(const Params& p, const optional_params& o) const {
     const resample_params& params = static_cast<const resample_params&>(p);
+    if (params.resampleType != ResampleType::LINEAR_ONNX)
+        return false;
+
     if (!Parent::Validate(p, o))
         return false;
 
@@ -105,14 +108,24 @@ bool ResampleKernelOnnx5d::Validate(const Params& p, const optional_params& o) c
         return false;
 
     const auto& input = params.inputs[0];
-
-    if (input.Dimentions() != 5 || params.resampleType != ResampleType::LINEAR_ONNX)
+    const auto & output = params.outputs[0];
+    if ( input.Batch().v != output.Batch().v || input.Feature().v != output.Feature().v)
         return false;
 
     return true;
 }
 
-JitConstants ResampleKernelOnnx5d::GetJitConstants(const resample_params &params) const {
+static bool IsThreeSpatialResample(const resample_params &params) {
+    const auto& input = params.inputs[0];
+    const auto & output = params.outputs[0];
+
+    if (input.Dimentions() == 5 && input.Z().v != output.Z().v)
+        return true;
+
+    return false;
+}
+
+JitConstants ResampleKernelOnnx::GetJitConstants(const resample_params &params) const {
     auto jit = Parent::GetJitConstants(params);
 
     auto opt_x_block_size = GetOptimalBlockSize(params);
@@ -124,7 +137,6 @@ JitConstants ResampleKernelOnnx5d::GetJitConstants(const resample_params &params
     jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(params.outputs[0].X().v, opt_x_block_size)));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
 
-    // TODO consider remove it
     size_t vec_size = 0;
     if (params.inputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
         vec_size = 2;
@@ -133,6 +145,9 @@ JitConstants ResampleKernelOnnx5d::GetJitConstants(const resample_params &params
         vec_size = 1;
         jit.AddConstant(MakeJitConstant("FEATURE_SLICE_SIZE", 16));
     }
+    if (IsThreeSpatialResample(params))
+        jit.AddConstant(MakeJitConstant("THREE_SPATIAL_RESAMPLE", ""));
+
     jit.AddConstant(MakeJitConstant("VEC_SIZE", vec_size));
 
     if (!params.fused_ops.empty()) {
@@ -146,11 +161,11 @@ JitConstants ResampleKernelOnnx5d::GetJitConstants(const resample_params &params
     return jit;
 }
 
-Datatype ResampleKernelOnnx5d::GetUnitType(const base_params& params) const {
+Datatype ResampleKernelOnnx::GetUnitType(const base_params& params) const {
     return params.inputs[0].GetDType();
 }
 
-KernelsData ResampleKernelOnnx5d::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData ResampleKernelOnnx::GetKernelsData(const Params& params, const optional_params& options) const {
     return GetCommonKernelsData(params, options);
 }
 }  // namespace kernel_selector

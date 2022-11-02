@@ -73,7 +73,6 @@ ParamsKey ResampleKernelOpt::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableReampleType(ResampleType::BILINEAR_INTERP);
     k.EnableReampleType(ResampleType::NEAREST_NEIGHBOR);
-    k.EnableReampleType(ResampleType::LINEAR_ONNX);
     k.EnableReampleType(ResampleType::CAFFE_BILINEAR_INTERP);
     k.EnableSubGroup();
     k.EnableSubGroupShort();
@@ -145,23 +144,15 @@ bool ResampleKernelOpt::Validate(const Params& p, const optional_params& o) cons
         return false;
 
     const auto& input = params.inputs[0];
-    const auto & output = params.outputs[0];
 
     if ((input.GetDType() == Datatype::UINT8 || input.GetDType() == Datatype::INT8) &&
         params.resampleType != ResampleType::NEAREST_NEIGHBOR &&
-        params.resampleType != ResampleType::BILINEAR_INTERP &&
-        params.resampleType != ResampleType::LINEAR_ONNX)
+        params.resampleType != ResampleType::BILINEAR_INTERP)
         return false;
 
-    // in the case of 5D support only NEAREST_NEIGHBOR and partially LINEAR_ONNX (interpolate X and Y axes)
-    if (input.Dimentions() == 5 &&
-         params.resampleType != ResampleType::NEAREST_NEIGHBOR &&
-         !(params.resampleType == ResampleType::LINEAR_ONNX &&
-           input.Batch().v == output.Batch().v &&
-           input.Feature().v == output.Feature().v &&
-           input.Z().v == output.Z().v))
+    // in the case of 5D support only NEAREST_NEIGHBOR
+    if (input.Dimentions() == 5 && params.resampleType != ResampleType::NEAREST_NEIGHBOR)
         return false;
-
 
     return true;
 }

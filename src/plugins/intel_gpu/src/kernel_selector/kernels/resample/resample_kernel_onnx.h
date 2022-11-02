@@ -7,11 +7,11 @@
 #include "resample_kernel_base.h"
 
 namespace kernel_selector {
-class ResampleKernelOnnx5d : public ResampleKernelBase {
+class ResampleKernelOnnx : public ResampleKernelBase {
 public:
     using Parent = ResampleKernelBase;
-    ResampleKernelOnnx5d() : ResampleKernelBase("resample_onnx_5d") {}
-    virtual ~ResampleKernelOnnx5d() {}
+    ResampleKernelOnnx() : ResampleKernelBase("resample_onnx") {}
+    virtual ~ResampleKernelOnnx() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;

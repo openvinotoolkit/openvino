@@ -38,18 +38,16 @@ inline float FUNC(get_original_coordinate)(float num, float scale, int length_re
 #elif defined(COORD_TRANS_MODE_ALIGN_CORNERS)
     return (length_resized != 1) ? num * (length_original - 1) / (length_resized - 1) : 0.f;
 #else
-#error [clDNN resample_opt.cl]: coordinate transformation mode - not supported
+#error [clDNN resample_onnx.cl]: coordinate transformation mode - not supported
 #endif
 }
 
-
-#ifndef SAMPLE_TYPE_CAFFE_INTERP
 __attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
-KERNEL (resample_onnx_5d)(__global INPUT0_TYPE* input,
+KERNEL (resample_onnx)(__global INPUT0_TYPE* input,
                       __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
                       , FUSED_OPS_DECLS
-#endif
+#endif // #if HAS_FUSED_OPS_DECLS
 )
 {
     const int xyz = get_global_id(0);
@@ -66,26 +64,30 @@ KERNEL (resample_onnx_5d)(__global INPUT0_TYPE* input,
     typedef IN_VEC_TYPE in_vec_t;
     typedef ACC_VEC_TYPE acc_vec_t;
 
+    const int in_size[5] = { INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X };
+
     if (feature_num >= OUTPUT_FEATURE_NUM)
         return;
 
-    const int PADDED_Z = INPUT0_SIZE_Z + PADS_BEGIN[2] + PADS_END[2];
     const int PADDED_Y = INPUT0_SIZE_Y + PADS_BEGIN[3] + PADS_END[3];
     const int PADDED_X = INPUT0_SIZE_X + PADS_BEGIN[4] + PADS_END[4];
+    const ACCUMULATOR_TYPE iy = FUNC_CALL(get_original_coordinate)(y, SCALES[3], OUTPUT_SIZE_Y, PADDED_Y);
 
+    float in_y = fmax(0, fmin(iy, PADDED_Y - 1));
+    int in_y1 = min((int)in_y, PADDED_Y - 1);
+    int in_y2 = min(in_y1 + 1, PADDED_Y - 1);
+    const ACCUMULATOR_TYPE dy1 = (in_y1 != in_y2) ? TO_ACCUMULATOR_TYPE(fabs(in_y - in_y1)) : 0.5f;
+    const ACCUMULATOR_TYPE dy2 = (in_y1 != in_y2) ? TO_ACCUMULATOR_TYPE(fabs(in_y - in_y2)) : 0.5f;
+
+#if defined (THREE_SPATIAL_RESAMPLE)
+
+    const int PADDED_Z = INPUT0_SIZE_Z + PADS_BEGIN[2] + PADS_END[2];
     const ACCUMULATOR_TYPE iz = FUNC_CALL(get_original_coordinate)(z, SCALES[2], OUTPUT_SIZE_Z, PADDED_Z);
     float in_z = fmax(0, fmin(iz, PADDED_Z - 1));
     int in_z1 = min((int)in_z, PADDED_Z - 1);
     int in_z2 = min(in_z1 + 1, PADDED_Z - 1);
     const ACCUMULATOR_TYPE dz1 = (in_z1 != in_z2) ? TO_ACCUMULATOR_TYPE(fabs(in_z - in_z1)) : 0.5f;
     const ACCUMULATOR_TYPE dz2 = (in_z1 != in_z2) ? TO_ACCUMULATOR_TYPE(fabs(in_z - in_z2)) : 0.5f;
-
-    const ACCUMULATOR_TYPE iy = FUNC_CALL(get_original_coordinate)(y, SCALES[3], OUTPUT_SIZE_Y, PADDED_Y);
-    float in_y = fmax(0, fmin(iy, PADDED_Y - 1));
-    int in_y1 = min((int)in_y, PADDED_Y - 1);
-    int in_y2 = min(in_y1 + 1, PADDED_Y - 1);
-    const ACCUMULATOR_TYPE dy1 = (in_y1 != in_y2) ? TO_ACCUMULATOR_TYPE(fabs(in_y - in_y1)) : 0.5f;
-    const ACCUMULATOR_TYPE dy2 = (in_y1 != in_y2) ? TO_ACCUMULATOR_TYPE(fabs(in_y - in_y2)) : 0.5f;
 
 #if PADDING_USED == 1
     const int saved_in_z1 = in_z1;
@@ -147,7 +149,72 @@ KERNEL (resample_onnx_5d)(__global INPUT0_TYPE* input,
         res += TO_ACC_VEC_TYPE(dx2 * dy1 * dz2 * x121) + TO_ACC_VEC_TYPE(dx1 * dy1 * dz2 * x221);
         res += TO_ACC_VEC_TYPE(dx2 * dy2 * dz1 * x112) + TO_ACC_VEC_TYPE(dx1 * dy2 * dz1 * x212);
         res += TO_ACC_VEC_TYPE(dx2 * dy1 * dz1 * x122) + TO_ACC_VEC_TYPE(dx1 * dy1 * dz1 * x222);
+
+#if HAS_FUSED_OPS
+        FUSED_OPS;
+        OUT_VEC_TYPE out = FUSED_OPS_RESULT;
+#else
+        OUT_VEC_TYPE out = TO_OUT_VEC_TYPE(ACTIVATION(res, ACTIVATION_PARAMS));
+#endif // #if HAS_FUSED_OPS
+
+        WRITE_FUNC(output, OUTPUT_GET_INDEX(b, feature_block, z, y, (x + out_x)), out);
+    }
+#else // #if defined (THREE_SPATIAL_RESAMPLE)
+
+#if PADDING_USED == 1
+    const int saved_in_y1 = in_y1;
+    const int saved_in_y2 = in_y2;
 #endif
+
+    unroll_for (uint out_x = 0; out_x < OUTPUT_X_BLOCK_SIZE; out_x++) {
+        const ACCUMULATOR_TYPE ix = FUNC_CALL(get_original_coordinate)(x + out_x, SCALES[4], OUTPUT_SIZE_X, PADDED_X);
+        float in_x = fmax(0, fmin(ix, PADDED_X - 1));
+        int in_x1 = min((int)in_x, PADDED_X - 1);
+        int in_x2 = min(in_x1 + 1, PADDED_X - 1);
+        const ACCUMULATOR_TYPE dx1 = (in_x1 != in_x2) ? TO_ACCUMULATOR_TYPE(fabs(in_x - in_x1)) : 0.5f;
+        const ACCUMULATOR_TYPE dx2 = (in_x1 != in_x2) ? TO_ACCUMULATOR_TYPE(fabs(in_x - in_x2)) : 0.5f;
+
+#if PADDING_USED == 1
+        in_y1 = saved_in_y1;
+        in_y2 = saved_in_y2;
+
+        in_y1 -= PADS_BEGIN[3];
+        in_y2 -= PADS_BEGIN[3];
+        in_x1 -= PADS_BEGIN[4];
+        in_x2 -= PADS_BEGIN[4];
+
+        bool tlOutOfBounds = in_y1 < 0 || in_y1 >= in_size[3] || in_x1 < 0 || in_x1 >= in_size[4];
+        bool trOutOfBounds = in_y1 < 0 || in_y1 >= in_size[3] || in_x2 < 0 || in_x2 >= in_size[4];
+        bool blOutOfBounds = in_y2 < 0 || in_y2 >= in_size[3] || in_x1 < 0 || in_x1 >= in_size[4];
+        bool brOutOfBounds = in_y2 < 0 || in_y2 >= in_size[3] || in_x2 < 0 || in_x2 >= in_size[4];
+#endif // PADDING_USED == 1
+
+#if OUTPUT_DIMS == 5
+        acc_vec_t top_left     = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, in_y1, in_x1)));
+        acc_vec_t top_right    = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, in_y1, in_x2)));
+        acc_vec_t bottom_left  = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, in_y2, in_x1)));
+        acc_vec_t bottom_right = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, in_y2, in_x2)));
+#else
+        acc_vec_t top_left     = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y1, in_x1)));
+        acc_vec_t top_right    = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y1, in_x2)));
+        acc_vec_t bottom_left  = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y2, in_x1)));
+        acc_vec_t bottom_right = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y2, in_x2)));
+#endif
+
+#if PADDING_USED == 1
+        if (tlOutOfBounds)
+            top_left = TO_OUT_VEC_TYPE(INPUT0_VAL_ZERO);
+        if (trOutOfBounds)
+            top_right = TO_OUT_VEC_TYPE(INPUT0_VAL_ZERO);
+        if (blOutOfBounds)
+            bottom_left = TO_OUT_VEC_TYPE(INPUT0_VAL_ZERO);
+        if (brOutOfBounds)
+            bottom_right = TO_OUT_VEC_TYPE(INPUT0_VAL_ZERO);
+#endif // PADDING_USED == 1
+        acc_vec_t res = TO_ACC_VEC_TYPE(dx2 * dy2 * top_left) +
+                        TO_ACC_VEC_TYPE(dx1 * dy2 * top_right) +
+                        TO_ACC_VEC_TYPE(dx2 * dy1 * bottom_left) +
+                        TO_ACC_VEC_TYPE(dx1 * dy1 * bottom_right);
 #if HAS_FUSED_OPS
         FUSED_OPS;
         OUT_VEC_TYPE out = FUSED_OPS_RESULT;
@@ -155,8 +222,13 @@ KERNEL (resample_onnx_5d)(__global INPUT0_TYPE* input,
         OUT_VEC_TYPE out = TO_OUT_VEC_TYPE(ACTIVATION(res, ACTIVATION_PARAMS));
 #endif
 
+#if OUTPUT_DIMS == 5
         WRITE_FUNC(output, OUTPUT_GET_INDEX(b, feature_block, z, y, (x + out_x)), out);
+#else
+        WRITE_FUNC(output, OUTPUT_GET_INDEX(b, feature_block, y, (x + out_x)), out);
+#endif
     }
+#endif // #if defined (THREE_SPATIAL_RESAMPLE)
 }
 
 #undef unroll_for
