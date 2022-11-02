@@ -39,7 +39,7 @@ public:
 
     OPENVINO_API Shape& operator=(const Shape& v);
     OPENVINO_API Shape& operator=(Shape&& v) noexcept;
-    std::string to_string() const;
+    OPENVINO_API std::string to_string() const;
 };
 
 /**

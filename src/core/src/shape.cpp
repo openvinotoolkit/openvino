@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstdio>
+#include <numeric>
+#include <vector>
+
 #include "ngraph/shape.hpp"
 
 #include "ngraph/util.hpp"
