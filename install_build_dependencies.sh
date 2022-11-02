@@ -49,6 +49,7 @@ if [ -f /etc/lsb-release ]; then
             unzip \
             shellcheck \
             patchelf \
+            fdupes \
             lintian \
             file \
             gzip \
@@ -100,72 +101,41 @@ if [ -f /etc/lsb-release ]; then
         sudo -E apt-get install -y nlohmann-json-dev
     fi
 elif [ -f /etc/redhat-release ]; then
-    # RHEL 8
+    # RHEL 8 / CentOS 7
     sudo -E yum install -y centos-release-scl epel-release
     sudo -E yum install -y \
             wget \
+            curl \
+            cmake3 \
             tar \
             xz \
             p7zip \
+            ccache \
             rpm-build \
+            rpmlint \
+            ShellCheck \
             unzip \
-            yum-plugin-ovl \
             which \
-            libssl-dev \
             ca-certificates \
             git \
             git-lfs \
             boost-devel \
+            python-pip \
+            python-devel \
             libtool \
+            tbb-devel \
+            pugixml-devel \
             gcc \
             gcc-c++ \
             make \
             patchelf \
-            pkg-config \
-            gflags-devel.i686 \
-            zlib-devel.i686 \
-            glibc-static \
-            glibc-devel \
-            libstdc++-static \
-            libstdc++-devel \
-            libstdc++ libgcc \
-            glibc-static.i686 \
-            glibc-devel.i686 \
-            libstdc++-static.i686 \
-            libstdc++.i686 \
-            libgcc.i686 \
+            fdupes \
             libusbx-devel \
-            openblas-devel \
-            libusbx-devel \
-            gstreamer1 \
-            gstreamer1-plugins-base
-
-    # Python 3.7 for Model Optimizer
-    sudo -E yum install -y rh-python37
-    source scl_source enable rh-python37
-
-    echo
-    echo "FFmpeg is required for processing audio and video streams with OpenCV. Please select your preferred method for installing FFmpeg:"
-    echo
-    echo "Option 1: Allow installer script to add a third party repository, Nux Dextop (http://li.nux.ro/repos.html), which contains FFmpeg. FFmpeg rpm package will be installed from this repository. "
-    echo "WARNING: This repository is NOT PROVIDED OR SUPPORTED by CentOS."
-    echo "Once added, this repository will be enabled on your operating system and can thus receive updates to all packages installed from it. "
-    echo
-    echo "Consider the following ways to prevent unintended 'updates' from this third party repository from over-writing some core part of CentOS:"
-    echo "a) Only enable these archives from time to time, and generally leave them disabled. See: man yum"
-    echo "b) Use the exclude= and includepkgs= options on a per sub-archive basis, in the matching .conf file found in /etc/yum.repos.d/ See: man yum.conf"
-    echo "c) The yum Priorities plug-in can prevent a 3rd party repository from replacing base packages, or prevent base/updates from replacing a 3rd party package."
-    echo
-    echo "Option 2: Skip FFmpeg installation."
-    echo
-
-    if yes_or_no; then
-        sudo -E rpm -Uvh http://li.nux.ro/download/nux/dextop/el7/x86_64/nux-dextop-release-0-1.el7.nux.noarch.rpm
-        sudo -E yum install -y ffmpeg
-    else
-        echo "FFmpeg installation skipped. You may build FFmpeg from sources as described here: https://trac.ffmpeg.org/wiki/CompilationGuide/Centos"
-        echo
-    fi
+            file \
+            zlib-devel \
+            gflags-devel \
+            python3-pip \
+            libva-devel
 elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
     # Raspbian
     sudo -E apt update

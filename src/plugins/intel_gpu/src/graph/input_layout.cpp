@@ -41,7 +41,7 @@ input_layout_inst::typed_primitive_inst(network& network, input_layout_node cons
 }
 
 void input_layout_inst::set_data(memory::ptr mem) {
-    auto ol = node.get_output_layout();
+    auto ol = node->get_output_layout();
 
     check_memory_to_set(*mem, ol);
 

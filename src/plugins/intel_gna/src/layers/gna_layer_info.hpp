@@ -344,9 +344,8 @@ class LayerInfo {
     bool isCropAffined() const noexcept {
         auto cropLayer = dynamic_cast<InferenceEngine::CropLayer *> (layer);
         if (cropLayer != nullptr && !cropLayer->offset.empty()) {
-            size_t offset;
-            std::tie(offset, std::ignore, std::ignore) = GetCropParams(cropLayer);
-            return GNAPluginNS::GNALimitations::isCropAffinedOffset(offset);
+            const auto crop_params = GetCropParams(cropLayer);
+            return GNAPluginNS::GNALimitations::isCropAffinedOffset(crop_params.start_offset);
         }
         return false;
     }
