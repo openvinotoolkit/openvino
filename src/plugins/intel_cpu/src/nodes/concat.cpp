@@ -58,11 +58,7 @@ Concat::Concat(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
     }
 
     const auto inRank = getInputShapeAtPort(0).getRank();
-    if (inRank > 6) {
-        canExecRef = false;
-    } else {
-        canExecRef = true;
-    }
+    canExecRef = inRank <= 6;
     auto concatOp = ngraph::as_type_ptr<ngraph::op::v0::Concat>(op);
     auto axis = concatOp->get_axis();
     if (axis < 0) {
@@ -377,7 +373,7 @@ void Concat::prepareParams() {
         size_t curConcatOffset = 0;
         const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemPtr->GetDataType());
         const auto& outputOrder = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getDescPtr()->as<BlockedMemoryDesc>()->getOrder();
-        for (auto i = 0; i < outputOrder.size(); i++) {
+        for (size_t i = 0; i < outputOrder.size(); i++) {
             if (outputOrder[i] == axis) {
                 reorderedAxis = i;
                 break;
