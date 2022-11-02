@@ -151,7 +151,8 @@ ov_status_e ov_preprocess_preprocess_steps_resize(ov_preprocess_preprocess_steps
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_preprocess_steps_scale(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps, float value) {
+ov_status_e ov_preprocess_preprocess_steps_scale(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+                                                 float value) {
     if (!preprocess_input_process_steps) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -163,7 +164,8 @@ ov_status_e ov_preprocess_preprocess_steps_scale(ov_preprocess_preprocess_steps_
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_preprocess_steps_mean(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps, float value) {
+ov_status_e ov_preprocess_preprocess_steps_mean(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+                                                float value) {
     if (!preprocess_input_process_steps) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -176,7 +178,10 @@ ov_status_e ov_preprocess_preprocess_steps_mean(ov_preprocess_preprocess_steps_t
 }
 
 ov_status_e ov_preprocess_preprocess_steps_crop(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
-                                      int32_t* begin, int32_t begin_size, int32_t* end, int32_t end_size) {
+                                                int32_t* begin,
+                                                int32_t begin_size,
+                                                int32_t* end,
+                                                int32_t end_size) {
     if (!preprocess_input_process_steps) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -190,7 +195,9 @@ ov_status_e ov_preprocess_preprocess_steps_crop(ov_preprocess_preprocess_steps_t
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_preprocess_steps_convert_layout(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps, ov_layout_t* layout) {
+ov_status_e ov_preprocess_preprocess_steps_convert_layout(
+                        ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+                        ov_layout_t* layout) {
     if (!preprocess_input_process_steps || !layout) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -202,7 +209,8 @@ ov_status_e ov_preprocess_preprocess_steps_convert_layout(ov_preprocess_preproce
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_preprocess_steps_reverse_channels(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps) {
+ov_status_e ov_preprocess_preprocess_steps_reverse_channels(
+                        ov_preprocess_preprocess_steps_t* preprocess_input_process_steps) {
     if (!preprocess_input_process_steps) {
         return ov_status_e::INVALID_C_PARAM;
     }
