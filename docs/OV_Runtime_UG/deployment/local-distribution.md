@@ -110,8 +110,7 @@ As it is shown on the picture above, some plugin libraries may have OS-specific 
 
 The `HETERO`, `MULTI`, `BATCH` and `AUTO` execution modes can also be used explicitly or implicitly by the application. Use the following recommendation scheme to decide whether to put the appropriate libraries to the distribution package:
 - If [AUTO](../auto_device_selection.md) is used explicitly in the application or `ov::Core::compile_model` is used without specifying a device, put `openvino_auto_plugin` to the distribution.
-
- > **NOTE**: Automatic Device Selection relies on [inference device plugins](../supported_plugins/Device_Plugins.md). If you are not sure about what inference devices are available on target system, put all the inference plugin libraries to the distribution. If `ov::device::priorities` is used for `AUTO` to specify a limited device list, grab the corresponding device plugins only.
+  > **NOTE**: Automatic Device Selection relies on [inference device plugins](../supported_plugins/Device_Plugins.md). If you are not sure about what inference devices are available on target system, put all the inference plugin libraries to the distribution. If `ov::device::priorities` is used for `AUTO` to specify a limited device list, grab the corresponding device plugins only.
 
 - If [MULTI](../multi_device.md) is used explicitly, put `openvino_auto_plugin` to the distribution.
 - If [HETERO](../hetero_execution.md) is either used explicitly or `ov::hint::performance_mode` is used with GPU, put `openvino_hetero_plugin` to the distribution.
