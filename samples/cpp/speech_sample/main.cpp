@@ -94,42 +94,21 @@ int main(int argc, char* argv[]) {
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
         uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0 || !FLAGS_bs) ? 1 : (uint32_t)FLAGS_bs;
         std::shared_ptr<ov::Model> model;
-        std::vector<std::string> outputs;
-        std::vector<std::string> output_names;
-        std::vector<size_t> ports;
         // --------------------------- Processing custom outputs ---------------------------------------------
-        std::pair<std::string, std::vector<std::string>> output_data;
-        std::pair<std::string, std::vector<std::string>> reference_data;
-        if (!FLAGS_o.empty())
-            output_data = parse_parameters(FLAGS_o);
-        if (!FLAGS_r.empty())
-            reference_data = parse_parameters(FLAGS_r);
-        if (!output_data.second.empty())
-            output_names = output_data.second;
-        else if (!reference_data.second.empty())
-            output_names = reference_data.second;
-        for (const auto& output_name : output_names) {
-            auto pos_layer = output_name.rfind(":");
-            if (pos_layer == std::string::npos) {
-                throw std::logic_error("Output " + output_name + " doesn't have a port");
-            }
-            outputs.push_back(output_name.substr(0, pos_layer));
-            try {
-                ports.push_back(std::stoi(output_name.substr(pos_layer + 1)));
-            } catch (const std::exception&) {
-                throw std::logic_error("Ports should have integer type");
-            }
-        }
+        const auto output_data = parse_parameters(FLAGS_o);
+        const auto reference_data = parse_parameters(FLAGS_r);
+
+        const auto outputs = get_first_non_empty(output_data.second, reference_data.second);
+
         // ------------------------------ Preprocessing ------------------------------------------------------
         // the preprocessing steps can be done only for loaded network and are not applicable for the imported network
         // (already compiled)
         if (!FLAGS_m.empty()) {
+            const auto outputs_with_ports = parse_to_extract_port(outputs);
             model = core.read_model(FLAGS_m);
-            if (!outputs.empty()) {
-                for (size_t i = 0; i < outputs.size(); i++) {
-                    auto output = model->add_output(outputs[i], ports[i]);
-                    output.set_names({outputs[i] + ":" + std::to_string(ports[i])});
-                }
+            for (const auto& output_with_port : outputs_with_ports) {
+                auto output = model->add_output(output_with_port.first, output_with_port.second);
+                output.set_names({output_with_port.first + ":" + std::to_string(output_with_port.second)});
             }
             check_number_of_inputs(model->inputs().size(), numInputFiles);
             ov::preprocess::PrePostProcessor proc(model);
@@ -350,14 +329,14 @@ int main(int argc, char* argv[]) {
         size_t count_file = 1;
         if (!output_data.first.empty()) {
             output_name_files = convert_str_to_vector(output_data.first);
-            if (output_name_files.size() != outputs.size() && !outputs.empty()) {
+            if (output_name_files.size() != outputs.size() && outputs.size()) {
                 throw std::logic_error("The number of output files is not equal to the number of network outputs.");
             }
             count_file = output_name_files.empty() ? 1 : output_name_files.size();
         }
         if (!reference_data.first.empty()) {
             reference_name_files = convert_str_to_vector(reference_data.first);
-            if (reference_name_files.size() != outputs.size() && !outputs.empty()) {
+            if (reference_name_files.size() != outputs.size() && outputs.size()) {
                 throw std::logic_error("The number of reference files is not equal to the number of network outputs.");
             }
             count_file = reference_name_files.empty() ? 1 : reference_name_files.size();
@@ -369,10 +348,10 @@ int main(int argc, char* argv[]) {
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Step 5. Do inference --------------------------------------------------------
         std::vector<std::vector<uint8_t>> ptrUtterances;
-        std::vector<std::vector<uint8_t>> vectorPtrScores((outputs.size() == 0) ? executableNet.outputs().size()
-                                                                                : outputs.size());
-        std::vector<uint16_t> numScoresPerOutput((outputs.size() == 0) ? executableNet.outputs().size()
-                                                                       : outputs.size());
+        const auto effective_outputs_size = outputs.size() ? outputs.size() : executableNet.outputs().size();
+        std::vector<std::vector<uint8_t>> vectorPtrScores(effective_outputs_size);
+        std::vector<uint16_t> numScoresPerOutput(effective_outputs_size);
+
         std::vector<std::vector<uint8_t>> vectorPtrReferenceScores(reference_name_files.size());
         std::vector<ScoreErrorT> vectorFrameError(reference_name_files.size()),
             vectorTotalError(reference_name_files.size());
@@ -500,10 +479,10 @@ int main(int argc, char* argv[]) {
                         inferRequest.inferRequest.wait();
                         if (inferRequest.frameIndex >= 0)
                             for (size_t next_output = 0; next_output < count_file; next_output++) {
-                                std::string outputName = (outputs.size() == 0)
-                                                             ? executableNet.output(next_output).get_any_name()
-                                                             : output_names[next_output];
-                                auto dims = executableNet.output(outputName).get_shape();
+                                const auto output_name = outputs.size() > next_output
+                                                             ? outputs[next_output]
+                                                             : executableNet.output(next_output).get_any_name();
+                                auto dims = executableNet.output(output_name).get_shape();
                                 numScoresPerOutput[next_output] = std::accumulate(std::begin(dims),
                                                                                   std::end(dims),
                                                                                   size_t{1},
@@ -519,7 +498,7 @@ int main(int argc, char* argv[]) {
                                                            (inferRequest.frameIndex) / batchSize;
 
                                     ov::Tensor outputBlob =
-                                        inferRequest.inferRequest.get_tensor(executableNet.output(outputName));
+                                        inferRequest.inferRequest.get_tensor(executableNet.output(output_name));
                                     // locked memory holder should be alive all time while access to its buffer happens
                                     auto byteSize = numScoresPerOutput[next_output] * sizeof(float);
                                     std::memcpy(outputFrame, outputBlob.data<float>(), byteSize);
@@ -527,7 +506,7 @@ int main(int argc, char* argv[]) {
                                 if (!FLAGS_r.empty()) {
                                     /** Compare output data with reference scores **/
                                     ov::Tensor outputBlob =
-                                        inferRequest.inferRequest.get_tensor(executableNet.output(outputName));
+                                        inferRequest.inferRequest.get_tensor(executableNet.output(output_name));
 
                                     if (numScoresPerOutput[next_output] / numFrameElementsReference[next_output] ==
                                         batchSize) {
@@ -677,9 +656,10 @@ int main(int argc, char* argv[]) {
                 }
                 if (!FLAGS_r.empty()) {
                     // print statistical score error
-                    std::string outputName = (outputs.size() == 0) ? executableNet.output(next_output).get_any_name()
-                                                                   : output_names[next_output];
-                    std::cout << "Output name: " << outputName << std::endl;
+                    const auto output_name = outputs.size() > next_output
+                                                 ? outputs[next_output]
+                                                 : executableNet.output(next_output).get_any_name();
+                    std::cout << "Output name: " << output_name << std::endl;
                     std::cout << "Number scores per frame: " << numScoresPerOutput[next_output] / batchSize << std::endl
                               << std::endl;
                     print_reference_compare_results(vectorTotalError[next_output], numFrames, std::cout);
