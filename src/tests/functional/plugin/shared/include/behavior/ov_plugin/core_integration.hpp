@@ -361,17 +361,32 @@ TEST(OVClassBasicTest, smoke_SetConfigWithNoChangeToHWPluginThroughMetaPluginNoT
     ov::Core ie = createCoreWithTemplate();
     int32_t preValue = -1, curValue = -1;
 
-    ASSERT_NO_THROW(preValue = ie.get_property(CommonTestUtils::DEVICE_CPU, ov::num_streams));
-    ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO,
-                                    {ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::num_streams(10))}));
+    ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_CPU, {ov::num_streams(20)}));
     ASSERT_NO_THROW(curValue = ie.get_property(CommonTestUtils::DEVICE_CPU, ov::num_streams));
-    EXPECT_EQ(curValue, preValue);
+    EXPECT_EQ(curValue, 20);
+    std::vector<std::string> metaDevices = {CommonTestUtils::DEVICE_AUTO,
+                                            CommonTestUtils::DEVICE_MULTI,
+                                            CommonTestUtils::DEVICE_HETERO};
 
-    ASSERT_NO_THROW(preValue = ie.get_property(CommonTestUtils::DEVICE_CPU, ov::num_streams));
-    ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_MULTI,
-                                    {ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::num_streams(20))}));
-    ASSERT_NO_THROW(curValue = ie.get_property(CommonTestUtils::DEVICE_CPU, ov::num_streams));
-    EXPECT_EQ(curValue, preValue);
+    for (auto&& metaDevice : metaDevices) {
+        ASSERT_NO_THROW(preValue = ie.get_property(CommonTestUtils::DEVICE_CPU, ov::num_streams));
+        ASSERT_NO_THROW(
+            ie.set_property(metaDevice, {ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::num_streams(20))}));
+        ASSERT_NO_THROW(curValue = ie.get_property(CommonTestUtils::DEVICE_CPU, ov::num_streams));
+        EXPECT_EQ(curValue, preValue);
+    }
+    ASSERT_THROW(ie.set_property(CommonTestUtils::DEVICE_CPU,
+                                 {ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::num_streams(20))}),
+                 ov::Exception);
+    ASSERT_THROW(ie.set_property(CommonTestUtils::DEVICE_GPU,
+                                 {ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::num_streams(20))}),
+                 ov::Exception);
+    ASSERT_THROW(ie.set_property(CommonTestUtils::DEVICE_GPU,
+                                 {ov::device::properties("GPU.0", ov::num_streams(20))}),
+                 ov::Exception);
+    ASSERT_THROW(ie.set_property("GPU.0",
+                                 {ov::device::properties("GPU.0", ov::num_streams(20))}),
+                 ov::Exception);
 }
 
 TEST_P(OVClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
