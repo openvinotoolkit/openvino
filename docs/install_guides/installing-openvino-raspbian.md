@@ -97,7 +97,7 @@ If you want to use your model for inference, the model must be converted to the 
 
 @sphinxdirective
 
-Only if you want to perform inference on Intel® Neural Compute Stick 2, follow the steps on :ref:`NCS2 Setup Guide <ncs guide raspbianos>`.
+To perform inference on Intel® Neural Compute Stick 2, follow the steps in :ref:`NCS2 Setup Guide <ncs guide raspbianos>`.
 
 @endsphinxdirective
 
