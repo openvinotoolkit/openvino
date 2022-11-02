@@ -166,7 +166,6 @@ protected:
             for (decltype(split) i = 0; i < split; i++) {
                 kernel_arguments_data args;
 
-                // [TODO] get args from cache
                 if (_kernel_args.inputs.size() > 0) {
                     for (uint32_t i = 0; i < _kernel_args.inputs.size(); i++) {
                         args.inputs.push_back(instance.dep_memory_ptr(_kernel_args.inputs[i]));
@@ -256,14 +255,16 @@ protected:
             std::vector<event::ptr> new_events;
             for (decltype(split) i = 0; i < split; i++) {
                 // is any user of the prim's users is an detecion output, set prim as a output event (event won't be nullptr)
-                // [TODO]
-                // auto users = instance.node->get_users();
-                // bool is_output_event = is_any_user_cpu(users) || instance.node->is_output();
-                bool is_output_event = instance.is_output();
+                bool is_output_event;
+                if (instance.node != nullptr) {
+                    auto users = instance.node->get_users();
+                    is_output_event = is_any_user_cpu(users) || instance.node->is_output();
+                } else {
+                    is_output_event = instance.is_output();
+                }
 
                 kernel_arguments_data args;
 
-                // [TODO] get args from cache
                 if (_kernel_args.inputs.size() > 0) {
                     for (uint32_t i = 0; i < _kernel_args.inputs.size(); i++) {
                         args.inputs.push_back(instance.dep_memory_ptr(_kernel_args.inputs[i]));
