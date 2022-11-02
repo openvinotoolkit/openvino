@@ -1022,13 +1022,6 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::SoftPlus> 
     return std::make_shared<ov::Model>(results, params, "SoftPlusGraph");
 }
 
-std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::SoftSign> &node) {
-    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{4, 4}});
-    auto Node = std::make_shared<ov::op::v9::SoftSign>(params.at(0));
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(Node)};
-    return std::make_shared<ov::Model>(results, params, "SoftSignGraph");
-}
-
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::Softmax> &node) {
     const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 2, 3}});
     auto Node = std::make_shared<ov::op::v1::Softmax>(params.at(0), 0);
@@ -1178,6 +1171,27 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v10::Unique>& 
                                        ov::ParameterVector{data}, "UniqueGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v10::IsFinite> &node) {
+    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2});
+    auto is_finite = std::make_shared<ov::op::v10::IsFinite>(param);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(is_finite)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{param}, "is_finite_graph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v10::IsInf> &node) {
+    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2});
+    auto is_finite = std::make_shared<ov::op::v10::IsInf>(param);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(is_finite)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{param}, "is_inf_graph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v10::IsNaN> &node) {
+    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2});
+    auto is_finite = std::make_shared<ov::op::v10::IsNaN>(param);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(is_finite)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{param}, "is_nan_graph");
+}
+
 std::shared_ptr<ov::Model> generateArithmeticReductionKeepDims(const std::shared_ptr<ov::op::Op> &node) {
     const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{3, 3});
     const auto axes = ov::op::v0::Constant::create(ov::element::i32, {1}, {1});
@@ -1306,12 +1320,6 @@ std::shared_ptr<ov::Model> generateUnaryEltwise(const std::shared_ptr<ov::op::Op
         eltwiseNode = std::make_shared<ov::op::v5::HSigmoid>(param);
     } else if (ov::is_type<ov::op::v4::HSwish>(node)) {
         eltwiseNode = std::make_shared<ov::op::v4::HSwish>(param);
-    } else if (ov::is_type<ov::op::v10::IsFinite>(node)) {
-        eltwiseNode = std::make_shared<ov::op::v10::IsFinite>(param);
-    } else if (ov::is_type<ov::op::v10::IsInf>(node)) {
-        eltwiseNode = std::make_shared<ov::op::v10::IsInf>(param);
-    } else if (ov::is_type<ov::op::v10::IsNaN>(node)) {
-        eltwiseNode = std::make_shared<ov::op::v10::IsNaN>(param);
     } else if (ov::is_type<ov::op::v0::Log>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Log>(param);
     } else if (ov::is_type<ov::op::v0::Negative>(node)) {
@@ -1336,6 +1344,8 @@ std::shared_ptr<ov::Model> generateUnaryEltwise(const std::shared_ptr<ov::op::Op
         eltwiseNode = std::make_shared<ov::op::v0::Gelu>(param);
     } else if (ov::is_type<ov::op::v7::Gelu>(node)) {
         eltwiseNode = std::make_shared<ov::op::v7::Gelu>(param);
+    } else if (ov::is_type<ov::op::v9::SoftSign>(node)) {
+        eltwiseNode = std::make_shared<ov::op::v9::SoftSign>(param);
     } else {
         return nullptr;
     }
