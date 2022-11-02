@@ -196,8 +196,8 @@ ov_status_e ov_preprocess_preprocess_steps_crop(ov_preprocess_preprocess_steps_t
 }
 
 ov_status_e ov_preprocess_preprocess_steps_convert_layout(
-                ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
-                ov_layout_t* layout) {
+    ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+    ov_layout_t* layout) {
     if (!preprocess_input_process_steps || !layout) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -210,7 +210,7 @@ ov_status_e ov_preprocess_preprocess_steps_convert_layout(
 }
 
 ov_status_e ov_preprocess_preprocess_steps_reverse_channels(
-                ov_preprocess_preprocess_steps_t* preprocess_input_process_steps) {
+    ov_preprocess_preprocess_steps_t* preprocess_input_process_steps) {
     if (!preprocess_input_process_steps) {
         return ov_status_e::INVALID_C_PARAM;
     }
