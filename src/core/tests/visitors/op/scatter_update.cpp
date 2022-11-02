@@ -29,7 +29,7 @@ TEST(attributes, scatter_update_op) {
     auto A = op::Constant::create(element::i16, Shape{}, {1});
     auto op = make_shared<ScatterUpdate>(R, I, U, A);
 
-    NodeBuilder builder(op);
+    NodeBuilder builder(op, {R, I, U, A});
     const auto expected_attr_count = 0;
 
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
