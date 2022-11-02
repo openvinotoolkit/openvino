@@ -20,6 +20,7 @@
 #include "sliding_window_utils.hpp"
 #include "program_helpers.h"
 
+#include "matrix_nms_inst.h"
 #include "roi_pooling_inst.h"
 #include "reorg_yolo_inst.h"
 #include "eltwise_inst.h"
@@ -1429,6 +1430,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
              || prim.as<mvn>().get_primitive()->across_channels) &&
             prim.type() != cldnn::arg_max_min::type_id() &&
             prim.type() != cldnn::dft::type_id() &&
+            prim.type() != cldnn::grid_sample::type_id() &&
             prim.type() != cldnn::mutable_data::type_id() &&
             prim.type() != cldnn::reduce::type_id() &&
             prim.type() != cldnn::strided_slice::type_id() &&
@@ -1441,6 +1443,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::ctc_loss::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
             prim.type() != cldnn::roi_align::type_id() &&
+            prim.type() != cldnn::matrix_nms::type_id() &&
             prim.type() != cldnn::adaptive_pooling::type_id() &&
             prim.type() != cldnn::bucketize::type_id() &&
             prim.type() != cldnn::roll::type_id() &&
@@ -1450,7 +1453,10 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::generate_proposals::type_id() &&
             prim.type() != cldnn::reverse::type_id() &&
             prim.type() != cldnn::reorg_yolo::type_id() &&
-            prim.type() != cldnn::scatter_elements_update::type_id()) {
+            prim.type() != cldnn::tile::type_id() &&
+            prim.type() != cldnn::scatter_elements_update::type_id() &&
+            prim.type() != cldnn::gather_tree::type_id() &&
+            prim.type() != cldnn::experimental_detectron_detection_output::type_id()) {
             can_use_fsv16 = false;
         }
 
@@ -1473,6 +1479,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::input_layout::type_id() &&
             prim.type() != cldnn::activation::type_id() &&
             prim.type() != cldnn::dft::type_id() &&
+            prim.type() != cldnn::grid_sample::type_id() &&
             prim.type() != cldnn::softmax::type_id() &&
             prim.type() != cldnn::fully_connected::type_id() &&
             prim.type() != cldnn::generic_layer::type_id() &&
@@ -1482,6 +1489,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::ctc_loss::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
             prim.type() != cldnn::roi_align::type_id() &&
+            prim.type() != cldnn::matrix_nms::type_id() &&
             prim.type() != cldnn::adaptive_pooling::type_id() &&
             prim.type() != cldnn::bucketize::type_id() &&
             prim.type() != cldnn::roll::type_id() &&
@@ -1491,7 +1499,10 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::generate_proposals::type_id() &&
             prim.type() != cldnn::reverse::type_id() &&
             prim.type() != cldnn::reorg_yolo::type_id() &&
+            prim.type() != cldnn::tile::type_id() &&
             prim.type() != cldnn::scatter_elements_update::type_id() &&
+            prim.type() != cldnn::gather_tree::type_id() &&
+            prim.type() != cldnn::experimental_detectron_detection_output::type_id() &&
             prim.type() != cldnn::deconvolution::type_id()) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
         }
@@ -1544,7 +1555,9 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     auto& engine = get_engine();
-    if (engine.get_device_info().supports_immad && engine.configuration().queue_type == queue_types::in_order)
+    if (engine.get_device_info().supports_immad &&
+        engine.get_device_info().vendor_id == INTEL_VENDOR_ID &&
+        engine.configuration().queue_type == queue_types::in_order)
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 1);
 #endif
 }

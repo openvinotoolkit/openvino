@@ -152,6 +152,9 @@ jobs:
       sed -i 's;cp -r Parser/pgen "$BUILD_PYTHON";;' $(OPENVINO_CONTRIB_REPO_DIR)/modules/arm_plugin/scripts/install_build_dependencies.sh
       sed -i 's;    HOSTPGEN="$BUILD_PYTHON"/Parser/pgen;;' $(OPENVINO_CONTRIB_REPO_DIR)/modules/arm_plugin/scripts/install_build_dependencies.sh
       $(OPENVINO_CONTRIB_REPO_DIR)/modules/arm_plugin/scripts/install_build_dependencies.sh
+      python3 -m pip install --upgrade pip
+      python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
+      python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
     workingDirectory: $(BUILD_OPENVINO)
     displayName: 'Install dependencies'
 
@@ -166,7 +169,7 @@ jobs:
         -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/python3.10
         -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib/libpython3.10.so
         -DENABLE_PYTHON=ON
-        -DPYTHON_MODULE_EXTENSION=".so"
+        -DPYTHON_MODULE_EXTENSION=".cpython-38-x86_64-linux-gnu.so"
         -DENABLE_TESTS=ON
         -DENABLE_DATA=OFF
         -DCMAKE_EXE_LINKER_FLAGS=-Wl,-rpath-link,$(INSTALL_OPENCV)/lib
