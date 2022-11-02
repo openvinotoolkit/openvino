@@ -19,10 +19,10 @@ install(TARGETS ${TARGET_NAME}
         EXCLUDE_FROM_ALL)
 
 # Test model generating
-ov_check_pip_package(REQUIREMENT paddlepaddle
-                     MESSAGE_MODE WARNING
-                     WARNING_MESSAGE "PaddlePaddle frontend unit tests will be skipped"
-                     RESULT_VAR paddlepaddle_FOUND)
+ov_check_pip_packages(REQUIREMENTS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/requirements.txt"
+                      MESSAGE_MODE WARNING
+                      WARNING_MESSAGE "PaddlePaddle frontend unit tests will be skipped"
+                      RESULT_VAR paddlepaddle_FOUND)
 
 set(TEST_PADDLE_MODELS_DIRNAME test_model_zoo/paddle_test_models)
 target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_PADDLE_MODELS_DIRNAME=\"${TEST_PADDLE_MODELS_DIRNAME}/\")
