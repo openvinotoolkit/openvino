@@ -46,6 +46,8 @@ $(document).ready(function () {
     }
     addLegalNotice();
     updateSearchForm();
+    initBenchmarkPickers();
+    initCollapsibleHeaders();
     createSphinxTabSets();
 });
 
@@ -282,4 +284,37 @@ function init_switchers() {
 
     $('main').prepend(switcherPanel);
     switcherAnchors.remove();
+}
+
+function initBenchmarkPickers() {
+  $('.picker-options .option').on('click', function(event) {
+    const selectedOption = $(this).data('option');
+    $('.picker-options .selectable').each(function() {
+      $(this).removeClass('selected');
+      const toSelect = this.classList.contains(selectedOption);
+      if(toSelect) {
+        $(this).addClass('selected');
+      }
+    });
+  });
+}
+
+
+function initCollapsibleHeaders() {
+  $('#performance-information-frequently-asked-questions section').on('click', function() {
+    console.log($(this).find('p, table').length);
+    if(!$(this).find('table, p').is(':visible')) {
+      resetCollapsibleHeaders();
+      $(this).find('table, p').css('display', 'block');
+      $(this).find('h2').addClass('expanded')
+      $(this).find('h2').get(0).scrollIntoView();
+    } else {
+      resetCollapsibleHeaders();
+    }
+  });
+
+  function resetCollapsibleHeaders() {
+    $('#performance-information-frequently-asked-questions section').find('h2').removeClass('expanded');
+    $('#performance-information-frequently-asked-questions section p, #performance-information-frequently-asked-questions section table').hide();
+  }
 }
