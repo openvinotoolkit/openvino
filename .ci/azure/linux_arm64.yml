@@ -147,6 +147,9 @@ jobs:
       export BUILD_OPENCV=$(BUILD_OPENCV)
       export INSTALL_OPENVINO=$(INSTALL_OPENVINO)
       $(OPENVINO_CONTRIB_REPO_DIR)/modules/arm_plugin/scripts/install_build_dependencies.sh
+      python3 -m pip install --upgrade pip
+      python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
+      python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
     workingDirectory: $(BUILD_OPENVINO)
     displayName: 'Install dependencies'
 
@@ -161,7 +164,7 @@ jobs:
         -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/python3.8
         -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib/libpython3.8.so
         -DENABLE_PYTHON=ON
-        -DPYTHON_MODULE_EXTENSION=".so"
+        -DPYTHON_MODULE_EXTENSION=".cpython-38-x86_64-linux-gnu.so"
         -DENABLE_TESTS=ON
         -DENABLE_DATA=OFF
         -DCMAKE_EXE_LINKER_FLAGS=-Wl,-rpath-link,$(INSTALL_OPENCV)/lib

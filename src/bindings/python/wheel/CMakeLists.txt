@@ -6,8 +6,12 @@
 # Common vars used by setup.py
 #
 
-set(pyversion python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-set(WHEEL_VERSION "${OpenVINO_VERSION}" CACHE STRING "Version of this release" FORCE)
+if(DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT "$ENV{CI_BUILD_DEV_TAG}" STREQUAL "")
+    set(WHEEL_VERSION "${OpenVINO_VERSION}.$ENV{CI_BUILD_DEV_TAG}" CACHE STRING "Version of this release" FORCE)
+    set(wheel_pre_release ON)
+else()
+    set(WHEEL_VERSION ${OpenVINO_VERSION} CACHE STRING "Version of this release" FORCE)
+endif()
 set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
 
 set(PY_PACKAGES_DIR ${OV_CPACK_PYTHONDIR})
@@ -27,6 +31,30 @@ foreach(_target ie_api constants _pyngraph openvino_c pyopenvino ov_plugins ov_f
     endif()
 endforeach()
 
+file(GLOB_RECURSE compat_ngraph_py_files ${OpenVINOPython_SOURCE_DIR}/src/compatibility/*.py)
+file(GLOB_RECURSE openvino_py_files ${OpenVINOPython_SOURCE_DIR}/src/openvino/*.py)
+
+list(APPEND openvino_wheel_deps
+    ${openvino_py_files}
+    ${compat_ngraph_py_files}
+    "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
+    "${OpenVINOPython_SOURCE_DIR}/requirements.txt"
+    "${OpenVINOPython_SOURCE_DIR}/wheel/readme.txt"
+    "${OpenVINO_SOURCE_DIR}/LICENSE"
+    "${OpenVINO_SOURCE_DIR}/licensing/onednn_third-party-programs.txt"
+    "${OpenVINO_SOURCE_DIR}/licensing/runtime-third-party-programs.txt"
+    "${OpenVINO_SOURCE_DIR}/licensing/tbb_third-party-programs.txt"
+    "${OpenVINO_SOURCE_DIR}/docs/install_guides/pypi-openvino-rt.md")
+
+if(wheel_pre_release)
+    list(APPEND openvino_wheel_deps
+        "${OpenVINO_SOURCE_DIR}/docs/install_guides/pre-release-note.md")
+endif()
+
+#
+# Define proper package name
+#
+
 execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.vendored.packaging.tags as tags ; print(f'{tags.interpreter_name()}{tags.interpreter_version()}')"
                 OUTPUT_VARIABLE PYTHON_TAG OUTPUT_STRIP_TRAILING_WHITESPACE)
 execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.bdist_wheel ; print(f'{wheel.bdist_wheel.get_abi_tag()}')"
@@ -34,9 +62,14 @@ execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.bdist_wheel ; prin
 execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import wheel.vendored.packaging.tags as tags ; print(f'{next(tags._platform_tags())}')"
                 OUTPUT_VARIABLE PLATFORM_TAG OUTPUT_STRIP_TRAILING_WHITESPACE)
 
+# defines wheel architecture part of `PLATFORM_TAG`
 macro(_ov_platform_arch)
     if(AARCH64)
-        set(_arch "aarch64")
+        if(APPLE)
+            set(_arch "arm64")
+        else()
+            set(_arch "aarch64")
+        endif()
     elseif(ARM)
         set(_arch "armvl7")
     elseif(X86_64)
@@ -61,7 +94,7 @@ if(APPLE AND DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
     if(_arch AND _macos_min_version)
         set(PLATFORM_TAG "macosx_${_macos_min_version}_${_arch}")
     endif()
-elseif(LINUX AND OFF)
+elseif(LINUX)
     _ov_platform_arch()
 
     execute_process(COMMAND ldd --version
@@ -75,7 +108,12 @@ elseif(LINUX AND OFF)
 
     # common pattern manylinux_<libc major>_<libc minor>_<arch>
     if(_libc_major AND _libc_minor AND _arch)
-        set(PLATFORM_TAG "manylinux_${_libc_major}_${_libc_minor}_${_arch}")
+        if(CMAKE_CROSSCOMPILING)
+            # TODO: think which proper tag is needed for arm / aarch64
+            set(PLATFORM_TAG "linux_${_arch}")
+        else()
+            set(PLATFORM_TAG "manylinux_${_libc_major}_${_libc_minor}_${_arch}")
+        endif()
     endif()
 endif()
 
@@ -87,31 +125,48 @@ set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 # create target for openvino.wheel
 #
 
+set(wheel_env ${CMAKE_COMMAND} -E env
+    WHEEL_VERSION=${WHEEL_VERSION}
+    WHEEL_BUILD=${WHEEL_BUILD}
+    OPENVINO_BUILD_DIR=${OpenVINO_BINARY_DIR}
+    OPENVINO_PYTHON_BUILD_DIR=${OpenVINOPython_BINARY_DIR}
+    OV_RUNTIME_LIBS_DIR=${OV_WHEEL_RUNTIMEDIR}
+    TBB_LIBS_DIR=${TBB_LIBS_DIR}
+    PUGIXML_LIBS_DIR=${PUGIXML_LIBS_DIR}
+    PY_PACKAGES_DIR=${PY_PACKAGES_DIR})
+
 add_custom_command(OUTPUT ${openvino_wheel_path}
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}"
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${OpenVINO_SOURCE_DIR}/licensing" "${CMAKE_BINARY_DIR}/licensing"
-    COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/site-packages"
-    COMMAND ${CMAKE_COMMAND} -E env
-            WHEEL_VERSION=${WHEEL_VERSION}
-            WHEEL_BUILD=${WHEEL_BUILD}
-            OPENVINO_BUILD_DIR=${OpenVINO_BINARY_DIR}
-            OPENVINO_PYTHON_BUILD_DIR=${OpenVINOPython_BINARY_DIR}
-            OV_RUNTIME_LIBS_DIR=${OV_WHEEL_RUNTIMEDIR}
-            TBB_LIBS_DIR=${TBB_LIBS_DIR}
-            PUGIXML_LIBS_DIR=${PUGIXML_LIBS_DIR}
-            PY_PACKAGES_DIR=${PY_PACKAGES_DIR}
-        ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py" clean bdist_wheel
+    COMMAND ${wheel_env}
+        ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py" bdist_wheel
             --dist-dir ${openvino_wheels_output_dir}
             --build-number=${WHEEL_BUILD}
             --plat-name=${PLATFORM_TAG}
             --quiet
+    COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/site-packages"
+    COMMAND ${wheel_env}
+        ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py" clean
     DEPENDS ${openvino_wheel_deps}
-           "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Building Python wheel ${openvino_wheel_name}"
     VERBATIM)
 
-add_custom_target(ie_wheel ALL DEPENDS ${openvino_wheel_path})
+set(fdupes_report ${CMAKE_CURRENT_BINARY_DIR}/fdupes_report.txt)
+add_custom_command(OUTPUT "${fdupes_report}"
+    COMMAND ${CMAKE_COMMAND}
+        -D PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}
+        -D WORKING_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}
+        -D WHEEL_VERSION=${WHEEL_VERSION}
+        -D PACKAGE_FILE=${openvino_wheel_path}
+        -D REPORT_FILE=${fdupes_report}
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/fdupes_check.cmake"
+    DEPENDS "${openvino_wheel_path}"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    COMMENT "Run 'fdupes' checks for wheel ${openvino_wheel_name}"
+    VERBATIM)
+
+add_custom_target(ie_wheel ALL DEPENDS ${openvino_wheel_path} ${fdupes_report})
 
 # install
 
