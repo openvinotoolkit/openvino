@@ -62,7 +62,7 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
     
 4. Download the [OpenVINO Runtime archive file for macOS](https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.2/macos/), extract the files, rename the extracted folder and move it to the desired path:
    ```sh
-   curl -L https://github.com/openvinotoolkit/openvino/releases/download/2022.2.0/m_openvino_toolkit_osx_2022.2.0.7713.af16ea1d79a_x86_64.tgz --output openvino_2022.2.0.7713.tgz
+   curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.2/macos/m_openvino_toolkit_osx_2022.2.0.7713.af16ea1d79a_x86_64.tgz --output openvino_2022.2.0.7713.tgz
    tar -xf openvino_2022.2.0.7713.tgz
    sudo mv m_openvino_toolkit_osx_2022.2.0.7713.af16ea1d79a_x86_64 /opt/intel/openvino_2022.2.0.7713
    ```
