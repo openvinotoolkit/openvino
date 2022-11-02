@@ -57,16 +57,16 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
 
 1. Open a command prompt terminal window. You can use the keyboard shortcut: Ctrl+Alt+T
 
-2. Create the `/opt/intel` folder for OpenVINO by using the following command. If the folder already exists, skip this step.
+2. Create the ``/opt/intel`` folder for OpenVINO by using the following command. If the folder already exists, skip this step.
 
    .. code-block:: sh
    
       sudo mkdir /opt/intel
    
    .. note::
-      The `/opt/intel` path is the recommended folder path for administrators or root users. If you prefer to install OpenVINO in regular userspace, the recommended path is `/home/<USER>/intel`. You may use a different path if desired.
+      The ``/opt/intel`` path is the recommended folder path for administrators or root users. If you prefer to install OpenVINO in regular userspace, the recommended path is ``/home/<USER>/intel``. You may use a different path if desired.
 
-3. Browse to the current user's `Downloads` folder:
+3. Browse to the current user's ``Downloads`` folder:
    
    .. code-block:: sh
    
@@ -105,7 +105,7 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
       sudo ln -s openvino_2022.2.0.7713 openvino_2022
   
    .. note::
-      If you have already installed a previous release of OpenVINO 2022, a symbolic link to the `openvino_2022` folder may already exist. Remove the previous link with `sudo rm openvino_2022`, and then re-run the command above.
+      If you have already installed a previous release of OpenVINO 2022, a symbolic link to the ``openvino_2022`` folder may already exist. Remove the previous link with ``sudo rm openvino_2022``, and then re-run the command above.
 
 @endsphinxdirective
 
