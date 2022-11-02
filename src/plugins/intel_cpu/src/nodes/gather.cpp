@@ -121,7 +121,7 @@ void Gather::initSupportedPrimitiveDescriptors() {
             totalWork = beforeBatchSize * betweenBatchAndAxisSize * specIndicesSize * afterAxisSize;
         }
     }
-
+    createOrUpdateJitKernelIfNeeded();
     // Implementation desc type will be redefined in the fn prepareParams if a kernel will be created.
     Precision dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
     addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
@@ -132,41 +132,35 @@ void Gather::initSupportedPrimitiveDescriptors() {
                          isDynamicNode());
 }
 
-void Gather::createPrimitive() {
+void Gather::createOrUpdateJitKernelIfNeeded() {
     uint64_t idxElPerVec = 1;
     if (!isDynamicNode()) {
         idxElPerVec = x64::mayiuse(x64::avx512_core) ? x64::cpu_isa_traits<x64::avx512_core>::vlen / idxTypeSize :
-            x64::mayiuse(x64::avx2) ? x64::cpu_isa_traits<x64::avx2>::vlen / idxTypeSize : 1;
+                      x64::mayiuse(x64::avx2) ? x64::cpu_isa_traits<x64::avx2>::vlen / idxTypeSize : 1;
     }
     // Gather instruction is not supported by SSE.
     if ((x64::mayiuse(x64::avx512_core) || x64::mayiuse(x64::avx2)) &&
-            (isDynamicNode() || afterAxisSize == 1 || (afterAxisSize <= idxElPerVec &&
-            (x64::mayiuse(x64::avx512_core) || (x64::mayiuse(x64::avx2) && dataTypeSize == 4))))) {
+        (isDynamicNode() || afterAxisSize == 1 || (afterAxisSize <= idxElPerVec))) {
+        x64::cpu_isa_t isa = x64::mayiuse(x64::avx512_core) ? x64::avx512_core : x64::avx2;
         jGatherConfParams jcp;
         jcp.dataTypeSize = dataTypeSize;
         jcp.reverseIndexing = reverseIndexing;
         jcp.dynamicShapes = isDynamicNode();
         jcp.batchDims = batchDims;
-        if (!jcp.dynamicShapes) {
-            jcp.beforeAxisSize = beforeAxisSize;
-            jcp.specIdxSize = specIndicesSize;
-            jcp.afterAxisSize = afterAxisSize;
-        } else {
-            if (isDataShapeStat && isAxisInputConst) {
-                jcp.beforeAxisSize = beforeAxisSize;
-                jcp.afterAxisSize = afterAxisSize;
-            }
-            if (isIdxShapeStat) {
-                jcp.specIdxSize = specIndicesSize;
-            }
-        }
+        jcp.beforeAxisSize = beforeAxisSize;
+        jcp.specIdxSize = specIndicesSize;
+        jcp.afterAxisSize = afterAxisSize;
 
-        if (x64::mayiuse(x64::avx512_core)) {
-            jitKernel.reset(new jitUniGatherKernel<x64::avx512_core>(jcp));
-        } else if (x64::mayiuse(x64::avx2)) {
-            jitKernel.reset(new jitUniGatherKernel<x64::avx2>(jcp));
-        }
         if (jitKernel) {
+            if (jitKernel->isSameParams(jcp)) {
+                return;
+            }
+            jitKernel.reset();
+        }
+        jitKernel = jitGatherKernelInterface::createJitUniGatherKernel(
+                isa, jcp.dataTypeSize, jcp.dynamicShapes, jcp.afterAxisSize, jcp.specIdxSize, idxElPerVec);
+        if (jitKernel) {
+            jitKernel->initialize(jcp);
             jitKernel->create_ker();
 
             if (!isDynamicNode()) {
@@ -189,7 +183,7 @@ void Gather::createPrimitive() {
                     for (uint64_t j = 0lu; j < dataElPerVec; j++) {
                         p.specIdxInBytes[j] = (((dstStart + j) / afterAxisSize) % specIndicesSize) * idxTypeSize;
                         p.idxBatchSumInBytes[j] = ((dstStart + j) / (betweenBatchAndAxisSize * specIndicesSize * afterAxisSize)) *
-                                specIndicesSize * idxTypeSize;
+                                                  specIndicesSize * idxTypeSize;
                         p.dataBeforeAxisSumInBytes[j] = ((dstStart + j) / (specIndicesSize * afterAxisSize)) * axisAndAfterAxisSizeInBytes;
                     }
                     initShortParams(p, dstStart);
@@ -197,7 +191,10 @@ void Gather::createPrimitive() {
             }
         }
     }
+}
 
+
+void Gather::createPrimitive() {
     Node::createPrimitive();
 }
 
@@ -250,9 +247,9 @@ void Gather::prepareParams() {
         specIdxAndAfterAxSizeB = specIndicesSize * afterAxisSizeInBytes;
         totalWork = beforeBatchSize * betweenBatchAndAxisSize * specIndicesSize * afterAxisSize;
     }
-
+    createOrUpdateJitKernelIfNeeded();
     const auto& selectedPD = getSelectedPrimitiveDescriptor();
-    if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
+    if (jitKernel) {
         if (x64::mayiuse(x64::avx512_core)) {
             selectedPD->setImplementationType(jit_avx512);
         } else if (x64::mayiuse(x64::avx2)) {
@@ -264,7 +261,7 @@ void Gather::prepareParams() {
 }
 
 void Gather::execute(dnnl::stream strm) {
-    if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
+    if (jitKernel) {
         const void* srcIndices = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->GetPtr();
         const void* srcData = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetPtr();
         uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
@@ -317,7 +314,7 @@ void Gather::execute(dnnl::stream strm) {
 }
 
 void Gather::executeDynamicImpl(dnnl::stream strm) {
-    if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
+    if (jitKernel) {
         const void* srcIndices = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->GetPtr();
         const void* srcData = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetPtr();
         uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());

@@ -282,4 +282,27 @@ const auto gatherParamsVec3 = testing::Combine(
 
 INSTANTIATE_TEST_CASE_P(smoke_Vec3, Gather8LayerTest, gatherParamsVec3, Gather8LayerTest::getTestCaseName);
 
+
+const std::vector<std::vector<size_t>> dataShapesBasic = {
+        {6}
+};
+const std::vector<std::vector<size_t>> idxShapesBasic = {
+        {3}
+};
+const std::vector<std::tuple<int, int>> axesBatchesBasic = {
+        {0, 0}
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_static_basic, Gather8LayerTest,
+                        testing::Combine(
+                                testing::ValuesIn(dataShapesBasic),
+                                testing::ValuesIn(idxShapesBasic),
+                                testing::ValuesIn(axesBatchesBasic),
+                                testing::ValuesIn(netPrecisions),
+                                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                testing::Values(InferenceEngine::Layout::ANY),
+                                testing::Values(InferenceEngine::Layout::ANY),
+                                testing::Values(CommonTestUtils::DEVICE_CPU)),
+                        Gather8LayerTest::getTestCaseName);
 }  // namespace

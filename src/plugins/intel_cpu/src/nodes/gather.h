@@ -46,6 +46,7 @@ public:
     };
 
 protected:
+    void createOrUpdateJitKernelIfNeeded();
     void executeDynamicImpl(dnnl::stream strm) override;
     bool needPrepareParams() const override;
     void prepareParams() override;
@@ -85,7 +86,7 @@ private:
     static constexpr size_t GATHER_INDICES = 1;
     static constexpr size_t GATHER_AXIS = 2;
 
-    std::shared_ptr<jitGatherKernelBase> jitKernel;
+    std::shared_ptr<jitGatherKernelInterface> jitKernel;
 };
 
 }   // namespace node
