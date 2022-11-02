@@ -34,7 +34,7 @@ void regmodule_offline_transformations(py::module m) {
 
     m_offline_transformations.def(
         "apply_moc_transformations",
-        [](std::shared_ptr<ov::Model> model, bool cf, bool smart_reshape = false) {
+        [](std::shared_ptr<ov::Model> model, bool cf, bool smart_reshape) {
             ov::pass::Manager manager;
             if (smart_reshape)
                 manager.register_pass<ngraph::pass::SmartReshape>();
@@ -43,7 +43,7 @@ void regmodule_offline_transformations(py::module m) {
         },
         py::arg("model"),
         py::arg("cf"),
-        py::arg("smart_reshape"));
+        py::arg("smart_reshape") = false);
 
     m_offline_transformations.def(
         "apply_moc_legacy_transformations",
