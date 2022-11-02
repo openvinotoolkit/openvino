@@ -175,6 +175,7 @@ std::string toString(KernelType kt) {
                                           return "BINARY_CONVOLUTION";
         case KernelType::NON_MAX_SUPPRESSION:
                                           return "NON_MAX_SUPPRESSION";
+        case KernelType::MATRIX_NMS:      return "MATRIX_NMS";
         default: return "";
     }
 }
