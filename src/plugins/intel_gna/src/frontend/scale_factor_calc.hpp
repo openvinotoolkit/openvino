@@ -33,7 +33,7 @@ float GetScaleFactor(InferenceEngine::CNNLayerPtr layer, QuantizedDataType data_
 * @param minValue Minimum value to be quantized
 * @param maxValue Maximum value to be quantized
 */
-inline float CalculateScaleFactorFromStats(size_t levels, float minValue, float maxValue);
+float CalculateScaleFactorFromStats(size_t levels, float minValue, float maxValue);
 
 struct ScaleFactorUpdateResult {
     InferenceEngine::CNNLayer* restartLayer = nullptr;
@@ -57,7 +57,7 @@ class ScaleFactorCalculator {
     mutable bool needRestart = false;
     int infiniteLoopCount = 0;
 
-    inline std::vector<double> getPWLSlopes(const GNAPluginNS::LayerInfo& info) const;
+    std::vector<double> getPWLSlopes(const GNAPluginNS::LayerInfo& info) const;
     static float selectBestOutputScaleFactors(float inScale,
                                               std::vector<float> outScales,
                                               const std::vector<double>& slopes);
