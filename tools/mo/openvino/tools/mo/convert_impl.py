@@ -28,7 +28,7 @@ from openvino.tools.mo.utils import import_extensions
 from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
     get_advanced_cli_options, get_available_front_ends, get_caffe_cli_options, \
     get_common_cli_options, get_freeze_placeholder_values, get_kaldi_cli_options, get_layout_values, \
-    get_mean_scale_dictionary, get_meta_info, get_mxnet_cli_options, get_onnx_cli_options, \
+    get_mean_scale_dictionary, get_mxnet_cli_options, get_onnx_cli_options, \
     get_placeholder_shapes, get_tf_cli_options, get_tuple_values, parse_transform, parse_tuple_pairs, \
     get_all_cli_parser, mo_convert_params, get_model_name_from_args, depersonalize
 
@@ -416,7 +416,7 @@ def prepare_ir(argv: argparse.Namespace):
     return graph, ngraph_function
 
 
-def emit_ir(graph: Graph, argv: argparse.Namespace):
+def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
     # We have to separate fe object lifetime from fem to
     # avoid segfault during object destruction. So fe must
     # be destructed before fem object explicitly.
@@ -441,7 +441,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
                     output_model_name=argv.model_name,
                     mean_data=mean_data,
                     input_names=input_names,
-                    meta_info=get_meta_info(argv),
+                    meta_info=non_default_params,
                     use_temporary_path=True)
 
     # This graph cleanup is required to avoid double memory consumption
@@ -487,7 +487,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
     return func
 
 
-def driver(argv: argparse.Namespace):
+def driver(argv: argparse.Namespace, non_default_params: dict):
     init_logger(argv.log_level.upper(), argv.silent)
 
     start_time = datetime.datetime.now()
@@ -495,7 +495,7 @@ def driver(argv: argparse.Namespace):
     graph, ngraph_function = prepare_ir(argv)
     legacy_path = False
     if graph is not None:
-        res_ngraph_function = emit_ir(graph, argv)
+        res_ngraph_function = emit_ir(graph, argv, non_default_params)
         legacy_path = True
     else:
         res_ngraph_function = moc_emit_ir(ngraph_function, argv)
@@ -587,7 +587,7 @@ def _convert(**args):
         init_logger('ERROR', False)
 
         argv.feManager = FrontEndManager()
-        ov_model, legacy_path = driver(argv)
+        ov_model, legacy_path = driver(argv, {"conversion_parameters": non_default_params})
 
         # add MO meta data to model
         ov_model.set_rt_info(get_version(), "MO_version")
