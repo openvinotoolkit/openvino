@@ -79,7 +79,12 @@ INSTALL_REQUIRES = [
 
 ALGO_EXTRAS = []
 
-DEV_EXTRAS = ['pytest>=5.0,<=7.0.1,!=6.1.*', 'openpyxl==2.6.4', 'pytest-mock==3.1.1']
+DEV_EXTRAS = [
+    "pytest>=5.0,<=7.0.1;python_version<'3.10'",
+    "pytest==7.2.0;python_version=='3.10'",
+    "openpyxl==2.6.4",
+    "pytest-mock==3.1.1"
+]
 
 DEPENDENCY_LINKS = []
 
