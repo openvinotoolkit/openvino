@@ -37,6 +37,13 @@ inline bool supportsAvaliableDevices(InferenceEngine::Core& ie, const std::strin
            std::find(std::begin(supportedMetricKeys), std::end(supportedMetricKeys), METRIC_KEY(AVAILABLE_DEVICES));
 }
 
+inline bool supportsDeviceID(InferenceEngine::Core &ie, const std::string &target_device) {
+    auto supportedConfigKeys = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
+    return supportedConfigKeys.end() != std::find(std::begin(supportedConfigKeys),
+                                                  std::end(supportedConfigKeys),
+                                                  CONFIG_KEY(DEVICE_ID));
+}
+
 class IEClassBasicTestP : public BehaviorTestsUtils::IEPluginTestBase,
                           public ::testing::WithParamInterface<std::pair<std::string, std::string> > {
 protected:
@@ -328,6 +335,16 @@ TEST_P(IEClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
         cleartarget_device = target_device.substr(0, pos);
         deviceID =  target_device.substr(pos + 1,  target_device.size());
     }
+    if (!supportsDeviceID(ie, cleartarget_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
+    }
+    if (!supportsAvaliableDevices(ie, cleartarget_device)) {
+        GTEST_FAIL() << "Device does not support AvailableDevices" << std::endl;
+    }
+    std::vector<std::string> deviceIDs = ie.GetMetric(cleartarget_device, METRIC_KEY(AVAILABLE_DEVICES));
+    if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
+        GTEST_SKIP();
+    }
 
     ASSERT_NO_THROW(ie.SetConfig({{InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES}}, target_device));
     std::string value;
@@ -420,6 +437,15 @@ TEST_P(IEClassSeveralDevicesTestQueryNetwork, QueryNetworkActualSeveralDevicesNo
     if (pos != std::string::npos) {
         cleartarget_device = target_devices.begin()->substr(0, pos);
     }
+    if (!supportsDeviceID(ie, cleartarget_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
+    }
+    if (!supportsAvaliableDevices(ie, cleartarget_device)) {
+        GTEST_FAIL() << "Device does not support AvailableDevices" << std::endl;
+    }
+    std::vector<std::string> deviceIDs = ie.GetMetric(cleartarget_device, METRIC_KEY(AVAILABLE_DEVICES));
+    if (deviceIDs.size() < target_devices.size())
+        GTEST_FAIL() << "Incorrect DeviceID number" << std::endl;
 
     std::string multitarget_device = CommonTestUtils::DEVICE_MULTI + std::string(":");
     for (auto& dev_name : target_devices) {
@@ -538,7 +564,7 @@ TEST(IEClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
         std::cout << str << std::endl;
     }
 
-    ASSERT_FALSE(supportsAvaliableDevices(ie, METRIC_KEY(SUPPORTED_METRICS)));
+    ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(SUPPORTED_METRICS));
 }
 
 TEST(IEClassBasicTest, smoke_GetMetricSupportedConfigKeysHeteroNoThrow) {
@@ -554,7 +580,7 @@ TEST(IEClassBasicTest, smoke_GetMetricSupportedConfigKeysHeteroNoThrow) {
         std::cout << str << std::endl;
     }
 
-    ASSERT_FALSE(supportsAvaliableDevices(ie, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
+    ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
 }
 
 TEST(IEClassBasicTest, smoke_GetMetricSupportedConfigKeysHeteroThrows) {
@@ -576,7 +602,7 @@ TEST_P(IEClassGetMetricTest_SUPPORTED_METRICS, GetMetricAndPrintNoThrow) {
         std::cout << str << std::endl;
     }
 
-    ASSERT_FALSE(supportsAvaliableDevices(ie, METRIC_KEY(SUPPORTED_METRICS)));
+    ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(SUPPORTED_METRICS));
 }
 
 TEST_P(IEClassGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricAndPrintNoThrow) {
@@ -591,7 +617,7 @@ TEST_P(IEClassGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricAndPrintNoThrow) {
         std::cout << str << std::endl;
     }
 
-    ASSERT_FALSE(supportsAvaliableDevices(ie, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
+    ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
 }
 
 TEST_P(IEClassGetMetricTest_AVAILABLE_DEVICES, GetMetricAndPrintNoThrow) {
@@ -606,7 +632,7 @@ TEST_P(IEClassGetMetricTest_AVAILABLE_DEVICES, GetMetricAndPrintNoThrow) {
         std::cout << str << std::endl;
     }
 
-    ASSERT_FALSE(supportsAvaliableDevices(ie, METRIC_KEY(AVAILABLE_DEVICES)));
+    ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(AVAILABLE_DEVICES));
 }
 
 TEST_P(IEClassGetMetricTest_FULL_DEVICE_NAME, GetMetricAndPrintNoThrow) {
@@ -617,7 +643,7 @@ TEST_P(IEClassGetMetricTest_FULL_DEVICE_NAME, GetMetricAndPrintNoThrow) {
     std::string t = p;
     std::cout << "Full device name: " << std::endl << t << std::endl;
 
-    ASSERT_FALSE(supportsAvaliableDevices(ie, METRIC_KEY(FULL_DEVICE_NAME)));
+    ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(FULL_DEVICE_NAME));
 }
 
 TEST_P(IEClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow) {
@@ -632,7 +658,7 @@ TEST_P(IEClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow)
         std::cout << str << std::endl;
     }
 
-    ASSERT_FALSE(supportsAvaliableDevices(ie, METRIC_KEY(OPTIMIZATION_CAPABILITIES)));
+    ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(OPTIMIZATION_CAPABILITIES));
 }
 
 TEST_P(IEClassGetMetricTest_DEVICE_GOPS, GetMetricAndPrintNoThrow) {
@@ -647,7 +673,7 @@ TEST_P(IEClassGetMetricTest_DEVICE_GOPS, GetMetricAndPrintNoThrow) {
         std::cout << kv.first << ": " << kv.second << std::endl;
     }
 
-    ASSERT_FALSE(supportsAvaliableDevices(ie, METRIC_KEY(DEVICE_GOPS)));
+    ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(DEVICE_GOPS));
 }
 
 TEST_P(IEClassGetMetricTest_DEVICE_TYPE, GetMetricAndPrintNoThrow) {
@@ -659,7 +685,7 @@ TEST_P(IEClassGetMetricTest_DEVICE_TYPE, GetMetricAndPrintNoThrow) {
 
     std::cout << "Device Type: " << t << std::endl;
 
-    ASSERT_FALSE(supportsAvaliableDevices(ie, METRIC_KEY(DEVICE_TYPE)));
+    ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(DEVICE_TYPE));
 }
 
 TEST_P(IEClassGetMetricTest_NUMBER_OF_WAITING_INFER_REQUESTS, GetMetricAndPrintNoThrow) {
@@ -671,7 +697,7 @@ TEST_P(IEClassGetMetricTest_NUMBER_OF_WAITING_INFER_REQUESTS, GetMetricAndPrintN
 
     std::cout << "Number of waiting infer requests: " << std::endl << t << std::endl;
 
-    ASSERT_FALSE(supportsAvaliableDevices(ie, METRIC_KEY(NUMBER_OF_WAITING_INFER_REQUESTS)));
+    ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(NUMBER_OF_WAITING_INFER_REQUESTS));
 }
 
 TEST_P(IEClassGetMetricTest_NUMBER_OF_EXEC_INFER_REQUESTS, GetMetricAndPrintNoThrow) {
@@ -683,7 +709,7 @@ TEST_P(IEClassGetMetricTest_NUMBER_OF_EXEC_INFER_REQUESTS, GetMetricAndPrintNoTh
 
     std::cout << "Number of executing infer requests: " << std::endl << t << std::endl;
 
-    ASSERT_FALSE(supportsAvaliableDevices(ie, METRIC_KEY(NUMBER_OF_EXEC_INFER_REQUESTS)));
+    ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(NUMBER_OF_EXEC_INFER_REQUESTS));
 }
 
 TEST_P(IEClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS, GetMetricAndPrintNoThrow) {
@@ -705,7 +731,7 @@ TEST_P(IEClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS, GetMetricAndPrintNoT
 
     ASSERT_LE(start, end);
     ASSERT_GE(step, 1);
-    ASSERT_FALSE(supportsAvaliableDevices(ie, METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)));
+    ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS));
 }
 
 TEST_P(IEClassGetMetricTest_RANGE_FOR_STREAMS, GetMetricAndPrintNoThrow) {
@@ -724,7 +750,7 @@ TEST_P(IEClassGetMetricTest_RANGE_FOR_STREAMS, GetMetricAndPrintNoThrow) {
     std::cout << std::endl;
 
     ASSERT_LE(start, end);
-    ASSERT_FALSE(supportsAvaliableDevices(ie, METRIC_KEY(RANGE_FOR_STREAMS)));
+    ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(RANGE_FOR_STREAMS));
 }
 
 TEST_P(IEClassGetMetricTest_ThrowUnsupported, GetMetricThrow) {
@@ -792,6 +818,16 @@ TEST_P(IEClassSpecificDeviceTestGetConfig, GetConfigSpecificDeviceNoThrow) {
         cleartarget_device =  target_device.substr(0, pos);
         deviceID =   target_device.substr(pos + 1,   target_device.size());
     }
+    if (!supportsDeviceID(ie, cleartarget_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
+    }
+    if (!supportsAvaliableDevices(ie, cleartarget_device)) {
+        GTEST_FAIL() << "Device does not support AvailableDevices" << std::endl;
+    }
+    std::vector<std::string> deviceIDs = ie.GetMetric(cleartarget_device, METRIC_KEY(AVAILABLE_DEVICES));
+    if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
+        GTEST_FAIL() << "Incorrect DeviceID number!" << std::endl;
+    }
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     std::vector<std::string> configValues = p;
@@ -830,7 +866,12 @@ TEST_P(IEClassGetAvailableDevices, GetAvailableDevicesNoThrow) {
 TEST_P(IEClassQueryNetworkTest, QueryNetworkHETEROWithDeviceIDNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
+    }
     auto deviceIDs = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+    if (deviceIDs.empty())
+       GTEST_FAIL() << "Incorrect DeviceID number" << std::endl;
     ASSERT_NO_THROW(ie.QueryNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO,
                                     {{"TARGET_FALLBACK",  target_device + "." + deviceIDs[0] + "," +  target_device}}));
 }
@@ -838,28 +879,38 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkHETEROWithDeviceIDNoThrow) {
 TEST_P(IEClassQueryNetworkTest, QueryNetworkWithDeviceID) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
-    try {
-        ie.QueryNetwork(simpleCnnNetwork,  target_device + ".0");
-    } catch (const InferenceEngine::Exception& ex) {
-        std::string message = ex.what();
-        ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
     }
+    ASSERT_NO_THROW(ie.QueryNetwork(simpleCnnNetwork,  target_device + ".0"));
 }
 
 TEST_P(IEClassQueryNetworkTest, QueryNetworkWithBigDeviceIDThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
+
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
+    }
     ASSERT_THROW(ie.QueryNetwork(actualCnnNetwork,  target_device + ".110"), InferenceEngine::Exception);
 }
 
 TEST_P(IEClassQueryNetworkTest, QueryNetworkWithInvalidDeviceIDThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
+
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
+    }
     ASSERT_THROW(ie.QueryNetwork(actualCnnNetwork,  target_device + ".l0"), InferenceEngine::Exception);
 }
 
 TEST_P(IEClassQueryNetworkTest, QueryNetworkHETEROWithBigDeviceIDThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
+
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
+    }
     ASSERT_THROW(ie.QueryNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO,
-                                {{"TARGET_FALLBACK",  target_device + ".100," +  target_device}}), InferenceEngine::Exception);
+                                 {{"TARGET_FALLBACK",  target_device + ".100," +  target_device}}), InferenceEngine::Exception);
 }
 
 //
@@ -944,6 +995,15 @@ TEST_P(IEClassSeveralDevicesTestLoadNetwork, LoadNetworkActualSeveralDevicesNoTh
     if (pos != std::string::npos) {
         cleartarget_device = target_devices.begin()->substr(0, pos);
     }
+    if (!supportsDeviceID(ie, cleartarget_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
+    }
+    if (!supportsAvaliableDevices(ie, cleartarget_device)) {
+        GTEST_FAIL() << "Device does not support AvailableDevices" << std::endl;
+    }
+    std::vector<std::string> deviceIDs = ie.GetMetric(cleartarget_device, METRIC_KEY(AVAILABLE_DEVICES));
+    if (deviceIDs.size() < target_devices.size())
+        GTEST_FAIL() << "Incorrect DeviceID num" << std::endl;
 
     std::string multitarget_device = CommonTestUtils::DEVICE_MULTI + std::string(":");
     for (auto& dev_name : target_devices) {
@@ -962,40 +1022,65 @@ using IEClassLoadNetworkTest = IEClassQueryNetworkTest;
 TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROWithDeviceIDNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
+    }
     auto deviceIDs = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+    if (deviceIDs.empty())
+        GTEST_SKIP();
     std::string heteroDevice = CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device + "." + deviceIDs[0] + "," + target_device;
     ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, heteroDevice));
 }
 
 TEST_P(IEClassLoadNetworkTest, LoadNetworkWithDeviceIDNoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
+    }
     auto deviceIDs = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+    if (deviceIDs.empty())
+        GTEST_FAIL() << "Incorrect deviceID" << std::endl;
     ASSERT_NO_THROW(ie.LoadNetwork(simpleCnnNetwork, target_device + "." + deviceIDs[0]));
 }
 
 TEST_P(IEClassLoadNetworkTest, LoadNetworkWithBigDeviceIDThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    ASSERT_THROW(ie.LoadNetwork(actualCnnNetwork, target_device + ".10"), InferenceEngine::Exception);
+
+    if (supportsDeviceID(ie, target_device)) {
+        ASSERT_THROW(ie.LoadNetwork(actualCnnNetwork, target_device + ".10"), InferenceEngine::Exception);
+    } else {
+        GTEST_SKIP();
+    }
 }
 
 TEST_P(IEClassLoadNetworkTest, LoadNetworkWithInvalidDeviceIDThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
+
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
+    }
     ASSERT_THROW(ie.LoadNetwork(actualCnnNetwork, target_device + ".l0"), InferenceEngine::Exception);
 }
 
 TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROWithBigDeviceIDThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
+    }
     ASSERT_THROW(ie.LoadNetwork(actualCnnNetwork, "HETERO",
                                 {{"TARGET_FALLBACK", target_device + ".100," + CommonTestUtils::DEVICE_CPU}}), InferenceEngine::Exception);
 }
 
 TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROAndDeviceIDThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
+
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
+    }
     ASSERT_THROW(ie.LoadNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_HETERO,
                                 {{"TARGET_FALLBACK",     target_device + "," + CommonTestUtils::DEVICE_CPU},
-                                {CONFIG_KEY(DEVICE_ID), "110"}}), InferenceEngine::Exception);
+                                    {CONFIG_KEY(DEVICE_ID), "110"}}), InferenceEngine::Exception);
 }
 
 //
@@ -1004,6 +1089,12 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROAndDeviceIDThrows) {
 
 TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROwithMULTINoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
+    }
+    if (!supportsAvaliableDevices(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support AvailableDevices" << std::endl;
+    }
     std::string devices;
     auto availableDevices = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
     for (auto &&device : availableDevices) {
@@ -1020,6 +1111,13 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROwithMULTINoThrow) {
 
 TEST_P(IEClassLoadNetworkTest, LoadNetworkMULTIwithHETERONoThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
+
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
+    }
+    if (!supportsAvaliableDevices(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support AvailableDevices" << std::endl;
+    }
     std::string devices;
     auto availableDevices = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
     for (auto &&device : availableDevices) {
@@ -1040,6 +1138,12 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkMULTIwithHETERONoThrow) {
 TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
+    }
+    if (!supportsAvaliableDevices(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support AvailableDevices" << std::endl;
+    }
     std::string devices;
     auto availableDevices = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
     for (auto &&device : availableDevices) {
@@ -1070,6 +1174,12 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
 TEST_P(IEClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
+    if (!supportsDeviceID(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
+    }
+    if (!supportsAvaliableDevices(ie, target_device)) {
+        GTEST_FAIL() << "Device does not support AvailableDevices" << std::endl;
+    }
     std::string devices;
     auto availableDevices = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
     for (auto &&device : availableDevices) {
@@ -1117,6 +1227,10 @@ TEST_P(IEClassLoadNetworkAfterCoreRecreateTest, LoadAfterRecreateCoresAndPlugins
 TEST_P(IEClassSetDefaultDeviceIDTest, SetDefaultDeviceIDNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
+    std::vector<std::string> deviceIDs = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES));
+    if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
+        GTEST_FAIL() << "Incorrect DeviceID" << std::endl;
+    }
     std::string value;
     ASSERT_NO_THROW(ie.SetConfig({{ InferenceEngine::PluginConfigParams::KEY_DEVICE_ID, deviceID },
                                   { InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES }},
@@ -1151,6 +1265,15 @@ TEST_P(IEClassSeveralDevicesTestDefaultCore, DefaultCoreSeveralDevicesNoThrow) {
     if (pos != std::string::npos) {
         cleartarget_device = target_devices.begin()->substr(0, pos);
     }
+    if (!supportsDeviceID(ie, cleartarget_device)) {
+        GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
+    }
+    if (!supportsAvaliableDevices(ie, cleartarget_device)) {
+        GTEST_FAIL() << "Device does not support AvailableDevices" << std::endl;
+    }
+    std::vector<std::string> deviceIDs = ie.GetMetric(cleartarget_device, METRIC_KEY(AVAILABLE_DEVICES));
+    if (deviceIDs.size() < target_devices.size())
+        GTEST_FAIL() << "Incorrect DeviceID" << std::endl;
 
     for (size_t i = 0; i < target_devices.size(); ++i) {
         ASSERT_NO_THROW(ie.SetConfig({{ InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, std::to_string(i + 2) }}, target_devices[i]));

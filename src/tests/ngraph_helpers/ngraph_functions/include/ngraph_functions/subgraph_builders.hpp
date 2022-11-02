@@ -704,6 +704,11 @@ inline std::shared_ptr<ngraph::Function> makeReadConcatSplitAssign(std::vector<s
     crop->set_friendly_name("split");
     auto assign = std::make_shared<ngraph::opset5::Assign>(crop, "v0");
     assign->set_friendly_name("assign");
+    std::shared_ptr<ngraph::Function> fn_ptr = std::make_shared<ngraph::Function>(ngraph::ResultVector({res}),
+                                                                                  ngraph::SinkVector({assign}),
+                                                                                  ngraph::ParameterVector{parameter});
+    fn_ptr->set_friendly_name("ReadConcatSplitAssign");
+    return fn_ptr;
 }
 
 inline std::shared_ptr<ngraph::Function> makeMatMulBias(std::vector<size_t> inputShape = { 1, 3, 24, 24 },
