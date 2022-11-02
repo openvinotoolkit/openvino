@@ -10,8 +10,6 @@
 #include <cmath>
 #include <dnnl_extension_utils.h>
 
-#include <common/primitive_hashing.hpp>
-
 #include "ie_parallel.hpp"
 #include "ie_precision.hpp"
 #include <onednn/dnnl.h>
