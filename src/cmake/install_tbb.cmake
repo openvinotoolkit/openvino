@@ -93,7 +93,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         set(tbb_custom ON)
     endif()
 
-    if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$" AND NOT ENABLE_SYSTEM_TBB)
+    if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$" AND NOT ENABLE_SYSTEM_TBB AND NOT LINUX_OS_NAME STREQUAL "CentOS 7")
         message(FATAL_ERROR "Debian | RPM | Conda-forge | Brew packages can be built only with system TBB. Use -DENABLE_SYSTEM_TBB=ON")
     endif()
 
@@ -118,7 +118,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                 if(tbb_file MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)*$")
                     # since the setup.py for pip installs tbb component
                     # explicitly, it's OK to put EXCLUDE_FROM_ALL to such component
-                    # to ignore from IRC / apt / yum distribution;
+                    # to ignore from IRC / apt / yum / brew distribution;
                     # but they will be present in .wheel
                     install(FILES "${tbb_file}"
                             DESTINATION runtime/3rdparty/tbb/lib
