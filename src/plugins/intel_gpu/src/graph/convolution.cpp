@@ -250,10 +250,6 @@ std::vector<layout> convolution_inst::calc_output_layouts(convolution_node const
     auto dilation = desc->dilation;
     auto split = desc->weights.size();
 
-    // compute how many outputs in rows and columns will be generate by filter.
-    // outp <= (input_size + (2*pad) - kernel_size)/ stride
-    auto filter_size = weights_layout.get_tensor();
-
     auto input_type = input_layout.data_type;
 
     auto output_type = input_type;

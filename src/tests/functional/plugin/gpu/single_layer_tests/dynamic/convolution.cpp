@@ -104,13 +104,8 @@ TEST_P(ConvolutionLayerGPUTestDynamic, CompareWithRefs) {
 }
 
 namespace {
-const std::vector<ov::test::InputShape> dynInputShapes4D = {
-    {
-        {1, 10, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
-        {{1, 10, 20, 20}, {1, 10, 30, 30}, {1, 10, 40, 20}}
-    },
-};
 
+// ======== 1D convolutions
 const std::vector<ov::test::InputShape> dynInputShapes1D = {
     {
         {1, 10, ov::Dimension::dynamic()},
@@ -135,7 +130,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic1DSymPad, Convolut
                 ::testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),
                 ConvolutionLayerGPUTestDynamic::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic4DSymPad, ConvolutionLayerGPUTestDynamic,
+// ======== 2D convolutions
+const std::vector<ov::test::InputShape> dynInputShapes2D = {
+    {
+        {1, 10, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+        {{1, 10, 20, 20}, {1, 10, 30, 30}, {1, 10, 40, 20}}
+    },
+};
+// ==== Symmetric pad
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic2DSymPad, ConvolutionLayerGPUTestDynamic,
         ::testing::Combine(
                 ::testing::Combine(
                         ::testing::Values(SizeVector{3, 3}),
@@ -148,11 +151,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic4DSymPad, Convolut
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::undefined),
-                ::testing::ValuesIn(dynInputShapes4D),
+                ::testing::ValuesIn(dynInputShapes2D),
                 ::testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),
                 ConvolutionLayerGPUTestDynamic::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic4D_AsymPad, ConvolutionLayerGPUTestDynamic,
+// ==== Asymmetric pad
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic2D_AsymPad, ConvolutionLayerGPUTestDynamic,
         ::testing::Combine(
                 ::testing::Combine(
                         ::testing::Values(SizeVector{3, 3}),
@@ -165,10 +169,53 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic4D_AsymPad, Convol
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::undefined),
-                ::testing::ValuesIn(dynInputShapes4D),
+                ::testing::ValuesIn(dynInputShapes2D),
+                ::testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),
+                ConvolutionLayerGPUTestDynamic::getTestCaseName);
+
+// ======== 3D convolutions
+const std::vector<ov::test::InputShape> dynInputShapes3D = {
+    {
+        {1, 3, ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+        {{1, 3, 10, 10, 10}, {1, 3, 20, 20, 10}, {1, 3, 15, 15, 10}}
+    },
+};
+
+// ==== Symmetric pad
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic3DSymPad, ConvolutionLayerGPUTestDynamic,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::Values(SizeVector{3, 3, 3}),
+                        ::testing::Values(SizeVector{1, 1, 1}),
+                        ::testing::Values(std::vector<ptrdiff_t>{1, 2, 1}),
+                        ::testing::Values(std::vector<ptrdiff_t>{1, 2, 1}),
+                        ::testing::Values(SizeVector{1, 1, 1}),
+                        ::testing::Values(3),
+                        ::testing::ValuesIn({ngraph::op::PadType::EXPLICIT, ngraph::op::PadType::VALID})),
+                ::testing::Values(ElementType::f16),
+                ::testing::Values(ElementType::f16),
+                ::testing::Values(ElementType::undefined),
+                ::testing::ValuesIn(dynInputShapes3D),
+                ::testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),
+                ConvolutionLayerGPUTestDynamic::getTestCaseName);
+
+// ==== Asymmetric pad
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic3DAsymPad, ConvolutionLayerGPUTestDynamic,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::Values(SizeVector{3, 3, 3}),
+                        ::testing::Values(SizeVector{1, 1, 1}),
+                        ::testing::Values(std::vector<ptrdiff_t>{1, 2, 1}),
+                        ::testing::Values(std::vector<ptrdiff_t>{2, 1, 1}),
+                        ::testing::Values(SizeVector{1, 1, 1}),
+                        ::testing::Values(3),
+                        ::testing::ValuesIn({ngraph::op::PadType::EXPLICIT, ngraph::op::PadType::VALID})),
+                ::testing::Values(ElementType::f16),
+                ::testing::Values(ElementType::f16),
+                ::testing::Values(ElementType::undefined),
+                ::testing::ValuesIn(dynInputShapes3D),
                 ::testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),
                 ConvolutionLayerGPUTestDynamic::getTestCaseName);
 
 }  // namespace
-
 } // namespace GPULayerTestsDefinitions

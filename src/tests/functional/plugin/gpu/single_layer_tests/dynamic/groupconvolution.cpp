@@ -18,6 +18,13 @@ using namespace ov::test;
 namespace GPULayerTestsDefinitions {
 
 using LayerTestsDefinitions::groupConvSpecificParams;
+std::vector<std::string> disabledTestPatterns() {
+    return {
+        // Grouped conv (not DW) has an issue
+        R"(.*smoke_GroupConvolution1D_ExplicitPadding_Disabled.*)",
+        R"(.*smoke_GroupConvolutionLayerGPUTest_dynamic1DSymPad_Disabled.*)"
+    };
+}
 
 typedef std::tuple<
         groupConvSpecificParams,
@@ -107,13 +114,6 @@ TEST_P(GroupConvolutionLayerGPUTestDynamic, CompareWithRefs) {
 }
 
 namespace {
-const std::vector<ov::test::InputShape> dynInputShapes4D = {
-    {
-        {1, 12, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
-        {{1, 12, 224, 224}, {1, 12, 48, 48}, {1, 12, 64, 16}}
-    },
-};
-
 const std::vector<ov::test::InputShape> dynInputShapes1D = {
     {
         {1, 12, ov::Dimension::dynamic()},
@@ -158,7 +158,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionLayerGPUTest_dynamic1DSymPad_Disa
                 GroupConvolutionLayerGPUTestDynamic::getTestCaseName);
 
 
-INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionLayerGPUTest_dynamic4DSymPad, GroupConvolutionLayerGPUTestDynamic,
+const std::vector<ov::test::InputShape> dynInputShapes2D = {
+    {
+        {1, 12, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+        {{1, 12, 224, 224}, {1, 12, 48, 48}, {1, 12, 64, 16}}
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionLayerGPUTest_dynamic2DSymPad, GroupConvolutionLayerGPUTestDynamic,
         ::testing::Combine(
                 ::testing::Combine(
                         ::testing::Values(SizeVector{3, 3}),
@@ -172,11 +179,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionLayerGPUTest_dynamic4DSymPad, Gro
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::undefined),
-                ::testing::ValuesIn(dynInputShapes4D),
+                ::testing::ValuesIn(dynInputShapes2D),
                 ::testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),
                 GroupConvolutionLayerGPUTestDynamic::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionLayerGPUTest_dynamic4D_AsymPad, GroupConvolutionLayerGPUTestDynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionLayerGPUTest_dynamic2D_AsymPad, GroupConvolutionLayerGPUTestDynamic,
         ::testing::Combine(
                 ::testing::Combine(
                         ::testing::Values(SizeVector{3, 3}),
@@ -190,7 +197,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionLayerGPUTest_dynamic4D_AsymPad, G
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::undefined),
-                ::testing::ValuesIn(dynInputShapes4D),
+                ::testing::ValuesIn(dynInputShapes2D),
                 ::testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),
                 GroupConvolutionLayerGPUTestDynamic::getTestCaseName);
 }  // namespace

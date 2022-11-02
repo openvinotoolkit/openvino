@@ -111,8 +111,5 @@ std::vector<std::string> disabledTestPatterns() {
             R"(smoke_AutoBatch_BehaviorTests/OVInferRequestIOTensorTest.InferStaticNetworkSetInputTensor/targetDevice=BATCH.*)",
             // Issue: 90183
             R"(.*VirtualPlugin.*BehaviorTests.*OVHoldersTestWithConfig.*LoadedTensor.*target_device=MULTI.*)",
-            // Grouped conv (not DW) has an issue
-            R"(smoke_GroupConvolution1D_ExplicitPadding_Disabled*)",
-            R"(smoke_GroupConvolutionLayerGPUTest_dynamic1DSymPad_Disable*)",
     };
 }

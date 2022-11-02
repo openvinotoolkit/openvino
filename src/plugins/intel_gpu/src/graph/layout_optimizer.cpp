@@ -1039,7 +1039,10 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     auto output_layout = node.calc_output_layout();
 
     if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
-        expected_format = format::b_fs_yx_fsv16;
+        if (input_layout.get_partial_shape().size() <= 4)
+            expected_format = format::b_fs_yx_fsv16;
+        else if (input_layout.get_partial_shape().size() == 5)
+            expected_format = format::b_fs_zyx_fsv16;
         return layout(current_layout.get_partial_shape(), expected_data_type, expected_format);
     }
 

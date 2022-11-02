@@ -22,7 +22,7 @@ void handle_input_padding::run(program& p) {
         if (!node->is_type<convolution>()) {
             continue;
         }
-        if (!node->is_valid_output_layout() || node->is_dynamic()) {
+        if (node->get_input_layouts().front().is_dynamic() || (node->is_valid_output_layout() && node->get_output_layout().is_dynamic())) {
             continue; // do nothing for dynamic shape. Use pad_above/ pad_below as is
         }
         convolution_node& convolution_node = node->as<convolution>();
