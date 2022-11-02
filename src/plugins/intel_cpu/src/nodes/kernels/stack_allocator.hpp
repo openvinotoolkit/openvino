@@ -12,28 +12,27 @@
 namespace ov {
 namespace intel_cpu {
 
-namespace x64 = dnnl::impl::cpu::x64;
-
 class StackAllocator final {
 public:
+    using jit_generator = dnnl::impl::cpu::x64::jit_generator;
     class Transaction;
     class Address;
     template<typename TReg>
     class RegAddress;
 
-    StackAllocator(x64::jit_generator& code_gen)
+    StackAllocator(jit_generator& code_gen)
         : StackAllocator{code_gen, code_gen.rbp} {
     }
 
-    StackAllocator(x64::jit_generator& code_gen, const Xbyak::Reg& bp)
+    StackAllocator(jit_generator& code_gen, const Xbyak::Reg& bp)
         : StackAllocator{code_gen, bp, 1} {
     }
 
-    StackAllocator(x64::jit_generator& code_gen, const size_t alignment)
+    StackAllocator(jit_generator& code_gen, const size_t alignment)
         : StackAllocator{code_gen, code_gen.rbp, alignment} {
     }
 
-    StackAllocator(x64::jit_generator& code_gen,
+    StackAllocator(jit_generator& code_gen,
                    const Xbyak::Reg& bp,
                    const size_t alignment)
         : code_generator{code_gen}
@@ -202,7 +201,7 @@ private:
         }
     }
 
-    x64::jit_generator& code_generator;
+    jit_generator& code_generator;
     const Xbyak::Reg base_pointer;
 
     bool is_transaction_{};
@@ -360,7 +359,7 @@ private:
         }
     }
 
-    x64::jit_generator& generator() const {
+    StackAllocator::jit_generator& generator() const {
         return stack_allocator_.code_generator;
     }
 
@@ -394,12 +393,13 @@ public:
 
 private:
     static size_t getAlignment() {
+        using namespace dnnl::impl::cpu::x64;
         if (std::is_same<TReg, Xbyak::Zmm>::value) {
-            return x64::cpu_isa_traits<x64::avx512_core>::vlen;
+            return cpu_isa_traits<avx512_core>::vlen;
         } else if (std::is_same<TReg, Xbyak::Ymm>::value) {
-            return x64::cpu_isa_traits<x64::avx2>::vlen;
+            return cpu_isa_traits<avx2>::vlen;
         } else if (std::is_same<TReg, Xbyak::Xmm>::value) {
-            return x64::cpu_isa_traits<x64::sse41>::vlen;
+            return cpu_isa_traits<sse41>::vlen;
         } else {
             return 1;
         }
@@ -409,7 +409,7 @@ private:
 inline
 void stack_mov(StackAllocator::Address& addr, const Xbyak::Xmm& vmm) {
     addr.ensureSize(vmm);
-    x64::jit_generator& generator = addr.generator();
+    auto& generator = addr.generator();
     if (vmm.isXMM()) {
         generator.uni_vmovdqu(addr.allocation_->address, Xbyak::Xmm{vmm.getIdx()});
     } else if (vmm.isYMM()) {
@@ -424,7 +424,7 @@ void stack_mov(StackAllocator::Address& addr, const Xbyak::Xmm& vmm) {
 inline
 void stack_mov(StackAllocator::Address& addr, const Xbyak::Reg& reg) {
     addr.ensureSize(reg);
-    x64::jit_generator& generator = addr.generator();
+    auto& generator = addr.generator();
     if (reg.isREG(8)) {
         generator.mov(addr.allocation_->address, Xbyak::Reg8{reg.getIdx()});
     } else if (reg.isREG(16)) {
@@ -441,7 +441,7 @@ void stack_mov(StackAllocator::Address& addr, const Xbyak::Reg& reg) {
 inline
 void stack_mov(const Xbyak::Xmm& vmm, const StackAllocator::Address& addr) {
     addr.ensureSize(vmm);
-    x64::jit_generator& generator = addr.generator();
+    auto& generator = addr.generator();
     if (vmm.isXMM()) {
         generator.uni_vmovdqu(Xbyak::Xmm{vmm.getIdx()}, addr.allocation_->address);
     } else if (vmm.isYMM()) {
@@ -456,7 +456,7 @@ void stack_mov(const Xbyak::Xmm& vmm, const StackAllocator::Address& addr) {
 inline
 void stack_mov(const Xbyak::Reg& reg, const StackAllocator::Address& addr) {
     addr.ensureSize(reg);
-    x64::jit_generator& generator = addr.generator();
+    auto& generator = addr.generator();
     if (reg.isREG(8)) {
         generator.mov(Xbyak::Reg8{reg.getIdx()}, addr.allocation_->address);
     } else if (reg.isREG(16)) {

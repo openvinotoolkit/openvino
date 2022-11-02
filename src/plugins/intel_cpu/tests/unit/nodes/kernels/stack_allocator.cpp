@@ -15,6 +15,7 @@
 #include <cpu_memory.h>
 
 using namespace ov::intel_cpu;
+namespace x64 = dnnl::impl::cpu::x64;
 
 constexpr int x64::cpu_isa_traits<x64::avx512_core>::vlen;
 constexpr int x64::cpu_isa_traits<x64::avx>::vlen;
