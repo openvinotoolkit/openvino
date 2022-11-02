@@ -461,7 +461,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
              }
              insertPropToConfig(CONFIG_KEY(ALLOW_AUTO_BATCHING), iter->deviceName, deviceConfig);
              insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), iter->deviceName, deviceConfig);
-             insertPropToConfig(CONFIG_KEY(CACHE_DIR), iter->deviceName, deviceConfig);
              iter->config = deviceConfig;
              strDevices += iter->deviceName;
              strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
