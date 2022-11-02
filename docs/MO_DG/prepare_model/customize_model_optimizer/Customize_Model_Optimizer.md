@@ -270,7 +270,7 @@ calculation in order to perform shape calculation in a correct layout.
 3. Model Optimizer inserts [Transpose](../../../ops/movement/Transpose_1.md) operations for some operations with
 specific conditions, identified during a model conversion, to produce correct inference results.
 
-The list of main transformations responsible for a layout change are: 
+The main transformations responsible for a layout change are: 
 * `extensions/middle/ApplyPermutations.py`
 * `extensions/middle/InsertLayoutPropagationTransposes.py`
 * `extensions/middle/MarkSubgraphsWithCorrectLayout.py`
