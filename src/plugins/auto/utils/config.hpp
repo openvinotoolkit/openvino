@@ -27,8 +27,69 @@ struct PluginConfig {
                 _logLevel("LOG_NONE") {
         adjustKeyMapValues();
     }
+    std::vector<std::string> supportedConfigKeys(const std::string& pluginName = "AUTO") const {
+        std::vector<std::string> supported_configKeys = []() -> decltype(PerfHintsConfig::SupportedKeys()) {
+            auto res = PerfHintsConfig::SupportedKeys();
+            res.push_back(ov::device::priorities.name());
+            res.push_back(ov::enable_profiling.name());
+            res.push_back(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS);
+            res.push_back(ov::hint::model_priority.name());
+            res.push_back(ov::hint::allow_auto_batching.name());
+            res.push_back(ov::log::level.name());
+            res.push_back(ov::intel_auto::device_bind_buffer.name());
+            res.push_back(ov::auto_batch_timeout.name());
+            return res;
+        }();
+        auto multi_supported_configKeys = supported_configKeys;
+        return pluginName == "AUTO" ? supported_configKeys : multi_supported_configKeys;
+    }
 
-    void UpdateFromMap(const std::map<std::string, std::string>& config, const std::string& pluginName) {
+    std::vector<ov::PropertyName> supportedProperties(const std::string& pluginName = "AUTO") const {
+        std::vector<ov::PropertyName> supported_properties = []() -> std::vector<ov::PropertyName> {
+            auto RO_property = [](const std::string& propertyName) {
+                return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
+            };
+            auto RW_property = [](const std::string& propertyName) {
+                return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
+            };
+            std::vector<ov::PropertyName> roProperties{RO_property(ov::supported_properties.name()),
+                                                       RO_property(ov::device::full_name.name()),
+                                                       RO_property(ov::device::capabilities.name())};
+            // the whole config is RW before network is loaded.
+            std::vector<ov::PropertyName> rwProperties{RW_property(ov::hint::model_priority.name()),
+                                                       RW_property(ov::log::level.name()),
+                                                       RW_property(ov::device::priorities.name()),
+                                                       RW_property(ov::enable_profiling.name()),
+                                                       RW_property(ov::hint::allow_auto_batching.name()),
+                                                       RW_property(ov::auto_batch_timeout.name()),
+                                                       RW_property(ov::hint::performance_mode.name()),
+                                                       RW_property(ov::hint::num_requests.name()),
+                                                       RW_property(ov::intel_auto::device_bind_buffer.name()),
+                                                       RW_property(ov::cache_dir.name())};
+            std::vector<ov::PropertyName> supportedProperties;
+            supportedProperties.reserve(roProperties.size() + rwProperties.size());
+            supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
+            supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
+            return supportedProperties;
+        }();
+        auto multi_supported_properties = supported_properties;
+        return pluginName == "AUTO" ? supported_properties : multi_supported_properties;
+    }
+
+    std::vector<std::string> supportedMetrics(const std::string& pluginName = "AUTO") const {
+        std::vector<std::string> supported_metrics = []() -> std::vector<std::string> {
+            std::vector<std::string> metrics;
+            metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
+            metrics.push_back(METRIC_KEY(FULL_DEVICE_NAME));
+            metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+            metrics.push_back(METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+            return metrics;
+        }();
+        auto multi_supported_metrics = supported_metrics;
+        return pluginName == "AUTO" ? supported_metrics : multi_supported_metrics;
+    }
+
+    void UpdateFromMap(const std::map<std::string, std::string>& config, const std::string& pluginName, bool supportHWProprety = false) {
         const auto perf_hints_configs = PerfHintsConfig::SupportedKeys();
         for (auto&& kvp : config) {
             if (kvp.first == ov::enable_profiling) {
@@ -101,6 +162,9 @@ struct PluginConfig {
                     _isSetPerHint = true;
             } else if (_availableDevices.end() !=
                    std::find(_availableDevices.begin(), _availableDevices.end(), kvp.first)) {
+                if (!supportHWProprety)
+                    IE_THROW() << "Unsupported setting device property value: " << kvp.second
+                               << " for key: " << kvp.first;
                 _passThroughConfig.emplace(kvp.first, kvp.second);
             } else if (kvp.first.find("AUTO_") == 0) {
                 _passThroughConfig.emplace(kvp.first, kvp.second);

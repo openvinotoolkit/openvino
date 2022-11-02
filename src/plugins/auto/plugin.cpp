@@ -52,59 +52,6 @@ namespace {
         }
         return METRIC_VALUE(FP32);
     }
-
-    std::vector<std::string> supported_configKeys = []() -> decltype(PerfHintsConfig::SupportedKeys()) {
-                    auto res = PerfHintsConfig::SupportedKeys();
-                    res.push_back(ov::device::priorities.name());
-                    res.push_back(ov::enable_profiling.name());
-                    res.push_back(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS);
-                    res.push_back(ov::hint::model_priority.name());
-                    res.push_back(ov::hint::allow_auto_batching.name());
-                    res.push_back(ov::log::level.name());
-                    res.push_back(ov::intel_auto::device_bind_buffer.name());
-                    res.push_back(ov::auto_batch_timeout.name());
-                    return res;
-                }();
-
-    std::vector<ov::PropertyName> supported_properties = []() -> std::vector<ov::PropertyName> {
-        auto RO_property = [](const std::string& propertyName) {
-            return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
-        };
-        auto RW_property = [](const std::string& propertyName) {
-            return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
-        };
-        std::vector<ov::PropertyName> roProperties{RO_property(ov::supported_properties.name()),
-                                                   RO_property(ov::device::full_name.name()),
-                                                   RO_property(ov::device::capabilities.name())};
-        // the whole config is RW before network is loaded.
-        std::vector<ov::PropertyName> rwProperties{RW_property(ov::hint::model_priority.name()),
-                                                   RW_property(ov::log::level.name()),
-                                                   RW_property(ov::device::priorities.name()),
-                                                   RW_property(ov::enable_profiling.name()),
-                                                   RW_property(ov::hint::allow_auto_batching.name()),
-                                                   RW_property(ov::auto_batch_timeout.name()),
-                                                   RW_property(ov::hint::performance_mode.name()),
-                                                   RW_property(ov::hint::num_requests.name()),
-                                                   RW_property(ov::intel_auto::device_bind_buffer.name()),
-                                                   RW_property(ov::cache_dir.name())};
-        std::vector<ov::PropertyName> supportedProperties;
-        supportedProperties.reserve(roProperties.size() + rwProperties.size());
-        supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
-        supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
-        return supportedProperties;
-    }();
-
-    std::vector<std::string> supported_metrics = []() -> std::vector<std::string> {
-        std::vector<std::string> metrics;
-        metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
-        metrics.push_back(METRIC_KEY(FULL_DEVICE_NAME));
-        metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-        metrics.push_back(METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-        return metrics;
-    }();
-    auto multi_supported_configKeys = supported_configKeys;
-    auto multi_supported_properties = supported_properties;
-    auto multi_supported_metrics = supported_metrics;
     }  // namespace
 
 std::mutex MultiDeviceInferencePlugin::_mtx;
@@ -321,9 +268,10 @@ MultiDeviceInferencePlugin::MultiDeviceInferencePlugin() {
 InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::string& name,
                                          const std::map<std::string, InferenceEngine::Parameter> & options) const {
     if (name == ov::supported_properties) {
-        return GetName() == "AUTO" ? supported_properties : multi_supported_properties;
+        auto ret = _pluginConfig.supportedProperties(GetName());
+        return ret;
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, GetName() == "AUTO" ? supported_metrics : multi_supported_metrics);
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, _pluginConfig.supportedMetrics(GetName()));
     } else if (name == ov::device::full_name) {
         std::string device_name = { GetName() };
         return decltype(ov::device::full_name)::value_type {device_name};
@@ -342,8 +290,7 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
         }
         IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS,
-                             GetName() == "AUTO" ? supported_configKeys : multi_supported_configKeys);
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, _pluginConfig.supportedConfigKeys(GetName()));
     } else {
         IE_THROW() << "Unsupported metric key: " << name;
     }
@@ -380,7 +327,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     _LogTag = GetName();
     auto loadConfig = _pluginConfig;
     // updateFromMap will check config valid
-    loadConfig.UpdateFromMap(config, GetName());
+    loadConfig.UpdateFromMap(config, GetName(), true);
     auto fullConfig = loadConfig._keyConfigMap;
     // Remove the performance hint if no setting to this property from user.
     if (!loadConfig._isSetPerHint)
@@ -604,7 +551,7 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
 
     auto queryconfig = _pluginConfig;
     // updateFromMap will check config valid
-    queryconfig.UpdateFromMap(config, GetName());
+    queryconfig.UpdateFromMap(config, GetName(), true);
     auto fullConfig = queryconfig._keyConfigMap;
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
     if (priorities->second.empty()) {
