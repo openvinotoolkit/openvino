@@ -92,5 +92,4 @@ template <>
 struct element_type_traits<element::Type_t::u64> {
     using value_type = uint64_t;
 };
-
 }  // namespace ov
