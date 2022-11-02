@@ -40,7 +40,16 @@ gather_tree_inst::typed_primitive_inst(network& network, gather_tree_node const&
         "supported border primitive input formats",
         format::bfyx,
         format::yxfb,
-        format::byxf);
+        format::byxf,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv4_fsv4,
+        format::bs_fs_yx_bsv8_fsv4,
+        format::bs_fs_yx_bsv8_fsv2,
+        format::bs_fs_yx_bsv4_fsv2,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32);
 
     auto dependencies = node.get_dependencies();
 
