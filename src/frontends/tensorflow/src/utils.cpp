@@ -238,10 +238,7 @@ PadMode ov::frontend::tensorflow::convert_padding_mode(const NodeContext& node, 
         return PadMode::SYMMETRIC;
     }
 
-    TENSORFLOW_OP_VALIDATION(
-        node,
-        supported_modes.count(padding_mode),
-        "OpenVINO TensorFlow Frontend Internal error: it does not support " + padding_mode + " padding mode.");
+    return PadMode::REFLECT;
 }
 
 Output<Node> ov::frontend::tensorflow::compute_subgraph_scalar_rank(const Output<Node>& output,
