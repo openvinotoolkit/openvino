@@ -83,14 +83,14 @@ This guide uses the OpenVINO™ Model Downloader to get pre-trained models. You 
      omz_info_dumper --print_all
   ```
 
-* Use `grep` to list models that have a specific name pattern
+* Use `grep` to list models that have a specific name pattern (e.g. `ssd-mobilenet`, `yolo`)
   ``` sh
      omz_info_dumper --print_all | grep <model_name>
   ```
 
 * Use Model Downloader to download models.
 
-  This guide uses `<models_dir>` and `<models_name>` as placeholders for the models directory and model name:
+  This guide uses `<models_dir>` and `<model_name>` as placeholders for the models directory and model name:
   ``` sh
      omz_downloader --name <model_name> --output_dir <models_dir>
   ```
@@ -237,7 +237,7 @@ Generic Model Optimizer script:
    mo --input_model <model_dir>/<model_file> --data_type <model_precision> --output_dir <ir_dir>
 ```
 
-IR files produced by the script are written to the <ir_dir> directory.
+IR files produced by the script are written to the `<ir_dir>` directory.
 
 The command with most placeholders filled in and FP16 precision:
 
@@ -265,10 +265,7 @@ The command with most placeholders filled in and FP16 precision:
 
 ## <a name="download-media"></a> Step 3: Download a Video or a Photo as Media
 
-Many sources are available from which you can download video media to use the code samples and demo applications. Possibilities include:
-
-- [Pexels](https://pexels.com)
-- [Google Images](https://images.google.com)
+Most of the samples require you to provide an input image or video to run the model on. You can download a test video or image online from sites like [Pexels](https://pexels.com) or [Google Images](https://images.google.com).
 
 As an alternative, the Intel® Distribution of OpenVINO™ toolkit includes several sample images and videos that you can use for running code samples and demo applications:
 
