@@ -177,8 +177,8 @@ class TestOvSliceOp(unittest.TestCase):
 
         starts = convert_args(starts, 'starts')
         ends = convert_args(ends, 'ends')
-        axes = convert_args(axes, 'axes')
         steps = convert_args(steps, 'steps')
+        axes = convert_args(axes, 'axes')
         if expected_shape is not None:
             expected_shape = shape_array(expected_shape)
 
@@ -187,20 +187,20 @@ class TestOvSliceOp(unittest.TestCase):
             **regular_op_with_empty_data('slice', {'op': 'OvSlice'}),
             **starts,
             **ends,
-            **axes,
             **steps,
+            **axes,
         }
 
         graph = build_graph(nodes,
                             [('data_1', 'slice'),
                              *connect('starts', '1:slice'),
                              *connect('ends', '2:slice'),
-                             *connect('axes', '3:slice'),
-                             *connect('steps', '4:slice'),
+                             *connect('steps', '3:slice'),
+                             *connect('axes', '4:slice'),
                              *connect('slice', 'slice_d')])
 
         graph.stage = 'middle'
-        slice_node = Node(graph, 'ov_slice')
+        slice_node = Node(graph, 'slice')
 
         OvSlice.infer(slice_node)
         if expected_value is not None:
