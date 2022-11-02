@@ -4,16 +4,15 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-#include <queue>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset8.hpp>
-#include <transformations/op_conversions/convert_convertlike.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <queue>
+#include <string>
+#include <transformations/init_node_info.hpp>
+#include <transformations/op_conversions/convert_convertlike.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 

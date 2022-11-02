@@ -4,26 +4,24 @@
 
 #include <gtest/gtest.h>
 
-#include "common_test_utils/test_common.hpp"
-#include <string>
-#include <sstream>
 #include <fstream>
-#include <memory>
-#include <queue>
+#include <legacy/transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
 #include <map>
-
+#include <memory>
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pass/constant_folding.hpp>
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
-#include <transformations/common_optimizations/conv_mul_fusion.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
+#include <queue>
+#include <sstream>
+#include <string>
+#include <transformations/common_optimizations/conv_mul_fusion.hpp>
+#include <transformations/init_node_info.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-
-#include <ngraph/pass/manager.hpp>
+#include "common_test_utils/test_common.hpp"
 
 using namespace ngraph;
 using namespace testing;
@@ -34,8 +32,9 @@ using EltwiseType = ngraph::NodeTypeInfo;
 using EltwiseShape = ngraph::Shape;
 using IsNegative = bool;
 
-class ConvFusionTests: public CommonTestUtils::TestsCommon,
-                       public testing::WithParamInterface<std::tuple<InputShape, WeightsShape, EltwiseType, EltwiseShape, IsNegative> > {
+class ConvFusionTests
+    : public CommonTestUtils::TestsCommon,
+      public testing::WithParamInterface<std::tuple<InputShape, WeightsShape, EltwiseType, EltwiseShape, IsNegative>> {
 public:
     std::shared_ptr<ngraph::Function> f, f_ref;
 
@@ -59,15 +58,20 @@ public:
     }
 
 private:
-    std::shared_ptr<ngraph::Function> get_initial_function(const InputShape&   input_shape,
+    std::shared_ptr<ngraph::Function> get_initial_function(const InputShape& input_shape,
                                                            const WeightsShape& weights_shape,
-                                                           const EltwiseType&  eltwise_type,
+                                                           const EltwiseType& eltwise_type,
                                                            const EltwiseShape& eltwise_shape) {
         auto spatial_dims = input_shape.rank().get_length() - 2;
         auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, input_shape);
         auto weights = ngraph::opset5::Constant::create(ngraph::element::f32, weights_shape, {1});
-        auto conv = std::make_shared<ngraph::op::ConvolutionIE>(input, weights, ngraph::Strides(spatial_dims, 1), ngraph::Strides(spatial_dims, 1),
-                ngraph::CoordinateDiff(spatial_dims, 0), ngraph::CoordinateDiff(spatial_dims, 0), ngraph::element::f32);
+        auto conv = std::make_shared<ngraph::op::ConvolutionIE>(input,
+                                                                weights,
+                                                                ngraph::Strides(spatial_dims, 1),
+                                                                ngraph::Strides(spatial_dims, 1),
+                                                                ngraph::CoordinateDiff(spatial_dims, 0),
+                                                                ngraph::CoordinateDiff(spatial_dims, 0),
+                                                                ngraph::element::f32);
 
         auto const_node = ngraph::opset5::Constant::create(ngraph::element::f32, eltwise_shape, {1.1});
         ngraph::Output<ngraph::Node> eltwise;
@@ -79,19 +83,26 @@ private:
             throw ngraph::ngraph_error("Unsupported element type");
         }
 
-        return std::make_shared<ngraph::Function>(ngraph::NodeVector{eltwise.get_node_shared_ptr()}, ngraph::ParameterVector{input});
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{eltwise.get_node_shared_ptr()},
+                                                  ngraph::ParameterVector{input});
     }
 
-    std::shared_ptr<ngraph::Function> get_reference_function(const InputShape&   input_shape,
+    std::shared_ptr<ngraph::Function> get_reference_function(const InputShape& input_shape,
                                                              const WeightsShape& weights_shape,
-                                                             const EltwiseType&  eltwise_type,
+                                                             const EltwiseType& eltwise_type,
                                                              const EltwiseShape& eltwise_shape) {
         auto spatial_dims = input_shape.rank().get_length() - 2;
         auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, input_shape);
-        ngraph::Output<ngraph::Node> weights = ngraph::opset5::Constant::create(ngraph::element::f32, weights_shape, {1});
-        ngraph::Output<ngraph::Node> conv = std::make_shared<ngraph::op::ConvolutionIE>(input, weights, ngraph::Strides(spatial_dims, 1),
-                ngraph::Strides(spatial_dims, 1), ngraph::CoordinateDiff(spatial_dims, 0), ngraph::CoordinateDiff(spatial_dims, 0),
-                ngraph::element::f32);
+        ngraph::Output<ngraph::Node> weights =
+            ngraph::opset5::Constant::create(ngraph::element::f32, weights_shape, {1});
+        ngraph::Output<ngraph::Node> conv =
+            std::make_shared<ngraph::op::ConvolutionIE>(input,
+                                                        weights,
+                                                        ngraph::Strides(spatial_dims, 1),
+                                                        ngraph::Strides(spatial_dims, 1),
+                                                        ngraph::CoordinateDiff(spatial_dims, 0),
+                                                        ngraph::CoordinateDiff(spatial_dims, 0),
+                                                        ngraph::element::f32);
 
         ngraph::Output<ngraph::Node> const_node;
         const_node = ngraph::opset5::Constant::create(ngraph::element::f32, eltwise_shape, {1.1});
@@ -106,13 +117,15 @@ private:
             }
             ngraph::Shape const_shape(weights_shape.size(), 1);
             const_shape[0] = weights_shape[0];
-            weights = std::make_shared<ngraph::opset5::Multiply>(weights, ngraph::op::util::reshapeTo(const_node, const_shape));
+            weights = std::make_shared<ngraph::opset5::Multiply>(weights,
+                                                                 ngraph::op::util::reshapeTo(const_node, const_shape));
             conv = conv.get_node_shared_ptr()->copy_with_new_inputs({input, weights});
         } else {
             throw ngraph::ngraph_error("Unsupported element type");
         }
 
-        return std::make_shared<ngraph::Function>(ngraph::NodeVector{conv.get_node_shared_ptr()}, ngraph::ParameterVector{input});
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{conv.get_node_shared_ptr()},
+                                                  ngraph::ParameterVector{input});
     }
 };
 
@@ -127,9 +140,8 @@ TEST_P(ConvFusionTests, CompareFunctions) {
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
 
-    auto fc = FunctionsComparator::no_default()
-            .enable(FunctionsComparator::NODES)
-            .enable(FunctionsComparator::PRECISIONS);
+    auto fc =
+        FunctionsComparator::no_default().enable(FunctionsComparator::NODES).enable(FunctionsComparator::PRECISIONS);
     auto res = fc.compare(f, f_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
@@ -137,98 +149,225 @@ TEST_P(ConvFusionTests, CompareFunctions) {
 using add = ngraph::opset5::Add;
 using mul = ngraph::opset5::Multiply;
 
-INSTANTIATE_TEST_SUITE_P(ConvAddFusion, ConvFusionTests,
-        testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{8, 3, 1, 2, 3},
-                                        add::get_type_info_static(), EltwiseShape{8, 1, 1, 1}, false),
-                        std::make_tuple(InputShape{DYN, 3, 64, 64, 64}, WeightsShape{8, 3, 1, 2, 3},
-                                        add::get_type_info_static(), EltwiseShape{8, 1, 1, 1}, false),
-                        std::make_tuple(InputShape{2, DYN, 64, 64, 64}, WeightsShape{9, 3, 2, 3, 1},
-                                        add::get_type_info_static(), EltwiseShape{9, 1, 1, 1}, false),
-                        std::make_tuple(InputShape{3, 3, DYN, 64, 64},  WeightsShape{6, 3, 3, 4, 2},
-                                        add::get_type_info_static(), EltwiseShape{6, 1, 1, 1}, false),
-                        std::make_tuple(InputShape{3, 3, 64, DYN, 64},  WeightsShape{5, 3, 3, 4, 3},
-                                        add::get_type_info_static(), EltwiseShape{5, 1, 1, 1}, false),
-                        std::make_tuple(InputShape{3, 3, 64, 64, DYN},  WeightsShape{5, 3, 3, 4, 3},
-                                        add::get_type_info_static(), EltwiseShape{5, 1, 1, 1}, false),
-                        std::make_tuple(InputShape{1, 3, 64, 64},       WeightsShape{6, 3, 1, 1},
-                                        add::get_type_info_static(), EltwiseShape{6, 1, 1}, false),
-                        std::make_tuple(InputShape{DYN, DYN, DYN, DYN}, WeightsShape{7, 3, 1, 1},
-                                        add::get_type_info_static(), EltwiseShape{7, 1, 1}, false),
-                        std::make_tuple(InputShape{DYN, 3, 64, 64},     WeightsShape{8, 3, 1, 2},
-                                        add::get_type_info_static(), EltwiseShape{8, 1, 1}, false),
-                        std::make_tuple(InputShape{2, DYN, 64, 64},     WeightsShape{9, 3, 2, 3},
-                                        add::get_type_info_static(), EltwiseShape{9, 1, 1}, false),
-                        std::make_tuple(InputShape{3, 3, DYN, 64},      WeightsShape{6, 3, 3, 4},
-                                        add::get_type_info_static(), EltwiseShape{6, 1, 1}, false),
-                        std::make_tuple(InputShape{3, 3, 64, DYN},      WeightsShape{5, 3, 3, 4},
-                                        add::get_type_info_static(), EltwiseShape{5, 1, 1}, false),
-                        std::make_tuple(InputShape{DYN, DYN, DYN},      WeightsShape{5, 3, 1},
-                                        add::get_type_info_static(), EltwiseShape{5, 1}, false),
-                        std::make_tuple(InputShape{DYN, 3, 10},         WeightsShape{3, 3, 1},
-                                        add::get_type_info_static(), EltwiseShape{3, 1}, false),
-                        std::make_tuple(InputShape{2, DYN, 9},          WeightsShape{2, 3, 2},
-                                        add::get_type_info_static(), EltwiseShape{2, 1}, false),
-                        std::make_tuple(InputShape{3, 3, DYN},          WeightsShape{1, 3, 3},
-                                        add::get_type_info_static(), EltwiseShape{1, 1}, false)));
+INSTANTIATE_TEST_SUITE_P(ConvAddFusion,
+                         ConvFusionTests,
+                         testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN},
+                                                         WeightsShape{8, 3, 1, 2, 3},
+                                                         add::get_type_info_static(),
+                                                         EltwiseShape{8, 1, 1, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{DYN, 3, 64, 64, 64},
+                                                         WeightsShape{8, 3, 1, 2, 3},
+                                                         add::get_type_info_static(),
+                                                         EltwiseShape{8, 1, 1, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{2, DYN, 64, 64, 64},
+                                                         WeightsShape{9, 3, 2, 3, 1},
+                                                         add::get_type_info_static(),
+                                                         EltwiseShape{9, 1, 1, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{3, 3, DYN, 64, 64},
+                                                         WeightsShape{6, 3, 3, 4, 2},
+                                                         add::get_type_info_static(),
+                                                         EltwiseShape{6, 1, 1, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{3, 3, 64, DYN, 64},
+                                                         WeightsShape{5, 3, 3, 4, 3},
+                                                         add::get_type_info_static(),
+                                                         EltwiseShape{5, 1, 1, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{3, 3, 64, 64, DYN},
+                                                         WeightsShape{5, 3, 3, 4, 3},
+                                                         add::get_type_info_static(),
+                                                         EltwiseShape{5, 1, 1, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{1, 3, 64, 64},
+                                                         WeightsShape{6, 3, 1, 1},
+                                                         add::get_type_info_static(),
+                                                         EltwiseShape{6, 1, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{DYN, DYN, DYN, DYN},
+                                                         WeightsShape{7, 3, 1, 1},
+                                                         add::get_type_info_static(),
+                                                         EltwiseShape{7, 1, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{DYN, 3, 64, 64},
+                                                         WeightsShape{8, 3, 1, 2},
+                                                         add::get_type_info_static(),
+                                                         EltwiseShape{8, 1, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{2, DYN, 64, 64},
+                                                         WeightsShape{9, 3, 2, 3},
+                                                         add::get_type_info_static(),
+                                                         EltwiseShape{9, 1, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{3, 3, DYN, 64},
+                                                         WeightsShape{6, 3, 3, 4},
+                                                         add::get_type_info_static(),
+                                                         EltwiseShape{6, 1, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{3, 3, 64, DYN},
+                                                         WeightsShape{5, 3, 3, 4},
+                                                         add::get_type_info_static(),
+                                                         EltwiseShape{5, 1, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{DYN, DYN, DYN},
+                                                         WeightsShape{5, 3, 1},
+                                                         add::get_type_info_static(),
+                                                         EltwiseShape{5, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{DYN, 3, 10},
+                                                         WeightsShape{3, 3, 1},
+                                                         add::get_type_info_static(),
+                                                         EltwiseShape{3, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{2, DYN, 9},
+                                                         WeightsShape{2, 3, 2},
+                                                         add::get_type_info_static(),
+                                                         EltwiseShape{2, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{3, 3, DYN},
+                                                         WeightsShape{1, 3, 3},
+                                                         add::get_type_info_static(),
+                                                         EltwiseShape{1, 1},
+                                                         false)));
 
-INSTANTIATE_TEST_SUITE_P(ConvAddFusionNegative, ConvFusionTests,
-        testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{8, 3, 1, 2, 3},
-                                        add::get_type_info_static(), EltwiseShape{2, 1}, true),
-                        std::make_tuple(InputShape{DYN, 3, 64, 64, 64}, WeightsShape{8, 3, 1, 2, 3},
-                                        add::get_type_info_static(), EltwiseShape{8, 1, 1, 1, 1}, true),
-                        std::make_tuple(InputShape{2, DYN, 64, 64, 64}, WeightsShape{9, 3, 2, 3, 1},
-                                        add::get_type_info_static(), EltwiseShape{2, 1, 1, 1, 1}, true)));
+INSTANTIATE_TEST_SUITE_P(ConvAddFusionNegative,
+                         ConvFusionTests,
+                         testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN},
+                                                         WeightsShape{8, 3, 1, 2, 3},
+                                                         add::get_type_info_static(),
+                                                         EltwiseShape{2, 1},
+                                                         true),
+                                         std::make_tuple(InputShape{DYN, 3, 64, 64, 64},
+                                                         WeightsShape{8, 3, 1, 2, 3},
+                                                         add::get_type_info_static(),
+                                                         EltwiseShape{8, 1, 1, 1, 1},
+                                                         true),
+                                         std::make_tuple(InputShape{2, DYN, 64, 64, 64},
+                                                         WeightsShape{9, 3, 2, 3, 1},
+                                                         add::get_type_info_static(),
+                                                         EltwiseShape{2, 1, 1, 1, 1},
+                                                         true)));
 
-INSTANTIATE_TEST_SUITE_P(ConvMulFusion, ConvFusionTests,
-        testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{8, 3, 1, 2, 3},
-                                        mul::get_type_info_static(), EltwiseShape{8, 1, 1, 1}, false),
-                        std::make_tuple(InputShape{DYN, 3, 64, 64, 64}, WeightsShape{8, 3, 1, 2, 3},
-                                        mul::get_type_info_static(), EltwiseShape{8, 1, 1, 1}, false),
-                        std::make_tuple(InputShape{2, DYN, 64, 64, 64}, WeightsShape{9, 3, 2, 3, 1},
-                                        mul::get_type_info_static(), EltwiseShape{9, 1, 1, 1}, false),
-                        std::make_tuple(InputShape{3, 3, DYN, 64, 64},  WeightsShape{6, 3, 3, 4, 2},
-                                        mul::get_type_info_static(), EltwiseShape{6, 1, 1, 1}, false),
-                        std::make_tuple(InputShape{3, 3, 64, DYN, 64},  WeightsShape{5, 3, 3, 4, 3},
-                                        mul::get_type_info_static(), EltwiseShape{5, 1, 1, 1}, false),
-                        std::make_tuple(InputShape{3, 3, 64, 64, DYN},  WeightsShape{5, 3, 3, 4, 3},
-                                        mul::get_type_info_static(), EltwiseShape{5, 1, 1, 1}, false),
-                        std::make_tuple(InputShape{1, 3, 64, 64},       WeightsShape{6, 3, 1, 1},
-                                        mul::get_type_info_static(), EltwiseShape{6, 1, 1}, false),
-                        std::make_tuple(InputShape{DYN, DYN, DYN, DYN}, WeightsShape{7, 3, 1, 1},
-                                        mul::get_type_info_static(), EltwiseShape{7, 1, 1}, false),
-                        std::make_tuple(InputShape{DYN, 3, 64, 64},     WeightsShape{8, 3, 1, 2},
-                                        mul::get_type_info_static(), EltwiseShape{8, 1, 1}, false),
-                        std::make_tuple(InputShape{2, DYN, 64, 64},     WeightsShape{9, 3, 2, 3},
-                                        mul::get_type_info_static(), EltwiseShape{9, 1, 1}, false),
-                        std::make_tuple(InputShape{3, 3, DYN, 64},      WeightsShape{6, 3, 3, 4},
-                                        mul::get_type_info_static(), EltwiseShape{6, 1, 1}, false),
-                        std::make_tuple(InputShape{3, 3, 64, DYN},      WeightsShape{5, 3, 3, 4},
-                                        mul::get_type_info_static(), EltwiseShape{5, 1, 1}, false),
-                        std::make_tuple(InputShape{DYN, DYN, DYN},      WeightsShape{5, 3, 1},
-                                        mul::get_type_info_static(), EltwiseShape{5, 1}, false),
-                        std::make_tuple(InputShape{DYN, 3, 10},         WeightsShape{3, 3, 1},
-                                        mul::get_type_info_static(), EltwiseShape{3, 1}, false),
-                        std::make_tuple(InputShape{2, DYN, 9},          WeightsShape{2, 3, 2},
-                                        mul::get_type_info_static(), EltwiseShape{2, 1}, false),
-                        std::make_tuple(InputShape{3, 3, DYN},          WeightsShape{1, 3, 3},
-                                        mul::get_type_info_static(), EltwiseShape{1, 1}, false)));
+INSTANTIATE_TEST_SUITE_P(ConvMulFusion,
+                         ConvFusionTests,
+                         testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN},
+                                                         WeightsShape{8, 3, 1, 2, 3},
+                                                         mul::get_type_info_static(),
+                                                         EltwiseShape{8, 1, 1, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{DYN, 3, 64, 64, 64},
+                                                         WeightsShape{8, 3, 1, 2, 3},
+                                                         mul::get_type_info_static(),
+                                                         EltwiseShape{8, 1, 1, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{2, DYN, 64, 64, 64},
+                                                         WeightsShape{9, 3, 2, 3, 1},
+                                                         mul::get_type_info_static(),
+                                                         EltwiseShape{9, 1, 1, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{3, 3, DYN, 64, 64},
+                                                         WeightsShape{6, 3, 3, 4, 2},
+                                                         mul::get_type_info_static(),
+                                                         EltwiseShape{6, 1, 1, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{3, 3, 64, DYN, 64},
+                                                         WeightsShape{5, 3, 3, 4, 3},
+                                                         mul::get_type_info_static(),
+                                                         EltwiseShape{5, 1, 1, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{3, 3, 64, 64, DYN},
+                                                         WeightsShape{5, 3, 3, 4, 3},
+                                                         mul::get_type_info_static(),
+                                                         EltwiseShape{5, 1, 1, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{1, 3, 64, 64},
+                                                         WeightsShape{6, 3, 1, 1},
+                                                         mul::get_type_info_static(),
+                                                         EltwiseShape{6, 1, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{DYN, DYN, DYN, DYN},
+                                                         WeightsShape{7, 3, 1, 1},
+                                                         mul::get_type_info_static(),
+                                                         EltwiseShape{7, 1, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{DYN, 3, 64, 64},
+                                                         WeightsShape{8, 3, 1, 2},
+                                                         mul::get_type_info_static(),
+                                                         EltwiseShape{8, 1, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{2, DYN, 64, 64},
+                                                         WeightsShape{9, 3, 2, 3},
+                                                         mul::get_type_info_static(),
+                                                         EltwiseShape{9, 1, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{3, 3, DYN, 64},
+                                                         WeightsShape{6, 3, 3, 4},
+                                                         mul::get_type_info_static(),
+                                                         EltwiseShape{6, 1, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{3, 3, 64, DYN},
+                                                         WeightsShape{5, 3, 3, 4},
+                                                         mul::get_type_info_static(),
+                                                         EltwiseShape{5, 1, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{DYN, DYN, DYN},
+                                                         WeightsShape{5, 3, 1},
+                                                         mul::get_type_info_static(),
+                                                         EltwiseShape{5, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{DYN, 3, 10},
+                                                         WeightsShape{3, 3, 1},
+                                                         mul::get_type_info_static(),
+                                                         EltwiseShape{3, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{2, DYN, 9},
+                                                         WeightsShape{2, 3, 2},
+                                                         mul::get_type_info_static(),
+                                                         EltwiseShape{2, 1},
+                                                         false),
+                                         std::make_tuple(InputShape{3, 3, DYN},
+                                                         WeightsShape{1, 3, 3},
+                                                         mul::get_type_info_static(),
+                                                         EltwiseShape{1, 1},
+                                                         false)));
 
-INSTANTIATE_TEST_SUITE_P(ConvMulFusionNegative, ConvFusionTests,
-        testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{8, 3, 1, 2, 3},
-                                        mul::get_type_info_static(), EltwiseShape{2, 1}, true),
-                        std::make_tuple(InputShape{DYN, 3, 64, 64}, WeightsShape{ 3, 3, 2, 3},
-                                        mul::get_type_info_static(), EltwiseShape{8, 1, 1, 1}, true),
-                        std::make_tuple(InputShape{2, DYN, 64, 64}, WeightsShape{ 3, 2, 3, 1},
-                                        mul::get_type_info_static(), EltwiseShape{9, 1, 1, 1, 1}, true)));
-
+INSTANTIATE_TEST_SUITE_P(ConvMulFusionNegative,
+                         ConvFusionTests,
+                         testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN},
+                                                         WeightsShape{8, 3, 1, 2, 3},
+                                                         mul::get_type_info_static(),
+                                                         EltwiseShape{2, 1},
+                                                         true),
+                                         std::make_tuple(InputShape{DYN, 3, 64, 64},
+                                                         WeightsShape{3, 3, 2, 3},
+                                                         mul::get_type_info_static(),
+                                                         EltwiseShape{8, 1, 1, 1},
+                                                         true),
+                                         std::make_tuple(InputShape{2, DYN, 64, 64},
+                                                         WeightsShape{3, 2, 3, 1},
+                                                         mul::get_type_info_static(),
+                                                         EltwiseShape{9, 1, 1, 1, 1},
+                                                         true)));
 
 TEST_F(TransformationTestsF, WeightsWithReshape) {
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 4, 7, 7});
         auto weights = opset5::Constant::create(element::f32, Shape{4, 1, 3, 3}, std::vector<float>(36, 1));
-        auto reshape = std::make_shared<opset5::Reshape>(weights, opset5::Constant::create(element::i64, Shape{5}, Shape{4, 1, 1, 3, 3}), false);
-        auto conv = std::make_shared<opset5::GroupConvolution>(data, reshape, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
-        auto mul = std::make_shared<opset5::Multiply>(conv, opset5::Constant::create(element::f32, Shape{4, 1, 1}, std::vector<float>(4, 2)));
+        auto reshape =
+            std::make_shared<opset5::Reshape>(weights,
+                                              opset5::Constant::create(element::i64, Shape{5}, Shape{4, 1, 1, 3, 3}),
+                                              false);
+        auto conv = std::make_shared<opset5::GroupConvolution>(data,
+                                                               reshape,
+                                                               Strides{1, 1},
+                                                               CoordinateDiff{0, 0},
+                                                               CoordinateDiff{0, 0},
+                                                               Strides{1, 1});
+        auto mul = std::make_shared<opset5::Multiply>(
+            conv,
+            opset5::Constant::create(element::f32, Shape{4, 1, 1}, std::vector<float>(4, 2)));
         function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
         manager.register_pass<pass::GroupConvolutionMultiplyFusion>();
@@ -238,19 +377,33 @@ TEST_F(TransformationTestsF, WeightsWithReshape) {
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 4, 7, 7});
         auto weights = opset5::Constant::create(element::f32, Shape{4, 1, 1, 3, 3}, std::vector<float>(36, 2));
-        auto conv = std::make_shared<opset5::GroupConvolution>(data, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto conv = std::make_shared<opset5::GroupConvolution>(data,
+                                                               weights,
+                                                               Strides{1, 1},
+                                                               CoordinateDiff{0, 0},
+                                                               CoordinateDiff{0, 0},
+                                                               Strides{1, 1});
         function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
     }
 }
-
 
 TEST_F(TransformationTestsF, NegativeWeightsWithReshape) {
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 4, 7, 7});
         auto weights = opset5::Constant::create(element::f32, Shape{36}, std::vector<float>(36, 1));
-        auto reshape = std::make_shared<opset5::Reshape>(weights, opset5::Constant::create(element::i64, Shape{5}, Shape{4, 1, 1, 3, 3}), false);
-        auto conv = std::make_shared<opset5::GroupConvolution>(data, reshape, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
-        auto mul = std::make_shared<opset5::Multiply>(conv, opset5::Constant::create(element::f32, Shape{4, 1, 1}, std::vector<float>(4, 2)));
+        auto reshape =
+            std::make_shared<opset5::Reshape>(weights,
+                                              opset5::Constant::create(element::i64, Shape{5}, Shape{4, 1, 1, 3, 3}),
+                                              false);
+        auto conv = std::make_shared<opset5::GroupConvolution>(data,
+                                                               reshape,
+                                                               Strides{1, 1},
+                                                               CoordinateDiff{0, 0},
+                                                               CoordinateDiff{0, 0},
+                                                               Strides{1, 1});
+        auto mul = std::make_shared<opset5::Multiply>(
+            conv,
+            opset5::Constant::create(element::f32, Shape{4, 1, 1}, std::vector<float>(4, 2)));
         function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
         manager.register_pass<pass::GroupConvolutionMultiplyFusion>();
@@ -259,20 +412,37 @@ TEST_F(TransformationTestsF, NegativeWeightsWithReshape) {
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 4, 7, 7});
         auto weights = opset5::Constant::create(element::f32, Shape{36}, std::vector<float>(36, 1));
-        auto reshape = std::make_shared<opset5::Reshape>(weights, opset5::Constant::create(element::i64, Shape{5}, Shape{4, 1, 1, 3, 3}), false);
-        auto conv = std::make_shared<opset5::GroupConvolution>(data, reshape, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
-        auto mul = std::make_shared<opset5::Multiply>(conv, opset5::Constant::create(element::f32, Shape{4, 1, 1}, std::vector<float>(4, 2)));
+        auto reshape =
+            std::make_shared<opset5::Reshape>(weights,
+                                              opset5::Constant::create(element::i64, Shape{5}, Shape{4, 1, 1, 3, 3}),
+                                              false);
+        auto conv = std::make_shared<opset5::GroupConvolution>(data,
+                                                               reshape,
+                                                               Strides{1, 1},
+                                                               CoordinateDiff{0, 0},
+                                                               CoordinateDiff{0, 0},
+                                                               Strides{1, 1});
+        auto mul = std::make_shared<opset5::Multiply>(
+            conv,
+            opset5::Constant::create(element::f32, Shape{4, 1, 1}, std::vector<float>(4, 2)));
         function_ref = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
     }
 }
-
 
 TEST_F(TransformationTestsF, WeightsWithReshapeScalarMultiplier) {
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 4, 7, 7});
         auto weights = opset5::Constant::create(element::f32, Shape{36}, std::vector<float>(36, 1));
-        auto reshape = std::make_shared<opset5::Reshape>(weights, opset5::Constant::create(element::i64, Shape{5}, Shape{4, 1, 1, 3, 3}), false);
-        auto conv = std::make_shared<opset5::GroupConvolution>(data, reshape, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto reshape =
+            std::make_shared<opset5::Reshape>(weights,
+                                              opset5::Constant::create(element::i64, Shape{5}, Shape{4, 1, 1, 3, 3}),
+                                              false);
+        auto conv = std::make_shared<opset5::GroupConvolution>(data,
+                                                               reshape,
+                                                               Strides{1, 1},
+                                                               CoordinateDiff{0, 0},
+                                                               CoordinateDiff{0, 0},
+                                                               Strides{1, 1});
         auto mul = std::make_shared<opset5::Multiply>(conv, opset5::Constant::create(element::f32, Shape{1}, {2.0f}));
         function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
@@ -283,18 +453,29 @@ TEST_F(TransformationTestsF, WeightsWithReshapeScalarMultiplier) {
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 4, 7, 7});
         auto weights = opset5::Constant::create(element::f32, Shape{4, 1, 1, 3, 3}, std::vector<float>(36, 2));
-        auto conv = std::make_shared<opset5::GroupConvolution>(data, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto conv = std::make_shared<opset5::GroupConvolution>(data,
+                                                               weights,
+                                                               Strides{1, 1},
+                                                               CoordinateDiff{0, 0},
+                                                               CoordinateDiff{0, 0},
+                                                               Strides{1, 1});
         function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
     }
 }
-
 
 TEST_F(TransformationTestsF, WeightsWithoutReshape) {
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 4, 7, 7});
         auto weights = opset5::Constant::create(element::f32, Shape{4, 1, 1, 3, 3}, std::vector<float>(36, 1));
-        auto conv = std::make_shared<opset5::GroupConvolution>(data, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
-        auto mul = std::make_shared<opset5::Multiply>(conv, opset5::Constant::create(element::f32, Shape{4, 1, 1}, std::vector<float>(4, 2)));
+        auto conv = std::make_shared<opset5::GroupConvolution>(data,
+                                                               weights,
+                                                               Strides{1, 1},
+                                                               CoordinateDiff{0, 0},
+                                                               CoordinateDiff{0, 0},
+                                                               Strides{1, 1});
+        auto mul = std::make_shared<opset5::Multiply>(
+            conv,
+            opset5::Constant::create(element::f32, Shape{4, 1, 1}, std::vector<float>(4, 2)));
         function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
         manager.register_pass<pass::GroupConvolutionMultiplyFusion>();
@@ -304,11 +485,15 @@ TEST_F(TransformationTestsF, WeightsWithoutReshape) {
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 4, 7, 7});
         auto weights = opset5::Constant::create(element::f32, Shape{4, 1, 1, 3, 3}, std::vector<float>(36, 2));
-        auto conv = std::make_shared<opset5::GroupConvolution>(data, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto conv = std::make_shared<opset5::GroupConvolution>(data,
+                                                               weights,
+                                                               Strides{1, 1},
+                                                               CoordinateDiff{0, 0},
+                                                               CoordinateDiff{0, 0},
+                                                               Strides{1, 1});
         function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
     }
 }
-
 
 TEST_F(TransformationTestsF, WeightsWithFakeQuantizeAndReshape) {
     {
@@ -318,10 +503,21 @@ TEST_F(TransformationTestsF, WeightsWithFakeQuantizeAndReshape) {
                                                          opset5::Constant::create(element::f32, Shape{1}, {0}),
                                                          opset5::Constant::create(element::f32, Shape{1}, {1}),
                                                          opset5::Constant::create(element::f32, Shape{1}, {0}),
-                                                         opset5::Constant::create(element::f32, Shape{1}, {10}), 2);
-        auto reshape = std::make_shared<opset5::Reshape>(fq, opset5::Constant::create(element::i64, Shape{5}, Shape{2, 3, 2, 3, 3}), false);
-        auto conv = std::make_shared<opset5::GroupConvolution>(data, reshape, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
-        auto mul = std::make_shared<opset5::Multiply>(conv, opset5::Constant::create(element::f32, Shape{6, 1, 1}, std::vector<float>(6, 2)));
+                                                         opset5::Constant::create(element::f32, Shape{1}, {10}),
+                                                         2);
+        auto reshape =
+            std::make_shared<opset5::Reshape>(fq,
+                                              opset5::Constant::create(element::i64, Shape{5}, Shape{2, 3, 2, 3, 3}),
+                                              false);
+        auto conv = std::make_shared<opset5::GroupConvolution>(data,
+                                                               reshape,
+                                                               Strides{1, 1},
+                                                               CoordinateDiff{0, 0},
+                                                               CoordinateDiff{0, 0},
+                                                               Strides{1, 1});
+        auto mul = std::make_shared<opset5::Multiply>(
+            conv,
+            opset5::Constant::create(element::f32, Shape{6, 1, 1}, std::vector<float>(6, 2)));
         function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
         manager.register_pass<pass::GroupConvolutionMultiplyFusion>();
@@ -335,10 +531,21 @@ TEST_F(TransformationTestsF, WeightsWithFakeQuantizeAndReshape) {
                                                          opset5::Constant::create(element::f32, Shape{1}, {0}),
                                                          opset5::Constant::create(element::f32, Shape{1}, {1}),
                                                          opset5::Constant::create(element::f32, Shape{1}, {0}),
-                                                         opset5::Constant::create(element::f32, Shape{1}, {10}), 2);
-        auto mul = std::make_shared<opset5::Multiply>(fq, opset5::Constant::create(element::f32, Shape{6, 1, 1, 1}, std::vector<float>(6, 2)));
-        auto reshape = std::make_shared<opset5::Reshape>(mul, opset5::Constant::create(element::i64, Shape{5}, Shape{2, 3, 2, 3, 3}), false);
-        auto conv = std::make_shared<opset5::GroupConvolution>(data, reshape, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+                                                         opset5::Constant::create(element::f32, Shape{1}, {10}),
+                                                         2);
+        auto mul = std::make_shared<opset5::Multiply>(
+            fq,
+            opset5::Constant::create(element::f32, Shape{6, 1, 1, 1}, std::vector<float>(6, 2)));
+        auto reshape =
+            std::make_shared<opset5::Reshape>(mul,
+                                              opset5::Constant::create(element::i64, Shape{5}, Shape{2, 3, 2, 3, 3}),
+                                              false);
+        auto conv = std::make_shared<opset5::GroupConvolution>(data,
+                                                               reshape,
+                                                               Strides{1, 1},
+                                                               CoordinateDiff{0, 0},
+                                                               CoordinateDiff{0, 0},
+                                                               Strides{1, 1});
         function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
     }
 }

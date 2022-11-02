@@ -2,41 +2,41 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/utils/utils.hpp"
+
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
 #include <queue>
-
-#include "transformations/utils/utils.hpp"
+#include <string>
 
 namespace ngraph {
 namespace op {
 namespace util {
 
-    template <>
-    bool has_constant_value<bool>(const std::shared_ptr<Node>& node, const bool value, bool epsilon) {
-        if (!node) {
-            return false;
-        }
-
-        auto constant = std::dynamic_pointer_cast<opset4::Constant>(node);
-        if (!constant) {
-            return false;
-        }
-
-        const bool is_scalar_or_single_elem = is_scalar(constant->get_shape()) || shape_size(constant->get_shape()) == 1;
-        if (!is_scalar_or_single_elem) {
-            return false;
-        }
-
-        const auto data = constant->cast_vector<bool>();
-        if (data[0] != value) {
-            return false;
-        }
-
-        return true;
+template <>
+bool has_constant_value<bool>(const std::shared_ptr<Node>& node, const bool value, bool epsilon) {
+    if (!node) {
+        return false;
     }
+
+    auto constant = std::dynamic_pointer_cast<opset4::Constant>(node);
+    if (!constant) {
+        return false;
+    }
+
+    const bool is_scalar_or_single_elem = is_scalar(constant->get_shape()) || shape_size(constant->get_shape()) == 1;
+    if (!is_scalar_or_single_elem) {
+        return false;
+    }
+
+    const auto data = constant->cast_vector<bool>();
+    if (data[0] != value) {
+        return false;
+    }
+
+    return true;
+}
 }  // namespace util
 }  // namespace op
 }  // namespace ngraph

@@ -4,21 +4,21 @@
 
 #include <gtest/gtest.h>
 
-#include "common_test_utils/test_common.hpp"
-#include <string>
-#include <sstream>
 #include <fstream>
-#include <memory>
+#include <legacy/ngraph_ops/fully_connected.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/reshape_fc_fusion.hpp>
 #include <map>
-
+#include <memory>
 #include <ngraph/function.hpp>
 #include <ngraph/op/constant.hpp>
 #include <ngraph/op/reshape.hpp>
 #include <ngraph/pass/constant_folding.hpp>
-#include <legacy/ngraph_ops/fully_connected.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/reshape_fc_fusion.hpp>
+#include <sstream>
+#include <string>
 #include <transformations/init_node_info.hpp>
+
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/test_common.hpp"
 
 using namespace testing;
 
