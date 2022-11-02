@@ -99,14 +99,8 @@ void op::v3::GRUCell::validate_and_infer_types() {
                           "Element types for X, initial_hidden_state, W, R and B inputs do not "
                           "match.");
 
-    const auto& x_pshape = get_input_partial_shape(0);
-    const auto& ht_pshape = get_input_partial_shape(1);
-    const auto& w_pshape = get_input_partial_shape(2);
-    const auto& r_pshape = get_input_partial_shape(3);
-    const auto& b_pshape = get_input_partial_shape(4);
-
-    std::vector<ov::PartialShape> input_shapes{x_pshape, ht_pshape, w_pshape, r_pshape, b_pshape};
-    std::vector<ov::PartialShape> output_shapes{ov::PartialShape{2}};
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    std::vector<ov::PartialShape> output_shapes{ov::PartialShape::dynamic(2)};
     shape_infer(this, input_shapes, output_shapes);
 
     set_output_type(0, result_et, output_shapes[0]);
