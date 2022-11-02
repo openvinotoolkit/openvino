@@ -264,12 +264,14 @@ macro(ov_cpack_settings)
 
     if(ENABLE_PYTHON)
         ov_get_pyversion(pyversion)
+        set(python_component "${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}")
         string(TOUPPER "${pyversion}" pyversion)
 
         set(CPACK_COMPONENT_PYOPENVINO_${pyversion}_DESCRIPTION "OpenVINO Python bindings")
         set(CPACK_COMPONENT_PYOPENVINO_${pyversion}_DEPENDS "${OV_CPACK_COMP_CORE}")
         list(APPEND CPACK_COMPONENT_PYOPENVINO_${pyversion}_DEPENDS ${installed_plugins})
         list(APPEND CPACK_COMPONENT_PYOPENVINO_${pyversion}_DEPENDS ${frontends})
+        set(CPACK_RPM_PYOPENVINO_${pyversion}_PACKAGE_REQUIRES "python3")
 
         set(CPACK_RPM_PYOPENVINO_${pyversion}_PACKAGE_NAME "libopenvino-python-${cpack_name_ver}")
     endif()
@@ -302,6 +304,7 @@ macro(ov_cpack_settings)
     # python_samples
     if(ENABLE_PYTHON)
         set(CPACK_COMPONENT_PYTHON_SAMPLES_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit Python Samples")
+        set(CPACK_COMPONENT_PYTHON_SAMPLES_DEPENDS "${python_component}")
         set(CPACK_RPM_PYTHON_SAMPLES_PACKAGE_NAME "openvino-samples-python-${cpack_name_ver}")
         set(CPACK_RPM_PYTHON_SAMPLES_PACKAGE_REQUIRES "python3")
         set(CPACK_RPM_PYTHON_SAMPLES_PACKAGE_ARCHITECTURE "noarch")
