@@ -85,8 +85,8 @@ public:
     typed_primitive_inst(network& network, deformable_conv_node const& node);
 
     memory::ptr weights_memory(size_t index) const {
-        if (node.get_groups() == 1) {
-            if (static_cast<int32_t>(index) >= node.get_split())
+        if (node->get_groups() == 1) {
+            if (static_cast<int32_t>(index) >= node->get_split())
                 throw std::range_error("weights offset too big");
             return dep_memory_ptr(1 + index);
         } else {  // all weights are in one buffer
@@ -95,16 +95,16 @@ public:
     }
 
     memory::ptr bias_memory(size_t index) const {
-        if (node.get_groups() == 1) {
-            if (static_cast<int32_t>(index) >= node.get_split())
+        if (node->get_groups() == 1) {
+            if (static_cast<int32_t>(index) >= node->get_split())
                 throw std::range_error("bias offset too big");
-            return dep_memory_ptr(1 + node.get_split());
+            return dep_memory_ptr(1 + node->get_split());
         } else {  // all bias are in one buffer
             return dep_memory_ptr(2);
         }
     }
 
-    bool bias_term() const { return node.bias_term(); }
+    bool bias_term() const { return node->bias_term(); }
 };
 
 using deformable_conv_inst = typed_primitive_inst<deformable_conv>;

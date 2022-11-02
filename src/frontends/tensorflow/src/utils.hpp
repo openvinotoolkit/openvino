@@ -54,6 +54,8 @@ ov::Output<Node> get_elements_number_1d(const Output<Node>& output,
 
 ov::op::PadMode convert_padding_mode(const NodeContext& node, const std::string& padding_mode);
 
-}  // namespace tensorflow
+Output<Node> compute_subgraph_scalar_rank(const Output<Node>& output,
+                                          element::Type output_type,
+                                          bool as_scalar = false);}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

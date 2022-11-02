@@ -4,7 +4,7 @@
 
 if (ENABLE_INTEL_MYRIAD)
     if(CMAKE_COMPILER_IS_GNUCC OR OV_COMPILER_IS_CLANG)
-        ie_add_compiler_flags(-Wno-enum-conversion)
+        ie_add_compiler_flags(-Wno-enum-conversion -Wno-missing-declarations)
     endif()
     add_definitions(-DXLINK_USE_BUS)
 

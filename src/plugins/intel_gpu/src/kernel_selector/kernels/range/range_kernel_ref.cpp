@@ -13,7 +13,8 @@ namespace {
 CommonDispatchData SetDefault(const range_params &params) {
     CommonDispatchData dispatchData;
 
-    dispatchData.gws = { 1, 1, params.outputs[0].X().v }; // TODO: these could be split better
+    const auto& out = params.outputs[0];
+    dispatchData.gws = { 1, 1, out.Batch().v * out.Feature().v * out.X().v * out.Y().v * out.W().v * out.Z().v }; // TODO: these could be split better
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;
