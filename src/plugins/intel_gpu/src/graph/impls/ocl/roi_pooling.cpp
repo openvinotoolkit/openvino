@@ -67,9 +67,6 @@ public:
         const auto& primitive = impl_param.typed_desc<roi_pooling>();
         const auto& input_layout = impl_param.get_input_layout(0);
         const auto& rois_layout = impl_param.get_input_layout(1);
-        const auto& output_layout = impl_param.output_layout;
-
-        const auto padding_filling_value = output_layout.data_padding.filling_value();
 
         auto params = get_default_params<kernel_selector::roi_pooling_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::roi_pooling_optional_params>(impl_param.get_program());
