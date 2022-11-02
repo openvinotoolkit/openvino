@@ -271,7 +271,11 @@ std::string convolution_inst::to_string(convolution_node const& node) {
     return primitive_description.str();
 }
 
-convolution_inst::typed_primitive_inst(network& network, convolution_node const& node) : parent(network, node) {
+convolution_inst::typed_primitive_inst(network& network, convolution_node const& node) :
+    parent(network, node),
+    _groups(node.get_groups()),
+    _split(node.get_split()),
+    _deform_conv_dep_offset(node.get_deform_conv_dep_offset()) {
     auto stride = argument->stride;
     auto pad = argument->pad;
 
