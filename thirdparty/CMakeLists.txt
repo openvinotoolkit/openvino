@@ -185,7 +185,7 @@ if(NOT APPLE OR CPACK_GENERATOR MATCHES "^(BREW|CONDA-FORGE)$")
     # - on Apple only dynamic libraries are available
     #   also, we can easily mix arm64 and x86_64 binaries when cross-compile for Intel CPU
 
-    if(CPACK_GENERATOR MATCHES "^(BREW|CONDA-FORGE)$" OR DEFINED ENV{HOMEBREW_PREFIX})
+    if(CPACK_GENERATOR MATCHES "^(BREW|CONDA-FORGE)$" OR DEFINED ENV{HOMEBREW_PREFIX} OR LINUX_OS_NAME MATCHES "(Fedora|CentOS)")
         # conda-forge and brew contains only shared version of gflags
         find_package(gflags QUIET COMPONENTS nothreads_shared)
     else()
@@ -196,6 +196,10 @@ endif()
 if(gflags_FOUND)
     if(TARGET gflags)
         set_target_properties(gflags PROPERTIES IMPORTED_GLOBAL ON)
+    elseif(TARGET gflags_nothreads-shared)
+        # gflags shared case for CentOS/RHEL8
+        set_target_properties(gflags_nothreads-shared PROPERTIES IMPORTED_GLOBAL ON)
+        add_library(gflags ALIAS gflags_nothreads-shared)
     elseif(TARGET gflags_nothreads-static)
         # debian_9_arm case
         set_target_properties(gflags_nothreads-static PROPERTIES IMPORTED_GLOBAL ON)
@@ -302,13 +306,13 @@ if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
     # These libraries are dependencies for openvino-samples package
 
     if(NOT gflags_FOUND)
-        message(FATAL_ERROR "gflags must be used as a ${CPACK_GENERATOR} package. Install libgflags-dev")
+        message(FATAL_ERROR "gflags must be used as a ${CPACK_GENERATOR} package. Install libgflags-dev / gflags-devel")
     endif()
     if(NOT zlib_FOUND)
-        message(FATAL_ERROR "zlib must be used as a ${CPACK_GENERATOR} package. Install zlib1g-dev")
+        message(FATAL_ERROR "zlib must be used as a ${CPACK_GENERATOR} package. Install zlib1g-dev / zlib-devel")
     endif()
-    if(NOT ENABLE_SYSTEM_PUGIXML)
-        message(FATAL_ERROR "Pugixml must be used as a ${CPACK_GENERATOR} package. Install libpugixml-dev")
+    if(NOT ENABLE_SYSTEM_PUGIXML AND NOT LINUX_OS_NAME STREQUAL "CentOS 7")
+        message(FATAL_ERROR "Pugixml must be used as a ${CPACK_GENERATOR} package. Install libpugixml-dev / pugixml-devel")
     endif()
 else()
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags
