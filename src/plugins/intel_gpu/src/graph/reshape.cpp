@@ -189,6 +189,16 @@ void reshape_inst::on_execute() {
 }
 
 void reshape_inst::reuse_input() {
+    update_output_memory();
+}
+
+void reshape_inst::update_output_memory() {
+    if (!node->can_be_optimized())
+        return;
+
+    if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+        return;
+
     build_deps();  // reshape need deps
     OPENVINO_ASSERT(input_memory_ptr() != nullptr, "[GPU] Failed to reuse input in ", id(), " primitive: input memory was not allocated");
     _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->output_layout)};
