@@ -111,6 +111,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*DeviceID.*)",
         // CVS-95608
         R"(.*CachingSupportCase.*CompileModelCacheTestBase.*)",
+        R"(.*OVClassNetworkTestP.*QueryNetworkMultiThrows.*)",
+        R"(.*OVClassNetworkTestP.*LoadNetworkMultiWithoutSettingDevicePrioritiesThrows.*)",
+        R"(.*OVClassLoadNetworkTest.*QueryNetworkMULTIWithHETERONoThrow_V10.*)",
     };
 
 #ifdef _WIN32

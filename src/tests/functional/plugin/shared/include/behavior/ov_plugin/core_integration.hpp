@@ -591,7 +591,7 @@ TEST_P(OVClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
 
 TEST_P(OVClassNetworkTestP, QueryNetworkMultiThrows) {
     ov::Core ie = createCoreWithTemplate();
-    ie.query_model(actualNetwork, CommonTestUtils::DEVICE_MULTI);
+    ASSERT_NO_THROW(ie.query_model(actualNetwork, CommonTestUtils::DEVICE_MULTI));
 }
 
 TEST(OVClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
@@ -608,7 +608,6 @@ TEST(OVClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
 
     OV_ASSERT_PROPERTY_SUPPORTED(ov::supported_properties);
 }
-
 
 TEST_P(OVClassBasicTestP, smoke_GetMetricSupportedConfigKeysHeteroThrows) {
     ov::Core ie = createCoreWithTemplate();

@@ -170,6 +170,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVClass.*QueryNetwork.*QueryNetwork.*)",
         R"(.*OVClass.*LoadNetwork*(HETERO|MULTI).*)",
         R"(.*OVClass.*LoadNetwork.*(DeviceID|MultiWithoutSettingDevicePrioritiesThrows).*)",
+        R"(.*OVClassLoadNetworkTest.*QueryNetwork(MULTIWithHETERO|HETEROWithMULTI)NoThrow_V10.*)",
+        R"(.*OVClassNetworkTestP.*QueryNetworkMultiThrows.*)",
     };
 
 #define FIX_62820 0
