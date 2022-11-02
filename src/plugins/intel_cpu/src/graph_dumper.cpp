@@ -318,16 +318,7 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph
 
 #ifdef CPU_DEBUG_CAPS
 void serialize(const Graph &graph) {
-    std::string path = graph.getConfig().execGraphPath;
-
-    auto readEnv = [](const char* envVar) {
-        return std::getenv(envVar);
-    };
-    const char* envVarValue = nullptr;
-    if (envVarValue = readEnv("OV_CPU_EXEC_GRAPH_PATH")) {
-        path = envVarValue;
-    }
-
+    const std::string path = graph.getConfig().execGraphPath;
     if (path.empty())
         return;
 

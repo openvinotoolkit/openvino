@@ -15,8 +15,6 @@
 #include "common/cpu_memcpy.h"
 #include "reorder.h"
 
-#include "graph_dumper.h"
-
 using namespace dnnl;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -714,10 +712,6 @@ void TensorIterator::prepareParams() {
     if (!tiOp) {
         THROW_ERROR << "cannot be cast to ov::op::util::SubGraphOp";
     }
-    std::shared_ptr<ov::Model> body = tiOp->get_function();
-    const std::string &body_name = body->get_friendly_name();
-    ::setenv("OV_CPU_EXEC_GRAPH_PATH", std::string(body_name+"_exec.xml").c_str(), 1);
-    serialize(sub_graph);
 
     if ((lastUsedCond && lastUsedTripCount != 0) || !isDynamicNode()) {
         reshapeSubgraphInput();
