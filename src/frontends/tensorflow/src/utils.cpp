@@ -9,6 +9,7 @@
 #include "openvino_conversions.hpp"
 
 using namespace ov;
+using namespace ov::op;
 using namespace ov::opset10;
 using namespace ov::opset8;
 using namespace std;
@@ -237,7 +238,10 @@ PadMode ov::frontend::tensorflow::convert_padding_mode(const NodeContext& node, 
         return PadMode::SYMMETRIC;
     }
 
-    return PadMode::CONSTANT;
+    TENSORFLOW_OP_VALIDATION(
+        node,
+        supported_modes.count(padding_mode),
+        "OpenVINO TensorFlow Frontend Internal error: it does not support " + padding_mode + " padding mode.");
 }
 
 Output<Node> ov::frontend::tensorflow::compute_subgraph_scalar_rank(const Output<Node>& output,
@@ -251,4 +255,3 @@ Output<Node> ov::frontend::tensorflow::compute_subgraph_scalar_rank(const Output
     }
     return rank_of;
 }
-

@@ -16,11 +16,13 @@ namespace op {
 static void slice_pads_begin_end(const Output<Node>& paddings,
                                  shared_ptr<Node>& pads_begin,
                                  shared_ptr<Node>& pads_end) {
+    // TODO: fix IR reader to accept padding of i64 type
+    auto paddings_i32 = make_shared<Convert>(paddings, element::i32);
     auto axis = make_shared<Constant>(element::i32, Shape{}, 1);
     auto index_zero = make_shared<Constant>(element::i32, Shape{1}, 0);
     auto index_one = make_shared<Constant>(element::i32, Shape{1}, 1);
-    auto unsqueeze_pad_begin = make_shared<Gather>(paddings, index_zero, axis);
-    auto unsqueeze_pad_end = make_shared<Gather>(paddings, index_one, axis);
+    auto unsqueeze_pad_begin = make_shared<Gather>(paddings_i32, index_zero, axis);
+    auto unsqueeze_pad_end = make_shared<Gather>(paddings_i32, index_one, axis);
 
     pads_begin = make_shared<Squeeze>(unsqueeze_pad_begin, axis);
     pads_end = make_shared<Squeeze>(unsqueeze_pad_end, axis);
