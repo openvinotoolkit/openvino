@@ -351,7 +351,7 @@ void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config,
     const auto num_cores_phys = num_big_cores_phys + num_small_cores;
 
     config._small_core_offset = num_big_cores_phys * 2;
-    // if nthreads is set, calculating hybrid aware parameters by nthreads
+    // if nthreads is set, calculate hybrid aware parameters by nthreads
     if (config._threads) {
         // limit threads to reasonable range
         auto threads = config._threads > num_cores_phys ? num_cores_phys : config._threads;
@@ -383,11 +383,11 @@ void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config,
         config._big_core_streams = std::min(config._streams, num_big_cores_phys / config._threads_per_stream_big);
         config._small_core_streams = config._streams - config._big_core_streams;
         config._threads_per_stream_small = config._small_core_streams > 0 ? config._threads_per_stream_big * 2 : 0;
-        // The threads's number on small core exceeds the number of small core due to threads indivisible on big core.
-        // We should add threads's number on big core, reduce the one on small core.
+        // The number of threads on small core exceeds the number of small core due to threads indivisible on big core.
+        // We should add the number of threads on big core, reduce the one on small core.
         if (num_small_cores < config._threads_per_stream_small) {
-            config._big_core_streams++;
-            config._small_core_streams--;
+            config._big_core_streams += 1;
+            config._small_core_streams -= 1;
             config._threads_per_stream_big = std::max(1, num_big_cores_phys / config._big_core_streams);
             config._threads_per_stream_small = config._small_core_streams > 0 ? config._threads_per_stream_big * 2 : 0;
         }
