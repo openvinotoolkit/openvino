@@ -9,6 +9,7 @@
 
 using namespace std;
 using namespace ngraph;
+using namespace testing;
 
 TEST(type_prop, gru_cell) {
     const size_t batch_size = 2;
@@ -38,44 +39,30 @@ TEST(type_prop, gru_cell_invalid_input) {
 
     // Invalid W tensor shape.
     auto W = make_shared<op::Parameter>(element::f32, Shape{hidden_size, input_size});
-    try {
-        const auto gru_cell = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size);
-        FAIL() << "GRUCell node was created with invalid data.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("First dimension of W input shape is required to be compatible"));
-    }
+    OV_EXPECT_THROW(make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size),
+                    ov::NodeValidationFailure,
+                    HasSubstr("First dimension of W input shape is required to be compatible"));
 
     // Invalid R tensor shape.
     W = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, input_size});
     R = make_shared<op::Parameter>(element::f32, Shape{hidden_size, 1});
-    try {
-        const auto gru_cell = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size);
-        FAIL() << "GRUCell node was created with invalid data.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Dimension `hidden_size` is not matched between inputs"));
-    }
+    OV_EXPECT_THROW(make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Dimension `hidden_size` is not matched between inputs"));
 
     // Invalid H_t tensor shape.
     R = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
     H_t = make_shared<op::Parameter>(element::f32, Shape{4, hidden_size});
-    try {
-        const auto gru_cell = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size);
-        FAIL() << "GRUCell node was created with invalid data.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Dimension `batch_size` is not matched between inputs"));
-    }
+    OV_EXPECT_THROW(make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Dimension `batch_size` is not matched between inputs"));
 
     // Invalid B tensor shape.
     H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
     auto B = make_shared<op::Parameter>(element::f32, Shape{hidden_size});
-    try {
-        const auto gru_cell = make_shared<opset4::GRUCell>(X, H_t, W, R, B, hidden_size);
-        FAIL() << "GRUCell node was created with invalid data.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("First dimension of B input shape is required to be compatible"));
-    }
+    OV_EXPECT_THROW(make_shared<opset4::GRUCell>(X, H_t, W, R, B, hidden_size),
+                    ov::NodeValidationFailure,
+                    HasSubstr("First dimension of B input shape is required to be compatible"));
 }
 
 TEST(type_prop, gru_cell_dynamic_batch_size) {
