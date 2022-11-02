@@ -63,6 +63,8 @@ struct Config {
     static bool isNewApiProperty(std::string property);
     static std::string ConvertPropertyToLegacy(const std::string& key, const std::string& value);
 
+    bool CanShareContextWith(const Config& other) const;
+
     std::string device_id;
     uint16_t throughput_streams;
     bool useProfiling;
