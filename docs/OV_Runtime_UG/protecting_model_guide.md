@@ -24,7 +24,7 @@ used to protect deep-learning models. The edge device should keep the stored mod
 protected all the time and have the model decrypted **in runtime only** for use
 by the OpenVINO Runtime.
 
-![deploy_encrypted_model](img/deploy_encrypted_model.png)
+![deploy_encrypted_model](./img/deploy_encrypted_model.svg)
 
 ## Loading Encrypted Models
 
