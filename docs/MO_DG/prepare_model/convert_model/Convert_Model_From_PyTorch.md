@@ -3,7 +3,7 @@
 The PyTorch framework is supported through export to the ONNX format. In order to optimize and deploy a model that was trained with it:
 
 1. [Export a PyTorch model to ONNX](#export-to-onnx).
-2. [Convert the ONNX model](Convert_Model_From_ONNX.md) to produce an optimized [Intermediate Representation](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases values.
+2. [Convert the ONNX model](Convert_Model_From_ONNX.md) to produce an optimized [Intermediate Representation](@ref openvino_docs_MO_DG_IR_and_opsets) of the model based on the trained network topology, weights, and biases values.
 
 ## Exporting a PyTorch Model to ONNX Format <a name="export-to-onnx"></a>
 PyTorch models are defined in Python. To export them, use the `torch.onnx.export()` method. The code to
@@ -32,5 +32,8 @@ torch.onnx.export(model, (dummy_input, ), 'model.onnx')
 It is recommended to export models to opset 11 or higher when export to default opset 9 is not working. In that case, use `opset_version`
 option of the `torch.onnx.export`. For more information about ONNX opset, refer to the [Operator Schemas](https://github.com/onnx/onnx/blob/master/docs/Operators.md) page.
 
-## See Also
-[Model Conversion Tutorials](Convert_Model_Tutorials.md)
+## Additional Resources
+See the [Model Conversion Tutorials](@ref openvino_docs_MO_DG_prepare_model_convert_model_tutorials) page for a set of tutorials providing step-by-step instructions for converting specific PyTorch models. Here are some examples:
+* [Convert PyTorch BERT-NER Model](@ref openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_Bert_ner)
+* [Convert PyTorch RCAN Model](@ref openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_RCAN)
+* [Convert PyTorch YOLACT Model](@ref openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_YOLACT)
