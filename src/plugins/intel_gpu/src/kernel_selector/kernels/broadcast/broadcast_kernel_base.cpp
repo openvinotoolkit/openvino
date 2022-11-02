@@ -58,11 +58,18 @@ KernelsData BroadcastKernelBase::GetCommonKernelsData(const Params& params,
                                                       const optional_params& options) const {
     assert(params.GetType() == KernelType::BROADCAST);
 
-    const auto& prim_params =
-        static_cast<const broadcast_params&>(params);
+    const auto& prim_params = static_cast<const broadcast_params&>(params);
 
     auto dispatchData = SetDefault(prim_params);
     KernelData k_data = KernelData::Default<broadcast_params>(params);
+
+    k_data.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const broadcast_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+    };
 
     auto cldnn_jit = GetJitConstants(prim_params);
     cldnn_jit.AddConstant(MakeJitConstant("INPUT0_BLOCK_ND", GetInputBlockND(prim_params)));
@@ -70,7 +77,14 @@ KernelsData BroadcastKernelBase::GetCommonKernelsData(const Params& params,
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
+                     DEFAULT,
+                     false,
+                     false,
+                     1,
+                     0,
+                     1,
+                     prim_params.outputs[0].is_dynamic());
 
     return {k_data};
 }
