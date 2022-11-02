@@ -19,14 +19,16 @@ std::ostream& ov::operator<<(std::ostream& s, const Shape& shape) {
     return s;
 }
 
-size_t stringToSizeT(const std::string& valStr) {
+namespace {
+size_t stringToSizeT(const string& valStr) {
     size_t ret{0};
-    std::istringstream ss(valStr);
+    istringstream ss(valStr);
     if (!ss.eof()) {
         ss >> ret;
     }
     return ret;
 }
+}  // namespace
 
 ov::Shape::Shape() : std::vector<size_t>() {}
 
