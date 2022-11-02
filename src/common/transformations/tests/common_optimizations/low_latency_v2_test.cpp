@@ -4,17 +4,15 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-#include <queue>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pass/manager.hpp>
-
+#include <queue>
+#include <string>
+#include <transformations/common_optimizations/low_latency.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/init_node_info.hpp>
-#include <transformations/common_optimizations/low_latency.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -112,9 +110,9 @@ TEST(TransformationTests, LowLatency2_LSTM) {
         const std::string variable_name_H("LSTMTensorIterator/H_t/variable");
         const std::string variable_name_C("LSTMTensorIterator/C_t/variable");
         auto variable_H =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto variable_C =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H_t), variable_H);
         auto read_value_C = std::make_shared<ReadValue>(create_init_subgraph(C_t), variable_C);
         // Body
@@ -198,7 +196,7 @@ TEST(TransformationTests, LowLatency2_GRU) {
 
         const std::string variable_name_H("GRUTensorIterator/Yi/variable");
         auto variable_H =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H_t), variable_H);
         // Body
         auto axis = Constant::create(element::i64, Shape{}, {0});
@@ -279,7 +277,7 @@ TEST(TransformationTests, LowLatency2_RNN) {
 
         const std::string variable_name_H("RNNTensorIterator/Yi/variable");
         auto variable_H =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H_t), variable_H);
         // Body
         auto axis = Constant::create(element::i64, Shape{}, {0});
@@ -358,9 +356,9 @@ TEST(TransformationTests, LowLatency2_LSTMReshape) {
         const std::string variable_name_H("LSTMTensorIterator/H_t/variable");
         const std::string variable_name_C("LSTMTensorIterator/C_t/variable");
         auto variable_H =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto variable_C =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H_t), variable_H);
         auto read_value_C = std::make_shared<ReadValue>(create_init_subgraph(C_t), variable_C);
         // Body
@@ -443,9 +441,9 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop) {
         const std::string variable_name_H("LSTMLoop/H_t/variable");
         const std::string variable_name_C("LSTMLoop/C_t/variable");
         auto variable_H =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto variable_C =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H_t), variable_H);
         auto read_value_C = std::make_shared<ReadValue>(create_init_subgraph(C_t), variable_C);
         // Body
@@ -524,9 +522,9 @@ TEST(TransformationTests, LowLatency2_LSTM_several_iterations) {
         const std::string variable_name_H("LSTMTensorIterator/H_t/variable");
         const std::string variable_name_C("LSTMTensorIterator/C_t/variable");
         auto variable_H =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto variable_C =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H), variable_H);
         auto read_value_C = std::make_shared<ReadValue>(create_init_subgraph(C), variable_C);
 
@@ -637,9 +635,9 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_Reshape) {
         const std::string variable_name_H("LSTMLoop/H_t/variable");
         const std::string variable_name_C("LSTMLoop/C_t/variable");
         auto variable_H =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto variable_C =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H_t), variable_H);
         auto read_value_C = std::make_shared<ReadValue>(create_init_subgraph(C_t), variable_C);
         // Body
@@ -718,9 +716,9 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_several_iterations) {
         const std::string variable_name_H("LSTMLoop/H_t/variable");
         const std::string variable_name_C("LSTMLoop/C_t/variable");
         auto variable_H =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto variable_C =
-                std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
+            std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
         auto read_value_H = std::make_shared<ReadValue>(create_init_subgraph(H), variable_H);
         auto read_value_C = std::make_shared<ReadValue>(create_init_subgraph(C), variable_C);
 
