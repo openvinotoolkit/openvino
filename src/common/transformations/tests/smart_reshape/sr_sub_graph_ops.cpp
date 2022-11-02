@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cpp/ie_cnn_network.h>
 #include <gtest/gtest.h>
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset5.hpp>
-#include <cpp/ie_cnn_network.h>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace ngraph;
-
 
 TEST(SmartReshapeTests, TensorIteratorStaticParameters) {
     std::shared_ptr<ngraph::Function> f(nullptr);
@@ -27,13 +26,13 @@ TEST(SmartReshapeTests, TensorIteratorStaticParameters) {
         auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
         auto M_body = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
         auto body_condition =
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+            std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
 
         // Body
         auto sum = std::make_shared<ngraph::opset5::Add>(Xi, Yi);
         auto Zo = std::make_shared<ngraph::opset5::Multiply>(sum, M_body);
-        auto body = std::make_shared<ngraph::Function>(OutputVector{Zo, body_condition, sum},
-                                                       ParameterVector{Xi, Yi, M_body});
+        auto body =
+            std::make_shared<ngraph::Function>(OutputVector{Zo, body_condition, sum}, ParameterVector{Xi, Yi, M_body});
 
         auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
         tensor_iterator->set_function(body);
@@ -62,10 +61,10 @@ TEST(SmartReshapeTests, TensorIteratorStaticParameters) {
 
     auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{
-        {f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
-        {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
-        {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
+    ASSERT_NO_THROW(network.reshape(
+        InferenceEngine::ICNNNetwork::InputShapes{{f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
+                                                  {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
+                                                  {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
     check_unique_names(f, unh);
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
@@ -89,13 +88,13 @@ TEST(SmartReshapeTests, TensorIteratorDynamicParameters) {
         auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
         auto M_body = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
         auto body_condition =
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+            std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
 
         // Body
         auto sum = std::make_shared<ngraph::opset5::Add>(Xi, Yi);
         auto Zo = std::make_shared<ngraph::opset5::Multiply>(sum, M_body);
-        auto body = std::make_shared<ngraph::Function>(OutputVector{Zo, body_condition, sum},
-                                                       ParameterVector{Xi, Yi, M_body});
+        auto body =
+            std::make_shared<ngraph::Function>(OutputVector{Zo, body_condition, sum}, ParameterVector{Xi, Yi, M_body});
 
         auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
         tensor_iterator->set_function(body);
@@ -124,10 +123,10 @@ TEST(SmartReshapeTests, TensorIteratorDynamicParameters) {
 
     auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{
-        {f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
-        {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
-        {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
+    ASSERT_NO_THROW(network.reshape(
+        InferenceEngine::ICNNNetwork::InputShapes{{f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
+                                                  {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
+                                                  {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
     check_unique_names(f, unh);
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
@@ -152,80 +151,11 @@ TEST(SmartReshapeTests, LoopStaticParameters) {
         auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
         auto M_body = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
         auto body_condition =
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+            std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
 
-        auto trip_count =
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{}, 10);
+        auto trip_count = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{}, 10);
         auto exec_condition =
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
-        // Body
-        auto sum = std::make_shared<ngraph::opset5::Add>(Xi, Yi);
-        auto Zo = std::make_shared<ngraph::opset5::Multiply>(sum, M_body);
-        auto body = std::make_shared<ngraph::Function>(OutputVector{Zo, body_condition, sum},
-                                                  ParameterVector{Xi, current_iteration, Yi, M_body});
-
-        auto loop = std::make_shared<opset5::Loop>(trip_count, exec_condition);
-        loop->set_function(body);
-        loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{1, 1});
-
-        loop->set_sliced_input(Xi, X, 0, 1, 1, -1, 2);
-        loop->set_sliced_input(Yi, Y, -1, -1, 1, 0, 1);
-        loop->set_merged_input(M_body, M, Zo);
-
-        // Output 0 is last Zo
-        auto out0 = loop->get_iter_value(body_condition, -1);
-        auto out1 = loop->get_iter_value(Zo, -1);
-        // Output 1 is concat of Zos
-        // start=0, stride=1, part_size=1, end=-1, axis=1
-        auto out2 = loop->get_concatenated_slices(Zo, 0, 1, 1, -1, 1);
-        auto out3 = loop->get_iter_value(sum, -1);
-
-        f = std::make_shared<Function>(OutputVector{out0, out1, out2, out3}, ParameterVector{X, Y, M});
-    }
-
-    InferenceEngine::CNNNetwork network(f);
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
-    ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
-    // concat output
-    ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
-    ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
-
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
-    init_unique_names(f, unh);
-    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{
-        {f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
-        {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
-        {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
-    check_unique_names(f, unh);
-
-    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
-    ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible({32, 1, 10}));
-    // concat output
-    ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible({32, 10, 10}));
-    ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible({32, 1, 1}));
-}
-
-TEST(SmartReshapeTests, LoopDynamicParameters) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
-    {
-        // That which we iterate over
-        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto M = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-
-        // Set up the cell body, a function from (Xi, Yi) -> (Zo)
-        // Body parameters
-        auto current_iteration = std::make_shared<opset5::Parameter>(element::i64, Shape{});
-        auto Xi = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto M_body = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto body_condition =
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
-
-        auto trip_count =
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{}, 10);
-        auto exec_condition =
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+            std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
         // Body
         auto sum = std::make_shared<ngraph::opset5::Add>(Xi, Yi);
         auto Zo = std::make_shared<ngraph::opset5::Multiply>(sum, M_body);
@@ -253,17 +183,90 @@ TEST(SmartReshapeTests, LoopDynamicParameters) {
 
     InferenceEngine::CNNNetwork network(f);
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
-    ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(
+        network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
     // concat output
-    ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
-    ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(
+        network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(
+        network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
 
     auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{
-        {f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
-        {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
-        {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
+    ASSERT_NO_THROW(network.reshape(
+        InferenceEngine::ICNNNetwork::InputShapes{{f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
+                                                  {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
+                                                  {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
+    check_unique_names(f, unh);
+
+    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
+    ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible({32, 1, 10}));
+    // concat output
+    ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible({32, 10, 10}));
+    ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible({32, 1, 1}));
+}
+
+TEST(SmartReshapeTests, LoopDynamicParameters) {
+    std::shared_ptr<ngraph::Function> f(nullptr);
+    {
+        // That which we iterate over
+        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
+        auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
+        auto M = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
+
+        // Set up the cell body, a function from (Xi, Yi) -> (Zo)
+        // Body parameters
+        auto current_iteration = std::make_shared<opset5::Parameter>(element::i64, Shape{});
+        auto Xi = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
+        auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
+        auto M_body = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
+        auto body_condition =
+            std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+
+        auto trip_count = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{}, 10);
+        auto exec_condition =
+            std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+        // Body
+        auto sum = std::make_shared<ngraph::opset5::Add>(Xi, Yi);
+        auto Zo = std::make_shared<ngraph::opset5::Multiply>(sum, M_body);
+        auto body = std::make_shared<ngraph::Function>(OutputVector{Zo, body_condition, sum},
+                                                       ParameterVector{Xi, current_iteration, Yi, M_body});
+
+        auto loop = std::make_shared<opset5::Loop>(trip_count, exec_condition);
+        loop->set_function(body);
+        loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{1, 1});
+
+        loop->set_sliced_input(Xi, X, 0, 1, 1, -1, 2);
+        loop->set_sliced_input(Yi, Y, -1, -1, 1, 0, 1);
+        loop->set_merged_input(M_body, M, Zo);
+
+        // Output 0 is last Zo
+        auto out0 = loop->get_iter_value(body_condition, -1);
+        auto out1 = loop->get_iter_value(Zo, -1);
+        // Output 1 is concat of Zos
+        // start=0, stride=1, part_size=1, end=-1, axis=1
+        auto out2 = loop->get_concatenated_slices(Zo, 0, 1, 1, -1, 1);
+        auto out3 = loop->get_iter_value(sum, -1);
+
+        f = std::make_shared<Function>(OutputVector{out0, out1, out2, out3}, ParameterVector{X, Y, M});
+    }
+
+    InferenceEngine::CNNNetwork network(f);
+    ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
+    ASSERT_TRUE(
+        network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    // concat output
+    ASSERT_TRUE(
+        network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(
+        network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    init_unique_names(f, unh);
+    ASSERT_NO_THROW(network.reshape(
+        InferenceEngine::ICNNNetwork::InputShapes{{f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
+                                                  {f->get_parameters()[1]->get_friendly_name(), {32, 10, 1}},
+                                                  {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
     check_unique_names(f, unh);
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
@@ -279,8 +282,9 @@ TEST(SmartReshapeTests, LoopParentParametersUsedInBody) {
         // That which we iterate over
         auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
         auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto add_Y = std::make_shared<opset5::Add>(Y,
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{0.f}));
+        auto add_Y = std::make_shared<opset5::Add>(
+            Y,
+            std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{0.f}));
         auto M = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
 
         // Set up the cell body, a function from (Xi, add_Y) -> (Zo)
@@ -290,17 +294,16 @@ TEST(SmartReshapeTests, LoopParentParametersUsedInBody) {
         auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
         auto M_body = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
         auto body_condition =
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+            std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
 
-        auto trip_count =
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{}, 10);
+        auto trip_count = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{}, 10);
         auto exec_condition =
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+            std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
         // Body
         auto sum = std::make_shared<ngraph::opset5::Add>(Xi, Yi);
         auto Zo = std::make_shared<ngraph::opset5::Multiply>(sum, M_body);
         auto body = std::make_shared<ngraph::Function>(OutputVector{Zo, body_condition, sum},
-                                                  ParameterVector{Xi, current_iteration, Yi, M_body});
+                                                       ParameterVector{Xi, current_iteration, Yi, M_body});
 
         auto loop = std::make_shared<opset5::Loop>(trip_count, exec_condition);
         loop->set_function(body);
@@ -324,17 +327,20 @@ TEST(SmartReshapeTests, LoopParentParametersUsedInBody) {
 
     InferenceEngine::CNNNetwork network(f);
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
-    ASSERT_TRUE(network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(
+        network.getFunction()->get_results()[1]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
     // concat output
-    ASSERT_TRUE(network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
-    ASSERT_TRUE(network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(
+        network.getFunction()->get_results()[2]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
+    ASSERT_TRUE(
+        network.getFunction()->get_results()[3]->get_output_partial_shape(0).compatible(PartialShape::dynamic()));
 
     auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{
-        {f->get_parameters()[0]->get_friendly_name(), {4, 3, 2}},
-        {f->get_parameters()[1]->get_friendly_name(), {4, 3, 2}},
-        {f->get_parameters()[2]->get_friendly_name(), {4, 3, 2}}}));
+    ASSERT_NO_THROW(network.reshape(
+        InferenceEngine::ICNNNetwork::InputShapes{{f->get_parameters()[0]->get_friendly_name(), {4, 3, 2}},
+                                                  {f->get_parameters()[1]->get_friendly_name(), {4, 3, 2}},
+                                                  {f->get_parameters()[2]->get_friendly_name(), {4, 3, 2}}}));
     check_unique_names(f, unh);
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));
@@ -350,8 +356,9 @@ TEST(SmartReshapeTests, TensorIteratorParentParameterUsedInBody) {
         // That which we iterate over
         auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1});
         auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1});
-        auto add_Y = std::make_shared<opset5::Add>(Y,
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{0.f}));
+        auto add_Y = std::make_shared<opset5::Add>(
+            Y,
+            std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{0.f}));
         auto M = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1});
 
         // Set up the cell body, a function from (Xi, add_Y) -> (Zo)
@@ -360,13 +367,13 @@ TEST(SmartReshapeTests, TensorIteratorParentParameterUsedInBody) {
         auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
         auto M_body = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
         auto body_condition =
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+            std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
 
         // Body
         auto sum = std::make_shared<ngraph::opset5::Add>(Xi, Yi);
         auto Zo = std::make_shared<ngraph::opset5::Multiply>(sum, M_body);
-        auto body = std::make_shared<ngraph::Function>(OutputVector{Zo, body_condition, sum},
-                                                       ParameterVector{Xi, Yi, M_body});
+        auto body =
+            std::make_shared<ngraph::Function>(OutputVector{Zo, body_condition, sum}, ParameterVector{Xi, Yi, M_body});
 
         auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
         tensor_iterator->set_function(body);
@@ -396,10 +403,10 @@ TEST(SmartReshapeTests, TensorIteratorParentParameterUsedInBody) {
 
     auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    ASSERT_NO_THROW(network.reshape(InferenceEngine::ICNNNetwork::InputShapes{
-        {f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
-        {f->get_parameters()[1]->get_friendly_name(), {1, 1, 1}},
-        {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
+    ASSERT_NO_THROW(network.reshape(
+        InferenceEngine::ICNNNetwork::InputShapes{{f->get_parameters()[0]->get_friendly_name(), {32, 1, 10}},
+                                                  {f->get_parameters()[1]->get_friendly_name(), {1, 1, 1}},
+                                                  {f->get_parameters()[2]->get_friendly_name(), {32, 1, 10}}}));
     check_unique_names(f, unh);
 
     ASSERT_TRUE(network.getFunction()->get_results()[0]->get_output_partial_shape(0).compatible({}));

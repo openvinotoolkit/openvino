@@ -5,13 +5,11 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-
-#include <transformations/common_optimizations/skip_gather_before_transpose_and_reshape.hpp>
-
 #include <ngraph/function.hpp>
-#include <openvino/opsets/opset8.hpp>
-#include <transformations/init_node_info.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <openvino/opsets/opset8.hpp>
+#include <transformations/common_optimizations/skip_gather_before_transpose_and_reshape.hpp>
+#include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"

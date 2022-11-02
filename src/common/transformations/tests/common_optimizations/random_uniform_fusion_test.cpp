@@ -163,7 +163,6 @@ TEST_F(TransformationTestsF, RandomUniformWithConvertAddFusing) {
     }
 }
 
-
 TEST_F(TransformationTestsF, RandomUniformFusingInvalidRUType) {
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
@@ -201,7 +200,6 @@ TEST_F(TransformationTestsF, RandomUniformFusingInvalidRUType) {
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
     }
 }
-
 
 TEST_F(TransformationTestsF, RandomUniformFusingInvalidConstShape) {
     {

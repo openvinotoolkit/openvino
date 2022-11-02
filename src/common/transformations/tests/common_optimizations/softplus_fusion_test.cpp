@@ -4,12 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <string>
 #include <transformations/common_optimizations/softplus_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
@@ -41,7 +40,8 @@ TEST_F(TransformationTestsF, SoftPlusFusing) {
 
 TEST_F(TransformationTestsF, SoftPlusFusingDynamic) {
     {
-        auto input0 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
+        auto input0 =
+            std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
         auto exp = std::make_shared<ngraph::opset4::Exp>(input0);
         auto input_const = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.0});
         auto add = std::make_shared<ngraph::opset4::Add>(exp, input_const);
@@ -62,7 +62,8 @@ TEST_F(TransformationTestsF, SoftPlusFusingDynamic) {
 
 TEST_F(TransformationTestsF, SoftPlusFusingNegative) {
     {
-        auto input0 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
+        auto input0 =
+            std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
         auto exp = std::make_shared<ngraph::opset4::Exp>(input0);
         auto input_const = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {-1.0});
         auto add = std::make_shared<ngraph::opset4::Add>(exp, input_const);
@@ -74,7 +75,8 @@ TEST_F(TransformationTestsF, SoftPlusFusingNegative) {
     }
 
     {
-        auto input0 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
+        auto input0 =
+            std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
         auto exp = std::make_shared<ngraph::opset4::Exp>(input0);
         auto input_const = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {-1.0});
         auto add = std::make_shared<ngraph::opset4::Add>(exp, input_const);

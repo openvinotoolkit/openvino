@@ -38,8 +38,7 @@ TEST_F(TransformationTestsF, PReluFusionNegativeAdd) {
         auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 128});
         auto prelu_const = opset8::Constant::create(element::f32, Shape{1}, {0.001});
         auto prelu = std::make_shared<opset8::PRelu>(data, prelu_const);
-        function_ref =
-            std::make_shared<Function>(NodeVector{prelu}, ParameterVector{data});
+        function_ref = std::make_shared<Function>(NodeVector{prelu}, ParameterVector{data});
     }
 }
 
@@ -62,8 +61,7 @@ TEST_F(TransformationTestsF, PReluFusionNegativeSub) {
         auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 128});
         auto prelu_const = opset8::Constant::create(element::f32, Shape{1}, {0.001});
         auto prelu = std::make_shared<opset8::PRelu>(data, prelu_const);
-        function_ref =
-            std::make_shared<Function>(NodeVector{prelu}, ParameterVector{data});
+        function_ref = std::make_shared<Function>(NodeVector{prelu}, ParameterVector{data});
     }
 }
 
@@ -87,8 +85,7 @@ TEST_F(TransformationTestsF, PReluFusionMultiplyAdd) {
         auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 128});
         auto prelu_const = opset8::Constant::create(element::f32, Shape{1}, {0.001});
         auto prelu = std::make_shared<opset8::PRelu>(data, prelu_const);
-        function_ref =
-            std::make_shared<Function>(NodeVector{prelu}, ParameterVector{data});
+        function_ref = std::make_shared<Function>(NodeVector{prelu}, ParameterVector{data});
     }
 }
 
@@ -112,8 +109,7 @@ TEST_F(TransformationTestsF, PReluFusionMultiplySub) {
         auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 128});
         auto prelu_const = opset8::Constant::create(element::f32, Shape{1}, {0.001});
         auto prelu = std::make_shared<opset8::PRelu>(data, prelu_const);
-        function_ref =
-            std::make_shared<Function>(NodeVector{prelu}, ParameterVector{data});
+        function_ref = std::make_shared<Function>(NodeVector{prelu}, ParameterVector{data});
     }
 }
 
