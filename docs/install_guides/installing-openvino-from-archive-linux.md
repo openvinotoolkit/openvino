@@ -69,30 +69,29 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
 4. Download the [OpenVINO Runtime archive file for your system](https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.2/linux/), extract the files, rename the extracted folder and move it to the desired path:
 
 @sphinxdirective
-
    .. tab:: Ubuntu 18.04
 
-      .. code-block:: sh
+     .. code-block:: sh
    
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.2/linux/l_openvino_toolkit_ubuntu18_2022.2.0.7713.af16ea1d79a_x86_64.tgz --output openvino_2022.2.0.7713.tgz
-         tar -xf openvino_2022.2.0.7713.tgz
-         sudo mv l_openvino_toolkit_ubuntu18_2022.2.0.7713.af16ea1d79a_x86_64 /opt/intel/openvino_2022.2.0.7713
+       curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.2/linux/l_openvino_toolkit_ubuntu18_2022.2.0.7713.af16ea1d79a_x86_64.tgz --output openvino_2022.2.0.7713.tgz
+       tar -xf openvino_2022.2.0.7713.tgz
+       sudo mv l_openvino_toolkit_ubuntu18_2022.2.0.7713.af16ea1d79a_x86_64 /opt/intel/openvino_2022.2.0.7713
       
    .. tab:: Ubuntu 20.04
 
-      .. code-block:: sh
+     .. code-block:: sh
    
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.2/linux/l_openvino_toolkit_ubuntu20_2022.2.0.7713.af16ea1d79a_x86_64.tgz --output openvino_2022.2.0.7713.tgz
-         tar -xf openvino_2022.2.0.7713.tgz
-         sudo mv l_openvino_toolkit_ubuntu20_2022.2.0.7713.af16ea1d79a_x86_64 /opt/intel/openvino_2022.2.0.7713
+       curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.2/linux/l_openvino_toolkit_ubuntu20_2022.2.0.7713.af16ea1d79a_x86_64.tgz --output openvino_2022.2.0.7713.tgz
+       tar -xf openvino_2022.2.0.7713.tgz
+       sudo mv l_openvino_toolkit_ubuntu20_2022.2.0.7713.af16ea1d79a_x86_64 /opt/intel/openvino_2022.2.0.7713
       
    .. tab:: RHEL 8
 
-      .. code-block:: sh
+     .. code-block:: sh
    
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.2/linux/l_openvino_toolkit_rhel8_2022.2.0.7713.af16ea1d79a_x86_64.tgz --output openvino_2022.2.0.7713.tgz
-         tar -xf openvino_2022.2.0.7713.tgz
-         sudo mv l_openvino_toolkit_rhel8_2022.2.0.7713.af16ea1d79a_x86_64 /opt/intel/openvino_2022.2.0.7713
+       curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.2/linux/l_openvino_toolkit_rhel8_2022.2.0.7713.af16ea1d79a_x86_64.tgz --output openvino_2022.2.0.7713.tgz
+       tar -xf openvino_2022.2.0.7713.tgz
+       sudo mv l_openvino_toolkit_rhel8_2022.2.0.7713.af16ea1d79a_x86_64 /opt/intel/openvino_2022.2.0.7713
       
 @endsphinxdirective
    
