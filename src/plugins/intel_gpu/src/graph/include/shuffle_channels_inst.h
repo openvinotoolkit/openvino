@@ -10,15 +10,6 @@
 #include <string>
 
 namespace cldnn {
-template <>
-struct typed_program_node<shuffle_channels> : public typed_program_node_base<shuffle_channels> {
-    using parent = typed_program_node_base<shuffle_channels>;
-
-public:
-    using parent::parent;
-
-    program_node& input(size_t index = 0) const { return get_dependency(index); }
-};
 
 using shuffle_channels_node = typed_program_node<shuffle_channels>;
 

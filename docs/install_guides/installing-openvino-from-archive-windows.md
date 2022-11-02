@@ -39,10 +39,10 @@ You can also check the [Release Notes](https://software.intel.com/en-us/articles
      * `Microsoft Visual Studio 2019 with MSBuild <http://visualstudio.microsoft.com/downloads/>`_
      * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`_ (optional, only required for building sample applications)
   * For Python developers: `Python 3.6 - 3.10, 64-bit <https://www.python.org/downloads/windows/>`_
-     * Note that OpenVINO is gradually stopping the support for Python 3.6. Python 3.7 - 3.10 are recommended.
+     * Note that OpenVINO is gradually stopping the support for Python 3.6. You are encouraged to use Python 3.7 - 3.10.
 
   .. note::
-    You can choose to download Community version. Use `Microsoft Visual Studio installation guide <https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019>`_ to walk you through the installation. During installation in the **Workloads** tab, choose **Desktop development with C++**.
+    You can choose to download the Community version. Use `Microsoft Visual Studio installation guide <https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019>`_ to walk you through the installation. During installation in the **Workloads** tab, choose **Desktop development with C++**.
 
   .. note::
     You can either use `cmake<version>.msi` which is the installation wizard or `cmake<version>.zip` where you have to go into the `bin` folder and then manually add the path to environmental variables.
@@ -104,7 +104,7 @@ The environment variables are set. Next, you can download some additional tools.
 
 Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO™ Development Tools can only be installed via PyPI now. See [Install OpenVINO™ Development Tools](installing-model-dev-tools.md) for detailed steps.
 
-OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the [instructions on Github](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
+OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the [instructions on GitHub](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
 
 ### <a name="optional-steps"></a>Step 4 (Optional): Configure Inference on non-CPU Devices
 
@@ -145,24 +145,17 @@ To start with C++ samples, see <a href="openvino_docs_OV_UG_Samples_Overview.htm
 
 To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
 
-@sphinxdirective
+## Additional Resources
 
-.. dropdown:: Additional Resources
+@sphinxdirective
       
-   * Converting models for use with OpenVINO™: :ref:`Model Optimizer Developer Guide <deep learning model optimizer>`
-   * Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
-   * Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
-   * Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
-   * IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_ 
-      
-<!---  
-   To learn more about converting models from specific frameworks, go to: 
-   * :ref:`Convert Your Caffe Model <convert model caffe>`
-   * :ref:`Convert Your TensorFlow Model <convert model tf>`
-   * :ref:`Convert Your Apache MXNet Model <convert model mxnet>`
-   * :ref:`Convert Your Kaldi Model <convert model kaldi>`
-   * :ref:`Convert Your ONNX Model <convert model onnx>`
---->    
-   .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
+* :ref:`Troubleshooting Guide for OpenVINO Installation & Configuration <troubleshooting guide for install>`
+* Converting models for use with OpenVINO™: :ref:`Model Optimizer User Guide <deep learning model optimizer>`
+* Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
+* Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
+* Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
+* IoT libraries and code samples in the GitHub repository: `Intel® IoT Developer Kit`_ 
+
+.. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
 @endsphinxdirective

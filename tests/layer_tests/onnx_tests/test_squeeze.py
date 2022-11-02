@@ -3,10 +3,10 @@
 
 import pytest
 
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 
-class TestSqueeze(Caffe2OnnxLayerTest):
+class TestSqueeze(OnnxRuntimeLayerTest):
     def create_squeeze_net(self, axes, input_shape, output_shape, ir_version):
         """
             ONNX net                                  IR net
