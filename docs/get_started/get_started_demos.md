@@ -15,20 +15,20 @@ Once the prerequisites have been installed, perform the following steps:
 
 ### Install OpenVINO Runtime
 
-If you have not yet installed and configured OpenVINO Runtime, see the following guides:
+If you have not yet installed and configured OpenVINO Runtime, see the following guides. The source code for the OpenVINO samples is not included with the PyPI distribution, so the archive file installation method must be used.
 
 @sphinxdirective
 .. tab:: Linux
 
-   See :doc:`Install OpenVINO Runtime for Linux <openvino_docs_install_guides_installing_openvino_linux_header>`. Running these samples requires OpenCV, so be sure to install OpenCV when you get to the Install Additional Components step.
+   See :doc:`Install OpenVINO Runtime on Linux from an Archive File <openvino_docs_install_guides_installing_openvino_from_archive_linux>`. Running these samples requires OpenCV, so be sure to install OpenCV when you get to the Install Additional Components step.
 
 .. tab:: Windows
 
-   See :doc:`Install OpenVINO Runtime for Windows <openvino_docs_install_guides_installing_openvino_windows_header>` Running these samples requires OpenCV, so be sure to install OpenCV when you get to the Install Additional Components step.
+   See :doc:`Install OpenVINO Runtime on Windows from an Archive File <openvino_docs_install_guides_installing_openvino_from_archive_windows>` Running these samples requires OpenCV, so be sure to install OpenCV when you get to the Install Additional Components step.
 
 .. tab:: macOS
 
-   See :doc:`Install OpenVINO Runtime for macOS <openvino_docs_install_guides_installing_openvino_macos_header>` Running these samples requires OpenCV, so be sure to install OpenCV when you get to the Install Additional Components step.
+   See :doc:`Install OpenVINO Runtime on macOS from an Archive File <openvino_docs_install_guides_installing_openvino_from_archive_macos>` Running these samples requires OpenCV, so be sure to install OpenCV when you get to the Install Additional Components step.
   
 @endsphinxdirective
 
