@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.abspath('doxyrest-sphinx'))
 # -- Project information -----------------------------------------------------
 
 project = 'OpenVINO™'
-copyright = '2021, Intel®'
+copyright = '2022, Intel®'
 author = 'Intel®'
 
 language = 'en'
@@ -82,6 +82,7 @@ html_theme_options = {
     "navigation_depth": 5,
     "use_edit_page_button": True,
     "github_url": "https://github.com/openvinotoolkit/openvino",
+    "footer_items": ["footer_info"],
 }
 
 html_context = {

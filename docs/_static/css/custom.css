@@ -1,3 +1,16 @@
+/* footer links */
+footer div.container div.footer-item p a {
+    float: left;
+    margin-right: 30px;
+}
+footer div.container div.footer-item p a:nth-child(1) {
+    margin-right: 50px;
+}
+footer div.container div.footer-item p:nth-child(2) {
+    clear: both;
+}
+
+/* misc */
 .switcher-set {
     margin-bottom:1rem;
 }
