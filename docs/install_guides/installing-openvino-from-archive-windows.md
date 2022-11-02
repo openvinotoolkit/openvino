@@ -41,7 +41,7 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
   * `Microsoft Visual Studio 2019 with MSBuild <http://visualstudio.microsoft.com/downloads/>`_
   * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`_ (optional, only required for building sample applications)
   * `Python 3.6 - 3.10, 64-bit <https://www.python.org/downloads/windows/>`_
-     * Note that OpenVINO is gradually phasing out support for Python 3.6. Python 3.7 - 3.10 are recommended.
+     * Note that OpenVINO is gradually phasing out support for Python 3.6. You are encouraged to use Python 3.7 - 3.10.
 
   .. note::
      To install Microsoft Visual Studio 2019, follow the `Microsoft Visual Studio installation guide <https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019>`_. You can choose to download the Community version. During installation in the **Workloads** tab, choose **Desktop development with C++**.
@@ -113,7 +113,7 @@ OpenVINO Development Tools is a set of utilities for working with OpenVINO and O
 
 See the [Install OpenVINO Development Tools](installing-model-dev-tools.md) page for step-by-step installation instructions.
 
-OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the [instructions on Github](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
+OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the [instructions on GitHub](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
 
 ### <a name="optional-steps"></a>Step 4 (Optional): Configure Inference on non-CPU Devices
 OpenVINO Runtime has a plugin architecture that enables you to run inference on multiple devices without rewriting your code. Supported devices include integrated GPUs, discrete GPUs, NCS2, VPUs, and GNAs. See the instructions below to set up OpenVINO on these devices.
@@ -174,8 +174,9 @@ To uninstall OpenVINO, follow the steps on the [Uninstalling page](uninstalling-
 
 ## Additional Resources
 
-@sphinxdirective
+## Additional Resources
 
+* :ref:`Troubleshooting Guide for OpenVINO Installation & Configuration <troubleshooting guide for install>`
 * Converting models for use with OpenVINO™: :ref:`Model Optimizer Developer Guide <deep learning model optimizer>`
 * Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
 * Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`

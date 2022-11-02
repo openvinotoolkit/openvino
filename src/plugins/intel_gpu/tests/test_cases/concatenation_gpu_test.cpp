@@ -851,7 +851,7 @@ public:
         concat_network.execute();
 
         bool concat_opt_enabled = options.get<build_option_type::optimize_data>()->enabled();
-        bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network.get_primitive("concat"))->node.can_be_optimized();
+        bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network.get_primitive("concat"))->node->can_be_optimized();
         EXPECT_TRUE(concat_opt_enabled==concat_opt_result);
 
         return concat_network.get_output("reorder").get_memory();
@@ -1064,7 +1064,7 @@ public:
         concat_network.execute();
 
         bool concat_opt_enabled = options.get<build_option_type::optimize_data>()->enabled();
-        bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network.get_primitive("concat"))->node.can_be_optimized();
+        bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network.get_primitive("concat"))->node->can_be_optimized();
         EXPECT_TRUE(concat_opt_enabled==concat_opt_result);
 
         return concat_network.get_output("reorder").get_memory();

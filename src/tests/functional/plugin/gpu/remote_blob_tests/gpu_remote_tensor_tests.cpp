@@ -1316,3 +1316,72 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_buffer) {
 
 const std::vector<size_t> num_batches{ 1, 2, 4 };
 INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensor, OVRemoteTensorBatched_Test, ::testing::ValuesIn(num_batches), OVRemoteTensorBatched_Test::getTestCaseName);
+
+TEST(OVRemoteContextGPU, smoke_RemoteContextPerDevice) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    auto core = ov::Core();
+    std::vector<std::string> gpuDevices;
+    std::vector<std::string> availableDevices = core.get_available_devices();
+
+    std::for_each(availableDevices.begin(), availableDevices.end(), [&](const std::string& device){
+        if (device.find(CommonTestUtils::DEVICE_GPU) != std::string::npos)
+            gpuDevices.push_back(device);
+    });
+
+    if (gpuDevices.size() < 2)
+        GTEST_SKIP();
+
+    const auto gpuDeviceFirst = gpuDevices[0];
+    const auto gpuDeviceSecond = gpuDevices[1];
+
+    auto defaultContextFirst = core.get_default_context(gpuDeviceFirst);
+    auto defaultContextSecond = core.get_default_context(gpuDeviceSecond);
+
+    // Check devices names
+    ASSERT_EQ(defaultContextFirst.get_device_name(), gpuDeviceFirst);
+    ASSERT_EQ(defaultContextSecond.get_device_name(), gpuDeviceSecond);
+}
+
+TEST(OVRemoteContextGPU, smoke_RemoteContextCaching) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    auto core = ov::Core();
+    std::vector<std::string> gpuDevices;
+    std::vector<std::string> availableDevices = core.get_available_devices();
+
+    std::for_each(availableDevices.begin(), availableDevices.end(), [&](const std::string& device){
+        if (device.find(CommonTestUtils::DEVICE_GPU) != std::string::npos)
+            gpuDevices.push_back(device);
+    });
+
+    if (gpuDevices.size() < 2)
+        GTEST_SKIP();
+
+    const auto gpuDeviceFirst = gpuDevices[0];
+    const auto gpuDeviceSecond = gpuDevices[1];
+    auto model = ngraph::builder::subgraph::makeConvertTranspose();
+
+    auto compiledModelFirst = core.compile_model(model, gpuDeviceFirst);
+    auto compiledModelSecond = core.compile_model(model, gpuDeviceSecond);
+
+    auto compiledModelFirstContext = compiledModelFirst.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    auto compiledModelSecondContext = compiledModelSecond.get_context().as<ov::intel_gpu::ocl::ClContext>();
+
+    auto defaultContextFirst = core.get_default_context(gpuDeviceFirst).as<ov::intel_gpu::ocl::ClContext>();
+    // Check devices names
+    ASSERT_EQ(defaultContextFirst.get_device_name(), gpuDeviceFirst);
+    // Check underlying OpenCL context handles
+    ASSERT_EQ(compiledModelFirstContext.get(), defaultContextFirst.get());
+
+    auto defaultContextSecond = core.get_default_context(gpuDeviceSecond).as<ov::intel_gpu::ocl::ClContext>();
+    // Check devices names
+    ASSERT_EQ(defaultContextSecond.get_device_name(), gpuDeviceSecond);
+    // Check underlying OpenCL context handles
+    ASSERT_EQ(compiledModelSecondContext.get(), compiledModelSecondContext.get());
+
+    // Expect different contexts for different devices
+    ASSERT_NE(compiledModelFirstContext.get(), compiledModelSecondContext.get());
+}
