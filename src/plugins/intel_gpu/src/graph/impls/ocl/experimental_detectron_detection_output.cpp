@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "eddo/experimental_detectron_detection_output_kernel_ref.h"
-#include "eddo/experimental_detectron_detection_output_kernel_selector.h"
+#include "ed_do/detection_output_kernel_ref.h"
+#include "ed_do/detection_output_kernel_selector.h"
 #include "experimental_detectron_detection_output_inst.hpp"
 #include "impls/implementation_map.hpp"
 #include "kernel_selector_helper.h"
@@ -70,10 +70,17 @@ public:
 
 namespace detail {
 attach_experimental_detectron_detection_output_impl::attach_experimental_detectron_detection_output_impl() {
-    implementation_map<experimental_detectron_detection_output>::add(
-        impl_types::ocl,
-        experimental_detectron_detection_output_impl::create,
-        {std::make_tuple(data_types::f16, format::bfyx), std::make_tuple(data_types::f32, format::bfyx)});
+  const std::vector<data_types> types {data_types::f16, data_types::f32};
+  const std::vector<format::type> formats = {format::bfyx,
+                        format::b_fs_yx_fsv16,
+                        format::b_fs_yx_fsv32,
+                        format::bs_fs_yx_bsv16_fsv16,
+                        format::bs_fs_yx_bsv32_fsv32,
+                        format::bs_fs_yx_bsv32_fsv16};
+
+  implementation_map<experimental_detectron_detection_output>::add(
+      impl_types::ocl, experimental_detectron_detection_output_impl::create,
+      types, formats);
 }
 }  // namespace detail
 }  // namespace ocl

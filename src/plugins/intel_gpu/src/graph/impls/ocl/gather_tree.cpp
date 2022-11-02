@@ -44,14 +44,23 @@ struct gather_tree_impl : typed_primitive_impl_ocl<gather_tree> {
 };
 namespace detail {
 attach_gather_tree_impl::attach_gather_tree_impl() {
-    implementation_map<gather_tree>::add(impl_types::ocl, gather_tree_impl::create, {
-        std::make_tuple(data_types::i32, format::yxfb),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::i32, format::byxf),
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f32, format::byxf),
-    });
+    auto types = {data_types::i32, data_types::f32};
+    auto formats = {
+        format::yxfb,
+        format::bfyx,
+        format::byxf,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv4_fsv4,
+        format::bs_fs_yx_bsv8_fsv4,
+        format::bs_fs_yx_bsv8_fsv2,
+        format::bs_fs_yx_bsv4_fsv2,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32,
+    };
+
+    implementation_map<gather_tree>::add(impl_types::ocl, gather_tree_impl::create, types, formats);
 }
 
 }  // namespace detail

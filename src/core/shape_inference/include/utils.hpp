@@ -3,35 +3,39 @@
 //
 #pragma once
 
-#include <openvino/opsets/opset1.hpp>
 #include <openvino/core/validation_util.hpp>
-
+#include <openvino/opsets/opset1.hpp>
 
 template <class OpType, class T>
 void copy_shape_infer(const OpType* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 1 && output_shapes.size() == 1,
+    NODE_VALIDATION_CHECK(op,
+                          input_shapes.size() == 1 && output_shapes.size() == 1,
                           "Incorrect number of input/output shapes");
     output_shapes[0] = input_shapes[0];
 }
 
 template <class OpType, class T>
-void first_input_passthrough_infer(const OpType* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    NODE_VALIDATION_CHECK(op, output_shapes.size() == 1 && input_shapes.size() >= 1,
+void first_input_passthrough_infer(const OpType* op,
+                                   const std::vector<T>& input_shapes,
+                                   std::vector<T>& output_shapes) {
+    NODE_VALIDATION_CHECK(op,
+                          output_shapes.size() == 1 && input_shapes.size() >= 1,
                           "Incorrect number of input and output shapes");
     output_shapes[0] = input_shapes[0];
 }
 
 template <class OpType, class T>
 void eltwise_shape_infer(const OpType* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1,
+    NODE_VALIDATION_CHECK(op,
+                          input_shapes.size() == 2 && output_shapes.size() == 1,
                           "Incorrect number of input/output shapes");
     T output_shape = input_shapes[0];
     ov::op::AutoBroadcastSpec autob = op->get_autob();
     if (autob.m_type == ov::op::AutoBroadcastType::NONE) {
-        NODE_VALIDATION_CHECK(op, T::merge_into(output_shape, input_shapes[1]),
-                              "Argument shapes are inconsistent.");
+        NODE_VALIDATION_CHECK(op, T::merge_into(output_shape, input_shapes[1]), "Argument shapes are inconsistent.");
     } else if (autob.m_type == ov::op::AutoBroadcastType::NUMPY || autob.m_type == ov::op::AutoBroadcastType::PDPD) {
-        NODE_VALIDATION_CHECK(op, T::broadcast_merge_into(output_shape, input_shapes[1], autob),
+        NODE_VALIDATION_CHECK(op,
+                              T::broadcast_merge_into(output_shape, input_shapes[1], autob),
                               "Argument shapes are inconsistent.");
     } else {
         NODE_VALIDATION_CHECK(op, false, "Unsupported auto broadcast specification");
@@ -39,11 +43,12 @@ void eltwise_shape_infer(const OpType* op, const std::vector<T>& input_shapes, s
     output_shapes[0] = output_shape;
 }
 
-
 template <class T>
 inline bool get_data_as_int64(
-        size_t idx, const ov::Node* op, std::vector<int64_t>& axes_value,
-        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+    size_t idx,
+    const ov::Node* op,
+    std::vector<int64_t>& axes_value,
+    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     if (constant_data.count(idx)) {
         axes_value = ov::opset1::Constant(constant_data.at(idx)).cast_vector<int64_t>();
     } else {
@@ -56,8 +61,10 @@ inline bool get_data_as_int64(
 
 template <>
 inline bool get_data_as_int64<ov::PartialShape>(
-        size_t idx, const ov::Node* op, std::vector<int64_t>& axes_value,
-        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
+    size_t idx,
+    const ov::Node* op,
+    std::vector<int64_t>& axes_value,
+    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
     if (constant_data.count(idx)) {
         axes_value = ov::opset1::Constant(constant_data.at(idx)).cast_vector<int64_t>();
     } else if (const auto& constant = ov::get_constant_from_source(op->input_value(idx))) {
@@ -70,8 +77,10 @@ inline bool get_data_as_int64<ov::PartialShape>(
 
 template <class T>
 inline bool get_data_as_float(
-        size_t idx, const ov::Node* op, std::vector<float>& axes_value,
-        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+    size_t idx,
+    const ov::Node* op,
+    std::vector<float>& axes_value,
+    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     if (constant_data.count(idx)) {
         axes_value = ov::opset1::Constant(constant_data.at(idx)).cast_vector<float>();
     } else {
@@ -84,8 +93,10 @@ inline bool get_data_as_float(
 
 template <>
 inline bool get_data_as_float<ov::PartialShape>(
-        size_t idx, const ov::Node* op, std::vector<float>& axes_value,
-        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
+    size_t idx,
+    const ov::Node* op,
+    std::vector<float>& axes_value,
+    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
     if (constant_data.count(idx)) {
         axes_value = ov::opset1::Constant(constant_data.at(idx)).cast_vector<float>();
     } else if (const auto& constant = ov::get_constant_from_source(op->input_value(idx))) {
@@ -98,8 +109,10 @@ inline bool get_data_as_float<ov::PartialShape>(
 
 template <class T>
 inline bool get_data_as_shape(
-        size_t idx, const ov::Node* op, T& shape,
-        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+    size_t idx,
+    const ov::Node* op,
+    T& shape,
+    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     if (constant_data.count(idx)) {
         shape = T(ov::opset1::Constant(constant_data.at(idx)).cast_vector<size_t>());
     } else {
@@ -112,8 +125,10 @@ inline bool get_data_as_shape(
 
 template <>
 inline bool get_data_as_shape<ov::PartialShape>(
-        size_t idx, const ov::Node* op, ov::PartialShape& shape,
-        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
+    size_t idx,
+    const ov::Node* op,
+    ov::PartialShape& shape,
+    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
     if (constant_data.count(idx)) {
         shape = ov::PartialShape(ov::opset1::Constant(constant_data.at(idx)).cast_vector<int64_t>());
         return true;

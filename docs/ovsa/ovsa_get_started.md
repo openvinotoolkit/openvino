@@ -102,7 +102,7 @@ After the license is successfully validated, the OpenVINO™ Model Server loads 
 
 ![Security Add-on Diagram](ovsa_diagram.png)
 
-The binding between SWTPM (vTPM used in guest VM) and HW TPM (TPM on the host) is explained in [this document](https://github.com/openvinotoolkit/security_addon/blob/release_2021_4/docs/fingerprint-changes.md)
+The binding between SWTPM (vTPM used in guest VM) and HW TPM (TPM on the host) is explained in [this document](https://github.com/openvinotoolkit/security_addon/blob/master/docs/fingerprint-changes.md)
 
 ## About the Installation
 The Model Developer, Independent Software Vendor, and User each must prepare one physical hardware machine and one Kernel-based Virtual Machine (KVM). In addition, each person must prepare a Guest Virtual Machine (Guest VM) for each role that person plays. 
@@ -175,18 +175,16 @@ Begin this step on the Intel® Core™ or Xeon® processor machine that meets th
    ```sh	
    qemu-system-x86_64 --version 
    ```	
-   If the response indicates a QEMU version lower than 2.12.0 download, compile and install the latest QEMU version from [https://www.qemu.org/download](https://www.qemu.org/download).
-5.  Build and install the [`libtpm` package](https://github.com/stefanberger/libtpms/). 
-6.  Build and install the [`swtpm` package](https://github.com/stefanberger/swtpm/).
+   If the response indicates a QEMU version lower than 2.12.0 download, compile and install the latest QEMU version from [QEMU website](https://www.qemu.org/download).
+5.  Build and install the [libtpm package](https://github.com/stefanberger/libtpms/). 
+6.  Build and install the [swtpm package](https://github.com/stefanberger/swtpm/).
 7.  Add the `swtpm` package to the `$PATH` environment variable.
-8.  Install the software tool [`tpm2-tss`]( https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz).<br>
-    Installation information is at https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md
-9.  Install the software tool [`tpm2-abmrd`](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz).<br>
-    Installation information is at https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md
-10. Install the [`tpm2-tools`](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz).<br>
-    Installation information is at https://github.com/tpm2-software/tpm2-tools/blob/master/INSTALL.md
-11. Install the [Docker packages](https://docs.docker.com/engine/install/ubuntu/).	
-    **NOTE**: Regardless of whether you used the `install_host_deps.sh` script, complete step 12 to finish setting up the packages on the Host Machine.
+8.  Install the software tool [tpm2-tss](https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz). For innstallation information follow [here](https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md)
+9.  Install the software tool [tpm2-abmrd](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz). For innstallation information follow [here](https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md)
+10. Install the [tpm2-tools](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz). For innstallation information follow [here](https://github.com/tpm2-software/tpm2-tools/blob/master/docs/INSTALL.md)
+11. Install the [Docker packages](https://docs.docker.com/engine/install/ubuntu/).
+    > **NOTE**: Regardless of whether you used the `install_host_deps.sh` script, complete step 12 to finish setting up the packages on the Host Machine.
+
 12. If you are running behind a proxy, [set up a proxy for Docker](https://docs.docker.com/config/daemon/systemd/). 
 
 The following are installed and ready to use:
@@ -314,7 +312,7 @@ Begin these steps on the Host Machine.
 
 As an option, you can use `virsh` and the virtual machine manager to create and bring up a Guest VM. See the `libvirtd` documentation for instructions if you'd like to do this.
 
-1. Download the [Ubuntu 18.04 server ISO image](https://releases.ubuntu.com/18.04/ubuntu-18.04.5-live-server-amd64.iso)
+1. Download the **Server install ISO image for 64-bit PC (AMD64) computers** of [Ubuntu 18.04](https://releases.ubuntu.com/18.04/)
 
 2. Create an empty virtual disk image to serve as the Guest VM for your role as Model Developer and Independent Software Vendor:
    ```sh
@@ -348,12 +346,12 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
       2. Run the script.
       3. Shut down the Guest VM.<br>
    * **Option 2** : Manually install additional software
-      1. Install the software tool [`tpm2-tss`](https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz). 
-      Installation information is at https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md
-      2. Install the software tool [`tpm2-abmrd`](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz). 
-      Installation information is at https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md
-      3. Install the [`tpm2-tools`](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz). 
-      Installation information is at https://github.com/tpm2-software/tpm2-tools/blob/master/INSTALL.md
+      1. Install the software tool [tpm2-tss](https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz). 
+      For installation information follow [here](https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md)
+      2. Install the software tool [tpm2-abmrd](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz). 
+      For installation information follow [here](https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md)
+      3. Install the [tpm2-tools](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz). 
+      For installation information follow [here](https://github.com/tpm2-software/tpm2-tools/blob/master/docs/INSTALL.md)
       4. Install the [Docker packages](https://docs.docker.com/engine/install/ubuntu/)
       5. Shut down the Guest VM.<br>
 9. On the host, create a directory to support the virtual TPM device and provision its certificates. Only `root` should have read/write permission to this directory:
@@ -366,7 +364,9 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
    /usr/share/swtpm/swtpm-create-user-config-files
    swtpm_setup --tpmstate /var/OVSA/vtpm/vtpm_isv_dev --create-ek-cert --create-platform-cert --overwrite --tpm2 --pcr-banks -
    ```
-   **NOTE**: For steps 10 and 11, you can copy and edit the script named `start_ovsa_isv_dev_vm.sh` in the `Scripts/reference` directory in the OpenVINO™ Security Add-on repository instead of manually running the commands. If using the script, select the script with `isv` in the file name regardless of whether you are playing the role of the Model Developer or the role of the Independent Software Vendor. Edit the script to point to the correct directory locations and increment `vnc` for each Guest VM.
+    > **NOTE**: For steps 10 and 11, you can copy and edit the script named `start_ovsa_isv_dev_vm.sh` in the `Scripts/reference` directory in the OpenVINO™ Security Add-on repository instead of manually running the commands. If using the script, select the script with `isv` in the file name regardless of whether you are playing the role of the Model Developer or the role of the Independent Software Vendor. Edit the script to point to the correct directory locations and increment `vnc` for each Guest VM.
+
+
 10. Start the vTPM on Host, write the HW TPM data into its NVRAM and restart the vTPM for QEMU:
    ```sh
     sudo swtpm socket --tpm2 --server port=8280 \
@@ -408,8 +408,10 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
 ### Step 5: Set Up one Guest VM for the User role
 
 1. Choose **ONE** of these options to create a Guest VM for the User role:<br>
-   **Option 1: Copy and Rename the `ovsa_isv_dev_vm_disk.qcow2` disk image**
-   1. Copy the `ovsa_isv_dev_vm_disk.qcow2` disk image to a new image named `ovsa_runtime_vm_disk.qcow2`. You created the `ovsa_isv_dev_vm_disk.qcow2` disk image in <a  href="#prerequisites">Step 3</a>.
+
+   **Option 1: Copy and Rename the ovsa_isv_dev_vm_disk.qcow2 disk image**
+
+   1. Copy the `ovsa_isv_dev_vm_disk.qcow2` disk image to a new image named `ovsa_runtime_vm_disk.qcow2`. You created the `ovsa_isv_dev_vm_disk.qcow2` disk image in <a  href="#dev-isv-vm">Step 4</a>.
    2. Boot the new image. 
    3. Change the hostname from `ovsa_isv_dev` to `ovsa_runtime`.  
    ```sh 
@@ -425,8 +427,9 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
    systemd-machine-id-setup
    ```
    6. Shut down the Guest VM.<br><br>
-       
+
    **Option 2: Manually create the Guest VM**
+
    1. Create an empty virtual disk image:
    ```sh
    sudo qemu-img create -f qcow2 <path>/ovsa_ovsa_runtime_vm_disk.qcow2 20G
@@ -461,14 +464,13 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
       3. Shut down the Guest VM.<br><br>
 	        
       **Option 2: Manually install additional software**
-      1. Install the software tool [`tpm2-tss`](https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz) <br>
-      Installation information is at https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md <br><br>
-      2. Install the software tool [`tpm2-abmrd`](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz) <br>
-      Installation information is at https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md <br><br>
-      3. Install the [`tpm2-tools`](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz) <br>
-      Installation information is at https://github.com/tpm2-software/tpm2-tools/blob/master/INSTALL.md <br><br>
+      1. Install the software tool [tpm2-tss](https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz) For innstallation information follow [here](https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md)
+      2. Install the software tool [tpm2-abmrd](https://github.com/tpm2-software/tpm2-abrmd/releases/download/2.3.3/tpm2-abrmd-2.3.3.tar.gz)
+      For innstallation information follow [here](https://github.com/tpm2-software/tpm2-abrmd/blob/master/INSTALL.md)
+      3. Install the [tpm2-tools](https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz)
+      For innstallation information follow [here](https://github.com/tpm2-software/tpm2-tools/blob/master/docs/INSTALL.md)
       4. Install the [Docker packages](https://docs.docker.com/engine/install/ubuntu/) 
-      5. Shut down the Guest VM.<br><br>            
+      5. Shut down the Guest VM.
 
 2. Create a directory to support the virtual TPM device and provision its certificates. Only `root` should have read/write permission to this directory:
    ```sh
@@ -478,7 +480,9 @@ As an option, you can use `virsh` and the virtual machine manager to create and 
    /usr/share/swtpm/swtpm-create-user-config-files
    swtpm_setup --tpmstate /var/OVSA/vtpm/vtpm_runtime --create-ek-cert --create-platform-cert --overwrite --tpm2 --pcr-banks -
    ```
-   **NOTE**: For steps 3 and 4, you can copy and edit the script named `start_ovsa_runtime_vm.sh` in the `Scripts/reference` directory in the OpenVINO™ Security Add-on repository instead of manually running the commands. Edit the script to point to the correct directory locations and increment `vnc` for each Guest VM. This means that if you are creating a third Guest VM on the same Host Machine, change `-vnc :2` to `-vnc :3`
+    > **NOTE**: For steps 3 and 4, you can copy and edit the script named `start_ovsa_runtime_vm.sh` in the `Scripts/reference` directory in the OpenVINO™ Security Add-on repository instead of manually running the commands. Edit the script to point to the correct directory locations and increment `vnc` for each Guest VM. This means that if you are creating a third Guest VM on the same Host Machine, change `-vnc :2` to `-vnc :3`
+
+
 3. Start the vTPM, write the HW TPM data into its NVRAM and restart the vTPM for QEMU:
    ```sh
    sudo swtpm socket --tpm2 --server port=8380 \
@@ -523,12 +527,14 @@ Follow the below steps to build and Install OpenVINO™ Security Add-on on host 
 Building OpenVINO™ Security Add-on depends on OpenVINO™ Model Server docker containers. Download and build OpenVINO™ Model Server first on the host.
 
 1. Download the [OpenVINO™ Model Server software](https://github.com/openvinotoolkit/model_server)
+
 2. Build the [OpenVINO™ Model Server Docker images](https://github.com/openvinotoolkit/model_server/blob/main/docs/docker_container.md)
    ```sh
    git clone https://github.com/openvinotoolkit/model_server.git
    cd model_server
    make docker_build
    ```
+
 ### Step 2: Build the software required for all roles
 
 This step is for the combined role of Model Developer and Independent Software Vendor, and the User
@@ -601,7 +607,7 @@ This step is for the combined role of Model Developer and Independent Software V
    cd /opt/ovsa/bin
    ./license_server
    ```
-   **NOTE**: If you are behind a firewall, check and set your proxy settings to ensure the license server is able to validate the certificates.
+   > **NOTE**: If you are behind a firewall, check and set your proxy settings to ensure the license server is able to validate the certificates.
 
 ### Step 5: Install the OpenVINO™ Security Add-on Model Hosting Component
 
@@ -642,7 +648,7 @@ This document uses the [face-detection-retail-0004](@ref omz_models_model_face_d
 
 The following figure describes the interactions between the Model Developer, Independent Software Vendor, and User.
 
-**Remember**: The Model Developer/Independent Software Vendor and User roles are related to virtual machine use and one person might fill the tasks required by multiple roles. In this document the tasks of Model Developer and Independent Software Vendor are combined and use the Guest VM named `ovsa_isv`. It is possible to have all roles set up on the same Host Machine.
+> **TIP**: The Model Developer/Independent Software Vendor and User roles are related to virtual machine use and one person might fill the tasks required by multiple roles. In this document the tasks of Model Developer and Independent Software Vendor are combined and use the Guest VM named `ovsa_isv`. It is possible to have all roles set up on the same Host Machine.
 
 ![OpenVINO™ Security Add-on Example Diagram](ovsa_example.png)
 
@@ -720,7 +726,8 @@ The access controlled model is ready to be shared with the User and the referenc
    cd $OVSA_DEV_ARTEFACTS
    /opt/ovsa/bin/ovsatool licgen -t TimeLimit -l30 -n "Time Limit License Config" -v 1.0 -u "<isv-developer-vm-ip-address>:<license_server-port>" /opt/ovsa/certs/server.crt  -k isv_keystore -o 30daylicense.config
    ```
-   **NOTE**: The parameter /opt/ovsa/certs/server.crt  contains the certificate used by the License Server. The server certificate will be added to the customer license and validated during use. Refer to [OpenVINO™ Security Add-on License Server Certificate Pinning](https://github.com/openvinotoolkit/security_addon/blob/release_2021_4/docs/ovsa_license_server_cert_pinning.md)
+    > **NOTE**: The parameter /opt/ovsa/certs/server.crt  contains the certificate used by the License Server. The server certificate will be added to the customer license and validated during use. Refer to [OpenVINO™ Security Add-on License Server Certificate Pinning](https://github.com/openvinotoolkit/security_addon/blob/master/docs/ovsa_license_server_cert_pinning.md)
+
 3. Create the customer license
    ```sh
    cd $OVSA_DEV_ARTEFACTS
@@ -830,7 +837,7 @@ The NGINX Model Server publishes the access controlled model.
    ```sh
    ./start_secure_ovsa_model_server.sh
    ```
-For information about the NGINX interface, see https://github.com/openvinotoolkit/model_server/blob/main/extras/nginx-mtls-auth/README.md
+For information about the NGINX interface follow [here](https://github.com/openvinotoolkit/model_server/blob/main/extras/nginx-mtls-auth/README.md).
 
 #### Step 6: Prepare to run Inference
 
