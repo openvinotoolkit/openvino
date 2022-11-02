@@ -176,6 +176,161 @@ TEST(ov_preprocess, ov_preprocess_preprocess_steps_resize) {
     ov_core_free(core);
 }
 
+TEST(ov_preprocess, ov_preprocess_preprocess_steps_scale) {
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
+    EXPECT_NE(nullptr, preprocess);
+
+    ov_preprocess_input_info_t* input_info = nullptr;
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_get_input_info_by_index(preprocess, 0, &input_info));
+    EXPECT_NE(nullptr, input_info);
+
+    ov_preprocess_preprocess_steps_t* input_process = nullptr;
+    OV_EXPECT_OK(ov_preprocess_input_info_get_preprocess_steps(input_info, &input_process));
+    EXPECT_NE(nullptr, input_process);
+
+    OV_EXPECT_OK(ov_preprocess_preprocess_steps_scale(input_process, 2.0f));
+
+    ov_preprocess_preprocess_steps_free(input_process);
+    ov_preprocess_input_info_free(input_info);
+    ov_preprocess_prepostprocessor_free(preprocess);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST(ov_preprocess, ov_preprocess_preprocess_steps_mean) {
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
+    EXPECT_NE(nullptr, preprocess);
+
+    ov_preprocess_input_info_t* input_info = nullptr;
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_get_input_info_by_index(preprocess, 0, &input_info));
+    EXPECT_NE(nullptr, input_info);
+
+    ov_preprocess_preprocess_steps_t* input_process = nullptr;
+    OV_EXPECT_OK(ov_preprocess_input_info_get_preprocess_steps(input_info, &input_process));
+    EXPECT_NE(nullptr, input_process);
+
+    OV_EXPECT_OK(ov_preprocess_preprocess_steps_mean(input_process, 2.0f));
+
+    ov_preprocess_preprocess_steps_free(input_process);
+    ov_preprocess_input_info_free(input_info);
+    ov_preprocess_prepostprocessor_free(preprocess);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST(ov_preprocess, ov_preprocess_preprocess_steps_crop) {
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
+    EXPECT_NE(nullptr, preprocess);
+
+    ov_preprocess_input_info_t* input_info = nullptr;
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_get_input_info_by_index(preprocess, 0, &input_info));
+    EXPECT_NE(nullptr, input_info);
+
+    ov_preprocess_preprocess_steps_t* input_process = nullptr;
+    OV_EXPECT_OK(ov_preprocess_input_info_get_preprocess_steps(input_info, &input_process));
+    EXPECT_NE(nullptr, input_process);
+
+    int32_t begin[] = {0, 0, 5, 10};
+    int32_t end[] = {1, 3, 15, 20};
+    OV_EXPECT_OK(ov_preprocess_preprocess_steps_crop(input_process, begin, 4, end, 4));
+
+    ov_preprocess_preprocess_steps_free(input_process);
+    ov_preprocess_input_info_free(input_info);
+    ov_preprocess_prepostprocessor_free(preprocess);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST(ov_preprocess, ov_preprocess_preprocess_steps_convert_layout) {
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
+    EXPECT_NE(nullptr, preprocess);
+
+    ov_preprocess_input_info_t* input_info = nullptr;
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_get_input_info_by_index(preprocess, 0, &input_info));
+    EXPECT_NE(nullptr, input_info);
+
+    ov_preprocess_preprocess_steps_t* input_process = nullptr;
+    OV_EXPECT_OK(ov_preprocess_input_info_get_preprocess_steps(input_info, &input_process));
+    EXPECT_NE(nullptr, input_process);
+
+    ov_layout_t* layout = nullptr;
+    const char* input_layout_desc = "NCHW";
+    OV_EXPECT_OK(ov_layout_create(input_layout_desc, &layout));
+    OV_EXPECT_OK(ov_preprocess_preprocess_steps_convert_layout(input_process, layout));
+
+    ov_preprocess_preprocess_steps_free(input_process);
+    ov_preprocess_input_info_free(input_info);
+    ov_preprocess_prepostprocessor_free(preprocess);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST(ov_preprocess, ov_preprocess_preprocess_steps_reverse_channels) {
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_preprocess_prepostprocessor_t* preprocess = nullptr;
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
+    EXPECT_NE(nullptr, preprocess);
+
+    ov_preprocess_input_info_t* input_info = nullptr;
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_get_input_info_by_index(preprocess, 0, &input_info));
+    EXPECT_NE(nullptr, input_info);
+
+    ov_preprocess_preprocess_steps_t* input_process = nullptr;
+    OV_EXPECT_OK(ov_preprocess_input_info_get_preprocess_steps(input_info, &input_process));
+    EXPECT_NE(nullptr, input_process);
+
+    OV_EXPECT_OK(ov_preprocess_preprocess_steps_reverse_channels(input_process));
+
+    ov_preprocess_preprocess_steps_free(input_process);
+    ov_preprocess_input_info_free(input_info);
+    ov_preprocess_prepostprocessor_free(preprocess);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
 TEST(ov_preprocess, ov_preprocess_input_tensor_info_set_element_type) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
