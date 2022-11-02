@@ -323,7 +323,7 @@ MATMUL_MODELS = [
 ]
 
 
-class NPYLoader(DataLoader):
+class RandomDataLoader(DataLoader):
     """ Generate random float32 data """
     def __init__(self, shapes, seed=0):
         self.rng = np.random.default_rng(seed)
@@ -353,7 +353,7 @@ def test_matmul_scale_unification(tmp_path, models, model_name, model_framework,
         'target_device': 'CPU',
     })
 
-    data_loader = NPYLoader(input_shapes)
+    data_loader = RandomDataLoader(input_shapes)
     engine = SimplifiedEngine({"device": "CPU"}, data_loader=data_loader)
     model_with_stats = calculate_statistics(model, compression_config, engine)
 
