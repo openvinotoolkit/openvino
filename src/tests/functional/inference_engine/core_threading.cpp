@@ -18,6 +18,12 @@
 #include <mutex>
 #include <chrono>
 #include <fstream>
+#ifdef __GLIBC__
+#include <gnu/libc-version.h>
+#if __GLIBC_MINOR__  >= 34
+    #define ENABLECONDTEST
+#endif
+#endif
 
 class CoreThreadingTests : public ::testing::Test {
 protected:
@@ -131,22 +137,24 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
 
 // tested function: GetAvailableDevices, UnregisterPlugin
 // TODO: some initialization (e.g. thread/dlopen) sporadically fails during such stress-test scenario
-TEST_F(CoreThreadingTests, DISABLED_GetAvailableDevices) {
-    InferenceEngine::Core ie;
-    runParallel([&] () {
-        std::vector<std::string> devices = ie.GetAvailableDevices();
+TEST_F(CoreThreadingTests, GetAvailableDevices) {
+    #ifdef ENABLECONDTEST
+        InferenceEngine::Core ie;
+        runParallel([&] () {
+            std::vector<std::string> devices = ie.GetAvailableDevices();
 
-        // unregister all the devices
-        for (auto && deviceName : devices) {
-            try {
-                ie.UnregisterPlugin(deviceName);
-            } catch (const InferenceEngine::Exception & ex) {
-                // if several threads unload plugin at once, the first thread does this
-                // while all others will throw an exception that plugin is not registered
-                ASSERT_STR_CONTAINS(ex.what(), "name is not registered in the");
+            // unregister all the devices
+            for (auto && deviceName : devices) {
+                try {
+                    ie.UnregisterPlugin(deviceName);
+                } catch (const InferenceEngine::Exception & ex) {
+                    // if several threads unload plugin at once, the first thread does this
+                    // while all others will throw an exception that plugin is not registered
+                    ASSERT_STR_CONTAINS(ex.what(), "name is not registered in the");
+                }
             }
-        }
-    }, 30);
+        }, 30);
+    #endif
 }
 
 // tested function: ReadNetwork, AddExtension
