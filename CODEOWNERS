@@ -17,6 +17,7 @@ Jenkinsfile  @openvinotoolkit/openvino-admins
 
 # QA Tests:
 /tests/  @openvinotoolkit/openvino-tests-maintainers
+/tests/layer_tests @openvinotoolkit/openvino-tests-maintainers @openvinotoolkit/openvino-mo-maintainers
 
 # Tools:
 /tools/  @openvinotoolkit/openvino-tools-maintainers
@@ -98,10 +99,10 @@ CMakeLists.txt @openvinotoolkit/openvino-ie-maintainers
 
 # Documentation:
 /docs/  @openvinotoolkit/openvino-docs-maintainers
-/docs/template_plugin/ @openvinotoolkit/openvino-ie-template-maintainers
-/docs/template_extension/ @openvinotoolkit/openvino-ie-template-maintainers
+/docs/MO_DG @openvinotoolkit/openvino-mo-maintainers @openvinotoolkit/openvino-docs-maintainers
 *.md  @openvinotoolkit/openvino-docs-maintainers 
 README @openvinotoolkit/openvino-docs-maintainers
+/src/plugins/template/ @openvinotoolkit/openvino-ie-template-maintainers
 
 # Control 3d party dependencies
 **/*requirements*.*  @openvinotoolkit/openvino-configuration-mgmt

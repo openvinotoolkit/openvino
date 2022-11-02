@@ -227,7 +227,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         std::lock_guard<std::mutex> lock(global_mutex);
         try {
             return dev_mutexes.at(dev_name);
-        } catch (const std::out_of_range& ex) {
+        } catch (const std::out_of_range&) {
             throw ov::Exception("Cannot get mutex for device: " + dev_name);
         }
     }
@@ -1995,11 +1995,35 @@ void Core::add_extension(const ie::IExtensionPtr& extension) {
 }
 
 void Core::add_extension(const std::string& library_path) {
-    add_extension(ov::detail::load_extensions(library_path));
+    try {
+        add_extension(ov::detail::load_extensions(library_path));
+    } catch (const std::runtime_error&) {
+        try {
+            // Try to load legacy extension
+            const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(library_path);
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            add_extension(extension_ptr);
+            OPENVINO_SUPPRESS_DEPRECATED_END
+        } catch (const std::runtime_error&) {
+            throw ov::Exception("Cannot add extension. Cannot find entry point to the extension library");
+        }
+    }
 }
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 void Core::add_extension(const std::wstring& library_path) {
-    add_extension(ov::detail::load_extensions(library_path));
+    try {
+        add_extension(ov::detail::load_extensions(library_path));
+    } catch (const std::runtime_error&) {
+        try {
+            // Try to load legacy extension
+            const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(library_path);
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            add_extension(extension_ptr);
+            OPENVINO_SUPPRESS_DEPRECATED_END
+        } catch (const std::runtime_error&) {
+            throw ov::Exception("Cannot add extension. Cannot find entry point to the extension library");
+        }
+    }
 }
 #endif
 

@@ -5,6 +5,9 @@
 
 #include <stdarg.h>
 
+#include <openvino/util/file_util.hpp>
+#include <string>
+
 #include "common.h"
 
 char* str_to_char_array(const std::string& str) {
@@ -318,3 +321,76 @@ void ov_core_versions_free(ov_core_version_list_t* versions) {
         delete[] versions->versions;
     versions->versions = nullptr;
 }
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+ov_status_e ov_core_create_with_config_unicode(const wchar_t* xml_config_file_ws, ov_core_t** core) {
+    if (!xml_config_file_ws) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    std::string xml_config_file;
+    try {
+        xml_config_file = ov::util::wstring_to_string(std::wstring(xml_config_file_ws));
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_core_create_with_config(xml_config_file.c_str(), core);
+}
+
+ov_status_e ov_core_read_model_unicode(const ov_core_t* core,
+                                       const wchar_t* model_path,
+                                       const wchar_t* bin_path,
+                                       ov_model_t** model) {
+    if (!core || !model_path || !model) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        std::wstring model_path_ws = model_path;
+        std::wstring bin_path_ws = {};
+        if (bin_path) {
+            bin_path_ws = bin_path;
+        }
+        std::unique_ptr<ov_model_t> _model(new ov_model_t);
+        _model->object = core->object->read_model(model_path_ws, bin_path_ws);
+        *model = _model.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_core_compile_model_from_file_unicode(const ov_core_t* core,
+                                                    const wchar_t* model_path_ws,
+                                                    const char* device_name,
+                                                    const size_t property_args_size,
+                                                    ov_compiled_model_t** compiled_model,
+                                                    ...) {
+    if (!core || !model_path_ws || !compiled_model || property_args_size % 2 != 0) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    try {
+        std::string model_path = ov::util::wstring_to_string(std::wstring(model_path_ws));
+        ov::AnyMap property = {};
+        size_t property_size = property_args_size / 2;
+        va_list args_ptr;
+        va_start(args_ptr, compiled_model);
+        for (size_t i = 0; i < property_size; i++) {
+            GET_PROPERTY_FROM_ARGS_LIST;
+        }
+        va_end(args_ptr);
+
+        ov::CompiledModel object;
+        std::string dev_name = "";
+        if (device_name) {
+            dev_name = device_name;
+            object = core->object->compile_model(model_path, dev_name, property);
+        } else {
+            object = core->object->compile_model(model_path, property);
+        }
+        std::unique_ptr<ov_compiled_model_t> _compiled_model(new ov_compiled_model_t);
+        _compiled_model->object = std::make_shared<ov::CompiledModel>(std::move(object));
+        *compiled_model = _compiled_model.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+#endif
