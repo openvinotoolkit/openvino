@@ -71,7 +71,7 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
    If you prefer using command-lines, run the following commands in the command prompt window you opened:
    ```sh
    cd <user_home>/Downloads
-   curl -L https://github.com/openvinotoolkit/openvino/releases/download/2022.2.0/w_openvino_toolkit_windows_2022.2.0.7713.af16ea1d79a_x86_64.zip --output openvino_2022.2.0.7713.zip
+   curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.2/windows/w_openvino_toolkit_windows_2022.2.0.7713.af16ea1d79a_x86_64.zip --output openvino_2022.2.0.7713.zip
    ```
 
 3. Use your favorite tool to extract the archive file, rename the extracted folder as `openvino_2022.2.0.7713`, and move it to the `C:\Program Files (x86)\Intel` directory.
