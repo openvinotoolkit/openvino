@@ -38,7 +38,7 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
 
   * `CMake 3.13 or higher <https://cmake.org/download/>`_ (choose "macOS 10.13 or later"). Add `/Applications/CMake.app/Contents/bin` to path (for default install). 
   * `Python 3.6 - 3.10 <https://www.python.org/downloads/mac-osx/>`_ (choose 3.6 - 3.10). Install and add to path.
-     * Note that OpenVINO is gradually phasing out the support for Python 3.6. Python 3.7 - 3.10 are recommended.
+     * Note that OpenVINO is gradually phasing out the support for Python 3.6. You are encouraged to use Python 3.7 - 3.10.
   * Apple Xcode Command Line Tools. In the terminal, run `xcode-select --install` from any directory
   * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
 
@@ -96,7 +96,7 @@ OpenVINO Development Tools is a set of utilities for working with OpenVINO and O
 
 See the [Install OpenVINO Development Tools](installing-model-dev-tools.md) page for step-by-step installation instructions.
 
-OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the [instructions on Github](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
+OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the [instructions on GitHub](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
 
 ### <a name="configure-ncs2"></a>Step 4 (Optional): Configure the Intel® Neural Compute Stick 2 
 
@@ -141,11 +141,11 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 
 To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
 
-
 ## Additional Resources
 
 @sphinxdirective
 
+* :ref:`Troubleshooting Guide for OpenVINO Installation & Configuration <troubleshooting guide for install>`
 * Converting models for use with OpenVINO™: :ref:`Model Optimizer Developer Guide <deep learning model optimizer>`
 * Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
 * Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
