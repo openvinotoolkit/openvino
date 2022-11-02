@@ -153,6 +153,221 @@ TEST_P(GatherLayerTestCPU, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, "Gather");
 }
 
+enum DataTypeBits {
+    DataType32bit,
+    DataType16bit,
+    DataType8bit
+};
+
+enum Approach {
+    Long,
+    Short
+};
+
+enum AfterAxisCase {
+    ElementwiseCase,
+    BlockedCase
+};
+
+typedef std::tuple<
+        Approach,
+        AfterAxisCase,
+        DataTypeBits,                       // Network precision
+        bool,                               // is dynamic shapes
+        int,                                // corner case index
+        CPUSpecificParams,                  // CPU specific params
+        std::map<std::string, std::string>  // Additional config
+> GatherCoverageLayerTestCPUParams;
+
+class GatherCoverageLayerTestCPU : public testing::WithParamInterface<GatherCoverageLayerTestCPUParams>,
+                           virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<GatherCoverageLayerTestCPUParams> obj) {
+        Approach approach;
+        AfterAxisCase afterAxisCase;
+        DataTypeBits dataTypeSize;
+        bool isDynamicShapes;
+        int cornerCase;
+        CPUSpecificParams cpuParams;
+        std::map<std::string, std::string> additionalConfig;
+
+        std::tie(approach, afterAxisCase, dataTypeSize,
+                 isDynamicShapes, cornerCase, cpuParams, additionalConfig) = obj.param;
+
+        std::ostringstream result;
+        result << (approach == Long ? "Long" : "Short") << "_";
+        result << (afterAxisCase == BlockedCase ? "Blocked" : "Elementwise") << "_";
+        result << (dataTypeSize == DataType32bit ? "32bit" : (dataTypeSize == DataType16bit ? "16bit" : "8bit")) << "_";
+        result << "dynamic=" << (isDynamicShapes ? "True" : "False") << "_";
+        result << "case=" << cornerCase << "_";
+        result << CPUTestsBase::getTestCaseName(cpuParams);
+        if (!additionalConfig.empty()) {
+            result << "_PluginConf";
+            for (auto &item : additionalConfig) {
+                if (item.second == InferenceEngine::PluginConfigParams::YES)
+                    result << "_" << item.first << "=" << item.second;
+            }
+        }
+        return result.str();
+    }
+
+protected:
+    struct CaseParamsKey {
+        Approach approach;
+        AfterAxisCase afterAxisCase;
+        DataTypeBits dataTypeBits;
+        int cornerCase;
+    };
+
+    struct CaseParamsValue {
+        ov::Shape dataShape;
+        ov::Shape indicesShape;
+        int axis;
+        int batchDims;
+    };
+
+    void SetUp() override {
+        auto hash = [](const CaseParamsKey& k) -> size_t { return k.approach + k.afterAxisCase * 2 + k.dataTypeBits * 4 + k.cornerCase * 16;};
+        auto equal = [](const CaseParamsKey& l, const CaseParamsKey& r){
+            return l.cornerCase == r.cornerCase && l.approach == r.approach && l.afterAxisCase == r.afterAxisCase && l.dataTypeBits == r.dataTypeBits;
+        };
+        std::unordered_map<CaseParamsKey, CaseParamsValue, decltype(hash), decltype(equal)> cases(8, hash, equal);
+        if (InferenceEngine::with_cpu_x86_avx512f() || InferenceEngine::with_cpu_x86_avx2()) {
+            // afterAxisSize == 2
+            cases.insert({{Short, BlockedCase, DataType32bit, 0},   {{20, 2}, {5}, 0, 0}});
+            cases.insert({{Short, BlockedCase, DataType16bit, 0},   {{20, 2}, {5}, 0, 0}});
+            cases.insert({{Short, BlockedCase, DataType8bit, 0},    {{20, 2}, {5}, 0, 0}});
+            // beforeAxisSize != 1, afterAxisSize == 3
+            cases.insert({{Short, BlockedCase, DataType32bit, 2},   {{2, 2, 3}, {5}, 1, 0}});
+            cases.insert({{Short, BlockedCase, DataType16bit, 2},   {{2, 2, 3}, {5}, 1, 0}});
+            cases.insert({{Short, BlockedCase, DataType8bit, 2},    {{2, 2, 3}, {5}, 1, 0}});
+            // WorkAmount > dataElPerVec
+            cases.insert({{Short, BlockedCase, DataType32bit, 3},   {{101, 2, 2}, {5}, 1, 0}});
+            cases.insert({{Short, BlockedCase, DataType16bit, 3},   {{101, 2, 2}, {5}, 1, 0}});
+            cases.insert({{Short, BlockedCase, DataType8bit, 3},    {{101, 2, 2}, {5}, 1, 0}});
+        }
+        if (InferenceEngine::with_cpu_x86_avx512f()) {
+            // afterAxisSize == idxElPerVec
+            cases.insert({{Short, BlockedCase, DataType32bit, 1},   {{2, 2, 8}, {5}, 0, 0}});
+            cases.insert({{Short, BlockedCase, DataType16bit, 1},   {{2, 2, 8}, {5}, 0, 0}});
+            cases.insert({{Short, BlockedCase, DataType8bit, 1},    {{2, 2, 8}, {5}, 0, 0}});
+        } else if (InferenceEngine::with_cpu_x86_avx2()) {
+            // afterAxisSize == idxElPerVec
+            cases.insert({{Short, BlockedCase, DataType32bit, 1},   {{2, 2, 4}, {5}, 0, 0}});
+            cases.insert({{Short, BlockedCase, DataType16bit, 1},   {{2, 2, 4}, {5}, 0, 0}});
+            cases.insert({{Short, BlockedCase, DataType8bit, 1},    {{2, 2, 4}, {5}, 0, 0}});
+        } else {
+        }
+
+        Approach approach;
+        AfterAxisCase afterAxisCase;
+        DataTypeBits dataTypeBits;
+        bool isDynamicShapes;
+        int cornerCase;
+        CPUSpecificParams cpuParams;
+        std::map<std::string, std::string> additionalConfig;
+        std::tie(approach, afterAxisCase, dataTypeBits,
+                 isDynamicShapes, cornerCase, cpuParams, additionalConfig) = this->GetParam();
+        std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+        ov::Shape dataShape;
+        ov::Shape indicesShape;
+        int batchDims = 0;
+        auto casesIt = cases.find({approach, afterAxisCase, dataTypeBits, cornerCase});
+        if (casesIt != cases.end()) {
+            dataShape = casesIt->second.dataShape;
+            indicesShape = casesIt->second.indicesShape;
+            batchDims = casesIt->second.batchDims;
+            axis = casesIt->second.axis;
+        } else {
+            isCornerCaseSkipped = true;
+            return;
+        }
+        ElementType netPrecision;
+        switch (dataTypeBits) {
+            case DataType32bit:
+                netPrecision = ElementType::i32;
+                break;
+            case DataType16bit:
+                netPrecision = ElementType::i16;
+                break;
+            case DataType8bit:
+                netPrecision = ElementType::i8;
+                break;
+        }
+        std::vector<InputShape> inputShapes;
+        if (isDynamicShapes) {
+            inputShapes = std::vector<ov::test::InputShape>(
+                    {{std::vector<ov::Dimension>(dataShape.size(), ov::Dimension::dynamic()), {dataShape}},
+                     {std::vector<ov::Dimension>(indicesShape.size(), ov::Dimension::dynamic()), {indicesShape}}
+                    });
+        } else {
+            inputShapes = std::vector<ov::test::InputShape>(
+                    {{{}, {dataShape}},
+                     {{}, {indicesShape}}
+                    });
+        }
+
+        targetDevice = CommonTestUtils::DEVICE_CPU;
+        init_input_shapes(inputShapes);
+        configuration.insert(additionalConfig.begin(), additionalConfig.end());
+        ElementType netPrecisionToCheck = netPrecision == ElementType::i16 ? (
+                additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES ?
+                ElementType::bf16 : ElementType::i32) : netPrecision;
+        selectedType = makeSelectedTypeStr(selectedType, netPrecisionToCheck);
+
+        const ElementType indicesPrecision = ElementType::i64;
+        ngraph::ParameterVector params {
+                std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0]),
+                std::make_shared<ov::op::v0::Parameter>(indicesPrecision, inputDynamicShapes[1])
+        };
+        params[0]->set_friendly_name("data");
+        params[1]->set_friendly_name("indices");
+        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
+        std::shared_ptr<ov::Node> gatherNode;
+        gatherNode = std::make_shared<ov::op::v8::Gather>(paramOuts[0], paramOuts[1],
+                                                          ov::op::v0::Constant::create(indicesPrecision, ov::Shape({1}), {axis }), batchDims);
+        function = makeNgraphFunction(netPrecision, params, gatherNode, "GatherCPU");
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        const auto& funcInputs = function->inputs();
+        inputs.clear();
+
+        const size_t normAxis = axis < 0 ? axis + targetInputStaticShapes[0].size() : axis;
+        const int32_t axisDim = targetInputStaticShapes[0][normAxis];
+
+        for (int i = 0; i < funcInputs.size(); ++i) {
+            const auto& funcInput = funcInputs[i];
+            ov::runtime::Tensor tensor;
+
+            if (funcInput.get_node()->get_friendly_name() == "data") {
+                const auto dataTypeSize = funcInput.get_element_type().size();
+                const uint32_t range = dataTypeSize == 4 ? 0x7FFFFFFF : dataTypeSize == 2 ? 0xFFFF : 0xFF;
+                tensor = ov::test::utils::create_and_fill_tensor(
+                        funcInput.get_element_type(), targetInputStaticShapes[0], shape_size(targetInputStaticShapes[0]) % range, 0);
+            } else if (funcInput.get_node()->get_friendly_name() == "indices") {
+                tensor = ov::test::utils::create_and_fill_tensor(
+                        funcInput.get_element_type(), targetInputStaticShapes[1], axisDim * 2, -axisDim);
+            } else if (funcInput.get_node()->get_friendly_name() == "axis") {
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), {1}, 1, axis);
+            }
+            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
+        }
+    }
+
+    int64_t axis = 0;
+    bool isCornerCaseSkipped = false;
+};
+
+TEST_P(GatherCoverageLayerTestCPU, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (isCornerCaseSkipped) {
+        GTEST_SKIP() << "Skipping test corner case";
+    }
+    run();
+    CheckPluginRelatedResults(compiledModel, "Gather");
+}
+
 namespace {
 const std::vector<ElementType> netPrecisions = {
         ElementType::f32,
@@ -178,6 +393,17 @@ std::vector<CPUSpecificParams> getCPUInfo() {
     }
     return resCPUParams;
 }
+
+INSTANTIATE_TEST_SUITE_P(smoke_coverage, GatherCoverageLayerTestCPU,
+                         ::testing::Combine(
+                                 ::testing::Values(Short),
+                                 ::testing::Values(BlockedCase),
+                                 ::testing::ValuesIn({DataType8bit, DataType16bit, DataType32bit}),
+                                 ::testing::ValuesIn({false, true}), // isDynamicShapes
+                                 ::testing::ValuesIn({0, 1, 2, 3}), // cornerCase
+                                 ::testing::ValuesIn(getCPUInfo()),
+                                 ::testing::Values(additionalConfig[0])),
+                         GatherCoverageLayerTestCPU::getTestCaseName);
 
 ///// 1D /////
 const std::vector<std::vector<ov::test::InputShape>> staticInputShapes1D = {
@@ -809,15 +1035,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_4D_ref16, GatherLayerTestCPU,
                     ::testing::Values(additionalConfig[0])),
                 GatherLayerTestCPU::getTestCaseName);
 
+// TODO
+// This tests checks the Blocked/Short and the Blocked/Long cases if it use reference implementation
+// This checks fails currently because of the next.
+// Currently the Blocked/Short case was implemented in JIT kernel and is not use reference implementation anymore
+// But the Blocked/Long case has not been implemented in the JIT kernel yet.
+// And these tests must be uncommented after its implementation
+/*
 INSTANTIATE_TEST_SUITE_P(smoke_static_4D_ref8, GatherLayerTestCPU,
                 ::testing::Combine(
                     ::testing::ValuesIn(get4DShapesRefStat(false)),
                     ::testing::ValuesIn(get4DAxisBatchRefStat(ElementType::i8, false)),
                     ::testing::Values(ElementType::i8),
                     ::testing::Values(true),
-                    ::testing::Values(cpuParamsRef),
+                    ::testing::ValuesIn(getCPUInfo()),
                     ::testing::Values(additionalConfig[0])),
                 GatherLayerTestCPU::getTestCaseName);
+*/
 
 // batchDims == indicesRank
 INSTANTIATE_TEST_SUITE_P(smoke_static_4D_ref32_Bmax, GatherLayerTestCPU,

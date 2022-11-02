@@ -295,9 +295,9 @@ const std::vector<std::tuple<int, int>> axesBatchesBasic = {
 
 INSTANTIATE_TEST_CASE_P(smoke_static_basic, Gather8LayerTest,
                         testing::Combine(
-                                testing::ValuesIn(dataShapesBasic),
-                                testing::ValuesIn(idxShapesBasic),
-                                testing::ValuesIn(axesBatchesBasic),
+                                testing::Values(std::vector<size_t>{6}), // dataShapes
+                                testing::Values(std::vector<size_t>{3}), // idxShapes
+                                testing::Values(std::tuple<int, int>{0, 0}), // axesBatches
                                 testing::ValuesIn(netPrecisions),
                                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -305,4 +305,18 @@ INSTANTIATE_TEST_CASE_P(smoke_static_basic, Gather8LayerTest,
                                 testing::Values(InferenceEngine::Layout::ANY),
                                 testing::Values(CommonTestUtils::DEVICE_CPU)),
                         Gather8LayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_static_basic2, Gather8LayerTest,
+                        testing::Combine(
+                                testing::Values(std::vector<size_t>{6, 2}), // dataShapes
+                                testing::Values(std::vector<size_t>{3}), // idxShapes
+                                testing::Values(std::tuple<int, int>{0, 0}), // axesBatches
+                                testing::ValuesIn(netPrecisions),
+                                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                testing::Values(InferenceEngine::Layout::ANY),
+                                testing::Values(InferenceEngine::Layout::ANY),
+                                testing::Values(CommonTestUtils::DEVICE_CPU)),
+                        Gather8LayerTest::getTestCaseName);
+
 }  // namespace

@@ -48,10 +48,92 @@
 
 #include "cpu/x64/jit_generator.hpp"
 #include <dnnl_types.h>
+
+#include <utility>
 #include "registers_pool.hpp"
+#include "stack_allocator.hpp"
 
 namespace ov {
 namespace intel_cpu {
+
+template<typename TReg>
+struct RegisterValue {
+    using ValueInitializer = std::function<void(TReg& valueToInitialize)>;
+    static constexpr int anyIdx = -1;
+
+    RegisterValue() {}
+
+    RegisterValue(ValueInitializer initializer)
+            : valueInitializer(std::move(initializer)) {
+    }
+
+    operator TReg&() { ensureValid(); return reg; }
+    operator const TReg&() const { ensureValid(); return reg; }
+    int getIdx() { ensureValid(); return reg.getIdx(); }
+    bool isValueInRegister() { return reg.isInitialized(); }
+    bool isValueInStack() { return static_cast<bool>(stackedReg); }
+    bool isInitialized() { return this->isValueInRegister() || isValueInStack(); }
+
+    void initialize(RegistersPool::Ptr& pool, int requestedIdx = anyIdx) {
+        if (isInitialized()) {
+            IE_THROW() << "Can not initialize RegisterValue, already initialized";
+        }
+        reg = RegistersPool::Reg<TReg>{pool, requestedIdx};
+        valueInitializer(static_cast<TReg&>(reg));
+    }
+    int reset() {
+        if (!isInitialized()) {
+            IE_THROW() << "Can not reset RegisterValue, it is not initialized";
+        }
+        int idx = this->reg.getIdx();
+        this->reg.release();
+        stackedReg.reset();
+        return idx;
+    }
+    int saveToStack(std::shared_ptr<StackAllocator>& allocator) {
+        if (!this->isValueInRegister()) {
+            IE_THROW() << "The RegisterValue is ether not initialized or already saved to stack in RegisterValue::saveToStack()";
+        }
+        stackedReg = std::make_shared<StackAllocator::Reg<TReg>>(*allocator);
+        stack_mov(*stackedReg, this->reg);
+        int idx = this->reg.getIdx();
+        this->reg.release();
+        return idx;
+    }
+    void loadFromStack(RegistersPool::Ptr& pool, int requestedIdx = anyIdx) {
+        if (!isValueInStack()) {
+            IE_THROW() << "Inconsistency in RegisterValue::loadFromStack()";
+        }
+        this->reg = RegistersPool::Reg<TReg>{pool, requestedIdx};
+        stack_mov(this->reg, *stackedReg);
+        stackedReg.reset();
+    }
+
+    RegisterValue& operator=(RegisterValue&& other)  noexcept {
+        stackedReg = std::move(other.stackedReg);
+        reg = std::move(other.reg);
+        valueInitializer = std::move(other.valueInitializer);
+        return *this;
+    }
+
+    RegisterValue(RegisterValue&& other)  noexcept
+            : stackedReg(std::move(other.stackedReg))
+            , reg(std::move(other.reg))
+            , valueInitializer(std::move(other.valueInitializer)) {}
+
+private:
+    void ensureValid() {
+        if (!isValueInRegister()) {
+            IE_THROW() << "Failed to use the RegisterValue, the value is not in the register";
+        }
+    }
+
+private:
+    ValueInitializer valueInitializer;
+    std::shared_ptr<StackAllocator::Reg<TReg>> stackedReg;
+    RegistersPool::Reg<TReg> reg;
+};
+
 
 struct jGatherConfParams {
     uint64_t dataTypeSize = 1lu;
@@ -61,6 +143,9 @@ struct jGatherConfParams {
     uint64_t beforeAxisSize = 0lu;
     uint64_t specIdxSize = 0lu;
     uint64_t afterAxisSize = 0lu;
+    uint64_t simdVecSize = 16lu;
+    uint64_t idxElPerVec = 1lu;
+    uint64_t dataElPerVec = 1lu;
 };
 
 struct gatherJitExecArgs {
@@ -87,11 +172,275 @@ struct gatherJitExecArgs {
     // Blocked short.
     uint64_t specIdxAndAfterAxIterB;
     uint64_t specIdxAndAfterAxSizeB;
+    // Blocked short dynamic
+    uint64_t specIdxAndAfterAxSize;
+    uint64_t beforeAxisSize;
+    uint64_t specIdxAndAfterAxisSizeIsPowerOf2;
+    uint16_t afterAxisSizeIsPowerOf2;
+    uint64_t specIdxSize;
     // Only static
     const int* specIdxB;
     const int* idxBatchSumB;
     const int* dataBeforeAxisSumB;
     uint64_t betweenBatchAndAxisIter;
+};
+
+struct GatherShapeParameters {
+    int axisDim = 0;
+    uint64_t betweenBatchAndAxisSize = 0lu;
+    uint64_t specIdxAndAfterAxSizeB = 0lu;
+    uint64_t beforeBatchSize = 0lu;
+    uint64_t specIndicesSize = 0lu;
+    uint64_t afterAxisSizeInBytes = 0lu;
+    uint64_t axisAndAfterAxisSizeInBytes = 0lu;
+    uint64_t srcAfterBatchSizeInBytes = 0lu;
+    uint64_t beforeAxisSize = 0lu;
+    uint64_t afterAxisSize = 0lu;
+    uint64_t totalWork = 0lu;
+    uint64_t dataTypeSize = 1lu;
+    uint64_t simdVecSize = 16lu;
+    uint64_t idxElPerVec = 1lu;
+    uint64_t dataElPerVec = 1lu;
+    static constexpr uint64_t idxTypeSize = sizeof(int);
+
+    struct PerThread {
+        std::vector<int> specIdxInBytes;
+        std::vector<int> permIdxMask;
+        std::vector<int> srcBeforeAxisDiff;
+        std::vector<int> idxBatchSumInBytes;
+        std::vector<int> dataBeforeAxisSumInBytes;
+
+        std::vector<int> afterAxIdxInBytes;
+        std::vector<int> specIdxDiff;
+        std::vector<int> beforeAxPermMask;
+        std::vector<int> afterAxPermMask;
+        int betweenBatchAndAxisIter = 0;
+        int specIdxAndAfterAxIterB = 0;
+
+        uint64_t workAmount = 0;
+        uint64_t dstStart = 0;
+    };
+
+    GatherShapeParameters() = default;
+    void initStatic(bool isAxisInputConst, bool isDataShapeStat, bool isIdxShapeStat,
+                             const VectorDims& dataDims, const VectorDims& idxDims, int axis, int batchDims) {
+        if (isAxisInputConst && isDataShapeStat) {
+            axisDim = dataDims[axis];
+            beforeAxisSize = std::accumulate(dataDims.begin(), dataDims.begin() + axis, 1lu, std::multiplies<Dim>());
+            betweenBatchAndAxisSize = std::accumulate(dataDims.begin() + batchDims, dataDims.begin() + axis, 1lu, std::multiplies<Dim>());
+            afterAxisSize = std::accumulate(dataDims.begin() + axis + 1, dataDims.end(), 1lu, std::multiplies<Dim>());
+
+            afterAxisSizeInBytes = afterAxisSize * dataTypeSize;
+            axisAndAfterAxisSizeInBytes = axisDim * afterAxisSizeInBytes;
+            srcAfterBatchSizeInBytes = betweenBatchAndAxisSize * axisAndAfterAxisSizeInBytes;
+        }
+        if (isDataShapeStat) {
+            beforeBatchSize = std::accumulate(dataDims.begin(), dataDims.begin() + batchDims, 1lu, std::multiplies<Dim>());
+        }
+        if (isIdxShapeStat) {
+            specIndicesSize = std::accumulate(idxDims.begin() + batchDims, idxDims.end(), 1lu, std::multiplies<Dim>());
+
+            if (isDataShapeStat) {
+                specIdxAndAfterAxSizeB = specIndicesSize * afterAxisSizeInBytes;
+                totalWork = beforeBatchSize * betweenBatchAndAxisSize * specIndicesSize * afterAxisSize;
+            }
+        }
+    }
+
+    void initDynamic(bool isAxisInputConst, bool isDataShapeStat, bool isIdxShapeStat,
+                             const VectorDims& dataDims, const VectorDims& idxDims, int axis, int batchDims) {
+        if (!isDataShapeStat || !isAxisInputConst) {
+            axisDim = dataDims[axis];
+            beforeAxisSize = std::accumulate(dataDims.begin(), dataDims.begin() + axis, 1lu, std::multiplies<Dim>());
+            beforeBatchSize = std::accumulate(dataDims.begin(), dataDims.begin() + batchDims, 1lu, std::multiplies<uint64_t>());
+            betweenBatchAndAxisSize = std::accumulate(dataDims.begin() + batchDims, dataDims.begin() + axis, 1lu, std::multiplies<uint64_t>());
+            afterAxisSize = std::accumulate(dataDims.begin() + axis + 1, dataDims.end(), 1lu, std::multiplies<uint64_t>());
+
+            afterAxisSizeInBytes = afterAxisSize * dataTypeSize;
+            axisAndAfterAxisSizeInBytes = axisDim * afterAxisSizeInBytes;
+            srcAfterBatchSizeInBytes = betweenBatchAndAxisSize * axisAndAfterAxisSizeInBytes;
+
+            if (isIdxShapeStat) {
+                specIdxAndAfterAxSizeB = specIndicesSize * afterAxisSizeInBytes;
+                totalWork = beforeBatchSize * betweenBatchAndAxisSize * specIndicesSize * afterAxisSize;
+            }
+        }
+
+        if (!isIdxShapeStat) {
+            specIndicesSize = std::accumulate(idxDims.begin() + batchDims, idxDims.end(), 1lu, std::multiplies<uint64_t>());
+
+            specIdxAndAfterAxSizeB = specIndicesSize * afterAxisSizeInBytes;
+            totalWork = beforeBatchSize * betweenBatchAndAxisSize * specIndicesSize * afterAxisSize;
+        }
+    }
+
+    void fillPerThread(PerThread& p, uint64_t dstStart, uint64_t dstEnd) {
+        p.workAmount = dstEnd - dstStart;
+        p.dstStart = dstStart;
+        p.specIdxInBytes.resize(dataElPerVec);
+        p.idxBatchSumInBytes.resize(dataElPerVec);
+        p.dataBeforeAxisSumInBytes.resize(dataElPerVec);
+        p.betweenBatchAndAxisIter = (dstStart / specIndicesSize) % betweenBatchAndAxisSize;
+        for (uint64_t j = 0lu; j < dataElPerVec; j++) {
+            p.specIdxInBytes[j] = (((dstStart + j) / afterAxisSize) % specIndicesSize) * idxTypeSize;
+            p.idxBatchSumInBytes[j] = ((dstStart + j) / (betweenBatchAndAxisSize * specIndicesSize * afterAxisSize)) *
+                                      specIndicesSize * idxTypeSize;
+            p.dataBeforeAxisSumInBytes[j] = ((dstStart + j) / (specIndicesSize * afterAxisSize)) *
+                                            axisAndAfterAxisSizeInBytes;
+        }
+        initShortParams(p, dstStart);
+    }
+
+    void initShortParams(PerThread& p, const uint64_t start) {
+        fillBeforeAxisDiff(p.srcBeforeAxisDiff, start);
+        if (afterAxisSize == 1) { // Elementwise gather.
+            if (specIndicesSize >= idxElPerVec)
+                return; // Is not a short case.
+
+            fillPermIdxMask(p.permIdxMask);
+        } else { // Blocked gather.
+            if (afterAxisSize > idxElPerVec)
+                return; // Is not a short case.
+
+            p.afterAxIdxInBytes.resize(idxElPerVec);
+            p.afterAxPermMask.resize(idxElPerVec);
+            p.beforeAxPermMask.resize(idxElPerVec);
+            p.specIdxDiff.resize(idxElPerVec);
+
+            int secondStart = start + idxElPerVec;
+            for (int i = 0; i < idxElPerVec; i++) {
+                p.afterAxIdxInBytes[i] = (start + i) % afterAxisSize;
+                p.specIdxDiff[i] = (((secondStart + i) / afterAxisSize) % specIndicesSize) * idxTypeSize - p.specIdxInBytes[i];
+                if (p.specIdxDiff[i] < 0)
+                    p.specIdxDiff[i] += specIndicesSize * idxTypeSize;
+
+                p.afterAxIdxInBytes[i] *= dataTypeSize;
+                p.afterAxPermMask[i] = idxElPerVec - afterAxisSize + i;
+                for (size_t j = 0lu; j < 6lu; j++) {
+                    if (p.afterAxPermMask[i] >= idxElPerVec)
+                        p.afterAxPermMask[i] -= afterAxisSize;
+                }
+            }
+            if (specIndicesSize * afterAxisSize < idxElPerVec) {
+                p.beforeAxPermMask[0] = idxElPerVec - specIndicesSize * afterAxisSize;
+                for (int i = 1; i < idxElPerVec; i++) {
+                    p.beforeAxPermMask[i] = p.beforeAxPermMask[i - 1] + 1;
+                    if (p.beforeAxPermMask[i] == idxElPerVec)
+                        p.beforeAxPermMask[i] = idxElPerVec - specIndicesSize * afterAxisSize;
+                }
+            }
+
+            p.specIdxAndAfterAxIterB = (start * dataTypeSize) % specIdxAndAfterAxSizeB;
+        }
+    }
+
+    void fillPermIdxMask(std::vector<int>& permIdxMask) {
+        permIdxMask.resize(idxElPerVec);
+        permIdxMask[0] = idxElPerVec - specIndicesSize;
+        for (int i = 1; i < idxElPerVec; i++) {
+            permIdxMask[i] = permIdxMask[i - 1] + 1;
+            if (permIdxMask[i] == idxElPerVec)
+                permIdxMask[i] = idxElPerVec - specIndicesSize;
+        }
+    }
+
+    void fillBeforeAxisDiff(std::vector<int>& srcBeforeAxisDiff, uint64_t start) {
+        if (afterAxisSize == 1) { // Elementwise gather.
+            srcBeforeAxisDiff.resize(idxElPerVec);
+            const int div = idxElPerVec / specIndicesSize;
+            const int remainder = idxElPerVec % specIndicesSize;
+            for (uint64_t i = 0; i < idxElPerVec; i++) {
+                if (((start + i) % specIndicesSize) < (specIndicesSize - remainder)) {
+                    srcBeforeAxisDiff[i] = axisDim * div;
+                } else {
+                    srcBeforeAxisDiff[i] = axisDim * (div + 1);
+                }
+            }
+        } else {
+            srcBeforeAxisDiff.resize(idxElPerVec);
+            for (int i = 0; i < idxElPerVec; i++) {
+                srcBeforeAxisDiff[i] = ((start + i + idxElPerVec) / (specIndicesSize * afterAxisSize)) * axisAndAfterAxisSizeInBytes -
+                                         ((start + i) / (specIndicesSize * afterAxisSize)) * axisAndAfterAxisSizeInBytes;
+            }
+        }
+    }
+
+    gatherJitExecArgs createArgStatic(uint8_t* dstData, const void* srcData, const void* srcIndices, const PerThread& p) {
+        auto arg = gatherJitExecArgs();
+
+        arg.src = srcData;
+        arg.dst = dstData + p.dstStart * dataTypeSize;
+        arg.indices = srcIndices;
+        arg.start = &p.dstStart;
+        arg.axisDim = &axisDim;
+        arg.afterAxSize = afterAxisSize;
+        arg.axisAndAfterAxisSizeB = &axisAndAfterAxisSizeInBytes;
+        arg.srcAfterBatchSizeB = &srcAfterBatchSizeInBytes;
+        arg.betweenBatchAndAxisSize = &betweenBatchAndAxisSize;
+        arg.specIndicesSize = &specIndicesSize;
+        arg.workAmount = p.workAmount;
+        arg.specIdxB = p.specIdxInBytes.data();
+        arg.idxBatchSumB = p.idxBatchSumInBytes.data();
+        arg.dataBeforeAxisSumB = p.dataBeforeAxisSumInBytes.data();
+        arg.betweenBatchAndAxisIter = p.betweenBatchAndAxisIter;
+
+        if (afterAxisSize == 1 && specIndicesSize < idxElPerVec) { // Elementwise short case.
+            arg.permIdxMask = p.permIdxMask.data();
+            arg.beforeAxisDiff = p.srcBeforeAxisDiff.data();
+        } else if (afterAxisSize > 1 && afterAxisSize <= dataElPerVec) { // Blocked short case.
+            arg.afterAxIdxB = p.afterAxIdxInBytes.data();
+            arg.specIdxDiff = p.specIdxDiff.data();
+            arg.beforeAxisDiff = p.srcBeforeAxisDiff.data();
+            arg.beforeAxisPermMask = p.beforeAxPermMask.data();
+            arg.afterAxisPermMask = p.afterAxPermMask.data();
+            arg.afterAxisSize = &afterAxisSize;
+            arg.specIdxAndAfterAxIterB = p.specIdxAndAfterAxIterB;
+            arg.specIdxAndAfterAxSizeB = specIdxAndAfterAxSizeB;
+        }
+        return arg;
+    }
+
+    gatherJitExecArgs createArgDynamic(uint8_t* dstData, const void* srcData, const void* srcIndices, const PerThread& p) {
+        auto arg = gatherJitExecArgs();
+
+        arg.src = srcData;
+        arg.dst = dstData + p.dstStart * dataTypeSize;
+        arg.indices = srcIndices;
+        arg.start = &p.dstStart;
+        arg.axisDim = &axisDim;
+        arg.afterAxSize = afterAxisSize;
+        arg.axisAndAfterAxisSizeB = &axisAndAfterAxisSizeInBytes;
+        arg.srcAfterBatchSizeB = &srcAfterBatchSizeInBytes;
+        arg.betweenBatchAndAxisSize = &betweenBatchAndAxisSize;
+        arg.specIndicesSize = &specIndicesSize;
+        arg.workAmount = p.workAmount;
+        arg.specIdxB = p.specIdxInBytes.data();
+        arg.idxBatchSumB = p.idxBatchSumInBytes.data();
+        arg.dataBeforeAxisSumB = p.dataBeforeAxisSumInBytes.data();
+        arg.betweenBatchAndAxisIter = p.betweenBatchAndAxisIter;
+
+        if (afterAxisSize == 1 && specIndicesSize < idxElPerVec) { // Elementwise short case.
+            arg.permIdxMask = p.permIdxMask.data();
+            arg.beforeAxisDiff = p.srcBeforeAxisDiff.data();
+        } else if (afterAxisSize > 1 && afterAxisSize <= dataElPerVec) { // Blocked short case.
+            arg.afterAxIdxB = p.afterAxIdxInBytes.data();
+            arg.specIdxDiff = p.specIdxDiff.data();
+            arg.beforeAxisDiff = p.srcBeforeAxisDiff.data();
+            arg.beforeAxisPermMask = p.beforeAxPermMask.data();
+            arg.afterAxisPermMask = p.afterAxPermMask.data();
+            arg.afterAxisSize = &afterAxisSize;
+            arg.specIdxAndAfterAxIterB = p.specIdxAndAfterAxIterB;
+            arg.specIdxAndAfterAxSizeB = specIdxAndAfterAxSizeB;
+            arg.specIdxAndAfterAxSize = specIndicesSize * arg.afterAxSize;
+            arg.beforeAxisSize = beforeAxisSize;
+            arg.specIdxSize = specIndicesSize;
+            arg.specIdxAndAfterAxisSizeIsPowerOf2 = arg.specIdxAndAfterAxSize == 1 || arg.specIdxAndAfterAxSize == 2 ||
+                 arg.specIdxAndAfterAxSize == 4 || arg.specIdxAndAfterAxSize == 8 || arg.specIdxAndAfterAxSize == 16 ? 1 : 0;
+            arg.afterAxisSizeIsPowerOf2 = afterAxisSize == 1 || afterAxisSize == 2 || afterAxisSize == 4 ||
+                    afterAxisSize == 8 || afterAxisSize == 16 ? 1 : 0;
+        }
+        return arg;
+    }
 };
 
 struct jitGatherKernelInterface {
@@ -100,9 +449,6 @@ struct jitGatherKernelInterface {
     virtual bool isSameParams(const jGatherConfParams& jcp) = 0;
     virtual void operator()(const gatherJitExecArgs *args) = 0;
     virtual void create_ker() = 0;
-    virtual uint64_t getVecLen() const = 0;
-    virtual uint64_t getDataElPerVec() const = 0;
-    virtual uint64_t getIdxElPerVec() const = 0;
     static std::shared_ptr<jitGatherKernelInterface> createJitUniGatherKernel(x64::cpu_isa_t isa,
         uint64_t dataTypeSize, bool isDynamicNode, uint64_t afterAxisSize, uint64_t specIdxSize, uint64_t idxElPerVec);
 };
@@ -142,7 +488,6 @@ public:
     jitGatherKernelBase(const char *name) : x64::jit_generator(name) {}
 
 protected:
-    static const uint32_t indicesTypeSize = sizeof(uint32_t);
     static const uint8_t idxTypeShift = 2;
 
     struct ShiftCalculator {
@@ -192,8 +537,13 @@ protected:
 
         RegistersPool::Reg<Xbyak::Reg64> rSpecIdxAndAfterAxIterB;
         RegistersPool::Reg<Xbyak::Reg64> rSpecIdxAndAfterAxSizeB;
+        RegistersPool::Reg<Xbyak::Reg64> rSpecIdxAndAfterAxSize;
+        RegistersPool::Reg<Xbyak::Reg64> rBeforeAxisSize;
+        RegistersPool::Reg<Xbyak::Reg64> rSpecIdxAndAfterAxisSizeIsPowerOf2;
+        RegistersPool::Reg<Xbyak::Reg64> rAfterAxisSizeIsPowerOf2;
+        Xbyak::Reg64 rSpecIdxSize{Xbyak::Operand::RCX};
 
-        RegistersPool::Reg<Vmm> vmmAxisAndAfterAxisSizeB;
+        RegisterValue<Vmm> vmmAxisAndAfterAxisSizeB;
         RegistersPool::Reg<Vmm> vmmSrcAfterBatchSizeB;
         RegistersPool::Reg<Vmm> vmmAfterAxisIdxB;
         RegistersPool::Reg<Vmm> vmmAfterAxisPermMask;
@@ -212,9 +562,6 @@ public:
         assert(ker_);
         ker_(args);
     }
-    uint64_t getVecLen() const override { return x64::cpu_isa_traits<isa>::vlen; }
-    uint64_t getDataElPerVec() const override { return getVecLen() / getDataTypeSize(); }
-    uint64_t getIdxElPerVec() const override { return getVecLen() / indicesTypeSize; }
     virtual uint64_t getDataTypeSize() const = 0;
     virtual uint8_t getDataTypeShift() const = 0;
 
@@ -231,11 +578,11 @@ protected:
     poolVmm<isa> shiftIdxAndGather(ShiftCalculator& shiftCalculator, bool shiftFirst);
     void uniVpGatherDd(Vmm& vDst, const Xbyak::Address& srcAddr, Vmask& vMask);
     poolVmask<isa> normalizeIndexesAndCalcShifts(Vmm& rawIndices, poolVmask<isa> kDstMask = poolVmask<isa>());
-    void fillRestWorkMask(Vmask& kMask, const Xbyak::Reg& rWorkRest);
+    poolVmask<isa> fillRestWorkMask(const Xbyak::Reg& rWorkRest);
     void combineMasks(Vmask& maskA, const Vmask& maskB);
-    void normWithUpperBound(Vmm& vTarget, Vmm& vMax, Vmask& kAuxMask);
+    void normWithUpperBound(Vmm& vTarget, Vmm& vMax);
     void fillVlenVector(RegistersPool::Reg<Vmm>& vmmVecLenB);
-    void storeVectorPart(const Xbyak::Reg& rDst, const Xbyak::Reg& rToStoreCounter, Vmm& vmmSrc);
+    void storeVectorPart(const Xbyak::Reg& rDst, const Xbyak::Reg& rToStoreCounter, Vmm& vmmData);
     void generateForDynamicShapes();
     void generateForStaticShapes();
 
@@ -245,17 +592,20 @@ protected:
     using Operand = Xbyak::Operand;
     RegistersPool::Ptr regPool = RegistersPool::create<isa>({
         // the list of the registers to be excluded from pool
-        Reg64(Operand::RAX), Reg64(Operand::RCX), Reg64(Operand::RDX), Reg64(Operand::RBX),
-        Reg64(Operand::RBP), Reg64(Operand::RDI),
+        Reg64(Operand::RCX), Reg64(Operand::RBP), Reg64(Operand::RDI),
         Xbyak::Opmask(0), // Do not use k0 with gather instruction. The k0 has special meaning there.
     });
-    uint64_t idxElPerVec = 0lu;
+    std::shared_ptr<StackAllocator> stackAllocator;
+    uint64_t simdVecSize = 16lu;
+    uint64_t idxElPerVec = 1lu;
+    uint64_t dataElPerVec = 1lu;
     uint64_t beforeAxisSize = 0lu;
     uint64_t specIdxSize = 0lu;
     uint64_t batchDims = 0lu;
     uint64_t afterAxisSize = 0lu;
     bool reverseIndexing = true;
     bool dynamicShapes = false;
+    bool isLessSimdRegistersCase = false;
 
     const Xbyak::Reg64 regParams = Xbyak::Reg64(dnnl::impl::cpu::x64::abi_param_regs[0]);
     const RegistersPool::Reg<Xbyak::Reg64> regDst {regPool, 9};
@@ -263,12 +613,15 @@ protected:
     const RegistersPool::Reg<Xbyak::Reg64> regWorkAmount {regPool, 12};
     RegistersPool::Reg<Vmm> vmmSpecIdxSizeB {this->regPool, 10};
     RegistersPool::Reg<Vmm> vmmSpecIdxB {this->regPool, 9};
-    RegistersPool::Reg<Vmm> vmmSrcBeforeAxisSumB {this->regPool, 8};
+    RegisterValue<Vmm> vmmSrcBeforeAxisSumB;
+    static const int vmmAxisAndAfterAxisSizeBIndx {12};
+    static const int vmmZerosIdx {7};
+    RegisterValue<Vmm> vmmZeros;
 
 private:
     const RegistersPool::Reg<Xbyak::Reg64> regSrc {regPool, 8};
-    RegistersPool::Reg<Vmm> vmmZeros {regPool, 7};
-    RegistersPool::Reg<Vmm> vmmAxisDim {regPool, 11};
+    const int vmmAxisDimIdx {11};
+    RegisterValue<Vmm> vmmAxisDim;
 };
 
 template<x64::cpu_isa_t isa, DataTypeSize S>
