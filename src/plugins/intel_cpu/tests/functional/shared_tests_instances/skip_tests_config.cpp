@@ -166,6 +166,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_NmsLayerTest.*)",
         R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*(TIwithLSTMcell1|MatMulBias)_(i|u).*)",
         R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*ReadConcatSplitAssign.*)",
+        R"(.*IEClassQueryNetworkTest.*QueryNetwork.*)",
+        R"(.*IEClassLoadNetworkTest.*(Load|Query)Network.*)",
     };
 
 #define FIX_62820 0
