@@ -2414,8 +2414,9 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
 
             // Transpose all constant inputs
             for (auto && input : constInputs) {
-                auto rows = GetDataDimSize(input->outData[0], DataDimName::C);
-                auto columns = GetDataDimSize(input->outData[0], DataDimName::H) * GetDataDimSize(input->outData[0], DataDimName::W);
+                auto rows = GetDataDimByName(input->outData[0], DataDimName::C);
+                auto columns = GetDataDimByName(input->outData[0], DataDimName::H) *
+                               GetDataDimByName(input->outData[0], DataDimName::W);
 
                 auto blob = convertToRWBlob(input->blobs["custom"]);
                 input->blobs["custom"] = blob;

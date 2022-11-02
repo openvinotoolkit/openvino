@@ -19,6 +19,7 @@
 #include "intel_gpu/graph/network.hpp"
 #include "assign_inst.h"
 #include "read_value_inst.h"
+#include "reshape_inst.h"
 
 #include "to_string_utils.h"
 #include "primitive_inst.h"
@@ -305,6 +306,7 @@ opt pass).
 */
 network::network(program::ptr program, stream::ptr stream, bool is_internal, bool is_primary_stream)
     : _program(program)
+    , _engine(program->get_engine())
     , _stream(stream)
     , _memory_pool(new memory_pool(program->get_engine()))
     , _internal(is_internal)
@@ -642,6 +644,15 @@ void network::allocate_primitives() {
             }
         }
     }
+
+    // Update the output memory address of optimized-out layer if it is not valid.
+    for (auto const& node : po) {
+        if (node->can_be_optimized()) {
+            auto opt_inst = _primitives.at(node->id());
+            opt_inst->update_output_memory();
+        }
+    }
+
     // allocate intermediate buffers
     for (auto const& node : po) {
         auto prim = _primitives[node->id()];
@@ -723,21 +734,26 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         GPU_DEBUG_COUT << "----------------------------------------------" << std::endl;
 
     std::vector<memory::ptr> in_out_mem;
+    auto is_surface_lock_check_needed = [&](const shared_mem_type& shared_mem_type) {
+        return shared_mem_type == shared_mem_type::shared_mem_vasurface ||
+               shared_mem_type == shared_mem_type::shared_mem_dxbuffer ||
+               shared_mem_type == shared_mem_type::shared_mem_image;
+    };
+
     bool shared_mem_found = std::any_of(_in_out_shared_mem_types.begin(),
                                         _in_out_shared_mem_types.end(),
-                                        [](const shared_mem_type& shared_mem_type) {
-                                            return shared_mem_type == shared_mem_type::shared_mem_vasurface ||
-                                                   shared_mem_type == shared_mem_type::shared_mem_dxbuffer;
-                                        });
+                                        is_surface_lock_check_needed);
 
     if (shared_mem_found) {
         for (auto& inst : _inputs) {
-            if (inst->output_memory_ptr())
+            if (inst->output_memory_ptr() &&
+                is_surface_lock_check_needed(inst->output_memory_ptr()->get_internal_params().mem_type))
                 in_out_mem.push_back(inst->output_memory_ptr());
         }
 
         for (auto& inst : _outputs) {
-            if (inst->output_memory_ptr())
+            if (inst->output_memory_ptr() &&
+                is_surface_lock_check_needed(inst->output_memory_ptr()->get_internal_params().mem_type))
                 in_out_mem.push_back(inst->output_memory_ptr());
         }
     }
@@ -753,8 +769,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     set_arguments();
     for (auto& inst : _exec_order) {
         GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
-            auto& node = _program->get_node(inst->id());
-            const std::string layer_name = node.id();
+            const std::string layer_name = inst->id();
             GPU_DEBUG_IF(debug_config->verbose >= 2) {
                 std::cerr << get_primitive_info(inst->id()) << std::endl;
             }
@@ -772,9 +787,8 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 
         GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
             get_stream().finish();
-            auto& node = _program->get_node(inst->id());
-            const std::string layer_name = node.id();
-            GPU_DEBUG_IF(debug_config->is_dumped_layer(layer_name, node.is_output())) {
+            const std::string layer_name = inst->id();
+            GPU_DEBUG_IF(debug_config->is_dumped_layer(layer_name, inst->is_output())) {
                 log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(), get_stream(), layer_name + "_dst_0");
             }
         }
@@ -993,6 +1007,12 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "NetworkImpl::TransferMemory");
     auto& inst_mem = instance->output_memory();
     auto alloc_type = inst_mem.get_allocation_type();
+
+    auto users = node.get_users();
+    if (users.size() == 1
+        && users.front()->is_type<reshape>()
+        && users.front()->is_dynamic())
+            return;
 
     // Do not transfer memory if a user requires lockable memory.
     // If memory is used in both gpu and cpu implementations, primitive itself is responsible for correct allocation type
