@@ -16,11 +16,11 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
 
 .. tab:: Operating Systems
 
-  macOS 10.15
+  macOS 10.15, 11, 12, and 13 versions with the x86 architecture, 64 bits
   
   .. note::
    
-     The package can also be installed on macOS x86 versions higher than 10.15, but only the specific versions listed here are fully validated.
+     Only macOS 10.15 is fully validated with OpenVINO. Other versions depend on the compatibility of macOS.
 
 .. tab:: Hardware
 
