@@ -12,7 +12,8 @@ from openvino.tools.mo.utils.utils import get_mo_root_dir
 dir_patterns_to_skip = ['.*__pycache__.*']
 file_patterns_to_skip = ['.*\\.DS_Store$',
                          '.*\\.swp',
-                         '.*\\.pyc$']
+                         '.*\\.pyc$',
+                         '.*version.txt']
 full_name_patterns_to_skip = ['^openvino/tools/mo/utils/convert.py$',
                               '^openvino/tools/mo/front/caffe/CustomLayersMapping.xml$',
                               ]
