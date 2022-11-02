@@ -42,6 +42,7 @@ using fully_connected_node = typed_program_node<fully_connected>;
 template <>
 class typed_primitive_inst<fully_connected> : public typed_primitive_inst_base<fully_connected> {
     using parent = typed_primitive_inst_base<fully_connected>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>

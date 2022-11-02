@@ -21,7 +21,11 @@ struct concatenation_onednn : typed_primitive_onednn_impl<concatenation, void, d
     using parent = typed_primitive_onednn_impl<concatenation, void, dnnl::concat::primitive_desc, dnnl::concat>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
 protected:
+    const concatenation_node* _outer;
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<concatenation_onednn>(*this);
     }
@@ -62,6 +66,68 @@ protected:
     }
 
 public:
+    void save(BinaryOutputBuffer& ob) const override {
+        if (_prim.get(true) == nullptr) {
+            ob << false;
+            return;
+        } else {
+            ob << true;
+        }
+
+        parent::save(ob);
+
+        ob << _outer->get_dependencies().size();
+        for (auto& input : _outer->get_dependencies()) {
+            ob << input->get_output_layout();
+        }
+        ob << _outer->get_primitive()->axis;
+        ob << _outer->get_output_layout();
+
+        std::vector<uint8_t> prim_cache;
+        prim_cache = _prim.get_cache_blob();
+        ob << prim_cache;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        bool has_prim;
+        ib >> has_prim;
+
+        if (!has_prim)
+            return;
+
+        parent::load(ib);
+
+        size_t num_deps;
+        ib >> num_deps;
+
+        std::vector<dnnl::memory::desc> input_mds;
+        for (size_t idx = 0; idx < num_deps; ++idx) {
+            layout input_layout = layout(cldnn::data_types::bin, cldnn::format::any, cldnn::tensor());
+            ib >> input_layout;
+            input_mds.push_back(onednn::layout_to_memory_desc(input_layout));
+        }
+
+        int64_t prim_axis;
+        ib >> prim_axis;
+
+        layout output_layout = layout(cldnn::data_types::bin, cldnn::format::any, cldnn::tensor());
+        ib >> output_layout;
+        auto output_md = onednn::layout_to_memory_desc(output_layout);
+
+        auto desc = std::make_shared<dnnl::concat::primitive_desc>(
+            output_md,
+            prim_axis,
+            input_mds,
+            ib.get_engine().get_onednn_engine());
+
+        _pd = *desc;
+
+        std::vector<uint8_t> prim_cache;
+        ib >> prim_cache;
+
+        _prim = dnnl::concat(_pd, prim_cache);
+    }
+
     static primitive_impl* create(const concatenation_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         if (arg.can_be_optimized())
@@ -71,7 +137,9 @@ public:
 
         std::shared_ptr<void> dummy = nullptr;
 
-        return new concatenation_onednn(engine, dummy, attr, *desc);
+        auto new_impl = new concatenation_onednn(engine, dummy, attr, *desc);
+        new_impl->_outer = &arg;
+        return new_impl;
     }
 };
 
@@ -108,3 +176,5 @@ attach_concatenation_onednn::attach_concatenation_onednn() {
 }  // namespace detail
 }  // namespace onednn
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::concatenation_onednn, cldnn::object_type::CONCATENATION_ONEDNN)

@@ -17,6 +17,8 @@ struct select_impl : typed_primitive_impl_ocl<select> {
     using parent = typed_primitive_impl_ocl<select>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<select_impl>(*this);
     }
@@ -94,3 +96,5 @@ attach_select_impl::attach_select_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::select_impl, cldnn::object_type::SELECT_IMPL)

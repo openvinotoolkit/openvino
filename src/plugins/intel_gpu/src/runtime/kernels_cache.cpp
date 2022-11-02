@@ -9,6 +9,10 @@
 #include "ocl/ocl_common.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/util/file_util.hpp"
+#include "serialization/set_serializer.hpp"
+#include "serialization/vector_serializer.hpp"
+#include "serialization/map_serializer.hpp"
+#include "serialization/string_serializer.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -466,4 +470,96 @@ void kernels_cache::compile() {
         malloc_trim(0);
 #endif
 }
+void kernels_cache::save(BinaryOutputBuffer& ob) const {
+    OPENVINO_ASSERT(_engine.type() == engine_types::ocl, "[GPU] not supported engine type");
+
+    ob << _prog_id;
+    ob << batch_header_str;
+
+    std::map<std::string, std::string> entry_point_to_id;
+    for (auto iter = _kernels.begin(); iter != _kernels.end(); iter++) {
+        std::string k_id = iter->first;
+        kernel::ptr kernel = iter->second;
+
+        auto ocl_kernel = std::static_pointer_cast<cldnn::ocl::ocl_kernel>(kernel);
+        const auto& entry_point = ocl_kernel->get_handle().getInfo<CL_KERNEL_FUNCTION_NAME>();
+
+        entry_point_to_id[entry_point] = k_id;
+    }
+    ob << entry_point_to_id;
+
+    std::unique_ptr<ocl::ocl_engine> build_engine =
+        cldnn::make_unique<ocl::ocl_engine>(_engine.get_device(), runtime_types::ocl, _engine.configuration(), _engine.get_task_executor());
+
+    std::vector<std::vector<unsigned char>> precompiled_kernels;
+
+    for (auto iter = _kernels.begin(); iter != _kernels.end(); iter++) {
+        kernel::ptr kernel = iter->second;
+        auto ocl_kernel = std::static_pointer_cast<cldnn::ocl::ocl_kernel>(kernel);
+        auto program = ocl_kernel->get_handle().getInfo<CL_KERNEL_PROGRAM>();
+        const auto& entry_point = ocl_kernel->get_handle().getInfo<CL_KERNEL_FUNCTION_NAME>();
+        const auto& k_id = entry_point_to_id.find(entry_point);
+
+        if (k_id != entry_point_to_id.end()) {
+            cl::Program::Binaries binary_kernels = {getProgramBinaries(program)};
+
+            try {
+                cl::vector<cl::Kernel> kernels;
+                cl::Program programs(build_engine->get_cl_context(), {build_engine->get_cl_device()}, binary_kernels);
+                programs.build(build_engine->get_cl_device());
+                programs.createKernels(&kernels);
+
+                for (auto& k : kernels) {
+                    const auto& entry_point = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
+                    entry_point_to_id.erase(entry_point);
+                }
+
+                precompiled_kernels.push_back(std::move(binary_kernels[0]));
+            } catch (const cl::BuildError& err) {
+                std::cout << "+++++ OpenCL build error" << std::endl;
+            }
+        }
+    }
+    ob << precompiled_kernels;
+}
+
+void kernels_cache::load(BinaryInputBuffer& ib) {
+    OPENVINO_ASSERT(_engine.type() == engine_types::ocl, "[GPU] not supported engine type");
+
+    std::unique_ptr<ocl::ocl_engine> build_engine =
+        cldnn::make_unique<ocl::ocl_engine>(_engine.get_device(), runtime_types::ocl, _engine.configuration(), _engine.get_task_executor());
+
+    std::map<std::string, std::string> entry_point_to_id;
+    std::vector<std::vector<unsigned char>> precompiled_kernels;
+    ib >> entry_point_to_id;
+    ib >> precompiled_kernels;
+
+    try {
+        std::lock_guard<std::mutex> lock(_mutex);
+        _kernels.clear();
+
+        for (auto& binary_kernels : precompiled_kernels) {
+            cl::vector<cl::Kernel> kernels;
+            cl::Program program(build_engine->get_cl_context(), {build_engine->get_cl_device()}, {binary_kernels});
+            program.build(build_engine->get_cl_device());
+            program.createKernels(&kernels);
+
+            for (auto& k : kernels) {
+                const auto& entry_point = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
+                const auto& k_id = entry_point_to_id.find(entry_point);
+                if (k_id != entry_point_to_id.end()) {
+                    cl_kernel cl_kernel = k.get();
+                    cl_context cl_context = build_engine->get_cl_context().get();
+                    kernel::ptr kernel = kernels_factory::create(_engine, cl_context, cl_kernel, entry_point);
+                    _kernels.insert({k_id->second, kernel});
+                } else {
+                    throw std::runtime_error("Could not find entry point");
+                }
+            }
+        }
+    } catch (const cl::BuildError& err) {
+        std::cout << "+++++ OpenCL build error" << std::endl;
+    }
+}
+
 }  // namespace cldnn

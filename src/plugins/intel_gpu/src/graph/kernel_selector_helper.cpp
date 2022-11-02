@@ -8,6 +8,9 @@
 #include "kernel_selector_params.h"
 #include "to_string_utils.h"
 #include "program_node.h"
+#include "serialization/layout_serializer.hpp"
+#include "serialization/string_serializer.hpp"
+#include "serialization/vector_serializer.hpp"
 
 #include <string>
 #include <vector>
@@ -1038,4 +1041,44 @@ void set_optional_params(const program& program, kernel_selector::optional_param
     const auto& tuning_config = program.get_options().get<build_option_type::tuning_config>();
     params.tuningParams.mode = to_tuning_mode(tuning_config->config.mode);
     params.tuningParams.cacheFilePath = tuning_config->config.cache_file_path;
+}
+
+void kernel_impl_params::save(BinaryOutputBuffer& ob) const {
+    ob << has_runtime_layouts;
+    ob << unique_id;
+    ob << input_layouts;
+    ob << output_layout;
+    ob << primary_input_idx;
+    ob << fused_desc.size();
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    size_t num_fused_prims = fused_desc_onednn.size();
+    ob << num_fused_prims;
+    for (auto fused_prim : fused_desc_onednn) {
+        ob << make_data(&fused_prim, sizeof(fused_primitive_desc_onednn));
+    }
+#endif // ENABLE_ONEDNN_FOR_GPU
+}
+
+void kernel_impl_params::load(BinaryInputBuffer& ib) {
+    ib >> has_runtime_layouts;
+    ib >> unique_id;
+    ib >> input_layouts;
+    ib >> output_layout;
+    ib >> primary_input_idx;
+    {
+        // Fake fused_desc just for has_fused_primitives()
+        size_t num_fused_desc;
+        ib >> num_fused_desc;
+        if (num_fused_desc > 0) {
+            fused_desc.emplace_back(cldnn::fused_primitive_desc(nullptr));
+        }
+    }
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    size_t num_fused_prims;
+    ib >> num_fused_prims;
+    fused_desc_onednn.resize(num_fused_prims);
+    for (size_t idx = 0; idx < num_fused_prims; ++idx) {
+        ib >> make_data(&fused_desc_onednn[idx], sizeof(fused_primitive_desc_onednn));
+    }
+#endif // ENABLE_ONEDNN_FOR_GPU
 }

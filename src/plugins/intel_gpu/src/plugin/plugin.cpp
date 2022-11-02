@@ -442,6 +442,44 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     return res;
 }
 
+InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istream& networkModel,
+                                            const std::map<std::string, std::string>& orig_config) {
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork");
+    Configs confs = _impl->m_configs;
+    std::string device_id = GetDeviceIDFromConfig(orig_config);
+    Config conf = confs.GetConfig(device_id);
+
+    auto config = ConvertPerfHintsToConfig(orig_config, conf);
+
+    RemoteCLContext::Ptr context;
+
+    auto canReuseDefaultContext = [&]() -> bool {
+        if (m_defaultContexts.find(conf.device_id) == m_defaultContexts.end())
+            return false;
+
+        return m_defaultContexts.at(conf.device_id)->GetConfig().CanShareContextWith(conf);
+    };
+
+    {
+        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork::CreateContext");
+        std::lock_guard<std::mutex> lock(engine_mutex);
+        if (!canReuseDefaultContext()) {
+            context = std::make_shared<RemoteCLContext>(shared_from_this(), AnyMap(), conf);
+            m_defaultContexts[conf.device_id] = context;
+        }
+    }
+
+    context = m_defaultContexts[conf.device_id];
+
+    {
+        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork::CreateExeNetwork");
+        CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(networkModel, context, conf);
+        exeNetwork->SetPointerToPlugin(shared_from_this());
+        UpdateStatistics(context);
+        return exeNetwork;
+    }
+}
+
 Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::GetConfig");
     Parameter result;
@@ -575,6 +613,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         metrics.push_back(METRIC_KEY(DEVICE_GOPS));
         metrics.push_back(METRIC_KEY(OPTIMAL_BATCH_SIZE));
         metrics.push_back(METRIC_KEY(MAX_BATCH_SIZE));
+        metrics.push_back(METRIC_KEY(IMPORT_EXPORT_SUPPORT));
         metrics.push_back(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
         metrics.push_back(GPU_METRIC_KEY(UARCH_VERSION));
         metrics.push_back(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
@@ -917,6 +956,8 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             }
         }
         return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
+    } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
+        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     } else {
         IE_THROW() << "Unsupported metric key " << name;
     }

@@ -188,7 +188,12 @@ struct im_info_t {
 };
 
 struct proposal_impl : typed_primitive_impl<proposal> {
+    using parent = typed_primitive_impl<proposal>;
+    using parent::parent;
+
     explicit proposal_impl(const proposal_node& arg) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<proposal_impl>(*this);
@@ -453,3 +458,5 @@ attach_proposal_impl::attach_proposal_impl() {
 }  // namespace detail
 }  // namespace cpu
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::proposal_impl, cldnn::object_type::PROPOSAL_IMPL_CPU)

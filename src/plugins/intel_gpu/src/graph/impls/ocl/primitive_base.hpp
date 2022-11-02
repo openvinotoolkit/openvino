@@ -11,6 +11,12 @@
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "intel_gpu/graph/network.hpp"
+#include "serialization/binary_buffer.hpp"
+#include "serialization/cl_kernel_data_serializer.hpp"
+#include "serialization/helpers.hpp"
+#include "serialization/set_serializer.hpp"
+#include "serialization/string_serializer.hpp"
+#include "serialization/vector_serializer.hpp"
 #include "register.hpp"
 #include <vector>
 #include <list>
@@ -25,10 +31,17 @@ For example, all gpu convolution implementations should derive from typed_primit
 */
 template <class PType>
 struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
-    const primitive_id& _node_id;
+    primitive_id _node_id;
     kernel_selector::kernel_data _kernel_data;
     std::vector<kernel_id> _kernel_ids;
     std::vector<kernel::ptr> _kernels;
+    kernel_arguments_data_idx _kernel_args;
+
+    typed_primitive_impl_ocl() : _node_id(""), _kernel_data({}), _kernel_ids({}), _kernels({}) {
+        _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
+        _kernel_data.weightsReorderParams.cpuKernel = nullptr;
+        _kernel_data.weightsReorderParams.clKernel = nullptr;
+    }
 
     typed_primitive_impl_ocl(const typed_primitive_impl_ocl<PType>& other)
     : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name)
@@ -54,10 +67,26 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
 
     bool is_cpu() const override { return false; }
 
+    void save(BinaryOutputBuffer& ob) const override {
+        ob << make_data(&_kernel_data.internalBufferDataType, sizeof(kernel_selector::Datatype));
+        ob << _kernel_data.internalBufferSizes;
+        ob << _kernel_data.kernels;
+        ob << _kernel_ids;
+        ob << _kernel_args;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        ib >> make_data(&_kernel_data.internalBufferDataType, sizeof(kernel_selector::Datatype));
+        ib >> _kernel_data.internalBufferSizes;
+        ib >> _kernel_data.kernels;
+        ib >> _kernel_ids;
+        ib >> _kernel_args;
+    }
+
 protected:
     virtual bool optimized_out(typed_primitive_inst<PType>&) const { return false; }
 
-    virtual kernel_arguments_data get_arguments(typed_primitive_inst<PType>& instance, int32_t /*split*/) const {
+    virtual kernel_arguments_data get_arguments(const typed_primitive_inst<PType>& instance, int32_t /*split*/) const {
         kernel_arguments_data args;
 
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
@@ -135,6 +164,64 @@ protected:
         // we iterate over split first in order to be able parallelism with OOOQ mechanism.
         for (size_t k = 0; k < _kernels.size(); ++k) {
             for (decltype(split) i = 0; i < split; i++) {
+                kernel_arguments_data args;
+
+                // [TODO] get args from cache
+                if (_kernel_args.inputs.size() > 0) {
+                    for (uint32_t i = 0; i < _kernel_args.inputs.size(); i++) {
+                        args.inputs.push_back(instance.dep_memory_ptr(_kernel_args.inputs[i]));
+                    }
+
+                    for (uint32_t i = 0; i < _kernel_args.intermediates.size(); i++) {
+                        args.intermediates.push_back(instance.dep_memory_ptr(_kernel_args.intermediates[i]));
+                    }
+
+                    args.weights = (_kernel_args.weights >= 0) ? instance.dep_memory_ptr(_kernel_args.weights) : args.weights;
+                    args.recurrent = (_kernel_args.recurrent >= 0) ? instance.dep_memory_ptr(_kernel_args.recurrent) : args.recurrent;
+                    args.hidden = (_kernel_args.hidden >= 0) ? instance.dep_memory_ptr(_kernel_args.hidden) : args.hidden;
+                    args.cell = (_kernel_args.cell >= 0) ? instance.dep_memory_ptr(_kernel_args.cell) : args.cell;
+                    args.cell = (_kernel_args.cell >= 0) ? instance.dep_memory_ptr(_kernel_args.cell) : args.cell;
+                    args.bias = (_kernel_args.bias >= 0) ? instance.dep_memory_ptr(_kernel_args.bias) : args.bias;
+                    args.weights_zero_points = (_kernel_args.weights_zero_points >= 0) ?
+                                               instance.dep_memory_ptr(_kernel_args.weights_zero_points) : args.weights_zero_points;
+                    args.activations_zero_points = (_kernel_args.activations_zero_points >= 0) ?
+                                                   instance.dep_memory_ptr(_kernel_args.activations_zero_points) : args.activations_zero_points;
+                    args.compensation = (_kernel_args.compensation >= 0) ? instance.dep_memory_ptr(_kernel_args.compensation) : args.compensation;
+                    args.lookup_table = (_kernel_args.lookup_table >= 0) ? instance.dep_memory_ptr(_kernel_args.lookup_table) : args.lookup_table;
+                    args.scale_table = (_kernel_args.scale_table >= 0) ? instance.dep_memory_ptr(_kernel_args.scale_table) : args.scale_table;
+                    args.slope = (_kernel_args.slope >= 0) ? instance.dep_memory_ptr(_kernel_args.slope) : args.slope;
+
+                    for (size_t i = 0; i < _kernel_args.fused_op_inputs.size(); i++) {
+                        args.fused_op_inputs.push_back(instance.dep_memory_ptr(_kernel_args.fused_op_inputs[i]));
+                    }
+
+                    args.outputs.push_back(instance.output_memory_ptr());
+                } else {
+                    args = get_arguments(instance, i);
+
+                    for (const auto& m : instance.get_intermediates_memories()) {
+                        args.intermediates.push_back(m);
+                    }
+                }
+
+                args.scalars = &_kernel_data.kernels[k].params.scalars;
+                args.split = i;
+
+                stream.set_arguments(*_kernels[k], _kernel_data.kernels[k].params, args);
+            }
+        }
+    }
+
+    void set_arguments_impl(kernel_arguments_data_idx& args_idx) override {
+        this->_kernel_args = args_idx;
+    }
+
+    kernel_arguments_data get_arguments_impl(const typed_primitive_inst<PType>& instance) const override {
+        auto split = get_split();
+
+        // we iterate over split first in order to be able parallelism with OOOQ mechanism.
+        for (size_t k = 0; k < _kernels.size(); ++k) {
+            for (decltype(split) i = 0; i < split; i++) {
                 auto args = get_arguments(instance, i);
                 args.scalars = &_kernel_data.kernels[k].params.scalars;
                 args.split = i;
@@ -143,10 +230,12 @@ protected:
                     args.intermediates.push_back(m);
                 }
 
-
-                stream.set_arguments(*_kernels[k], _kernel_data.kernels[k].params, args);
+                return args;
             }
         }
+
+        kernel_arguments_data args;
+        return args;
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events,
@@ -167,16 +256,53 @@ protected:
             std::vector<event::ptr> new_events;
             for (decltype(split) i = 0; i < split; i++) {
                 // is any user of the prim's users is an detecion output, set prim as a output event (event won't be nullptr)
-                auto users = instance.node->get_users();
-                bool is_output_event = is_any_user_cpu(users) || instance.node->is_output();
+                // [TODO]
+                // auto users = instance.node->get_users();
+                // bool is_output_event = is_any_user_cpu(users) || instance.node->is_output();
+                bool is_output_event = instance.is_output();
 
-                auto args = get_arguments(instance, i);
+                kernel_arguments_data args;
+
+                // [TODO] get args from cache
+                if (_kernel_args.inputs.size() > 0) {
+                    for (uint32_t i = 0; i < _kernel_args.inputs.size(); i++) {
+                        args.inputs.push_back(instance.dep_memory_ptr(_kernel_args.inputs[i]));
+                    }
+
+                    for (uint32_t i = 0; i < _kernel_args.intermediates.size(); i++) {
+                        args.intermediates.push_back(instance.dep_memory_ptr(_kernel_args.intermediates[i]));
+                    }
+
+                    args.weights = (_kernel_args.weights >= 0) ? instance.dep_memory_ptr(_kernel_args.weights) : args.weights;
+                    args.recurrent = (_kernel_args.recurrent >= 0) ? instance.dep_memory_ptr(_kernel_args.recurrent) : args.recurrent;
+                    args.hidden = (_kernel_args.hidden >= 0) ? instance.dep_memory_ptr(_kernel_args.hidden) : args.hidden;
+                    args.cell = (_kernel_args.cell >= 0) ? instance.dep_memory_ptr(_kernel_args.cell) : args.cell;
+                    args.cell = (_kernel_args.cell >= 0) ? instance.dep_memory_ptr(_kernel_args.cell) : args.cell;
+                    args.bias = (_kernel_args.bias >= 0) ? instance.dep_memory_ptr(_kernel_args.bias) : args.bias;
+                    args.weights_zero_points = (_kernel_args.weights_zero_points >= 0) ?
+                                               instance.dep_memory_ptr(_kernel_args.weights_zero_points) : args.weights_zero_points;
+                    args.activations_zero_points = (_kernel_args.activations_zero_points >= 0) ?
+                                                   instance.dep_memory_ptr(_kernel_args.activations_zero_points) : args.activations_zero_points;
+                    args.compensation = (_kernel_args.compensation >= 0) ? instance.dep_memory_ptr(_kernel_args.compensation) : args.compensation;
+                    args.lookup_table = (_kernel_args.lookup_table >= 0) ? instance.dep_memory_ptr(_kernel_args.lookup_table) : args.lookup_table;
+                    args.scale_table = (_kernel_args.scale_table >= 0) ? instance.dep_memory_ptr(_kernel_args.scale_table) : args.scale_table;
+                    args.slope = (_kernel_args.slope >= 0) ? instance.dep_memory_ptr(_kernel_args.slope) : args.slope;
+
+                    for (size_t i = 0; i < _kernel_args.fused_op_inputs.size(); i++) {
+                        args.fused_op_inputs.push_back(instance.dep_memory_ptr(_kernel_args.fused_op_inputs[i]));
+                    }
+
+                    args.outputs.push_back(instance.output_memory_ptr());
+                } else {
+                    args = get_arguments(instance, i);
+
+                    for (const auto& m : instance.get_intermediates_memories()) {
+                        args.intermediates.push_back(m);
+                    }
+                }
+
                 args.scalars = &_kernel_data.kernels[k].params.scalars;
                 args.split = i;
-
-                for (const auto& m : instance.get_intermediates_memories()) {
-                    args.intermediates.push_back(m);
-                }
 
                 auto ev = stream.enqueue_kernel(*_kernels[k], _kernel_data.kernels[k].params, args, tmp_events, is_output_event);
                 new_events.push_back(ev);

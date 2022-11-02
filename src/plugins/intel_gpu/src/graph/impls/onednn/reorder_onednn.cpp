@@ -19,7 +19,11 @@ struct reorder_onednn : typed_primitive_onednn_impl<reorder, void, dnnl::reorder
     using parent = typed_primitive_onednn_impl<reorder, void, dnnl::reorder::primitive_desc, dnnl::reorder>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
 protected:
+    const reorder_node* _outer;
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<reorder_onednn>(*this);
     }
@@ -60,6 +64,44 @@ protected:
     }
 
 public:
+    void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
+
+        ob << _outer->get_dependency(0).get_output_layout();
+        ob << _outer->get_output_layout();
+
+        std::vector<uint8_t> prim_cache;
+        prim_cache = _prim.get_cache_blob();
+        ob << prim_cache;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+
+        layout input_layout = layout(cldnn::data_types::bin, cldnn::format::any, cldnn::tensor());
+        ib >> input_layout;
+
+        layout output_layout = layout(cldnn::data_types::bin, cldnn::format::any, cldnn::tensor());
+        ib >> output_layout;
+
+        auto input_md = onednn::layout_to_memory_desc(input_layout);
+        auto output_md = onednn::layout_to_memory_desc(output_layout);
+
+        auto desc = std::make_shared<dnnl::reorder::primitive_desc>(
+            ib.get_engine().get_onednn_engine(),
+            input_md,
+            ib.get_engine().get_onednn_engine(),
+            output_md,
+            *(_attrs));
+
+        _pd = *desc;
+
+        std::vector<uint8_t> prim_cache;
+        ib >> prim_cache;
+
+        _prim = dnnl::reorder(_pd, prim_cache);
+    }
+
     static primitive_impl* create(const reorder_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto attr = arg.get_onednn_primitive_attributes();
@@ -67,7 +109,9 @@ public:
 
         std::shared_ptr<void> dummy = nullptr;
 
-        return new reorder_onednn(engine, dummy, attr, *desc);
+        auto new_impl = new reorder_onednn(engine, dummy, attr, *desc);
+        new_impl->_outer = &arg;
+        return new_impl;
     }
 };
 
@@ -80,3 +124,5 @@ attach_reorder_onednn::attach_reorder_onednn() {
 }  // namespace detail
 }  // namespace onednn
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::reorder_onednn, cldnn::object_type::REORDER_ONEDNN)

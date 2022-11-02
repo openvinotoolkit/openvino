@@ -244,7 +244,7 @@ crop_inst::typed_primitive_inst(network& network, crop_node const& node) : paren
 }
 
 void crop_inst::on_execute() {
-    if (!node->can_be_optimized())
+    if (!can_be_optimized())
         return;
 
     if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))

@@ -17,6 +17,7 @@
 
 #include "reorder/reorder_weights_kernel_selector.h"
 #include "reorder/reorder_kernel_base.h"
+#include "serialization/binary_buffer.hpp"
 
 #include <vector>
 #include <list>
