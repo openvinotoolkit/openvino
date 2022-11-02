@@ -27,7 +27,7 @@ void shape_infer(const ov::op::internal::AUGRUCell* op,
     rnn_seq::gru_cell_shape_infer(op, input_shapes, output_shapes);
 
     // `A` input shape validation // [batch_size, 1]
-    const auto& a_shape = input_shapes[expected_in_shapes_count - 1];
+    const auto& a_shape = input_shapes.back();
     const auto& x_shape = input_shapes[0];
     NODE_VALIDATION_CHECK(op, a_shape.rank().compatible(2), "'A' input must be a 2D tensor.");
     if (a_shape.rank().is_static()) {
