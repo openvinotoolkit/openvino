@@ -84,4 +84,4 @@ See the following pages to understand how to migrate Inference Engine-based appl
  - [Configure device](./configure_devices.md)
  - [OpenVINO™ Model Creation](graph_construction.md)
 
-[tf_openvino]: ../../img/tf_openvino.png
+[tf_openvino]: ../../img/tf_openvino.svg
