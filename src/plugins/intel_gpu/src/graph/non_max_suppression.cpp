@@ -52,7 +52,7 @@ std::vector<layout> non_max_suppression_inst::calc_output_layouts(non_max_suppre
         auto max_output_boxes_per_class_tensor = make_host_tensor(max_output_boxes_per_class_mem->get_layout(),
                                                                   max_output_boxes_per_class_lock.data());
         const_data.emplace(1, max_output_boxes_per_class_tensor);
-        ov::op::v9::shape_infer(&op, input_shapes, output_shapes, true, const_data);
+        ov::op::v9::shape_infer(&op, input_shapes, output_shapes, const_data);
     }
 
     for (size_t i = 0; i < desc->num_outputs; ++i) {

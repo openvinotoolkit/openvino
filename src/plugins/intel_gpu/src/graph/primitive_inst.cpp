@@ -127,7 +127,7 @@ void primitive_inst::set_output_memory(memory::ptr mem_new, bool check, size_t i
         return;
     }
 
-    auto ol = _impl_params->output_layout;
+    auto ol = _impl_params->get_output_layout(idx);
 
     if (check)
         check_memory_to_set(*mem_new, ol);
