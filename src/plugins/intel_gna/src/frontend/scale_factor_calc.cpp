@@ -57,7 +57,7 @@ float GetScaleFactor(InferenceEngine::CNNLayerPtr layer, QuantizedDataType data_
     return scale_factor;
 }
 
-inline float CalculateScaleFactorFromStats(size_t levels, float minValue, float maxValue) {
+float CalculateScaleFactorFromStats(size_t levels, float minValue, float maxValue) {
     return maxValue == minValue ? 1.0f : (levels - 1) / (maxValue - minValue);
 }
 
@@ -66,7 +66,7 @@ inline float CalculateScaleFactorFromStats(size_t levels, float minValue, float 
  * @param info Layer information
  * @return Array of slopes for a function
  */
-inline std::vector<double> ScaleFactorCalculator::getPWLSlopes(const LayerInfo& info) const {
+std::vector<double> ScaleFactorCalculator::getPWLSlopes(const LayerInfo& info) const {
     if (info.isIdentity() || info.isFakeQuantize() || info.isRelu() || info.isClamp() || info.isAbs()) {
         return { 1.0f };
     }
