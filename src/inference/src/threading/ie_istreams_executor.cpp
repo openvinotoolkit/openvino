@@ -47,6 +47,7 @@ int IStreamsExecutor::Config::GetDefaultNumStreams() {
 }
 
 int IStreamsExecutor::Config::GetHybridNumStreams(const Config& config, const int stream_mode) {
+    const int num_cores = parallel_get_max_threads();
     const int num_phy_cores = getNumberOfCPUCores();
     const int num_big_cores = getNumberOfCPUCores(true);
     const int num_small_cores = num_phy_cores - num_big_cores;
@@ -89,6 +90,9 @@ int IStreamsExecutor::Config::GetHybridNumStreams(const Config& config, const in
     } else {
         IE_THROW() << "Wrong stream mode to get num of streams: " << stream_mode;
     }
+    // use logic cores
+    config._threads_per_stream_big = num_cores > num_phy_cores ? config._threads_per_stream_big * 2 : config._threads_per_stream_big;
+
     config._small_core_offset = num_small_cores == 0 ? 0 : num_big_cores * 2;
     return config._big_core_streams + config._small_core_streams;
 }

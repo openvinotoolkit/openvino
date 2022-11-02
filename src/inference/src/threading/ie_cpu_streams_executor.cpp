@@ -98,7 +98,12 @@ struct CPUStreamsExecutor::Impl {
                     // wrapping around total_streams (i.e. how many streams all different core types can handle
                     // together)
                     const auto total_streams = _impl->total_streams_on_core_types.back().second;
+                    const auto core_type_size = _impl->total_streams_on_core_types.size();
                     const auto streamId_wrapped = _streamId % total_streams;
+                    const auto use_logic = _impl->_config._threads_per_stream_big * _impl->_config._big_core_streams >
+                                           _impl->_config._small_core_offset / 2;
+                    const auto phy_core_streams = _impl->_config._big_core_streams / 2;
+                    const auto cur_logic = use_logic ? (streamId_wrapped >= phy_core_streams ? true : false) : false;
                     const auto& selected_core_type =
                         std::find_if(
                             _impl->total_streams_on_core_types.cbegin(),
@@ -107,13 +112,24 @@ struct CPUStreamsExecutor::Impl {
                                 return p.second > streamId_wrapped;
                             })
                             ->first;
-                    const auto max_concurrency = selected_core_type == 0 ? _impl->_config._threads_per_stream_small
-                                                                         : _impl->_config._threads_per_stream_big;
+                    const auto max_concurrency =
+                        core_type_size > 1 ? (selected_core_type == 0 ? _impl->_config._threads_per_stream_small
+                                                                      : _impl->_config._threads_per_stream_big)
+                                           : _impl->_config._threads_per_stream_big;
                     const auto stream_id =
-                        selected_core_type == 0 ? _streamId - _impl->_config._big_core_streams : _streamId;
-                    const auto thread_binding_step = selected_core_type == 0 ? _impl->_config._threadBindingStep : 2;
+                        core_type_size > 1
+                            ? (selected_core_type == 0
+                                   ? streamId_wrapped - _impl->_config._big_core_streams
+                                   : (cur_logic ? streamId_wrapped - phy_core_streams : streamId_wrapped))
+                            : streamId_wrapped;
+                    const auto thread_binding_step =
+                        core_type_size > 1 ? (selected_core_type == 0 ? _impl->_config._threadBindingStep : 2)
+                                           : _impl->_config._threadBindingStep;
                     // Prevent conflicts with system scheduling, so default cpu id on big core starts from 1
-                    const auto cpu_idx_offset = selected_core_type == 0 ? _impl->_config._small_core_offset : 1;
+                    const auto cpu_idx_offset =
+                        core_type_size > 1
+                            ? (selected_core_type == 0 ? _impl->_config._small_core_offset : (cur_logic ? 0 : 1))
+                            : 0;
 
                     _taskArena.reset(new custom::task_arena{max_concurrency});
                     CpuSet processMask;
