@@ -77,15 +77,17 @@ OP_CONVERTER(translate_lrn_op);
 OP_CONVERTER(translate_mat_mul_op);
 OP_CONVERTER(translate_matrix_diag_op);
 OP_CONVERTER(translate_max_pool_op);
+OP_CONVERTER(translate_mirror_pad_op);
 OP_CONVERTER(translate_non_max_suppression_op);
 OP_CONVERTER(translate_normalize_l2_op);
-OP_CONVERTER(translate_pad_op);
 OP_CONVERTER(translate_parallel_dynamic_stitch_op);
 OP_CONVERTER(translate_placeholder_op);
 OP_CONVERTER(translate_placeholder_with_default_op);
 OP_CONVERTER(translate_no_op);
 OP_CONVERTER(translate_one_hot_op);
 OP_CONVERTER(translate_pack_op);
+OP_CONVERTER(translate_pad_op);
+OP_CONVERTER(translate_padv2_op);
 OP_CONVERTER(translate_range_op);
 OP_CONVERTER(translate_rank_op);
 OP_CONVERTER(translate_random_uniform_op);
@@ -253,7 +255,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"MaxPool", translate_max_pool_op},
         {"MaxPoolV2", translate_max_pool_op},
         {"MaxPool3D", translate_max_pool_op},
-        {"MirrorPad", translate_pad_op},
+        {"MirrorPad", translate_mirror_pad_op},
         {"NonMaxSuppression", translate_non_max_suppression_op},
         {"NonMaxSuppressionV2", translate_non_max_suppression_op},
         {"NonMaxSuppressionV3", translate_non_max_suppression_op},
@@ -264,7 +266,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"OneHot", translate_one_hot_op},
         {"Pack", translate_pack_op},
         {"Pad", translate_pad_op},
-        {"PadV2", translate_pad_op},
+        {"PadV2", translate_padv2_op},
         {"DynamicStitch", translate_parallel_dynamic_stitch_op},
         {"ParallelDynamicStitch", translate_parallel_dynamic_stitch_op},
         {"Placeholder", translate_placeholder_op},

@@ -3,69 +3,80 @@
 //
 
 #include "op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset9.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov;
+using namespace ov::opset9;
 
-// 3 different Pad Ops: Pad, PadV2, MirrorPad
-// See https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/pad
-// See https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/pad-v2
-// See https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/mirror-pad
 namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
+static void slice_pads_begin_end(const Output<Node>& paddings,
+                                 shared_ptr<Node>& pads_begin,
+                                 shared_ptr<Node>& pads_end) {
+    // TODO: fix IR reader to accept padding of i32 type
+    auto paddings_i64 = make_shared<Convert>(paddings, element::i64);
+    auto axis = make_shared<Constant>(element::i32, Shape{}, 1);
+    auto index_zero = make_shared<Constant>(element::i32, Shape{1}, 0);
+    auto index_one = make_shared<Constant>(element::i32, Shape{1}, 1);
+    auto unsqueeze_pad_begin = make_shared<Gather>(paddings_i64, index_zero, axis);
+    auto unsqueeze_pad_end = make_shared<Gather>(paddings_i64, index_one, axis);
+
+    pads_begin = make_shared<Squeeze>(unsqueeze_pad_begin, axis);
+    pads_end = make_shared<Squeeze>(unsqueeze_pad_end, axis);
+}
+
+static OutputVector translate_pad_base_op(const NodeContext& node,
+                                          const Output<Node>& input,
+                                          const Output<Node>& paddings,
+                                          const Output<Node>& constant_value) {
+    auto pad_mode = ov::op::PadMode::CONSTANT;
+
+    // prepare pads_begin and pads_end for OpenVINO Pad
+    shared_ptr<Node> pads_begin, pads_end;
+    slice_pads_begin_end(paddings, pads_begin, pads_end);
+
+    auto pad = make_shared<Pad>(input, pads_begin, pads_end, constant_value, pad_mode);
+    set_node_name(node.get_name(), pad);
+    return {pad};
+}
 
 OutputVector translate_pad_op(const NodeContext& node) {
-    auto ng_input = node.get_input(0), ng_paddings_op = node.get_input(1);
-    Output<Node> pad_val_op;
+    default_op_checks(node, 2, {"Pad"});
+    auto input = node.get_input(0);
+    auto paddings = node.get_input(1);
+    auto constant_value = make_shared<Constant>(input.get_element_type(), Shape{}, 0);
 
-    // Set inputs and pad_val_op
-    auto op_type = node.get_op_type();
-    if (op_type == "Pad" || op_type == "MirrorPad") {
-        pad_val_op = make_shared<Constant>(ng_input.get_element_type(), Shape(), std::vector<int>({0}));
-    } else if (op_type == "PadV2") {
-        pad_val_op = node.get_input(2);
-    } else {
-        TENSORFLOW_OP_VALIDATION(node, false, "Incorrect TF Pad OpType: " + node.get_op_type());
-    }
+    return translate_pad_base_op(node, input, paddings, constant_value);
+}
 
-    // Set pad_mode
-    auto pad_mode = ov::op::PadMode::CONSTANT;
-    if (op_type == "MirrorPad") {
-        auto pad_mode_str = node.get_attribute<std::string>("mode");
-        if (pad_mode_str == "REFLECT") {
-            pad_mode = ov::op::PadMode::REFLECT;
-        } else if (pad_mode_str == "SYMMETRIC") {
-            pad_mode = ov::op::PadMode::SYMMETRIC;
-        } else {
-            TENSORFLOW_OP_VALIDATION(node, false, pad_mode_str + " is not an allowed padding mode.");
-        }
-    }
+OutputVector translate_padv2_op(const NodeContext& node) {
+    default_op_checks(node, 3, {"PadV2"});
+    auto input = node.get_input(0);
+    auto paddings = node.get_input(1);
+    auto constant_value = node.get_input(2);
 
-    // Set pads_begin & pads_end (from the pad_val_op)
-    std::vector<int64_t> paddings;
-    get_const_input(node, 1, &paddings);
-    if (paddings.size() % 2 != 0) {
-        TENSORFLOW_OP_VALIDATION(node,
-                                 false,
-                                 "Constant node for paddings does not have an even number of "
-                                 "elements");
-    }
-    std::vector<int64_t> pad_begin(paddings.size() / 2);
-    std::vector<int64_t> pad_end(paddings.size() / 2);
-    for (size_t i = 0; i < paddings.size() / 2; i++) {
-        pad_begin[i] = paddings[2 * i];
-        pad_end[i] = paddings[2 * i + 1];
-    }
-    auto pads_begin_node = make_shared<Constant>(element::i64, Shape{pad_begin.size()}, pad_begin);
-    auto pads_end_node = make_shared<Constant>(element::i64, Shape{pad_end.size()}, pad_end);
+    return translate_pad_base_op(node, input, paddings, constant_value);
+}
 
-    // Create final Op
-    auto res = make_shared<Pad>(ng_input, pads_begin_node, pads_end_node, pad_val_op, pad_mode);
-    set_node_name(node.get_name(), res);
-    return res->outputs();
+OutputVector translate_mirror_pad_op(const NodeContext& node) {
+    default_op_checks(node, 2, {"MirrorPad"});
+    auto input = node.get_input(0);
+    auto paddings = node.get_input(1);
+
+    // retrieve attributes
+    auto mode = node.get_attribute<std::string>("mode");
+    auto pad_mode = convert_padding_mode(node, mode);
+
+    // prepare pads_begin and pads_end for OpenVINO Pad
+    shared_ptr<Node> pads_begin, pads_end;
+    slice_pads_begin_end(paddings, pads_begin, pads_end);
+
+    auto pad = make_shared<Pad>(input, pads_begin, pads_end, pad_mode);
+    set_node_name(node.get_name(), pad);
+    return {pad};
 }
 }  // namespace op
 }  // namespace tensorflow
