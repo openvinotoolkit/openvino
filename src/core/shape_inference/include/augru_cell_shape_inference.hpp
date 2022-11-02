@@ -24,7 +24,7 @@ void shape_infer(const ov::op::internal::AUGRUCell* op,
                           input_shapes.size(),
                           ".");
 
-    rnn_seq::gru_cell_shape_infer(op, input_shapes, output_shapes);
+    rnn::gru_cell_shape_infer(op, input_shapes, output_shapes);
 
     // `A` input shape validation // [batch_size, 1]
     const auto& a_shape = input_shapes.back();

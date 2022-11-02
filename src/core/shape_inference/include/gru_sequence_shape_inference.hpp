@@ -9,7 +9,7 @@
 
 namespace ov {
 namespace op {
-namespace rnn_seq {
+namespace rnn {
 template <class OpType, class ShapeType>
 void validate_inputs_rank(const OpType* op,
                           const std::vector<ShapeType>& input_shapes,
@@ -32,9 +32,9 @@ void validate_inputs_rank(const OpType* op,
 // output_shapes[0]: [batch_size, num_directions, seq_length, hidden_size] // Rank always 4
 // output_shapes[1]: [batch_size, num_directions, hidden_size] // Rank always 3
 template <class OpType, class ShapeType>
-void gru_shape_infer(const OpType* op,
-                     const std::vector<ShapeType>& input_shapes,
-                     std::vector<ShapeType>& output_shapes) {
+void gru_sequence_shape_infer(const OpType* op,
+                              const std::vector<ShapeType>& input_shapes,
+                              std::vector<ShapeType>& output_shapes) {
     NODE_VALIDATION_CHECK(op,
                           input_shapes.size() >= 6 && output_shapes.size() == 2,
                           "Incorrect number of shapes has been provided.");
@@ -44,7 +44,7 @@ void gru_shape_infer(const OpType* op,
     y_out_shape.resize(4);   // Rank always 4
     ho_out_shape.resize(3);  // Rank always 3
 
-    rnn_seq::validate_inputs_rank(op, input_shapes, {3, 3, 1, 3, 3, 2});
+    rnn::validate_inputs_rank(op, input_shapes, {3, 3, 1, 3, 3, 2});
 
     const auto& x_pshape = input_shapes[0];
     const auto& ht_pshape = input_shapes[1];
@@ -155,7 +155,7 @@ void gru_shape_infer(const OpType* op,
     y_out_shape[3] = merged_hidden_size;
     ho_out_shape[2] = merged_hidden_size;
 }
-}  // namespace rnn_seq
+}  // namespace rnn
 namespace v5 {
 template <class ShapeType>
 void shape_infer(const ov::op::v5::GRUSequence* op,
@@ -170,7 +170,7 @@ void shape_infer(const ov::op::v5::GRUSequence* op,
                           input_shapes.size(),
                           ".");
 
-    rnn_seq::gru_shape_infer(op, input_shapes, output_shapes);
+    rnn::gru_sequence_shape_infer(op, input_shapes, output_shapes);
 }
 }  // namespace v5
 }  // namespace op

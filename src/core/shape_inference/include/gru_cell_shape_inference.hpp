@@ -11,7 +11,7 @@
 
 namespace ov {
 namespace op {
-namespace rnn_seq {
+namespace rnn {
 
 // Output shape layout:
 // output_shapes[0]: [batch_size, hidden_size] // Rank always 2
@@ -26,7 +26,7 @@ void gru_cell_shape_infer(const OpType* op,
     auto& y_out_shape = output_shapes[0];
     y_out_shape.resize(2);  // Rank always 2
 
-    rnn_seq::validate_inputs_rank(op, input_shapes, {2, 2, 2, 2, 1});
+    rnn::validate_inputs_rank(op, input_shapes, {2, 2, 2, 2, 1});
 
     const auto& x_pshape = input_shapes[0];   // [batch_size, input_size]
     const auto& ht_pshape = input_shapes[1];  // [batch_size, hidden_size]
@@ -92,13 +92,13 @@ void gru_cell_shape_infer(const OpType* op,
     // Set hidden_size dimension
     y_out_shape[1] = merged_hidden_size;
 }
-}  // namespace rnn_seq
+}  // namespace rnn
 namespace v3 {
 template <class ShapeType>
 void shape_infer(const ov::op::v3::GRUCell* op,
                  const std::vector<ShapeType>& input_shapes,
                  std::vector<ShapeType>& output_shapes) {
-    rnn_seq::gru_cell_shape_infer(op, input_shapes, output_shapes);
+    rnn::gru_cell_shape_infer(op, input_shapes, output_shapes);
 }
 }  // namespace v3
 }  // namespace op
