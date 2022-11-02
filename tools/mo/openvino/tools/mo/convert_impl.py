@@ -785,6 +785,14 @@ def input_model_is_object(argv):
     return True
 
 
+def remove_tmp_onnx_model(out_dir):
+    if not os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):
+        tmp_onnx_model = get_onnx_temp_filename(out_dir)
+
+        if os.path.exists(tmp_onnx_model):
+            os.remove(tmp_onnx_model)
+
+
 def _convert(**args):
     if 'help' in args and args['help']:
         show_mo_convert_help()
@@ -824,13 +832,15 @@ def _convert(**args):
             args['input_shape'] = None
             args['example_inputs'] = None
             args['onnx_opset_version'] = None
-            ov_model = _convert(**args)
 
-            if not os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):
-                os.remove(get_onnx_temp_filename(out_dir))
+            try:
+                ov_model = _convert(**args)
+            except Exception as e:
+                remove_tmp_onnx_model(out_dir)
+                raise e
 
+            remove_tmp_onnx_model(out_dir)
             return ov_model
-
     args = params_to_string(**args)
     argv = pack_params_to_args_namespace(**args)
 
