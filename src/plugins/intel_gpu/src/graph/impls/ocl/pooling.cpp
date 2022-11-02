@@ -71,7 +71,7 @@ struct pooling_impl : typed_primitive_impl_ocl<pooling> {
 protected:
     kernel_arguments_data get_arguments(typed_primitive_inst<pooling>& instance, int32_t split) const override {
         kernel_arguments_data args = parent::get_arguments(instance, split);
-        if (!instance.argument.argmax.empty())
+        if (!instance.argument->argmax.empty())
             args.inputs.push_back(instance.dep_memory_ptr(1));
         return args;
     }
