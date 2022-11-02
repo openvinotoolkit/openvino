@@ -19,7 +19,7 @@ public:
     class Transaction;
     class Address;
     template<typename TReg>
-    class Reg;
+    class RegAddress;
 
     StackAllocator(x64::jit_generator& code_gen)
         : StackAllocator{code_gen, code_gen.rbp} {
@@ -370,24 +370,24 @@ private:
 };
 
 template<typename TReg>
-class StackAllocator::Reg : public StackAllocator::Address {
+class StackAllocator::RegAddress : public StackAllocator::Address {
 public:
     static_assert(std::is_base_of<Xbyak::Reg, TReg>::value, "TReg should be a Xbyak::Reg based !!");
 
-    Reg(StackAllocator::Transaction& transaction)
+    RegAddress(StackAllocator::Transaction& transaction)
         : Address{transaction, TReg{}.getBit() / 8, getAlignment()} {
     }
 
-    Reg(StackAllocator& stack_allocator)
+    RegAddress(StackAllocator& stack_allocator)
         : Address{stack_allocator, TReg{}.getBit() / 8, getAlignment()} {
     }
 
-    Reg& operator=(const Xbyak::Xmm& vmm) override {
+    RegAddress& operator=(const Xbyak::Xmm& vmm) override {
         Address::operator=(vmm);
         return *this;
     }
 
-    Reg& operator=(const Xbyak::Reg& reg) override {
+    RegAddress& operator=(const Xbyak::Reg& reg) override {
         Address::operator=(reg);
         return *this;
     }

@@ -85,7 +85,7 @@ TEST_F(StackAllocatorTest, Address_Value_Equal) {
 TEST_F(StackAllocatorTest, Reg32_Value_Equal) {
     kernel_ = [this]() {
         Xbyak::Label l_equal;
-        StackAllocator::Reg<Xbyak::Reg32> reg_100_addr{stack_allocator()};
+        StackAllocator::RegAddress<Xbyak::Reg32> reg_100_addr{stack_allocator()};
         mov(rbx.cvt32(), 100);
         stack_mov(reg_100_addr, rbx.cvt32());
         mov(rax, 1);
@@ -121,7 +121,7 @@ TEST_F(StackAllocatorTest, Address_Value_NotEqual) {
 TEST_F(StackAllocatorTest, Reg32_Value_NotEqual) {
     kernel_ = [this]() {
         Xbyak::Label l_equal;
-        StackAllocator::Reg<Xbyak::Reg32> reg_100_addr{stack_allocator()};
+        StackAllocator::RegAddress<Xbyak::Reg32> reg_100_addr{stack_allocator()};
         mov(rbx.cvt32(), 100);
         stack_mov(reg_100_addr, rbx.cvt32());
         mov(rcx.cvt32(), reg_100_addr);
@@ -293,7 +293,7 @@ TYPED_TEST(AlignedStackAllocatorTest, Reg_CheckAlignment_Success) {
     this->kernel_ = [this]() {
         Xbyak::Label l_equal;
         StackAllocator::Address byte0_addr{this->stack_allocator(), sizeof(int8_t)};
-        StackAllocator::Reg<Xbyak::Xmm> xmm0_addr{this->stack_allocator()};
+        StackAllocator::RegAddress<Xbyak::Xmm> xmm0_addr{this->stack_allocator()};
         this->addps(this->xmm0, xmm0_addr);
     };
     auto f = this->template create_kernel<int(*) ()>();
@@ -305,12 +305,12 @@ TYPED_TEST(AlignedStackAllocatorTest, Address_Reuse_Success) {
         Xbyak::Label l_equal;
         StackAllocator::Transaction transaction{this->stack_allocator()};
         StackAllocator::Address byte0_addr{transaction, sizeof(int8_t)};
-        StackAllocator::Reg<Xbyak::Xmm> xmm0_addr{transaction};
+        StackAllocator::RegAddress<Xbyak::Xmm> xmm0_addr{transaction};
         StackAllocator::Address byte1_addr{transaction, sizeof(int8_t)};
         transaction.commit();
         this->addps(this->xmm0, xmm0_addr);
         xmm0_addr.release();
-        StackAllocator::Reg<Xbyak::Xmm> xmm1_addr{transaction};
+        StackAllocator::RegAddress<Xbyak::Xmm> xmm1_addr{transaction};
         transaction.commit();
         this->addps(this->xmm0, xmm1_addr);
     };
@@ -323,13 +323,13 @@ TYPED_TEST(AlignedStackAllocatorTest, Transaction_CheckAllocation_Fail) {
         Xbyak::Label l_equal;
         StackAllocator::Transaction transaction{this->stack_allocator()};
         StackAllocator::Address byte0_addr{transaction, sizeof(int8_t)};
-        StackAllocator::Reg<Xbyak::Xmm> xmm0_addr{transaction};
+        StackAllocator::RegAddress<Xbyak::Xmm> xmm0_addr{transaction};
         StackAllocator::Address byte1_addr{transaction, sizeof(int8_t)};
-        StackAllocator::Reg<Xbyak::Xmm> xmm1_addr{this->stack_allocator()};
+        StackAllocator::RegAddress<Xbyak::Xmm> xmm1_addr{this->stack_allocator()};
         transaction.commit();
         this->addps(this->xmm0, xmm0_addr);
         xmm0_addr.release();
-        StackAllocator::Reg<Xbyak::Xmm> xmm2_addr{transaction};
+        StackAllocator::RegAddress<Xbyak::Xmm> xmm2_addr{transaction};
         transaction.commit();
         this->addps(this->xmm0, xmm2_addr);
     };
@@ -342,12 +342,12 @@ TYPED_TEST(AlignedStackAllocatorTest, Transaction_UseAddressBeforeCommit_Fail) {
         Xbyak::Label l_equal;
         StackAllocator::Transaction transaction{this->stack_allocator()};
         StackAllocator::Address byte0_addr{transaction, sizeof(int8_t)};
-        StackAllocator::Reg<Xbyak::Xmm> xmm0_addr{transaction};
+        StackAllocator::RegAddress<Xbyak::Xmm> xmm0_addr{transaction};
         StackAllocator::Address byte1_addr{transaction, sizeof(int8_t)};
         this->addps(this->xmm0, xmm0_addr);
         transaction.commit();
         xmm0_addr.release();
-        StackAllocator::Reg<Xbyak::Xmm> xmm1_addr{transaction};
+        StackAllocator::RegAddress<Xbyak::Xmm> xmm1_addr{transaction};
         transaction.commit();
         this->addps(this->xmm0, xmm1_addr);
     };
@@ -360,13 +360,13 @@ TYPED_TEST(AlignedStackAllocatorTest, Transaction_UseAddressAfterCommit_Success)
         Xbyak::Label l_equal;
         StackAllocator::Transaction transaction{this->stack_allocator()};
         StackAllocator::Address byte0_addr{transaction, sizeof(int8_t)};
-        StackAllocator::Reg<Xbyak::Xmm> xmm0_addr{transaction};
+        StackAllocator::RegAddress<Xbyak::Xmm> xmm0_addr{transaction};
         StackAllocator::Address byte1_addr{transaction, sizeof(int8_t)};
         transaction.commit();
         this->addps(this->xmm0, xmm0_addr);
         xmm0_addr.release(transaction);
         byte1_addr.release(transaction);
-        StackAllocator::Reg<Xbyak::Xmm> xmm1_addr{transaction};
+        StackAllocator::RegAddress<Xbyak::Xmm> xmm1_addr{transaction};
         transaction.commit();
         this->addps(this->xmm0, xmm1_addr);
     };
@@ -380,13 +380,13 @@ TYPED_TEST(AlignedStackAllocatorTest, Transaction_ReleaseAddressBeforeCommit_Fai
         Xbyak::Label l_equal;
         StackAllocator::Transaction transaction{this->stack_allocator()};
         StackAllocator::Address byte0_addr{transaction, sizeof(int8_t)};
-        StackAllocator::Reg<Xbyak::Xmm> xmm0_addr{transaction};
+        StackAllocator::RegAddress<Xbyak::Xmm> xmm0_addr{transaction};
         StackAllocator::Address byte1_addr{transaction, sizeof(int8_t)};
         transaction.commit();
         this->uni_vaddps(this->xmm0, this->xmm0, xmm0_addr);
         xmm0_addr.release(transaction);
         byte1_addr.release();
-        StackAllocator::Reg<Xbyak::Xmm> xmm1_addr{transaction};
+        StackAllocator::RegAddress<Xbyak::Xmm> xmm1_addr{transaction};
         transaction.commit();
         this->addps(this->xmm0, xmm1_addr);
     };
@@ -400,7 +400,7 @@ TYPED_TEST(AlignedStackAllocatorTest, Xmm_Value_Equal) {
         Xbyak::Label l_not_equal;
         Xbyak::Xmm vmm0{0};
         Xbyak::Xmm vmm1{1};
-        StackAllocator::Reg<Xbyak::Xmm> value_on_stack{this->stack_allocator()};
+        StackAllocator::RegAddress<Xbyak::Xmm> value_on_stack{this->stack_allocator()};
         this->mov(this->rbx, reinterpret_cast<uintptr_t>(data));
         this->uni_vmovups(vmm0, this->ptr[this->rbx]);
         value_on_stack = vmm0;
@@ -424,7 +424,7 @@ TYPED_TEST(AlignedStackAllocatorTest, Xmm_Value_NotEqual) {
         Xbyak::Label l_not_equal;
         Xbyak::Xmm vmm0{0};
         Xbyak::Xmm vmm1{1};
-        StackAllocator::Reg<Xbyak::Xmm> value_on_stack{this->stack_allocator()};
+        StackAllocator::RegAddress<Xbyak::Xmm> value_on_stack{this->stack_allocator()};
         this->mov(this->rbx, reinterpret_cast<uintptr_t>(data));
         this->uni_vmovups(vmm0, this->ptr[this->rbx]);
         value_on_stack = vmm0;
@@ -453,7 +453,7 @@ TYPED_TEST(AlignedStackAllocatorTest, Ymm_Value_Equal) {
         Xbyak::Label l_not_equal;
         Xbyak::Ymm vmm0{0};
         Xbyak::Ymm vmm1{1};
-        StackAllocator::Reg<Xbyak::Ymm> value_on_stack{this->stack_allocator()};
+        StackAllocator::RegAddress<Xbyak::Ymm> value_on_stack{this->stack_allocator()};
         this->mov(this->rbx, reinterpret_cast<uintptr_t>(data));
         this->uni_vmovups(vmm0, this->ptr[this->rbx]);
         value_on_stack = vmm0;
@@ -481,7 +481,7 @@ TYPED_TEST(AlignedStackAllocatorTest, Ymm_Value_NotEqual) {
         Xbyak::Label l_not_equal;
         Xbyak::Ymm vmm0{0};
         Xbyak::Ymm vmm1{1};
-        StackAllocator::Reg<Xbyak::Ymm> value_on_stack{this->stack_allocator()};
+        StackAllocator::RegAddress<Xbyak::Ymm> value_on_stack{this->stack_allocator()};
         this->mov(this->rbx, reinterpret_cast<uintptr_t>(data));
         this->uni_vmovups(vmm0, this->ptr[this->rbx]);
         value_on_stack = vmm0;
