@@ -226,8 +226,8 @@ const void * consts_table::store(const void *data, size_t size) {
 
 }   // namespace internal
 
-jit_kernel::jit_kernel()
-    : jit_generator() {
+jit_kernel::jit_kernel(const char* name)
+    : jit_generator(name) {
     _free_rmmregs.reserve(16);
     _free_rmmregs.reserve(16);
 
