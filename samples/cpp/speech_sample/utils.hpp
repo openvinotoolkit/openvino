@@ -526,7 +526,7 @@ std::vector<std::pair<std::string, size_t>> parse_to_extract_port(const std::vec
 }
 
 const std::vector<std::string>& get_first_non_empty(const std::vector<std::string>& first,
-                                                       const std::vector<std::string>& second) {
+                                                    const std::vector<std::string>& second) {
     if (!first.empty())
         return first;
     return second;
