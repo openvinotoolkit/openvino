@@ -2,23 +2,47 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Gather kernel implements two approaches for indices calculation: "Short" and "Long".
-// 1. Short approach is applicable for cases when the number of elements less or equal to vector register length.
-// It just uses permutation of current indices vector to retrieve the next.
-// 2. Long approach is applicable for cases when the number of elements is greater than vector register length.
-// It increases indices in vector on vector length and normalizes upper bound of indices.
-//
-//                    SUPPORTED CASES
-//--------------------------------------------------------------
-//  After axis |         AVX512        |         AVX2          |
-// (block) size| 32bit | 16bit |  8bit | 32bit | 16bit |  8bit |
-//                      STATIC SHAPES
-//      1      |   X   |   X   |   X   |   X   |   X   |   X   |
-// >1 & <=vlen |   X   |   X   |   X   |   X   |       |       |
-//                      DYNAMIC SHAPES
-//      1      |   X   |   X   |   X   |   X   |   X   |   X   |
-//--------------------------------------------------------------
+// Gather kernel implements two cases depending on shapes: "Blocked" and "Elementwise".
+// And each of these cases have subcases: "Short" and "Long".
+// The Elementwise approach is applicable for cases when there is only one data element per one index element,
+// otherwise it will be Blocked approach.
+// The Elementwise/Short case is when the number of indices in one batch is less or equal to vector register length,
+// in other case it will be Elementwise/Long case.
+// The Blocked/Short case is when the number of data elements per one index element is less or equal to vector register length,
+// in other case it will be Blocked/Long case.
 
+// The implementation map for the JIT kernel for the Gather operation.
+//- avx512
+//    - dynamic shapes
+//        - Elementwise case
+//            - Short subcase  Implemented
+//            - Long subcase   Implemented
+//        - Blocked case
+//            - Short subcase  Not implemented
+//            - Long subcase   Not implemented
+//    - static shapes
+//        - Elementwise case
+//            - Short subcase  Implemented
+//            - Long subcase   Implemented
+//        - Blocked case
+//            - Short subcase  Implemented
+//            - Long subcase   Not implemented
+//- avx2
+//    - dynamic shapes
+//        - Elementwise case
+//            - Short subcase  Implemented
+//            - Long subcase   Implemented
+//        - Blocked case
+//            - Short subcase  Not implemented
+//            - Long subcase   Not implemented
+//    - static shapes
+//        - Elementwise case
+//            - Short subcase  Implemented
+//            - Long subcase   Implemented
+//        - Blocked case
+//            - Short subcase  Implemented only for 32 bit data type
+//            - Long subcase   Not implemented
+//- SSE4.1                     Not implemented
 
 #pragma once
 
@@ -123,6 +147,8 @@ protected:
 
     struct ShiftCalculator {
         virtual ~ShiftCalculator() = default;
+        virtual void allocateRegisters(jitGatherKernelBase& kernel) = 0;
+        virtual void uploadParamsForApproachSpecific(jitGatherKernelBase& kernel) = 0;
         virtual std::tuple<poolVmask<isa> /*kDstMask*/, poolVmm<isa> /*vDstShifts*/> calcSrcShift(jitGatherKernelBase& kernel, bool shiftFirst) = 0;
     };
 
@@ -131,9 +157,9 @@ protected:
 
     template<typename unused>
     struct ShiftCalculatorImpl<ElementwiseCase, Short, unused> : public ShiftCalculator {
-        void allocateRegisters(jitGatherKernelBase& kernel);
+        void allocateRegisters(jitGatherKernelBase& kernel) override;
         void releaseRegisters();
-        void uploadParamsForApproachSpecific(jitGatherKernelBase& kernel);
+        void uploadParamsForApproachSpecific(jitGatherKernelBase& kernel) override;
         std::tuple<poolVmask<isa> /*kDstMask*/, poolVmm<isa> /*vDstShifts*/> calcSrcShift(jitGatherKernelBase& kernel, bool shiftFirst) override;
 
         RegistersPool::Reg<Vmm> vmmBeforeAxDiffB;
@@ -143,9 +169,9 @@ protected:
 
     template<typename unused>
     struct ShiftCalculatorImpl<ElementwiseCase, Long, unused> : public ShiftCalculator {
-        void allocateRegisters(jitGatherKernelBase& kernel);
+        void allocateRegisters(jitGatherKernelBase& kernel) override;
         void releaseRegisters();
-        void uploadParamsForApproachSpecific(jitGatherKernelBase& kernel);
+        void uploadParamsForApproachSpecific(jitGatherKernelBase& kernel) override;
         std::tuple<poolVmask<isa> /*kDstMask*/, poolVmm<isa> /*vDstShifts*/> calcSrcShift(jitGatherKernelBase& kernel, bool shiftFirst) override;
 
         Xbyak::Reg64 regBetweenBatchAndAxisSize;
@@ -160,8 +186,8 @@ protected:
 
     template<typename unused>
     struct ShiftCalculatorImpl<BlockedCase, Short, unused> : public ShiftCalculator {
-        void allocateRegisters(jitGatherKernelBase& kernel);
-        void uploadParamsForApproachSpecific(jitGatherKernelBase& kernel);
+        void allocateRegisters(jitGatherKernelBase& kernel) override;
+        void uploadParamsForApproachSpecific(jitGatherKernelBase& kernel) override;
         std::tuple<poolVmask<isa> /*kDstMask*/, poolVmm<isa> /*vDstShifts*/> calcSrcShift(jitGatherKernelBase& kernel, bool shiftFirst) override;
 
         RegistersPool::Reg<Xbyak::Reg64> rSpecIdxAndAfterAxIterB;
@@ -198,7 +224,7 @@ protected:
     poolVmask<isa> calcAllOnesMask(Vmm& vAux);
     void uploadParamPtrWithVpbroadcastd(const Vmm& vmmDest, size_t offset);
     void uploadParamPtrWithVmovups(const Vmm& vmmDest, size_t offset);
-    virtual void generateDynamicitySpecific() = 0;
+    virtual ShiftCalculator& getShiftCalculator() { IE_THROW() << "Inconsistency in jitGatherKernelBase::getShiftCalculator()"; }
     void process(ShiftCalculator& shiftCalculator);
     virtual void processDataTypeSpecific(ShiftCalculator& shiftCalculator) = 0;
     void tail(ShiftCalculator& shiftCalculator, bool shiftFirst);
@@ -210,6 +236,8 @@ protected:
     void normWithUpperBound(Vmm& vTarget, Vmm& vMax, Vmask& kAuxMask);
     void fillVlenVector(RegistersPool::Reg<Vmm>& vmmVecLenB);
     void storeVectorPart(const Xbyak::Reg& rDst, const Xbyak::Reg& rToStoreCounter, Vmm& vmmSrc);
+    void generateForDynamicShapes();
+    void generateForStaticShapes();
 
 protected:
     void (*ker_)(const gatherJitExecArgs *);
@@ -221,6 +249,7 @@ protected:
         Reg64(Operand::RBP), Reg64(Operand::RDI),
         Xbyak::Opmask(0), // Do not use k0 with gather instruction. The k0 has special meaning there.
     });
+    uint64_t idxElPerVec = 0lu;
     uint64_t beforeAxisSize = 0lu;
     uint64_t specIdxSize = 0lu;
     uint64_t batchDims = 0lu;
@@ -279,12 +308,15 @@ struct jitGatherKernelForDataTypeSize<isa, DataType8bit> : public jitGatherKerne
 template<x64::cpu_isa_t isa, DataTypeSize S, AfterAxisCase C, Approach A>
 struct jitGatherKernelForStaticShapes : public jitGatherKernelForDataTypeSize<isa, S> {
     using Vmm = typename jitGatherKernelBase<isa>::Vmm;
-    jitGatherKernelForStaticShapes() : jitGatherKernelForDataTypeSize<isa, S>(jit_name()) {}
+    jitGatherKernelForStaticShapes()
+            : jitGatherKernelForDataTypeSize<isa, S>(jit_name())
+            , shiftCalculator(std::make_shared<typename jitGatherKernelBase<isa>::template ShiftCalculatorImpl<C, A>>())
+    {}
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jitGatherKernelForDynamicity)
 protected:
-    void generateDynamicitySpecific() override;
+    typename jitGatherKernelBase<isa>::ShiftCalculator& getShiftCalculator() override { return *shiftCalculator; }
 
-    typename jitGatherKernelBase<isa>::template ShiftCalculatorImpl<C, A> shiftCalculator;
+    std::shared_ptr<typename jitGatherKernelBase<isa>::ShiftCalculator> shiftCalculator;
 };
 
 
@@ -293,10 +325,6 @@ struct jitGatherKernelForDynamicShapes : public jitGatherKernelForDataTypeSize<i
     using Vmm = typename jitGatherKernelBase<isa>::Vmm;
     jitGatherKernelForDynamicShapes() : jitGatherKernelForDataTypeSize<isa, S>(jit_name()) {}
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jitGatherKernelForDynamicShapes)
-protected:
-    void generateDynamicitySpecific() override;
-
-    uint64_t idxElPerVec = 0lu;
 };
 
 }   // namespace intel_cpu

@@ -26,8 +26,7 @@ void jitGatherKernelBase<isa>::initialize(const jGatherConfParams& jcp) {
 template<x64::cpu_isa_t isa>
 bool jitGatherKernelBase<isa>::isSameParams(const jGatherConfParams& jcp) {
     return beforeAxisSize == jcp.beforeAxisSize && specIdxSize == jcp.specIdxSize && batchDims == jcp.batchDims &&
-            reverseIndexing == jcp.reverseIndexing && afterAxisSize == jcp.afterAxisSize && dynamicShapes && jcp.dynamicShapes &&
-            getDataTypeSize() == jcp.dataTypeSize;
+           afterAxisSize == jcp.afterAxisSize;
 }
 
 template<x64::cpu_isa_t isa>
@@ -47,7 +46,11 @@ void jitGatherKernelBase<isa>::generate() {
     mov(regWorkAmount, ptr[regParams + GET_OFF(workAmount)]);
     uni_vpxor(vmmZeros, vmmZeros, vmmZeros);
     uploadParamPtrWithVpbroadcastd(vmmAxisDim, GET_OFF(axisDim));
-    generateDynamicitySpecific();
+    if (dynamicShapes) {
+        generateForDynamicShapes();
+    } else {
+        generateForStaticShapes();
+    }
     this->postamble();
 }
 
@@ -427,8 +430,8 @@ void jitGatherKernelForDataTypeSize<isa, DataType8bit>::processDataTypeSpecific(
     this->tail(shiftCalculator, true);
 }
 
-template<x64::cpu_isa_t isa, DataTypeSize S, AfterAxisCase C, Approach A>
-void jitGatherKernelForStaticShapes<isa, S, C, A>::generateDynamicitySpecific() {
+template<x64::cpu_isa_t isa>
+void jitGatherKernelBase<isa>::generateForStaticShapes() {
     this->uploadParamPtrWithVpbroadcastd(this->vmmSpecIdxSizeB, GET_OFF(specIndicesSize));
     this->uni_vpslld(this->vmmSpecIdxSizeB, this->vmmSpecIdxSizeB, this->idxTypeShift); // multiply by indexes type size.
 
@@ -437,13 +440,13 @@ void jitGatherKernelForStaticShapes<isa, S, C, A>::generateDynamicitySpecific() 
     if (this->beforeAxisSize != 1lu) {
         this->uploadParamPtrWithVmovups(this->vmmSrcBeforeAxisSumB, GET_OFF(dataBeforeAxisSumB));
     }
-    shiftCalculator.allocateRegisters(*this);
-    shiftCalculator.uploadParamsForApproachSpecific(*this);
-    this->process(shiftCalculator);
+    getShiftCalculator().allocateRegisters(*this);
+    getShiftCalculator().uploadParamsForApproachSpecific(*this);
+    this->process(getShiftCalculator());
 }
 
-template<x64::cpu_isa_t isa, DataTypeSize S>
-void jitGatherKernelForDynamicShapes<isa, S>::generateDynamicitySpecific() {
+template<x64::cpu_isa_t isa>
+void jitGatherKernelBase<isa>::generateForDynamicShapes() {
     typename jitGatherKernelBase<isa>::template ShiftCalculatorImpl<ElementwiseCase, Long> elementwiseLong;
     typename jitGatherKernelBase<isa>::template ShiftCalculatorImpl<ElementwiseCase, Short> elementwiseShort;
     typename jitGatherKernelBase<isa>::template ShiftCalculatorImpl<BlockedCase, Short> blockedShort;
