@@ -131,6 +131,7 @@ REGISTER_OCL(max_unpooling);
 REGISTER_OCL(mutable_data);
 REGISTER_OCL(mvn);
 REGISTER_OCL(non_max_suppression);
+REGISTER_OCL(matrix_nms);
 REGISTER_OCL(normalize);
 REGISTER_OCL(one_hot);
 REGISTER_OCL(permute);
