@@ -105,7 +105,7 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
       sudo ln -s openvino_2022.2.0.7713 openvino_2022
   
    .. note::
-      If you have already installed a previous release of OpenVINO 2022, a symbolic link to the ``openvino_2022`` folder may already exist. Remove the previous link with ``sudo rm openvino_2022``, and then re-run the command above.
+      If you have already installed a previous release of OpenVINO 2022, a symbolic link to the ``openvino_2022`` folder may already exist. Unlink the previous link with ``sudo unlink openvino_2022``, and then re-run the command above.
 
 @endsphinxdirective
 
