@@ -64,7 +64,7 @@ public:
         for (size_t i = 1; i < arg.get_dependencies().size(); ++i) {
             OPENVINO_ASSERT(impl_param.memory_deps.count(i) > 0, "[GPU] Can't find StridedSlice memory dependency");
             auto mem = impl_param.memory_deps.at(i);
-            std::vector<int32_t> sizes = read_vector<int32_t>(mem, impl_param.prog.get_stream());
+            std::vector<int32_t> sizes = read_vector<int32_t>(mem, impl_param.prog->get_stream());
             pad_vector_to_size(sizes, dims_num, i != 1);  // for "begin" completion used 0 value, for other - 1
             params.striding_params.push_back(sizes);
         }
