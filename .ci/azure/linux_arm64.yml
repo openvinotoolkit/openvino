@@ -172,20 +172,15 @@ jobs:
         -DCMAKE_VERBOSE_MAKEFILE=ON
         -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
         -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake
-        -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/python3.8
-        -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib/libpython3.8.so
-        -DENABLE_PYTHON=ON
-        -DPYTHON_MODULE_EXTENSION=".cpython-38-x86_64-linux-gnu.so"
         -DENABLE_TESTS=ON
         -DENABLE_DATA=OFF
-        -DCMAKE_EXE_LINKER_FLAGS=-Wl,-rpath-link,$(INSTALL_OPENCV)/lib
         -DENABLE_LTO=ON
         -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_INTEL_MYRIAD=OFF
         -DTHREADING=TBB
         -DTBB_DIR=$(INSTALL_ONETBB)/lib/cmake/TBB
-        -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON
+        -DCMAKE_VERBOSE_MAKEFILE=ON
         -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules/arm_plugin
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
@@ -195,6 +190,7 @@ jobs:
         -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPENVINO)
         $(OPENVINO_REPO_DIR)
       workingDirectory: $(BUILD_OPENVINO)
+    displayName: 'CMake OpenVINO ARM plugin'
 
   - script: |
       export CCACHE_DIR=$(OPENVINO_CCACHE_DIR)
@@ -214,12 +210,11 @@ jobs:
       source $(CROSSENV_DIR)/bin/activate
       cmake \
         -GNinja \
-        -DOpenVINODeveloperPackage_DIR=$(BUILD_OPENVINO) \
         -DENABLE_PYTHON=ON \
         -DENABLE_WHEEL=ON \
         -DPYTHON_EXECUTABLE=$(CROSSENV_DIR)/bin/python3 \
-        -DENABLE_DATA=OFF \
         -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake \
+        -DOpenVINODeveloperPackage_DIR=$(BUILD_OPENVINO) \
         -S $(OPENVINO_REPO_DIR)/src/bindings/python \
         -B $(BUILD_OPENVINO_PYTHON)
       deactivate

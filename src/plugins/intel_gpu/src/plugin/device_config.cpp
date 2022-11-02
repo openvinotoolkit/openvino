@@ -556,6 +556,23 @@ std::string Config::ConvertPropertyToLegacy(const std::string& key, const std::s
     IE_THROW() << "Unsupported value for legacy key : " << key;
 }
 
+bool Config::CanShareContextWith(const Config& other) const {
+    return this->throughput_streams == other.throughput_streams &&
+           this->useProfiling == other.useProfiling &&
+           this->dumpCustomKernels == other.dumpCustomKernels &&
+           this->memory_pool_on == other.memory_pool_on &&
+           this->queueThrottle == other.queueThrottle &&
+           this->queuePriority == other.queuePriority &&
+           this->sources_dumps_dir == other.sources_dumps_dir &&
+           this->tuningConfig.mode == other.tuningConfig.mode &&
+           this->tuningConfig.cache_file_path == other.tuningConfig.cache_file_path &&
+           this->kernels_cache_dir == other.kernels_cache_dir &&
+           this->device_id == other.device_id &&
+           this->task_exec_config._streams == other.task_exec_config._streams &&
+           this->task_exec_config._threadPreferredCoreType == other.task_exec_config._threadPreferredCoreType &&
+           this->enable_loop_unrolling == other.enable_loop_unrolling;
+}
+
 void Configs::CreateConfig(std::string device_id) {
     if (configs.find(device_id) == configs.end()) {
         configs.emplace(device_id, Config(device_id));
