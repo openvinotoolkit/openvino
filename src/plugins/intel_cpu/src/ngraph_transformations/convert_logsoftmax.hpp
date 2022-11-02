@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 
 namespace ov {
 namespace intel_cpu {
-class ConvertLogSoftmax: public ngraph::pass::MatcherPass {
+class ConvertLogSoftmax: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertLogSoftmax", "0");
     ConvertLogSoftmax();
