@@ -9,6 +9,7 @@
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <openvino/pass/make_stateful.hpp>
+#include <openvino/pass/make_unstateful.hpp>
 #include <queue>
 #include <string>
 #include <transformations/init_node_info.hpp>
@@ -20,10 +21,11 @@ using namespace ngraph;
 using namespace opset8;
 using namespace std;
 
-std::shared_ptr<ov::Model> get_test_model(bool insert_squeeze, bool use_friendly_names) {
+namespace {
+std::shared_ptr<ov::Model> get_non_stateful_model(bool insert_squeeze, bool use_friendly_names) {
     std::shared_ptr<ov::Model> model;
     auto X = make_shared<Parameter>(element::f32, Shape{32, 1, 10});
-    auto Y = make_shared<Parameter>(element::f32, Shape{32, 1, 10});
+    auto Y = make_shared<Parameter>(element::f32, insert_squeeze ? Shape{32, 10} : Shape{32, 1, 10});
 
     if (!use_friendly_names) {
         X->get_output_tensor(0).add_names({"x"});
@@ -38,8 +40,12 @@ std::shared_ptr<ov::Model> get_test_model(bool insert_squeeze, bool use_friendly
     // or
     // -> Add -> Result
     //        -> Result
-    std::shared_ptr<Node> node;
-    node = make_shared<Add>(X, Y);
+    std::shared_ptr<Node> node = Y;
+    if (insert_squeeze) {
+        node = make_shared<Unsqueeze>(node, Constant::create<int64_t>(element::i64, {1}, {1}));
+    }
+    node = make_shared<Add>(X, node);
+
     auto result0 = make_shared<Result>(node);
     if (insert_squeeze)
         node = make_shared<Squeeze>(node);
@@ -58,7 +64,7 @@ std::shared_ptr<ov::Model> get_test_model(bool insert_squeeze, bool use_friendly
     return model;
 }
 
-std::shared_ptr<ov::Model> get_ref_model(bool insert_squeeze, bool use_friendly_names) {
+std::shared_ptr<ov::Model> get_stateful_model(bool insert_squeeze, bool use_friendly_names) {
     std::shared_ptr<ov::Model> model;
     // create ReadValue for X
     auto variable_x = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "xres0"});
@@ -67,7 +73,7 @@ std::shared_ptr<ov::Model> get_ref_model(bool insert_squeeze, bool use_friendly_
 
     // create ReadValue for Y
     auto variable_y = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "yres1"});
-    auto const_zero_y = make_shared<Constant>(element::f32, Shape{32, 1, 10}, 0);
+    auto const_zero_y = make_shared<Constant>(element::f32, insert_squeeze ? Shape{32, 10} : Shape{32, 1, 10}, 0);
     auto read_val_y = make_shared<ReadValue>(const_zero_y, variable_y);
 
     if (!use_friendly_names) {
@@ -83,8 +89,12 @@ std::shared_ptr<ov::Model> get_ref_model(bool insert_squeeze, bool use_friendly_
     // or
     // -> Add -> Assign
     //        -> Assign
-    shared_ptr<ov::Node> node;
-    node = make_shared<Add>(read_val_x, read_val_y);
+    shared_ptr<ov::Node> node = read_val_y;
+    if (insert_squeeze) {
+        node = make_shared<Unsqueeze>(node, Constant::create<int64_t>(element::i64, {1}, {1}));
+    }
+    node = make_shared<Add>(read_val_x, node);
+
     auto assign_x = make_shared<Assign>(node, variable_x);
 
     if (!use_friendly_names) {
@@ -111,11 +121,12 @@ std::shared_ptr<ov::Model> get_ref_model(bool insert_squeeze, bool use_friendly_
     model->validate_nodes_and_infer_types();
     return model;
 }
+}  // namespace
 
 TEST(TransformationTests, make_stateful_by_tensor_name) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        f = get_test_model(true, false);
+        f = get_non_stateful_model(true, false);
         std::map<std::string, std::string> tensor_names = {{"x", "res0"}, {"y", "res1"}};
 
         ngraph::pass::Manager manager;
@@ -126,7 +137,7 @@ TEST(TransformationTests, make_stateful_by_tensor_name) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
-    { f_ref = get_ref_model(true, false); }
+    { f_ref = get_stateful_model(true, false); }
     auto res = compare_functions(f, f_ref);
     EXPECT_TRUE(res.first) << res.second;
 }
@@ -134,7 +145,7 @@ TEST(TransformationTests, make_stateful_by_tensor_name) {
 TEST(TransformationTests, make_stateful_by_param_res) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        f = get_test_model(true, true);
+        f = get_non_stateful_model(true, true);
         auto pairs = ov::pass::MakeStateful::ParamResPairs{{f->get_parameters()[0], f->get_results()[0]},
                                                            {f->get_parameters()[1], f->get_results()[1]}};
 
@@ -145,7 +156,7 @@ TEST(TransformationTests, make_stateful_by_param_res) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
-    { f_ref = get_ref_model(true, true); }
+    { f_ref = get_stateful_model(true, true); }
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
@@ -186,7 +197,7 @@ TEST(TransformationTests, make_stateful_dynamic_shapes) {
 TEST(TransformationTests, make_stateful_one_out_to_several_results_by_tensor_names) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        f = get_test_model(false, false);
+        f = get_non_stateful_model(false, false);
         std::map<std::string, std::string> tensor_names = {{"x", "res0"}, {"y", "res1"}};
 
         ngraph::pass::Manager manager;
@@ -197,7 +208,7 @@ TEST(TransformationTests, make_stateful_one_out_to_several_results_by_tensor_nam
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
-    { f_ref = get_ref_model(false, false); }
+    { f_ref = get_stateful_model(false, false); }
     auto res = compare_functions(f, f_ref);
     EXPECT_TRUE(res.first) << res.second;
 }
@@ -205,7 +216,7 @@ TEST(TransformationTests, make_stateful_one_out_to_several_results_by_tensor_nam
 TEST(TransformationTests, make_stateful_one_out_to_several_results_by_param_res) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        f = get_test_model(false, true);
+        f = get_non_stateful_model(false, true);
         auto pairs = ov::pass::MakeStateful::ParamResPairs{{f->get_parameters()[0], f->get_results()[0]},
                                                            {f->get_parameters()[1], f->get_results()[1]}};
 
@@ -216,7 +227,130 @@ TEST(TransformationTests, make_stateful_one_out_to_several_results_by_param_res)
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
-    { f_ref = get_ref_model(false, true); }
+    { f_ref = get_stateful_model(false, true); }
+    auto res = compare_functions(f, f_ref);
+    EXPECT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, make_unstateful_by_variable_name) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        f = get_stateful_model(true, false);
+        ov::pass::MakeUnStateful::VariableNamesMap variable_names = {{"xres0", {"x", "res0"}},
+                                                                     {"yres1", {"y", "res1"}}};
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::MakeUnStateful>(variable_names);
+
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    { f_ref = get_non_stateful_model(true, false); }
+    auto res = compare_functions(f, f_ref);
+    EXPECT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, make_unstateful_by_variables) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        f = get_stateful_model(true, true);
+        auto vars = ov::pass::MakeUnStateful::VariablesMap{{f->get_variables()[0], {"x", "res0"}},
+                                                           {f->get_variables()[1], {"y", "res1"}}};
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::MakeUnStateful>(vars);
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    { f_ref = get_non_stateful_model(true, true); }
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, make_unstateful_one_out_to_several_results_by_tensor_names) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        f = get_stateful_model(false, false);
+        ov::pass::MakeUnStateful::VariableNamesMap variable_names = {{"xres0", {"x", "res0"}},
+                                                                     {"yres1", {"y", "res1"}}};
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::MakeUnStateful>(variable_names);
+
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    { f_ref = get_non_stateful_model(false, false); }
+    auto res = compare_functions(f, f_ref);
+    EXPECT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, make_unstateful_one_out_to_several_results_by_param_res) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        f = get_stateful_model(false, true);
+        auto vars = ov::pass::MakeUnStateful::VariablesMap{{f->get_variables()[0], {"x", "res0"}},
+                                                           {f->get_variables()[1], {"y", "res1"}}};
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::MakeUnStateful>(vars);
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    { f_ref = get_non_stateful_model(false, true); }
+    auto res = compare_functions(f, f_ref);
+    EXPECT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, make_stateful_and_unstateful_by_names) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        f = get_non_stateful_model(true, false);
+        f_ref = f->clone();
+
+        std::map<std::string, std::string> tensor_names = {{"x", "res0"}, {"y", "res1"}};
+        ov::pass::MakeUnStateful::VariableNamesMap variable_names = {{"xres0", {"x", "res0"}},
+                                                                     {"yres1", {"y", "res1"}}};
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::MakeStateful>(tensor_names);
+        manager.register_pass<ov::pass::MakeUnStateful>(variable_names);
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+    auto res = compare_functions(f, f_ref);
+    EXPECT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, make_unstateful_and_stateful_by_names) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        f = get_stateful_model(true, false);
+        f_ref = f->clone();
+
+        std::map<std::string, std::string> tensor_names = {{"x", "res0"}, {"y", "res1"}};
+        ov::pass::MakeUnStateful::VariableNamesMap variable_names = {{"xres0", {"x", "res0"}},
+                                                                     {"yres1", {"y", "res1"}}};
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::MakeUnStateful>(variable_names);
+        manager.register_pass<ov::pass::MakeStateful>(tensor_names);
+
+        manager.run_passes(f);
+
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
     auto res = compare_functions(f, f_ref);
     EXPECT_TRUE(res.first) << res.second;
 }
