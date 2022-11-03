@@ -5,7 +5,7 @@ import pytest
 from pytorch_layer_test_class import PytorchLayerTest
 
 
-class TestRelu(PytorchLayerTest):
+class TestSilu(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
         return (np.random.randn(1, 3, 224, 224).astype(np.float32),)
@@ -15,17 +15,17 @@ class TestRelu(PytorchLayerTest):
         import torch
         import torch.nn.functional as F
 
-        class aten_relu(torch.nn.Module):
+        class aten_silu(torch.nn.Module):
             def __init__(self):
-                super(aten_relu, self).__init__()
+                super(aten_silu, self).__init__()
 
             def forward(self, x):
-                return F.relu(x)
+                return F.silu(x)
 
         ref_net = None
 
-        return aten_relu(), ref_net, "aten::relu"
+        return aten_silu(), ref_net, "aten::silu"
 
     @pytest.mark.nightly
-    def test_relu(self, ie_device, precision, ir_version):
+    def test_silu(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version)

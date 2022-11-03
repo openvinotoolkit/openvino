@@ -8,7 +8,7 @@ import numpy as np
 from common.constants import test_device, test_precision
 
 from openvino.frontend import FrontEndManager
-from openvino.frontend.pytorch import TorchScriptPythonDecoder
+from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
 from openvino.runtime import Core, Type, PartialShape
 
 
@@ -19,7 +19,17 @@ class PytorchLayerTest:
         "int32": Type.i32
     }
 
-    def _test(self, model, ref_net, ie_device, precision, ir_version, infer_timeout=60, **kwargs):
+    @staticmethod
+    def _check_kind_exist(graph, kind):
+        for n in graph.nodes():
+            if n.kind() == kind:
+                return True
+            for b in n.blocks():
+                if PytorchLayerTest._check_kind_exist(b, kind):
+                    return True
+        return False
+
+    def _test(self, model, ref_net, kind, ie_device, precision, ir_version, infer_timeout=60, **kwargs):
         """
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
                                                        Example: "transform_1,transform_2"
@@ -28,11 +38,15 @@ class PytorchLayerTest:
         with torch.no_grad():
             model.eval()
             model = torch.jit.freeze(torch.jit.script(model))
+            graph = model.inlined_graph
+
+            assert self._check_kind_exist(
+                graph, kind), "Operation type doesn't exist in provided graph"
 
             fe_manager = FrontEndManager()
             fe = fe_manager.load_by_framework('pytorch')
 
-            decoder = TorchScriptPythonDecoder(model.inlined_graph)
+            decoder = TorchScriptPythonDecoder(graph)
 
             im = fe.load(decoder)
             om = fe.convert(im)
@@ -74,13 +88,14 @@ class PytorchLayerTest:
 
         # Compare Ie results with Framework results
         fw_eps = custom_eps if precision == 'FP32' else 5e-2
+        is_ok = True
         for i in range(len(infer_res)):
             cur_fw_res = fw_res[i].numpy()
             cur_ov_res = infer_res[compiled.output(i)]
             print(f"fw_re: {cur_fw_res}; ov_res: {cur_ov_res}")
             if not np.allclose(cur_ov_res, cur_fw_res,
-                            atol=fw_eps,
-                            rtol=fw_eps):
+                               atol=fw_eps,
+                               rtol=fw_eps):
                 is_ok = False
                 print("Max diff is {}".format(
                     np.array(
@@ -88,6 +103,7 @@ class PytorchLayerTest:
             else:
                 print("Accuracy validation successful!\n")
                 print("absolute eps: {}, relative eps: {}".format(fw_eps, fw_eps))
+        assert is_ok, "Accuracy validation failed"
 
     # Each model should specify inputs
     def _prepare_input(self):

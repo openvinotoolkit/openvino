@@ -25,7 +25,7 @@ class TestSoftmax(PytorchLayerTest):
 
         ref_net = None
 
-        return aten_softmax(dim), ref_net
+        return aten_softmax(dim), ref_net, "aten::softmax"
 
     @pytest.mark.parametrize("dim", [-1, 3])
     @pytest.mark.nightly
