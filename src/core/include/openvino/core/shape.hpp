@@ -108,11 +108,13 @@ OPENVINO_API
 std::ostream& operator<<(std::ostream& s, const Shape& shape);
 
 template <>
-class OPENVINO_API AttributeAdapter<ov::Shape> : public DirectValueAccessor<ov::Shape> {
-public:
-    AttributeAdapter(ov::Shape& value) : DirectValueAccessor<ov::Shape>(value) {}
+class OPENVINO_API AttributeAdapter<ov::Shape> : public IndirectVectorValueAccessor<ov::Shape, std::vector<int64_t>>
 
+{
+public:
     OPENVINO_RTTI("AttributeAdapter<Shape>");
     BWDCMP_RTTI_DECLARATION;
+
+    AttributeAdapter(ov::Shape& value) : IndirectVectorValueAccessor<ov::Shape, std::vector<int64_t>>(value) {}
 };
 }  // namespace ov

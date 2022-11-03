@@ -458,10 +458,6 @@ public:
             const auto& attrs = a->get();
             auto shape_str = attrs.to_string();
             m_xml_node.append_attribute(name.c_str()).set_value(shape_str.c_str());
-        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ov::Shape>>(&adapter)) {
-            const auto& attrs = a->get();
-            auto shape_str = attrs.to_string();
-            m_xml_node.append_attribute(name.c_str()).set_value(shape_str.c_str());
         } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ov::Dimension>>(&adapter)) {
             const auto& attrs = a->get();
             std::stringstream dim_str_stream;
