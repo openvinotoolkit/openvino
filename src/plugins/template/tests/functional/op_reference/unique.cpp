@@ -90,7 +90,20 @@ std::vector<UniqueParams> params_unique_int() {
                                                         std::vector<Data_t>{2},
                                                         std::vector<Index_t>{0},
                                                         std::vector<Index_t>{0},
-                                                        std::vector<int64_t>{1}}};
+                                                        std::vector<int64_t>{1}},
+                                           UniqueParams{Shape{5},
+                                                        std::vector<Data_t>{1, 2, 3, 4, 5},
+                                                        std::vector<Data_t>{1, 2, 3, 4, 5},
+                                                        std::vector<Index_t>{0, 1, 2, 3, 4},
+                                                        std::vector<Index_t>{0, 1, 2, 3, 4},
+                                                        std::vector<int64_t>{1, 1, 1, 1, 1}},
+                                           UniqueParams{Shape{5},
+                                                        std::vector<Data_t>{1, 2, 3, 2, 5},
+                                                        std::vector<Data_t>{1, 2, 3, 5},
+                                                        std::vector<Index_t>{0, 1, 2, 4},
+                                                        std::vector<Index_t>{0, 1, 2, 1, 3},
+                                                        std::vector<int64_t>{1, 2, 1, 1},
+                                                        "one_unique"}};
 
     return params;
 }

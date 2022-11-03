@@ -81,7 +81,6 @@ void op::v10::Unique::validate_and_infer_types() {
         if (input_shape.rank().is_static()) {
             const auto normalized_axis = ngraph::normalize_axis(this, axis, input_shape.rank());
             const auto dim_at_axis = input_shape[normalized_axis];
-            std::cout << dim_at_axis.get_min_length() << " " << dim_at_axis.get_max_length() << std::endl;
 
             Dimension output_dim_at_axis;
             if (dim_at_axis.is_dynamic()) {
@@ -135,14 +134,14 @@ std::shared_ptr<Node> op::v10::Unique::clone_with_new_inputs(const OutputVector&
 }
 
 bool op::v10::Unique::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
-    ngraph::runtime::reference::unique(output_values[0].data<float>(),
-                                       output_values[1].data<int64_t>(),
-                                       output_values[2].data<int64_t>(),
-                                       output_values[3].data<int64_t>(),
-                                       input_values[0].data<float>(),
-                                       input_values[0].get_shape(),
-                                       nullptr,
-                                       false);
+    // ngraph::runtime::reference::unique(output_values[0].data<float>(),
+    //                                    output_values[1].data<int64_t>(),
+    //                                    output_values[2].data<int64_t>(),
+    //                                    output_values[3].data<int64_t>(),
+    //                                    input_values[0].data<float>(),
+    //                                    input_values[0].get_shape(),
+    //                                    nullptr,
+    //                                    false);
     return true;
 }
 }  // namespace ov
