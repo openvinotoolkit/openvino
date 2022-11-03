@@ -403,7 +403,7 @@ void CNNLayerCreator::on_adapter(const std::string& name,
         }
         params[name] = dims;
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<::ngraph::Shape>>(&adapter)) {
-        auto shape = a->get();
+        auto shape = static_cast<::ngraph::Shape&>(*a);
         params[name] = details::joinVec(shape);
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<::ngraph::Strides>>(&adapter)) {
         auto shape = static_cast<::ngraph::Strides&>(*a);
