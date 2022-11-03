@@ -104,28 +104,18 @@ if(ENABLE_SYSTEM_PUGIXML)
             # grab all tbb files matching pattern
             file(GLOB pugixml_files "${pugixml_dir}/${name_we}.*")
             foreach(pugixml_file IN LISTS pugixml_files)
-                if(pugixml_file MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)*$")
-                    list(APPEND pugixml_libs "${pugixml_file}")
-                endif()
+                ov_install_with_name("${pugixml_file}" pugixml)
             endforeach()
         elseif(target_type STREQUAL "INTERFACE_LIBRARY")
             get_target_property(pugixml_loc ${pugixml_target} INTERFACE_LINK_LIBRARIES)
-            file(GLOB pugixml_libs_all "${pugixml_loc}.*")
-            foreach(pugixml_lib IN LISTS pugixml_libs_all)
-                if(pugixml_lib MATCHES "^${pugixml_loc}(\.[0-9]+)+$")
-                    list(APPEND pugixml_libs "${pugixml_lib}")
-                endif()
+            file(GLOB pugixml_libs "${pugixml_loc}.*")
+            foreach(pugixml_lib IN LISTS pugixml_libs)
+                ov_install_with_name("${pugixml_lib}" pugixml)
             endforeach()
         endif()
 
         # if dynamic libpugixml.so.1 and libpugixml.so.1.X are found
-        if(pugixml_libs)
-            ie_cpack_add_component(pugixml HIDDEN)
-            install(FILES ${pugixml_libs}
-                    DESTINATION runtime/3rdparty/pugixml/lib
-                    COMPONENT pugixml
-                    EXCLUDE_FROM_ALL)
-        elseif(CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
+        if(NOT pugixml_INSTALLED AND CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
             message(FATAL_ERROR "Debian | RPM package build requires shared Pugixml library")
         endif()
 
