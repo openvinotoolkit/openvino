@@ -169,7 +169,7 @@ jobs:
         -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/python3.10
         -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib/libpython3.10.so
         -DENABLE_PYTHON=ON
-        -DPYTHON_MODULE_EXTENSION=".cpython-38-x86_64-linux-gnu.so"
+        -DPYTHON_MODULE_EXTENSION=".cpython-310-x86_64-linux-gnu.so"
         -DENABLE_TESTS=ON
         -DENABLE_DATA=OFF
         -DCMAKE_EXE_LINKER_FLAGS=-Wl,-rpath-link,$(INSTALL_OPENCV)/lib
