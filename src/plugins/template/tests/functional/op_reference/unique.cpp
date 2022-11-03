@@ -20,11 +20,13 @@ struct UniqueParams {
                  const std::vector<Data_t>& expected_unique_values,
                  const std::vector<Index_t>& expected_indices,
                  const std::vector<Index_t>& expected_rev_indices,
-                 const std::vector<int64_t>& expected_counts)
-        : m_data_shape(data_shape),
-          m_data_type(element::from<Data_t>()),
-          m_index_type(element::from<Index_t>()),
-          m_input_data(CreateTensor(m_data_type, input_data)) {
+                 const std::vector<int64_t>& expected_counts,
+                 const std::string& tested_case = "")
+        : m_data_shape{data_shape},
+          m_data_type{element::from<Data_t>()},
+          m_index_type{element::from<Index_t>()},
+          m_input_data{CreateTensor(m_data_type, input_data)},
+          m_tested_case{tested_case} {
         m_expected_outputs[0] = CreateTensor(m_data_type, expected_unique_values);
         m_expected_outputs[1] = CreateTensor(m_index_type, expected_indices);
         m_expected_outputs[2] = CreateTensor(m_index_type, expected_rev_indices);
@@ -36,6 +38,7 @@ struct UniqueParams {
     element::Type m_index_type;
     ov::Tensor m_input_data;
     ov::TensorVector m_expected_outputs = ov::TensorVector(4);
+    std::string m_tested_case;
 };
 
 class ReferenceUniqueLayerTest_NoAxis : public testing::TestWithParam<UniqueParams>, public CommonReferenceTest {
@@ -53,6 +56,10 @@ public:
 
         result << "data_shape=" << param.m_data_shape << "; ";
         result << "data_type=" << param.m_data_type << "; ";
+        result << "index_type=" << param.m_index_type << "; ";
+        if (!param.m_tested_case.empty()) {
+            result << "tested_case=" << param.m_tested_case << "; ";
+        }
 
         return result.str();
     }
@@ -71,19 +78,42 @@ TEST_P(ReferenceUniqueLayerTest_NoAxis, CompareWithHardcodedRefs) {
 
 template <typename Data_t, typename Index_t>
 std::vector<UniqueParams> generateParamsForUnique() {
-    const std::vector<UniqueParams> params{UniqueParams(Shape{},
+    const std::vector<UniqueParams> params{UniqueParams{Shape{},
                                                         std::vector<Data_t>{1},
                                                         std::vector<Data_t>{1},
                                                         std::vector<Index_t>{0},
                                                         std::vector<Index_t>{0},
-                                                        std::vector<int64_t>{1})};
+                                                        std::vector<int64_t>{1}},
+                                           UniqueParams{Shape{1},
+                                                        std::vector<Data_t>{2},
+                                                        std::vector<Data_t>{2},
+                                                        std::vector<Index_t>{0},
+                                                        std::vector<Index_t>{0},
+                                                        std::vector<int64_t>{1}}};
 
     return params;
 }
 
+template <typename T>
+std::vector<T> flatten(std::initializer_list<std::vector<T>> test_cases) {
+    using std::begin;
+    using std::end;
+
+    std::vector<T> flattened;
+    for (auto&& tc : test_cases) {
+        flattened.insert(flattened.end(), std::make_move_iterator(begin(tc)), std::make_move_iterator(end(tc)));
+    }
+    return flattened;
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_ReferenceUniqueLayerTest_NoAxis,
                          ReferenceUniqueLayerTest_NoAxis,
-                         ::testing::ValuesIn(generateParamsForUnique<float, int32_t>()),
+                         ::testing::ValuesIn(flatten({generateParamsForUnique<float, int32_t>(),
+                                                      generateParamsForUnique<float, int64_t>(),
+                                                      generateParamsForUnique<double, int32_t>(),
+                                                      generateParamsForUnique<double, int64_t>(),
+                                                      generateParamsForUnique<int32_t, int32_t>(),
+                                                      generateParamsForUnique<int32_t, int64_t>()})),
                          ReferenceUniqueLayerTest_NoAxis::getTestCaseName);
 
 }  // namespace

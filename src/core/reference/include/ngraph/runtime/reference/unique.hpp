@@ -18,6 +18,17 @@ struct Element {
     int64_t count = 0;    // the number of occurrences of the current element in the original input tensor
 };
 
+template <typename T>
+std::vector<Element<T>> generate_data_references(const size_t count) {
+    std::vector<Element<T>> data_references;
+    data_references.reserve(count);
+
+    for (T i = 0; i < count; ++i) {
+        data_references.emplace_back(i);
+    }
+    return data_references;
+}
+
 template <typename Data_t, typename Index_t>
 void unique(Data_t* out_unique_elements,
             Index_t* out_indices,
@@ -27,21 +38,14 @@ void unique(Data_t* out_unique_elements,
             const Shape& data_shape,
             const std::unique_ptr<int64_t> axis,
             const bool sorted) {
-    if (data_shape.size() == 0) {
+    if (data_shape.size() == 0 || (data_shape.size() == 1 && data_shape[0] == 1)) {  // Shape{} or Shape{1}
         out_unique_elements[0] = data[0];
         out_indices[0] = 0;
         out_rev_indices[0] = 0;
         out_counts[0] = 1;
     } else if (data_shape.size() == 1) {
         const auto elems_count = shape_size(data_shape);
-
-        std::vector<Element<Index_t>> data_references;
-        data_references.reserve(elems_count);
-
-        for (int i = 0; i < elems_count; ++i) {
-            data_references.emplace_back(i);
-        }
-
+        auto data_references = generate_data_references<Index_t>(elems_count);
         std::sort(std::begin(data_references),
                   std::end(data_references),
                   [&data](const Element<Index_t>& lhs, const Element<Index_t>& rhs) {
