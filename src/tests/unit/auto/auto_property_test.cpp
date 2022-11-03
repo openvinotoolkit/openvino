@@ -65,37 +65,44 @@ public:
         actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
     }
 };
-using AutoSetPropertyIncorrectTest = SetPropertyThroughAuto;
-using AutoLoadNetworkCorrectTest = SetPropertyThroughAuto;
-using AutoLoadNetworkIncorrectTest = SetPropertyThroughAuto;
+using AutoSetUnsupportedPropertyTest = SetPropertyThroughAuto;
+using AutoLoadNetworkSupportedPropertyTest = SetPropertyThroughAuto;
+using MultiLoadNetworkSupportedPropertyTest = SetPropertyThroughAuto;
+using MultiLoadNetworkAndSetSupportedPropertyTest = SetPropertyThroughAuto;
+using AutoLoadNetworkUnsupportedPropertyTest = SetPropertyThroughAuto;
 
-const std::vector<ov::AnyMap> configsForSetPropertyCorrectTest = {
+const std::vector<ov::AnyMap> configsForLoadNetworkWithSupportedPropertyTest = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT), ov::device::priorities("CPU")},
     {ov::hint::allow_auto_batching(false), ov::device::priorities("CPU")},
-    {ov::enable_profiling(true), ov::device::priorities("CPU")}};
+    {ov::enable_profiling(true), ov::device::priorities("CPU")},
+    {ov::hint::allow_auto_batching(false),
+     ov::device::properties("CPU", ov::num_streams(4)),
+     ov::device::priorities("CPU")},
+    {ov::num_streams(4), ov::device::priorities("CPU")}};
 
-const std::vector<ov::AnyMap> configsForAutoSetPropertyCorrectTest = {
+const std::vector<ov::AnyMap> configsForAutoLoadNetworkWithSupportedPropertyTest = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
     {ov::hint::allow_auto_batching(false)},
     {ov::enable_profiling(true)}};
 
-const std::vector<ov::AnyMap> configsForSetUnsupportedPropertyIncorrectTest = {
-    {ov::num_streams(4), ov::device::priorities("CPU")}};
-const std::vector<ov::AnyMap> configsAutoForSetUnsupportedPropertyIncorrectTest = {{ov::num_streams(4)}};
+const std::vector<ov::AnyMap> configsLoadNetworkAndSetSupportedPropertyTest =
+    configsForAutoLoadNetworkWithSupportedPropertyTest;
 
-const std::vector<ov::AnyMap> configsForSetPropertyWithDevicePropertiesTest = {
+const std::vector<ov::AnyMap> configsAutoLoadNetworkWithUnsupportedPropertyTest = {{ov::num_streams(4)}};
+
+const std::vector<ov::AnyMap> configsSetPropertyWithDevicePropertiesTest = {
     {ov::device::properties("CPU", ov::num_streams(10)), ov::device::priorities("CPU")},
     {ov::enable_profiling(true), ov::device::properties("CPU", ov::num_streams(10)), ov::device::priorities("CPU")}};
 
-const std::vector<ov::AnyMap> configsAutoForSetPropertyWithDevicePropertiesTest = {
+const std::vector<ov::AnyMap> configsAutoSetPropertyWithDevicePropertiesTest = {
     {ov::device::properties("CPU", ov::num_streams(10))},
     {ov::enable_profiling(true), ov::device::properties("CPU", ov::num_streams(10))}};
 
-TEST_P(AutoLoadNetworkCorrectTest, smoke_AUTO_loadNetworkWithCorrectPropertyTestNoThrow) {
+TEST_P(MultiLoadNetworkSupportedPropertyTest, smoke_Multi_loadNetworkWithCorrectPropertyTestNoThrow) {
     ASSERT_NO_THROW(core->compile_model(actualNetwork, device, configuration));
 }
 
-TEST_P(AutoLoadNetworkCorrectTest, smoke_AUTO_loadNetworkWithSetPropertyFirstTestNoThrow) {
+TEST_P(MultiLoadNetworkAndSetSupportedPropertyTest, smoke_Multi_loadNetworkWithSetPropertyFirstTestNoThrow) {
     ASSERT_NO_THROW(core->set_property(device, configuration));
     ov::AnyMap config = {};
     if (device == "MULTI")
@@ -103,11 +110,20 @@ TEST_P(AutoLoadNetworkCorrectTest, smoke_AUTO_loadNetworkWithSetPropertyFirstTes
     ASSERT_NO_THROW(core->compile_model(actualNetwork, device, config));
 }
 
-TEST_P(AutoLoadNetworkIncorrectTest, smoke_AUTO_loadNetworkWithUnsupportedPropertyTestThrow) {
+TEST_P(AutoLoadNetworkSupportedPropertyTest, smoke_AUTO_loadNetworkWithCorrectPropertyTestNoThrow) {
+    ASSERT_NO_THROW(core->compile_model(actualNetwork, device, configuration));
+}
+
+TEST_P(AutoLoadNetworkSupportedPropertyTest, smoke_AUTO_loadNetworkWithSetPropertyFirstTestNoThrow) {
+    ASSERT_NO_THROW(core->set_property(device, configuration));
+    ASSERT_NO_THROW(core->compile_model(actualNetwork, device, {}));
+}
+
+TEST_P(AutoLoadNetworkUnsupportedPropertyTest, smoke_AUTO_loadNetworkWithUnsupportedPropertyTestThrow) {
     ASSERT_THROW(core->compile_model(actualNetwork, device, configuration), ov::Exception);
 }
 
-TEST_P(AutoLoadNetworkIncorrectTest, smoke_AUTO_LoadNetworkWithSetPropertyFirstWithIncorrectConfigTestThrow) {
+TEST_P(AutoLoadNetworkUnsupportedPropertyTest, smoke_AUTO_LoadNetworkWithSetUnsupportedPropertyFirstTestThrow) {
     ASSERT_NO_THROW(core->set_property(device, configuration));
     ov::AnyMap config = {};
     if (device == "MULTI")
@@ -115,7 +131,7 @@ TEST_P(AutoLoadNetworkIncorrectTest, smoke_AUTO_LoadNetworkWithSetPropertyFirstW
     ASSERT_THROW(core->compile_model(actualNetwork, device, config), ov::Exception);
 }
 
-TEST_P(AutoSetPropertyIncorrectTest, smoke_AUTO_LoadNetworkFirstWithSetPropertyWithIncorrectConfigTestNoThrow) {
+TEST_P(AutoSetUnsupportedPropertyTest, smoke_AUTO_LoadNetworkFirstWithSetUnsupportedPropertyTestNoThrow) {
     // Create plugin with empty configuration first
     ov::AnyMap config = {};
     if (device == "MULTI")
@@ -124,38 +140,38 @@ TEST_P(AutoSetPropertyIncorrectTest, smoke_AUTO_LoadNetworkFirstWithSetPropertyW
     ASSERT_THROW(core->set_property(device, configuration), ov::Exception);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_loadNetworkWithSetPropertyBehaviorTests,
-                         AutoLoadNetworkCorrectTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_loadNetworkWithSupportedPropertyBehaviorTests,
+                         AutoLoadNetworkSupportedPropertyTest,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                            ::testing::ValuesIn(configsForAutoSetPropertyCorrectTest)),
+                                            ::testing::ValuesIn(configsForAutoLoadNetworkWithSupportedPropertyTest)),
                          ::testing::PrintToStringParamName());
 
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_loadNetworkWithSetPropertyBehaviorTests,
-                         AutoLoadNetworkCorrectTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_loadNetworkWithSupportedPropertyTests,
+                         MultiLoadNetworkSupportedPropertyTest,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(configsForSetPropertyCorrectTest)),
+                                            ::testing::ValuesIn(configsForLoadNetworkWithSupportedPropertyTest)),
                          ::testing::PrintToStringParamName());
 
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_loadNetworkWithSetIncorrectPropertyBehaviorTests,
-                         AutoLoadNetworkIncorrectTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_loadNetworkAndSetSupportedPropertyTests,
+                         MultiLoadNetworkAndSetSupportedPropertyTest,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(configsForSetUnsupportedPropertyIncorrectTest)),
+                                            ::testing::ValuesIn(configsLoadNetworkAndSetSupportedPropertyTest)),
                          ::testing::PrintToStringParamName());
 
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_loadNetworkWithSetIncorrectPropertyBehaviorTests,
-                         AutoLoadNetworkIncorrectTest,
+INSTANTIATE_TEST_SUITE_P(smoke_AUTO_loadNetworkWithUnsupportedPropertyBehaviorTests,
+                         AutoLoadNetworkUnsupportedPropertyTest,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                            ::testing::ValuesIn(configsAutoForSetUnsupportedPropertyIncorrectTest)),
+                                            ::testing::ValuesIn(configsAutoLoadNetworkWithUnsupportedPropertyTest)),
                          ::testing::PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_PropertySettingBehaviorTests,
-                         AutoSetPropertyIncorrectTest,
+                         AutoSetUnsupportedPropertyTest,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(configsForSetPropertyWithDevicePropertiesTest)),
+                                            ::testing::ValuesIn(configsSetPropertyWithDevicePropertiesTest)),
                          ::testing::PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_PropertySettingBehaviorTests,
-                         AutoSetPropertyIncorrectTest,
+                         AutoSetUnsupportedPropertyTest,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                            ::testing::ValuesIn(configsAutoForSetPropertyWithDevicePropertiesTest)),
+                                            ::testing::ValuesIn(configsAutoSetPropertyWithDevicePropertiesTest)),
                          ::testing::PrintToStringParamName());
