@@ -160,10 +160,10 @@ TEST(type_prop, gru_cell_invalid_input_rank0) {
 }
 
 TEST(type_prop, gru_cell_input_dynamic_rank) {
-    const size_t batch_size = 2;
-    const size_t input_size = 3;
-    const size_t hidden_size = 3;
-    const size_t gates_count = 3;
+    int64_t batch_size = 2;
+    int64_t input_size = 3;
+    int64_t hidden_size = 3;
+    int64_t gates_count = 3;
 
     auto X = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, input_size});
     auto R = make_shared<op::Parameter>(element::f32, PartialShape{gates_count * hidden_size, hidden_size});
