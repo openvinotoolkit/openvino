@@ -4,7 +4,7 @@
 
 #include "ocl_kernel.hpp"
 #include "ocl_engine.hpp"
-#include "kernels_factory.hpp"
+#include "ocl_kernels_factory.hpp"
 
 #include <memory>
 #include <vector>

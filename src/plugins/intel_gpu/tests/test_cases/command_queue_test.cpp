@@ -12,6 +12,7 @@ using namespace cldnn;
 using namespace ::tests;
 using namespace std;
 
+namespace {
 // Run some topology too see if command queue does work correctly
 // Coppied from arg_max_gpu.base test.
 void exexute_network(cldnn::engine& engine) {
@@ -55,6 +56,7 @@ void exexute_network(cldnn::engine& engine) {
         EXPECT_EQ(out_buffer[i], i < (out_size / 2) ? 0 : 1);
     }
 }
+}  // namespace
 
 TEST(command_queue_test, test_priority_hints) {
     engine_configuration configuration =

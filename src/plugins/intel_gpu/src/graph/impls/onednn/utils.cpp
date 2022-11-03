@@ -13,139 +13,13 @@
 namespace cldnn {
 namespace onednn {
 
-template <typename T>
-cldnn::memory::ptr convert_zp_data_to_s32(const memory::ptr zp_memory) {
-    auto engine = zp_memory->get_engine();
-    auto& stream = engine->get_program_stream();
-
-    auto zp_s32_layout = zp_memory->get_layout();
-    zp_s32_layout.data_type = data_types::i32;
-    auto zp_s32_memory = engine->allocate_memory(zp_s32_layout, false);
-
-    mem_lock<T, mem_lock_type::read> zp_data(zp_memory, stream);
-    mem_lock<int32_t, mem_lock_type::write> zp_s32_data(zp_s32_memory, stream);
-    for (size_t i = 0; i < zp_data.size(); i++) {
-        zp_s32_data.data()[i] = static_cast<int32_t>(zp_data.data()[i]);
-    }
-
-    return zp_s32_memory;
-}
-
-template cldnn::memory::ptr convert_zp_data_to_s32<int8_t>(const memory::ptr zp_memory);
-template cldnn::memory::ptr convert_zp_data_to_s32<uint8_t>(const memory::ptr zp_memory);
-
-cldnn::format default_fmt_for_dims(size_t dims, bool is_grouped) {
-    switch (dims) {
-    case 6: return is_grouped ? cldnn::format::goizyx : cldnn::format::bfwzyx;
-    case 5: return is_grouped ? cldnn::format::goiyx : cldnn::format::bfzyx;
-    default: return cldnn::format::bfyx;
-    }
-}
-
-dnnl::memory::dims convert_tensor(cldnn::tensor t, size_t dims, bool is_grouped) {
-    auto sizes = t.sizes(default_fmt_for_dims(dims, is_grouped));
-    dnnl::memory::dims res(sizes.begin(), sizes.end());
-    return res;
-}
-
-dnnl::memory::dims convert_gemm_tensor(cldnn::tensor t, size_t dims, bool batched_dims_can_be_removed) {
-    auto sizes = t.sizes(default_fmt_for_dims(dims, false));
-    dnnl::memory::dims res(sizes.begin(), sizes.end());
-    if (dims > 3) {
-        for (size_t i = 0; i < dims - 3; i++) {
-            res[i + 1] *= res[i];
-        }
-        res.erase(res.begin(), res.begin() + dims - 3);
-    }
-    if (res.size() == 3 && batched_dims_can_be_removed) {
-        res.erase(res.begin());
-    }
-    return res;
-}
-
-dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims) {
-    if (dims.size() > 3)
-        throw std::runtime_error("[clDNN] Unsupported dims size for onednn gemm: should be <= 3");
-    return dims.size() == 3 ? dnnl::memory::format_tag::abc : dnnl::memory::format_tag::ab;
-}
-
-
-dnnl::memory::dims convert_spatials(cldnn::tensor t, size_t dims) {
-    auto spatials = t.spatial;
-    dnnl::memory::dims res(dims);
-    for (size_t i = 0; i < dims; i++) {
-        res[i] = spatials[dims - i - 1];
-    }
-    return res;
-}
-
-dnnl::memory::dims flatten_tensor(cldnn::tensor t) {
-    return {static_cast<int64_t>(t.count())};
-}
-
+namespace {
 void pad_dims(dnnl::memory::dims& padded_dims, cldnn::format format) {
     auto block_sizes = format.block_sizes();
     for (auto& block : block_sizes) {
         auto rounded_dim = round_up_to(padded_dims[block.first], block.second);
         padded_dims[block.first] = rounded_dim;
     }
-}
-
-dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
-    switch (dt) {
-        case cldnn::data_types::f32: return dnnl::memory::data_type::f32;
-        case cldnn::data_types::f16: return dnnl::memory::data_type::f16;
-        case cldnn::data_types::i8: return dnnl::memory::data_type::s8;
-        case cldnn::data_types::u8: return dnnl::memory::data_type::u8;
-        case cldnn::data_types::i32: return dnnl::memory::data_type::s32;
-        default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn type");
-    }
-}
-
-std::vector<std::pair<cldnn::format, dnnl::memory::format_tag>> format_map = {
-        { cldnn::format::bfyx, dnnl::memory::format_tag::nchw },
-        { cldnn::format::bfzyx, dnnl::memory::format_tag::ncdhw },
-        { cldnn::format::byxf, dnnl::memory::format_tag::nhwc },
-        { cldnn::format::bzyxf, dnnl::memory::format_tag::ndhwc },
-        { cldnn::format::b_fs_yx_fsv2, dnnl::memory::format_tag::undef },
-        { cldnn::format::b_fs_yx_fsv4, dnnl::memory::format_tag::aBcd4b },
-        { cldnn::format::b_fs_yx_fsv16, dnnl::memory::format_tag::nChw16c },
-        { cldnn::format::b_fs_yx_fsv32, dnnl::memory::format_tag::aBcd32b },
-        { cldnn::format::b_fs_zyx_fsv4, dnnl::memory::format_tag::aBcde4b },
-        { cldnn::format::b_fs_zyx_fsv16, dnnl::memory::format_tag::nCdhw16c },
-        { cldnn::format::b_fs_zyx_fsv32, dnnl::memory::format_tag::aBcde32b },
-        { cldnn::format::bs_fs_yx_bsv16_fsv16, dnnl::memory::format_tag::NChw16n16c },
-        { cldnn::format::bs_fs_yx_bsv32_fsv32, dnnl::memory::format_tag::NChw32n32c },
-        { cldnn::format::bs_fs_yx_bsv4_fsv4, dnnl::memory::format_tag::ABcd4a4b },
-        { cldnn::format::bs_fs_yx_bsv8_fsv4, dnnl::memory::format_tag::ABcd8a4b },
-        { cldnn::format::bs_fs_yx_bsv8_fsv2, dnnl::memory::format_tag::ABcd8a2b },
-        { cldnn::format::bs_fs_yx_bsv4_fsv2, dnnl::memory::format_tag::ABcd4a2b },
-        { cldnn::format::bs_fs_yx_bsv32_fsv16, dnnl::memory::format_tag::NChw32n16c },
-        { cldnn::format::bs_fs_zyx_bsv32_fsv16, dnnl::memory::format_tag::NCdhw32n16c },
-        { cldnn::format::bs_fs_zyx_bsv32_fsv32, dnnl::memory::format_tag::NCdhw32n32c },
-        { cldnn::format::bs_fs_zyx_bsv16_fsv16, dnnl::memory::format_tag::NCdhw16n16c },
-        { cldnn::format::bs_fs_zyx_bsv8_fsv4, dnnl::memory::format_tag::ABcde8a4b },
-        { cldnn::format::bs_fs_zyx_bsv8_fsv2, dnnl::memory::format_tag::ABcde8a2b },
-};
-
-dnnl::memory::format_tag convert_data_format(cldnn::format fmt) {
-    auto ret = std::find_if(format_map.begin(), format_map.end(),
-            [fmt](std::pair<cldnn::format, dnnl::memory::format_tag> &e) {
-                    return e.first == fmt; });
-    if (ret == format_map.end())
-        return dnnl::memory::format_tag::undef;
-
-    return ret->second;
-}
-
- cldnn::format convert_data_format(dnnl::memory::format_tag fmt) {
-    auto ret = std::find_if(format_map.begin(), format_map.end(),
-            [fmt](std::pair<cldnn::format, dnnl::memory::format_tag> &e) {
-                    return e.second == fmt; });
-    if (ret == format_map.end())
-        throw std::invalid_argument("[clDNN] Unsupported onednn layout");
-
-    return ret->first;
 }
 
 std::string convert_data_format_string(cldnn::format fmt) {
@@ -159,43 +33,6 @@ std::string convert_data_format_string(cldnn::format fmt) {
         case cldnn::format::bs_fs_yx_bsv16_fsv32: return "ABcd16a32b";
         case cldnn::format::bs_fs_zyx_bsv16_fsv32: return "ABcde16a32b";
         default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn layout string" + fmt_to_str(fmt));
-    }
-}
-
-void combine_bf_with_first_spatial_dim(cldnn::layout& l) {
-    auto pshape = l.get_shape();
-    ov::Shape new_shape{1, 1};
-    for (size_t i = 0; i < pshape.size(); ++i) {
-        if (i < 2) {
-            new_shape[0] *= pshape[i];
-        } else {
-            new_shape[1] *= pshape[i];
-        }
-    }
-    l.set_partial_shape(new_shape);
-}
-
-int64_t get_f_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
-    int64_t offset = 0;
-    auto f_padding = l.data_padding.lower_size().feature[0];
-    if (f_padding != 0) {
-        offset = f_padding;
-        for (size_t i = 0; i < l.get_spatial_rank(); ++i) {
-            offset *= l.spatial(i);
-        }
-    }
-
-    switch (desc.data.data_type) {
-        case dnnl_data_type_t::dnnl_s8:
-        case dnnl_data_type_t::dnnl_u8:
-            return offset;
-        case dnnl_data_type_t::dnnl_f16:
-        case dnnl_data_type_t::dnnl_bf16:
-            return (offset * 2);
-        case dnnl_data_type_t::dnnl_f32:
-        case dnnl_data_type_t::dnnl_s32:
-            return (offset * 4);
-        default: throw std::runtime_error(std::string("Unsupported offset for dnnl_data_type_t ") + dnnl_dt2str(desc.data.data_type));
     }
 }
 
@@ -270,6 +107,171 @@ dnnl::memory::desc create_memory_desc_from_format_string(dnnl::memory::dims dims
     std::reverse(blk.inner_idxs, blk.inner_idxs + blk.inner_nblks);
 
     return desc;
+}
+}  // namespace
+
+template <typename T>
+cldnn::memory::ptr convert_zp_data_to_s32(const memory::ptr zp_memory) {
+    auto engine = zp_memory->get_engine();
+    auto& stream = engine->get_program_stream();
+
+    auto zp_s32_layout = zp_memory->get_layout();
+    zp_s32_layout.data_type = data_types::i32;
+    auto zp_s32_memory = engine->allocate_memory(zp_s32_layout, false);
+
+    mem_lock<T, mem_lock_type::read> zp_data(zp_memory, stream);
+    mem_lock<int32_t, mem_lock_type::write> zp_s32_data(zp_s32_memory, stream);
+    for (size_t i = 0; i < zp_data.size(); i++) {
+        zp_s32_data.data()[i] = static_cast<int32_t>(zp_data.data()[i]);
+    }
+
+    return zp_s32_memory;
+}
+
+template cldnn::memory::ptr convert_zp_data_to_s32<int8_t>(const memory::ptr zp_memory);
+template cldnn::memory::ptr convert_zp_data_to_s32<uint8_t>(const memory::ptr zp_memory);
+
+cldnn::format default_fmt_for_dims(size_t dims, bool is_grouped) {
+    switch (dims) {
+    case 6: return is_grouped ? cldnn::format::goizyx : cldnn::format::bfwzyx;
+    case 5: return is_grouped ? cldnn::format::goiyx : cldnn::format::bfzyx;
+    default: return cldnn::format::bfyx;
+    }
+}
+
+dnnl::memory::dims convert_tensor(cldnn::tensor t, size_t dims, bool is_grouped) {
+    auto sizes = t.sizes(default_fmt_for_dims(dims, is_grouped));
+    dnnl::memory::dims res(sizes.begin(), sizes.end());
+    return res;
+}
+
+dnnl::memory::dims convert_gemm_tensor(cldnn::tensor t, size_t dims, bool batched_dims_can_be_removed) {
+    auto sizes = t.sizes(default_fmt_for_dims(dims, false));
+    dnnl::memory::dims res(sizes.begin(), sizes.end());
+    if (dims > 3) {
+        for (size_t i = 0; i < dims - 3; i++) {
+            res[i + 1] *= res[i];
+        }
+        res.erase(res.begin(), res.begin() + dims - 3);
+    }
+    if (res.size() == 3 && batched_dims_can_be_removed) {
+        res.erase(res.begin());
+    }
+    return res;
+}
+
+dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims) {
+    if (dims.size() > 3)
+        throw std::runtime_error("[clDNN] Unsupported dims size for onednn gemm: should be <= 3");
+    return dims.size() == 3 ? dnnl::memory::format_tag::abc : dnnl::memory::format_tag::ab;
+}
+
+
+dnnl::memory::dims convert_spatials(cldnn::tensor t, size_t dims) {
+    auto spatials = t.spatial;
+    dnnl::memory::dims res(dims);
+    for (size_t i = 0; i < dims; i++) {
+        res[i] = spatials[dims - i - 1];
+    }
+    return res;
+}
+
+dnnl::memory::dims flatten_tensor(cldnn::tensor t) {
+    return {static_cast<int64_t>(t.count())};
+}
+
+dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
+    switch (dt) {
+        case cldnn::data_types::f32: return dnnl::memory::data_type::f32;
+        case cldnn::data_types::f16: return dnnl::memory::data_type::f16;
+        case cldnn::data_types::i8: return dnnl::memory::data_type::s8;
+        case cldnn::data_types::u8: return dnnl::memory::data_type::u8;
+        case cldnn::data_types::i32: return dnnl::memory::data_type::s32;
+        default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn type");
+    }
+}
+
+std::vector<std::pair<cldnn::format, dnnl::memory::format_tag>> format_map = {
+        { cldnn::format::bfyx, dnnl::memory::format_tag::nchw },
+        { cldnn::format::bfzyx, dnnl::memory::format_tag::ncdhw },
+        { cldnn::format::byxf, dnnl::memory::format_tag::nhwc },
+        { cldnn::format::bzyxf, dnnl::memory::format_tag::ndhwc },
+        { cldnn::format::b_fs_yx_fsv2, dnnl::memory::format_tag::undef },
+        { cldnn::format::b_fs_yx_fsv4, dnnl::memory::format_tag::aBcd4b },
+        { cldnn::format::b_fs_yx_fsv16, dnnl::memory::format_tag::nChw16c },
+        { cldnn::format::b_fs_yx_fsv32, dnnl::memory::format_tag::aBcd32b },
+        { cldnn::format::b_fs_zyx_fsv4, dnnl::memory::format_tag::aBcde4b },
+        { cldnn::format::b_fs_zyx_fsv16, dnnl::memory::format_tag::nCdhw16c },
+        { cldnn::format::b_fs_zyx_fsv32, dnnl::memory::format_tag::aBcde32b },
+        { cldnn::format::bs_fs_yx_bsv16_fsv16, dnnl::memory::format_tag::NChw16n16c },
+        { cldnn::format::bs_fs_yx_bsv32_fsv32, dnnl::memory::format_tag::NChw32n32c },
+        { cldnn::format::bs_fs_yx_bsv4_fsv4, dnnl::memory::format_tag::ABcd4a4b },
+        { cldnn::format::bs_fs_yx_bsv8_fsv4, dnnl::memory::format_tag::ABcd8a4b },
+        { cldnn::format::bs_fs_yx_bsv8_fsv2, dnnl::memory::format_tag::ABcd8a2b },
+        { cldnn::format::bs_fs_yx_bsv4_fsv2, dnnl::memory::format_tag::ABcd4a2b },
+        { cldnn::format::bs_fs_yx_bsv32_fsv16, dnnl::memory::format_tag::NChw32n16c },
+        { cldnn::format::bs_fs_zyx_bsv32_fsv16, dnnl::memory::format_tag::NCdhw32n16c },
+        { cldnn::format::bs_fs_zyx_bsv32_fsv32, dnnl::memory::format_tag::NCdhw32n32c },
+        { cldnn::format::bs_fs_zyx_bsv16_fsv16, dnnl::memory::format_tag::NCdhw16n16c },
+        { cldnn::format::bs_fs_zyx_bsv8_fsv4, dnnl::memory::format_tag::ABcde8a4b },
+        { cldnn::format::bs_fs_zyx_bsv8_fsv2, dnnl::memory::format_tag::ABcde8a2b },
+};
+
+dnnl::memory::format_tag convert_data_format(cldnn::format fmt) {
+    auto ret = std::find_if(format_map.begin(), format_map.end(),
+            [fmt](std::pair<cldnn::format, dnnl::memory::format_tag> &e) {
+                    return e.first == fmt; });
+    if (ret == format_map.end())
+        return dnnl::memory::format_tag::undef;
+
+    return ret->second;
+}
+
+ cldnn::format convert_data_format(dnnl::memory::format_tag fmt) {
+    auto ret = std::find_if(format_map.begin(), format_map.end(),
+            [fmt](std::pair<cldnn::format, dnnl::memory::format_tag> &e) {
+                    return e.second == fmt; });
+    if (ret == format_map.end())
+        throw std::invalid_argument("[clDNN] Unsupported onednn layout");
+
+    return ret->first;
+}
+
+void combine_bf_with_first_spatial_dim(cldnn::layout& l) {
+    auto pshape = l.get_shape();
+    ov::Shape new_shape{1, 1};
+    for (size_t i = 0; i < pshape.size(); ++i) {
+        if (i < 2) {
+            new_shape[0] *= pshape[i];
+        } else {
+            new_shape[1] *= pshape[i];
+        }
+    }
+    l.set_partial_shape(new_shape);
+}
+
+int64_t get_f_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
+    int64_t offset = 0;
+    auto f_padding = l.data_padding.lower_size().feature[0];
+    if (f_padding != 0) {
+        offset = f_padding;
+        for (size_t i = 0; i < l.get_spatial_rank(); ++i) {
+            offset *= l.spatial(i);
+        }
+    }
+
+    switch (desc.data.data_type) {
+        case dnnl_data_type_t::dnnl_s8:
+        case dnnl_data_type_t::dnnl_u8:
+            return offset;
+        case dnnl_data_type_t::dnnl_f16:
+        case dnnl_data_type_t::dnnl_bf16:
+            return (offset * 2);
+        case dnnl_data_type_t::dnnl_f32:
+        case dnnl_data_type_t::dnnl_s32:
+            return (offset * 4);
+        default: throw std::runtime_error(std::string("Unsupported offset for dnnl_data_type_t ") + dnnl_dt2str(desc.data.data_type));
+    }
 }
 
 dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_tag target_fmt, bool flatten) {

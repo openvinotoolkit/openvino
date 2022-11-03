@@ -7,6 +7,7 @@
 
 namespace kernel_selector {
 
+namespace {
 size_t getOperationNumber(const arg_max_min_params& params) {
     switch (params.argMaxMinAxis) {
         case ArgMaxMinAxis::BATCH: return params.outputs[0].Feature().v * params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v;
@@ -30,6 +31,7 @@ size_t getSortSize(const arg_max_min_params& params) {
             throw std::invalid_argument("Unsupported axis");
     }
 }
+}  // namespace
 
 ParamsKey ArgMaxMinKernelAxis::GetSupportedKey() const {
     ParamsKey k;

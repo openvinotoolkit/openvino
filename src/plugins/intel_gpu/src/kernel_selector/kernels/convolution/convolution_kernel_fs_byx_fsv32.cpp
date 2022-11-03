@@ -11,6 +11,20 @@ static constexpr size_t subGroupSize = 16;
 static constexpr size_t fsv = 32;
 static constexpr size_t fsvPerThread = fsv / subGroupSize;
 
+namespace {
+size_t getInputWidth(const convolution_params& arg, size_t blockWidth) {
+    return (blockWidth - 1) * arg.stride.x + (arg.filterSize.x - 1) * arg.dilation.x + 1;
+}
+
+size_t getMinRegisterUsage(const convolution_params& arg, size_t blockWidth) {
+    size_t weightsRegisters = 2;
+    size_t outputRegisters = blockWidth * 2;
+    size_t inputRegisters = getInputWidth(arg, blockWidth) * 2;
+
+    return weightsRegisters + outputRegisters + inputRegisters;
+}
+}  // namespace
+
 ConvolutionKernel_fs_byx_fsv32::ConvolutionKernel_fs_byx_fsv32()
     : ConvolutionKernelBase("convolution_gpu_fs_byx_fsv32") {
     std::vector<size_t> blockWidths = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
@@ -43,18 +57,6 @@ ParamsKey ConvolutionKernel_fs_byx_fsv32::GetSupportedKey() const {
     k.EnableSubGroup();
     k.EnableSubGroupShort();
     return k;
-}
-
-size_t getInputWidth(const convolution_params& arg, size_t blockWidth) {
-    return (blockWidth - 1) * arg.stride.x + (arg.filterSize.x - 1) * arg.dilation.x + 1;
-}
-
-size_t getMinRegisterUsage(const convolution_params& arg, size_t blockWidth) {
-    size_t weightsRegisters = 2;
-    size_t outputRegisters = blockWidth * 2;
-    size_t inputRegisters = getInputWidth(arg, blockWidth) * 2;
-
-    return weightsRegisters + outputRegisters + inputRegisters;
 }
 
 ConvolutionKernel_fs_byx_fsv32::AutoTuneOption ConvolutionKernel_fs_byx_fsv32::GetAutoTuneOptions(

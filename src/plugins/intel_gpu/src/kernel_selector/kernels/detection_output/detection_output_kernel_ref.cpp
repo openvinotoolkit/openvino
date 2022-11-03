@@ -9,58 +9,7 @@
 
 namespace kernel_selector {
 
-ParamsKey DetectionOutputKernelRef::GetSupportedKey() const {
-    ParamsKey k;
-    k.EnableInputDataType(Datatype::F16);
-    k.EnableInputDataType(Datatype::F32);
-    k.EnableOutputDataType(Datatype::F16);
-    k.EnableOutputDataType(Datatype::F32);
-    k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::bfyx);
-    k.EnableDifferentTypes();
-    k.EnableTensorOffset();
-    k.EnableTensorPitches();
-    k.EnableBatching();
-    return k;
-}
-
-JitConstants DetectionOutputKernelRef::GetJitConstants(const detection_output_params& params) const {
-    JitConstants jit = MakeBaseParamsJitConstants(params);
-
-    const auto& detectOutParams = params.detectOutParams;
-    auto num_prior_boxes = params.inputs[1].Feature().v / detectOutParams.num_classes;
-
-    jit.AddConstants({
-        MakeJitConstant("NUM_IMAGES", detectOutParams.num_images),
-        MakeJitConstant("NUM_CLASSES", detectOutParams.num_classes),
-        MakeJitConstant("NUM_CLASSES_PER_ITEM", 4),
-        MakeJitConstant("KEEP_TOP_K", detectOutParams.keep_top_k),
-        MakeJitConstant("TOP_K", std::min(detectOutParams.top_k, (int32_t)num_prior_boxes)),
-        MakeJitConstant("BACKGROUND_LABEL_ID", detectOutParams.background_label_id),
-        MakeJitConstant("CODE_TYPE", detectOutParams.code_type),
-        MakeJitConstant("CONF_SIZE_X", detectOutParams.conf_size_x),
-        MakeJitConstant("CONF_SIZE_Y", detectOutParams.conf_size_y),
-        MakeJitConstant("CONF_PADDING_X", detectOutParams.conf_padding_x),
-        MakeJitConstant("CONF_PADDING_Y", detectOutParams.conf_padding_y),
-        MakeJitConstant("SHARE_LOCATION", detectOutParams.share_location),
-        MakeJitConstant("VARIANCE_ENCODED_IN_TARGET", detectOutParams.variance_encoded_in_target),
-        MakeJitConstant("NMS_THRESHOLD", detectOutParams.nms_threshold),
-        MakeJitConstant("ETA", detectOutParams.eta),
-        MakeJitConstant("CONFIDENCE_THRESHOLD", detectOutParams.confidence_threshold),
-        MakeJitConstant("IMAGE_WIDTH", detectOutParams.input_width),
-        MakeJitConstant("IMAGE_HEIGH", detectOutParams.input_heigh),
-        MakeJitConstant("DECREASE_LABEL_ID", detectOutParams.decrease_label_id),
-        MakeJitConstant("CLIP_BEFORE_NMS", detectOutParams.clip_before_nms),
-        MakeJitConstant("CLIP_AFTER_NMS", detectOutParams.clip_after_nms),
-        MakeJitConstant("ELEMENTS_PER_THREAD", detectOutParams.elements_per_thread),
-        MakeJitConstant("PRIOR_COORD_OFFSET", detectOutParams.prior_coordinates_offset),
-        MakeJitConstant("PRIOR_INFO_SIZE", detectOutParams.prior_info_size),
-        MakeJitConstant("PRIOR_IS_NORMALIZED", detectOutParams.prior_is_normalized),
-    });
-
-    return jit;
-}
-
+namespace {
 static inline int GetPartitionStep(int localWorkItemNum) {
     int step_size = 0;
     for (int temp = localWorkItemNum; temp > 1; temp /= 2) {
@@ -132,6 +81,59 @@ DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params&
     }
 
     return dispatchData;
+}
+}  // namespace
+
+ParamsKey DetectionOutputKernelRef::GetSupportedKey() const {
+    ParamsKey k;
+    k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::F32);
+    k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableDifferentTypes();
+    k.EnableTensorOffset();
+    k.EnableTensorPitches();
+    k.EnableBatching();
+    return k;
+}
+
+JitConstants DetectionOutputKernelRef::GetJitConstants(const detection_output_params& params) const {
+    JitConstants jit = MakeBaseParamsJitConstants(params);
+
+    const auto& detectOutParams = params.detectOutParams;
+    auto num_prior_boxes = params.inputs[1].Feature().v / detectOutParams.num_classes;
+
+    jit.AddConstants({
+        MakeJitConstant("NUM_IMAGES", detectOutParams.num_images),
+        MakeJitConstant("NUM_CLASSES", detectOutParams.num_classes),
+        MakeJitConstant("NUM_CLASSES_PER_ITEM", 4),
+        MakeJitConstant("KEEP_TOP_K", detectOutParams.keep_top_k),
+        MakeJitConstant("TOP_K", std::min(detectOutParams.top_k, (int32_t)num_prior_boxes)),
+        MakeJitConstant("BACKGROUND_LABEL_ID", detectOutParams.background_label_id),
+        MakeJitConstant("CODE_TYPE", detectOutParams.code_type),
+        MakeJitConstant("CONF_SIZE_X", detectOutParams.conf_size_x),
+        MakeJitConstant("CONF_SIZE_Y", detectOutParams.conf_size_y),
+        MakeJitConstant("CONF_PADDING_X", detectOutParams.conf_padding_x),
+        MakeJitConstant("CONF_PADDING_Y", detectOutParams.conf_padding_y),
+        MakeJitConstant("SHARE_LOCATION", detectOutParams.share_location),
+        MakeJitConstant("VARIANCE_ENCODED_IN_TARGET", detectOutParams.variance_encoded_in_target),
+        MakeJitConstant("NMS_THRESHOLD", detectOutParams.nms_threshold),
+        MakeJitConstant("ETA", detectOutParams.eta),
+        MakeJitConstant("CONFIDENCE_THRESHOLD", detectOutParams.confidence_threshold),
+        MakeJitConstant("IMAGE_WIDTH", detectOutParams.input_width),
+        MakeJitConstant("IMAGE_HEIGH", detectOutParams.input_heigh),
+        MakeJitConstant("DECREASE_LABEL_ID", detectOutParams.decrease_label_id),
+        MakeJitConstant("CLIP_BEFORE_NMS", detectOutParams.clip_before_nms),
+        MakeJitConstant("CLIP_AFTER_NMS", detectOutParams.clip_after_nms),
+        MakeJitConstant("ELEMENTS_PER_THREAD", detectOutParams.elements_per_thread),
+        MakeJitConstant("PRIOR_COORD_OFFSET", detectOutParams.prior_coordinates_offset),
+        MakeJitConstant("PRIOR_INFO_SIZE", detectOutParams.prior_info_size),
+        MakeJitConstant("PRIOR_IS_NORMALIZED", detectOutParams.prior_is_normalized),
+    });
+
+    return jit;
 }
 
 bool DetectionOutputKernelRef::Validate(const Params& p, const optional_params& o) const {
