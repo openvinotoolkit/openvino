@@ -9,6 +9,8 @@ trigger:
     - /**/docs/*
     - /**/*.md
     - README.md
+    - /**/layer_tests_summary/**
+    - src/tests/functional/plugin/conformance/**
 
 pr:
   branches:
@@ -21,6 +23,8 @@ pr:
     - /**/docs/*
     - /**/*.md
     - README.md
+    - /**/layer_tests_summary/**
+    - src/tests/functional/plugin/conformance/**
 
 resources:
   repositories:
@@ -152,7 +156,7 @@ jobs:
       cmakeArgs: >
         -GNinja
         -DCMAKE_VERBOSE_MAKEFILE=ON
-        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
         -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake
         -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/python3.8
         -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib/libpython3.8.so
@@ -168,7 +172,7 @@ jobs:
         -DTHREADING=TBB
         -DTBB_DIR=$(INSTALL_ONETBB)/lib/cmake/TBB
         -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON
-        -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules/arm_plugin
+        -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules/arm_plugin
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
         -DCMAKE_CXX_LINKER_LAUNCHER=ccache
@@ -246,10 +250,7 @@ jobs:
         -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib
         -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake
         -DOpenVINO_DIR=$(BUILD_OPENVINO)
-        -DInferenceEngine_DIR=$(BUILD_OPENVINO)
         -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake
-        -Dngraph_DIR=$(BUILD_OPENVINO)
-        -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPEN_MODEL_ZOO)
         $(OPENVINO_REPO_DIR)/thirdparty/open_model_zoo/demos
       workingDirectory: $(BUILD_OPEN_MODEL_ZOO)

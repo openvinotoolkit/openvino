@@ -198,6 +198,9 @@ public:
     void remove_dependency(size_t idx);
     void remove_dependency(program_node& node);
 
+    size_t get_dependency_index(program_node& node) const;
+    size_t get_user_index(program_node& node) const;
+
     std::set<primitive_id> get_memory_dependencies() const;
     void add_memory_dependency(primitive_id);
     void add_memory_dependency(std::vector<primitive_id>);
@@ -419,10 +422,18 @@ public:
         cur_id = 0;
     }
 
-    format::type get_required_input0() const { return required_input0; }
-    format::type get_required_output() const { return required_output; }
-    void set_required_input0(format::type type) { required_input0 = type; }
-    void set_required_output(format::type type) { required_output = type; }
+    std::vector<format::type> get_preferred_input_fmts() const { return preferred_input_fmts; }
+    std::vector<format::type> get_preferred_output_fmts() const { return preferred_output_fmts; }
+    format::type get_preferred_input_fmt(size_t idx = 0) const {
+        return (idx < preferred_input_fmts.size()) ? preferred_input_fmts.at(idx) : format::any;
+    }
+    format::type get_preferred_output_fmt(size_t idx = 0) const {
+        return (idx < preferred_output_fmts.size()) ? preferred_output_fmts.at(idx) : format::any;
+    }
+
+    void init_preferred_fmt(size_t dep_size, size_t user_size);
+    void set_preferred_input_fmt(size_t idx, format::type type);
+    void set_preferred_output_fmt(size_t idx, format::type type);
 
 
 protected:
@@ -437,8 +448,8 @@ protected:
     bool valid_output_layout = false;
     layout output_layout = layout(data_types::f32, format::bfyx, tensor());
 
-    format::type required_input0;
-    format::type required_output;
+    std::vector<format::type> preferred_input_fmts;
+    std::vector<format::type> preferred_output_fmts;
 
     std::vector<program_node*> dependencies;
     std::vector<std::pair<program_node*, int>> dependencies_new;
@@ -536,7 +547,7 @@ template <class PType>
 struct typed_program_node : public typed_program_node_base<PType> {
     using typed_program_node_base<PType>::typed_program_node_base;
 
-    program_node& input() const { return program_node::get_dependency(0); }
+    program_node& input(size_t index = 0) const { return program_node::get_dependency(index); }
 };
 
 }  // namespace cldnn

@@ -42,8 +42,8 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, ke
     int32_t number_of_features = weights_layout.group() * weights_layout.ofm();
 
     format out_fmt = input_layout.format;
-    if (node.get_preferred_impl_type() == impl_types::onednn && node.get_required_output() != format::any) {
-        out_fmt = node.get_required_output();
+    if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
+        out_fmt = node.get_preferred_output_fmt();
     }
 
     if (desc->with_output_size) {
@@ -142,8 +142,8 @@ std::string deconvolution_inst::to_string(deconvolution_node const& node) {
 
 deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node const& node)
     : parent(network, node) {
-    auto stride = argument.stride;
-    auto pad = argument.pad;
+    auto stride = argument->stride;
+    auto pad = argument->pad;
 
     auto input_layout = node.input().get_output_layout();
     auto output_layout = node.get_output_layout();
@@ -170,9 +170,9 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
 
     auto split = node.get_split();
     for (decltype(split) j = 0; j < split; j++) {
-        auto filter_inst = node.weights(j).get_output_layout().convert_to_weights_layout(argument.grouped_weights_shape);
+        auto filter_inst = node.weights(j).get_output_layout().convert_to_weights_layout(argument->grouped_weights_shape);
 
-        if (argument.bias.size() != 0) {
+        if (argument->bias.size() != 0) {
             auto bias_inst = node.bias(j).get_output_layout();
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias batch[0]",
