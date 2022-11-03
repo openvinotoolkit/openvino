@@ -5,6 +5,7 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "utils.hpp"
+#include "pt_framework_node.hpp"
 
 namespace ov {
 namespace frontend {

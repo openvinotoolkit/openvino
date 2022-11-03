@@ -22,6 +22,7 @@ OutputVector translate_batch_norm(NodeContext& context) {
                                   "Translation for aten::batch_norm do not support training mode.");
     // Index with index 6 is momentum, it is used only in training mode
     auto epsilon = context.const_input<float>(7);
+    std::cout << "========================" << context.get_schema() << std::endl;
     // TODO: inputs seem to be in incorrect order. Verify it is correct.
     return {context.mark_node(
         std::make_shared<opset8::BatchNormInference>(input, running_mean, running_var, weight, bias, epsilon))};

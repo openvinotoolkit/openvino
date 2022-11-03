@@ -78,7 +78,7 @@ std::shared_ptr<FrameworkNode> make_list_pack(const OutputVector& inputs, Any ou
     }
     // TODO: Use special API to set custom type detalization
     //list_pack->set_custom_output_type(0, output_type, shape);
-    op::util::FrameworkNodeAttrs attrs;
+    ov::op::util::FrameworkNodeAttrs attrs;
     attrs.set_type_name("PTFE::ListPack");
     list_pack->set_attrs(attrs);
     list_pack->validate_and_infer_types();

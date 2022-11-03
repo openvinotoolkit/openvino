@@ -21,6 +21,7 @@ pt_to_ov_type_map = {
     'torch.int32': OVType.i32,
     "torch.FloatTensor": OVType.f32,
     "torch.IntTensor": OVType.i32,
+    "torch.LongTensor": OVType.i64,
 }
 
 pt_to_py_type_map = {
@@ -224,7 +225,12 @@ class TorchScriptPythonDecoder (Decoder):
         return None
 
     def as_constant_tensor(self, pt_value):
-        if pt_value.isCompleteTensor():
+        ivalue = pt_value.toIValue()
+        if pt_value.isCompleteTensor():            
+            try:
+                ivalue = ivalue.detach().cpu()
+            except:
+                print("[ WARNING ] Tensor couldn't detach")
             if str(pt_value.type().dtype()) in pt_to_py_type_map:
                 # Constant interpretation doesn't respect new-full type of PT
                 # It recognizes only tensors, and give lists as 1D tensors, and scalars as Tensor scalars
@@ -236,27 +242,33 @@ class TorchScriptPythonDecoder (Decoder):
                 try:
                     # this is only possible with adding a new ctor for Constant Python binding
                     # TODO Check strides and pass them somehow
-                    values = pt_value.toIValue().detach().cpu().data_ptr()
+                    values = ivalue.data_ptr()
                     ov_const = make_constant(ovtype, ovshape.get_shape(), values)
                 except:
                     # old variant that makes a slow data copying
                     print(f"[ WARNING ] Constant wasn't able to convert from data_ptr.")
-                    values = pt_value.toIValue().detach().cpu().flatten().tolist()
+                    values = ivalue.flatten().tolist()
                     ov_const = make_constant(ovtype, ovshape.get_shape(), values)
                 return ov_const.outputs()
         else:
-            # Incomplete tensor
+            # Incomplete tensor can be scalar
+            if isinstance(ivalue, float):
+                return make_constant(OVType.f32, Shape([]), [ivalue]).outputs()
+            if isinstance(ivalue, int):
+                return make_constant(OVType.i32, Shape([]), [ivalue]).outputs()
+            if isinstance(ivalue, bool):
+                return make_constant(OVType.boolean, Shape([]), [ivalue]).outputs()
+
             # TODO: verify that it correctly reads incomplete consts
-            values = pt_value.toIValue().detach().cpu()
-            if values.type() in pt_to_ov_type_map:
+            if ivalue.type() in pt_to_ov_type_map:
                 try:
-                    ovshape = PartialShape(values.size())
-                    ovtype = pt_to_ov_type_map[values.type()]
-                    ov_const = make_constant(ovtype, ovshape.get_shape(), values.data_ptr())
+                    ovshape = PartialShape(ivalue.size())
+                    ovtype = pt_to_ov_type_map[ivalue.type()]
+                    ov_const = make_constant(ovtype, ovshape.get_shape(), ivalue.data_ptr())
                 except:
                     # old variant that makes a slow data copying
                     print(f"[ WARNING ] Constant wasn't able to convert from data_ptr.")
-                    nvalues = values.numpy()
+                    nvalues = ivalue.numpy()
                     ovtype = np_to_ov_type_map[str(nvalues.dtype)]
                     ovshape = PartialShape(nvalues.shape)
                     ov_const = make_constant(ovtype, ovshape.get_shape(), nvalues.flatten().tolist())

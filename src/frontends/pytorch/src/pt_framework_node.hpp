@@ -108,7 +108,7 @@ public:
             for (const auto& input_description : m_input_descriptions[i]) {
                 auto index = input_description->m_input_index;
                 if (auto invariant_input_description =
-                        ov::as_type_ptr<op::v0::TensorIterator::InvariantInputDescription>(input_description)) {
+                        ov::as_type_ptr<ov::op::util::MultiSubGraphOp::InvariantInputDescription>(input_description)) {
                     auto body_parameter =
                         m_bodies[i]->get_parameters().at(invariant_input_description->m_body_parameter_index);
 
@@ -130,7 +130,7 @@ public:
                     m_bodies[i]->get_results().at(output_description->m_body_value_index)->input_value(0).get_tensor();
 
                 if (auto body_output_description =
-                        ov::as_type_ptr<op::v0::TensorIterator::BodyOutputDescription>(output_description)) {
+                        ov::as_type_ptr<ov::op::util::MultiSubGraphOp::BodyOutputDescription>(output_description)) {
                     const ov::PartialShape& ps = body_value.get_partial_shape();
                     auto et = body_value.get_element_type();
                     // TODO: Propagate custom type from body to the external in case if et is dynamic
