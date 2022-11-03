@@ -19,7 +19,7 @@ typedef std::chrono::nanoseconds ns;
 typedef std::chrono::duration<double, std::ratio<1, 1000>> ms;
 typedef std::chrono::duration<float> fsec;
 
-
+namespace {
 std::vector<unsigned char> createSampleData(int width, int height) {
     int data_size = width * (height + height / 2);
     auto data = std::vector<unsigned char>(data_size);
@@ -69,6 +69,7 @@ std::vector<float> createReferenceData(std::vector<unsigned char> data, int widt
 
     return img;
 }
+}  // namespace
 
 TEST(cl_mem_check, check_2_inputs) {
     device_query query(engine_types::ocl, runtime_types::ocl);
