@@ -782,8 +782,7 @@ InputsMap getInputMap() {
 #include "openvino/opsets/opset8_tbl.hpp"
 #include "openvino/opsets/opset9_tbl.hpp"
 
-_OPENVINO_OP_REG(AUGRUCell, ov::op::internal)
-_OPENVINO_OP_REG(AUGRUSequence, ov::op::internal)
+#include "ngraph_ops/opset_private_tbl.hpp"
 #undef _OPENVINO_OP_REG
     };
     return inputsMap;

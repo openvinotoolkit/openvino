@@ -81,8 +81,7 @@ CompareMap getCompareMap() {
 #include "openvino/opsets/opset9_tbl.hpp"
 #include "openvino/opsets/opset10_tbl.hpp"
 
-_OPENVINO_OP_REG(AUGRUCell, ov::op::internal)
-_OPENVINO_OP_REG(AUGRUSequence, ov::op::internal)
+#include "ngraph_ops/opset_private_tbl.hpp"
 #undef _OPENVINO_OP_REG
     };
     return compareMap;
