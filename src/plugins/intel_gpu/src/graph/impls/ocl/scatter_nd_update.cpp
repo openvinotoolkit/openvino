@@ -39,7 +39,6 @@ struct scatter_nd_update_impl : typed_primitive_impl_ocl<scatter_nd_update> {
 
         return {params, optional_params};
     }
-
 };
 
 namespace detail {

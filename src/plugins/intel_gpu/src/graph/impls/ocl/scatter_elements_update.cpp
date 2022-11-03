@@ -64,7 +64,6 @@ struct scatter_elements_update_impl : typed_primitive_impl_ocl<scatter_elements_
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
         return {params, optional_params};
     }
-
 };
 
 namespace detail {

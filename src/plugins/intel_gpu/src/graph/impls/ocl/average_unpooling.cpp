@@ -32,7 +32,6 @@ protected:
     }
 
 public:
-
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<average_unpooling>();
         auto params = get_default_params<kernel_selector::average_unpooling_params>(impl_param);

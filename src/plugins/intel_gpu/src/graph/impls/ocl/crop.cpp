@@ -65,6 +65,7 @@ public:
         params.inputs[0] = convert_data_tensor(impl_param.get_input_layout(), 1, impl_param.input_offsets[0]);
         return {params, optional_params};
     }
+
 protected:
     bool optimized_out(crop_inst& instance) const override {
         return parent::optimized_out(instance) || _can_be_optimized;

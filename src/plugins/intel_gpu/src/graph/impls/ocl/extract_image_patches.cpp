@@ -29,7 +29,7 @@ struct extract_image_patches_impl : typed_primitive_impl_ocl<extract_image_patch
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<extract_image_patches>();
         auto params = get_default_params<kernel_selector::extract_image_patches_params>(impl_param);
-        auto optional_params =get_default_optional_params<kernel_selector::extract_image_patches_optional_params>(impl_param.get_program());
+        auto optional_params = get_default_optional_params<kernel_selector::extract_image_patches_optional_params>(impl_param.get_program());
 
         params.sizes = primitive->sizes;
         params.strides = primitive->strides;

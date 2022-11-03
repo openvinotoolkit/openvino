@@ -43,7 +43,6 @@ struct shuffle_channels_impl : typed_primitive_impl_ocl<shuffle_channels> {
 
         return {params, optional_params};
     }
-
 };
 
 namespace detail {

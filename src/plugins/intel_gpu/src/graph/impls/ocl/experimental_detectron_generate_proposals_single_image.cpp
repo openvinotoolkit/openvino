@@ -45,7 +45,8 @@ public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<experimental_detectron_generate_proposals_single_image>();
         auto params = get_default_params<kernel_selector::experimental_detectron_generate_proposals_single_image_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::experimental_detectron_generate_proposals_single_image_optional_params>(impl_param.get_program());
+        auto optional_params =
+            get_default_optional_params<kernel_selector::experimental_detectron_generate_proposals_single_image_optional_params>(impl_param.get_program());
 
         params.min_size = primitive->min_size;
         params.nms_threshold  = primitive->nms_threshold;

@@ -26,13 +26,6 @@ struct detection_output_impl : typed_primitive_impl_ocl<detection_output> {
         return make_unique<detection_output_impl>(*this);
     }
 
-private:
-    static void set_detection_output_specific_params(kernel_selector::detection_output_params::DedicatedParams& detectOutParams,
-                                                     const detection_output_node& arg) {
-        auto primitive = arg.get_primitive();
-
-    }
-
 protected:
     bool optimized_out(detection_output_inst& instance) const override {
         /// purpose: To optimize out detection_output for perf measurement.
