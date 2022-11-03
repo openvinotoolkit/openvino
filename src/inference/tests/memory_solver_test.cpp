@@ -238,8 +238,8 @@ TEST(MemSolverTest, NoOverlapping) {
     // EXPECT_EQ(ms.solve(), 5);
 
     auto no_overlap = [&](Box box1, Box box2) -> bool {
-        int off1 = ms.getOffset(box1.id);
-        int off2 = ms.getOffset(box2.id);
+        int off1 = (int)ms.getOffset((int)box1.id);
+        int off2 = (int)ms.getOffset((int)box2.id);
         return box1.finish < box2.start || box1.start > box2.finish ||
                off1 + box1.size <= off2 || off1 >= off2 + box2.size;
     };
@@ -262,8 +262,8 @@ TEST(MemSolverTest, BestSolution1) {
     EXPECT_EQ(ms.solve(), 5);
 
     auto no_overlap = [&](Box box1, Box box2) -> bool {
-        int off1 = ms.getOffset(box1.id);
-        int off2 = ms.getOffset(box2.id);
+        int off1 = (int)ms.getOffset((int)box1.id);
+        int off2 = (int)ms.getOffset((int)box2.id);
         return box1.finish < box2.start || box1.start > box2.finish ||
                off1 + box1.size <= off2 || off1 >= off2 + box2.size;
     };

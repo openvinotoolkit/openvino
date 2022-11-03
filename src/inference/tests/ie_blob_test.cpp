@@ -433,7 +433,7 @@ TEST_F(BlobTests, readRoiBlob) {
         ASSERT_NE(nullptr, origPtr);
 
         for (size_t i = 0; i < origBlob->size(); ++i) {
-            origPtr[i] = i;
+            origPtr[i] = (int32_t)i;
         }
     }
 
@@ -547,7 +547,7 @@ TEST_F(BlobTests, readRangeRoiBlob) {
         ASSERT_NE(nullptr, origPtr);
 
         for (size_t i = 0; i < origBlob->size(); ++i) {
-            origPtr[i] = i;
+            origPtr[i] = (int32_t)i;
         }
     }
 
