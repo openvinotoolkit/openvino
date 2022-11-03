@@ -21,6 +21,10 @@
 #endif
 
 namespace {
+static const char create_device_error_msg[] =
+    "[GPU] No supported OCL devices found or unexpected error happened during devices query.\n"
+    "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n";
+
 bool does_device_match_config(bool out_of_order, const cl::Device& device) {
     if (device.getInfo<CL_DEVICE_TYPE>() != CL_DEVICE_TYPE_GPU) {
         return false;
@@ -158,14 +162,14 @@ std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(vo
 }
 
 std::vector<device::ptr> ocl_device_detector::create_device_list(bool out_out_order) const {
-    cl_uint n = 0;
+    cl_uint num_platforms = 0;
     // Get number of platforms availible
-    cl_int err = clGetPlatformIDs(0, NULL, &n);
-    OPENVINO_ASSERT(err == CL_SUCCESS, "[GPU] clGetPlatformIDs error ",  err);
+    cl_int error_code = clGetPlatformIDs(0, NULL, &num_platforms);
+    OPENVINO_ASSERT(error_code == CL_SUCCESS, create_device_error_msg, "[GPU] clGetPlatformIDs error code: ", std::to_string(error_code));
     // Get platform list
-    std::vector<cl_platform_id> platform_ids(n);
-    err = clGetPlatformIDs(n, platform_ids.data(), NULL);
-    OPENVINO_ASSERT(err == CL_SUCCESS, "[GPU] clGetPlatformIDs error ",  err);
+    std::vector<cl_platform_id> platform_ids(num_platforms);
+    error_code = clGetPlatformIDs(num_platforms, platform_ids.data(), NULL);
+    OPENVINO_ASSERT(error_code == CL_SUCCESS, create_device_error_msg, "[GPU] clGetPlatformIDs error code: ", std::to_string(error_code));
 
     std::vector<device::ptr> supported_devices;
     for (auto& id : platform_ids) {
@@ -179,7 +183,7 @@ std::vector<device::ptr> ocl_device_detector::create_device_list(bool out_out_or
             supported_devices.emplace_back(std::make_shared<ocl_device>(device, cl::Context(device), id));
         }
     }
-    OPENVINO_ASSERT(!supported_devices.empty(), "[GPU] No GPU device was found.");
+    OPENVINO_ASSERT(!supported_devices.empty(), create_device_error_msg);
     return supported_devices;
 }
 
@@ -195,20 +199,20 @@ std::vector<device::ptr>  ocl_device_detector::create_device_list_from_user_cont
         supported_devices.emplace_back(std::make_shared<ocl_device>(device, ctx, device.getInfo<CL_DEVICE_PLATFORM>()));
     }
 
-    OPENVINO_ASSERT(!supported_devices.empty(), "[GPU] User defined context does not have GPU device included.");
+    OPENVINO_ASSERT(!supported_devices.empty(), "[GPU] User defined context does not have supported GPU device.");
     return supported_devices;
 }
 
 std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_device(bool out_out_order, void* user_device) const {
-    cl_uint n = 0;
+    cl_uint num_platforms = 0;
     // Get number of platforms availible
-    cl_int err = clGetPlatformIDs(0, NULL, &n);
-    OPENVINO_ASSERT(err == CL_SUCCESS, "[GPU] clGetPlatformIDs error ",  err);
+    cl_int error_code = clGetPlatformIDs(0, NULL, &num_platforms);
+    OPENVINO_ASSERT(error_code == CL_SUCCESS, create_device_error_msg, "[GPU] clGetPlatformIDs error code: ", std::to_string(error_code));
 
     // Get platform list
-    std::vector<cl_platform_id> platform_ids(n);
-    err = clGetPlatformIDs(n, platform_ids.data(), NULL);
-    OPENVINO_ASSERT(err == CL_SUCCESS, "[GPU] clGetPlatformIDs error ",  err);
+    std::vector<cl_platform_id> platform_ids(num_platforms);
+    error_code = clGetPlatformIDs(num_platforms, platform_ids.data(), NULL);
+    OPENVINO_ASSERT(error_code == CL_SUCCESS, create_device_error_msg, "[GPU] clGetPlatformIDs error code: ", std::to_string(error_code));
 
     std::vector<device::ptr> supported_devices;
     for (auto& id : platform_ids) {
@@ -242,7 +246,9 @@ std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_devic
             &devices);
 
         for (auto& device : devices) {
-            if (!does_device_match_config(out_out_order, device)) continue;
+            if (!does_device_match_config(out_out_order, device))
+                continue;
+
             cl_context_properties props[] = {
 #ifdef _WIN32
                 CL_CONTEXT_D3D11_DEVICE_KHR,
