@@ -613,6 +613,13 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
             auto split = context.mark_node(std::make_shared<opset8::Split>(context.get_input(0), dim_const, chunks));
             return split->outputs();
         }},*/
+
+        {"aten::pow",
+         [](NodeContext& context) -> OutputVector {
+             auto input_tensor = context.get_input(0);
+             auto exponent = context.get_input(1);
+             return {context.mark_node(std::make_shared<opset8::Power>(input_tensor, exponent))};
+         }},
     };
 };
 
