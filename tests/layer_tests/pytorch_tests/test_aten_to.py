@@ -33,3 +33,4 @@ class TestAtenTo(PytorchLayerTest):
     def test_aten_to(self, type, ie_device, precision, ir_version):
         if ie_device == "CPU":
             self._test(*self.create_model(type), ie_device, precision, ir_version)
+
