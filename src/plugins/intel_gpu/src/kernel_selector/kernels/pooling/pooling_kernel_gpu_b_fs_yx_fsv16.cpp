@@ -20,7 +20,6 @@ ParamsKey PoolingKernel_b_fs_yx_fsv16::GetSupportedKey() const {
     k.EnableBatching();
     k.EnablePoolType(PoolType::MAX);
     k.EnablePoolType(PoolType::AVG);
-    k.EnablePoolType(PoolType::MAX_WITH_ARGMAX);
     k.EnablePoolRemainder(PoolRemainder::FLOOR);
     k.EnablePoolRemainder(PoolRemainder::CEIL);
     k.EnablePoolKernelDividerMode(KernelDividerMode::FIXED);
