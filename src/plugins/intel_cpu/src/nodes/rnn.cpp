@@ -855,8 +855,7 @@ void RNN::prepareParams() {
     prim = result.first;
 
     auto pd = (*prim).get_primitive_desc();
-    auto scratchpadMemoryDesc = DnnlExtensionUtils::query_md(pd, dnnl::query::scratchpad_md);
-    scratchpadMem = getRuntimeScratchPad()->getScratchPadMem(scratchpadMemoryDesc);
+    scratchpadMem = getScratchPadMem(pd);
 
     if (!wasMemoryPrepared || wFormatWasChanged) {
         auto pd = (*prim).get_primitive_desc();

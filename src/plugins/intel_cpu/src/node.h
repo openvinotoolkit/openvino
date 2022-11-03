@@ -639,7 +639,6 @@ protected:
     std::vector<MemoryPtr> internalBlobMemory;
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
     std::unordered_map<int, dnnl::memory> primArgs;
-    MemoryPtr scratchpadMem;
     std::vector<MemoryPtr> postOpsArgs;
     Primitive prim;
     std::vector<DnnlDesriptor> descs;
@@ -758,6 +757,12 @@ protected:
         return rtScratchPad;
     }
 
+    MemoryPtr getScratchPadMem(const const_dnnl_primitive_desc_t& pd) {
+        auto scratchpadMemoryDesc = DnnlExtensionUtils::query_md(pd, dnnl::query::scratchpad_md);
+        scratchpadMem = getRuntimeScratchPad()->createScratchPadMem(scratchpadMemoryDesc);
+        return scratchpadMem;
+    }
+
     std::vector<VectorDims> lastInputDims = {};
 
     std::shared_ptr<IShapeInfer> shapeInference;
@@ -787,6 +792,7 @@ private:
 
     MultiCachePtr rtParamsCache;
     DnnlScratchPadPtr rtScratchPad;
+    MemoryPtr scratchpadMem;
 
     bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const;
 

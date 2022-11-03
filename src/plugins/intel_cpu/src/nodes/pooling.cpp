@@ -388,9 +388,7 @@ void Pooling::prepareParams() {
     prim = result.first;
 
     auto pd = (*prim).get_primitive_desc();
-    auto scratchpadMemoryDesc = DnnlExtensionUtils::query_md(pd, dnnl::query::scratchpad_md);
-    scratchpadMem = getRuntimeScratchPad()->getScratchPadMem(scratchpadMemoryDesc);
-
+    auto scratchpadMem = getScratchPadMem(pd);
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}, {DNNL_ARG_SCRATCHPAD, scratchpadMem->GetPrimitive()}};

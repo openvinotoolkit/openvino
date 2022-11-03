@@ -202,8 +202,7 @@ void Lrn::prepareParams() {
     prim = result.first;
 
     auto pd = (*prim).get_primitive_desc();
-    auto scratchpadMemoryDesc = DnnlExtensionUtils::query_md(pd, dnnl::query::scratchpad_md);
-    scratchpadMem = getRuntimeScratchPad()->getScratchPadMem(scratchpadMemoryDesc);
+    auto scratchpadMem = getScratchPadMem(pd);
 
     auto src = srcMemPtr->GetPrimitive();
     auto dst = dstMemPtr->GetPrimitive();
