@@ -18,6 +18,12 @@
 #include <mutex>
 #include <chrono>
 #include <fstream>
+#ifdef __GLIBC__
+#include <gnu/libc-version.h>
+#if __GLIBC_MINOR__  >= 34
+    #define OV_TEST_GLIBC_VERSION_GREATER_2_34
+#endif
+#endif
 
 class CoreThreadingTests : public ::testing::Test {
 protected:
@@ -131,7 +137,10 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
 
 // tested function: GetAvailableDevices, UnregisterPlugin
 // TODO: some initialization (e.g. thread/dlopen) sporadically fails during such stress-test scenario
-TEST_F(CoreThreadingTests, DISABLED_GetAvailableDevices) {
+TEST_F(CoreThreadingTests, GetAvailableDevices) {
+    #ifndef OV_TEST_GLIBC_VERSION_GREATER_2_34
+        GTEST_SKIP();
+    #endif
     InferenceEngine::Core ie;
     runParallel([&] () {
         std::vector<std::string> devices = ie.GetAvailableDevices();
