@@ -9,6 +9,8 @@
 #include "utils.hpp"
 
 namespace ov {
+BWDCMP_RTTI_DEFINITION(op::v10::IsFinite);
+
 ov::op::v10::IsFinite::IsFinite(const Output<Node>& data) : op::Op{{data}} {
     constructor_validate_and_infer_types();
 }
@@ -40,10 +42,10 @@ bool ov::op::v10::IsFinite::visit_attributes(AttributeVisitor& visitor) {
 
 namespace {
 template <element::Type_t ET>
-bool evaluate_exec(const ov::TensorVector& input, ov::TensorVector& output) {
+bool evaluate_exec(const ov::TensorVector& inputs, ov::TensorVector& outputs) {
     using T = typename element_type_traits<ET>::value_type;
     using U = typename element_type_traits<element::Type_t::boolean>::value_type;
-    ngraph::runtime::reference::is_finite(input[0].data<T>(), output[0].data<U>(), shape_size(input[0].get_shape()));
+    ngraph::runtime::reference::is_finite(inputs[0].data<T>(), outputs[0].data<U>(), shape_size(inputs[0].get_shape()));
     return true;
 }
 
@@ -54,13 +56,13 @@ bool evaluate_exec(const ov::TensorVector& input, ov::TensorVector& output) {
     } break
 
 template <element::Type_t ET>
-bool evaluate(const ov::TensorVector& input, ov::TensorVector& output) {
+bool evaluate(const ov::TensorVector& inputs, ov::TensorVector& outputs) {
     bool rc = true;
-    switch (input[0].get_element_type()) {
-        IS_FINITE_TYPE_CASE(bf16, input, output);
-        IS_FINITE_TYPE_CASE(f16, input, output);
-        IS_FINITE_TYPE_CASE(f32, input, output);
-        IS_FINITE_TYPE_CASE(f64, input, output);
+    switch (inputs[0].get_element_type()) {
+        IS_FINITE_TYPE_CASE(bf16, inputs, outputs);
+        IS_FINITE_TYPE_CASE(f16, inputs, outputs);
+        IS_FINITE_TYPE_CASE(f32, inputs, outputs);
+        IS_FINITE_TYPE_CASE(f64, inputs, outputs);
     default:
         rc = false;
         break;
@@ -68,13 +70,13 @@ bool evaluate(const ov::TensorVector& input, ov::TensorVector& output) {
     return rc;
 }
 
-bool evaluate_is_finite(const ov::TensorVector& input, ov::TensorVector& output) {
+bool evaluate_is_finite(const ov::TensorVector& inputs, ov::TensorVector& outputs) {
     bool rc = true;
-    switch (input[0].get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_is_finite, bf16, input, output);
-        NGRAPH_TYPE_CASE(evaluate_is_finite, f16, input, output);
-        NGRAPH_TYPE_CASE(evaluate_is_finite, f32, input, output);
-        NGRAPH_TYPE_CASE(evaluate_is_finite, f64, input, output);
+    switch (inputs[0].get_element_type()) {
+        NGRAPH_TYPE_CASE(evaluate_is_finite, bf16, inputs, outputs);
+        NGRAPH_TYPE_CASE(evaluate_is_finite, f16, inputs, outputs);
+        NGRAPH_TYPE_CASE(evaluate_is_finite, f32, inputs, outputs);
+        NGRAPH_TYPE_CASE(evaluate_is_finite, f64, inputs, outputs);
     default:
         rc = false;
         break;

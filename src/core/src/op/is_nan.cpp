@@ -9,6 +9,8 @@
 #include "utils.hpp"
 
 namespace ov {
+BWDCMP_RTTI_DEFINITION(op::v10::IsNaN);
+
 ov::op::v10::IsNaN::IsNaN(const Output<Node>& data) : op::Op{{data}} {
     constructor_validate_and_infer_types();
 }
@@ -34,10 +36,10 @@ bool ov::op::v10::IsNaN::visit_attributes(AttributeVisitor& visitor) {
 
 namespace {
 template <element::Type_t ET>
-bool evaluate_exec(const TensorVector& input, TensorVector& output) {
+bool evaluate_exec(const TensorVector& inputs, TensorVector& outputs) {
     using T = typename element_type_traits<ET>::value_type;
     using U = typename element_type_traits<element::Type_t::boolean>::value_type;
-    ngraph::runtime::reference::is_nan(input[0].data<T>(), output[0].data<U>(), shape_size(input[0].get_shape()));
+    ngraph::runtime::reference::is_nan(inputs[0].data<T>(), outputs[0].data<U>(), shape_size(inputs[0].get_shape()));
     return true;
 }
 
@@ -48,13 +50,13 @@ bool evaluate_exec(const TensorVector& input, TensorVector& output) {
     } break
 
 template <element::Type_t ET>
-bool evaluate(const TensorVector& input, TensorVector& output) {
+bool evaluate(const TensorVector& inputs, TensorVector& outputs) {
     bool rc = true;
-    switch (input[0].get_element_type()) {
-        IS_NAN_TYPE_CASE(bf16, input, output);
-        IS_NAN_TYPE_CASE(f16, input, output);
-        IS_NAN_TYPE_CASE(f32, input, output);
-        IS_NAN_TYPE_CASE(f64, input, output);
+    switch (inputs[0].get_element_type()) {
+        IS_NAN_TYPE_CASE(bf16, inputs, outputs);
+        IS_NAN_TYPE_CASE(f16, inputs, outputs);
+        IS_NAN_TYPE_CASE(f32, inputs, outputs);
+        IS_NAN_TYPE_CASE(f64, inputs, outputs);
     default:
         rc = false;
         break;
@@ -62,13 +64,13 @@ bool evaluate(const TensorVector& input, TensorVector& output) {
     return rc;
 }
 
-bool evaluate_is_nan(const TensorVector& input, TensorVector& output) {
+bool evaluate_is_nan(const TensorVector& inputs, TensorVector& outputs) {
     bool rc = true;
-    switch (input[0].get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_is_nan, bf16, input, output);
-        NGRAPH_TYPE_CASE(evaluate_is_nan, f16, input, output);
-        NGRAPH_TYPE_CASE(evaluate_is_nan, f32, input, output);
-        NGRAPH_TYPE_CASE(evaluate_is_nan, f64, input, output);
+    switch (inputs[0].get_element_type()) {
+        NGRAPH_TYPE_CASE(evaluate_is_nan, bf16, inputs, outputs);
+        NGRAPH_TYPE_CASE(evaluate_is_nan, f16, inputs, outputs);
+        NGRAPH_TYPE_CASE(evaluate_is_nan, f32, inputs, outputs);
+        NGRAPH_TYPE_CASE(evaluate_is_nan, f64, inputs, outputs);
     default:
         rc = false;
         break;

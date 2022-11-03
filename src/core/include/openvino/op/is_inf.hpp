@@ -14,6 +14,7 @@ namespace v10 {
 class OPENVINO_API IsInf : public Op {
 public:
     OPENVINO_OP("IsInf", "opset10");
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief A Structure which contains all IsInf attributes
     struct Attributes {

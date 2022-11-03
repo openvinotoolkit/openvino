@@ -9,6 +9,8 @@
 #include "utils.hpp"
 
 namespace ov {
+BWDCMP_RTTI_DEFINITION(op::v10::IsInf);
+
 op::v10::IsInf::IsInf(const Output<Node>& data) : op::Op{{data}} {
     constructor_validate_and_infer_types();
 }
@@ -42,12 +44,12 @@ std::shared_ptr<Node> op::v10::IsInf::clone_with_new_inputs(const OutputVector& 
 
 namespace {
 template <element::Type_t ET>
-bool evaluate_exec(const TensorVector& input, TensorVector& output, const op::v10::IsInf::Attributes& attributes) {
+bool evaluate_exec(const TensorVector& inputs, TensorVector& outputs, const op::v10::IsInf::Attributes& attributes) {
     using T = typename element_type_traits<ET>::value_type;
     using U = typename element_type_traits<element::Type_t::boolean>::value_type;
-    ngraph::runtime::reference::is_inf(input[0].data<T>(),
-                                       output[0].data<U>(),
-                                       shape_size(input[0].get_shape()),
+    ngraph::runtime::reference::is_inf(inputs[0].data<T>(),
+                                       outputs[0].data<U>(),
+                                       shape_size(inputs[0].get_shape()),
                                        attributes);
     return true;
 }
@@ -59,13 +61,13 @@ bool evaluate_exec(const TensorVector& input, TensorVector& output, const op::v1
     } break
 
 template <element::Type_t ET>
-bool evaluate(const TensorVector& input, TensorVector& output, const op::v10::IsInf::Attributes& attributes) {
+bool evaluate(const TensorVector& inputs, TensorVector& outputs, const op::v10::IsInf::Attributes& attributes) {
     bool rc = true;
-    switch (input[0].get_element_type()) {
-        IS_INF_TYPE_CASE(bf16, input, output, attributes);
-        IS_INF_TYPE_CASE(f16, input, output, attributes);
-        IS_INF_TYPE_CASE(f32, input, output, attributes);
-        IS_INF_TYPE_CASE(f64, input, output, attributes);
+    switch (inputs[0].get_element_type()) {
+        IS_INF_TYPE_CASE(bf16, inputs, outputs, attributes);
+        IS_INF_TYPE_CASE(f16, inputs, outputs, attributes);
+        IS_INF_TYPE_CASE(f32, inputs, outputs, attributes);
+        IS_INF_TYPE_CASE(f64, inputs, outputs, attributes);
     default:
         rc = false;
         break;
@@ -73,13 +75,13 @@ bool evaluate(const TensorVector& input, TensorVector& output, const op::v10::Is
     return rc;
 }
 
-bool evaluate_is_inf(const TensorVector& input, TensorVector& output, const op::v10::IsInf::Attributes& attributes) {
+bool evaluate_is_inf(const TensorVector& inputs, TensorVector& outputs, const op::v10::IsInf::Attributes& attributes) {
     bool rc = true;
-    switch (input[0].get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_is_inf, bf16, input, output, attributes);
-        NGRAPH_TYPE_CASE(evaluate_is_inf, f16, input, output, attributes);
-        NGRAPH_TYPE_CASE(evaluate_is_inf, f32, input, output, attributes);
-        NGRAPH_TYPE_CASE(evaluate_is_inf, f64, input, output, attributes);
+    switch (inputs[0].get_element_type()) {
+        NGRAPH_TYPE_CASE(evaluate_is_inf, bf16, inputs, outputs, attributes);
+        NGRAPH_TYPE_CASE(evaluate_is_inf, f16, inputs, outputs, attributes);
+        NGRAPH_TYPE_CASE(evaluate_is_inf, f32, inputs, outputs, attributes);
+        NGRAPH_TYPE_CASE(evaluate_is_inf, f64, inputs, outputs, attributes);
     default:
         rc = false;
         break;
