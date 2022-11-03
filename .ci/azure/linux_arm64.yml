@@ -148,9 +148,6 @@ jobs:
       export OPENCV_REPO_DIR=$(OPENCV_REPO_DIR)
       export BUILD_OPENCV=$(BUILD_OPENCV)
       export INSTALL_OPENVINO=$(INSTALL_OPENVINO)
-      sed -i 's;make -j "$NUM_PROC" python Parser/pgen;make -j "$NUM_PROC" python;' $(OPENVINO_CONTRIB_REPO_DIR)/modules/arm_plugin/scripts/install_build_dependencies.sh
-      sed -i 's;cp -r Parser/pgen "$BUILD_PYTHON";;' $(OPENVINO_CONTRIB_REPO_DIR)/modules/arm_plugin/scripts/install_build_dependencies.sh
-      sed -i 's;    HOSTPGEN="$BUILD_PYTHON"/Parser/pgen;;' $(OPENVINO_CONTRIB_REPO_DIR)/modules/arm_plugin/scripts/install_build_dependencies.sh
       $(OPENVINO_CONTRIB_REPO_DIR)/modules/arm_plugin/scripts/install_build_dependencies.sh
       python3 -m pip install --upgrade pip
       python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
