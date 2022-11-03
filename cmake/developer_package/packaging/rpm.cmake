@@ -87,7 +87,7 @@ macro(ov_rpm_specific_settings)
     # ASL 2.0 # Apache Software License 2.0
     set(CPACK_RPM_PACKAGE_LICENSE "ASL 2.0")
     # group
-    set(CPACK_RPM_PACKAGE_GROUP "Developent/Libraries")
+    set(CPACK_RPM_PACKAGE_GROUP "Development/Libraries")
     # changelog file
     # TODO: fix "error: bad date in %changelog"
     # set(CPACK_RPM_CHANGELOG_FILE "${OpenVINO_SOURCE_DIR}/cmake/developer_package/packaging/changelog-rpm")
