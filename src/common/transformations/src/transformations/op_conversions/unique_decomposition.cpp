@@ -50,13 +50,9 @@ ov::pass::UniqueDecomposition::UniqueDecomposition() {
         }
 
         // currently, the transformation supports only searching for unique elements among scalar elements, not vectors
-        if (unique_node->get_input_size() > 1) {
-            if (unique_node->get_input_partial_shape(0).rank().is_static() &&
-                unique_node->get_input_partial_shape(0).rank().get_length() > 1) {
-                return false;
-            } else if (unique_node->get_input_partial_shape(0).rank().is_dynamic()) {
-                return false;
-            }
+        auto input_rank = unique_node->get_input_partial_shape(0).rank();
+        if (unique_node->get_input_size() > 1 && (input_rank.is_dynamic() || input_rank.get_length() > 1)) {
+            return false;
         }
 
         auto x_unflatten = unique_node->input_value(0);
