@@ -258,6 +258,13 @@ const std::vector<ngraph::helpers::ReductionType> reductionTypes = {
         ngraph::helpers::ReductionType::L2,
 };
 
+const std::vector<ngraph::helpers::ReductionType> reductionTypesInt32 = {
+        ngraph::helpers::ReductionType::Sum,
+        ngraph::helpers::ReductionType::Min,
+        ngraph::helpers::ReductionType::Max,
+        ngraph::helpers::ReductionType::L1,
+};
+
 const std::vector<ngraph::helpers::ReductionType> reductionTypesFusing = {
         ngraph::helpers::ReductionType::Mean,
         ngraph::helpers::ReductionType::Max,
@@ -282,6 +289,11 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_5D = {
 std::vector<std::vector<ov::test::InputShape>> inputShapes_6D = {
     {{{}, {{2, 19, 2, 2, 2, 2}}}},
     {{{{1, 5}, 19, {1, 5}, {1, 5}, {1, 5}, {1, 5}}, {{2, 19, 2, 2, 2, 2}, {2, 19, 2, 2, 3, 2}}}},
+};
+
+std::vector<std::vector<ov::test::InputShape>> inputShapes_Int32 = {
+    {{{}, {{2, 19, 2, 3}}}},
+    {{{{1, 5}, 19, {1, 5}, {1, 10}}, {{2, 19, 2, 2}, {2, 19, 2, 3}}}},
 };
 
 std::vector<CPUSpecificParams> cpuParams_4D = {
@@ -408,6 +420,19 @@ const auto params_MultiAxis_6D = testing::Combine(
         testing::Values(emptyCPUSpec),
         testing::Values(emptyFusingSpec));
 
+const auto params_Int32 = testing::Combine(
+        testing::Combine(
+            testing::ValuesIn(axes),
+            testing::Values(CommonTestUtils::OpType::VECTOR),
+            testing::ValuesIn(keepDims),
+            testing::ValuesIn(reductionTypesInt32),
+            testing::Values(ElementType::i32),
+            testing::Values(ElementType::undefined),
+            testing::Values(ElementType::undefined),
+            testing::ValuesIn(inputShapes_Int32)),
+        testing::Values(emptyCPUSpec),
+        testing::Values(emptyFusingSpec));
+
 INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_OneAxis_CPU,
         ReduceCPULayerTest,
@@ -447,6 +472,13 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_MultiAxis_6D_CPU,
         ReduceCPULayerTest,
         params_MultiAxis_6D,
+        ReduceCPULayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Reduce_Int32_CPU,
+        ReduceCPULayerTest,
+        params_Int32,
         ReduceCPULayerTest::getTestCaseName
 );
 
