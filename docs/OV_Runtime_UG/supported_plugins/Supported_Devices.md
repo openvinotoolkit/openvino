@@ -117,8 +117,8 @@ The following layers are supported by the plugins:
 @sphinxdirective
 
 .. scrollbox::
-   bar:5
-   height:200
+   :bar: 5
+   :height: 200
 
    +--------------------------------+---------------+---------------+---------------+---------------+-----------------+
    | Layers                         | GPU           | CPU           | VPU           | GNA           | Arm® CPU        |
