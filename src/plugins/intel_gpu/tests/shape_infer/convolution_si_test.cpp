@@ -69,7 +69,7 @@ TEST_P(convolution_si_test, shape_infer) {
     ASSERT_EQ(res[0], p.expected_layout);
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_wo_out_size, convolution_si_test,
+INSTANTIATE_TEST_SUITE_P(smoke_wo_out_size, convolution_si_test,
     testing::ValuesIn(std::vector<convolution_test_params>{
         // conv, symmetric pad
         {
@@ -127,7 +127,7 @@ INSTANTIATE_TEST_CASE_P(smoke_wo_out_size, convolution_si_test,
         },
     }));
 
-INSTANTIATE_TEST_CASE_P(smoke_with_out_size, convolution_si_test,
+INSTANTIATE_TEST_SUITE_P(smoke_with_out_size, convolution_si_test,
     testing::ValuesIn(std::vector<convolution_test_params>{
         // conv, symmetric pad
         {
