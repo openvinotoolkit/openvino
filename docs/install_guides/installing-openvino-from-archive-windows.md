@@ -73,27 +73,8 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
    cd <user_home>/Downloads
    curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.2/windows/w_openvino_toolkit_windows_2022.2.0.7713.af16ea1d79a_x86_64.zip --output openvino_2022.2.0.7713.zip
    ```
-@sphinxdirective
+   > **NOTE**: A `.sha256` file is provided together with the archive file to validate your download process. To do that, download the `.sha256` file from the same repository and run `CertUtil -hashfile openvino_2022.2.0.7713.zip SHA256`. Compare the returned value in the output with what's in the `.sha256` file: if the values are the same, you have downloaded the correct file successfully; if not, create a Support ticket [here](https://www.intel.com/content/www/us/en/support/contact-intel.html).
 
-   .. raw:: html
-
-   <div class="collapsible-section" data-title="Click to expand/collapse information on validating your download process">
-@endsphinxdirective
- 
-   A `.sha256` file is usually provided together with the archive file to validate your download process. To do that, download the `.sha256` file from the same repository and run the following command:
-   ```sh
-   CertUtil -hashfile openvino_2022.2.0.7713.zip SHA256
-   ```
-   Compare the returned value in the output with what's in the `.sha256` file:
-   * If the values are the same, you have downloaded the correct file successfully.
-   * If not, create a Support ticket [here](https://www.intel.com/content/www/us/en/support/contact-intel.html).
- 
- @sphinxdirective
-
-   .. raw:: html
-
-   </div>
-@endsphinxdirective
 
 3. Use your favorite tool to extract the archive file, rename the extracted folder as `openvino_2022.2.0.7713`, and move it to the `C:\Program Files (x86)\Intel` directory.
    
