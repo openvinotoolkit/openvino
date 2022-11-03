@@ -51,8 +51,10 @@
 
 namespace cldnn {
 
+namespace {
+
 #ifdef GPU_DEBUG_CONFIG
-static void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<primitive_inst>>& exec_order) {
+void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<primitive_inst>>& exec_order) {
     auto layouts_to_str = [](const std::vector<layout>& layouts) -> std::string {
         std::stringstream s;
         for (size_t i = 0; i < layouts.size(); i++) {
@@ -119,7 +121,7 @@ static void dump_perf_data_raw(std::string dump_path, const std::list<std::share
     }
 }
 
-static float convert_half_to_float(half_t val, bool flush_denorm_to_zero = false) {
+float convert_half_to_float(half_t val, bool flush_denorm_to_zero = false) {
 #if defined HALF_HALF_HPP
     return val;
 #else
@@ -159,15 +161,13 @@ static float convert_half_to_float(half_t val, bool flush_denorm_to_zero = false
 #endif
 }
 
-float convert_element(uint32_t u) { return static_cast<float>(u); }
-
 float convert_element(int32_t i) { return static_cast<float>(i); }
 
 float convert_element(float f) { return f; }
 
 float convert_element(half_t h) { return convert_half_to_float(h); }
 
-static size_t get_x_pitch(const layout& layout) {
+size_t get_x_pitch(const layout& layout) {
     try {
         auto tensor_x0 = tensor(batch(0), feature(0), spatial(0, 0, 0, 0));
         auto tensor_x1 = tensor(batch(0), feature(0), spatial(1, 0, 0, 0));
@@ -181,7 +181,7 @@ static size_t get_x_pitch(const layout& layout) {
 }
 
 template <class T>
-static void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
+void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
     auto&& size = mem->get_layout().get_tensor();
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -222,6 +222,7 @@ static void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
     }
     file_stream << buffer.str();
 }
+
 template <>
 void dump<uint32_t>(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
     auto&& l = mem->get_layout();
@@ -251,7 +252,7 @@ void dump<uint32_t>(memory::ptr mem, stream& stream, std::ofstream& file_stream)
     }
 }
 
-static void log_memory_to_file(memory::ptr mem, stream& stream, std::string layerName) {
+void log_memory_to_file(memory::ptr mem, stream& stream, std::string layerName) {
     std::cout << "Dump " << layerName << std::endl;
     GPU_DEBUG_GET_INSTANCE(debug_config);
     std::string filename = layerName;
@@ -276,7 +277,8 @@ static void log_memory_to_file(memory::ptr mem, stream& stream, std::string laye
     else if (mem_dt == cldnn::data_types::u8)
         dump<uint8_t>(mem, stream, file_stream);
 }
-static void wait_for_the_turn() {
+
+void wait_for_the_turn() {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     bool need_to_wait;
     do {
@@ -295,10 +297,11 @@ static void wait_for_the_turn() {
 }
 
 #else
-static void dump_perf_data_raw(std::string, const std::list<std::shared_ptr<primitive_inst>>&) {}
-static void log_memory_to_file(memory::ptr, stream&, std::string) {}
-static void wait_for_the_turn() {}
+void dump_perf_data_raw(std::string, const std::list<std::shared_ptr<primitive_inst>>&) {}
+void log_memory_to_file(memory::ptr, stream&, std::string) {}
+void wait_for_the_turn() {}
 #endif
+}  // namespace
 
 /*
 Network will always have net_id = 0 when it will be cldnn internal micronetwork (created i.e by propagate_constants

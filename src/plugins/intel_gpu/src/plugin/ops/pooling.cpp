@@ -36,9 +36,9 @@ static void CreateAvgPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::Av
                                    kernel,
                                    strides,
                                    pads_begin,
+                                   pads_end,
                                    tensor_from_dims(op->get_output_shape(0)),
                                    cldnn::element_type_to_data_type(op->get_output_element_type(0)));
-    poolPrim.pad_end = pads_end;
     p.add_primitive(*op, poolPrim);
 }
 
@@ -64,9 +64,9 @@ static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::Ma
                                    kernel,
                                    strides,
                                    pads_begin,
+                                   pads_end,
                                    tensor_from_dims(op->get_output_shape(0)),
                                    cldnn::element_type_to_data_type(op->get_output_element_type(0)));
-    poolPrim.pad_end = pads_end;
     p.add_primitive(*op, poolPrim);
 }
 
