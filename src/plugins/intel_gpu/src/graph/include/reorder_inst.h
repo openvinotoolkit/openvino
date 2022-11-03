@@ -67,6 +67,8 @@ public:
 
     bool has_mean() const { return !argument->mean.empty(); }
 
+    void update_output_memory() override;
+
 private:
     void on_execute() override;
     void reuse_input();
