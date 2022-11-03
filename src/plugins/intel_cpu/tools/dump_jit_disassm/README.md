@@ -66,4 +66,7 @@ the final output looks like this:
 
 # Tips
 
-In VSCode, if the final output is displayed in TERMINAL, you can click the `file:line_no` while holdding `Ctrl` key to directly navigate to coresponding source code.
+ - Please note that the line number showed is actually derived from return address of each function in call stack, thus it's the line of code right next to the JIT source that generated the instruction. User should focus on previous valid line of source code for exact mapping.
+
+ - In VSCode, if the final output is displayed in TERMINAL, you can click the `file:line_no` while holdding `Ctrl` key to directly navigate to coresponding source code.
+
