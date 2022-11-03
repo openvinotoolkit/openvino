@@ -35,7 +35,11 @@ shared_ptr<Model> gen_model(PartialShape input_shape, element::Type out_idx) {
 }
 
 shared_ptr<Model> gen_model_ref(PartialShape input_shape, element::Type out_idx) {
-    auto x = make_shared<Parameter>(f32, input_shape);
+    auto x_unflatten = make_shared<Parameter>(f32, input_shape);
+
+    auto minus_one_const = make_shared<Constant>(element::i32, Shape{1}, -1);
+    // flatten input
+    auto x = make_shared<Reshape>(x_unflatten, minus_one_const, false);
 
     // denote a number of elements in x as n
     auto n = get_elements_number_1d(x, element::i32);
@@ -44,7 +48,6 @@ shared_ptr<Model> gen_model_ref(PartialShape input_shape, element::Type out_idx)
     auto zero_const = make_shared<Constant>(element::i32, Shape{1}, 0);
     auto one_const = make_shared<Constant>(element::i32, Shape{1}, 1);
     auto one_const_scalar = make_shared<Constant>(element::i32, Shape{}, 1);
-    auto minus_one_const = make_shared<Constant>(element::i32, Shape{1}, -1);
     auto true_const = make_shared<Constant>(element::boolean, Shape{1}, true);
     auto one_const_out_idx = make_shared<Constant>(out_idx, Shape{1}, 1);
     auto zero_const_out_idx = make_shared<Constant>(out_idx, Shape{1}, 0);
@@ -109,7 +112,7 @@ shared_ptr<Model> gen_model_ref(PartialShape input_shape, element::Type out_idx)
     auto output_idx = make_shared<Subtract>(output_idx_plus1, one_const_out_idx);
 
     return make_shared<Model>(OutputVector{output_unique_elements->output(0), output_idx->output(0)},
-                              ParameterVector{x});
+                              ParameterVector{x_unflatten});
 }
 
 }  // namespace
