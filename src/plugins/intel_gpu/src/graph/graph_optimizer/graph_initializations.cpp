@@ -31,11 +31,13 @@
 using namespace cldnn;
 
 namespace cldnn {
+namespace {
 std::string get_id_string(size_t i) {
     std::stringstream ss;
     ss << std::setw(5) << std::setfill('0') << i;
     return ss.str();
 }
+}  // namespace
 
 void graph_initializations::handle_split_node(program& p, split_node& node) {
     if (!node.get_users().empty()) {

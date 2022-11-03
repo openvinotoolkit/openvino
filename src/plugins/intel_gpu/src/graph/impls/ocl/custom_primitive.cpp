@@ -97,7 +97,7 @@ static kernel_selector::kernel_argument_element get_arg(custom_gpu_primitive::ar
     return ret;
 }
 
-std::string value_macro(const std::string& name, const std::string& value) {
+static std::string value_macro(const std::string& name, const std::string& value) {
     std::ostringstream oss;
     oss << "#define " << name << " " << value << std::endl;
     return oss.str();
