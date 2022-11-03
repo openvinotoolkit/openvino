@@ -31,12 +31,14 @@ struct reshape_impl : public typed_primitive_impl_ocl<reshape> {
 
         return {params, optional_params};
     }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override { }
 };
 
 namespace detail {
 
 attach_reshape_impl::attach_reshape_impl() {
-    implementation_map<reshape>::add(impl_types::ocl, typed_primitive_impl_ocl<reshape>::create<reshape_impl>, {});
+    implementation_map<reshape>::add(impl_types::ocl, shape_types::any, typed_primitive_impl_ocl<reshape>::create<reshape_impl>, {});
 }
 
 }  // namespace detail
