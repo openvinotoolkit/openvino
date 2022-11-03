@@ -106,7 +106,6 @@ public:
                         uint32_t max : 1;
                         uint32_t avg : 1;
                         uint32_t floor : 1;
-                        uint32_t max_with_argmax : 1;
                         uint32_t ceil : 1;
                         uint32_t bilinear : 1;
                         uint32_t deformable_bilinear : 1;

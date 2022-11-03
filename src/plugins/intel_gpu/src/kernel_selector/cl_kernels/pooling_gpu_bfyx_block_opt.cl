@@ -5,7 +5,7 @@
 #include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
-#if MAX_POOLING || MAX_WITH_ARGMAX_POOLING
+#if MAX_POOLING
     #define INIT_VAL ACCUMULATOR_VAL_MIN
 #elif defined AVG_POOLING
     #define INIT_VAL ACCUMULATOR_VAL_ZERO
@@ -15,7 +15,7 @@
 
 inline ACCUMULATOR_TYPE FUNC(apply_pooling)(ACCUMULATOR_TYPE tmp, ACCUMULATOR_TYPE in)
 {
-#if MAX_POOLING || MAX_WITH_ARGMAX_POOLING
+#if MAX_POOLING
     return ACCUMULATOR_MAX_FUNC(tmp, in);
 #elif AVG_POOLING
     return tmp + in;
@@ -25,9 +25,6 @@ inline ACCUMULATOR_TYPE FUNC(apply_pooling)(ACCUMULATOR_TYPE tmp, ACCUMULATOR_TY
 KERNEL(pooling_gpu)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output
-#if MAX_WITH_ARGMAX_POOLING
-    , __global float* arg_max
-#endif
 #if HAS_FUSED_OPS_DECLS
     , FUSED_OPS_DECLS
 #endif
@@ -49,12 +46,6 @@ KERNEL(pooling_gpu)(
     ACCUMULATOR_TYPE max_x[BLOCK_SIZE_Y];
     ACCUMULATOR_TYPE result[POOL_SIZE_Y];
 
-#if MAX_WITH_ARGMAX_POOLING
-    uint arg_max_x[BLOCK_SIZE_Y] = { 0 };
-    uint arg_max_result[POOL_SIZE_Y] = { 0 };
-    uint input_idx_bfyx_no_padding = offset_x + INPUT0_SIZE_X * (offset_y + INPUT0_SIZE_Y * (f + INPUT0_FEATURE_NUM * b));
-#endif
-
     for(uint i = 0; i < BLOCK_SIZE_Y; i++)
     {
         max_x[i] = INIT_VAL;
@@ -65,33 +56,15 @@ KERNEL(pooling_gpu)(
     {
         for(uint i = 0; i < POOL_SIZE_X; i++)
         {
-
-#if MAX_WITH_ARGMAX_POOLING
-            if(input[input_idx] > max_x[j])
-                arg_max_x[j] = input_idx_bfyx_no_padding;
-#endif
             max_x[j] = FUNC_CALL(apply_pooling)(max_x[j], TO_ACCUMULATOR_TYPE(input[input_idx]));
             input_idx += INPUT0_X_PITCH;
-
-#if MAX_WITH_ARGMAX_POOLING
-            input_idx_bfyx_no_padding++;
-#endif
-
         }
         input_idx += (INPUT0_Y_PITCH - POOL_SIZE_X*INPUT0_X_PITCH);
-
-#if MAX_WITH_ARGMAX_POOLING
-        input_idx_bfyx_no_padding += (INPUT0_SIZE_X - POOL_SIZE_X);
-#endif
     }
 
     for(uint i = 0; i < POOL_SIZE_Y; i++)
     {
         result[i] = max_x[i * STRIDE_SIZE_Y];
-
-#if MAX_WITH_ARGMAX_POOLING
-        arg_max_result[i] = arg_max_x[i * STRIDE_SIZE_Y];
-#endif
     }
 
     // now we do max in "y" dimension
@@ -100,20 +73,12 @@ KERNEL(pooling_gpu)(
         for(uint j = 1; j < POOL_SIZE_Y; j++)
         {
 
-#if MAX_WITH_ARGMAX_POOLING
-            if(max_x[j + i * STRIDE_SIZE_Y] > result[i])
-                arg_max_result[i] = arg_max_x[j + i * STRIDE_SIZE_Y];
-#endif
 
             result[i] = FUNC_CALL(apply_pooling)(result[i], max_x[j + i * STRIDE_SIZE_Y]);
         }
     }
 
     uint output_pos = GET_DATA_INDEX(OUTPUT, b, f, y, x);
-
-#if MAX_WITH_ARGMAX_POOLING
-    uint arg_max_pos = GET_DATA_INDEX(INPUT1, b, f, y, x);
-#endif
 
     OUTPUT_TYPE final_result;
     ACTIVATION_TYPE pool_result;
@@ -134,10 +99,6 @@ KERNEL(pooling_gpu)(
         #endif
             output[output_pos] = final_result;
             output_pos += OUTPUT_Y_PITCH;
-#if MAX_WITH_ARGMAX_POOLING
-            arg_max[arg_max_pos] = arg_max_result[i];
-            arg_max_pos += INPUT1_Y_PITCH;
-#endif
         }
     }
 }

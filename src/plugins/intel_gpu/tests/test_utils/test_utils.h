@@ -552,7 +552,8 @@ inline void PrintTupleTo(const std::tuple<std::shared_ptr<test_params>, std::sha
         auto pooling = std::static_pointer_cast<cldnn::pooling>(primitive);
         std::string pooling_mode = (pooling->mode == cldnn::pooling_mode::max) ? "max" : "average";
         str << "Pooling mode: " << pooling_mode
-            << " Pad x: " << pooling->pad[1] << " Pad y: " << pooling->pad[0]
+            << " Pads_begin x: " << pooling->pads_begin[1] << " Pads_begin y: " << pooling->pads_begin[0]
+            << " Pads_end x: " << pooling->pads_end[1] << " Pads_end y: " << pooling->pads_end[0]
             << " Stride x: " << pooling->stride[1] << " Stride y: " << pooling->stride[0]
             << " Size x: " << pooling->size[1] << " Size y: " << pooling->size[0];
     } else {

@@ -22,7 +22,7 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node, kernel_i
 
     auto input_layout = impl_param.get_input_layout();
 
-    auto pad = desc->pad;
+    auto pad = desc->pads_begin;
     auto stride = desc->stride;
     auto window_size = desc->size;
 
@@ -43,43 +43,6 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node, kernel_i
         // FIXME: Someday delete this, when pooling supports i32 output.
         if (desc->mode == pooling_mode::max && output_type == data_types::i32) {
             output_type = data_types::f32;
-        }
-    }
-
-    if (!desc->argmax.empty())
-        CLDNN_ERROR_NOT_EQUAL(desc->id,
-                              "Pooling mode",
-                              static_cast<size_t>(desc->mode),
-                              "should be max_with_argmax",
-                              static_cast<size_t>(pooling_mode::max_with_argmax),
-                              "Pooling mode should be set to max_with_argmax when argmax primitive is present.");
-
-    if (desc->mode == pooling_mode::max_with_argmax) {
-        CLDNN_ERROR_NOT_EQUAL(desc->id,
-                              "Argmax primitive",
-                              static_cast<size_t>(desc->argmax.empty()),
-                              "should not be empty",
-                              static_cast<size_t>(0),
-                              "Argmax primitive not present despite max_with_argmax mode.");
-
-        auto argmax_layout = impl_param.get_input_layout(1);
-        CLDNN_ERROR_NOT_EQUAL(desc->id,
-                              "Argmax data type",
-                              static_cast<size_t>(argmax_layout.data_type),
-                              "expected to be fp32",
-                              static_cast<size_t>(data_types::f32),
-                              "Argmax data type is not fp32.");
-        CLDNN_ERROR_NOT_PROPER_FORMAT(desc->id,
-                                      "Input_layout.format",
-                                      input_layout.format.value,
-                                      "argmax_layout.format",
-                                      argmax_layout.format);
-    }
-
-    if (desc->global_pooling) {
-        window_size = ov::Shape(input_layout.get_spatial_rank(), 1);
-        for (size_t i = 0; i < input_layout.get_spatial_rank(); i++) {
-            window_size[i] = input_layout.spatial(input_layout.get_spatial_rank() - i - 1);
         }
     }
 
@@ -190,13 +153,10 @@ std::string pooling_inst::to_string(pooling_node const& node) {
 
     std::stringstream primitive_description;
 
-    bool is_global = desc->global_pooling;
-
     json_composite pooling_info;
     pooling_info.add("mode", mode);
     pooling_info.add("stride", cldnn::to_string(strd));
     pooling_info.add("kernel size", cldnn::to_string(kernel_size));
-    pooling_info.add("is global", is_global ? "true" : "false");
     if (desc->with_output_size) {
         json_composite ud_out_size_info;
         ud_out_size_info.add("size", desc->output_size.to_string());
