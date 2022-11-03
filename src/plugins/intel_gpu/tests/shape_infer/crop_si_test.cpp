@@ -27,39 +27,6 @@ struct crop_si_test_params {
     size_t param_num_splits;
 };
 
-std::string to_string(const cldnn::layout& l);
-
-std::ostream& operator<<(std::ostream& ost, std::vector<std::vector<int64_t>> vec) {
-    ost << "{";
-    for (auto inner_vec : vec) {
-        ost << "{";
-        for (auto v : inner_vec) {
-            std::cout << v << ",";
-        }
-        ost << "},";
-    }
-    ost << "}";
-    return ost;
-}
-
-std::ostream& operator<<(std::ostream& ost, const crop_si_test_params& params) {
-    ost << params.reference_input_size.to_string() << ",";
-    ost << "{";
-    for (auto& offset_tensor : params.offsets) {
-        ost << offset_tensor.to_string() << ",";
-    }
-    ost << "}," << params.const_values << ",{";
-    for (auto& t : params.input_layouts) {
-        ost << to_string(t) << ",";
-    }
-    ost << "},{";
-    for (auto& t : params.expected_layouts) {
-        ost << to_string(t) << ",";
-    }
-    ost << "}";
-    return ost;
-}
-
 class crop_si_test : public testing::TestWithParam<crop_si_test_params> { };
 
 TEST_P(crop_si_test, shape_infer) {

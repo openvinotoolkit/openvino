@@ -278,16 +278,28 @@ macro(ov_cpack_settings)
 
     if(ENABLE_PYTHON)
         ov_get_pyversion(pyversion)
+        set(python_component "${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}")
         string(TOUPPER "${pyversion}" pyversion)
 
         set(CPACK_COMPONENT_PYOPENVINO_${pyversion}_DESCRIPTION "OpenVINO Python bindings")
-        if(installed_plugins)
-            set(CPACK_COMPONENT_PYOPENVINO_${pyversion}_DEPENDS "${installed_plugins}")
-        else()
-            set(CPACK_COMPONENT_PYOPENVINO_${pyversion}_DEPENDS "${OV_CPACK_COMP_CORE}")
-        endif()
+        set(CPACK_COMPONENT_PYOPENVINO_${pyversion}_DEPENDS "${OV_CPACK_COMP_CORE}")
+        list(APPEND CPACK_COMPONENT_PYOPENVINO_${pyversion}_DEPENDS ${installed_plugins})
+        list(APPEND CPACK_COMPONENT_PYOPENVINO_${pyversion}_DEPENDS ${frontends})
+
         set(CPACK_DEBIAN_PYOPENVINO_${pyversion}_PACKAGE_NAME "libopenvino-python-${cpack_name_ver}")
         set(CPACK_DEBIAN_PYOPENVINO_${pyversion}_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
+        set(CPACK_DEBIAN_PYOPENVINO_${pyversion}_PACKAGE_DEPENDS "python3")
+
+        # TODO: fix all the warnings
+        ov_debian_add_lintian_suppression(${python_component}
+            # usr/lib/python3/dist-packages/requirements.txt
+            "unknown-file-in-python-module-directory"
+            # usr/lib/python3/dist-packages/openvino/inference_engine/__init__.py
+            "executable-not-elf-or-script"
+            # all directories
+            "non-standard-dir-perm"
+            # all python files
+            "non-standard-file-perm")
     endif()
 
     #
@@ -308,10 +320,13 @@ macro(ov_cpack_settings)
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_ARCHITECTURE "all")
 
     # python_samples
-    set(CPACK_COMPONENT_PYTHON_SAMPLES_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit Python Samples")
-    set(CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_NAME "openvino-samples-python-${cpack_name_ver}")
-    set(CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_DEPENDS "python3")
-    set(CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_ARCHITECTURE "all")
+    if(ENABLE_PYTHON)
+        set(CPACK_COMPONENT_PYTHON_SAMPLES_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit Python Samples")
+        set(CPACK_COMPONENT_PYTHON_SAMPLES_DEPENDS "${python_component}")
+        set(CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_NAME "openvino-samples-python-${cpack_name_ver}")
+        set(CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_DEPENDS "python3")
+        set(CPACK_DEBIAN_PYTHON_SAMPLES_PACKAGE_ARCHITECTURE "all")
+    endif()
 
     #
     # Add umbrella packages

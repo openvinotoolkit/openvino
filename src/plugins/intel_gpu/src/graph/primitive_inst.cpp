@@ -63,10 +63,6 @@ bool is_output_buffer(const program_node& node) {
     return false;
 }
 
-}  // namespace
-
-namespace cldnn {
-
 bool is_user_cpu(const program_node* user) {
     if (user->can_be_optimized()) {
         auto users = user->get_users();
@@ -81,7 +77,9 @@ bool is_user_cpu(const program_node* user) {
         return impl->is_cpu();
     return false;
 }
+}  // namespace
 
+namespace cldnn {
 bool is_any_user_cpu(const std::list<const program_node*>& users) {
     for (const auto& user : users) {
         if (is_user_cpu(user))
@@ -89,7 +87,6 @@ bool is_any_user_cpu(const std::list<const program_node*>& users) {
     }
     return false;
 }
-
 uint32_t primitive_inst::get_network_id() const { return _network.get_id(); }
 
 void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout) const {
