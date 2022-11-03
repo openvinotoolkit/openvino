@@ -27,6 +27,18 @@ public:
     virtual port_mask_t get_port_mask() const = 0;
 };
 
+class ShapeInferEmptyPads : public IShapeInfer {
+public:
+    const ov::CoordinateDiff& get_pads_begin() final {
+        return m_emptyVec;
+    }
+    const ov::CoordinateDiff& get_pads_end() final {
+        return m_emptyVec;
+    }
+private:
+    static const ov::CoordinateDiff m_emptyVec;
+};
+
 using ShapeInferPtr = std::shared_ptr<IShapeInfer>;
 using ShapeInferCPtr = std::shared_ptr<const IShapeInfer>;
 

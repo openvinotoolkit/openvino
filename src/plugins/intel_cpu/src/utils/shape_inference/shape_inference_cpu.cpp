@@ -9,3 +9,5 @@ using namespace ov::intel_cpu;
 ShapeInferPtr DefaultShapeInferFactory::makeShapeInfer() const {
     return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), m_port_mask);
 }
+
+const ov::CoordinateDiff ShapeInferEmptyPads::m_emptyVec = {};
