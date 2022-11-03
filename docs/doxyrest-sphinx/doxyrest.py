@@ -272,7 +272,7 @@ class Scrollbox(Directive):
         return [node]
 
 
-def visit_container(self, node: nodes.Node):
+def visit_scrollbox(self, node: nodes.Node):
     scrollboxbar = "<div class='scrollbox-bar' style='width:" + ''.join(c for c in str(node['bar']) if c.isdigit()) + "px;'></div>"
     scrollboxcontent = "<div class='scrollbox-content' style='width:100%;'>"
     attrs = {}
@@ -290,7 +290,7 @@ def visit_container(self, node: nodes.Node):
     self.body.append(scrollboxbar)
     self.body.append(scrollboxcontent)
 
-def depart_container(self, node: nodes.Node):
+def depart_scrollbox(self, node: nodes.Node):
     self.body.append("</div></div>\n")
 
 def create_component(
@@ -316,7 +316,7 @@ def initial_config(app: Sphinx, cfg: Config) -> None:
 
 def setup(app: Sphinx) -> None:
     app.add_node(
-        nodes.container, override=True, html=(visit_container, depart_container)
+        nodes.container, override=True, html=(visit_scrollbox, depart_scrollbox)
     )
     app.add_directive("scrollbox", Scrollbox, override=True)
     app.connect("config-inited", initial_config)
