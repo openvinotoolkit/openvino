@@ -11,7 +11,12 @@
 #include <openvino/opsets/opset7.hpp>
 #include <openvino/opsets/opset8.hpp>
 
+#include "ngraph_ops/augru_cell.hpp"
+#include "ngraph_ops/augru_sequence.hpp"
+
 #include "assign_shape_inference.hpp"
+#include "augru_cell_shape_inference.hpp"
+#include "augru_sequence_shape_inference.hpp"
 #include "batch_to_space_shape_inference.hpp"
 #include "broadcast_shape_inference.hpp"
 #include "bucketize_shape_inference.hpp"
@@ -494,7 +499,11 @@ std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::
         return make_shared_entryIO(node);
     } else if (auto node = ov::as_type_ptr<ov::opset5::GRUSequence>(op)) {
         return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::op::internal::AUGRUSequence>(op)) {
+        return make_shared_entryIO(node);
     } else if (auto node = ov::as_type_ptr<ov::opset3::GRUCell>(op)) {
+        return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::op::internal::AUGRUCell>(op)) {
         return make_shared_entryIO(node);
     } else if (auto node = ov::as_type_ptr<ov::opset1::OneHot>(op)) {
         return make_shared_entryIOC(node);
