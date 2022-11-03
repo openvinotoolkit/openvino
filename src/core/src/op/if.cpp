@@ -168,7 +168,9 @@ void ov::op::v8::If::validate_and_infer_types() {
 
             element::Type merged_type;
             NODE_VALIDATION_CHECK(this,
-                                  element::Type::merge(merged_type, then_node_result.get_element_type(), else_node_result.get_element_type()),
+                                  element::Type::merge(merged_type,
+                                                       then_node_result.get_element_type(),
+                                                       else_node_result.get_element_type()),
                                   "type of then_body output is not equal type of else_body output");
 
             // shape inference for output and associated with it body outputs

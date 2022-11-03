@@ -57,7 +57,7 @@ public:
             // std::cout << "Can be represented as element::Type: " << type.is<element::Type>() << std::endl;
             // std::cout << "element::Type value: " << type.as<element::Type>() << "\n";
             // std::exit(0);
-            
+
             // TODO: Set custom `type` via special API
             set_output_type(i, element::dynamic, ps);
         }
@@ -96,7 +96,7 @@ public:
         // TODO: correctly serialize bodies and descriptors. Only 1st body information can be serialized.
         for (size_t i = 0; i < m_bodies.size(); ++i) {
             visitor.on_attribute("body" + std::to_string(i), m_bodies[i]);
-            //visitor.on_attribute("input_descriptions" + std::to_string(i), m_input_descriptions[i]);
+            // visitor.on_attribute("input_descriptions" + std::to_string(i), m_input_descriptions[i]);
             // visitor.on_attribute("output_descriptions", m_output_descriptions[i]);
         }
         return parent_visit_result;
