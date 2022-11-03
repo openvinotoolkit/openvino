@@ -24,7 +24,7 @@ namespace node {
 namespace {
 class OneHotShapeInfer : public ShapeInferEmptyPads {
 public:
-    OneHotShapeInfer(int64_t axis) : m_axis(axis) {}
+    explicit OneHotShapeInfer(int64_t axis) : m_axis(axis) {}
     std::vector<VectorDims> infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
