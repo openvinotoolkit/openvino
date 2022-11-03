@@ -77,7 +77,7 @@ def create_pytorch_nn_module_case1(tmp_dir):
 
     sample_input1 = torch.zeros(1, 3, 10, 10)
     sample_input2 = torch.zeros(1, 3, 10, 10)
-    sample_input = [sample_input1, sample_input2]
+    sample_input = sample_input1, sample_input2
 
     return pt_model, ref_model, {'input_shape': [PartialShape([-1, 3, -1, -1]), PartialShape([-1, 3, -1, -1])],
                                  'example_inputs': sample_input}
@@ -89,7 +89,7 @@ def create_pytorch_nn_module_case2(tmp_dir):
 
     sample_input1 = torch.zeros(1, 3, 10, 10)
     sample_input2 = torch.zeros(1, 3, 10, 10)
-    sample_input = [sample_input1, sample_input2]
+    sample_input = sample_input1, sample_input2
 
     return pt_model, ref_model, {'input_shape': ["[?,3,?,?]", PartialShape([-1, 3, -1, -1])],
                                  'example_inputs': sample_input, 'onnx_opset_version': 11}
@@ -101,7 +101,7 @@ def create_pytorch_nn_module_case3(tmp_dir):
 
     sample_input1 = torch.zeros(1, 3, 10, 10)
     sample_input2 = torch.zeros(1, 3, 10, 10)
-    sample_input = [sample_input1, sample_input2]
+    sample_input = tuple([sample_input1, sample_input2])
 
     return pt_model, ref_model, {'input_shape': "[?,3,?,?],[?,3,?,?]", 'example_inputs': sample_input}
 
@@ -155,7 +155,7 @@ def create_pytorch_nn_module_sample_input_int32_two_inputs(tmp_dir):
 
     sample_input1 = torch.zeros(1, 3, 10, 10, dtype=torch.int32)
     sample_input2 = torch.zeros(1, 3, 10, 10, dtype=torch.int32)
-    sample_input = [sample_input1, sample_input2]
+    sample_input = sample_input1, sample_input2
     ref_model = make_ref_pt_model_two_inputs([-1, 3, -1, -1], dtype=np.int32)
 
     return pt_model, ref_model, {'input_shape': ["[?,3,?,?]", PartialShape([-1, 3, -1, -1])],
@@ -316,6 +316,21 @@ def create_pytorch_nn_module_sample_input_dict_two_inputs(tmp_dir):
                                  'onnx_opset_version': 16}
 
 
+def create_pytorch_nn_module_sample_list_of_tensors(tmp_dir):
+    from openvino.tools.mo import convert_model
+    pt_model = make_pt_model_one_input()
+
+    example_inputs = [torch.zeros(3, 10, 10, dtype=torch.float32)]
+
+
+    onnx_model_path = os.path.join(tmp_dir, 'export.onnx')
+    torch.onnx.export(pt_model, torch.unsqueeze(example_inputs[0], 0), onnx_model_path, opset_version=16)
+
+    ref_model = convert_model(onnx_model_path)
+    return pt_model, ref_model, {'example_inputs': example_inputs,
+                                 'onnx_opset_version': 16}
+
+
 def create_pytorch_nn_module_sample_input_ov_host_tensor(tmp_dir):
     from openvino.tools.mo import convert_model
     from openvino.runtime import Tensor
@@ -372,6 +387,7 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_nn_module_sample_input_ov_host_tensor_two_inputs,
         create_pytorch_nn_module_sample_input_dict,
         create_pytorch_nn_module_sample_input_dict_two_inputs,
+        create_pytorch_nn_module_sample_list_of_tensors,
         create_pytorch_jit_script_module,
         create_pytorch_jit_script_function,
     ]
