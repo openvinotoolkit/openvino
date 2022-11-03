@@ -213,9 +213,6 @@ void ParamsKey::EnablePoolType(PoolType t) {
         case PoolType::AVG:
             key.restrict.val.dedicated.pooling.avg = 1;
             break;
-        case PoolType::MAX_WITH_ARGMAX:
-            key.restrict.val.dedicated.pooling.max_with_argmax = 1;
-            break;
         case PoolType::BILINEAR:
             key.restrict.val.dedicated.pooling.bilinear = 1;
             break;

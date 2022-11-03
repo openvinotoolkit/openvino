@@ -6,6 +6,7 @@
 #include "ocl_common.hpp"
 #include "ocl_memory.hpp"
 #include "ocl_stream.hpp"
+#include "ocl_engine_factory.hpp"
 #include <string>
 #include <vector>
 #include <memory>
@@ -57,6 +58,7 @@ ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type,
 #ifdef ENABLE_ONEDNN_FOR_GPU
 dnnl::engine& ocl_engine::get_onednn_engine() const {
     const std::lock_guard<std::mutex> lock(onednn_mutex);
+    OPENVINO_ASSERT(_device->get_info().vendor_id == INTEL_VENDOR_ID, "[GPU] OneDNN engine can be used for Intel GPUs only");
     if (!_onednn_engine) {
         auto casted = std::dynamic_pointer_cast<ocl_device>(_device);
         if (!casted)

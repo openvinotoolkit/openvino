@@ -5,6 +5,9 @@
 #pragma once
 
 #if defined(HAVE_GPU_DEVICE_MEM_SUPPORT)
+#    ifndef OV_GPU_USE_OPENCL_HPP
+#        define OV_GPU_USE_OPENCL_HPP
+#    endif
 #    define HAVE_DEVICE_MEM_SUPPORT
 #    include <gpu/gpu_context_api_ocl.hpp>
 #endif
