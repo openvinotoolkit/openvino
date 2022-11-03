@@ -42,11 +42,10 @@ OutputVector translate_dynamic_partition_op(const NodeContext& node) {
 
     auto mask = make_shared<Equal>(unsqueeze_range, unsqueeze_partitions);
     auto mask_0_1 = make_shared<Select>(mask,
-                                        make_shared<Constant>(element::f32, Shape{1}, 1),
-                                        make_shared<Constant>(element::f32, Shape{1}, 0));
+                                        make_shared<Constant>(partitions_type, Shape{1}, 1),
+                                        make_shared<Constant>(partitions_type, Shape{1}, 0));
     auto reduction_axis = make_shared<Constant>(element::i64, Shape{1}, 1);
-    auto split_legths_fp32 = make_shared<ReduceSum>(mask_0_1, reduction_axis);
-    auto split_legths = make_shared<Convert>(split_legths_fp32, partitions_type);
+    auto split_legths = make_shared<ReduceSum>(mask_0_1, reduction_axis);
 
     // for stable sorting using TopK operation, we have to re-scale partition indices by the formula:
     // partition = partition * scale + partition_ind, where delta = max_int / num_partitions
