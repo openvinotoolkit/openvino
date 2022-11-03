@@ -1,17 +1,16 @@
 div.scrollbox-bar {
-min-height: 100%;
-background-color: #c9c9c9;
+   min-height: 100%;
+   background-color: #c9c9c9;
 }
 div.scrollbox-content {
-padding-left: 5px;
-width: 100%;
-min-height:100%;
-background-color: white;
-overflow-y: auto;
+   padding-left: 5px;
+   width: 100%;
+   min-height:100%;
+   background-color: white;
+   overflow-y: auto; 
 }
 div.scrollbox {
-display:flex;
-align-items: stretch;
-overflow-y: scroll;
-margin: 10px 0px;
-}
+   display:flex;
+   align-items: stretch;
+   margin: 10px 0px;
+   }

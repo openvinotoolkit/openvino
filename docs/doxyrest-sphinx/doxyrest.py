@@ -299,27 +299,6 @@ def visit_container(self, node: nodes.Node):
     self.body.append(scrollboxbar)
     self.body.append(scrollboxcontent)
 
-def visit_container2(self, node: nodes.Node):
-    attrs = {}
-    if "bar" in node:
-        attrs["style"] = (
-            "width:"
-            + "".join(c for c in str(node["bar"]) if c.isdigit())
-            + ("px;" if node["bar"].find("px") != -1 else "%;")
-        )
-        attrs["class"] = "scrollbox-bar"
-    self.body.append(self.starttag(node, "div", **attrs))
-
-def visit_container3(self, node: nodes.Node):
-    attrs = {}
-    if "height" in node:
-        attrs["style"] = (
-            "width: 100%;"
-        )
-        attrs["class"] = "scrollbox-content"
-    self.body.append(self.starttag(node, "div", **attrs))
-
-
 def depart_container(self, node: nodes.Node):
     self.body.append("</div></div>\n")
 
