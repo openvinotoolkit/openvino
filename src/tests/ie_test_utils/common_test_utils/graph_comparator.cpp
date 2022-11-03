@@ -870,8 +870,6 @@ namespace detail {
             insert(name, shape_ptr->get());
         } else if (auto dim_ptr = ngraph::as_type<ngraph::AttributeAdapter<ov::Dimension>>(&adapter)) {
             insert(name, dim_ptr->get());
-        } else if (auto dim_ptr = ngraph::as_type<ngraph::AttributeAdapter<ov::Shape>>(&adapter)) {
-            insert(name, dim_ptr->get());
         } else {
             m_read_result += "store   attr [ ERR ]: " + name + " [drop `void` comparison which is '" +
                              adapter.get_type_info().name + "']";
@@ -949,8 +947,6 @@ namespace detail {
             verify(name, variable_ptr->get());
         } else if (auto shape_ptr = ngraph::as_type<ngraph::AttributeAdapter<ov::PartialShape>>(&adapter)) {
             verify(name, shape_ptr->get());
-        } else if (auto dim_ptr = ngraph::as_type<ngraph::AttributeAdapter<ov::Shape>>(&adapter)) {
-            verify(name, dim_ptr->get());
         } else if (auto dim_ptr = ngraph::as_type<ngraph::AttributeAdapter<ov::Dimension>>(&adapter)) {
             verify(name, dim_ptr->get());
         } else {
