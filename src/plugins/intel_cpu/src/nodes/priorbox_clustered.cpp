@@ -44,7 +44,7 @@ private:
 
 class PriorBoxClusteredShapeInferFactory : public ShapeInferFactory {
 public:
-    PriorBoxClusteredShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    explicit PriorBoxClusteredShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
     ShapeInferPtr makeShapeInfer() const override {
         auto priorBox = ov::as_type_ptr<const ngraph::opset1::PriorBoxClustered>(m_op);
         if (!priorBox) {
