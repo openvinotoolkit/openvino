@@ -83,6 +83,7 @@
 #include <ngraph/runtime/reference/squared_difference.hpp>
 #include <ngraph/runtime/reference/tanh.hpp>
 #include <ngraph/runtime/reference/tensor_iterator.hpp>
+#include <ngraph/runtime/reference/unique.hpp>
 #include <ngraph/runtime/reference/utils/nms_common.hpp>
 
 #include "backend.hpp"
@@ -4193,6 +4194,36 @@ bool evaluate(const shared_ptr<op::v9::SoftSign>& op, const HostTensorVector& ou
     default:
         return false;
     }
+    return true;
+}
+
+template <element::Type_t Data_ET>
+bool evaluate(const shared_ptr<op::v10::Unique>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    using Data_t = typename element_type_traits<Data_ET>::value_type;
+    if (op->get_index_element_type() == element::i32) {
+        std::cout << "Executing with i32 indices\n";
+        runtime::reference::unique(outputs[0]->get_data_ptr<Data_t>(),
+                                   outputs[1]->get_data_ptr<int32_t>(),
+                                   outputs[2]->get_data_ptr<int32_t>(),
+                                   outputs[3]->get_data_ptr<int64_t>(),
+                                   inputs[0]->get_data_ptr<Data_t>(),
+                                   inputs[0]->get_shape(),
+                                   nullptr,
+                                   true);
+    } else if (op->get_index_element_type() == element::i64) {
+        std::cout << "Executing with i64 indices\n";
+        runtime::reference::unique(outputs[0]->get_data_ptr<Data_t>(),
+                                   outputs[1]->get_data_ptr<int64_t>(),
+                                   outputs[2]->get_data_ptr<int64_t>(),
+                                   outputs[3]->get_data_ptr<int64_t>(),
+                                   inputs[0]->get_data_ptr<Data_t>(),
+                                   inputs[0]->get_shape(),
+                                   nullptr,
+                                   true);
+    } else {
+        return false;
+    }
+
     return true;
 }
 
