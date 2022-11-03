@@ -954,13 +954,8 @@ TEST(type_prop, broadcast_v3_labels_in0_dynamic_mixed_dims_bidirectional) {
     PartialShape pshape_A{-1, 2, 1, {4, 8}, -1, {4, 8}, -1, {1, 8}, {1, 10}, {4, 18}};
     PartialShape pshape_B{-1, 2, {3, 9}, 1, {3, 9}, -1, {1, 9}, -1, {3, 19}, {1, 10}};
 
-    // Improved:
-    // PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, -1, -1, {3, 19}, {4, 18}};
-    // std::vector<size_t> expected_labels{10, 11, 0, 13, 0, 15, 16, 17, 0, 19};
-
-    // Current:
-    PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, {1, 9}, {1, 8}, {3, 10}, {4, 10}};
-    std::vector<size_t> expected_labels{10, 11, 0, 13, 14, 15, 16, 17, 18, 19};
+    PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, -1, -1, {3, 19}, {4, 18}};
+    std::vector<size_t> expected_labels{10, 11, 0, 13, 0, 15, 16, 17, 0, 19};
 
     set_shape_labels(pshape_A, {10, 11, 12, 13, 14, 15, 16, 17, 18, 19});
     set_shape_labels(expected_shape, expected_labels);
@@ -982,13 +977,8 @@ TEST(type_prop, broadcast_v3_labels_in1_dynamic_mixed_dims_bidirectional) {
     PartialShape pshape_A{-1, 2, 1, {4, 8}, -1, {4, 8}, -1, {1, 8}, {1, 10}, {4, 18}};
     PartialShape pshape_B{-1, 2, {3, 9}, 1, {3, 9}, -1, {1, 9}, -1, {3, 19}, {1, 10}};
 
-    // Improved:
-    // PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, -1, -1, {3, 19}, {4, 18}};
-    // std::vector<size_t> expected_labels{10, 11, 12, 0, 14, 0, 16, 17, 18, 0};
-
-    // Current:
-    PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, {1, 9}, {1, 8}, {3, 10}, {4, 10}};
-    std::vector<size_t> expected_labels{10, 11, 12, 0, 14, 15, 16, 17, 18, 19};
+    PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, -1, -1, {3, 19}, {4, 18}};
+    std::vector<size_t> expected_labels{10, 11, 12, 0, 14, 0, 16, 17, 18, 0};
 
     set_shape_labels(pshape_B, {10, 11, 12, 13, 14, 15, 16, 17, 18, 19});
     set_shape_labels(expected_shape, expected_labels);
@@ -1010,13 +1000,8 @@ TEST(type_prop, broadcast_v3_labels_different_dynamic_mixed_dims_broadcast_bidir
     PartialShape pshape_A{-1, 2, 1, {4, 8}, -1, {4, 8}, -1, {1, 8}, {1, 10}, {4, 18}};
     PartialShape pshape_B{-1, 2, {3, 9}, 1, {3, 9}, -1, {1, 9}, -1, {3, 19}, {1, 10}};
 
-    // Improved:
-    // PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, -1, -1, {3, 19}, {4, 18}};
-    // std::vector<size_t> expected_labels{0, 21, 22, 13, 24, 15, 0, 0, 28, 19};
-
-    // Current:
-    PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, {1, 9}, {1, 8}, {3, 10}, {4, 10}};
-    std::vector<size_t> expected_labels{20, 21, 22, 13, 24, 25, 26, 27, 28, 29};
+    PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, -1, -1, {3, 19}, {4, 18}};
+    std::vector<size_t> expected_labels{0, 21, 22, 13, 24, 15, 0, 0, 28, 19};
 
     set_shape_labels(pshape_A, {10, 11, 12, 13, 14, 15, 16, 17, 18, 19});
     set_shape_labels(pshape_B, {20, 21, 22, 23, 24, 25, 26, 27, 28, 29});
@@ -1039,12 +1024,7 @@ TEST(type_prop, broadcast_v3_labels_same_dynamic_mixed_dims_broadcast_bidirectio
     PartialShape pshape_A{-1, 2, 1, {4, 8}, -1, {4, 8}, -1, {1, 8}, {1, 10}, {4, 18}};
     PartialShape pshape_B{-1, 2, {3, 9}, 1, {3, 9}, -1, {1, 9}, -1, {3, 19}, {1, 10}};
 
-    // Improved:
-    // PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, -1, -1, {3, 19}, {4, 18}};
-    // std::vector<size_t> expected_labels{10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
-
-    // Current:
-    PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, {1, 9}, {1, 8}, {3, 10}, {4, 10}};
+    PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, -1, -1, {3, 19}, {4, 18}};
     std::vector<size_t> expected_labels{10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
 
     set_shape_labels(pshape_A, {10, 11, 12, 13, 14, 15, 16, 17, 18, 19});

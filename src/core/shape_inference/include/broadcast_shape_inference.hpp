@@ -144,18 +144,12 @@ void set_result_shape_bidirectional(const ov::Node* op, const T& arg_shape, T& t
     result_shape.resize(target_padded_rank);
 
     for (size_t i = 0; i < target_input_shape.size(); ++i) {
-        if (arg_shape_vec[i] == 1) {
-            result_shape[i] = target_input_shape[i];
-        } else if (target_input_shape[i] == 1) {
-            result_shape[i] = arg_shape_vec[i];
-        } else {
-            NODE_VALIDATION_CHECK(op,
-                                  DimType::merge(result_shape[i], arg_shape_vec[i], target_input_shape[i]),
-                                  "Broadcast incorrect target shape. Expecting either 1 or ",
-                                  arg_shape_vec[i],
-                                  ". Got ",
-                                  target_input_shape[i]);
-        }
+        NODE_VALIDATION_CHECK(op,
+                                DimType::broadcast_merge(result_shape[i], arg_shape_vec[i], target_input_shape[i]),
+                                "Broadcast incorrect target shape. Expecting either 1 or ",
+                                arg_shape_vec[i],
+                                ". Got ",
+                                target_input_shape[i]);
     }
 }
 
