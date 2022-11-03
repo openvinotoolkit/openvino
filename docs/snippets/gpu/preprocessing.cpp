@@ -1,4 +1,5 @@
 #include <openvino/runtime/core.hpp>
+#define OV_GPU_USE_OPENCL_HPP
 #include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
 #include <openvino/runtime/intel_gpu/properties.hpp>
 #include <openvino/core/preprocess/pre_post_process.hpp>
