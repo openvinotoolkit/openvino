@@ -254,44 +254,44 @@ class Scrollbox(Directive):
         'name': directives.unchanged,
         'bar': directives.length_or_percentage_or_unitless,
     }
-    
+
     has_content = True
 
     def run(self):
         classes = []
-        node = create_component("div", rawtext="\n".join(self.content), classes=classes)
+        nodescrollbox = create_component("div", rawtext="\n".join(self.content), classes=classes)
         if 'height' in self.options:
-            node['height'] = self.options['height']
+            nodescrollbox['height'] = self.options['height']
         if 'width' in self.options:
-            node['width'] = self.options['width']
+            nodescrollbox['width'] = self.options['width']
         if 'bar' in self.options:
-            node['bar'] = self.options['bar']
-        self.add_name(node)
+            nodescrollbox['bar'] = self.options['bar']
+        self.add_name(nodescrollbox)
         if self.content:
-            self.state.nested_parse(self.content, self.content_offset, node)
-        return [node]
+            self.state.nested_parse(self.content, self.content_offset, nodescrollbox)
+        return [nodescrollbox]
 
 
-def visit_scrollbox(self, node: nodes.Node):
-    scrollboxbar = "<div class='scrollbox-bar' style='width:" + ''.join(c for c in str(node['bar']) if c.isdigit()) + "px;'></div>"
-    scrollboxcontent = "<div class='scrollbox-content' style='width:100%;'>"
-    attrs = {}
-    if "height" in node:
-        attrs["style"] = (
-            "height:"
-            + "".join(c for c in str(node["height"]) if c.isdigit())
-            + "px;"
-            + "width:"
-            + "".join(c for c in str(node["width"]) if c.isdigit())
-            + ("px;" if node["width"].find("px") != -1 else "%;")
-        )
-        attrs["class"] = "scrollbox"
-    self.body.append(self.starttag(node, "div", **attrs))
-    self.body.append(scrollboxbar)
-    self.body.append(scrollboxcontent)
+    def visit_scrollbox(self, nodescrollbox: nodes.Node):
+        scrollboxbar = "<div class='scrollbox-bar' style='width:" + ''.join(c for c in str(nodescrollbox['bar']) if c.isdigit()) + "px;'></div>"
+        scrollboxcontent = "<div class='scrollbox-content' style='width:100%;'>"
+        attrs = {}
+        if "height" in nodescrollbox:
+            attrs["style"] = (
+                "height:"
+                + "".join(c for c in str(nodescrollbox["height"]) if c.isdigit())
+                + "px;"
+                + "width:"
+                + "".join(c for c in str(nodescrollbox["width"]) if c.isdigit())
+                + ("px;" if nodescrollbox["width"].find("px") != -1 else "%;")
+            )
+            attrs["class"] = "scrollbox"
+        self.body.append(self.starttag(nodescrollbox, "div", **attrs))
+        self.body.append(scrollboxbar)
+        self.body.append(scrollboxcontent)
 
-def depart_scrollbox(self, node: nodes.Node):
-    self.body.append("</div></div>\n")
+    def depart_scrollbox(self, nodescrollbox: nodes.Node):
+        self.body.append("</div></div>\n")
 
 def create_component(
     name: str,
@@ -316,7 +316,7 @@ def initial_config(app: Sphinx, cfg: Config) -> None:
 
 def setup(app: Sphinx) -> None:
     app.add_node(
-        nodes.container, override=True, html=(visit_scrollbox, depart_scrollbox)
+        nodes.container, override=True, html=(Scrollbox.visit_scrollbox, Scrollbox.depart_scrollbox)
     )
     app.add_directive("scrollbox", Scrollbox, override=True)
     app.connect("config-inited", initial_config)
