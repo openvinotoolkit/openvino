@@ -35,7 +35,7 @@ bool ngraph::op::v1::Split::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v1::Split::validate_and_infer_types() {
     OV_OP_SCOPE(v1_Split_validate_and_infer_types);
-    const element::Type& axis_et = get_input_element_type(1);
+    const auto& axis_et = get_input_element_type(1);
 
     NODE_VALIDATION_CHECK(this,
                           axis_et.is_integral_number(),
@@ -47,11 +47,10 @@ void op::v1::Split::validate_and_infer_types() {
                           "Attribute 'num_splits' must be greater than zero. Got: ",
                           m_num_splits);
 
-    std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0), get_input_partial_shape(1)};
+    const auto input_shapes = get_node_input_partial_shapes(*this);
     std::vector<ov::PartialShape> output_shapes;
     shape_infer(this, input_shapes, output_shapes);
 
-    set_output_size(m_num_splits);
     for (size_t i = 0; i < m_num_splits; ++i) {
         set_output_type(i, get_input_element_type(0), output_shapes[i]);
     }
@@ -114,4 +113,25 @@ bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVe
 bool op::v1::Split::has_evaluate() const {
     OV_OP_SCOPE(v1_Split_has_evaluate);
     return get_input_element_type(1).is_integral_number();
+}
+
+bool op::v1::Split::evaluate_lower(const HostTensorVector& output_values) const {
+    OV_OP_SCOPE(v1_Split_evaluate_lower);
+
+    return (inputs().size() == 2) && input_value(1).get_tensor().has_and_set_bound() &&
+           default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v1::Split::evaluate_upper(const HostTensorVector& output_values) const {
+    OV_OP_SCOPE(v1_Split_evaluate_upper);
+
+    return (inputs().size() == 2) && input_value(1).get_tensor().has_and_set_bound() &&
+           default_upper_bound_evaluator(this, output_values);
+}
+
+bool op::v1::Split::evaluate_label(TensorLabelVector& output_labels) const {
+    OPENVINO_ASSERT(output_labels.size() == get_num_splits());
+
+    return (inputs().size() == 2) && input_value(1).get_tensor().has_and_set_bound() &&
+           default_label_evaluator(this, output_labels);
 }
