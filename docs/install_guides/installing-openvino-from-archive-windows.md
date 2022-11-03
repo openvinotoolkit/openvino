@@ -38,7 +38,7 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
 
 .. tab:: Software
 
-  * `Microsoft Visual Studio 2019 with MSBuild <https://visualstudio.microsoft.com/vs/older-downloads/>_ or `Microsoft Visual Studio 2022 <http://visualstudio.microsoft.com/downloads/>`_
+  * `Microsoft Visual Studio 2019 with MSBuild <https://visualstudio.microsoft.com/vs/older-downloads/>`_ or `Microsoft Visual Studio 2022 <http://visualstudio.microsoft.com/downloads/>`_
   * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`_ (optional, only required for building sample applications)
   * `Python 3.6 - 3.10, 64-bit <https://www.python.org/downloads/windows/>`_
      * Note that OpenVINO is gradually phasing out support for Python 3.6. You are encouraged to use Python 3.7 - 3.10.
