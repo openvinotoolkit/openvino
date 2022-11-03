@@ -9,10 +9,11 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/mvn.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/runtime/debug_configuration.hpp>
 
 #include <iostream>
 
-#include <intel_gpu/runtime/debug_configuration.hpp>
+#include "mvn_inst.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -312,6 +313,42 @@ TEST(mvn_gpu_test, mvn_test_across_channels_inside_sqrt_bfyx_normalize_variance_
     network network(engine, topology);
 
     network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "mvn");
+
+    auto output = outputs.begin()->second.get_memory();
+    mvn_compute_mean_across_channels<FLOAT16>(output, true);
+}
+
+TEST(mvn_gpu_test, dynamic_across_channels_inside_sqrt_bfyx_normalize_variance_fp16) {
+    // mvn across channels fp16 test with normalize_variance set to true
+    using namespace cldnn;
+    using namespace ::tests;
+
+    auto& engine = get_test_engine();
+
+    ov::Shape in_shape = {7, 10, 17, 13};
+    auto in_layout = layout{ov::PartialShape::dynamic(in_shape.size()), data_types::f16, format::bfyx};
+    auto input = engine.allocate_memory(layout{ov::PartialShape(in_shape), data_types::f16, format::bfyx});
+
+    tests::set_random_values<FLOAT16>(input, true, 8, 100);
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(mvn("mvn", "input", true, 1e-10f, true, true));
+
+
+    build_options bo;
+    bo.set_option(build_option::allow_new_shape_infer(true));
+    network network(engine, topology, bo);
+    network.set_input_data("input", input);
+
+    auto inst = network.get_primitive("mvn");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
 
     auto outputs = network.execute();
     EXPECT_EQ(outputs.size(), size_t(1));
