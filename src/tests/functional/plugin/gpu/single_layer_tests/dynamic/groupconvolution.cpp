@@ -18,14 +18,6 @@ using namespace ov::test;
 namespace GPULayerTestsDefinitions {
 
 using LayerTestsDefinitions::groupConvSpecificParams;
-std::vector<std::string> disabledTestPatterns() {
-    return {
-        // Grouped conv (not DW) has an issue
-        R"(.*smoke_GroupConvolution1D_ExplicitPadding_Disabled.*)",
-        R"(.*smoke_GroupConvolutionLayerGPUTest_dynamic1DSymPad_Disabled.*)"
-    };
-}
-
 typedef std::tuple<
         groupConvSpecificParams,
         ElementType,     // Net precision
