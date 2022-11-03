@@ -554,10 +554,6 @@ mo_convert_params = {
         'ModelOptimizer to change layout, for example: '
         '--layout "name1(nhwc->nchw),name2(cn->nc)". Also "*" in long layout form can be'
         ' used to fuse dimensions, for example "[n,c,...]->[n*c,...]".', '', '', layout_param_to_str),
-    'data_type': ParamDescription(
-        'Data type for all intermediate tensors and weights. ' +
-        'If original model is in FP32 and --data_type=FP16 is specified, all model weights ' +
-        'and biases are compressed to FP16.', '', '', None),
     'transform': ParamDescription(
         'Apply additional transformations. {}' +
         '"--transform transformation_name1[args],transformation_name2..." ' +
@@ -990,9 +986,12 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               default=())
     # TODO: isn't it a weights precision type
     common_group.add_argument('--data_type',
-                              help=mo_convert_params['data_type'].description,
+                              help='[DEPRECATED] Data type for all intermediate tensors and weights. '
+                                   'If original model is in FP32 and --data_type=FP16 is specified, '
+                                   'all model weights and biases are compressed to FP16.',
                               choices=["FP16", "FP32", "half", "float"],
-                              default='float')
+                              default='float',
+                              action=DeprecatedOptionCommon)
     common_group.add_argument('--convert_to_fp16',
                               help=mo_convert_params['convert_to_fp16'].description,
                               action='store_true',
