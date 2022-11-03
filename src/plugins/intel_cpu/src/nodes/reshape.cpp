@@ -70,25 +70,19 @@ bool Reshape::needShapeInfer() const {
     }
     if (lastSecondInputValues.empty())
         return true;
-    const int32_t *sndInput = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(1)[0]->getMemory().GetPtr());
+    const auto& mem = getParentEdgesAtPort(1)[0]->getMemory();
+    const int32_t *sndInput = reinterpret_cast<const int32_t *>(mem.GetPtr());
     for (size_t i = 0; i < lastSecondInputValues.size(); i++) {
-        if (lastSecondInputValues[i] != sndInput[i])
+        if (lastSecondInputValues[i] != sndInput[i]) {
+            if (lastSecondInputValues.empty())
+                lastSecondInputValues.resize(mem.getStaticDims()[0]);
+            for (size_t i = 0; i < lastSecondInputValues.size(); i++) {
+                lastSecondInputValues[i] = sndInput[i];
+            }
             return true;
+        }
     }
     return false;
-}
-
-std::vector<VectorDims> Reshape::shapeInfer() const {
-    const auto &memPtr = getParentEdgesAtPort(1)[0]->getMemory();
-
-    const int32_t *sndInput = reinterpret_cast<const int32_t *>(memPtr.GetPtr());
-    if (lastSecondInputValues.empty())
-        lastSecondInputValues.resize(memPtr.getStaticDims()[0]);
-    for (size_t i = 0; i < lastSecondInputValues.size(); i++) {
-        lastSecondInputValues[i] = sndInput[i];
-    }
-
-    return shapeInferGeneric();
 }
 
 void Reshape::getSupportedDescriptors() {
