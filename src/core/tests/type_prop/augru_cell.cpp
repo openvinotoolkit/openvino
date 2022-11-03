@@ -196,7 +196,7 @@ TEST(type_prop, augru_cell_input_dynamic_rank) {
     auto B = make_shared<opset9::Parameter>(element::f32, PartialShape{gates_count * hidden_size});
     auto A = make_shared<opset9::Parameter>(element::f32, PartialShape{batch_size, 1});
 
-    auto check_dynamic_gru = [](const shared_ptr<op::internal::AUGRUCell>& augru) -> bool {
+    auto check_dynamic_gru = [&](const shared_ptr<op::internal::AUGRUCell>& augru) -> bool {
         return augru->output(0).get_partial_shape() == PartialShape{batch_size, hidden_size} &&
                augru->output(0).get_element_type() == augru->input(0).get_element_type();
     };

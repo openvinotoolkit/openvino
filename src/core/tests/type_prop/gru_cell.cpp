@@ -169,7 +169,7 @@ TEST(type_prop, gru_cell_input_dynamic_rank) {
     auto R = make_shared<op::Parameter>(element::f32, PartialShape{gates_count * hidden_size, hidden_size});
     auto H_t = make_shared<op::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
 
-    auto check_dynamic_gru = [](const shared_ptr<opset4::GRUCell>& gru) -> bool {
+    auto check_dynamic_gru = [&](const shared_ptr<opset4::GRUCell>& gru) -> bool {
         return gru->output(0).get_partial_shape() == PartialShape{batch_size, hidden_size} &&
                gru->output(0).get_element_type() == gru->input(0).get_element_type();
     };
