@@ -49,7 +49,9 @@ ov::pass::UniqueDecomposition::UniqueDecomposition() {
             return false;
         }
 
-        // currently, the transformation supports only searching for unique elements among scalar elements, not vectors
+        // the second input to Unique is optional and this an axis parameter. When it has the single parameter we can
+        // decompose. Otherwise, we need to check a rank of the input tensor. Currently, the transformation supports
+        // only searching for unique elements among scalar elements, not vectors.
         auto input_rank = unique_node->get_input_partial_shape(0).rank();
         if (unique_node->get_input_size() > 1 && (input_rank.is_dynamic() || input_rank.get_length() > 1)) {
             return false;
