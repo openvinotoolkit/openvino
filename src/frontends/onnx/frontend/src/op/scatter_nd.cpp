@@ -25,7 +25,7 @@ OutputVector scatter_nd(const Node& node) {
         const auto reduction = node.get_attribute_value<std::string>("reduction", "none");
         CHECK_VALID_NODE(node,
                          reduction == "none",
-                         "Unsupported type of attribute: `reduction`. Only `none` is supported",
+                         "Unsupported value of attribute: `reduction`. Only `none` is supported, got:",
                          reduction);
     }
 
