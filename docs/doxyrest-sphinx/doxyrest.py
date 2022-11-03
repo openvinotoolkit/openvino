@@ -19,6 +19,10 @@ from docutils.transforms import Transform
 from sphinx import __version__ as sphinx_version_string, roles, addnodes, config
 from sphinx.directives.other import Include
 from sphinx.domains import Domain
+from os import path
+from sphinx.application import Sphinx
+from sphinx.config import Config
+from typing import List, Optional, Sequence
 
 #...............................................................................
 #
@@ -238,6 +242,114 @@ class RefCodeBlock(Directive):
 
         self.add_name(node)
         return [node]
+
+class Scrollbox(Directive):
+
+    optional_arguments = 1
+    final_argument_whitespace = True
+    option_spec = {
+        'width': directives.length_or_percentage_or_unitless,
+        'height': directives.length_or_percentage_or_unitless,
+        'style': directives.unchanged,
+        'name': directives.unchanged,
+        'bar': directives.length_or_percentage_or_unitless,
+    }
+    
+    has_content = True
+
+    def run(self):
+        try:
+            if self.arguments:
+                classes = directives.class_option(self.arguments[0])
+            else:
+                classes = []
+        except ValueError:
+            raise self.error(
+                'Invalid class attribute value for "%s" directive: "%s".'
+                % (self.name, self.arguments[0])
+            )
+        node = create_component("div", rawtext="\n".join(self.content), classes=classes)
+        if 'height' in self.options:
+            node['height'] = self.options['height']
+        if 'width' in self.options:
+            node['width'] = self.options['width']
+        if 'bar' in self.options:
+            node['bar'] = self.options['bar']
+        self.add_name(node)
+        if self.content:
+            self.state.nested_parse(self.content, self.content_offset, node)
+        return [node]
+
+
+def visit_container(self, node: nodes.Node):
+    scrollboxbar = "<div class='scrollbox-bar' style='width:" + ''.join(c for c in str(node['bar']) if c.isdigit()) + "px;'></div>"
+    scrollboxcontent = "<div class='scrollbox-content' style='width:100%;'>"
+    attrs = {}
+    if "height" in node:
+        attrs["style"] = (
+            "height:"
+            + "".join(c for c in str(node["height"]) if c.isdigit())
+            + "px;"
+            + "width:"
+            + "".join(c for c in str(node["width"]) if c.isdigit())
+            + ("px;" if node["width"].find("px") != -1 else "%;")
+        )
+        attrs["class"] = "scrollbox"
+    self.body.append(self.starttag(node, "div", **attrs))
+    self.body.append(scrollboxbar)
+    self.body.append(scrollboxcontent)
+
+def visit_container2(self, node: nodes.Node):
+    attrs = {}
+    if "bar" in node:
+        attrs["style"] = (
+            "width:"
+            + "".join(c for c in str(node["bar"]) if c.isdigit())
+            + ("px;" if node["bar"].find("px") != -1 else "%;")
+        )
+        attrs["class"] = "scrollbox-bar"
+    self.body.append(self.starttag(node, "div", **attrs))
+
+def visit_container3(self, node: nodes.Node):
+    attrs = {}
+    if "height" in node:
+        attrs["style"] = (
+            "width: 100%;"
+        )
+        attrs["class"] = "scrollbox-content"
+    self.body.append(self.starttag(node, "div", **attrs))
+
+
+def depart_container(self, node: nodes.Node):
+    self.body.append("</div></div>\n")
+
+def create_component(
+    name: str,
+    classes: Sequence[str] = (),
+    *,
+    rawtext: str = "",
+    children: Sequence[nodes.Node] = (),
+    **attributes,
+) -> nodes.container:
+    node = nodes.container(
+        rawtext, is_div=True, design_component=name, classes=classes, **attributes
+    )
+    node.extend(children)
+    return node
+
+
+def initial_config(app: Sphinx, cfg: Config) -> None:
+    static_path = path.abspath(path.join(path.dirname(__file__), "css"))
+    cfg.html_static_path.append(static_path)
+    app.add_css_file("scrollbox.css")
+
+
+def setup(app: Sphinx) -> None:
+    app.add_node(
+        nodes.container, override=True, html=(visit_container, depart_container)
+    )
+    app.add_directive("scrollbox", Scrollbox, override=True)
+    app.connect("config-inited", initial_config)
 
 #...............................................................................
 #
