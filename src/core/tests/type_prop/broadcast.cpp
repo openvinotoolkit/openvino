@@ -7,12 +7,15 @@
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset6.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "util/type_prop.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
+using namespace op;
+using namespace testing;
 
 // Because v3::Broadcast is backward compatible to v1::Broadcast all v1::Broadcast tests should pass
 template <typename T>
@@ -915,4 +918,286 @@ TEST(type_prop, broadcast_i32_shape_value) {
     broadcast_v3->revalidate_and_infer_types();
 
     ASSERT_EQ(broadcast_v3->get_output_partial_shape(0), PartialShape({5, -1}));
+}
+
+TEST(type_prop, broadcast_v3_default_constructor) {
+    auto param = make_shared<op::Parameter>(element::f32, Shape{5, 2, 3, 1});
+    auto target_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, {1, 3, 6});
+
+    auto op = make_shared<op::v3::Broadcast>();
+
+    EXPECT_EQ(op->get_broadcast_spec().m_type, BroadcastType::NUMPY);
+
+    op->set_broadcast_spec(BroadcastType::BIDIRECTIONAL);
+    EXPECT_EQ(op->get_broadcast_spec().m_type, BroadcastType::BIDIRECTIONAL);
+
+    op->set_argument(0, param);
+    op->set_argument(1, target_shape);
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_element_type(), element::f32);
+    EXPECT_EQ(op->get_shape(), (Shape{5, 2, 3, 6}));
+}
+
+TEST(type_prop, broadcast_v3_bidirectional_data_bigger_rank_numpy) {
+    auto param = make_shared<op::Parameter>(element::f32, Shape{5, 2, 3, 1});
+    auto target_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, {4, 3, 6});
+
+    OV_EXPECT_THROW(make_shared<op::v3::Broadcast>(param, target_shape),
+                    NodeValidationFailure,
+                    HasSubstr("Broadcast target_shape has smaller rank"));
+}
+
+// Interval dimensions with labels
+TEST(type_prop, broadcast_v3_labels_in0_dynamic_mixed_dims_bidirectional) {
+    // All dimensions of A have labels, B without labels
+    PartialShape pshape_A{-1, 2, 1, {4, 8}, -1, {4, 8}, -1, {1, 8}, {1, 10}, {4, 18}};
+    PartialShape pshape_B{-1, 2, {3, 9}, 1, {3, 9}, -1, {1, 9}, -1, {3, 19}, {1, 10}};
+
+    // Improved:
+    // PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, -1, -1, {3, 19}, {4, 18}};
+    // std::vector<size_t> expected_labels{10, 11, 0, 13, 0, 15, 16, 17, 0, 19};
+
+    // Current:
+    PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, {1, 9}, {1, 8}, {3, 10}, {4, 10}};
+    std::vector<size_t> expected_labels{10, 11, 0, 13, 14, 15, 16, 17, 18, 19};
+
+    set_shape_labels(pshape_A, {10, 11, 12, 13, 14, 15, 16, 17, 18, 19});
+    set_shape_labels(expected_shape, expected_labels);
+
+    auto data = std::make_shared<op::Parameter>(element::f32, pshape_A);
+    auto target_shape = std::make_shared<op::Parameter>(element::f32, pshape_B);
+    auto shape_of = make_shared<op::v3::ShapeOf>(target_shape);
+
+    auto op = make_shared<op::v3::Broadcast>(data, shape_of, "BIDIRECTIONAL");
+
+    const auto out_shape = op->get_output_partial_shape(0);
+
+    EXPECT_EQ(out_shape, expected_shape);
+    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+}
+
+TEST(type_prop, broadcast_v3_labels_in1_dynamic_mixed_dims_bidirectional) {
+    // All dimensions of B have labels, A without labels
+    PartialShape pshape_A{-1, 2, 1, {4, 8}, -1, {4, 8}, -1, {1, 8}, {1, 10}, {4, 18}};
+    PartialShape pshape_B{-1, 2, {3, 9}, 1, {3, 9}, -1, {1, 9}, -1, {3, 19}, {1, 10}};
+
+    // Improved:
+    // PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, -1, -1, {3, 19}, {4, 18}};
+    // std::vector<size_t> expected_labels{10, 11, 12, 0, 14, 0, 16, 17, 18, 0};
+
+    // Current:
+    PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, {1, 9}, {1, 8}, {3, 10}, {4, 10}};
+    std::vector<size_t> expected_labels{10, 11, 12, 0, 14, 15, 16, 17, 18, 19};
+
+    set_shape_labels(pshape_B, {10, 11, 12, 13, 14, 15, 16, 17, 18, 19});
+    set_shape_labels(expected_shape, expected_labels);
+
+    auto data = std::make_shared<op::Parameter>(element::f32, pshape_A);
+    auto target_shape = std::make_shared<op::Parameter>(element::f32, pshape_B);
+    auto shape_of = make_shared<op::v3::ShapeOf>(target_shape);
+
+    auto op = make_shared<op::v3::Broadcast>(data, shape_of, "BIDIRECTIONAL");
+
+    const auto out_shape = op->get_output_partial_shape(0);
+
+    EXPECT_EQ(out_shape, expected_shape);
+    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+}
+
+TEST(type_prop, broadcast_v3_labels_different_dynamic_mixed_dims_broadcast_bidirectional) {
+    // Both params have dimensions with different labels
+    PartialShape pshape_A{-1, 2, 1, {4, 8}, -1, {4, 8}, -1, {1, 8}, {1, 10}, {4, 18}};
+    PartialShape pshape_B{-1, 2, {3, 9}, 1, {3, 9}, -1, {1, 9}, -1, {3, 19}, {1, 10}};
+
+    // Improved:
+    // PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, -1, -1, {3, 19}, {4, 18}};
+    // std::vector<size_t> expected_labels{0, 21, 22, 13, 24, 15, 0, 0, 28, 19};
+
+    // Current:
+    PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, {1, 9}, {1, 8}, {3, 10}, {4, 10}};
+    std::vector<size_t> expected_labels{20, 21, 22, 13, 24, 25, 26, 27, 28, 29};
+
+    set_shape_labels(pshape_A, {10, 11, 12, 13, 14, 15, 16, 17, 18, 19});
+    set_shape_labels(pshape_B, {20, 21, 22, 23, 24, 25, 26, 27, 28, 29});
+    set_shape_labels(expected_shape, expected_labels);
+
+    auto data = std::make_shared<op::Parameter>(element::f32, pshape_A);
+    auto target_shape = std::make_shared<op::Parameter>(element::f32, pshape_B);
+    auto shape_of = make_shared<op::v3::ShapeOf>(target_shape);
+
+    auto op = make_shared<op::v3::Broadcast>(data, shape_of, "BIDIRECTIONAL");
+
+    const auto out_shape = op->get_output_partial_shape(0);
+
+    EXPECT_EQ(out_shape, expected_shape);
+    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+}
+
+TEST(type_prop, broadcast_v3_labels_same_dynamic_mixed_dims_broadcast_bidirectional) {
+    // Both params have dimensions with the same labels
+    PartialShape pshape_A{-1, 2, 1, {4, 8}, -1, {4, 8}, -1, {1, 8}, {1, 10}, {4, 18}};
+    PartialShape pshape_B{-1, 2, {3, 9}, 1, {3, 9}, -1, {1, 9}, -1, {3, 19}, {1, 10}};
+
+    // Improved:
+    // PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, -1, -1, {3, 19}, {4, 18}};
+    // std::vector<size_t> expected_labels{10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
+
+    // Current:
+    PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, {1, 9}, {1, 8}, {3, 10}, {4, 10}};
+    std::vector<size_t> expected_labels{10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
+
+    set_shape_labels(pshape_A, {10, 11, 12, 13, 14, 15, 16, 17, 18, 19});
+    set_shape_labels(pshape_B, {10, 11, 12, 13, 14, 15, 16, 17, 18, 19});
+    set_shape_labels(expected_shape, expected_labels);
+
+    auto data = std::make_shared<op::Parameter>(element::f32, pshape_A);
+    auto target_shape = std::make_shared<op::Parameter>(element::f32, pshape_B);
+    auto shape_of = make_shared<op::v3::ShapeOf>(target_shape);
+
+    auto op = make_shared<op::v3::Broadcast>(data, shape_of, "BIDIRECTIONAL");
+
+    const auto out_shape = op->get_output_partial_shape(0);
+
+    EXPECT_EQ(out_shape, expected_shape);
+    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+}
+
+TEST(type_prop, broadcast_v3_labels_dynamic_mixed_dims_numpy) {
+    // Numpy mode for v3::Broadcast mode is one directional
+    // All dimensions of A have labels, B without labels
+    PartialShape pshape_A{-1, 2, 1, {4, 8}, -1, {4, 8}, -1, {1, 8}, {1, 10}, {4, 18}};
+    PartialShape pshape_B{-1, 2, {3, 9}, 1, {3, 9}, -1, {1, 9}, -1, {3, 19}, {1, 10}};
+
+    // Improved: // Throw when data_dim{4, 8} and target_dim{1} or data_dim{2, 4} and target_dim{5, 6}
+
+    // Current: // No validation for non broadcastable dimensions pair
+    PartialShape expected_shape = {-1, 2, {3, 9}, 1, {3, 9}, -1, {1, 9}, -1, {3, 19}, {1, 10}};
+    std::vector<size_t> expected_labels{10, 11, 0, 13, 14, 15, 16, 17, 18, 19};
+
+    auto data = std::make_shared<op::Parameter>(element::f32, pshape_A);
+    auto target_shape = std::make_shared<op::Parameter>(element::f32, pshape_B);
+    auto shape_of = make_shared<op::v3::ShapeOf>(target_shape);
+
+    auto op = make_shared<op::v3::Broadcast>(data, shape_of, "NUMPY");
+
+    const auto out_shape = op->get_output_partial_shape(0);
+
+    EXPECT_EQ(out_shape, expected_shape);
+}
+
+TEST(type_prop, broadcast_v3_labels_in0_dynamic_mixed_dims_numpy) {
+    // Numpy mode for v3::Broadcast mode is one directional
+    // All dimensions of A have labels, B without labels
+    PartialShape pshape_A{-1, 2, 1, -1, {4, 8}, -1, {1, 8}, {1, 10}, {4, 18}};
+    PartialShape pshape_B{-1, 2, {3, 9}, {4, 10}, -1, {5, 11}, -1, {6, 20}, {1, 10}};
+
+    // Improved:
+    // PartialShape expected_shape = {-1, 2, {3, 9}, {4, 10}, {4, 8}, {5, 11}, -1, {6, 20}, {1, 10}};
+    // std::vector<size_t> expected_labels{10, 11, 0, 13, 14, 15, 16, 17, 18};
+
+    // Current: // No validation for non broadcastable dimensions pair
+    PartialShape expected_shape = {-1, 2, {3, 9}, {4, 10}, -1, {5, 11}, -1, {6, 20}, {1, 10}};
+    std::vector<size_t> expected_labels{0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+    set_shape_labels(pshape_A, {10, 11, 12, 13, 14, 15, 16, 17, 18});
+    set_shape_labels(expected_shape, expected_labels);
+
+    auto data = std::make_shared<op::Parameter>(element::f32, pshape_A);
+    auto target_shape = std::make_shared<op::Parameter>(element::f32, pshape_B);
+    auto shape_of = make_shared<op::v3::ShapeOf>(target_shape);
+
+    auto op = make_shared<op::v3::Broadcast>(data, shape_of, "NUMPY");
+
+    const auto out_shape = op->get_output_partial_shape(0);
+
+    EXPECT_EQ(out_shape, expected_shape);
+    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+}
+
+TEST(type_prop, broadcast_v3_labels_dynamic_mixed_dims_explicit) {
+    PartialShape pshape_A{2, {6, 8}, -1};
+    PartialShape pshape_B{2, -1, {6, 8}, -1, 5};
+
+    PartialShape expected_shape = {2, -1, {6, 8}, -1, 5};
+    std::vector<size_t> expected_labels{21, 22, 23, 24, 25};
+
+    set_shape_labels(pshape_B, {21, 22, 23, 24, 25});
+    set_shape_labels(expected_shape, expected_labels);
+
+    auto A = std::make_shared<op::Parameter>(element::f32, pshape_A);
+    auto B = std::make_shared<op::Parameter>(element::f32, pshape_B);
+    auto axis_map = std::make_shared<op::Constant>(element::i32, Shape{3}, std::vector<int32_t>{0, 2, 3});
+
+    auto data = std::make_shared<op::Parameter>(element::f32, pshape_A);
+    auto target_shape = std::make_shared<op::Parameter>(element::f32, pshape_B);
+    auto shape_of = make_shared<op::v3::ShapeOf>(target_shape);
+
+    auto op = make_shared<op::v3::Broadcast>(data, shape_of, axis_map, "EXPLICIT");
+
+    const auto out_shape = op->get_output_partial_shape(0);
+
+    EXPECT_EQ(out_shape, expected_shape);
+    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+}
+
+TEST(type_prop, broadcast_v3_eval_labels_static_dims_numpy) {
+    // Numpy mode for v3::Broadcast mode is one directional
+    // All dimensions of A have labels, B without labels
+    PartialShape pshape_A{1, 1};
+    PartialShape pshape_B{2, 3};
+    PartialShape pshape_C{1, 3};
+
+    PartialShape expected_shape = {2, 3};
+    std::vector<size_t> expected_labels{22, 23};
+
+    set_shape_labels(pshape_B, {22, 23});
+    set_shape_labels(expected_shape, expected_labels);
+
+    auto A = std::make_shared<op::Parameter>(element::f32, pshape_A);
+    auto B = std::make_shared<op::Parameter>(element::f32, pshape_B);
+    auto shape_of_A = make_shared<op::v3::ShapeOf>(A);
+    auto shape_of_B = make_shared<op::v3::ShapeOf>(B);
+
+    auto broadcast_A = make_shared<op::v3::Broadcast>(A, shape_of_B, "NUMPY");
+    auto shape_of_broadcast_A = make_shared<op::v3::ShapeOf>(broadcast_A);
+
+    auto C = std::make_shared<op::Parameter>(element::f32, pshape_C);
+    auto broadcast_C = make_shared<op::v3::Broadcast>(C, shape_of_broadcast_A, "NUMPY");
+
+    const auto out_shape = broadcast_C->get_output_partial_shape(0);
+
+    EXPECT_EQ(out_shape, expected_shape);
+    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+}
+
+TEST(type_prop, broadcast_v3_eval_labels_static_dims_bidirectional) {
+    PartialShape pshape_A{1, 3};
+    PartialShape pshape_B{2, 1};
+    PartialShape pshape_C{1, 1};
+
+    PartialShape expected_shape = {2, 3};
+    std::vector<size_t> expected_labels{22, 13};
+
+    set_shape_labels(pshape_A, {12, 13});
+    set_shape_labels(pshape_B, {22, 23});
+    set_shape_labels(pshape_C, {33, 33});
+
+    set_shape_labels(expected_shape, expected_labels);
+
+    auto A = std::make_shared<op::Parameter>(element::f32, pshape_A);
+    auto B = std::make_shared<op::Parameter>(element::f32, pshape_B);
+    auto shape_of_A = make_shared<op::v3::ShapeOf>(A);
+    auto shape_of_B = make_shared<op::v3::ShapeOf>(B);
+
+    auto broadcast_A = make_shared<op::v3::Broadcast>(A, shape_of_B, "BIDIRECTIONAL");
+    auto shape_of_broadcast_A = make_shared<op::v3::ShapeOf>(broadcast_A);
+
+    auto C = std::make_shared<op::Parameter>(element::f32, pshape_C);
+    auto broadcast_C = make_shared<op::v3::Broadcast>(C, shape_of_broadcast_A, "BIDIRECTIONAL");
+
+    const auto out_shape = broadcast_C->get_output_partial_shape(0);
+
+    EXPECT_EQ(out_shape, expected_shape);
+    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
 }
