@@ -13,8 +13,10 @@ namespace op {
 
 OutputVector translate_conv2d(NodeContext& context) {
     auto strides = context.const_input<Strides>(3);
-    auto pads_begin = context.const_input<CoordinateDiff>(4);  // FIXME: The same 4 is used twice
-    auto pads_end = context.const_input<CoordinateDiff>(4);    // FIXME: The same 4 is used twice
+    // In torch pads at beginning are same as at end
+    auto pads_begin = context.const_input<CoordinateDiff>(4);
+    auto pads_end = context.const_input<CoordinateDiff>(4);
+    // TODO: support str as pads (same, valid)
     auto dilations = context.const_input<Strides>(5);
     auto groups = context.const_input<int64_t>(6);
 

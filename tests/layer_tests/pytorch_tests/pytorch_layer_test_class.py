@@ -39,6 +39,7 @@ class PytorchLayerTest:
             model.eval()
             model = torch.jit.freeze(torch.jit.script(model))
             graph = model.inlined_graph
+            print(graph)
 
             assert self._check_kind_exist(
                 graph, kind), "Operation type doesn't exist in provided graph"
