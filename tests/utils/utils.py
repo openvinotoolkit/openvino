@@ -27,14 +27,11 @@ def upload_data(data, db_url, db_name, db_collection):
 
 def push_to_db_facade(data, db_api_handler):
     headers = {"Content-Type": "application/json", "accept": "application/json"}
-    try:
-        response = requests.post(db_api_handler, json=data, headers=headers)
-        if response.ok:
-            logging.info("Uploaded records by API url {}".format(db_api_handler))
-        else:
-            logging.info("Failed to upload records by API url {}".format(db_api_handler))
-    except Exception as e:
-        logging.info("Failed to upload records by API url {} due to error {}".format(db_api_handler, e))
+    response = requests.post(db_api_handler, json=data, headers=headers)
+    if response.ok:
+        logging.info("Uploaded records by API url {}".format(db_api_handler))
+    else:
+        raise ConnectionError("Failed to upload records by API url {}".format(db_api_handler))
 
 
 def modify_data_for_push_to_new_db(data):
