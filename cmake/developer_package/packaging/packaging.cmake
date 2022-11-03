@@ -43,7 +43,7 @@ macro(ov_cpack_set_dirs)
         set(OV_CPACK_LIBRARYDIR runtime/lib/${ARCH_FOLDER}/$<CONFIG>)
         set(OV_CPACK_RUNTIMEDIR runtime/bin/${ARCH_FOLDER}/$<CONFIG>)
         set(OV_CPACK_ARCHIVEDIR runtime/lib/${ARCH_FOLDER}/$<CONFIG>)
-        set(OV_WHEEL_RUNTIMEDIR runtime/lib/${ARCH_FOLDER}/Release)
+        set(OV_WHEEL_RUNTIMEDIR runtime/bin/${ARCH_FOLDER}/Release)
     elseif(APPLE)
         set(OV_CPACK_LIBRARYDIR runtime/lib/${ARCH_FOLDER}/$<CONFIG>)
         set(OV_CPACK_RUNTIMEDIR runtime/lib/${ARCH_FOLDER}/$<CONFIG>)
@@ -92,6 +92,30 @@ unset(IE_CPACK_COMPONENTS_ALL CACHE)
 if(ENABLE_TESTS)
     cpack_add_component(tests HIDDEN)
 endif()
+
+#
+#  ov_install_with_name(<FILE> <COMPONENT>)
+#
+# if <FILE> is a symlink, we resolve it, but install file with a name of symlink
+#
+function(ov_install_with_name file component)
+    if((APPLE AND file MATCHES "^[^\.]+\.[0-9]+${CMAKE_SHARED_LIBRARY_SUFFIX}$") OR
+                (file MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}\.[0-9]+$"))
+        if(IS_SYMLINK "${file}")
+            get_filename_component(actual_name "${file}" NAME)
+            get_filename_component(file "${file}" REALPATH)
+            set(install_rename RENAME "${actual_name}")
+        endif()
+
+        install(FILES "${file}"
+                DESTINATION runtime/3rdparty/${component}/lib
+                COMPONENT ${component}
+                EXCLUDE_FROM_ALL
+                ${install_rename})
+
+        set("${component}_INSTALLED" ON PARENT_SCOPE)
+    endif()
+endfunction()
 
 #
 # List of public OpenVINO components
@@ -147,7 +171,7 @@ macro(ie_cpack)
         set(CPACK_GENERATOR "TGZ")
     endif()
     set(CPACK_SOURCE_GENERATOR "") # not used
-    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "OpenVINO™ Toolkit")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "OpenVINO™ Toolkit for Deep Learning Inference")
     set(CPACK_COMPONENT_UNSPECIFIED_REQUIRED OFF)
     set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)
     set(CPACK_PACKAGE_VENDOR "Intel Corporation")

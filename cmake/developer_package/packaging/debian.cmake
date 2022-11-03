@@ -22,11 +22,7 @@ macro(ov_debian_cpack_set_dirs)
     set(OV_CPACK_NGRAPH_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/ngraph${OpenVINO_VERSION})
     set(OV_CPACK_OPENVINO_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/openvino${OpenVINO_VERSION})
     set(OV_CPACK_DOCDIR ${CMAKE_INSTALL_DATADIR}/doc/openvino-${OpenVINO_VERSION})
-
-    ov_get_pyversion(pyversion)
-    if(pyversion)
-        set(OV_CPACK_PYTHONDIR ${CMAKE_INSTALL_LIBDIR}/${pyversion}/site-packages)
-    endif()
+    set(OV_CPACK_PYTHONDIR lib/python3/dist-packages)
 
     # non-native stuff
     set(OV_CPACK_SHAREDIR ${CMAKE_INSTALL_DATADIR}/openvino) # internal
@@ -85,6 +81,8 @@ macro(ov_debian_specific_settings)
     set(CPACK_DEBIAN_PACKAGE_CONTROL_STRICT_PERMISSION OFF)
     # homepage
     set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://docs.openvino.ai/")
+    # use lintian to check packages in post-build step
+    set(CPACK_POST_BUILD_SCRIPTS "${IEDevScripts_DIR}/packaging/debian_post_build.cmake")
     # enable for debug cpack run
     if(NOT DEFINED CPACK_DEBIAN_PACKAGE_DEBUG)
         set(CPACK_DEBIAN_PACKAGE_DEBUG OFF)
@@ -267,7 +265,7 @@ macro(ov_debian_add_latest_component comp)
     set(upper_case "${ucomp}_LATEST")
 
     set(CPACK_COMPONENT_${upper_case}_DESCRIPTION "${CPACK_COMPONENT_${ucomp}_DESCRIPTION}")
-    set(CPACK_COMPONENT_${upper_case}_ARCHITECTURE "${CPACK_COMPONENT_${ucomp}_ARCHITECTURE}")
+    set(CPACK_COMPONENT_${upper_case}_ARCHITECTURE "all")
     set(CPACK_COMPONENT_${upper_case}_DEPENDS "${comp}")
 
     # take package name
