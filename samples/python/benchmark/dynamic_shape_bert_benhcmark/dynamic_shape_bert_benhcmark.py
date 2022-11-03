@@ -21,7 +21,7 @@ def main():
         return 1
     # Open Model Zoo downloads vocab.txt near to the parrent directory of .xml file for Intel models.
     # Or use tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-    tokenizer = BertTokenizer(Path(sys.argv[1]).parent.parent / 'vocab.txt')
+    tokenizer = BertTokenizer(Path(sys.argv[1]).parents[2] / 'vocab.txt')
 
     core = Core()
     model = core.read_model(sys.argv[1])
