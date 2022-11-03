@@ -393,13 +393,13 @@ public:
 
 private:
     static size_t getAlignment() {
-        using namespace dnnl::impl::cpu::x64;
+        namespace x64 = dnnl::impl::cpu::x64;
         if (std::is_same<TReg, Xbyak::Zmm>::value) {
-            return cpu_isa_traits<avx512_core>::vlen;
+            return x64::cpu_isa_traits<x64::avx512_core>::vlen;
         } else if (std::is_same<TReg, Xbyak::Ymm>::value) {
-            return cpu_isa_traits<avx2>::vlen;
+            return x64::cpu_isa_traits<x64::avx2>::vlen;
         } else if (std::is_same<TReg, Xbyak::Xmm>::value) {
-            return cpu_isa_traits<sse41>::vlen;
+            return x64::cpu_isa_traits<x64::sse41>::vlen;
         } else {
             return 1;
         }
