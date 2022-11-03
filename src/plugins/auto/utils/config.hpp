@@ -172,10 +172,7 @@ struct PluginConfig {
                 _cacheDir = kvp.second;
                 _isSetCacheDir = true;
             } else {
-                if (pluginName.find("AUTO") != std::string::npos)
                     IE_THROW(NotFound) << "Unsupported property " << kvp.first;
-                else
-                    _passThroughConfig.emplace(kvp.first, kvp.second);
             }
         }
         if (!config.empty())
