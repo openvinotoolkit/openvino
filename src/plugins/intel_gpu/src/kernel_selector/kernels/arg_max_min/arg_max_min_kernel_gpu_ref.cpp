@@ -17,6 +17,7 @@ ParamsKey ArgMaxMinKernelGPURef::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::yxfb);
     k.EnableDifferentTypes();
     k.EnableBatching();
+    k.EnableTensorPitches();
     return k;
 }
 
