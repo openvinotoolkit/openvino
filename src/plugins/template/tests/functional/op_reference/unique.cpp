@@ -77,7 +77,8 @@ TEST_P(ReferenceUniqueLayerTest_NoAxis, CompareWithHardcodedRefs) {
 }
 
 template <typename Data_t, typename Index_t>
-std::vector<UniqueParams> generateParamsForUnique() {
+std::vector<UniqueParams> params_unique_int() {
+    static_assert(std::numeric_limits<Data_t>::is_integer);
     const std::vector<UniqueParams> params{UniqueParams{Shape{},
                                                         std::vector<Data_t>{1},
                                                         std::vector<Data_t>{1},
@@ -87,6 +88,25 @@ std::vector<UniqueParams> generateParamsForUnique() {
                                            UniqueParams{Shape{1},
                                                         std::vector<Data_t>{2},
                                                         std::vector<Data_t>{2},
+                                                        std::vector<Index_t>{0},
+                                                        std::vector<Index_t>{0},
+                                                        std::vector<int64_t>{1}}};
+
+    return params;
+}
+
+template <typename Data_t, typename Index_t>
+std::vector<UniqueParams> params_unique_float() {
+    static_assert(!std::numeric_limits<Data_t>::is_integer);
+    const std::vector<UniqueParams> params{UniqueParams{Shape{},
+                                                        std::vector<Data_t>{3.141592},
+                                                        std::vector<Data_t>{3.141592},
+                                                        std::vector<Index_t>{0},
+                                                        std::vector<Index_t>{0},
+                                                        std::vector<int64_t>{1}},
+                                           UniqueParams{Shape{1},
+                                                        std::vector<Data_t>{-2.71828},
+                                                        std::vector<Data_t>{-2.71828},
                                                         std::vector<Index_t>{0},
                                                         std::vector<Index_t>{0},
                                                         std::vector<int64_t>{1}}};
@@ -108,12 +128,12 @@ std::vector<T> flatten(std::initializer_list<std::vector<T>> test_cases) {
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReferenceUniqueLayerTest_NoAxis,
                          ReferenceUniqueLayerTest_NoAxis,
-                         ::testing::ValuesIn(flatten({generateParamsForUnique<float, int32_t>(),
-                                                      generateParamsForUnique<float, int64_t>(),
-                                                      generateParamsForUnique<double, int32_t>(),
-                                                      generateParamsForUnique<double, int64_t>(),
-                                                      generateParamsForUnique<int32_t, int32_t>(),
-                                                      generateParamsForUnique<int32_t, int64_t>()})),
+                         ::testing::ValuesIn(flatten({params_unique_float<float, int32_t>(),
+                                                      params_unique_float<float, int64_t>(),
+                                                      params_unique_float<double, int32_t>(),
+                                                      params_unique_float<double, int64_t>(),
+                                                      params_unique_int<int32_t, int32_t>(),
+                                                      params_unique_int<int32_t, int64_t>()})),
                          ReferenceUniqueLayerTest_NoAxis::getTestCaseName);
 
 }  // namespace
