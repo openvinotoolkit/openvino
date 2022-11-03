@@ -118,7 +118,8 @@ The following layers are supported by the plugins:
 
 .. scrollbox::
    :bar: 5
-   :height: 200
+   :height: 200px
+   :width:100%
 
    +--------------------------------+---------------+---------------+---------------+---------------+-----------------+
    | Layers                         | GPU           | CPU           | VPU           | GNA           | Arm® CPU        |
