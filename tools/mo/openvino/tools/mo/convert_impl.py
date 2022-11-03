@@ -489,7 +489,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
     return func
 
 
-def get_static_shape(shape: [PartialShape, list, tuple], dynamic_dims_error_message: str):
+def get_static_shape(shape: [PartialShape, list, tuple], dynamic_dims_error_message: str, set_none: bool = False):
     # Current function returns list with static dimensions with following logic.
     # For dynamic dimensions return lower boundaries if they are set, otherwise
     # return upper boundaries if they are set. If dimension is fully dynamic then raise error.
@@ -497,11 +497,19 @@ def get_static_shape(shape: [PartialShape, list, tuple], dynamic_dims_error_mess
     for idx, dim in enumerate(shape):
         if isinstance(dim, int):
             if dim == -1:
-                raise Error(dynamic_dims_error_message)
+                if set_none:
+                    shape_list.append(None)
+                    continue
+                else:
+                    raise Error(dynamic_dims_error_message)
             shape_list.append(dim)
         elif isinstance(dim, np.int64):
             if dim == np.int64(-1):
-                raise Error(dynamic_dims_error_message)
+                if set_none:
+                    shape_list.append(None)
+                    continue
+                else:
+                    raise Error(dynamic_dims_error_message)
             shape_list.append(dim)
         elif isinstance(dim, tuple):
             # tuple where (min_length, max_length), the format which uses MO cli parser
@@ -511,14 +519,22 @@ def get_static_shape(shape: [PartialShape, list, tuple], dynamic_dims_error_mess
             elif dim[1] < np.iinfo(np.int64).max:
                 shape_list.append(dim[1])
             else:
-                raise Error(dynamic_dims_error_message)
+                if set_none:
+                    shape_list.append(None)
+                    continue
+                else:
+                    raise Error(dynamic_dims_error_message)
         elif isinstance(dim, Dimension):
             if dim.is_static or dim.get_min_length() > 0:
                 shape_list.append(dim.get_min_length())
             elif dim.get_max_length() != -1:
                 shape_list.append(dim.get_max_length())
             else:
-                raise Error(dynamic_dims_error_message)
+                if set_none:
+                    shape_list.append(None)
+                    continue
+                else:
+                    raise Error(dynamic_dims_error_message)
         else:
             raise Error("Unknown dimension type {}".format(dim))
 
@@ -568,13 +584,16 @@ def check_model_object(argv):
 
         if isinstance(model, tf.keras.layers.Layer) or isinstance(model, tf.Module):
             assert 'input_shape' in argv and argv['input_shape'] is not None, \
-                "Converting of {} requires providing of input_shape with static dimensions.".format(type(model))
+                "Converting of {} requires providing of input_shape.".format(type(model))
+            assert len(argv['input_shape']) > 0, "Please provide non-empty input shape."
             inputs = []
             for shape_idx, shape in enumerate(parse_input_shapes(argv)):
-                static_shape = get_static_shape(shape,
-                                                "For converting {} please provide input_shape with static dimensions "
-                                                "or shapes with boundaries.".format(type(model)))
-                inputs.append(tf.keras.Input(shape=static_shape))
+                inp_shape = get_static_shape(shape, '', set_none=True)
+                batch_size = None
+                if len(inp_shape) > 1:
+                    batch_size = inp_shape[0]
+                    inp_shape = inp_shape[1:]
+                inputs.append(tf.keras.Input(shape=inp_shape, batch_size=batch_size))
             outputs = model(*inputs)
             argv['input_model'] = tf.keras.Model(inputs, outputs)
             argv['input_shape'] = None
