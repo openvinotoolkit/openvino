@@ -108,7 +108,7 @@ shared_ptr<Model> gen_model_ref(PartialShape input_shape, element::Type out_idx)
     auto output_idx_plus1 = make_shared<ReduceMax>(unique_vs_x_ind_orig, zero_const);
     auto output_idx = make_shared<Subtract>(output_idx_plus1, one_const_out_idx);
 
-    return make_shared<Model>(OutputVector{output_idx->output(0), output_unique_elements->output(0)},
+    return make_shared<Model>(OutputVector{output_unique_elements->output(0), output_idx->output(0)},
                               ParameterVector{x});
 }
 
