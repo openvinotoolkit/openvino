@@ -357,15 +357,6 @@ TEST(OVClassBasicTest, smoke_SetConfigAutoNoThrows) {
     EXPECT_EQ(value, ov::hint::Priority::HIGH);
 }
 
-TEST(OVClassBasicTest, smoke_Auto_SetPropertyUnsupportedWithSecondaryProperty) {
-    ov::Core ie = createCoreWithTemplate();
-    ASSERT_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO,
-                                 {ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::num_streams(10))}),
-                 ov::Exception);
-    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO,
-                                       {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}));
-}
-
 TEST_P(OVClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
