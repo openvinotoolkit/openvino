@@ -1885,27 +1885,6 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     currentInBlkDims.resize(inputNum);
 }
 
-std::vector<VectorDims> Eltwise::shapeInfer() const {
-    ov::PartialShape outShape = getParentEdgesAtPort(0)[0]->getMemory().GetShape().toPartialShape();
-    for (size_t i = 1; i < getParentEdges().size(); i++) {
-        ov::PartialShape::broadcast_merge_into(outShape, getParentEdgesAtPort(i)[0]->getMemory().GetShape().toPartialShape(),
-        ov::op::AutoBroadcastType::NUMPY);
-    }
-
-    if (outShape.is_dynamic()) {
-        std::ostringstream errorMessage;
-        errorMessage << "Can't compute static output shape for Eltwise node with name: " << getName();
-        errorMessage << ". Input shapes = ( ";
-        for (size_t i = 0; i < getParentEdges().size(); i++) {
-            errorMessage << i << " port = " << getParentEdgesAtPort(i)[0]->getMemory().GetShape().toString() << ", ";
-        }
-        errorMessage << "). Output shape = ( " << outShape << " )";
-        OPENVINO_ASSERT(false, errorMessage.str());
-    }
-
-    return {outShape.get_shape()};
-}
-
 void Eltwise::prepareParams() {
     if (memPtrs.empty()) {
         for (auto i = 0; i < inputNum; i++)
