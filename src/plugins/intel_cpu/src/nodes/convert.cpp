@@ -54,6 +54,9 @@ Convert::Convert(const Shape &shape, const InferenceEngine::Precision &inPrc, co
     addOriginalOutputPrecision(outPrc);
 
     isDynamic = shape.isDynamic();
+    if (isDynamicNode()) {
+        shapeInference = std::make_shared<ShapeInferPassThrough>();
+    }
 
     errorPrefix = "Convert node with name '" + getName() + "'";
 }
