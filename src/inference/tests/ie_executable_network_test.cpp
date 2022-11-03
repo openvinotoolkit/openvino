@@ -35,7 +35,7 @@ using testing::SetArgReferee;
 //  8. RemoteContext::Ptr GetContext()
 
 
-class ExecutableNetworkTests : public ::testing::Test {
+class ExecutableNetworkUnitTests : public ::testing::Test {
 protected:
     std::shared_ptr<MockIExecutableNetworkInternal> mockIExeNet;
     ov::SoPtr<IExecutableNetworkInternal>  exeNetwork;
@@ -57,7 +57,7 @@ protected:
     }
 };
 
-TEST_F(ExecutableNetworkTests, GetOutputsInfoThrowsIfReturnErr) {
+TEST_F(ExecutableNetworkUnitTests, GetOutputsInfoThrowsIfReturnErr) {
     EXPECT_CALL(*mockIExeNet.get(), GetOutputsInfo())
             .Times(1)
             .WillOnce(Throw(InferenceEngine::GeneralError{""}));
@@ -65,14 +65,14 @@ TEST_F(ExecutableNetworkTests, GetOutputsInfoThrowsIfReturnErr) {
     ASSERT_THROW(exeNetwork->GetOutputsInfo(), InferenceEngine::Exception);
 }
 
-TEST_F(ExecutableNetworkTests, GetOutputsInfo) {
+TEST_F(ExecutableNetworkUnitTests, GetOutputsInfo) {
     InferenceEngine::ConstOutputsDataMap data;
     EXPECT_CALL(*mockIExeNet.get(), GetOutputsInfo()).Times(1).WillRepeatedly(Return(InferenceEngine::ConstOutputsDataMap{}));
     ASSERT_NO_THROW(data = exeNetwork->GetOutputsInfo());
     ASSERT_EQ(data, InferenceEngine::ConstOutputsDataMap{});
 }
 
-TEST_F(ExecutableNetworkTests, GetInputsInfoThrowsIfReturnErr) {
+TEST_F(ExecutableNetworkUnitTests, GetInputsInfoThrowsIfReturnErr) {
     EXPECT_CALL(*mockIExeNet.get(), GetInputsInfo())
             .Times(1)
             .WillOnce(Throw(InferenceEngine::GeneralError{""}));
@@ -80,7 +80,7 @@ TEST_F(ExecutableNetworkTests, GetInputsInfoThrowsIfReturnErr) {
     ASSERT_THROW(exeNetwork->GetInputsInfo(), InferenceEngine::Exception);
 }
 
-TEST_F(ExecutableNetworkTests, GetInputsInfo) {
+TEST_F(ExecutableNetworkUnitTests, GetInputsInfo) {
     EXPECT_CALL(*mockIExeNet.get(), GetInputsInfo()).Times(1).WillRepeatedly(Return(InferenceEngine::ConstInputsDataMap{}));
 
     InferenceEngine::ConstInputsDataMap info;
@@ -89,17 +89,17 @@ TEST_F(ExecutableNetworkTests, GetInputsInfo) {
 }
 
 
-class ExecutableNetworkWithIInferReqTests : public ExecutableNetworkTests {
+class ExecutableNetworkWithIInferReqTests : public ExecutableNetworkUnitTests {
 protected:
     std::shared_ptr<MockIInferRequestInternal> mockIInferReq_p;
 
     void TearDown() override {
-        ExecutableNetworkTests::TearDown();
+        ExecutableNetworkUnitTests::TearDown();
         mockIInferReq_p.reset();
     }
 
     void SetUp() override {
-        ExecutableNetworkTests::SetUp();
+        ExecutableNetworkUnitTests::SetUp();
         mockIInferReq_p = std::make_shared<MockIInferRequestInternal>();
     }
 };
