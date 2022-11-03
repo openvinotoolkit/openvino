@@ -276,6 +276,10 @@ const SizeVector numGroups_Blocked = {2, 4};
 const SizeVector numOutChannels_DW = {32};
 const SizeVector numGroups_DW = {32};
 
+/* ============= GroupConvolution params (DW, large channel size) ============= */
+const SizeVector numOutChannels_DW_LARGE_C = {128};
+const SizeVector numGroups_DW_LARGE_C = {128};
+
 /* ============= GroupConvolution params (1D) ============= */
 const std::vector<SizeVector> kernels1d = { {3}, {1} };
 const std::vector<SizeVector> strides1d = { {1}, {2} };
@@ -817,6 +821,17 @@ const auto groupConvParams_ExplicitPadding_DW_2D = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 
+const auto groupConvParams_ExplicitPadding_DW_2D_LAREGE_C = ::testing::Combine(
+        ::testing::ValuesIn(kernels2d),
+        ::testing::ValuesIn(strides2d),
+        ::testing::ValuesIn(padBegins2d),
+        ::testing::ValuesIn(padEnds2d),
+        ::testing::ValuesIn(dilations2d),
+        ::testing::ValuesIn(numOutChannels_DW_LARGE_C),
+        ::testing::ValuesIn(numGroups_DW_LARGE_C),
+        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+);
+
 const std::vector<CPUSpecificParams> CPUParams_DW_2D = {
         conv_sse42_dw_2D,
         conv_avx2_dw_2D,
@@ -834,6 +849,18 @@ std::vector<InputShape> inputShapes2dDW = {
         { //target static shapes
             { 2, 32, 7, 7 },
             { 1, 32, 9, 9 }
+        }
+    }
+};
+
+std::vector<InputShape> inputShapes2dDWLargeC = {
+    {{}, {{ 2, 128, 7, 7 }}},
+    {
+        //dynamic shapes
+        {-1, 128, -1, {1, 200}},
+        { //target static shapes
+            { 2, 128, 7, 7 },
+            { 1, 128, 9, 9 }
         }
     }
 };
@@ -861,6 +888,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_DW_BF16, GroupConvolutionLayerCPUTes
                                         ::testing::Values(ElementType::undefined),
                                         ::testing::Values(ElementType::undefined),
                                         ::testing::ValuesIn(inputShapes2dDW),
+                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_dw_2D, conv_avx512_dw_2D_nspc})),
+                                ::testing::ValuesIn(fusingParamsSetBF16),
+                                ::testing::Values(cpuBF16PluginConfig)),
+                        GroupConvolutionLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_DW_LARGE_C_BF16, GroupConvolutionLayerCPUTest,
+                        ::testing::Combine(
+                                ::testing::Combine(
+                                        groupConvParams_ExplicitPadding_DW_2D_LAREGE_C,
+                                        ::testing::Values(ElementType::f32),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::Values(ElementType::undefined),
+                                        ::testing::ValuesIn(inputShapes2dDWLargeC),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_dw_2D, conv_avx512_dw_2D_nspc})),
                                 ::testing::ValuesIn(fusingParamsSetBF16),
