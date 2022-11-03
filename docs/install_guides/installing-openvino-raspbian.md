@@ -12,8 +12,8 @@
 @sphinxdirective
 .. tab:: Operating Systems
 
-  * Raspbian Buster, 32-bit
-  * Raspbian Stretch, 32-bit
+  * Raspbian Buster, ARM, 32-bit
+  * Raspbian Stretch, ARM, 32-bit
 
 .. tab:: Hardware
 
