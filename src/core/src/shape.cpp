@@ -4,10 +4,6 @@
 
 #include "ngraph/shape.hpp"
 
-#include <cstdio>
-#include <numeric>
-#include <vector>
-
 #include "ngraph/util.hpp"
 
 using namespace std;
