@@ -29,7 +29,7 @@ Output<Node> get_elements_number_1d(const Output<Node>& output, element::Type ou
 
 shared_ptr<Model> gen_model(PartialShape input_shape, element::Type out_idx) {
     auto x = make_shared<Parameter>(f32, input_shape);
-    auto unique = make_shared<Unique>(x, out_idx);
+    auto unique = make_shared<Unique>(x, false, out_idx);
 
     return make_shared<Model>(OutputVector{unique->output(0), unique->output(2)}, ParameterVector{x});
 }
