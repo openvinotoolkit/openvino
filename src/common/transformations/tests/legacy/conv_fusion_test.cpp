@@ -231,8 +231,8 @@ TEST_F(TransformationTestsF, WeightsWithReshape) {
         auto mul = std::make_shared<opset5::Multiply>(conv, opset5::Constant::create(element::f32, Shape{4, 1, 1}, std::vector<float>(4, 2)));
         function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
-        manager.register_pass<pass::GroupConvolutionMultiplyFusion>();
-        manager.register_pass<pass::ConstantFolding>();
+        manager.register_pass<ov::pass::GroupConvolutionMultiplyFusion>();
+        manager.register_pass<ov::pass::ConstantFolding>();
     }
 
     {
@@ -253,7 +253,7 @@ TEST_F(TransformationTestsF, NegativeWeightsWithReshape) {
         auto mul = std::make_shared<opset5::Multiply>(conv, opset5::Constant::create(element::f32, Shape{4, 1, 1}, std::vector<float>(4, 2)));
         function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
-        manager.register_pass<pass::GroupConvolutionMultiplyFusion>();
+        manager.register_pass<ov::pass::GroupConvolutionMultiplyFusion>();
     }
 
     {
@@ -276,8 +276,8 @@ TEST_F(TransformationTestsF, WeightsWithReshapeScalarMultiplier) {
         auto mul = std::make_shared<opset5::Multiply>(conv, opset5::Constant::create(element::f32, Shape{1}, {2.0f}));
         function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
-        manager.register_pass<pass::GroupConvolutionMultiplyFusion>();
-        manager.register_pass<pass::ConstantFolding>();
+        manager.register_pass<ov::pass::GroupConvolutionMultiplyFusion>();
+        manager.register_pass<ov::pass::ConstantFolding>();
     }
 
     {
@@ -297,8 +297,8 @@ TEST_F(TransformationTestsF, WeightsWithoutReshape) {
         auto mul = std::make_shared<opset5::Multiply>(conv, opset5::Constant::create(element::f32, Shape{4, 1, 1}, std::vector<float>(4, 2)));
         function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
-        manager.register_pass<pass::GroupConvolutionMultiplyFusion>();
-        manager.register_pass<pass::ConstantFolding>();
+        manager.register_pass<ov::pass::GroupConvolutionMultiplyFusion>();
+        manager.register_pass<ov::pass::ConstantFolding>();
     }
 
     {
@@ -324,8 +324,8 @@ TEST_F(TransformationTestsF, WeightsWithFakeQuantizeAndReshape) {
         auto mul = std::make_shared<opset5::Multiply>(conv, opset5::Constant::create(element::f32, Shape{6, 1, 1}, std::vector<float>(6, 2)));
         function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
-        manager.register_pass<pass::GroupConvolutionMultiplyFusion>();
-        manager.register_pass<pass::ConstantFolding>();
+        manager.register_pass<ov::pass::GroupConvolutionMultiplyFusion>();
+        manager.register_pass<ov::pass::ConstantFolding>();
     }
 
     {

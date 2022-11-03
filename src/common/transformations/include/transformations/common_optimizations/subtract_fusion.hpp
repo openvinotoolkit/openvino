@@ -26,9 +26,3 @@ public:
     OPENVINO_RTTI("SubtractFusion", "0");
     SubtractFusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::SubtractFusion;
-}  // namespace pass
-}  // namespace ngraph

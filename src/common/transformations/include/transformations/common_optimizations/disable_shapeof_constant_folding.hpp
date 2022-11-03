@@ -21,9 +21,3 @@ public:
     OPENVINO_RTTI("DisableShapeOfConstantFolding", "0");
     DisableShapeOfConstantFolding();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::DisableShapeOfConstantFolding;
-}  // namespace pass
-}  // namespace ngraph

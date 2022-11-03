@@ -97,10 +97,10 @@ void visualization_example(std::shared_ptr<ov::Model> f) {
 void pass_manager_example1(std::shared_ptr<ov::Model> f) {
 // ! [ngraph:disable_gelu]
 ov::pass::Manager manager;
-manager.register_pass<ngraph::pass::CommonOptimizations>();
+manager.register_pass<ov::pass::CommonOptimizations>();
 
 auto pass_config = manager.get_pass_config();
-pass_config->disable<ngraph::pass::ConvertGELU>();
+pass_config->disable<ov::pass::ConvertGELU>();
 
 manager.run_passes(f);
 // ! [ngraph:disable_gelu]
@@ -112,8 +112,8 @@ void pass_manager_example2(std::shared_ptr<ov::Model> f) {
 // ! [ngraph:disable_callback]
 // Set callback to particular transformation with specific condition
 auto pass_config = manager.get_pass_config();
-pass_config->set_callback<ngraph::pass::ConvertSpaceToDepth,
-                          ngraph::pass::ConvertDepthToSpace>(
+pass_config->set_callback<ov::pass::ConvertSpaceToDepth,
+                          ov::pass::ConvertDepthToSpace>(
         [](const std::shared_ptr<const ov::Node> &node) -> bool {
             return node->input_value(0).get_shape().size() <= 5lu &&
                    node->input_value(0).get_shape().size() == node->get_output_shape(0).size();
@@ -137,16 +137,16 @@ void pass_manager_example3(std::shared_ptr<ov::Model> f) {
 // Example of disabled by default transformation
 {
     ov::pass::Manager manager;
-    manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
+    manager.register_pass<ov::pass::ConvertPadToGroupConvolution, false>();
     manager.run_passes(f);
 }
 
 // Enable disabled by default transformation inside plugin
 {
     ov::pass::Manager manager;
-    manager.register_pass<ngraph::pass::CommonOptimizations>();
+    manager.register_pass<ov::pass::CommonOptimizations>();
     auto pass_config = manager.get_pass_config();
-    pass_config->enable<ngraph::pass::ConvertPadToGroupConvolution>();
+    pass_config->enable<ov::pass::ConvertPadToGroupConvolution>();
     manager.run_passes(f);
 }
 // ! [ngraph:disabled_by_default]

@@ -42,7 +42,7 @@ TEST_F(TransformationTestsF, ConvertDeformableConv8to1) {
                                                                                dilations);
 
         function = std::make_shared<Function>(NodeVector{deformable_conv}, ParameterVector{data, filter, offsets});
-        manager.register_pass<pass::ConvertDeformableConv8To1>();
+        manager.register_pass<ov::pass::ConvertDeformableConv8To1>();
     }
 
     {
@@ -99,7 +99,7 @@ TEST_F(TransformationTestsF, ConvertDeformableConv8to1_mask) {
                                                                                     mask, offsets});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertDeformableConv8To1>();
+        manager.register_pass<ov::pass::ConvertDeformableConv8To1>();
     }
 }
 
@@ -132,6 +132,6 @@ TEST_F(TransformationTestsF, ConvertDeformableConv8to1_bilinear_interpolation_pa
         function = std::make_shared<Function>(NodeVector{deformable_conv}, ParameterVector{data, filter, offsets});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertDeformableConv8To1>();
+        manager.register_pass<ov::pass::ConvertDeformableConv8To1>();
     }
 }

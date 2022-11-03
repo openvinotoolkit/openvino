@@ -59,9 +59,9 @@ void positive_test(const Shape& data_shape, float in_low, float in_high, float o
                                  zero_point_shape, zero_point_values, scale_shape, scale_values, levels);
 
         pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::ConvertQuantizeDequantize>();
-        m.register_pass<pass::ConstantFolding>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertQuantizeDequantize>();
+        m.register_pass<ov::pass::ConstantFolding>();
         m.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -160,8 +160,8 @@ void negative_test(const Shape& data_shape, float in_low, float in_high, float o
         f = create_q_dq_function<LowPrecision>(data_shape, in_low, in_high, out_low, out_high,
                                  zero_point_shape, zero_point_values, scale_shape, scale_values, levels);
         pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::ConvertQuantizeDequantize>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertQuantizeDequantize>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

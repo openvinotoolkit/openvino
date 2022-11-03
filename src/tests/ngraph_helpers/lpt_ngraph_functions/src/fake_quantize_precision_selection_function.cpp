@@ -42,7 +42,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getOri
                 fakeQuantize,
                 Strides{ 1, 1 }, Shape{ 1, 1 }, Shape{ 0, 0 }, Shape{ 2, 2 },
                 op::RoundingType::FLOOR)) :
-            std::make_shared<op::TypeRelaxed<ngraph::opset1::PRelu>>(
+            std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::PRelu>>(
                 opset1::PRelu(
                     fakeQuantize,
                     std::make_shared<opset1::Constant>(element::f32, Shape{}, std::vector<float>{ 0.01 })),
@@ -80,7 +80,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getOri
     std::shared_ptr<ngraph::Node> branch2Last;
     {
         // just another branch
-        branch2Last = std::make_shared<op::TypeRelaxed<ngraph::opset1::PRelu>>(
+        branch2Last = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::PRelu>>(
             opset1::PRelu(
                 fakeQuantize,
                 std::make_shared<opset1::Constant>(element::f32, Shape{}, std::vector<float>{ 0.01 })),
@@ -114,7 +114,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
             fakeQuantize,
             Strides{ 1, 1 }, Shape{ 1, 1 }, Shape{ 0, 0 }, Shape{ 2, 2 },
             op::RoundingType::FLOOR)) :
-        std::make_shared<op::TypeRelaxed<ngraph::opset1::PRelu>>(
+        std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::PRelu>>(
             fakeQuantize,
             std::make_shared<opset1::Constant>(element::f32, Shape{}, std::vector<float>{ 0.01 }));
 
@@ -153,7 +153,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
 
 
     // just another branch
-    std::shared_ptr<ngraph::opset1::PRelu> branch2PRelu = std::make_shared<op::TypeRelaxed<ngraph::opset1::PRelu>>(
+    std::shared_ptr<ngraph::opset1::PRelu> branch2PRelu = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::PRelu>>(
         fakeQuantize,
         std::make_shared<opset1::Constant>(element::f32, Shape{}, std::vector<float>{ 0.01 }));
 

@@ -23,9 +23,3 @@ public:
 
 }  // namespace pass
 }  // namespace ov
-
-namespace ngraph {
-namespace pass {
-using ov::pass::AlignEltwiseInputRanks;
-}  // namespace pass
-}  // namespace ngraph

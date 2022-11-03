@@ -50,7 +50,7 @@ TEST_F(TransformationTestsF, ConvertPreviousNMSToNMSIEInternal) {
         auto max_output_boxes_per_class = opset1::Constant::create(element::i64, Shape{1}, {10});
         auto iou_threshold = opset1::Constant::create(element::f32, Shape{1}, {0.75});
         auto score_threshold = opset1::Constant::create(element::f32, Shape{1}, {0.7});
-        auto nms = std::make_shared<op::internal::NonMaxSuppressionIEInternal>(boxes, scores, max_output_boxes_per_class,
+        auto nms = std::make_shared<ov::op::internal::NonMaxSuppressionIEInternal>(boxes, scores, max_output_boxes_per_class,
                 iou_threshold, score_threshold, 0, true, element::i32);
         auto convert = std::make_shared<opset1::Convert>(nms->output(0), element::i64);
 
@@ -82,7 +82,7 @@ TEST_F(TransformationTestsF, ConvertNMS9ToNMSIEInternal) {
         auto iou_threshold = opset1::Constant::create(element::f32, Shape{1}, {0.75});
         auto score_threshold = opset1::Constant::create(element::f32, Shape{1}, {0.7});
         auto soft_nms_sigma = opset1::Constant::create(element::f32, Shape{1}, {0.5});
-        auto nms = std::make_shared<op::internal::NonMaxSuppressionIEInternal>(boxes, scores, max_output_boxes_per_class,
+        auto nms = std::make_shared<ov::op::internal::NonMaxSuppressionIEInternal>(boxes, scores, max_output_boxes_per_class,
                 iou_threshold, score_threshold, soft_nms_sigma, 0, true, element::i32);
 
         function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});

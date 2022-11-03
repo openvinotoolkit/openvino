@@ -40,8 +40,8 @@ TEST_F(TransformationTestsF, BinarizeWeightsActivationsOutputLowZero) {
         auto conv = std::make_shared<opset5::Convolution>(act_fq, weights_fq, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
-        manager.register_pass<pass::BinarizeWeights>();
-        manager.register_pass<pass::ConstantFolding>();
+        manager.register_pass<ov::pass::BinarizeWeights>();
+        manager.register_pass<ov::pass::ConstantFolding>();
     }
 
     {
@@ -77,8 +77,8 @@ TEST_F(TransformationTestsF, BinarizeWeightsActivationsOutputLowNegative) {
         auto conv = std::make_shared<opset5::Convolution>(act_fq, weights_fq, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
-        manager.register_pass<pass::BinarizeWeights>();
-        manager.register_pass<pass::ConstantFolding>();
+        manager.register_pass<ov::pass::BinarizeWeights>();
+        manager.register_pass<ov::pass::ConstantFolding>();
     }
 
     {
@@ -114,8 +114,8 @@ TEST_F(TransformationTestsF, NegativeBinarizeWeightsInvalidLevels) {
         auto conv = std::make_shared<opset5::Convolution>(act_fq, weights_fq, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
-        manager.register_pass<pass::BinarizeWeights>();
-        manager.register_pass<pass::ConstantFolding>();
+        manager.register_pass<ov::pass::BinarizeWeights>();
+        manager.register_pass<ov::pass::ConstantFolding>();
     }
 
     {
@@ -154,8 +154,8 @@ TEST_F(TransformationTestsF, NegativeBinarizeWeightsInvalidActivationsOutputLowH
         auto conv = std::make_shared<opset5::Convolution>(act_fq, weights_fq, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
-        manager.register_pass<pass::BinarizeWeights>();
-        manager.register_pass<pass::ConstantFolding>();
+        manager.register_pass<ov::pass::BinarizeWeights>();
+        manager.register_pass<ov::pass::ConstantFolding>();
     }
 
     {
@@ -194,8 +194,8 @@ TEST_F(TransformationTestsF, NegativeBinarizeWeightsInvalidOutputLowHigh) {
         auto conv = std::make_shared<opset5::Convolution>(act_fq, weights_fq, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
-        manager.register_pass<pass::BinarizeWeights>();
-        manager.register_pass<pass::ConstantFolding>();
+        manager.register_pass<ov::pass::BinarizeWeights>();
+        manager.register_pass<ov::pass::ConstantFolding>();
     }
 
     {

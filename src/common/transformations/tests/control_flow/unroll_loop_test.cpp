@@ -71,8 +71,8 @@ TEST(TransformationTests, UnrollLoopGRUCell) {
                                                ParameterVector{X, Y});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -160,8 +160,8 @@ TEST(TransformationTests, UnrollLoopRNNCell) {
                                                ParameterVector{X, Y});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -252,8 +252,8 @@ TEST(TransformationTests, UnrollLoopLSTMCell) {
                                                ParameterVector{X, Y, Z});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -342,8 +342,8 @@ TEST(TransformationTests, UnrollLoopGRUCellSingleIteration) {
                                                ParameterVector{X, Y});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -425,8 +425,8 @@ TEST(TransformationTests, UnrollLoopRNNCellSingleIteration) {
                                                ParameterVector{X, Y});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -510,8 +510,8 @@ TEST(TransformationTests, UnrollLoopLSTMCellSingleIteration) {
                                                ParameterVector{X, Y, Z});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));

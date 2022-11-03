@@ -30,7 +30,7 @@ TEST_F(TransformationTestsF, ConvertPadToConv) {
         auto pad = std::make_shared<opset4::Pad>(input, pad_begin, pad_end, pad_value, pad_mode);
         function = std::make_shared<Function>(NodeVector{pad}, ParameterVector{input});
 
-        manager.register_pass<pass::ConvertPadToGroupConvolution>();
+        manager.register_pass<ov::pass::ConvertPadToGroupConvolution>();
     }
 
     {
@@ -57,7 +57,7 @@ TEST_F(TransformationTestsF, ConvertPadToConvNeg1) {
 
     function = get_function();
     function_ref = get_function();
-    manager.register_pass<pass::ConvertPadToGroupConvolution>();
+    manager.register_pass<ov::pass::ConvertPadToGroupConvolution>();
 }
 
 TEST_F(TransformationTestsF, ConvertPadToConvNeg2) {
@@ -73,7 +73,7 @@ TEST_F(TransformationTestsF, ConvertPadToConvNeg2) {
 
     function = get_function();
     function_ref = get_function();
-    manager.register_pass<pass::ConvertPadToGroupConvolution>();
+    manager.register_pass<ov::pass::ConvertPadToGroupConvolution>();
 }
 
 TEST_F(TransformationTestsF, ConvertPadToConvNeg3) {
@@ -89,7 +89,7 @@ TEST_F(TransformationTestsF, ConvertPadToConvNeg3) {
 
     function = get_function();
     function_ref = get_function();
-    manager.register_pass<pass::ConvertPadToGroupConvolution>();
+    manager.register_pass<ov::pass::ConvertPadToGroupConvolution>();
 }
 
 
@@ -106,5 +106,5 @@ TEST_F(TransformationTestsF, ConvertPadToConvNeg4) {
 
     function = get_function();
     function_ref = get_function();
-    manager.register_pass<pass::ConvertPadToGroupConvolution>();
+    manager.register_pass<ov::pass::ConvertPadToGroupConvolution>();
 }

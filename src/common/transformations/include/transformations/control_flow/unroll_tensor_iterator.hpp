@@ -30,9 +30,3 @@ public:
     OPENVINO_RTTI("UnrollTensorIterator", "0");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::UnrollTensorIterator;
-}  // namespace pass
-}  // namespace ngraph

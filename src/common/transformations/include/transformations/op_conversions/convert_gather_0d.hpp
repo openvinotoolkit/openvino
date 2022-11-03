@@ -27,9 +27,3 @@ public:
     OPENVINO_RTTI("ConvertGather0D", "0");
     ConvertGather0D();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertGather0D;
-}  // namespace pass
-}  // namespace ngraph

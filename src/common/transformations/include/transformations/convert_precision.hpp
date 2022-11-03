@@ -88,9 +88,3 @@ private:
     precisions_array m_precisions;
     type_to_fuse_map m_additional_type_to_fuse_map;
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertPrecision;
-}  // namespace pass
-}  // namespace ngraph

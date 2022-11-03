@@ -40,7 +40,7 @@ void MatMulConstTransposesExtractionTest::SetUp() {
 
     auto transformed_function = clone_function(*function);
     pass::Manager manager;
-    manager.register_pass<pass::MatMulConstTransposesExtraction>();
+    manager.register_pass<ov::pass::MatMulConstTransposesExtraction>();
     manager.run_passes(transformed_function);
 
     bool functions_equal;
@@ -87,7 +87,7 @@ void QuantizedMatMulConstTransposesExtractionTest::SetUp() {
 
     auto transformed_function = clone_function(*function);
     pass::Manager manager;
-    manager.register_pass<pass::MatMulConstTransposesExtraction>();
+    manager.register_pass<ov::pass::MatMulConstTransposesExtraction>();
     manager.run_passes(transformed_function);
 
     bool functions_equal;

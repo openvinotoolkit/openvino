@@ -64,7 +64,7 @@ TEST_F(TransformationTestsF, ShapeSubGraphTestGatherv7) {
 
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, false);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
-        manager.register_pass<pass::SimplifyShapeOfSubGraph>();
+        manager.register_pass<ov::pass::SimplifyShapeOfSubGraph>();
     }
     {
         auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
@@ -104,7 +104,7 @@ TEST_F(TransformationTestsF, ShapeSubGraphTestGatherv8) {
 
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, false);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
-        manager.register_pass<pass::SimplifyShapeOfSubGraph>();
+        manager.register_pass<ov::pass::SimplifyShapeOfSubGraph>();
     }
     {
         auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
@@ -141,7 +141,7 @@ TEST_F(TransformationTestsF, ShapeNopSubGraphTestGatherv7) {
 
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, false);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
-        manager.register_pass<pass::SimplifyShapeOfSubGraph>();
+        manager.register_pass<ov::pass::SimplifyShapeOfSubGraph>();
     }
     {
         auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
@@ -170,7 +170,7 @@ TEST_F(TransformationTestsF, ShapeNopSubGraphTestGatherv8) {
 
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, false);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
-        manager.register_pass<pass::SimplifyShapeOfSubGraph>();
+        manager.register_pass<ov::pass::SimplifyShapeOfSubGraph>();
     }
     {
         auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
@@ -195,6 +195,6 @@ TEST_F(TransformationTestsF, GroupedGatherEliminationNegative) {
 
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, true);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
-        manager.register_pass<pass::GroupedGatherElimination>();
+        manager.register_pass<ov::pass::GroupedGatherElimination>();
     }
 }

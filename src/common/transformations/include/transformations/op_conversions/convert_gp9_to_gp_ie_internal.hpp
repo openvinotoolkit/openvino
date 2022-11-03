@@ -20,9 +20,3 @@ public:
     OPENVINO_RTTI("ConvertGP9ToGPIEInternal", "0");
     ConvertGP9ToGPIEInternal();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertGP9ToGPIEInternal;
-}  // namespace pass
-}  // namespace ngraph

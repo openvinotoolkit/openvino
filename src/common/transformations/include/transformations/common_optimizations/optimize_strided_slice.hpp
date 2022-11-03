@@ -70,12 +70,3 @@ public:
 private:
     bool m_use_shapes = true;
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::GroupedStridedSliceOptimizer;
-using ov::pass::SharedStridedSliceEraser;
-using ov::pass::StridedSliceOptimization;
-using ov::pass::UselessStridedSliceEraser;
-}  // namespace pass
-}  // namespace ngraph

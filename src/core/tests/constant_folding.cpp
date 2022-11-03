@@ -3252,7 +3252,7 @@ TEST(constant_folding, disable_constant_folding) {
     // will request values from this sub-graph and ConstantFolding pass will try to use this pre-calculated values
     // to fold it. But in our case we are disabling CF for this sub-graph first and then enable CF to check that all
     // checks inside ConstantFolding transformation are working and doesn't cache anytihng.
-    auto gather = op::util::node_to_get_shape_value_of_indices_from_shape_source(data, {2, 3});
+    auto gather = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(data, {2, 3});
     auto convert = std::make_shared<opset5::Convert>(gather, element::f16);
     auto divide_constant = op::Constant::create(element::f16, Shape{1}, {0.5});
     auto divide = std::make_shared<opset5::Divide>(convert, divide_constant);

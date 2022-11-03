@@ -99,14 +99,3 @@ public:
         add_matcher<ov::pass::PadFusionGroupConvolutionBackpropData>();
     }
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::PadFusion;
-using ov::pass::PadFusionAvgPool;
-using ov::pass::PadFusionConvolution;
-using ov::pass::PadFusionConvolutionBackpropData;
-using ov::pass::PadFusionGroupConvolution;
-using ov::pass::PadFusionGroupConvolutionBackpropData;
-}  // namespace pass
-}  // namespace ngraph

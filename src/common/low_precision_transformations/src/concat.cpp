@@ -178,7 +178,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
     }
 
     if (!mulConstants.empty()) {
-        const auto multiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+        const auto multiply = std::make_shared<ov::op::TypeRelaxed<opset1::Multiply>>(
             opset1::Multiply(
                 lastDequantization,
                 NetworkHelper::toScalarIfPossible(mulConstants.size() == 1ul ?

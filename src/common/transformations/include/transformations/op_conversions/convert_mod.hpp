@@ -22,9 +22,3 @@ public:
     OPENVINO_RTTI("ConvertMod", "0");
     ConvertMod();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertMod;
-}  // namespace pass
-}  // namespace ngraph

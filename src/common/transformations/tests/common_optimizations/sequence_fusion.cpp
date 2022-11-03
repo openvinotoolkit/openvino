@@ -67,7 +67,7 @@ namespace {
             } else if (rnn_type == RNN_TYPE::RNN) {
                 cell = make_shared<RNNCell>(X, cur_H, W, R, B, hidden_size);
             } else if (rnn_type == RNN_TYPE::AUGRU) {
-                cell = make_shared<op::internal::AUGRUCell>(X, cur_H, W, R, B, A, hidden_size);
+                cell = make_shared<ov::op::internal::AUGRUCell>(X, cur_H, W, R, B, A, hidden_size);
             }
             cur_H = cell->output(0);
             hidden_vec.push_back(make_shared<Unsqueeze>(cur_H, axis_1));
@@ -144,7 +144,7 @@ namespace {
         } else if (rnn_type == RNN_TYPE::RNN) {
             seq = make_shared<RNNSequence>(concat_X, unH, seq_len, unW, unR, unB, hidden_size, op::RecurrentSequenceDirection::FORWARD);
         } else if (rnn_type == RNN_TYPE::AUGRU) {
-            seq = make_shared<op::internal::AUGRUSequence>(concat_X, unH, seq_len, unW, unR, unB, concat_A, hidden_size);
+            seq = make_shared<ov::op::internal::AUGRUSequence>(concat_X, unH, seq_len, unW, unR, unB, concat_A, hidden_size);
         }
 
         auto squeeze_H = make_shared<Squeeze>(seq->output(0), axis_1);
@@ -186,7 +186,7 @@ TEST_P(SequenceFusionTest, SequencePattern) {
     {
         function = gen_model(p.rnn_type, p.batch,
                              p.hidden_size, p.input_size, p.cell_cnt);
-        manager.register_pass<pass::SequenceFusion>();
+        manager.register_pass<ov::pass::SequenceFusion>();
     }
 
     // the transformation won't be applied for single cell

@@ -94,7 +94,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
 
     std::shared_ptr<Node> lastOperation = fakeQuantize;
     if (addNotPrecisionPreservedOperation) {
-        lastOperation = std::make_shared<op::TypeRelaxed<opset1::AvgPool>>(
+        lastOperation = std::make_shared<ov::op::TypeRelaxed<opset1::AvgPool>>(
             std::vector<element::Type>{element::f32}, std::vector<element::Type>{element::f32},
             ov::op::TemporaryReplaceOutputType(fakeQuantize, element::f32).get(),
             Strides{ 1, 1 },

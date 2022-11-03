@@ -11,19 +11,19 @@
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "ov_ops/nms_static_shape_ie.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 namespace internal {
 using NmsStaticShapeIE8 = ov::op::internal::NmsStaticShapeIE<ov::opset8::MatrixNms>;
 }
 }  // namespace op
-}  // namespace ngraph
+}  // namespace ov
 
 namespace ov {
 namespace intel_gpu {
 
 namespace {
-void CreateNmsStaticShapeIE8Op(Program& p, const std::shared_ptr<ngraph::op::internal::NmsStaticShapeIE8>& op) {
+void CreateNmsStaticShapeIE8Op(Program& p, const std::shared_ptr<ov::op::internal::NmsStaticShapeIE8>& op) {
     validate_inputs_count(op, {2});
     auto inputs = p.GetInputInfo(op);
 

@@ -61,11 +61,3 @@ private:
 }  // namespace internal
 }  // namespace op
 }  // namespace ov
-
-namespace ngraph {
-namespace op {
-namespace internal {
-using ov::op::internal::NonMaxSuppressionIEInternal;
-}  // namespace internal
-}  // namespace op
-}  // namespace ngraph

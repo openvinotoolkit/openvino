@@ -22,9 +22,3 @@ public:
     OPENVINO_RTTI("PullTransposeThroughFQUp", "0");
     PullTransposeThroughFQUp();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::PullTransposeThroughFQUp;
-}  // namespace pass
-}  // namespace ngraph

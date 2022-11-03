@@ -44,7 +44,7 @@ TEST_F(TransformationTestsF, GeluFusionPatternOne) {
 
         function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
-        manager.register_pass<pass::GeluFusionWithErfOne>();
+        manager.register_pass<ov::pass::GeluFusionWithErfOne>();
     }
 
     {
@@ -76,7 +76,7 @@ TEST_F(TransformationTestsF, GeluFusionPatternTwo) {
 
         function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
-        manager.register_pass<pass::GeluFusionWithErfTwo>();
+        manager.register_pass<ov::pass::GeluFusionWithErfTwo>();
     }
 
     {
@@ -108,7 +108,7 @@ TEST_F(TransformationTestsF, GeluFusionPatternThree) {
 
         function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
-        manager.register_pass<pass::GeluFusionWithErfThree>();
+        manager.register_pass<ov::pass::GeluFusionWithErfThree>();
     }
 
     {
@@ -174,7 +174,7 @@ TEST_F(TransformationTestsF, GeluFusionPatternIncorrectDivConstValue) {
         function_ref =
             std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
-        manager.register_pass<pass::GeluFusionWithErfTwo>();
+        manager.register_pass<ov::pass::GeluFusionWithErfTwo>();
     }
 }
 
@@ -200,7 +200,7 @@ TEST_F(TransformationTestsF, GeluFusionPatternTooShortDivConstValue) {
         function_ref =
             std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
-        manager.register_pass<pass::GeluFusionWithErfTwo>();
+        manager.register_pass<ov::pass::GeluFusionWithErfTwo>();
     }
 }
 
@@ -228,7 +228,7 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_equal_const_values) {
         auto mul_3 =  std::make_shared<opset9::Multiply>(input, mul_2);
 
         function = std::make_shared<Function>(NodeVector{mul_3}, ParameterVector{input});
-        manager.register_pass<pass::GeluFusionWithTanh>();
+        manager.register_pass<ov::pass::GeluFusionWithTanh>();
     }
 
     {
@@ -264,7 +264,7 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_params_no_conversion) {
 
         function = std::make_shared<Function>(NodeVector{mul_3},
                                               ParameterVector{input, pow_param, mul_0_param, mul_1_param, add_1_param, mul_2_param});
-        manager.register_pass<pass::GeluFusionWithTanh>();
+        manager.register_pass<ov::pass::GeluFusionWithTanh>();
     }
 }
 
@@ -292,7 +292,7 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_pow_value) {
         auto mul_3 =  std::make_shared<opset9::Multiply>(input, mul_2);
 
         function = std::make_shared<Function>(NodeVector{mul_3}, ParameterVector{input});
-        manager.register_pass<pass::GeluFusionWithTanh>();
+        manager.register_pass<ov::pass::GeluFusionWithTanh>();
     }
 
     {
@@ -328,7 +328,7 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_pow_value) {
         auto mul_3 =  std::make_shared<opset9::Multiply>(input, mul_2);
 
         function = std::make_shared<Function>(NodeVector{mul_3}, ParameterVector{input});
-        manager.register_pass<pass::GeluFusionWithTanh>();
+        manager.register_pass<ov::pass::GeluFusionWithTanh>();
     }
 }
 
@@ -356,7 +356,7 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_mul_0_value) {
         auto mul_3 =  std::make_shared<opset9::Multiply>(input, mul_2);
 
         function = std::make_shared<Function>(NodeVector{mul_3}, ParameterVector{input});
-        manager.register_pass<pass::GeluFusionWithTanh>();
+        manager.register_pass<ov::pass::GeluFusionWithTanh>();
     }
 
     {
@@ -392,7 +392,7 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_mul_0_value) {
         auto mul_3 =  std::make_shared<opset9::Multiply>(input, mul_2);
 
         function = std::make_shared<Function>(NodeVector{mul_3}, ParameterVector{input});
-        manager.register_pass<pass::GeluFusionWithTanh>();
+        manager.register_pass<ov::pass::GeluFusionWithTanh>();
     }
 }
 
@@ -419,7 +419,7 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_mul_1_value) {
         auto mul_3 =  std::make_shared<opset9::Multiply>(input, mul_2);
 
         function = std::make_shared<Function>(NodeVector{mul_3}, ParameterVector{input});
-        manager.register_pass<pass::GeluFusionWithTanh>();
+        manager.register_pass<ov::pass::GeluFusionWithTanh>();
     }
 
     {
@@ -455,7 +455,7 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_mul_1_value) {
         auto mul_3 =  std::make_shared<opset9::Multiply>(input, mul_2);
 
         function = std::make_shared<Function>(NodeVector{mul_3}, ParameterVector{input});
-        manager.register_pass<pass::GeluFusionWithTanh>();
+        manager.register_pass<ov::pass::GeluFusionWithTanh>();
     }
 }
 
@@ -483,7 +483,7 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_add_1_value) {
         auto mul_3 =  std::make_shared<opset9::Multiply>(input, mul_2);
 
         function = std::make_shared<Function>(NodeVector{mul_3}, ParameterVector{input});
-        manager.register_pass<pass::GeluFusionWithTanh>();
+        manager.register_pass<ov::pass::GeluFusionWithTanh>();
     }
 
     {
@@ -519,7 +519,7 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_add_1_value) {
         auto mul_3 =  std::make_shared<opset9::Multiply>(input, mul_2);
 
         function = std::make_shared<Function>(NodeVector{mul_3}, ParameterVector{input});
-        manager.register_pass<pass::GeluFusionWithTanh>();
+        manager.register_pass<ov::pass::GeluFusionWithTanh>();
     }
 }
 
@@ -547,7 +547,7 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_epsilon_mul_2_value) {
         auto mul_3 =  std::make_shared<opset9::Multiply>(input, mul_2);
 
         function = std::make_shared<Function>(NodeVector{mul_3}, ParameterVector{input});
-        manager.register_pass<pass::GeluFusionWithTanh>();
+        manager.register_pass<ov::pass::GeluFusionWithTanh>();
     }
 
     {
@@ -583,6 +583,6 @@ TEST_F(TransformationTestsF, GeluFusionTanhWithTanh_wrong_mul_2_value) {
         auto mul_3 =  std::make_shared<opset9::Multiply>(input, mul_2);
 
         function = std::make_shared<Function>(NodeVector{mul_3}, ParameterVector{input});
-        manager.register_pass<pass::GeluFusionWithTanh>();
+        manager.register_pass<ov::pass::GeluFusionWithTanh>();
     }
 }

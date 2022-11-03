@@ -27,9 +27,3 @@ public:
     OPENVINO_RTTI("NormalizeL2Decomposition", "0");
     NormalizeL2Decomposition();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::NormalizeL2Decomposition;
-}  // namespace pass
-}  // namespace ngraph

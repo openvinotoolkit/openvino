@@ -24,9 +24,3 @@ public:
     OPENVINO_RTTI("HSwishDecomposition", "0");
     HSwishDecomposition();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::HSwishDecomposition;
-}  // namespace pass
-}  // namespace ngraph

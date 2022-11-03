@@ -28,9 +28,3 @@ public:
     OPENVINO_RTTI("InterpolateSequenceFusion", "0");
     InterpolateSequenceFusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::InterpolateSequenceFusion;
-}  // namespace pass
-}  // namespace ngraph

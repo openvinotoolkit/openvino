@@ -143,7 +143,7 @@ TEST_P(GRUFusionTest, GRUCellPattern) {
     {
         model = gen_model(p.format, p.activation_1, p.activation_2, p.batch,
                              p.hidden_size, p.input_size, p.use_bias_add_1, p.use_bias_add_2, false);
-        manager.register_pass<pass::GRUCellFusion>();
+        manager.register_pass<ov::pass::GRUCellFusion>();
     }
 
     {
@@ -163,7 +163,7 @@ TEST_P(GRUFusionTestDyn, GRUCellPatternDynamicShapes) {
     const auto& p = GetParam();
     {
         model = gen_model(p.format, p.activation_1, p.activation_2, p.batch, p.hidden_size, p.input_size, false, false, true);
-        manager.register_pass<pass::GRUCellFusion>(); // the transformation won't be applied
+        manager.register_pass<ov::pass::GRUCellFusion>(); // the transformation won't be applied
     }
 }
 

@@ -175,10 +175,10 @@ ngraph::pass::ConvertMulAddToScaleShiftOrPower::ConvertMulAddToScaleShiftOrPower
             ngraph::replace_node(m.get_match_root(), scaleshift);
         } else {
             float scale = 0.f, shift = 0.f;
-            if (!op::util::get_single_value(const_weights_node, scale)) {
+            if (!ov::op::util::get_single_value(const_weights_node, scale)) {
                 return false;
             }
-            if (!op::util::get_single_value(const_bias_node, shift)) {
+            if (!ov::op::util::get_single_value(const_bias_node, shift)) {
                 return false;
             }
 

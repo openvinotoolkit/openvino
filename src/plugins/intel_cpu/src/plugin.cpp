@@ -406,7 +406,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                 node)) {
             return augru_seq->get_clip() == 0.0f &&
                    augru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
-                   !ngraph::op::util::is_seq_len_provided(augru_seq->get_input_node_shared_ptr(2),
+                   !ov::op::util::is_seq_len_provided(augru_seq->get_input_node_shared_ptr(2),
                                                           max_seq_len);
         } else if (const auto &lstm_seq = std::dynamic_pointer_cast<const ngraph::opset6::LSTMSequence>(
                 node)) {

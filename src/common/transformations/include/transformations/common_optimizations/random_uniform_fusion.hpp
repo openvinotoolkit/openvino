@@ -26,9 +26,3 @@ public:
     OPENVINO_RTTI("RandomUniformFusion", "0");
     RandomUniformFusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::RandomUniformFusion;
-}  // namespace pass
-}  // namespace ngraph

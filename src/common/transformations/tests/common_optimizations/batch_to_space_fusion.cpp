@@ -34,7 +34,7 @@ TEST_F(TransformationTestsF, BatchToSpaceFusionTranspose) {
                 std::vector<int64_t>{0, 0, 0, 0}, std::vector<int64_t>{0, 0, 0, 0});
         auto trans_after = std::make_shared<opset6::Transpose>(slice, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
         function = std::make_shared<Function>(NodeVector{trans_after}, ParameterVector{data});
-        manager.register_pass<pass::BatchToSpaceFusion>();
+        manager.register_pass<ov::pass::BatchToSpaceFusion>();
     }
 
     {
@@ -58,7 +58,7 @@ TEST_F(TransformationTestsF, BatchToSpaceFusionReshape) {
                 std::vector<int64_t>{0, 0, 0, 0}, std::vector<int64_t>{0, 0, 0, 0});
         auto reshape_after = std::make_shared<opset6::Reshape>(slice, op::Constant::create(element::i64, Shape{4}, {1, 2, 4, 14}), false);
         function = std::make_shared<Function>(NodeVector{reshape_after}, ParameterVector{data});
-        manager.register_pass<pass::BatchToSpaceFusion>();
+        manager.register_pass<ov::pass::BatchToSpaceFusion>();
     }
 
     {
@@ -82,7 +82,7 @@ TEST_F(TransformationTestsF, NegativeBatchToSpaceFusionInvalidTransposePerm) {
                 std::vector<int64_t>{0, 0, 0, 0}, std::vector<int64_t>{0, 0, 0, 0});
         auto trans_after = std::make_shared<opset6::Transpose>(slice, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
         function = std::make_shared<Function>(NodeVector{trans_after}, ParameterVector{data});
-        manager.register_pass<pass::BatchToSpaceFusion>();
+        manager.register_pass<ov::pass::BatchToSpaceFusion>();
     }
 
     {
@@ -109,7 +109,7 @@ TEST_F(TransformationTestsF, NegativeBatchToSpaceFusionInvalidMode) {
                 std::vector<int64_t>{0, 0, 0, 0}, std::vector<int64_t>{0, 0, 0, 0});
         auto trans_after = std::make_shared<opset6::Transpose>(slice, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
         function = std::make_shared<Function>(NodeVector{trans_after}, ParameterVector{data});
-        manager.register_pass<pass::BatchToSpaceFusion>();
+        manager.register_pass<ov::pass::BatchToSpaceFusion>();
     }
 
     {
@@ -136,7 +136,7 @@ TEST_F(TransformationTestsF, NegativeBatchToSpaceFusionInvalidRank) {
                 std::vector<int64_t>{0, 0, 0, 0, 0}, std::vector<int64_t>{0, 0, 0, 0, 0});
         auto trans_after = std::make_shared<opset6::Transpose>(slice, op::Constant::create(element::i64, Shape{5}, {1, 0, 2, 3, 4}));
         function = std::make_shared<Function>(NodeVector{trans_after}, ParameterVector{data});
-        manager.register_pass<pass::BatchToSpaceFusion>();
+        manager.register_pass<ov::pass::BatchToSpaceFusion>();
     }
     {
         auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{16, 3, 4, 8, 8});
@@ -148,7 +148,7 @@ TEST_F(TransformationTestsF, NegativeBatchToSpaceFusionInvalidRank) {
                 std::vector<int64_t>{0, 0, 0, 0, 0}, std::vector<int64_t>{0, 0, 0, 0, 0});
         auto trans_after = std::make_shared<opset6::Transpose>(slice, op::Constant::create(element::i64, Shape{5}, {1, 0, 2, 3, 4}));
         function_ref = std::make_shared<Function>(NodeVector{trans_after}, ParameterVector{data});
-        manager.register_pass<pass::BatchToSpaceFusion>();
+        manager.register_pass<ov::pass::BatchToSpaceFusion>();
     }
 }
 

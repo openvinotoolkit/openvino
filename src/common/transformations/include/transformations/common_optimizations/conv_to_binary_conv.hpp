@@ -75,9 +75,3 @@ public:
     OPENVINO_RTTI("ConvToBinaryConv", "0");
     ConvToBinaryConv();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvToBinaryConv;
-}  // namespace pass
-}  // namespace ngraph

@@ -27,9 +27,3 @@ public:
     OPENVINO_RTTI("ConvertInterpolate1ToInterpolate4", "0");
     ConvertInterpolate1ToInterpolate4();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertInterpolate1ToInterpolate4;
-}  // namespace pass
-}  // namespace ngraph

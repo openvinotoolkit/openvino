@@ -41,7 +41,7 @@ TEST_F(TransformationTestsF, ConvertMatrixNmsToMatrixNmsIE) {
     {
         auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
-        auto nms = std::make_shared<op::internal::NmsStaticShapeIE<ngraph::opset8::MatrixNms>>(boxes, scores, opset8::MatrixNms::Attributes());
+        auto nms = std::make_shared<ov::op::internal::NmsStaticShapeIE<ngraph::opset8::MatrixNms>>(boxes, scores, opset8::MatrixNms::Attributes());
 
         function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }

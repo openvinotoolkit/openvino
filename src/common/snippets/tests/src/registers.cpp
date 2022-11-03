@@ -35,7 +35,7 @@ TEST(TransformationTests, AssignRegisters) {
         f = std::make_shared<Function>(NodeVector{s00}, ParameterVector{p0, p1});
 
         pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<snippets::pass::AssignRegisters>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -122,7 +122,7 @@ TEST(TransformationTests, AssignRegisters2) {
         f = std::make_shared<Function>(NodeVector{s00}, ParameterVector{p0, p1, p2, p3, p4, p5, p6, p7});
 
         pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<snippets::pass::AssignRegisters>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));

@@ -36,7 +36,7 @@ std::shared_ptr<Node> convert(const Output<Node> & data, std::shared_ptr<op::Con
 
     Shape new_weights_shape(node->input_value(1).get_shape());
     new_weights_shape.insert(new_weights_shape.begin() + 2, 1);
-    auto weights = op::util::reshapeTo(node->input_value(1), new_weights_shape);
+    auto weights = ov::op::util::reshapeTo(node->input_value(1), new_weights_shape);
     new_ops.push_back(weights);
 
     if (node->inputs().size() == 2) {
@@ -124,7 +124,7 @@ matcher_pass_callback get_callback() {
         NodeVector new_ops;
 
         // Reshape(input_shape)->Op->Reshape(output_shape)
-        Output<Node> last = op::util::reshapeTo(node->input_value(0), input_shape);
+        Output<Node> last = ov::op::util::reshapeTo(node->input_value(0), input_shape);
         last.get_node_shared_ptr()->set_friendly_name(node->get_friendly_name() + "/reshape_begin");
         new_ops.push_back(last.get_node_shared_ptr());
 
@@ -141,7 +141,7 @@ matcher_pass_callback get_callback() {
         last.get_node_shared_ptr()->set_friendly_name(node->get_friendly_name() + "/new");
         new_ops.push_back(last.get_node_shared_ptr());
 
-        last = op::util::reshapeTo(last, output_shape);
+        last = ov::op::util::reshapeTo(last, output_shape);
         last.get_node_shared_ptr()->set_friendly_name(node->get_friendly_name());
         new_ops.push_back(last.get_node_shared_ptr());
 

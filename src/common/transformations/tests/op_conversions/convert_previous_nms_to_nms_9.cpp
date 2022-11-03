@@ -37,7 +37,7 @@ TEST_F(TransformationTestsF, ConvertNMS5SixInputsToNMS9) {
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS5ToNMS9>();
+        manager.register_pass<ov::pass::ConvertNMS5ToNMS9>();
     }
 
     {
@@ -62,7 +62,7 @@ TEST_F(TransformationTestsF, ConvertNMS5TwoInputsToNMS9) {
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS5ToNMS9>();
+        manager.register_pass<ov::pass::ConvertNMS5ToNMS9>();
     }
 
     {
@@ -91,7 +91,7 @@ TEST_F(TransformationTestsF, ConvertNMS4FiveInputsToNMS9) {
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS4ToNMS9>();
+        manager.register_pass<ov::pass::ConvertNMS4ToNMS9>();
     }
 
     {
@@ -116,7 +116,7 @@ TEST_F(TransformationTestsF, ConvertNMS4TwoInputsToNMS9) {
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS4ToNMS9>();
+        manager.register_pass<ov::pass::ConvertNMS4ToNMS9>();
     }
 
     {
@@ -145,7 +145,7 @@ TEST_F(TransformationTestsF, ConvertNMS3FiveInputsToNMS9) {
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS3ToNMS9>();
+        manager.register_pass<ov::pass::ConvertNMS3ToNMS9>();
     }
 
     {
@@ -170,7 +170,7 @@ TEST_F(TransformationTestsF, ConvertNMS3TwoInputsToNMS9) {
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS3ToNMS9>();
+        manager.register_pass<ov::pass::ConvertNMS3ToNMS9>();
     }
 
     {
@@ -199,7 +199,7 @@ TEST_F(TransformationTestsF, ConvertNMS1FiveInputsToNMS9) {
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS1ToNMS9>();
+        manager.register_pass<ov::pass::ConvertNMS1ToNMS9>();
     }
 
     {
@@ -224,7 +224,7 @@ TEST_F(TransformationTestsF, ConvertNMS1TwoInputsToNMS9) {
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNMS1ToNMS9>();
+        manager.register_pass<ov::pass::ConvertNMS1ToNMS9>();
     }
 
     {

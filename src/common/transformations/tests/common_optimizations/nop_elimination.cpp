@@ -41,7 +41,7 @@ TEST(nop_elimination, eliminate_convert) {
     }
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<op::v0::Convert>(f), 0);
@@ -60,8 +60,8 @@ TEST(nop_elimination, convert_type_agnostic) {
     }
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::Validate>();
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::Validate>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<op::v0::Convert>(f), 0);
@@ -78,7 +78,7 @@ TEST(nop_elimination, eliminate_broadcast) {
     }
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::Broadcast>(f), 0);
@@ -106,7 +106,7 @@ TEST(nop_elimination, reshape_elimination_v1) {
     auto nopass_func_zero = generate_func(true);
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(func);
     pass_manager.run_passes(func_zero);
     ASSERT_TRUE(count_ops_of_type<op::v1::Reshape>(nopass_func) == 2);
@@ -137,8 +137,8 @@ TEST(nop_elimination, squeeze_reshape_elimination_check_info) {
     }
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::InitNodeInfo>();
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::InitNodeInfo>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
 
     bool movement_are_missing = true;
@@ -172,8 +172,8 @@ TEST(nop_elimination, squeeze_unsqueeze_elimination) {
     }
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::InitNodeInfo>();
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::InitNodeInfo>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
 
     bool movement_are_missing = true;
@@ -192,7 +192,7 @@ TEST(nop_elimination, reshape_elimination_v1_dynamic) {
     auto abs = std::make_shared<op::v0::Abs>(reshape_v1);
     auto f = std::make_shared<Function>(NodeVector{abs}, ParameterVector{arg, pattern});
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
     ASSERT_TRUE(count_ops_of_type<op::v1::Reshape>(f) == 1);
 }
@@ -217,8 +217,8 @@ TEST(nop_elimination, reshape_elimination_v1_check_consumer_count) {
     }
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::InitNodeInfo>();
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::InitNodeInfo>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
 
     ASSERT_TRUE(count_ops_of_type<op::v1::Reshape>(f) == 2);
@@ -231,8 +231,8 @@ TEST(nop_elimination, concat_elimination_single_node) {
         make_shared<Function>(make_shared<op::v0::Concat>(NodeVector{A}, a), ParameterVector{A});
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::Validate>();
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::Validate>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<op::v0::Concat>(f), 1);
@@ -245,8 +245,8 @@ TEST(nop_elimination, concat_elimination_single_input) {
     auto f = make_shared<Function>(make_shared<op::v0::Abs>(B), ParameterVector{A});
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::Validate>();
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::Validate>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<op::v0::Concat>(f), 0);
@@ -259,8 +259,8 @@ TEST(nop_elimination, concat_elimination_single_input_dynamic) {
     auto f = make_shared<Function>(make_shared<op::v0::Abs>(B), ParameterVector{A});
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::Validate>();
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::Validate>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<op::v0::Concat>(f), 0);
@@ -274,8 +274,8 @@ TEST(nop_elimination, unsqueeze_elimination) {
     auto f = make_shared<Function>(unsqueeze, ParameterVector{A});
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::Validate>();
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::Validate>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<op::v0::Unsqueeze>(f), 1);
@@ -340,8 +340,8 @@ TEST(nop_elimination, squeeze_unsqueeze_overlap_elimination) {
         auto optimized_f = clone_function(*baseline_f);
 
         pass::Manager pass_manager;
-        pass_manager.register_pass<pass::Validate>();
-        pass_manager.register_pass<pass::NopElimination>();
+        pass_manager.register_pass<ov::pass::Validate>();
+        pass_manager.register_pass<ov::pass::NopElimination>();
         pass_manager.run_passes(optimized_f);
 
         auto ps = baseline_f->get_results()[0]->get_output_partial_shape(0);
@@ -553,8 +553,8 @@ TEST(nop_elimination, squeeze_squeeze_overlap_elimination) {
         auto optimized_f = clone_function(*baseline_f);
 
         pass::Manager pass_manager;
-        pass_manager.register_pass<pass::Validate>();
-        pass_manager.register_pass<pass::NopElimination>();
+        pass_manager.register_pass<ov::pass::Validate>();
+        pass_manager.register_pass<ov::pass::NopElimination>();
         pass_manager.run_passes(optimized_f);
         auto ps = baseline_f->get_results()[0]->get_output_partial_shape(0);
         auto ps_r = optimized_f->get_results()[0]->get_output_partial_shape(0);
@@ -592,8 +592,8 @@ TEST(nop_elimination, unsqueeze_unsqueeze_overlap_elimination) {
         auto optimized_f = clone_function(*baseline_f);
 
         pass::Manager pass_manager;
-        pass_manager.register_pass<pass::Validate>();
-        pass_manager.register_pass<pass::NopElimination>();
+        pass_manager.register_pass<ov::pass::Validate>();
+        pass_manager.register_pass<ov::pass::NopElimination>();
         pass_manager.run_passes(optimized_f);
         auto ps = baseline_f->get_results()[0]->get_output_partial_shape(0);
         auto ps_r = optimized_f->get_results()[0]->get_output_partial_shape(0);
@@ -858,8 +858,8 @@ TEST(nop_elimination, gather_3d_indices_constant_axis_1) {
         auto optimized_f = clone_function(*baseline_f);
 
         pass::Manager pass_manager;
-        pass_manager.register_pass<pass::Validate>();
-        pass_manager.register_pass<pass::NopElimination>();
+        pass_manager.register_pass<ov::pass::Validate>();
+        pass_manager.register_pass<ov::pass::NopElimination>();
         pass_manager.run_passes(optimized_f);
 
         auto ps = baseline_f->get_results()[0]->get_output_partial_shape(0);
@@ -1042,7 +1042,7 @@ TEST_P(EliminateEltwiseTests, eliminate_eltwise) {
     auto abs = make_shared<opset8::Abs>(node);
     function = make_shared<Function>(abs, ParameterVector{parameter});
 
-    manager.register_pass<pass::NopElimination>();
+    manager.register_pass<ov::pass::NopElimination>();
 
     if (can_fuse) {
         auto abs = make_shared<opset8::Abs>(parameter);
@@ -1132,7 +1132,7 @@ TEST_F(TransformationTestsF, eliminate_eltwise_dequantization_subgraph) {
         function_ref = make_shared<Function>(mul, ParameterVector{});
     }
 
-    manager.register_pass<pass::NopElimination>();
+    manager.register_pass<ov::pass::NopElimination>();
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
@@ -1221,8 +1221,8 @@ TEST_P(SplitConcatElimination, eliminate_split_concat_subgraph) {
     auto model = make_shared<ov::Model>(ResultVector{res}, ParameterVector{params});
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::Validate>();
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::Validate>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(model);
 
     // the transformation won't be applied if split_len is not equal to 1
@@ -1267,8 +1267,8 @@ TEST(SplitConcatElimination, split_inputs_not_in_order) {
     auto model = make_shared<ov::Model>(ResultVector{res}, ParameterVector{param});
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::Validate>();
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::Validate>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(model);
     // the transformation shouldn't be applied
     EXPECT_EQ(count_ops_of_type<ov::opset9::Concat>(model), 1) << "SplitConcatElimination transformation has failed. "
@@ -1293,8 +1293,8 @@ TEST(SplitConcatElimination, no_sequence_found) {
     auto model = make_shared<ov::Model>(ResultVector{res}, ParameterVector{param, param_2});
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::Validate>();
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::Validate>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(model);
     // the transformation shouldn't be applied
     EXPECT_EQ(count_ops_of_type<ov::opset9::Concat>(model), 1) << "SplitConcatElimination transformation has failed. "

@@ -125,7 +125,7 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
         }
     }
 
-    auto newNormalize = std::make_shared<op::TypeRelaxed<opset1::NormalizeL2>>(
+    auto newNormalize = std::make_shared<ov::op::TypeRelaxed<opset1::NormalizeL2>>(
         std::vector<ngraph::element::Type>{ element::f32, axes->output(0).get_element_type() },
         std::vector<ngraph::element::Type>{deqPrecision},
         ov::op::TemporaryReplaceOutputType(dequantization.subtract == nullptr ? dequantization.data : dequantization.subtract, element::f32).get(),
@@ -134,7 +134,7 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
         normalize->get_eps_mode());
     NetworkHelper::copyInfo(normalize, newNormalize);
 
-    auto newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+    auto newMultiply = std::make_shared<ov::op::TypeRelaxed<opset1::Multiply>>(
         std::vector<ngraph::element::Type>{ element::f32, element::f32 },
         std::vector<ngraph::element::Type>{normalize->get_output_element_type(0)},
         ov::op::TemporaryReplaceOutputType(newNormalize, element::f32).get(),

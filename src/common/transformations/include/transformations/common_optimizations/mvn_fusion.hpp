@@ -55,11 +55,3 @@ public:
         add_matcher<ov::pass::MVNFusionWithConstantsInside>();
     }
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::MVNFusion;
-using ov::pass::MVNFusionWithConstantsInside;
-using ov::pass::MVNFusionWithoutConstants;
-}  // namespace pass
-}  // namespace ngraph

@@ -40,10 +40,3 @@ public:
     OPENVINO_RTTI("EliminateGatherUnsqueeze", "0");
     EliminateGatherUnsqueeze();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::EliminateGatherUnsqueeze;
-using ov::pass::EliminateUnsqueezeGather;
-}  // namespace pass
-}  // namespace ngraph

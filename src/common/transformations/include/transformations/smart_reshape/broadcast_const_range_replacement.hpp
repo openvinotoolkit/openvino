@@ -26,9 +26,3 @@ public:
     OPENVINO_RTTI("BroadcastConstRangeReplacement", "0");
     BroadcastConstRangeReplacement();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::BroadcastConstRangeReplacement;
-}  // namespace pass
-}  // namespace ngraph

@@ -35,7 +35,7 @@ TEST_F(TransformationTestsF, test_convert_to_unsigned_nms_gather_1) {
 
         function = make_shared<Function>(NodeVector{gather}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNmsGatherPathToUnsigned>();
+        manager.register_pass<ov::pass::ConvertNmsGatherPathToUnsigned>();
     }
 
     {
@@ -79,7 +79,7 @@ TEST_F(TransformationTestsF, test_convert_to_unsigned_nms_gather_2) {
 
         function = make_shared<Function>(NodeVector{gather}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNmsGatherPathToUnsigned>();
+        manager.register_pass<ov::pass::ConvertNmsGatherPathToUnsigned>();
     }
 
     {
@@ -123,7 +123,7 @@ TEST_F(TransformationTestsF, test_convert_to_unsigned_nms_gather_with_onnx_slice
 
         function = make_shared<Function>(NodeVector{gather}, ParameterVector{boxes, scores});
 
-        manager.register_pass<pass::ConvertNmsGatherPathToUnsigned>();
+        manager.register_pass<ov::pass::ConvertNmsGatherPathToUnsigned>();
     }
 
     {
@@ -158,8 +158,8 @@ TEST(TransformationTests, test_convert_to_unsigned_nms_gather_3) {
     shared_ptr<Function> f = make_shared<Function>(NodeVector{gather}, ParameterVector{boxes, scores});
 
     pass::Manager manager;
-    manager.register_pass<pass::InitNodeInfo>();
-    manager.register_pass<pass::ConvertNmsGatherPathToUnsigned>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::ConvertNmsGatherPathToUnsigned>();
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_EQ(count_ops_of_type<opset1::Convert>(f), 0);

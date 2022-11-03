@@ -132,7 +132,7 @@ TEST_F(TransformationTestsF, RICFusionSimple) {
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -173,7 +173,7 @@ TEST_F(TransformationTestsF, RICFusionHard) {
 
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
     {
         auto input = create_param({ -1, -1, -1, -1 });
@@ -212,7 +212,7 @@ TEST_F(TransformationTestsF, RICFusionDynamic) {
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -235,7 +235,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise1) {
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -260,7 +260,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise2) {
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -284,7 +284,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise3) {
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -308,7 +308,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise4) {
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -333,7 +333,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise5) {
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -359,7 +359,7 @@ TEST_F(TransformationTestsF, RICFusionEltwiseNegative) {
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input, input2 });
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
 
@@ -373,7 +373,7 @@ TEST_F(TransformationTestsF, RICFusionEltwiseTwoRIC) {
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input, input2 });
         apply_reverse_input_channels(function, {{0, "NCHW"}, {1, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
     {
         auto input = create_param({ 1, 3, 64, 64 });
@@ -397,7 +397,7 @@ TEST_F(TransformationTestsF, RICFusionEltwiseNegative3) {
         function = std::make_shared<Function>(NodeVector{ shapeof }, ParameterVector{ input });
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
 
@@ -411,7 +411,7 @@ TEST_F(TransformationTestsF, RICFusionGroupConv) {
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
     {
         auto input = create_param({ 1, 3, 64, 64 });
@@ -438,7 +438,7 @@ TEST_F(TransformationTestsF, RICFusionGroupConvNegative) {
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
 
@@ -452,7 +452,7 @@ TEST_F(TransformationTestsF, RICFusionTranspose) {
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
         apply_reverse_input_channels(function, {{0, "NHWC"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -478,7 +478,7 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay) {
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -509,7 +509,7 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay2) {
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -548,7 +548,7 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay3) {
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -580,7 +580,7 @@ TEST_F(TransformationTestsF, RICFusionShapeOf) {
         function = std::make_shared<Function>(NodeVector{ shape_of }, ParameterVector{ input });
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -603,7 +603,7 @@ TEST_F(TransformationTestsF, RICFusionGatherDetectionNegative) {
         auto conv = create_conv(relu, {6, 3, 3, 3});
 
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
 
@@ -616,7 +616,7 @@ TEST_F(TransformationTestsF, RICFusionGatherDetectionNegative2) {
         auto conv = create_conv(relu, {6, 3, 3, 3});
 
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input, input2 });
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
 
@@ -628,7 +628,7 @@ TEST_F(TransformationTestsF, RICFusionGatherDetectionNegative3) {
         auto conv = create_conv(relu, {6, 1, 3, 3});
 
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
 
@@ -640,7 +640,7 @@ TEST_F(TransformationTestsF, RICFusionGatherDetectionNegative4) {
         auto conv = create_conv(relu, {6, 2, 3, 3});
 
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
 
@@ -653,7 +653,7 @@ TEST_F(TransformationTestsF, RICFusionSplitConcatDetectionNegative) {
         auto conv = create_conv(relu, {6, 3, 3, 3});
 
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
 
@@ -667,7 +667,7 @@ TEST_F(TransformationTestsF, RICFusionSplitConcatDetectionNegative2) {
         auto conv = create_conv(relu, {6, 3, 3, 3});
 
         function = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
 
@@ -680,7 +680,7 @@ TEST_F(TransformationTestsF, RICFusionSplitConcatDetectionNegative3) {
         auto conv = create_conv(relu, {6, 3, 3, 3});
 
         function = std::make_shared<Function>(OutputVector{ conv, split->output(0) }, ParameterVector{ input });
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
 
@@ -726,7 +726,7 @@ TEST_F(TransformationTestsF, FuseScaleValue) {
         p.input(0).preprocess().scale(1.3);
         p.build();
 
-        manager.register_pass<pass::MOCTransformations>(false);
+        manager.register_pass<ov::pass::MOCTransformations>(false);
     }
 
     {
@@ -755,7 +755,7 @@ TEST_F(TransformationTestsF, FuseScaleValues) {
         p.input(0).preprocess().scale({1.3, 0.2, 4.1});
         p.build();
 
-        manager.register_pass<pass::MOCTransformations>(false);
+        manager.register_pass<ov::pass::MOCTransformations>(false);
     }
 
     {
@@ -1021,7 +1021,7 @@ TEST_F(TransformationTestsF, RICFusionNegativeUnsupported) {
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
 
@@ -1124,7 +1124,7 @@ TEST_F(TransformationTestsF, RICFusionTwoConvolutions) {
         function = std::make_shared<Function>(NodeVector{ conv2 }, ParameterVector{input});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
     {
         auto conv1_with_gather = create_conv_with_gather(input, create_weights({3, 3, 1, 1}), {2, 1, 0});
@@ -1143,7 +1143,7 @@ TEST_F(TransformationTestsF, RICFusionTwoConvolutionsTheSameWeights) {
         function = std::make_shared<Function>(NodeVector{ conv2 }, ParameterVector{input});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
     {
         auto conv1_with_gather = create_conv_with_gather(input, weights, {2, 1, 0});

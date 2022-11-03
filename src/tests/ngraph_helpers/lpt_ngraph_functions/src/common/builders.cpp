@@ -85,13 +85,13 @@ std::shared_ptr<Node> makeDequantization(
                 subtract = std::make_shared<opset1::Subtract>(subtractConst, parent);
         } else {
             if (dequantizationOperations.subtract.constantIndex == 1ul) {
-                subtract = std::make_shared<op::TypeRelaxed<ngraph::opset1::Subtract>>(
+                subtract = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Subtract>>(
                     std::vector<element::Type>{element::f32, element::f32},
                     std::vector<element::Type>{ element::f32 },
                     ov::op::TemporaryReplaceOutputType(parent, element::f32).get(),
                     ov::op::TemporaryReplaceOutputType(subtractConst, element::f32).get());
             } else {
-                subtract = std::make_shared<op::TypeRelaxed<ngraph::opset1::Subtract>>(
+                subtract = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Subtract>>(
                     std::vector<element::Type>{element::f32, element::f32},
                     std::vector<element::Type>{ element::f32 },
                     ov::op::TemporaryReplaceOutputType(subtractConst, element::f32).get(),
@@ -167,12 +167,12 @@ std::shared_ptr<Node> makeMultiply(const Output<Node>& parent, const Dequantizat
 
         // TODO: use templates
         newMultiply = multiply.constantIndex == 1ul ?
-            std::make_shared<op::TypeRelaxed<ngraph::opset1::Multiply>>(
+            std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Multiply>>(
                 std::vector<element::Type>{element::f32, element::f32},
                 std::vector<element::Type>{ multiply.outPrecision },
                 ov::op::TemporaryReplaceOutputType(parent, element::f32).get(),
                 ov::op::TemporaryReplaceOutputType(constant, element::f32).get()) :
-            std::make_shared<op::TypeRelaxed<ngraph::opset1::Multiply>>(
+            std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Multiply>>(
                 std::vector<element::Type>{element::f32, element::f32},
                 std::vector<element::Type>{ multiply.outPrecision },
                 ov::op::TemporaryReplaceOutputType(constant, element::f32).get(),

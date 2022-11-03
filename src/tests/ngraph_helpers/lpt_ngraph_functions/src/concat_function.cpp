@@ -1166,11 +1166,11 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithNeighbors(
         convShape[1] = inputShape[1].get_length() + inputShape[1].get_length();
         convShape[0] = convShape[1] * 2;
         convShape[2] = convShape[3] = 1;
-        auto convolutionAddition = std::make_shared<op::TypeRelaxed<opset1::Convolution>>(
+        auto convolutionAddition = std::make_shared<ov::op::TypeRelaxed<opset1::Convolution>>(
                 element::TypeVector{ element::f32, element::f32 },
                 element::TypeVector{ element::f32 },
-                op::TemporaryReplaceOutputType(mainBranch, element::f32).get(),
-                op::TemporaryReplaceOutputType(opset1::Constant::create(element::i8, convShape, {1}), element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(mainBranch, element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(opset1::Constant::create(element::i8, convShape, {1}), element::f32).get(),
                 ngraph::Strides{ 1, 1 },
                 ngraph::CoordinateDiff{ 0, 0 },
                 ngraph::CoordinateDiff{ 0, 0 },
@@ -1211,11 +1211,11 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithNeighbors(
         convShape[0] = inputShape[1].get_length() * 2;
         convShape[1] = inputShape[1].get_length();
         convShape[2] = convShape[3] = 1;
-        auto convolutionNeighbor = std::make_shared<op::TypeRelaxed<ngraph::opset1::Convolution>>(
+        auto convolutionNeighbor = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Convolution>>(
                 element::TypeVector{ element::f32, element::f32 },
                 element::TypeVector{ element::f32 },
-                op::TemporaryReplaceOutputType(neighbor, element::f32).get(),
-                op::TemporaryReplaceOutputType(opset1::Constant::create(element::i8, convShape, {1}), element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(neighbor, element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(opset1::Constant::create(element::i8, convShape, {1}), element::f32).get(),
                 ngraph::Strides{ 1, 1 },
                 ngraph::CoordinateDiff{ 0, 0 },
                 ngraph::CoordinateDiff{ 0, 0 },

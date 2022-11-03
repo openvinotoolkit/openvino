@@ -22,9 +22,3 @@ public:
     OPENVINO_RTTI("ConvertMinimum", "0");
     ConvertMinimum();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertMinimum;
-}  // namespace pass
-}  // namespace ngraph

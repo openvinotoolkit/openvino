@@ -26,9 +26,3 @@ public:
     OPENVINO_RTTI("EinsumDecomposition", "0");
     EinsumDecomposition();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::EinsumDecomposition;
-}  // namespace pass
-}  // namespace ngraph

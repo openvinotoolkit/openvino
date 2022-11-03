@@ -162,7 +162,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
             mulConst1,
             foldConvert(mulConst2, element::f32)));
 
-    const auto newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+    const auto newMultiply = std::make_shared<ov::op::TypeRelaxed<opset1::Multiply>>(
         std::vector<element::Type>{ deqPrecision, deqPrecision },
         std::vector<element::Type>{ dequantization1.multiply->get_output_element_type(0) },
         ov::op::TemporaryReplaceOutputType(parent, deqPrecision).get(),

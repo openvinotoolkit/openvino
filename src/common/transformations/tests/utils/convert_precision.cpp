@@ -764,7 +764,7 @@ TEST(TransformationTests, ConvertPrecision_TypeRelaxed) {
     {
         auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::boolean, ngraph::Shape{15, 20, 3});
         auto select = std::make_shared<ngraph::opset4::Select>(input1, input1, input1);
-        auto type_relaxed = std::make_shared<op::TypeRelaxed<opset4::Select>>(*select, element::TypeVector{}, element::TypeVector{element::i64});
+        auto type_relaxed = std::make_shared<ov::op::TypeRelaxed<opset4::Select>>(*select, element::TypeVector{}, element::TypeVector{element::i64});
 
         f = std::make_shared<Function>(OutputVector{type_relaxed}, ParameterVector{input1});
 

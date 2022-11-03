@@ -28,7 +28,7 @@ namespace subgraph {
             Shape{ 0, 0 },
             Shape{ 2, 2 },
             op::RoundingType::FLOOR);
-        const auto targetOp = std::make_shared<op::TypeRelaxed<opset1::MaxPool>>(
+        const auto targetOp = std::make_shared<ov::op::TypeRelaxed<opset1::MaxPool>>(
             op,
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{});
@@ -57,7 +57,7 @@ namespace subgraph {
             Shape{ 0, 0 },
             Shape{ 2, 2 },
             op::RoundingType::FLOOR);
-        const auto targetOp = std::make_shared<op::TypeRelaxed<opset1::MaxPool>>(
+        const auto targetOp = std::make_shared<ov::op::TypeRelaxed<opset1::MaxPool>>(
             op,
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{});

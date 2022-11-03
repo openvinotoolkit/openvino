@@ -24,9 +24,3 @@ public:
     OPENVINO_RTTI("ConvertROIAlign3To9", "0");
     ConvertROIAlign3To9();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertROIAlign3To9;
-}  // namespace pass
-}  // namespace ngraph

@@ -85,7 +85,7 @@ bool SubtractTransformation::transform(TransformationContext& context, ngraph::p
         // std::shared_ptr<Node> newSubtract = NetworkHelper::optimizeElementwise(subtract);
         subtract->set_output_type(0, originalPrecision, subtract->get_output_partial_shape(0));
 
-        replace_node(subtract, std::make_shared<op::TypeRelaxed<opset1::Subtract>>(
+        replace_node(subtract, std::make_shared<ov::op::TypeRelaxed<opset1::Subtract>>(
             subtract->input_value(0),
             subtract->input_value(1)));
     }

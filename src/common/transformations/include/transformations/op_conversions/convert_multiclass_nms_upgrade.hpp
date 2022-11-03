@@ -22,9 +22,3 @@ public:
     OPENVINO_RTTI("ConvertMulticlassNms8ToMulticlassNms9", "0");
     ConvertMulticlassNms8ToMulticlassNms9();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertMulticlassNms8ToMulticlassNms9;
-}  // namespace pass
-}  // namespace ngraph
