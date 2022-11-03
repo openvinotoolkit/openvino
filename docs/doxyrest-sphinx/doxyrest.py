@@ -591,6 +591,7 @@ def setup(app):
     app.add_config_value('doxyrest_cref_file', default=None, rebuild=True)
     app.add_config_value('doxyrest_tab_width', default=4, rebuild=True)
     directives.register_directive('ref-code-block', RefCodeBlock)
+    directives.register_directive('scrollbox', Scrollbox)
     app.add_transform(RefTransform)
     app.connect('builder-inited', on_builder_inited)
     app.connect('config-inited', on_config_inited)
