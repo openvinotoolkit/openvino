@@ -104,9 +104,9 @@ InsertCopyBeforeConcatLayer::InsertCopyBeforeConcatLayer() {
             if ((std::dynamic_pointer_cast<ngraph::op::CropIE>(current_node) && !is_crop_affined(current_node)) ||
                 std::dynamic_pointer_cast<ngraph::opset8::Split>(current_node) ||
                 std::dynamic_pointer_cast<ngraph::opset8::VariadicSplit>(current_node) ||
-                std::dynamic_pointer_cast<ngraph::opset8::ReadValue>(current_node) ||
                 std::dynamic_pointer_cast<ngraph::opset8::Parameter>(current_node) ||
-                std::dynamic_pointer_cast<ngraph::opset8::Constant>(current_node)) {
+                std::dynamic_pointer_cast<ngraph::opset8::Constant>(current_node) ||
+                std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(current_node)) {
                 insert_copy_layer_between(concat_input, concat, i);
             }
         }

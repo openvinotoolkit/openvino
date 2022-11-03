@@ -60,6 +60,14 @@ void InsertCopyLayerTest::Run() {
     Validate();
 }
 
+std::shared_ptr<ngraph::opset8::FakeQuantize> createFakeQuantizeNode(std::shared_ptr<ngraph::op::Op> parent_node) {
+    auto input_low = ngraph::opset8::Constant::create(ngraph::element::f32, {}, {-0.5});
+    auto input_high = ngraph::opset8::Constant::create(ngraph::element::f32, {}, {0.5});
+    auto output_low = ngraph::opset8::Constant::create(ngraph::element::f32, {}, {-0.5});
+    auto output_high = ngraph::opset8::Constant::create(ngraph::element::f32, {}, {0.5});
+    return std::make_shared<ngraph::opset8::FakeQuantize>(parent_node, input_low, input_high, output_low, output_high, 0);
+}
+
 // [Parameter] [Constant]    [Parameter] [Constant]
 //        \     /       =>         |         |
 //       [Concat]                [Copy]   [Copy]
@@ -104,6 +112,125 @@ TEST(TransformationTests, InsertCopyLayerParamConstConcatTest) {
 
         ASSERT_NO_THROW(check_rt_info(func));
 
+        auto result = compare_functions(func, ref_func);
+        ASSERT_TRUE(result.first);
+}
+
+// [Parameter] [Constant]    [Parameter]    [Constant]
+//        \     /       =>         |             |
+//      [FakeQuantize]       [FakeQuantize] [FakeQuantize]
+//           |                     |            /
+//        [Concat]               [Copy]    [Copy]
+//           |                       \     /
+//        [Result]                  [Concat]
+//                                      |
+//                                   [Result]
+TEST(TransformationTests, InsertCopyLayerParamConstFQConcatTest) {
+        std::shared_ptr<ngraph::Function> func, ref_func;
+        size_t axis = 0;
+        ngraph::Shape in_shape{10};
+
+        {
+            auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
+            auto constant = std::make_shared<ngraph::opset8::Constant>(ngraph::element::i64, in_shape);
+            auto param_fq = createFakeQuantizeNode(params);
+            auto const_fq = createFakeQuantizeNode(params);
+            ngraph::OutputVector concat_inputs{param_fq, const_fq};
+            auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs, axis);
+            auto result = std::make_shared<ngraph::opset8::Result>(concat);
+            func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                        ngraph::ParameterVector{params},
+                                                        "Concat");
+        }
+
+        {
+            auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
+            auto constant = std::make_shared<ngraph::opset8::Constant>(ngraph::element::i64, in_shape);
+            auto param_fq = createFakeQuantizeNode(params);
+            auto const_fq = createFakeQuantizeNode(params);
+            auto param_copy_1 = std::make_shared<ov::intel_gna::op::Copy>(param_fq);
+            auto const_copy_2 = std::make_shared<ov::intel_gna::op::Copy>(const_fq);
+
+            ngraph::OutputVector concat_inputs{param_copy_1, const_copy_2};
+            auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs, axis);
+            auto result = std::make_shared<ngraph::opset8::Result>(concat);
+            ref_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                            ngraph::ParameterVector{params},
+                                                            "Concat");
+        }
+
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
+        m.run_passes(func);
+
+        ASSERT_NO_THROW(check_rt_info(func));
+
+        auto result = compare_functions(func, ref_func);
+        ASSERT_TRUE(result.first);
+}
+
+// [Parameter]   [Constant]     [Parameter]    [Constant]
+//      |          |                 |           |
+//      |     [ReadValue]          [Copy]   [ReadValue]
+//      |          |                 |           |
+//      |   [FakeQuantize]           |     [FakeQuantize]
+//      |          |                  \        /
+//       \        /                    \    [Copy]
+//        \      /                      \    /
+//        [Concat]        =>           [Concat]
+//            |                          /  \
+//            |                         /   [Copy]
+//            |                        /        \
+//        [Result]                 [Result]   [Assign]
+TEST(TransformationTests, InsertCopyLayerParamMemoryFQConcatTest) {
+        std::shared_ptr<ngraph::Function> func, ref_func;
+        ngraph::Shape in_shape{10};
+        size_t axis = 0;
+        const std::string variable_name("variable_id");
+
+        {
+            auto variable = std::make_shared<ngraph::Variable>(ov::op::util::VariableInfo{in_shape, ngraph::element::i64, variable_name});
+            auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
+            auto init_value = ngraph::builder::makeConstant(ngraph::element::i64, in_shape, std::vector<size_t>{0});
+            auto read_value = std::make_shared<ngraph::opset8::ReadValue>(init_value, variable);
+            auto read_value_fq = createFakeQuantizeNode(read_value);
+            auto concat = std::make_shared<ngraph::opset8::Concat>(ngraph::OutputVector{input, read_value_fq}, axis);
+            auto assign = std::make_shared<ngraph::opset8::Assign>(concat, variable);
+            auto result = std::make_shared<ngraph::opset8::Result>(concat);
+            assign->add_control_dependency(read_value);
+
+            ngraph::ParameterVector params = {input};
+            ngraph::SinkVector sinks = {assign};
+            ngraph::ResultVector results = {result};
+            func = std::make_shared<ngraph::Function>(results, sinks, params);
+        }
+
+        {
+            auto variable = std::make_shared<ngraph::Variable>(ov::op::util::VariableInfo{in_shape, ngraph::element::i64, variable_name});
+            auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
+            auto input_copy_1 = std::make_shared<ov::intel_gna::op::Copy>(input);
+            auto init_value = ngraph::builder::makeConstant(ngraph::element::i64, in_shape, std::vector<size_t>{0});
+            auto read_value = std::make_shared<ngraph::opset8::ReadValue>(init_value, variable);
+            auto read_value_fq = createFakeQuantizeNode(read_value);
+            auto read_fq_copy_2 = std::make_shared<ov::intel_gna::op::Copy>(read_value_fq);
+            auto concat = std::make_shared<ngraph::opset8::Concat>(ngraph::OutputVector{input_copy_1, read_fq_copy_2}, axis);
+            auto assign = std::make_shared<ngraph::opset8::Assign>(concat, variable);
+            assign->add_control_dependency(read_value);
+            auto result = std::make_shared<ngraph::opset8::Result>(concat);
+
+            ngraph::ParameterVector params = {input};
+            ngraph::SinkVector sinks = {assign};
+            ngraph::ResultVector results = {result};
+            ref_func = std::make_shared<ngraph::Function>(results, sinks, params);
+        }
+
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
+        m.run_passes(func);
+
+        ASSERT_NO_THROW(check_rt_info(func));
         auto result = compare_functions(func, ref_func);
         ASSERT_TRUE(result.first);
 }
