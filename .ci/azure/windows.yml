@@ -44,7 +44,7 @@ jobs:
     matrix:
       Static:
         CMAKE_BUILD_SHARED_LIBS: 'OFF'
-        USE_TOOLCHAIN: 'OFF'
+        USE_TOOLCHAIN: 'ON'
     #  OneCore:
     #    CMAKE_BUILD_SHARED_LIBS: 'OFF'
     #    USE_TOOLCHAIN: 'ON'
