@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/test_assertions.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset4.hpp"
@@ -39,28 +40,28 @@ TEST(type_prop, gru_cell_invalid_input) {
 
     // Invalid W tensor shape.
     auto W = make_shared<op::Parameter>(element::f32, Shape{hidden_size, input_size});
-    OV_EXPECT_THROW(make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size),
+    OV_EXPECT_THROW(auto op = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size),
                     ov::NodeValidationFailure,
                     HasSubstr("First dimension of W input shape is required to be compatible"));
 
     // Invalid R tensor shape.
     W = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, input_size});
     R = make_shared<op::Parameter>(element::f32, Shape{hidden_size, 1});
-    OV_EXPECT_THROW(make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size),
+    OV_EXPECT_THROW(auto op = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size),
                     ov::NodeValidationFailure,
                     HasSubstr("Dimension `hidden_size` is not matched between inputs"));
 
     // Invalid H_t tensor shape.
     R = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
     H_t = make_shared<op::Parameter>(element::f32, Shape{4, hidden_size});
-    OV_EXPECT_THROW(make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size),
+    OV_EXPECT_THROW(auto op = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size),
                     ov::NodeValidationFailure,
                     HasSubstr("Dimension `batch_size` is not matched between inputs"));
 
     // Invalid B tensor shape.
     H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
     auto B = make_shared<op::Parameter>(element::f32, Shape{hidden_size});
-    OV_EXPECT_THROW(make_shared<opset4::GRUCell>(X, H_t, W, R, B, hidden_size),
+    OV_EXPECT_THROW(auto op = make_shared<opset4::GRUCell>(X, H_t, W, R, B, hidden_size),
                     ov::NodeValidationFailure,
                     HasSubstr("First dimension of B input shape is required to be compatible"));
 }

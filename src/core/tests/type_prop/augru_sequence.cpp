@@ -4,6 +4,7 @@
 
 #include "ngraph_ops/augru_sequence.hpp"
 
+#include "common_test_utils/test_assertions.hpp"
 #include "gtest/gtest.h"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/opsets/opset9.hpp"
