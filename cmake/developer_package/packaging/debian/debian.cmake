@@ -22,11 +22,7 @@ macro(ov_debian_cpack_set_dirs)
     set(OV_CPACK_NGRAPH_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/ngraph${OpenVINO_VERSION})
     set(OV_CPACK_OPENVINO_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/openvino${OpenVINO_VERSION})
     set(OV_CPACK_DOCDIR ${CMAKE_INSTALL_DATADIR}/doc/openvino-${OpenVINO_VERSION})
-
-    ov_get_pyversion(pyversion)
-    if(pyversion)
-        set(OV_CPACK_PYTHONDIR ${CMAKE_INSTALL_LIBDIR}/${pyversion}/site-packages)
-    endif()
+    set(OV_CPACK_PYTHONDIR lib/python3/dist-packages)
 
     # non-native stuff
     set(OV_CPACK_SHAREDIR ${CMAKE_INSTALL_DATADIR}/openvino) # internal
@@ -86,7 +82,7 @@ macro(ov_debian_specific_settings)
     # homepage
     set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://docs.openvino.ai/")
     # use lintian to check packages in post-build step
-    set(CPACK_POST_BUILD_SCRIPTS "${IEDevScripts_DIR}/packaging/debian_post_build.cmake")
+    set(CPACK_POST_BUILD_SCRIPTS "${IEDevScripts_DIR}/packaging/debian/post_build.cmake")
     # enable for debug cpack run
     if(NOT DEFINED CPACK_DEBIAN_PACKAGE_DEBUG)
         set(CPACK_DEBIAN_PACKAGE_DEBUG OFF)
@@ -149,9 +145,9 @@ file(WRITE "${def_triggers}" "${triggers_content}")
 #
 
 #
-# ov_debian_add_changelog_and_copyright(<comp name>)
+# ov_debian_add_changelog_and_copyright(<comp name> <copyright_name>)
 #
-function(ov_debian_add_changelog_and_copyright comp)
+function(ov_debian_add_changelog_and_copyright comp copyright_name)
     string(TOUPPER "${comp}" ucomp)
     if(NOT DEFINED CPACK_DEBIAN_${ucomp}_PACKAGE_NAME)
         message(FATAL_ERROR "CPACK_DEBIAN_${ucomp}_PACKAGE_NAME is not defined")
@@ -162,9 +158,10 @@ function(ov_debian_add_changelog_and_copyright comp)
 
     # copyright
 
-    install(FILES "${OpenVINO_SOURCE_DIR}/cmake/developer_package/packaging/copyright"
+    install(FILES "${OpenVINO_SOURCE_DIR}/cmake/packaging/copyrights/${copyright_name}"
             DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/${package_name}/
-            COMPONENT ${comp})
+            COMPONENT ${comp}
+            RENAME "copyright")
 
     # create changelog.gz
 
@@ -173,7 +170,7 @@ function(ov_debian_add_changelog_and_copyright comp)
         message(FATAL_ERROR "Failed to find gzip tool")
     endif()
 
-    set(changelog_src "${OpenVINO_SOURCE_DIR}/cmake/developer_package/packaging/changelog")
+    set(changelog_src "${OpenVINO_SOURCE_DIR}/cmake/developer_package/packaging/debian/changelog")
     set(package_bin_dir "${OpenVINO_BINARY_DIR}/_CPack_Packages/${package_name}")
     set(changelog_output "${package_bin_dir}/changelog")
 
@@ -271,6 +268,7 @@ macro(ov_debian_add_latest_component comp)
     set(CPACK_COMPONENT_${upper_case}_DESCRIPTION "${CPACK_COMPONENT_${ucomp}_DESCRIPTION}")
     set(CPACK_COMPONENT_${upper_case}_ARCHITECTURE "all")
     set(CPACK_COMPONENT_${upper_case}_DEPENDS "${comp}")
+    set(${comp_name}_copyright "generic")
 
     # take package name
     if(DEFINED CPACK_DEBIAN_${ucomp}_PACKAGE_NAME)
@@ -280,10 +278,6 @@ macro(ov_debian_add_latest_component comp)
     else()
         message(FATAL_ERROR "CPACK_DEBIAN_${ucomp}_PACKAGE_NAME is not defined")
     endif()
-
-    ov_debian_add_lintian_suppression(${comp_name}
-        # it's umbrella package
-        "empty-binary-package")
 
     # add latest to a list of debian packages
     list(APPEND CPACK_COMPONENTS_ALL ${comp_name})
