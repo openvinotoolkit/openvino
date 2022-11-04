@@ -944,7 +944,7 @@ TEST(type_prop, broadcast_v3_bidirectional_data_bigger_rank_numpy) {
     auto param = make_shared<op::Parameter>(element::f32, Shape{5, 2, 3, 1});
     auto target_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, {4, 3, 6});
 
-    OV_EXPECT_THROW(make_shared<op::v3::Broadcast>(param, target_shape),
+    OV_EXPECT_THROW(auto b = make_shared<op::v3::Broadcast>(param, target_shape),
                     NodeValidationFailure,
                     HasSubstr("Broadcast target_shape has smaller rank"));
 }
