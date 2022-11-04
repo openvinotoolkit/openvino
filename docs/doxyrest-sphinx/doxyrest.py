@@ -163,13 +163,14 @@ def depart_scrollbox(self, nodescrollbox: nodes.Node):
 
 def create_scrollbox_component(
     name: str,
+    classes: Sequence[str] = (),
     *,
     rawtext: str = "",
     children: Sequence[nodes.Node] = (),
     **attributes,
 ) -> nodes.container:
     node = nodes.container(
-        rawtext, is_div=True, design_component=name, **attributes
+        rawtext, is_div=True, design_component=name, classes=classes, **attributes
     )
     node.extend(children)
     return node
@@ -292,7 +293,7 @@ class Scrollbox(Directive):
     has_content = True
 
     def run(self):
-        classes = "scrollbox"
+        classes = []
         nodescrollbox = create_scrollbox_component("div", rawtext="\n".join(self.content), classes=classes)
         if 'height' in self.options:
             nodescrollbox['height'] = self.options['height']
