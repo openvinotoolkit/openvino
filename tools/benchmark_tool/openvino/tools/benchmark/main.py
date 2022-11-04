@@ -124,7 +124,7 @@ def main():
 
         # --------------------- 3. Setting device configuration --------------------------------------------------------
         next_step()
-        def get_device_type_from_name(name) :
+        def get_device_type_from_name(name):
             new_name = str(name)
             new_name = new_name.split(".", 1)[0]
             new_name = new_name.split("(", 1)[0]

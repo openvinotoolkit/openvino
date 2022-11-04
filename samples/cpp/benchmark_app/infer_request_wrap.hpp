@@ -128,7 +128,7 @@ public:
         // Inference Request guarantee that it will wait for all asynchronous internal tasks in destructor
         // So it should be released before any context that the request can use inside internal asynchronous tasks
         // For example all members of InferRequestsQueue would be destroyed before `requests` vector
-        // So requests can try to use this members from `putIdleRequest()` that would be called from request callback
+        // So requests can try to use this members from `put_idle_request()` that would be called from request callback
         // To avoid this we should move this vector declaration after all members declaration or just clear it manually
         // in destructor
         requests.clear();

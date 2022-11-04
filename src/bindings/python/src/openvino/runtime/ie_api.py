@@ -274,16 +274,16 @@ class CompiledModel(CompiledModelBase):
 
 
 class AsyncInferQueue(AsyncInferQueueBase):
-    """AsyncInferQueue with pool of asynchronous requests.
+    """AsyncInferQueue with a pool of asynchronous requests.
 
-    AsyncInferQueue represents helper that creates a pool of asynchronous
+    AsyncInferQueue represents a helper that creates a pool of asynchronous
     InferRequests and provides synchronization functions to control flow of
     a simple pipeline.
     """
     def __iter__(self) -> Iterable[InferRequest]:
         """Allows to iterate over AsyncInferQueue.
 
-        :return: a map object (which is an iterator) that yields InferRequests.
+        :return: a generator that yields InferRequests.
         :rtype: Iterable[openvino.runtime.InferRequest]
         """
         return (InferRequest(x) for x in super().__iter__())
