@@ -11,7 +11,7 @@
 #include <type_traits>
 
 #include "gna_types.h"
-#include "gna_plugin_log.hpp"
+#include "log/debug.hpp"
 
 enum DnnActivationType : uint8_t {
     kActNone,
