@@ -251,15 +251,14 @@ using UnsqueezeBoundTest = UnSqueezeBoundTest;
 INSTANTIATE_TEST_SUITE_P(
     type_prop_bounds_propagate,
     UnsqueezeBoundTest,
-    Values(std::make_tuple(PartialShape::dynamic(2), PartialShape::dynamic(2)),
+    Values(std::make_tuple(PartialShape::dynamic(2), PartialShape::dynamic(1)),
            std::make_tuple(PartialShape{Dimension(-1)}, PartialShape{Dimension(-1)}),
-           std::make_tuple(PartialShape{8, -1}, PartialShape{8, 8}),
-           std::make_tuple(PartialShape{Dimension(2, 5), Dimension::dynamic()},
-                           PartialShape{Dimension(2, 5), Dimension(2, 5)}),
-           std::make_tuple(PartialShape{Dimension(2, -1), Dimension::dynamic()}, PartialShape{{2, -1}, -1}),
-           std::make_tuple(PartialShape{Dimension(-1, 3), Dimension::dynamic()}, PartialShape{Dimension(-1, 3), -1}),
+           std::make_tuple(PartialShape{Dimension::dynamic(), 8}, PartialShape{Dimension::dynamic()}),
+           std::make_tuple(PartialShape{Dimension(2, 5), Dimension::dynamic()}, PartialShape{Dimension(2, 5)}),
+           std::make_tuple(PartialShape{Dimension(2, -1), Dimension::dynamic()}, PartialShape::dynamic(1)),
+           std::make_tuple(PartialShape{Dimension(-1, 3), Dimension::dynamic()}, PartialShape{Dimension(-1, 3)}),
            std::make_tuple(PartialShape{5}, PartialShape{5}),
-           std::make_tuple(PartialShape{2, 2}, PartialShape{2, 2})),
+           std::make_tuple(PartialShape{2, 6}, PartialShape{2})),
     PrintToStringParamName());
 
 /**
@@ -283,12 +282,9 @@ TEST_P(UnsqueezeBoundTest, propagate_label_and_dynamic_value) {
     const auto gather = std::make_shared<op::v7::Gather>(labeled_shape_of, indices, axis);
     const auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(gather, axis);
 
-    const auto bc = std::make_shared<op::v3::Broadcast>(param, unsqueeze, "BIDIRECTIONAL");
+    const auto bc = std::make_shared<op::v3::Broadcast>(param, unsqueeze);
 
     EXPECT_EQ(bc->get_output_partial_shape(0), exp_shape);
     const auto labels = get_shape_labels(bc->get_output_partial_shape(0));
-    if (bc->get_output_partial_shape(0).size() == 1)
-        EXPECT_THAT(labels, ElementsAre(in_labels.front()));
-    else
-        EXPECT_THAT(labels, ElementsAre(0, in_labels.front()));
+    EXPECT_THAT(labels, ElementsAre(in_labels.front()));
 }

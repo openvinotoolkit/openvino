@@ -4,6 +4,7 @@
 
 #include <dimension_tracker.hpp>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset6.hpp"
