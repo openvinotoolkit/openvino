@@ -11,6 +11,7 @@
 #include "primitive_type_base.h"
 #include "reshape_inst.h"
 #include "shape_nodes.hpp"
+#include "squeeze_shape_inference.hpp"
 #include "unsqueeze_shape_inference.hpp"
 
 namespace cldnn {
@@ -108,7 +109,7 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node
     if (memory_deps.count(1) > 0) {
         auto pattern_mem = memory_deps.at(1);
 
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> pattern_lock(pattern_mem, impl_param.prog.get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> pattern_lock(pattern_mem, impl_param.prog->get_stream());
 
         auto pattern_ptr = pattern_lock.data();
         auto pattern_tensor = make_host_tensor(pattern_mem->get_layout(), pattern_ptr);
@@ -166,10 +167,12 @@ reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
     // if reshape operated in-place, postpone creation of the output until network run,
     // then create new memory object as the reinterpreted output of the previous primitive
     if (input_layout.is_static() && output_layout.is_static()) {
-        if (!node.can_be_optimized())
+        if (!node.can_be_optimized()) {
             _outputs = allocate_outputs();
-        else
+            _mem_allocated = true;
+        } else {
             reuse_input();
+        }
     } else {
         if (_exec_deps.size() > 0 && input_memory_ptr())
             reuse_input();
@@ -177,7 +180,7 @@ reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
 }
 
 void reshape_inst::on_execute() {
-    if (!node.can_be_optimized())
+    if (!node->can_be_optimized())
         return;
 
     if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
@@ -187,6 +190,16 @@ void reshape_inst::on_execute() {
 }
 
 void reshape_inst::reuse_input() {
+    update_output_memory();
+}
+
+void reshape_inst::update_output_memory() {
+    if (!node->can_be_optimized())
+        return;
+
+    if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+        return;
+
     build_deps();  // reshape need deps
     OPENVINO_ASSERT(input_memory_ptr() != nullptr, "[GPU] Failed to reuse input in ", id(), " primitive: input memory was not allocated");
     _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->output_layout)};

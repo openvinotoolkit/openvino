@@ -2,28 +2,48 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+find_package(Git QUIET)
+
 function (branchName VAR)
     if(NOT DEFINED repo_root)
         message(FATAL_ERROR "repo_root is not defined")
     endif()
-    execute_process(
-            COMMAND git rev-parse --abbrev-ref HEAD
-            WORKING_DIRECTORY ${repo_root}
-            OUTPUT_VARIABLE GIT_BRANCH
-            OUTPUT_STRIP_TRAILING_WHITESPACE)
-    set (${VAR} ${GIT_BRANCH} PARENT_SCOPE)
+    if(GIT_FOUND)
+        execute_process(
+                COMMAND ${GIT_EXECUTABLE} rev-parse --abbrev-ref HEAD
+                WORKING_DIRECTORY ${repo_root}
+                OUTPUT_VARIABLE GIT_BRANCH
+                OUTPUT_STRIP_TRAILING_WHITESPACE)
+        set (${VAR} ${GIT_BRANCH} PARENT_SCOPE)
+    endif()
 endfunction()
 
 function (commitHash VAR)
     if(NOT DEFINED repo_root)
         message(FATAL_ERROR "repo_root is not defined")
     endif()
-    execute_process(
-            COMMAND git rev-parse --short=11 HEAD
-            WORKING_DIRECTORY ${repo_root}
-            OUTPUT_VARIABLE GIT_COMMIT_HASH
-            OUTPUT_STRIP_TRAILING_WHITESPACE)
-    set (${VAR} ${GIT_COMMIT_HASH} PARENT_SCOPE)
+    if(GIT_FOUND)
+        execute_process(
+                COMMAND ${GIT_EXECUTABLE} rev-parse --short=11 HEAD
+                WORKING_DIRECTORY ${repo_root}
+                OUTPUT_VARIABLE GIT_COMMIT_HASH
+                OUTPUT_STRIP_TRAILING_WHITESPACE)
+        set (${VAR} ${GIT_COMMIT_HASH} PARENT_SCOPE)
+    endif()
+endfunction()
+
+function (commitNumber VAR)
+    if(NOT DEFINED repo_root)
+        message(FATAL_ERROR "repo_root is not defined")
+    endif()
+    if(GIT_FOUND)
+        execute_process(
+                COMMAND ${GIT_EXECUTABLE} rev-list --count --first-parent HEAD
+                WORKING_DIRECTORY ${repo_root}
+                OUTPUT_VARIABLE GIT_COMMIT_NUMBER
+                OUTPUT_STRIP_TRAILING_WHITESPACE)
+        set (${VAR} ${GIT_COMMIT_NUMBER} PARENT_SCOPE)
+    endif()
 endfunction()
 
 macro(ov_parse_ci_build_number)
@@ -81,6 +101,14 @@ macro(ov_parse_ci_build_number)
             endif()
         endforeach()
 
+        # detect commit number
+        commitNumber(OpenVINO_VERSION_BUILD_HPP)
+        if(OpenVINO_VERSION_BUILD STREQUAL "000" AND DEFINED OpenVINO_VERSION_BUILD_HPP)
+            set(OpenVINO_VERSION_BUILD "${OpenVINO_VERSION_BUILD_HPP}")
+        else()
+            set(OpenVINO_VERSION_BUILD_HPP "${OpenVINO_VERSION_BUILD}")
+        endif()
+
         set(ov_hpp_version_is_found ON)
     endmacro()
 
@@ -88,7 +116,7 @@ macro(ov_parse_ci_build_number)
     ov_get_hpp_version()
 
     if(ov_hpp_version_is_found)
-        foreach(var OpenVINO_VERSION_MAJOR OpenVINO_VERSION_MINOR OpenVINO_VERSION_PATCH)
+        foreach(var OpenVINO_VERSION_MAJOR OpenVINO_VERSION_MINOR OpenVINO_VERSION_PATCH OpenVINO_VERSION_BUILD)
             if(DEFINED ${var} AND NOT ${var} EQUAL ${var}_HPP)
                 message(FATAL_ERROR "${var} parsed from CI_BUILD_NUMBER (${${var}}) \
                     and from openvino/core/version.hpp (${${var}_HPP}) are different")
@@ -103,7 +131,7 @@ macro(ov_parse_ci_build_number)
     string(REGEX REPLACE "^20" "" OpenVINO_SOVERSION "${OpenVINO_SOVERSION}")
     set(OpenVINO_VERSION "${OpenVINO_VERSION_MAJOR}.${OpenVINO_VERSION_MINOR}.${OpenVINO_VERSION_PATCH}")
     if(ENABLE_LIBRARY_VERSIONING)
-        set(OpenVINO_VERSION_SUFFIX ".${OpenVINO_VERSION}")
+        set(OpenVINO_VERSION_SUFFIX ".${OpenVINO_SOVERSION}")
     else()
         set(OpenVINO_VERSION_SUFFIX "")
     endif()

@@ -79,24 +79,13 @@ TEST(type_prop, unsqueeze_empty_axes) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
-
-class UnsqueezeTestCommon : public Test {
-protected:
-    void SetUp() override {
-        param = std::make_shared<op::Parameter>(element::f32, p_shape);
-    }
-
-    PartialShape p_shape, exp_shape;
-    std::shared_ptr<op::Parameter> param;
-};
-
 using TypePropTestParam = std::tuple<PartialShape, std::vector<int64_t>, PartialShape>;
 
-class UnsqueezeTest : public WithParamInterface<TypePropTestParam>, public UnsqueezeTestCommon {
+class UnsqueezeTest : public WithParamInterface<TypePropTestParam>, public UnSqueezeFixture {
 protected:
     void SetUp() override {
         std::tie(p_shape, axes, exp_shape) = GetParam();
-        UnsqueezeTestCommon::SetUp();
+        UnSqueezeFixture::SetUp();
     }
 
     std::pair<std::vector<size_t>, std::vector<size_t>> make_in_exp_labels() const {
@@ -257,17 +246,7 @@ TEST_P(UnsqueezeTest, labels_propagation) {
     EXPECT_EQ(get_shape_labels(unsqueeze->get_output_partial_shape(0)), exp_labels);
 }
 
-using BoundTestParam = std::tuple<PartialShape, PartialShape>;
-
-class UnsqueezeBoundTest : public WithParamInterface<BoundTestParam>, public UnsqueezeTestCommon {
-protected:
-    void SetUp() override {
-        std::tie(p_shape, exp_shape) = GetParam();
-        UnsqueezeTestCommon::SetUp();
-    }
-
-    std::vector<size_t> in_labels;
-};
+using UnsqueezeBoundTest = UnSqueezeBoundTest;
 
 INSTANTIATE_TEST_SUITE_P(
     type_prop_bounds_propagate,

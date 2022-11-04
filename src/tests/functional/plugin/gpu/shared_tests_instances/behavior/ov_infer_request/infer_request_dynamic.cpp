@@ -21,7 +21,6 @@ const std::vector<ov::AnyMap> AutoConfigs = {
 };
 
 const std::vector<ov::AnyMap> AutoNotSupportConfigs = {
-    {ov::device::priorities(CommonTestUtils::DEVICE_GPU)}
 };
 
 std::shared_ptr<ngraph::Function> getFunction1() {
