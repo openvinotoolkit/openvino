@@ -1,8 +1,7 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import sys,argparse
-from fnmatch import fnmatch
+import sys, argparse
 
 from openvino.tools.benchmark.utils.utils import show_available_devices
 
@@ -158,5 +157,9 @@ def parse_args():
                       help="Optional. Mean values to be used for the input image per channel.\n Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.\n"
                            "Example: -imean data[255,255,255],info[255,255,255]\n")
     parsed_args = parser.parse_args()
+
+    if parsed_args.latency_percentile < 0 or parsed_args.latency_percentile > 100:
+        parser.print_help()
+        raise RuntimeError("The percentile value is incorrect. The applicable values range is [1, 100].")
 
     return parsed_args
