@@ -63,17 +63,8 @@ void ov::op::internal::AUGRUSequence::validate_and_infer_types() {
                               element::Type::merge(result_et, result_et, get_input_element_type(6)),
                           "Element types for inputs do not match.");
 
-    const auto& x_pshape = get_input_partial_shape(0);
-    const auto& ht_pshape = get_input_partial_shape(1);
-    const auto& sl_pshape = get_input_partial_shape(2);
-    const auto& w_pshape = get_input_partial_shape(3);
-    const auto& r_pshape = get_input_partial_shape(4);
-    const auto& b_pshape = get_input_partial_shape(5);
-    const auto& a_pshape = get_input_partial_shape(6);
-
-    std::vector<ov::PartialShape> input_shapes =
-        {x_pshape, ht_pshape, sl_pshape, w_pshape, r_pshape, b_pshape, a_pshape};
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{4}, ov::PartialShape{3}};
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic(4), ov::PartialShape::dynamic(3)};
     shape_infer(this, input_shapes, output_shapes);
 
     // Set output size, type and shape
