@@ -21,6 +21,7 @@ QUANTIZE_AGNOSTIC_OPERATIONS = [
     {'type': 'Minimum'},
     {'type': 'Maximum'},
     {'type': 'ConvertLike'},
+    {'type': 'Gather'},
     {'type': 'DepthToSpace'}
 ]
 
