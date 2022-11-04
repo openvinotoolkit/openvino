@@ -238,6 +238,26 @@ void GNAPluginNS::GNAGraphCompiler::ValidateCnn2D(const std::string& name,
     }
 }
 
+void GNAPluginNS::GNAGraphCompiler::ValidateCnn1DForCnn2GnaIface(const std::string& name,
+                                                  const uint32_t inHeight,
+                                                  const uint32_t inWidth,
+                                                  const uint32_t inChannels,
+                                                  const uint32_t kH,
+                                                  const uint32_t kW,
+                                                  const uint32_t kN,
+                                                  const uint32_t strideH,
+                                                  const uint32_t strideW,
+                                                  const uint32_t dilH,
+                                                  const uint32_t dilW,
+                                                  OvGnaType inPrecision) const {
+    if (cnn2dValidator) {
+        cnn2dValidator
+            ->ValidateCnn1DForCnn2GnaIface(name, inHeight, inWidth, inChannels, kH, kW, kN, strideH, strideW, dilH, dilW, inPrecision);
+    } else {
+        THROW_GNA_EXCEPTION << "No Cnn1D validator found for layer " << name;
+    }
+}
+
 void GNAPluginNS::GNAGraphCompiler::ValidatePooling2D(const std::string& name,
                                                       const uint32_t windowH,
                                                       const uint32_t windowW,
@@ -256,6 +276,14 @@ bool GNAPluginNS::GNAGraphCompiler::IsCnn2DInputPaddingSupported(const std::stri
     } else {
         THROW_GNA_EXCEPTION << "No Cnn2D input padding validator found for layer " << name;
     }
+}
+
+bool GNAPluginNS::GNAGraphCompiler::IsCnn1DUsingCnn2DGnaIface(const std::string& name) const {
+    if (cnn2dValidator) {
+        return cnn2dValidator->IsCnn1DUsingCnn2DGnaIface();
+    }
+    // GNA 2.0 doesn't implement validator
+    return false;
 }
 
 void GNAGraphCompiler::DiagonalPrimitive(InferenceEngine::CNNLayerPtr layer) {
@@ -336,8 +364,9 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     auto in_kernel_h = convolution._kernel_y;
     bool transpose_h_w = false;
 
-    // Map 2d convolution to 1d if it's possible
-    if (GNAConvolutionLayer::isMappableFrom2DTo1D(in_height, in_width, in_channels,
+    // Map 2d convolution to 1d if it's possible. For MTL prefer using 2D convolution
+    if (!IsCnn1DUsingCnn2DGnaIface(convolution.name) &&
+        GNAConvolutionLayer::isMappableFrom2DTo1D(in_height, in_width, in_channels,
                                                   convolution._kernel_y, convolution._kernel_x,
                                                   convolution._stride_y, convolution._stride_x)) {
         transpose_h_w = (in_height == convolution._kernel_y);
@@ -377,8 +406,8 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         dnn->new_num_conv_columns = 0;
     }
 
-    if (GNAConvolutionLayer::isConv2D(in_height, in_width, in_channels, convolution._kernel_y, convolution._kernel_x) ||
-        in_height != 1) {
+    if ( GNAConvolutionLayer::isConv2D(in_height, in_width, in_channels, convolution._kernel_y, convolution._kernel_x) ||
+        in_height != 1 || IsCnn1DUsingCnn2DGnaIface(convolution.name)) {
         // TensorFlow default layout is NHWC
         // OpenVino Default layout is   NCHW
         // GNA Convolution input is     NHCW (old) or NHWC (new)
@@ -676,10 +705,20 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     const auto weightPrec = OvGnaTypeIntFromBytes(convolution._weights->getTensorDesc().getPrecision().size());
     const auto biasPrec = OvGnaTypeIntFromBytes(biasPrecision.size());
 
-    ValidateCnn2D(layer->name,
-        in_height, in_width, in_channels,
-        convolution._kernel_y, convolution._kernel_x, filter_n, convolution._stride_y, convolution._stride_x,
-        convolution._dilation_y, convolution._dilation_x, inputPrec);
+
+    if (GNAConvolutionLayer::isConv2D(in_height, in_width, in_channels, convolution._kernel_y, convolution._kernel_x) ) {
+        ValidateCnn2D(layer->name,
+            in_height, in_width, in_channels,
+            convolution._kernel_y, convolution._kernel_x, filter_n, convolution._stride_y, convolution._stride_x,
+            convolution._dilation_y, convolution._dilation_x, inputPrec);
+    }
+    else {
+        ValidateCnn1DForCnn2GnaIface(layer->name,
+            in_height, in_width, in_channels,
+            convolution._kernel_y, convolution._kernel_x, filter_n, convolution._stride_y, convolution._stride_x,
+            convolution._dilation_y, convolution._dilation_x, inputPrec);
+    }
+
 
     float weight_scale_factor = GetScaleFactor(layer, QuantizedDataType::weights);
     float output_scale_factor = GetScaleFactor(layer, QuantizedDataType::output);
