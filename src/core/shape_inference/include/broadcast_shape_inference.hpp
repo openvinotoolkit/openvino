@@ -145,11 +145,11 @@ void set_result_shape_bidirectional(const ov::Node* op, const T& arg_shape, T& t
 
     for (size_t i = 0; i < target_input_shape.size(); ++i) {
         NODE_VALIDATION_CHECK(op,
-                                DimType::broadcast_merge(result_shape[i], arg_shape_vec[i], target_input_shape[i]),
-                                "Broadcast incorrect target shape. Expecting either 1 or ",
-                                arg_shape_vec[i],
-                                ". Got ",
-                                target_input_shape[i]);
+                              DimType::broadcast_merge(result_shape[i], arg_shape_vec[i], target_input_shape[i]),
+                              "Broadcast incorrect target shape. Expecting either 1 or ",
+                              arg_shape_vec[i],
+                              ". Got ",
+                              target_input_shape[i]);
     }
 }
 
@@ -213,7 +213,8 @@ void broadcast_base_shape_infer(
         // Validate axes_mapping
         const auto& axes_shape = input_shapes[2];
         if (data_input_shape.rank().is_static() && target_input_shape.rank().is_static() && axes_shape.is_static()) {
-            int64_t input_rank = (data_input_shape.size() == 0 && axes_shape[0].get_length() > 0) ? 1 : data_input_shape.size();
+            int64_t input_rank =
+                (data_input_shape.size() == 0 && axes_shape[0].get_length() > 0) ? 1 : data_input_shape.size();
             NODE_VALIDATION_CHECK(op,
                                   axes_shape[0].get_length() == input_rank,
                                   "Broadcast axes_mapping shape ",
@@ -249,7 +250,8 @@ void broadcast_base_shape_infer(
             set_result_shape_bidirectional(op, data_input_shape, target_as_shape, result_shape);
         } else if (data_input_shape.rank().is_static() && is_target_input_shape_static) {
             // TODO: Preserve dim != 1 info from the input_0
-            auto output_rank = std::max(data_input_shape.size(), static_cast<size_t>(target_input_shape[0].get_length()));
+            auto output_rank =
+                std::max(data_input_shape.size(), static_cast<size_t>(target_input_shape[0].get_length()));
             result_shape = PartialShape::dynamic(output_rank);
         } else {
             result_shape = PartialShape::dynamic();
