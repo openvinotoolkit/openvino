@@ -37,6 +37,12 @@ std::vector<Element<T>> generate_data_references(const size_t count) {
     }
     return data_references;
 }
+
+bool scalar_or_single_element(const Shape& s) {
+    return s.size() == 0 || std::all_of(std::begin(s), std::end(s), [](Shape::value_type d) {
+        return d == 1;
+    });
+}
 }  // namespace
 
 template <typename Data_t, typename Index_t>
@@ -63,7 +69,7 @@ UniqueElements<Index_t> find_unique_elements(const Data_t* data,
     ret.all_tensor_elements[0].rev_idx = 0;
     ret.unique_tensor_elements.push_back(ret.all_tensor_elements[0]);
 
-    if (data_shape.size() == 0 || data_shape.size() == 1 && data_shape[0] == 1) {
+    if (scalar_or_single_element(data_shape)) {
         // NTD
     } else if (data_shape.size() == 1 && data_shape[0] > 1) {
         for (size_t i = 1; i < data_elems_count; ++i) {
@@ -84,6 +90,14 @@ UniqueElements<Index_t> find_unique_elements(const Data_t* data,
     }
 
     return ret;
+}
+
+template<typename Index_t>
+std::tuple<Shape, Shape, Shape> make_tensor_shapes(const UniqueElements<Index_t>& unique_elements) {
+    const auto output0 = Shape{unique_elements.unique_tensor_elements.size()};
+    const auto output1_3 = output0; // TODO
+    const auto output2 = Shape{unique_elements.all_tensor_elements.size()};
+    return std::make_tuple(output0, output1_3, output2);
 }
 
 template <typename Data_t, typename Index_t>

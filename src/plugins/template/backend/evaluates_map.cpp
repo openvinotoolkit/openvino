@@ -4197,55 +4197,40 @@ bool evaluate(const shared_ptr<op::v9::SoftSign>& op, const HostTensorVector& ou
     return true;
 }
 
+template<typename Data_t, typename Index_t>
+void execute_unique(const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    const auto unique_elements =
+            runtime::reference::find_unique_elements<Data_t, Index_t>(inputs[0]->get_data_ptr<Data_t>(),
+                                                                      inputs[0]->get_shape(),
+                                                                      nullptr,
+                                                                      true);
+        const auto tensor_shapes = runtime::reference::make_tensor_shapes(unique_elements);
+        
+        auto& out_unique_elements = outputs[0];
+        auto& out_indices = outputs[1];
+        auto& out_rev_indices = outputs[2];
+        auto& out_counts = outputs[3];
+
+        out_unique_elements->set_shape(std::get<0>(tensor_shapes));
+        out_indices->set_shape(std::get<1>(tensor_shapes));
+        out_rev_indices->set_shape(std::get<2>(tensor_shapes));
+        out_counts->set_shape(std::get<1>(tensor_shapes));
+
+        runtime::reference::unique(out_unique_elements->get_data_ptr<Data_t>(),
+                                   out_indices->get_data_ptr<Index_t>(),
+                                   out_rev_indices->get_data_ptr<Index_t>(),
+                                   out_counts->get_data_ptr<int64_t>(),
+                                   inputs[0]->get_data_ptr<Data_t>(),
+                                   unique_elements);
+}
+
 template <element::Type_t Data_ET>
 bool evaluate(const shared_ptr<op::v10::Unique>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     using Data_t = typename element_type_traits<Data_ET>::value_type;
     if (op->get_index_element_type() == element::i32) {
-        const auto unique_elements =
-            runtime::reference::find_unique_elements<Data_t, int32_t>(inputs[0]->get_data_ptr<Data_t>(),
-                                                                      inputs[0]->get_shape(),
-                                                                      nullptr,
-                                                                      true);
-        const auto out_shape = Shape{unique_elements.unique_tensor_elements.size()};
-
-        auto& out_unique_elements = outputs[0];
-        out_unique_elements->set_shape(out_shape);
-        auto& out_indices = outputs[1];
-        out_indices->set_shape(out_shape);
-        auto& out_rev_indices = outputs[2];
-        out_rev_indices->set_shape(Shape{unique_elements.all_tensor_elements.size()});
-        auto& out_counts = outputs[3];
-        out_counts->set_shape(out_shape);
-
-        runtime::reference::unique(out_unique_elements->get_data_ptr<Data_t>(),
-                                   out_indices->get_data_ptr<int32_t>(),
-                                   out_rev_indices->get_data_ptr<int32_t>(),
-                                   out_counts->get_data_ptr<int64_t>(),
-                                   inputs[0]->get_data_ptr<Data_t>(),
-                                   unique_elements);
+        execute_unique<Data_t, int32_t>(outputs, inputs);
     } else if (op->get_index_element_type() == element::i64) {
-        const auto unique_elements =
-            runtime::reference::find_unique_elements<Data_t, int64_t>(inputs[0]->get_data_ptr<Data_t>(),
-                                                                      inputs[0]->get_shape(),
-                                                                      nullptr,
-                                                                      true);
-        const auto out_shape = Shape{unique_elements.unique_tensor_elements.size()};
-
-        auto& out_unique_elements = outputs[0];
-        out_unique_elements->set_shape(out_shape);
-        auto& out_indices = outputs[1];
-        out_indices->set_shape(out_shape);
-        auto& out_rev_indices = outputs[2];
-        out_rev_indices->set_shape(Shape{unique_elements.all_tensor_elements.size()});
-        auto& out_counts = outputs[3];
-        out_counts->set_shape(out_shape);
-
-        runtime::reference::unique(out_unique_elements->get_data_ptr<Data_t>(),
-                                   out_indices->get_data_ptr<int64_t>(),
-                                   out_rev_indices->get_data_ptr<int64_t>(),
-                                   out_counts->get_data_ptr<int64_t>(),
-                                   inputs[0]->get_data_ptr<Data_t>(),
-                                   unique_elements);
+        execute_unique<Data_t, int64_t>(outputs, inputs);
     } else {
         return false;
     }
