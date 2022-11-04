@@ -287,11 +287,12 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
 
 def convert_to_pb(argv: argparse.Namespace):
     from openvino.tools.mo.utils.cli_parser import get_model_name
+    user_output_node_names_list = argv.output.split(',') if argv.output else None
     graph_def, _, _, _ = load_tf_graph_def(
         graph_file_name=argv.input_model,
         is_binary=not argv.input_model_is_text,
         checkpoint=argv.input_checkpoint,
-        user_output_node_names_list=argv.output,
+        user_output_node_names_list=user_output_node_names_list,
         model_dir=argv.saved_model_dir,
         meta_graph_file=argv.input_meta_graph,
         saved_model_tags=argv.saved_model_tags)
