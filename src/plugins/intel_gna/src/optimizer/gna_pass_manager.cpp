@@ -2396,7 +2396,10 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
             int nonConstInputIx = 0;
             // Check if non-const inputs are transposed
             for (int i = 0; InferenceEngine::CNNNetHasPrevLayer(l.get(), i); ++i) {
-                auto input = InferenceEngine::CNNNetPrevLayer(l, i);
+                auto skip_copy = [](InferenceEngine::CNNLayerPtr layer) {
+                    return LayerInfo(layer).isCopy();
+                };
+                auto input = CNNNetPrevLayerSkipCertain(l, i, skip_copy);
                 if (LayerInfo(input).isConst()) {
                     constInputs.push_back(input);
                     continue;

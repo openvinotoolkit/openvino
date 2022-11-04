@@ -309,7 +309,10 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromPrevLayers(Infere
                 bool transpose = false;
                 int nonConstInputIx = 0;
                 for (int i = 0; InferenceEngine::CNNNetHasPrevLayer(layer.get(), i); ++i) {
-                    auto input = InferenceEngine::CNNNetPrevLayer(layer, i);
+                    auto skip_copy = [](InferenceEngine::CNNLayerPtr layer) {
+                        return LayerInfo(layer).isCopy();
+                    };
+                    auto input = CNNNetPrevLayerSkipCertain(layer, i, skip_copy);
                     if (LayerInfo(input).isConst()) continue;
                     auto transpositionInfo = FindTranspositionInfoFromPrevLayers(input);
                     auto partToTranspose = std::find_if(std::begin(transpositionInfo), std::end(transpositionInfo),
