@@ -106,14 +106,7 @@ bool convertTensorIteratorToSequence(const std::shared_ptr<ngraph::opset5::Tenso
         ti_inputs[ordered_in_descs[0]->m_input_index],
         {batch_dim});
 
-    std::shared_ptr<ngraph::Node> seq_len_input;
-    if (ti->get_num_iterations() >= 0) {
-        seq_len_input = ngraph::opset5::Constant::create(ngraph::element::i32, {}, {ti->get_num_iterations()});
-    } else {
-        // negative value in num_iterations member of TensorIterator op means that we can't
-        // define the actual number iterations, most probably the shape of data input is dynamic
-        seq_len_input = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(X, {1});
-    }
+    auto seq_len_input = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(X, {1});
     auto seq_lengths = ngraph::op::util::make_try_fold<ngraph::opset5::Broadcast>(seq_len_input, batch_dimension);
 
     auto axis_0 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
@@ -200,10 +193,6 @@ bool convertTensorIteratorToSequence(const std::shared_ptr<ngraph::opset5::Tenso
     for (size_t i = 0; i < ordered_out_descs.size(); ++i) {
         if (ordered_out_descs[i]) {
             ti->output(ordered_out_descs[i]->m_output_index).replace(outputs[i]->output(0));
-            NGRAPH_SUPPRESS_DEPRECATED_START
-            outputs[i]->get_output_tensor(0).set_name(
-                ngraph::op::util::create_ie_output_name(ti->output(ordered_out_descs[i]->m_output_index)));
-            NGRAPH_SUPPRESS_DEPRECATED_END
         }
     }
 

@@ -113,7 +113,6 @@ void unroll_single_iteration(const shared_ptr<ov::op::util::SubGraphOp>& sub_gra
 
     const auto& params = sub_graph_op->get_function()->get_parameters();
     const auto& results = sub_graph_op->get_function()->get_results();
-
     // before: Layer1 -> TI [input -> bodyParameter -> Layer2 -> ...]
     // after:  Layer1 -> Layer2 ->...
     for (const auto& in : sub_graph_op->get_input_descriptions()) {
@@ -143,6 +142,7 @@ void unroll_single_iteration(const shared_ptr<ov::op::util::SubGraphOp>& sub_gra
             new_ops.push_back(identity_1);
             new_ops.push_back(identity_2);
 
+            identity_2->output(0).get_tensor().add_names(input_to.get_source_output().get_names());
             input_to.replace_source_output(identity_2);
         }
     }
