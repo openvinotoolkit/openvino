@@ -90,9 +90,9 @@ macro(ov_rpm_specific_settings)
     set(CPACK_RPM_PACKAGE_GROUP "Development/Libraries")
     # changelog file
     # TODO: fix "error: bad date in %changelog"
-    # set(CPACK_RPM_CHANGELOG_FILE "${OpenVINO_SOURCE_DIR}/cmake/developer_package/packaging/changelog-rpm")
+    # set(CPACK_RPM_CHANGELOG_FILE "${OpenVINO_SOURCE_DIR}/cmake/developer_package/packaging/rpm/changelog")
     # use rpmlint to check packages in post-build step
-    set(CPACK_POST_BUILD_SCRIPTS "${IEDevScripts_DIR}/packaging/rpm_post_build.cmake")
+    set(CPACK_POST_BUILD_SCRIPTS "${IEDevScripts_DIR}/packaging/rpm/post_build.cmake")
     # enable for debug cpack run
     if(NOT DEFINED CPACK_RPM_PACKAGE_DEBUG)
         set(CPACK_RPM_PACKAGE_DEBUG OFF)
@@ -118,9 +118,9 @@ file(WRITE "${def_triggers}" "${triggers_content}")
 #
 
 #
-# ov_rpm_copyright(<comp name>)
+# ov_rpm_copyright(<comp name> <copyright_name>)
 #
-function(ov_rpm_copyright comp)
+function(ov_rpm_copyright comp copyright_name)
     string(TOUPPER "${comp}" ucomp)
     if(NOT DEFINED CPACK_RPM_${ucomp}_PACKAGE_NAME)
         message(FATAL_ERROR "CPACK_RPM_${ucomp}_PACKAGE_NAME is not defined")
@@ -131,9 +131,10 @@ function(ov_rpm_copyright comp)
 
     # copyright
 
-    install(FILES "${OpenVINO_SOURCE_DIR}/cmake/developer_package/packaging/copyright"
+    install(FILES "${OpenVINO_SOURCE_DIR}/cmake/packaging/copyrights/${copyright_name}"
             DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/${package_name}/
-            COMPONENT ${comp})
+            COMPONENT ${comp}
+            RENAME "copyright")
 endfunction()
 
 #
@@ -217,6 +218,7 @@ macro(ov_rpm_add_latest_component comp)
     set(CPACK_COMPONENT_${upper_case}_DESCRIPTION "${CPACK_COMPONENT_${ucomp}_DESCRIPTION}")
     set(CPACK_COMPONENT_${upper_case}_DEPENDS "${comp}")
     set(CPACK_RPM_${upper_case}_PACKAGE_ARCHITECTURE "noarch")
+    set(${comp_name}_copyright "generic")
 
     # take package name
     if(DEFINED CPACK_RPM_${ucomp}_PACKAGE_NAME)
