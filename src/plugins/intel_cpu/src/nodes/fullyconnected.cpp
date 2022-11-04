@@ -860,19 +860,16 @@ MemoryPtr FullyConnected::prepareWeightMemory(const DnnlMemoryDescPtr weightDesc
 
         MemoryPtr _ptr = MemoryPtr(new Memory(getEngine()));
         _ptr->Create(weightDesc);
-        _ptr->SetData(srcMemory);
+        _ptr->SetData(srcMemory, false);
 
         return _ptr;
     };
 
     MemoryPtr ptr;
     if (weightCache != nullptr) {
-        const uint64_t data_hash = weightCache->GetHashFunc().hash(
-            static_cast<const unsigned char*>(blob->GetData()), blob->GetSize());
-
         const std::string string_hash = getName() + "_" + weightDesc->serializeFormat()
                                         + "_" + std::to_string(blob->GetSize())
-                                        + "_" + std::to_string(data_hash);
+                                        + "_" + std::to_string(reinterpret_cast<uint64_t>(blob->GetData()));
 
         ptr = *weightCache->findOrCreate(string_hash, create);
         privateWeightCache[weightDesc->serializeFormat()] = ptr;
