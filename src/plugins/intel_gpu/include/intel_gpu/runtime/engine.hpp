@@ -85,6 +85,9 @@ public:
     /// Returns preferred allocation type which can be mapped to host ptr
     allocation_type get_lockable_preferred_memory_allocation_type(bool is_image_layout = false) const;
 
+    /// Returns preferred device allocation type which may be not lockable
+    allocation_type get_preferred_memory_allocation_type(bool is_image_layout = false) const;
+
     /// Checks if the current engine supports speicied allocation @p type
     bool supports_allocation(allocation_type type) const;
 

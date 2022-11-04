@@ -25,6 +25,17 @@ static const char create_device_error_msg[] =
     "[GPU] No supported OCL devices found or unexpected error happened during devices query.\n"
     "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n";
 
+std::vector<std::string> split(const std::string& s, char delim) {
+    std::vector<std::string> result;
+    std::stringstream ss(s);
+    std::string item;
+
+    while (getline(ss, item, delim)) {
+        result.push_back(item);
+    }
+    return result;
+}
+
 bool does_device_match_config(bool out_of_order, const cl::Device& device) {
     if (device.getInfo<CL_DEVICE_TYPE>() != CL_DEVICE_TYPE_GPU) {
         return false;
@@ -42,6 +53,32 @@ bool does_device_match_config(bool out_of_order, const cl::Device& device) {
         if (!(static_cast<cmp_t>(queue_properties) & static_cast<cmp_t>(cl::QueueProperties::OutOfOrder))) {
             return false;
         }
+    }
+
+    int32_t ocl_major = -1;
+    int32_t ocl_minor = -1;
+    // Spec says that the format of this string is OpenCL<space><major_version.minor_version><space><vendor-specific information>
+    auto ocl_version_string = device.getInfo<CL_DEVICE_VERSION>();
+    auto tokens = split(ocl_version_string, ' ');
+
+    if (tokens.size() > 1) {
+        auto version_string = tokens[1];
+        auto version_tokens = split(version_string, '.');
+        if (version_tokens.size() == 2) {
+            ocl_major = std::stoi(version_tokens[0]);
+            ocl_minor = std::stoi(version_tokens[1]);
+        }
+    }
+
+    if (ocl_major != -1 && ocl_minor != -1) {
+        int32_t ocl_version = ocl_major*100 + ocl_minor*10;
+#if CL_TARGET_OPENCL_VERSION >= 200
+        int32_t min_ocl_version = 200;
+#else
+        int32_t min_ocl_version = 120;
+#endif
+        if (ocl_version < min_ocl_version)
+            return false;
     }
 
     return true;
