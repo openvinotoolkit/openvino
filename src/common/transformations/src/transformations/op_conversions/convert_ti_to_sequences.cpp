@@ -102,13 +102,17 @@ bool convertTensorIteratorToSequence(const std::shared_ptr<ngraph::opset5::Tenso
             : std::make_shared<ngraph::opset5::Unsqueeze>(ti_inputs[ordered_in_descs[2]->m_input_index], axis_1);
 
     const size_t batch_dim = slice_axis == 0 ? 1 : 0;
-    auto batch_dimension = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(
-        ti_inputs[ordered_in_descs[0]->m_input_index],
-        {batch_dim});
 
-    auto seq_len_input = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(X, {1});
-    auto seq_lengths = ngraph::op::util::make_try_fold<ngraph::opset5::Broadcast>(seq_len_input, batch_dimension);
-
+    auto shape_of = std::make_shared<ngraph::opset5::ShapeOf>(X);
+    auto batch_dimension =
+        std::make_shared<ngraph::opset5::Gather>(shape_of,
+                                                 ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {0}),
+                                                 ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}));
+    auto seq_len_dim =
+        std::make_shared<ngraph::opset5::Gather>(shape_of,
+                                                 ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {1}),
+                                                 ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}));
+    auto seq_lengths = std::make_shared<ngraph::opset5::Broadcast>(seq_len_dim, batch_dimension);
     auto axis_0 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
     auto W = ngraph::op::util::make_try_fold<ngraph::opset5::Unsqueeze>(w_pattern, axis_0);
     auto R = ngraph::op::util::make_try_fold<ngraph::opset5::Unsqueeze>(r_pattern, axis_0);
@@ -206,12 +210,12 @@ bool convertTensorIteratorToSequence(const std::shared_ptr<ngraph::opset5::Tenso
     if (c_pattern.get_node_shared_ptr()) {
         new_nodes.emplace_back(initial_cell_state);
     }
-    if (!std::dynamic_pointer_cast<ngraph::opset5::Constant>(seq_lengths)) {
-        new_nodes.emplace_back(batch_dimension);
-        new_nodes.emplace_back(batch_dimension->get_input_node_shared_ptr(0));
-        new_nodes.emplace_back(seq_len_input);
-        new_nodes.emplace_back(seq_lengths);
-    }
+
+    new_nodes.emplace_back(batch_dimension);
+    new_nodes.emplace_back(shape_of);
+    new_nodes.emplace_back(seq_len_dim);
+    new_nodes.emplace_back(seq_lengths);
+
     if (slice_axis == 0) {
         new_nodes.emplace_back(out.get_node_shared_ptr());
         new_nodes.emplace_back(X.get_node_shared_ptr());
