@@ -125,7 +125,7 @@ ov::pass::UniqueDecomposition::UniqueDecomposition() {
         auto output_unique_elements = rg.make<Gather>(x, sorted_minumum_indices->output(0), zero_const);
 
         if (!unique_node->get_output_target_inputs(0).empty()) {
-            output_unique_elements->set_friendly_name(unique_node->get_friendly_name() + ":0");
+            output_unique_elements->set_friendly_name(unique_node->get_friendly_name() + ".0");
             unique_node->output(0).replace(output_unique_elements->output(0));
         }
 
@@ -145,7 +145,7 @@ ov::pass::UniqueDecomposition::UniqueDecomposition() {
             auto output_idx_plus1 = rg.make<ReduceMax>(unique_vs_x_ind_orig, zero_const);
             auto output_idx = rg.make<Subtract>(output_idx_plus1, one_const_out_idx);
 
-            output_idx->set_friendly_name(unique_node->get_friendly_name() + ":2");
+            output_idx->set_friendly_name(unique_node->get_friendly_name() + ".2");
             unique_node->output(2).replace(output_idx->output(0));
         }
 
