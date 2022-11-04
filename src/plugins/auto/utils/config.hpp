@@ -162,11 +162,8 @@ struct PluginConfig {
                     _isSetPerHint = true;
             } else if (_availableDevices.end() !=
                    std::find(_availableDevices.begin(), _availableDevices.end(), kvp.first)) {
-                if (!supportHWProprety)
-                    // AUTO and MULTI just only accept its own properites when calling core::set_property().
-                    IE_THROW() << "Unsupported setting device property value: " << kvp.second
-                               << " for key: " << kvp.first;
-                // AUTO and MULTI can accept secondary properites when calling core::comile_model().
+                // AUTO and MULTI can accept secondary properites on calling both core::comile_model() and
+                // core::set_property().
                 _passThroughConfig.emplace(kvp.first, kvp.second);
             } else if (kvp.first.find("AUTO_") == 0) {
                 _passThroughConfig.emplace(kvp.first, kvp.second);
@@ -175,7 +172,8 @@ struct PluginConfig {
                 _isSetCacheDir = true;
             } else {
                 if (pluginName.find("AUTO") != std::string::npos || !supportHWProprety)
-                    // AUTO and MULTI just only accept its own properites when calling core::set_property().
+                    // AUTO and MULTI just only accept its own properites and secondary property when calling
+                    // core::set_property().
                     IE_THROW(NotFound) << "Unsupported property " << kvp.first;
 
                 // MULTI could accept the HW primary property like {"NUM_STREAMS", "4"}
