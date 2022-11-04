@@ -94,6 +94,42 @@ struct EltwiseEmitter<jit_power_static_emitter> {
     }
 };
 
+class EltwiseShapeInfer : public ShapeInferEmptyPads {
+public:
+    std::vector<VectorDims> infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        auto output_shape = input_shapes.front().get();
+        // use NUMPY broadcast rule
+        for (size_t i = 1; i < input_shapes.size(); i++) {
+            auto& input_shape = input_shapes[i].get();
+            if (output_shape.size() != output_shape.size()) {
+                IE_THROW() << "Eltwise shape infer input shapes rank mismatch";
+            }
+            for (size_t j = 0; j < input_shape.size(); ++j) {
+                if (input_shape[j] != output_shape[j]) {
+                    if (output_shape[j] == 1) {
+                        output_shape[j] = input_shape[j];
+                    } else {
+                        if (input_shape[j] != 1) IE_THROW() << "Eltwise shape infer input shapes dim index: " << j << " mismatch";
+                    }
+                }
+            }
+        }
+        return { output_shape };
+    }
+    port_mask_t get_port_mask() const override {
+        return 0x00;
+    }
+};
+
+class EltwiseShapeInferFactory : public ShapeInferFactory {
+public:
+    ShapeInferPtr makeShapeInfer() const override {
+        return std::make_shared<EltwiseShapeInfer>();
+    }
+};
+
 }   // namespace
 
 template <cpu_isa_t isa>
@@ -1582,7 +1618,7 @@ bool Eltwise::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
 }
 
 Eltwise::Eltwise(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-    Node(op, eng, cache, DefaultShapeInferFactory(op, 0x00)), broadcastingPolicy(Undefined) {
+    Node(op, eng, cache, EltwiseShapeInferFactory()), broadcastingPolicy(Undefined) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
