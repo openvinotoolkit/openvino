@@ -966,7 +966,7 @@ public:
 
 }   // namespace i420
 
-class ColorConvertShapeInfer final : public ShapeInferEmptyPads {
+class ColorConvertShapeInfer : public ShapeInferEmptyPads {
 public:
     ColorConvertShapeInfer(bool singlePlain) : m_singlePlain(singlePlain) {}
     std::vector<VectorDims> infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,

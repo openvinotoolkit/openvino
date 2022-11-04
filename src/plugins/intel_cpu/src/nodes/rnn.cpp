@@ -276,9 +276,9 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
 }
 
 namespace {
-class ShapeInferRNN final : public NgraphShapeInfer {
+class RnnShapeInfer : public NgraphShapeInfer {
 public:
-    ShapeInferRNN(std::shared_ptr<ov::Node> op) :
+    RnnShapeInfer(std::shared_ptr<ov::Node> op) :
         NgraphShapeInfer(make_shape_inference(op), EMPTY_PORT_MASK) {
             is_sequence = one_of(op->get_type_info(),
                 ov::op::v5::GRUSequence::get_type_info_static(),
@@ -315,7 +315,7 @@ class RnnShapeInferFactory final : public ShapeInferFactory {
 public:
     RnnShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
     ShapeInferPtr makeShapeInfer() const override {
-        return std::make_shared<ShapeInferRNN>(m_op);
+        return std::make_shared<RnnShapeInfer>(m_op);
     }
 private:
     std::shared_ptr<ov::Node> m_op;
