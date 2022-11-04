@@ -544,6 +544,7 @@ def setup(app):
         latex=(visit_doxyrest_literalblock_node, depart_doxyrest_literalblock_node)
     )
     app.add_node(
+        Scrollbox,
         nodes.container, override=True, html=(visit_scrollbox, depart_scrollbox)
     )
 
