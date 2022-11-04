@@ -12,6 +12,19 @@
 #include <string>
 #include <vector>
 
+namespace {
+kernel_selector::dev_type get_device_type(cldnn::device_type type) {
+    switch (type) {
+        case cldnn::device_type::integrated_gpu:
+            return kernel_selector::dev_type::integrated_gpu;
+        case cldnn::device_type::discrete_gpu:
+            return kernel_selector::dev_type::discrete_gpu;
+        default:
+            return kernel_selector::dev_type::integrated_gpu;
+    }
+}
+}  // namespace
+
 kernel_selector::data_type to_data_type(data_types dt) {
     switch (dt) {
         case cldnn::data_types::bin:
@@ -789,17 +802,6 @@ kernel_selector::tuning_mode to_tuning_mode(cldnn::tuning_mode mode) {
             return kernel_selector::tuning_mode::TUNING_RETUNE_AND_CACHE;
         default:
             return kernel_selector::tuning_mode::TUNING_DISABLED;
-    }
-}
-
-kernel_selector::dev_type get_device_type(cldnn::device_type type) {
-    switch (type) {
-        case cldnn::device_type::integrated_gpu:
-            return kernel_selector::dev_type::integrated_gpu;
-        case cldnn::device_type::discrete_gpu:
-            return kernel_selector::dev_type::discrete_gpu;
-        default:
-            return kernel_selector::dev_type::integrated_gpu;
     }
 }
 

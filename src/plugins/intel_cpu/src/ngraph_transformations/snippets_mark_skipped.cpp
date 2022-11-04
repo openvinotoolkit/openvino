@@ -204,14 +204,23 @@ bool isSuitableSubtractAsZeroPointsParent(const std::shared_ptr<const Node> &nod
     const bool is_group_conv = ov::is_type<ov::op::v1::GroupConvolution>(child);
     if (!is_conv && !is_group_conv)
         return false;
-    const auto weight_shape = child->get_input_shape(1);
+    const auto weight_pshape = child->get_input_partial_shape(1);
+    if (weight_pshape.is_dynamic())
+        return false;
+    const auto weight_shape = weight_pshape.get_shape();
     const bool is_depthwise = is_group_conv && weight_shape[1] == 1 && weight_shape[2] == 1;
-    const bool deptwise_is_suitable = implication(is_depthwise, child->get_input_shape(0).size() < 5);
+    const auto depthwise_rank = child->get_input_partial_shape(0).rank();
+    if (depthwise_rank.is_dynamic())
+        return false;
+    const bool deptwise_is_suitable = implication(is_depthwise, depthwise_rank.get_length() < 5);
     if (!deptwise_is_suitable)
         return false;
 
     const auto zp_weights = node->get_input_node_shared_ptr(1);
-    const auto zp_weight_shape = zp_weights->get_output_shape(0);
+    const auto zp_weight_pshape = zp_weights->get_output_partial_shape(0);
+    if (zp_weight_pshape.is_dynamic())
+        return false;
+    const auto zp_weight_shape = zp_weight_pshape.get_shape();
     auto correct_shape = ov::Shape(zp_weight_shape.size(), 1);
     if (zp_weight_shape.size() > 1)
         correct_shape[1] = zp_weight_shape[1];
@@ -289,6 +298,7 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, con
     if (!can_be_converted_to_FC) {
         // can with rank() > 2
         // Algorithm::EltwisePowerStatic is ignored
+        // Note: we can call get_output_shape() because before we checked for static input shapes
         if (node->get_output_shape(0).size() > 2) {
             if (ov::is_type<ov::op::v1::Add>(node) ||
                 ov::is_type<ov::op::v1::Multiply>(node) ||

@@ -3,12 +3,14 @@
 //
 
 #include <cstring>
-#include <gna_plugin_log.hpp>
 #include <limits>
+#include "log/debug.hpp"
+#include "log/log.hpp"
 #include "backend/gna_types.h"
 #include "quantization.hpp"
 #include <algorithm>
 
+using namespace ov::intel_gna;
 
 std::pair<float, float> FindMinMaxValues(void* ptr_float_memory, size_t num_elements) {
     float* ptr_float_feat = reinterpret_cast<float*>(ptr_float_memory);
@@ -154,7 +156,7 @@ void QuantizeWeights<int8_t>(const QuantizationData& data, float* ptr_float_weig
     }
 
     if (num_saturate > 0) {
-        gnalog() << "Warning: " << num_saturate << " / " << (data.num_rows * data.num_columns)
+        log::warning() << num_saturate << " / " << (data.num_rows * data.num_columns)
                  << " saturations in int8 weights quantization." << std::endl;
     }
 }
@@ -215,7 +217,7 @@ void QuantizeWeights<int16_t>(const QuantizationData& data, float* ptr_float_wei
     }
 
     if (num_saturate > 0) {
-        gnalog() << "Warning: " << num_saturate << " / " << (data.num_rows * data.num_columns)
+        log::warning() << num_saturate << " / " << (data.num_rows * data.num_columns)
                  << " saturations in int16 weights quantization." << std::endl;
     }
 }
@@ -252,7 +254,7 @@ void QuantizeBiases<int32_t>(const QuantizationData& data, float* ptr_float_bias
     }
 
     if (num_saturate > 0) {
-        gnalog() << "Warning: " << num_saturate << " / " << data.num_rows
+        log::warning() << num_saturate << " / " << data.num_rows
                  << " saturations in int32 biases quantization." << std::endl;
     }
 }
@@ -277,7 +279,7 @@ void QuantizeBiases<gna_compound_bias_t>(const QuantizationData& data, float* pt
         }
     }
     if (num_saturate > 0) {
-        gnalog() << "Warning: " << num_saturate << " / " << data.num_rows
+        log::warning() << num_saturate << " / " << data.num_rows
                  << " saturations in compound biases quantization." << std::endl;
     }
 }
