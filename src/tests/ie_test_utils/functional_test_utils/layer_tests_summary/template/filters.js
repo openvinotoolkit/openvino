@@ -70,9 +70,9 @@ function LoadDevices() {
 function filterTable() {
     device = $("#devices").val();
     if (device == 0) {
-        $("#report td.value, #report td.table-secondary, #report td.table-primary, #report th.table-dark.device").show();
+        $("#report td.value, #report td.nr_value, #report td.table-secondary, #report td.table-primary, #report th.table-dark.device").show();
     } else {
-        $("#report td.value, #report td.table-secondary, #report td.table-primary, #report th.table-dark.device").filter(function () {
+        $("#report td.value, #report td.nr_value, #report td.table-secondary, #report td.table-primary, #report th.table-dark.device").filter(function () {
             $(this).toggle($(this).hasClass(device))
         });
     }
@@ -190,7 +190,7 @@ function calculateColumnStatistics(device) {
     $('#statistic .table-primary[scope="row"] i').text(total);
     // trusted op
     count_trusted_op = $("#report #data tr:not(:hidden) ." + device + ".value[value^='100'][crashed='0'][failed='0'][skipped='0']").length;
-    all_operations = $("#report #data tr:not(:hidden) .value[value!='N/A'][value!='---']." + device).length;
+    all_operations = $("#report #data tr:not(:hidden) .value[value!='N/A'][value!='---'][value!='NOT RUN']." + device).length;
     if (!all_operations) {
         trusted_op = "---";
     } else {
@@ -225,7 +225,7 @@ function calculateColumnStatistics(device) {
     // AVG Pass Rate
     sum_pass_rate = 0;
     $("#report #data tr:not(:hidden) ." + device + ".value").each(function () {
-        if ($(this).attr('value') != 'N/A' && $(this).attr('value') != '---') {
+        if ($(this).attr('value') != 'N/A' && $(this).attr('value') != 'NOT RUN' && $(this).attr('value') != '---') {
             sum_pass_rate += +$(this).attr('value');
         }
     });

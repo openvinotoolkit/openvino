@@ -104,28 +104,18 @@ if(ENABLE_SYSTEM_PUGIXML)
             # grab all tbb files matching pattern
             file(GLOB pugixml_files "${pugixml_dir}/${name_we}.*")
             foreach(pugixml_file IN LISTS pugixml_files)
-                if(pugixml_file MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)*$")
-                    list(APPEND pugixml_libs "${pugixml_file}")
-                endif()
+                ov_install_with_name("${pugixml_file}" pugixml)
             endforeach()
         elseif(target_type STREQUAL "INTERFACE_LIBRARY")
             get_target_property(pugixml_loc ${pugixml_target} INTERFACE_LINK_LIBRARIES)
-            file(GLOB pugixml_libs_all "${pugixml_loc}.*")
-            foreach(pugixml_lib IN LISTS pugixml_libs_all)
-                if(pugixml_lib MATCHES "^${pugixml_loc}(\.[0-9]+)+$")
-                    list(APPEND pugixml_libs "${pugixml_lib}")
-                endif()
+            file(GLOB pugixml_libs "${pugixml_loc}.*")
+            foreach(pugixml_lib IN LISTS pugixml_libs)
+                ov_install_with_name("${pugixml_lib}" pugixml)
             endforeach()
         endif()
 
         # if dynamic libpugixml.so.1 and libpugixml.so.1.X are found
-        if(pugixml_libs)
-            ie_cpack_add_component(pugixml HIDDEN)
-            install(FILES ${pugixml_libs}
-                    DESTINATION runtime/3rdparty/pugixml/lib
-                    COMPONENT pugixml
-                    EXCLUDE_FROM_ALL)
-        elseif(CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
+        if(NOT pugixml_INSTALLED AND CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
             message(FATAL_ERROR "Debian | RPM package build requires shared Pugixml library")
         endif()
 
@@ -185,7 +175,7 @@ if(NOT APPLE OR CPACK_GENERATOR MATCHES "^(BREW|CONDA-FORGE)$")
     # - on Apple only dynamic libraries are available
     #   also, we can easily mix arm64 and x86_64 binaries when cross-compile for Intel CPU
 
-    if(CPACK_GENERATOR MATCHES "^(BREW|CONDA-FORGE)$" OR DEFINED ENV{HOMEBREW_PREFIX})
+    if(CPACK_GENERATOR MATCHES "^(BREW|CONDA-FORGE)$" OR DEFINED ENV{HOMEBREW_PREFIX} OR LINUX_OS_NAME MATCHES "(Fedora|CentOS)")
         # conda-forge and brew contains only shared version of gflags
         find_package(gflags QUIET COMPONENTS nothreads_shared)
     else()
@@ -196,6 +186,10 @@ endif()
 if(gflags_FOUND)
     if(TARGET gflags)
         set_target_properties(gflags PROPERTIES IMPORTED_GLOBAL ON)
+    elseif(TARGET gflags_nothreads-shared)
+        # gflags shared case for CentOS/RHEL8
+        set_target_properties(gflags_nothreads-shared PROPERTIES IMPORTED_GLOBAL ON)
+        add_library(gflags ALIAS gflags_nothreads-shared)
     elseif(TARGET gflags_nothreads-static)
         # debian_9_arm case
         set_target_properties(gflags_nothreads-static PROPERTIES IMPORTED_GLOBAL ON)
@@ -302,13 +296,13 @@ if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
     # These libraries are dependencies for openvino-samples package
 
     if(NOT gflags_FOUND)
-        message(FATAL_ERROR "gflags must be used as a ${CPACK_GENERATOR} package. Install libgflags-dev")
+        message(FATAL_ERROR "gflags must be used as a ${CPACK_GENERATOR} package. Install libgflags-dev / gflags-devel")
     endif()
     if(NOT zlib_FOUND)
-        message(FATAL_ERROR "zlib must be used as a ${CPACK_GENERATOR} package. Install zlib1g-dev")
+        message(FATAL_ERROR "zlib must be used as a ${CPACK_GENERATOR} package. Install zlib1g-dev / zlib-devel")
     endif()
-    if(NOT ENABLE_SYSTEM_PUGIXML)
-        message(FATAL_ERROR "Pugixml must be used as a ${CPACK_GENERATOR} package. Install libpugixml-dev")
+    if(NOT ENABLE_SYSTEM_PUGIXML AND NOT LINUX_OS_NAME STREQUAL "CentOS 7")
+        message(FATAL_ERROR "Pugixml must be used as a ${CPACK_GENERATOR} package. Install libpugixml-dev / pugixml-devel")
     endif()
 else()
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/gflags

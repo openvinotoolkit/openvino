@@ -35,6 +35,6 @@ void GNAPluginNS::ConvertToInt16(int16_t *ptr_dst,
         return;
     }
     for (uint32_t i = 0; i < num_rows*num_columns; i++) {
-        ptr_dst[i] = GNAPluginNS::ConvertFloatToInt16(ptr_src[i]*scale_factor);
+        ptr_dst[i] = ConvertFloatToInt16(ptr_src[i]*scale_factor);
     }
 }

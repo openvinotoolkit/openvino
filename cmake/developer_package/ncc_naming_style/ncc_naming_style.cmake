@@ -77,12 +77,13 @@ if(ENABLE_NCC_STYLE)
 endif()
 
 # check python requirements_dev.txt
+if(ENABLE_NCC_STYLE)
+    set(ncc_script_py "${ncc_style_dir}/ncc/ncc.py")
 
-set(ncc_script_py "${ncc_style_dir}/ncc/ncc.py")
-
-if(NOT EXISTS ${ncc_script_py})
-    message(WARNING "ncc.py is not downloaded via submodule")
-    set(ENABLE_NCC_STYLE OFF)
+    if(NOT EXISTS ${ncc_script_py})
+        message(WARNING "ncc.py is not downloaded via submodule")
+        set(ENABLE_NCC_STYLE OFF)
+    endif()
 endif()
 
 if(ENABLE_NCC_STYLE)
