@@ -545,7 +545,8 @@ def setup(app):
     )
     app.add_node(
         Scrollbox,
-        html=(visit_scrollbox, depart_scrollbox)
+        html=(visit_scrollbox, depart_scrollbox),
+        latex=(visit_scrollbox, depart_scrollbox)
     )
 
     app.add_role('cref', cref_role)
