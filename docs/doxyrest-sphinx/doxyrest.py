@@ -140,25 +140,25 @@ def create_target_node(raw_text, text, target, highlight_language, lineno, docum
     return node
 
 
-def visit_scrollbox(self, nodescrollbox: nodes.Node):
-    scrollboxbar = "<div class='scrollbox-bar' style='width:" + ''.join(c for c in str(nodescrollbox['bar']) if c.isdigit()) + "px;'></div>"
+def visit_scrollbox(self, node: nodes.Node):
+    scrollboxbar = "<div class='scrollbox-bar' style='width:" + ''.join(c for c in str(node['bar']) if c.isdigit()) + "px;'></div>"
     scrollboxcontent = "<div class='scrollbox-content' style='width:100%;'>"
     attrs = {}
-    if "height" in nodescrollbox:
+    if "height" in node:
         attrs["style"] = (
             "height:"
-            + "".join(c for c in str(nodescrollbox["height"]) if c.isdigit())
+            + "".join(c for c in str(node["height"]) if c.isdigit())
             + "px;"
             + "width:"
-            + "".join(c for c in str(nodescrollbox["width"]) if c.isdigit())
-            + ("px;" if nodescrollbox["width"].find("px") != -1 else "%;")
+            + "".join(c for c in str(node["width"]) if c.isdigit())
+            + ("px;" if node["width"].find("px") != -1 else "%;")
         )
         attrs["class"] = "scrollbox"
-    self.body.append(self.starttag(nodescrollbox, "div", **attrs))
+    self.body.append(self.starttag(node, "div", **attrs))
     self.body.append(scrollboxbar)
     self.body.append(scrollboxcontent)
 
-def depart_scrollbox(self, nodescrollbox: nodes.Node):
+def depart_scrollbox(self, node: nodes.Node):
     self.body.append("</div></div>\n")
 
 def create_scrollbox_component(
@@ -279,7 +279,7 @@ class RefCodeBlock(Directive):
         return [node]
 
 class Scrollbox(Directive):
-
+    required_arguments = 0
     optional_arguments = 1
     final_argument_whitespace = True
     option_spec = {
@@ -294,17 +294,17 @@ class Scrollbox(Directive):
 
     def run(self):
         classes = []
-        nodescrollbox = create_scrollbox_component("div", rawtext="\n".join(self.content), classes=classes)
+        node = create_scrollbox_component("div", rawtext="\n".join(self.content), classes=classes)
         if 'height' in self.options:
-            nodescrollbox['height'] = self.options['height']
+            node['height'] = self.options['height']
         if 'width' in self.options:
-            nodescrollbox['width'] = self.options['width']
+            node['width'] = self.options['width']
         if 'bar' in self.options:
-            nodescrollbox['bar'] = self.options['bar']
-        self.add_name(nodescrollbox)
+            node['bar'] = self.options['bar']
+        self.add_name(node)
         if self.content:
-            self.state.nested_parse(self.content, self.content_offset, nodescrollbox)
-        return [nodescrollbox]
+            self.state.nested_parse(self.content, self.content_offset, node)
+        return [node]
 
 
 #...............................................................................
