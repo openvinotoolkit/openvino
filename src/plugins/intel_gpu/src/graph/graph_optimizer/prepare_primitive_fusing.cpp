@@ -649,11 +649,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return data_type_traits::is_i8_u8(in_dt);
         };
 
-        auto pooling_supports_fusings = [](pooling_node& node) -> bool {
-            auto pooling_mode = node.get_primitive()->mode;
-            return pooling_mode != cldnn::pooling_mode::max_with_argmax;
-        };
-
         auto dts_supports_fusings = [](depth_to_space_node& node) -> bool {
             bool input_conv = node.get_dependency(0).is_type<convolution>();
             bool out_eltw = node.get_users().front()->is_type<eltwise>();
@@ -772,7 +767,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input_data.is_type<gemm>() && gemm_supports_fusings(input_data.as<gemm>());
 
-            should_fuse |= input_data.is_type<pooling>() && pooling_supports_fusings(input_data.as<pooling>());
+            should_fuse |= input_data.is_type<pooling>();
 
             should_fuse |= input_data.is_type<resample>();
 
@@ -861,8 +856,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                            _lo.get_optimization_attributes().use_onednn_impls ||
                            (in_dt_is_i8_u8 && out_dt_is_i8_u8));
 
-            should_fuse |= input_data.is_type<pooling>() && quantize_node.get_scale_shift_opt() &&
-                           pooling_supports_fusings(input_data.as<pooling>());
+            should_fuse |= input_data.is_type<pooling>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<fully_connected>() && quantize_node.get_scale_shift_opt();
 
@@ -960,7 +954,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i]->is_type<gather_elements>()) ||
                                       (parents[i]->is_type<scatter_nd_update>()) ||
                                       (parents[i]->is_type<scatter_elements_update>()) ||
-                                      (parents[i]->is_type<pooling>() && pooling_supports_fusings(parents[i]->as<pooling>())) ||
+                                      (parents[i]->is_type<pooling>()) ||
                                       (parents[i]->is_type<depth_to_space>() && dts_supports_fusings(parents[i]->as<depth_to_space>())) ||
                                       (parents[i]->is_type<gather>()) ||
                                       (parents[i]->is_type<reduce>() && reduce_supports_fusings(parents[i]->as<reduce>())) ||

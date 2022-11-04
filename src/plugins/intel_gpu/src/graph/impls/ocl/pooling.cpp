@@ -21,11 +21,9 @@ void validate_args(const pooling_node& arg) {
     auto stride_rank = arg.get_primitive()->stride.size();
     auto window_rank = arg.get_primitive()->size.size();
 
-    if (!arg.get_primitive()->global_pooling) {
-        CLDNN_ERROR_NOT_EQUAL(arg.id(), "input dimensions", input_rank, "output dimensions", output_rank, "");
-        CLDNN_ERROR_NOT_EQUAL(arg.id(), "stride dimensions", stride_rank, "output dimensions", output_rank, "");
-        CLDNN_ERROR_NOT_EQUAL(arg.id(), "window dimensions", window_rank, "output dimensions", output_rank, "");
-    }
+    CLDNN_ERROR_NOT_EQUAL(arg.id(), "input dimensions", input_rank, "output dimensions", output_rank, "");
+    CLDNN_ERROR_NOT_EQUAL(arg.id(), "stride dimensions", stride_rank, "output dimensions", output_rank, "");
+    CLDNN_ERROR_NOT_EQUAL(arg.id(), "window dimensions", window_rank, "output dimensions", output_rank, "");
 }
 
 kernel_selector::pool_type cldnn_2_pool_type(pooling_mode mode) {
@@ -36,8 +34,6 @@ kernel_selector::pool_type cldnn_2_pool_type(pooling_mode mode) {
             return kernel_selector::pool_type::AVG;
         case pooling_mode::average_no_padding:
             return kernel_selector::pool_type::AVG;
-        case pooling_mode::max_with_argmax:
-            return kernel_selector::pool_type::MAX_WITH_ARGMAX;
         default:
             assert(0);
             return kernel_selector::pool_type::MAX;
@@ -47,8 +43,6 @@ kernel_selector::pool_type cldnn_2_pool_type(pooling_mode mode) {
 kernel_selector::kernel_divider_mode cldnn_2_kernel_divider_mode(pooling_mode mode) {
     switch (mode) {
         case pooling_mode::max:
-        case pooling_mode::max_with_argmax:
-            return kernel_selector::kernel_divider_mode::DONT_CARE;
         case pooling_mode::average:
             return kernel_selector::kernel_divider_mode::FIXED;
         case pooling_mode::average_no_padding:
@@ -71,8 +65,6 @@ struct pooling_impl : typed_primitive_impl_ocl<pooling> {
 protected:
     kernel_arguments_data get_arguments(typed_primitive_inst<pooling>& instance, int32_t split) const override {
         kernel_arguments_data args = parent::get_arguments(instance, split);
-        if (!instance.argument->argmax.empty())
-            args.inputs.push_back(instance.dep_memory_ptr(1));
         return args;
     }
 
@@ -102,7 +94,9 @@ public:
         }
 
         const auto& stride = primitive->stride;
-        const auto& pad = primitive->pad;
+        const auto& pads_begin = primitive->pads_begin;
+        const auto& pads_end = primitive->pads_end;
+
         const auto& dilation = primitive->dilation;
         auto kernel = primitive->size;
         const auto& input_layout = impl_param.input_layouts[0];
@@ -114,19 +108,12 @@ public:
         pp.poolType = cldnn_2_pool_type(primitive->mode);
         pp.remainderAction = kernel_selector::pool_remainder::CEIL;
 
-        if (primitive->global_pooling) {
-            kernel = ov::Shape(spatial_rank, 1);
-            for (size_t i = 0; i < spatial_rank; i++) {
-                kernel[i] = input_layout.spatial(spatial_rank - i - 1);
-            }
-        }
-
         // check if last pooling window goes outside of input size + padding. If so the avg pooling size will be
         // adjusted to that, to work properly this calculation must take pad_end into account.
         auto dynamic_mode = false;
         for (size_t i = 0; i < spatial_rank; i++) {
             dynamic_mode |= (((output_layout.spatial(i) - 1) * stride[spatial_rank - i - 1]) + primitive->size[spatial_rank - i - 1]) >
-                                 (primitive->pad_end[spatial_rank - i - 1] + pad[spatial_rank - i - 1]) + input_layout.spatial(i);
+                                 (pads_end[spatial_rank - i - 1] + pads_begin[spatial_rank - i - 1]) + input_layout.spatial(i);
         }
 
         if (primitive->mode == pooling_mode::average && dynamic_mode)
@@ -134,17 +121,14 @@ public:
         else
             pp.divMode = cldnn_2_kernel_divider_mode(primitive->mode);
 
-        if (primitive->mode == pooling_mode::max_with_argmax)
-            pool_params.inputs.push_back(convert_data_tensor(arg.argmax().get_output_layout()));
-
         uint32_t kernel_z = kernel.size() >= 3 ? kernel[kernel.size() - 3] : 1;
         uint32_t kernel_y = kernel.size() >= 2 ? kernel[kernel.size() - 2] : 1;
         uint32_t kernel_x = kernel.size() >= 1 ? kernel[kernel.size() - 1] : 1;
         pp.poolSize = {kernel_x, kernel_y, kernel_z};
 
-        uint32_t pad_z = std::max<std::ptrdiff_t>(pad.size() >= 3 ? pad[pad.size() - 3] : 0, 0);
-        uint32_t pad_y = std::max<std::ptrdiff_t>(pad.size() >= 2 ? pad[pad.size() - 2] : 0, 0);
-        uint32_t pad_x = std::max<std::ptrdiff_t>(pad.size() >= 1 ? pad[pad.size() - 1] : 0, 0);
+        uint32_t pad_z = std::max<std::ptrdiff_t>(pads_begin.size() >= 3 ? pads_begin[pads_begin.size() - 3] : 0, 0);
+        uint32_t pad_y = std::max<std::ptrdiff_t>(pads_begin.size() >= 2 ? pads_begin[pads_begin.size() - 2] : 0, 0);
+        uint32_t pad_x = std::max<std::ptrdiff_t>(pads_begin.size() >= 1 ? pads_begin[pads_begin.size() - 1] : 0, 0);
         pp.poolPad  = {pad_x, pad_y, pad_z};
 
         uint32_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
