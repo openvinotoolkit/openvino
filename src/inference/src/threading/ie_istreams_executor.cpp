@@ -53,12 +53,10 @@ int IStreamsExecutor::Config::GetDefaultNumStreams() {
 }
 
 int IStreamsExecutor::Config::GetHybridNumStreams(std::map<std::string, std::string>& config, const int stream_mode) {
-    const int num_cores = parallel_get_max_threads();
-    const int num_phy_cores = getNumberOfCPUCores();
-    const int num_big_cores = getNumberOfCPUCores(true);
-    const int num_small_cores = num_phy_cores - num_big_cores;
-    const int logic_core = num_cores > num_phy_cores;
-    const int num_big_cores_total = logic_core ? num_big_cores * 2 : num_big_cores;
+    const int num_cores_phy = getNumberOfCPUCores();
+    const int num_big_cores_phy = getNumberOfCPUCores(true);
+    const int num_small_cores = num_cores_phy - num_big_cores_phy;
+    const int num_big_cores = num_big_cores_phy * 2;
     int big_core_streams = 0;
     int small_core_streams = 0;
     int threads_per_stream_big = 0;
@@ -66,40 +64,38 @@ int IStreamsExecutor::Config::GetHybridNumStreams(std::map<std::string, std::str
 
     if (stream_mode == DEFAULT) {
         // bare minimum of streams (that evenly divides available number of core)
-        if (0 == num_big_cores % 4) {
-            big_core_streams = std::max(2, num_big_cores / 4);
-        } else if (0 == num_big_cores % 5) {
-            big_core_streams = std::max(5, num_big_cores / 5);
-        } else if (0 == num_big_cores % 3) {
-            big_core_streams = std::max(3, num_big_cores / 3);
+        if (0 == num_big_cores_phy % 4) {
+            threads_per_stream_big = 4;
+        } else if (0 == num_big_cores_phy % 5) {
+            threads_per_stream_big = 5;
+        } else if (0 == num_big_cores_phy % 3) {
+            threads_per_stream_big = 3;
         } else {  // if user disables some cores say in BIOS, so we got weird #cores which is not easy to divide
-            big_core_streams = 1;
+            threads_per_stream_big = num_big_cores_phy;
         }
 
-        threads_per_stream_big = num_big_cores / big_core_streams;
-        big_core_streams = logic_core ? num_big_cores_total / threads_per_stream_big : big_core_streams;
+        big_core_streams = num_big_cores / threads_per_stream_big;
         threads_per_stream_small = threads_per_stream_big;
         if (num_small_cores == 0) {
-            big_core_streams = num_big_cores / threads_per_stream_big;
+            big_core_streams = num_big_cores_phy / threads_per_stream_big;
             threads_per_stream_small = 0;
         } else if (num_small_cores < threads_per_stream_small) {
             small_core_streams = 1;
             threads_per_stream_small = num_small_cores;
             threads_per_stream_big = threads_per_stream_small;
-            big_core_streams =
-                logic_core ? num_big_cores / threads_per_stream_big * 2 : num_big_cores / threads_per_stream_big;
+            big_core_streams = num_big_cores / threads_per_stream_big;
         } else {
             small_core_streams = num_small_cores / threads_per_stream_small;
         }
     } else if (stream_mode == AGGRESSIVE) {
-        big_core_streams = logic_core ? num_big_cores_total : num_big_cores;
-        small_core_streams = logic_core ? num_small_cores : num_small_cores / 2;
-        threads_per_stream_big = logic_core ? num_big_cores_total / big_core_streams : num_big_cores / big_core_streams;
+        big_core_streams = num_big_cores;
+        small_core_streams = num_small_cores;
+        threads_per_stream_big = num_big_cores / big_core_streams;
         threads_per_stream_small = num_small_cores == 0 ? 0 : num_small_cores / small_core_streams;
     } else if (stream_mode == LESSAGGRESSIVE) {
-        big_core_streams = logic_core ? num_big_cores_total / 2 : num_big_cores / 2;
-        small_core_streams = logic_core ? num_small_cores / 2 : num_small_cores / 4;
-        threads_per_stream_big = logic_core ? num_big_cores_total / big_core_streams : num_big_cores / big_core_streams;
+        big_core_streams = num_big_cores / 2;
+        small_core_streams = num_small_cores / 2;
+        threads_per_stream_big = num_big_cores / big_core_streams;
         threads_per_stream_small = num_small_cores == 0 ? 0 : num_small_cores / small_core_streams;
     } else {
         IE_THROW() << "Wrong stream mode to get num of streams: " << stream_mode;
@@ -108,7 +104,7 @@ int IStreamsExecutor::Config::GetHybridNumStreams(std::map<std::string, std::str
     config[CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)] = std::to_string(small_core_streams);
     config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)] = std::to_string(threads_per_stream_big);
     config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)] = std::to_string(threads_per_stream_small);
-    config[CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)] = std::to_string(num_small_cores == 0 ? 0 : num_big_cores * 2);
+    config[CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)] = std::to_string(num_small_cores == 0 ? 0 : num_big_cores);
     return big_core_streams + small_core_streams;
 }
 
