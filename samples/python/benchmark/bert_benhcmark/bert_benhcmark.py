@@ -19,7 +19,7 @@ from transformers.onnx.features import FeaturesManager
 def main():
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
     log.info(f"OpenVINO:\n{'': <9}{'API version':.<24} {get_version()}")
-    model_name = "bert-base-uncased"
+    model_name = 'bert-base-uncased'
     # Download the model
     transformers_model = FeaturesManager.get_model_from_feature('default', model_name)
     _, model_onnx_config = FeaturesManager.check_supported_model_or_raise(transformers_model, feature='default')
@@ -44,27 +44,27 @@ def main():
         raise
     # Optimize for throughput. Best throughput can be reached by
     # running multiple openvino.runtime.InferRequest instances asyncronously
-    tput={'PERFORMANCE_HINT': 'THROUGHPUT'}
+    tput = {'PERFORMANCE_HINT': 'THROUGHPUT'}
     # Pick device by replacing CPU, for example MULTI:CPU(4),GPU(8)
-    compiled_model=core.compile_model(model, 'CPU', tput)
+    compiled_model = core.compile_model(model, 'CPU', tput)
     # AsyncInferQueue creates optimal number of InferRequest instances
-    ireqs=AsyncInferQueue(compiled_model)
+    ireqs = AsyncInferQueue(compiled_model)
 
-    sst2=datasets.load_dataset('glue', 'sst2')
-    sst2_sentences=sst2['validation']['sentence']
+    sst2 = datasets.load_dataset('glue', 'sst2')
+    sst2_sentences = sst2['validation']['sentence']
     # Warm up
-    encoded_warm_up=dict(tokenizer('Warm up sentence is here.', return_tensors='np'))
+    encoded_warm_up = dict(tokenizer('Warm up sentence is here.', return_tensors='np'))
     for _ in ireqs:
         ireqs.start_async(encoded_warm_up)
     for ireq in ireqs:
         ireq.wait()
     # Benchmark
-    start=perf_counter()
+    start = perf_counter()
     for sentence in sst2_sentences:
-        encoded=dict(tokenizer(sentence, return_tensors='np'))
+        encoded = dict(tokenizer(sentence, return_tensors='np'))
         ireqs.start_async(encoded)
     ireqs.wait_all()
-    end=perf_counter()
+    end = perf_counter()
     log.info(f'Duration:       {end - start:.2f} seconds')
 
 
