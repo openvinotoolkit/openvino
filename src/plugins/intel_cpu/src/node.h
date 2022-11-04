@@ -20,6 +20,7 @@
 #include "extension_mngr.h"
 #include "primitive.h"
 #include "weights_cache.hpp"
+#include "dnnl_scratch_pad.h"
 #include <openvino/itt.hpp>
 #include "utils/ngraph_utils.hpp"
 #include <ngraph/ops.hpp>
@@ -28,6 +29,7 @@
 #include <nodes/common/blocked_desc_creator.h>
 #include "cpu_types.h"
 #include "cpu_shape.h"
+#include "config.h"
 #include "nodes/node_config.h"
 #include "cache/multi_cache.h"
 
@@ -573,6 +575,10 @@ public:
         rtParamsCache = cache;
     }
 
+    void setRuntimeScratchPad(DnnlScratchPadPtr scratchPad) {
+        rtScratchPad = scratchPad;
+    }
+
     void setSharedMutex(const std::shared_ptr<std::mutex>& mutex) {
         sharedMutex = mutex;
     }
@@ -747,6 +753,16 @@ protected:
         return rtParamsCache;
     }
 
+    DnnlScratchPadPtr getRuntimeScratchPad() const {
+        return rtScratchPad;
+    }
+
+    MemoryPtr getScratchPadMem(const const_dnnl_primitive_desc_t& pd) {
+        auto scratchpadMemoryDesc = DnnlExtensionUtils::query_md(pd, dnnl::query::scratchpad_md);
+        scratchpadMem = getRuntimeScratchPad()->createScratchPadMem(scratchpadMemoryDesc);
+        return scratchpadMem;
+    }
+
     std::vector<VectorDims> lastInputDims = {};
 
     std::shared_ptr<IShapeInfer> shapeInference;
@@ -775,6 +791,8 @@ private:
     PerfCounters profiling;
 
     MultiCachePtr rtParamsCache;
+    DnnlScratchPadPtr rtScratchPad;
+    MemoryPtr scratchpadMem;
 
     bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const;
 
