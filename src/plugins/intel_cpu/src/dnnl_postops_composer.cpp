@@ -96,9 +96,13 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool allo
             can_fuse_into_oscale = true;
 
         // relu(x)*s = relu(x*s)
+        // prelu(x)*s = prelu(x*s)
         if (ops.len() == 1) {
             auto& cur_op = ops.get()->entry_[0];
             if (cur_op.kind == dnnl::impl::primitive_kind::eltwise && cur_op.eltwise.alg == dnnl_eltwise_relu) {
+                can_fuse_into_oscale = true;
+            }
+            if (cur_op.kind == dnnl::impl::primitive_kind::binary && cur_op.binary.alg == dnnl_binary_prelu) {
                 can_fuse_into_oscale = true;
             }
         }
