@@ -67,6 +67,8 @@ struct concat_in_place_optimization : pattern_match_optimization_typed<concat_in
 bool concat_noop_optimization::match(concatenation_node& node) {
     if (node.is_output() && !get_program().is_debug_build())
         return false;
+    if (node.is_valid_output_layout() && node.get_output_layout().is_dynamic())
+        return false;
     return node.get_dependencies().size() == 1 &&
         !node.has_fused_primitives() &&
         node.get_fused_activations_funcs().empty();
@@ -85,6 +87,8 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
     if (node.is_output() && !get_program().is_debug_build())
         return false;
     if (node.has_fused_primitives() || !node.get_fused_activations_funcs().empty())
+        return false;
+    if (node.is_valid_output_layout() && node.get_output_layout().is_dynamic())
         return false;
 
     bool is_onednn_impl = false;
@@ -311,7 +315,7 @@ void prepare_buffer_fusing::run(program& p) {
     If crop is before concat there can be padding mismtach, since concat changes padding.
     */
     auto can_optimize = [](const program_node* node) {
-        if ((node->is_valid_output_layout() && node->is_dynamic()) || node->is_output() || (!node->get_fused_activations_funcs().empty())) {
+        if ((node->is_valid_output_layout() && node->get_output_layout().is_dynamic()) || node->is_output() || (!node->get_fused_activations_funcs().empty())) {
             return false;
         }
         return true;
