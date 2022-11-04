@@ -22,6 +22,7 @@
 
 #include <snippets/op/subgraph.hpp>
 #include "emitters/cpu_generator.hpp"
+#include "utils/cpu_utils.hpp"
 #include "snippets_transformations/fuse_load_store_and_convert.hpp"
 #include "ngraph_transformations/convert_to_swish_cpu.hpp"
 
@@ -68,14 +69,6 @@ void Snippet::copy_snippet() {
     snippet->set_friendly_name(original_snippet->get_friendly_name());
     snippet->set_generator(std::make_shared<CPUGenerator>(host_isa));
     isa_num_lanes =  snippet->get_generator()->get_target_machine()->get_lanes();
-}
-
-VectorDims Snippet::prependWithOnes(const VectorDims& dims, size_t rank) {
-    if (rank <= dims.size())
-        return dims;
-    VectorDims result(rank, 1);
-    std::copy(dims.begin(), dims.end(), &result[rank - dims.size()]);
-    return result;
 }
 
 void Snippet::initSupportedPrimitiveDescriptors() {
@@ -439,11 +432,11 @@ void Snippet::prepareParams() {
     // here must be all the stuff that could only be done for static shapes, e.g. offset calculation
     // Here it must be all the stuff that could be done once for both static and dynamic shapes
 
-    masterShape = prependWithOnes(masterShape, tensorRank);
+    masterShape = getNormalizedDimsBySize(masterShape, tensorRank);
     for (auto& pshape : normInputShapes)
-        pshape = prependWithOnes(pshape, tensorRank);
+        pshape = getNormalizedDimsBySize(pshape, tensorRank);
     for (auto& pshape : normOutputShapes)
-        pshape = prependWithOnes(pshape, tensorRank);
+        pshape = getNormalizedDimsBySize(pshape, tensorRank);
 
     tileRank = 1;
     fullWorkAmount = std::accumulate(masterShape.begin(), masterShape.end(), 1, std::multiplies<size_t>());
@@ -486,8 +479,6 @@ void Snippet::prepareParams() {
         dim = 1;
     }
 
-    // ov::pass::Serialize("tile_initial.xml", "tile_initial.bin").run_on_model(snippet->get_body());
-    //
     std::vector<ov::Shape> new_shapes;
     for (const auto& s : normInputShapes) {
         ov::Shape ns(tileRank, 0);

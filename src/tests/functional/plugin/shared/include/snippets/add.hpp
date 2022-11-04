@@ -21,6 +21,7 @@ typedef std::tuple<
 
 typedef std::tuple<
         std::vector<ov::Shape>,      // Input 0, Input 1 Shape
+        ov::element::Type,           // Element type
         size_t,                      // Expected num nodes
         size_t,                      // Expected num subgraphs
         std::string                  // Target Device
@@ -33,14 +34,6 @@ typedef std::tuple<
         size_t,                      // Expected num subgraphs
         std::string                  // Target Device
 > AddConstParams;
-
-typedef std::tuple<
-    InputShape,        // Input 0 Shape
-    InputShape,        // Input 1 Shape
-    size_t,                      // Expected num nodes
-    size_t,                      // Expected num subgraphs
-    std::string                  // Target Device
-    > AddDynamicParams;
 
 class Add : public testing::WithParamInterface<ov::test::snippets::AddParams>,
             virtual public ov::test::SnippetsTestsCommon {

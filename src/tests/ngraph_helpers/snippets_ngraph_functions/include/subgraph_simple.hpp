@@ -72,8 +72,9 @@ protected:
 // The function is needed to check different input element types (model precision change)
 class AddRollConstFunction : public SnippetsFunctionBase {
 public:
-    explicit AddRollConstFunction(const std::vector<Shape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+    explicit AddRollConstFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
         NGRAPH_CHECK(input_shapes.size() == 1, "Got invalid number of input shapes");
+        NGRAPH_CHECK(input_shapes[0].is_static(), "Only static shapes are supported");
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;

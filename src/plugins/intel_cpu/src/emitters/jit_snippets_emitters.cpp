@@ -246,7 +246,7 @@ LoopBeginEmitter::LoopBeginEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl:
         IE_THROW() << "LoopBeginEmitter invoked with invalid configuration: the last output must be LoopEnd";
     work_amount = loop_begin->get_work_amount();
     evaluate_once = loop_begin->get_evaluate_once();
-    num_inputs = loop_begin->get_output_size() - 1;
+    num_inputs = loop_begin->get_input_size();
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
@@ -297,8 +297,8 @@ LoopEndEmitter::LoopEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::imp
     if (!loop_begin)
         IE_THROW() << "LoopEndEmitter invoked with invalid configuration: the last arg must be LoopBegin";
     // Note that 1 edge connects LoopBegin and LoopEnd
-    num_inputs = loop_begin->get_output_size() - 1;
-    num_outputs = loop_end->get_input_size() - 1;
+    num_inputs = loop_begin->get_input_size();
+    num_outputs = loop_end->get_output_size();
     increment = loop_end->get_increment();
     work_amount = loop_end->get_work_amount();
     apply_increments = loop_end->get_apply_increment();

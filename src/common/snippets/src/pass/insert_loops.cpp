@@ -20,8 +20,8 @@ bool ngraph::snippets::pass::InsertLoops::run_on_model(const std::shared_ptr<ov:
     const auto inner_dim = master_shape.size() - 1;
     // Note: outer_dim could overflow if master_shape.size() < 2
     const auto outer_dim = master_shape.size() - 2;
-    const auto inner_WA = master_shape[inner_dim].get_length();
-    const auto outer_WA = master_shape.size() >= 2 ? master_shape[outer_dim].get_length() : 1;
+    const auto inner_work_amount = master_shape[inner_dim].get_length();
+    const auto outer_work_amount = master_shape.size() >= 2 ? master_shape[outer_dim].get_length() : 1;
 
     ParameterVector commonParams = model->get_parameters();
     // Note that topological sort parses node arguments in reversed order, but results are added  - in direct order
@@ -35,7 +35,7 @@ bool ngraph::snippets::pass::InsertLoops::run_on_model(const std::shared_ptr<ov:
     std::transform(commonResults.begin(), commonResults.end(), std::back_inserter(ioShapes),
                    [](const std::shared_ptr<Node>& n) { return n->get_input_partial_shape(0); });
 
-    if (inner_WA > 0) {
+    if (inner_work_amount > 0) {
         std::vector<bool> apply_increments;
         apply_increments.reserve(ioShapes.size());
         // Inner Loop applies increments if a dimension is not broadcasted
@@ -44,18 +44,18 @@ bool ngraph::snippets::pass::InsertLoops::run_on_model(const std::shared_ptr<ov:
                            return ps[inner_dim] != 1 && master_shape[inner_dim] != 1;
                        });
         std::vector<int64_t> inner_finalization_offsets(ioShapes.size(), 0);
-        if (outer_WA > 1) {
+        if (outer_work_amount > 1) {
             // We need to step back if an outer dim is broadcasted, while the corresponding lower one is not
             std::transform(ioShapes.begin(), ioShapes.end(), inner_finalization_offsets.begin(),
                            [=](const PartialShape& ps) {
-                               return ps[outer_dim] == 1 && ps[inner_dim] != 1 ? -inner_WA : 0;
+                               return ps[outer_dim] == 1 && ps[inner_dim] != 1 ? -inner_work_amount : 0;
                            });
         }
         const auto& inner_loop_begin = op::insertLoopBegin(commonParams);
-        const auto& inner_loop_end = insertLoopEnd(commonResults, inner_loop_begin, inner_dim, inner_WA, vector_size, apply_increments,
-                                                   inner_finalization_offsets);
+        const auto& inner_loop_end = insertLoopEnd(commonResults, inner_loop_begin, inner_dim, inner_work_amount,
+                                                   vector_size, apply_increments, inner_finalization_offsets);
         // set internal flag to enable scalar vs vector loop optimizations
-        inner_loop_end->has_outer_loop = outer_WA > 1;
+        inner_loop_end->has_outer_loop = outer_work_amount > 1;
         // Due to features of topological sort, some Constants (Scalars) may appear right after Parameters in
         // sorted ops (so it's between Parameters and LoopBegin). Consequently, ScalarEmitters would be called
         // outside the Loop, and only the first Loop iteration would yield correct data (assuming the vector reg
@@ -69,7 +69,7 @@ bool ngraph::snippets::pass::InsertLoops::run_on_model(const std::shared_ptr<ov:
         }
     }
 
-    if (outer_WA > 1) {
+    if (outer_work_amount > 1) {
         std::vector<bool> apply_increments;
         apply_increments.reserve(ioShapes.size());
         // Outer Loop applies increments only if a corresponding lower dim was broadcasted (or all lower dims == 1)
@@ -78,7 +78,7 @@ bool ngraph::snippets::pass::InsertLoops::run_on_model(const std::shared_ptr<ov:
                            return ps[outer_dim] != 1 && ps[inner_dim] == 1;
                        });
         const auto& outer_loop_begin = op::insertLoopBegin(commonParams);
-        insertLoopEnd(commonResults, outer_loop_begin, outer_dim, outer_WA, 1, apply_increments);
+        insertLoopEnd(commonResults, outer_loop_begin, outer_dim, outer_work_amount, 1, apply_increments);
     }
 
     return true;

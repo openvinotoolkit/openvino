@@ -58,7 +58,6 @@ private:
     // NOTE: Before call mutex should be initialized
     void copy_snippet();
 
-    static  VectorDims prependWithOnes(const VectorDims& dims, size_t rank);
     ov::PartialShape canonicalizeBody();
     void optimizeExecDomain(std::vector<VectorDims>&, std::vector<VectorDims>&, VectorDims&, size_t&) const;
     void calcJITParams(std::vector<int64_t>& offsets) const;

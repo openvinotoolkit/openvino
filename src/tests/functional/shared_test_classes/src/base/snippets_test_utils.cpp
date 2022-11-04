@@ -5,7 +5,6 @@
 #include "shared_test_classes/base/snippets_test_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "exec_graph_info.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 namespace ov {
 namespace test {

@@ -12,13 +12,9 @@ namespace ngraph {
 namespace snippets {
 namespace op {
 
+/* ==== LoopBegin === */
 std::shared_ptr<LoopBegin> insertLoopBeginAfterOutputs(const OutputVector& originalOutputs);
 
-std::shared_ptr<LoopEnd> insertLoopEndBeforeInputs(const std::vector<Input<Node>>& originalInputs,
-                                                  const std::shared_ptr<LoopBegin>& tileBegin,
-                                                  size_t dimension, size_t work_amount, size_t increment,
-                                                  std::vector<bool> apply_increment = {},
-                                                  std::vector<int64_t> finalization_offsets = {});
 template<typename T>
 std::shared_ptr<LoopBegin> insertLoopBegin(const T& afterTheseNodes) {
     static_assert(std::is_same<T, ParameterVector>() || std::is_same<T, NodeVector>(),
@@ -36,8 +32,16 @@ std::shared_ptr<LoopBegin> insertLoopBegin(const T& afterTheseNodes) {
 
 template<>
 inline std::shared_ptr<LoopBegin> insertLoopBegin(const OutputVector& afterTheseNodes) {
-   return insertLoopBeginAfterOutputs(afterTheseNodes);
+    return insertLoopBeginAfterOutputs(afterTheseNodes);
 }
+/* ============== */
+
+/* ==== LoopEnd === */
+std::shared_ptr<LoopEnd> insertLoopEndBeforeInputs(const std::vector<Input<Node>>& originalInputs,
+                                                  const std::shared_ptr<LoopBegin>& tileBegin,
+                                                  size_t dimension, size_t work_amount, size_t increment,
+                                                  std::vector<bool> apply_increment = {},
+                                                  std::vector<int64_t> finalization_offsets = {});
 
 template<typename T, typename ...Args>
 std::shared_ptr<LoopEnd> insertLoopEnd(const T& beforeTheseNodes, Args ...args) {
@@ -51,10 +55,12 @@ std::shared_ptr<LoopEnd> insertLoopEnd(const T& beforeTheseNodes, Args ...args) 
     }
     return insertLoopEndBeforeInputs(originalInputs, args...);
 }
+
 template<typename ...Args>
 std::shared_ptr<LoopEnd> insertLoopEnd(const std::vector<Input<Node>>& beforeTheseNodes,  Args ...args) {
     return insertLoopEndBeforeInputs(beforeTheseNodes, args...);
 }
+/* ============== */
 
 } // namespace op
 } // namespace snippets

@@ -56,9 +56,10 @@ std::shared_ptr<ov::Model> AddSinhConstFunction::initOriginal() const {
     return std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{data0});
 }
 std::shared_ptr<ov::Model> AddRollConstFunction::initOriginal() const {
-    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
-    const std::vector<float> const_values = CommonTestUtils::generate_float_numbers(shape_size(input_shapes[0]), -10., 10.);
-    auto const_data1 = std::make_shared<op::v0::Constant>(precision, input_shapes[0], const_values);
+    const auto input_shape = input_shapes[0].get_shape();
+    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shape);
+    const std::vector<float> const_values = CommonTestUtils::generate_float_numbers(shape_size(input_shape), -10., 10.);
+    auto const_data1 = std::make_shared<op::v0::Constant>(precision, input_shape, const_values);
     auto shift = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<float>{1});
     auto axes = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<float>{0});
     auto roll0 = std::make_shared<ov::op::v7::Roll>(data0, shift, axes);
