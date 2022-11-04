@@ -28,11 +28,11 @@ std::vector<std::string> IStreamsExecutor::Config::SupportedKeys() const {
         CONFIG_KEY(CPU_BIND_THREAD),
         CONFIG_KEY(CPU_THREADS_NUM),
         CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM),
-        CONFIG_KEY(BIG_CORE_STREAMS),
-        CONFIG_KEY(SMALL_CORE_STREAMS),
-        CONFIG_KEY(THREADS_PER_STREAM_BIG),
-        CONFIG_KEY(THREADS_PER_STREAM_SMALL),
-        CONFIG_KEY(SMALL_CORE_OFFSET),
+        CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS),
+        CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS),
+        CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG),
+        CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL),
+        CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET),
         ov::num_streams.name(),
         ov::inference_num_threads.name(),
         ov::affinity.name(),
@@ -104,12 +104,11 @@ int IStreamsExecutor::Config::GetHybridNumStreams(std::map<std::string, std::str
     } else {
         IE_THROW() << "Wrong stream mode to get num of streams: " << stream_mode;
     }
-
-    config[CONFIG_KEY(BIG_CORE_STREAMS)] = std::to_string(big_core_streams);
-    config[CONFIG_KEY(SMALL_CORE_STREAMS)] = std::to_string(small_core_streams);
-    config[CONFIG_KEY(THREADS_PER_STREAM_BIG)] = std::to_string(threads_per_stream_big);
-    config[CONFIG_KEY(THREADS_PER_STREAM_SMALL)] = std::to_string(threads_per_stream_small);
-    config[CONFIG_KEY(SMALL_CORE_OFFSET)] = std::to_string(num_small_cores == 0 ? 0 : num_big_cores * 2);
+    config[CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)] = std::to_string(big_core_streams);
+    config[CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)] = std::to_string(small_core_streams);
+    config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)] = std::to_string(threads_per_stream_big);
+    config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)] = std::to_string(threads_per_stream_small);
+    config[CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)] = std::to_string(num_small_cores == 0 ? 0 : num_big_cores * 2);
     return big_core_streams + small_core_streams;
 }
 
@@ -223,68 +222,68 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
                        << ". Expected only non negative numbers (#threads)";
         }
         _threadsPerStream = val_i;
-    } else if (key == CONFIG_KEY(BIG_CORE_STREAMS)) {
+    } else if (key == CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)) {
         int val_i;
         try {
             val_i = std::stoi(value);
         } catch (const std::exception&) {
-            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY(BIG_CORE_STREAMS)
+            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)
                        << ". Expected only non negative numbers (#streams)";
         }
         if (val_i < 0) {
-            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY(BIG_CORE_STREAMS)
+            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)
                        << ". Expected only non negative numbers (#streams)";
         }
         _big_core_streams = val_i;
-    } else if (key == CONFIG_KEY(SMALL_CORE_STREAMS)) {
+    } else if (key == CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)) {
         int val_i;
         try {
             val_i = std::stoi(value);
         } catch (const std::exception&) {
-            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY(SMALL_CORE_STREAMS)
+            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)
                        << ". Expected only non negative numbers (#streams)";
         }
         if (val_i < 0) {
-            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY(SMALL_CORE_STREAMS)
+            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)
                        << ". Expected only non negative numbers (#streams)";
         }
         _small_core_streams = val_i;
-    } else if (key == CONFIG_KEY(THREADS_PER_STREAM_BIG)) {
+    } else if (key == CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)) {
         int val_i;
         try {
             val_i = std::stoi(value);
         } catch (const std::exception&) {
-            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY(THREADS_PER_STREAM_BIG)
+            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)
                        << ". Expected only non negative numbers (#threads)";
         }
         if (val_i < 0) {
-            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY(THREADS_PER_STREAM_BIG)
+            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)
                        << ". Expected only non negative numbers (#threads)";
         }
         _threads_per_stream_big = val_i;
-    } else if (key == CONFIG_KEY(THREADS_PER_STREAM_SMALL)) {
+    } else if (key == CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)) {
         int val_i;
         try {
             val_i = std::stoi(value);
         } catch (const std::exception&) {
-            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY(THREADS_PER_STREAM_SMALL)
+            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)
                        << ". Expected only non negative numbers (#threads)";
         }
         if (val_i < 0) {
-            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY(THREADS_PER_STREAM_SMALL)
+            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)
                        << ". Expected only non negative numbers (#threads)";
         }
         _threads_per_stream_small = val_i;
-    } else if (key == CONFIG_KEY(SMALL_CORE_OFFSET)) {
+    } else if (key == CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)) {
         int val_i;
         try {
             val_i = std::stoi(value);
         } catch (const std::exception&) {
-            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY(SMALL_CORE_OFFSET)
+            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)
                        << ". Expected only non negative numbers";
         }
         if (val_i < 0) {
-            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY(SMALL_CORE_OFFSET)
+            IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)
                        << ". Expected only non negative numbers";
         }
         _small_core_offset = val_i;
@@ -326,6 +325,16 @@ Parameter IStreamsExecutor::Config::GetConfig(const std::string& key) const {
         return decltype(ov::inference_num_threads)::value_type{_threads};
     } else if (key == CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)) {
         return {std::to_string(_threadsPerStream)};
+    } else if (key == CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)) {
+        return {std::to_string(_big_core_streams)};
+    } else if (key == CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)) {
+        return {std::to_string(_small_core_streams)};
+    } else if (key == CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)) {
+        return {std::to_string(_threads_per_stream_big)};
+    } else if (key == CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)) {
+        return {std::to_string(_threads_per_stream_small)};
+    } else if (key == CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)) {
+        return {std::to_string(_small_core_offset)};
     } else {
         IE_THROW() << "Wrong value for property key " << key;
     }
