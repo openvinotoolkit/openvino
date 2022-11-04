@@ -544,10 +544,10 @@ def setup(app):
         latex=(visit_doxyrest_literalblock_node, depart_doxyrest_literalblock_node)
     )
     app.add_node(
-        Scrollbox,
-        html=(visit_scrollbox, depart_scrollbox),
-        latex=(visit_scrollbox, depart_scrollbox)
+        nodes.container, override=True, html=(visit_scrollbox, depart_scrollbox)
     )
+
+
 
     app.add_role('cref', cref_role)
     app.add_role('target', target_role)
