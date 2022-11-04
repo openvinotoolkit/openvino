@@ -6,7 +6,6 @@
 
 #include "itt.hpp"
 #include "ngraph/runtime/reference/is_inf.hpp"
-#include "utils.hpp"
 
 namespace ov {
 op::v10::IsInf::IsInf(const Output<Node>& data) : op::Op{{data}} {
@@ -90,8 +89,8 @@ bool evaluate_is_inf(const TensorVector& inputs, TensorVector& outputs, const op
 
 bool op::v10::IsInf::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v10_IsInf_evaluate);
-    OPENVINO_ASSERT(validate_tensor_vector(inputs, 1), "Invalid IsInf input TensorVector.");
-    OPENVINO_ASSERT(validate_tensor_vector(outputs, 1), "Invalid IsInf output TensorVector.");
+    OPENVINO_ASSERT((inputs.size() == 1), "Invalid IsInf input TensorVector.");
+    OPENVINO_ASSERT((outputs.size() == 1), "Invalid IsInf output TensorVector.");
     return evaluate_is_inf(inputs, outputs, m_attributes);
 }
 

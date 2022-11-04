@@ -6,7 +6,6 @@
 
 #include "itt.hpp"
 #include "ngraph/runtime/reference/is_nan.hpp"
-#include "utils.hpp"
 
 namespace ov {
 ov::op::v10::IsNaN::IsNaN(const Output<Node>& data) : op::Op{{data}} {
@@ -79,8 +78,8 @@ bool evaluate_is_nan(const TensorVector& inputs, TensorVector& outputs) {
 
 bool op::v10::IsNaN::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v10_IsNaN_evaluate);
-    OPENVINO_ASSERT(validate_tensor_vector(inputs, 1), "Invalid IsNaN input TensorVector.");
-    OPENVINO_ASSERT(validate_tensor_vector(outputs, 1), "Invalid IsNaN output TensorVector.");
+    OPENVINO_ASSERT((inputs.size() == 1), "Invalid IsNaN input TensorVector.");
+    OPENVINO_ASSERT((outputs.size() == 1), "Invalid IsNaN output TensorVector.");
     return evaluate_is_nan(inputs, outputs);
 }
 

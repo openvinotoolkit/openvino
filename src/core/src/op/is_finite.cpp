@@ -6,7 +6,6 @@
 
 #include "itt.hpp"
 #include "ngraph/runtime/reference/is_finite.hpp"
-#include "utils.hpp"
 
 namespace ov {
 ov::op::v10::IsFinite::IsFinite(const Output<Node>& data) : op::Op{{data}} {
@@ -85,8 +84,8 @@ bool evaluate_is_finite(const ov::TensorVector& inputs, ov::TensorVector& output
 
 bool op::v10::IsFinite::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     OV_OP_SCOPE(v10_IsFinite_evaluate);
-    OPENVINO_ASSERT(validate_tensor_vector(inputs, 1), "Invalid IsFinite input TensorVector.");
-    OPENVINO_ASSERT(validate_tensor_vector(outputs, 1), "Invalid IsFinite output TensorVector.");
+    OPENVINO_ASSERT((inputs.size() == 1), "Invalid IsFinite input TensorVector.");
+    OPENVINO_ASSERT((outputs.size() == 1), "Invalid IsFinite output TensorVector.");
     return evaluate_is_finite(inputs, outputs);
 }
 
