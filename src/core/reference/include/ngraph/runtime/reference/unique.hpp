@@ -15,9 +15,16 @@ template <typename Index_t>
 struct Element {
     Element(Index_t idx_) : idx{idx_} {}
     Element(Index_t idx_, Index_t rev_idx_, int64_t count_) : idx{idx_}, rev_idx{rev_idx_}, count{count_} {}
-    Index_t idx = 0;       // the index of the current element in the original input tensor
-    Index_t rev_idx = -1;  // the index of the unique element in the output tensor
-    int64_t count = 1;     // the number of occurrences of the current element in the original input tensor
+    /// The index of the current element in the original input tensor. It never changes even if the elements get sorted.
+    /// This value is used as a mapping between a unique element in the first output tensor and the position of this
+    /// element in the original input tensor.
+    Index_t idx = 0;
+    /// The rev_idx is a mapping between every element in the original input and the location of a unique element
+    /// in the first output tensor. More than one Element can have the same rev_idx.
+    Index_t rev_idx = -1;
+    /// The number of occurrences of a given element in the input tensor. This value is different than one only for
+    /// duplicates found in the input tensor.
+    int64_t count = 1;  // the number of occurrences of the current element in the original input tensor
 };
 
 template <typename Index_t>
@@ -40,8 +47,8 @@ std::vector<Element<T>> generate_data_references(const size_t count) {
 
 bool scalar_or_single_element(const Shape& s) {
     return s.size() == 0 || std::all_of(std::begin(s), std::end(s), [](Shape::value_type d) {
-        return d == 1;
-    });
+               return d == 1;
+           });
 }
 }  // namespace
 
@@ -63,15 +70,24 @@ UniqueElements<Index_t> find_unique_elements(const Data_t* data,
         };
     };
 
+    const auto sort_by_values = [&data](const Element<Index_t>& lhs, const Element<Index_t>& rhs) {
+        return *(data + lhs.idx) < *(data + rhs.idx);
+    };
+
     const auto data_elems_count = shape_size(data_shape);
     UniqueElements<Index_t> ret;
     ret.all_tensor_elements = generate_data_references<Index_t>(data_elems_count);
-    ret.all_tensor_elements[0].rev_idx = 0;
-    ret.unique_tensor_elements.push_back(ret.all_tensor_elements[0]);
+
+    if (sorted) {
+        std::sort(begin(ret.all_tensor_elements), end(ret.all_tensor_elements), sort_by_values);
+    }
 
     if (scalar_or_single_element(data_shape)) {
-        // NTD
+        ret.all_tensor_elements[0].rev_idx = 0;
+        ret.unique_tensor_elements.push_back(ret.all_tensor_elements[0]);
     } else if (data_shape.size() == 1 && data_shape[0] > 1) {
+        ret.all_tensor_elements[0].rev_idx = 0;
+        ret.unique_tensor_elements.push_back(ret.all_tensor_elements[0]);
         for (size_t i = 1; i < data_elems_count; ++i) {
             auto& data_elem_descriptor = ret.all_tensor_elements[i];
             auto existing_unique = std::find_if(begin(ret.unique_tensor_elements),
@@ -92,10 +108,10 @@ UniqueElements<Index_t> find_unique_elements(const Data_t* data,
     return ret;
 }
 
-template<typename Index_t>
+template <typename Index_t>
 std::tuple<Shape, Shape, Shape> make_tensor_shapes(const UniqueElements<Index_t>& unique_elements) {
     const auto output0 = Shape{unique_elements.unique_tensor_elements.size()};
-    const auto output1_3 = output0; // TODO
+    const auto output1_3 = output0;  // TODO
     const auto output2 = Shape{unique_elements.all_tensor_elements.size()};
     return std::make_tuple(output0, output1_3, output2);
 }
@@ -106,7 +122,6 @@ void unique(Data_t* out_unique_elements,
             Index_t* out_rev_indices,
             int64_t* out_counts,
             const Data_t* data,
-            // const Shape& data_shape,
             const UniqueElements<Index_t>& unique_elements) {
     for (size_t i = 0; i < unique_elements.unique_tensor_elements.size(); ++i) {
         const auto& descriptor = unique_elements.unique_tensor_elements[i];
@@ -115,9 +130,8 @@ void unique(Data_t* out_unique_elements,
         out_counts[i] = descriptor.count;
     }
 
-    for (size_t i = 0; i < unique_elements.all_tensor_elements.size(); ++i) {
-        const auto& descriptor = unique_elements.all_tensor_elements[i];
-        out_rev_indices[i] = descriptor.rev_idx;
+    for (const auto& descriptor : unique_elements.all_tensor_elements) {
+        out_rev_indices[descriptor.idx] = descriptor.rev_idx;
     }
 }
 }  // namespace reference
