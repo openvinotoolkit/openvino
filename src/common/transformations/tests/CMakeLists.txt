@@ -16,7 +16,6 @@ ov_add_test_target(
             lptNgraphFunctions
             gmock
             funcTestUtils
-            inference_engine_obj
             inference_engine_legacy
             offline_transformations
             sharedTestClasses
