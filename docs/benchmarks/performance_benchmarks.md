@@ -7,7 +7,9 @@
    :hidden:
 
    openvino_docs_performance_benchmarks_openvino
-
+   openvino_docs_performance_ov_vs_tf.md
+   openvino_docs_performance_benchmarks_faq.md
+   openvino_docs_performance_int8_vs_fp32.md
 
 
 @endsphinxdirective

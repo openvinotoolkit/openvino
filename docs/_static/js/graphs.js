@@ -359,7 +359,7 @@ $(document).ready(function () {
             return;
         }
 
-        const dataPath = '_static/csv/benchmark-data.csv';
+        const dataPath = '_static/benchmarks_files/benchmark-data.csv';
         Papa.parse(dataPath, {
             download: true,
             complete: renderModal
