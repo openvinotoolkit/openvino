@@ -462,6 +462,7 @@ DECLARE_CONFIG_KEY(CACHE_DIR);
  * @endcode
  */
 DECLARE_CONFIG_KEY(FORCE_TBB_TERMINATE);
+
 }  // namespace PluginConfigParams
 
 /**
