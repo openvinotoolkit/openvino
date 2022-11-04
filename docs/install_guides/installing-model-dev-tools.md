@@ -19,7 +19,7 @@ In both cases, Python 3.6 - 3.9 need be installed on your machine before startin
 If you are a Python developer, you can find the main steps below to install OpenVINO Development Tools. For more details, see <https://pypi.org/project/openvino-dev>.
   
 ## <a name="cpp-developers"></a>For C++ Developers
-If you are a C++ developer, you must first install OpenVINO Runtime separately to set up the C++ libraries, sample code, and dependencies for building applications with OpenVINO. These files are not included with the PyPI distribution. See the [Install OpenVINO Runtime](./installing-openvino-runtime.md) page to install OpenVINO Runtime from an archive file for your operating system.>>>>>>> releases/2022/2
+If you are a C++ developer, you must first install OpenVINO Runtime separately to set up the C++ libraries, sample code, and dependencies for building applications with OpenVINO. These files are not included with the PyPI distribution. See the [Install OpenVINO Runtime](./installing-openvino-runtime.md) page to install OpenVINO Runtime from an archive file for your operating system.
 
 Once OpenVINO Runtime is installed, you may install OpenVINO Development Tools for access to tools like Model Optimizer, Model Downloader, Benchmark Tool, and other utilities that will help you optimize your model and develop your application. Follow the steps in the <a href="#install-dev-tools">Installing OpenVINO Development Tools</a> section on this page to install it. In Step 4, make sure that you follow the instructions in the "C++" tab.
 
