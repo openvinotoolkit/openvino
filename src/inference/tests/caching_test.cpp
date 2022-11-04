@@ -59,6 +59,8 @@ static const std::vector<std::string> cacheFolders {
     std::string("testCache"),
 };
 
+std::string getTestCaseName(const testing::TestParamInfo<std::tuple<TestParam, std::string>> &obj);
+
 std::string getTestCaseName(const testing::TestParamInfo<std::tuple<TestParam, std::string>> &obj) {
     return std::get<1>(std::get<0>(obj.param)) + "_" + std::get<1>(obj.param);
 }
@@ -1972,7 +1974,7 @@ TEST_P(CachingTest, LoadAUTO_OneDevice) {
     });
     std::string cacheDir = m_cacheDir;
     MkDirGuard guard(cacheDir);
-    for (index; index < TEST_COUNT; index++) {
+    for (; index < TEST_COUNT; index++) {
         deviceToLoad = CommonTestUtils::DEVICE_AUTO;
         deviceToLoad += ":mock.0";
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(TEST_COUNT - index - 1);
@@ -2000,7 +2002,7 @@ TEST_P(CachingTest, LoadAUTOWithConfig) {
     });
     std::string cacheDir = m_cacheDir;
     MkDirGuard guard(cacheDir);
-    for (index; index < TEST_COUNT; index++) {
+    for (; index < TEST_COUNT; index++) {
         deviceToLoad = CommonTestUtils::DEVICE_AUTO;
         deviceToLoad += ":mock.0";
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(TEST_COUNT - index - 1);
@@ -2028,7 +2030,7 @@ TEST_P(CachingTest, LoadBATCHWithConfig) {
     });
     std::string cacheDir = m_cacheDir;
     MkDirGuard guard(cacheDir);
-    for (index; index < TEST_COUNT; index++) {
+    for (; index < TEST_COUNT; index++) {
         deviceToLoad = CommonTestUtils::DEVICE_BATCH;
         deviceToLoad += ":mock.0";
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(TEST_COUNT - index - 1);

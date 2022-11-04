@@ -89,7 +89,7 @@ size_t GenerateRandom(size_t elem) {
 SizeVector GenerateRandomVector(SizeVector dims) {
    SizeVector idx(dims.size());
 
-   for (auto i = 0; i < dims.size(); ++i) {
+   for (size_t i = 0; i < dims.size(); ++i) {
        idx[i] = GenerateRandom(dims[i]);
    }
    return idx;
@@ -98,7 +98,7 @@ SizeVector GenerateRandomVector(SizeVector dims) {
 
 void PrintParams(InferenceEngine::Layout layout, SizeVector dims, std::string blobType, InferenceEngine::Precision precision) {
     std::cout <<blobType <<"Blob params: " << layout << ", precision: "<< precision << ", dims: {";
-    for (int i = 0; i <  dims.size(); i++) {
+    for (size_t i = 0; i <  dims.size(); i++) {
         std::cout << (i > 0 ? ", ": "") << dims[i];
     }
     std::cout << "}" << std::endl;
@@ -157,14 +157,14 @@ T GetElem(Blob::Ptr& blob, SizeVector idx) {
 
     SizeVector strides = blob->getTensorDesc().getBlockingDesc().getStrides();
     if (blobLayout == NHWC || blobLayout == NDHWC) {
-        for (int i = 2; i < strides.size(); i++) {
+        for (size_t i = 2; i < strides.size(); i++) {
             std::swap(strides[1], strides[i]);
         }
     }
 
     int offset = 0;
 
-    for (int i = 0; i < idx.size(); i++) {
+    for (size_t i = 0; i < idx.size(); i++) {
         offset += (int)(idx[i] * strides[i]);
     }
 

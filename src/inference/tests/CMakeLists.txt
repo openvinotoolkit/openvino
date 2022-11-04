@@ -31,3 +31,5 @@ ov_add_test_target(
         LABELS
             OV
 )
+
+target_compile_options(${TARGET_NAME} PRIVATE "-Wno-suggest-override")
