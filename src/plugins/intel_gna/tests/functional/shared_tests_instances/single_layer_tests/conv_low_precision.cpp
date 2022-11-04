@@ -15,6 +15,7 @@
 #include "ngraph_functions/pass/convert_prc.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
+#include "../../shared_tests_instances/skip_tests_check.hpp"
 #include <gtest/gtest.h>
 
 
@@ -42,26 +43,9 @@ class ConvLowPrecisionTest : public testing::WithParamInterface<ConvLowPrecision
     float fqMax = 0.0f;
     float inputDataResolution = 1.0f;
 
+
 public:
-    bool skipTest = false;
-    bool CheckLibVersionFrom(float support_from_ver) {
-        InferenceEngine::Core ie_core;
-        std::vector<std::string> metrics = ie_core.GetMetric(targetDevice, METRIC_KEY(SUPPORTED_METRICS));
-
-        if (targetDevice == "GNA") {
-            if (std::find(metrics.begin(), metrics.end(), METRIC_KEY(GNA_LIBRARY_FULL_VERSION)) != metrics.end()) {
-                std::string gnaLibVer = ie_core.GetMetric(targetDevice, METRIC_KEY(GNA_LIBRARY_FULL_VERSION));
-                auto gna_version = 0.f;
-                // try {
-                gna_version = std::stof(gnaLibVer);
-                if (gna_version < support_from_ver) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
+    
     static string getTestCaseName(testing::TestParamInfo<ConvLowPrecisionTestParams> obj) {
         InferenceEngine::Precision netPrecision;
         string targetDevice;
@@ -114,6 +98,9 @@ public:
     }
 
 protected:
+
+    GnaLayerTestCheck gnaVersionCheck;
+
     void SetUp() override {
         // Loosen threshold because of precision decrease during test
         threshold = 0.1;
@@ -146,8 +133,8 @@ protected:
         //
         function = make_shared<ngraph::Function>(outputFQ, inputVector, "ConvLowPrecision");
 
-        // To remove
-        ov::pass::Serialize("a1.xml", "a1.bin").run_on_function(function);
+        gnaVersionCheck.SetUp(targetDevice);
+
     }
 };
 
@@ -158,7 +145,8 @@ TEST_P(ConvLowPrecisionTest, CompareWithRefs) {
 };
 
 TEST_P(ConvLowPrecisionTestLib35, CompareWithRefs) {
-    if (CheckLibVersionFrom(3.5)) {
+   
+    if (gnaVersionCheck.gnaLibVersionLessThan(3.5)) {
         GTEST_SKIP() << "Disabled test due to GNA library version is less than " << 3.5 << std::endl;
         return;
     }
