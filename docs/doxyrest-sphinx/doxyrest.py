@@ -306,18 +306,6 @@ class Scrollbox(Directive):
             self.state.nested_parse(self.content, self.content_offset, nodescrollbox)
         return [nodescrollbox]
 
-    def init_scrollbox_config (app) -> None:
-        app.config.html_static_path += [this_dir + '/css/scrollbox.css']
-        add_css_file(app, 'scrollbox.css')
-
-def setup(app):
-
-    app.add_node(
-        Scrollbox,
-        html=(visit_scrollbox, depart_scrollbox)
-    )
-    directives.register_directive('scrollbox', Scrollbox)
-    app.connect('config-inited', Scrollbox.init_scrollbox_config)
 
 #...............................................................................
 #
@@ -478,10 +466,12 @@ if not is_sphinx_tab_aware:
 def on_builder_inited(app):
     app.config.html_static_path += [
         this_dir + '/css/doxyrest-pygments.css',
+        this_dir + '/css/scrollbox.css',
         this_dir + '/js/target-highlight.js'
     ]
 
     add_css_file(app, 'doxyrest-pygments.css')
+    add_css_file(app, 'scrollbox.css')
     add_js_file(app, 'target-highlight.js')
 
     supported_themes = {
@@ -553,12 +543,17 @@ def setup(app):
         html=(visit_doxyrest_literalblock_node, depart_doxyrest_literalblock_node),
         latex=(visit_doxyrest_literalblock_node, depart_doxyrest_literalblock_node)
     )
+    app.add_node(
+        Scrollbox,
+        html=(visit_scrollbox, depart_scrollbox)
+    )
 
     app.add_role('cref', cref_role)
     app.add_role('target', target_role)
     app.add_config_value('doxyrest_cref_file', default=None, rebuild=True)
     app.add_config_value('doxyrest_tab_width', default=4, rebuild=True)
     directives.register_directive('ref-code-block', RefCodeBlock)
+    directives.register_directive('scrollbox', Scrollbox)
     app.add_transform(RefTransform)
     app.connect('builder-inited', on_builder_inited)
     app.connect('config-inited', on_config_inited)
