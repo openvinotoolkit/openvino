@@ -5,7 +5,6 @@
 #pragma once
 
 #include "gna_layer_info.hpp"
-#include "gna_plugin_log.hpp"
 #include "gna_layer_helpers.hpp"
 #include "frontend/weights_converter.hpp"
 
