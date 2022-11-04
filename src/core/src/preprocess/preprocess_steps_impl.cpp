@@ -269,7 +269,6 @@ void PreStepsList::add_convert_layout_impl(const Layout& layout) {
                 // Add unsqueeze on top
                 node = std::make_shared<opset8::Unsqueeze>(node, axes);
             }
-            // TODO: SEE HERE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             auto permutation = layout::utils::find_permutation(unsqueeze_layout, shape, dst_layout);
             if (permutation.empty()) {
                 // No transpose is needed, just update layout

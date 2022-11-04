@@ -176,13 +176,13 @@ bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
                     "preprocessing operation. Current format is '",
                     color_format_name(context.color_format()),
                     "'");
-    // OPENVINO_ASSERT(is_rgb_family(context.color_format()) ||
-    //                 context.color_format() == ColorFormat::GRAY,
-    //                 context.color_format() == ColorFormat::UNDEFINED,
-    //                 "model shall have RGB/BGR/GRAY color format. Consider add 'convert_color' preprocessing operation "
-    //                 "to convert current color format '",
-    //                 color_format_name(context.color_format()),
-    //                 "'to RGB/BGR/GRAY");
+    OPENVINO_ASSERT(is_rgb_family(context.color_format()) ||
+                    context.color_format() == ColorFormat::GRAY,
+                    context.color_format() == ColorFormat::UNDEFINED,
+                    "model shall have RGB/BGR/GRAY color format. Consider add 'convert_color' preprocessing operation "
+                    "to convert current color format '",
+                    color_format_name(context.color_format()),
+                    "'to RGB/BGR/GRAY");
 
     // Implicit: Convert element type + layout to user's tensor implicitly
     auto implicit_steps = create_implicit_steps(context, nodes[0].get_element_type());
@@ -195,14 +195,6 @@ bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
     if (node.get_partial_shape() != context.model_shape()) {
         need_validate = true;  // Trigger revalidation if input parameter shape is changed
     }
-    // Check final shape
-    // OPENVINO_ASSERT(node.get_partial_shape().compatible(context.model_shape()),
-    //                 "Resulting shape '",
-    //                 node.get_partial_shape(),
-    //                 "' after preprocessing is not aligned with original parameter's shape: ",
-    //                 context.model_shape(),
-    //                 ", input parameter: ",
-    //                 data.m_param->get_friendly_name());
 
     // Replace parameter
     for (auto consumer : consumers) {
