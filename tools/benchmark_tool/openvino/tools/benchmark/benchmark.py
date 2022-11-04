@@ -6,7 +6,7 @@ from datetime import datetime
 from math import ceil
 from openvino.runtime import Core, get_version, AsyncInferQueue
 
-from .utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, GPU_DEVICE_NAME, XML_EXTENSION, BIN_EXTENSION
+from .utils.constants import GPU_DEVICE_NAME, XML_EXTENSION, BIN_EXTENSION
 from .utils.logging import logger
 from .utils.utils import get_duration_seconds
 
