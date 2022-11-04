@@ -4,23 +4,33 @@
 
 #include <gna/gna_config.hpp>
 
-class GnaLayerTestCheck : virtual public LayerTestsUtils::LayerTestsCommon {
-protected:
-    bool skipTest = true;
+class GnaLayerTestCheck {
+    float gnaLibVer = 0.0f;
+    std::string lastMsg;
 
-    void SkipTestCheck() {
-        InferenceEngine::Core ie_core;
-        std::vector<std::string> metrics = ie_core.GetMetric(targetDevice, METRIC_KEY(SUPPORTED_METRICS));
+public:
+    void SetUp(const std::string deviceName) {
+        InferenceEngine::Core ieCore;
+        std::vector<std::string> metrics = ieCore.GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS));
 
-        if (targetDevice == "GNA") {
+        if (deviceName == CommonTestUtils::DEVICE_GNA) {
             if (std::find(metrics.begin(), metrics.end(), METRIC_KEY(GNA_LIBRARY_FULL_VERSION)) != metrics.end()) {
-                std::string gnaLibVer = ie_core.GetMetric(targetDevice, METRIC_KEY(GNA_LIBRARY_FULL_VERSION));
-
-                if (gnaLibVer.rfind("2.1", 0) != 0 && gnaLibVer.rfind("3.", 0) != 0) {
-                    GTEST_SKIP() << "Disabled test due to GNA library version being not 2.1 or 3.X" << std::endl;
-                }
-                skipTest = false;
+                auto gnaLibVerStr =
+                    ieCore.GetMetric(deviceName, METRIC_KEY(GNA_LIBRARY_FULL_VERSION)).as<std::string>();
+                gnaLibVer = std::stof(gnaLibVerStr);
             }
         }
+    }
+
+    std::string& getLastCmpResultMsg() {
+        return lastMsg;
+    }
+
+    bool gnaLibVersionLessThan(float verToCmp) {
+        if (gnaLibVer && gnaLibVer < verToCmp) {
+            lastMsg = "GNA library version is less than " + std::to_string(verToCmp);
+            return true;
+        }
+        return false;
     }
 };

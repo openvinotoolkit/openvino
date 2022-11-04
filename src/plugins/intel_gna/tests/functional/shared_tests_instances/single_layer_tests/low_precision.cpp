@@ -12,14 +12,10 @@ using namespace LowPrecisionTestDefinitions;
 
 namespace {
 
-class GnaLowPrecisionTest : public LowPrecisionTest, GnaLayerTestCheck {
+class GnaLowPrecisionTest : public LowPrecisionTest {
 protected:
     void Run() override {
-        GnaLayerTestCheck::SkipTestCheck();
-
-        if (!GnaLayerTestCheck::skipTest) {
-            LowPrecisionTest::Run();
-        }
+        LowPrecisionTest::Run();
     }
 
     void SetUp() override {

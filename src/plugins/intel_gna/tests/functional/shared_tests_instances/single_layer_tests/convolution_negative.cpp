@@ -159,24 +159,20 @@ const auto conv2DParametersInvalidDilation = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 
-class GnaConv2DNegativeTest : public ConvolutionLayerTest, protected GnaLayerTestCheck {
+class GnaConv2DNegativeTest : public ConvolutionLayerTest {
 protected:
     virtual std::string expectedSubstring() = 0;
     void Run() override {
-        GnaLayerTestCheck::SkipTestCheck();
-
-        if (!GnaLayerTestCheck::skipTest) {
-            try {
-                ConvolutionLayerTest::LoadNetwork();
-                FAIL() << "GNA's unsupported configuration of Convolution2D was not detected in ConvolutionLayerTest::LoadNetwork()";
-            }
-            catch (std::runtime_error& e) {
-                const std::string errorMsg = e.what();
-                const auto expected = expectedSubstring();
-                ASSERT_STR_CONTAINS(errorMsg, expected);
-                EXPECT_TRUE(errorMsg.find(expected) != std::string::npos) << "Wrong error message, actula error message: " << errorMsg <<
-                                                                          ", expected: " << expected;
-            }
+        try {
+            ConvolutionLayerTest::LoadNetwork();
+            FAIL() << "GNA's unsupported configuration of Convolution2D was not detected in ConvolutionLayerTest::LoadNetwork()";
+        }
+        catch (std::runtime_error& e) {
+            const std::string errorMsg = e.what();
+            const auto expected = expectedSubstring();
+            ASSERT_STR_CONTAINS(errorMsg, expected);
+            EXPECT_TRUE(errorMsg.find(expected) != std::string::npos) << "Wrong error message, actula error message: " << errorMsg <<
+                                                                        ", expected: " << expected;
         }
     }
     void SetUp() override {
