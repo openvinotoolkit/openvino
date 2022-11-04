@@ -236,6 +236,14 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     if (next.is_type<reorder>())
         return true;
 
+    // Errata for onednn layout selection
+    if (next.is_type<convolution>() && next.get_dependencies().size() == 1 &&
+        next.get_preferred_impl_type() == impl_types::onednn &&
+        ((fmt_prev == format::byxf && fmt_next == format::byxf) ||
+         (fmt_prev == format::bfyx && fmt_next == format::byxf))) {
+        return true;
+    }
+
     // Do not remove reorder if it is necessary to fulfill required_input
     auto& reorder_node = next.get_dependency(0);
     auto reorder_layout = reorder_node.get_output_layout();
