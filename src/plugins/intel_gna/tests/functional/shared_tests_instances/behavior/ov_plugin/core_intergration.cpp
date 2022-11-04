@@ -279,6 +279,14 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedLogLevel) {
     ov::Core core;
     auto level = ov::log::Level::NO;
 
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::log::level(ov::log::Level::INFO)));
+    OV_ASSERT_NO_THROW(level = core.get_property("GNA", ov::log::level));
+    ASSERT_EQ(ov::log::Level::INFO, level);
+
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::log::level(ov::log::Level::ERR)));
+    OV_ASSERT_NO_THROW(level = core.get_property("GNA", ov::log::level));
+    ASSERT_EQ(ov::log::Level::ERR, level);
+
     OV_ASSERT_NO_THROW(core.set_property("GNA", ov::log::level(ov::log::Level::WARNING)));
     OV_ASSERT_NO_THROW(level = core.get_property("GNA", ov::log::level));
     ASSERT_EQ(ov::log::Level::WARNING, level);
@@ -287,13 +295,14 @@ TEST(OVClassBasicTest, smoke_SetConfigAfterCreatedLogLevel) {
     OV_ASSERT_NO_THROW(level = core.get_property("GNA", ov::log::level));
     ASSERT_EQ(ov::log::Level::DEBUG, level);
 
+    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::log::level(ov::log::Level::TRACE)));
+    OV_ASSERT_NO_THROW(level = core.get_property("GNA", ov::log::level));
+    ASSERT_EQ(ov::log::Level::TRACE, level);
+
     OV_ASSERT_NO_THROW(core.set_property("GNA", ov::log::level(ov::log::Level::NO)));
     OV_ASSERT_NO_THROW(level = core.get_property("GNA", ov::log::level));
     ASSERT_EQ(ov::log::Level::NO, level);
 
-    ASSERT_THROW(core.set_property("GNA",  ov::log::level(ov::log::Level::ERR)), ov::Exception);
-    ASSERT_THROW(core.set_property("GNA",  ov::log::level(ov::log::Level::INFO)), ov::Exception);
-    ASSERT_THROW(core.set_property("GNA",  ov::log::level(ov::log::Level::TRACE)), ov::Exception);
     ASSERT_THROW(core.set_property("GNA", {{ ov::log::level.name(), "NO" }}), ov::Exception);
 }
 

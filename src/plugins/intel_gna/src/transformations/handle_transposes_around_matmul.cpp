@@ -13,7 +13,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ie/ie_common.h>
 
-#include "gna_plugin_log.hpp"
 #include "backend/gna_limitations.hpp"
 
 using namespace ov::intel_gna::pass;

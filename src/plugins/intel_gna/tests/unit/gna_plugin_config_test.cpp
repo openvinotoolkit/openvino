@@ -220,7 +220,11 @@ TEST_F(GNAPluginConfigTest, GnaConfigLogLevel) {
     EXPECT_EQ(config.gnaFlags.log_level, ov::log::Level::NO);
     SetAndCompare(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_DEBUG);
     EXPECT_EQ(config.gnaFlags.log_level, ov::log::Level::DEBUG);
-    ExpectThrow(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_ERROR);
-    ExpectThrow(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_INFO);
-    ExpectThrow(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_TRACE);
+    SetAndCompare(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_ERROR);
+    EXPECT_EQ(config.gnaFlags.log_level, ov::log::Level::ERR);
+    SetAndCompare(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_INFO);
+    EXPECT_EQ(config.gnaFlags.log_level, ov::log::Level::INFO);
+    SetAndCompare(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_TRACE);
+    EXPECT_EQ(config.gnaFlags.log_level, ov::log::Level::TRACE);
+    EXPECT_THROW(config.UpdateFromMap({{CONFIG_KEY(LOG_LEVEL), "LOG_UNSUPPORTED"}}), ov::Exception);
 }

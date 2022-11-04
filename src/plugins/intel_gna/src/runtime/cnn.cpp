@@ -6,13 +6,13 @@
 #include <limits>
 #include <cstdint>
 #include <cstdio>
-#include <gna_plugin_log.hpp>
 
 #include "cnn.h"
 #include "backend/dnn_types.h"
 #include "backend/gna_limitations.hpp"
 #include "gna_lib_ver_selector.hpp"
 #include "layers/gna_convolution_layer.hpp"
+#include "log/debug.hpp"
 
 using namespace GNAPluginNS::GNAConvolutionLayer;
 
