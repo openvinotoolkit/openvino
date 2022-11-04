@@ -336,25 +336,22 @@ else()
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json/nlohmann_json
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-            PATTERN appveyor.yml EXCLUDE
-            PATTERN benchmarks EXCLUDE
             PATTERN ChangeLog.md EXCLUDE
             PATTERN CITATION.cff EXCLUDE
             PATTERN .clang-format EXCLUDE
             PATTERN .clang-tidy EXCLUDE
-            PATTERN CODE_OF_CONDUCT.md EXCLUDE
-            PATTERN doc EXCLUDE
+            PATTERN docs EXCLUDE
             PATTERN .git EXCLUDE
-            PATTERN .drone.yml EXCLUDE
             PATTERN .github EXCLUDE
             PATTERN .gitignore EXCLUDE
+            PATTERN .lgtm.yml EXCLUDE
             PATTERN Makefile EXCLUDE
             PATTERN meson.build EXCLUDE
             PATTERN nlohmann_json.natvis EXCLUDE
             PATTERN README.md EXCLUDE
-            PATTERN test EXCLUDE
-            PATTERN third_party EXCLUDE
-            PATTERN .travis.yml EXCLUDE
+            PATTERN .reuse EXCLUDE
+            PATTERN tests EXCLUDE
+            PATTERN tools EXCLUDE
             PATTERN wsjcpp.yml EXCLUDE)
 endif()
 
