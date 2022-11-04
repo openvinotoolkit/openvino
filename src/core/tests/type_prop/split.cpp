@@ -224,13 +224,13 @@ TEST(type_prop, split_v1_incompatible_data_shape_with_num_splits) {
                               "divisible by 'num_splits' attribute value: 4"));
 }
 
-using TypePropTestParam = std::tuple<PartialShape,  // Input shape
-                                     int64_t,       // Split axis
-                                     size_t,        // Number of splits
-                                     PartialShape   // Expected output(s) shape
-                                     >;
+using SplitTypePropTestParam = std::tuple<PartialShape,  // Input shape
+                                          int64_t,       // Split axis
+                                          size_t,        // Number of splits
+                                          PartialShape   // Expected output(s) shape
+                                          >;
 
-class SplitTest : public TestWithParam<TypePropTestParam> {
+class SplitTest : public TestWithParam<SplitTypePropTestParam> {
 protected:
     void SetUp() override {
         std::tie(p_shape, axis, num_splits, exp_shape) = GetParam();
@@ -305,12 +305,12 @@ TEST_P(SplitTest, labels_propagation) {
         Each(Property("Partial shape", &Output<Node>::get_partial_shape, ResultOf(get_shape_labels, exp_labels))));
 }
 
-using BoundTestParam = std::tuple<PartialShape,              // Input shape
-                                  size_t,                    // Number of splits
-                                  std::vector<PartialShape>  // Expected splitted shapes
-                                  >;
+using SplitBoundTestParam = std::tuple<PartialShape,              // Input shape
+                                       size_t,                    // Number of splits
+                                       std::vector<PartialShape>  // Expected splitted shapes
+                                       >;
 
-class SplitBoundTest : public TestWithParam<BoundTestParam> {
+class SplitBoundTest : public TestWithParam<SplitBoundTestParam> {
 protected:
     void SetUp() override {
         std::tie(p_shape, num_of_splits, exp_shapes) = GetParam();
