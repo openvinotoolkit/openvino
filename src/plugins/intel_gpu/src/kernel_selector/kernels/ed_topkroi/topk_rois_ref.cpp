@@ -65,9 +65,20 @@ ParamsKey ExperimentalDetectronTopKROIRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableDifferentTypes();
-    k.EnableOutputLayout(Tensor::bfyx);
     k.EnableInputLayout(Tensor::bfyx);
+    k.EnableInputLayout(Tensor::b_fs_yx_fsv16);
+    k.EnableInputLayout(Tensor::b_fs_yx_fsv32);
+    k.EnableInputLayout(Tensor::bs_fs_yx_bsv16_fsv16);
+    k.EnableInputLayout(Tensor::bs_fs_yx_bsv32_fsv32);
+    k.EnableInputLayout(Tensor::bs_fs_yx_bsv32_fsv16);
+    k.EnableOutputLayout(Tensor::bfyx);
+    k.EnableOutputLayout(Tensor::b_fs_yx_fsv16);
+    k.EnableOutputLayout(Tensor::b_fs_yx_fsv32);
+    k.EnableOutputLayout(Tensor::bs_fs_yx_bsv16_fsv16);
+    k.EnableOutputLayout(Tensor::bs_fs_yx_bsv32_fsv32);
+    k.EnableOutputLayout(Tensor::bs_fs_yx_bsv32_fsv16);
     k.EnableBatching();
+    k.EnableTensorPitches();
     return k;
 }
 
