@@ -28,7 +28,7 @@
    openvino_inference_engine_ie_bridges_python_sample_sync_benchmark_README
    openvino_inference_engine_samples_throughput_benchmark_README
    openvino_inference_engine_ie_bridges_python_sample_throughput_benchmark_README
-   openvino_inference_engine_ie_bridges_python_sample_dynamic_shape_bert_benchmark_README
+   openvino_inference_engine_ie_bridges_python_sample_bert_benchmark_README
    openvino_inference_engine_samples_benchmark_app_README
    openvino_inference_engine_tools_benchmark_tool_README
 
@@ -70,7 +70,7 @@ The applications include:
    - [Sync Benchmark Python* Sample](../../samples/python/benchmark/sync_benchmark/README.md)
    - [Throughput Benchmark C++ Sample](../../samples/cpp/benchmark/throughput_benchmark/README.md)
    - [Throughput Benchmark Python* Sample](../../samples/python/benchmark/throughput_benchmark/README.md)
-   - [Dynamic Shape Bert Benhcmark Python* Sample](../../samples/python/benchmark/dynamic_shape_bert_benhcmark/README.md)
+   - [Bert Benhcmark Python* Sample](../../samples/python/benchmark/bert_benhcmark/README.md)
 
 
 - **Benchmark Application** – Estimates deep learning inference performance on supported devices for synchronous and asynchronous modes.
