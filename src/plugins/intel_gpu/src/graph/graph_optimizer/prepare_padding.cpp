@@ -8,6 +8,8 @@
 #include "program_node.h"
 #include "pass_manager.h"
 #include "convolution_inst.h"
+#include "crop_inst.h"
+#include "resample_inst.h"
 #include "sliding_window_utils.hpp"
 #include <algorithm>
 
@@ -26,6 +28,20 @@ void prepare_padding::run(program& p) {
 
             // Padded offsets aren't supported by onednn kernels
             if (node->get_preferred_impl_type() == impl_types::onednn)
+                continue;
+
+            auto& conv_input_node = node->get_dependency(0);
+            // Check previous node is one of padding support primitive or not
+            bool user_support_padding = true;
+            for (auto& conv_input_node_user : conv_input_node.get_users()) {
+                if (!conv_input_node_user->is_type<pooling>() && !conv_input_node_user->is_type<convolution>() &&
+                    !conv_input_node_user->is_type<quantize>() && !conv_input_node_user->is_type<activation>() &&
+                    !conv_input_node_user->is_type<deconvolution>() && !conv_input_node_user->is_type<concatenation>() &&
+                    !conv_input_node_user->is_type<crop>() && !conv_input_node_user->is_type<eltwise>() &&
+                    !conv_input_node_user->is_type<resample>())
+                    user_support_padding = false;
+            }
+            if (!user_support_padding)
                 continue;
 
             auto add_required_padding = [&p](program_node& node, padding& needed_padding) {
@@ -143,6 +159,19 @@ void prepare_padding::run(program& p) {
         auto& conv_input_node = node.get_dependency(0);
         auto conv_layout = node.get_output_layout();
 
+        // Check previous node is one of padding support primitive or not
+        bool user_support_padding = true;
+        for (auto& conv_input_node_user : conv_input_node.get_users()) {
+            if (!conv_input_node_user->is_type<pooling>() && !conv_input_node_user->is_type<convolution>() &&
+                !conv_input_node_user->is_type<quantize>() && !conv_input_node_user->is_type<activation>() &&
+                !conv_input_node_user->is_type<deconvolution>() && !conv_input_node_user->is_type<concatenation>() &&
+                !conv_input_node_user->is_type<crop>() && !conv_input_node_user->is_type<eltwise>() &&
+                !conv_input_node_user->is_type<resample>())
+                user_support_padding = false;
+        }
+        if (!user_support_padding)
+            continue;
+
         // right now output padding optimization is only available for bfyx format and data type = float32
         if (conv_layout.format != cldnn::format::bfyx &&
             conv_layout.format != cldnn::format::b_fs_yx_fsv16 &&
@@ -232,6 +261,19 @@ void prepare_padding::run(program& p) {
         auto conv = node.get_primitive();
         auto& conv_input_node = node.get_dependency(0);
         auto conv_layout = node.get_output_layout();
+
+        // Check previous node is one of padding support primitive or not
+        bool user_support_padding = true;
+        for (auto& conv_input_node_user : conv_input_node.get_users()) {
+            if (!conv_input_node_user->is_type<pooling>() && !conv_input_node_user->is_type<convolution>() &&
+                !conv_input_node_user->is_type<quantize>() && !conv_input_node_user->is_type<activation>() &&
+                !conv_input_node_user->is_type<deconvolution>() && !conv_input_node_user->is_type<concatenation>() &&
+                !conv_input_node_user->is_type<crop>() && !conv_input_node_user->is_type<eltwise>() &&
+                !conv_input_node_user->is_type<resample>())
+                user_support_padding = false;
+        }
+        if (!user_support_padding)
+            continue;
 
         // right now output padding optimization is only available for bfyx format and data type = float32
         if (conv_layout.format != cldnn::format::bfyx && conv_layout.format != cldnn::format::b_fs_yx_32fp)
