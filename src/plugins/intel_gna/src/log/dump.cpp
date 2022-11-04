@@ -1,16 +1,9 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include "gna2_model_helper.hpp"
 #include <algorithm>
 #include <vector>
 #include <iostream>
-
-#include "gna2_model_debug_log.hpp"
-#include "gna2-model-api.h"
-#include "gna_device.hpp"
-
 #include <cstdint>
 #include <fstream>
 #include <iomanip>
@@ -20,9 +13,17 @@
 #include <cmath>
 #include <map>
 
-namespace {
+#include "dump.hpp"
+#include "log.hpp"
+#include "gna2_model_helper.hpp"
+#include "gna2-model-api.h"
+#include "gna_device.hpp"
 
-std::string GetLayerType(Gna2OperationType type) {
+namespace ov {
+namespace intel_gna {
+namespace dump {
+
+inline std::string GetLayerType(Gna2OperationType type) {
     switch (type) {
     case Gna2OperationTypeFullyConnectedAffine: return "Gna2OperationTypeFullyConnectedAffine";
     case Gna2OperationTypeElementWiseAffine: return "Gna2OperationTypeElementWiseAffine";
@@ -34,17 +35,17 @@ std::string GetLayerType(Gna2OperationType type) {
     }
 }
 
-void write_pwl(std::ostream & pwl_file, const Gna2PwlSegment* const segments, const uint32_t numberOfSegments) {
+inline void write_pwl(std::ostream & pwl_file, const Gna2PwlSegment* const segments, const uint32_t numberOfSegments) {
     for (uint32_t k = 0; k < numberOfSegments; k++) {
         pwl_file << segments[k].Slope << ", " << segments[k].xBase << ", " << segments[k].yBase << "\n";
     }
 }
 
-void write_pwl(std::ostream & pwl_file, const Gna2Tensor& activation) {
+inline void write_pwl(std::ostream & pwl_file, const Gna2Tensor& activation) {
     write_pwl(pwl_file, static_cast<Gna2PwlSegment*>(activation.Data), activation.Shape.Dimensions[0]);
 }
 
-std::string GetSimpleString(Gna2Shape shape) {
+inline std::string GetSimpleString(Gna2Shape shape) {
     std::stringstream out;
     for (uint32_t i = 0; i < shape.NumberOfDimensions; i++) {
         out << shape.Dimensions[i];
@@ -62,7 +63,7 @@ uint32_t FindInMapOrReturnOne(MapType map, typename MapType::key_type key) {
     return 1;
 }
 
-uint32_t GetTypeByteSize(Gna2DataType type) {
+inline uint32_t GetTypeByteSize(Gna2DataType type) {
     static const std::map<Gna2DataType, uint32_t> operandTypeMap = {
         {Gna2DataTypeNone, 1},
         {Gna2DataTypeBoolean, 1},
@@ -81,7 +82,7 @@ uint32_t GetTypeByteSize(Gna2DataType type) {
     return FindInMapOrReturnOne(operandTypeMap, type);
 }
 
-uint32_t GetGnaShapeSize(const Gna2Shape& shape, const uint32_t bytesPerElement) {
+inline uint32_t GetGnaShapeSize(const Gna2Shape& shape, const uint32_t bytesPerElement) {
     if (shape.NumberOfDimensions == 0) {
         return 0;
     }
@@ -144,8 +145,6 @@ int32_t GetValue(const Gna2Tensor& tensor, const T & elementIndex) {
     return intValue;
 }
 
-} // namespace
-
 void WriteInputAndOutputTextGNAImpl(const Gna2Model & gnaModel, const std::string dumpFolderNameGNA, const std::string refFolderName) {
     for (uint32_t i = 0; i < gnaModel.NumberOfOperations; i++) {
         const auto & operation = gnaModel.Operations[i];
@@ -199,7 +198,7 @@ void WriteInputAndOutputTextGNAImpl(const Gna2Model & gnaModel, const std::strin
         if (numItems) {
             auto rmse = std::sqrt(summOfSqDiff / numItems);
             auto avg = summOfDiff / numItems;
-            std::cout << std::left << std::setw(55) << out_file_name.str()
+            log::debug() << std::left << std::setw(55) << out_file_name.str()
                 << " RMSE=" << std::fixed << std::setprecision(5) << std::right << std::setw(8) << rmse
                 << " avg=" << std::fixed << std::setprecision(5) << std::right << std::setw(8) << avg
                 << " maxD=" << std::fixed << std::setprecision(5) << std::right << std::setw(8) << maxD << std::endl;
@@ -214,8 +213,6 @@ void WriteInputAndOutputTextGNAImpl(const Gna2Model & gnaModel, const std::strin
         } while (NextElement(inputElementIndex, intputTensor.Shape));
     }
 }
-
-namespace {
 
 template<typename T>
 static std::string GetName(T name, size_t index) {
@@ -236,7 +233,7 @@ std::string FindInMapOrReturnUnknown(MapType map, typename MapType::key_type key
     return std::string {"unknown"};
 }
 
-std::string GetOperandType(Gna2DataType type) {
+inline std::string GetOperandType(Gna2DataType type) {
     static const std::map<Gna2DataType, std::string> operandTypeMap = {
         {Gna2DataTypeNone, "Gna2DataTypeNone"},
         {Gna2DataTypeBoolean, "Gna2DataTypeBoolean"},
@@ -256,7 +253,7 @@ std::string GetOperandType(Gna2DataType type) {
     return FindInMapOrReturnUnknown(operandTypeMap, type);
 }
 
-std::string GetOperandName(Gna2OperationType type, size_t index) {
+inline std::string GetOperandName(Gna2OperationType type, size_t index) {
     static const std::map<Gna2OperationType, std::vector<std::string>> operationOperandNamesMap = {
         {Gna2OperationTypeConvolution, {"inputs", "outputs", "filters", "biases", "activationFunction"}},
         {Gna2OperationTypeCopy, {"inputs", "outputs"}},
@@ -269,7 +266,7 @@ std::string GetOperandName(Gna2OperationType type, size_t index) {
     return FindInMapOrReturnUnknown(operationOperandNamesMap, type, index);
 }
 
-std::string GetBiasMode(Gna2BiasMode mode) {
+inline std::string GetBiasMode(Gna2BiasMode mode) {
     static const std::map<Gna2BiasMode, std::string> biasModeMap = {
         {Gna2BiasModeDefault, "Gna2BiasModeDefault"},
         {Gna2BiasModePerStride, "Gna2BiasModePerStride"},
@@ -278,7 +275,7 @@ std::string GetBiasMode(Gna2BiasMode mode) {
     return FindInMapOrReturnUnknown(biasModeMap, mode);
 }
 
-std::string GetPoolingMode(Gna2PoolingMode mode) {
+inline std::string GetPoolingMode(Gna2PoolingMode mode) {
     static const std::map<Gna2PoolingMode, std::string> poolingModeMap = {
         {Gna2PoolingModeDisabled, "Gna2PoolingModeDisabled"},
         {Gna2PoolingModeMax, "Gna2PoolingModeMax"},
@@ -287,7 +284,7 @@ std::string GetPoolingMode(Gna2PoolingMode mode) {
     return FindInMapOrReturnUnknown(poolingModeMap, mode);
 }
 
-void DumpShape(std::ostream& dumpFile, Gna2Shape* shape, const std::string paramName) {
+inline void DumpShape(std::ostream& dumpFile, Gna2Shape* shape, const std::string paramName) {
     dumpFile << "\tParameter name: " << paramName << ", ";
     dumpFile << "parameter type: Gna2Shape\n";
     dumpFile << "\t\tNumber of dimensions: " << shape->NumberOfDimensions;
@@ -298,7 +295,7 @@ void DumpShape(std::ostream& dumpFile, Gna2Shape* shape, const std::string param
     dumpFile << "]\n";
 }
 
-void DumpConvolutionParameters(std::ostream& dumpFile, void** parameters, size_t knownParamCount, const std::vector<std::string> paramNames) {
+inline void DumpConvolutionParameters(std::ostream& dumpFile, void** parameters, size_t knownParamCount, const std::vector<std::string> paramNames) {
     size_t i = 0;
 
     while (i < knownParamCount) {
@@ -319,12 +316,12 @@ void DumpConvolutionParameters(std::ostream& dumpFile, void** parameters, size_t
     }
  }
 
-void DumpCopyParameters(std::ostream& dumpFile, void** parameters, size_t knownParamCount, const std::vector<std::string> paramNames) {
+inline void DumpCopyParameters(std::ostream& dumpFile, void** parameters, size_t knownParamCount, const std::vector<std::string> paramNames) {
         Gna2Shape* subTensorShape = reinterpret_cast<Gna2Shape*>(parameters[CopyShapeParamIdx]);
         DumpShape(dumpFile, subTensorShape, paramNames[CopyShapeParamIdx]);
 }
 
-void DumpFCAffineParameters(std::ostream& dumpFile, void** parameters, size_t knownParamCount, const std::vector<std::string> paramNames) {
+inline void DumpFCAffineParameters(std::ostream& dumpFile, void** parameters, size_t knownParamCount, const std::vector<std::string> paramNames) {
     size_t i = 0;
 
     while (i < knownParamCount) {
@@ -341,15 +338,15 @@ void DumpFCAffineParameters(std::ostream& dumpFile, void** parameters, size_t kn
     }
 }
 
-void DumpIntParameter(std::ostream& dumpFile, void** parameters, size_t knownParamCount, const std::vector<std::string> paramNames) {
+inline void DumpIntParameter(std::ostream& dumpFile, void** parameters, size_t knownParamCount, const std::vector<std::string> paramNames) {
     uint32_t* param = reinterpret_cast<uint32_t*>(parameters[0]);
     if (param != nullptr)
         dumpFile << "\tParameter name: " << paramNames[0] << ", value: " << *param << "\n";
 }
 
-std::vector<std::string> GetParamaterNames(Gna2OperationType type) {
+inline std::vector<std::string> GetParamaterNames(Gna2OperationType type) {
     // This map must be aligned with dumpParamMap in this file
-    const std::map<Gna2OperationType, std::vector<std::string>> operationParamaterNamesMap = {
+    static const std::map<Gna2OperationType, std::vector<std::string>> operationParamaterNamesMap = {
         {Gna2OperationTypeConvolution, {"convolutionStride", "biasMode", "poolingMode", "poolingWindow", "poolingStride", "zeroPadding"}},
         {Gna2OperationTypeCopy, {"shape (sub-tensor shape)"}},
         {Gna2OperationTypeFullyConnectedAffine, {"biasMode", "biasVectorIndex"}},
@@ -362,7 +359,7 @@ std::vector<std::string> GetParamaterNames(Gna2OperationType type) {
 
 typedef void (*dumpParameters) (std::ostream&, void**, size_t, const std::vector<std::string>);
 
-dumpParameters GetParamDumpFunc(Gna2OperationType type) {
+inline dumpParameters GetParamDumpFunc(Gna2OperationType type) {
     // This map must be aligned with operationParamaterNamesMap in this file
     static const std::map<Gna2OperationType, dumpParameters> dumpParamMap = {
         {Gna2OperationTypeConvolution, DumpConvolutionParameters},
@@ -374,7 +371,7 @@ dumpParameters GetParamDumpFunc(Gna2OperationType type) {
     return dumpParamMap.find(type) != dumpParamMap.end() ? dumpParamMap.find(type)->second : nullptr;
 }
 
-void DumpPwl(std::ostream& dumpFile, const Gna2Tensor& activation) {
+inline void DumpPwl(std::ostream& dumpFile, const Gna2Tensor& activation) {
     const Gna2PwlSegment* const segments = static_cast<Gna2PwlSegment*>(activation.Data);
     const uint32_t numberOfSegments = activation.Shape.Dimensions[0];
 
@@ -398,7 +395,7 @@ void DumpPwl(std::ostream& dumpFile, const Gna2Tensor& activation) {
     }
 }
 
-void DumpCompoundBias(std::ostream& dumpFile, const Gna2Tensor& tensor) {
+inline void DumpCompoundBias(std::ostream& dumpFile, const Gna2Tensor& tensor) {
     uint32_t i = 0;
 
     while (i < tensor.Shape.Dimensions[0]) {
@@ -408,7 +405,7 @@ void DumpCompoundBias(std::ostream& dumpFile, const Gna2Tensor& tensor) {
     }
 }
 
-void DumpCharArray(std::ostream& dumpFile, const char *carray,  size_t count) {
+inline void DumpCharArray(std::ostream& dumpFile, const char *carray,  size_t count) {
     auto i = 0;
     while (*(carray + i) != 0 && i < count) {
         dumpFile << *(carray + i) << " ";
@@ -416,7 +413,6 @@ void DumpCharArray(std::ostream& dumpFile, const char *carray,  size_t count) {
     }
     dumpFile << "\n";
 }
-} // namespace
 
 void DumpGna2Model(const Gna2Model& gnaModel,
                    const std::string& dumpFolderNameGNA,
@@ -517,3 +513,7 @@ void DumpGna2Model(const Gna2Model& gnaModel,
         }
     }
 }
+
+} // namespace dump
+} // namespace intel_gna
+} // namespace ov

@@ -14,14 +14,10 @@ using namespace SubgraphTestsDefinitions;
 
 namespace {
 
-class GnaConvolutionReluSequenceTest : public ConvolutionReluSequenceTest, GnaLayerTestCheck {
+class GnaConvolutionReluSequenceTest : public ConvolutionReluSequenceTest {
 protected:
     void Run() override {
-        GnaLayerTestCheck::SkipTestCheck();
-
-        if (!GnaLayerTestCheck::skipTest) {
-            ConvolutionReluSequenceTest::Run();
-        }
+        ConvolutionReluSequenceTest::Run();
     }
 
     void SetUp() override {
