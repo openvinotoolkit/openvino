@@ -188,7 +188,10 @@ const std::vector<ngraph::opset4::TopK::SortType> sortTypes = {
 };
 
 std::vector<ov::test::InputShape> inputShapesDynamic = {
-    {{21, {20, 25}, 21, {20, 25}}, {{21, 21, 21, 21}, {21, 22, 21, 23}}}
+    {
+        {{21, {20, 25}, 21, {20, 25}}, {{21, 21, 21, 21}, {21, 22, 21, 23}}},
+        {ov::PartialShape::dynamic(4), {{21, 21, 21, 21}, {21, 22, 21, 23}}}
+    }
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_TopK_dynamic, TopKLayerGPUTest,

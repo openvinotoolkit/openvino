@@ -365,6 +365,7 @@ void run(non_max_suppression_inst& instance) {
                           soft_nms_sigma,
                           prim->sort_result_descending);
 
+    // Legacy APIs using mutable inputs for multiple outputs
     if (instance.has_third_output()) {
         store_third_output(stream, instance.third_output_mem(), result);
     }
@@ -375,6 +376,7 @@ void run(non_max_suppression_inst& instance) {
         return;
     }
 
+    // New API for mutiple outputs support
     if (instance.outputs_memory_count() == 3)
         store_third_output(stream, instance.output_memory_ptr(2), result);
 

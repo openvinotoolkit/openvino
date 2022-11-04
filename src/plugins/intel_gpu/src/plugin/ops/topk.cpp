@@ -25,7 +25,7 @@ static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>
     uint32_t top_k = op->get_k();
     uint64_t chosen_axis = op->get_axis();
 
-    if (p.use_new_shape_infer() || op->is_dynamic()) {
+    if (p.use_new_shape_infer()) {
         std::vector<cldnn::input_info> inputs;
         for (size_t i = 0; i != inputPrimitives.size(); ++i) {
             inputs.push_back(cldnn::input_info(inputPrimitives[i], op->get_input_source_output(i).get_index()));

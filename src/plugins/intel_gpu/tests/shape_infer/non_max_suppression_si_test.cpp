@@ -89,6 +89,15 @@ INSTANTIATE_TEST_SUITE_P(smoke, non_max_suppression_test,
              layout{ov::PartialShape{4, 3}, data_types::f32, format::bfyx},
              layout{ov::PartialShape{1}, data_types::i32, format::bfyx}}
         },
+        {
+            layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx},
+            layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx},
+            layout{ov::PartialShape{1}, data_types::f32, format::bfyx},
+            1.f, 4, false, true, {input_info("input0", 0), input_info("input1", 0)}, 3,
+            {layout{ov::PartialShape{ov::Dimension::dynamic(), 3}, data_types::i32, format::bfyx},
+             layout{ov::PartialShape{ov::Dimension::dynamic(), 3}, data_types::f32, format::bfyx},
+             layout{ov::PartialShape{1}, data_types::i32, format::bfyx}}
+        },
     }));
 
 }  // shape_infer_tests

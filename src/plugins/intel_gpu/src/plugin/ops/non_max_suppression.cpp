@@ -52,7 +52,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
     auto boxesShape = op->get_input_partial_shape(0);
     std::size_t num_output = op->get_output_size();
 
-    if (p.use_new_shape_infer() || op->is_dynamic()) {
+    if (p.use_new_shape_infer()) {
         std::vector<cldnn::input_info> inputs;
         for (size_t i = 0; i < 2; ++i) {
             inputs.push_back(cldnn::input_info(reorderedInputs[i], op->get_input_source_output(i).get_index()));

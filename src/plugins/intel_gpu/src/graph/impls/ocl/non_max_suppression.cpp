@@ -47,9 +47,11 @@ protected:
             args.inputs.push_back(instance.soft_nms_sigma_mem());
         }
 
+        // New API for mutiple outputs support
         for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
             args.outputs.push_back(instance.output_memory_ptr(i));
         }
+        // Legacy APIs using mutable inputs for multiple outputs
         if (instance.has_second_output())
             args.inputs.push_back(instance.second_output_mem());
         if (instance.has_third_output())
