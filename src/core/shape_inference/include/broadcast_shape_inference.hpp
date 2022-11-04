@@ -36,7 +36,7 @@ void validate_target_shape_none(const ov::Node* op,
                                   target_input_shape[axes_mapping_val[0]]);
         }
 
-        for (size_t i = 0; i < axes_mapping_val.size(); i++) {
+        for (size_t i = 0; i < axes_mapping_val.size(); ++i) {
             NODE_VALIDATION_CHECK(op,
                                   axes_mapping_val[i] < target_rank_length,
                                   "Broadcast axes_mapping[",
@@ -76,7 +76,7 @@ void validate_target_shape_numpy(const ov::Node* op, const T& arg_shape, const T
                           " than arg shape ",
                           arg_rank_length);
     const size_t start_axis = target_rank_length - arg_rank_length;
-    for (size_t i = start_axis; i < target_rank_length; i++) {
+    for (auto i = start_axis; i < target_rank_length; ++i) {
         NODE_VALIDATION_CHECK(op,
                               arg_shape[i - start_axis].is_dynamic() || target_input_shape[i].is_dynamic() ||
                                   arg_shape[i - start_axis].compatible(1) ||
@@ -107,7 +107,7 @@ void set_result_shape_pdpd(const ov::Node* op,
 
     NODE_VALIDATION_CHECK(op, start_axis >= 0, "Broadcast start_axis must be greater than 0");
 
-    for (size_t i = start_axis; i < target_input_shape.size(); i++) {
+    for (size_t i = start_axis; i < target_input_shape.size(); ++i) {
         const auto& arg_dim = arg0_shape[i - start_axis];
         if (arg_dim == 1) {
             result_shape[i] = target_input_shape[i];
