@@ -59,6 +59,7 @@ public:
                 }
             }
         }
+        return false;
     }
 
     static string getTestCaseName(testing::TestParamInfo<ConvLowPrecisionTestParams> obj) {
@@ -87,8 +88,8 @@ public:
 
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
         return FuncTestUtils::createAndFillBlob(info.getTensorDesc(),
-                                                fqMax - fqMin,
-                                                fqMin,
+                                                -0.05f,
+                                                0.05f,
                                                 1 / inputDataResolution);
     }
 
@@ -126,13 +127,12 @@ protected:
             inputShape, fqMinMax, levels) = this->GetParam();
         tie(fqMin, fqMax) = fqMinMax;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        size_t channelCnt = inputShape[1];
-        size_t kernelHeight = channelCnt >= 8 ? 3 : 1;
+        size_t kernelHeight = inputShape[2] == 1 ? 1 : 2;
 
         // Create network
         auto inputVector = createInputVector(ngPrc, {inputShape});
         auto inputFQ = createFQNode(ngPrc, inputVector[0], fqMin, fqMax, levels);
-        auto kernelWeights = makeConstant<float>(ngPrc, {8, channelCnt, kernelHeight, 3}, {0.1f});
+        auto kernelWeights = makeConstant<float>(ngPrc, {8, 8, kernelHeight, 2}, {0.1f});
         auto weightsFQ = createFQNode(ngPrc, kernelWeights, fqMin, fqMax, levels);
         auto convolution = make_shared<Convolution>(inputFQ,
                                                     weightsFQ,
@@ -185,7 +185,7 @@ const vector<map<string, string>> configs_2_0 = {
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PRECISION", "I16"}, {"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}},
 };
 
-const Shape conv1D = {1, 1, 1, 16};
+const Shape conv1D = {1, 8, 1, 16};
 const Shape conv2D = {1, 8, 16, 16};
 
 const vector<Shape> inputShapes = {
