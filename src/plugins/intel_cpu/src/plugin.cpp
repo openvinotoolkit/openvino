@@ -762,59 +762,45 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
         return std::pair<std::string, std::string>(std::to_string(num_streams), ov::util::to_string(num_streams));
     };
 
-    auto getModeName = [&]() {
+    auto getPerfHintName = [&]() {
         const bool streamsExplicitlySetForModel = streamsSet(config);
         // checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
         if (streamsExplicitlySetForModel ||
             streamsExplicitlySetForEngine)
             return std::string();
 
-        const auto& mode = config.find(CONFIG_KEY(PERFORMANCE_HINT));
-        // the mode may have just arrived to the LoadNetwork, or was set with the plugin's SetConfig
-        if (mode == config.end() && engConfig.perfHintsConfig.ovPerfHint.empty())
+        const auto& perf_hint = config.find(CONFIG_KEY(PERFORMANCE_HINT));
+        // the perf_hint may have just arrived to the LoadNetwork, or was set with the plugin's SetConfig
+        if (perf_hint == config.end() && engConfig.perfHintsConfig.ovPerfHint.empty())
             return std::string();
         /* performance hints set for network has higher pririty than engine ones.
         * This applies for all the configuration parameters */
-        const auto mode_name = (mode != config.end()) ?
-            PerfHintsConfig::CheckPerformanceHintValue(mode->second) :
+        const auto perf_hint_name = (perf_hint != config.end()) ?
+            PerfHintsConfig::CheckPerformanceHintValue(perf_hint->second) :
             engConfig.perfHintsConfig.ovPerfHint;
-        return mode_name;
+        return perf_hint_name;
     };
 
-    const auto& modelCacheProp = config.find(InferenceEngine::PluginConfigParams::KEY_CACHE_DIR);
-    const bool enableModelCache = (modelCacheProp != config.end() && !modelCacheProp->second.empty()) || !engConfig.cache_dir.empty();
-    // We compute both hints values if caching enabled to avoid different cache files for different hints mode
-    if (enableModelCache) {
-        auto latency_hints = getNumStreamsLatency();
-        auto tput_hints = getNumStreamsThroughput();
+    // We compute both hints values because the optimal number of streams are computed based on ov::Model
+    // while we export model in cpu internal opset so we need to save precomputed optimal # streams for both hint modes
+    const auto latency_hints = getNumStreamsLatency();
+    const auto tput_hints = getNumStreamsThroughput();
 
-        // save hints parameters to rt_info
-        ov::AnyMap hints_props;
-        const auto latency_name = std::string(CONFIG_VALUE(LATENCY)) + "_" + std::string(ov::num_streams.name());
-        const auto tput_name = std::string(CONFIG_VALUE(THROUGHPUT)) + "_" + std::string(ov::num_streams.name());
-        hints_props.insert({latency_name, latency_hints.second});
-        hints_props.insert({tput_name, tput_hints.second});
-        ngraphFunc->set_rt_info(hints_props, "intel_cpu_hints_config");
+    // save hints parameters to model rt_info
+    ov::AnyMap hints_props;
+    const auto latency_name = std::string(CONFIG_VALUE(LATENCY)) + "_" + std::string(ov::num_streams.name());
+    const auto tput_name = std::string(CONFIG_VALUE(THROUGHPUT)) + "_" + std::string(ov::num_streams.name());
+    hints_props.insert({latency_name, latency_hints.second});
+    hints_props.insert({tput_name, tput_hints.second});
+    ngraphFunc->set_rt_info(hints_props, "intel_cpu_hints_config");
 
-        const auto mode_name = getModeName();
-        if (mode_name == CONFIG_VALUE(LATENCY)) {
-            config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = latency_hints.first;
-            config[ov::num_streams.name()] = latency_hints.second;
-        } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
-            config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = tput_hints.first;
-            config[ov::num_streams.name()] = tput_hints.first;
-        }
-    } else {
-        const auto mode_name = getModeName();
-        if (mode_name == CONFIG_VALUE(LATENCY)) {
-            auto latency_hints = getNumStreamsLatency();
-            config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = latency_hints.first;
-            config[ov::num_streams.name()] = latency_hints.second;
-        } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
-            auto tput_hints = getNumStreamsThroughput();
-            config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = tput_hints.first;
-            config[ov::num_streams.name()] = tput_hints.first;
-        }
+    const auto perf_hint_name = getPerfHintName();
+    if (perf_hint_name == CONFIG_VALUE(LATENCY)) {
+        config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = latency_hints.first;
+        config[ov::num_streams.name()] = latency_hints.second;
+    } else if (perf_hint_name == CONFIG_VALUE(THROUGHPUT)) {
+        config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = tput_hints.first;
+        config[ov::num_streams.name()] = tput_hints.first;
     }
 }
 
