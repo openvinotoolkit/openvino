@@ -306,11 +306,11 @@ class Scrollbox(Directive):
             self.state.nested_parse(self.content, self.content_offset, node)
         return [node]
 
-    def setup_scrollbox(app):
-    
-        app.add_node(
-            nodes.container, override=True, html=(visit_scrollbox, depart_scrollbox)
-        )
+def setup_scrollbox(app):
+
+    app.add_node(
+        nodes.container, html=(visit_scrollbox, depart_scrollbox)
+    )
 
 #...............................................................................
 #
