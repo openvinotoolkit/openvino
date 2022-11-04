@@ -34,7 +34,7 @@ class Parameter_extender(Extender):
                     # Check only if dim is not int
                     if not isinstance(dim, int) and '..' in dim:
                         has_shapes_with_boundaries = True
-            shape = shape_array([d if d not in [-1, '?'] else dynamic_dimension_value for d in shape])
+            shape = shape_array([int(d) if d not in [-1, '?'] else dynamic_dimension_value for d in shape])
 
             if has_shapes_with_boundaries:
                 shape_list = []
