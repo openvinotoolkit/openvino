@@ -10,7 +10,6 @@
 
 namespace ov {
 namespace intel_cpu {
-
 class IShapeInfer {
 public:
     using port_mask_t = uint32_t;
@@ -41,6 +40,9 @@ private:
 
 using ShapeInferPtr = std::shared_ptr<IShapeInfer>;
 using ShapeInferCPtr = std::shared_ptr<const IShapeInfer>;
+
+constexpr IShapeInfer::port_mask_t EMPTY_PORT_MASK = 0x0;
+constexpr IShapeInfer::port_mask_t FULL_PORT_MASK = 0xffffffff;
 
 class ShapeInferFactory {
 public:

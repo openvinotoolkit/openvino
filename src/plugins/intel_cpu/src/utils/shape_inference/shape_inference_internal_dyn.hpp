@@ -20,7 +20,7 @@ public:
     }
 
     port_mask_t get_port_mask() const override {
-        return 0xffffffff;
+        return FULL_PORT_MASK;
     }
 };
 

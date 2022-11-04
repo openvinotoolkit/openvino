@@ -35,7 +35,7 @@ class EyeShapeInferFactory : public ShapeInferFactory {
 public:
     EyeShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
     ShapeInferPtr makeShapeInfer() const override {
-        IShapeInfer::port_mask_t port_mask = 0x00;
+        IShapeInfer::port_mask_t port_mask = EMPTY_PORT_MASK;
         if (m_op->get_input_size() == 4) {
             port_mask =  PortMask(Eye::ROWS_NUM, Eye::COLS_NUM, Eye::DIAGONAL_INDEX, Eye::BATCH_SHAPE);
         } else {

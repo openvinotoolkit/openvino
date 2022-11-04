@@ -116,7 +116,7 @@ public:
         if (m_op->get_input_size() > 2) {
             return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), PortMask(2));
         }
-        return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), 0x00);
+        return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), EMPTY_PORT_MASK);
     }
 private:
     std::shared_ptr<ngraph::Node> m_op;

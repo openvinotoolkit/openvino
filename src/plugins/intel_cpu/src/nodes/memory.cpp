@@ -49,7 +49,7 @@ bool MemoryOutput::isSupportedOperation(const std::shared_ptr<const ngraph::Node
 }
 
 MemoryOutput::MemoryOutput(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache, DefaultShapeInferFactory(op, 0x00)) , MemoryNode(op) {
+        : Node(op, eng, cache, DefaultShapeInferFactory(op, EMPTY_PORT_MASK)) , MemoryNode(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

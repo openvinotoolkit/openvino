@@ -279,7 +279,7 @@ namespace {
 class ShapeInferRNN final : public NgraphShapeInfer {
 public:
     ShapeInferRNN(std::shared_ptr<ov::Node> op) :
-        NgraphShapeInfer(make_shape_inference(op), 0x00) {
+        NgraphShapeInfer(make_shape_inference(op), EMPTY_PORT_MASK) {
             is_sequence = one_of(op->get_type_info(),
                 ov::op::v5::GRUSequence::get_type_info_static(),
                 ov::op::v0::LSTMSequence::get_type_info_static(),

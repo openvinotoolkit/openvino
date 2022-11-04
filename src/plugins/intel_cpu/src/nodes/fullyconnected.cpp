@@ -112,7 +112,7 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ngraph::No
 }
 
 FullyConnected::FullyConnected(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache, DefaultShapeInferFactory(op, 0x00)), withBiases(false) {
+        : Node(op, eng, cache, DefaultShapeInferFactory(op, EMPTY_PORT_MASK)), withBiases(false) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "FullyConnected node with name '" + getName() + "'";

@@ -27,7 +27,7 @@ public:
         return empty_vec;
     }
     port_mask_t get_port_mask() const override {
-        return 0x00;
+        return EMPTY_PORT_MASK;
     }
 private:
     ov::CoordinateDiff empty_vec{};
