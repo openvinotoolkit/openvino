@@ -150,8 +150,16 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
         us_params.pads_begin = convert_pads(primitive->pads_begin, dimsNum);
         us_params.pads_end = convert_pads(primitive->pads_end, dimsNum);
 
-        for (size_t i = 0; i < primitive->scales.size(); i++) {
-            us_params.axesAndScales[convert_axis(primitive->axes[i], dimsNum)] = primitive->scales[i];
+        auto scales = primitive->scales;
+        bool scales_calc_mod = primitive->shape_calc_mode == resample::InterpolateOp::ShapeCalcMode::SCALES;
+        if (scales_calc_mod && impl_param.input_layouts.size() == 2 && scales.empty()) {
+            auto mem = impl_param.memory_deps.at(1);
+            float* buffer = static_cast<float*>(mem->buffer_ptr());
+            scales = std::vector<float>(buffer, buffer + mem->count());
+        }
+
+        for (size_t i = 0; i < scales.size(); ++i) {
+            us_params.axesAndScales[convert_axis(primitive->axes[i], dimsNum)] = scales[i];
         }
 
         auto& kernel_selector = kernel_selector::resample_kernel_selector::Instance();
