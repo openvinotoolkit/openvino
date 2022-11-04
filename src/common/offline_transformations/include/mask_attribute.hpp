@@ -180,9 +180,15 @@ public:
         return result_mask;
     }
 
-    // Function copies values from mask,
-    // except mask[axis], where it selects values from mask[axis] set
-    // that are within [split_start, split_end) range
+    /*
+       Function copies values from mask,
+       except mask[axis], where it selects values from mask[axis] set
+       that are within [split_start, split_end) range
+       param: mask - input mask.
+       param: axis - axis, where the split happens
+       param: split_start
+       param: split_end
+    */
     void copy_and_slice_mask_from(const ngraph::Mask* const mask,
                                   int64_t axis,
                                   uint64_t split_start,
