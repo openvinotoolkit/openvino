@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
+#include "gmock/gmock.h"
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
+using namespace testing;
 
 TEST(type_prop, variadic_split) {
     const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
@@ -147,4 +148,72 @@ TEST(type_prop, variadic_split_shape_partially_dynamic) {
 
     EXPECT_TRUE(var_split3->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 6}));
     EXPECT_TRUE(var_split3->get_output_partial_shape(1).same_scheme(PartialShape{Dimension::dynamic(), 0}));
+}
+
+using VSplitTypePropTestParam = std::tuple<PartialShape,          // Input shape
+                                           int64_t,               // Split axis
+                                           std::vector<int64_t>,  // Split lengths
+                                           PartialShapes          // Expected shapes
+                                           >;
+
+class VariadicSplitTest : public TestWithParam<VSplitTypePropTestParam> {
+protected:
+    void SetUp() override {
+        std::tie(p_shape, axis, split_lengths, exp_shapes) = GetParam();
+    }
+
+    PartialShapes get_output_partial_shapes(const Node& n) {
+        PartialShapes out;
+        for (size_t i = 0; i < n.get_output_size(); ++i) {
+            out.push_back(n.get_output_partial_shape(i));
+        }
+
+        return out;
+    }
+
+    int64_t axis;
+    std::vector<int64_t> split_lengths;
+    PartialShape p_shape;
+    PartialShapes exp_shapes;
+};
+
+INSTANTIATE_TEST_SUITE_P(type_prop_static_shape,
+                         VariadicSplitTest,
+                         Values(std::make_tuple(PartialShape{6, 2}, 0, std::vector<int64_t>{6}, PartialShapes{{6, 2}}),
+                                std::make_tuple(PartialShape{6, 2, 10},
+                                                -1,
+                                                std::vector<int64_t>{6, -1, 3},
+                                                PartialShapes{{6, 2, 6}, {6, 2, 1}, {6, 2, 3}}),
+                                std::make_tuple(PartialShape{1, 20, 3},
+                                                1,
+                                                std::vector<int64_t>{-1, 10, 3, 5},
+                                                PartialShapes{{1, 2, 3}, {1, 10, 3}, {1, 3, 3}, {1, 5, 3}})),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(
+    type_prop_dynamic_shape,
+    VariadicSplitTest,
+    Values(std::make_tuple(PartialShape{{2, 6}, 2}, 0, std::vector<int64_t>{4}, PartialShapes{{4, 2}}),
+           std::make_tuple(PartialShape{{2, 6}, 2},
+                           0,
+                           std::vector<int64_t>{4, 1, -1},
+                           PartialShapes{{4, 2}, {1, 2}, {-1, 2}}),
+           std::make_tuple(PartialShape{{2, 4}, Dimension::dynamic()},
+                           1,
+                           std::vector<int64_t>{4, 1, -1, 3},
+                           PartialShapes{{{2, 4}, 4}, {{2, 4}, 1}, {{2, 4}, -1}, {{2, 4}, 3}})),
+    PrintToStringParamName());
+
+TEST_P(VariadicSplitTest, use_default_ctor) {
+    constexpr auto dtype = element::f32;
+    const auto param = make_shared<op::Parameter>(dtype, p_shape);
+    const auto axis_node = make_shared<op::Constant>(element::i32, Shape{}, axis);
+    const auto lengths_node = std::make_shared<op::Constant>(element::i64, Shape{split_lengths.size()}, split_lengths);
+
+    const auto var_split = make_shared<op::v1::VariadicSplit>();
+    var_split->set_arguments(NodeVector{param, axis_node, lengths_node});
+    var_split->validate_and_infer_types();
+
+    EXPECT_EQ(var_split->get_output_size(), split_lengths.size());
+    EXPECT_THAT(get_output_partial_shapes(*var_split), ElementsAreArray(exp_shapes));
 }

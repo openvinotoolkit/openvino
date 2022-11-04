@@ -46,3 +46,5 @@ protected:
 
     std::vector<size_t> in_labels;
 };
+
+using PartialShapes = std::vector<ov::PartialShape>;
