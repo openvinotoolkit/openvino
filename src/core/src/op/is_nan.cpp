@@ -9,8 +9,6 @@
 #include "utils.hpp"
 
 namespace ov {
-BWDCMP_RTTI_DEFINITION(op::v10::IsNaN);
-
 ov::op::v10::IsNaN::IsNaN(const Output<Node>& data) : op::Op{{data}} {
     constructor_validate_and_infer_types();
 }

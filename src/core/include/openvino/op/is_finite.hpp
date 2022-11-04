@@ -14,8 +14,6 @@ namespace v10 {
 class OPENVINO_API IsFinite : public Op {
 public:
     OPENVINO_OP("IsFinite", "opset10");
-    BWDCMP_RTTI_DECLARATION;
-
     IsFinite() = default;
     /// \brief Constructs a IsFinite operation.
     ///

@@ -9,8 +9,6 @@
 #include "utils.hpp"
 
 namespace ov {
-BWDCMP_RTTI_DEFINITION(op::v10::IsFinite);
-
 ov::op::v10::IsFinite::IsFinite(const Output<Node>& data) : op::Op{{data}} {
     constructor_validate_and_infer_types();
 }
