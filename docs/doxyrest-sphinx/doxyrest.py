@@ -279,7 +279,7 @@ class RefCodeBlock(Directive):
         return [node]
 
 class Scrollbox(Directive):
-    required_arguments = 0
+
     optional_arguments = 1
     final_argument_whitespace = True
     option_spec = {
