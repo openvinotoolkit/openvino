@@ -59,8 +59,8 @@ protected:
 
 private:
     bool alignCorners = false;
-    InterpolationMode interpolationMode = InterpolationMode::BILINEAR;
-    PaddingMode paddingMode = PaddingMode::ZEROS;
+    GridSampleInterpolationMode interpolationMode = GridSampleInterpolationMode::BILINEAR;
+    GridSamplePaddingMode paddingMode = GridSamplePaddingMode::ZEROS;
 
     uint64_t dataTypeSize = 1lu;
     uint64_t gridTypeSize = 1lu;

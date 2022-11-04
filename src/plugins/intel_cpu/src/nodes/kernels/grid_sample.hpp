@@ -11,16 +11,16 @@
 namespace ov {
 namespace intel_cpu {
 
-enum class InterpolationMode { BILINEAR, BICUBIC, NEAREST };
-enum class PaddingMode { ZEROS, BORDER, REFLECTION };
+enum class GridSampleInterpolationMode { BILINEAR, BICUBIC, NEAREST };
+enum class GridSamplePaddingMode { ZEROS, BORDER, REFLECTION };
 
 struct GridSampleKernelConfParams {
     bool dynamicShapes  = false;
     bool dynamicBatch   = false;
     bool dynamicChannel = false;
     bool alignCorners  = false;
-    InterpolationMode interpolationMode = InterpolationMode::BILINEAR;
-    PaddingMode paddingMode = PaddingMode::ZEROS;
+    GridSampleInterpolationMode interpolationMode = GridSampleInterpolationMode::BILINEAR;
+    GridSamplePaddingMode paddingMode = GridSamplePaddingMode::ZEROS;
     InferenceEngine::Precision inDataPrc;
     InferenceEngine::Precision gridPrc;
     uint64_t batchNum      = 1lu;

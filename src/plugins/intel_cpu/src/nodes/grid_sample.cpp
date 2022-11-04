@@ -27,15 +27,6 @@ bool GridSample::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
             errorMessage = "Not supported CPU instructions set.";
             return false;
         }
-
-        // 94982. FP32->I32 conversion issue in the reference implementation. There can be some garbage in the rest of float values like 0.333333745.
-        // The kernel does not have such garbage. The diff 0.000000745 is taken into account in calculations and affects further type conversion.
-        // Reorder->GridSample->Reorder also does not work here. Potential fix is to use nearest conversion instead of truncation.
-        // 94989. BF16 Reference produces different results.
-        if (op->inputs()[0].get_element_type() != element::f32 || op->inputs()[1].get_element_type() != element::f32) {
-            errorMessage = "Only f32 input type is supported.";
-            return false;
-        }
     } catch (...) {
         return false;
     }
@@ -67,26 +58,26 @@ GridSample::GridSample(const std::shared_ptr<ov::Node>& op, const dnnl::engine& 
     alignCorners = attributes.align_corners;
     switch (attributes.mode) {
         case op::v9::GridSample::InterpolationMode::BILINEAR:
-            interpolationMode = InterpolationMode::BILINEAR;
+            interpolationMode = GridSampleInterpolationMode::BILINEAR;
             break;
         case op::v9::GridSample::InterpolationMode::BICUBIC:
-            interpolationMode = InterpolationMode::BICUBIC;
+            interpolationMode = GridSampleInterpolationMode::BICUBIC;
             break;
         case op::v9::GridSample::InterpolationMode::NEAREST:
-            interpolationMode = InterpolationMode::NEAREST;
+            interpolationMode = GridSampleInterpolationMode::NEAREST;
             break;
         default:
             THROW_ERROR << "supports only BILINEAR, BICUBIC, NEAREST interpolation modes.";
     }
     switch (attributes.padding_mode) {
         case op::v9::GridSample::PaddingMode::ZEROS:
-            paddingMode = PaddingMode::ZEROS;
+            paddingMode = GridSamplePaddingMode::ZEROS;
             break;
         case op::v9::GridSample::PaddingMode::BORDER:
-            paddingMode = PaddingMode::BORDER;
+            paddingMode = GridSamplePaddingMode::BORDER;
             break;
         case op::v9::GridSample::PaddingMode::REFLECTION:
-            paddingMode = PaddingMode::REFLECTION;
+            paddingMode = GridSamplePaddingMode::REFLECTION;
             break;
         default:
             THROW_ERROR << "supports only BORDER, REFLECTION, ZEROS paddings modes.";
@@ -109,10 +100,9 @@ void GridSample::initSupportedPrimitiveDescriptors() {
         implType = jit_avx512;
     } else if (x64::mayiuse(x64::avx2)) {
         implType = jit_avx2;
-    } else if (x64::mayiuse(x64::avx)) {
-        implType = jit_avx;
     }
 
+    // 95905 - to add nspc layout support.
     addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
                           {LayoutType::ncsp, gridPrecision}},
                          {{LayoutType::ncsp, dataPrecision}},
@@ -148,8 +138,6 @@ void GridSample::createPrimitive() {
         jitKernel.reset(new GridSampleKernel<x64::avx512_core>(jcp));
     } else if (x64::mayiuse(x64::avx2)) {
         jitKernel.reset(new GridSampleKernel<x64::avx2>(jcp));
-    } else if (x64::mayiuse(x64::avx)) {
-        jitKernel.reset(new GridSampleKernel<x64::avx>(jcp));
     } else if (x64::mayiuse(x64::sse41)) {
         jitKernel.reset(new GridSampleKernel<x64::sse41>(jcp));
     }
@@ -179,8 +167,8 @@ void GridSample::createPrimitive() {
                 p.wDenormCoefF.resize(dataElPerVec);
                 p.hDenormCoefF.resize(dataElPerVec);
             }
-            if (interpolationMode == InterpolationMode::BICUBIC) {
-                const size_t vecNum = paddingMode == PaddingMode::ZEROS ? 32 : 16;
+            if (interpolationMode == GridSampleInterpolationMode::BICUBIC) {
+                const size_t vecNum = paddingMode == GridSamplePaddingMode::ZEROS ? 32 : 16;
                 p.buffer.resize(dataElPerVec * dataTypeSize * vecNum);
             }
         });
@@ -235,7 +223,7 @@ void GridSample::prepareParams() {
         p.srcWidthSub1F[0]  = p.srcWidthF[0]  - 1.f;
         p.srcHeightMul2F[0] = p.srcHeightF[0] * 2.f;
         p.srcWidthMul2F[0]  = p.srcWidthF[0]  * 2.f;
-        if (interpolationMode == InterpolationMode::BICUBIC && srcDataShape[3] >= 4) {
+        if (interpolationMode == GridSampleInterpolationMode::BICUBIC && srcDataShape[3] >= 4) {
             p.srcWidthB[0] = (srcDataShape[3] - 3) * dataTypeSize;
         } else {
             p.srcWidthB[0] = srcDataShape[3] * dataTypeSize;

@@ -58,7 +58,7 @@ public:
                                  paddingMode == GridSample::PaddingMode::BORDER ? "BORDER" : "REFLECTION") << "_";
         result << "alignCorners=" << (alignCorners ? "True" : "False") << "_";
         result << "dataPrc=" << dataPrecision << "_";
-        result << "gridPrc=" << gridPrecision << "_";
+        result << "gridPrc=" << gridPrecision;
         result << CPUTestsBase::getTestCaseName(cpuParams);
 
         if (!additionalConfig.empty()) {
