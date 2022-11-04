@@ -104,14 +104,14 @@ bool convertTensorIteratorToSequence(const std::shared_ptr<ngraph::opset5::Tenso
     const size_t batch_dim = slice_axis == 0 ? 1 : 0;
 
     auto shape_of = std::make_shared<ngraph::opset5::ShapeOf>(X);
-    auto batch_dimension =
-        std::make_shared<ngraph::opset5::Gather>(shape_of,
-                                                 ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {batch_dim}),
-                                                 ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}));
-    auto seq_len_dim =
-        std::make_shared<ngraph::opset5::Gather>(shape_of,
-                                                 ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {slice_axis}),
-                                                 ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}));
+    auto batch_dimension = std::make_shared<ngraph::opset5::Gather>(
+        shape_of,
+        ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {batch_dim}),
+        ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}));
+    auto seq_len_dim = std::make_shared<ngraph::opset5::Gather>(
+        shape_of,
+        ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {slice_axis}),
+        ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}));
     auto seq_lengths = std::make_shared<ngraph::opset5::Broadcast>(seq_len_dim, batch_dimension);
     auto axis_0 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
     auto W = ngraph::op::util::make_try_fold<ngraph::opset5::Unsqueeze>(w_pattern, axis_0);
