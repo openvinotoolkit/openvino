@@ -1,4 +1,4 @@
-# Dynamic shape Bert Benchmark Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_bert_benchmark_README}
+# Bert Benchmark Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_bert_benchmark_README}
 
 This sample demonstrates how to estimate performace of a Bert model using Asynchronous Inference Request API. Unlike [demos](@ref omz_demos) this sample doesn't have configurable command line arguments. Feel free to modify sample's source code to try out different options.
 
