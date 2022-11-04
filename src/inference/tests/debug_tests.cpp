@@ -3,8 +3,10 @@
 //
 
 #include <gtest/gtest.h>
-#include "debug.h"
+
 #include <string>
+
+#include "debug.h"
 
 using DebugTests = ::testing::Test;
 

@@ -2,17 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-#include <string>
-#include <memory>
-
-#include <ie_extension.h>
 #include <file_utils.h>
+#include <gtest/gtest.h>
+#include <ie_extension.h>
 
+#include <memory>
 #include <ngraph/opsets/opset.hpp>
+#include <string>
 
-#include "common_test_utils/test_common.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_common.hpp"
 
 using namespace InferenceEngine;
 
@@ -22,7 +21,7 @@ std::string getExtensionPath();
 
 std::string getExtensionPath() {
     return FileUtils::makePluginLibraryName<char>(CommonTestUtils::getExecutableDirectory(),
-            std::string("template_extension") + IE_BUILD_POSTFIX);
+                                                  std::string("template_extension") + IE_BUILD_POSTFIX);
 }
 
 #ifndef OPENVINO_STATIC_LIBRARY
@@ -43,8 +42,7 @@ TEST(ExtensionTests, testGetImplTypes) {
 
 TEST(ExtensionTests, testGetImplTypesThrowsIfNgraphNodeIsNullPtr) {
     IExtensionPtr extension = std::make_shared<Extension>(getExtensionPath());
-    ASSERT_THROW(extension->getImplTypes(std::shared_ptr<ngraph::Node> ()),
-            InferenceEngine::Exception);
+    ASSERT_THROW(extension->getImplTypes(std::shared_ptr<ngraph::Node>()), InferenceEngine::Exception);
 }
 
 TEST(ExtensionTests, testGetImplementation) {
@@ -56,8 +54,7 @@ TEST(ExtensionTests, testGetImplementation) {
 
 TEST(ExtensionTests, testGetImplementationThrowsIfNgraphNodeIsNullPtr) {
     IExtensionPtr extension = std::make_shared<Extension>(getExtensionPath());
-    ASSERT_THROW(extension->getImplementation(std::shared_ptr<ngraph::Node> (), ""),
-            InferenceEngine::Exception);
+    ASSERT_THROW(extension->getImplementation(std::shared_ptr<ngraph::Node>(), ""), InferenceEngine::Exception);
 }
 
-#endif // OPENVINO_STATIC_LIBRARY
+#endif  // OPENVINO_STATIC_LIBRARY

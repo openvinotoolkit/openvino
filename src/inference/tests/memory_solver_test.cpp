@@ -2,49 +2,50 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
+#include "memory_solver.hpp"
+
 #include <gtest/gtest.h>
 #include <ie_common.h>
 
-#include "memory_solver.hpp"
+#include <vector>
 
 using Box = MemorySolver::Box;
 
-
 TEST(MemSolverTest, CanConstruct) {
-    {   // Empty vector<Box>
+    {  // Empty vector<Box>
         MemorySolver ms(std::vector<Box>{});
     }
 
-    {   // vector with default Box
+    {  // vector with default Box
         MemorySolver ms(std::vector<Box>{{}});
     }
 
-    {   // vector with Box with non-default Box
+    {  // vector with Box with non-default Box
         MemorySolver ms(std::vector<Box>{{1, 3, 3}});
     }
 
-    {   // vector with Box with size == 0
+    {  // vector with Box with size == 0
         MemorySolver ms(std::vector<Box>{{0, 0, 0}});
     }
 
-    {   // vector with Box with finish == -1
+    {  // vector with Box with finish == -1
         MemorySolver ms(std::vector<Box>{{3, -1, 6}});
     }
 
     // TODO: enable after implement TODO from memory_solver.hpp#L66
-//    {   // vector with Box with negative values
-//        MemorySolver ms(std::vector<Box> {{-5, -5, -5, -5}});
-//    }
+    //    {   // vector with Box with negative values
+    //        MemorySolver ms(std::vector<Box> {{-5, -5, -5, -5}});
+    //    }
 }
 
 TEST(MemSolverTest, GetOffset) {
     int n = 0;
-    std::vector<Box> boxes{   //  |
-            {n, ++n, 2, 0},   //  |      ____  ____
-            {n, ++n, 2, 1},   //  |   __|____||____|
-            {n, ++n, 2, 2},   //  |__|____||____|_____
-            {n, ++n, 2, 3},   //      0  1  2  3  4
+    std::vector<Box> boxes{
+        //  |
+        {n, ++n, 2, 0},  //  |      ____  ____
+        {n, ++n, 2, 1},  //  |   __|____||____|
+        {n, ++n, 2, 2},  //  |__|____||____|_____
+        {n, ++n, 2, 3},  //      0  1  2  3  4
     };
 
     MemorySolver ms(boxes);
@@ -58,11 +59,12 @@ TEST(MemSolverTest, GetOffset) {
 
 TEST(MemSolverTest, GetOffsetThrowException) {
     int n = 0, id = 0;
-    std::vector<Box> boxes{      //  |
-            {n, ++n, 2, id++},   //  |      ____  ____
-            {n, ++n, 2, id++},   //  |   __|____||____|
-            {n, ++n, 2, id++},   //  |__|____||____|_____
-            {n, ++n, 2, id++},   //      0  1  2  3  4
+    std::vector<Box> boxes{
+        //  |
+        {n, ++n, 2, id++},  //  |      ____  ____
+        {n, ++n, 2, id++},  //  |   __|____||____|
+        {n, ++n, 2, id++},  //  |__|____||____|_____
+        {n, ++n, 2, id++},  //      0  1  2  3  4
     };
 
     MemorySolver ms(boxes);
@@ -73,11 +75,12 @@ TEST(MemSolverTest, GetOffsetThrowException) {
 
 TEST(MemSolverTest, LinearAndEven) {
     int n = 0;
-    std::vector<Box> boxes{   //  |
-            {n, ++n, 2},      //  |      ____
-            {n, ++n, 2},      //  |   __|____|__
-            {n, ++n, 2},      //  |__|____||____|__
-    };                        //      0  1  2  3
+    std::vector<Box> boxes{
+        //  |
+        {n, ++n, 2},  //  |      ____
+        {n, ++n, 2},  //  |   __|____|__
+        {n, ++n, 2},  //  |__|____||____|__
+    };                //      0  1  2  3
 
     MemorySolver ms(boxes);
     EXPECT_EQ(ms.solve(), 4);
@@ -87,11 +90,12 @@ TEST(MemSolverTest, LinearAndEven) {
 
 TEST(MemSolverTest, LinearAndNotEven) {
     int n = 0;
-    std::vector<Box> boxes{   //  |      ____
-            {n, ++n, 2},      //  |     |____|__
-            {n, ++n, 2},      //  |   ____ |    |
-            {n, ++n, 3},      //  |__|____||____|__
-    };                        //      0  1  2  3
+    std::vector<Box> boxes{
+        //  |      ____
+        {n, ++n, 2},  //  |     |____|__
+        {n, ++n, 2},  //  |   ____ |    |
+        {n, ++n, 3},  //  |__|____||____|__
+    };                //      0  1  2  3
 
     MemorySolver ms(boxes);
     EXPECT_EQ(ms.solve(), 5);
@@ -99,14 +103,14 @@ TEST(MemSolverTest, LinearAndNotEven) {
     EXPECT_EQ(ms.maxTopDepth(), 2);
 }
 
-
 TEST(MemSolverTest, LinearWithEmptyExecIndexes) {
     int n = 2;
-    std::vector<Box> boxes{      //  |         _______
-            {n, n += 2, 2},      //  |        |_______|_____
-            {n, n += 2, 2},      //  |   _______    |       |
-            {n, n += 2, 3},      //  |__|_______|___|_______|__
-    };                           //      2  3  4  5  6  7  8
+    std::vector<Box> boxes{
+        //  |         _______
+        {n, n += 2, 2},  //  |        |_______|_____
+        {n, n += 2, 2},  //  |   _______    |       |
+        {n, n += 2, 3},  //  |__|_______|___|_______|__
+    };                   //      2  3  4  5  6  7  8
 
     MemorySolver ms(boxes);
     EXPECT_EQ(ms.solve(), 5);
@@ -115,11 +119,12 @@ TEST(MemSolverTest, LinearWithEmptyExecIndexes) {
 }
 
 TEST(MemSolverTest, DISABLED_Unefficiency) {
-    std::vector<Box> boxes{    //  |            __________
-            {6, 7, 3},         //  |   ____    |_3________|
-            {2, 5, 2},         //  |  |_4__|_____ |    |
-            {5, 8, 2},         //  |__|_2________||_1__|___
-            {2, 3, 2},         //      2  3  4  5  6  7  8
+    std::vector<Box> boxes{
+        //  |            __________
+        {6, 7, 3},  //  |   ____    |_3________|
+        {2, 5, 2},  //  |  |_4__|_____ |    |
+        {5, 8, 2},  //  |__|_2________||_1__|___
+        {2, 3, 2},  //      2  3  4  5  6  7  8
     };
 
     MemorySolver ms(boxes);
@@ -129,11 +134,12 @@ TEST(MemSolverTest, DISABLED_Unefficiency) {
 }
 
 TEST(MemSolverTest, OverlappingBoxes) {
-    std::vector<Box> boxes{    //  |            __________
-            {6, 7, 4},         //  |   ____    |_3________|
-            {2, 5, 3},         //  |  |_4__|_____ |    |
-            {5, 8, 2},         //  |__|_2________||_1__|___
-            {2, 3, 2},         //      2  3  4  5  6  7  8
+    std::vector<Box> boxes{
+        //  |            __________
+        {6, 7, 4},  //  |   ____    |_3________|
+        {2, 5, 3},  //  |  |_4__|_____ |    |
+        {5, 8, 2},  //  |__|_2________||_1__|___
+        {2, 3, 2},  //      2  3  4  5  6  7  8
     };
 
     MemorySolver ms(boxes);
@@ -143,12 +149,13 @@ TEST(MemSolverTest, OverlappingBoxes) {
 }
 
 TEST(MemSolverTest, EndOnSeveralBegins) {
-    std::vector<Box> boxes{    //  |      ____
-            {0, 1, 2},         //  |     |____| ____
-            {1, 2, 2},         //  |           |____|__
-            {3, 3, 2},         //  |   ____    |_______|
-            {3, 5, 2},         //  |__|____|___|_|_________
-            {3, 4, 2},         //      0  1  2  3  4  5  6
+    std::vector<Box> boxes{
+        //  |      ____
+        {0, 1, 2},  //  |     |____| ____
+        {1, 2, 2},  //  |           |____|__
+        {3, 3, 2},  //  |   ____    |_______|
+        {3, 5, 2},  //  |__|____|___|_|_________
+        {3, 4, 2},  //      0  1  2  3  4  5  6
     };
 
     MemorySolver ms(boxes);
@@ -158,12 +165,13 @@ TEST(MemSolverTest, EndOnSeveralBegins) {
 }
 
 TEST(MemSolverTest, ToEndBoxes) {
-    std::vector<Box> boxes{     //  |      _____________
-            {0, 1,  2},         //  |     |_____________>>
-            {1, -1, 2},         //  |           |____|__
-            {3, 3,  2},         //  |   ____    |_______>>
-            {3, -1, 2},         //  |__|____|___|_|_________
-            {3, 4,  2},         //      0  1  2  3  4  5  6
+    std::vector<Box> boxes{
+        //  |      _____________
+        {0, 1, 2},   //  |     |_____________>>
+        {1, -1, 2},  //  |           |____|__
+        {3, 3, 2},   //  |   ____    |_______>>
+        {3, -1, 2},  //  |__|____|___|_|_________
+        {3, 4, 2},   //      0  1  2  3  4  5  6
     };
 
     MemorySolver ms(boxes);
@@ -173,12 +181,13 @@ TEST(MemSolverTest, ToEndBoxes) {
 }
 
 TEST(MemSolverTest, LastAndToEndBox) {
-    std::vector<Box> boxes{     //  |                     _
-            {0, 1,  2},         //  |            ____    |_>>
-            {6, -1, 2},         //  |           |____|__
-            {3, 3,  2},         //  |   ____    |_______|
-            {3, 5,  2},         //  |__|____|___|_|_________
-            {3, 4,  2},         //      0  1  2  3  4  5  6
+    std::vector<Box> boxes{
+        //  |                     _
+        {0, 1, 2},   //  |            ____    |_>>
+        {6, -1, 2},  //  |           |____|__
+        {3, 3, 2},   //  |   ____    |_______|
+        {3, 5, 2},   //  |__|____|___|_|_________
+        {3, 4, 2},   //      0  1  2  3  4  5  6
     };
 
     MemorySolver ms(boxes);
@@ -189,33 +198,34 @@ TEST(MemSolverTest, LastAndToEndBox) {
 
 TEST(MemSolverTest, OptimalAlexnet) {
     std::vector<std::vector<int>> shapes{
-            {3,   227, 227},  // in
-            {96,  55,  55},  // conv1
-            {96,  55,  55},  // relu1
-            {96,  55,  55},  // norm1
-            {96,  27,  27},  // pool1
-            {256, 27,  27},  // conv2
-            {256, 27,  27},  // relu2
-            {256, 27,  27},  // norm2
-            {256, 13,  13},  // pool2
-            {384, 13,  13},  // conv3
-            {384, 13,  13},  // relu3
-            {384, 13,  13},  // conv4
-            {384, 13,  13},  // relu4
-            {256, 13,  13},  // conv5
-            {256, 13,  13},  // relu5
-            {256, 6,   6},  // pool5
-            {1,   1,   4069},  // fc6
-            {1,   1,   4069},  // relu6
-            {1,   1,   4069},  // fc7
-            {1,   1,   4069},  // relu7
-            {1,   1,   1000},  // fc8
-            {1,   1,   1000},  // loss
+        {3, 227, 227},  // in
+        {96, 55, 55},   // conv1
+        {96, 55, 55},   // relu1
+        {96, 55, 55},   // norm1
+        {96, 27, 27},   // pool1
+        {256, 27, 27},  // conv2
+        {256, 27, 27},  // relu2
+        {256, 27, 27},  // norm2
+        {256, 13, 13},  // pool2
+        {384, 13, 13},  // conv3
+        {384, 13, 13},  // relu3
+        {384, 13, 13},  // conv4
+        {384, 13, 13},  // relu4
+        {256, 13, 13},  // conv5
+        {256, 13, 13},  // relu5
+        {256, 6, 6},    // pool5
+        {1, 1, 4069},   // fc6
+        {1, 1, 4069},   // relu6
+        {1, 1, 4069},   // fc7
+        {1, 1, 4069},   // relu7
+        {1, 1, 1000},   // fc8
+        {1, 1, 1000},   // loss
     };
 
     int n = 0;
     std::vector<Box> boxes;
-    for (const auto &sh : shapes) boxes.push_back({n, ++n, sh[0] * sh[1] * sh[2]});
+    for (const auto& sh : shapes)
+        boxes.push_back({n, ++n, sh[0] * sh[1] * sh[2]});
 
     // For linear topology bottom score is reachable minRequired == maxDepth
     MemorySolver ms(boxes);
@@ -224,12 +234,13 @@ TEST(MemSolverTest, OptimalAlexnet) {
 }
 
 TEST(MemSolverTest, NoOverlapping) {
-    int n = 0;                //  |         _____________
-    std::vector<Box> boxes{   //  |   _____|___1_________|
-            {4, 8, 1, n++},   //  |  |_2_____|    ____
-            {6, 7, 3, n++},   //  |  |    |      |    |
-            {2, 3, 3, n++},   //  |__|_3__|______|_3__|___
-            {2, 4, 2, n++},   //      2  3  4  5  6  7  8
+    int n = 0;  //  |         _____________
+    std::vector<Box> boxes{
+        //  |   _____|___1_________|
+        {4, 8, 1, n++},  //  |  |_2_____|    ____
+        {6, 7, 3, n++},  //  |  |    |      |    |
+        {2, 3, 3, n++},  //  |__|_3__|______|_3__|___
+        {2, 4, 2, n++},  //      2  3  4  5  6  7  8
     };
 
     MemorySolver ms(boxes);
@@ -240,8 +251,8 @@ TEST(MemSolverTest, NoOverlapping) {
     auto no_overlap = [&](Box box1, Box box2) -> bool {
         int off1 = (int)ms.getOffset((int)box1.id);
         int off2 = (int)ms.getOffset((int)box2.id);
-        return box1.finish < box2.start || box1.start > box2.finish ||
-               off1 + box1.size <= off2 || off1 >= off2 + box2.size;
+        return box1.finish < box2.start || box1.start > box2.finish || off1 + box1.size <= off2 ||
+               off1 >= off2 + box2.size;
     };
 
     for (int i = 0; i < n; i++)
@@ -250,12 +261,13 @@ TEST(MemSolverTest, NoOverlapping) {
 }
 
 TEST(MemSolverTest, BestSolution1) {
-    int n = 0;                //  |         _______
-    std::vector<Box> boxes{   //  |        |_2_____|__
-            {2, 3, 1, n++},   //  |      ____    |    |
-            {3, 4, 1, n++},   //  |   __|_1__|   |    |
-            {4, 6, 2, n++},   //  |__|_1__|______|_3__|___
-            {6, 7, 3, n++},   //      2  3  4  5  6  7  8
+    int n = 0;  //  |         _______
+    std::vector<Box> boxes{
+        //  |        |_2_____|__
+        {2, 3, 1, n++},  //  |      ____    |    |
+        {3, 4, 1, n++},  //  |   __|_1__|   |    |
+        {4, 6, 2, n++},  //  |__|_1__|______|_3__|___
+        {6, 7, 3, n++},  //      2  3  4  5  6  7  8
     };
 
     MemorySolver ms(boxes);
@@ -264,12 +276,11 @@ TEST(MemSolverTest, BestSolution1) {
     auto no_overlap = [&](Box box1, Box box2) -> bool {
         int off1 = (int)ms.getOffset((int)box1.id);
         int off2 = (int)ms.getOffset((int)box2.id);
-        return box1.finish < box2.start || box1.start > box2.finish ||
-               off1 + box1.size <= off2 || off1 >= off2 + box2.size;
+        return box1.finish < box2.start || box1.start > box2.finish || off1 + box1.size <= off2 ||
+               off1 >= off2 + box2.size;
     };
 
     for (int i = 0; i < n; i++)
         for (int j = i + 1; j < n; j++)
             ASSERT_TRUE(no_overlap(boxes[i], boxes[j])) << "Box overlapping is detected";
 }
-

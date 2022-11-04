@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
-
+#include <gtest/gtest.h>
 #include <ie_data.h>
 
 using namespace ::testing;
@@ -22,9 +21,9 @@ protected:
 
     class BlockingDescTest : public BlockingDesc {
     public:
-        BlockingDescTest(const SizeVector &blocked_dims, const SizeVector &order) : BlockingDesc(blocked_dims, order) {}
+        BlockingDescTest(const SizeVector& blocked_dims, const SizeVector& order) : BlockingDesc(blocked_dims, order) {}
 
-        void fillDescTest(const SizeVector &blocked_dims, const SizeVector &order) {
+        void fillDescTest(const SizeVector& blocked_dims, const SizeVector& order) {
             fillDesc(blocked_dims, order);
         }
     };
@@ -93,7 +92,7 @@ TEST_F(DataTests, canSetNotEmptyDimsForBlockingDescNCHW) {
 }
 
 TEST_F(DataTests, setPrecision) {
-    Data data(data_name, { Precision::FP32, emptyDims, Layout::NCHW });
+    Data data(data_name, {Precision::FP32, emptyDims, Layout::NCHW});
 
     EXPECT_EQ(Precision::FP32, data.getPrecision());
     EXPECT_EQ(Precision::FP32, data.getTensorDesc().getPrecision());

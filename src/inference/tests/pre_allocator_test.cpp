@@ -4,16 +4,17 @@
 
 #include <gtest/gtest.h>
 
-#include "ie_allocator.hpp"
-#include "details/ie_pre_allocator.hpp"
 #include <vector>
+
+#include "details/ie_pre_allocator.hpp"
+#include "ie_allocator.hpp"
 
 using namespace ::testing;
 using namespace std;
 using namespace InferenceEngine;
 
-class PreallocatorTests: public ::testing::Test {
- protected:
+class PreallocatorTests : public ::testing::Test {
+protected:
     std::vector<float> mybuf;
 
     void SetUp() override {
@@ -24,10 +25,10 @@ class PreallocatorTests: public ::testing::Test {
 };
 
 TEST_F(PreallocatorTests, canAccessPreAllocatedMemory) {
-    void * handle = allocator->alloc(3);
-    float * ptr = reinterpret_cast<float*>(allocator->lock(handle));
+    void* handle = allocator->alloc(3);
+    float* ptr = reinterpret_cast<float*>(allocator->lock(handle));
 
-    mybuf = { 1.1f, 2.2f, 3.3f };
+    mybuf = {1.1f, 2.2f, 3.3f};
 
     ASSERT_EQ(ptr, &*mybuf.begin());
     ASSERT_EQ(ptr[0], 1.1f);
@@ -36,12 +37,12 @@ TEST_F(PreallocatorTests, canAccessPreAllocatedMemory) {
 }
 
 TEST_F(PreallocatorTests, canNotAllocateMoreMemory) {
-    //large block such as 10k will result in nullptr
-    EXPECT_EQ(nullptr, allocator->lock(allocator->alloc(10* sizeof(float) + 1)));
-    EXPECT_NE(nullptr, allocator->lock(allocator->alloc(10* sizeof(float))));
+    // large block such as 10k will result in nullptr
+    EXPECT_EQ(nullptr, allocator->lock(allocator->alloc(10 * sizeof(float) + 1)));
+    EXPECT_NE(nullptr, allocator->lock(allocator->alloc(10 * sizeof(float))));
 }
 
 TEST_F(PreallocatorTests, canNotLockWrongHandle) {
-    void * handle  = allocator->alloc(3);
+    void* handle = allocator->alloc(3);
     EXPECT_EQ(nullptr, allocator->lock(1 + reinterpret_cast<int*>(handle)));
 }
