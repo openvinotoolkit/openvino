@@ -50,8 +50,14 @@ def main():
     statistics = None
     try:
         # ------------------------------ 1. Parsing and validating input arguments ------------------------------
+        args_string = f"{os.path.realpath(sys.argv[0])} "
+        for i in range(1,len(sys.argv)):
+            args_string += f"{sys.argv[i]} "
+
         next_step()
         args, is_network_compiled = parse_and_check_command_line()
+
+        logger.info(f"Input command: {args_string}")
 
         if args.number_streams is None:
                 logger.warning(" -nstreams default value is determined automatically for a device. "
@@ -85,9 +91,8 @@ def main():
         benchmark = Benchmark(args.target_device, args.number_infer_requests,
                               args.number_iterations, args.time, args.api_type, args.inference_only)
 
-        ## CPU (OneDNN) extensions
-        if CPU_DEVICE_NAME in device_name and args.path_to_extension:
-            benchmark.add_extension(path_to_extension=args.path_to_extension)
+        if args.extensions:
+            benchmark.add_extension(path_to_extensions=args.extensions)
 
         ## GPU (clDNN) Extensions
         if GPU_DEVICE_NAME in device_name and args.path_to_cldnn_config:

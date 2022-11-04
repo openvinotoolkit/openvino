@@ -4,6 +4,7 @@
 
 #include "op_table.hpp"
 
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset9.hpp"
 
 using namespace std;
@@ -64,6 +65,8 @@ OP_CONVERTER(translate_identity_op);
 OP_CONVERTER(translate_identity_n_op);
 OP_CONVERTER(translate_interpolate_op);
 OP_CONVERTER(translate_is_finite_op);
+OP_CONVERTER(translate_is_inf_op);
+OP_CONVERTER(translate_is_nan_op);
 OP_CONVERTER(translate_l2_loss_op);
 OP_CONVERTER(translate_linspace_op);
 OP_CONVERTER(translate_list_diff_op);
@@ -74,15 +77,17 @@ OP_CONVERTER(translate_lrn_op);
 OP_CONVERTER(translate_mat_mul_op);
 OP_CONVERTER(translate_matrix_diag_op);
 OP_CONVERTER(translate_max_pool_op);
+OP_CONVERTER(translate_mirror_pad_op);
 OP_CONVERTER(translate_non_max_suppression_op);
 OP_CONVERTER(translate_normalize_l2_op);
-OP_CONVERTER(translate_pad_op);
 OP_CONVERTER(translate_parallel_dynamic_stitch_op);
 OP_CONVERTER(translate_placeholder_op);
 OP_CONVERTER(translate_placeholder_with_default_op);
 OP_CONVERTER(translate_no_op);
 OP_CONVERTER(translate_one_hot_op);
 OP_CONVERTER(translate_pack_op);
+OP_CONVERTER(translate_pad_op);
+OP_CONVERTER(translate_padv2_op);
 OP_CONVERTER(translate_range_op);
 OP_CONVERTER(translate_rank_op);
 OP_CONVERTER(translate_random_uniform_op);
@@ -92,6 +97,7 @@ OP_CONVERTER(translate_reciprocal_op);
 OP_CONVERTER(translate_reshape_op);
 OP_CONVERTER(translate_resource_gather_op);
 OP_CONVERTER(translate_reverse_op);
+OP_CONVERTER(translate_reverse_v2_op);
 OP_CONVERTER(translate_reverse_sequence_op);
 OP_CONVERTER(translate_roll_op);
 OP_CONVERTER(translate_round_op);
@@ -100,6 +106,7 @@ OP_CONVERTER(translate_scatter_nd_op);
 OP_CONVERTER(translate_segment_sum_op);
 OP_CONVERTER(translate_sparse_to_dense_op);
 OP_CONVERTER(translate_select_op);
+OP_CONVERTER(translate_select_v2_op);
 OP_CONVERTER(translate_shape_op);
 OP_CONVERTER(translate_size_op);
 OP_CONVERTER(translate_slice_op);
@@ -142,6 +149,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Erf", translate_unary_op<opset8::Erf>},
         {"Exp", translate_unary_op<opset8::Exp>},
         {"Floor", translate_unary_op<opset8::Floor>},
+        {"IsFinite", translate_unary_op<opset10::IsFinite>},
+        {"IsInf", translate_unary_op<opset10::IsInf>},
+        {"IsNan", translate_unary_op<opset10::IsNaN>},
         {"Log", translate_unary_op<opset8::Log>},
         {"LogicalNot", translate_unary_op<opset8::LogicalNot>},
         {"Mish", translate_unary_op<opset8::Mish>},
@@ -233,7 +243,6 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"GatherNd", translate_gather_nd_op},
         {"Identity", translate_identity_op},
         {"IdentityN", translate_identity_n_op},
-        {"IsFinite", translate_is_finite_op},
         {"L2Loss", translate_l2_loss_op},
         {"LeakyRelu", translate_leaky_relu_op},
         {"LinSpace", translate_linspace_op},
@@ -246,7 +255,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"MaxPool", translate_max_pool_op},
         {"MaxPoolV2", translate_max_pool_op},
         {"MaxPool3D", translate_max_pool_op},
-        {"MirrorPad", translate_pad_op},
+        {"MirrorPad", translate_mirror_pad_op},
         {"NonMaxSuppression", translate_non_max_suppression_op},
         {"NonMaxSuppressionV2", translate_non_max_suppression_op},
         {"NonMaxSuppressionV3", translate_non_max_suppression_op},
@@ -257,7 +266,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"OneHot", translate_one_hot_op},
         {"Pack", translate_pack_op},
         {"Pad", translate_pad_op},
-        {"PadV2", translate_pad_op},
+        {"PadV2", translate_padv2_op},
         {"DynamicStitch", translate_parallel_dynamic_stitch_op},
         {"ParallelDynamicStitch", translate_parallel_dynamic_stitch_op},
         {"Placeholder", translate_placeholder_op},
@@ -272,7 +281,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Reshape", translate_reshape_op},
         {"Reverse", translate_reverse_op},
         {"ReverseSequence", translate_reverse_sequence_op},
-        {"ReverseV2", translate_reverse_op},
+        {"ReverseV2", translate_reverse_v2_op},
         {"ResizeBilinear", translate_interpolate_op},
         {"ResizeNearestNeighbor", translate_interpolate_op},
         {"ResourceGather", translate_resource_gather_op},
@@ -283,7 +292,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"SegmentSum", translate_segment_sum_op},
         {"SparseToDense", translate_sparse_to_dense_op},
         {"Select", translate_select_op},
-        {"SelectV2", translate_select_op},
+        {"SelectV2", translate_select_v2_op},
         {"Shape", translate_shape_op},
         {"Size", translate_size_op},
         {"Slice", translate_slice_op},

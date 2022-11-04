@@ -279,7 +279,7 @@ KernelsData DeconvolutionKernel_b_fs_zyx_fsv16::GetKernelsData(const Params& par
     KernelsData kds = Parent::GetKernelsData(params, options);
 
     const deconvolution_params& orgParams = static_cast<const deconvolution_params&>(params);
-    if (orgParams.inputs[0].Feature().v % 16 != 0) {
+    if (!kds.empty() && orgParams.inputs[0].Feature().v % 16 != 0) {
         kds[0].can_reuse_memory = false; // Set memory_reuse = false when input feature size is not 16 aligned.
     }
 
