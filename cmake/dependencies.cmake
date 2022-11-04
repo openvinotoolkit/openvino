@@ -102,10 +102,11 @@ function(ov_download_tbb)
                 SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce")
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "tbb2020_20200415_lin_strip.tgz"
+                ARCHIVE_LIN "tbb2020_617e9a71_lin_strip.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
+                SHA256 "1e6ec1f805326da1d490c40a36d64e64b0c06d9efaead4732150b75e729f75c9"
+                USE_NEW_LOCATION TRUE)
     elseif(YOCTO_AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "keembay/tbb2020_38404_kmb_lic.tgz"
