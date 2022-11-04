@@ -91,9 +91,8 @@ def main():
         benchmark = Benchmark(args.target_device, args.number_infer_requests,
                               args.number_iterations, args.time, args.api_type, args.inference_only)
 
-        ## CPU (OneDNN) extensions
-        if CPU_DEVICE_NAME in device_name and args.path_to_extension:
-            benchmark.add_extension(path_to_extension=args.path_to_extension)
+        if args.extensions:
+            benchmark.add_extension(path_to_extensions=args.extensions)
 
         ## GPU (clDNN) Extensions
         if GPU_DEVICE_NAME in device_name and args.path_to_cldnn_config:
@@ -125,7 +124,7 @@ def main():
 
         # --------------------- 3. Setting device configuration --------------------------------------------------------
         next_step()
-        def get_device_type_from_name(name) :
+        def get_device_type_from_name(name):
             new_name = str(name)
             new_name = new_name.split(".", 1)[0]
             new_name = new_name.split("(", 1)[0]
