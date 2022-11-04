@@ -140,7 +140,7 @@ def create_target_node(raw_text, text, target, highlight_language, lineno, docum
     return node
 
 
-def visit_scrollbox(self, node: nodes.Node):
+def visit_scrollbox(self, node):
     scrollboxbar = "<div class='scrollbox-bar' style='width:" + ''.join(c for c in str(node['bar']) if c.isdigit()) + "px;'></div>"
     scrollboxcontent = "<div class='scrollbox-content' style='width:100%;'>"
     attrs = {}
@@ -158,7 +158,7 @@ def visit_scrollbox(self, node: nodes.Node):
     self.body.append(scrollboxbar)
     self.body.append(scrollboxcontent)
 
-def depart_scrollbox(self, node: nodes.Node):
+def depart_scrollbox(self, node):
     self.body.append("</div></div>\n")
 
 def create_scrollbox_component(
