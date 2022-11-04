@@ -140,6 +140,40 @@ def create_target_node(raw_text, text, target, highlight_language, lineno, docum
     return node
 
 
+def visit_scrollbox(self, nodescrollbox: nodes.Node):
+    scrollboxbar = "<div class='scrollbox-bar' style='width:" + ''.join(c for c in str(nodescrollbox['bar']) if c.isdigit()) + "px;'></div>"
+    scrollboxcontent = "<div class='scrollbox-content' style='width:100%;'>"
+    attrs = {}
+    if "height" in nodescrollbox:
+        attrs["style"] = (
+            "height:"
+            + "".join(c for c in str(nodescrollbox["height"]) if c.isdigit())
+            + "px;"
+            + "width:"
+            + "".join(c for c in str(nodescrollbox["width"]) if c.isdigit())
+            + ("px;" if nodescrollbox["width"].find("px") != -1 else "%;")
+        )
+        attrs["class"] = "scrollbox"
+    self.body.append(self.starttag(nodescrollbox, "div", **attrs))
+    self.body.append(scrollboxbar)
+    self.body.append(scrollboxcontent)
+
+def depart_scrollbox(self, nodescrollbox: nodes.Node):
+    self.body.append("</div></div>\n")
+
+def create_scrollbox_component(
+    name: str,
+    *,
+    rawtext: str = "",
+    children: Sequence[nodes.Node] = (),
+    **attributes,
+) -> nodes.container:
+    node = nodes.container(
+        rawtext, is_div=True, design_component=name, **attributes
+    )
+    node.extend(children)
+    return node
+
 #...............................................................................
 #
 #  Sphinx directives
@@ -258,8 +292,8 @@ class Scrollbox(Directive):
     has_content = True
 
     def run(self):
-        classes = []
-        nodescrollbox = create_component("div", rawtext="\n".join(self.content), classes=classes)
+        classes = "scrollbox"
+        nodescrollbox = create_scrollbox_component("div", rawtext="\n".join(self.content), classes=classes)
         if 'height' in self.options:
             nodescrollbox['height'] = self.options['height']
         if 'width' in self.options:
@@ -271,55 +305,9 @@ class Scrollbox(Directive):
             self.state.nested_parse(self.content, self.content_offset, nodescrollbox)
         return [nodescrollbox]
 
-
-    def visit_scrollbox(self, nodescrollbox: nodes.Node):
-        scrollboxbar = "<div class='scrollbox-bar' style='width:" + ''.join(c for c in str(nodescrollbox['bar']) if c.isdigit()) + "px;'></div>"
-        scrollboxcontent = "<div class='scrollbox-content' style='width:100%;'>"
-        attrs = {}
-        if "height" in nodescrollbox:
-            attrs["style"] = (
-                "height:"
-                + "".join(c for c in str(nodescrollbox["height"]) if c.isdigit())
-                + "px;"
-                + "width:"
-                + "".join(c for c in str(nodescrollbox["width"]) if c.isdigit())
-                + ("px;" if nodescrollbox["width"].find("px") != -1 else "%;")
-            )
-            attrs["class"] = "scrollbox"
-        self.body.append(self.starttag(nodescrollbox, "div", **attrs))
-        self.body.append(scrollboxbar)
-        self.body.append(scrollboxcontent)
-
-    def depart_scrollbox(self, nodescrollbox: nodes.Node):
-        self.body.append("</div></div>\n")
-
-def create_component(
-    name: str,
-    classes: Sequence[str] = (),
-    *,
-    rawtext: str = "",
-    children: Sequence[nodes.Node] = (),
-    **attributes,
-) -> nodes.container:
-    node = nodes.container(
-        rawtext, is_div=True, design_component=name, classes=classes, **attributes
-    )
-    node.extend(children)
-    return node
-
-
-def initial_config(app: Sphinx, cfg: Config) -> None:
-    static_path = path.abspath(path.join(path.dirname(__file__), "css"))
-    cfg.html_static_path.append(static_path)
-    app.add_css_file("scrollbox.css")
-
-
-def setup(app: Sphinx) -> None:
-    app.add_node(
-        nodes.container, override=True, html=(Scrollbox.visit_scrollbox, Scrollbox.depart_scrollbox)
-    )
-    app.add_directive("scrollbox", Scrollbox, override=True)
-    app.connect("config-inited", initial_config)
+def init_scrollbox_config (app):
+    app.config.html_static_path += [this_dir + '/css/scrollbox.css']
+    add_css_file(app, 'scrollbox.css')
 
 #...............................................................................
 #
@@ -556,6 +544,12 @@ def setup(app):
         latex=(visit_doxyrest_literalblock_node, depart_doxyrest_literalblock_node)
     )
 
+    app.add_node(
+        Scrollbox,
+        html=(visit_scrollbox, depart_scrollbox),
+        latex=(visit_scrollbox, depart_scrollbox)
+    )
+
     app.add_role('cref', cref_role)
     app.add_role('target', target_role)
     app.add_config_value('doxyrest_cref_file', default=None, rebuild=True)
@@ -565,6 +559,7 @@ def setup(app):
     app.add_transform(RefTransform)
     app.connect('builder-inited', on_builder_inited)
     app.connect('config-inited', on_config_inited)
+    app.connect('config-inited', init_scrollbox_config)
 
     if not is_sphinx_tab_aware:
         app.registry.source_inputs['restructuredtext'] = TabAwareSphinxRSTFileInput
