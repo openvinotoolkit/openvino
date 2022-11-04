@@ -8,12 +8,15 @@ If you want to download, convert, optimize and tune pre-trained deep learning mo
 * Post-Training Optimization Tool
 * Model Downloader and other Open Model Zoo tools
 
+The instructions on this page show how to install OpenVINO Development Tools. If you are a Python developer, it only takes a few simple steps to install the tools with PyPI. If you are developing in C++, OpenVINO Runtime must be installed separately before installing OpenVINO Development Tools.
+
+In both cases, Python 3.6 - 3.10 need be installed on your machine before starting.
+
 > **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI.
 
-<a name="python-developers"></a>
+## <a name="python-developers"></a>For Python Developers
 
-## For Python Developers
-If you are a Python developer, you can find the main steps below to install OpenVINO Development Tools. For more details, see <https://pypi.org/project/openvino-dev>.
+If you are a Python developer, follow the steps in the <a href="#install-dev-tools">Installing OpenVINO Development Tools</a> section on this page to install it. Installing OpenVINO Development Tools will also install OpenVINO Runtime as a dependency, so you don’t need to install OpenVINO Runtime separately. This option is recommended for new users.
 
 ## <a name="cpp-developers"></a>For C++ Developers
 If you are a C++ developer, you must first install OpenVINO Runtime separately to set up the C++ libraries, sample code, and dependencies for building applications with OpenVINO. These files are not included with the PyPI distribution. See the [Install OpenVINO Runtime](./installing-openvino-runtime.md) page to install OpenVINO Runtime from an archive file for your operating system.
@@ -98,41 +101,27 @@ You will see the help message for Model Optimizer if installation finished succe
 
 <a name="cpp-developers"></a>
 
-## For C++ Developers
-Note the following things:
+## What's Next?
+Learn more about OpenVINO and use it in your own application by trying out some of these examples!
 
-* To install OpenVINO Development Tools, you must have OpenVINO Runtime installed first. You can install OpenVINO Runtime through the following ways:
-  * For OpenVINO 2022.1: [Install OpenVINO on Linux Using the Installer](installing-openvino-linux.md), [Install OpenVINO on Linux from APT](installing-openvino-apt.md), [Install OpenVINO on Linux from YUM](installing-openvino-yum.md), [Install OpenVINO on Windows Using the Installer](installing-openvino-windows.md), or [Install OpenVINO on macOS Using the Installer](installing-openvino-macos.md).
-  * For OpenVINO 2022.1.1: [Install OpenVINO on Linux from Archive](2022.1.1/installing-openvino-from-archive-linux.md), [Install OpenVINO on Windows from Archive](2022.1.1/installing-openvino-from-archive-windows.md), or [Install OpenVINO on macOS from Archive](2022.1.1/installing-openvino-from-archive-macos.md).
-* Ensure that the version of OpenVINO Development Tools you are installing matches that of OpenVINO Runtime.
+### Get started with Python
+<img src="https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif" width=400>
 
-Use either of the following ways to install OpenVINO Development Tools:
+Try the [Python Quick Start Example](https://docs.openvino.ai/2022.2/notebooks/201-vision-monodepth-with-output.html) to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
 
-### Recommended: Install Using the Requirements Files
+Visit the [Tutorials](../tutorials.md) page for more Jupyter Notebooks to get you started with OpenVINO, such as:
+* [OpenVINO Python API Tutorial](https://docs.openvino.ai/2022.2/notebooks/002-openvino-api-with-output.html)
+* [Basic image classification program with Hello Image Classification](https://docs.openvino.ai/2022.2/notebooks/001-hello-world-with-output.html)
+* [Convert a PyTorch model and use it for image background removal](https://docs.openvino.ai/2022.2/notebooks/205-vision-background-removal-with-output.html)
 
-1. After you have installed OpenVINO Runtime from an installer, APT, YUM, or an archive file (2022.1.1 only), you can find a set of requirements files in the `<INSTALL_DIR>\tools\` directory. Select the most suitable ones to use.
-2. Install the same version of OpenVINO Development Tools by using the requirements files.
-   To install mandatory requirements only, use the following command:
-   ```
-   pip install -r <INSTALL_DIR>\tools\requirements.txt
-   ```
-3. Make sure that you also install your additional frameworks with the corresponding requirements files. For example, if you are using a TensorFlow model, use the following command to install requirements for TensorFlow:  
-```
-pip install -r <INSTALL_DIR>\tools\requirements_tensorflow2.txt
-```
+### Get started with C++
+<img src="https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg" width=400>
 
-### Alternative: Install from the openvino-dev Package
+Try the [C++ Quick Start Example](@ref openvino_docs_get_started_get_started_demos) for step-by-step instructions on building and running a basic image classification C++ application.
 
-You can also use the following command to install the latest package version available in the index:
-```
-pip install openvino-dev[EXTRAS]
-```
-where the EXTRAS parameter specifies one or more deep learning frameworks via these values: `caffe`, `kaldi`, `mxnet`, `onnx`, `pytorch`, `tensorflow`, `tensorflow2`. Make sure that you install the corresponding frameworks for your models.
-
-If you have installed OpenVINO Runtime via the installer, to avoid version conflicts, specify your version in the command. For example:
-```
-pip install openvino-dev[tensorflow2,onnx]==2022.1
-```
+Visit the [Samples](../OV_Runtime_UG/Samples_Overview.md) page for other C++ example applications to get you started with OpenVINO, such as:
+* [Basic object detection with the Hello Reshape SSD C++ sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
+* [Automatic speech recognition C++ sample](@ref openvino_inference_engine_samples_speech_sample_README)
 
 > **NOTE**: Model Optimizer support for TensorFlow 1.x environment has been deprecated. Use TensorFlow 2.x environment to convert both TensorFlow 1.x and 2.x models. The `tensorflow` value is provided only for compatibility reasons, use the `tensorflow2` value instead.
 
