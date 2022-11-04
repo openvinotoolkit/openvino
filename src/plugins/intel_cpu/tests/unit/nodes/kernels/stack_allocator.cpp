@@ -46,7 +46,7 @@ protected:
             IE_THROW() << "Could not create kernel. Error code: " << std::to_string(code) << ". "
                        << "Xbyak error code: " << Xbyak::ConvertErrorToString(Xbyak::GetError());
         }
-        return reinterpret_cast<F>(jit_ker());
+        return (F)jit_ker();
     }
 
     void generate() override {
