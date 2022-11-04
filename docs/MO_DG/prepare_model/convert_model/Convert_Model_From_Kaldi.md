@@ -74,7 +74,8 @@ Based on this mapping, link inputs and outputs in your application manually as f
 must be copied to `Parameter_0_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out`.
 
 ## Supported Kaldi Layers
-For the list of supported standard layers, refer to the [Supported Framework Layers ](../Supported_Frameworks_Layers.md) page.
+For the list of supported standard layers, refer to the [Supported Framework Layers ](@ref openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers) page.
 
-## See Also
-[Model Conversion Tutorials](Convert_Model_Tutorials.md)
+## Additional Resources
+See the [Model Conversion Tutorials](@ref openvino_docs_MO_DG_prepare_model_convert_model_tutorials) page for a set of tutorials providing step-by-step instructions for converting specific Kaldi models. Here are some examples:
+* [Convert Kaldi ASpIRE Chain Time Delay Neural Network (TDNN) Model](@ref openvino_docs_MO_DG_prepare_model_convert_model_kaldi_specific_Aspire_Tdnn_Model)
