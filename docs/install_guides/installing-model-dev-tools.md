@@ -10,7 +10,7 @@ OpenVINO Development Tools is a set of utilities that make it easy to develop an
 
 The instructions on this page show how to install OpenVINO Development Tools. If you are a Python developer, it only takes a few simple steps to install the tools with PyPI. If you are developing in C++, OpenVINO Runtime must be installed separately before installing OpenVINO Development Tools.
 
-In both cases, Python 3.6 - 3.10 need be installed on your machine before starting.
+In both cases, Python 3.6 - 3.9 need be installed on your machine before starting.
 
 > **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. 
 
@@ -164,27 +164,36 @@ You will see the help message for Model Optimizer if installation finished succe
 
 Congratulations! You finished installing OpenVINO Development Tools with C++ capability. Now you can start exploring OpenVINO's functionality through example C++ applications. See the "What's Next?" section to learn more!
 
-## What's Next?
-Learn more about OpenVINO and use it in your own application by trying out some of these examples!
+## <a name="get-started"></a>What's Next?
+Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials.
 
-### Get started with Python
-<img src="https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif" width=400>
+@sphinxdirective
+.. tab:: Get started with Python
 
-Try the [Python Quick Start Example](https://docs.openvino.ai/2022.2/notebooks/201-vision-monodepth-with-output.html) to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+   Try the `Python Quick Start Example <https://docs.openvino.ai/2022.2/notebooks/201-vision-monodepth-with-output.html>`_ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+   
+   .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
+      :width: 400
 
-Visit the [Tutorials](../tutorials.md) page for more Jupyter Notebooks to get you started with OpenVINO, such as:
-* [OpenVINO Python API Tutorial](https://docs.openvino.ai/2022.2/notebooks/002-openvino-api-with-output.html)
-* [Basic image classification program with Hello Image Classification](https://docs.openvino.ai/2022.2/notebooks/001-hello-world-with-output.html)
-* [Convert a PyTorch model and use it for image background removal](https://docs.openvino.ai/2022.2/notebooks/205-vision-background-removal-with-output.html)
+   Visit the :ref:`Tutorials <notebook tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
+   
+   * `OpenVINO Python API Tutorial <https://docs.openvino.ai/2022.2/notebooks/002-openvino-api-with-output.html>`_
+   * `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/2022.2/notebooks/001-hello-world-with-output.html>`_
+   * `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/2022.2/notebooks/205-vision-background-removal-with-output.html>`_
 
-### Get started with C++
-<img src="https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg" width=400>
+.. tab:: Get started with C++
 
-Try the [C++ Quick Start Example](@ref openvino_docs_get_started_get_started_demos) for step-by-step instructions on building and running a basic image classification C++ application.
+   Try the `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`_ for step-by-step instructions on building and running a basic image classification C++ application.
+   
+   .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
+      :width: 400
 
-Visit the [Samples](../OV_Runtime_UG/Samples_Overview.md) page for other C++ example applications to get you started with OpenVINO, such as:
-* [Basic object detection with the Hello Reshape SSD C++ sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
-* [Automatic speech recognition C++ sample](@ref openvino_inference_engine_samples_speech_sample_README)
+   Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
+   
+   * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`_
+   * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`_
+
+@endsphinxdirective
 
 ### Learn OpenVINO Development Tools
 * Explore a variety of pre-trained deep learning models in the <a href="model_zoo.html">Open Model Zoo</a> and deploy them in demo applications to see how they work.
