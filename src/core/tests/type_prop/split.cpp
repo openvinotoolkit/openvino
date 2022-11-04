@@ -5,6 +5,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "gmock/gmock.h"
 #include "ngraph/ngraph.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "sequnce_generator.hpp"
 #include "util/type_prop.hpp"
 
@@ -353,7 +354,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(SplitBoundTest, propagate_label_and_dynamic_value) {
     PartialShape labeled_shape = PartialShape{p_shape};
-    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, p_shape);
+    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{1});
 
     const auto in_exp_labels = make_in_exp_labels();
     set_shape_labels(labeled_shape, in_exp_labels.first);
@@ -368,7 +369,7 @@ TEST_P(SplitBoundTest, propagate_label_and_dynamic_value) {
     const auto split = std::make_shared<op::v1::Split>(labeled_shape_of, axis, num_of_splits);
 
     for (auto& output : split->outputs()) {
-        const auto& bc = std::make_shared<op::v1::Broadcast>(param, output);
+        const auto& bc = std::make_shared<op::v3::Broadcast>(param, output);
         out_shapes.push_back(bc->get_output_partial_shape(0));
         out_labels.push_back(get_shape_labels(bc->get_output_partial_shape(0)));
     }
