@@ -16,8 +16,6 @@
 #include "samples/classification_results.h"
 #include "samples/slog.hpp"
 #include "format_reader_ptr.h"
-
-#include <opencv2/opencv.hpp>
 // clang-format on
 
 /**
@@ -63,11 +61,10 @@ int tmain(int argc, tchar* argv[]) {
 
         ov::element::Type input_type = ov::element::u8;
         ov::Shape input_shape = {1, reader->height(), reader->width(), 3};
-        cv::Mat img_color2 = cv::imread(image_path.c_str(), 1);
-        auto input_data = static_cast<unsigned char*>(img_color2.data);
+        std::shared_ptr<unsigned char> input_data = reader->getData();
 
         // just wrap image data by ov::Tensor without allocating of new memory
-        ov::Tensor input_tensor = ov::Tensor(input_type, input_shape, input_data);
+        ov::Tensor input_tensor = ov::Tensor(input_type, input_shape, input_data.get());
 
         const ov::Layout tensor_layout{"NHWC"};
 
@@ -79,34 +76,19 @@ int tmain(int argc, tchar* argv[]) {
         // - input() provides information about a single model input
         // - reuse precision and shape from already available `input_tensor`
         // - layout of data is 'NHWC'
-        // ppp.input().tensor().set_shape(input_shape).set_element_type(input_type).set_layout(tensor_layout);
-        // // 2) Adding explicit preprocessing steps:
-        // // - convert layout to 'NCHW' (from 'NHWC' specified above at tensor layout)
-        // // - apply linear resize from tensor spatial dims to model spatial dims
-        // ppp.input().preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
-        // // 4) Here we suppose model has 'NCHW' layout for input
-        // ppp.input().model().set_layout("NCHW");
-        // // 5) Set output tensor information:
-        // // - precision of tensor is supposed to be 'f32'
-        // ppp.output().tensor().set_element_type(ov::element::u8);
-
-        // // 6) Apply preprocessing modifying the original 'model'
-
-        ppp.input().tensor().set_layout("NHWC").set_color_format(ov::preprocess::ColorFormat::RGB);
+        ppp.input().tensor().set_shape(input_shape).set_element_type(input_type).set_layout(tensor_layout);
+        // 2) Adding explicit preprocessing steps:
+        // - convert layout to 'NCHW' (from 'NHWC' specified above at tensor layout)
+        // - apply linear resize from tensor spatial dims to model spatial dims
+        ppp.input().preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
+        // 4) Here we suppose model has 'NCHW' layout for input
         ppp.input().model().set_layout("NCHW");
-        ppp.input().preprocess().convert_color(ov::preprocess::ColorFormat::GRAY); // TODO: SHOULD WORK, NEED TO ANALYZE HOW TO ENABLE IMPLICIT CONVERSION
-        // ppp.input().preprocess().convert_layout("NCHW").convert_color(ov::preprocess::ColorFormat::GRAY);
-        // ppp.input().preprocess().convert_layout("NCHW");
-        // ppp.output().tensor().set_layout("NHWC");
-        // ppp.output().postprocess().convert_layout("NHWC");
-        // ppp.output().model().set_layout("NHWC");
+        // 5) Set output tensor information:
+        // - precision of tensor is supposed to be 'f32'
+        ppp.output().tensor().set_element_type(ov::element::f32);
 
-        ppp.output().model().set_layout("NCHW");
-        ppp.output().tensor().set_layout("NHWC");
-        
-        std::cout << "Dump preprocessor: " << ppp << std::endl;
+        // 6) Apply preprocessing modifying the original 'model'
         model = ppp.build();
-        printInputAndOutputsInfo(*model);
 
         // -------- Step 5. Loading a model to the device --------
         ov::CompiledModel compiled_model = core.compile_model(model, device_name);
@@ -121,32 +103,12 @@ int tmain(int argc, tchar* argv[]) {
         // -------- Step 8. Do inference synchronously --------
         infer_request.infer();
 
+        // -------- Step 9. Process output
         const ov::Tensor& output_tensor = infer_request.get_output_tensor();
 
-        std::cout << "OUT SHAPE : " << output_tensor.get_shape() << std::endl;
-        std::cout << "OUT BYTE SIZE : " <<output_tensor.get_byte_size() << std::endl;
-        // auto mat = cv::Mat(224, 224, CV_8UC3, output_tensor.data()); // FOR RGB IMAGE
-        auto mat = cv::Mat(224, 224, CV_8UC1, output_tensor.data());    // FOR GRAY IMAGE
-        // cv::cvtColor(mat, mat, cv::COLOR_RGB2BGR);
-        cv::imwrite("C:\\work\\img\\result.bmp", mat);
-        std::cout << "IMAGE SAVED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
-
-
-        cv::Mat img_color = cv::imread(image_path.c_str(), 1);
-        cv::imwrite("C:\\work\\img\\result_cv_color.bmp", img_color);
-        
-
-        cv::Mat img_grayscale = cv::imread(image_path.c_str(), 0);
-        cv::imwrite("C:\\work\\img\\result_cv_gray.bmp", img_grayscale);
-
-        // return 0;
-
-        // -------- Step 9. Process output
-        // const ov::Tensor& output_tensor = infer_request.get_output_tensor();
-
-        // // Print classification results
-        // ClassificationResult classification_result(output_tensor, {image_path});
-        // classification_result.show();
+        // Print classification results
+        ClassificationResult classification_result(output_tensor, {image_path});
+        classification_result.show();
         // -----------------------------------------------------------------------------------------------------
     } catch (const std::exception& ex) {
         std::cerr << ex.what() << std::endl;

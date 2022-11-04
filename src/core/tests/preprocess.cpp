@@ -329,14 +329,12 @@ TEST(pre_post_process, convert_color_rgb_gray_asserts) {
 }
 
 TEST(pre_post_process, convert_color_nv12_rgb_single) {
-    auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 3, 2, 2});
+    auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 3});
     auto p = PrePostProcessor(f);
     auto name = f->get_parameters()[0]->get_friendly_name();
     auto tensor_names = f->get_parameters().front()->get_output_tensor(0).get_names();
     p.input().tensor().set_element_type(element::u8).set_color_format(ColorFormat::NV12_SINGLE_PLANE);
-    p.input().model().set_layout("NCHW");
     p.input().preprocess().convert_color(ColorFormat::RGB).convert_element_type(element::f32);
-    std::cout << "Dump preprocessor: " << p << std::endl;
     f = p.build();
 
     EXPECT_EQ(f->get_parameters().size(), 1);
@@ -366,12 +364,10 @@ TEST(pre_post_process, convert_color_nv12_bgr_single) {
 }
 
 TEST(pre_post_process, convert_color_nv12_bgr_2_planes) {
-    auto f = create_simple_function(element::f32, Shape{5, 3, 2, 2});
+    auto f = create_simple_function(element::f32, Shape{5, 2, 2, 3});
     auto p = PrePostProcessor(f);
-    p.input().tensor().set_color_format(ColorFormat::NV12_TWO_PLANES, {"TestY", "TestUV"}).set_layout("NCHW");
-    p.input().model().set_layout("NCHW");
+    p.input().tensor().set_color_format(ColorFormat::NV12_TWO_PLANES, {"TestY", "TestUV"});
     p.input().preprocess().convert_color(ColorFormat::BGR);
-    std::cout << "Dump preprocessor: " << p << std::endl;
     f = p.build();
 
     EXPECT_EQ(f->get_parameters().size(), 2);

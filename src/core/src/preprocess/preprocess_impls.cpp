@@ -157,7 +157,6 @@ bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
     auto consumers = data.m_param->output(0).get_target_inputs();
     bool need_validate = false;
 
-    // TODO: NEED TO APPLY IMPLICIT CONVERSION FROM CONVOLUTION TO INPUT
     PreprocessingContext context(data.m_tensor_layout);
     context.color_format() = get_tensor_data()->get_color_format();
     context.target_layout() = data.m_model_layout;
