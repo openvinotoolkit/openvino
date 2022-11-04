@@ -11,7 +11,8 @@ namespace ngraph {
 namespace runtime {
 namespace reference {
 template <typename T, typename U>
-void is_inf(const T* input, U* output, size_t count, const ov::op::v10::IsInf::Attributes& attributes) {
+typename std::enable_if<std::is_floating_point<T>::value, void>::type
+is_inf(const T* input, U* output, size_t count, const ov::op::v10::IsInf::Attributes& attributes) {
     if (attributes.detect_negative && attributes.detect_positive) {
         std::transform(input, input + count, output, [](T x) -> U {
             return std::isinf(x);
@@ -28,6 +29,28 @@ void is_inf(const T* input, U* output, size_t count, const ov::op::v10::IsInf::A
         std::memset(output, 0, count);
     }
 }
+
+// used for float16 and bfloat 16 datatypes
+template <typename T, typename U>
+typename std::enable_if<std::is_class<T>::value, void>::type
+is_inf(const T* input, U* output, size_t count, const ov::op::v10::IsInf::Attributes& attributes) {
+    if (attributes.detect_negative && attributes.detect_positive) {
+        std::transform(input, input + count, output, [](T x) -> U {
+            return std::isinf(static_cast<float>(x));
+        });
+    } else if (!attributes.detect_negative && attributes.detect_positive) {
+        std::transform(input, input + count, output, [](T x) -> U {
+            return (static_cast<float>(x) == std::numeric_limits<float>::infinity());
+        });
+    } else if (attributes.detect_negative && !attributes.detect_positive) {
+        std::transform(input, input + count, output, [](T x) -> U {
+            return (static_cast<float>(x) == -std::numeric_limits<float>::infinity());
+        });
+    } else {
+        std::memset(output, 0, count);
+    }
+}
+
 }  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph
