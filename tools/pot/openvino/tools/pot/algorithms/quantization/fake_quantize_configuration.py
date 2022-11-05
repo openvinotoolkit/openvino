@@ -12,6 +12,7 @@ from ...graph.utils import find_operation_matches, get_operation_list, is_data_t
 from ...graph.model_utils import get_nodes_by_type, get_node_by_name
 from ...graph.node_utils import get_input_shape, get_all_node_outputs,\
 get_node_input, get_node_inputs, get_node_data_type, check_const_input
+from ...graph.passes import traverse_graph
 
 from ...utils.logger import get_logger
 
@@ -309,7 +310,7 @@ def find_fqs_to_unify(model, config):
         return True
 
     def _is_concat_unify_condition(node):
-        def _is_followed_by_conv(input_node):
+        def _is_followed_by_concat_unify_outs_op(input_node):
             if _is_quantize_agnostic_op(input_node):
                 concat_stack.extend(get_all_node_outputs(input_node))
             elif input_node.type in [n['type'] for n in CONCAT_UNIFY_OUTPUTS]:
@@ -331,18 +332,23 @@ def find_fqs_to_unify(model, config):
                     return True
             return False
 
-        res = False
-        concat_inputs = get_node_inputs(node)
-        for concat_input in concat_inputs:
-            if concat_input.type not in [n['type'] for n in CONCAT_UNIFY_INPUTS]:
-                logger.debug('Concat %s without FQ or Concat as input will not unified',
-                             node.fullname)
-                return res
+        def _source_fn(op):
+            return [p for p in get_node_inputs(op) if p and p.type != 'Const']
+
+        def _criteria_fn(op):
+            return op.type in [n['type'] for n in CONCAT_UNIFY_INPUTS]
+
+        _, criteria = traverse_graph(node,
+                                    move_fn=_source_fn,
+                                    stop_criteria_fn=_criteria_fn,
+                                    criteria_fns=_criteria_fn)
+        if not criteria:
+            return False
 
         concat_stack = [node]
         while concat_stack:
             node_to_check = concat_stack.pop()
-            res = _is_followed_by_conv(node_to_check)
+            res = _is_followed_by_concat_unify_outs_op(node_to_check)
         if res:
             concat_stack = [node]
             while concat_stack:
