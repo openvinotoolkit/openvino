@@ -96,6 +96,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::ne", op::translate_1to1_match_2_inputs<opset8::NotEqual>},
         {"aten::neg", op::translate_neg},
         {"aten::permute", op::translate_1to1_match_2_inputs<opset8::Transpose>},
+        {"aten::pow", op::translate_1to1_match_2_inputs<opset8::Power>},
         {"aten::reciprocal", op::translate_reciprocal},
         {"aten::relu", op::translate_1to1_match_1_inputs<opset8::Relu>},
         {"aten::relu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset8::Relu>>},
