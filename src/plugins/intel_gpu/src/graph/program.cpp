@@ -20,6 +20,7 @@
 #include "sliding_window_utils.hpp"
 #include "program_helpers.h"
 
+#include "matrix_nms_inst.h"
 #include "roi_pooling_inst.h"
 #include "reorg_yolo_inst.h"
 #include "eltwise_inst.h"
@@ -326,7 +327,7 @@ bool program::analyze_output_size_handling_need() {
             auto calc_output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(
                 primInputSize,
                 size,
-                ov::CoordinateDiff(prim->pad.begin(), prim->pad.end()),
+                ov::CoordinateDiff(prim->pads_begin.begin(), prim->pads_begin.end()),
                 prim->stride,
                 ov::Strides(prim->stride.size(), 1),
                 true,
@@ -1442,6 +1443,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::ctc_loss::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
             prim.type() != cldnn::roi_align::type_id() &&
+            prim.type() != cldnn::matrix_nms::type_id() &&
             prim.type() != cldnn::adaptive_pooling::type_id() &&
             prim.type() != cldnn::bucketize::type_id() &&
             prim.type() != cldnn::roll::type_id() &&
@@ -1454,7 +1456,9 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::tile::type_id() &&
             prim.type() != cldnn::scatter_elements_update::type_id() &&
             prim.type() != cldnn::gather_tree::type_id() &&
-            prim.type() != cldnn::experimental_detectron_detection_output::type_id()) {
+            prim.type() != cldnn::experimental_detectron_detection_output::type_id() &&
+            prim.type() != cldnn::experimental_detectron_topk_rois::type_id() &&
+            prim.type() != cldnn::convert_color::type_id()) {
             can_use_fsv16 = false;
         }
 
@@ -1487,6 +1491,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::ctc_loss::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
             prim.type() != cldnn::roi_align::type_id() &&
+            prim.type() != cldnn::matrix_nms::type_id() &&
             prim.type() != cldnn::adaptive_pooling::type_id() &&
             prim.type() != cldnn::bucketize::type_id() &&
             prim.type() != cldnn::roll::type_id() &&
@@ -1500,7 +1505,9 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::scatter_elements_update::type_id() &&
             prim.type() != cldnn::gather_tree::type_id() &&
             prim.type() != cldnn::experimental_detectron_detection_output::type_id() &&
-            prim.type() != cldnn::deconvolution::type_id()) {
+            prim.type() != cldnn::deconvolution::type_id() &&
+            prim.type() != cldnn::arg_max_min::type_id() &&
+            prim.type() != cldnn::experimental_detectron_topk_rois::type_id()) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
         }
     }

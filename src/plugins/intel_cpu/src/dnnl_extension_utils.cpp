@@ -148,5 +148,13 @@ std::shared_ptr<DnnlBlockedMemoryDesc> DnnlExtensionUtils::makeUndefinedDesc(con
     }
 }
 
+DnnlMemoryDescPtr DnnlExtensionUtils::query_md(const const_dnnl_primitive_desc_t& pd, const dnnl::query& what, int idx) {
+    auto query = dnnl::convert_to_c(what);
+    const dnnl_memory_desc_t* cdesc = dnnl_primitive_desc_query_md(pd, query, idx);
+    if (!cdesc)
+        IE_THROW() << "query_md failed for query=" << query << " idx=" << idx << ".";
+    return DnnlExtensionUtils::makeDescriptor(*cdesc);
+}
+
 }   // namespace intel_cpu
 }   // namespace ov
