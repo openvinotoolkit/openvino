@@ -32,4 +32,8 @@ ov_add_test_target(
             OV
 )
 
-target_compile_options(${TARGET_NAME} PRIVATE "-Wno-suggest-override")
+check_cxx_compiler_flag("-Wno-suggest-override" SUGGEST_OVERRIDE_SUPPORTED)
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    target_compile_options(${TARGET_NAME} PRIVATE "-Wno-suggest-override")
+endif()
+
