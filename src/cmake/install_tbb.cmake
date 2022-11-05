@@ -7,7 +7,7 @@ include(cmake/ie_parallel.cmake)
 # pre-find TBB: need to provide TBB_IMPORTED_TARGETS used for installation
 ov_find_package_tbb()
 
-# check whether TBB has TBBBind 2.5 with hwloc 2.5 or higher which is required
+# check whether TBB has TBBBind 2.5+ with hwloc 2.5+ or higher which is required
 # to detect hybrid cores
 function(_ov_detect_dynamic_tbbbind_2_5 var)
     if(NOT TBB_FOUND)
@@ -24,8 +24,9 @@ function(_ov_detect_dynamic_tbbbind_2_5 var)
     find_library(_ov_tbbbind_2_5
                  NAMES tbbbind_2_5
                  HINTS "${_tbb_libs_dir}"
-                 "Path to TBBBind 2.5 library"
-                 NO_DEFAULT_PATH)
+                 "Path to TBBBind 2.5+ library"
+                 NO_DEFAULT_PATH
+                 NO_CMAKE_FIND_ROOT_PATH)
 
     if(_ov_tbbbind_2_5)
         set(${var} ON PARENT_SCOPE)
@@ -35,7 +36,7 @@ endfunction()
 _ov_detect_dynamic_tbbbind_2_5(_ov_dynamic_tbbbind_2_5_found)
 
 if(_ov_dynamic_tbbbind_2_5_found)
-    message(STATUS "Static tbbbind_2_5 package usage is disabled, since oneTBB (ver. ${TBB_VERSION}) provides dynamic TBBBind 2.5")
+    message(STATUS "Static tbbbind_2_5 package usage is disabled, since oneTBB (ver. ${TBB_VERSION}) provides dynamic TBBBind 2.5+")
     set(ENABLE_TBBBIND_2_5 OFF)
 elseif(ENABLE_TBBBIND_2_5)
     # TMP: for Apple Silicon TBB does not provide TBBBind
@@ -92,8 +93,8 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         set(tbb_custom ON)
     endif()
 
-    if(CPACK_GENERATOR STREQUAL "DEB" AND NOT ENABLE_SYSTEM_TBB)
-        message(FATAL_ERROR "Debian packages can be built only with system TBB. Use -DENABLE_SYSTEM_TBB=ON")
+    if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$" AND NOT ENABLE_SYSTEM_TBB AND NOT LINUX_OS_NAME STREQUAL "CentOS 7")
+        message(FATAL_ERROR "Debian | RPM | Conda-forge | Brew packages can be built only with system TBB. Use -DENABLE_SYSTEM_TBB=ON")
     endif()
 
     if(ENABLE_SYSTEM_TBB)
@@ -108,21 +109,18 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
             # depending on the TBB, tbb_lib_location can be in form:
             # - libtbb.so.x.y
             # - libtbb.so.x
-            # We need to install such files
+            # We need to install such only libtbb.so.x files
             get_filename_component(name_we "${tbb_lib_location}" NAME_WE)
             get_filename_component(dir "${tbb_lib_location}" DIRECTORY)
             # grab all tbb files matching pattern
             file(GLOB tbb_files "${dir}/${name_we}.*")
+
+            # since the setup.py for pip installs tbb component
+            # explicitly, it's OK to put EXCLUDE_FROM_ALL to such component
+            # to ignore from IRC / apt / yum distribution;
+            # but they will be present in .wheel
             foreach(tbb_file IN LISTS tbb_files)
-                if(tbb_file MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)*$")
-                    # since the setup.py for pip installs tbb component
-                    # explicitly, it's OK to put EXCLUDE_FROM_ALL to such component
-                    # to ignore from IRC / apt / yum distribution;
-                    # but they will be present in .wheel
-                    install(FILES "${tbb_file}"
-                            DESTINATION runtime/3rdparty/tbb/lib
-                            COMPONENT tbb EXCLUDE_FROM_ALL)
-                endif()
+                ov_install_with_name("${tbb_file}" tbb)
             endforeach()
         endforeach()
 

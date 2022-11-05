@@ -16,7 +16,11 @@
 
 // gflags supports uint32 starting from v2.2 only
 #ifndef DEFINE_uint32
-#    define DEFINE_uint32(name, val, txt) DEFINE_VARIABLE(GFLAGS_NAMESPACE::uint32, U, name, val, txt)
+#    ifdef GFLAGS_NAMESPACE
+#        define DEFINE_uint32(name, val, txt) DEFINE_VARIABLE(GFLAGS_NAMESPACE::uint32, U, name, val, txt)
+#    else
+#        define DEFINE_uint32(name, val, txt) DEFINE_VARIABLE(gflags::uint32, U, name, val, txt)
+#    endif
 #endif
 
 /// @brief message for help argument
@@ -156,6 +160,13 @@ static const char progress_message[] =
 
 // @brief message for performance counters option
 static const char pc_message[] = "Optional. Report performance counters.";
+
+// @brief message for sorted performance counters option
+static const char pc_sort_message[] =
+    "Optional. Report performance counters and analysis the sort hotpoint opts. "
+    " \"sort\" Analysis opts time cost, print by hotpoint order "
+    " \"no_sort\" Analysis opts time cost, print by normal order "
+    " \"simple_sort\" Analysis opts time cost, only print EXECUTED opts by normal order";
 
 // @brief message for performance counters for sequence option
 static const char pcseq_message[] = "Optional. Report latencies for each shape in -data_shape sequence.";
@@ -315,6 +326,9 @@ DEFINE_bool(progress, false, progress_message);
 /// @brief Define flag for showing performance counters <br>
 DEFINE_bool(pc, false, pc_message);
 
+/// @brief Define flag for showing sorted performance counters <br>
+DEFINE_string(pcsort, "", pc_sort_message);
+
 /// @brief Define flag for showing performance sequence counters <br>
 DEFINE_bool(pcseq, false, pcseq_message);
 
@@ -411,6 +425,7 @@ static void show_usage() {
     std::cout << "    -json_stats               " << json_stats_message << std::endl;
     std::cout << "    -exec_graph_path          " << exec_graph_path_message << std::endl;
     std::cout << "    -pc                       " << pc_message << std::endl;
+    std::cout << "    -pcsort                   " << pc_sort_message << std::endl;
     std::cout << "    -pcseq                    " << pcseq_message << std::endl;
     std::cout << "    -dump_config              " << dump_config_message << std::endl;
     std::cout << "    -load_config              " << load_config_message << std::endl;

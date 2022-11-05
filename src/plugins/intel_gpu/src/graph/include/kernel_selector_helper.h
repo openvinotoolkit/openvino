@@ -108,12 +108,16 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
 
 struct kernel_impl_params {
     bool has_runtime_layouts = false;
-    const program& prog;
+    const program *prog;
     std::shared_ptr<const primitive> desc;
     size_t unique_id;
     std::vector<layout> input_layouts;
     layout output_layout;
+    std::vector<tensor> input_offsets;
     std::vector<cldnn::fused_primitive_desc> fused_desc;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    std::vector<cldnn::fused_primitive_desc_onednn> fused_desc_onednn;
+#endif // ENABLE_ONEDNN_FOR_GPU
     std::vector<activation_func> fused_act_funcs;
     std::vector<activation_additional_params> activation_params;
 
@@ -138,7 +142,7 @@ struct kernel_impl_params {
                        const std::vector<activation_func>& _fused_act_funcs,
                        const std::vector<activation_additional_params>& _act_params)
                        : has_runtime_layouts(true)
-                       , prog(_prog)
+                       , prog(&_prog)
                        , desc(_desc)
                        , unique_id(_uid)
                        , input_layouts(_in_layouts)

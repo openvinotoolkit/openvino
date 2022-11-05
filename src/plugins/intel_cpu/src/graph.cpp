@@ -25,6 +25,7 @@
 #include "nodes/input.h"
 #include <nodes/reorder.h>
 #include "nodes/convert.h"
+#include "nodes/subgraph.h"
 
 #include <ie_algorithm.hpp>
 #include <blob_factory.hpp>
@@ -68,7 +69,7 @@ Graph::~Graph() {
 
 template<typename NET>
 void Graph::CreateGraph(NET &net, const ExtensionManager::Ptr& extMgr,
-        WeightsSharing::Ptr &w_cache) {
+        WeightsSharing::Ptr &w_cache, const std::shared_ptr<std::mutex>& mutex) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "CreateGraph");
 
     if (IsReady())
@@ -77,6 +78,8 @@ void Graph::CreateGraph(NET &net, const ExtensionManager::Ptr& extMgr,
     weightsCache = config.streamExecutorConfig._streams != 1 ? w_cache : nullptr;
 
     rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
+    sharedMutex = mutex;
+    rtScratchPad = std::make_shared<DnnlScratchPad>(getEngine());
 
     Replicate(net, extMgr);
     InitGraph();
@@ -96,6 +99,7 @@ void Graph::CreateGraph(const std::vector<NodePtr> &graphNodes,
     weightsCache = config.streamExecutorConfig._streams != 1 ? w_cache : nullptr;
 
     rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
+    rtScratchPad = std::make_shared<DnnlScratchPad>(getEngine());
 
     this->_name = std::move(name);
     this->reuse_io_tensors = false;
@@ -119,9 +123,9 @@ void Graph::CreateGraph(const std::vector<NodePtr> &graphNodes,
 }
 
 template void Graph::CreateGraph(const std::shared_ptr<const ngraph::Function>&,
-        const ExtensionManager::Ptr&, WeightsSharing::Ptr&);
+        const ExtensionManager::Ptr&, WeightsSharing::Ptr&, const std::shared_ptr<std::mutex>& mutex);
 template void Graph::CreateGraph(const CNNNetwork&,
-        const ExtensionManager::Ptr&, WeightsSharing::Ptr&);
+        const ExtensionManager::Ptr&, WeightsSharing::Ptr&, const std::shared_ptr<std::mutex>& mutex);
 
 void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph, const ExtensionManager::Ptr& extMgr) {
     this->_name = "subgraph";
@@ -153,7 +157,10 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph, const Ex
         if (isQuantized()) {
             node->setQuantizedGraphFlag(true);
         }
+
         node->setRuntimeCache(rtParamsCache);
+        node->setSharedMutex(sharedMutex);
+        node->setRuntimeScratchPad(rtScratchPad);
 
         graphNodes.push_back(node);
 
@@ -265,7 +272,11 @@ void Graph::Replicate(const CNNNetwork &network, const ExtensionManager::Ptr& ex
         if (isQuantized()) {
             node->setQuantizedGraphFlag(true);
         }
+
         node->setRuntimeCache(rtParamsCache);
+        node->setSharedMutex(sharedMutex);
+        node->setRuntimeScratchPad(rtScratchPad);
+
         graphNodes.push_back(node);
 
         if (op->get_type_info() == ngraph::op::v0::Parameter::get_type_info_static()) {
@@ -1350,6 +1361,7 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
         node->setQuantizedGraphFlag(true);
     }
     node->setRuntimeCache(rtParamsCache);
+    node->setRuntimeScratchPad(rtScratchPad);
 
     if (initNode) {
         node->getSupportedDescriptors();

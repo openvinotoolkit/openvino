@@ -215,6 +215,7 @@ void op::v8::Slice::validate_and_infer_types() {
         output_shape = calculate_output_shape(starts, stops, steps, axes, data_shape);
     } else {
         const auto data_static_rank = data_shape.rank().get_length();
+        OPENVINO_ASSERT(data_static_rank >= 0);
         if (axes_const) {
             // If we know only `axes` values, we should update lower_bound to 0 value,
             // for the specified dims by the axes. For unspecified dims, bounds as in data_shape.
@@ -233,7 +234,7 @@ void op::v8::Slice::validate_and_infer_types() {
         } else {
             // Otherwise `axes` values are also unknown,
             // then all of the output dims can be 0, so have lower bound = 0.
-            for (size_t i = 0; i < data_static_rank; ++i) {
+            for (size_t i = 0; i < static_cast<size_t>(data_static_rank); ++i) {
                 output_shape[i] = Dimension(0, data_shape[i].get_max_length());
             }
         }
@@ -305,7 +306,7 @@ PartialShape op::v8::Slice::calculate_output_shape(const std::vector<int64_t>& s
             if (is_max_int(get_input_element_type(2), stop) || is_max_int(get_input_element_type(1), start)) {
                 output_shape[norm_axis] = Dimension(-1);
                 continue;
-            } else if ((step < 0 && start < 0 && stop > 0) || (step > 0 && stop < 0 && start > 0)) {
+            } else if ((step < 0 && start < 0 && stop > 0) || (step > 0 && stop < 0 && start >= 0)) {
                 output_shape[norm_axis] = Dimension(-1);
                 continue;
             } else if (step < 0 && start > 0 && stop < 0) {

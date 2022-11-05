@@ -19,6 +19,7 @@
 #include "intel_gpu/graph/network.hpp"
 #include "assign_inst.h"
 #include "read_value_inst.h"
+#include "reshape_inst.h"
 
 #include "to_string_utils.h"
 #include "primitive_inst.h"
@@ -50,8 +51,10 @@
 
 namespace cldnn {
 
+namespace {
+
 #ifdef GPU_DEBUG_CONFIG
-static void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<primitive_inst>>& exec_order) {
+void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<primitive_inst>>& exec_order) {
     auto layouts_to_str = [](const std::vector<layout>& layouts) -> std::string {
         std::stringstream s;
         for (size_t i = 0; i < layouts.size(); i++) {
@@ -118,7 +121,7 @@ static void dump_perf_data_raw(std::string dump_path, const std::list<std::share
     }
 }
 
-static float convert_half_to_float(half_t val, bool flush_denorm_to_zero = false) {
+float convert_half_to_float(half_t val, bool flush_denorm_to_zero = false) {
 #if defined HALF_HALF_HPP
     return val;
 #else
@@ -158,15 +161,13 @@ static float convert_half_to_float(half_t val, bool flush_denorm_to_zero = false
 #endif
 }
 
-float convert_element(uint32_t u) { return static_cast<float>(u); }
-
 float convert_element(int32_t i) { return static_cast<float>(i); }
 
 float convert_element(float f) { return f; }
 
 float convert_element(half_t h) { return convert_half_to_float(h); }
 
-static size_t get_x_pitch(const layout& layout) {
+size_t get_x_pitch(const layout& layout) {
     try {
         auto tensor_x0 = tensor(batch(0), feature(0), spatial(0, 0, 0, 0));
         auto tensor_x1 = tensor(batch(0), feature(0), spatial(1, 0, 0, 0));
@@ -180,7 +181,7 @@ static size_t get_x_pitch(const layout& layout) {
 }
 
 template <class T>
-static void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
+void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
     auto&& size = mem->get_layout().get_tensor();
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -221,6 +222,7 @@ static void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
     }
     file_stream << buffer.str();
 }
+
 template <>
 void dump<uint32_t>(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
     auto&& l = mem->get_layout();
@@ -250,7 +252,7 @@ void dump<uint32_t>(memory::ptr mem, stream& stream, std::ofstream& file_stream)
     }
 }
 
-static void log_memory_to_file(memory::ptr mem, stream& stream, std::string layerName) {
+void log_memory_to_file(memory::ptr mem, stream& stream, std::string layerName) {
     std::cout << "Dump " << layerName << std::endl;
     GPU_DEBUG_GET_INSTANCE(debug_config);
     std::string filename = layerName;
@@ -275,7 +277,8 @@ static void log_memory_to_file(memory::ptr mem, stream& stream, std::string laye
     else if (mem_dt == cldnn::data_types::u8)
         dump<uint8_t>(mem, stream, file_stream);
 }
-static void wait_for_the_turn() {
+
+void wait_for_the_turn() {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     bool need_to_wait;
     do {
@@ -294,10 +297,11 @@ static void wait_for_the_turn() {
 }
 
 #else
-static void dump_perf_data_raw(std::string, const std::list<std::shared_ptr<primitive_inst>>&) {}
-static void log_memory_to_file(memory::ptr, stream&, std::string) {}
-static void wait_for_the_turn() {}
+void dump_perf_data_raw(std::string, const std::list<std::shared_ptr<primitive_inst>>&) {}
+void log_memory_to_file(memory::ptr, stream&, std::string) {}
+void wait_for_the_turn() {}
 #endif
+}  // namespace
 
 /*
 Network will always have net_id = 0 when it will be cldnn internal micronetwork (created i.e by propagate_constants
@@ -305,6 +309,7 @@ opt pass).
 */
 network::network(program::ptr program, stream::ptr stream, bool is_internal, bool is_primary_stream)
     : _program(program)
+    , _engine(program->get_engine())
     , _stream(stream)
     , _memory_pool(new memory_pool(program->get_engine()))
     , _internal(is_internal)
@@ -587,6 +592,15 @@ memory::ptr network::get_output_memory(const primitive_id& output_id) {
     return get_primitive(output_id)->output_memory_ptr();
 }
 
+layout network::get_node_output_layout(const primitive_id& output_id) const {
+    auto res = std::find_if(_outputs.begin(), _outputs.end(), [&](const std::shared_ptr<primitive_inst>& v) {
+        return v->id() == output_id;
+    });
+    OPENVINO_ASSERT(res != _outputs.end(), "[GPU] Couldn't get output layout for ", output_id, ". Output with such name is not found in the outputs list");
+
+    return (*res)->get_node_output_layout();
+}
+
 void network::allocate_primitives() {
     std::vector<std::shared_ptr<program_node>> nodes_to_allocate{};
     auto& po = _program->get_processing_order();
@@ -633,6 +647,15 @@ void network::allocate_primitives() {
             }
         }
     }
+
+    // Update the output memory address of optimized-out layer if it is not valid.
+    for (auto const& node : po) {
+        if (node->can_be_optimized()) {
+            auto opt_inst = _primitives.at(node->id());
+            opt_inst->update_output_memory();
+        }
+    }
+
     // allocate intermediate buffers
     for (auto const& node : po) {
         auto prim = _primitives[node->id()];
@@ -714,21 +737,26 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         GPU_DEBUG_COUT << "----------------------------------------------" << std::endl;
 
     std::vector<memory::ptr> in_out_mem;
+    auto is_surface_lock_check_needed = [&](const shared_mem_type& shared_mem_type) {
+        return shared_mem_type == shared_mem_type::shared_mem_vasurface ||
+               shared_mem_type == shared_mem_type::shared_mem_dxbuffer ||
+               shared_mem_type == shared_mem_type::shared_mem_image;
+    };
+
     bool shared_mem_found = std::any_of(_in_out_shared_mem_types.begin(),
                                         _in_out_shared_mem_types.end(),
-                                        [](const shared_mem_type& shared_mem_type) {
-                                            return shared_mem_type == shared_mem_type::shared_mem_vasurface ||
-                                                   shared_mem_type == shared_mem_type::shared_mem_dxbuffer;
-                                        });
+                                        is_surface_lock_check_needed);
 
     if (shared_mem_found) {
         for (auto& inst : _inputs) {
-            if (inst->output_memory_ptr())
+            if (inst->output_memory_ptr() &&
+                is_surface_lock_check_needed(inst->output_memory_ptr()->get_internal_params().mem_type))
                 in_out_mem.push_back(inst->output_memory_ptr());
         }
 
         for (auto& inst : _outputs) {
-            if (inst->output_memory_ptr())
+            if (inst->output_memory_ptr() &&
+                is_surface_lock_check_needed(inst->output_memory_ptr()->get_internal_params().mem_type))
                 in_out_mem.push_back(inst->output_memory_ptr());
         }
     }
@@ -744,8 +772,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     set_arguments();
     for (auto& inst : _exec_order) {
         GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
-            auto& node = _program->get_node(inst->id());
-            const std::string layer_name = node.id();
+            const std::string layer_name = inst->id();
             GPU_DEBUG_IF(debug_config->verbose >= 2) {
                 std::cerr << get_primitive_info(inst->id()) << std::endl;
             }
@@ -763,9 +790,8 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 
         GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
             get_stream().finish();
-            auto& node = _program->get_node(inst->id());
-            const std::string layer_name = node.id();
-            GPU_DEBUG_IF(debug_config->is_dumped_layer(layer_name, node.is_output())) {
+            const std::string layer_name = inst->id();
+            GPU_DEBUG_IF(debug_config->is_dumped_layer(layer_name, inst->is_output())) {
                 log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(), get_stream(), layer_name + "_dst_0");
             }
         }
@@ -887,6 +913,11 @@ std::shared_ptr<primitive_inst> network::get_primitive(const primitive_id& id) {
     return _primitives.at(id);
 }
 
+std::shared_ptr<const primitive_inst> network::get_primitive(const primitive_id& id) const {
+    OPENVINO_ASSERT(_primitives.count(id) == 1, "[GPU] Can't get primitive with ", id, " id: primitive with such name hasn't been found in processing order");
+    return _primitives.at(id);
+}
+
 std::vector<std::shared_ptr<primitive_inst>> network::get_primitives(const std::vector<primitive_id>& ids) {
     std::vector<std::shared_ptr<primitive_inst>> result(ids.size());
     std::transform(std::begin(ids), std::end(ids), std::begin(result), [&](const primitive_id& id) {
@@ -899,6 +930,14 @@ std::vector<std::shared_ptr<primitive_inst>> network::get_primitives(const std::
     std::vector<std::shared_ptr<primitive_inst>> result(nodes.size());
     std::transform(std::begin(nodes), std::end(nodes), std::begin(result), [&](const program_node* node) {
         return get_primitive(node->id());
+    });
+    return result;
+}
+
+std::vector<std::pair<std::shared_ptr<primitive_inst>, int>> network::get_primitives(const std::vector<std::pair<program_node*, int>>& nodes) {
+    std::vector<std::pair<std::shared_ptr<primitive_inst>, int>> result(nodes.size());
+    std::transform(std::begin(nodes), std::end(nodes), std::begin(result), [&](const std::pair<program_node*, int>& node) {
+        return std::make_pair(get_primitive(node.first->id()), node.second);
     });
     return result;
 }
@@ -971,6 +1010,12 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "NetworkImpl::TransferMemory");
     auto& inst_mem = instance->output_memory();
     auto alloc_type = inst_mem.get_allocation_type();
+
+    auto users = node.get_users();
+    if (users.size() == 1
+        && users.front()->is_type<reshape>()
+        && users.front()->is_dynamic())
+            return;
 
     // Do not transfer memory if a user requires lockable memory.
     // If memory is used in both gpu and cpu implementations, primitive itself is responsible for correct allocation type

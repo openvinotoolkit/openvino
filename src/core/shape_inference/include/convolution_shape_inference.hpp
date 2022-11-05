@@ -207,8 +207,8 @@ void divide_ceil(const DimType& dividend, const typename DimType::value_type& di
     if (dividend.get_max_length() == -1) {
         quotient = -1;
     } else {
-        auto lb = ceil(1. * dividend.get_min_length() / divisor);
-        auto ub = ceil(1. * dividend.get_max_length() / divisor);
+        auto lb = static_cast<int64_t>(ceil(1. * dividend.get_min_length() / divisor));
+        auto ub = static_cast<int64_t>(ceil(1. * dividend.get_max_length() / divisor));
         quotient = DimType(lb, ub);
     }
 }
@@ -528,10 +528,10 @@ bool resolve_auto_pad_for_shape_back_prop(const ConvType* op,
         if (data_dim.is_static() && filter_dim.is_static() && output_dim.is_static()) {
             const auto& strides = op->m_strides[i];
             const auto& dilations = op->m_dilations[i];
-            int total_padding =
-                std::max<int>(strides * (data_dim.get_length() - 1) + dilations * (filter_dim.get_length() - 1) + 1 -
-                                  output_dim.get_length() + output_padding,
-                              0);
+            int total_padding = std::max<int>(
+                static_cast<int>(strides * (data_dim.get_length() - 1) + dilations * (filter_dim.get_length() - 1) + 1 -
+                                 output_dim.get_length() + output_padding),
+                0);
             if (auto_pad != op::PadType::SAME_UPPER) {
                 pads_begin[i] = total_padding / 2;
                 pads_end[i] = total_padding - pads_begin[i];

@@ -825,19 +825,21 @@ void RNN::prepareParams() {
 
     auto builder = [this](const RNNKey& key) -> std::shared_ptr<dnnl::primitive> {
         fillDescs();
+        dnnl::primitive_attr attr;
+        attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
         if (key.cellType == dnnl::algorithm::vanilla_rnn) {
             std::shared_ptr<vanilla_rnn_forward::desc> desc = descs[0];
-            return std::make_shared<vanilla_rnn_forward>(vanilla_rnn_forward::primitive_desc(*desc, getEngine()));
+            return std::make_shared<vanilla_rnn_forward>(vanilla_rnn_forward::primitive_desc(*desc, attr, getEngine()));
         } else if (key.cellType == dnnl::algorithm::vanilla_gru) {
             std::shared_ptr<gru_forward::desc> desc = descs[0];
-            return std::make_shared<gru_forward>(gru_forward::primitive_desc(*desc, getEngine()));
+            return std::make_shared<gru_forward>(gru_forward::primitive_desc(*desc, attr, getEngine()));
         } else if (key.cellType == dnnl::algorithm::lbr_gru) {
             std::shared_ptr<lbr_gru_forward::desc> desc = descs[0];
-            return std::make_shared<lbr_gru_forward>(lbr_gru_forward::primitive_desc(*desc, getEngine()));
+            return std::make_shared<lbr_gru_forward>(lbr_gru_forward::primitive_desc(*desc, attr, getEngine()));
         } else if (key.cellType == dnnl::algorithm::vanilla_lstm) {
             std::shared_ptr<lstm_forward::desc> desc = descs[0];
-            return std::make_shared<lstm_forward>(lstm_forward::primitive_desc(*desc, getEngine()));
+            return std::make_shared<lstm_forward>(lstm_forward::primitive_desc(*desc, attr, getEngine()));
         } else {
             return nullptr;
         }
@@ -851,6 +853,9 @@ void RNN::prepareParams() {
     }
 
     prim = result.first;
+
+    auto pd = (*prim).get_primitive_desc();
+    scratchpadMem = getScratchPadMem(pd);
 
     if (!wasMemoryPrepared || wFormatWasChanged) {
         auto pd = (*prim).get_primitive_desc();
@@ -896,6 +901,7 @@ void RNN::execute(dnnl::stream strm) {
         {DNNL_ARG_WEIGHTS_ITER,  wgh_stat_mem->GetPrimitive()},
         {DNNL_ARG_BIAS,          wgh_bias_mem->GetPrimitive()},
         {DNNL_ARG_DST_LAYER,     dst_data_mem->GetPrimitive()},
+        {DNNL_ARG_SCRATCHPAD,    scratchpadMem->GetPrimitive()}
     };
 
     int state_i_tags[] {DNNL_ARG_SRC_ITER, DNNL_ARG_SRC_ITER_C};
