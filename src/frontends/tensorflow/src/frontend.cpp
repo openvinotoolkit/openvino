@@ -8,7 +8,6 @@
 #include "helper_transforms/block_lstm_replacer.hpp"
 #include "helper_transforms/embedding_segments_feature_fusing.hpp"
 #include "helper_transforms/gru_block_cell_replacer.hpp"
-#include "helper_transforms/unique_replacer.hpp"
 #include "input_model.hpp"
 #include "op_table.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
@@ -433,7 +432,6 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
     manager.register_pass<pass::BlockLSTMReplacer>();
     manager.register_pass<pass::GRUBlockCellReplacer>();
-    manager.register_pass<pass::UniqueReplacer>();
 
     // TODO: reimplement TransposeSinking that does not corrupt filters for Convolution
     // and preserve tensor names in case of sinking
