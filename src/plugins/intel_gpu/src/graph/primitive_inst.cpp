@@ -510,7 +510,7 @@ void primitive_inst::allocate_internal_buffers(void) {
 
     auto total_device_mem_size = std::accumulate(inst_deps.begin(), inst_deps.end(), size_t(0), device_mem_acc);
     for (const auto& output : _outputs) {
-        if (output->get_allocation_type() ==  allocation_type::usm_device)
+        if (output->get_allocation_type() == allocation_type::usm_device)
             total_device_mem_size += output->size();
     }
 
@@ -530,10 +530,13 @@ void primitive_inst::allocate_internal_buffers(void) {
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
             GPU_DEBUG_COUT << "[" << _node->id() << ": internal buf]" << std::endl;
         }
-        if (input_device_mem && (available_device_mem_size - (int64_t)layout.bytes_count() >= 0))
-            _intermediates_memory.push_back(engine.allocate_memory(layout, allocation_type::usm_device));
-        else
-            _intermediates_memory.push_back(engine.allocate_memory(layout, allocation_type::usm_host));
+        auto alloc_type = allocation_type::unknown;
+        if (input_device_mem && (available_device_mem_size - (int64_t)layout.bytes_count() >= 0)) {
+            alloc_type = engine.get_preferred_memory_allocation_type();
+        } else {
+            alloc_type = engine.get_lockable_preferred_memory_allocation_type();
+        }
+        _intermediates_memory.push_back(engine.allocate_memory(layout, alloc_type));
     }
 }
 
@@ -598,7 +601,8 @@ event::ptr primitive_inst::update_weights() {
             }
             _impl_params->reordered_weights = engine.reinterpret_buffer(*_impl_params->reordered_weights, expected_layout);
         } else {
-            _impl_params->reordered_weights = engine.allocate_memory(expected_layout, allocation_type::usm_device);
+            auto alloc_type = engine.get_preferred_memory_allocation_type();
+            _impl_params->reordered_weights = engine.allocate_memory(expected_layout, alloc_type);
         }
 
         kernel_arguments_data args;
