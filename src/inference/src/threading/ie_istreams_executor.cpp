@@ -77,13 +77,14 @@ int IStreamsExecutor::Config::GetHybridNumStreams(std::map<std::string, std::str
         big_core_streams = num_big_cores / threads_per_stream_big;
         threads_per_stream_small = threads_per_stream_big;
         if (num_small_cores == 0) {
-            big_core_streams = num_big_cores_phy / threads_per_stream_big;
             threads_per_stream_small = 0;
         } else if (num_small_cores < threads_per_stream_small) {
             small_core_streams = 1;
             threads_per_stream_small = num_small_cores;
             threads_per_stream_big = threads_per_stream_small;
-            big_core_streams = num_big_cores / threads_per_stream_big;
+            // Balance the computation of physical core and logical core, the number of threads on the physical core and
+            // logical core should be equal
+            big_core_streams = num_big_cores_phy / threads_per_stream_big * 2;
         } else {
             small_core_streams = num_small_cores / threads_per_stream_small;
         }
@@ -104,6 +105,7 @@ int IStreamsExecutor::Config::GetHybridNumStreams(std::map<std::string, std::str
     config[CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)] = std::to_string(small_core_streams);
     config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)] = std::to_string(threads_per_stream_big);
     config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)] = std::to_string(threads_per_stream_small);
+    // This is default setting for specific CPU which Pcore is in front and Ecore is in the back.
     config[CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)] = std::to_string(num_small_cores == 0 ? 0 : num_big_cores);
     return big_core_streams + small_core_streams;
 }
@@ -177,14 +179,8 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
         } else if (streams == ov::streams::AUTO) {
             // bare minimum of streams (that evenly divides available number of cores)
             _streams = GetDefaultNumStreams();
-            if (_threadBindingType == ThreadBindingType::HYBRID_AWARE) {
-                _streams = LimitHybridStreams(_streams, _threads);
-            }
         } else if (streams.num >= 0) {
             _streams = streams.num;
-            // if (_threadBindingType == ThreadBindingType::HYBRID_AWARE) {
-            //     _streams = LimitHybridStreams(streams.num, _threads);
-            // }
         } else {
             OPENVINO_UNREACHABLE("Wrong value for property key ",
                                  ov::num_streams.name(),
@@ -337,75 +333,6 @@ Parameter IStreamsExecutor::Config::GetConfig(const std::string& key) const {
     return {};
 }
 
-int IStreamsExecutor::Config::LimitHybridStreams(const int num_streams, const int num_threads) {
-    const auto core_types = custom::info::core_types();
-    const auto num_big_cores_phys = getNumberOfCPUCores(true);
-    const auto num_small_cores =
-        custom::info::default_concurrency(custom::task_arena::constraints{}.set_core_type(core_types.front()));
-    const auto base_streams_total = num_big_cores_phys + num_small_cores / 2;
-
-    // limit streams to reasonable range
-    int streams = num_streams > base_streams_total ? base_streams_total : std::max(1, num_streams);
-    // if num_threads is set, streams must not be greater than num_threads
-    if (num_threads > 0 && streams > num_threads) {
-        streams = num_threads;
-    }
-    if (streams != num_streams) {
-        OPENVINO_WARN << "Number of streams is updated from " << num_streams << " to " << streams;
-    }
-    return streams;
-}
-
-void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config,
-                                                         const int num_big_cores_phys,
-                                                         const int num_small_cores) {
-    const auto base_streams_total = num_big_cores_phys + num_small_cores / 2;
-    const auto num_cores_phys = num_big_cores_phys + num_small_cores;
-
-    config._small_core_offset = num_big_cores_phys * 2;
-    // if nthreads is set, calculate hybrid aware parameters by nthreads
-    if (config._threads) {
-        // limit threads to reasonable range
-        auto threads = config._threads > num_cores_phys ? num_cores_phys : config._threads;
-        // all threads are placed on big cores
-        if (threads <= num_big_cores_phys) {
-            config._big_core_streams = config._streams;
-            config._threads_per_stream_big = std::max(1, threads / config._streams);
-        } else {
-            // big cores first, then small cores
-            // big_streams = all_streams * big_cores / base_streams
-            config._big_core_streams =
-                config._streams * num_big_cores_phys % base_streams_total == 0
-                    ? config._streams * num_big_cores_phys / base_streams_total
-                    : (config._streams * num_big_cores_phys + base_streams_total) / base_streams_total;
-            config._small_core_streams = config._streams - config._big_core_streams;
-            config._threads_per_stream_big = std::max(1, num_big_cores_phys / config._big_core_streams);
-            if (config._small_core_streams > 0) {
-                // Normally, threads_per_stream_small = threads_per_stream_big * 2, but special conditions are as
-                // follows: Pcore=8, Ecore=4, custom set nthreads=10, nstreams=10, calculate result: big_streams=8,
-                // small_streams=2. There are only 2 threads left, threads_per_stream_small can only be 1.
-                const int remain_threads = threads - config._threads_per_stream_big * config._big_core_streams;
-                config._threads_per_stream_small =
-                    std::min(remain_threads / config._small_core_streams, config._threads_per_stream_big * 2);
-            }
-        }
-    } else {  // user not set nthreads
-        config._threads_per_stream_big =
-            std::min(num_big_cores_phys, std::max(1, base_streams_total / config._streams));
-        config._big_core_streams = std::min(config._streams, num_big_cores_phys / config._threads_per_stream_big);
-        config._small_core_streams = config._streams - config._big_core_streams;
-        config._threads_per_stream_small = config._small_core_streams > 0 ? config._threads_per_stream_big * 2 : 0;
-        // The number of threads on small core exceeds the number of small core due to threads indivisible on big core.
-        // We should add the number of threads on big core, reduce the one on small core.
-        if (num_small_cores < config._threads_per_stream_small) {
-            config._big_core_streams += 1;
-            config._small_core_streams -= 1;
-            config._threads_per_stream_big = std::max(1, num_big_cores_phys / config._big_core_streams);
-            config._threads_per_stream_small = config._small_core_streams > 0 ? config._threads_per_stream_big * 2 : 0;
-        }
-    }
-}
-
 IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(const IStreamsExecutor::Config& initial,
                                                                             const bool fp_intesive) {
     const auto envThreads = parallel_get_env_threads();
@@ -440,12 +367,6 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
             const auto num_big_cores =
                 custom::info::default_concurrency(custom::task_arena::constraints{}.set_core_type(core_types.back()));
             num_cores_default = (num_big_cores_phys <= hyper_threading_threshold) ? num_big_cores : num_big_cores_phys;
-        }
-        // if nstreams or nthreads are set, need to calculate the Hybrid aware parameters here
-        if (streamExecutorConfig._big_core_streams == 0) {
-            UpdateHybridCustomThreads(streamExecutorConfig,
-                                      num_big_cores_phys,
-                                      core_types.size() > 1 ? num_little_cores : 0);
         }
         OPENVINO_DEBUG << "[ p_e_core_info ] streams (threads): " << streamExecutorConfig._streams << "("
                        << streamExecutorConfig._threads_per_stream_big * streamExecutorConfig._big_core_streams +

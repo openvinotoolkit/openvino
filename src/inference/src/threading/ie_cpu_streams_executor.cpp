@@ -100,6 +100,7 @@ struct CPUStreamsExecutor::Impl {
                     const auto total_streams = _impl->total_streams_on_core_types.back().second;
                     const auto hybrid_core = _impl->total_streams_on_core_types.size() > 1;
                     const auto streamId_wrapped = _streamId % total_streams;
+                    // This is default setting for specific CPU which Pcore is in front and Ecore is in the back
                     const auto num_big_cores_phy = _impl->_config._small_core_offset / 2;
                     const auto use_logic_core =
                         _impl->_config._threads_per_stream_big * _impl->_config._big_core_streams > num_big_cores_phy;
