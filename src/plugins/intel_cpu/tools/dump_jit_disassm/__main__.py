@@ -22,7 +22,8 @@ def addr2line(exefile, addrs):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=f"jit dump disassmbler")
-    parser.add_argument("--filter", type=list, default=["xbyak.h","jit_generator.hpp","primitive.hpp"])
+    parser.add_argument("--filter", type=list, default=["xbyak.h","jit_generator.hpp","primitive.hpp","xbyak_mnemonic.h"])
+    parser.add_argument("--maxcnt", type=int, help="Maximum number of entries from call stack to show", default=3)
     parser.add_argument("trace", type=str)
     parser.add_argument("bin", type=str)
 
@@ -37,13 +38,16 @@ if __name__ == "__main__":
     print(f"load {args.trace}...")
     addr2check = {}
     offset2addr = {}
-    pattern = re.compile("(.*)\(\+(0x[0-9a-f]*)\).*")
+    pattern = re.compile("(.*)\(\+(0x[0-9a-f]*)\).*")  # xxx.so(+0x1234) [] 
+    pattern2 = re.compile("(.*)\(\) \[(0x[0-9a-f]*)\].*") # xxx() [0x1234]
     with open(args.trace, "r") as f:
         for line in f.readlines():
             offset, traces = line.split(":")
             offset = offset.strip()
             for trace in traces.split(",")[1:]:
                 m = pattern.match(trace)
+                if not m:
+                    m = pattern2.match(trace)
                 if (m):
                     exefile=m.group(1)
                     addr=m.group(2)
@@ -80,7 +84,7 @@ if __name__ == "__main__":
                     if not skip_src_file(file_lino):
                         debug_info.append(file_lino)
         if len(debug_info):
-            print(line + "\t" + Fore.YELLOW + " / ".join(debug_info) + Fore.RESET)
+            print(line + "\t" + Fore.YELLOW + " / ".join(debug_info[:args.maxcnt]) + Fore.RESET)
         else:
             print(line)
 
