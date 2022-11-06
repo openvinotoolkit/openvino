@@ -75,14 +75,6 @@
         "runtime/3rdparty/hddl"
       ]
     },
-    "python3.6": {
-      "ui_name": "OpenVINO Python API for Python3.6",
-      "group": ["python"],
-     "dependencies" : ["ie_core"],
-      "files": [
-        "python/python3.6"
-      ]
-    },
     "python3.7": {
       "ui_name": "OpenVINO Python API for Python3.7",
       "group": ["python"],

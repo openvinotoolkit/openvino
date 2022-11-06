@@ -69,8 +69,7 @@ INSTALL_REQUIRES = [
     "jstyleson>=0.0.2",
     "numpy>=1.16.6,<=1.23.1",
     "addict>=2.4.0",
-    "networkx~=2.5;python_version<='3.6'",
-    "networkx<2.8.1;python_version>'3.6'",
+    "networkx<2.8.1",
     "tqdm>=4.54.1",
     "texttable>=1.6.3",
     "pandas~=1.1.5",
@@ -85,10 +84,10 @@ DEPENDENCY_LINKS = []
 
 python_version = sys.version_info[:2]
 if python_version[0] < 3:
-    print('Only Python >= 3.6 is supported by POT/OV')
+    print('Only Python >= 3.7 is supported by POT/OV')
     sys.exit(0)
-elif python_version[1] < 6:
-    print('Only Python >= 3.6 is supported by POT/OV')
+elif python_version[1] < 7:
+    print('Only Python >= 3.7 is supported by POT/OV')
     sys.exit(0)
 
 
