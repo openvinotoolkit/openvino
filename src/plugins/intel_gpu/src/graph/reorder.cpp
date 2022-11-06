@@ -261,6 +261,7 @@ void reorder_inst::update_output_memory() {
     } else {
         _outputs[0] = input_memory_ptr();
     }
+    _mem_allocated = false;
 }
 
 void reorder_inst::save(cldnn::BinaryOutputBuffer& ob) const {

@@ -898,7 +898,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
             const std::string layer_name = inst->id();
             GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                std::cerr << get_primitive_info(inst->id()) << std::endl;
+                std::cerr << inst->id() << std::endl;
             }
 
             GPU_DEBUG_IF(debug_config->dump_layers_dst_only == 0 &&

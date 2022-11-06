@@ -566,7 +566,6 @@ bool Config::CanShareContextWith(const Config& other) const {
            this->sources_dumps_dir == other.sources_dumps_dir &&
            this->tuningConfig.mode == other.tuningConfig.mode &&
            this->tuningConfig.cache_file_path == other.tuningConfig.cache_file_path &&
-           this->kernels_cache_dir == other.kernels_cache_dir &&
            this->device_id == other.device_id &&
            this->task_exec_config._streams == other.task_exec_config._streams &&
            this->task_exec_config._threadPreferredCoreType == other.task_exec_config._threadPreferredCoreType &&

@@ -66,7 +66,7 @@ CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network, std::shared_p
     }
 }
 
-InferenceEngine::Layout layout_from_string(const std::string & name) {
+static InferenceEngine::Layout layout_from_string(const std::string & name) {
     static const std::unordered_map<std::string, InferenceEngine::Layout> layouts = {
         { "ANY", InferenceEngine::Layout::ANY },
         { "NCHW", InferenceEngine::Layout::NCHW },

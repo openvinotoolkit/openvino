@@ -1151,7 +1151,7 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
 
         _outputs[0] = nullptr;
         if (!_mem_allocated) {
-            if (can_be_optimized())
+            if (can_be_optimized() && type() != cldnn::concatenation::type_id())
                 _outputs[0] = get_network().get_engine().reinterpret_buffer(get_network().get_primitive(_dep_ids[0])->output_memory(), output_layout);
         } else {
             if ((!can_share_buffer()) || can_be_optimized() || is_output()) {

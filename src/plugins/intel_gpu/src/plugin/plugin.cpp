@@ -261,8 +261,6 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     auto config = ConvertPerfHintsToConfig(orig_config, conf);
     UpdateConfig(conf, network, config);
 
-    RemoteCLContext::Ptr context;
-
     auto canReuseDefaultContext = [&]() -> bool {
         if (m_defaultContexts.find(conf.device_id) == m_defaultContexts.end())
             return false;
@@ -274,16 +272,19 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::LoadExeNetworkImpl::CreateContext");
         std::lock_guard<std::mutex> lock(engine_mutex);
         if (!canReuseDefaultContext()) {
-            context = std::make_shared<RemoteCLContext>(shared_from_this(), AnyMap(), conf);
-            m_defaultContexts[conf.device_id] = context;
+            // if (m_defaultContexts.find(conf.device_id) != m_defaultContexts.end()) {
+            //     statistics_map.erase(m_defaultContexts[conf.device_id]);
+            // }
+            m_defaultContexts[conf.device_id] = std::make_shared<RemoteCLContext>(shared_from_this(), AnyMap(), conf);
+        } else {
+            m_defaultContexts[conf.device_id]->GetConfig().kernels_cache_dir = conf.kernels_cache_dir;
         }
     }
-
-    context = m_defaultContexts[conf.device_id];
 
     auto transformedNetwork = CloneAndTransformNetwork(network, conf);
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::LoadExeNetworkImpl::CreateExeNetwork");
+        RemoteCLContext::Ptr context = m_defaultContexts[conf.device_id];
         CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(transformedNetwork, context, conf);
         UpdateStatistics(context);
         return exeNetwork;
@@ -763,7 +764,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             capabilities.push_back(ov::device::capability::INT8);
         if (device_info.supports_immad)
             capabilities.push_back(ov::intel_gpu::capability::HW_MATMUL);
-
+        capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
         return decltype(ov::device::capabilities)::value_type {capabilities};
     } else if (name == ov::range_for_async_infer_requests) {
         std::tuple<unsigned int, unsigned int, unsigned int> range = std::make_tuple(1, 2, 1);
