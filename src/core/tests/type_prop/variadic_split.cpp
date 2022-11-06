@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/test_assertions.hpp"
 #include "gmock/gmock.h"
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
@@ -52,68 +53,52 @@ TEST(type_prop, variadic_split) {
 
 TEST(type_prop, variadic_split_splits_rank) {
     const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
+    const auto axis = op::Constant::create<int64_t>(element::i64, Shape{}, {1});
+    const auto splits = op::Constant::create<int64_t>(element::i64, Shape{1, 2}, {2, 4});
 
-    try {
-        const auto axis = op::Constant::create<int64_t>(element::i64, Shape{}, {1});
-        const auto splits = op::Constant::create<int64_t>(element::i64, Shape{1, 2}, {2, 4});
-        const auto split = make_shared<op::v1::VariadicSplit>(data, axis, splits);
-        FAIL() << "Split node was created with incorrect data.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Split lengths should be a 1-D tensor. Got 2 instead."));
-    }
+    OV_EXPECT_THROW(const auto var_split = make_shared<op::v1::VariadicSplit>(data, axis, splits),
+                    NodeValidationFailure,
+                    HasSubstr("Split lengths should be a 1-D tensor. Got 2 instead."));
 }
 
 TEST(type_prop, variadic_split_incorrect_sum) {
     const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
+    const auto axis = op::Constant::create<int64_t>(element::i64, Shape{}, {1});
+    const auto splits = op::Constant::create<int64_t>(element::i64, Shape{2}, {1, 6});
 
-    try {
-        const auto axis = op::Constant::create<int64_t>(element::i64, Shape{}, {1});
-        const auto splits = op::Constant::create<int64_t>(element::i64, Shape{2}, {1, 6});
-        const auto split = make_shared<op::v1::VariadicSplit>(data, axis, splits);
-        FAIL() << "Split node was created with incorrect data.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Total length of splits: 7 must match the length of the chosen axis: 6"));
-    }
+    OV_EXPECT_THROW(const auto var_split = make_shared<op::v1::VariadicSplit>(data, axis, splits),
+                    NodeValidationFailure,
+                    HasSubstr("Total length of splits: 7 must match the length of the chosen axis: 6"));
 }
 
 TEST(type_prop, variadic_split_incorrect_axis) {
     const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
+    const auto axis = op::Constant::create<int64_t>(element::i64, Shape{}, {-5});
+    const auto splits = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 4});
 
-    try {
-        const auto axis = op::Constant::create<int64_t>(element::i64, Shape{}, {-5});
-        const auto splits = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 4});
-        const auto split = make_shared<op::v1::VariadicSplit>(data, axis, splits);
-        FAIL() << "Split node was created with incorrect data.";
-    } catch (const ngraph_error& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter axis -5 out of the tensor rank range [-2, 1]."));
-    }
+    OV_EXPECT_THROW(const auto var_split = make_shared<op::v1::VariadicSplit>(data, axis, splits),
+                    ov::Exception,
+                    HasSubstr("Parameter axis -5 out of the tensor rank range [-2, 1]."));
 }
 
 TEST(type_prop, variadic_split_splits_invalid_negative) {
     const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
+    const auto axis = op::Constant::create<int64_t>(element::i64, Shape{}, {1});
+    const auto splits = op::Constant::create<int64_t>(element::i64, Shape{2}, {-2, 4});
 
-    try {
-        const auto axis = op::Constant::create<int64_t>(element::i64, Shape{}, {1});
-        const auto splits = op::Constant::create<int64_t>(element::i64, Shape{2}, {-2, 4});
-        const auto split = make_shared<op::v1::VariadicSplit>(data, axis, splits);
-        FAIL() << "Split node was created with incorrect data.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Invalid value -2 in split lengths input. Should be >= -1."));
-    }
+    OV_EXPECT_THROW(const auto var_split = make_shared<op::v1::VariadicSplit>(data, axis, splits),
+                    NodeValidationFailure,
+                    HasSubstr("Invalid value -2 in split lengths input. Should be >= -1."));
 }
 
 TEST(type_prop, variadic_split_splits_multiple_negatives) {
     const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
+    const auto axis = op::Constant::create<int64_t>(element::i64, Shape{}, {1});
+    const auto splits = op::Constant::create<int64_t>(element::i64, Shape{3}, {-1, -1, 3});
 
-    try {
-        const auto axis = op::Constant::create<int64_t>(element::i64, Shape{}, {1});
-        const auto splits = op::Constant::create<int64_t>(element::i64, Shape{3}, {-1, -1, 3});
-        const auto split = make_shared<op::v1::VariadicSplit>(data, axis, splits);
-        FAIL() << "Split node was created with incorrect data.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Cannot infer split with multiple -1 values at 0 and 1"));
-    }
+    OV_EXPECT_THROW(const auto var_split = make_shared<op::v1::VariadicSplit>(data, axis, splits),
+                    NodeValidationFailure,
+                    HasSubstr("Cannot infer split with multiple -1 values at 0 and 1"));
 }
 
 TEST(type_prop, variadic_split_shape_partially_dynamic) {
@@ -203,6 +188,20 @@ INSTANTIATE_TEST_SUITE_P(
                            std::vector<int64_t>{4, 1, -1, 3},
                            PartialShapes{{{2, 4}, 4}, {{2, 4}, 1}, {{2, 4}, -1}, {{2, 4}, 3}})),
     PrintToStringParamName());
+
+TEST_P(VariadicSplitTest, dimension_propagation) {
+    constexpr auto dtype = element::f32;
+    const auto param = make_shared<op::Parameter>(dtype, p_shape);
+    const auto axis_node = make_shared<op::Constant>(element::i32, Shape{}, axis);
+    const auto lengths_node = std::make_shared<op::Constant>(element::i64, Shape{split_lengths.size()}, split_lengths);
+
+    const auto var_split = make_shared<op::v1::VariadicSplit>();
+    var_split->set_arguments(NodeVector{param, axis_node, lengths_node});
+    var_split->validate_and_infer_types();
+
+    EXPECT_EQ(var_split->get_output_size(), split_lengths.size());
+    EXPECT_THAT(get_output_partial_shapes(*var_split), ElementsAreArray(exp_shapes));
+}
 
 TEST_P(VariadicSplitTest, use_default_ctor) {
     constexpr auto dtype = element::f32;
