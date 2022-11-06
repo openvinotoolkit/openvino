@@ -9,12 +9,10 @@
 namespace ngraph {
 namespace runtime {
 namespace reference {
-/// @brief Represents an element of the input tensor and contains additional information about such element needed
-///        by the implementation of the Unique operation
+/// @brief Represents an element of the input tensor 
 template <typename Index_t>
 struct Element {
     Element(Index_t idx_) : idx{idx_} {}
-    Element(Index_t idx_, Index_t rev_idx_, int64_t count_) : idx{idx_}, rev_idx{rev_idx_}, count{count_} {}
     /// The index of the current element in the original input tensor. It never changes even if the elements get sorted.
     /// This value is used as a mapping between a unique element in the first output tensor and the position of this
     /// element in the original input tensor.
@@ -35,14 +33,14 @@ struct UniqueElements {
 
 namespace {
 template <typename T>
-std::vector<Element<T>> generate_data_references(const size_t count) {
-    std::vector<Element<T>> data_references;
-    data_references.reserve(count);
+std::vector<Element<T>> generate_element_descriptors(const size_t count) {
+    std::vector<Element<T>> descriptors;
+    descriptors.reserve(count);
 
     for (T i = 0; i < count; ++i) {
-        data_references.emplace_back(i);
+        descriptors.emplace_back(i);
     }
-    return data_references;
+    return descriptors;
 }
 
 bool scalar_or_single_element(const Shape& s) {
@@ -76,7 +74,7 @@ UniqueElements<Index_t> find_unique_elements(const Data_t* data,
 
     const auto data_elems_count = shape_size(data_shape);
     UniqueElements<Index_t> ret;
-    ret.all_tensor_elements = generate_data_references<Index_t>(data_elems_count);
+    ret.all_tensor_elements = generate_element_descriptors<Index_t>(data_elems_count);
 
     if (sorted) {
         std::sort(begin(ret.all_tensor_elements), end(ret.all_tensor_elements), sort_by_values);
@@ -85,20 +83,20 @@ UniqueElements<Index_t> find_unique_elements(const Data_t* data,
     if (scalar_or_single_element(data_shape)) {
         ret.all_tensor_elements[0].rev_idx = 0;
         ret.unique_tensor_elements.push_back(ret.all_tensor_elements[0]);
-    } else if (data_shape.size() == 1 && data_shape[0] > 1) {
+    } else if (!axis || (data_shape.size() == 1 && data_shape[0] > 1)) {
         ret.all_tensor_elements[0].rev_idx = 0;
         ret.unique_tensor_elements.push_back(ret.all_tensor_elements[0]);
-        for (size_t i = 1; i < data_elems_count; ++i) {
-            auto& data_elem_descriptor = ret.all_tensor_elements[i];
+        for (auto&& tensor_element : ret.all_tensor_elements) {
+            // TODO - use O(logN) search if the elements are sorted
             auto existing_unique = std::find_if(begin(ret.unique_tensor_elements),
                                                 end(ret.unique_tensor_elements),
-                                                already_unique(data_elem_descriptor));
+                                                already_unique(tensor_element));
             if (existing_unique != end(ret.unique_tensor_elements)) {
-                data_elem_descriptor.rev_idx = existing_unique->rev_idx;
+                tensor_element.rev_idx = existing_unique->rev_idx;
                 existing_unique->count++;
             } else {
-                data_elem_descriptor.rev_idx = ret.unique_tensor_elements.size();
-                ret.unique_tensor_elements.push_back(data_elem_descriptor);
+                tensor_element.rev_idx = ret.unique_tensor_elements.size();
+                ret.unique_tensor_elements.push_back(tensor_element);
             }
         }
     } else {
