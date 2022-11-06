@@ -165,6 +165,26 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
     return { layout{output_shapes[0], output_type, output_format} };
 }
 
+
+kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_params const& impl_param) {
+    // fc_tiled_opt kernel is optimized for row shape aligned by 16.
+    // Thus, use fake aligned shape at kernel execution for better performance.
+    if (impl_param.get_input_layout().format == format::bfyx && impl_param.output_layout.format == format::bfyx) {
+        auto fake_param = impl_param;
+        auto input_shape = fake_param.get_input_layout(0).get_partial_shape().to_shape();
+        auto input_row_idx = input_shape.size() - 2;
+        input_shape[input_row_idx] = kernel_selector::Align(input_shape[input_row_idx], 16);
+        auto output_shape = fake_param.output_layout.get_partial_shape().to_shape();
+        auto output_row_idx = output_shape.size() - 2;
+        output_shape[output_row_idx] = kernel_selector::Align(output_shape[output_row_idx], 16);
+
+        fake_param.input_layouts[0] = layout(ov::PartialShape(input_shape), fake_param.input_layouts[0].data_type, fake_param.input_layouts[0].format);
+        fake_param.output_layout = layout(ov::PartialShape(output_shape), fake_param.output_layout.data_type, fake_param.output_layout.format);
+        return fake_param;
+    }
+    return impl_param;
+}
+
 template std::vector<layout> fully_connected_inst::calc_output_layouts<ov::PartialShape>(fully_connected_node const& node,
                                                                                          const kernel_impl_params& impl_param);
 
