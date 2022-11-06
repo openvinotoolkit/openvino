@@ -151,7 +151,7 @@ elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubu
 
 elif [ "$os" == "rhel8" ] ; then
 
-    pkgs_core=(libtbb2 libpugixml1v5)
+    pkgs_core=(tbb.x86_64 pugixml.x86_64)
     pkgs_opencv_req=(gtk3)
     pkgs_python=(python38 python38-pip)
     pkgs_dev=(
