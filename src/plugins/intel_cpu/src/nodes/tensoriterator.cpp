@@ -260,7 +260,7 @@ public:
             << "m_from = " << mem_from.GetData()
             << ", memman = " << mem_from.getDnnlMemoryMngr()
             << ", m_to = " << to_memptr->GetData()
-            << ", memman << " << to_memptr->getDnnlMemoryMngr() << std::endl;
+            << ", memman = " << to_memptr->getDnnlMemoryMngr() << std::endl;
             if (!m_shareable) {
                 mem_holder_src = mem_from.GetPrimitive();
                 mem_holder_dst = m_to->getChildEdgesAtPort(outputNodePortIdx)[0]->getMemory().GetPrimitive();

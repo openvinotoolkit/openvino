@@ -186,7 +186,8 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
                     leftside << comma << desc->getPrecision().name()
                                 << "_" << desc->serializeFormat()
                                 << "_" << shape_str
-                                << "_" << ptr->GetData();
+                                << "_" << ptr->GetData()
+                                << "_" << ptr->getDnnlMemoryMngr();
                     b_ouputed = true;
                 } else {
                     leftside << "(empty)";
