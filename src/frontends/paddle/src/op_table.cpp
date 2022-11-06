@@ -14,6 +14,7 @@ OP_CONVERTER(assign_value);
 OP_CONVERTER(batch_norm);
 OP_CONVERTER(bicubic_interp_v2);
 OP_CONVERTER(bilinear_interp_v2);
+OP_CONVERTER(box_coder);
 OP_CONVERTER(cast);
 OP_CONVERTER(ceil);
 OP_CONVERTER(clip);
@@ -119,6 +120,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"bilinear_interp_v2", op::bilinear_interp_v2},
             {"bilinear_interp", op::bilinear_interp_v2},
             {"bmm", op::matmul},
+            {"box_coder", op::box_coder},
             {"cast", op::cast},
             {"ceil", op::ceil},
             {"clip", op::clip},

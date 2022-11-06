@@ -60,6 +60,9 @@ static const std::vector<std::string> models{
     std::string("bilinear_upsample_scales2"),
     std::string("bilinear_upsample_true_0"),
     std::string("bmm"),
+    std::string("box_coder_1"),
+    std::string("box_coder_2"),
+    std::string("box_coder_3"),
     std::string("ceil"),
     std::string("clip"),
     // 95436: sporadic failure
