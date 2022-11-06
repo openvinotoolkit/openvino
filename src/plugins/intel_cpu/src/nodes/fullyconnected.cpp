@@ -6,6 +6,7 @@
 #include "eltwise.h"
 #include "fake_quantize.h"
 #include "input.h"
+#include "reorder.h"
 #include "ngraph_transformations/op/fully_connected.hpp"
 #include <ngraph/opsets/opset1.hpp>
 #include <string>
@@ -860,7 +861,7 @@ MemoryPtr FullyConnected::prepareWeightMemory(const DnnlMemoryDescPtr weightDesc
 
         MemoryPtr _ptr = MemoryPtr(new Memory(getEngine()));
         _ptr->Create(weightDesc);
-        _ptr->SetData(srcMemory, false);
+        node::Reorder::reorderDataUsingCache(getRuntimeCache(), srcMemory, *_ptr);
 
         return _ptr;
     };

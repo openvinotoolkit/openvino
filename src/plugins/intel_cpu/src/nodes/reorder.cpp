@@ -471,6 +471,34 @@ std::vector<VectorDims> Reorder::shapeInfer() const {
     return {getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()};
 }
 
+void Reorder::reorderDataUsingCache(MultiCachePtr cache, const Memory &input, const Memory &output) {
+    auto engine = output.getEngine();
+    auto builder = [&engine](const ReorderKey& key) -> std::shared_ptr<dnnl::primitive> {
+        dnnl::primitive_attr attr;
+        DEBUG_LOG(key.src, "->", key.dest);
+        reorder::primitive_desc pd = dnnl::reorder::primitive_desc(engine, key.src, engine, key.dest, attr, true);
+
+        if (!pd)
+            return nullptr;
+        return std::make_shared<dnnl::reorder>(pd);
+    };
+
+    auto src_desc = input.GetPrimitive().get_desc();
+    auto dst_desc = output.GetPrimitive().get_desc();
+    ReorderKey key = {src_desc, dst_desc};
+    auto result = cache->getOrCreate(key, builder);
+    if (!result.first) {
+        IE_THROW() << "Cannot create reorder primitive: unsupported reorder case";
+    }
+    auto primPtr = result.first;
+    dnnl::stream loc_stream(output.getEngine(), dnnl::stream::flags::in_order);
+    auto srcMemory = input.GetPrimitive();
+    auto dstMemory = output.GetPrimitive();
+    std::unordered_map<int, dnnl::memory> args = {{DNNL_ARG_SRC, srcMemory}, {DNNL_ARG_DST, dstMemory}};
+
+    primPtr->execute(loc_stream, args);
+}
+
 }   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
