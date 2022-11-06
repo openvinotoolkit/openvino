@@ -21,6 +21,7 @@ QUANTIZE_AGNOSTIC_OPERATIONS = [
     {'type': 'Minimum'},
     {'type': 'Maximum'},
     {'type': 'ConvertLike'},
+    {'type': 'Gather'},
     {'type': 'DepthToSpace'}
 ]
 
@@ -41,7 +42,8 @@ OPERATIONS_WITH_WEIGHTS = [
 
 CONCAT_UNIFY_OUTPUTS = [
     {'type': 'ConvolutionBackpropData'},
-    {'type': 'Convolution'}
+    {'type': 'Convolution'},
+    {'type': 'MatMul'},
 ]
 
 CONCAT_UNIFY_INPUTS = [
