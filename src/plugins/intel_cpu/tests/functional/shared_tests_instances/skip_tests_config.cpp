@@ -166,6 +166,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_NmsLayerTest.*)",
         // Issue: 95915
         R"(smoke_dynamic/AUGRUCellCPUTest.CompareWithRefs/IS=\(\{\?\.1\}_\{\?\.1\}_\{\?\.1\}_\)_TS=\{\(1\.1\)_\(1\.1\)_\(1\.1\)\}_\{\(3\.1\)_\(3\.1\)_\(3\.1\)\}_\{\(5\.1\)_\(5\.1\)_\(5\.1\)\}_decompose=0_activations=\(sigmoid\.tanh\)_clip=0_linear=0_netPrec=f32__inFmts=nc\.nc_outFmts=nc_primitive=ref_any_PluginConf_ENFORCE_BF16=YES)", // NOLINT
+        R"(smoke_dynamic/GRUCellCPUTest.CompareWithRefs/IS=\(\{\?\.1\}_\{\?\.1\}_\)_TS=\{\(1\.1\)_\(1\.1\)\}_\{\(3\.1\)_\(3\.1\)\}_\{\(5\.1\)_\(5\.1\)\}_decompose=0_activations=\(sigmoid\.tanh\)_clip=0_linear=0_netPrec=f32__inFmts=nc\.nc_outFmts=nc_primitive=ref_any_PluginConf_ENFORCE_BF16=YES)", // NOLINT
     };
 
 #define FIX_62820 0
