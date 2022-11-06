@@ -363,7 +363,7 @@ void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config,
             config._threads_per_stream_big = std::max(1, threads / config._streams);
             // The remaining threads are placed on the small core.
             config._threads_per_stream_small =
-                std::min((int)num_small_cores, threads - config._threads_per_stream_big * config._big_core_streams);
+                std::min(const_cast<int&>(num_small_cores), threads - config._threads_per_stream_big * config._big_core_streams);
             config._small_core_streams = config._threads_per_stream_small == 0 ? 0 : 1;
         } else {
             // big cores first, then small cores
@@ -376,9 +376,9 @@ void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config,
             config._threads_per_stream_big = std::max(1, num_big_cores / config._big_core_streams);
             config._small_core_streams = config._streams - config._big_core_streams;
             if (config._small_core_streams > 0) {
-                // Normally, threads_per_stream_small = threads_per_stream_big * 2, but special conditions are as
-                // follows: Pcore=8, Ecore=4, custom set nthreads=10, nstreams=10, calculate result: big_streams=8,
-                // small_streams=2. There are only 2 threads left, threads_per_stream_small can only be 1.
+                // Normally, threads_per_stream_small = threads_per_stream_big, but special conditions are as
+                // follows: Pcore=8, Ecore=4, custom set nthreads=17, nstreams=9, calculate result: big_streams=8,
+                // small_streams=1. There are only 1 threads left, threads_per_stream_small can only be 1.
                 const int remain_threads = threads - config._threads_per_stream_big * config._big_core_streams;
                 config._threads_per_stream_small =
                     std::min(remain_threads / config._small_core_streams, config._threads_per_stream_big);
