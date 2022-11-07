@@ -105,6 +105,7 @@
 #include "transformations/op_conversions/reduce_l1_decomposition.hpp"
 #include "transformations/op_conversions/reduce_l2_decomposition.hpp"
 #include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
+#include "transformations/op_conversions/unique_decomposition.hpp"
 
 bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(CommonOptimizations);
@@ -167,8 +168,10 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
         ADD_MATCHER_SCOPE(decomp, ngraph::pass, DropoutWithRandomUniformReplacer)
         ADD_MATCHER_SCOPE(decomp, ngraph::pass, TransposeReshapeEliminationForMatmul)
         ADD_MATCHER_SCOPE(decomp, ov::pass, EyeDecomposition)
+        ADD_MATCHER_SCOPE(decomp, ov::pass, UniqueDecomposition)
         decomp->set_name("ngraph::pass::CommonDecompositions");
     }
+
     // CF is required after all decompositions
     REGISTER_PASS_SCOPE(manager, ngraph::pass, ConstantFolding, _run_on_model)
 

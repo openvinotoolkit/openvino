@@ -10,7 +10,7 @@ To automatically generate the OpenVINO Developer Package, run the `cmake` tool d
 ```bash
 $ mkdir openvino-release-build
 $ cd openvino-release-build
-$ cmake -DCMAKE_BUILD_TYPE=Release ../openvino 
+$ cmake -DCMAKE_BUILD_TYPE=Release ../openvino
 ```
 
 Once the commands above are executed, the OpenVINO Developer Package is generated in the `openvino-release-build` folder. It consists of several files:
@@ -26,6 +26,12 @@ Once the commands above are executed, the OpenVINO Developer Package is generate
        * `openvino::xbyak` - interface library with Xbyak headers
        * `openvino::itt` - static library with tools for performance measurement using Intel ITT
    - Libraries for tests development:
+       * `IE::gtest`, `IE::gtest_main`, `IE::gmock` - Google Tests framework libraries
+       * `IE::commonTestUtils` - static library with common tests utilities
+       * `IE::funcTestUtils` - static library with functional tests utilities
+       * `IE::unitTestUtils` - static library with unit tests utilities
+       * `IE::ngraphFunctions` - static library with the set of `ngraph::Function` builders
+       * `IE::funcSharedTests` - static library with common functional tests
        * `openvino::gtest`, `openvino::gtest_main`, `openvino::gmock` - Google Tests framework libraries
        * `openvino::commonTestUtils` - static library with common tests utilities 
        * `openvino::funcTestUtils` - static library with functional tests utilities 
@@ -80,21 +86,15 @@ if(ENABLE_TESTS)
     endif()
 endif()
 ```
-
-> **NOTE**: The default values of the `ENABLE_TESTS`, `ENABLE_FUNCTIONAL_TESTS` options are shared via the OpenVINO Developer Package and they are the same as for the main OpenVINO build tree. You can override them during plugin build using the command below:
-
-    ```bash
-    $ cmake -DENABLE_FUNCTIONAL_TESTS=OFF -DOpenVINODeveloperPackage_DIR=../openvino-release-build ../template-plugin
-    ``` 
+   > **NOTE**: The default values of the `ENABLE_TESTS`, `ENABLE_FUNCTIONAL_TESTS` options are shared via the OpenVINO Developer Package and they are the same as for the main OpenVINO build tree. You can override them during plugin build using the command below:
+```bash
+$ cmake -DENABLE_FUNCTIONAL_TESTS=OFF -DOpenVINODeveloperPackage_DIR=../openvino-release-build ../template-plugin
+``` 
 
 - `src/CMakeLists.txt` to build a plugin shared library from sources:
-
 @snippet template/src/CMakeLists.txt cmake:plugin
-
-> **NOTE**: `openvino::runtime` target is imported from the OpenVINO Developer Package.
+   > **NOTE**: `openvino::runtime` target is imported from the OpenVINO Developer Package.
 
 - `tests/functional/CMakeLists.txt` to build a set of functional plugin tests:
-
 @snippet template/tests/functional/CMakeLists.txt cmake:functional_tests
-
-> **NOTE**: The `openvino::funcSharedTests` static library with common functional OpenVINO Plugin tests is imported via the OpenVINO Developer Package.
+   > **NOTE**: The `openvino::funcSharedTests` static library with common functional OpenVINO Plugin tests is imported via the OpenVINO Developer Package.

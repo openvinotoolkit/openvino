@@ -2,7 +2,7 @@
 
 This page provides general instructions on how to convert a model from a TensorFlow format to the OpenVINO IR format using Model Optimizer. The instructions are different depending on whether your model was created with TensorFlow v1.X or TensorFlow v2.X.
 
-To use Model Optimizer, install OpenVINO Development Tools by following the [installation instructions](../../../install_guides/installing-model-dev-tools.md).
+To use Model Optimizer, install OpenVINO Development Tools by following the [installation instructions](@ref openvino_docs_install_guides_install_dev_tools).
 
 ## Converting TensorFlow 1 Models <a name="Convert_From_TF2X"></a>
 
@@ -140,10 +140,10 @@ mo --saved_model_dir BERT --input mask,word_ids,type_ids --input_shape [2,30],[2
 ```
 
 ## Supported TensorFlow and TensorFlow 2 Keras Layers
-For the list of supported standard layers, refer to the [Supported Framework Layers ](../Supported_Frameworks_Layers.md) page.
+For the list of supported standard layers, refer to the [Supported Framework Layers ](@ref openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers) page.
 
 ## Frequently Asked Questions (FAQ)
-The Model Optimizer provides explanatory messages if it is unable to run to completion due to typographical errors, incorrectly used options, or other issues. The message describes the potential cause of the problem and gives a link to the [Model Optimizer FAQ](../Model_Optimizer_FAQ.md). The FAQ provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections in the Model Optimizer Developer Guide to help you understand what went wrong.
+The Model Optimizer provides explanatory messages if it is unable to run to completion due to typographical errors, incorrectly used options, or other issues. The message describes the potential cause of the problem and gives a link to the [Model Optimizer FAQ](@ref openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ). The FAQ provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections in the Model Optimizer Developer Guide to help you understand what went wrong.
 
 ## Summary
 In this document, you learned:
@@ -154,8 +154,8 @@ In this document, you learned:
 * How to convert a trained TensorFlow model using the Model Optimizer with both framework-agnostic and TensorFlow-specific command-line options.
 
 ## Additional Resources
-For step-by-step instructions on how to convert specific TensorFlow models, see the [Model Conversion Tutorials](Convert_Model_Tutorials.md) page. Here are some examples:
-* [Convert TensorFlow EfficientDet Models](tf_specific/Convert_EfficientDet_Models.md)
-* [Convert TensorFlow FaceNet Models](tf_specific/Convert_FaceNet_From_Tensorflow.md)
-* [Convert TensorFlow Object Detection API Models](tf_specific/Convert_Object_Detection_API_Models.md)
+See the [Model Conversion Tutorials](@ref openvino_docs_MO_DG_prepare_model_convert_model_tutorials) page for a set of tutorials providing step-by-step instructions for converting specific TensorFlow models. Here are some examples:
+* [Convert TensorFlow EfficientDet Models](@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_EfficientDet_Models)
+* [Convert TensorFlow FaceNet Models](@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_FaceNet_From_Tensorflow)
+* [Convert TensorFlow Object Detection API Models](@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models)
 

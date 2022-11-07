@@ -10,15 +10,6 @@
 
 namespace cldnn {
 
-template<>
-struct typed_program_node<random_uniform> : public typed_program_node_base<random_uniform> {
-    using parent = typed_program_node_base<random_uniform>;
-public:
-    using parent::parent;
-
-    const program_node &input(std::size_t index = 0) const { return get_dependency(index); }
-};
-
 using random_uniform_node = typed_program_node<random_uniform>;
 
 template<>
