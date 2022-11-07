@@ -67,6 +67,11 @@ public:
      * @return maximum layers count
      **/
     virtual uint32_t maxLayersCount() const = 0;
+
+    /**
+     * @brief Stop the activities. Usually used just prior destructor is called.
+     **/
+    virtual void stop() {}
 };
 
 }  // namespace GNAPluginNS

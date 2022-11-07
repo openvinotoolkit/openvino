@@ -23,8 +23,7 @@ class GNAAllocator {
  public:
     typedef uint8_t value_type;
 
-    explicit GNAAllocator(std::shared_ptr<GNADeviceHelper> device) : _device(std::move(device)) {
-    }
+    explicit GNAAllocator(std::shared_ptr<GNADeviceHelper> device) : _device(device) {}
     uint8_t *allocate(std::size_t n) {
         uint32_t granted = 0;
         auto result = _device->alloc(n, &granted);

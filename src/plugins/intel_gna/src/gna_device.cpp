@@ -548,16 +548,27 @@ void GNADeviceHelper::open() {
     deviceOpened = true;
 }
 
-void GNADeviceHelper::close() {
-    auto requestsToClose = unwaitedRequestIds;
-    for (auto requestId : requestsToClose) {
+void GNADeviceHelper::stop() {
+    using UnwReqIt = std::pair<bool, UnwaitedRequestIds::value_type>;
+
+    auto firstId = [this]() {
+        std::unique_lock<std::mutex> lockGnaCalls{acrossPluginsSync};
+        auto it = unwaitedRequestIds.begin();
+        return (it == unwaitedRequestIds.end()) ? UnwReqIt(false, 0) : UnwReqIt(true, *it);
+    };
+
+    UnwReqIt it;
+    while ((it = firstId()).first)
         try {
-            waitForRequest(requestId);
+            waitForRequest(it.second);
         } catch (...) {
-            log::warning() << "Request with Id " << requestId << " was not awaited successfully";
+            log::warning() << "Request with Id " << it.second << " was not awaited successfully";
         }
-    }
-    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
+}
+
+void GNADeviceHelper::close() {
+    stop();
+    std::unique_lock<std::mutex> lockGnaCalls{acrossPluginsSync};
     const auto status = Gna2DeviceClose(nGnaDeviceIndex);
     const auto message = checkGna2Status(status, "Gna2DeviceClose", true);
     if (!message.empty()) {
