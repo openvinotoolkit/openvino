@@ -3,13 +3,13 @@
 Model Optimizer can convert all floating-point weights to `FP16` data type. The resulting IR is called
 compressed `FP16` model.
 
-To compress the model, use the `--data_type` option:
+To compress the model, use the `--compress_to_fp16` option:
 
 ```
- mo --input_model INPUT_MODEL --data_type FP16
+ mo --input_model INPUT_MODEL --compress_to_fp16
 ```
 
-> **NOTE**: Using `--data_type FP32` will give no result and will not force `FP32` 
+> **NOTE**: Using `--compress_to_fp16` will give no result and will not force `FP32` 
 > precision in the model. If the model was `FP16`, it will have `FP16` precision in IR as well.
 
 The resulting model will occupy about twice as less space in the file system, but it may have some accuracy drop.
