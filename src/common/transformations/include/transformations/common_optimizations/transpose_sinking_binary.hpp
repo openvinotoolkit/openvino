@@ -15,16 +15,11 @@ class TRANSFORMATIONS_API TransposeSinkingSplitBackward;
 class TRANSFORMATIONS_API TransposeSinkingBinaryElementwiseForward;
 class TRANSFORMATIONS_API TransposeSinkingConcatForward;
 class TRANSFORMATIONS_API TransposeSinkingSplitForward;
-class TRANSFORMATIONS_API TransposeSinkingElementwiseBackward;
+class TRANSFORMATIONS_API TransposeSinkingBinaryElementwiseBackward;
+class TRANSFORMATIONS_API TransposeSinkingConcatBackward;
 
 }  // namespace pass
 }  // namespace ov
-
-class ov::pass::TransposeSinkingSplitBackward : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("ov::pass::TransposeSinkingSplitBackward", "0");
-    TransposeSinkingSplitBackward();
-};
 
 class ov::pass::TransposeSinkingBinaryElementwiseForward : public ov::pass::MatcherPass {
 public:
@@ -44,8 +39,20 @@ public:
     TransposeSinkingSplitForward();
 };
 
-class ov::pass::TransposeSinkingElementwiseBackward : public ov::pass::MatcherPass {
+class ov::pass::TransposeSinkingBinaryElementwiseBackward : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::pass::TransposeSinkingElementwiseBackward", "0");
-    TransposeSinkingElementwiseBackward();
+    OPENVINO_RTTI("ov::pass::TransposeSinkingBinaryElementwiseBackward", "0");
+    TransposeSinkingBinaryElementwiseBackward();
+};
+
+class ov::pass::TransposeSinkingConcatBackward : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ov::pass::TransposeSinkingConcatBackward", "0");
+    TransposeSinkingConcatBackward();
+};
+
+class ov::pass::TransposeSinkingSplitBackward : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ov::pass::TransposeSinkingSplitBackward", "0");
+    TransposeSinkingSplitBackward();
 };
