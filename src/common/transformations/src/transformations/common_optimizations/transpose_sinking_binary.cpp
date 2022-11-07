@@ -253,10 +253,10 @@ void UpdateInputTransposes(NodePtr main_node, TransposeInputsInfo & transpose_in
     }
 }
 
-void RemoveZeroInputNode(NodePtr main_node, TransposeInputsInfo & transpose_input_info) {
+void RemoveZeroInputNode(NodePtr main_node) {
     auto input_node = main_node->input_value(0);
-    auto transpose_parent = input_node.get_node()->input_value(0);
-    main_node->input(0).replace_source_output(transpose_parent);
+    auto parent_node = input_node.get_node()->input_value(0);
+    main_node->input(0).replace_source_output(parent_node);
 }
 
 std::vector<NodePtr> InsertOutputTransposes(NodePtr main_node, TransposeInputsInfo & transpose_input_info) {
@@ -363,7 +363,7 @@ pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
 
         TransposeInputsInfo transpose_input_info = GetFirstTransposeInput(main_node);
 
-        sink_forward::RemoveZeroInputNode(main_node, transpose_input_info);
+        sink_forward::RemoveZeroInputNode(main_node);
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
             register_new_node(new_node);
         }
@@ -386,10 +386,36 @@ pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
     register_matcher(m, matcher_pass_callback);
 }
 
-pass::TransposeSinkingElementwiseBackward::TransposeSinkingElementwiseBackward() {
-    MATCHER_SCOPE(TransposeSinkingElementwiseBackward);
+namespace sink_backward {
+std::vector<NodePtr> InsertTransposeBeforeNode(NodePtr main_node, std::shared_ptr<Constant> transpose_const) {
+    const auto transpose_axis_order = transpose_const->get_axis_vector_val();
+    const auto transpose_element_type = transpose_const->get_element_type();
 
-    auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic, Concat>(consumers_count(1));
+    std::vector<NodePtr> new_nodes;
+
+    for (size_t i = 0; i < main_node->get_input_size(); ++i) {
+        auto input_node = main_node->input_value(i);
+        auto new_transpose_const = std::make_shared<Constant>(transpose_element_type,
+                                                              Shape{transpose_axis_order.size()},
+                                                              transpose_axis_order);
+        auto new_transpose = std::make_shared<Transpose>(input_node, new_transpose_const);
+
+        main_node->input(i).replace_source_output(new_transpose->output(0));
+
+        copy_runtime_info(input_node.get_node_shared_ptr(), {new_transpose, new_transpose_const});
+
+        new_nodes.push_back(new_transpose);
+    }
+
+    return new_nodes;
+}
+
+} // namespace sink_backward
+
+pass::TransposeSinkingBinaryElementwiseBackward::TransposeSinkingBinaryElementwiseBackward() {
+    MATCHER_SCOPE(TransposeSinkingBinaryElementwiseBackward);
+
+    auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic>(consumers_count(1));
 
     auto transpose_const_label = wrap_type<Constant>(consumers_count(1));
     auto transpose_label =
@@ -402,22 +428,8 @@ pass::TransposeSinkingElementwiseBackward::TransposeSinkingElementwiseBackward()
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto main_node = pattern_to_output.at(main_node_label).get_node_shared_ptr();
 
-        const auto transpose_axis_order = transpose_const->get_axis_vector_val();
-        const auto transpose_element_type = transpose_const->get_element_type();
-
-        // insert transposes before main node
-        for (size_t i = 0; i < main_node->get_input_size(); ++i) {
-            auto input_node = main_node->input_value(i);
-            auto new_transpose_const = std::make_shared<Constant>(transpose_element_type,
-                                                                              Shape{transpose_axis_order.size()},
-                                                                              transpose_axis_order);
-            auto new_transpose = std::make_shared<Transpose>(input_node, new_transpose_const);
-
-            main_node->input(i).replace_source_output(new_transpose->output(0));
-
-            copy_runtime_info(input_node.get_node_shared_ptr(), {new_transpose, new_transpose_const});
-
-            register_new_node(new_transpose);
+        for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node, transpose_const)) {
+            register_new_node(new_node);
         }
 
         // remove transpose after main node
@@ -425,12 +437,43 @@ pass::TransposeSinkingElementwiseBackward::TransposeSinkingElementwiseBackward()
 
         SwapNames(transpose, main_node);
 
-        // update axis if Concat
-        if (auto concat_node = as_type_ptr<Concat>(main_node)) {
-            const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
-            const int64_t transposed_concat_axis = reversed_traspose_axis_order[concat_node->get_axis()];
-            concat_node->set_concatenation_axis(transposed_concat_axis);
+        return true;
+    };
+
+    auto m = std::make_shared<Matcher>(transpose_label, matcher_name);
+    register_matcher(m, matcher_pass_callback);
+}
+
+pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
+    MATCHER_SCOPE(TransposeSinkingConcatBackward);
+
+    auto main_node_label = wrap_type<Concat>(consumers_count(1));
+
+    auto transpose_const_label = wrap_type<Constant>(consumers_count(1));
+    auto transpose_label =
+        wrap_type<Transpose>({main_node_label, transpose_const_label}, consumers_count(1));
+
+    matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
+        const auto& pattern_to_output = m.get_pattern_value_map();
+        auto transpose_const =
+            as_type_ptr<Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
+        auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
+        auto main_node = pattern_to_output.at(main_node_label).get_node_shared_ptr();
+
+        for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node, transpose_const)) {
+            register_new_node(new_node);
         }
+
+        // remove transpose after main node
+        transpose->output(0).replace(main_node);
+
+        SwapNames(transpose, main_node);
+
+        auto concat_node = as_type_ptr<Concat>(main_node);
+        const auto transpose_axis_order = transpose_const->get_axis_vector_val();
+        const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
+        const int64_t transposed_concat_axis = reversed_traspose_axis_order[concat_node->get_axis()];
+        concat_node->set_concatenation_axis(transposed_concat_axis);
 
         return true;
     };

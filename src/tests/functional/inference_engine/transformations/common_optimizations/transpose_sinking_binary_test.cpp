@@ -308,7 +308,7 @@ INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingBinaryBackwardTestSuite,
     TransposeSinkingBinaryTestFixture,
                          ::testing::Combine(::testing::ValuesIn(binary_factories),
-                                            ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingElementwiseBackward>()),
+                                            ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingBinaryElementwiseBackward>()),
                                             ::testing::ValuesIn(binary_operations_numbers),
                        ::testing::Values(binary::single_consumer::backward::one_input_transpose::CreateFunction),
                        ::testing::Values(binary::single_consumer::backward::one_input_transpose::CreateReferenceFunction),
@@ -615,7 +615,7 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatForwardTestSuite, TransposeSinkin
                                             ::testing::Values(5)));
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatBackwardTestSuite, TransposeSinkingConcatTestFixture,
-                         ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingElementwiseBackward>()),
+                         ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingConcatBackward>()),
                                             ::testing::ValuesIn(concat_operations_numbers),
                                             ::testing::Values(concat::single_consumer::backward::CreateFunction),
                                             ::testing::Values(concat::single_consumer::backward::CreateReferenceFunction),
