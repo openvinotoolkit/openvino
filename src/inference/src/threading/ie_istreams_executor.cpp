@@ -183,11 +183,13 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
             // bare minimum of streams (that evenly divides available number of cores)
             _streams = GetDefaultNumStreams();
             if (_threadBindingType == ThreadBindingType::HYBRID_AWARE) {
+                // In HYBRID_AWARE, nstreams are limited by nthreads, which means 1 stream has at least 1 thread.
                 _streams = LimitHybridStreams(_streams, _threads);
             }
         } else if (streams.num >= 0) {
             _streams = streams.num;
             if (_threadBindingType == ThreadBindingType::HYBRID_AWARE) {
+                // In HYBRID_AWARE, nstreams are limited by nthreads, which means 1 stream has at least 1 thread.
                 _streams = LimitHybridStreams(streams.num, _threads);
             }
         } else {
@@ -363,7 +365,8 @@ void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config,
             config._threads_per_stream_big = std::max(1, threads / config._streams);
             // The remaining threads are placed on the small core.
             config._threads_per_stream_small =
-                std::min(const_cast<int&>(num_small_cores), threads - config._threads_per_stream_big * config._big_core_streams);
+                std::min(const_cast<int&>(num_small_cores),
+                         threads - config._threads_per_stream_big * config._big_core_streams);
             config._small_core_streams = config._threads_per_stream_small == 0 ? 0 : 1;
         } else {
             // big cores first, then small cores
