@@ -10,7 +10,8 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "gna_plugin_log.hpp"
+#include "log/debug.hpp"
+#include "log/log.hpp"
 
 using namespace ov::intel_gna::pass;
 
@@ -84,7 +85,7 @@ bool InsertTransposeAfterConvOrPool::run_on_model(const std::shared_ptr<ngraph::
                                 << " min dimension size: " << min << " max dimension size: " << max;
         }
 
-        gnalog() << "Insert Transpose after " << node->get_friendly_name() << "\n";
+        log::debug() << "Insert Transpose after " << node->get_friendly_name() << "\n";
 
         auto consumers = node->output(0).get_target_inputs();
 
