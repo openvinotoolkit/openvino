@@ -578,6 +578,8 @@ def main():
                                       ])
             statistics.dump()
 
+        if devices.count("AUTO"):
+            logger.info(f'ExecutionDevice: {compiled_model.get_property("EXECUTION_DEVICES")}')
 
         logger.info(f'Count:        {iteration} iterations')
         logger.info(f'Duration:     {get_duration_in_milliseconds(total_duration_sec):.2f} ms')

@@ -9,6 +9,7 @@
 #include "kernel_selector_helper.h"
 #include "pooling/pooling_kernel_selector.h"
 #include "pooling/pooling_kernel_base.h"
+#include "ngraph/validation_util.hpp"
 #include <algorithm>
 
 namespace cldnn {
@@ -18,8 +19,8 @@ namespace {
 void validate_args(const pooling_node& arg) {
     auto input_rank = arg.input().get_output_layout().get_spatial_rank();
     auto output_rank = arg.get_output_layout().get_spatial_rank();
-    auto stride_rank = arg.get_primitive()->stride.size();
-    auto window_rank = arg.get_primitive()->size.size();
+    auto stride_rank = std::max(arg.get_primitive()->stride.size(), static_cast<size_t>(2));
+    auto window_rank = std::max(arg.get_primitive()->size.size(), static_cast<size_t>(2));
 
     CLDNN_ERROR_NOT_EQUAL(arg.id(), "input dimensions", input_rank, "output dimensions", output_rank, "");
     CLDNN_ERROR_NOT_EQUAL(arg.id(), "stride dimensions", stride_rank, "output dimensions", output_rank, "");
@@ -93,27 +94,54 @@ public:
             pool_params.poolAxis = primitive->axis;
         }
 
-        const auto& stride = primitive->stride;
-        const auto& pads_begin = primitive->pads_begin;
-        const auto& pads_end = primitive->pads_end;
-
-        const auto& dilation = primitive->dilation;
-        auto kernel = primitive->size;
         const auto& input_layout = impl_param.input_layouts[0];
         const auto& output_layout = impl_param.output_layout;
+
+        auto kernel = primitive->size;
+        auto stride = primitive->stride;
+        auto dilation = primitive->dilation.empty() ? ov::Strides(stride.size(), 1)
+                                                    : primitive->dilation;
+
+        ov::CoordinateDiff pads_begin(primitive->pads_begin.begin(), primitive->pads_begin.end());
+        ov::CoordinateDiff pads_end(primitive->pads_end.begin(), primitive->pads_end.end());
+        auto auto_pad = primitive->auto_pad;
+
+        if (auto_pad == ov::op::PadType::SAME_UPPER || auto_pad == ov::op::PadType::SAME_LOWER) {
+            pads_begin.clear();
+            pads_end.clear();
+            ngraph::try_apply_auto_padding(input_layout.get_partial_shape(),
+                                           kernel,
+                                           stride,
+                                           dilation,
+                                           auto_pad,
+                                           pads_end,
+                                           pads_begin);
+        }
+        if (auto_pad == ov::op::PadType::VALID) {
+            pads_begin = ov::CoordinateDiff(pads_begin.size(), 0);
+            pads_end = ov::CoordinateDiff(pads_end.size(), 0);
+        }
+
         auto spatial_rank = output_layout.get_spatial_rank();
+
+        kernel.resize(std::max<size_t>(2, kernel.size()), 1);
+        stride.resize(std::max<size_t>(2, stride.size()), 1);
+        dilation.resize(std::max<size_t>(2, dilation.size()), 1);
+        pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
+        pads_end.resize(std::max<size_t>(2, pads_end.size()), 0);
 
         auto& pp = pool_params;
 
         pp.poolType = cldnn_2_pool_type(primitive->mode);
-        pp.remainderAction = kernel_selector::pool_remainder::CEIL;
+        pp.remainderAction = primitive->rounding_type == ov::op::RoundingType::CEIL ? kernel_selector::pool_remainder::CEIL
+                                                                                    : kernel_selector::pool_remainder::FLOOR;
 
         // check if last pooling window goes outside of input size + padding. If so the avg pooling size will be
         // adjusted to that, to work properly this calculation must take pad_end into account.
         auto dynamic_mode = false;
         for (size_t i = 0; i < spatial_rank; i++) {
             dynamic_mode |= (((output_layout.spatial(i) - 1) * stride[spatial_rank - i - 1]) + primitive->size[spatial_rank - i - 1]) >
-                                 (pads_end[spatial_rank - i - 1] + pads_begin[spatial_rank - i - 1]) + input_layout.spatial(i);
+                                 static_cast<size_t>(pads_end[spatial_rank - i - 1] + pads_begin[spatial_rank - i - 1] + input_layout.spatial(i));
         }
 
         if (primitive->mode == pooling_mode::average && dynamic_mode)
@@ -158,95 +186,38 @@ public:
 namespace detail {
 
 attach_pooling_impl::attach_pooling_impl() {
-    implementation_map<pooling>::add(impl_types::ocl, pooling_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
+    std::set<implementation_map<resample>::key_type> keys;
 
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f16, format::yxfb),
-        std::make_tuple(data_types::i8, format::yxfb),
-        std::make_tuple(data_types::u8, format::yxfb),
+    auto types = { data_types::f16, data_types::f32, data_types::i8, data_types::u8 };
+    auto formats = { format::bfyx,
+                     format::byxf,
+                     format::yxfb,
+                     format::b_fs_yx_fsv4,
+                     format::b_fs_yx_fsv16,
+                     format::b_fs_yx_fsv32,
+                     format::bs_fs_yx_bsv16_fsv16,
+                     format::bs_fs_yx_bsv16_fsv32,
+                     format::bs_fs_yx_bsv32_fsv16,
+                     format::bs_fs_yx_bsv32_fsv32,
 
-        std::make_tuple(data_types::f32, format::byxf),
-        std::make_tuple(data_types::f16, format::byxf),
-        std::make_tuple(data_types::i8, format::byxf),
-        std::make_tuple(data_types::u8, format::byxf),
+                     format::bfzyx,
+                     format::b_fs_zyx_fsv16,
+                     format::b_fs_zyx_fsv32,
+                     format::bs_fs_zyx_bsv16_fsv16,
+                     format::bs_fs_zyx_bsv16_fsv32,
+                     format::bs_fs_zyx_bsv32_fsv16,
+                     format::bs_fs_zyx_bsv32_fsv32 };
 
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
+    for (const auto type : types) {
+        for (const auto format : formats) {
+            keys.emplace(type, format);
+        }
+    }
 
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
+    keys.emplace(data_types::f16, format::fs_b_yx_fsv32);
+    keys.emplace(data_types::f32, format::fs_b_yx_fsv32);
 
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv32),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv32),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv32),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv32),
-
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
-
-        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
-
-        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv16_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv16_fsv16),
-
-        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv32),
-        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv32),
-        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv16_fsv32),
-        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv16_fsv32),
-
-        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv32_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv32_fsv16),
-
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv4),
-
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
-
-        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv32),
-        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv32),
-        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv32),
-        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv32),
-
-        std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
-        std::make_tuple(data_types::f32, format::fs_b_yx_fsv32),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
-
-        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv32),
-        std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv32),
-        std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv32_fsv32),
-        std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv32_fsv32),
-    });
+    implementation_map<pooling>::add(impl_types::ocl, pooling_impl::create, keys);
 }
 
 }  // namespace detail
