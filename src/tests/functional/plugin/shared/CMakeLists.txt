@@ -55,6 +55,7 @@ addIeTarget(
                 ngraphFunctions
                 lptNgraphFunctions
                 sharedTestClasses
+                gpu_device_name
             PRIVATE
                 openvino::util
                 openvino::runtime::dev

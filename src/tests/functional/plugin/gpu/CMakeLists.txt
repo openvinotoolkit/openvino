@@ -4,6 +4,8 @@
 
 set(TARGET_NAME gpuFuncTests)
 
+ADD_LIBRARY(gpu_device_name shared_tests_instances/set_device_name.cpp)
+
 addIeTargetTest(
         NAME
             ${TARGET_NAME}
