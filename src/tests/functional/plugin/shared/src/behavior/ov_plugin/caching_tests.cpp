@@ -221,7 +221,7 @@ void CompileModelCacheTestBase::run() {
         compare(originalOutputs, get_plugin_outputs());
     }
     if ((targetDevice.find("GPU") != std::string::npos)) {
-        setenv("OV_GPU_MODEL_CACHING", NULL, 1);
+        setenv("OV_GPU_MODEL_CACHING", "", 1);
     }
 }
 
