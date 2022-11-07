@@ -161,19 +161,20 @@ def visit_scrollbox(self, node):
 def depart_scrollbox(self, node):
     self.body.append("</div></div>\n")
 
-def create_scrollbox_component(
-    name: str,
-    classes: Sequence[str] = (),
-    *,
-    rawtext: str = "",
-    children: Sequence[nodes.Node] = (),
-    **attributes,
-) -> nodes.container:
-    node = nodes.container(
-        rawtext, is_div=True, design_component=name, classes=classes, **attributes
-    )
-    node.extend(children)
-    return node
+class Nodescrollbox (nodes.container):
+    def create_scrollbox_component(
+        name: str,
+        classes: Sequence[str] = (),
+        *,
+        rawtext: str = "",
+        children: Sequence[nodes.Node] = (),
+        **attributes,
+    ) -> nodes.container:
+        node = nodes.container(
+            rawtext, is_div=True, design_component=name, classes=classes, **attributes
+        )
+        node.extend(children)
+        return node
 
 #...............................................................................
 #
@@ -278,6 +279,7 @@ class RefCodeBlock(Directive):
         self.add_name(node)
         return [node]
 
+
 class Scrollbox(Directive):
     required_arguments = 0
     optional_arguments = 1
@@ -294,19 +296,19 @@ class Scrollbox(Directive):
 
     def run(self):
         classes = []
-        nodescrollbox = create_scrollbox_component("div", rawtext="\n".join(self.content), classes=classes)
+        node = Nodescrollbox("div", rawtext="\n".join(self.content), classes=classes)
         if 'class' in self.options:
-            nodescrollbox['classes'] = self.options['class']
+            node['classes'] = self.options['class']
         if 'height' in self.options:
-            nodescrollbox['height'] = self.options['height']
+            node['height'] = self.options['height']
         if 'width' in self.options:
-            nodescrollbox['width'] = self.options['width']
+            node['width'] = self.options['width']
         if 'bar' in self.options:
-            nodescrollbox['bar'] = self.options['bar']
-        self.add_name(nodescrollbox)
+            nodes['bar'] = self.options['bar']
+        self.add_name(node)
         if self.content:
-            self.state.nested_parse(self.content, self.content_offset, nodescrollbox)
-        return [nodescrollbox]
+            self.state.nested_parse(self.content, self.content_offset, node)
+        return [node]
 
 
 #...............................................................................
@@ -546,7 +548,7 @@ def setup(app):
         latex=(visit_doxyrest_literalblock_node, depart_doxyrest_literalblock_node)
     )
     app.add_node(
-        Scrollbox.nodescrollbox,
+        Nodescrollbox,
         html=(visit_scrollbox, depart_scrollbox),
         latex=(visit_scrollbox, depart_scrollbox)
     )
