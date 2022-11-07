@@ -45,7 +45,6 @@ class ConvLowPrecisionTest : public testing::WithParamInterface<ConvLowPrecision
 
 
 public:
-    
     static string getTestCaseName(testing::TestParamInfo<ConvLowPrecisionTestParams> obj) {
         InferenceEngine::Precision netPrecision;
         string targetDevice;
@@ -98,7 +97,6 @@ public:
     }
 
 protected:
-
     GnaLayerTestCheck gnaVersionCheck;
 
     void SetUp() override {
@@ -134,7 +132,6 @@ protected:
         function = make_shared<ngraph::Function>(outputFQ, inputVector, "ConvLowPrecision");
 
         gnaVersionCheck.SetUp(targetDevice);
-
     }
 };
 
@@ -145,7 +142,6 @@ TEST_P(ConvLowPrecisionTest, CompareWithRefs) {
 };
 
 TEST_P(ConvLowPrecisionTestLib35, CompareWithRefs) {
-   
     if (gnaVersionCheck.gnaLibVersionLessThan(3.5)) {
         GTEST_SKIP() << "Disabled test due to GNA library version is less than " << 3.5 << std::endl;
         return;
