@@ -178,8 +178,8 @@ std::map<std::string, std::string> parse_value_per_device(const std::vector<std:
             if (it != devices.end()) {
                 result[device_name] = nstreams;
             } else {
-                throw std::logic_error("Can't set nstreams value " + std::string(nstreams) + " for device '" +
-                                       device_name + "'! Incorrect device name!");
+                throw std::logic_error("Can't set nstreams/infer_precision value " + std::string(nstreams) +
+                                       " for device '" + device_name + "'! Not found in device candidate list!");
             }
         } else if (device_value_vec.size() == 1) {
             auto value = device_value_vec.at(0);

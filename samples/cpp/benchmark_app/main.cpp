@@ -439,14 +439,37 @@ int main(int argc, char* argv[]) {
                 auto it_device_infer_precision = device_infer_precision.find(device);
                 if (it_device_infer_precision != device_infer_precision.end()) {
                     // set to user defined value
-                    if (!supported(ov::hint::inference_precision.name())) {
+                    if (supported(ov::hint::inference_precision.name())) {
+                        device_config.emplace(ov::hint::inference_precision(it_device_infer_precision->second));
+                    } else if (device == "MULTI" || device == "AUTO") {
+                        // check if the element contains the hardware device property
+                        auto value_vec = split(it_device_infer_precision->second, ' ');
+                        if (value_vec.size() == 1) {
+                            auto key = ov::hint::inference_precision.name();
+                            device_config[key] = it_device_infer_precision->second;
+                        } else {
+                            // set device nstreams properties in the AUTO/MULTI plugin
+                            std::stringstream strm(it_device_infer_precision->second);
+                            std::map<std::string, std::string> devices_property;
+                            ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
+                            for (auto it : devices_property) {
+                                if (device_config.find(it.first) == device_config.end())
+                                    device_config.insert(
+                                        ov::device::properties(it.first, ov::hint::inference_precision(it.second)));
+                                else {
+                                    auto& property = device_config[it.first].as<ov::AnyMap>();
+                                    property.emplace(ov::hint::inference_precision(it.second));
+                                    device_config.insert(ov::device::properties(it.first, property));
+                                }
+                            }
+                        }
+                    } else {
                         throw std::logic_error("Device " + device + " doesn't support config key '" +
                                                ov::hint::inference_precision.name() + "'! " +
                                                "Please specify -infer_precision for correct devices in format  "
                                                "<dev1>:<infer_precision1>,<dev2>:<infer_precision2>" +
                                                " or via configuration file.");
                     }
-                    device_config.emplace(ov::hint::inference_precision(it_device_infer_precision->second));
                 }
             };
 
@@ -463,10 +486,21 @@ int main(int argc, char* argv[]) {
                 auto property_name = str == "nthreads" ? ov::inference_num_threads.name() : ov::affinity.name();
                 auto property = str == "nthreads" ? ov::inference_num_threads(FLAGS_nthreads)
                                                   : ov::affinity(fix_pin_option(FLAGS_pin));
-                if (supported(property_name) || if_multi) {
+                if (supported(property_name) || device_name == "AUTO") {
+                    // create nthreads/pin primary property for HW device or AUTO if -d is AUTO directly.
                     device_config.emplace(property);
-                } else if (if_auto) {
+                } else if (if_auto || if_multi) {
+                    // create nthreads/pin secondary property setting for each hw device from hw device list if -d
+                    // contains ':' like AUTO:XXX or MULTI:XXX.
                     for (auto& device : hardware_devices) {
+                        auto supported_properties = core.get_property(device, ov::supported_properties);
+                        auto supported = [&](const std::string& key) {
+                            return std::find(std::begin(supported_properties), std::end(supported_properties), key) !=
+                                   std::end(supported_properties);
+                        };
+                        // check if the HW device supported this property
+                        if (!supported(property_name))
+                            continue;
                         if (device_config.find(device) == device_config.end()) {
                             device_config.insert(ov::device::properties(device, property));
                         } else {
@@ -522,8 +556,12 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        for (auto&& item : config) {
-            core.set_property(item.first, item.second);
+        // Property setting should be via the core::compile_model()
+        // rather than core::set_property() if target device is AUTO/MULTI.
+        if (!if_auto && if_multi) {
+            for (auto&& item : config) {
+                core.set_property(item.first, item.second);
+            }
         }
 
         size_t batchSize = FLAGS_b;
@@ -552,7 +590,12 @@ int main(int argc, char* argv[]) {
             next_step();
             slog::info << "Skipping the step for loading network from file" << slog::endl;
             auto startTime = Time::now();
-            compiledModel = core.compile_model(FLAGS_m, device_name);
+            ov::AnyMap properties = {};
+            if (if_auto)
+                properties = config["AUTO"];
+            if (if_multi)
+                properties = config["MULTI"];
+            compiledModel = core.compile_model(FLAGS_m, device_name, properties);
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Load network took " << double_to_string(duration_ms) << " ms" << slog::endl;
             slog::info << "Original network I/O parameters:" << slog::endl;
@@ -735,7 +778,12 @@ int main(int argc, char* argv[]) {
             // --------------------------------------------------------
             next_step();
             startTime = Time::now();
-            compiledModel = core.compile_model(model, device_name);
+            ov::AnyMap properties = {};
+            if (if_auto)
+                properties = config["AUTO"];
+            if (if_multi)
+                properties = config["MULTI"];
+            compiledModel = core.compile_model(model, device_name, properties);
             duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Load network took " << double_to_string(duration_ms) << " ms" << slog::endl;
             if (statistics)
