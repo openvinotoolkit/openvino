@@ -278,12 +278,14 @@ class RefCodeBlock(Directive):
         self.add_name(node)
         return [node]
 
+class Scrollboxnode(nodes.container):
+    pass
+
 class Scrollbox(Directive):
     required_arguments = 0
     optional_arguments = 1
     final_argument_whitespace = True
     option_spec = {
-        'class': "scrollbox",
         'width': directives.length_or_percentage_or_unitless,
         'height': directives.length_or_percentage_or_unitless,
         'style': directives.unchanged,
@@ -294,10 +296,7 @@ class Scrollbox(Directive):
     has_content = True
 
     def run(self):
-        classes = []
-        node = create_scrollbox_component("div", rawtext="\n".join(self.content), classes=classes)
-        if 'class' in self.options:
-            node['classes'] = self.options['class']
+        node = Scrollboxnode
         if 'height' in self.options:
             node['height'] = self.options['height']
         if 'width' in self.options:
@@ -547,8 +546,9 @@ def setup(app):
         latex=(visit_doxyrest_literalblock_node, depart_doxyrest_literalblock_node)
     )
     app.add_node(
-        Scrollbox,
-        nodes.container, override=True, html=(visit_scrollbox, depart_scrollbox)
+        Scrollboxnode,
+        html=(visit_scrollbox, depart_scrollbox),
+        latex=(visit_scrollbox, depart_scrollbox)
     )
 
 
