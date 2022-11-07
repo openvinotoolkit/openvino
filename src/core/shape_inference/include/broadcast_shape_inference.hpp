@@ -107,7 +107,7 @@ void set_result_shape_pdpd(const ov::Node* op,
 
     NODE_VALIDATION_CHECK(op, start_axis >= 0, "Broadcast start_axis must be greater than 0");
 
-    for (size_t i = start_axis; i < target_input_shape.size(); ++i) {
+    for (auto i = start_axis; i < target_input_shape.size(); ++i) {
         const auto& arg_dim = arg0_shape[i - start_axis];
         if (arg_dim == 1) {
             result_shape[i] = target_input_shape[i];
@@ -133,15 +133,14 @@ void set_result_shape_bidirectional(const ov::Node* op, const T& arg_shape, T& t
     }
     auto arg_shape_vec = arg_shape;
 
-    // Add left padding to shorter target or argument shape
-    const auto target_padded_rank = std::max(arg_shape_vec.size(), target_input_shape.size());
+    // Add left padding to the shape with smaller rank, if the ranks are not equal
+    if (arg_shape_vec.size() < target_input_shape.size()) {
+        arg_shape_vec.insert(arg_shape_vec.begin(), target_input_shape.size() - arg_shape_vec.size(), 1);
+    } else {
+        target_input_shape.insert(target_input_shape.begin(), arg_shape_vec.size() - target_input_shape.size(), 1);
+    }
 
-    if (arg_shape_vec.size() < target_padded_rank)
-        arg_shape_vec.insert(arg_shape_vec.begin(), target_padded_rank - arg_shape_vec.size(), 1);
-    else if (target_input_shape.size() < target_padded_rank)
-        target_input_shape.insert(target_input_shape.begin(), target_padded_rank - target_input_shape.size(), 1);
-
-    result_shape.resize(target_padded_rank);
+    result_shape.resize(target_input_shape.size());
 
     for (size_t i = 0; i < target_input_shape.size(); ++i) {
         NODE_VALIDATION_CHECK(op,
