@@ -93,8 +93,8 @@ protected:
     }
 
 public:
-    void save(BinaryOutputBuffer& ob) const override {
-        parent::save(ob);
+    void save(BinaryOutputBuffer& ob, const kernel_impl_params* impl_params = nullptr) const override {
+        parent::save(ob, impl_params);
 
         ob << make_data(&_desc->data, sizeof(dnnl_reduction_desc_t));
 
@@ -103,8 +103,8 @@ public:
         ob << prim_cache;
     }
 
-    void load(BinaryInputBuffer& ib) override {
-        parent::load(ib);
+    void load(BinaryInputBuffer& ib, const kernel_impl_params* impl_params = nullptr) override {
+        parent::load(ib, impl_params);
 
         _desc = std::make_shared<dnnl::reduction::desc>();
         ib >> make_data(&_desc->data, sizeof(dnnl_reduction_desc_t));

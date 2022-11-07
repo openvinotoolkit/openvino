@@ -75,13 +75,13 @@ protected:
     int32_t get_split() const override { return _split; }
 
 public:
-    void save(BinaryOutputBuffer& ob) const override {
-        parent::save(ob);
+    void save(BinaryOutputBuffer& ob, const kernel_impl_params* impl_params = nullptr) const override {
+        parent::save(ob, impl_params);
         ob << _split;
     }
 
-    void load(BinaryInputBuffer& ib) override {
-        parent::load(ib);
+    void load(BinaryInputBuffer& ib, const kernel_impl_params* impl_params = nullptr) override {
+        parent::load(ib, impl_params);
         ib >> _split;
     }
 

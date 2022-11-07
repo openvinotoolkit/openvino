@@ -979,8 +979,8 @@ void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
         convert_args(args, args_idx);
         _impl->set_arguments(args_idx);
 
-        ob << _impl;
         _impl_params->save(ob);
+        _impl->save(ob, _impl_params.get());
 
         ob << _node_output_layout;
         ob << has_mutable_input();
@@ -1101,11 +1101,11 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
         }
     } else if (_object_type == object_type::EXECUTABLE_INST) {
         // primitive_impl
-        _impl.release();
-        ib >> _impl;
         _impl_params.release();
         _impl_params = make_unique<kernel_impl_params>();
         _impl_params->load(ib);
+        _impl.release();
+        _impl->load(ib, _impl_params.get());
 
         ib >> _node_output_layout;
         ib >> _has_mutable_input;

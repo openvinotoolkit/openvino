@@ -24,8 +24,6 @@ struct concatenation_onednn : typed_primitive_onednn_impl<concatenation, void, d
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
 protected:
-    const concatenation_node* _outer;
-
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<concatenation_onednn>(*this);
     }
@@ -49,10 +47,9 @@ protected:
         return args;
     }
 
-    static std::shared_ptr<dnnl::concat::primitive_desc> get_concatenation_descriptor(const kernel_impl_params& impl_params) {
-        auto prim = impl_params.typed_desc<concatenation>();
-
-        auto& engine = impl_params.prog->get_engine();
+    static std::shared_ptr<dnnl::concat::primitive_desc> get_concatenation_descriptor(const kernel_impl_params& impl_params,
+                                                                                      const int64_t axis,
+                                                                                      const cldnn::engine& engine) {
         std::vector<dnnl::memory::desc> input_mds;
         for (size_t i = 0; i < impl_params.input_layouts.size(); i++) {
             input_mds.push_back(onednn::layout_to_memory_desc(impl_params.get_input_layout(i)));
@@ -60,13 +57,13 @@ protected:
         auto output_md = onednn::layout_to_memory_desc(impl_params.output_layout);
         return std::make_shared<dnnl::concat::primitive_desc>(
             output_md,
-            prim->axis,
+            axis,
             input_mds,
             engine.get_onednn_engine());
     }
 
 public:
-    void save(BinaryOutputBuffer& ob) const override {
+    void save(BinaryOutputBuffer& ob, const kernel_impl_params* impl_params = nullptr) const override {
         if (_prim.get(true) == nullptr) {
             ob << false;
             return;
@@ -74,52 +71,29 @@ public:
             ob << true;
         }
 
-        parent::save(ob);
+        parent::save(ob, impl_params);
 
-        ob << _outer->get_dependencies().size();
-        for (auto& input : _outer->get_dependencies()) {
-            ob << input->get_output_layout();
-        }
-        ob << _outer->get_primitive()->axis;
-        ob << _outer->get_output_layout();
+        auto prim = impl_params->typed_desc<concatenation>();
+        ob << prim->axis;
 
         std::vector<uint8_t> prim_cache;
         prim_cache = _prim.get_cache_blob();
         ob << prim_cache;
     }
 
-    void load(BinaryInputBuffer& ib) override {
+    void load(BinaryInputBuffer& ib, const kernel_impl_params* impl_params = nullptr) override {
         bool has_prim;
         ib >> has_prim;
 
         if (!has_prim)
             return;
 
-        parent::load(ib);
-
-        size_t num_deps;
-        ib >> num_deps;
-
-        std::vector<dnnl::memory::desc> input_mds;
-        for (size_t idx = 0; idx < num_deps; ++idx) {
-            layout input_layout = layout(cldnn::data_types::bin, cldnn::format::any, cldnn::tensor());
-            ib >> input_layout;
-            input_mds.push_back(onednn::layout_to_memory_desc(input_layout));
-        }
+        parent::load(ib, impl_params);
 
         int64_t prim_axis;
         ib >> prim_axis;
 
-        layout output_layout = layout(cldnn::data_types::bin, cldnn::format::any, cldnn::tensor());
-        ib >> output_layout;
-        auto output_md = onednn::layout_to_memory_desc(output_layout);
-
-        auto desc = std::make_shared<dnnl::concat::primitive_desc>(
-            output_md,
-            prim_axis,
-            input_mds,
-            ib.get_engine().get_onednn_engine());
-
+        auto desc = get_concatenation_descriptor(*impl_params, prim_axis, ib.get_engine());
         _pd = *desc;
 
         std::vector<uint8_t> prim_cache;
@@ -132,14 +106,13 @@ public:
         auto& engine = impl_params.prog->get_engine();
         if (arg.can_be_optimized())
             return new concatenation_onednn(engine);
-        auto desc = get_concatenation_descriptor(impl_params);
+        auto prim = impl_params.typed_desc<concatenation>();
+        auto desc = get_concatenation_descriptor(impl_params, prim->axis, impl_params.prog->get_engine());
         auto attr = arg.get_onednn_primitive_attributes();
 
         std::shared_ptr<void> dummy = nullptr;
 
-        auto new_impl = new concatenation_onednn(engine, dummy, attr, *desc);
-        new_impl->_outer = &arg;
-        return new_impl;
+        return new concatenation_onednn(engine, dummy, attr, *desc);
     }
 };
 

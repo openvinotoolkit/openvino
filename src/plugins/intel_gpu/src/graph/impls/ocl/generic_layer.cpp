@@ -44,12 +44,12 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
         _kernel_id = arg.get_program().add_kernel(arg.get_primitive()->generic_params.clKernel->code.kernelString);
     }
 
-    void save(BinaryOutputBuffer& ob) const override {
+    void save(BinaryOutputBuffer& ob, const kernel_impl_params* impl_params = nullptr) const override {
         ob <<_cl_kernel_data;
         ob << _kernel_id;
     }
 
-    void load(BinaryInputBuffer& ib) override {
+    void load(BinaryInputBuffer& ib, const kernel_impl_params* impl_params = nullptr) override {
         ib >> _cl_kernel_data;
         ib >> _kernel_id;
     }
