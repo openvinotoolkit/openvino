@@ -20,9 +20,7 @@ def add_openvino_libs_to_path() -> None:
         # looking for the libs in the pip installation path by default.
         openvino_libs = [os.path.join(os.path.dirname(__file__), "libs"),  # find libs for pip installation
                          os.path.join(os.path.dirname(__file__), "..", "..", ".."),  # find libs in bin directory
-                         os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..", "..", "temp", "tbb", "bin"),  # find tbb libs
-                         os.path.join(os.path.dirname(__file__), "..", "..", "..", "runtime", "bin", "intel64", "Release"),  # find libs for installed pkg
-                         os.path.join(os.path.dirname(__file__), "..", "..", "..", "runtime", "3rdparty", "tbb", "bin")]  # find tbb libs for installed pkg
+                         os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..", "..", "temp", "tbb", "bin")]  # find tbb libs
         # setupvars.bat script set all libs paths to OPENVINO_LIB_PATHS environment variable.
         openvino_libs_installer = os.getenv("OPENVINO_LIB_PATHS")
         if openvino_libs_installer:
