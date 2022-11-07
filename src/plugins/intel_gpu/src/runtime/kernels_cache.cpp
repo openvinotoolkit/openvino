@@ -516,7 +516,11 @@ void kernels_cache::save(BinaryOutputBuffer& ob) const {
 
                 precompiled_kernels.push_back(std::move(binary_kernels[0]));
             } catch (const cl::BuildError& err) {
-                std::cout << "+++++ OpenCL build error" << std::endl;
+                std::string err_log = "";
+                for (auto& p : err.getBuildLog()) {
+                    err_log += p.second + '\n';
+                }
+                IE_THROW() << err_log;
             }
         }
     }
@@ -558,7 +562,11 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
             }
         }
     } catch (const cl::BuildError& err) {
-        std::cout << "+++++ OpenCL build error" << std::endl;
+        std::string err_log = "";
+        for (auto& p : err.getBuildLog()) {
+            err_log += p.second + '\n';
+        }
+        IE_THROW() << err_log;
     }
 }
 
