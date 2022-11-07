@@ -680,7 +680,9 @@ mo_convert_params = {
         "Removes the Memory layer and use additional inputs outputs instead", '', '',
         None),
     'compress_to_fp16': ParamDescription(
-        'If original model is in FP32 all model weights and biases are compressed to FP16.', '', '', None),
+        'If original model is in FP32 model weights and biases are compressed to FP16, '
+        'except for const values which do not fit in FP16 range. '
+        'All intermediate data is kept in original precision.', '', '', None),
     'help': ParamDescription(
         'Print available parameters.', '', '', None),
 }
@@ -986,9 +988,10 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               default=())
     # TODO: isn't it a weights precision type
     common_group.add_argument('--data_type',
-                              help='[DEPRECATED] Data type for all intermediate tensors and weights. '
+                              help='[DEPRECATED] Data type for model weights and biases. '
                                    'If original model is in FP32 and --data_type=FP16 is specified, '
-                                   'all model weights and biases are compressed to FP16.',
+                                   'model weights and biases are compressed to FP16, except for const values which '
+                                   'do not fit in FP16 range. All intermediate data is kept in original precision.',
                               choices=["FP16", "FP32", "half", "float"],
                               default='float',
                               action=DeprecatedOptionCommon)
