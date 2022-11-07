@@ -226,10 +226,78 @@ pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
     register_matcher(m, matcher_pass_callback);
 }
 
-pass::TransposeSinkingElementwiseForward::TransposeSinkingElementwiseForward() {
-    MATCHER_SCOPE(TransposeSinkingElementwiseForward);
+namespace sink_forward {
 
-    auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic, Concat, Split>(
+// insert input reversed transposes, remove first input tranpose
+void UpdateInputTransposes(NodePtr main_node, TransposeInputsInfo & transpose_input_info) {
+    const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
+    const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
+    const size_t tranpose_input_index = transpose_input_info.input_idx;
+    const auto transpose_element_type = transpose_input_info.transpose_const->get_element_type();
+
+    for (size_t i = 0; i < main_node->get_input_size(); ++i) {
+        auto input_node = main_node->input_value(i);
+        if (i == tranpose_input_index) {
+            auto transpose_parent = input_node.get_node()->input_value(0);
+            main_node->input(i).replace_source_output(transpose_parent);
+        } else {
+            auto new_transpose_const = std::make_shared<Constant>(transpose_element_type,
+                                                                  Shape{reversed_traspose_axis_order.size()},
+                                                                  reversed_traspose_axis_order);
+            auto new_transpose = std::make_shared<Transpose>(input_node, new_transpose_const);
+
+            main_node->input(i).replace_source_output(new_transpose->output(0));
+
+            copy_runtime_info(input_node.get_node_shared_ptr(), {new_transpose, new_transpose_const});
+        }
+    }
+}
+
+void RemoveZeroInputNode(NodePtr main_node, TransposeInputsInfo & transpose_input_info) {
+    auto input_node = main_node->input_value(0);
+    auto transpose_parent = input_node.get_node()->input_value(0);
+    main_node->input(0).replace_source_output(transpose_parent);
+}
+
+std::vector<NodePtr> InsertOutputTransposes(NodePtr main_node, TransposeInputsInfo & transpose_input_info) {
+    const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
+    const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
+    const auto transpose_element_type = transpose_input_info.transpose_const->get_element_type();
+
+    std::vector<NodePtr> new_nodes;
+
+    for (size_t i = 0; i < main_node->get_output_size(); ++i) {
+        auto main_node_consumers = main_node->output(i).get_target_inputs();
+
+        auto new_transpose_const = std::make_shared<Constant>(transpose_element_type,
+                                                              Shape{transpose_axis_order.size()},
+                                                              transpose_axis_order);
+        auto new_transpose = std::make_shared<Transpose>(main_node->output(i), new_transpose_const);
+
+        for (auto& consumer : main_node_consumers) {
+            consumer.replace_source_output(new_transpose);
+        }
+
+        copy_runtime_info(main_node, {new_transpose, new_transpose_const});
+        SwapOutputNames(main_node->output(i), new_transpose->output(0));
+
+        if (main_node->get_output_size() > 1)
+            new_transpose->set_friendly_name(main_node->get_friendly_name() + "." + std::to_string(i));
+        else
+            SwapFriendlyNames(new_transpose, main_node);
+
+        new_nodes.push_back(new_transpose);
+    }
+
+    return new_nodes;
+}
+
+} // namespace sink_forward
+
+pass::TransposeSinkingBinaryElementwiseForward::TransposeSinkingBinaryElementwiseForward() {
+    MATCHER_SCOPE(TransposeSinkingBinaryElementwiseForward);
+
+    auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic>(
         IfNodeHasTransposeInputs);
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
@@ -237,74 +305,79 @@ pass::TransposeSinkingElementwiseForward::TransposeSinkingElementwiseForward() {
 
         auto& main_node_output = pattern_to_output.at(main_node_label);
         auto main_node = main_node_output.get_node_shared_ptr();
-        auto split_node = as_type_ptr<Split>(main_node);
 
         TransposeInputsInfo transpose_input_info = GetFirstTransposeInput(main_node);
 
+        sink_forward::UpdateInputTransposes(main_node, transpose_input_info);
+        for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
+            register_new_node(new_node);
+        }
+
+        return true;
+    };
+
+    auto m = std::make_shared<Matcher>(main_node_label, matcher_name);
+    register_matcher(m, matcher_pass_callback);
+}
+
+pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
+    MATCHER_SCOPE(TransposeSinkingConcatForward);
+
+    auto main_node_label = wrap_type<Concat>(IfNodeHasTransposeInputs);
+
+    matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
+        const auto& pattern_to_output = m.get_pattern_value_map();
+
+        auto& main_node_output = pattern_to_output.at(main_node_label);
+        auto main_node = main_node_output.get_node_shared_ptr();
+
+        TransposeInputsInfo transpose_input_info = GetFirstTransposeInput(main_node);
+
+        sink_forward::UpdateInputTransposes(main_node, transpose_input_info);
+        for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
+            register_new_node(new_node);
+        }
+
+        auto concat_node = as_type_ptr<Concat>(main_node);
         const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
-        const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
-        const size_t tranpose_input_index = transpose_input_info.input_idx;
-        const auto transpose_element_type = transpose_input_info.transpose_const->get_element_type();
+        const int64_t transposed_concat_axis = transpose_axis_order[concat_node->get_axis()];
+        concat_node->set_concatenation_axis(transposed_concat_axis);
 
-        // insert input reversed transposes, remove first input tranpose
-        for (size_t i = 0; i < main_node->get_input_size(); ++i) {
-            if (split_node && i == 1)
-                continue;
-            auto input_node = main_node->input_value(i);
-            if (i == tranpose_input_index) {
-                auto transpose_parent = input_node.get_node()->input_value(0);
-                main_node->input(i).replace_source_output(transpose_parent);
-            } else {
-                auto new_transpose_const =
-                    std::make_shared<Constant>(transpose_element_type,
-                                                           Shape{reversed_traspose_axis_order.size()},
-                                                           reversed_traspose_axis_order);
-                auto new_transpose = std::make_shared<Transpose>(input_node, new_transpose_const);
+        return true;
+    };
 
-                main_node->input(i).replace_source_output(new_transpose->output(0));
+    auto m = std::make_shared<Matcher>(main_node_label, matcher_name);
+    register_matcher(m, matcher_pass_callback);
+}
 
-                copy_runtime_info(input_node.get_node_shared_ptr(), {new_transpose, new_transpose_const});
-            }
+pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
+    MATCHER_SCOPE(TransposeSinkingSplitForward);
+
+    auto main_node_label = wrap_type<Split>(IfNodeHasTransposeInputs);
+
+    matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
+        const auto& pattern_to_output = m.get_pattern_value_map();
+
+        auto& main_node_output = pattern_to_output.at(main_node_label);
+        auto main_node = main_node_output.get_node_shared_ptr();
+
+        TransposeInputsInfo transpose_input_info = GetFirstTransposeInput(main_node);
+
+        sink_forward::RemoveZeroInputNode(main_node, transpose_input_info);
+        for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
+            register_new_node(new_node);
         }
 
-        // insert output transposes
-        for (size_t i = 0; i < main_node->get_output_size(); ++i) {
-            auto main_node_consumers = main_node->output(i).get_target_inputs();
-
-            auto new_transpose_const = std::make_shared<Constant>(transpose_element_type,
-                                                                              Shape{transpose_axis_order.size()},
-                                                                              transpose_axis_order);
-            auto new_transpose = std::make_shared<Transpose>(main_node->output(i), new_transpose_const);
-
-            for (auto& consumer : main_node_consumers) {
-                consumer.replace_source_output(new_transpose);
-            }
-
-            copy_runtime_info(main_node, {new_transpose, new_transpose_const});
-            SwapOutputNames(main_node->output(i), new_transpose->output(0));
-
-            if (main_node->get_output_size() > 1)
-                new_transpose->set_friendly_name(main_node->get_friendly_name() + "." + std::to_string(i));
-            else
-                SwapFriendlyNames(new_transpose, main_node);
-
-            register_new_node(new_transpose);
-        }
-
-        // update axis if Concat or Split
-        if (split_node) {
-            auto split_axis_constant =
+        const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
+        auto split_node = as_type_ptr<Split>(main_node);
+        auto split_axis_constant =
                 as_type_ptr<Constant>(split_node->input_value(1).get_node_shared_ptr());
-            const size_t split_axis = split_axis_constant->get_axis_vector_val()[0];
-            const size_t transposed_split_axis =  transpose_axis_order[split_axis];
-            auto new_split_axis_const = std::make_shared<Constant>(split_axis_constant->get_element_type(),
+        const size_t split_axis = split_axis_constant->get_axis_vector_val()[0];
+        const size_t transposed_split_axis = transpose_axis_order[split_axis];
+        auto new_split_axis_const = std::make_shared<Constant>(split_axis_constant->get_element_type(),
                                                                                Shape{},
                                                                                transposed_split_axis);
-            split_node->input(1).replace_source_output(new_split_axis_const);
-        } else if (auto concat_node = as_type_ptr<Concat>(main_node)) {
-            const int64_t transposed_concat_axis = transpose_axis_order[concat_node->get_axis()];
-            concat_node->set_concatenation_axis(transposed_concat_axis);
-        }
+        split_node->input(1).replace_source_output(new_split_axis_const);
 
         return true;
     };

@@ -297,7 +297,7 @@ TEST_P(TransposeSinkingBinaryTestFixture, CompareFunctions) {
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingBinaryForwardTestSuite, TransposeSinkingBinaryTestFixture,
                          ::testing::Combine(::testing::ValuesIn(binary_factories),
-                                            ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingElementwiseForward>()),
+                                            ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingBinaryElementwiseForward>()),
                                             ::testing::ValuesIn(binary_operations_numbers),
                        ::testing::Values(binary::single_consumer::forward::one_input_transpose::CreateFunction),
                        ::testing::Values(binary::single_consumer::forward::one_input_transpose::CreateReferenceFunction),
@@ -351,7 +351,7 @@ INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingBinaryTwoTransposeInputsForwardTestSuite,
     TransposeSinkingBinaryTwoTransposeInputsTestFixture,
     ::testing::Combine(::testing::ValuesIn(binary_factories),
-                       ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingElementwiseForward>()),
+                       ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingBinaryElementwiseForward>()),
                        ::testing::ValuesIn(binary_operations_numbers),
                        ::testing::Values(binary::single_consumer::forward::double_transpose::CreateFunction),
                        ::testing::Values(binary::single_consumer::forward::double_transpose::CreateReferenceFunction),
@@ -606,7 +606,7 @@ TEST_P(TransposeSinkingConcatTestFixture, CompareFunctions) {
 }
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatForwardTestSuite, TransposeSinkingConcatTestFixture,
-                         ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingElementwiseForward>()),
+                         ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingConcatForward>()),
                                             ::testing::ValuesIn(concat_operations_numbers),
                        ::testing::Values(concat::single_consumer::forward::one_input_transpose::CreateFunction),
                        ::testing::Values(concat::single_consumer::forward::one_input_transpose::CreateReferenceFunction),
@@ -662,7 +662,7 @@ TEST_P(TransposeSinkingConcatAllTransposesInputTestFixture, CompareFunctions) {
 INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingConcatForwardAllTransposesTestSuite,
     TransposeSinkingConcatAllTransposesInputTestFixture,
-    ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingElementwiseForward>()),
+    ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingConcatForward>()),
                        ::testing::ValuesIn(concat_operations_numbers),
                        ::testing::Values(concat::single_consumer::forward::double_transpose::CreateFunction),
                        ::testing::Values(concat::single_consumer::forward::double_transpose::CreateReferenceFunction),
@@ -778,7 +778,7 @@ TEST_P(TransposeSinkingSplitForwardTestFixture, CompareFunctions) {
 INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingSplitForwardTestSuite,
     TransposeSinkingSplitForwardTestFixture,
-    ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingElementwiseForward>()),
+    ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingSplitForward>()),
                        ::testing::ValuesIn(split_operations_numbers),
                        ::testing::ValuesIn(split_outputs_numbers),
                        ::testing::Values(split::forward::CreateFunction),
