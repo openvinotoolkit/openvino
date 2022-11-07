@@ -15,6 +15,7 @@
 
 /**
  * @brief property key
+ * @ingroup ov_property_c_api
  */
 
 //!< Read-only property<string> to get a string list of supported read-only properties.
@@ -145,13 +146,3 @@ OPENVINO_C_VAR(const char*) ov_property_key_enable_profiling;
 //!    "GPU,CPU"
 //!  Note: CPU plugin is not implement.
 OPENVINO_C_VAR(const char*) ov_property_key_device_priorities;
-
-// Property
-/**
- * @defgroup Property Property
- * @ingroup openvino_c
- * Set of functions representing of Property.
- * @{
- */
-
-/** @} */  // end of Property

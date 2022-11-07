@@ -12,19 +12,16 @@
 
 #include "openvino/c/ov_dimension.h"
 
-typedef ov_dimension_t ov_rank_t;
-
-// Rank
 /**
- * @defgroup rank rank
- * @ingroup openvino_c
- * Set of functions representing of rank.
- * @{
+ * @struct ov_rank_t
+ * @ingroup ov_rank_c_api
+ * @brief type define ov_rank_t from ov_dimension_t
  */
+typedef ov_dimension_t ov_rank_t;
 
 /**
  * @brief Check this rank whether is dynamic
- * @ingroup rank
+ * @ingroup ov_rank_c_api
  * @param rank The rank pointer that will be checked.
  * @return bool The return value.
  */
