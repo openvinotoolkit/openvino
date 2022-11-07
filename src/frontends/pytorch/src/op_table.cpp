@@ -20,7 +20,7 @@ OP_CONVERTER(translate_if);
 OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_slice);
 OP_CONVERTER(translate_transpose);
-OP_CONVERTER(translate_aten_to);
+OP_CONVERTER(translate_to);
 
 OutputVector translate_add(NodeContext& context) {
     auto rhs = context.get_input(1);
@@ -370,7 +370,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
              return {context.mark_node(std::make_shared<opset8::Convert>(context.get_input(0), element::i64))};
          }},
 
-        {"aten::to", op::translate_aten_to},
+        {"aten::to", op::translate_to},
 
         {"aten::permute", translate_1to1_match_2_inputs<opset8::Transpose>},
 

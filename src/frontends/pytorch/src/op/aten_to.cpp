@@ -14,19 +14,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-const std::map<int, element::Type> type_map{
-    {0, element::u8},
-    {1, element::i8},
-    {2, element::i16},
-    {3, element::i32},
-    {4, element::i64},
-    {5, element::f16},
-    {6, element::f32},
-    {7, element::f64},
-};
-
-
-OutputVector translate_aten_to(NodeContext& context) {
+OutputVector translate_to(NodeContext& context) {
     int dtype_idx;
     int non_blocking_idx;
     int copy_idx;
@@ -49,24 +37,29 @@ OutputVector translate_aten_to(NodeContext& context) {
     } else {
         FRONT_END_OP_CONVERSION_CHECK(false, "Unknown aten::to format");
     }
-    // TODO: do we need to check these inputs?
-    // OV_FRONTEND_REQUIRE(context.const_input<bool>(non_blocking_idx) == false);
-    // OV_FRONTEND_REQUIRE(context.const_input<bool>(copy_idx) == false);
-    // OV_FRONTEND_REQUIRE(context.input_is_none(memory_format_idx));
+    // non_blocking_idx=True allows asynchronous data transfers to reduce the execution time
+    FRONT_END_OP_CONVERSION_CHECK(
+        context.input_is_none(non_blocking_idx) || context.const_input<bool>(non_blocking_idx) == false,
+        "aten::to translation do not support non_blocking attribute");
+    // when copy=True is set, new Tensor is created
+    FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(copy_idx) || context.const_input<bool>(copy_idx) == false,
+                                "aten::to translation do not support copy attribute");
+    // memory_format_idx sets the desired memory format of returned Tensor.
+    FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(memory_format_idx),
+                                "aten::to translation do not support memory_format attribute");
     auto dtype_ext_node = context.get_input_from_visible_context(dtype_idx).get_node_shared_ptr();
-    auto dtype_tensor = context.get_input(dtype_idx);
-    auto dtype_fw_node = std::dynamic_pointer_cast<PtFrameworkNode>(dtype_tensor.get_node_shared_ptr());
+    auto dtype_fw_node = std::dynamic_pointer_cast<PtFrameworkNode>(dtype_ext_node);
     Output<Node> cast;
     if (dtype_fw_node && dtype_fw_node->get_op_type() == "prim::dtype") {
-        auto type_input = dtype_fw_node->input(0).get_source_output();
+        auto type_input = dtype_fw_node->input_value(0);
         cast = context.mark_node(std::make_shared<opset8::ConvertLike>(context.get_input(0), type_input));
-    } else if (std::dynamic_pointer_cast<opset8::Constant>(dtype_ext_node)) {
-        auto pt_type = context.const_input<int64_t>(dtype_idx);
-        FRONT_END_OP_CONVERSION_CHECK(op::type_map.count(pt_type), "Unknown type in aten::to: ", pt_type);
-        auto dtype = type_map.at(pt_type);
+    } else if (const auto dtype_const = std::dynamic_pointer_cast<opset8::Constant>(dtype_ext_node)) {
+        auto pt_type = dtype_const->cast_vector<int64_t>()[0];
+        FRONT_END_OP_CONVERSION_CHECK(TORCH_TO_OV_TYPE.count(pt_type), "Unknown type in aten::to: ", pt_type);
+        auto dtype = TORCH_TO_OV_TYPE.at(pt_type);
         cast = context.mark_node(std::make_shared<opset8::Convert>(context.get_input(0), dtype));
     } else {
-        cast = context.mark_node(std::make_shared<opset8::ConvertLike>(context.get_input(0), dtype_tensor));
+        cast = context.mark_node(std::make_shared<opset8::ConvertLike>(context.get_input(0), context.get_input(1)));
     }
     return {cast};
 }
@@ -75,4 +68,3 @@ OutputVector translate_aten_to(NodeContext& context) {
 }  // namespace pytorch
 }  // namespace frontend
 }  // namespace ov
-
