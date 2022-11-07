@@ -18,7 +18,8 @@ TEST(attributes, grid_sample_defaults) {
     const auto grid = make_shared<opset9::Parameter>(element::f32, Shape{1, 5, 5, 2});
 
     const auto op = make_shared<opset9::GridSample>(data, grid, opset9::GridSample::Attributes{});
-    NodeBuilder builder(op);
+    NodeBuilder builder(op, {data, grid});
+    EXPECT_NO_THROW(auto g_op = ov::as_type_ptr<opset9::GridSample>(builder.create()));
 
     const auto expected_attr_count = 3;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

@@ -388,8 +388,8 @@ def print_perf_counters(perf_counts_list):
                                                                 f"{'execType: ' + pi.exec_type:<20}")
             total_time += pi.real_time
             total_time_cpu += pi.cpu_time
-        print(f'Total time:     {(total_time // timedelta(microseconds=1)) / 1000.0} milliseconds')
-        print(f'Total CPU time: {(total_time_cpu // timedelta(microseconds=1)) / 1000.0} milliseconds\n')
+        print(f'Total time:     {(total_time // timedelta(microseconds=1)) / 1000.0} seconds')
+        print(f'Total CPU time: {(total_time_cpu // timedelta(microseconds=1)) / 1000.0} seconds\n')
 
 
 def get_command_line_arguments(argv):
