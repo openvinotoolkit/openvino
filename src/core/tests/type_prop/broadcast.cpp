@@ -15,7 +15,6 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
-using namespace op;
 using namespace testing;
 
 // Because v3::Broadcast is backward compatible to v1::Broadcast all v1::Broadcast tests should pass
@@ -927,10 +926,10 @@ TEST(type_prop, broadcast_v3_default_constructor) {
 
     auto op = make_shared<op::v3::Broadcast>();
 
-    EXPECT_EQ(op->get_broadcast_spec().m_type, BroadcastType::NUMPY);
+    EXPECT_EQ(op->get_broadcast_spec().m_type, op::BroadcastType::NUMPY);
 
-    op->set_broadcast_spec(BroadcastType::BIDIRECTIONAL);
-    EXPECT_EQ(op->get_broadcast_spec().m_type, BroadcastType::BIDIRECTIONAL);
+    op->set_broadcast_spec(op::BroadcastType::BIDIRECTIONAL);
+    EXPECT_EQ(op->get_broadcast_spec().m_type, op::BroadcastType::BIDIRECTIONAL);
 
     op->set_argument(0, param);
     op->set_argument(1, target_shape);
@@ -955,7 +954,7 @@ TEST(type_prop, broadcast_v3_labels_in0_dynamic_mixed_dims_bidirectional) {
     PartialShape pshape_b{-1, 2, {3, 9}, 1, {3, 9}, -1, {1, 9}, -1, {3, 19}, {1, 10}};
 
     PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, -1, -1, {3, 19}, {4, 18}};
-    std::vector<size_t> expected_labels{10, 11, 0, 13, 0, 15, 16, 17, 0, 19};
+    std::vector<size_t> expected_labels{10, 11, ov::no_label, 13, ov::no_label, 15, 16, 17, ov::no_label, 19};
 
     set_shape_labels(pshape_a, {10, 11, 12, 13, 14, 15, 16, 17, 18, 19});
 
@@ -977,7 +976,7 @@ TEST(type_prop, broadcast_v3_labels_in1_dynamic_mixed_dims_bidirectional) {
     PartialShape pshape_b{-1, 2, {3, 9}, 1, {3, 9}, -1, {1, 9}, -1, {3, 19}, {1, 10}};
 
     PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, -1, -1, {3, 19}, {4, 18}};
-    std::vector<size_t> expected_labels{10, 11, 12, 0, 14, 0, 16, 17, 18, 0};
+    std::vector<size_t> expected_labels{10, 11, 12, ov::no_label, 14, ov::no_label, 16, 17, 18, ov::no_label};
 
     set_shape_labels(pshape_b, {10, 11, 12, 13, 14, 15, 16, 17, 18, 19});
 
@@ -999,7 +998,7 @@ TEST(type_prop, broadcast_v3_labels_different_dynamic_mixed_dims_broadcast_bidir
     PartialShape pshape_b{-1, 2, {3, 9}, 1, {3, 9}, -1, {1, 9}, -1, {3, 19}, {1, 10}};
 
     PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, -1, -1, {3, 19}, {4, 18}};
-    std::vector<size_t> expected_labels{0, 21, 22, 13, 24, 15, 0, 0, 28, 19};
+    std::vector<size_t> expected_labels{ov::no_label, 21, 22, 13, 24, 15, ov::no_label, ov::no_label, 28, 19};
 
     set_shape_labels(pshape_a, {10, 11, 12, 13, 14, 15, 16, 17, 18, 19});
     set_shape_labels(pshape_b, {20, 21, 22, 23, 24, 25, 26, 27, 28, 29});
@@ -1024,8 +1023,8 @@ TEST(type_prop, broadcast_v3_labels_same_dynamic_mixed_dims_broadcast_bidirectio
     PartialShape expected_shape = {-1, 2, {3, 9}, {4, 8}, {3, 9}, {4, 8}, -1, -1, {3, 19}, {4, 18}};
     std::vector<size_t> expected_labels{10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
 
-    set_shape_labels(pshape_a, {10, 11, 12, 13, 14, 15, 16, 17, 18, 19});
-    set_shape_labels(pshape_b, {10, 11, 12, 13, 14, 15, 16, 17, 18, 19});
+    set_shape_labels(pshape_a, expected_labels);
+    set_shape_labels(pshape_b, expected_labels);
 
     auto data = std::make_shared<op::Parameter>(element::f32, pshape_a);
     auto target_shape = std::make_shared<op::Parameter>(element::f32, pshape_b);
@@ -1039,7 +1038,7 @@ TEST(type_prop, broadcast_v3_labels_same_dynamic_mixed_dims_broadcast_bidirectio
     EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
 }
 
-TEST(type_prop, broadcast_v3_labels_dynamic_mixed_dims_numpy) {
+TEST(type_prop, broadcast_v3_non_broadcastable_dims_numpy) {
     // Numpy mode for v3::Broadcast mode is one directional
     PartialShape pshape_a{{4, 8}, {2, 4}};
     PartialShape pshape_b{{1}, {5, 6}};
@@ -1064,8 +1063,6 @@ TEST(type_prop, broadcast_v3_labels_in0_dynamic_mixed_dims_numpy) {
     PartialShape pshape_b{-1, 2, {3, 9}, {4, 10}, -1, {5, 11}, -1, {6, 20}, {1, 10}};
 
     PartialShape expected_shape = {-1, 2, {3, 9}, {4, 10}, -1, {5, 11}, -1, {6, 20}, {1, 10}};
-    // Output shape is a copy of the target shape value, the `A` labels are not propagated
-    std::vector<size_t> expected_labels{0, 0, 0, 0, 0, 0, 0, 0, 0};
 
     set_shape_labels(pshape_a, {10, 11, 12, 13, 14, 15, 16, 17, 18});
 
@@ -1076,9 +1073,9 @@ TEST(type_prop, broadcast_v3_labels_in0_dynamic_mixed_dims_numpy) {
     auto op = make_shared<op::v3::Broadcast>(data, shape_of, "NUMPY");
 
     const auto out_shape = op->get_output_partial_shape(0);
-
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+    // Output shape is a copy of the target shape value, the `A` labels are not propagated
+    EXPECT_THAT(get_shape_labels(out_shape), Each(ov::no_label));
 }
 
 TEST(type_prop, broadcast_v3_labels_in1_dynamic_mixed_dims_numpy) {
