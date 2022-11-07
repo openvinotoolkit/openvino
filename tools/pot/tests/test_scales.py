@@ -215,7 +215,6 @@ def aggregate_fq_statistics(fq_list):
                 min_levels = min_levels.reshape(min_levels.shape[1])
                 max_levels = max_levels.reshape(max_levels.shape[1])
 
-        print(fq_name, 'max_levels', max_levels)
         min_levels = make_list(min_levels)
         max_levels = make_list(max_levels)
         model_values[fq_name] = {'max': max_levels, 'min': min_levels}
