@@ -49,6 +49,7 @@ if [ -f /etc/lsb-release ]; then
             unzip \
             shellcheck \
             patchelf \
+            fdupes \
             lintian \
             file \
             gzip \
