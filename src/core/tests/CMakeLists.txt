@@ -172,6 +172,7 @@ set(SRC
     type_prop/if.cpp
     type_prop/interpolate.cpp
     type_prop/irdft.cpp
+    type_prop/is_finite.cpp
     type_prop/is_inf.cpp
     type_prop/is_nan.cpp
     type_prop/logical_and.cpp
@@ -262,6 +263,7 @@ set(SRC
     type_prop/top_k.cpp
     type_prop/transpose.cpp
     type_prop/unary_elementwise.cpp
+    type_prop/unique.cpp
     type_prop/unsqueeze.cpp
     type_prop/variadic_split.cpp
     type_prop_layers.cpp
@@ -269,6 +271,7 @@ set(SRC
     visitors/dimension.cpp
     visitors/user_op.cpp
     visitors/value_map.cpp
+    visitors/op/abs.cpp
     visitors/op/acos.cpp
     visitors/op/acosh.cpp
     visitors/op/adaptive_avg_pool.cpp
@@ -287,6 +290,7 @@ set(SRC
     visitors/op/bucketize.cpp
     visitors/op/ceiling.cpp
     visitors/op/clamp.cpp
+    visitors/op/concat.cpp
     visitors/op/constant.cpp
     visitors/op/convert.cpp
     visitors/op/convert_color_i420.cpp
@@ -379,6 +383,7 @@ set(SRC
     visitors/op/proposal.cpp
     visitors/op/psroi_pooling.cpp
     visitors/op/random_uniform.cpp
+    visitors/op/range.cpp
     visitors/op/rdft.cpp
     visitors/op/read_value.cpp
     visitors/op/reduce_l1.cpp
@@ -429,8 +434,10 @@ set(SRC
     visitors/op/tan.cpp
     visitors/op/tanh.cpp
     visitors/op/tensor_iterator.cpp
+    visitors/op/tile.cpp
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
+    visitors/op/unique.cpp
     visitors/op/unsqueeze.cpp
     visitors/op/variadic_split.cpp
     uint4.cpp

@@ -22,6 +22,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4250)
     # '<': signed/unsigned mismatch
     ie_add_compiler_flags(/wd4018)
+    ie_add_compiler_flags(/wd4309)
 endif()
 
 if (WIN32)
@@ -74,6 +75,7 @@ target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/sr
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
     $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
+target_compile_definitions(${TARGET_NAME} PRIVATE $<$<CONFIG:Debug>:DNNL_ENABLE_EXCEPTIONS>)
 
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk

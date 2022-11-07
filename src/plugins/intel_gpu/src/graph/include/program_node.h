@@ -36,58 +36,6 @@ struct typed_program_node;
 class json_composite;
 class xml_composite;
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
-enum class onednn_post_op_type : uint32_t {
-    eltwise_act,
-    eltwise_clip,
-    eltwise_linear,
-    eltwise_round,
-    binary_mul,
-    binary_add,
-    binary_max,
-    binary_min,
-    binary_relu,
-    scale,
-    sum,
-    optimized,
-    optimized_eltwise_act,
-    optimized_eltwise_clip,
-    optimized_eltwise_linear,
-    optimized_eltwise_round,
-    optimized_sum
-};
-
-static inline std::ostream& operator<< (std::ostream& os, onednn_post_op_type& t) {
-    switch (t) {
-        case onednn_post_op_type::eltwise_act: os << "eltwise_act"; break;
-        case onednn_post_op_type::eltwise_clip: os << "eltwise_clip"; break;
-        case onednn_post_op_type::eltwise_linear: os << "eltwise_linear"; break;
-        case onednn_post_op_type::eltwise_round: os << "eltwise_round"; break;
-        case onednn_post_op_type::binary_mul: os << "binary_mul"; break;
-        case onednn_post_op_type::binary_add: os << "binary_add"; break;
-        case onednn_post_op_type::binary_max: os << "binary_max"; break;
-        case onednn_post_op_type::binary_min: os << "binary_min"; break;
-        case onednn_post_op_type::binary_relu: os << "binary_relu"; break;
-        case onednn_post_op_type::scale: os << "scale"; break;
-        case onednn_post_op_type::sum: os << "sum"; break;
-        case onednn_post_op_type::optimized: os << "optimized"; break;
-        case onednn_post_op_type::optimized_eltwise_act: os << "optimized_eltwise_act"; break;
-        case onednn_post_op_type::optimized_eltwise_clip: os << "optimized_eltwise_clip"; break;
-        case onednn_post_op_type::optimized_eltwise_linear: os << "optimized_eltwise_linear"; break;
-        case onednn_post_op_type::optimized_eltwise_round: os << "optimized_eltwise_round"; break;
-        case onednn_post_op_type::optimized_sum: os << "optimized_sum"; break;
-        default: os << "invalid";
-    }
-    return os;
-}
-
-struct fused_primitive_desc_onednn {
-    onednn_post_op_type op_type; // onednn post-operation type
-    size_t mem_offset;           // index of a memory buffer for current post-operation
-    size_t mem_dep;              // memory dependency for working with fused node
-};
-#endif // ENABLE_ONEDNN_FOR_GPU
-
 /*
     Base class for all primitives which wraps API class and extends it to be used
     in graph context.
@@ -154,6 +102,9 @@ public:
                 break;
             }
         }
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        params->fused_desc_onednn = get_fused_primitives_onednn();
+#endif // ENABLE_ONEDNN_FOR_GPU
         return params;
     }
 
@@ -197,6 +148,9 @@ public:
 
     void remove_dependency(size_t idx);
     void remove_dependency(program_node& node);
+
+    size_t get_dependency_index(program_node& node) const;
+    size_t get_user_index(program_node& node) const;
 
     std::set<primitive_id> get_memory_dependencies() const;
     void add_memory_dependency(primitive_id);
@@ -419,10 +373,18 @@ public:
         cur_id = 0;
     }
 
-    format::type get_required_input0() const { return required_input0; }
-    format::type get_required_output() const { return required_output; }
-    void set_required_input0(format::type type) { required_input0 = type; }
-    void set_required_output(format::type type) { required_output = type; }
+    std::vector<format::type> get_preferred_input_fmts() const { return preferred_input_fmts; }
+    std::vector<format::type> get_preferred_output_fmts() const { return preferred_output_fmts; }
+    format::type get_preferred_input_fmt(size_t idx = 0) const {
+        return (idx < preferred_input_fmts.size()) ? preferred_input_fmts.at(idx) : format::any;
+    }
+    format::type get_preferred_output_fmt(size_t idx = 0) const {
+        return (idx < preferred_output_fmts.size()) ? preferred_output_fmts.at(idx) : format::any;
+    }
+
+    void init_preferred_fmt(size_t dep_size, size_t user_size);
+    void set_preferred_input_fmt(size_t idx, format::type type);
+    void set_preferred_output_fmt(size_t idx, format::type type);
 
 
 protected:
@@ -437,8 +399,8 @@ protected:
     bool valid_output_layout = false;
     layout output_layout = layout(data_types::f32, format::bfyx, tensor());
 
-    format::type required_input0;
-    format::type required_output;
+    std::vector<format::type> preferred_input_fmts;
+    std::vector<format::type> preferred_output_fmts;
 
     std::vector<program_node*> dependencies;
     std::vector<std::pair<program_node*, int>> dependencies_new;
@@ -536,7 +498,7 @@ template <class PType>
 struct typed_program_node : public typed_program_node_base<PType> {
     using typed_program_node_base<PType>::typed_program_node_base;
 
-    program_node& input() const { return program_node::get_dependency(0); }
+    program_node& input(size_t index = 0) const { return program_node::get_dependency(index); }
 };
 
 }  // namespace cldnn
