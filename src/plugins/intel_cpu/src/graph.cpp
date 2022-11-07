@@ -87,8 +87,6 @@ void Graph::CreateGraph(NET &net, const ExtensionManager::Ptr& extMgr,
 
     InitGraph();
 
-    status = Ready;
-
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
@@ -119,8 +117,6 @@ void Graph::CreateGraph(const std::vector<NodePtr> &graphNodes,
     }
 
     InitGraph();
-
-    status = Ready;
 
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
@@ -422,6 +418,16 @@ void Graph::InitGraph() {
     ExtractConstantAndExecutableNodes();
 
     ExecuteConstantNodesOnly();
+    status = Status::ReadyStatic;
+    for (size_t i = 0; i < executableGraphNodes.size(); ++i) {
+        const auto& node = executableGraphNodes[i];
+        if (node->isDynamicNode()) {
+            status = Status::ReadyDynamic;
+            if (node->outputShapeDataDependency()) {
+                syncNodesInds.push_back(i);
+            }
+        }
+    }
 }
 
 void Graph::InitNodes() {
@@ -1005,6 +1011,49 @@ void Graph::PullOutputData(BlobMap &out) {
     }
 }
 
+void Graph::InferStatic(InferRequestBase* request) {
+    dnnl::stream stream(eng);
+
+    for (const auto& node : executableGraphNodes) {
+        VERBOSE(node, config.verbose);
+        PERF(node, config.collectPerfCounters);
+
+        if (request)
+            request->ThrowIfCanceled();
+        ExecuteNode(node, stream);
+    }
+}
+
+void Graph::InferDynamic(InferRequestBase* request) {
+    dnnl::stream stream(eng);
+
+    size_t prepareCounter = 0;
+    size_t inferCounter = 0;
+
+    auto syncIndcsWorkSet = syncNodesInds;
+    syncIndcsWorkSet.push_back(executableGraphNodes.size());
+
+    for (auto stopIndx : syncIndcsWorkSet) {
+        std::cout << "Stop Index " << stopIndx << " with type " << executableGraphNodes[stopIndx]->getTypeStr() << std::endl;
+        for (; prepareCounter < stopIndx; ++prepareCounter) {
+            const auto& node = executableGraphNodes[prepareCounter];
+            if (node->isDynamicNode()) {
+                node->updateShapes();
+                node->updateDynamicParams();
+            }
+        }
+        for (; inferCounter < stopIndx; ++inferCounter) {
+            auto& node = executableGraphNodes[inferCounter];
+            VERBOSE(node, config.verbose);
+            PERF(node, config.collectPerfCounters);
+
+            if (request)
+                request->ThrowIfCanceled();
+            ExecuteNode(node, stream);
+        }
+    }
+}
+
 inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const {
     DUMP(node, config, infer_count);
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
@@ -1022,15 +1071,12 @@ void Graph::Infer(InferRequestBase* request) {
         IE_THROW() << "Wrong state. Topology is not ready.";
     }
 
-    dnnl::stream stream(eng);
-
-    for (const auto& node : executableGraphNodes) {
-        VERBOSE(node, config.verbose);
-        PERF(node, config.collectPerfCounters);
-
-        if (request)
-            request->ThrowIfCanceled();
-        ExecuteNode(node, stream);
+    if (Status::ReadyDynamic == status) {
+        InferDynamic(request);
+    } else if (Status::ReadyStatic == status) {
+        InferStatic(request);
+    } else {
+        IE_THROW() << "Unknown graph state";
     }
 
     if (infer_count != -1) infer_count++;

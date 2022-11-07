@@ -337,8 +337,11 @@ public:
     void resolveInPlaceEdges();
 
     virtual void execute(dnnl::stream strm);
+    void updateShapes();
+    void updateDynamicParams();
     void executeDynamic(dnnl::stream strm);
     virtual void redefineOutputMemory(const std::vector<VectorDims> &newShapes);
+    bool outputShapeDataDependency() const;
 
     virtual void initSupportedPrimitiveDescriptors();
 

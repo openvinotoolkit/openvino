@@ -519,10 +519,15 @@ void Node::execute(dnnl::stream strm) {
     }
 }
 
-void Node::executeDynamic(dnnl::stream strm) {
+void Node::updateShapes() {
+    IE_ASSERT(isDynamicNode()) << "Node::updateShapes() is called to a static shape node of type: " << getTypeStr() << " with name: " << getName();
     if (needShapeInfer()) {
         redefineOutputMemory(shapeInfer());
     }
+}
+
+void Node::updateDynamicParams() {
+    IE_ASSERT(isDynamicNode()) << "Node::updateDynamicParams() is called to a static shape node of type: " << getTypeStr() << " with name: " << getName();
     if (isExecutable()) {
         if (needPrepareParams()) {
             IE_ASSERT(inputShapesDefined()) << "Can't prepare params for " << getTypeStr() << " node with name: " << getName() <<
@@ -538,9 +543,25 @@ void Node::executeDynamic(dnnl::stream strm) {
             }
 #endif
         }
+    }
+}
+void Node::executeDynamic(dnnl::stream strm) {
+    if (isExecutable()) {
         executeDynamicImpl(strm);
     }
     updateLastInputDims();
+}
+
+bool Node::outputShapeDataDependency() const {
+    auto port_mask = shapeInference->get_port_mask();
+    if (EMPTY_PORT_MASK != port_mask) {
+        for (size_t i = 0; i < getParentEdges().size(); ++i) {
+            if ((port_mask & (1 << i)) && !getParentEdgeAt(i)->getParent()->isConstant()) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 void Node::redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) {
