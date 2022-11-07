@@ -4,7 +4,7 @@
 
 #include "worker_pool_impl.hpp"
 
-#include "gna_plugin_log.hpp"
+#include "log/debug.hpp"
 #include "worker.hpp"
 
 namespace GNAPluginNS {

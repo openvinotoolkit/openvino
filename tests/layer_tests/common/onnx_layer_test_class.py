@@ -14,25 +14,6 @@ def save_to_onnx(onnx_model, path_to_saved_onnx_model):
     assert os.path.isfile(path), "model.onnx haven't been saved here: {}".format(path_to_saved_onnx_model)
     return path
 
-
-class Caffe2OnnxLayerTest(CommonLayerTest):
-    def produce_model_path(self, framework_model, save_path):
-        return save_to_onnx(framework_model, save_path)
-
-    def get_framework_results(self, inputs_dict, model_path):
-        # Evaluate model via Caffe2 and IE
-        # Load the ONNX model
-        import onnx
-        model = onnx.load(model_path)
-        # Run the ONNX model with Caffe2
-        import caffe2.python.onnx.backend
-        caffe2_res = caffe2.python.onnx.backend.run_model(model, inputs_dict)
-        res = dict()
-        for field in caffe2_res._fields:
-            res[field] = caffe2_res[field]
-        return res
-
-
 class OnnxRuntimeInfer(BaseInfer):
     def __init__(self, net):
         super().__init__('OnnxRuntime')

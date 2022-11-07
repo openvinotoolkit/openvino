@@ -241,7 +241,8 @@
         {"type": "ShuffleChannels"},
         {"type": "Broadcast"},
         {"type": "Pad"},
-        {"type": "ConvertLike"},  
+        {"type": "ConvertLike"},
+        {"type": "Gather"},
         {"type": "DepthToSpace"}
     ]
 }
