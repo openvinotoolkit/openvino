@@ -35,8 +35,8 @@ void normalize_block_shape_pads_crops(const NodeContext& node,
     // split paddings of shape [M, 2] into pads_begin and pads_end of shape [M]
     auto split_axis = make_shared<Constant>(element::i32, Shape{}, 1);
     auto paddings_crops_split = make_shared<Split>(paddings_crops, split_axis, 2);
-    pads_crops_begin = make_shared<Squeeze>(paddings_crops_split->output(0))->output(0);
-    pads_crops_end = make_shared<Squeeze>(paddings_crops_split->output(1))->output(0);
+    pads_crops_begin = make_shared<Squeeze>(paddings_crops_split->output(0), split_axis)->output(0);
+    pads_crops_end = make_shared<Squeeze>(paddings_crops_split->output(1), split_axis)->output(0);
 
     // normalize block_shape to have it of the same length as the input rank
     auto one_const = make_shared<Constant>(block_shape.get_element_type(), Shape{}, 1);
