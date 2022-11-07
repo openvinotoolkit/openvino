@@ -207,3 +207,9 @@ ngraph::pass::UnsupportedNodesStridesPropagation::UnsupportedNodesStridesPropaga
     auto m = std::make_shared<pattern::Matcher>(root, matcher_name);
     this->register_matcher(m, callback);
 }
+
+ngraph::pass::StridesOptimization::StridesOptimization() {
+    ADD_MATCHER_SCOPE_FOR_THIS(ngraph::pass, ConvStridesPropagation);
+    ADD_MATCHER_SCOPE_FOR_THIS(ngraph::pass, SupportedNodesStridesPropagation);
+    ADD_MATCHER_SCOPE_FOR_THIS(ngraph::pass, UnsupportedNodesStridesPropagation);
+}

@@ -64,9 +64,5 @@ public:
 class ngraph::pass::StridesOptimization : public ngraph::pass::BackwardGraphRewrite {
 public:
     OPENVINO_RTTI("StridesOptimization", "0");
-    StridesOptimization() {
-        add_matcher<ngraph::pass::ConvStridesPropagation>();
-        add_matcher<ngraph::pass::SupportedNodesStridesPropagation>();
-        add_matcher<ngraph::pass::UnsupportedNodesStridesPropagation>();
-    }
+    StridesOptimization();
 };
