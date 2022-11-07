@@ -95,7 +95,8 @@ _install_prerequisites_ubuntu()
     apt-get update
     apt-get install -y gpg-agent
     curl https://repositories.intel.com/graphics/intel-graphics.key |gpg --dearmor --output /usr/share/keyrings/intel-graphics.gpg
-    echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/graphics/ubuntu focal-legacy main' | tee  /etc/apt/sources.list.d/intel.gpu.focal.list 
+    echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/graphics/ubuntu focal-legacy main' | tee  /etc/apt/sources.list.d/intel.gpu.focal.list
+    apt-get update
     if [ "$no_numa" == true ]; then
         CMDS=("apt-get -y install --no-install-recommends ocl-icd-libopencl1")
     else
@@ -276,7 +277,7 @@ _get_packages_ubuntu()
         apt-get install -y \
         intel-opencl-icd=22.35.24055+i815~u20.04 \
         intel-level-zero-gpu=1.3.24055+i815~u20.04 \
-        level-zero=1.8.5+i815~u20.04 && \
+        level-zero=1.8.5+i815~u20.04 \
 	intel-media-va-driver-non-free libmfx1 libmfxgen1 libvpl2 \
         libegl-mesa0 libegl1-mesa libegl1-mesa-dev libgbm1 libgl1-mesa-dev libgl1-mesa-dri \
         libglapi-mesa libgles2-mesa-dev libglx-mesa0 libigdgmm11 libxatracker2 mesa-va-drivers \
@@ -392,7 +393,7 @@ _check_distro_version()
             echo "Installation of Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver interrupted"
             exit $EXIT_FAILURE
         else
-            INSTALL_DRIVER_VERSION='21.49.21786'
+            INSTALL_DRIVER_VERSION='22.28.23726'
         fi
     elif [[ $DISTRO == ubuntu ]]; then
         UBUNTU_VERSION=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "[0-9]{2}.[0-9]{2}") 
