@@ -227,7 +227,7 @@ def test_simplified_mode(_simplified_params, tmp_path, models):
 
     _, _, _, _, expected_accuracy, _ = _simplified_params
     metrics = launch_simplified_mode(_simplified_params, tmp_path, models, engine_config)
-    assert metrics == pytest.approx(expected_accuracy, abs=0.007)
+    assert metrics == pytest.approx(expected_accuracy, abs=0.009)
 
 
 def test_frame_extractor_tool():
