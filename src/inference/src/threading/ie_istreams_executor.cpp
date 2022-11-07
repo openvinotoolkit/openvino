@@ -351,7 +351,7 @@ int IStreamsExecutor::Config::LimitHybridStreams(const int num_streams, const in
 void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config,
                                                          const int num_big_cores_phys,
                                                          const int num_small_cores) {
-    const auto base_streams_total = num_big_cores_phys * 2 + num_small_cores;
+    const auto base_streams_total = parallel_get_max_threads();
     const auto num_big_cores = num_big_cores_phys * 2;
 
     config._small_core_offset = num_big_cores_phys * 2;
@@ -388,12 +388,25 @@ void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config,
             }
         }
     } else {  // user not set nthreads
+        int threads_per_stream_default = 1;
+        if (0 == num_big_cores_phys % 4) {
+            threads_per_stream_default = 4;
+        } else if (0 == num_big_cores_phys % 5) {
+            threads_per_stream_default = 5;
+        } else if (0 == num_big_cores_phys % 3) {
+            threads_per_stream_default = 3;
+        } else {  // if user disables some cores say in BIOS, so we got weird #cores which is not easy to divide
+            threads_per_stream_default = 1;
+        }
         // Ensure the balanced use of physical core and logical core, _threads_per_stream_big must be divisible and
         // smaller than num_big_cores_phys.
         int threads_per_stream_big = std::min(num_big_cores_phys, std::max(1, base_streams_total / config._streams));
-        config._threads_per_stream_big = (threads_per_stream_big > 1 && threads_per_stream_big % 2 != 0)
-                                             ? threads_per_stream_big / 2 * 2
-                                             : threads_per_stream_big;
+        config._threads_per_stream_big =
+            num_big_cores_phys % threads_per_stream_big != 0
+                ? (threads_per_stream_big > threads_per_stream_default
+                       ? threads_per_stream_big / threads_per_stream_default * threads_per_stream_default
+                       : threads_per_stream_big / 2 * 2)
+                : threads_per_stream_big;
         // _big_core_streams must be even number
         config._big_core_streams = std::min(config._streams, num_big_cores / config._threads_per_stream_big) / 2 * 2;
         config._small_core_streams = config._streams - config._big_core_streams;
