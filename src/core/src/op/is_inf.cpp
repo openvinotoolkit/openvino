@@ -5,7 +5,6 @@
 #include "openvino/op/is_inf.hpp"
 
 #include "itt.hpp"
-#include "ngraph/runtime/reference/is_inf.hpp"
 
 namespace ov {
 op::v10::IsInf::IsInf(const Output<Node>& data) : op::Op{{data}} {
@@ -37,74 +36,5 @@ std::shared_ptr<Node> op::v10::IsInf::clone_with_new_inputs(const OutputVector& 
     OV_OP_SCOPE(v10_IsInf_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<op::v10::IsInf>(new_args.at(0), this->get_attributes());
-}
-
-namespace {
-template <element::Type_t ET>
-bool evaluate_exec(const TensorVector& inputs, TensorVector& outputs, const op::v10::IsInf::Attributes& attributes) {
-    using T = typename element_type_traits<ET>::value_type;
-    using U = typename element_type_traits<element::Type_t::boolean>::value_type;
-    ngraph::runtime::reference::is_inf(inputs[0].data<T>(),
-                                       outputs[0].data<U>(),
-                                       shape_size(inputs[0].get_shape()),
-                                       attributes);
-    return true;
-}
-
-#define IS_INF_TYPE_CASE(a, ...)                             \
-    case element::Type_t::a: {                               \
-        OV_OP_SCOPE(OV_PP_CAT3(evaluate_exec_is_inf, _, a)); \
-        rc = evaluate_exec<element::Type_t::a>(__VA_ARGS__); \
-    } break
-
-template <element::Type_t ET>
-bool evaluate(const TensorVector& inputs, TensorVector& outputs, const op::v10::IsInf::Attributes& attributes) {
-    bool rc = true;
-    switch (inputs[0].get_element_type()) {
-        IS_INF_TYPE_CASE(bf16, inputs, outputs, attributes);
-        IS_INF_TYPE_CASE(f16, inputs, outputs, attributes);
-        IS_INF_TYPE_CASE(f32, inputs, outputs, attributes);
-        IS_INF_TYPE_CASE(f64, inputs, outputs, attributes);
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
-}
-
-bool evaluate_is_inf(const TensorVector& inputs, TensorVector& outputs, const op::v10::IsInf::Attributes& attributes) {
-    bool rc = true;
-    switch (inputs[0].get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_is_inf, bf16, inputs, outputs, attributes);
-        NGRAPH_TYPE_CASE(evaluate_is_inf, f16, inputs, outputs, attributes);
-        NGRAPH_TYPE_CASE(evaluate_is_inf, f32, inputs, outputs, attributes);
-        NGRAPH_TYPE_CASE(evaluate_is_inf, f64, inputs, outputs, attributes);
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
-}
-}  // namespace
-
-bool op::v10::IsInf::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
-    OV_OP_SCOPE(v10_IsInf_evaluate);
-    OPENVINO_ASSERT((inputs.size() == 1), "Invalid IsInf input TensorVector.");
-    OPENVINO_ASSERT((outputs.size() == 1), "Invalid IsInf output TensorVector.");
-    return evaluate_is_inf(inputs, outputs, m_attributes);
-}
-
-bool op::v10::IsInf::has_evaluate() const {
-    OV_OP_SCOPE(v10_IsInf_has_evaluate);
-    switch (get_input_element_type(0)) {
-    case element::bf16:
-    case element::f16:
-    case element::f32:
-    case element::f64:
-        return true;
-    default:
-        break;
-    }
-    return false;
 }
 }  // namespace ov

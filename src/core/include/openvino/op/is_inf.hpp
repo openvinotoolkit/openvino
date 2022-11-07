@@ -54,9 +54,6 @@ public:
         m_attributes = attributes;
     }
 
-    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
-    bool has_evaluate() const override;
-
 private:
     Attributes m_attributes = {};
 };

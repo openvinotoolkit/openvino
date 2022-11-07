@@ -25,9 +25,6 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     void validate_and_infer_types() override;
-
-    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
-    bool has_evaluate() const override;
 };
 }  // namespace v10
 }  // namespace op
