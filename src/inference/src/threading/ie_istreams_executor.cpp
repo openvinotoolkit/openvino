@@ -453,7 +453,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
             num_cores_default = (num_big_cores_phys <= hyper_threading_threshold) ? num_big_cores : num_big_cores_phys;
         }
         // if nstreams or nthreads are set, need to calculate the Hybrid aware parameters here
-        if (streamExecutorConfig._big_core_streams == 0) {
+        if (streamExecutorConfig._big_core_streams == 0 || streamExecutorConfig._threads) {
             UpdateHybridCustomThreads(streamExecutorConfig,
                                       num_big_cores_phys,
                                       core_types.size() > 1 ? num_little_cores : 0);
