@@ -57,12 +57,6 @@ public:
         m_index_element_type = index_element_type;
     }
 
-    bool has_evaluate() const override {
-        return true;
-    }
-
-    bool evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const override;
-
 private:
     bool m_sorted = true;
     element::Type m_index_element_type = element::i64;

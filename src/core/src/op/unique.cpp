@@ -132,16 +132,4 @@ std::shared_ptr<Node> op::v10::Unique::clone_with_new_inputs(const OutputVector&
                                                  this->get_index_element_type());
     }
 }
-
-bool op::v10::Unique::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
-    // ngraph::runtime::reference::unique(output_values[0].data<float>(),
-    //                                    output_values[1].data<int64_t>(),
-    //                                    output_values[2].data<int64_t>(),
-    //                                    output_values[3].data<int64_t>(),
-    //                                    input_values[0].data<float>(),
-    //                                    input_values[0].get_shape(),
-    //                                    nullptr,
-    //                                    false);
-    return true;
-}
 }  // namespace ov

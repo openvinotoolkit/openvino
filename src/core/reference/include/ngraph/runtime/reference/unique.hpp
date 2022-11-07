@@ -9,7 +9,7 @@
 namespace ngraph {
 namespace runtime {
 namespace reference {
-/// @brief Represents an element of the input tensor 
+/// @brief Represents an element of the input tensor
 template <typename Index_t>
 struct Element {
     Element(Index_t idx_) : idx{idx_} {}
@@ -58,6 +58,10 @@ UniqueElements<Index_t> find_unique_elements(const Data_t* data,
     using std::begin;
     using std::end;
 
+    const auto ascending_order = [&data](const Element<Index_t>& lhs, const Element<Index_t>& rhs) {
+        return *(data + lhs.idx) < *(data + rhs.idx);
+    };
+    
     const auto elements_are_equal = [&data](const Element<Index_t>& lhs, const Element<Index_t>& rhs) {
         return *(data + lhs.idx) == *(data + rhs.idx);
     };
@@ -68,16 +72,12 @@ UniqueElements<Index_t> find_unique_elements(const Data_t* data,
         };
     };
 
-    const auto sort_by_values = [&data](const Element<Index_t>& lhs, const Element<Index_t>& rhs) {
-        return *(data + lhs.idx) < *(data + rhs.idx);
-    };
-
     const auto data_elems_count = shape_size(data_shape);
     UniqueElements<Index_t> ret;
     ret.all_tensor_elements = generate_element_descriptors<Index_t>(data_elems_count);
 
     if (sorted) {
-        std::sort(begin(ret.all_tensor_elements), end(ret.all_tensor_elements), sort_by_values);
+        std::sort(begin(ret.all_tensor_elements), end(ret.all_tensor_elements), ascending_order);
     }
 
     if (scalar_or_single_element(data_shape)) {
@@ -86,11 +86,20 @@ UniqueElements<Index_t> find_unique_elements(const Data_t* data,
     } else if (!axis || (data_shape.size() == 1 && data_shape[0] > 1)) {
         ret.all_tensor_elements[0].rev_idx = 0;
         ret.unique_tensor_elements.push_back(ret.all_tensor_elements[0]);
-        for (auto&& tensor_element : ret.all_tensor_elements) {
-            // TODO - use O(logN) search if the elements are sorted
-            auto existing_unique = std::find_if(begin(ret.unique_tensor_elements),
-                                                end(ret.unique_tensor_elements),
-                                                already_unique(tensor_element));
+        for (size_t i = 1; i < data_elems_count; ++i) {
+            auto& tensor_element = ret.all_tensor_elements[i];
+            auto existing_unique = end(ret.unique_tensor_elements);
+            if (sorted) {
+                existing_unique = std::lower_bound(begin(ret.unique_tensor_elements),
+                                                   end(ret.unique_tensor_elements),
+                                                   tensor_element,
+                                                   ascending_order);
+            } else {
+                existing_unique = std::find_if(begin(ret.unique_tensor_elements),
+                                               end(ret.unique_tensor_elements),
+                                               already_unique(tensor_element));
+            }
+
             if (existing_unique != end(ret.unique_tensor_elements)) {
                 tensor_element.rev_idx = existing_unique->rev_idx;
                 existing_unique->count++;
@@ -128,6 +137,10 @@ void unique(Data_t* out_unique_elements,
         out_counts[i] = descriptor.count;
     }
 
+    // filling out this output tensor requires a separate pass over all elements of the input tensor
+    // for each input element we need to output and index fo that element in the first output tensor
+    // additionally if sorting was involved the "all_tensor_elements" might be ordered differently than the elements
+    // in the original input tensor - this is why descriptor.idx is used for indexing the output tensor below
     for (const auto& descriptor : unique_elements.all_tensor_elements) {
         out_rev_indices[descriptor.idx] = descriptor.rev_idx;
     }

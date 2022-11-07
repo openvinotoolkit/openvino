@@ -7,11 +7,16 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
+#include "openvino/op/constant.hpp"
 
 using namespace reference_tests;
 using namespace ov;
 
 namespace {
+
+std::shared_ptr<op::v0::Constant> make_axis(const int64_t axis, const element::Type& et) {
+    return op::v0::Constant::create(et, Shape{}, {axis});
+}
 
 struct UniqueParams {
     template <typename Data_t, typename Index_t>
@@ -21,6 +26,7 @@ struct UniqueParams {
                  const std::vector<Index_t>& expected_indices,
                  const std::vector<Index_t>& expected_rev_indices,
                  const std::vector<int64_t>& expected_counts,
+                 std::shared_ptr<op::v0::Constant> axis_descritptor = nullptr,
                  const bool sorted = true,
                  const std::string& tested_case = "")
         : m_data_shape{data_shape},
@@ -40,6 +46,7 @@ struct UniqueParams {
     element::Type m_index_type;
     ov::Tensor m_input_data;
     ov::TensorVector m_expected_outputs = ov::TensorVector(4);
+    std::shared_ptr<op::v0::Constant> m_axis;
     bool m_sorted;
     std::string m_tested_case;
 };
@@ -71,7 +78,12 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const UniqueParams& params) {
         const auto in = std::make_shared<op::v0::Parameter>(params.m_data_type, params.m_data_shape);
-        const auto unique = std::make_shared<op::v10::Unique>(in, params.m_sorted, params.m_index_type);
+        std::shared_ptr<Node> unique;
+        if (params.m_axis) {
+            unique = std::make_shared<op::v10::Unique>(in, params.m_axis, params.m_sorted, params.m_index_type);
+        } else {
+            unique = std::make_shared<op::v10::Unique>(in, params.m_sorted, params.m_index_type);
+        }
         return std::make_shared<ov::Model>(unique, ParameterVector{in});
     }
 };
@@ -80,71 +92,110 @@ TEST_P(ReferenceUniqueLayerTest_NoAxis, CompareWithHardcodedRefs) {
     Exec();
 }
 
+template <typename T>
+std::vector<T> flatten(std::initializer_list<std::vector<T>> test_cases) {
+    using std::begin;
+    using std::end;
+
+    std::vector<T> flattened;
+    for (auto&& tc : test_cases) {
+        flattened.insert(flattened.end(), std::make_move_iterator(begin(tc)), std::make_move_iterator(end(tc)));
+    }
+    return flattened;
+}
+
 template <typename Data_t, typename Index_t>
 std::vector<UniqueParams> params_unique_int() {
     static_assert(std::numeric_limits<Data_t>::is_integer);
-    const std::vector<UniqueParams> params{UniqueParams{Shape{},
-                                                        std::vector<Data_t>{1},
-                                                        std::vector<Data_t>{1},
-                                                        std::vector<Index_t>{0},
-                                                        std::vector<Index_t>{0},
-                                                        std::vector<int64_t>{1},
-                                                        false},
-                                           UniqueParams{Shape{},
-                                                        std::vector<Data_t>{1},
-                                                        std::vector<Data_t>{1},
-                                                        std::vector<Index_t>{0},
-                                                        std::vector<Index_t>{0},
-                                                        std::vector<int64_t>{1},
-                                                        true},
-                                           UniqueParams{Shape{1},
-                                                        std::vector<Data_t>{2},
-                                                        std::vector<Data_t>{2},
-                                                        std::vector<Index_t>{0},
-                                                        std::vector<Index_t>{0},
-                                                        std::vector<int64_t>{1},
-                                                        false},
-                                           UniqueParams{Shape{1},
-                                                        std::vector<Data_t>{2},
-                                                        std::vector<Data_t>{2},
-                                                        std::vector<Index_t>{0},
-                                                        std::vector<Index_t>{0},
-                                                        std::vector<int64_t>{1},
-                                                        true},
-                                           UniqueParams{Shape{5},
-                                                        std::vector<Data_t>{5, 4, 3, 2, 1},
-                                                        std::vector<Data_t>{5, 4, 3, 2, 1},
-                                                        std::vector<Index_t>{0, 1, 2, 3, 4},
-                                                        std::vector<Index_t>{0, 1, 2, 3, 4},
-                                                        std::vector<int64_t>{1, 1, 1, 1, 1},
-                                                        false,
-                                                        "1D no duplicates"},
-                                           UniqueParams{Shape{5},
-                                                        std::vector<Data_t>{5, 4, 3, 2, 1},
-                                                        std::vector<Data_t>{1, 2, 3, 4, 5},
-                                                        std::vector<Index_t>{4, 3, 2, 1, 0},
-                                                        std::vector<Index_t>{4, 3, 2, 1, 0},
-                                                        std::vector<int64_t>{1, 1, 1, 1, 1},
-                                                        true,
-                                                        "1D no duplicates"},
-                                           UniqueParams{Shape{7},
-                                                        std::vector<Data_t>{1, 3, 5, 3, 2, 4, 2},
-                                                        std::vector<Data_t>{1, 3, 5, 2, 4},
-                                                        std::vector<Index_t>{0, 1, 2, 4, 5},
-                                                        std::vector<Index_t>{0, 1, 2, 1, 3, 4, 3},
-                                                        std::vector<int64_t>{1, 2, 1, 2, 1},
-                                                        false,
-                                                        "1D with duplicates"},
-                                           UniqueParams{Shape{7},
-                                                        std::vector<Data_t>{1, 3, 5, 3, 2, 4, 2},
-                                                        std::vector<Data_t>{1, 2, 3, 4, 5},
-                                                        std::vector<Index_t>{0, 4, 1, 5, 2},
-                                                        std::vector<Index_t>{0, 2, 4, 2, 1, 3, 1},
-                                                        std::vector<int64_t>{1, 2, 2, 1, 1},
-                                                        true,
-                                                        "1D with duplicates"}};
+    std::vector<UniqueParams> scalar_and_1D{UniqueParams{Shape{},
+                                                         std::vector<Data_t>{1},
+                                                         std::vector<Data_t>{1},
+                                                         std::vector<Index_t>{0},
+                                                         std::vector<Index_t>{0},
+                                                         std::vector<int64_t>{1},
+                                                         nullptr,
+                                                         false},
+                                            UniqueParams{Shape{},
+                                                         std::vector<Data_t>{1},
+                                                         std::vector<Data_t>{1},
+                                                         std::vector<Index_t>{0},
+                                                         std::vector<Index_t>{0},
+                                                         std::vector<int64_t>{1},
+                                                         nullptr,
+                                                         true},
+                                            UniqueParams{Shape{1},
+                                                         std::vector<Data_t>{2},
+                                                         std::vector<Data_t>{2},
+                                                         std::vector<Index_t>{0},
+                                                         std::vector<Index_t>{0},
+                                                         std::vector<int64_t>{1},
+                                                         nullptr,
+                                                         false},
+                                            UniqueParams{Shape{1},
+                                                         std::vector<Data_t>{2},
+                                                         std::vector<Data_t>{2},
+                                                         std::vector<Index_t>{0},
+                                                         std::vector<Index_t>{0},
+                                                         std::vector<int64_t>{1},
+                                                         nullptr,
+                                                         true},
+                                            UniqueParams{Shape{5},
+                                                         std::vector<Data_t>{5, 4, 3, 2, 1},
+                                                         std::vector<Data_t>{5, 4, 3, 2, 1},
+                                                         std::vector<Index_t>{0, 1, 2, 3, 4},
+                                                         std::vector<Index_t>{0, 1, 2, 3, 4},
+                                                         std::vector<int64_t>{1, 1, 1, 1, 1},
+                                                         nullptr,
+                                                         false,
+                                                         "1D no duplicates"},
+                                            UniqueParams{Shape{5},
+                                                         std::vector<Data_t>{5, 4, 3, 2, 1},
+                                                         std::vector<Data_t>{1, 2, 3, 4, 5},
+                                                         std::vector<Index_t>{4, 3, 2, 1, 0},
+                                                         std::vector<Index_t>{4, 3, 2, 1, 0},
+                                                         std::vector<int64_t>{1, 1, 1, 1, 1},
+                                                         nullptr,
+                                                         true,
+                                                         "1D no duplicates"},
+                                            UniqueParams{Shape{7},
+                                                         std::vector<Data_t>{1, 3, 5, 3, 2, 4, 2},
+                                                         std::vector<Data_t>{1, 3, 5, 2, 4},
+                                                         std::vector<Index_t>{0, 1, 2, 4, 5},
+                                                         std::vector<Index_t>{0, 1, 2, 1, 3, 4, 3},
+                                                         std::vector<int64_t>{1, 2, 1, 2, 1},
+                                                         nullptr,
+                                                         false,
+                                                         "1D with duplicates"},
+                                            UniqueParams{Shape{7},
+                                                         std::vector<Data_t>{1, 3, 5, 3, 2, 4, 2},
+                                                         std::vector<Data_t>{1, 2, 3, 4, 5},
+                                                         std::vector<Index_t>{0, 4, 1, 5, 2},
+                                                         std::vector<Index_t>{0, 2, 4, 2, 1, 3, 1},
+                                                         std::vector<int64_t>{1, 2, 2, 1, 1},
+                                                         nullptr,
+                                                         true,
+                                                         "1D with duplicates"},
+                                            UniqueParams{Shape{7},
+                                                         std::vector<Data_t>{1, 3, 5, 3, 2, 4, 2},
+                                                         std::vector<Data_t>{1, 2, 3, 4, 5},
+                                                         std::vector<Index_t>{0, 4, 1, 5, 2},
+                                                         std::vector<Index_t>{0, 2, 4, 2, 1, 3, 1},
+                                                         std::vector<int64_t>{1, 2, 2, 1, 1},
+                                                         make_axis(0, element::i32),
+                                                         true,
+                                                         "1D with duplicates and axis"}};
 
-    return params;
+    std::vector<UniqueParams> N_C_layout{UniqueParams{Shape{2, 6},
+                                                      std::vector<Data_t>{3, 5, 3, 2, 4, 2, 1, 2, 3, 4, 5, 6},
+                                                      std::vector<Data_t>{3, 5, 2, 4, 1, 6},
+                                                      std::vector<Index_t>{0, 1, 3, 4, 6, 11},
+                                                      std::vector<Index_t>{0, 1, 0, 2, 3, 2, 4, 2, 0, 3, 1, 5},
+                                                      std::vector<int64_t>{3, 2, 3, 2, 1, 1},
+                                                      nullptr,
+                                                      false,
+                                                      "2D no axis"}};
+
+    return flatten({std::move(scalar_and_1D), std::move(N_C_layout)});
 }
 
 template <typename Data_t, typename Index_t>
@@ -162,6 +213,7 @@ std::vector<UniqueParams> params_unique_float() {
                                                         std::vector<Index_t>{0},
                                                         std::vector<Index_t>{0},
                                                         std::vector<int64_t>{1},
+                                                        nullptr,
                                                         false},
                                            UniqueParams{Shape{},
                                                         std::vector<Data_t>{pi},
@@ -169,6 +221,7 @@ std::vector<UniqueParams> params_unique_float() {
                                                         std::vector<Index_t>{0},
                                                         std::vector<Index_t>{0},
                                                         std::vector<int64_t>{1},
+                                                        nullptr,
                                                         true},
                                            UniqueParams{Shape{1},
                                                         std::vector<Data_t>{-e},
@@ -176,6 +229,7 @@ std::vector<UniqueParams> params_unique_float() {
                                                         std::vector<Index_t>{0},
                                                         std::vector<Index_t>{0},
                                                         std::vector<int64_t>{1},
+                                                        nullptr,
                                                         false},
                                            UniqueParams{Shape{1},
                                                         std::vector<Data_t>{-e},
@@ -183,6 +237,7 @@ std::vector<UniqueParams> params_unique_float() {
                                                         std::vector<Index_t>{0},
                                                         std::vector<Index_t>{0},
                                                         std::vector<int64_t>{1},
+                                                        nullptr,
                                                         true},
                                            UniqueParams{Shape{6},
                                                         std::vector<Data_t>{pi, -pi, -e, e, sq3, sq2},
@@ -190,6 +245,7 @@ std::vector<UniqueParams> params_unique_float() {
                                                         std::vector<Index_t>{0, 1, 2, 3, 4, 5},
                                                         std::vector<Index_t>{0, 1, 2, 3, 4, 5},
                                                         std::vector<int64_t>{1, 1, 1, 1, 1, 1},
+                                                        nullptr,
                                                         false,
                                                         "1D no duplicates"},
                                            UniqueParams{Shape{6},
@@ -198,22 +254,11 @@ std::vector<UniqueParams> params_unique_float() {
                                                         std::vector<Index_t>{1, 2, 5, 4, 3, 0},
                                                         std::vector<Index_t>{5, 0, 1, 4, 3, 2},
                                                         std::vector<int64_t>{1, 1, 1, 1, 1, 1},
+                                                        nullptr,
                                                         true,
                                                         "1D no duplicates"}};
 
     return params;
-}
-
-template <typename T>
-std::vector<T> flatten(std::initializer_list<std::vector<T>> test_cases) {
-    using std::begin;
-    using std::end;
-
-    std::vector<T> flattened;
-    for (auto&& tc : test_cases) {
-        flattened.insert(flattened.end(), std::make_move_iterator(begin(tc)), std::make_move_iterator(end(tc)));
-    }
-    return flattened;
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReferenceUniqueLayerTest_NoAxis,
