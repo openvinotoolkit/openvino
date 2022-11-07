@@ -110,24 +110,22 @@ struct multiclass_nms : public primitive_base<multiclass_nms> {
     /// @param attrs Attributes
     /// @param nms_eta Parameter for adaptive non-max-suppression
     multiclass_nms(const primitive_id& id,
-                   const primitive_id& boxes,
-                   const primitive_id& scores,
-                   const primitive_id& roisnum,
-                   const primitive_id& output_selected_indices,
-                   const primitive_id& output_selected_num,
+                   const std::vector<primitive_id> inputs,
                    const multiclass_nms::attributes& attrs,
                    const primitive_id& ext_prim_id = "",
                    const padding& output_padding = {})
         : primitive_base{id,
-                         roisnum.empty()
-                             ? std::vector<primitive_id>({boxes, scores, output_selected_indices, output_selected_num})
-                             : std::vector<primitive_id>(
-                                   {boxes, scores, roisnum, output_selected_indices, output_selected_num}),
+                         inputs[InputIdx::RoisNum].empty()
+                             ? std::vector<primitive_id>({inputs[InputIdx::Boxes],
+                                                          inputs[InputIdx::Scores],
+                                                          inputs[InputIdx::OutputSelectedIndices],
+                                                          inputs[InputIdx::OutputSelectedNum]})
+                             : inputs,
                          output_padding},
-          output_selected_indices(output_selected_indices),
-          output_selected_num(output_selected_num),
+          output_selected_indices(inputs[InputIdx::OutputSelectedIndices]),
+          output_selected_num(inputs[InputIdx::OutputSelectedNum]),
           attrs(attrs),
-          has_roisnum(!roisnum.empty()) {}
+          has_roisnum(!inputs[InputIdx::RoisNum].empty()) {}
 
     primitive_id output_selected_indices{};
     primitive_id output_selected_num{};
@@ -141,6 +139,15 @@ protected:
         ret.emplace_back(output_selected_num);
         return ret;
     }
+
+private:
+    enum InputIdx : size_t {
+        Boxes = 0,
+        Scores = 1,
+        RoisNum = 2,
+        OutputSelectedIndices = 3,
+        OutputSelectedNum = 4,
+    };
 };
 
 /// @}

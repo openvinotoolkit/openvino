@@ -17,10 +17,6 @@ namespace intel_gpu {
 static void CreateMulticlassNmsIEInternalOp(Program& p, const std::shared_ptr<ngraph::op::internal::MulticlassNmsIEInternal>& op) {
     validate_inputs_count(op, {2, 3});
 
-    if (op->get_output_size() != 3) {
-        IE_THROW() << "MulticlassNms requires 3 outputs";
-    }
-
     auto inputs = p.GetInputPrimitiveIDs(op);
     if (inputs.size() == 2) {
         inputs.push_back("");  // roisnum dummy id
@@ -61,11 +57,7 @@ static void CreateMulticlassNmsIEInternalOp(Program& p, const std::shared_ptr<ng
     }
 
     const cldnn::multiclass_nms prim{layer_name,
-                                     inputs[0],
-                                     inputs[1],
-                                     inputs[2],
-                                     inputs[3],
-                                     inputs[4],
+                                     inputs,
                                      op->get_attrs(),
                                      op_friendly_name};
 

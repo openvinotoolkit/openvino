@@ -145,11 +145,13 @@ public:
 
             const auto primitive = multiclass_nms{
                     "multiclass_nms_reordered",
-                    "input_boxes_reordered",
-                    "input_scores_reordered",
-                    param.has_roisnum ? "input_roisnum_reordered" : "",
-                    "output_selected_indices",
-                    "output_selected_num",
+                    std::vector<cldnn::primitive_id>{
+                        "input_boxes_reordered",
+                        "input_scores_reordered",
+                        param.has_roisnum ? "input_roisnum_reordered" : "",
+                        "output_selected_indices",
+                        "output_selected_num"
+                    },
                     cldnn::multiclass_nms::attributes{
                         param.sort_result_type,
                         param.sort_result_across_batch,
