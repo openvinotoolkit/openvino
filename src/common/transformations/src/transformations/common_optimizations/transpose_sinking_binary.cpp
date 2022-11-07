@@ -21,7 +21,7 @@ namespace {
 
 using NodePtr = std::shared_ptr<Node>;
 
-struct TrasposeInputsInfo {
+struct TransposeInputsInfo {
     std::shared_ptr<Transpose> transpose;
     std::shared_ptr<Constant> transpose_const;
     size_t input_idx;
@@ -31,7 +31,7 @@ struct TrasposeInputsInfo {
     }
 };
 
-TrasposeInputsInfo GetFirstTransposeInput(NodePtr node) {
+TransposeInputsInfo GetFirstTransposeInput(NodePtr node) {
     for (size_t input_idx = 0; input_idx < node->get_input_size(); ++input_idx) {
         NodePtr input_node = node->get_input_node_shared_ptr(input_idx);
         auto transpose_node = as_type_ptr<Transpose>(input_node);
@@ -42,7 +42,7 @@ TrasposeInputsInfo GetFirstTransposeInput(NodePtr node) {
         if (!constant_node)
             continue;
         {
-            TrasposeInputsInfo input_info;
+            TransposeInputsInfo input_info;
             input_info.transpose = transpose_node;
             input_info.transpose_const = constant_node;
             input_info.input_idx = input_idx;
@@ -50,11 +50,11 @@ TrasposeInputsInfo GetFirstTransposeInput(NodePtr node) {
         }
     }
 
-    return TrasposeInputsInfo();
+    return TransposeInputsInfo();
 }
 
 bool IfNodeHasTransposeInputs(const Output<Node>& output) {
-    TrasposeInputsInfo inputs_info = GetFirstTransposeInput(output.get_node_shared_ptr());
+    TransposeInputsInfo inputs_info = GetFirstTransposeInput(output.get_node_shared_ptr());
     return !inputs_info.isEmpty();
 }
 
@@ -239,7 +239,7 @@ pass::TransposeSinkingElementwiseForward::TransposeSinkingElementwiseForward() {
         auto main_node = main_node_output.get_node_shared_ptr();
         auto split_node = as_type_ptr<Split>(main_node);
 
-        TrasposeInputsInfo transpose_input_info = GetFirstTransposeInput(main_node);
+        TransposeInputsInfo transpose_input_info = GetFirstTransposeInput(main_node);
 
         const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
         const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
