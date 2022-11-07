@@ -1,4 +1,4 @@
-# Install OpenVINO™ Runtime for Linux Using APT Repository
+# Install OpenVINO™ Runtime for Linux Using APT Repository {#openvino_docs_install_guides_installing_openvino_apt}
 
 This guide provides detailed steps for installing OpenVINO™ Runtime through the APT repository and guidelines for installing OpenVINO Development Tools.
 
