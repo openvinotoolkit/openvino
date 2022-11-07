@@ -13,7 +13,8 @@ namespace intel_cpu {
  * @code
  */
 template <x64::cpu_isa_t isa>
-void jit_refine_anchors_kernel_fp32<isa>::generate() {
+void jit_refine_anchors_kernel_fp32<isa>::generate(RegistersPool::Ptr registers_pool,
+                                                   StackAllocator::Ptr stack_allocator) {
     /** @code
         for (int anchor = 0; anchor < anchors_num; ++anchor) {
             const int a_idx = anchor_idx(h, w, anchor, 0);
@@ -73,10 +74,6 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
         }
      */
 
-    this->preamble();
-
-    auto allocator = std::make_shared<StackAllocator>(*this);
-
     xor_(reg_anchors_loop, reg_anchors_loop);
     xor_(reg_anchors_chunk, reg_anchors_chunk);
     xor_(reg_img_h, reg_img_h);
@@ -96,27 +93,27 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
     Xbyak::Label loop_mask;
     Xbyak::Label l_mask;
     {
-        StackAllocator::Address vmm_anchor_mask_addr{allocator, vmm_reg_size_in_bytes};
-        StackAllocator::Address vmm_ww_addr{allocator, vmm_reg_size_in_bytes};
-        StackAllocator::Address vmm_hh_addr{allocator, vmm_reg_size_in_bytes};
-        StackAllocator::Address vmm_coordinates_offset_addr{allocator, vmm_reg_size_in_bytes};
-        StackAllocator::Address reg_scale_0_5_addr{allocator, sizeof(float)};
-        StackAllocator::Address vmm_scale_0_5_addr{allocator, vmm_reg_size_in_bytes};
-        StackAllocator::Address vmm_ctr_x_addr{allocator, vmm_reg_size_in_bytes};
-        StackAllocator::Address vmm_ctr_y_addr{allocator, vmm_reg_size_in_bytes};
-        StackAllocator::Address vmm_pred_ctr_x_addr{allocator, vmm_reg_size_in_bytes};
-        StackAllocator::Address vmm_pred_ctr_y_addr{allocator, vmm_reg_size_in_bytes};
-        StackAllocator::Address reg_max_delta_log_wh_addr{allocator, sizeof(float)};
-        StackAllocator::Address vmm_max_delta_log_wh_addr{allocator, vmm_reg_size_in_bytes};
-        StackAllocator::Address vmm_pred_w_addr{allocator, vmm_reg_size_in_bytes};
-        StackAllocator::Address vmm_pred_h_addr{allocator, vmm_reg_size_in_bytes};
-        StackAllocator::Address reg_img_w_addr{allocator, sizeof(float)};
-        StackAllocator::Address vmm_img_w_addr{allocator, vmm_reg_size_in_bytes};
-        StackAllocator::Address reg_img_h_addr{allocator, sizeof(float)};
-        StackAllocator::Address vmm_img_h_addr{allocator, vmm_reg_size_in_bytes};
-        StackAllocator::Address reg_0_0_addr{allocator, sizeof(float)};
-        StackAllocator::Address vmm_0_0_addr{allocator, vmm_reg_size_in_bytes};
-        allocator->commit();
+        StackAllocator::Address vmm_anchor_mask_addr{stack_allocator, vmm_reg_size_in_bytes};
+        StackAllocator::Address vmm_ww_addr{stack_allocator, vmm_reg_size_in_bytes};
+        StackAllocator::Address vmm_hh_addr{stack_allocator, vmm_reg_size_in_bytes};
+        StackAllocator::Address vmm_coordinates_offset_addr{stack_allocator, vmm_reg_size_in_bytes};
+        StackAllocator::Address reg_scale_0_5_addr{stack_allocator, sizeof(float)};
+        StackAllocator::Address vmm_scale_0_5_addr{stack_allocator, vmm_reg_size_in_bytes};
+        StackAllocator::Address vmm_ctr_x_addr{stack_allocator, vmm_reg_size_in_bytes};
+        StackAllocator::Address vmm_ctr_y_addr{stack_allocator, vmm_reg_size_in_bytes};
+        StackAllocator::Address vmm_pred_ctr_x_addr{stack_allocator, vmm_reg_size_in_bytes};
+        StackAllocator::Address vmm_pred_ctr_y_addr{stack_allocator, vmm_reg_size_in_bytes};
+        StackAllocator::Address reg_max_delta_log_wh_addr{stack_allocator, sizeof(float)};
+        StackAllocator::Address vmm_max_delta_log_wh_addr{stack_allocator, vmm_reg_size_in_bytes};
+        StackAllocator::Address vmm_pred_w_addr{stack_allocator, vmm_reg_size_in_bytes};
+        StackAllocator::Address vmm_pred_h_addr{stack_allocator, vmm_reg_size_in_bytes};
+        StackAllocator::Address reg_img_w_addr{stack_allocator, sizeof(float)};
+        StackAllocator::Address vmm_img_w_addr{stack_allocator, vmm_reg_size_in_bytes};
+        StackAllocator::Address reg_img_h_addr{stack_allocator, sizeof(float)};
+        StackAllocator::Address vmm_img_h_addr{stack_allocator, vmm_reg_size_in_bytes};
+        StackAllocator::Address reg_0_0_addr{stack_allocator, sizeof(float)};
+        StackAllocator::Address vmm_0_0_addr{stack_allocator, vmm_reg_size_in_bytes};
+        stack_allocator->commit();
 
         L(anchor_loop);
         {
@@ -137,9 +134,9 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
             not_available_vmm = {vmm_x0, vmm_y0, vmm_x1, vmm_y1};
 
             // Prepare indexes
-            Vmm vmm_anchor_idx = this->get_free_reg<Vmm>(not_available_vmm);
-            Vmm vmm_anchor_anchor_offset = this->get_free_reg<Vmm>(not_available_vmm);
-            Vmm vmm_anchor_idx_offset = this->get_free_reg<Vmm>(not_available_vmm);
+            Vmm vmm_anchor_idx = registers_pool->getInplaceFree<Vmm>(not_available_vmm);
+            Vmm vmm_anchor_anchor_offset = registers_pool->getInplaceFree<Vmm>(not_available_vmm);
+            Vmm vmm_anchor_idx_offset = registers_pool->getInplaceFree<Vmm>(not_available_vmm);
             uni_vbroadcastss(vmm_anchor_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchor_start_idx)]);
             uni_vbroadcastss(vmm_anchor_anchor_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchor_anchor_offset)]);
             uni_vbroadcastss(vmm_anchor_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchor_idx_offset)]);
@@ -148,7 +145,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
             uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_anchor_offset);
 
             // Prepare mask
-            Vmm vmm_anchor_mask = this->get_free_reg<Vmm>(not_available_vmm);
+            Vmm vmm_anchor_mask = registers_pool->getInplaceFree<Vmm>(not_available_vmm);
             mov(rax.cvt32(), this->SIMD_WIDTH);
             sub(rax, reg_anchors_chunk);
             add(rax, 16);
@@ -156,6 +153,8 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
             mov(rbx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, refine_anchor_masks)]);
             uni_vmovdqu(vmm_anchor_mask, ptr[rbx + rax * sizeof(float)]);
             uni_vmovdqu(vmm_anchor_mask_addr, vmm_anchor_mask);
+
+//            uni_vpcmpd(k1, vmm_anchor_mask, vy1j, VCMPPS_LT);
 
             {
                 // float x0 = anchors[a_idx + 0 * a_idx_offset];
@@ -186,9 +185,9 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
                                  vmm_dx, vmm_dy, vmm_d_log_w, vmm_d_log_h};
 
             // Prepare indexes
-            Vmm vmm_delta_idx = this->get_free_reg<Vmm>(not_available_vmm);
-            Vmm vmm_delta_anchor_offset = this->get_free_reg<Vmm>(not_available_vmm);
-            Vmm vmm_delta_idx_offset = this->get_free_reg<Vmm>(not_available_vmm);
+            Vmm vmm_delta_idx = registers_pool->getInplaceFree<Vmm>(not_available_vmm);
+            Vmm vmm_delta_anchor_offset = registers_pool->getInplaceFree<Vmm>(not_available_vmm);
+            Vmm vmm_delta_idx_offset = registers_pool->getInplaceFree<Vmm>(not_available_vmm);
             uni_vbroadcastss(vmm_delta_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_start_idx)]);
             uni_vbroadcastss(vmm_delta_anchor_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_anchor_offset)]);
             uni_vbroadcastss(vmm_delta_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_idx_offset)]);
@@ -197,7 +196,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
             uni_vpaddd(vmm_delta_idx, vmm_delta_idx, vmm_delta_anchor_offset);
 
             // Prepare mask
-            Vmm vmm_delta_mask = this->get_free_reg<Vmm>(not_available_vmm);
+            Vmm vmm_delta_mask = registers_pool->getInplaceFree<Vmm>(not_available_vmm);
             uni_vmovdqu(vmm_delta_mask, vmm_anchor_mask_addr);
 
             {
@@ -219,7 +218,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
 
             not_available_vmm = {vmm_x0, vmm_y0, vmm_x1, vmm_y1,
                                  vmm_dx, vmm_dy, vmm_d_log_w, vmm_d_log_h};
-            Vmm vmm_temp = this->get_free_reg<Vmm>(not_available_vmm);
+            Vmm vmm_temp = registers_pool->getInplaceFree<Vmm>(not_available_vmm);
 
             /** @code
                 // width & height of box
@@ -383,9 +382,9 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
             not_available_vmm = {vmm_x0, vmm_y0, vmm_x1, vmm_y1};
 
             // Prepare indexes
-            Vmm vmm_proposals_idx = this->get_free_reg<Vmm>(not_available_vmm);
-            Vmm vmm_proposals_anchor_offset = this->get_free_reg<Vmm>(not_available_vmm);
-            Vmm vmm_proposals_idx_offset = this->get_free_reg<Vmm>(not_available_vmm);
+            Vmm vmm_proposals_idx = registers_pool->getInplaceFree<Vmm>(not_available_vmm);
+            Vmm vmm_proposals_anchor_offset = registers_pool->getInplaceFree<Vmm>(not_available_vmm);
+            Vmm vmm_proposals_idx_offset = registers_pool->getInplaceFree<Vmm>(not_available_vmm);
             uni_vbroadcastss(vmm_proposals_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposal_start_idx)]);
             uni_vbroadcastss(vmm_proposals_anchor_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposal_anchor_offset)]);
             uni_vbroadcastss(vmm_proposals_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposal_idx_offset)]);
@@ -394,7 +393,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
             uni_vpaddd(vmm_proposals_idx, vmm_proposals_idx, vmm_proposals_anchor_offset);
 
             // Prepare mask
-            Vmm vmm_proposals_mask = this->get_free_reg<Vmm>(not_available_vmm);
+            Vmm vmm_proposals_mask = registers_pool->getInplaceFree<Vmm>(not_available_vmm);
             uni_vmovdqu(vmm_proposals_mask, vmm_anchor_mask_addr);
 
             {
@@ -417,11 +416,11 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
             /** @code
                 const float score = scores[score_idx(anchor, 0, h, w)];
              */
-            Vmm vmm_score = this->get_free_reg<Vmm>(not_available_vmm);
+            Vmm vmm_score = registers_pool->getInplaceFree<Vmm>(not_available_vmm);
 
             // Prepare indexes
-            Vmm vmm_score_idx = this->get_free_reg<Vmm>(not_available_vmm);
-            Vmm vmm_score_anchor_offset = this->get_free_reg<Vmm>(not_available_vmm);
+            Vmm vmm_score_idx = registers_pool->getInplaceFree<Vmm>(not_available_vmm);
+            Vmm vmm_score_anchor_offset = registers_pool->getInplaceFree<Vmm>(not_available_vmm);
             uni_vbroadcastss(vmm_score_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, score_start_idx)]);
             uni_vbroadcastss(vmm_score_anchor_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, score_anchor_offset)]);
             mov(rbx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, refine_anchor_indices)]);
@@ -429,7 +428,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
             uni_vpaddd(vmm_score_idx, vmm_score_idx, vmm_score_anchor_offset);
 
             // Prepare mask
-            Vmm vmm_score_mask = this->get_free_reg<Vmm>(not_available_vmm);
+            Vmm vmm_score_mask = registers_pool->getInplaceFree<Vmm>(not_available_vmm);
             uni_vmovdqu(vmm_score_mask, vmm_anchor_mask_addr);
 
             {
@@ -455,10 +454,10 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
                 const float box_w = x1 - x0 + coordinates_offset;
                 const float box_h = y1 - y0 + coordinates_offset;
              */
-            Vmm vmm_box_w = this->get_free_reg<Vmm>(not_available_vmm);
-            Vmm vmm_box_h = this->get_free_reg<Vmm>(not_available_vmm);
-            Vmm vmm_min_box_w = this->get_free_reg<Vmm>(not_available_vmm);
-            Vmm vmm_min_box_h = this->get_free_reg<Vmm>(not_available_vmm);
+            Vmm vmm_box_w = registers_pool->getInplaceFree<Vmm>(not_available_vmm);
+            Vmm vmm_box_h = registers_pool->getInplaceFree<Vmm>(not_available_vmm);
+            Vmm vmm_min_box_w = registers_pool->getInplaceFree<Vmm>(not_available_vmm);
+            Vmm vmm_min_box_h = registers_pool->getInplaceFree<Vmm>(not_available_vmm);
 
             // const float box_w = x1 - x0 + coordinates_offset;
             uni_vsubps(vmm_box_w, vmm_x1, vmm_x0);
@@ -494,11 +493,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
         ja(anchor_loop);
     }
 
-    allocator->commit();
-
-    this->postamble();
-
-    exp_injector->prepare_table();
+    stack_allocator->commit();
 }
 
 template <x64::cpu_isa_t isa>
@@ -532,5 +527,5 @@ template struct jit_refine_anchors_kernel_fp32<x64::avx512_core>;
 template struct jit_refine_anchors_kernel_fp32<x64::avx2>;
 template struct jit_refine_anchors_kernel_fp32<x64::sse41>;
 
-}
-}
+} // namespace intel_cpu
+} // namespace ov

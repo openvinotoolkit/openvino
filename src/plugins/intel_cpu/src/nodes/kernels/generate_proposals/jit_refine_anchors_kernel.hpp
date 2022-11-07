@@ -57,7 +57,7 @@ struct jit_refine_anchors_call_args {
     const float coordinates_offset;
 };
 
-using jit_refine_anchors_kernel = jit_kernel_base<jit_refine_anchors_conf, jit_refine_anchors_call_args>;
+using jit_refine_anchors_kernel = jit_kernel_tbase<jit_refine_anchors_conf, jit_refine_anchors_call_args>;
 
 template <x64::cpu_isa_t isa>
 class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
@@ -66,13 +66,19 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
 
     using Vmm = typename jit_kernel_traits<isa, ov::element::Type_t::f32>::Vmm;
     static constexpr unsigned VCMPPS_LE = jit_kernel_traits<isa, ov::element::Type_t::f32>::VCMPPS_LE;
+    static constexpr unsigned VCMPPS_LT = jit_kernel_traits<isa, ov::element::Type_t::f32>::VCMPPS_LT;
     static constexpr unsigned VCMPPS_GT = jit_kernel_traits<isa, ov::element::Type_t::f32>::VCMPPS_GT;
     static constexpr unsigned SIMD_WIDTH = jit_kernel_traits<isa, ov::element::Type_t::f32>::SIMD_WIDTH;
 
     jit_refine_anchors_kernel_fp32(const jit_refine_anchors_conf &jqp)
         : jit_refine_anchors_kernel(isa, jqp) {}
 
-    void generate() override;
+    void generate() override {
+        jit_refine_anchors_kernel::generate();
+        exp_injector->prepare_table();
+    }
+
+    void generate(RegistersPool::Ptr registers_pool, StackAllocator::Ptr stack_allocator) override;
 
  private:
     void update_input_output_ptrs();
@@ -109,5 +115,5 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
     Vmm vmm_d_log_h = Vmm(7);
 };
 
-}
-}
+} // namespace intel_cpu
+} // namespace ov

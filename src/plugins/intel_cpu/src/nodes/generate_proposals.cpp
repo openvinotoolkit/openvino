@@ -65,7 +65,7 @@ void parallel_for4d(int first, int second, int third, int fourth, std::function<
         }
     }
 }
-}
+} // namespace seq
 
 struct Indexer4d {
     int dim3_;
@@ -292,16 +292,15 @@ GenerateProposals::GenerateProposals
     }
 
     if (op->output(0).get_element_type() == ov::element::f32) {
-        int32_t anchors_chunk = 0;
         if (mayiuse(x64::avx512_core)) {
             refine_anchors_kernel_.reset(new jit_refine_anchors_kernel_fp32<x64::avx512_core>{
-                jit_refine_anchors_conf{anchors_chunk}});
+                jit_refine_anchors_conf{}});
         } else if (mayiuse(x64::avx2)) {
             refine_anchors_kernel_.reset(new jit_refine_anchors_kernel_fp32<x64::avx2>{
-                jit_refine_anchors_conf{anchors_chunk}});
+                jit_refine_anchors_conf{}});
         } else if (mayiuse(x64::sse41)) {
             refine_anchors_kernel_.reset(new jit_refine_anchors_kernel_fp32<x64::sse41>{
-                jit_refine_anchors_conf{anchors_chunk}});
+                jit_refine_anchors_conf{}});
         }
         if (refine_anchors_kernel_) {
             refine_anchors_kernel_->create_kernel();
@@ -321,7 +320,6 @@ GenerateProposals::GenerateProposals
             nms_kernel_->create_kernel();
         }
     }
-
 }
 
 void GenerateProposals::initSupportedPrimitiveDescriptors() {
@@ -459,7 +457,7 @@ void GenerateProposals::execute(dnnl::stream strm) {
             [[maybe_unused]]const float min_box_W = min_size_ * scale_w;
 
 //            auto start = high_resolution_clock::now();
-            refine_anchors_kernel_.reset();
+//            refine_anchors_kernel_.reset();
             if (refine_anchors_kernel_) {
                 refine_anchors_jit(
                         *refine_anchors_kernel_,
@@ -472,8 +470,7 @@ void GenerateProposals::execute(dnnl::stream strm) {
                         img_H, img_W,
                         min_box_H, min_box_W,
                         static_cast<const float>(log(1000. / 16.)),
-                        coordinates_offset_
-                );
+                        coordinates_offset_);
 //                refine_anchors(
 //                        p_deltas_item, p_scores_item, p_anchors_item,
 //                        reinterpret_cast<float *>(&cpu_proposals_[0]),
@@ -493,8 +490,7 @@ void GenerateProposals::execute(dnnl::stream strm) {
                     img_H, img_W,
                     min_box_H, min_box_W,
                     static_cast<const float>(log(1000. / 16.)),
-                    coordinates_offset_
-                );
+                    coordinates_offset_);
             }
 //            auto stop = high_resolution_clock::now();
 //            auto duration = duration_cast<microseconds>(stop - start);
