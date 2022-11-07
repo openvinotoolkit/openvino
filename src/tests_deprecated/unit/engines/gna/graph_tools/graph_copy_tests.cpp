@@ -12,10 +12,7 @@
 #include <ie_core.hpp>
 #include "graph_test_base.hpp"
 #include <memory>
-
-#ifdef ENABLE_INTEL_GNA
-# include <frontend/model_quantizer.hpp>
-#endif
+#include <frontend/model_quantizer.hpp>
 
 using namespace testing;
 using namespace InferenceEngine;
@@ -27,8 +24,6 @@ class GraphCopyTests : public GraphTestsBase {
 
 protected:
     MockCopier mc;
-
-#ifdef ENABLE_INTEL_GNA
     InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork& model,
                                          std::vector<float> scale_factors) const {
         GNAPluginNS::GnaInputs inputs;
@@ -52,7 +47,6 @@ protected:
             [](InferenceEngine::CNNNetwork&, bool run_before_copy, bool inputs_int8_precision) {},
             inputs);
     }
-#endif
 
     void SetUp() override {
         GraphTestsBase::_batchSize = 12;
@@ -121,7 +115,6 @@ TEST_F(GraphCopyTests, canPreserveAttributes) {
     ASSERT_STREQ(idMemInput.c_str(), "r-1-2-3");
 }
 
-#ifdef ENABLE_INTEL_GNA
 using namespace GNAPluginNS;
 
 TEST_F(GraphCopyTests, canQuantizeTopology) {
@@ -137,8 +130,6 @@ TEST_F(GraphCopyTests, canQuantizeTopology) {
         ASSERT_NE(params, nullptr);
     });
 }
-
-#endif
 
 TEST(CNNSpecificGraphCopyTests, copyNetworkWithClampLayer) {
     //define minimal network with Clamp layer

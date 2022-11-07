@@ -10,7 +10,7 @@
 
 #include <ie_algorithm.hpp>
 
-using namespace ov::intel_gna;
+using ov::intel_gna::frontend::make_fp32_blob;
 
 namespace GNAPluginNS {
 class GNAFakeQuantizeLayer {
@@ -103,10 +103,10 @@ class GNAFakeQuantizeLayer {
             break;
         }
         case InferenceEngine::Precision::FP16: {
-            auto dataMinFP32 = frontend::make_fp32_blob(dataMin);
+            auto dataMinFP32 = make_fp32_blob(dataMin);
             memcpy(&minValues[0], dataMinFP32->buffer().as<float*>(), rangeSize * sizeof(float));
 
-            auto dataMaxFP32 = frontend::make_fp32_blob(dataMax);
+            auto dataMaxFP32 = make_fp32_blob(dataMax);
             memcpy(&maxValues[0], dataMaxFP32->buffer().as<float*>(), rangeSize * sizeof(float));
             break;
         }
