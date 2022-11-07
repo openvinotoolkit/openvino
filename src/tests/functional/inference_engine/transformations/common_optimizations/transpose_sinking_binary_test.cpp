@@ -91,7 +91,7 @@ std::vector<size_t> binary_transpose_input_indexes = {0, 1};
 namespace binary {
 namespace single_consumer {
 namespace forward {
-namespace one_input_tranpose {
+namespace one_input_transpose {
 
 std::shared_ptr<ov::Model> CreateFunction(BinaryFactoryPtr binary_factory,
                                           size_t num_binary_ops,
@@ -146,7 +146,7 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(BinaryFactoryPtr binary_facto
     return std::make_shared<ov::Model>(ov::OutputVector{transpose0}, ov::ParameterVector{X});
 }
 
-}  // namespace one_input_tranpose
+}  // namespace one_input_transpose
 
 namespace double_transpose {
 std::shared_ptr<ov::Model> CreateFunction(BinaryFactoryPtr binary_factory,
@@ -202,7 +202,7 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(BinaryFactoryPtr binary_facto
 } // namespace forward
 
 namespace backward {
-namespace one_input_tranpose {
+namespace one_input_transpose {
 std::shared_ptr<ov::Model> CreateFunction(BinaryFactoryPtr binary_factory,
                                           size_t num_binary_ops,
                                           ov::element::Type input_type,
@@ -252,7 +252,7 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(BinaryFactoryPtr binary_facto
 
     return std::make_shared<ov::Model>(ov::OutputVector{in_op}, ov::ParameterVector{X});
 }
-} // namespace one_input_tranpose
+} // namespace one_input_transpose
 } // namespace backward
 } // namespace single_consumer
 } // namespace binary
@@ -299,8 +299,8 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingBinaryForwardTestSuite, TransposeSinkin
                          ::testing::Combine(::testing::ValuesIn(binary_factories),
                                             ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingElementwiseForward>()),
                                             ::testing::ValuesIn(binary_operations_numbers),
-                       ::testing::Values(binary::single_consumer::forward::one_input_tranpose::CreateFunction),
-                       ::testing::Values(binary::single_consumer::forward::one_input_tranpose::CreateReferenceFunction),
+                       ::testing::Values(binary::single_consumer::forward::one_input_transpose::CreateFunction),
+                       ::testing::Values(binary::single_consumer::forward::one_input_transpose::CreateReferenceFunction),
                                             ::testing::Values(ov::element::f32),
                                             ::testing::ValuesIn(binary_transpose_input_indexes)));
 
@@ -310,8 +310,8 @@ INSTANTIATE_TEST_SUITE_P(
                          ::testing::Combine(::testing::ValuesIn(binary_factories),
                                             ::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingElementwiseBackward>()),
                                             ::testing::ValuesIn(binary_operations_numbers),
-                       ::testing::Values(binary::single_consumer::backward::one_input_tranpose::CreateFunction),
-                       ::testing::Values(binary::single_consumer::backward::one_input_tranpose::CreateReferenceFunction),
+                       ::testing::Values(binary::single_consumer::backward::one_input_transpose::CreateFunction),
+                       ::testing::Values(binary::single_consumer::backward::one_input_transpose::CreateReferenceFunction),
                                             ::testing::Values(ov::element::f32),
                                             ::testing::ValuesIn(binary_transpose_input_indexes)));
 
@@ -386,7 +386,7 @@ std::vector<size_t> concat_transpose_input_indexes = {0, 2};
 namespace concat {
 namespace single_consumer {
 namespace forward {
-namespace one_input_tranpose {
+namespace one_input_transpose {
 
 std::shared_ptr<ov::Model> CreateFunction(size_t num_concat_ops,
                                           ov::element::Type input_type,
@@ -450,7 +450,7 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(size_t num_concat_ops,
     return std::make_shared<ov::Model>(ov::OutputVector{transpose0}, ov::ParameterVector{X});
 }
 
-}  // namespace one_input_tranpose
+}  // namespace one_input_transpose
 
 namespace double_transpose {
 
@@ -608,8 +608,8 @@ TEST_P(TransposeSinkingConcatTestFixture, CompareFunctions) {
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatForwardTestSuite, TransposeSinkingConcatTestFixture,
                          ::testing::Combine(::testing::Values(CreatePassFactory<ov::pass::TransposeSinkingElementwiseForward>()),
                                             ::testing::ValuesIn(concat_operations_numbers),
-                       ::testing::Values(concat::single_consumer::forward::one_input_tranpose::CreateFunction),
-                       ::testing::Values(concat::single_consumer::forward::one_input_tranpose::CreateReferenceFunction),
+                       ::testing::Values(concat::single_consumer::forward::one_input_transpose::CreateFunction),
+                       ::testing::Values(concat::single_consumer::forward::one_input_transpose::CreateReferenceFunction),
                                             ::testing::Values(ov::element::f32),
                                             ::testing::ValuesIn(concat_transpose_input_indexes),
                                             ::testing::Values(5)));
