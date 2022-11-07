@@ -1019,13 +1019,6 @@ openvino/tools/mo/ops/upsample.py
 openvino/tools/mo/pipeline/__init__.py
 openvino/tools/mo/pipeline/common.py
 openvino/tools/mo/pipeline/unified.py
-openvino/tools/mo/requirements.txt
-openvino/tools/mo/requirements_caffe.txt
-openvino/tools/mo/requirements_kaldi.txt
-openvino/tools/mo/requirements_mxnet.txt
-openvino/tools/mo/requirements_onnx.txt
-openvino/tools/mo/requirements_tf.txt
-openvino/tools/mo/requirements_tf2.txt
 openvino/tools/mo/subprocess_main.py
 openvino/tools/mo/utils/__init__.py
 openvino/tools/mo/utils/broadcasting.py

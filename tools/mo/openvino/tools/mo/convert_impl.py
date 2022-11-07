@@ -202,8 +202,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
     def raise_ie_not_found():
         raise Error("Could not find the Inference Engine or nGraph Python API.\n"
                     "Consider building the Inference Engine and nGraph Python APIs from sources or "
-                    "try to install OpenVINO (TM) Toolkit using \"install_prerequisites.{}\"".format(
-            "bat" if sys.platform == "windows" else "sh"))
+                    "try to install OpenVINO (TM) Toolkit using pip \npip install openvino")
 
     try:
         if not find_ie_version(silent=argv.silent):
