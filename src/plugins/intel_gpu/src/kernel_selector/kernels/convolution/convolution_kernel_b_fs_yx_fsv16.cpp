@@ -10,6 +10,18 @@
 
 namespace kernel_selector {
 
+namespace {
+bool post_reorder_fused(const convolution_params& params) {
+    if (!params.fused_ops.empty()) {
+        if (params.fused_ops.back().GetType() == KernelType::REORDER) {
+            return true;
+        }
+    }
+
+    return false;
+}
+}  // namespace
+
 ConvolutionKernel_b_fs_yx_fsv16::ConvolutionKernel_b_fs_yx_fsv16() : ConvolutionKernelBase("convolution_gpu_bfyx_f16") {
     std::vector<size_t> outputBlockWidths = { 2, 4, 8 };
     std::vector<std::string> executionModes = ConvolutionKernelBase::autoTuneOptions;
@@ -190,16 +202,6 @@ bool ConvolutionKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_p
         return false;
 
     return true;
-}
-
-bool post_reorder_fused(const convolution_params& params) {
-    if (!params.fused_ops.empty()) {
-        if (params.fused_ops.back().GetType() == KernelType::REORDER) {
-            return true;
-        }
-    }
-
-    return false;
 }
 
 JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_params& params,

@@ -10,11 +10,11 @@ set ROOT_DIR=%~dp0
 
 python --version 2>NUL
 if errorlevel 1 (
-   echo Error^: Python is not installed. Please install Python 3.5 ^(64-bit^) or higher from https://www.python.org/downloads/
+   echo Error^: Python is not installed. Please install Python 3.7 ^(64-bit^) or higher from https://www.python.org/downloads/
    goto error
 )
 
-:: Check if Python version is equal or higher 3.4
+:: Check if Python version is equal or higher 3.7
 for /F "tokens=* USEBACKQ" %%F IN (`python --version 2^>^&1`) DO (
    set version=%%F
 )
@@ -26,12 +26,12 @@ for /F "tokens=1,2,3 delims=. " %%a in ("%version%") do (
 )
 
 if "%Major%" geq "3" (
-   if "%Minor%" geq "5" (
+   if "%Minor%" geq "7" (
    	  set python_ver=okay
    )
 )
 if not "%python_ver%"=="okay" (
-   echo Unsupported Python version. Please install Python 3.5 ^(64-bit^) or higher from https://www.python.org/downloads/
+   echo Unsupported Python version. Please install Python 3.7 ^(64-bit^) or higher from https://www.python.org/downloads/
    goto error
 )
 
