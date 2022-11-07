@@ -116,18 +116,6 @@ public:
         return {params, optional_params};
     }
 
-    static std::unique_ptr<primitive_impl> create(const concatenation_node& arg, const kernel_impl_params& impl_param) {
-        if (arg.can_be_optimized()) {
-            return make_unique<concatenation_impl>(arg, kernel_selector::kernel_data{});
-        }
-
-        auto kernel_params = get_kernel_params(impl_param);
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-        return make_unique<concatenation_impl>(arg, best_kernel);
-    }
-
 private:
     bool _can_be_optimized;
 };
@@ -135,7 +123,7 @@ private:
 namespace detail {
 
 attach_concatenation_impl::attach_concatenation_impl() {
-    implementation_map<concatenation>::add(impl_types::ocl, concatenation_impl::create, {
+    implementation_map<concatenation>::add(impl_types::ocl, typed_primitive_impl_ocl<concatenation>::create<concatenation_impl>, {
         std::make_tuple(data_types::f32, format::yxfb),
         std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::i8, format::yxfb),
