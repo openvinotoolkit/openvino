@@ -679,7 +679,7 @@ mo_convert_params = {
     'remove_memory': ParamDescription(
         "Removes the Memory layer and use additional inputs outputs instead", '', '',
         None),
-    'convert_to_fp16': ParamDescription(
+    'compress_to_fp16': ParamDescription(
         'If original model is in FP32 all model weights and biases are compressed to FP16.', '', '', None),
     'help': ParamDescription(
         'Print available parameters.', '', '', None),
@@ -992,9 +992,11 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               choices=["FP16", "FP32", "half", "float"],
                               default='float',
                               action=DeprecatedOptionCommon)
-    common_group.add_argument('--convert_to_fp16',
-                              help=mo_convert_params['convert_to_fp16'].description,
-                              action='store_true',
+    common_group.add_argument('--compress_to_fp16',
+                              help=mo_convert_params['compress_to_fp16'].description,
+                              type=check_bool,
+                              nargs="?",
+                              const=True,
                               default=False)
     common_group.add_argument('--transform',
                               help=mo_convert_params['transform'].description.format(
