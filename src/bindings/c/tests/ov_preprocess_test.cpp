@@ -85,7 +85,7 @@ TEST_F(ov_preprocess, ov_preprocess_input_info_get_tensor_info) {
     EXPECT_NE(nullptr, input_info);
 
     OV_EXPECT_OK(ov_preprocess_input_info_get_tensor_info(input_info, &input_tensor_info));
-    EXPECT_NE(nullptr, input_tensor_info);    
+    EXPECT_NE(nullptr, input_tensor_info);
 }
 
 TEST_F(ov_preprocess, ov_preprocess_input_info_get_preprocess_steps) {
@@ -214,7 +214,7 @@ TEST_F(ov_preprocess, ov_preprocess_input_tensor_info_set_from) {
     OV_EXPECT_OK(ov_tensor_create(ov_element_type_e::F32, shape, &tensor));
     OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_from(input_tensor_info, tensor));
 
-    ov_shape_free(&shape); 
+    ov_shape_free(&shape);
 }
 
 TEST_F(ov_preprocess, ov_preprocess_input_tensor_info_set_layout) {
