@@ -98,7 +98,6 @@ void Concat::getSupportedDescriptors() {
     nelemToCopy.resize(getParentEdges().size(), 0);
     dstOffset.resize(getParentEdges().size());
     inputStrides.resize(getParentEdges().size());
-    srcsOffset.resize(getParentEdges().size(), 0);
 }
 
 void Concat::initSupportedPrimitiveDescriptors() {
@@ -364,33 +363,35 @@ void Concat::prepareParams() {
         return;
 
     const auto& dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
+    const auto dstMemDesc = dstMemPtr->GetDescWithType<BlockedMemoryDesc>();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << "Destination memory didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
-        auto outputStride = dstMemPtr->getDescPtr()->as<BlockedMemoryDesc>()->getStrides();
-        size_t curConcatOffset = 0;
-        const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemPtr->GetDataType());
-        const auto& outputOrder = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getDescPtr()->as<BlockedMemoryDesc>()->getOrder();
-        for (size_t i = 0; i < outputOrder.size(); i++) {
-            if (outputOrder[i] == axis) {
-                reorderedAxis = i;
-                break;
-            }
+    const auto& outputStride = dstMemDesc->getStrides();
+    size_t curConcatOffset = 0;
+    const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemPtr->GetDataType());
+    const auto& outputOrder = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getDescPtr()->as<BlockedMemoryDesc>()->getOrder();
+    for (size_t i = 0; i < outputOrder.size(); i++) {
+        if (outputOrder[i] == axis) {
+            reorderedAxis = i;
+            break;
         }
-        std::vector<memory::desc> srcs_d;
-        for (size_t i = 0; i < getParentEdges().size(); i++) {
-            const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
-            if (!srcMemPtr || !srcMemPtr->isAllocated()) {
-                auto parent = getParentEdgeAt(i)->getParent();
-                IE_THROW() << "Source memory from " << parent->getName() << " didn't allocate for node "
-                           << getName() << ".";
-            }
+    }
+    std::vector<memory::desc> srcs_d;
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
+        const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
+        if (!srcMemPtr || !srcMemPtr->isAllocated()) {
+            auto parent = getParentEdgeAt(i)->getParent();
+            IE_THROW() << "Source memory from " << parent->getName() << " didn't allocate for node "
+                       << getName() << ".";
+        }
 
         if (canExecRef) {
-            const auto& inputShape = srcMemPtr->getDescPtr()->as<BlockedMemoryDesc>()->getBlockDims();
-            inputStrides[i] = srcMemPtr->getDescPtr()->as<BlockedMemoryDesc>()->getStrides();
+            const auto srcMemDesc = srcMemPtr->getDescPtr()->as<BlockedMemoryDesc>();
+            const auto& inputShape = srcMemDesc->getBlockDims();
+            inputStrides[i] = srcMemDesc->getStrides();
             size_t nElem = 1;
             for (size_t j = reorderedAxis; j < inputShape.size(); j++) {
                 nElem *= inputShape[j];
@@ -398,19 +399,15 @@ void Concat::prepareParams() {
             nelemToCopy[i] = nElem * elemSize;
             dstOffset[i] = outputStride[reorderedAxis] * curConcatOffset * elemSize;
             curConcatOffset += inputShape[reorderedAxis];
-            auto desc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-            srcsOffset[i] = desc.data.offset0;
         } else {
             if (srcMemPtr->GetShape().hasZeroDims()) {
                 continue;
             }
-
             auto desc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
             const auto& dims = srcMemPtr->getStaticDims();
             for (size_t j = 0; j < dims.size(); j++) {
                 desc.data.dims[j] = dims[j];
             }
-
             srcs_d.emplace_back(desc);
         }
     }
@@ -598,13 +595,14 @@ void Concat::execRef() {
     std::vector<const uint8_t*> srcPtrs;
     const Memory& dstMemory = getChildEdgeAt(0)->getMemory();
     const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemory.GetDataType());
-    const auto& outputShape = dstMemory.getDescPtr()->as<BlockedMemoryDesc>()->getBlockDims();
+    const auto dstMemBlkDesc = dstMemory.getDescPtr()->as<BlockedMemoryDesc>();
+    const auto& outputShape = dstMemBlkDesc->getBlockDims();
     uint8_t* dstPtr = reinterpret_cast<uint8_t*>(dstMemory.GetData());
     for (size_t i = 0; i < numSrc; i++) {
-        const Memory& src_mem = getParentEdgesAtPort(i)[0]->getMemory();
-        srcPtrs.push_back(reinterpret_cast<const uint8_t*>(src_mem.GetData()) + srcsOffset[i] * elemSize);
+        const Memory& srcMem = getParentEdgesAtPort(i)[0]->getMemory();
+        srcPtrs.push_back(reinterpret_cast<const uint8_t*>(srcMem.GetPtr()));
     }
-    const auto& outputStride = dstMemory.getDescPtr()->as<BlockedMemoryDesc>()->getStrides();
+    const auto& outputStride = dstMemBlkDesc->getStrides();
     bool hasOuterLoop = false;
     for (size_t i = 0; i < reorderedAxis; i++) {
         if (outputShape[i] != 1) {
