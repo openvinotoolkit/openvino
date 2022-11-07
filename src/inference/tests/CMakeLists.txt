@@ -16,17 +16,13 @@ ov_add_test_target(
             openvino_auto_plugin
             openvino_auto_batch_plugin
         LINK_LIBRARIES
-            gtest
             gmock
-            gtest_main
-            openvino::runtime::dev
-            commonTestUtils
-            inference_engine_legacy
-            inference_engine_obj
             funcTestUtils
+            inference_engine_s
         INCLUDES
             "${CMAKE_CURRENT_SOURCE_DIR}/../include"
             $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
+            $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
         ADD_CLANG_FORMAT
         LABELS
             OV
