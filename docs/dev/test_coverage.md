@@ -37,6 +37,19 @@ In order to generate coverage reports, first of all, the tests must be run. Depe
 $ ctest -V
 ```
 
+OpenVINO components define several common groups which allow to run tests for separate component (with ctest argiment `-L GROUP_NAME`):
+
+ - OV - core OpenVINO tests
+ - IR_FE - IR frontend tests
+ - ONNX_FE - ONNX frontend tests
+ - PADDLE_FE - Paddle frontend tests
+ - TF_FE - TensorFlow frontend tests
+ - CPU - CPU plugin tests
+ - GPU - GPU plugin tests
+ - GNA - GNA plugin tests
+ - VPU - VPU plugin tests
+
+
 After sufficient number of tests are executed, the coverage numbers can be calculated. In order to do this, run:
 
 ```bash

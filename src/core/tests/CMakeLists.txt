@@ -77,6 +77,7 @@ ov_add_test_target(
         LABELS
             OV
             IE
+            CORE
 )
 
 get_target_property(OV_CORE_SRC_DIR ngraph_obj SOURCE_DIR)
