@@ -153,7 +153,7 @@ def visit_scrollbox(self, node):
             + "".join(c for c in str(node["width"]) if c.isdigit())
             + ("px;" if node["width"].find("px") != -1 else "%;")
         )
-        attrs["class"] = "scrollboxy"
+        attrs["class"] = "scrollbox"
     self.body.append(self.starttag(node, "div", **attrs))
     self.body.append(scrollboxbar)
     self.body.append(scrollboxcontent)
@@ -163,13 +163,14 @@ def depart_scrollbox(self, node):
 
 def create_scrollbox_component(
     name: str,
+    classes: Sequence[str] = (),
     *,
     rawtext: str = "",
     children: Sequence[nodes.Node] = (),
     **attributes,
 ) -> nodes.container:
     node = nodes.container(
-        rawtext, is_div=True, design_component=name, **attributes
+        rawtext, is_div=True, design_component=name, classes=classes, **attributes
     )
     node.extend(children)
     return node
@@ -278,11 +279,11 @@ class RefCodeBlock(Directive):
         return [node]
 
 class Scrollbox(Directive):
-
+    required_arguments = 0
     optional_arguments = 1
     final_argument_whitespace = True
     option_spec = {
-        'class': directives.class_option,
+        'class': "scrollbox",
         'width': directives.length_or_percentage_or_unitless,
         'height': directives.length_or_percentage_or_unitless,
         'style': directives.unchanged,
@@ -293,8 +294,10 @@ class Scrollbox(Directive):
     has_content = True
 
     def run(self):
-        node = nodes.container
-        node['classes'] += self.options.get('class', [])
+        classes = []
+        node = create_scrollbox_component("div", rawtext="\n".join(self.content), classes=classes)
+        if 'class' in self.options:
+            node['classes'] = self.options['class']
         if 'height' in self.options:
             node['height'] = self.options['height']
         if 'width' in self.options:
@@ -305,7 +308,6 @@ class Scrollbox(Directive):
         if self.content:
             self.state.nested_parse(self.content, self.content_offset, node)
         return [node]
-
 
 
 #...............................................................................
@@ -544,11 +546,12 @@ def setup(app):
         html=(visit_doxyrest_literalblock_node, depart_doxyrest_literalblock_node),
         latex=(visit_doxyrest_literalblock_node, depart_doxyrest_literalblock_node)
     )
-
     app.add_node(
         Scrollbox,
-        html=(visit_scrollbox, depart_scrollbox)
+        nodes.container, override=True, html=(visit_scrollbox, depart_scrollbox)
     )
+
+
 
     app.add_role('cref', cref_role)
     app.add_role('target', target_role)
