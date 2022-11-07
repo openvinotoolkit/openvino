@@ -77,15 +77,6 @@ vector<string> ngraph::split(const string& src, char delimiter, bool do_trim) {
     return ov::util::split(src, delimiter, do_trim);
 }
 
-bool ngraph::check_all_digits(const std::string& value) {
-    auto val = ngraph::trim(value);
-    for (const auto& c : val) {
-        if (!std::isdigit(c) || c == '-')
-            return false;
-    }
-    return true;
-}
-
 size_t ngraph::hash_combine(const std::vector<size_t>& list) {
     return ov::util::hash_combine(list);
 }

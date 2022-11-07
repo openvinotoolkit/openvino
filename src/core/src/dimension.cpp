@@ -8,10 +8,10 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
+#include <openvino/util/common_util.hpp>
 #include <sstream>
 
 #include "dimension_tracker.hpp"
-#include "ngraph/util.hpp"
 
 using namespace ngraph;
 
@@ -77,36 +77,36 @@ Dimension::Dimension(value_type min_dimension, value_type max_dimension)
     : m_dimension(min_dimension == -1 ? 0 : min_dimension, max_dimension == -1 ? Interval::s_max : max_dimension) {}
 
 Dimension::Dimension(const std::string& value) {
-    auto val = ngraph::trim(value);
+    auto val = ov::util::trim(value);
     if (val == "?" || val == "-1") {
         m_dimension = {0, Interval::s_max};
         return;
     }
     if (val.find("..") == std::string::npos) {
-        OPENVINO_ASSERT(ngraph::check_all_digits(val), "Cannot parse dimension: \"" + val + "\"");
+        OPENVINO_ASSERT(ov::util::check_all_digits(val), "Cannot parse dimension: \"" + val + "\"");
         m_dimension = {stringToInt64(val)};
         return;
     }
 
     std::string min_value_str = val.substr(0, val.find(".."));
-    min_value_str = ngraph::trim(min_value_str);
+    min_value_str = ov::util::trim(min_value_str);
 
     int64_t min_value;
     if (min_value_str.empty())
         min_value = 0;
     else {
-        OPENVINO_ASSERT(ngraph::check_all_digits(min_value_str), "Cannot parse min bound: \"" + min_value_str + "\"");
+        OPENVINO_ASSERT(ov::util::check_all_digits(min_value_str), "Cannot parse min bound: \"" + min_value_str + "\"");
         min_value = stringToInt64(min_value_str);
     }
 
     std::string max_value_str = val.substr(val.find("..") + 2);
-    max_value_str = ngraph::trim(max_value_str);
+    max_value_str = ov::util::trim(max_value_str);
 
     int64_t max_value;
     if (max_value_str.empty())
         max_value = Interval::s_max;
     else {
-        OPENVINO_ASSERT(check_all_digits(max_value_str), "Cannot parse max bound: \"" + max_value_str + "\"");
+        OPENVINO_ASSERT(ov::util::check_all_digits(max_value_str), "Cannot parse max bound: \"" + max_value_str + "\"");
         max_value = stringToInt64(max_value_str);
     }
     m_dimension = Interval(min_value, max_value);

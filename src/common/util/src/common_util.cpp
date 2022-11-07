@@ -48,3 +48,12 @@ size_t ov::util::hash_combine(const std::vector<size_t>& list) {
     }
     return seed;
 }
+
+bool ov::util::check_all_digits(const std::string& value) {
+    auto val = ov::util::trim(value);
+    for (const auto& c : val) {
+        if (!std::isdigit(c) || c == '-')
+            return false;
+    }
+    return true;
+}

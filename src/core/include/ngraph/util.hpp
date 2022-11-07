@@ -76,8 +76,6 @@ std::string trim(const std::string& s);
 NGRAPH_API
 std::vector<std::string> split(const std::string& s, char delimiter, bool trim = false);
 
-bool check_all_digits(const std::string& value);
-
 template <typename T>
 NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 std::string locale_string(T x) {
