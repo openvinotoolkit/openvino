@@ -259,12 +259,12 @@ void RemoveZeroInputNode(NodePtr main_node) {
     main_node->input(0).replace_source_output(parent_node);
 }
 
-std::vector<NodePtr> InsertOutputTransposes(NodePtr main_node, TransposeInputsInfo & transpose_input_info) {
+NodeVector InsertOutputTransposes(NodePtr main_node, TransposeInputsInfo & transpose_input_info) {
     const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
     const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
     const auto transpose_element_type = transpose_input_info.transpose_const->get_element_type();
 
-    std::vector<NodePtr> new_nodes;
+    NodeVector new_nodes;
 
     for (size_t i = 0; i < main_node->get_output_size(); ++i) {
         auto main_node_consumers = main_node->output(i).get_target_inputs();
@@ -387,11 +387,11 @@ pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
 }
 
 namespace sink_backward {
-std::vector<NodePtr> InsertTransposeBeforeNode(NodePtr main_node, std::shared_ptr<Constant> transpose_const) {
+NodeVector InsertTransposeBeforeNode(NodePtr main_node, std::shared_ptr<Constant> transpose_const) {
     const auto transpose_axis_order = transpose_const->get_axis_vector_val();
     const auto transpose_element_type = transpose_const->get_element_type();
 
-    std::vector<NodePtr> new_nodes;
+    NodeVector new_nodes;
 
     for (size_t i = 0; i < main_node->get_input_size(); ++i) {
         auto input_node = main_node->input_value(i);
@@ -409,7 +409,6 @@ std::vector<NodePtr> InsertTransposeBeforeNode(NodePtr main_node, std::shared_pt
 
     return new_nodes;
 }
-
 } // namespace sink_backward
 
 pass::TransposeSinkingBinaryElementwiseBackward::TransposeSinkingBinaryElementwiseBackward() {
