@@ -14,6 +14,5 @@ Explore other resources to learn more about OpenVINO:
  * [OpenVINO Tutorials](../../README.md#tutorials)
 
 ## See also
-
  * [OpenVINO Developer Documentation](./index.md)
  * [OpenVINO Samples](../../samples)
