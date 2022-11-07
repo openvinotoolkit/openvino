@@ -293,7 +293,7 @@ class Scrollbox(Directive):
     has_content = True
 
     def run(self):
-        node = create_scrollbox_component("div", rawtext="\n".join(self.content))
+        node = nodes.container
         node['classes'] += self.options.get('class', [])
         if 'height' in self.options:
             node['height'] = self.options['height']
@@ -547,7 +547,7 @@ def setup(app):
 
     app.add_node(
         Scrollbox,
-        nodes.container, html=(visit_scrollbox, depart_scrollbox)
+        html=(visit_scrollbox, depart_scrollbox)
     )
 
     app.add_role('cref', cref_role)
