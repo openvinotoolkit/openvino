@@ -13,5 +13,4 @@ API references available:
 
    ../groupov_cpp_api
    ../groupov_c_api
-   ../groupie_c_api
    ie_python_api/api
