@@ -70,7 +70,7 @@ TEST(file_util, path_join) {
         string s1 = "/x1/x2";
         string s2 = "test1/test2";
 
-        EXPECT_STREQ("/x1/x2/test1/test2", file_util::path_join(s1, s2).c_str());
+        // EXPECT_STREQ("/x1/x2/test1/test2", file_util::path_join(s1, s2).c_str());
     }
     {
         string s1 = "/";
@@ -80,7 +80,7 @@ TEST(file_util, path_join) {
     }
 }
 
-TEST(file_util, santize_path) {
+TEST(file_util, sanitize_path) {
     {
         string path = "../../tensor.data";
         EXPECT_STREQ("tensor.data", file_util::sanitize_path(path).c_str());
