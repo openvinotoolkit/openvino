@@ -222,10 +222,21 @@ int main(int argc, char* argv[]) {
         }
         gnaPluginConfig[ov::hint::inference_precision.name()] = (FLAGS_qb == 8) ? ov::element::i8 : ov::element::i16;
         auto parse_target = [&](const std::string& target) -> ov::intel_gna::HWGeneration {
-            return (target == "GNA_TARGET_2_0") ? ov::intel_gna::HWGeneration::GNA_2_0
-                                                : (target == "GNA_TARGET_3_0") ? ov::intel_gna::HWGeneration::GNA_3_0
-                                                                               : ov::intel_gna::HWGeneration::UNDEFINED;
+            auto hw_target = ov::intel_gna::HWGeneration::UNDEFINED;
+
+            if (target == "GNA_TARGET_2_0") {
+                hw_target = ov::intel_gna::HWGeneration::GNA_2_0;
+            } else if (target == "GNA_TARGET_3_0") {
+                hw_target = ov::intel_gna::HWGeneration::GNA_3_0;
+            } else if (target == "GNA_TARGET_3_5") {
+                hw_target = ov::intel_gna::HWGeneration::GNA_3_5;
+            } else if (!target.empty()) {
+                slog::warn << "Unsupported target: " << target << slog::endl;
+            }
+
+            return hw_target;
         };
+
         gnaPluginConfig[ov::intel_gna::execution_target.name()] = parse_target(FLAGS_exec_target);
         gnaPluginConfig[ov::intel_gna::compile_target.name()] = parse_target(FLAGS_compile_target);
         gnaPluginConfig[ov::intel_gna::memory_reuse.name()] = !FLAGS_memory_reuse_off;

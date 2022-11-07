@@ -1457,7 +1457,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::scatter_elements_update::type_id() &&
             prim.type() != cldnn::gather_tree::type_id() &&
             prim.type() != cldnn::experimental_detectron_detection_output::type_id() &&
-            prim.type() != cldnn::experimental_detectron_topk_rois::type_id()) {
+            prim.type() != cldnn::experimental_detectron_topk_rois::type_id() &&
+            prim.type() != cldnn::convert_color::type_id()) {
             can_use_fsv16 = false;
         }
 
