@@ -278,9 +278,6 @@ class RefCodeBlock(Directive):
         self.add_name(node)
         return [node]
 
-class Scrollboxnode(nodes.container):
-    pass
-
 class Scrollbox(Directive):
     required_arguments = 0
     optional_arguments = 1
@@ -296,17 +293,20 @@ class Scrollbox(Directive):
     has_content = True
 
     def run(self):
-        node = Scrollboxnode
+        classes = []
+        nodescrollbox = create_scrollbox_component("div", rawtext="\n".join(self.content), classes=classes)
+        if 'class' in self.options:
+            nodescrollbox['classes'] = self.options['class']
         if 'height' in self.options:
-            node['height'] = self.options['height']
+            nodescrollbox['height'] = self.options['height']
         if 'width' in self.options:
-            node['width'] = self.options['width']
+            nodescrollbox['width'] = self.options['width']
         if 'bar' in self.options:
-            node['bar'] = self.options['bar']
-        self.add_name(node)
+            nodescrollbox['bar'] = self.options['bar']
+        self.add_name(nodescrollbox)
         if self.content:
-            self.state.nested_parse(self.content, self.content_offset, node)
-        return [node]
+            self.state.nested_parse(self.content, self.content_offset, nodescrollbox)
+        return [nodescrollbox]
 
 
 #...............................................................................
@@ -546,7 +546,7 @@ def setup(app):
         latex=(visit_doxyrest_literalblock_node, depart_doxyrest_literalblock_node)
     )
     app.add_node(
-        Scrollboxnode,
+        Scrollbox.nodescrollbox,
         html=(visit_scrollbox, depart_scrollbox),
         latex=(visit_scrollbox, depart_scrollbox)
     )
