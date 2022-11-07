@@ -139,7 +139,7 @@ jobs:
       # For running Python API tests
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
       # For running Paddle frontend unit tests
-      python3 -m pip install -r $(REPO_DIR)/src/core/tests/frontend/paddle/requirements_dev.txt
+      python3 -m pip install -r $(REPO_DIR)/src/frontends/paddle/tests/requirements.txt
       # For running ONNX frontend unit tests
       python3 -m pip install -r $(REPO_DIR)/src/frontends/onnx/tests/requirements.txt
       # For MO unit tests
