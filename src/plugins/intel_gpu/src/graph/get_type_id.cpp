@@ -55,7 +55,6 @@
 #include "intel_gpu/primitives/lstm_dynamic_timeloop.hpp"
 #include "intel_gpu/primitives/lstm_dynamic.hpp"
 #include "intel_gpu/primitives/lstm.hpp"
-#include "intel_gpu/primitives/max_unpooling.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/mvn.hpp"
 #include "intel_gpu/primitives/non_max_suppression.hpp"
@@ -154,7 +153,6 @@ cldnn::primitive_type_id cldnn::get_type_id(std::string type_str) {
         {"lstm_dynamic_timeloop", cldnn::lstm_dynamic_timeloop::type_id()},
         {"lstm_elt", cldnn::lstm_elt::type_id()},
         {"lstm_gemm", cldnn::lstm_gemm::type_id()},
-        {"max_unpooling", cldnn::max_unpooling::type_id()},
         {"mutable_data", cldnn::mutable_data::type_id()},
         {"mvn", cldnn::mvn::type_id()},
         {"non_max_suppression", cldnn::non_max_suppression::type_id()},
