@@ -112,7 +112,7 @@ TEST(scatter_update_gpu_fp16, d2411_axisB) {
         };
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]))
+            EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]))
                 << "i=" << i << ", target_format=" << target_format;
         }
     }
@@ -284,7 +284,7 @@ TEST(scatter_update_gpu_fp16, d4311_axisB) {
         };
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]))
+            EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]))
                 << "i=" << i << ", target_format=" << target_format;
         }
     }
@@ -418,7 +418,7 @@ TEST(scatter_update_gpu_fp16, d2521_axisF) {
         };
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]))
+            EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]))
                                 << "i=" << i << ", target_format=" << target_format;
         }
     }
@@ -525,7 +525,7 @@ TEST(scatter_update_gpu_fp16, d2241_axisY) {
 
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]))
+            EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]))
                                 << "i=" << i << ", target_format=" << target_format;
         }
     }
@@ -716,7 +716,7 @@ TEST(scatter_update_gpu_fp16, d8x2x20x1_axisB) {
         };
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]))
+            EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]))
                                 << "i=" << i << ", target_format=" << target_format;
         }
     }
@@ -1582,7 +1582,7 @@ TEST(scatter_update_gpu_fp16, d21214_bfzyx_axisX_bfwzyx) {
             };
 
             for (size_t i = 0; i < expected_results.size(); ++i) {
-                EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]))
+                EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]))
                                     << "i=" << i
                                     << ", target_format_2d=" << target_format
                                     << ", target_format_3d=" << target_format_3d;

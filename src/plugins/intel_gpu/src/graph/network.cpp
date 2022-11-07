@@ -14,6 +14,7 @@
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/half.hpp"
 
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/network.hpp"
@@ -121,51 +122,11 @@ void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<p
     }
 }
 
-float convert_half_to_float(half_t val, bool flush_denorm_to_zero = false) {
-#if defined HALF_HALF_HPP
-    return val;
-#else
-    // FP32 parts extracted from FP16.
-    uint32_t sign = (static_cast<uint16_t>(val) & 0x8000U) << 16;
-    uint32_t mantissa = (static_cast<uint16_t>(val) & 0x3FFU) << 13;
-
-    uint32_t exp_val_f16 = (static_cast<uint16_t>(val) & 0x7C00U) >> 10;
-    uint32_t exp;
-    if (exp_val_f16 == 0) {
-        // Handling +/-0 and denormals.
-        if (mantissa == 0) {
-            exp = 0;
-        } else if (flush_denorm_to_zero) {
-            sign = 0;
-            exp = 0;
-            mantissa = 0;
-        } else {
-            // Denorms conversion to normal numbers.
-            exp = 127 - 15;
-            while (!(mantissa & 0x400000U)) {
-                mantissa <<= 1;
-                --exp;
-            }
-            mantissa = (mantissa << 1) & 0x7FFFFFU;
-            exp <<= 23;
-        }
-    } else {
-        // Handling +/-infinity, NaN and normal numbers.
-        exp = (exp_val_f16 == 0x1FU ? 0xFFU : exp_val_f16 + 127 - 15) << 23;
-    }
-
-    float ret;
-    reinterpret_cast<uint32_t&>(ret) = sign | exp | mantissa;
-
-    return ret;
-#endif
-}
-
 float convert_element(int32_t i) { return static_cast<float>(i); }
 
 float convert_element(float f) { return f; }
 
-float convert_element(half_t h) { return convert_half_to_float(h); }
+float convert_element(half_t h) { return half_to_float(h); }
 
 size_t get_x_pitch(const layout& layout) {
     try {
