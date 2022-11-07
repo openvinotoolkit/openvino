@@ -37,8 +37,7 @@ TransposeInputsInfo GetFirstTransposeInput(NodePtr node) {
         auto transpose_node = as_type_ptr<Transpose>(input_node);
         if (!transpose_node)
             continue;
-        auto constant_node =
-            as_type_ptr<Constant>(transpose_node->input_value(1).get_node_shared_ptr());
+        auto constant_node = as_type_ptr<Constant>(transpose_node->input_value(1).get_node_shared_ptr());
         if (!constant_node)
             continue;
         {
@@ -196,8 +195,8 @@ pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
         {
             auto input_node = split->input_value(0);
             auto new_transpose_const = std::make_shared<Constant>(transpose_element_type,
-                                                                              Shape{transpose_axis_order.size()},
-                                                                              transpose_axis_order);
+                                                                  Shape{transpose_axis_order.size()},
+                                                                  transpose_axis_order);
             auto new_transpose = std::make_shared<Transpose>(input_node, new_transpose_const);
 
             split->input(0).replace_source_output(new_transpose->output(0));
@@ -209,8 +208,8 @@ pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
 
         // update split axis
         auto new_split_axis_const = std::make_shared<Constant>(split_axis_constant->get_element_type(),
-                                                                           Shape{},
-                                                                           reversed_transposed_split_axis);
+                                                               Shape{},
+                                                               reversed_transposed_split_axis);
         split->input(1).replace_source_output(new_split_axis_const);
 
         // remove split output transposes
@@ -229,7 +228,7 @@ pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
 namespace sink_forward {
 
 // insert input reversed transposes, remove first input tranpose
-void UpdateInputTransposes(NodePtr main_node, TransposeInputsInfo & transpose_input_info) {
+void UpdateInputTransposes(NodePtr main_node, TransposeInputsInfo& transpose_input_info) {
     const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
     const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
     const size_t tranpose_input_index = transpose_input_info.input_idx;
@@ -259,7 +258,7 @@ void RemoveZeroInputNode(NodePtr main_node) {
     main_node->input(0).replace_source_output(parent_node);
 }
 
-NodeVector InsertOutputTransposes(NodePtr main_node, TransposeInputsInfo & transpose_input_info) {
+NodeVector InsertOutputTransposes(NodePtr main_node, TransposeInputsInfo& transpose_input_info) {
     const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
     const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
     const auto transpose_element_type = transpose_input_info.transpose_const->get_element_type();
@@ -292,13 +291,12 @@ NodeVector InsertOutputTransposes(NodePtr main_node, TransposeInputsInfo & trans
     return new_nodes;
 }
 
-} // namespace sink_forward
+}  // namespace sink_forward
 
 pass::TransposeSinkingBinaryElementwiseForward::TransposeSinkingBinaryElementwiseForward() {
     MATCHER_SCOPE(TransposeSinkingBinaryElementwiseForward);
 
-    auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic>(
-        IfNodeHasTransposeInputs);
+    auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic>(IfNodeHasTransposeInputs);
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -370,13 +368,11 @@ pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
 
         const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
         auto split_node = as_type_ptr<Split>(main_node);
-        auto split_axis_constant =
-                as_type_ptr<Constant>(split_node->input_value(1).get_node_shared_ptr());
+        auto split_axis_constant = as_type_ptr<Constant>(split_node->input_value(1).get_node_shared_ptr());
         const size_t split_axis = split_axis_constant->get_axis_vector_val()[0];
         const size_t transposed_split_axis = transpose_axis_order[split_axis];
-        auto new_split_axis_const = std::make_shared<Constant>(split_axis_constant->get_element_type(),
-                                                                               Shape{},
-                                                                               transposed_split_axis);
+        auto new_split_axis_const =
+            std::make_shared<Constant>(split_axis_constant->get_element_type(), Shape{}, transposed_split_axis);
         split_node->input(1).replace_source_output(new_split_axis_const);
 
         return true;
@@ -409,7 +405,7 @@ NodeVector InsertTransposeBeforeNode(NodePtr main_node, std::shared_ptr<Constant
 
     return new_nodes;
 }
-} // namespace sink_backward
+}  // namespace sink_backward
 
 pass::TransposeSinkingBinaryElementwiseBackward::TransposeSinkingBinaryElementwiseBackward() {
     MATCHER_SCOPE(TransposeSinkingBinaryElementwiseBackward);
@@ -417,13 +413,11 @@ pass::TransposeSinkingBinaryElementwiseBackward::TransposeSinkingBinaryElementwi
     auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic>(consumers_count(1));
 
     auto transpose_const_label = wrap_type<Constant>(consumers_count(1));
-    auto transpose_label =
-        wrap_type<Transpose>({main_node_label, transpose_const_label}, consumers_count(1));
+    auto transpose_label = wrap_type<Transpose>({main_node_label, transpose_const_label}, consumers_count(1));
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
-        auto transpose_const =
-            as_type_ptr<Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
+        auto transpose_const = as_type_ptr<Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto main_node = pattern_to_output.at(main_node_label).get_node_shared_ptr();
 
@@ -449,13 +443,11 @@ pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
     auto main_node_label = wrap_type<Concat>(consumers_count(1));
 
     auto transpose_const_label = wrap_type<Constant>(consumers_count(1));
-    auto transpose_label =
-        wrap_type<Transpose>({main_node_label, transpose_const_label}, consumers_count(1));
+    auto transpose_label = wrap_type<Transpose>({main_node_label, transpose_const_label}, consumers_count(1));
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
-        auto transpose_const =
-            as_type_ptr<Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
+        auto transpose_const = as_type_ptr<Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto main_node = pattern_to_output.at(main_node_label).get_node_shared_ptr();
 
