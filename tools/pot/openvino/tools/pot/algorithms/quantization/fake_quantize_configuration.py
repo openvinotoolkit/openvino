@@ -325,7 +325,10 @@ def find_fqs_to_unify(model, config):
     def _get_unified_scales_ops(hw_ops_):
         unified_scales_ops_ = []
         for hw_op in hw_ops_:
-            if 'quantization' in hw_op and hw_op['quantization'].get('unified_scales', None) == 'all':
+            if 'attributes' in hw_op and 'unified_scales' in hw_op['attributes']:
+                del hw_op['attributes']['unified_scales']
+                if not hw_op['attributes']:
+                    del hw_op['attributes']
                 unified_scales_ops_.append(hw_op)
         return unified_scales_ops_
 
@@ -412,8 +415,8 @@ def find_fqs_to_unify(model, config):
     def _get_unified_recurrent_scales_ops(hw_ops_):
         unified_scales_ops_ = {}
         for hw_op in hw_ops_:
-            if hw_op['type'] in RECURRENT_TYPES and 'unified_scales' in hw_op['quantization']:
-                unified_scales_ops_[hw_op['type']] = hw_op['quantization']['unified_scales']
+            if hw_op['type'] in RECURRENT_TYPES and 'unified_scales' in hw_op['attributes']:
+                unified_scales_ops_[hw_op['type']] = hw_op['attributes']['unified_scales']
         return unified_scales_ops_
 
     def _process_node(node_, stack_, visited_, to_unify_):
@@ -442,8 +445,9 @@ def find_fqs_to_unify(model, config):
     per_channel_quantizable = _get_quantizable_per_ch_ops(hardware_config)
     hw_ops = get_operation_list(hardware_config)
     quantize_agnostic_ops = [op[1] for op in find_operation_matches(QUANTIZE_AGNOSTIC_OPERATIONS, hw_ops)]
+    recurrent_hw_ops = _get_unified_recurrent_scales_ops(hw_ops)
     unified_scales_ops = _get_unified_scales_ops(hw_ops)
-    if not unified_scales_ops:
+    if not (unified_scales_ops or recurrent_hw_ops):
         return []
 
     visited = defaultdict(lambda: False)
@@ -463,7 +467,6 @@ def find_fqs_to_unify(model, config):
                     len(to_unify[1]) > 1:
                 fqs_to_unify.append(to_unify)
 
-    recurrent_hw_ops = _get_unified_recurrent_scales_ops(hw_ops)
     recurrent_fqs = unify_recurrent_fqs(model, recurrent_hw_ops)
     fqs_to_unify.extend(recurrent_fqs)
 
