@@ -160,8 +160,9 @@ struct PluginConfig {
                 _perfHintsConfig.SetConfig(kvp.first, kvp.second);
                 if (kvp.first == ov::hint::performance_mode.name())
                     _isSetPerHint = true;
-            } else if (_availableDevices.end() !=
-                   std::find(_availableDevices.begin(), _availableDevices.end(), kvp.first)) {
+            } else if (_availableDevices.end() != std::find(_availableDevices.begin(),
+                                                            _availableDevices.end(),
+                                                            DeviceIDParser(kvp.first).getDeviceName())) {
                 // AUTO and MULTI can accept secondary properites on calling both core::comile_model() and
                 // core::set_property().
                 _passThroughConfig.emplace(kvp.first, kvp.second);
