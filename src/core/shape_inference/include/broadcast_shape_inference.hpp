@@ -107,7 +107,7 @@ void set_result_shape_pdpd(const ov::Node* op,
 
     NODE_VALIDATION_CHECK(op, start_axis >= 0, "Broadcast start_axis must be greater than 0");
 
-    for (auto i = start_axis; i < target_input_shape.size(); ++i) {
+    for (size_t i = start_axis; i < target_input_shape.size(); ++i) {
         const auto& arg_dim = arg0_shape[i - start_axis];
         if (arg_dim == 1) {
             result_shape[i] = target_input_shape[i];
