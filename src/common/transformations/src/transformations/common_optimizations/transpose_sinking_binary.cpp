@@ -213,7 +213,7 @@ pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
                                                                            reversed_transposed_split_axis);
         split->input(1).replace_source_output(new_split_axis_const);
 
-        // remote split output transposes
+        // remove split output transposes
         for (size_t output_idx = 0; output_idx < split->get_output_size(); ++output_idx) {
             for (auto& input : split->get_output_target_inputs(output_idx)) {
                 input.get_node()->output(0).replace(split->output(output_idx));
