@@ -162,6 +162,13 @@ Plugin::Plugin() : m_defaultContexts({}) {
     for (auto& config : _impl->m_configs) {
         CustomLayer::LoadFromFile(config_path, config.second.customLayers, true);
     }
+
+    isModelCachingEnabled = false;
+    if (const char* env_p = std::getenv("OV_GPU_MODEL_CACHING")) {
+        if (env_p[0] == '1') {
+            isModelCachingEnabled = true;
+        }
+    }
 }
 
 auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
@@ -614,7 +621,8 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         metrics.push_back(METRIC_KEY(DEVICE_GOPS));
         metrics.push_back(METRIC_KEY(OPTIMAL_BATCH_SIZE));
         metrics.push_back(METRIC_KEY(MAX_BATCH_SIZE));
-        metrics.push_back(METRIC_KEY(IMPORT_EXPORT_SUPPORT));
+        if (isModelCachingEnabled)
+            metrics.push_back(METRIC_KEY(IMPORT_EXPORT_SUPPORT));
         metrics.push_back(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
         metrics.push_back(GPU_METRIC_KEY(UARCH_VERSION));
         metrics.push_back(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
@@ -764,7 +772,8 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             capabilities.push_back(ov::device::capability::INT8);
         if (device_info.supports_immad)
             capabilities.push_back(ov::intel_gpu::capability::HW_MATMUL);
-        capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
+        if (isModelCachingEnabled)
+            capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
         return decltype(ov::device::capabilities)::value_type {capabilities};
     } else if (name == ov::range_for_async_infer_requests) {
         std::tuple<unsigned int, unsigned int, unsigned int> range = std::make_tuple(1, 2, 1);
@@ -957,7 +966,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             }
         }
         return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
-    } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
+    } else if (isModelCachingEnabled && name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     } else {
         IE_THROW() << "Unsupported metric key " << name;

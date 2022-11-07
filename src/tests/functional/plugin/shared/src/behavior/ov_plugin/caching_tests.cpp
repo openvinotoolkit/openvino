@@ -181,6 +181,9 @@ void CompileModelCacheTestBase::run() {
         }
         init_input_shapes(static_shapes_to_test_representation(inShapes));
     }
+    if ((targetDevice.find("GPU") != std::string::npos)) {
+        setenv("OV_GPU_MODEL_CACHING", "1", 1);
+    }
     if ((targetDevice.find("AUTO") == std::string::npos) && !importExportSupported(*core)) {
         GTEST_COUT << "Plugin doesn't support import and export - skipping test" << std::endl;
         GTEST_SKIP();
@@ -216,6 +219,9 @@ void CompileModelCacheTestBase::run() {
         // cache is created and reused
         ASSERT_EQ(CommonTestUtils::listFilesWithExt(m_cacheFolderName, "blob").size(), 1);
         compare(originalOutputs, get_plugin_outputs());
+    }
+    if ((targetDevice.find("GPU") != std::string::npos)) {
+        setenv("OV_GPU_MODEL_CACHING", NULL, 1);
     }
 }
 

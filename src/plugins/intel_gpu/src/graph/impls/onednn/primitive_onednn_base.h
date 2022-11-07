@@ -87,6 +87,13 @@ private:
 
     void build_primitive() {
         auto cache_outpath = get_cache_directory();
+
+        if (const char* env_p = std::getenv("OV_GPU_MODEL_CACHING")) {
+            if (env_p[0] == '1') {
+                cache_outpath = "";
+            }
+        }
+
         if (cache_outpath.empty()) {
             _prim = PrimType(_pd);
         } else {

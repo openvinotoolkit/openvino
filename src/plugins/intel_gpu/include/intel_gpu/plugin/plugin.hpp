@@ -23,6 +23,7 @@ class Plugin : public InferenceEngine::IInferencePlugin,
     std::shared_ptr<impl> _impl;
     bool streamsSet = false;
     bool throttlingSet = false;
+    bool isModelCachingEnabled = false;
 
     // key: device_id, value: cldnn device
     std::map<std::string, cldnn::device::ptr> device_map;

@@ -70,6 +70,12 @@ std::string kernels_cache::get_cache_path() const {
 }
 
 bool kernels_cache::is_cache_enabled() const {
+    if (const char* env_p = std::getenv("OV_GPU_MODEL_CACHING")) {
+        if (env_p[0] == '1') {
+            return false;
+        }
+    }
+
     return !_engine.configuration().kernels_cache_path.empty();
 }
 
