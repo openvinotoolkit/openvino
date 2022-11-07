@@ -299,6 +299,84 @@ protected:
     }
 };
 
+class LoopForInplaceInputsLayerCPUTest : public LoopLayerCPUTest {
+    // parameter                   back edge
+    //    |                 |-------------------|
+    //    |-----------------|                   |
+    //                   squeeze                |
+    //                      |                   |
+    //    |----------------Add ----- Constant   |
+    //    |                 |                   |
+    // unsqueeze2       unsqueeze1              |
+    //    |                 |-------------------|
+    //  Output            Output
+
+protected:
+    void SetUp() override {
+        InputLayerType trip_count_type;
+        int64_t trip_count;
+        bool exec_cond;
+        std::vector<InputShape> shapes;
+        std::vector<LOOP_IN_TYPE> types;
+        std::tie(trip_count_type, trip_count, exec_cond, shapes, types, inType) = this->GetParam();
+
+        targetDevice = CommonTestUtils::DEVICE_CPU;
+        init_input_shapes(shapes);
+
+        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+
+        // Set up the cell body, a function from (Xi, Yi) -> (Zo)
+        // Body parameters
+        const std::vector<ngraph::PartialShape> body_params_shapes(shapes.size(), ngraph::PartialShape::dynamic());
+        ngraph::ParameterVector body_params;
+        for (const auto &pshape : body_params_shapes) {
+            body_params.emplace_back(std::make_shared<ngraph::opset1::Parameter>(inType, pshape));
+        }
+
+        auto body_condition_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+        auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, exec_cond);
+        std::shared_ptr<ngraph::Node> trip_count_input;
+        int shift = 0;
+        if (trip_count_type == InputLayerType::PARAMETER) {
+            for (auto& target : targetStaticShapes)
+                target.insert(target.begin(), ngraph::Shape{});
+            trip_count_input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64, ngraph::Shape{1});
+            trip_count_input->set_friendly_name("trip_count");
+            params.insert(params.begin(), ov::as_type_ptr<ngraph::opset5::Parameter>(trip_count_input));
+            shift++;
+        } else {
+            trip_count_input = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, trip_count);
+        }
+
+        // Body
+        auto squeeze = ngraph::builder::makeSqueezeUnsqueeze(body_params[0], ngraph::element::i64, {2}, ngraph::helpers::SqueezeOpType::SQUEEZE);
+        auto constant = ngraph::builder::makeConstant(inType, std::vector<size_t>{1}, std::vector<float>{0.5});
+        auto eltwise = std::make_shared<ov::op::v1::Add>(squeeze, constant);
+        auto unsqueeze1 = ngraph::builder::makeSqueezeUnsqueeze(eltwise, ngraph::element::i64, {2}, ngraph::helpers::SqueezeOpType::UNSQUEEZE);
+        auto unsqueeze2 = ngraph::builder::makeSqueezeUnsqueeze(eltwise, ngraph::element::i64, {2}, ngraph::helpers::SqueezeOpType::UNSQUEEZE);
+
+        auto body = std::make_shared<ov::Model>(ngraph::OutputVector{body_condition_const, unsqueeze2, unsqueeze1}, body_params);
+
+        auto loop = std::make_shared<ngraph::opset5::Loop>(trip_count_input, exec_condition);
+        loop->set_function(body);
+        loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
+
+        loop->set_merged_input(body_params[0], params[shift], unsqueeze1);
+
+        // Output 0 is last Zo
+        auto out0 = loop->get_iter_value(body_condition_const, -1);
+        auto out1 = loop->get_iter_value(unsqueeze2, -1);
+        auto out2 = loop->get_iter_value(unsqueeze1, -1);
+
+        auto result0 = std::make_shared<ngraph::opset5::Result>(out0);
+        auto result1 = std::make_shared<ngraph::opset5::Result>(out1);
+        auto result2 = std::make_shared<ngraph::opset5::Result>(out2);
+        function = std::make_shared<ov::Model>(ngraph::ResultVector{result0, result1, result2}, params, "loop");
+
+        ov::serialize(function, "LoopForInplaceInputsLayerCPUTest.xml", "LoopForInplaceInputsLayerCPUTest.bin");
+    }
+};
+
 TEST_P(LoopLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
@@ -312,6 +390,12 @@ TEST_P(LoopWhileLayerCPUTest, CompareWithRefs) {
 }
 
 TEST_P(LoopForDiffShapesLayerCPUTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    run();
+}
+
+TEST_P(LoopForInplaceInputsLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
@@ -473,6 +557,42 @@ INSTANTIATE_TEST_SUITE_P(smoke_LoopForDiffShapesConcat, LoopForDiffShapesLayerCP
                                  ::testing::ValuesIn(trip_count),
                                  ::testing::ValuesIn(exec_cond),
                                  ::testing::ValuesIn(inputs_3),
+                                 ::testing::Values(std::vector<LOOP_IN_TYPE>{}),
+                                 ::testing::ValuesIn(inputPrecisions)),
+                         LoopLayerCPUTest::getTestCaseName);
+
+
+// backedge and in-placed graph inputs.
+std::vector<std::vector<InputShape>> inputs_4 = {
+        {  // first test suit
+            {
+                {-1, -1, 1},
+                { // target static shapes
+                     {10, 1, 1},
+                     {1, 10, 1},
+                     {1, 10, 1},
+                     {2, 2, 1},
+                }
+            },
+        },
+        {  // second test suit
+            {
+                {{0, 10}, {0, 10}, 1},
+                { // target static shapes
+                     {10, 5, 1},
+                     {1, 10, 1},
+                     {1, 10, 1},
+                     {2, 1, 1},
+                }
+            },
+        },
+};
+INSTANTIATE_TEST_SUITE_P(smoke_LoopForBackEdgeInplaceInputs, LoopForInplaceInputsLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(trip_count_type),
+                                 ::testing::ValuesIn(trip_count),
+                                 ::testing::ValuesIn(exec_cond),
+                                 ::testing::ValuesIn(inputs_4),
                                  ::testing::Values(std::vector<LOOP_IN_TYPE>{}),
                                  ::testing::ValuesIn(inputPrecisions)),
                          LoopLayerCPUTest::getTestCaseName);

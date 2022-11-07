@@ -225,8 +225,8 @@ public:
             auto& childEdges = m_to->getChildEdgesAtPort(outputNodePortIdx);
 
             // check if can share memory of "from" to "to"
-            //m_shareable = check_shareable();
-            m_shareable = false;
+            m_shareable = check_shareable();
+            //m_shareable = false;
 
             std::cout << __LINE__ << " backedge: " << m_from->getName() << " -> " << m_to->getName() << " shareable: " << m_shareable << std::endl;
 
@@ -296,6 +296,8 @@ protected:
             std::cout << "shared by other edges : " << shared_from << ", " << shared_to << std::endl;
             if (shared_from || shared_to) return false;
         }
+
+        return true;
 
         // 1. if the backedge's "from" is also another backedge's "to".
         for (auto map_rule : m_tiOp->backEdges) {

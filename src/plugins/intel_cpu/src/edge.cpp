@@ -572,6 +572,7 @@ bool Edge::isMemShared(int look) {
         if (look & LOOK_DOWN) {  // backedge: m_to
             for (auto& outconf : childConfig.outConfs) {
                 if (outconf.inPlace() == outputNum) {
+                    //TODO: check memman sharing to confirm the memory are shared.
                     return true;
                 }
             }
@@ -579,6 +580,7 @@ bool Edge::isMemShared(int look) {
 
         if (look & LOOK_UP) { // backedge: m_from
             if (parentConfig.outConfs[inputNum].inPlace() >= 0) {
+                //TODO: check memman sharing to confirm the memory are shared.
                 return true;
             }
         }
