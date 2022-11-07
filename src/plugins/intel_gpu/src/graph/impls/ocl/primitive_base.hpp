@@ -107,6 +107,40 @@ protected:
         return args;
     }
 
+    kernel_arguments_data get_arguments_by_idx(const typed_primitive_inst<PType>& instance, int32_t /*split*/) const {
+        kernel_arguments_data args;
+
+        for (uint32_t i = 0; i < _kernel_args.inputs.size(); i++) {
+            args.inputs.push_back(instance.dep_memory_ptr(_kernel_args.inputs[i]));
+        }
+
+        for (uint32_t i = 0; i < _kernel_args.intermediates.size(); i++) {
+            args.intermediates.push_back(instance.dep_memory_ptr(_kernel_args.intermediates[i]));
+        }
+
+        args.weights = (_kernel_args.weights >= 0) ? instance.dep_memory_ptr(_kernel_args.weights) : args.weights;
+        args.recurrent = (_kernel_args.recurrent >= 0) ? instance.dep_memory_ptr(_kernel_args.recurrent) : args.recurrent;
+        args.hidden = (_kernel_args.hidden >= 0) ? instance.dep_memory_ptr(_kernel_args.hidden) : args.hidden;
+        args.cell = (_kernel_args.cell >= 0) ? instance.dep_memory_ptr(_kernel_args.cell) : args.cell;
+        args.bias = (_kernel_args.bias >= 0) ? instance.dep_memory_ptr(_kernel_args.bias) : args.bias;
+        args.weights_zero_points = (_kernel_args.weights_zero_points >= 0) ?
+                                    instance.dep_memory_ptr(_kernel_args.weights_zero_points) : args.weights_zero_points;
+        args.activations_zero_points = (_kernel_args.activations_zero_points >= 0) ?
+                                        instance.dep_memory_ptr(_kernel_args.activations_zero_points) : args.activations_zero_points;
+        args.compensation = (_kernel_args.compensation >= 0) ? instance.dep_memory_ptr(_kernel_args.compensation) : args.compensation;
+        args.lookup_table = (_kernel_args.lookup_table >= 0) ? instance.dep_memory_ptr(_kernel_args.lookup_table) : args.lookup_table;
+        args.scale_table = (_kernel_args.scale_table >= 0) ? instance.dep_memory_ptr(_kernel_args.scale_table) : args.scale_table;
+        args.slope = (_kernel_args.slope >= 0) ? instance.dep_memory_ptr(_kernel_args.slope) : args.slope;
+
+        for (size_t i = 0; i < _kernel_args.fused_op_inputs.size(); i++) {
+            args.fused_op_inputs.push_back(instance.dep_memory_ptr(_kernel_args.fused_op_inputs[i]));
+        }
+
+        args.outputs.push_back(instance.output_memory_ptr());
+
+        return args;
+    }
+
     virtual int32_t get_split() const { return 1; }
     virtual uint32_t get_groups() const { return 1; }
     virtual bool get_depthwise_sep_opt() const { return false; }
@@ -167,34 +201,7 @@ protected:
                 kernel_arguments_data args;
 
                 if (_kernel_args.inputs.size() > 0) {
-                    for (uint32_t i = 0; i < _kernel_args.inputs.size(); i++) {
-                        args.inputs.push_back(instance.dep_memory_ptr(_kernel_args.inputs[i]));
-                    }
-
-                    for (uint32_t i = 0; i < _kernel_args.intermediates.size(); i++) {
-                        args.intermediates.push_back(instance.dep_memory_ptr(_kernel_args.intermediates[i]));
-                    }
-
-                    args.weights = (_kernel_args.weights >= 0) ? instance.dep_memory_ptr(_kernel_args.weights) : args.weights;
-                    args.recurrent = (_kernel_args.recurrent >= 0) ? instance.dep_memory_ptr(_kernel_args.recurrent) : args.recurrent;
-                    args.hidden = (_kernel_args.hidden >= 0) ? instance.dep_memory_ptr(_kernel_args.hidden) : args.hidden;
-                    args.cell = (_kernel_args.cell >= 0) ? instance.dep_memory_ptr(_kernel_args.cell) : args.cell;
-                    args.cell = (_kernel_args.cell >= 0) ? instance.dep_memory_ptr(_kernel_args.cell) : args.cell;
-                    args.bias = (_kernel_args.bias >= 0) ? instance.dep_memory_ptr(_kernel_args.bias) : args.bias;
-                    args.weights_zero_points = (_kernel_args.weights_zero_points >= 0) ?
-                                               instance.dep_memory_ptr(_kernel_args.weights_zero_points) : args.weights_zero_points;
-                    args.activations_zero_points = (_kernel_args.activations_zero_points >= 0) ?
-                                                   instance.dep_memory_ptr(_kernel_args.activations_zero_points) : args.activations_zero_points;
-                    args.compensation = (_kernel_args.compensation >= 0) ? instance.dep_memory_ptr(_kernel_args.compensation) : args.compensation;
-                    args.lookup_table = (_kernel_args.lookup_table >= 0) ? instance.dep_memory_ptr(_kernel_args.lookup_table) : args.lookup_table;
-                    args.scale_table = (_kernel_args.scale_table >= 0) ? instance.dep_memory_ptr(_kernel_args.scale_table) : args.scale_table;
-                    args.slope = (_kernel_args.slope >= 0) ? instance.dep_memory_ptr(_kernel_args.slope) : args.slope;
-
-                    for (size_t i = 0; i < _kernel_args.fused_op_inputs.size(); i++) {
-                        args.fused_op_inputs.push_back(instance.dep_memory_ptr(_kernel_args.fused_op_inputs[i]));
-                    }
-
-                    args.outputs.push_back(instance.output_memory_ptr());
+                    args = get_arguments_by_idx(instance, i);
                 } else {
                     args = get_arguments(instance, i);
 
@@ -266,34 +273,7 @@ protected:
                 kernel_arguments_data args;
 
                 if (_kernel_args.inputs.size() > 0) {
-                    for (uint32_t i = 0; i < _kernel_args.inputs.size(); i++) {
-                        args.inputs.push_back(instance.dep_memory_ptr(_kernel_args.inputs[i]));
-                    }
-
-                    for (uint32_t i = 0; i < _kernel_args.intermediates.size(); i++) {
-                        args.intermediates.push_back(instance.dep_memory_ptr(_kernel_args.intermediates[i]));
-                    }
-
-                    args.weights = (_kernel_args.weights >= 0) ? instance.dep_memory_ptr(_kernel_args.weights) : args.weights;
-                    args.recurrent = (_kernel_args.recurrent >= 0) ? instance.dep_memory_ptr(_kernel_args.recurrent) : args.recurrent;
-                    args.hidden = (_kernel_args.hidden >= 0) ? instance.dep_memory_ptr(_kernel_args.hidden) : args.hidden;
-                    args.cell = (_kernel_args.cell >= 0) ? instance.dep_memory_ptr(_kernel_args.cell) : args.cell;
-                    args.cell = (_kernel_args.cell >= 0) ? instance.dep_memory_ptr(_kernel_args.cell) : args.cell;
-                    args.bias = (_kernel_args.bias >= 0) ? instance.dep_memory_ptr(_kernel_args.bias) : args.bias;
-                    args.weights_zero_points = (_kernel_args.weights_zero_points >= 0) ?
-                                               instance.dep_memory_ptr(_kernel_args.weights_zero_points) : args.weights_zero_points;
-                    args.activations_zero_points = (_kernel_args.activations_zero_points >= 0) ?
-                                                   instance.dep_memory_ptr(_kernel_args.activations_zero_points) : args.activations_zero_points;
-                    args.compensation = (_kernel_args.compensation >= 0) ? instance.dep_memory_ptr(_kernel_args.compensation) : args.compensation;
-                    args.lookup_table = (_kernel_args.lookup_table >= 0) ? instance.dep_memory_ptr(_kernel_args.lookup_table) : args.lookup_table;
-                    args.scale_table = (_kernel_args.scale_table >= 0) ? instance.dep_memory_ptr(_kernel_args.scale_table) : args.scale_table;
-                    args.slope = (_kernel_args.slope >= 0) ? instance.dep_memory_ptr(_kernel_args.slope) : args.slope;
-
-                    for (size_t i = 0; i < _kernel_args.fused_op_inputs.size(); i++) {
-                        args.fused_op_inputs.push_back(instance.dep_memory_ptr(_kernel_args.fused_op_inputs[i]));
-                    }
-
-                    args.outputs.push_back(instance.output_memory_ptr());
+                    args = get_arguments_by_idx(instance, i);
                 } else {
                     args = get_arguments(instance, i);
 
