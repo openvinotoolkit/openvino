@@ -214,7 +214,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_buffer_fp16) {
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
      for (size_t i = 0; i < ref_res.size(); ++i) {
-        EXPECT_NEAR(ref_res[i], float16_to_float32(output_ptr[i]), 1.001f);
+        EXPECT_NEAR(ref_res[i], half_to_float(output_ptr[i]), 1.001f);
     }
 }
 
