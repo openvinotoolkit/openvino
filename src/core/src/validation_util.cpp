@@ -1344,19 +1344,17 @@ bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& psh
 }
 
 bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_labels) {
-    NGRAPH_CHECK(node->outputs().size() == 1);
-
     const auto& input_values = node->input_values();
 
     HostTensorVector input_tensors(input_values.size());
     for (size_t i = 0; i < input_values.size(); ++i) {
         const auto& input = input_values[i];
-        if (i != 0)
+        if (i != 0) {
             if (input.get_tensor().has_and_set_bound())
                 input_tensors[i] = input.get_tensor().get_lower_value();
             else
                 return false;
-        else {
+        } else {
             const auto& input_labels = input.get_tensor().get_value_label();
             if (has_no_labels(input_labels)) {
                 return false;
@@ -1368,12 +1366,22 @@ bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_lab
         }
     }
 
-    // inputs are finalized
-    const auto& output = std::make_shared<HostTensor>(element::u64, node->get_output_partial_shape(0));
-    if (!node->evaluate({output}, input_tensors))
-        return false;
-    output_labels[0] = std::make_shared<op::v0::Constant>(output)->cast_vector<size_t>();
-    return true;
+    HostTensorVector output_tensors;
+    output_tensors.reserve(node->get_output_size());
+    for (size_t i = 0; i < node->get_output_size(); ++i) {
+        output_tensors.push_back(std::make_shared<HostTensor>(element::u64, node->get_output_partial_shape(i)));
+    }
+
+    if (node->evaluate(output_tensors, input_tensors)) {
+        std::transform(output_tensors.cbegin(),
+                       output_tensors.cend(),
+                       output_labels.begin(),
+                       [](const HostTensorPtr& tensor) {
+                           return std::make_shared<op::v0::Constant>(tensor)->cast_vector<size_t>();
+                       });
+        return true;
+    }
+    return false;
 }
 
 inline bool default_bound_evaluator(const Node* node, const HostTensorVector& output_values, bool is_upper) {
