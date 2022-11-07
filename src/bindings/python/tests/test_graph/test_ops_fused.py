@@ -484,6 +484,7 @@ def test_mvn_operator():
     assert np.allclose(result, expected)
 
 
+@pytest.mark.skip(reason="Sporadically failed. Need further investigation. Ticket - 95970")
 def test_space_to_depth_operator():
     runtime = get_runtime()
 
