@@ -12,7 +12,9 @@ namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API TransposeSinkingSplitBackward;
-class TRANSFORMATIONS_API TransposeSinkingElementwiseForward;
+class TRANSFORMATIONS_API TransposeSinkingBinaryElementwiseForward;
+class TRANSFORMATIONS_API TransposeSinkingConcatForward;
+class TRANSFORMATIONS_API TransposeSinkingSplitForward;
 class TRANSFORMATIONS_API TransposeSinkingElementwiseBackward;
 
 }  // namespace pass
@@ -24,10 +26,22 @@ public:
     TransposeSinkingSplitBackward();
 };
 
-class ov::pass::TransposeSinkingElementwiseForward : public ov::pass::MatcherPass {
+class ov::pass::TransposeSinkingBinaryElementwiseForward : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::pass::TransposeSinkingElementwiseForward", "0");
-    TransposeSinkingElementwiseForward();
+    OPENVINO_RTTI("ov::pass::TransposeSinkingBinaryElementwiseForward", "0");
+    TransposeSinkingBinaryElementwiseForward();
+};
+
+class ov::pass::TransposeSinkingConcatForward : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ov::pass::TransposeSinkingConcatForward", "0");
+    TransposeSinkingConcatForward();
+};
+
+class ov::pass::TransposeSinkingSplitForward : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ov::pass::TransposeSinkingSplitForward", "0");
+    TransposeSinkingSplitForward();
 };
 
 class ov::pass::TransposeSinkingElementwiseBackward : public ov::pass::MatcherPass {
