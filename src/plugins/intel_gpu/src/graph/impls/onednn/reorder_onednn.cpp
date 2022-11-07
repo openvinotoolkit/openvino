@@ -63,17 +63,18 @@ protected:
     }
 
 public:
-    void save(BinaryOutputBuffer& ob, const kernel_impl_params* impl_params = nullptr) const override {
-        parent::save(ob, impl_params);
+    void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
 
         std::vector<uint8_t> prim_cache;
         prim_cache = _prim.get_cache_blob();
         ob << prim_cache;
     }
 
-    void load(BinaryInputBuffer& ib, const kernel_impl_params* impl_params = nullptr) override {
-        parent::load(ib, impl_params);
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
 
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernlImplParams());
         auto desc = get_reorder_descriptor(*impl_params, *_attrs, ib.get_engine());
         _pd = *desc;
 

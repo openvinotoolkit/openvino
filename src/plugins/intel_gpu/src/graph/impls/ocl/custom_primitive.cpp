@@ -85,12 +85,12 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         return {_kernel_id};
     }
 
-    void save(BinaryOutputBuffer& ob, const kernel_impl_params* impl_params = nullptr) const override {
+    void save(BinaryOutputBuffer& ob) const override {
         ob << *cl_kernel;
         ob << _kernel_id;
     }
 
-    void load(BinaryInputBuffer& ib, const kernel_impl_params* impl_params = nullptr) override {
+    void load(BinaryInputBuffer& ib) override {
         cl_kernel = std::make_shared<kernel_selector::cl_kernel_data>();
         ib >> *cl_kernel;
         ib >> _kernel_id;

@@ -44,13 +44,13 @@ protected:
     }
 
 public:
-    void save(BinaryOutputBuffer& ob, const kernel_impl_params* impl_params = nullptr) const override {
-        parent::save(ob, impl_params);
+    void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
         ob << _can_be_optimized;
     }
 
-    void load(BinaryInputBuffer& ib, const kernel_impl_params* impl_params = nullptr) override {
-        parent::load(ib, impl_params);
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
         ib >> _can_be_optimized;
     }
 

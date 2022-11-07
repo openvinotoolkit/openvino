@@ -41,14 +41,14 @@ struct deconvolution_impl : typed_primitive_impl_ocl<deconvolution> {
         _groups = node.get_groups();
     }
 
-    void save(BinaryOutputBuffer& ob, const kernel_impl_params* impl_params = nullptr) const override {
-        parent::save(ob, impl_params);
+    void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
         ob << _split;
         ob << _groups;
     }
 
-    void load(BinaryInputBuffer& ib, const kernel_impl_params* impl_params = nullptr) override {
-        parent::load(ib, impl_params);
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
         ib >> _split;
         ib >> _groups;
     }

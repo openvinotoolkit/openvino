@@ -63,7 +63,7 @@ protected:
     }
 
 public:
-    void save(BinaryOutputBuffer& ob, const kernel_impl_params* impl_params = nullptr) const override {
+    void save(BinaryOutputBuffer& ob) const override {
         if (_prim.get(true) == nullptr) {
             ob << false;
             return;
@@ -71,8 +71,9 @@ public:
             ob << true;
         }
 
-        parent::save(ob, impl_params);
+        parent::save(ob);
 
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernlImplParams());
         auto prim = impl_params->typed_desc<concatenation>();
         ob << prim->axis;
 
@@ -81,18 +82,19 @@ public:
         ob << prim_cache;
     }
 
-    void load(BinaryInputBuffer& ib, const kernel_impl_params* impl_params = nullptr) override {
+    void load(BinaryInputBuffer& ib) override {
         bool has_prim;
         ib >> has_prim;
 
         if (!has_prim)
             return;
 
-        parent::load(ib, impl_params);
+        parent::load(ib);
 
         int64_t prim_axis;
         ib >> prim_axis;
 
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernlImplParams());
         auto desc = get_concatenation_descriptor(*impl_params, prim_axis, ib.get_engine());
         _pd = *desc;
 

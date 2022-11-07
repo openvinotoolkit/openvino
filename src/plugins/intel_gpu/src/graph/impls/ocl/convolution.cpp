@@ -80,15 +80,15 @@ protected:
     bool get_depthwise_sep_opt() const override { return _depthwise_sep_opt; }
 
 public:
-    void save(BinaryOutputBuffer& ob, const kernel_impl_params* impl_params = nullptr) const override {
-        parent::save(ob, impl_params);
+    void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
         ob << _split;
         ob << _groups;
         ob << _depthwise_sep_opt;
     }
 
-    void load(BinaryInputBuffer& ib, const kernel_impl_params* impl_params = nullptr) override {
-        parent::load(ib, impl_params);
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
         ib >> _split;
         ib >> _groups;
         ib >> _depthwise_sep_opt;

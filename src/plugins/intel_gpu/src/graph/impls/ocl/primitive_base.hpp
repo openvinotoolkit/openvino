@@ -67,7 +67,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
 
     bool is_cpu() const override { return false; }
 
-    void save(BinaryOutputBuffer& ob, const kernel_impl_params* impl_params = nullptr) const override {
+    void save(BinaryOutputBuffer& ob) const override {
         ob << make_data(&_kernel_data.internalBufferDataType, sizeof(kernel_selector::Datatype));
         ob << _kernel_data.internalBufferSizes;
         ob << _kernel_data.kernels;
@@ -75,7 +75,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         ob << _kernel_args;
     }
 
-    void load(BinaryInputBuffer& ib, const kernel_impl_params* impl_params = nullptr) override {
+    void load(BinaryInputBuffer& ib) override {
         ib >> make_data(&_kernel_data.internalBufferDataType, sizeof(kernel_selector::Datatype));
         ib >> _kernel_data.internalBufferSizes;
         ib >> _kernel_data.kernels;

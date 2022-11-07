@@ -980,7 +980,8 @@ void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
         _impl->set_arguments(args_idx);
 
         _impl_params->save(ob);
-        _impl->save(ob, _impl_params.get());
+        ob.setKernlImplParams(_impl_params.get());
+        ob << _impl;
 
         ob << _node_output_layout;
         ob << has_mutable_input();
@@ -1105,7 +1106,8 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
         _impl_params = make_unique<kernel_impl_params>();
         _impl_params->load(ib);
         _impl.release();
-        _impl->load(ib, _impl_params.get());
+        ib.setKernlImplParams(_impl_params.get());
+        ib >> _impl;
 
         ib >> _node_output_layout;
         ib >> _has_mutable_input;

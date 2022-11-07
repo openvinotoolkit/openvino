@@ -40,14 +40,14 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
         _has_mean = node.has_mean();
     }
 
-    void save(BinaryOutputBuffer& ob, const kernel_impl_params* impl_params = nullptr) const override {
-        parent::save(ob, impl_params);
+    void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
         ob << _can_be_optimized;
         ob << _has_mean;
     }
 
-    void load(BinaryInputBuffer& ib, const kernel_impl_params* impl_params = nullptr) override {
-        parent::load(ib, impl_params);
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
         ib >> _can_be_optimized;
         ib >> _has_mean;
     }

@@ -68,11 +68,11 @@ public:
         nms_type = (node.get_primitive()->decrease_label_id ? NMSType::MXNET : NMSType::CAFFE);
     }
 
-    void save(BinaryOutputBuffer& ob, const kernel_impl_params* impl_params = nullptr) const override {
+    void save(BinaryOutputBuffer& ob) const override {
         ob << make_data(&nms_type, sizeof(NMSType));
     }
 
-    void load(BinaryInputBuffer& ib, const kernel_impl_params* impl_params = nullptr) override {
+    void load(BinaryInputBuffer& ib) override {
         ib >> make_data(&nms_type, sizeof(NMSType));
     }
 

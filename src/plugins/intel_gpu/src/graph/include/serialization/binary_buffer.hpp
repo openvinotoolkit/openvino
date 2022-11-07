@@ -24,8 +24,12 @@ public:
         }
     }
 
+    void setKernlImplParams(void* impl_params) { _impl_params = impl_params; }
+    void* getKernlImplParams() const { return _impl_params; }
+
 private:
     std::ostream& stream;
+    void* _impl_params;
 };
 
 class BinaryInputBuffer : public InputBuffer<BinaryInputBuffer> {
@@ -39,8 +43,12 @@ public:
         }
     }
 
+    void setKernlImplParams(void* impl_params) { _impl_params = impl_params; }
+    void* getKernlImplParams() const { return _impl_params; }
+
 private:
     std::istream& stream;
+    void* _impl_params;
 };
 
 template <typename T>
