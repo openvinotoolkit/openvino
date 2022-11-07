@@ -131,7 +131,7 @@ ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are link
 if(LINUX)
     # Debian packages are enabled on Ubuntu systems
     # so, system TBB / pugixml can be tried for usage
-    set(ENABLE_SYSTEM_LIBS_DEFAULT ON)
+    set(ENABLE_SYSTEM_LIBS_DEFAULT OFF)
 else()
     set(ENABLE_SYSTEM_LIBS_DEFAULT OFF)
 endif()

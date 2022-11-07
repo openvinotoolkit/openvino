@@ -79,6 +79,8 @@ function(ov_download_tbb)
     set(_ov_download_tbb_done ON CACHE INTERNAL "Whether prebuilt TBB is already downloaded")
 
     reset_deps_cache(TBBROOT TBB_DIR)
+    set(ENV{TBB_USE_NEW_LOCATION} "location for tbb")
+    message(STATUS "set TBB_USE_NEW_LOCATION")
 
     if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
         set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
@@ -105,8 +107,7 @@ function(ov_download_tbb)
                 ARCHIVE_LIN "tbb2020_617e9a71_lin_strip.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "1e6ec1f805326da1d490c40a36d64e64b0c06d9efaead4732150b75e729f75c9"
-                USE_NEW_LOCATION TRUE)
+                SHA256 "1e6ec1f805326da1d490c40a36d64e64b0c06d9efaead4732150b75e729f75c9")
     elseif(YOCTO_AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "keembay/tbb2020_38404_kmb_lic.tgz"
@@ -143,6 +144,9 @@ function(ov_download_tbb)
     debug_message(STATUS "tbb=" ${TBB})
     debug_message(STATUS "tbb_dir=" ${TBB_DIR})
     debug_message(STATUS "tbbroot=" ${TBBROOT})
+    unset(ENV{TBB_USE_NEW_LOCATION})
+    message(STATUS "unset TBB_USE_NEW_LOCATION")
+
 endfunction()
 
 ## TBBBind_2_5 package
