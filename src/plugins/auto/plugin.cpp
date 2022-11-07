@@ -16,7 +16,7 @@
 #include <ie_metric_helpers.hpp>
 #include <ie_performance_hints.hpp>
 #include <threading/ie_executor_manager.hpp>
-#include "openvino/runtime/intel_auto/properties.hpp"
+#include "openvino/runtime/auto/properties.hpp"
 #include "plugin.hpp"
 #include <ie_algorithm.hpp>
 #include <ie_icore.hpp>
