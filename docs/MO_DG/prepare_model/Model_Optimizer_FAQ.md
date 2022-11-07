@@ -321,11 +321,7 @@ However, if your model contains more than one input, Model Optimizer is able to 
 
 #### Q49. What does the message "Data type is unsupported" mean? <a name="question-49"></a>
 
-<<<<<<< HEAD
-Model Optimizer cannot convert the model to the specified data type. Currently, FP16 and FP32 are supported. For compressing the model to FP16 specify `--compress_to_fp16` flag.
-=======
-**A** : Model Optimizer cannot convert the model to the specified data type. Currently, FP16 and FP32 are supported. Make sure you specify the data type with the `--data_type` flag. The available values are: FP16, FP32, half, float.
->>>>>>> upstream/master
+**A** : Model Optimizer cannot convert the model to the specified data type. Currently, FP16 and FP32 are supported. For compressing the model to FP16 specify `--compress_to_fp16` flag.
 
 #### Q50. What does the message "No node with name ..." mean? <a name="question-50"></a>
 
