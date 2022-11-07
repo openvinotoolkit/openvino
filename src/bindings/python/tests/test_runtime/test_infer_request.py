@@ -276,6 +276,7 @@ def test_inputs_outputs_property(device):
         assert np.array_equal(input_data, input_tensor.data)
 
 
+@pytest.mark.skip(reason="Sporadically failed. Need further investigation. Ticket - 95967")
 def test_cancel(device):
     core = Core()
     model = core.read_model(test_net_xml, test_net_bin)
