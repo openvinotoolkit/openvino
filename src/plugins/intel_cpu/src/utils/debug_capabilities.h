@@ -58,9 +58,10 @@ class Edge;
 
 class PrintableModel {
 public:
-    PrintableModel(const ov::Model& model, std::string tag = "") : model(model), tag(tag) {}
+    PrintableModel(const ov::Model& model, std::string tag = "", std::string prefix = "") : model(model), tag(tag), prefix(prefix) {}
     const ov::Model& model;
     const std::string tag;
+    const std::string prefix;
 };
 
 template<typename T>
@@ -115,7 +116,10 @@ std::ostream & operator<<(std::ostream & os, const PrintableVector<T>& vec) {
             ss << "..." << N << "in total";
             break;
         }
-        ss << vec.values[i];
+        if (std::is_same<T, int8_t>::value || std::is_same<T, uint8_t>::value)
+            ss << static_cast<int>(vec.values[i]);
+        else
+            ss << vec.values[i];
     }
     os << ss.str();
     return os;

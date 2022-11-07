@@ -10,6 +10,7 @@
 #include <iomanip>
 #include "nodes/input.h"
 #include "nodes/eltwise.h"
+#include "snippets/op/subgraph.hpp"
 #include <ie_ngraph_utils.hpp>
 
 namespace ov {
@@ -439,21 +440,23 @@ public:
 std::ostream & operator<<(std::ostream & os, const PrintableModel& model) {
     const ov::Model& f = model.model;
     const std::string& tag = model.tag;
+    const std::string& prefix = model.prefix;
     OstreamAttributeVisitor osvis(os);
     std::string sep = "";
+    os << prefix;
     for (auto op : f.get_results()) {
         os << sep << op->get_name();
         sep = ",";
     }
-    os << " " << f.get_friendly_name() << "(\n";
+    os << " " << f.get_friendly_name() << "(\n" << prefix;
     for (auto op : f.get_parameters()) {
-        os << "\t" << tag << op->get_friendly_name() << ",\n";
+        os << "\t" << tag << op->get_friendly_name() << ",\n" << prefix;
     }
     os << ") {\n";
     for (auto op : f.get_ordered_ops()) {
         auto type = op->get_type_name();
         auto name = op->get_friendly_name();
-        os << "\t";
+        os << prefix << "\t";
         if (op->get_output_size() > 1)
             os << "(";
         sep = "";
@@ -480,6 +483,10 @@ std::ostream & operator<<(std::ostream & os, const PrintableModel& model) {
         if (auto constop = std::dynamic_pointer_cast<op::v0::Constant>(op)) {
             if (constop->get_element_type() == element::Type_t::f32) {
                 os << PrintableVector<float>(constop->get_vector<float>());
+            } else if (constop->get_element_type() == element::Type_t::i8) {
+                os << PrintableVector<int8_t>(constop->get_vector<int8_t>());
+            } else if (constop->get_element_type() == element::Type_t::u8) {
+                os << PrintableVector<uint8_t>(constop->get_vector<uint8_t>());
             } else {
                 auto sz = shape_size(constop->get_shape());
                 if (sz < 9) {
@@ -497,19 +504,23 @@ std::ostream & operator<<(std::ostream & os, const PrintableModel& model) {
         os << ") \t attrs:";
         op->visit_attributes(osvis);
         os << std::endl;
-    }
-    os << "}\n";
 
-    // recursively output subgraphs
-    for (auto op : f.get_ordered_ops()) {
-        if (auto subgraph = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(op)) {
-            auto cnt = subgraph->get_internal_subgraphs_size();
+        // recursively output subgraphs
+        if (auto subgraph = std::dynamic_pointer_cast<ngraph::snippets::op::Subgraph>(op)) {
+            os << "\t\t snippets Subgraph: " << subgraph->get_friendly_name() << " is_quantized:" << subgraph->is_quantized() << std::endl;
+            os << PrintableModel(*subgraph->get_body().get(), tag, prefix + "\t\t");
+        }
+
+        if (auto msubgraph = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(op)) {
+            auto cnt = msubgraph->get_internal_subgraphs_size();
             for (int i = 0; i < cnt; i++) {
-                os << "MultiSubGraphOp " << tag << subgraph->get_friendly_name() << "[" << i << "]" << std::endl;
-                os << PrintableModel(*subgraph->get_function(i).get(), tag);
+                os << "\t\t MultiSubGraphOp " << tag << msubgraph->get_friendly_name() << "[" << i << "]" << std::endl;
+                os << PrintableModel(*msubgraph->get_function(i).get(), tag, prefix + "\t\t");
             }
         }
     }
+    os << prefix << "}\n";
+
     return os;
 }
 
