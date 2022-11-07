@@ -6,6 +6,8 @@
 #include <immintrin.h>
 #include <stdint.h>
 
+#include "intel_gpu/runtime/half.hpp"
+
 namespace cldnn {
 
 float half_to_float(uint16_t value) {
