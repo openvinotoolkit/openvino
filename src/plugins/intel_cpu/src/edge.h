@@ -76,6 +76,8 @@ public:
     EdgePtr getSharedEdge() const;
     EdgePtr getSharedEdge(std::nothrow_t) const;
 
+    bool isMemShared(int look);
+
     bool hasDefinedMaxSize() const {
         return getDesc().hasDefinedMaxSize();
     }

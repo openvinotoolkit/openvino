@@ -286,6 +286,17 @@ protected:
         const auto& edge_from = m_from->getParentEdgeAt(inputNodePortIdx);
         const auto& parent_from = edge_from->getParent();
 
+        //
+        {
+            enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2, LOOK_BOTH = LOOK_UP | LOOK_DOWN, LOOK_NO_RECURRENT = 4 }; // TODO: better place?
+            const auto shared_from = edge_from->isMemShared(LOOK_UP);
+            const auto& edges_to = m_to->getChildEdgesAtPort(outputNodePortIdx);
+            if (edges_to.size() > 1) return false;
+            const auto shared_to = edges_to[0]->isMemShared(LOOK_DOWN);
+            std::cout << "shared by other edges : " << shared_from << ", " << shared_to << std::endl;
+            if (shared_from || shared_to) return false;
+        }
+
         // 1. if the backedge's "from" is also another backedge's "to".
         for (auto map_rule : m_tiOp->backEdges) {
             const auto to_node = m_tiOp->input_nodes[map_rule.to];
