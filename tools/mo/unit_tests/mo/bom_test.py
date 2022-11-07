@@ -13,6 +13,7 @@ dir_patterns_to_skip = ['.*__pycache__.*']
 file_patterns_to_skip = ['.*\\.DS_Store$',
                          '.*\\.swp',
                          '.*\\.pyc$',
+                         'requirements.*\.txt',
                          '.*version.txt']
 full_name_patterns_to_skip = ['^openvino/tools/mo/utils/convert.py$',
                               '^openvino/tools/mo/front/caffe/CustomLayersMapping.xml$',

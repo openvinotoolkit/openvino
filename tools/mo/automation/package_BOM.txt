@@ -1029,7 +1029,6 @@ openvino/tools/mo/utils/cli_parser.py
 openvino/tools/mo/utils/custom_replacement_config.py
 openvino/tools/mo/utils/dsu.py
 openvino/tools/mo/utils/error.py
-openvino/tools/mo/utils/extract_release_version.py
 openvino/tools/mo/utils/find_ie_version.py
 openvino/tools/mo/utils/find_inputs.py
 openvino/tools/mo/utils/get_ov_update_message.py
