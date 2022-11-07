@@ -10,6 +10,8 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/strides.hpp"
 
+#include "openvino/op/util/attr_types.hpp"
+
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
@@ -51,13 +53,17 @@ struct pooling : public primitive_base<pooling> {
             const ov::Strides& stride,
             const ov::Shape& pads_begin = {0, 0},
             const ov::Shape& pads_end = {0, 0},
+            ov::op::PadType auto_pad = ov::op::PadType::EXPLICIT,
+            ov::op::RoundingType rounding_type = ov::op::RoundingType::FLOOR,
             const padding& output_padding = padding())
         : primitive_base(id, {input}, output_padding),
           mode(static_cast<pooling_mode>(mode)),
+          size(size),
+          stride(stride),
           pads_begin(pads_begin),
           pads_end(pads_end),
-          stride(stride),
-          size(size),
+          auto_pad(auto_pad),
+          rounding_type(rounding_type),
           with_output_size(false) {}
 
     /// @brief Constructs pooling primitive with known output shape.
@@ -80,10 +86,12 @@ struct pooling : public primitive_base<pooling> {
             const padding& output_padding = padding())
         : primitive_base(id, {input}, output_padding, optional_data_type{output_data_type}),
           mode(static_cast<pooling_mode>(mode)),
+          size(size),
+          stride(stride),
           pads_begin(pads_begin),
           pads_end(pads_end),
-          stride(stride),
-          size(size),
+          auto_pad(ov::op::PadType::EXPLICIT),
+          rounding_type(ov::op::RoundingType::CEIL),
           with_output_size(true),
           output_size(output_size) {}
 
@@ -107,6 +115,8 @@ struct pooling : public primitive_base<pooling> {
             const ov::Strides& dilation,
             const ov::Shape& pads_begin,
             const ov::Shape& pads_end,
+            ov::op::PadType auto_pad,
+            ov::op::RoundingType rounding_type,
             int64_t axis,
             data_types index_element_type,
             tensor output_size,
@@ -115,14 +125,16 @@ struct pooling : public primitive_base<pooling> {
             : primitive_base(id, {input, indices_output}, output_padding, optional_data_type{output_data_type}),
               indices_output(indices_output),
               mode(pooling_mode::max),
-              pads_begin(pads_begin),
-              pads_end(pads_end),
+              size(size),
               stride(stride),
               dilation(dilation),
-              size(size),
+              pads_begin(pads_begin),
+              pads_end(pads_end),
+              auto_pad(auto_pad),
+              rounding_type(rounding_type),
+              axis(axis),
               with_output_size(true),
               output_size(output_size),
-              axis(axis),
               index_element_type(index_element_type),
               maxPoolOpset8Features(true) {}
 
@@ -130,22 +142,26 @@ struct pooling : public primitive_base<pooling> {
     primitive_id indices_output;
     /// @brief Pooling mode.
     pooling_mode mode;
-    /// @brief Defines logical pad value added to input tensor.
-    ov::Shape pads_begin;
-    /// @brief Defines a shift, relative to the end of padding shape.
-    ov::Shape pads_end;
+    /// @brief Pooling kernel size.
+    ov::Shape size;
     /// @brief Defines shift in input buffer between adjacent calculations of output values.
     ov::Strides stride;
     /// @brief Defines index of next pixel to select when pooling
     ov::Strides dilation;
-    /// @brief Pooling kernel size.
-    ov::Shape size;
+    /// @brief Defines logical pad value added to input tensor.
+    ov::Shape pads_begin;
+    /// @brief Defines a shift, relative to the end of padding shape.
+    ov::Shape pads_end;
+    /// @brief Defines how the padding is calculated.
+    ov::op::PadType auto_pad;
+    /// @brief Defines a type of rounding to be applied.
+    ov::op::RoundingType rounding_type;
+    /// @brief first dimension of input that should be used to calculate the upper bound of index output.
+    int64_t axis = 0;
     /// @brief Indicates that the primitive has user-defined output size (non-zero value).
     bool with_output_size;
     /// @brief User-defined output data size of the primitive (w/o padding).
     tensor output_size;
-    /// @brief first dimension of input that should be used to calculate the upper bound of index output
-    int64_t axis = 0;
     /// @brief type of index output
     data_types index_element_type = data_types::i32;
     bool maxPoolOpset8Features{false};
