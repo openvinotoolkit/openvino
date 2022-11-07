@@ -7,7 +7,6 @@
 #include <string>
 #include <tuple>
 #include <vector>
-
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
@@ -17,7 +16,6 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "../../shared_tests_instances/skip_tests_check.hpp"
 #include <gtest/gtest.h>
-
 
 namespace ConvLowPrecicionTestNs {
 
@@ -36,13 +34,11 @@ namespace ConvLowPrecicionTestNs {
                                              std::size_t                 // Levels
                                              >;
 
-
 class ConvLowPrecisionTest : public testing::WithParamInterface<ConvLowPrecisionTestParams>,
                             public LayerTestsUtils::LayerTestsCommon {
     float fqMin = 0.0f;
     float fqMax = 0.0f;
     float inputDataResolution = 1.0f;
-
 
 public:
     static string getTestCaseName(testing::TestParamInfo<ConvLowPrecisionTestParams> obj) {
@@ -127,10 +123,7 @@ protected:
                                                     vector<std::size_t>{1, 1},
                                                     PadType::VALID);
         auto outputFQ = createFQNode(ngPrc, convolution, fqMin, fqMax, levels);
-
-        //
         function = make_shared<ngraph::Function>(outputFQ, inputVector, "ConvLowPrecision");
-
         gnaVersionCheck.SetUp(targetDevice);
     }
 };
@@ -173,8 +166,8 @@ const Shape conv1D = {1, 8, 1, 16};
 const Shape conv2D = {1, 8, 16, 16};
 
 const vector<Shape> inputShapes = {
-    conv1D,      // for convolution 1D
-    conv2D       // for convolution 2D
+    conv1D,
+    conv2D
 };
 
 const vector<pair<float, float>> fqMinMax = {
