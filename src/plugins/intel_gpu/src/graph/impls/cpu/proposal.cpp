@@ -191,6 +191,8 @@ struct proposal_impl : typed_primitive_impl<proposal> {
     using parent = typed_primitive_impl<proposal>;
     using parent::parent;
 
+    proposal_impl() : parent() {}
+
     explicit proposal_impl(const proposal_node& arg) {}
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
