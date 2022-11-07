@@ -949,7 +949,6 @@ TEST(type_prop, broadcast_v3_bidirectional_data_bigger_rank_numpy) {
                     HasSubstr("Broadcast target_shape has smaller rank"));
 }
 
-// Interval dimensions with labels
 TEST(type_prop, broadcast_v3_labels_in0_dynamic_mixed_dims_bidirectional) {
     // All dimensions of A have labels, B without labels
     PartialShape pshape_a{-1, 2, 1, {4, 8}, -1, {4, 8}, -1, {1, 8}, {1, 10}, {4, 18}};
@@ -959,7 +958,6 @@ TEST(type_prop, broadcast_v3_labels_in0_dynamic_mixed_dims_bidirectional) {
     std::vector<size_t> expected_labels{10, 11, 0, 13, 0, 15, 16, 17, 0, 19};
 
     set_shape_labels(pshape_a, {10, 11, 12, 13, 14, 15, 16, 17, 18, 19});
-    set_shape_labels(expected_shape, expected_labels);
 
     auto data = std::make_shared<op::Parameter>(element::f32, pshape_a);
     auto target_shape = std::make_shared<op::Parameter>(element::f32, pshape_b);
@@ -970,7 +968,7 @@ TEST(type_prop, broadcast_v3_labels_in0_dynamic_mixed_dims_bidirectional) {
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
 }
 
 TEST(type_prop, broadcast_v3_labels_in1_dynamic_mixed_dims_bidirectional) {
@@ -982,7 +980,6 @@ TEST(type_prop, broadcast_v3_labels_in1_dynamic_mixed_dims_bidirectional) {
     std::vector<size_t> expected_labels{10, 11, 12, 0, 14, 0, 16, 17, 18, 0};
 
     set_shape_labels(pshape_b, {10, 11, 12, 13, 14, 15, 16, 17, 18, 19});
-    set_shape_labels(expected_shape, expected_labels);
 
     auto data = std::make_shared<op::Parameter>(element::f32, pshape_a);
     auto target_shape = std::make_shared<op::Parameter>(element::f32, pshape_b);
@@ -993,7 +990,7 @@ TEST(type_prop, broadcast_v3_labels_in1_dynamic_mixed_dims_bidirectional) {
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
 }
 
 TEST(type_prop, broadcast_v3_labels_different_dynamic_mixed_dims_broadcast_bidirectional) {
@@ -1006,7 +1003,6 @@ TEST(type_prop, broadcast_v3_labels_different_dynamic_mixed_dims_broadcast_bidir
 
     set_shape_labels(pshape_a, {10, 11, 12, 13, 14, 15, 16, 17, 18, 19});
     set_shape_labels(pshape_b, {20, 21, 22, 23, 24, 25, 26, 27, 28, 29});
-    set_shape_labels(expected_shape, expected_labels);
 
     auto data = std::make_shared<op::Parameter>(element::f32, pshape_a);
     auto target_shape = std::make_shared<op::Parameter>(element::f32, pshape_b);
@@ -1017,7 +1013,7 @@ TEST(type_prop, broadcast_v3_labels_different_dynamic_mixed_dims_broadcast_bidir
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
 }
 
 TEST(type_prop, broadcast_v3_labels_same_dynamic_mixed_dims_broadcast_bidirectional) {
@@ -1030,7 +1026,6 @@ TEST(type_prop, broadcast_v3_labels_same_dynamic_mixed_dims_broadcast_bidirectio
 
     set_shape_labels(pshape_a, {10, 11, 12, 13, 14, 15, 16, 17, 18, 19});
     set_shape_labels(pshape_b, {10, 11, 12, 13, 14, 15, 16, 17, 18, 19});
-    set_shape_labels(expected_shape, expected_labels);
 
     auto data = std::make_shared<op::Parameter>(element::f32, pshape_a);
     auto target_shape = std::make_shared<op::Parameter>(element::f32, pshape_b);
@@ -1041,7 +1036,7 @@ TEST(type_prop, broadcast_v3_labels_same_dynamic_mixed_dims_broadcast_bidirectio
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
 }
 
 TEST(type_prop, broadcast_v3_labels_dynamic_mixed_dims_numpy) {
@@ -1073,7 +1068,6 @@ TEST(type_prop, broadcast_v3_labels_in0_dynamic_mixed_dims_numpy) {
     std::vector<size_t> expected_labels{0, 0, 0, 0, 0, 0, 0, 0, 0};
 
     set_shape_labels(pshape_a, {10, 11, 12, 13, 14, 15, 16, 17, 18});
-    set_shape_labels(expected_shape, expected_labels);
 
     auto data = std::make_shared<op::Parameter>(element::f32, pshape_a);
     auto target_shape = std::make_shared<op::Parameter>(element::f32, pshape_b);
@@ -1084,7 +1078,7 @@ TEST(type_prop, broadcast_v3_labels_in0_dynamic_mixed_dims_numpy) {
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
 }
 
 TEST(type_prop, broadcast_v3_labels_in1_dynamic_mixed_dims_numpy) {
@@ -1098,7 +1092,6 @@ TEST(type_prop, broadcast_v3_labels_in1_dynamic_mixed_dims_numpy) {
     std::vector<size_t> expected_labels{10, 11, 12, 13, 14, 15, 16, 17, 18};
 
     set_shape_labels(pshape_b, expected_labels);
-    set_shape_labels(expected_shape, expected_labels);
 
     auto data = std::make_shared<op::Parameter>(element::f32, pshape_a);
     auto target_shape = std::make_shared<op::Parameter>(element::f32, pshape_b);
@@ -1109,10 +1102,10 @@ TEST(type_prop, broadcast_v3_labels_in1_dynamic_mixed_dims_numpy) {
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
 }
 
-TEST(type_prop, broadcast_v3_labels_in0_in1_dynamic_mixed_dims_numpy) {
+TEST(type_prop, broadcast_v3_labels_both_inputs_dynamic_mixed_dims_numpy) {
     // Numpy mode for v3::Broadcast mode is one directional
     // All dimensions of A and B have labels
     PartialShape pshape_a{-1, 2, 1, -1, {4, 8}, -1, {1, 8}, {1, 10}, {4, 18}};
@@ -1124,7 +1117,6 @@ TEST(type_prop, broadcast_v3_labels_in0_in1_dynamic_mixed_dims_numpy) {
 
     set_shape_labels(pshape_a, {10, 11, 12, 13, 14, 15, 16, 17, 18});
     set_shape_labels(pshape_b, {20, 21, 22, 23, 24, 25, 26, 27, 28});
-    set_shape_labels(expected_shape, expected_labels);
 
     auto data = std::make_shared<op::Parameter>(element::f32, pshape_a);
     auto target_shape = std::make_shared<op::Parameter>(element::f32, pshape_b);
@@ -1135,7 +1127,7 @@ TEST(type_prop, broadcast_v3_labels_in0_in1_dynamic_mixed_dims_numpy) {
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
 }
 
 TEST(type_prop, broadcast_v3_labels_dynamic_mixed_dims_explicit) {
@@ -1146,10 +1138,6 @@ TEST(type_prop, broadcast_v3_labels_dynamic_mixed_dims_explicit) {
     std::vector<size_t> expected_labels{21, 22, 23, 24, 25};
 
     set_shape_labels(pshape_b, {21, 22, 23, 24, 25});
-    set_shape_labels(expected_shape, expected_labels);
-
-    auto a = std::make_shared<op::Parameter>(element::f32, pshape_a);
-    auto b = std::make_shared<op::Parameter>(element::f32, pshape_b);
     auto axis_map = std::make_shared<op::Constant>(element::i32, Shape{3}, std::vector<int32_t>{0, 2, 3});
 
     auto data = std::make_shared<op::Parameter>(element::f32, pshape_a);
@@ -1161,7 +1149,7 @@ TEST(type_prop, broadcast_v3_labels_dynamic_mixed_dims_explicit) {
     const auto out_shape = op->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
 }
 
 TEST(type_prop, broadcast_v3_eval_labels_static_dims_numpy) {
@@ -1175,7 +1163,6 @@ TEST(type_prop, broadcast_v3_eval_labels_static_dims_numpy) {
     std::vector<size_t> expected_labels{22, 23};
 
     set_shape_labels(pshape_b, {22, 23});
-    set_shape_labels(expected_shape, expected_labels);
 
     auto a = std::make_shared<op::Parameter>(element::f32, pshape_a);
     auto b = std::make_shared<op::Parameter>(element::f32, pshape_b);
@@ -1191,7 +1178,7 @@ TEST(type_prop, broadcast_v3_eval_labels_static_dims_numpy) {
     const auto out_shape = broadcast_c->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
 }
 
 TEST(type_prop, broadcast_v3_eval_labels_static_dims_bidirectional) {
@@ -1205,8 +1192,6 @@ TEST(type_prop, broadcast_v3_eval_labels_static_dims_bidirectional) {
     set_shape_labels(pshape_a, {12, 13});
     set_shape_labels(pshape_b, {22, 23});
     set_shape_labels(pshape_c, {33, 33});
-
-    set_shape_labels(expected_shape, expected_labels);
 
     auto a = std::make_shared<op::Parameter>(element::f32, pshape_a);
     auto b = std::make_shared<op::Parameter>(element::f32, pshape_b);
@@ -1222,5 +1207,5 @@ TEST(type_prop, broadcast_v3_eval_labels_static_dims_bidirectional) {
     const auto out_shape = broadcast_c->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_EQ(get_shape_labels(out_shape), get_shape_labels(expected_shape));
+    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
 }
