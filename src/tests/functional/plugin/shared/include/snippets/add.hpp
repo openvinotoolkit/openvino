@@ -44,7 +44,7 @@ protected:
     void SetUp() override;
 };
 
-class AddRollConst : public AddSinhConst {
+class AddRollConst : public AddConst {
 protected:
     void SetUp() override;
 };
