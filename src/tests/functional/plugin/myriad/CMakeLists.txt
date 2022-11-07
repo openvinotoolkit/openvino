@@ -16,6 +16,8 @@ addIeTargetTest(
             ${OpenVINO_SOURCE_DIR}/src/tests_deprecated/behavior/vpu/myriad_tests/helpers
             ${XLINK_INCLUDE}
             ${XLINK_PLATFORM_INCLUDE}
+            ${CMAKE_SOURCE_DIR}/src/tests/functional/plugin/shared/include
+            ${CMAKE_SOURCE_DIR}/src/tests/ie_test_utils/common_test_utils
         DEPENDENCIES
             openvino_intel_myriad_plugin
         LINK_LIBRARIES

@@ -47,6 +47,8 @@ addIeTarget(
         INCLUDES
             PUBLIC
                 ${PUBLIC_HEADERS_DIR}
+                ${CMAKE_SOURCE_DIR}/src/tests/functional/plugin/shared/include
+                ${CMAKE_SOURCE_DIR}/src/tests/ie_test_utils/common_test_utils
         LINK_LIBRARIES
             PUBLIC
                 openvino::pugixml
@@ -55,7 +57,6 @@ addIeTarget(
                 ngraphFunctions
                 lptNgraphFunctions
                 sharedTestClasses
-                gpu_device_name
             PRIVATE
                 openvino::util
                 openvino::runtime::dev

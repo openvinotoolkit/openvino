@@ -4,8 +4,6 @@
 
 set(TARGET_NAME gpuFuncTests)
 
-ADD_LIBRARY(gpu_device_name shared_tests_instances/set_device_name.cpp)
-
 addIeTargetTest(
         NAME
             ${TARGET_NAME}
@@ -13,6 +11,8 @@ addIeTargetTest(
             ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
+            ${CMAKE_SOURCE_DIR}/src/tests/functional/plugin/shared/include
+            ${CMAKE_SOURCE_DIR}/src/tests/ie_test_utils/common_test_utils
         DEPENDENCIES
             openvino_intel_gpu_plugin
         LINK_LIBRARIES

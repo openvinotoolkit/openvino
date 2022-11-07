@@ -26,7 +26,10 @@ endif()
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-        INCLUDES ${INCLUDES}
+        INCLUDES
+            ${INCLUDES}
+            ${CMAKE_SOURCE_DIR}/src/tests/functional/plugin/shared/include
+            ${CMAKE_SOURCE_DIR}/src/tests/ie_test_utils/common_test_utils
         EXCLUDED_SOURCE_PATHS ${EXCLUDED_SOURCE_PATHS}
         DEFINES ${DEFINES}
         DEPENDENCIES ${DEPENDENCIES}
