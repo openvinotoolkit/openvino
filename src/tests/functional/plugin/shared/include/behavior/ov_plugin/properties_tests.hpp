@@ -58,6 +58,22 @@ public:
 };
 using OVSetPropComplieModleWihtIncorrectPropTests = OVSetPropComplieModleGetPropTests;
 
+using OvPropertiesParams = std::tuple<
+        std::string,                          // device name
+        std::pair<ov::AnyMap, std::string>    // device and expect execution device configuration
+>;
+class OVCompileModelGetExecutionDeviceTests : public testing::WithParamInterface<OvPropertiesParams>,
+                                          public OVPropertiesBase {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<OvPropertiesParams> obj);
+
+    void SetUp() override;
+
+    AnyMap compileModelProperties;
+
+    std::string expectedDeviceName;
+};
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
