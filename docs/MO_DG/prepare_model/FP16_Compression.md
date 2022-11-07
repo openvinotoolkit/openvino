@@ -9,8 +9,6 @@ To compress the model, use the `--compress_to_fp16` option:
  mo --input_model INPUT_MODEL --compress_to_fp16
 ```
 
-> precision in the model. If the model was `FP16`, it will have `FP16` precision in IR as well.
-
 The resulting model will occupy about twice as less space in the file system, but it may have some accuracy drop.
 The resulting model will occupy about half of the previous space in the file system, but lose some of its accuracy.
 For most models, the accuracy drop is negligible. 
