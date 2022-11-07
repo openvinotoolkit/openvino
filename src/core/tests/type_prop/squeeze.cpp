@@ -261,7 +261,7 @@ TEST_P(SqueezeBoundTest, propagate_label_and_dynamic_value) {
     const auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(gather, axis_1);
     const auto squeeze = std::make_shared<op::v0::Squeeze>(unsqueeze, axis);
 
-    const auto bc = std::make_shared<op::v1::Broadcast>(param, squeeze);
+    const auto bc = std::make_shared<op::v3::Broadcast>(param, squeeze);
 
     EXPECT_EQ(bc->get_output_partial_shape(0), exp_shape);
     const auto labels = get_shape_labels(bc->get_output_partial_shape(0));
