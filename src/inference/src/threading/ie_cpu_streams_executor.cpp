@@ -108,6 +108,8 @@ struct CPUStreamsExecutor::Impl {
                     // current stream is placed on logical core
                     const auto cur_logic_core =
                         use_logic_core ? (streamId_wrapped >= phy_core_streams ? true : false) : false;
+                    const auto small_core_skip =
+                        _impl->_config._threads_per_stream_small == 3 && _impl->_config._small_core_streams;
                     const auto& selected_core_type =
                         std::find_if(
                             _impl->total_streams_on_core_types.cbegin(),
@@ -120,18 +122,27 @@ struct CPUStreamsExecutor::Impl {
                         hybrid_core ? (selected_core_type == 0 ? _impl->_config._threads_per_stream_small
                                                                : _impl->_config._threads_per_stream_big)
                                     : _impl->_config._threads_per_stream_big;
+                                    // Special handling of _threads_per_stream_small == 3
+                    const auto small_core_id = (selected_core_type == 0 && small_core_skip)
+                                                   ? 0
+                                                   : streamId_wrapped - _impl->_config._big_core_streams;
                     const auto stream_id =
                         hybrid_core ? (selected_core_type == 0
-                                           ? streamId_wrapped - _impl->_config._big_core_streams
+                                           ? small_core_id
                                            : (cur_logic_core ? streamId_wrapped - phy_core_streams : streamId_wrapped))
                                     : streamId_wrapped;
                     const auto thread_binding_step =
                         hybrid_core ? (selected_core_type == 0 ? _impl->_config._threadBindingStep : 2)
                                     : _impl->_config._threadBindingStep;
-                    // Prevent conflicts with system scheduling, so default cpu id on big core starts from 1
+                    // Special handling of _threads_per_stream_small == 3, need to skip 4
+                    const auto small_core_offset = (selected_core_type == 0 && small_core_skip)
+                                                       ? _impl->_config._small_core_offset +
+                                                             (streamId_wrapped - _impl->_config._big_core_streams) * 4
+                                                       : _impl->_config._small_core_offset;
                     const auto cpu_idx_offset =
                         hybrid_core
-                            ? (selected_core_type == 0 ? _impl->_config._small_core_offset : (cur_logic_core ? 0 : 1))
+                            // Prevent conflicts with system scheduling, so default cpu id on big core starts from 1
+                            ? (selected_core_type == 0 ? small_core_offset : (cur_logic_core ? 0 : 1))
                             : 0;
 
                     _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
