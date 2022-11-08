@@ -480,7 +480,7 @@ void Graph::Export(cldnn::BinaryOutputBuffer &ob) {
 
 std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfo() {
     auto primitives_info = GetNetwork()->get_primitives_info();
-    return GetExecGraphInfoByPrimitivesInfo(primitives_info, false);
+    return GetExecGraphInfoByPrimitivesInfo(primitives_info, true);
 }
 
 
