@@ -35,6 +35,7 @@ protected:
         ov_model_free(model);
         ov_core_free(core);
     }
+
 public:
     ov_core_t* core;
     ov_model_t* model;
