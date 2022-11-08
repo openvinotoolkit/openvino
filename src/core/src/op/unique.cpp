@@ -161,24 +161,30 @@ void op::v10::Unique::validate_and_infer_types() {
                 const auto dim_at_axis = input_shape[normalized_axis];
 
                 Dimension output_dim_at_axis;
+                Dimension rev_idx_size;
                 if (dim_at_axis.is_dynamic()) {
                     if (dim_at_axis == Dimension::dynamic()) {
                         output_dim_at_axis = dim_at_axis;
+                        rev_idx_size = dim_at_axis;
                     } else {
                         output_dim_at_axis = Dimension{1, dim_at_axis.get_max_length()};
+                        rev_idx_size = dim_at_axis;
                     }
                 } else if (dim_at_axis.get_length() == 0) {
                     output_dim_at_axis = Dimension{0};
                     output_shapes[1] = PartialShape{{0}};
-                    output_shapes[2] = PartialShape{{0}};
+                    rev_idx_size = output_dim_at_axis;
                     output_shapes[3] = PartialShape{{0}};
                 } else {
                     output_dim_at_axis = Dimension{1, dim_at_axis.get_max_length()};
+                    rev_idx_size = Dimension{dim_at_axis.get_max_length()};
                 }
 
                 auto output_shape = input_shape;
                 output_shape[normalized_axis] = output_dim_at_axis;
                 output_shapes[0] = output_shape;
+
+                output_shapes[2] = PartialShape{rev_idx_size};
             }
         } else {
             // no axis => flattened input tensor

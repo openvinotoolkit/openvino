@@ -52,9 +52,9 @@ bool scalar_or_single_element(const Shape& s) {
 
 template <typename Data_t, typename Index_t, typename Counts_t = int64_t>
 UniqueElements<Index_t, Counts_t> find_unique_elements(const Data_t* data,
-                                             const Shape& data_shape,
-                                             std::unique_ptr<int64_t> axis,
-                                             const bool sorted) {
+                                                       const Shape& data_shape,
+                                                       std::unique_ptr<int64_t> axis,
+                                                       const bool sorted) {
     using std::begin;
     using std::end;
 

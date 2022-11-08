@@ -72,7 +72,7 @@ TEST(type_prop, unique_3d_scalar_axis) {
     CHECK_ELEMENT_TYPES(unique, {{element::f32, element::i64, element::i64, element::i64}});
     CHECK_OUTPUT_SHAPES(
         unique,
-        {{PartialShape{{2}, {1, 4}, {2}}, PartialShape{{1, 16}}, PartialShape{{16}}, PartialShape{{1, 16}}}});
+        {{PartialShape{{2}, {1, 4}, {2}}, PartialShape{{1, 16}}, PartialShape{{4}}, PartialShape{{1, 16}}}});
 }
 
 TEST(type_prop, unique_3d_axis_1d) {
@@ -83,7 +83,7 @@ TEST(type_prop, unique_3d_axis_1d) {
     CHECK_ELEMENT_TYPES(unique, {{element::f32, element::i64, element::i64, element::i64}});
     CHECK_OUTPUT_SHAPES(
         unique,
-        {{PartialShape{{2}, {4}, {1, 2}}, PartialShape{{1, 16}}, PartialShape{{16}}, PartialShape{{1, 16}}}});
+        {{PartialShape{{2}, {4}, {1, 2}}, PartialShape{{1, 16}}, PartialShape{{2}}, PartialShape{{1, 16}}}});
 }
 
 TEST(type_prop, unique_3d_negative_axis) {
@@ -94,7 +94,7 @@ TEST(type_prop, unique_3d_negative_axis) {
     CHECK_ELEMENT_TYPES(unique, {{element::f32, element::i64, element::i64, element::i64}});
     CHECK_OUTPUT_SHAPES(
         unique,
-        {{PartialShape{{1, 2}, {4}, {2}}, PartialShape{{1, 16}}, PartialShape{{16}}, PartialShape{{1, 16}}}});
+        {{PartialShape{{1, 2}, {4}, {2}}, PartialShape{{1, 16}}, PartialShape{{2}}, PartialShape{{1, 16}}}});
 }
 
 TEST(type_prop, unique_dynamic_dim_at_axis) {
@@ -115,7 +115,7 @@ TEST(type_prop, unique_dim_with_intervals_at_axis) {
     CHECK_ELEMENT_TYPES(unique, {{element::f32, element::i64, element::i64, element::i64}});
     CHECK_OUTPUT_SHAPES(
         unique,
-        {{PartialShape{{2}, {1, 10}, {2}}, PartialShape{{-1}}, PartialShape{{-1}}, PartialShape{{-1}}}});
+        {{PartialShape{{2}, {1, 10}, {2}}, PartialShape{{-1}}, PartialShape{{2, 10}}, PartialShape{{-1}}}});
 }
 
 TEST(type_prop, unique_dynamic_rank) {
