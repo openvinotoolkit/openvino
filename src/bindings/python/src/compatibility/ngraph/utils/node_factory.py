@@ -48,11 +48,7 @@ class NodeFactory(object):
             return node
 
         if arguments is None and attributes is not None:
-            raise UserInputError(
-                'Error: cannot create "{}" op without arguments.'.format(
-                    op_type_name
-                )
-            )
+            raise UserInputError('Error: cannot create "{}" op without arguments.'.format(op_type_name))
 
         if attributes is None:
             attributes = {}
@@ -101,9 +97,11 @@ class NodeFactory(object):
             if issubclass(type(argument), Output):
                 outputs.append(argument)
             else:
-                log.warning("Op arguments were passed as Node, please avoid passing arguments in "
-                            "this manner, and pass Output(s) instead, because accepting Nodes will "
-                            "be deprecated in a future release.")
+                log.warning(
+                    "Op arguments were passed as Node, please avoid passing arguments in "
+                    "this manner, and pass Output(s) instead, because accepting Nodes will "
+                    "be deprecated in a future release."
+                )
                 outputs.extend(argument.outputs())
         return outputs
 
@@ -118,7 +116,7 @@ class NodeFactory(object):
         """
         # Trim first part of the name if there is only one level of attribute hierarchy.
         if attr_name.count(".") == 1:
-            attr_name = attr_name[attr_name.find(".") + 1:]
+            attr_name = attr_name[attr_name.find(".") + 1 :]
         return prefix + attr_name.replace(".", "_")
 
     @classmethod
