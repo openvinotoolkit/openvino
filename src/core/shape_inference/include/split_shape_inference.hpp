@@ -13,6 +13,19 @@ namespace ov {
 namespace op {
 namespace v1 {
 
+/**
+ * \brief Shape inference for Split V1 operator.
+ *
+ * \note The split operation cause label lost on splitted dimension even if number of splits is one,
+ * because in this case split will be removed by transformation (as NOP) and in fact label will be propagated.
+ *
+ * \tparam T             Type of shape.
+ *
+ * \param op             Split operator pointer.
+ * \param input_shapes   Split input shapes.
+ * \param output_shapes  Split output shapes.
+ * \param constant_data  Map of constant data.
+ */
 template <typename T>
 void shape_infer(const Split* op,
                  const std::vector<T>& input_shapes,
@@ -75,8 +88,7 @@ void shape_infer(const Split* op,
         each_output_shape = ov::PartialShape::dynamic(data_ps.rank());
     }
 
-    for (size_t i = 0; i < num_splits; ++i)
-        output_shapes.push_back(each_output_shape);
+    output_shapes.resize(num_splits, each_output_shape);
 }
 
 }  // namespace v1

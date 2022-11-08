@@ -91,8 +91,8 @@ DATA_ET reflection_data_no_align(const DATA_ET* data,
                                  long x_d) {
     const auto H = static_cast<long>(data_shape[2]);
     const auto W = static_cast<long>(data_shape[3]);
-    const auto H_2 = static_cast<long>(data_shape[2]) * 2l;
-    const auto W_2 = static_cast<long>(data_shape[3]) * 2l;
+    const auto H_2 = H * 2l;
+    const auto W_2 = W * 2l;
     y_d = (y_d % H_2 + H_2) % H_2;
     x_d = (x_d % W_2 + W_2) % W_2;
     const auto y = static_cast<size_t>(y_d >= H ? H_2 - 1 - y_d : y_d);

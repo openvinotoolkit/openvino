@@ -8,7 +8,6 @@
 #include <vector>
 #include <algorithm>
 
-#include "gna_plugin_log.hpp"
 #include "gna_mem_regions.hpp"
 
 namespace GNAPluginNS {
@@ -21,7 +20,7 @@ enum rType : uint8_t {
     REQUEST_INITIALIZER = 0x8,
 };
 
-#ifdef GNA_HEAP_PROFILER
+#ifdef GNA_MEMORY_DUMP
 
 inline const char* rTypeToStr(uint8_t type) {
    const char* strType = "UNKNOWN";

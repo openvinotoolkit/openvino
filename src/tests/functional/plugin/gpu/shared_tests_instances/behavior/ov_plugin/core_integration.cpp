@@ -7,6 +7,8 @@
 #include "behavior/ov_plugin/core_integration.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 
+#define OV_GPU_USE_OPENCL_HPP
+
 #ifdef _WIN32
 #    include "gpu/gpu_context_api_dx.hpp"
 #elif defined ENABLE_LIBVA
@@ -711,6 +713,9 @@ const std::vector<ov::AnyMap> gpuCorrectConfigsWithSecondaryProperties = {
     {ov::device::properties(CommonTestUtils::DEVICE_GPU,
                             ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
                             ov::hint::allow_auto_batching(false))},
+    {ov::device::properties("GPU.0",
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+                            ov::hint::allow_auto_batching(false))},
     {ov::device::properties(CommonTestUtils::DEVICE_GPU,
                             ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
                             ov::hint::allow_auto_batching(false)),
@@ -725,7 +730,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassLoadNetworkWithCorrectPropertiesAutoBatchi
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassLoadNetworkWithCorrectSecondaryPropertiesTest,
                          OVClassLoadNetworkWithCorrectPropertiesTest,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GPU),
-                                            ::testing::ValuesIn(gpuCorrectConfigsWithSecondaryProperties)));
+                                            ::testing::ValuesIn(gpuCorrectConfigsWithSecondaryProperties)),
+                         ::testing::PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(smoke_AUTO_OVClassLoadNetworkWithCorrectSecondaryPropertiesTest,
                          OVClassLoadNetworkWithCorrectPropertiesTest,
@@ -760,6 +766,13 @@ const std::vector<ov::AnyMap> autoCorrectConfigsWithSecondaryProperties = {
                             ov::hint::allow_auto_batching(false)),
      ov::device::properties(CommonTestUtils::DEVICE_CPU,
                             ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
+                            ov::hint::allow_auto_batching(false))},
+    {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+     ov::device::properties("GPU.0",
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+                            ov::hint::allow_auto_batching(false)),
+     ov::device::properties(CommonTestUtils::DEVICE_CPU,
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
                             ov::hint::allow_auto_batching(false))}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_OVClassLoadNetworkWithCorrectPropertiesAutoBatchingTest, OVClassLoadNetworkWithCorrectPropertiesTest,
@@ -770,7 +783,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_OVClassLoadNetworkWithCorrectSecondaryProper
                          OVClassLoadNetworkWithCorrectPropertiesTest,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI,
                                                               CommonTestUtils::DEVICE_AUTO),
-                                            ::testing::ValuesIn(autoCorrectConfigsWithSecondaryProperties)));
+                                            ::testing::ValuesIn(autoCorrectConfigsWithSecondaryProperties)),
+                         ::testing::PrintToStringParamName());
 
 const std::vector<ov::AnyMap> batchCorrectConfigs = {
     {}
