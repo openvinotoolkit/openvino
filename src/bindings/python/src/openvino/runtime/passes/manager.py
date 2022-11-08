@@ -8,6 +8,7 @@ from openvino._pyopenvino.passes import PassBase
 
 class Manager(ManagerBase):
     """Manager that additionally holds transformations objects."""
+
     def __init__(self) -> None:
         super().__init__()
         self.passes_list = []  # need to keep python instances alive

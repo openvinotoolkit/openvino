@@ -64,7 +64,8 @@ def get_element_type(data_type: NumericType) -> Type:
         return Type.f32
 
     ov_type = next(
-        (ov_type for (ov_type, np_type) in openvino_to_numpy_types_map if np_type == data_type), None,
+        (ov_type for (ov_type, np_type) in openvino_to_numpy_types_map if np_type == data_type),
+        None,
     )
     if ov_type:
         return ov_type

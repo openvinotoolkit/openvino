@@ -9,6 +9,7 @@ from openvino._pyopenvino.passes import BackwardGraphRewrite as BackwardGraphRew
 
 class GraphRewrite(GraphRewriteBase):
     """GraphRewrite that additionally holds python transformations objects."""
+
     def __init__(self) -> None:
         super().__init__()
         self.passes_list = []  # need to keep python instances alive
@@ -21,6 +22,7 @@ class GraphRewrite(GraphRewriteBase):
 
 class BackwardGraphRewrite(BackwardGraphRewriteBase):
     """BackwardGraphRewriteBase that additionally holds python transformations objects."""
+
     def __init__(self) -> None:
         super().__init__()
         self.passes_list = []  # need to keep python instances alive
