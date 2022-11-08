@@ -124,7 +124,8 @@ void op::v10::Unique::validate_and_infer_types() {
     output_shapes[0] = PartialShape::dynamic();
     output_shapes[1] =
         input_tensor_capacity > 0 ? PartialShape{{1, input_tensor_capacity}} : PartialShape{{Dimension::dynamic()}};
-    output_shapes[2] = output_shapes[1];
+    output_shapes[2] =
+        input_tensor_capacity > 0 ? PartialShape{{input_tensor_capacity}} : PartialShape{{Dimension::dynamic()}};
     output_shapes[3] = output_shapes[1];
 
     if (ov::op::util::is_constant(input_value(0).get_node())) {
