@@ -420,6 +420,7 @@ void remove_redundant_reorders::run(program& p) {
         auto& input = node->input();
 
         if (!(input.is_type<convolution>()) ||
+            (input.is_dynamic()) ||
             !(input.get_output_layout().format == format::b_fs_yx_fsv16) ||
             !(node->get_output_layout().format == format::bfyx))
             return false;
