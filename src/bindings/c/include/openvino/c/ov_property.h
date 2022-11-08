@@ -83,7 +83,8 @@ ov_property_key_optimal_batch_size;
 
 /**
  * @brief Read-only property to get maximum batch size which does not cause performance degradation due
- * @ingroup to memory swap impact.
+ * to memory swap impact.
+ * @ingroup ov_property_c_api
  */
 OPENVINO_C_VAR(const char*)
 ov_property_key_max_batch_size;

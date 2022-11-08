@@ -123,7 +123,7 @@
  */
 
 /**
- * @enum ov_status_code_e
+ * @enum ov_status_e
  * @ingroup ov_base_c_api
  * @brief This enum contains codes for all possible return values of the interface functions
  */
