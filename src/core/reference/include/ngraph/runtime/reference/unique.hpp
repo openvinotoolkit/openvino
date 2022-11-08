@@ -10,7 +10,7 @@ namespace ngraph {
 namespace runtime {
 namespace reference {
 /// @brief Represents an element of the input tensor
-template <typename Index_t>
+template <typename Index_t, typename Count_t>
 struct Element {
     Element(Index_t idx_) : idx{idx_} {}
     /// The index of the current element in the original input tensor. It never changes even if the elements get sorted.
@@ -22,19 +22,19 @@ struct Element {
     Index_t rev_idx = -1;
     /// The number of occurrences of a given element in the input tensor. This value is different than one only for
     /// duplicates found in the input tensor.
-    int64_t count = 1;  // the number of occurrences of the current element in the original input tensor
+    Count_t count = 1;  // the number of occurrences of the current element in the original input tensor
 };
 
-template <typename Index_t>
+template <typename Index_t, typename Counts_t>
 struct UniqueElements {
-    std::vector<Element<Index_t>> all_tensor_elements;
-    std::vector<Element<Index_t>> unique_tensor_elements;
+    std::vector<Element<Index_t, Counts_t>> all_tensor_elements;
+    std::vector<Element<Index_t, Counts_t>> unique_tensor_elements;
 };
 
 namespace {
-template <typename T>
-std::vector<Element<T>> generate_element_descriptors(const size_t count) {
-    std::vector<Element<T>> descriptors;
+template <typename T, typename C>
+std::vector<Element<T, C>> generate_element_descriptors(const size_t count) {
+    std::vector<Element<T, C>> descriptors;
     descriptors.reserve(count);
 
     for (T i = 0; i < count; ++i) {
@@ -50,32 +50,32 @@ bool scalar_or_single_element(const Shape& s) {
 }
 }  // namespace
 
-template <typename Data_t, typename Index_t>
-UniqueElements<Index_t> find_unique_elements(const Data_t* data,
+template <typename Data_t, typename Index_t, typename Counts_t = int64_t>
+UniqueElements<Index_t, Counts_t> find_unique_elements(const Data_t* data,
                                              const Shape& data_shape,
                                              const std::unique_ptr<int64_t> axis,
                                              const bool sorted) {
-    std::cout << "********************* Running the Unique op's ref impl *******************\n";
     using std::begin;
     using std::end;
 
-    const auto ascending_order = [&data](const Element<Index_t>& lhs, const Element<Index_t>& rhs) {
+    const auto ascending_order = [&data](const Element<Index_t, Counts_t>& lhs, const Element<Index_t, Counts_t>& rhs) {
         return *(data + lhs.idx) < *(data + rhs.idx);
     };
 
-    const auto elements_are_equal = [&data](const Element<Index_t>& lhs, const Element<Index_t>& rhs) {
+    const auto elements_are_equal = [&data](const Element<Index_t, Counts_t>& lhs,
+                                            const Element<Index_t, Counts_t>& rhs) {
         return *(data + lhs.idx) == *(data + rhs.idx);
     };
 
-    const auto already_unique = [&elements_are_equal](const Element<Index_t>& existing_unique_elem) {
-        return [&elements_are_equal, &existing_unique_elem](const Element<Index_t>& x) {
+    const auto already_unique = [&elements_are_equal](const Element<Index_t, Counts_t>& existing_unique_elem) {
+        return [&elements_are_equal, &existing_unique_elem](const Element<Index_t, Counts_t>& x) {
             return elements_are_equal(existing_unique_elem, x);
         };
     };
 
     const auto data_elems_count = shape_size(data_shape);
-    UniqueElements<Index_t> ret;
-    ret.all_tensor_elements = generate_element_descriptors<Index_t>(data_elems_count);
+    UniqueElements<Index_t, Counts_t> ret;
+    ret.all_tensor_elements = generate_element_descriptors<Index_t, Counts_t>(data_elems_count);
 
     if (sorted) {
         std::sort(begin(ret.all_tensor_elements), end(ret.all_tensor_elements), ascending_order);
@@ -116,21 +116,21 @@ UniqueElements<Index_t> find_unique_elements(const Data_t* data,
     return ret;
 }
 
-template <typename Index_t>
-std::tuple<Shape, Shape, Shape> make_tensor_shapes(const UniqueElements<Index_t>& unique_elements) {
+template <typename Index_t, typename Counts_t = int64_t>
+std::tuple<Shape, Shape, Shape> make_tensor_shapes(const UniqueElements<Index_t, Counts_t>& unique_elements) {
     const auto output0 = Shape{unique_elements.unique_tensor_elements.size()};
     const auto output1_3 = output0;  // TODO
     const auto output2 = Shape{unique_elements.all_tensor_elements.size()};
     return std::make_tuple(output0, output1_3, output2);
 }
 
-template <typename Data_t, typename Index_t>
+template <typename Data_t, typename Index_t, typename Counts_t = int64_t>
 void unique(Data_t* out_unique_elements,
             Index_t* out_indices,
             Index_t* out_rev_indices,
-            int64_t* out_counts,
+            Counts_t* out_counts,
             const Data_t* data,
-            const UniqueElements<Index_t>& unique_elements) {
+            const UniqueElements<Index_t, Counts_t>& unique_elements) {
     for (size_t i = 0; i < unique_elements.unique_tensor_elements.size(); ++i) {
         const auto& descriptor = unique_elements.unique_tensor_elements[i];
         out_unique_elements[i] = *(data + descriptor.idx);

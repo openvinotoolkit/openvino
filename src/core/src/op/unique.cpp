@@ -15,14 +15,14 @@ int64_t extract_axis(const std::shared_ptr<op::v0::Constant>& axis_constant) {
     const auto axis_vec = axis_constant->cast_vector<int64_t>();
     return axis_vec.at(0);
 }
-template <typename Data_t, typename Index_t>
+template <typename Data_t, typename Index_t, typename Counts_t>
 void execute_unique(ov::TensorVector& outputs, const TensorVector& inputs) {
     const auto unique_elements =
-        ngraph::runtime::reference::find_unique_elements<Data_t, Index_t>(inputs[0].data<Data_t>(),
-                                                                          inputs[0].get_shape(),
-                                                                          nullptr,
-                                                                          false);
-    const auto tensor_shapes = ngraph::runtime::reference::make_tensor_shapes(unique_elements);
+        ngraph::runtime::reference::find_unique_elements<Data_t, Index_t, Counts_t>(inputs[0].data<Data_t>(),
+                                                                                    inputs[0].get_shape(),
+                                                                                    nullptr,
+                                                                                    false);
+    const auto tensor_shapes = ngraph::runtime::reference::make_tensor_shapes<Index_t, Counts_t>(unique_elements);
 
     auto& out_unique_elements = outputs[0];
     auto& out_indices = outputs[1];
@@ -34,12 +34,12 @@ void execute_unique(ov::TensorVector& outputs, const TensorVector& inputs) {
     out_rev_indices.set_shape(std::get<2>(tensor_shapes));
     out_counts.set_shape(std::get<1>(tensor_shapes));
 
-    ngraph::runtime::reference::unique(out_unique_elements.data<Data_t>(),
-                                       out_indices.data<Index_t>(),
-                                       out_rev_indices.data<Index_t>(),
-                                       out_counts.data<int64_t>(),
-                                       inputs[0].data<Data_t>(),
-                                       unique_elements);
+    ngraph::runtime::reference::unique<Data_t, Index_t, Counts_t>(out_unique_elements.data<Data_t>(),
+                                                                  out_indices.data<Index_t>(),
+                                                                  out_rev_indices.data<Index_t>(),
+                                                                  out_counts.data<Counts_t>(),
+                                                                  inputs[0].data<Data_t>(),
+                                                                  unique_elements);
 }
 }  // namespace
 
@@ -178,7 +178,7 @@ std::shared_ptr<Node> op::v10::Unique::clone_with_new_inputs(const OutputVector&
 }
 
 bool op::v10::Unique::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
-    execute_unique<float, int32_t>(output_values, input_values);
+    execute_unique<float, int32_t, int32_t>(output_values, input_values);
     return true;
 }
 

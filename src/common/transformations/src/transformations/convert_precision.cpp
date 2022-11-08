@@ -589,7 +589,6 @@ bool extend_reverse_type(const std::shared_ptr<ngraph::Node>& node, ngraph::elem
 
 bool fuse_type_to_unique(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
     if (auto unique = std::dynamic_pointer_cast<opset10::Unique>(node)) {
-        std::cout << "Running the conversion\n";
         if (unique->get_index_element_type() == element::i64) {
             unique->set_index_element_type(element::i32);
         }
@@ -617,6 +616,8 @@ bool fuse_type_to_unique(const std::shared_ptr<ngraph::Node>& node, ngraph::elem
                 unique->get_sorted(),
                 element::i32);
         }
+
+        relaxed_op->set_friendly_name(node->get_friendly_name());
 
         replace_node(node, relaxed_op);
         return true;
