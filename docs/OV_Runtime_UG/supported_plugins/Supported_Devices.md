@@ -38,12 +38,14 @@ The OpenVINO Runtime provides unique capabilities to infer deep learning models 
 
 Devices similar to the ones we have used for benchmarking can be accessed using `Intel® DevCloud for the Edge <https://devcloud.intel.com/edge/>`__ , a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit. `Learn more <https://devcloud.intel.com/edge/get_started/devcloud/>`__ or `Register here <https://inteliot.force.com/DevcloudForEdge/s/>`__.
 
-## Supported Configurations
+Supported Configurations
+------------------------
 
 The OpenVINO Runtime can inference models in different formats with various input and output formats.
 This page shows supported and optimal configurations for each plugin.
 
-### Terminology
+Terminology
+~~~~~~~~~~~~~~~~~~~~~~
 
 +-------------------+-----------------------------------------------+
 | Acronym/Term      | Description                                   |
@@ -77,7 +79,8 @@ Abbreviations in the support tables are as follows:
 CHW, NC, C  - Tensor memory layout.
 For example, the CHW value at index (c,h,w) is physically located at index (c\*H+h)\*W+w, for others by analogy.
 
-### Supported Model Formats
+Supported Model Formats
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 +-------------------+------------------------+------------------------+------------------------+
 |Plugin             |FP32                    |FP16                    |I8                      |
@@ -96,7 +99,8 @@ For example, the CHW value at index (c,h,w) is physically located at index (c\*H
 For :ref:`Multi-Device <openvino_docs_OV_UG_Running_on_multiple_devices>` and :ref:`Heterogeneous <openvino_docs_OV_UG_Hetero_execution>` executions
 the supported models formats depends on the actual underlying devices. *Generally, FP16 is preferable as it is most ubiquitous and performant*.
 
-### Supported Input Precision
+Supported Input Precision
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 +-------------------+----------+---------------+---------------+---------------+--------------+---------------+
 |Plugin             |FP32      |FP16           |U8             |U16            |I8            |I16            |
@@ -117,7 +121,8 @@ the supported models formats depends on the actual underlying devices. *Generall
 For :ref:`Multi-Device <openvino_docs_OV_UG_Running_on_multiple_devices>` and :ref:`Heterogeneous <openvino_docs_OV_UG_Hetero_execution>` executions
 the supported input precision depends on the actual underlying devices. *Generally, U8 is preferable as it is most ubiquitous*.
 
-### Supported Output Precision
+Supported Output Precision
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 +-------------------+----------+--------------+
 |Plugin             |FP32      |FP16          |
@@ -136,7 +141,8 @@ the supported input precision depends on the actual underlying devices. *General
 For :ref:`Multi-Device <openvino_docs_OV_UG_Running_on_multiple_devices>` and :ref:`Heterogeneous <openvino_docs_OV_UG_Hetero_execution>` executions
 the supported output precision depends on the actual underlying devices. *Generally, FP32 is preferable as it is most ubiquitous*.
 
-### Supported Input Layout
+Supported Input Layout
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 +-------------------+--------------+--------------+--------------+--------------+
 |Plugin             |NCDHW         |NCHW          |NHWC          |NC            |
@@ -152,7 +158,8 @@ the supported output precision depends on the actual underlying devices. *Genera
 |Arm® CPU plugin    |Not supported |Supported     |Supported     |Supported     |
 +-------------------+--------------+--------------+--------------+--------------+
 
-### Supported Output Layout
+Supported Output Layout
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 +--------------------+-----+-----+-----+-----+-----+
 |Number of dimensions|5    |4    |3    |2    |1    |
@@ -164,7 +171,9 @@ For setting relevant configuration, refer to the **Step 3 "Configure input and o
 :ref:`Integrate with Customer Application <openvino_docs_OV_UG_Integrate_OV_with_your_application` guide.
 .
 
-### Supported Layers
+Supported Layers
+~~~~~~~~~~~~~~~~~
+
 The following layers are supported by the plugins:
 
 
