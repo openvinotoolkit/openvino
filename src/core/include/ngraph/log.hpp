@@ -129,7 +129,7 @@ void default_logger_handler_func(const std::string& s);
             .stream()
 #else
 
-struct NullLogger {};
+struct NGRAPH_API NullLogger {};
 
 template <typename T>
 NullLogger&& operator<<(NullLogger&& logger, T&&) {
