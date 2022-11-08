@@ -19,15 +19,15 @@ TEST(StaticShapeInferenceTest, BroadcastBidirectionalTest) {
     auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1});
     auto broadcast_v3 = std::make_shared<op::v3::Broadcast>(input, target_shape, op::BroadcastType::BIDIRECTIONAL);
 
-    int32_t target_shape_val[] = {1, 16, 50, 50};
+    int32_t target_shape_val[] = {1, 16, 50, 1};
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
     constant_data[1] =
         std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, ov::Shape{4}, target_shape_val);
 
-    std::vector<StaticShape> static_input_shapes = {StaticShape{16, 1, 1}, StaticShape{4}},
+    std::vector<StaticShape> static_input_shapes = {StaticShape{16, 1, 8}, StaticShape{4}},
                              static_output_shapes = {StaticShape{}};
     shape_inference(broadcast_v3.get(), static_input_shapes, static_output_shapes, constant_data);
-    ASSERT_EQ(static_output_shapes[0], StaticShape({1, 16, 50, 50}));
+    ASSERT_EQ(static_output_shapes[0], StaticShape({1, 16, 50, 8}));
 
     static_input_shapes = {StaticShape{16, 1, 1}, StaticShape{4}};
     static_output_shapes = {StaticShape{}};
