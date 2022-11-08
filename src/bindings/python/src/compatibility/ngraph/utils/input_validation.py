@@ -38,17 +38,9 @@ def _check_value(op_name, attr_key, value, val_type, cond=None):
     :return:    True if attribute satisfies all criterias. Otherwise False.
     """
     if not np.issubdtype(type(value), val_type):
-        raise UserInputError(
-            '{} operator attribute "{}" value must by of type {}.'.format(
-                op_name, attr_key, val_type
-            )
-        )
+        raise UserInputError('{} operator attribute "{}" value must by of type {}.'.format(op_name, attr_key, val_type))
     if cond is not None and not cond(value):
-        raise UserInputError(
-            '{} operator attribute "{}" value does not satisfy provided condition.'.format(
-                op_name, attr_key
-            )
-        )
+        raise UserInputError('{} operator attribute "{}" value does not satisfy provided condition.'.format(op_name, attr_key))
     return True
 
 
@@ -71,11 +63,7 @@ def check_valid_attribute(op_name, attr_dict, attr_key, val_type, cond=None, req
     result = True
 
     if required and attr_key not in attr_dict:
-        raise UserInputError(
-            'Provided dictionary is missing {} operator required attribute "{}"'.format(
-                op_name, attr_key
-            )
-        )
+        raise UserInputError('Provided dictionary is missing {} operator required attribute "{}"'.format(op_name, attr_key))
 
     if attr_key not in attr_dict:
         return result

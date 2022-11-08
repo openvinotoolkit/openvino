@@ -19,8 +19,7 @@ if sys.platform == "win32":
     # add the location of openvino dlls to your system PATH.
     #
     # looking for the libs in the pip installation path by default.
-    openvino_libs = [os.path.join(os.path.dirname(__file__), '..', '..', '..'),
-                     os.path.join(os.path.dirname(__file__), '..', '..', 'openvino', 'libs')]
+    openvino_libs = [os.path.join(os.path.dirname(__file__), '..', '..', '..'), os.path.join(os.path.dirname(__file__), '..', '..', 'openvino', 'libs')]
     # setupvars.bat script set all libs paths to OPENVINO_LIB_PATHS environment variable.
     openvino_libs_installer = os.getenv('OPENVINO_LIB_PATHS')
     if openvino_libs_installer:

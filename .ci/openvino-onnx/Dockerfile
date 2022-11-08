@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 LABEL version=2021.03.30.1
 
@@ -78,5 +78,5 @@ RUN ninja install
 WORKDIR /openvino/src/bindings/python
 ENV OpenVINO_DIR=/openvino/dist/runtime/cmake
 ENV LD_LIBRARY_PATH=/openvino/dist/runtime/lib:/openvino/dist/runtime/3rdparty/tbb/lib
-ENV PYTHONPATH=/openvino/bin/intel64/${BUILD_TYPE}/python_api/python3.8:${PYTHONPATH}
+ENV PYTHONPATH=/openvino/bin/intel64/${BUILD_TYPE}/python_api/python3.10:${PYTHONPATH}
 CMD tox
