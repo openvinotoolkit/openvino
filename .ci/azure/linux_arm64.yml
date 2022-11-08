@@ -46,8 +46,8 @@ jobs:
     system.debug: true
     VSTS_HTTP_RETRY: 5
     VSTS_HTTP_TIMEOUT: 200
-    PYTHON_ARM_VERSION: "3.8.12"
-    PYTHON_EXEC: "python3.8"
+    PYTHON_ARM_VERSION: "3.10.6"
+    PYTHON_EXEC: "python3.10"
     OPENVINO_ARCH: 'aarch64'
     NUM_PROC: 1
     BUILD_TYPE: Release
@@ -79,7 +79,9 @@ jobs:
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
       uname -a
-      echo Python3 info ; which python3 ; python3 --version
+      echo ls /usr/bin/python3.10
+      rm -rf /usr/bin/python3
+      sudo ln -s /usr/bin/python3.10 /usr/bin/python3      echo Python3 info ; which python3 ; python3 --version
       echo Python info ; which python ; python --version
       echo Java info ; which java ; java -version
       echo gcc info ; which gcc ; gcc --version
@@ -161,10 +163,10 @@ jobs:
         -DCMAKE_VERBOSE_MAKEFILE=ON
         -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
         -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake
-        -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/python3.8
-        -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib/libpython3.8.so
+        -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/python3.10
+        -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib/libpython3.10.so
         -DENABLE_PYTHON=ON
-        -DPYTHON_MODULE_EXTENSION=".cpython-38-x86_64-linux-gnu.so"
+        -DPYTHON_MODULE_EXTENSION=".cpython-310-x86_64-linux-gnu.so"
         -DENABLE_TESTS=ON
         -DENABLE_DATA=OFF
         -DCMAKE_EXE_LINKER_FLAGS=-Wl,-rpath-link,$(INSTALL_OPENCV)/lib
@@ -207,10 +209,10 @@ jobs:
         -DOpenVINODeveloperPackage_DIR=$(BUILD_OPENVINO)
         -DENABLE_PYTHON=ON
         -DTHREADING=TBB
-        -DPYTHON_EXECUTABLE=$(INSTALL_PYTHON)/bin/python3.8
-        -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/python3.8
+        -DPYTHON_EXECUTABLE=$(INSTALL_PYTHON)/bin/python3.10
+        -DPYTHON_INCLUDE_DIRS=$(INSTALL_PYTHON)/include/python3.10
         -DPYTHON_LIBRARIES=$(INSTALL_PYTHON)/lib
-        -DPYTHON3_NUMPY_INCLUDE_DIRS=/usr/local/lib/python3.8/site-packages/numpy/core/include
+        -DPYTHON3_NUMPY_INCLUDE_DIRS=/usr/local/lib/python3.10/site-packages/numpy/core/include
         -DPYTHON_MODULE_EXTENSION=".so"
         -DPYBIND11_FINDPYTHON=OFF
         -DPYBIND11_NOPYTHON=OFF
@@ -248,8 +250,8 @@ jobs:
         -GNinja
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_PYTHON=ON
-        -DPYTHON_EXECUTABLE=/usr/local/bin/python3.8
-        -DPYTHON_INCLUDE_DIR=$(INSTALL_PYTHON)/include/python3.8
+        -DPYTHON_EXECUTABLE=/usr/local/bin/python3.10
+        -DPYTHON_INCLUDE_DIR=$(INSTALL_PYTHON)/include/python3.10
         -DPYTHON_LIBRARY=$(INSTALL_PYTHON)/lib
         -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake
         -DOpenVINO_DIR=$(BUILD_OPENVINO)

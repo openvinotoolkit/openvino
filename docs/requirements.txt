@@ -1,6 +1,6 @@
 alabaster==0.7.12
 atomicwrites==1.4.0
-attrs==20.3.0
+attrs==22.1.0
 Babel==2.9.1
 beautifulsoup4==4.9.3
 certifi==2020.12.5
@@ -25,6 +25,7 @@ pyparsing==2.4.7
 pytest==6.2.5
 pytest-html==3.1.1
 pytest-metadata==1.11.0
+py>=1.9.0
 pytz==2021.1
 requests==2.25.1
 six==1.15.0

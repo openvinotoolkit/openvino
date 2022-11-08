@@ -28,6 +28,7 @@ pydocstyle
 pytest-forked; platform_system != "Windows"
 pytest-xdist
 pytest
+py>=1.9.0
 radon
 retrying
 tox
