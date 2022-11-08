@@ -102,7 +102,7 @@ else()
     set(ENABLE_INTEL_MYRIAD_DEFAULT ON)
 endif()
 
-ie_dependent_option (ENABLE_INTEL_MYRIAD "myriad targeted plugin for inference engine" ${ENABLE_INTEL_MYRIAD_DEFAULT} "ENABLE_INTEL_MYRIAD_COMMON" OFF)
+ie_dependent_option (ENABLE_INTEL_MYRIAD "myriad targeted plugin for inference engine" ${ENABLE_INTEL_MYRIAD_DEFAULT} "NOT RISCV64;ENABLE_INTEL_MYRIAD_COMMON" OFF)
 
 ie_dependent_option (ENABLE_MYRIAD_NO_BOOT "myriad plugin will skip device boot" OFF "ENABLE_INTEL_MYRIAD" OFF)
 
