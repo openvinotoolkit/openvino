@@ -21,6 +21,9 @@ void normalize_block_shape_pads_crops(const NodeContext& node,
     block_shape = node.get_input(1);
     auto paddings_crops = node.get_input(2);
 
+    // make sure that paddings_crops and block_shape to have the same type
+    paddings_crops = make_shared<Convert>(block_shape, block_shape.get_element_type())->output(0);
+
     // compute the input rank and a shape of block_shape [M]
     // it is needed to normalize block_shape, pads_begin and pads_end
     auto input_rank = compute_subgraph_scalar_rank(input, element::i32, false);
