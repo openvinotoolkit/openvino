@@ -15,31 +15,71 @@ int64_t extract_axis(const std::shared_ptr<op::v0::Constant>& axis_constant) {
     const auto axis_vec = axis_constant->cast_vector<int64_t>();
     return axis_vec.at(0);
 }
-template <typename Data_t, typename Index_t, typename Counts_t>
-void execute_unique(ov::TensorVector& outputs, const TensorVector& inputs) {
-    const auto unique_elements =
-        ngraph::runtime::reference::find_unique_elements<Data_t, Index_t, Counts_t>(inputs[0].data<Data_t>(),
-                                                                                    inputs[0].get_shape(),
-                                                                                    nullptr,
-                                                                                    false);
-    const auto tensor_shapes = ngraph::runtime::reference::make_tensor_shapes<Index_t, Counts_t>(unique_elements);
 
-    auto& out_unique_elements = outputs[0];
-    auto& out_indices = outputs[1];
-    auto& out_rev_indices = outputs[2];
-    auto& out_counts = outputs[3];
+template <typename T, typename Index_t = int32_t, typename Counts_t = int32_t>
+ngraph::runtime::reference::UniqueElements<Index_t, Counts_t> call_unique(const Tensor& input,
+                                                                          std::unique_ptr<int64_t> axis,
+                                                                          const bool sorted) {
+    return ngraph::runtime::reference::find_unique_elements<T, Index_t, Counts_t>(input.data<T>(),
+                                                                                  input.get_shape(),
+                                                                                  std::move(axis),
+                                                                                  sorted);
+}
 
-    out_unique_elements.set_shape(std::get<0>(tensor_shapes));
-    out_indices.set_shape(std::get<1>(tensor_shapes));
-    out_rev_indices.set_shape(std::get<2>(tensor_shapes));
-    out_counts.set_shape(std::get<1>(tensor_shapes));
+std::tuple<Shape, Shape, Shape> calculate_static_output_shapes(const Tensor& input_data, const op::v10::Unique& op) {
+    using Index_t = int32_t;
+    using Counts_t = int32_t;
 
-    ngraph::runtime::reference::unique<Data_t, Index_t, Counts_t>(out_unique_elements.data<Data_t>(),
-                                                                  out_indices.data<Index_t>(),
-                                                                  out_rev_indices.data<Index_t>(),
-                                                                  out_counts.data<Counts_t>(),
-                                                                  inputs[0].data<Data_t>(),
-                                                                  unique_elements);
+    ngraph::runtime::reference::UniqueElements<Index_t, Counts_t> unique_elements;
+    std::unique_ptr<int64_t> axis = nullptr;
+    if (op.get_input_size() == 2 && ov::op::util::is_constant(op.input_value(0).get_node())) {
+        const auto axis_const = std::dynamic_pointer_cast<op::v0::Constant>(op.input_value(0).get_node_shared_ptr());
+        axis = std::unique_ptr<int64_t>(new int64_t{extract_axis(axis_const)});
+    }
+
+    switch (op.get_input_element_type(0)) {
+    case element::boolean:
+        unique_elements = call_unique<bool>(input_data, std::move(axis), op.get_sorted());
+        break;
+    case element::i8:
+        unique_elements = call_unique<int8_t>(input_data, std::move(axis), op.get_sorted());
+        break;
+    case element::i16:
+        unique_elements = call_unique<int16_t>(input_data, std::move(axis), op.get_sorted());
+        break;
+    case element::i32:
+        unique_elements = call_unique<int32_t>(input_data, std::move(axis), op.get_sorted());
+        break;
+    case element::i64:
+        unique_elements = call_unique<int64_t>(input_data, std::move(axis), op.get_sorted());
+        break;
+    case element::u8:
+        unique_elements = call_unique<uint8_t>(input_data, std::move(axis), op.get_sorted());
+        break;
+    case element::u16:
+        unique_elements = call_unique<uint16_t>(input_data, std::move(axis), op.get_sorted());
+        break;
+    case element::u32:
+        unique_elements = call_unique<uint32_t>(input_data, std::move(axis), op.get_sorted());
+        break;
+    case element::u64:
+        unique_elements = call_unique<uint64_t>(input_data, std::move(axis), op.get_sorted());
+        break;
+    case element::bf16:
+        unique_elements = call_unique<bfloat16>(input_data, std::move(axis), op.get_sorted());
+        break;
+    case element::f16:
+        unique_elements = call_unique<float16>(input_data, std::move(axis), op.get_sorted());
+        break;
+    case element::f32:
+        unique_elements = call_unique<float>(input_data, std::move(axis), op.get_sorted());
+        break;
+    case element::f64:
+        unique_elements = call_unique<double>(input_data, std::move(axis), op.get_sorted());
+        break;
+    }
+
+    return ngraph::runtime::reference::make_tensor_shapes(unique_elements);
 }
 }  // namespace
 
@@ -91,13 +131,7 @@ void op::v10::Unique::validate_and_infer_types() {
         const auto input_const = std::dynamic_pointer_cast<op::v0::Constant>(input_value(0).get_node_shared_ptr());
         ov::Tensor input_data = ov::Tensor(input_const->get_element_type(), input_const->get_shape());
         memcpy(input_data.data(), input_const->get_data_ptr(), input_data.get_byte_size());
-
-        const auto unique_elements =
-            ngraph::runtime::reference::find_unique_elements<float, int32_t>(input_data.data<float>(),
-                                                                             input_data.get_shape(),
-                                                                             nullptr,
-                                                                             false);
-        const auto tensor_shapes = ngraph::runtime::reference::make_tensor_shapes(unique_elements);
+        const auto tensor_shapes = calculate_static_output_shapes(input_data, *this);
 
         output_shapes[0] = std::get<0>(tensor_shapes);
         output_shapes[1] = std::get<1>(tensor_shapes);
@@ -148,7 +182,7 @@ void op::v10::Unique::validate_and_infer_types() {
         } else {
             // no axis => flattened input tensor
             if (input_shape.is_static()) {
-                // between 1 and the total number of input tensor's unique elements
+                // between 1 and the total number of input tensor's elements
                 output_shapes[0] = PartialShape{{Dimension{1, input_tensor_capacity}}};
             } else {
                 output_shapes[0] = PartialShape{{Dimension::dynamic()}};
@@ -176,10 +210,4 @@ std::shared_ptr<Node> op::v10::Unique::clone_with_new_inputs(const OutputVector&
                                                  this->get_index_element_type());
     }
 }
-
-bool op::v10::Unique::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
-    execute_unique<float, int32_t, int32_t>(output_values, input_values);
-    return true;
-}
-
 }  // namespace ov
