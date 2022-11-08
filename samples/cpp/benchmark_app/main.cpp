@@ -328,9 +328,9 @@ int main(int argc, char* argv[]) {
         }
 
         auto setDeviceProperty = [&core](std::string& device,
-                                    ov::AnyMap& device_config,
-                                    const std::pair<std::string, ov::Any>& property,
-                                    const std::pair<std::string, ov::Any>& config = {}) {
+                                         ov::AnyMap& device_config,
+                                         const std::pair<std::string, ov::Any>& property,
+                                         const std::pair<std::string, ov::Any>& config = {}) {
             auto supported_properties = core.get_property(device, ov::supported_properties);
             auto supported = [&](const std::string& key) {
                 return std::find(std::begin(supported_properties), std::end(supported_properties), key) !=
