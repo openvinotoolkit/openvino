@@ -176,8 +176,7 @@ ov_preprocess_preprocess_steps_resize(ov_preprocess_preprocess_steps_t* preproce
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_preprocess_preprocess_steps_scale(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
-                                      float value);
+ov_preprocess_preprocess_steps_scale(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps, float value);
 
 /**
  * @brief Add mean preprocess operation. Subtract specified value from each element of input.
@@ -187,22 +186,24 @@ ov_preprocess_preprocess_steps_scale(ov_preprocess_preprocess_steps_t* preproces
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_preprocess_preprocess_steps_mean(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
-                                      float value);
+ov_preprocess_preprocess_steps_mean(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps, float value);
 
 /**
  * @brief Crop input tensor between begin and end coordinates.
  * @ingroup prepostprocess
  * @param preprocess_input_process_steps A pointer to ov_preprocess_preprocess_steps_t.
- * @param begin Pointer to begin indexes for input tensor cropping. Negative values represent counting elements from the end of input tensor
+ * @param begin Pointer to begin indexes for input tensor cropping.
+ * Negative values represent counting elements from the end of input tensor
  * @param begin_size The size of begin array
- * @param end Pointer to end indexes for input tensor cropping. End indexes are exclusive, which means values including end edge are not included in the output slice. Negative values represent counting elements from the end of input tensor
+ * @param end Pointer to end indexes for input tensor cropping.
+ * End indexes are exclusive, which means values including end edge are not included in the output slice.
+ * Negative values represent counting elements from the end of input tensor
  * @param end_size The size of end array
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_preprocess_steps_crop(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
-                                      int32_t* begin, int32_t begin_size, int32_t* end, int32_t end_size);
+                                    int32_t* begin, int32_t begin_size, int32_t* end, int32_t end_size);
 
 /**
  * @brief Add 'convert layout' operation to specified layout.

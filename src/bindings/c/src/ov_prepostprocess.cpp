@@ -209,8 +209,7 @@ ov_status_e ov_preprocess_preprocess_steps_convert_layout(
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_preprocess_steps_reverse_channels(
-    ov_preprocess_preprocess_steps_t* preprocess_input_process_steps) {
+ov_status_e ov_preprocess_preprocess_steps_reverse_channels(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps) {
     if (!preprocess_input_process_steps) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -236,8 +235,9 @@ ov_status_e ov_preprocess_input_tensor_info_set_element_type(
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_input_tensor_info_set_from(ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
-                                                     const ov_tensor_t* tensor) {
+ov_status_e ov_preprocess_input_tensor_info_set_from(
+    ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
+    const ov_tensor_t* tensor) {
     if (!preprocess_input_tensor_info || !tensor) {
         return ov_status_e::INVALID_C_PARAM;
     }
