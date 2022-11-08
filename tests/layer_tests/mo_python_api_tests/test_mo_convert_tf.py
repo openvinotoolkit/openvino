@@ -43,11 +43,6 @@ def create_keras_model(temp_dir):
     tf.keras.backend.clear_session()
     tf.compat.v1.reset_default_graph()
 
-    # Enable eager execution to use KerasTensors in this test.
-    # If eager execution is disabled then TF uses tf.Tensors
-    # which causes renaming of tensors in the created model after each test run
-    tf.compat.v1.enable_eager_execution()
-
     input_names = ["Input1", "Input2"]
     input_shape = [1, 2, 3]
 
@@ -94,20 +89,19 @@ def create_tf1_wrap_function(tmp_dir):
 
 def create_tf_session(tmp_dir):
     import tensorflow as tf
-    import tensorflow.compat.v1 as tf_v1
-    # disable eager execution of TensorFlow 2 environment immediately
-    tf_v1.disable_eager_execution()
+    from tensorflow.python.eager.context import graph_mode
 
-    tf.compat.v1.reset_default_graph()
 
-    sess = tf.compat.v1.Session()
-    inp1 = tf.compat.v1.placeholder(tf.float32, [1, 2, 3], 'Input1')
-    inp2 = tf.compat.v1.placeholder(tf.float32, [1, 2, 3], 'Input2')
-    relu = tf.nn.relu(inp1 + inp2, name='Relu')
+    with graph_mode():
+        tf.compat.v1.reset_default_graph()
+        sess = tf.compat.v1.Session()
+        inp1 = tf.compat.v1.placeholder(tf.float32, [1, 2, 3], 'Input1')
+        inp2 = tf.compat.v1.placeholder(tf.float32, [1, 2, 3], 'Input2')
+        relu = tf.nn.relu(inp1 + inp2, name='Relu')
 
-    output = tf.nn.sigmoid(relu, name='Sigmoid')
+        output = tf.nn.sigmoid(relu, name='Sigmoid')
 
-    tf.compat.v1.global_variables_initializer()
+        tf.compat.v1.global_variables_initializer()
 
     shape = PartialShape([1, 2, 3])
     param1 = ov.opset8.parameter(shape, dtype=np.float32)
