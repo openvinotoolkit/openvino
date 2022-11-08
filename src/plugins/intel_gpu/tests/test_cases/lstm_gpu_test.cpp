@@ -27,11 +27,9 @@ using namespace ::tests;
 #define FERROR 1E-4
 
 namespace {
-    float sigmoid(float x) {
-        return 1.f / (1.f + (float)std::exp((float)(-x)));
-    }
+float sigmoid(float x) {
+    return 1.f / (1.f + (float)std::exp((float)(-x)));
 }
-
 struct offset_order {
     size_t it, ot, ft, zt;
     offset_order(size_t scale, const lstm_weights_order& t = lstm_weights_order::iofz) {
@@ -47,7 +45,6 @@ struct offset_order {
     }
 };
 lstm_weights_order default_offset_type = lstm_weights_order::iofz;
-
 template<typename T>
 T clip(T val, T threshold) {
     if (threshold > 0) {
@@ -1634,6 +1631,7 @@ void lstm_gpu_chain_test(int batch_size, int input_size, int hidden_size,
         }
     }
 }
+}  // namespace
 
 TEST(lstm_gemm_gpu, generic_lstm_gemm_test_f32) {
     generic_lstm_gemm_gpu_test<float>(1, 1, 3, 6, 2, true, true);
