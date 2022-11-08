@@ -22,7 +22,6 @@
 #include "common/cpu_memcpy.h"
 #include "common/blocked_desc_creator.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
-#include "common/dnnl_thread.hpp"
 using namespace dnnl;
 using namespace InferenceEngine;
 
@@ -635,14 +634,11 @@ void Concat::execRef() {
         }
         const auto L1Size = dnnl::utils::get_cache_size(1, true);
         UNUSED(L1Size); // for Windows
-        dnnl::impl::parallel_nd(physDims[0], physDims[1], physDims[2], physDims[3], physDims[4], numSrc,
+        parallel_for6d(physDims[0], physDims[1], physDims[2], physDims[3], physDims[4], numSrc,
                                 [&](size_t n0, size_t n1, size_t n2, size_t n3, size_t n4, size_t a) {
             // check if zero memory
             if (srcPtrs[a] == nullptr) return;
 
-            // XXX: this code may access uninitialized values in is[*][0-4] --
-            // that's why we have to set them to zero although this is
-            // probably benign
             size_t inOff = inputStrides[a][0] * n0 + inputStrides[a][1] * n1 + inputStrides[a][2] * n2
                             + inputStrides[a][3] * n3 + inputStrides[a][4] * n4;
             size_t outOff = outputStride[0] * n0 + outputStride[1] * n1 + outputStride[2] * n2
