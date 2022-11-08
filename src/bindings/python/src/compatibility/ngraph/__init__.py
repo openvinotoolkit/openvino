@@ -6,6 +6,7 @@
 
 try:
     from ngraph.impl import util
+
     __version__ = util.get_ngraph_version_string()
 except ImportError:
     __version__ = "0.0.0.dev0"
