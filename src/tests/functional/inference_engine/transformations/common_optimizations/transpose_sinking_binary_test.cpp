@@ -3,6 +3,8 @@
 //
 
 #include <transformations/common_optimizations/transpose_sinking_binary.hpp>
+#include <transformations/common_optimizations/transpose_sinking_split.hpp>
+#include <transformations/common_optimizations/transpose_sinking_concat.hpp>
 
 #include <transformations/init_node_info.hpp>
 #include <openvino/frontend/manager.hpp>

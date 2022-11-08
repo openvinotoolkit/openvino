@@ -1,4 +1,5 @@
-#include "transformations/common_optimizations/transpose_sinking_binary.hpp"
+#include "transformations/common_optimizations/transpose_sinking_concat.hpp"
+
 #include "transformations/common_optimizations/transpose_sinking_utils.hpp"
 
 #include <openvino/opsets/opset9.hpp>
@@ -19,10 +20,10 @@ using namespace ov;
 using namespace ov::opset9;
 using namespace transpose_sinking;
 
-pass::TransposeSinkingBinaryElementwiseForward::TransposeSinkingBinaryElementwiseForward() {
-    MATCHER_SCOPE(TransposeSinkingBinaryElementwiseForward);
+pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
+    MATCHER_SCOPE(TransposeSinkingConcatForward);
 
-    auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic>(IfNodeHasTransposeInputs);
+    auto main_node_label = wrap_type<Concat>(IfNodeHasTransposeInputs);
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -37,6 +38,11 @@ pass::TransposeSinkingBinaryElementwiseForward::TransposeSinkingBinaryElementwis
             register_new_node(new_node);
         }
 
+        auto concat_node = as_type_ptr<Concat>(main_node);
+        const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
+        const int64_t transposed_concat_axis = transpose_axis_order[concat_node->get_axis()];
+        concat_node->set_concatenation_axis(transposed_concat_axis);
+
         return true;
     };
 
@@ -44,10 +50,10 @@ pass::TransposeSinkingBinaryElementwiseForward::TransposeSinkingBinaryElementwis
     register_matcher(m, matcher_pass_callback);
 }
 
-pass::TransposeSinkingBinaryElementwiseBackward::TransposeSinkingBinaryElementwiseBackward() {
-    MATCHER_SCOPE(TransposeSinkingBinaryElementwiseBackward);
+pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
+    MATCHER_SCOPE(TransposeSinkingConcatBackward);
 
-    auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic>(consumers_count(1));
+    auto main_node_label = wrap_type<Concat>(consumers_count(1));
 
     auto transpose_const_label = wrap_type<Constant>(consumers_count(1));
     auto transpose_label = wrap_type<Transpose>({main_node_label, transpose_const_label}, consumers_count(1));
@@ -66,6 +72,12 @@ pass::TransposeSinkingBinaryElementwiseBackward::TransposeSinkingBinaryElementwi
         transpose->output(0).replace(main_node);
 
         SwapNames(transpose, main_node);
+
+        auto concat_node = as_type_ptr<Concat>(main_node);
+        const auto transpose_axis_order = transpose_const->get_axis_vector_val();
+        const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
+        const int64_t transposed_concat_axis = reversed_traspose_axis_order[concat_node->get_axis()];
+        concat_node->set_concatenation_axis(transposed_concat_axis);
 
         return true;
     };
