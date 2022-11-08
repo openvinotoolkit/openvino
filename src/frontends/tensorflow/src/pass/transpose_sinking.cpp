@@ -95,7 +95,7 @@ static shared_ptr<Transpose> combine_transposes(const shared_ptr<Transpose>& t1,
     return combined;
 }
 
-static void insert_transpose(const shared_ptr<Node>& target, const shared_ptr<Node>& transpose, size_t input_index) {
+static shared_ptr<Transpose> insert_transpose(const shared_ptr<Node>& target, const shared_ptr<Node>& transpose, size_t input_index) {
     OPENVINO_DEBUG << "Inserting transpose at input " << target->get_name() << " input index " << input_index;
     auto arg = target->input(input_index).get_source_output();
     OPENVINO_DEBUG << "Arg shape: " << arg.get_shape();
@@ -105,6 +105,7 @@ static void insert_transpose(const shared_ptr<Node>& target, const shared_ptr<No
                    << " input index " << input_index;
 
     target->input(input_index).replace_source_output(new_transpose->output(0));
+    return new_transpose;
 }
 
 static void delete_transpose(const shared_ptr<Node>& transpose) {
@@ -190,7 +191,11 @@ static void materialize_shapes(const shared_ptr<Node>& n,
         auto arg_transpose_order = as_type_ptr<Constant>(arg_transpose->input_value(1).get_node_shared_ptr());
         if (arg_transpose_order->get_axis_vector_val() != get_default_order(arg.get_shape().size())) {
             // Insert if arg needs to be transposed.
-            insert_transpose(n, arg_transpose, i);
+            auto names = n->get_input_source_output(i).get_names();
+            n->get_input_source_output(i).set_names({});
+            auto new_transpose = insert_transpose(n, arg_transpose, i);
+            auto second_out = new_transpose->output(0);
+            second_out.set_names(names);
         }
     }
 }
