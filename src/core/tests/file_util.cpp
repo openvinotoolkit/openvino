@@ -70,7 +70,11 @@ TEST(file_util, path_join) {
         string s1 = "/x1/x2";
         string s2 = "test1/test2";
 
-        // EXPECT_STREQ("/x1/x2/test1/test2", file_util::path_join(s1, s2).c_str());
+#ifndef _WIN32
+        EXPECT_STREQ("/x1/x2/test1/test2", file_util::path_join(s1, s2).c_str());
+#else
+        EXPECT_STREQ("/x1/x2\\test1/test2", file_util::path_join(s1, s2).c_str());
+#endif
     }
     {
         string s1 = "/";
