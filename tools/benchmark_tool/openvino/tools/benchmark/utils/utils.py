@@ -294,9 +294,7 @@ def parse_value_per_device(devices, values_string, value_type):
 def process_help_inference_string(benchmark_app, device_number_streams):
     output_string = f'Start inference {benchmark_app.api_type}hronously'
     if benchmark_app.api_type == 'async':
-        output_string += ', ' if output_string else ''
-
-        output_string += f'{benchmark_app.nireq} inference requests'
+        output_string += f', {benchmark_app.nireq} inference requests'
 
         device_ss = ''
         for device, streams in device_number_streams.items():

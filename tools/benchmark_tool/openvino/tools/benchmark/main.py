@@ -26,7 +26,11 @@ def parse_and_check_command_line():
     def arg_not_empty(arg_value,empty_value):
         return not arg_value is None and not arg_value == empty_value
 
-    args = parse_args()
+    args, parser = parse_args()
+
+    if args.latency_percentile < 1 or args.latency_percentile > 100:
+        parser.print_help()
+        raise RuntimeError("The percentile value is incorrect. The applicable values range is [1, 100].")
 
     if not args.perf_hint == "none" and (arg_not_empty(args.number_streams, "") or arg_not_empty(args.number_threads, 0) or arg_not_empty(args.infer_threads_pinning, "")):
         raise Exception("-nstreams, -nthreads and -pin options are fine tune options. To use them you " \
@@ -366,11 +370,7 @@ def main():
         logger.info("Model:")
         for k in keys:
             if k not in ('SUPPORTED_METRICS', 'SUPPORTED_CONFIG_KEYS', 'SUPPORTED_PROPERTIES'):
-                try:
-                    logger.info(f'  {k}: {compiled_model.get_property(k)}')
-                except:
-                    pass
-
+                logger.info(f'  {k}: {compiled_model.get_property(k)}')
 
         # Update number of streams
         for device in device_number_streams.keys():
@@ -385,16 +385,7 @@ def main():
         next_step()
 
         # Create infer requests
-        start_time = datetime.utcnow()
         requests = benchmark.create_infer_requests(compiled_model)
-        duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
-        logger.info(f"Creating {benchmark.nireq} infer requests took {duration_ms} ms")
-        
-        if statistics:
-                statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
-                                          [
-                                              ('create infer requests time (ms)', duration_ms)
-                                          ])
 
         # Prepare input data
         paths_to_input = list()

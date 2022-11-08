@@ -80,6 +80,7 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
     }
 
     if (FLAGS_latency_percentile > 100 || FLAGS_latency_percentile < 1) {
+        show_usage();
         throw std::logic_error("The percentile value is incorrect. The applicable values range is [1, 100].");
     }
     if (FLAGS_api != "async" && FLAGS_api != "sync") {
@@ -905,17 +906,7 @@ int main(int argc, char* argv[]) {
         // ----------------------------------------
         next_step();
 
-        auto create_requests_start_time = Time::now();
         InferRequestsQueue inferRequestsQueue(compiledModel, nireq, app_inputs_info.size(), FLAGS_pcseq);
-        auto create_requests_duration_ms = get_duration_ms_till_now(create_requests_start_time);
-        slog::info << "Creating " << nireq << " infer requests took " << double_to_string(create_requests_duration_ms)
-                   << " ms" << slog::endl;
-
-        if (statistics) {
-            statistics->add_parameters(
-                StatisticsReport::Category::EXECUTION_RESULTS,
-                {StatisticsVariant("create infer requests time (ms)", "create_requests", create_requests_duration_ms)});
-        }
 
         bool inputHasName = false;
         if (inputFiles.size() > 0) {
@@ -1263,6 +1254,8 @@ int main(int argc, char* argv[]) {
 
         slog::info << "Count:        " << iteration << " iterations" << slog::endl;
         slog::info << "Duration:     " << double_to_string(totalDuration) << " ms" << slog::endl;
+        
+        if (device_name.find("MULTI") == std::string::npos) {
             slog::info << "Latency:" << slog::endl;
             generalLatency.write_to_slog();
 
@@ -1283,6 +1276,7 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
+        
         slog::info << "Throughput:   " << double_to_string(fps) << " FPS" << slog::endl;
 
     } catch (const std::exception& ex) {

@@ -158,8 +158,4 @@ def parse_args():
                            "Example: -imean data[255,255,255],info[255,255,255]\n")
     parsed_args = parser.parse_args()
 
-    if parsed_args.latency_percentile < 0 or parsed_args.latency_percentile > 100:
-        parser.print_help()
-        raise RuntimeError("The percentile value is incorrect. The applicable values range is [1, 100].")
-
-    return parsed_args
+    return parsed_args, parser
