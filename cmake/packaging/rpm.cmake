@@ -269,9 +269,7 @@ macro(ov_cpack_settings)
         "devel-file-in-non-devel-package /usr/${OV_CPACK_INCLUDEDIR}/ie"
         "devel-file-in-non-devel-package /usr/${OV_CPACK_INCLUDEDIR}/openvino"
         "devel-file-in-non-devel-package /usr/${OV_CPACK_RUNTIMEDIR}/libopenvino*"
-        "devel-file-in-non-devel-package /usr/${OV_CPACK_RUNTIMEDIR}/pkgconfig/openvino.pc"
-        # CVS-79409: create man page for compile_tool, remove together with compile_tool
-        "no-manual-page-for-binary compile_tool")
+        "devel-file-in-non-devel-package /usr/${OV_CPACK_RUNTIMEDIR}/pkgconfig/openvino.pc")
     set(${OV_CPACK_COMP_CORE_DEV}_copyright "${OV_CPACK_COMP_CORE_DEV}")
 
     #

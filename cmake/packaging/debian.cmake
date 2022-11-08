@@ -282,10 +282,6 @@ macro(ov_cpack_settings)
     set(CPACK_DEBIAN_CORE_DEV_PACKAGE_NAME "libopenvino-dev-${cpack_name_ver}")
     set(CPACK_DEBIAN_CORE_DEV_PACKAGE_ARCHITECTURE "all")
     ov_debian_generate_conflicts("${OV_CPACK_COMP_CORE_DEV}" ${conflicting_versions})
-
-    ov_debian_add_lintian_suppression("${OV_CPACK_COMP_CORE_DEV}"
-        # CVS-79409: create man page for compile_tool
-        "binary-without-manpage")
     set(${OV_CPACK_COMP_CORE_DEV}_copyright "${OV_CPACK_COMP_CORE_DEV}")
 
     #
