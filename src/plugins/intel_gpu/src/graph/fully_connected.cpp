@@ -9,6 +9,7 @@
 #include "json_object.h"
 #include <string>
 #include <algorithm>
+#include "utils.hpp"
 
 #include "matmul_shape_inference.hpp"
 
@@ -166,23 +167,33 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
 }
 
 
-kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_params const& impl_param) {
+kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
     // fc_tiled_opt kernel is optimized for row shape aligned by 16.
     // Thus, use fake aligned shape at kernel execution for better performance.
-    if (impl_param.get_input_layout().format == format::bfyx && impl_param.output_layout.format == format::bfyx) {
-        auto fake_param = impl_param;
-        auto input_shape = fake_param.get_input_layout(0).get_partial_shape().to_shape();
+    auto orig_input_layout = orig_impl_param.get_input_layout();
+    auto orig_output_layout = orig_impl_param.output_layout;
+    OPENVINO_ASSERT(orig_input_layout.is_static() && orig_output_layout.is_static(),
+                    "in/out layouts should be static for fake alignment!");
+    if (orig_input_layout.format == format::bfyx && orig_output_layout.format == format::bfyx) {
+        auto updated_param = orig_impl_param;
+        auto input_shape = orig_input_layout.get_partial_shape().to_shape();
         auto input_row_idx = input_shape.size() - 2;
-        input_shape[input_row_idx] = kernel_selector::Align(input_shape[input_row_idx], 16);
-        auto output_shape = fake_param.output_layout.get_partial_shape().to_shape();
+        input_shape[input_row_idx] = align_to(input_shape[input_row_idx], 16);
+        auto output_shape = orig_output_layout.get_partial_shape().to_shape();
         auto output_row_idx = output_shape.size() - 2;
-        output_shape[output_row_idx] = kernel_selector::Align(output_shape[output_row_idx], 16);
+        output_shape[output_row_idx] = align_to(output_shape[output_row_idx], 16);
 
-        fake_param.input_layouts[0] = layout(ov::PartialShape(input_shape), fake_param.input_layouts[0].data_type, fake_param.input_layouts[0].format);
-        fake_param.output_layout = layout(ov::PartialShape(output_shape), fake_param.output_layout.data_type, fake_param.output_layout.format);
-        return fake_param;
+        updated_param.input_layouts[0] = layout(ov::PartialShape(input_shape),
+                                                orig_input_layout.data_type,
+                                                orig_input_layout.format,
+                                                orig_input_layout.data_padding);
+        updated_param.output_layout = layout(ov::PartialShape(output_shape),
+                                             orig_output_layout.data_type,
+                                             orig_output_layout.format,
+                                             orig_output_layout.data_padding);
+        return updated_param;
     }
-    return impl_param;
+    return std::move(orig_impl_param);
 }
 
 template std::vector<layout> fully_connected_inst::calc_output_layouts<ov::PartialShape>(fully_connected_node const& node,

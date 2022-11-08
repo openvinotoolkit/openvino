@@ -238,8 +238,9 @@ void primitive_inst::realloc_if_needed() {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
 
-    auto fake_params = _node->type()->get_fake_aligned_params(*_impl_params);
-    auto actual_layout = fake_params.output_layout;
+    // Update param if fake_alignment is available
+    auto updated_params = _node->type()->get_fake_aligned_params(*_impl_params);
+    auto actual_layout = updated_params.output_layout;
     OPENVINO_ASSERT(actual_layout.is_static(), "[GPU] Can't realloc mem for dynamic layout");
 
     // input_layout node is supposed to always use external memory in dynamic case
@@ -268,20 +269,21 @@ void primitive_inst::update_impl() {
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::update_implementation);
     auto prev_impl_str =  _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
     if (!_node->is_type<data>() && !(_node->is_type<mutable_data>() && _node->get_dependencies().empty())) {
-        auto fake_params = _node->type()->get_fake_aligned_params(*_impl_params);
+        // Update param if fake_alignment is available
+        auto updated_params = _node->type()->get_fake_aligned_params(*_impl_params);
         auto get_layout_key = [&]() -> size_t {
             size_t seed = 0;
-            auto& id = fake_params.desc->id;
+            auto& id = updated_params.desc->id;
             for (size_t i = 0; i < id.size(); i++) {
                 seed = hash_combine(seed, id[i]);
             }
             seed = hash_combine(seed, _node->get_unique_id());
-            for (auto& layout : fake_params.input_layouts) {
+            for (auto& layout : updated_params.input_layouts) {
                 for (auto& d : layout.get_shape()) {
                     seed = hash_combine(seed, d);
                 }
             }
-            for (auto& d : fake_params.output_layout.get_shape()) {
+            for (auto& d : updated_params.output_layout.get_shape()) {
                 seed = hash_combine(seed, d);
             }
             return seed;
@@ -292,7 +294,7 @@ void primitive_inst::update_impl() {
             _impl = cache.get(layout_key)->clone();
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
         } else {
-            _impl = _node->type()->choose_impl(*_node, fake_params);
+            _impl = _node->type()->choose_impl(*_node, updated_params);
             auto& kernels_cache = get_network().get_kernels_cache();
             auto kernel_ids = kernels_cache.add_kernels_source(_impl->get_kernels_source());
             _impl->set_kernel_ids(kernel_ids);
