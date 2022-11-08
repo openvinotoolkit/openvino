@@ -67,6 +67,19 @@ TEST_P(OVInferRequestInferenceTests, Inference_ROI_Tensor) {
     }
 }
 
+TEST_P(OVInferRequestInferenceTests, Inference_Zero_Tensor) {
+    ov::Shape shape = {1, 3, 0, 2};
+    auto model = OVInferRequestInferenceTests::create_n_inputs(1, element::f32, {1, 3, 0, 2});
+    auto execNet = ie->compile_model(model, target_device);
+    // Create InferRequest
+    ov::InferRequest req;
+    req = execNet.create_infer_request();
+    const std::string tensor_name = "tensor_input0";
+    req.infer();
+    auto actual_out_tensor = req.get_tensor("tensor_output0");
+    EXPECT_EQ(0, actual_out_tensor.get_size());
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
