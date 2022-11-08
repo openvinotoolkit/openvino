@@ -9,8 +9,7 @@
 
 #include "helper_ops/sparse_fill_empty_rows.hpp"
 #include "helper_ops/sparse_segment_ops.hpp"
-#include "helper_ops/unique.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -18,7 +17,7 @@
 
 using namespace std;
 using namespace ov::pass;
-using namespace ov::opset8;
+using namespace ov::opset10;
 
 ov::frontend::tensorflow::pass::EmbeddingSegmentSingleFeatureFusion::EmbeddingSegmentSingleFeatureFusion() {
     // The transformation looks for pattern (sub-graph) that performs extraction of embedding vectors from the
@@ -60,13 +59,13 @@ ov::frontend::tensorflow::pass::EmbeddingSegmentSingleFeatureFusion::EmbeddingSe
                                                    std::vector<int64_t>{1});
     auto cast = make_shared<Convert>(strided_slice, ov::element::i64);
 
-    auto unique = make_shared<Unique>(sparse_fill_empty_rows->output(1), ov::element::i32);
+    auto unique = make_shared<Unique>(sparse_fill_empty_rows->output(1), false, ov::element::i32);
     auto gather = make_shared<Gather>(embedding_table_pattern,
                                       unique->output(0),
                                       make_shared<Constant>(element::i64, Shape{}, vector<int64_t>{0}));
 
     // SparseSegmentSum sums-up extracted embedding vectors by indices for each segment
-    auto sparse_segment_op = make_shared<SparseSegmentSum>(gather->output(0), unique->output(1), cast->output(0));
+    auto sparse_segment_op = make_shared<SparseSegmentSum>(gather->output(0), unique->output(2), cast->output(0));
 
     auto shape = make_shared<ShapeOf>(sparse_segment_op, ov::element::i32);
     auto strided_slice_for_shape_begin = make_shared<Constant>(element::i32, Shape{1}, vector<int32_t>{1});
