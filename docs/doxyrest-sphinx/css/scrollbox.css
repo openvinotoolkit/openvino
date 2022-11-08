@@ -14,11 +14,11 @@ div.scrollbox {
    align-items: stretch;
    margin: 10px 0px;
    }
-.scrollbox table {
+.scrollbox-content table {
    border-collapse: separate;
    border-spacing: 0;
 }
-.scrollbox table th {
+.scrollbox-content table th {
    background: white;
    position: sticky;
    top: 0;
