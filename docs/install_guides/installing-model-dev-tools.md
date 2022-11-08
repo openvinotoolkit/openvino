@@ -14,7 +14,6 @@ In both cases, Python 3.6 - 3.9 need be installed on your machine before startin
 
 > **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI.
 
-## <a name="python-developers"></a>For Python Developers
 
 
 
