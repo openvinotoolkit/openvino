@@ -43,6 +43,7 @@
 #include <ngraph/runtime/reference/gelu.hpp>
 #include <ngraph/runtime/reference/generate_proposal.hpp>
 #include <ngraph/runtime/reference/greater.hpp>
+#include <ngraph/runtime/reference/grid_sample.hpp>
 #include <ngraph/runtime/reference/grn.hpp>
 #include <ngraph/runtime/reference/group_convolution.hpp>
 #include <ngraph/runtime/reference/group_convolution_backprop_data.hpp>
@@ -4189,6 +4190,29 @@ bool evaluate(const shared_ptr<op::v9::SoftSign>& op, const HostTensorVector& ou
         runtime::reference::softsign<bfloat16>(inputs[0]->get_data_ptr<bfloat16>(),
                                                outputs[0]->get_data_ptr<bfloat16>(),
                                                shape_size(inputs[0]->get_shape()));
+        break;
+    default:
+        return false;
+    }
+    return true;
+}
+
+template <element::Type_t DATA_ET>
+bool evaluate(const shared_ptr<op::v9::GridSample>& op,
+              const HostTensorVector& outputs,
+              const HostTensorVector& inputs) {
+    const auto& attributes = op->get_attributes();
+    element::Type grid_et = op->get_input_element_type(1);
+    switch (grid_et) {
+    case element::Type_t::f32:
+        ngraph::runtime::reference::grid_sample(outputs[0]->get_data_ptr<DATA_ET>(),
+                                                inputs[0]->get_data_ptr<DATA_ET>(),
+                                                inputs[1]->get_data_ptr<element::Type_t::f32>(),
+                                                inputs[0]->get_shape(),
+                                                inputs[1]->get_shape(),
+                                                attributes.align_corners,
+                                                attributes.mode,
+                                                attributes.padding_mode);
         break;
     default:
         return false;
