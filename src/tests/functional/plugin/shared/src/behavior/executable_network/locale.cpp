@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <locale.h>
+
 #include "behavior/executable_network/locale.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
 
@@ -43,18 +45,18 @@ void CustomLocaleTest::SetUp() {
 }
 
 TEST_P(CustomLocaleTest, CanLoadNetworkWithCustomLocale) {
-    auto prev = std::locale();
-    try {
-        std::locale::global(std::locale(localeName.c_str()));
-    } catch (...) {
-        GTEST_SKIP();
-    }
+    auto prev = std::locale().name();
+    setlocale(LC_ALL, localeName.c_str());
+    setlocale(LC_NUMERIC, localeName.c_str());
+    setlocale(LC_TIME, localeName.c_str());
 
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie(target_device);
     InferenceEngine::CNNNetwork cnnNet(function);
     ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, target_device));
 
-    std::locale::global(prev);
+    setlocale(LC_ALL, prev.c_str());
+    setlocale(LC_NUMERIC, prev.c_str());
+    setlocale(LC_TIME, prev.c_str());
 }
 
 } // namespace BehaviorTestsDefinitions

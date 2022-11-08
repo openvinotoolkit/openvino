@@ -277,6 +277,8 @@ if(ENABLE_FUZZING)
     enable_fuzzing()
 endif()
 
+get_linux_name(LINUX_OS_NAME)
+
 # macro to mark target as conditionally compiled
 
 function(ie_mark_target_as_cc TARGET_NAME)

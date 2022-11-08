@@ -59,7 +59,7 @@ TYPED_TEST_P(ReduceOperatorVisitor, keep_dims_3D)
     const auto reduction_axes = make_shared<op::Parameter>(axes_et, axes_shape);
     const auto reduce_op = make_shared<OP_Type>(data, reduction_axes, keep_dims);
 
-    NodeBuilder builder(reduce_op);
+    NodeBuilder builder(reduce_op, {data, reduction_axes});
     const auto expected_attr_count = 1;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
     auto g_reduce_op = as_type_ptr<OP_Type>(builder.create());
@@ -83,7 +83,7 @@ TYPED_TEST_P(ReduceOperatorVisitor, do_not_keep_dims_3D)
     const auto reduction_axes = make_shared<op::Parameter>(axes_et, axes_shape);
     const auto reduce_op = make_shared<OP_Type>(data, reduction_axes, keep_dims);
 
-    NodeBuilder builder(reduce_op);
+    NodeBuilder builder(reduce_op, {data, reduction_axes});
     const auto expected_attr_count = 1;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
     auto g_reduce_op = ov::as_type_ptr<OP_Type>(builder.create());

@@ -57,7 +57,7 @@ std::vector<layout> tile_inst::calc_output_layouts(tile_node const& /*node*/, co
     auto& constant_mem = impl_param.memory_deps;
     if (constant_mem.count(1)) {
         auto repeats_mem = constant_mem.at(1);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> repeats_lock(repeats_mem, impl_param.prog.get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> repeats_lock(repeats_mem, impl_param.prog->get_stream());
         std::map<size_t, ngraph::HostTensorPtr> const_data = {
             {1, make_host_tensor(repeats_mem->get_layout(), repeats_lock.data())}
         };
