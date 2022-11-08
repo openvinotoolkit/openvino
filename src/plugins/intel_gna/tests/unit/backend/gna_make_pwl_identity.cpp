@@ -14,7 +14,7 @@
 #include "backend/pwl_input_params.hpp"
 #include "backend/pwl_segments_creator_factory.hpp"
 #include "backend/pwl_tools.hpp"
-#include "round_float_define.hpp"
+#include "common/numerical_utils.hpp"
 #include "runtime/pwl.h"
 
 using namespace ov::intel_gna::backend;

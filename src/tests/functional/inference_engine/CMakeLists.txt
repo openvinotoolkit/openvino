@@ -63,6 +63,7 @@ addIeTargetTest(
         DEPENDENCIES ${DEPENDENCIES}
         LABELS
         IE
+        OV
 )
 
 target_compile_definitions(${TARGET_NAME} PRIVATE $<$<BOOL:${BUILD_SHARED_LIBS}>:"BUILD_SHARED_LIBS">)
@@ -190,6 +191,11 @@ function(ie_headers_compilation_with_custom_flags)
         endif()
         set(content "#include <${header_file}>\n${content}")
     endforeach()
+
+    if (OPENCL_HEADERS_DIR)
+        set(content "#define OV_GPU_USE_OPENCL_HPP\n${content}")
+    endif()
+
     set(source_file "${CMAKE_CURRENT_BINARY_DIR}/modern_flags_${IE_TEST_TEST_SUFFIX}.cpp")
     file(REMOVE ${source_file})
     file(GENERATE OUTPUT ${source_file} CONTENT ${content})

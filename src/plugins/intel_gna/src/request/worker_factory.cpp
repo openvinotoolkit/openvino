@@ -6,7 +6,7 @@
 
 #include "backend/am_intel_dnn.hpp"
 #include "gna_device_interface.hpp"
-#include "gna_plugin_log.hpp"
+#include "log/debug.hpp"
 #include "request/model_wrapper.hpp"
 #include "runtime/gna_float_runtime.hpp"
 #include "subrequest_impl.hpp"
