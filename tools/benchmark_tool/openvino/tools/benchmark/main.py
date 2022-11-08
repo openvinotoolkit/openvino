@@ -266,7 +266,7 @@ def main():
             start_time = datetime.utcnow()
             compiled_model = benchmark.core.compile_model(args.path_to_model, benchmark.device)
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
-            logger.info(f"Load model took {duration_ms} ms")
+            logger.info(f"Compile model took {duration_ms} ms")
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
