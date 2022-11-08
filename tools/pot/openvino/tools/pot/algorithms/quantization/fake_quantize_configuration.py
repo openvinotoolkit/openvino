@@ -534,7 +534,7 @@ def change_configurations_by_model_type(model, config, fq_configuration, hardwar
 def change_configurations_by_model_type_transformer(model, fq_configuration, hardware_config):
     fq_types = _fake_quantize_to_types(model, hardware_config)
     for fq in get_nodes_by_type(model, ['FakeQuantize']):
-        node_creator_fq, fq_group = fq_types[fq.name]
+        node_creator_fq, fq_group = fq_types[fq.fullname]
         is_weights = fq_group == 'weights'
         node_name = None
         for name, type_node in node_creator_fq:
