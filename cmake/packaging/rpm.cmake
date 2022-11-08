@@ -260,7 +260,6 @@ macro(ov_cpack_settings)
     set(CPACK_COMPONENT_CORE_DEV_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit C / C++ Development files")
     set(CPACK_COMPONENT_CORE_DEV_DEPENDS "${OV_CPACK_COMP_CORE};${frontends}")
     set(CPACK_RPM_CORE_DEV_PACKAGE_NAME "libopenvino-devel-${cpack_name_ver}")
-    set(CPACK_RPM_CORE_DEV_PACKAGE_ARCHITECTURE "noarch")
     ov_rpm_generate_conflicts("${OV_CPACK_COMP_CORE_DEV}" ${conflicting_versions})
 
     ov_rpm_add_rpmlint_suppression("${OV_CPACK_COMP_CORE_DEV}"
