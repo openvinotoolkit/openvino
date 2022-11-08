@@ -29,7 +29,7 @@ OP_CONVERTER(translate_arg_max_op);
 OP_CONVERTER(translate_arg_min_op);
 OP_CONVERTER(translate_avg_pool_op);
 OP_CONVERTER(translate_batch_mat_mul_op);
-OP_CONVERTER(translate_batch_nd_and_space_nd_op);
+OP_CONVERTER(translate_batch_to_space_nd_op);
 OP_CONVERTER(translate_bias_add_op);
 OP_CONVERTER(translate_block_lstm_op);
 OP_CONVERTER(translate_broadcast_args_op);
@@ -104,6 +104,7 @@ OP_CONVERTER(translate_round_op);
 OP_CONVERTER(translate_rsqrt_op);
 OP_CONVERTER(translate_scatter_nd_op);
 OP_CONVERTER(translate_segment_sum_op);
+OP_CONVERTER(translate_space_to_batch_nd_op);
 OP_CONVERTER(translate_sparse_to_dense_op);
 OP_CONVERTER(translate_select_op);
 OP_CONVERTER(translate_select_v2_op);
@@ -207,7 +208,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"AvgPool3D", translate_avg_pool_op},
         {"BatchMatMul", translate_batch_mat_mul_op},
         {"BatchMatMulV2", translate_batch_mat_mul_op},
-        {"BatchToSpaceND", translate_batch_nd_and_space_nd_op},
+        {"BatchToSpaceND", translate_batch_to_space_nd_op},
         {"BroadcastArgs", translate_broadcast_args_op},
         {"BroadcastTo", translate_broadcast_to_op},
         {"Bucketize", translate_bucketize_op},
@@ -306,7 +307,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Sqrt", translate_sqrt_op},
         {"Square", translate_square_op},
         {"Squeeze", translate_squeeze_op},
-        {"SpaceToBatchND", translate_batch_nd_and_space_nd_op},
+        {"SpaceToBatchND", translate_space_to_batch_nd_op},
         {"StridedSlice", translate_strided_slice_op},
         {"Tile", translate_tile_op},
         {"TopK", translate_top_k_op},
