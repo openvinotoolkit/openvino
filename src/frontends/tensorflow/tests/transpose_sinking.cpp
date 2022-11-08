@@ -48,7 +48,7 @@ TEST(TransposeSinkingTest, TensorNames) {
     pass_manager.run_passes(func);
 
     auto new_transpose =
-            ngraph::as_type_ptr<Transpose>(func->get_results().at(0)->input_value(0).get_node_shared_ptr());
+        ngraph::as_type_ptr<Transpose>(func->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(new_transpose);
     EXPECT_EQ(new_transpose->output(0).get_names(), std::unordered_set<std::string>({"out_name"}));
 }
@@ -68,7 +68,7 @@ TEST(TransposeSinkingTest, TensorNamesCombineTransposes) {
     pass_manager.run_passes(func);
 
     auto new_transpose =
-            ngraph::as_type_ptr<Transpose>(func->get_results().at(0)->input_value(0).get_node_shared_ptr());
+        ngraph::as_type_ptr<Transpose>(func->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(new_transpose);
     EXPECT_EQ(new_transpose->output(0).get_names(), std::unordered_set<std::string>({"out_name"}));
     size_t transpose_cnt = count_ops_of_type<Transpose>(func);

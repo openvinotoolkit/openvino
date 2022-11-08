@@ -95,7 +95,9 @@ static shared_ptr<Transpose> combine_transposes(const shared_ptr<Transpose>& t1,
     return combined;
 }
 
-static shared_ptr<Transpose> insert_transpose(const shared_ptr<Node>& target, const shared_ptr<Node>& transpose, size_t input_index) {
+static shared_ptr<Transpose> insert_transpose(const shared_ptr<Node>& target,
+                                              const shared_ptr<Node>& transpose,
+                                              size_t input_index) {
     OPENVINO_DEBUG << "Inserting transpose at input " << target->get_name() << " input index " << input_index;
     auto arg = target->input(input_index).get_source_output();
     OPENVINO_DEBUG << "Arg shape: " << arg.get_shape();
