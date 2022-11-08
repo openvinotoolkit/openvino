@@ -1054,7 +1054,7 @@ void Graph::InferDynamic(InferRequestBase* request) {
             node->updateShapes();
         }
         if (--waveFrontCount[node_indx] == 0) {
-            tg.run(std::bind(updateDynParams, node_indx, stop_indx));
+            tg.run([=, &updateDynParams](){ updateDynParams(node_indx, stop_indx); });
         }
         updateShapes(node_indx + 1, stop_indx);
     };
@@ -1068,11 +1068,11 @@ void Graph::InferDynamic(InferRequestBase* request) {
             node->updateDynamicParams();
         }
         if (node_indx + 1 < waveFrontCount.size() && --waveFrontCount[node_indx + 1] == 0) {
-            tg.run(std::bind(updateDynParams, node_indx + 1, stop_indx));
+            tg.run([=, &updateDynParams](){ updateDynParams(node_indx + 1, stop_indx); });
         }
     };
     updateNodes = [&](size_t stopIndx) {
-        tg.run(std::bind(updateShapes, prepareCounter, stopIndx));
+        tg.run([=, &updateShapes](){ updateShapes(prepareCounter, stopIndx); });
         tg.wait();
     };
 #else
