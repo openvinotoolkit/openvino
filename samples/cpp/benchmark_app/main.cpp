@@ -320,6 +320,10 @@ int main(int argc, char* argv[]) {
         if (if_auto || if_multi) {
             devices.clear();
             std::string virtual_device = if_auto ? "AUTO" : "MULTI";
+            // check if device name specified by -d contains both AUTO and MULTI, like AUTO:MULTI,xxx, or like
+            // MULTI:AUTO,xxx.
+            if (if_auto && if_multi)
+                virtual_device = split(device_name, ':').at(0);
             auto iter_virtual = std::find(hardware_devices.begin(), hardware_devices.end(), virtual_device);
             hardware_devices.erase(iter_virtual);
             devices.push_back(virtual_device);
@@ -615,10 +619,12 @@ int main(int argc, char* argv[]) {
             slog::info << "Skipping the step for loading network from file" << slog::endl;
             auto startTime = Time::now();
             ov::AnyMap properties = {};
-            if (if_auto)
-                properties = config["AUTO"];
-            if (if_multi)
-                properties = config["MULTI"];
+            if (if_auto || if_multi) {
+                std::string virtual_device = if_auto ? "AUTO" : "MULTI";
+                if (if_auto && if_multi)
+                    virtual_device = split(device_name, ':').at(0);
+                properties = config[virtual_device];
+            }
             compiledModel = core.compile_model(FLAGS_m, device_name, properties);
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Load network took " << double_to_string(duration_ms) << " ms" << slog::endl;
@@ -803,10 +809,12 @@ int main(int argc, char* argv[]) {
             next_step();
             startTime = Time::now();
             ov::AnyMap properties = {};
-            if (if_auto)
-                properties = config["AUTO"];
-            if (if_multi)
-                properties = config["MULTI"];
+            if (if_auto || if_multi) {
+                std::string virtual_device = if_auto ? "AUTO" : "MULTI";
+                if (if_auto && if_multi)
+                    virtual_device = split(device_name, ':').at(0);
+                properties = config[virtual_device];
+            }
             compiledModel = core.compile_model(model, device_name, properties);
             duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Load network took " << double_to_string(duration_ms) << " ms" << slog::endl;

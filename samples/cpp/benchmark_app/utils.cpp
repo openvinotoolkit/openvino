@@ -117,8 +117,6 @@ std::vector<std::string> parse_devices(const std::string& device_string) {
         auto bracket = comma_separated_devices.find("(");  // e.g. in BATCH:GPU(4)
         comma_separated_devices = comma_separated_devices.substr(colon + 1, bracket - colon - 1);
     }
-    if ((comma_separated_devices == "MULTI") || (comma_separated_devices == "HETERO"))
-        return std::vector<std::string>();
 
     auto devices = split(comma_separated_devices, ',');
     result.insert(result.end(), devices.begin(), devices.end());
@@ -130,7 +128,7 @@ void parse_value_for_virtual_device(const std::string& device, std::map<std::str
     if (item_virtual != values_string.end() && values_string.size() > 1) {
         if (device == "MULTI") {
             // Remove the element that the key is virtual device MULTI
-            // e.g. MULTI:xxx,xxx -nstreams 2 will set nstreams 2 to CPU.
+            // e.g. MULTI:xxx -nstreams 2 will set nstreams 2 to xxx.
             values_string.erase(item_virtual);
         } else if (device == "AUTO") {
             // Just keep the element that the key is virtual device AUTO
