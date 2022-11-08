@@ -93,9 +93,12 @@ InsertCopyBeforeConcatLayer::InsertCopyBeforeConcatLayer() {
             } else {
                 inputs.insert(input_op);
             }
-            // check if all conact inputs have the same type
-            if (i > 0 && !concat->get_input_node_shared_ptr(i - 1)->has_same_type(input_op)) {
-                is_inputs_same_type = false;
+            // check if all concat inputs have the same type
+            if (i > 0) {
+                auto input_op_prev = get_prev_node_skipping_certain(concat->get_input_node_shared_ptr(i - 1), is_gna_non_functional_node);
+                if (input_op_prev->get_type_info() != input_op->get_type_info()) {
+                    is_inputs_same_type = false;
+                }
             }
         }
 

@@ -68,6 +68,75 @@ std::shared_ptr<ngraph::opset8::FakeQuantize> createFakeQuantizeNode(std::shared
     return std::make_shared<ngraph::opset8::FakeQuantize>(parent_node, input_low, input_high, output_low, output_high, 0);
 }
 
+// [Parameter] [Parameter]    [Parameter] [Parameter]
+//        \     /       =>         \        /
+//       [Concat]                   [Concat]
+//           |                         |
+//        [Result]                  [Result]
+TEST(TransformationTests, InsertCopyLayerParamsConcatTest) {
+        std::shared_ptr<ngraph::Function> func, ref_func;
+        size_t axis = 0;
+        ngraph::Shape in_shape{10};
+
+        {
+            auto param_1 = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
+            auto param_2 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i64, in_shape);
+            ngraph::OutputVector concat_inputs{param_1, param_2};
+            auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs, axis);
+            auto result = std::make_shared<ngraph::opset8::Result>(concat);
+            func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                        ngraph::ParameterVector{param_1, param_2},
+                                                        "Concat");
+        }
+
+        ref_func = func->clone();
+
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
+        m.run_passes(func);
+
+        ASSERT_NO_THROW(check_rt_info(func));
+
+        auto result = compare_functions(func, ref_func);
+        ASSERT_TRUE(result.first);
+}
+
+// [Constant] [Constant]    [Constant]  [Constant]
+//        \     /       =>         \        /
+//       [Concat]                   [Concat]
+//           |                         |
+//        [Result]                  [Result]
+TEST(TransformationTests, InsertCopyLayerConstantsConcatTest) {
+        std::shared_ptr<ngraph::Function> func, ref_func;
+        size_t axis = 0;
+        ngraph::Shape in_shape{10};
+
+        {
+            auto params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, in_shape);
+            auto const_1 = std::make_shared<ngraph::opset8::Constant>(ngraph::element::i64, in_shape);
+            auto const_2 = std::make_shared<ngraph::opset8::Constant>(ngraph::element::i64, in_shape);
+            ngraph::OutputVector concat_inputs{const_1, const_2};
+            auto concat = std::make_shared<ngraph::opset8::Concat>(concat_inputs, axis);
+            auto result = std::make_shared<ngraph::opset8::Result>(concat);
+            func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                                        ngraph::ParameterVector{params},
+                                                        "Concat");
+        }
+
+        ref_func = func->clone();
+
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
+        m.run_passes(func);
+
+        ASSERT_NO_THROW(check_rt_info(func));
+
+        auto result = compare_functions(func, ref_func);
+        ASSERT_TRUE(result.first);
+}
+
 // [Parameter] [Constant]    [Parameter] [Constant]
 //        \     /       =>         |         |
 //       [Concat]                [Copy]   [Copy]
