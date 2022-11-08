@@ -112,7 +112,7 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_reduce_kernel_f32)
 
     explicit jit_uni_reduce_kernel_f32(jit_reduce_config_params jcp)
-    : jit_uni_reduce_kernel(jcp), jit_generator() {}
+    : jit_uni_reduce_kernel(jcp), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -121,11 +121,11 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
 
     void generate() override {
         if (jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
-            exp_injector = std::make_shared<jit_uni_eltwise_injector_f32<isa>>(this, alg_kind::eltwise_exp, 0.f, 0.f, 1);
+            exp_injector = std::make_shared<jit_uni_eltwise_injector_f32<isa>>(this, alg_kind::eltwise_exp, 0.f, 0.f, 1.f);
         }
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16 = std::make_shared<jit_emu_vcvtneps2bf16>(this, isa);
+        if (mayiuse(avx512_core))
+            uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(this, isa);
 
         this->preamble();
 
@@ -155,8 +155,8 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
 
         this->postamble();
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16->emit_data();
+        if (mayiuse(avx512_core))
+            uni_vcvtneps2bf16->emit_data();
 
         if (jcp_.reduce_mode == Algorithm::ReduceAnd || jcp_.reduce_mode == Algorithm::ReduceL1 || jcp_.reduce_mode == Algorithm::ReduceMax ||
             jcp_.reduce_mode == Algorithm::ReduceMin || jcp_.reduce_mode == Algorithm::ReduceProd || jcp_.reduce_mode == Algorithm::ReduceOr) {
@@ -210,7 +210,7 @@ private:
 
     Xbyak::Label l_table;
 
-    std::shared_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
+    std::shared_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16;
     std::shared_ptr<jit_uni_eltwise_injector_f32<isa>> exp_injector;
 
     inline void reduce_main() {
@@ -549,10 +549,20 @@ private:
             case memory::data_type::s32:
                 if (isa == cpu::x64::avx512_core) {
                     kxnord(k_mask, k_mask, k_mask);
-                    vgatherdps(vmm_src | k_mask, ptr[reg_src + offset + vmm_idx]);
+                    if (jcp_.src_dt == memory::data_type::f32) {
+                        vgatherdps(vmm_src | k_mask, ptr[reg_src + offset + vmm_idx]);
+                    } else {
+                        vpgatherdd(vmm_src | k_mask, ptr[reg_src + offset + vmm_idx]);
+                        uni_vcvtdq2ps(vmm_src, vmm_src);
+                    }
                 } else if (isa == cpu::x64::avx2) {
                     uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
-                    vgatherdps(vmm_src, ptr[reg_src + offset + vmm_idx], vmm_mask);
+                    if (jcp_.src_dt == memory::data_type::f32) {
+                        vgatherdps(vmm_src, ptr[reg_src + offset + vmm_idx], vmm_mask);
+                    } else {
+                        vpgatherdd(vmm_src, ptr[reg_src + offset + vmm_idx], vmm_mask);
+                        uni_vcvtdq2ps(vmm_src, vmm_src);
+                    }
                 } else {
                     pack_gathered_vector(vmm_src, vmm_idx, offset, jcp_.src_dt);
                 }
@@ -913,10 +923,7 @@ private:
                 uni_vmovups(op, vmm_dst);
                 break;
             case memory::data_type::bf16:
-                if (mayiuse(avx512_core_bf16))
-                    vcvtneps2bf16(ymm_dst, vmm_dst);
-                else
-                    emu_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+                uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
                 vmovdqu16(op, ymm_dst);
                 break;
             case memory::data_type::s8:
@@ -1082,7 +1089,7 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_reduce_post_kernel_f32)
 
     explicit jit_uni_reduce_post_kernel_f32(jit_reduce_config_params jcp, const dnnl_primitive_attr &attr)
-    : jit_uni_reduce_post_kernel(jcp, attr), jit_generator() {}
+    : jit_uni_reduce_post_kernel(jcp, attr), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -1109,8 +1116,8 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
             log_injector = std::make_shared<jit_uni_eltwise_injector_f32<isa>>(this, alg_kind::eltwise_log, 0.f, 0.f, 1.f);
         }
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16 = std::make_shared<jit_emu_vcvtneps2bf16>(this, isa);
+        if (mayiuse(avx512_core))
+            uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(this, isa);
 
         this->preamble();
 
@@ -1158,8 +1165,8 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
 
         this->postamble();
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16->emit_data();
+        if (mayiuse(avx512_core))
+            uni_vcvtneps2bf16->emit_data();
 
         if (jcp_.reduce_mode == Algorithm::ReduceLogSum || jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
             log_injector->prepare_table();
@@ -1205,7 +1212,7 @@ private:
     Vmm vmm_d_weights = Vmm(7);
     Vmm vmm_d_bias = Vmm(8);
 
-    std::shared_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
+    std::shared_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16;
     std::shared_ptr<jit_uni_eltwise_injector_f32<isa>> log_injector;
 
     std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
@@ -1532,10 +1539,7 @@ private:
                 uni_vmovups(op, vmm_dst);
                 break;
             case memory::data_type::bf16:
-                if (mayiuse(avx512_core_bf16))
-                    vcvtneps2bf16(ymm_dst, vmm_dst);
-                else
-                    emu_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+                uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
                 vmovdqu16(op, ymm_dst);
                 break;
             case memory::data_type::s8:
@@ -2687,8 +2691,8 @@ inline void Reduce::calc_process_dst_dims(std::vector<int> &reduce_axes, const S
         }
     }
     if (jit_mode && jit_beyond_5D) {
-        if (std::accumulate(out_dims.begin(), out_dims.end(), 1, std::multiplies<double>()) !=
-            std::accumulate(dst_dims.begin(), dst_dims.end(), 1, std::multiplies<double>()))
+        if (std::accumulate(out_dims.begin(), out_dims.end(), size_t(1), std::multiplies<size_t>()) !=
+            std::accumulate(dst_dims.begin(), dst_dims.end(), size_t(1), std::multiplies<size_t>()))
             IE_THROW() << errorPrefix << "gets incorrect number of output dimensions!";
     } else {
         for (size_t i = 0; i < std::min(out_dims.size(), dst_dims.size()); i++) {

@@ -6,7 +6,7 @@
 #pragma once
 #include "intel_gpu/primitives/activation.hpp"
 #include "primitive_inst.h"
-#include "kernel_selector/core/actual_kernels/activation/activation_kernel_base.h"
+#include "kernel_selector/kernels/activation/activation_kernel_base.h"
 
 #include <memory>
 #include <string>
@@ -52,7 +52,7 @@ public:
 
     memory::ptr slope_memory() const { return dep_memory_ptr(1); }
 
-    bool is_parameterized() const { return !argument.additional_params_input.empty(); }
+    bool is_parameterized() const { return !argument->additional_params_input.empty(); }
 };
 
 using activation_inst = typed_primitive_inst<activation>;

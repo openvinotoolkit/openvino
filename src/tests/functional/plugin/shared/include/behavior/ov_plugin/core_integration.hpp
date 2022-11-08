@@ -114,6 +114,7 @@ using OVClassSpecificDeviceTestGetConfig = OVClassBaseTestP;
 using OVClassLoadNetworkWithCorrectPropertiesTest = OVClassSetDevicePriorityConfigTest;
 using OVClassLoadNetworkWithDefaultPropertiesTest = OVClassSetDevicePriorityConfigTest;
 using OVClassLoadNetworkWithDefaultIncorrectPropertiesTest = OVClassSetDevicePriorityConfigTest;
+using OVClassLoadNetworkAndCheckSecondaryPropertiesTest = OVClassSetDevicePriorityConfigTest;
 
 class OVClassSeveralDevicesTest : public OVPluginTestBase,
                                   public OVClassNetworkTest,
@@ -431,6 +432,20 @@ TEST(OVClassBasicTest, GetUnsupportedPropertyCoreThrow) {
 
     // Unsupported property test
     ASSERT_THROW(ie.get_property("unsupported_property"), ov::Exception);
+}
+
+TEST(OVClassBasicTest, SetAllowAutoBatchingPropertyCoreNoThrows) {
+    ov::Core ie = createCoreWithTemplate();
+
+    bool value1 = true;
+    OV_ASSERT_NO_THROW(ie.set_property(ov::hint::allow_auto_batching(false)));
+    OV_ASSERT_NO_THROW(value1 = ie.get_property(ov::hint::allow_auto_batching.name()));
+    ASSERT_FALSE(value1);
+
+    bool value2 = false;
+    OV_ASSERT_NO_THROW(ie.set_property(ov::hint::allow_auto_batching(true)));
+    OV_ASSERT_NO_THROW(value2 = ie.get_property(ov::hint::allow_auto_batching.name()));
+    ASSERT_TRUE(value2);
 }
 
 TEST_P(OVClassSetLogLevelConfigTest, SetConfigNoThrow) {
@@ -1080,6 +1095,18 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkWithBigDeviceIDThrows) {
 TEST_P(OVClassLoadNetworkWithCorrectPropertiesTest, LoadNetworkWithCorrectPropertiesTest) {
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, target_device, configuration));
+}
+
+TEST_P(OVClassLoadNetworkAndCheckSecondaryPropertiesTest, LoadNetworkAndCheckSecondaryPropertiesTest) {
+    ov::Core ie = createCoreWithTemplate();
+    ov::CompiledModel model;
+    OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork, target_device, configuration));
+    auto property = configuration.begin()->second.as<ov::AnyMap>();
+    auto actual = property.begin()->second.as<int32_t>();
+    ov::Any value;
+    OV_ASSERT_NO_THROW(value = model.get_property(ov::num_streams.name()));
+    int32_t expect = value.as<int32_t>();
+    ASSERT_EQ(actual, expect);
 }
 
 TEST_P(OVClassLoadNetworkWithDefaultPropertiesTest, LoadNetworkWithDefaultPropertiesTest) {

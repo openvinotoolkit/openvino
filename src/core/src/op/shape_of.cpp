@@ -28,7 +28,7 @@ op::v3::ShapeOf::ShapeOf(const Output<Node>& arg, element::Type output_type) : O
 }
 
 void op::v3::ShapeOf::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v3_ShapeOf_validate_and_infer_types);
+    OV_OP_SCOPE(v3_ShapeOf_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this,
                           m_output_type == element::i64 || m_output_type == element::i32,
                           "Output type must be i32 or i64");
@@ -38,13 +38,13 @@ void op::v3::ShapeOf::validate_and_infer_types() {
 }
 
 bool ngraph::op::v3::ShapeOf::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v3_ShapeOf_visit_attributes);
+    OV_OP_SCOPE(v3_ShapeOf_visit_attributes);
     visitor.on_attribute("output_type", m_output_type);
     return true;
 }
 
 shared_ptr<Node> op::v3::ShapeOf::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v3_ShapeOf_clone_with_new_inputs);
+    OV_OP_SCOPE(v3_ShapeOf_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     auto new_shape_of = make_shared<op::v3::ShapeOf>(new_args.at(0), m_output_type);
     return new_shape_of;
@@ -167,14 +167,14 @@ bool evaluate_label(const Node* shape_of_node, TensorLabelVector& output_labels)
 }  // namespace shape_of
 
 bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
-    NGRAPH_OP_SCOPE(v3_ShapeOf_evaluate);
+    OV_OP_SCOPE(v3_ShapeOf_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
     return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 
 bool op::v3::ShapeOf::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v3_ShapeOf_has_evaluate);
+    OV_OP_SCOPE(v3_ShapeOf_has_evaluate);
     switch (get_output_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
@@ -200,7 +200,7 @@ bool op::v3::ShapeOf::evaluate_label(TensorLabelVector& output_labels) const {
 }
 
 bool op::v3::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "op::v3::ShapeOf::constant_fold");
+    OV_OP_SCOPE(v3_ShapeOf_constant_fold);
     if (is_const_fold_disabled()) {
         return false;
     }
@@ -215,18 +215,18 @@ op::v0::ShapeOf::ShapeOf(const Output<Node>& arg) : Op({arg}) {
 }
 
 void op::v0::ShapeOf::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_ShapeOf_validate_and_infer_types);
+    OV_OP_SCOPE(v0_ShapeOf_validate_and_infer_types);
     set_input_is_relevant_to_value(0, false);
     set_output_type(0, element::i64, ov::PartialShape{get_input_partial_shape(0).rank()});
 }
 
 bool ngraph::op::v0::ShapeOf::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_ShapeOf_visit_attributes);
+    OV_OP_SCOPE(v0_ShapeOf_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::v0::ShapeOf::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_ShapeOf_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_ShapeOf_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     auto new_shape_of = make_shared<op::v0::ShapeOf>(new_args.at(0));
     NGRAPH_CHECK(new_shape_of.get(),
@@ -239,14 +239,14 @@ shared_ptr<Node> op::v0::ShapeOf::clone_with_new_inputs(const OutputVector& new_
 }
 
 bool op::v0::ShapeOf::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
-    NGRAPH_OP_SCOPE(v0_ShapeOf_evaluate);
+    OV_OP_SCOPE(v0_ShapeOf_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
     return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 
 bool op::v0::ShapeOf::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_ShapeOf_has_evaluate);
+    OV_OP_SCOPE(v0_ShapeOf_has_evaluate);
     switch (get_output_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
@@ -260,7 +260,7 @@ bool op::v0::ShapeOf::has_evaluate() const {
 }
 
 bool op::v0::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "op::v0::ShapeOf::constant_fold");
+    OV_OP_SCOPE(v0_ShapeOf_constant_fold);
     if (is_const_fold_disabled()) {
         return false;
     }

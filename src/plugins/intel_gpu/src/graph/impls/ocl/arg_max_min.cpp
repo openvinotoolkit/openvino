@@ -48,7 +48,7 @@ protected:
     kernel_arguments_data get_arguments(typed_primitive_inst<arg_max_min>& instance, int32_t) const override {
         kernel_arguments_data args = parent::get_arguments(instance, 0);
 
-        if (args.inputs.size() == 3) {
+        if (instance.node->has_second_output()) {
             args.inputs.erase(args.inputs.begin() + 1);  // erase constant input in case of TOP_K
         }
 
@@ -63,7 +63,7 @@ public:
         const auto& mode = primitive->mode;
         const auto& sort_type = primitive->sort;
         const auto& values_first = primitive->values_first;
-        const auto& outputs_num = primitive->input.size() == 3 ? 2 : 1;  // second output passed as input for TOP_K layer
+        const auto& outputs_num = arg.get_output_nums();  // second output passed as input for TOP_K layer
 
         auto argm_params = get_default_params<kernel_selector::arg_max_min_params>(impl_param);
         auto argm_optional_params =
@@ -83,8 +83,14 @@ public:
         else
             argm_params.argMaxMinSortType = kernel_selector::argm_sort::INDEX;
 
-        if (outputs_num == 2) {
-            argm_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
+        if (arg.has_second_output()) {  // for backward compatibility
+            argm_params.has_second_output = true;
+            if (arg.use_multiple_outputs()) {
+                argm_params.use_multiple_outputs = true;
+                argm_params.outputs.push_back(convert_data_tensor(impl_param.output_layout));
+            } else {
+                argm_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
+            }
         }
 
         argm_params.values_first = values_first;
@@ -106,18 +112,19 @@ public:
 
 namespace detail {
 attach_arg_max_min_impl::attach_arg_max_min_impl() {
-    implementation_map<arg_max_min>::add(impl_types::ocl, arg_max_min_impl::create,  {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f16, format::yxfb),
-        std::make_tuple(data_types::i8, format::yxfb),
-    });
+    auto types = {data_types::f16, data_types::f32, data_types::i8, data_types::i32};
+
+    auto formats = {format::bfyx,
+                    format::yxfb,
+                    format::b_fs_yx_fsv16,
+                    format::b_fs_yx_fsv32,
+                    format::bs_fs_yx_bsv16_fsv16,
+                    format::bs_fs_yx_bsv32_fsv16,
+                    format::bs_fs_yx_bsv32_fsv32,
+
+                    format::bfzyx};
+
+    implementation_map<arg_max_min>::add(impl_types::ocl, arg_max_min_impl::create, types, formats);
 }
 }  // namespace detail
 }  // namespace ocl

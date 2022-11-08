@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include "backend/gna_types.h"
 #include "nnet_base_matcher.hpp"
-#include "frontend/quantization.h"
+#include "frontend/quantization.hpp"
 
 class DiagLayerMatcher : public ::testing::MatcherInterface<const gna_nnet_type_t*> {
     bool matchInserted;

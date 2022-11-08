@@ -21,16 +21,17 @@ flake8_coding
 flake8_commas
 flake8_pep3101
 flake8_quotes
-import-order
 mypy
-onnx<1.12.0
+onnx==1.12.0
 Pep8-naming
 pydocstyle
+pytest-forked; platform_system != "Windows"
 pytest-xdist
 pytest
+py>=1.9.0
 radon
 retrying
 tox
 types-pkg_resources
-wheel>=0.36.2
+wheel>=0.38.1
 protobuf~=3.18.1

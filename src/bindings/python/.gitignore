@@ -122,6 +122,8 @@ Icon
 
 # Thumbnails
 ._*
+# Allow these specific folder
+!src/openvino/_offline_transformations/
 
 # Files that might appear in the root of a volume
 .DocumentRevisions-V100

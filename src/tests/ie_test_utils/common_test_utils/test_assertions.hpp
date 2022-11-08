@@ -4,8 +4,6 @@
 
 #pragma once
 
-#pragma once
-
 #include <gtest/gtest.h>
 
 #include <string>
@@ -15,6 +13,7 @@
 #include <ie_blob.h>
 #include <ie_common.h>
 #include <ie_preprocess.hpp>
+#include "openvino/util/pp.hpp"
 
 inline bool strContains(const std::string & str, const std::string & substr) {
     return str.find(substr) != std::string::npos;
@@ -73,6 +72,16 @@ inline bool strDoesnotContain(const std::string & str, const std::string & subst
            "  Actual: it throws."); \
     } \
   }
+
+#define OV_EXPECT_THROW(statement, exception, exception_what_matcher) \
+    try {                                                             \
+        GTEST_SUPPRESS_UNREACHABLE_CODE_WARNING_BELOW_(statement);    \
+        FAIL() << "Expected exception " << OV_PP_TOSTRING(exception); \
+    } catch (const exception& ex) {                                   \
+        EXPECT_THAT(ex.what(), exception_what_matcher);               \
+    } catch (...) {                                                   \
+        FAIL() << "Unknown exception";                                \
+    }
 
 inline void compare_blob(InferenceEngine::Blob::Ptr lhs, InferenceEngine::Blob::Ptr rhs) {
     ASSERT_EQ(lhs.get(), rhs.get());

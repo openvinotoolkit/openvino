@@ -7,6 +7,7 @@
 
 #include <condition_variable>
 #include <fstream>
+#include <openvino/util/file_util.hpp>
 
 #include "openvino/c/openvino.h"
 #include "openvino/openvino.hpp"
@@ -22,6 +23,21 @@ extern const char* plugins_xml;
 #define OV_ASSERT_OK(...)           ASSERT_EQ(ov_status_e::OK, __VA_ARGS__)
 #define OV_EXPECT_NOT_OK(...)       EXPECT_NE(ov_status_e::OK, __VA_ARGS__)
 #define OV_EXPECT_ARREQ(arr1, arr2) EXPECT_TRUE(std::equal(std::begin(arr1), std::end(arr1), std::begin(arr2)))
+
+#ifndef ENABLE_UNICODE_PATH_SUPPORT
+#    ifdef _WIN32
+#        if defined __INTEL_COMPILER || defined _MSC_VER
+#            define ENABLE_UNICODE_PATH_SUPPORT
+#        endif
+#    elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) || defined(__clang__)
+#        define ENABLE_UNICODE_PATH_SUPPORT
+#    endif
+#endif
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#    define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#    include <wchar.h>
+#endif
 
 extern std::map<ov_element_type_e, size_t> element_type_size_map;
 #define GET_ELEMENT_TYPE_SIZE(a) element_type_size_map[a]
@@ -51,3 +67,56 @@ inline static std::vector<uint8_t> content_from_file(const char* filename, bool 
     }
     return result;
 }
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+inline void fix_slashes(std::string& str) {
+    std::replace(str.begin(), str.end(), '/', '\\');
+}
+
+inline void fix_slashes(std::wstring& str) {
+    std::replace(str.begin(), str.end(), L'/', L'\\');
+}
+
+inline bool copy_file(std::string source_path, std::wstring dest_path) {
+#    ifndef _WIN32
+    std::ifstream source(source_path, std::ios::binary);
+    std::ofstream dest(ov::util::wstring_to_string(dest_path), std::ios::binary);
+#    else
+    fix_slashes(source_path);
+    fix_slashes(dest_path);
+    std::ifstream source(source_path, std::ios::binary);
+    std::ofstream dest(dest_path, std::ios::binary);
+#    endif
+    bool result = source && dest;
+    std::istreambuf_iterator<char> begin_source(source);
+    std::istreambuf_iterator<char> end_source;
+    std::ostreambuf_iterator<char> begin_dest(dest);
+    copy(begin_source, end_source, begin_dest);
+
+    source.close();
+    dest.close();
+    return result;
+}
+
+inline std::wstring add_unicode_postfix_to_path(std::string source_path, std::wstring postfix) {
+    fix_slashes(source_path);
+    auto result = ov::util::string_to_wstring(source_path);
+    auto extPos = result.rfind('.');
+    auto extension = result.substr(extPos, result.size());
+    auto file_name = result.substr(0, extPos);
+
+    return file_name + postfix + extension;
+}
+
+inline void remove_file_ws(std::wstring path) {
+    int result = 0;
+    if (!path.empty()) {
+#    ifdef _WIN32
+        result = _wremove(path.c_str());
+#    else
+        result = remove(ov::util::wstring_to_string(path).c_str());
+#    endif
+    }
+    (void)result;
+}
+#endif

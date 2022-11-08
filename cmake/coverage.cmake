@@ -9,11 +9,11 @@ ov_coverage_clean(REPOSITORY "openvino"
 ov_coverage_capture(INFO_FILE "openvino"
                     BASE_DIRECTORY "${OV_COVERAGE_BASE_DIRECTORY}"
                     DIRECTORY "${OV_COVERAGE_GCDA_DATA_DIRECTORY}"
-                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/*.pb.cc" 
-                             "${OV_COVERAGE_BASE_DIRECTORY}/*.pb.h" 
-                             "${OV_COVERAGE_BASE_DIRECTORY}/*/tests/*" 
-                             "${OV_COVERAGE_BASE_DIRECTORY}/*/tests_deprecated/*" 
-                             "${OV_COVERAGE_BASE_DIRECTORY}/thirdparty/*") # Skip some pb files, tests and thirdparty
+                    EXCLUDE_PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/*.pb.cc" 
+                                     "${OV_COVERAGE_BASE_DIRECTORY}/*.pb.h" 
+                                     "${OV_COVERAGE_BASE_DIRECTORY}/*/tests/*" 
+                                     "${OV_COVERAGE_BASE_DIRECTORY}/*/tests_deprecated/*" 
+                                     "${OV_COVERAGE_BASE_DIRECTORY}/thirdparty/*") # Skip some pb files, tests and thirdparty
 # Common report
 ov_coverage_genhtml(INFO_FILE "openvino"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
@@ -115,7 +115,7 @@ endif()
 
 if(ENABLE_TEMPLATE)
     ov_coverage_extract(INPUT "openvino" OUTPUT "template_plugin"
-                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/docs/template_plugin/*")
+                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/template/*")
     ov_coverage_genhtml(INFO_FILE "template_plugin"
                         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
