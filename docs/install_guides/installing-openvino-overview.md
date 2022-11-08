@@ -70,3 +70,4 @@ Follow these links to install OpenVINO:
 - [Install OpenVINO Development Tools](installing-model-dev-tools.md)
 - [Install OpenVINO Runtime](installing-openvino-runtime.md)
 - [Build from Source](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode)
+- [Create a Yocto Image](installing-openvino-yocto.md)
