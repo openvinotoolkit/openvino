@@ -224,8 +224,8 @@
         },
         {
             "type": "Concat",
-            "quantization": {
-                "unified_scales": "all"
+            "attributes": {
+                "scales": "unified"
             }
         },
         {"type": "Reshape"},
