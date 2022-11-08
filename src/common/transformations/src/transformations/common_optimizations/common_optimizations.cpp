@@ -169,7 +169,7 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     decomp->add_matcher<ngraph::pass::DropoutWithRandomUniformReplacer>();
     decomp->add_matcher<ngraph::pass::TransposeReshapeEliminationForMatmul>();
     decomp->add_matcher<ov::pass::EyeDecomposition>();
-    decomp->add_matcher<ov::pass::UniqueDecomposition>();
+    // decomp->add_matcher<ov::pass::UniqueDecomposition>();
     decomp->set_name("ngraph::pass::CommonDecompositions");
 
     // CF is required after all decompositions

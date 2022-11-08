@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset10.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset5.hpp>
@@ -45,6 +46,7 @@ bool fuse_type_to_ctc_greedy_decoder_seq_len(const std::shared_ptr<ngraph::Node>
                                              size_t idx);
 
 bool fuse_type_to_random_uniform_v8(const std::shared_ptr<ngraph::Node>& node, element::Type to, size_t idx);
+bool fuse_type_to_unique(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 
 bool extend_select_type(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 bool extend_reverse_type(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
@@ -287,7 +289,8 @@ bool ngraph::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::
         {opset4::ReduceLogicalOr::get_type_info_static(), fuse_type_to_reduce_logical<opset4::ReduceLogicalOr>},
         {opset1::ShapeOf::get_type_info_static(), fuse_type_to_shapeof_v0},
         {opset4::Range::get_type_info_static(), fuse_type_to_range_v4},
-        {opset8::RandomUniform::get_type_info_static(), fuse_type_to_random_uniform_v8}};
+        {opset8::RandomUniform::get_type_info_static(), fuse_type_to_random_uniform_v8},
+        {opset10::Unique::get_type_info_static(), fuse_type_to_unique}};
 
     type_to_fuse.insert(m_additional_type_to_fuse_map.begin(), m_additional_type_to_fuse_map.end());
 
@@ -579,6 +582,43 @@ bool extend_reverse_type(const std::shared_ptr<ngraph::Node>& node, ngraph::elem
                 ngraph::element::TypeVector{casted->get_output_element_type(0)});
             replace_node(node, relaxed_op);
         }
+        return true;
+    }
+    return false;
+}
+
+bool fuse_type_to_unique(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
+    if (auto unique = std::dynamic_pointer_cast<opset10::Unique>(node)) {
+        std::cout << "Running the conversion\n";
+        if (unique->get_index_element_type() == element::i64) {
+            unique->set_index_element_type(element::i32);
+        }
+
+        std::shared_ptr<ngraph::Node> relaxed_op = nullptr;
+        if (node->get_input_size() == 2) {
+            relaxed_op = std::make_shared<op::TypeRelaxed<opset10::Unique>>(
+                element::TypeVector{unique->get_input_element_type(0), unique->get_input_element_type(1)},
+                ngraph::element::TypeVector{unique->get_output_element_type(0),
+                                            element::i32,
+                                            element::i32,
+                                            element::i32},
+                unique->get_input_node_shared_ptr(0),
+                unique->get_input_node_shared_ptr(1),
+                unique->get_sorted(),
+                element::i32);
+        } else {
+            relaxed_op = std::make_shared<op::TypeRelaxed<opset10::Unique>>(
+                element::TypeVector{unique->get_input_element_type(0)},
+                ngraph::element::TypeVector{unique->get_output_element_type(0),
+                                            element::i32,
+                                            element::i32,
+                                            element::i32},
+                unique->get_input_node_shared_ptr(0),
+                unique->get_sorted(),
+                element::i32);
+        }
+
+        replace_node(node, relaxed_op);
         return true;
     }
     return false;

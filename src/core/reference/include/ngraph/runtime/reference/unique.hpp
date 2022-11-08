@@ -55,13 +55,14 @@ UniqueElements<Index_t> find_unique_elements(const Data_t* data,
                                              const Shape& data_shape,
                                              const std::unique_ptr<int64_t> axis,
                                              const bool sorted) {
+    std::cout << "********************* Running the Unique op's ref impl *******************\n";
     using std::begin;
     using std::end;
 
     const auto ascending_order = [&data](const Element<Index_t>& lhs, const Element<Index_t>& rhs) {
         return *(data + lhs.idx) < *(data + rhs.idx);
     };
-    
+
     const auto elements_are_equal = [&data](const Element<Index_t>& lhs, const Element<Index_t>& rhs) {
         return *(data + lhs.idx) == *(data + rhs.idx);
     };
