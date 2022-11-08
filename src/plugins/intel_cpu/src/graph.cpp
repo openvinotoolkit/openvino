@@ -52,6 +52,9 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <common/primitive_desc.hpp>
 #include <common/primitive_desc_iface.hpp>
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#   include <tbb/task_group.h>
+#endif
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -1033,8 +1036,47 @@ void Graph::InferDynamic(InferRequestBase* request) {
     auto syncIndcsWorkSet = syncNodesInds;
     syncIndcsWorkSet.push_back(executableGraphNodes.size());
 
-    for (auto stopIndx : syncIndcsWorkSet) {
-        std::cout << "Stop Index " << stopIndx << " with type " << executableGraphNodes[stopIndx]->getTypeStr() << std::endl;
+    std::function<void(size_t)> updateNodes;
+
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+    std::vector<tbb::atomic<uint8_t>> waveFrontCount(executableGraphNodes.size(), 2);
+    waveFrontCount.front() = 1;
+    tbb::task_group tg;
+    std::function<void(size_t, size_t)> updateShapes;
+    std::function<void(size_t, size_t)> updateDynParams;
+    updateShapes = [&](size_t node_indx, size_t stop_indx) {
+        const auto& node = executableGraphNodes[node_indx];
+        prepareCounter = node_indx;
+        if (node_indx >= stop_indx) {
+            return;
+        }
+        if (node->isDynamicNode()) {
+            node->updateShapes();
+        }
+        if (--waveFrontCount[node_indx] == 0) {
+            tg.run(std::bind(updateDynParams, node_indx, stop_indx));
+        }
+        updateShapes(node_indx + 1, stop_indx);
+    };
+    updateDynParams = [&](size_t node_indx, size_t stop_indx) {
+        const auto& node = executableGraphNodes[node_indx];
+        if (node_indx >= stop_indx) {
+            prepareCounter = node_indx;
+            return;
+        }
+        if (node->isDynamicNode()) {
+            node->updateDynamicParams();
+        }
+        if (node_indx + 1 < waveFrontCount.size() && --waveFrontCount[node_indx + 1] == 0) {
+            tg.run(std::bind(updateDynParams, node_indx + 1, stop_indx));
+        }
+    };
+    updateNodes = [&](size_t stopIndx) {
+        tg.run(std::bind(updateShapes, prepareCounter, stopIndx));
+        tg.wait();
+    };
+#else
+    updateNodes = [&](size_t stopIndx) {
         for (; prepareCounter < stopIndx; ++prepareCounter) {
             const auto& node = executableGraphNodes[prepareCounter];
             if (node->isDynamicNode()) {
@@ -1042,6 +1084,11 @@ void Graph::InferDynamic(InferRequestBase* request) {
                 node->updateDynamicParams();
             }
         }
+    };
+#endif
+
+    for (auto stopIndx : syncIndcsWorkSet) {
+        updateNodes(stopIndx);
         for (; inferCounter < stopIndx; ++inferCounter) {
             auto& node = executableGraphNodes[inferCounter];
             VERBOSE(node, config.verbose);
