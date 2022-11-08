@@ -8,10 +8,10 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
-#include <openvino/util/common_util.hpp>
 #include <sstream>
 
 #include "dimension_tracker.hpp"
+#include "dimension_util.hpp"
 
 using namespace ngraph;
 

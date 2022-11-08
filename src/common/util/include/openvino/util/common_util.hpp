@@ -119,7 +119,5 @@ bool contains(const std::vector<T, A>& vec, const V& v) {
     });
 }
 
-bool check_all_digits(const std::string& value);
-
 }  // namespace util
 }  // namespace ov
