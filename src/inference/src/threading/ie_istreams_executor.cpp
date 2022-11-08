@@ -53,10 +53,11 @@ int IStreamsExecutor::Config::GetDefaultNumStreams() {
 }
 
 int IStreamsExecutor::Config::GetHybridNumStreams(std::map<std::string, std::string>& config, const int stream_mode) {
+    const int num_cores = parallel_get_max_threads();
     const int num_cores_phy = getNumberOfCPUCores();
     const int num_big_cores_phy = getNumberOfCPUCores(true);
     const int num_small_cores = num_cores_phy - num_big_cores_phy;
-    const int num_big_cores = num_big_cores_phy * 2;
+    const int num_big_cores = num_cores > num_cores_phy ? num_big_cores_phy * 2 : num_big_cores_phy;
     int big_core_streams = 0;
     int small_core_streams = 0;
     int threads_per_stream_big = 0;
@@ -393,6 +394,11 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
         streamExecutorConfig._threads ? streamExecutorConfig._threads : (envThreads ? envThreads : hwCores);
     streamExecutorConfig._threadsPerStream =
         streamExecutorConfig._streams ? std::max(1, threads / streamExecutorConfig._streams) : threads;
+    streamExecutorConfig._threads =
+        ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType
+            ? streamExecutorConfig._big_core_streams * streamExecutorConfig._threads_per_stream_big +
+                  streamExecutorConfig._small_core_streams * streamExecutorConfig._threads_per_stream_small
+            : streamExecutorConfig._threadsPerStream * streamExecutorConfig._streams;
     return streamExecutorConfig;
 }
 
