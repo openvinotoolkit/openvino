@@ -33,7 +33,6 @@ struct jit_snippets_call_args {
 struct jit_snippets_compile_args {
     std::vector<size_t> master_shape{};
     size_t tile_rank = 0;
-//    int64_t data_offsets[SNIPPETS_MAX_SNIPPETS_DIMS * SNIPPETS_MAX_HARNESS_DIMS] = {};
 };
 ///
 /// \brief jit_container_emitter designed to wrap Emitters that contain other Emitters (for example, KernelEmitter)

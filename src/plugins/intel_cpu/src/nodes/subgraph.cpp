@@ -212,29 +212,6 @@ InferenceEngine::Precision Snippet::getRuntimePrecision() const {
     return getMaxPrecision(inputPrecisions);
 }
 
-void Snippet::calcJITParams(std::vector<int64_t>& offsets) const {
-    const size_t numInputs = normInputShapes.size();
-    const size_t numParams = numInputs + normOutputShapes.size();
-
-    // Note that we don't need offset for the last dim, since it's handled directly by Tile emitter
-    const size_t offset_rank = masterShape.size() - 1;
-    offsets.resize(numParams * (offset_rank), 1);
-    auto offset_calculation = [offset_rank, this](int64_t *off, const std::vector<size_t>& dims, const size_t data_size) {
-        size_t k = dims.back();
-        for (int i = offset_rank - 1; i >= 0; i--) {
-//            auto tmp = (dims[i] == masterShape[i] && masterShape[i] != 1) ? k : 0;
-            // dims could be either master_shape[i] or 1
-            auto tmp = (dims[i] != 1) ? k : 0;
-            off[i] = tmp * data_size;
-            k *= dims[i];
-        }
-    };
-    for (size_t i = 0; i < numParams; i++) {
-            offset_calculation(&offsets[i * offset_rank],
-                           i < numInputs ? normInputShapes[i] : normOutputShapes[i - numInputs],
-                           dataSize[i]);
-    }
-}
 bool Snippet::optimizeExecDomain(std::vector<VectorDims>& inputShapes, std::vector<VectorDims>& outputShapes,
                                  VectorDims &domain, size_t& TileRank) const {
     const size_t minimalConcurrency = parallel_get_max_threads();
@@ -367,7 +344,6 @@ void Snippet::createPrimitive() {
     prepareParams();
     jcp.master_shape = masterShape;
     jcp.tile_rank = tileRank;
-//    std::copy(data_offsets.begin(), data_offsets.end(), jcp.data_offsets);
     generate(&jcp);
 }
 
@@ -453,8 +429,6 @@ void Snippet::prepareParams() {
     }
     exec_domain = masterShape;
 
-    // todo: probably better to pass a call_args instance
-    calcJITParams(data_offsets);
     auto initStartMemoryOffsets = [this]() {
         const auto config = getSelectedPrimitiveDescriptor()->getConfig();
         const size_t numInputs = inputShapes.size();
@@ -488,30 +462,12 @@ void Snippet::prepareParams() {
         dim = 1;
     }
 
-    // Note: if exec domain is updated (dimensions are collapsed) then we need to communicate updated shapes
-    if (execDomainIsUpdated) {
-        auto& body_rt_info = snippet->get_body()->get_rt_info();
-        std::vector<std::vector<size_t>> new_shapes;
-        std::copy(normInputShapes.begin(), normInputShapes.end(), std::back_inserter(new_shapes));
-        std::copy(normOutputShapes.begin(), normOutputShapes.end(), std::back_inserter(new_shapes));
-        body_rt_info["PluginShapesOverride"] = new_shapes;
-        snippet->set_master_shape(ov::PartialShape(masterShape));
-    }
-//    snippet->set_overriden_shapes(new_shapes);
-    // todo: tileRank should be determined by snippets based on body shapes and operation semantics, not by plugin
+    auto& body_rt_info = snippet->get_body()->get_rt_info();
+    std::vector<std::vector<size_t>> new_shapes(normInputShapes);
+    std::copy(normOutputShapes.begin(), normOutputShapes.end(), std::back_inserter(new_shapes));
+    body_rt_info["PluginShapesOverride"] = new_shapes;
+    snippet->set_master_shape(ov::PartialShape(masterShape));
     snippet->tileRank = tileRank;
-    /*
-    snippet->set_master_shape(PartialShape(scheduler_work_amounts));
-    // If the snippets has domain sensitive ops (e.g. Transpose) then domain optimizations are not performed
-    // so need only update Parameter and Result shapes so Loops will be appropriately inserted in the snippets::pass::InsertLoops
-    if (snippet->has_domain_sensitive_ops()) {
-        for (const auto& s : get_shapes_for_snippet(normOutputShapes, tileRank))
-            new_shapes.push_back(s);
-        snippet->set_overriden_shapes(new_shapes);
-    } else {
-        snippet->reshape_body(new_shapes);
-    }
-    */
 }
 
 bool Snippet::needPrepareParams() const {

@@ -61,7 +61,6 @@ private:
     ov::PartialShape canonicalizeBody();
     // returns true if exec domain was modified
     bool optimizeExecDomain(std::vector<VectorDims>&, std::vector<VectorDims>&, VectorDims&, size_t&) const;
-    void calcJITParams(std::vector<int64_t>& offsets) const;
 
     void generate(const jit_snippets_compile_args*);
     void updateSrcDstPtrs(jit_snippets_call_args&) const;
@@ -96,7 +95,6 @@ private:
     std::vector<MemoryPtr> dstMemPtrs = {};
     std::vector<size_t> dataSize = {};
 
-    std::vector<int64_t> data_offsets;
     // this is needed for fast shape inference of blocking-invariant prepended shapes
     std::vector<bool> inputShapeIsBlocked = {}; // we need this info to shape-infer mixed layouts
     std::vector<bool> outputShapeIsBlocked = {}; // we need this info to shape-infer mixed layouts

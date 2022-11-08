@@ -35,11 +35,7 @@ bool ngraph::snippets::pass::InsertLoops::run_on_model(const std::shared_ptr<ov:
     const auto& body_rt_info = model->get_rt_info();
     const auto& plugin_shapes = body_rt_info.find("PluginShapesOverride");
     if (plugin_shapes == body_rt_info.end()) {
-        ioShapes.reserve(commonParams.size() + commonResults.size());
-        std::transform(commonParams.begin(), commonParams.end(), std::back_inserter(ioShapes),
-                       [](const std::shared_ptr<Node>& n) { return n->get_output_partial_shape(0); });
-        std::transform(commonResults.begin(), commonResults.end(), std::back_inserter(ioShapes),
-                       [](const std::shared_ptr<Node>& n) { return n->get_input_partial_shape(0); });
+        throw ngraph_error("InsertLoops requires PluginShapesOverride rt_info field");
     } else {
         const auto& new_shapes = plugin_shapes->second.as<std::vector<std::vector<size_t>>>();
         if (new_shapes.size() != commonResults.size() + commonParams.size())

@@ -406,7 +406,6 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
         if (!has_domain_sensitive_ops())
             manager.register_pass<snippets::pass::InsertLoops>(master_shape, tileRank,
                                                            m_generator->get_target_machine()->get_lanes());
-//        manager.register_pass<ov::pass::Serialize>("transpose_lowered.xml", "transpose_lowered.bin");
     }
     manager.run_passes(m_body);
 }
