@@ -63,6 +63,7 @@ addIeTargetTest(
         DEPENDENCIES ${DEPENDENCIES}
         LABELS
         IE
+        OV
 )
 
 target_compile_definitions(${TARGET_NAME} PRIVATE $<$<BOOL:${BUILD_SHARED_LIBS}>:"BUILD_SHARED_LIBS">)

@@ -18,5 +18,6 @@ ov_add_test_target(
             "${CMAKE_CURRENT_SOURCE_DIR}/../include"
         ADD_CLANG_FORMAT
         LABELS
-            IR_FRONTEND
+            OV
+            IR_FE
 )

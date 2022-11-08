@@ -4,20 +4,22 @@
 
 set(TARGET_NAME "ov_tensorflow_frontend_tests")
 
-file(GLOB SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-
-add_executable(${TARGET_NAME} ${SRC})
-
-target_link_libraries(${TARGET_NAME} PRIVATE
-        gtest_main_manifest frontend_shared_test_classes openvino_tensorflow_frontend
-        openvino_tensorflow_frontend_static_tests)
-
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
-
-install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION tests
-        COMPONENT tests
-        EXCLUDE_FROM_ALL)
+ov_add_test_target(
+    NAME ${TARGET_NAME}
+        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        DEPENDENCIES
+            tensorflow_test_models
+            tensorflow_fe_standalone_build_test
+        LINK_LIBRARIES
+            gtest_main_manifest 
+            frontend_shared_test_classes 
+            openvino_tensorflow_frontend 
+            openvino_tensorflow_frontend_static_tests
+        ADD_CLANG_FORMAT
+        LABELS
+            OV
+            TF_FE
+)
 
 # Test model generating
 ov_check_pip_package(REQUIREMENT tensorflow
@@ -67,12 +69,9 @@ else()
     add_custom_target(tensorflow_test_models DEPENDS unable_build_tensorflow_models.txt)
 endif()
 
-add_dependencies(${TARGET_NAME} tensorflow_test_models)
-
 get_target_property(TENSORFLOW_FRONTEND_SRC_DIR openvino_tensorflow_frontend SOURCE_DIR)
 
 add_subdirectory(standalone_build)
-add_dependencies(${TARGET_NAME} tensorflow_fe_standalone_build_test)
 
 #
 # Install TensorFlow frontend for tests reasons

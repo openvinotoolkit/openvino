@@ -147,7 +147,7 @@ TYPED_TEST_P(ArithmeticOperator, shape_inference_4D_x_3D_numpy_broadcast) {
 }
 
 TYPED_TEST_P(ArithmeticOperator, static_shape_pdpd_doc_examples) {
-// TODO: PDPD broadcast review, ticket: 93618
+    // TODO: PDPD broadcast review, ticket: 93618
     {
         auto A = std::make_shared<op::Parameter>(element::f32, Shape{2, 3, 4, 5});
         auto B = std::make_shared<op::Parameter>(element::f32, Shape{3, 4});
@@ -315,14 +315,13 @@ TYPED_TEST_P(ArithmeticOperator, dynamic_shape_intervals_equal_rank_broadcast_nu
 
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0),
-                (PartialShape{Dimension(1, 3), Dimension(2, 7), -1, Dimension(4, 8), -1, Dimension(4, 8), -1, 1, 3}));
-
+              (PartialShape{Dimension(1, 3), Dimension(2, 7), -1, Dimension(4, 8), -1, Dimension(4, 8), -1, 1, 3}));
 }
 
 TYPED_TEST_P(ArithmeticOperator, dynamic_shape_intervals_a_rank_smaller_broadcast_numpy) {
     // `A` rank smaller
-    auto A = std::make_shared<op::Parameter>(element::f32,
-                                                PartialShape{Dimension(1, 3), Dimension(4, 8), -1, 1, -1, 1, 3});
+    auto A =
+        std::make_shared<op::Parameter>(element::f32, PartialShape{Dimension(1, 3), Dimension(4, 8), -1, 1, -1, 1, 3});
     auto B = std::make_shared<op::Parameter>(
         element::f32,
         PartialShape{Dimension(1, 3), Dimension(2, 7), -1, 1, Dimension(1, 3), Dimension(4, 8), -1, 1, 3});
@@ -331,7 +330,7 @@ TYPED_TEST_P(ArithmeticOperator, dynamic_shape_intervals_a_rank_smaller_broadcas
 
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0),
-                (PartialShape{Dimension(1, 3), Dimension(2, 7), -1, Dimension(4, 8), -1, Dimension(4, 8), -1, 1, 3}));
+              (PartialShape{Dimension(1, 3), Dimension(2, 7), -1, Dimension(4, 8), -1, Dimension(4, 8), -1, 1, 3}));
 }
 
 TYPED_TEST_P(ArithmeticOperator, dynamic_shape_intervals_b_rank_smaller_broadcast_numpy) {
@@ -339,18 +338,18 @@ TYPED_TEST_P(ArithmeticOperator, dynamic_shape_intervals_b_rank_smaller_broadcas
     auto A = std::make_shared<op::Parameter>(
         element::f32,
         PartialShape{Dimension(1, 3), Dimension(2, 7), -1, 1, Dimension(1, 3), Dimension(4, 8), -1, 1, 3});
-    auto B = std::make_shared<op::Parameter>(element::f32,
-                                                PartialShape{Dimension(1, 3), Dimension(4, 8), -1, 1, -1, 1, 3});
+    auto B =
+        std::make_shared<op::Parameter>(element::f32, PartialShape{Dimension(1, 3), Dimension(4, 8), -1, 1, -1, 1, 3});
 
     const auto op = std::make_shared<TypeParam>(A, B);
 
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0),
-                (PartialShape{Dimension(1, 3), Dimension(2, 7), -1, Dimension(4, 8), -1, Dimension(4, 8), -1, 1, 3}));
+              (PartialShape{Dimension(1, 3), Dimension(2, 7), -1, Dimension(4, 8), -1, Dimension(4, 8), -1, 1, 3}));
 }
 
 TYPED_TEST_P(ArithmeticOperator, dynamic_shape_intervals_broadcast_pdpd) {
-// TODO: PDPD broadcast review, ticket: 93618
+    // TODO: PDPD broadcast review, ticket: 93618
     {  // Equal rank
         auto A = std::make_shared<op::Parameter>(
             element::f32,

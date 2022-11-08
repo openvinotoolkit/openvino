@@ -8,7 +8,6 @@
 #include "openvino/op/op.hpp"
 #include "openvino/opsets/opset8.hpp"
 
-
 using namespace ov;
 
 template <class T>
