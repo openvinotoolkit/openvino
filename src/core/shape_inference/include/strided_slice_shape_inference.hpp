@@ -241,9 +241,9 @@ void shape_infer(const StridedSlice* op,
             } else {
                 if (input_shape[input_shape_idx].is_static()) {
                     auto dim_value = input_shape[input_shape_idx].get_length();
-                    dims.emplace_back(ov::Dimension(0, dim_value));
+                    dims.emplace_back(DimType(0, dim_value));
                 } else {
-                    dims.emplace_back(input_shape[input_shape_idx]);
+                    dims.emplace_back(DimType(-1));
                 }
 
                 input_shape_idx++;
