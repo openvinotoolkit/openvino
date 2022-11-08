@@ -6,7 +6,6 @@
 
 #include <legacy/graph_tools.hpp>
 #include "gna_graph_tools.hpp"
-#include "gna_plugin_log.hpp"
 #include "layers/gna_layer_info.hpp"
 
 namespace GNAPluginNS {
