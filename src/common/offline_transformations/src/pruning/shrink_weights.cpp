@@ -99,7 +99,7 @@ static bool handle_variadic_split(const std::shared_ptr<ov::Node>& split) {
         auto mask = ngraph::getMask(split->output(i));
         if (!mask)
             return false;
-        auto set_size = (*mask)[axis].size();
+        auto set_size = mask->at(axis).size();
         if (split_lengths[i] == -1 && set_size > 0) {
             const auto& shape = split->get_output_partial_shape(i);
             sub_values.push_back(-1 - (shape[axis].get_length() - set_size));
@@ -144,7 +144,7 @@ static std::shared_ptr<ngraph::Node> handle_split(const std::shared_ptr<ngraph::
         auto mask = ngraph::getMask(split->output(i));
         if (!mask)
             return nullptr;
-        auto set_size = (*mask)[axis].size();
+        auto set_size = mask->at(axis).size();
         const auto& shape = split->get_output_partial_shape(i);
         split_lengths.push_back(shape[axis].get_length() - set_size);
         equal_output_chunks = equal_output_chunks && split_lengths.back() == split_lengths[0];

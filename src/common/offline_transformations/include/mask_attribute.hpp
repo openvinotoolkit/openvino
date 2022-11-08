@@ -198,13 +198,13 @@ public:
         for (size_t i = 0; i < size(); i++) {
             if (i == axis) {
                 std::set<uint64_t> dst_set;
-                const auto& src_set = (*mask)[i];
+                const auto& src_set = mask->at(i);
                 auto it = src_set.lower_bound(split_start);
                 while (it != src_set.end() && *it < split_end)
                     dst_set.insert(*it++ - split_start);
-                (*this)[i] = dst_set;
-            } else if (!(*mask)[i].empty()) {
-                (*this)[i] = (*mask)[i];
+                at(i) = dst_set;
+            } else if (!mask->at(i).empty()) {
+                at(i) = mask->at(i);
             }
         }
     }
