@@ -59,8 +59,6 @@ void print_func(std::string operation, float input_min, float input_max) {
     std::cout << "[INPUT_MAX]: " << input_max << std::endl;
     std::cout << std::endl;
 }
-// TODO benchmarking
-std::string operation_name;
 
 struct Error {
     double max_error;
@@ -155,8 +153,9 @@ protected:
 
     float _input_data_max = 1.0;
     float _input_data_min = -1.0;
-    const size_t _levels16 = std::numeric_limits<uint16_t>::max();
-    const size_t _levels32 = std::numeric_limits<uint32_t>::max();
+
+    // TODO benchmarking
+    std::string _operation_name;
 };
 
 TEST_P(PWLApproxmiationPWLMeTest, CompareWithRefImpl) {
@@ -183,9 +182,11 @@ InferenceEngine::Blob::Ptr PWLApproxmiationPWLMeTest::GenerateInput(const Infere
     blob->allocate();
 
     auto* rawBlobDataPtr = blob->buffer().as<float*>();
-    std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), _input_data_min, _input_data_max);
+    float step = (_input_data_max - _input_data_min) / (blob->size() - 1);
+    float value = _input_data_min;
     for (size_t i = 0; i < blob->size(); i++) {
-        rawBlobDataPtr[i] = values[i];
+        rawBlobDataPtr[i] = value;
+        value += step;
     }
     return blob;
 }
@@ -201,18 +202,18 @@ void PWLApproxmiationPWLMeTest::SetUp() {
     std::tie(_input_data_min, _input_data_max) = input_values;
 
     // TODO benchmarking
-    operation_name = operations_names[operation];
+    _operation_name = operations_names[operation];
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(net_precision);
+    auto ng_prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(net_precision);
 
     const ngraph::Shape shape = {1, 128};
-    auto params = ngraph::builder::makeParams(ngPrc, {shape});
+    auto params = ngraph::builder::makeParams(ng_prc, {shape});
 
-    auto constant =
-        ngraph::builder::makeConstant<float>(ngPrc, shape, CommonTestUtils::generate_float_numbers(shape[1], 1, 1));
-    auto add = std::make_shared<ngraph::opset9::Multiply>(params[0], constant);
+    std::vector<float> vector_data(128, 1.0);
+    auto constant = std::make_shared<ngraph::opset9::Constant>(ng_prc, shape, vector_data);
+    auto multiply = std::make_shared<ngraph::opset9::Multiply>(params[0], constant);
 
-    auto activation = make_function(add, operation, ngPrc, exp);
+    auto activation = make_function(multiply, operation, ng_prc, exp);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset9::Result>(activation)};
     function = std::make_shared<ngraph::Function>(results, params, "ActivityFq");
@@ -220,7 +221,7 @@ void PWLApproxmiationPWLMeTest::SetUp() {
 
 void PWLApproxmiationPWLMeTest::Run() {
     // TODO benchmarking
-    print_func(operation_name, _input_data_min, _input_data_max);
+    print_func(_operation_name, _input_data_min, _input_data_max);
 
     // execute network for different pwl_me options
     std::vector<std::string> pwl_mes;
