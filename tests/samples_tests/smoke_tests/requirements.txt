@@ -4,6 +4,7 @@ wheel
 test-generator
 numpy
 pytest
+py>=1.9.0
 scikit-build
 opencv-python
 progress

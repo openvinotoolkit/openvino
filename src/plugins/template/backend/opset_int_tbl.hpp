@@ -132,6 +132,7 @@ _OPENVINO_OP_REG(Log, op::v0)
 _OPENVINO_OP_REG(PriorBox, ngraph::op::v8)
 _OPENVINO_OP_REG(PRelu, op::v0)
 
+_OPENVINO_OP_REG(GridSample, op::v9)
 _OPENVINO_OP_REG(RDFT, op::v9)
 _OPENVINO_OP_REG(NonMaxSuppression, op::v9)
 _OPENVINO_OP_REG(IRDFT, op::v9)
