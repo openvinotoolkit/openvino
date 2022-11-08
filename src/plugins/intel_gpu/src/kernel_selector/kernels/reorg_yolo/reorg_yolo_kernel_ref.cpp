@@ -7,6 +7,23 @@
 #include <vector>
 
 namespace kernel_selector {
+namespace {
+ReorgYoloKernelRef::DispatchData SetDefault(const reorg_yolo_params& params) {
+    ReorgYoloKernelRef::DispatchData dispatchData;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.outputs[0].GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
+
+    const auto& input = params.inputs[0];
+    dispatchData.gws = {input.X().v, input.Y().v, input.Feature().v};
+    dims_by_gws = {{Tensor::DataChannelName::X},
+                   {Tensor::DataChannelName::Y},
+                   {Tensor::DataChannelName::FEATURE}};
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+
+    return dispatchData;
+}
+}  // namespace
 
 ParamsKey ReorgYoloKernelRef::GetSupportedKey() const {
     ParamsKey k;
@@ -31,21 +48,7 @@ JitConstants ReorgYoloKernelRef::GetJitConstants(const reorg_yolo_params& ry) co
 
     return jit;
 }
-ReorgYoloKernelRef::DispatchData SetDefault(const reorg_yolo_params& params) {
-    ReorgYoloKernelRef::DispatchData dispatchData;
-    auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.outputs[0].GetLayout();
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
-    const auto& input = params.inputs[0];
-    dispatchData.gws = {input.X().v, input.Y().v, input.Feature().v};
-    dims_by_gws = {{Tensor::DataChannelName::X},
-                   {Tensor::DataChannelName::Y},
-                   {Tensor::DataChannelName::FEATURE}};
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
-
-    return dispatchData;
-}
 KernelsData ReorgYoloKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
     assert(params.GetType() == KernelType::REORG_YOLO);
     if (!Validate(params, options)) {

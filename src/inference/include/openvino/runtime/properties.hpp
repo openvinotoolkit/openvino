@@ -884,4 +884,10 @@ inline std::istream& operator>>(std::istream& is, Affinity& affinity) {
  * environment variable is set (as affinity is configured explicitly)
  */
 static constexpr Property<Affinity> affinity{"AFFINITY"};
+
+/**
+ * @brief The devices that the inference task been executed.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<std::string> execution_devices{"EXECUTION_DEVICES"};
 }  // namespace ov
