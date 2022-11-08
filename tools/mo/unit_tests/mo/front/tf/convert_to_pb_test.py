@@ -34,7 +34,6 @@ class ConvertToPBTests(unittest.TestCase):
     def test_meta_format(self):
         try:
             import tensorflow.compat.v1 as tf_v1
-            tf_v1.disable_eager_execution()
         except ImportError:
             import tensorflow as tf_v1
 

@@ -16,9 +16,6 @@ from openvino.tools.mo.utils.versions_checker import get_environment_setup
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 try:
     import tensorflow.compat.v1 as tf_v1
-
-    # disable eager execution of TensorFlow 2 environment immediately
-    tf_v1.disable_eager_execution()
     import tensorflow as tf
     from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
 except ImportError:
@@ -185,8 +182,6 @@ def freeze_tf2_concrete_function(model, concrete_func, env_setup):
         frozen_func = convert_variables_to_constants_v2(concrete_func,
                                                         lower_control_flow=False)  # pylint: disable=E1123
     graph_def = frozen_func.graph.as_graph_def(add_shapes=True)
-    # disable eager execution since next steps are executed with a graph in non-eager mode
-    tf_v1.disable_eager_execution()
 
     input_names = []
     if hasattr(model, 'inputs') and model.inputs is not None:
@@ -213,9 +208,6 @@ def prepare_graph_def(model):
         return model, {}, "tf", None
     if isinstance(model, tf.keras.Model):
         env_setup = get_environment_setup("tf")
-        # enable eager execution temporarily while TensorFlow 2 model is being loaded
-        tf_v1.reset_default_graph()
-        tf_v1.enable_eager_execution()
 
         assert hasattr(model, "inputs") and model.inputs is not None, "Model inputs specification is required."
 
@@ -236,9 +228,6 @@ def prepare_graph_def(model):
         return freeze_tf2_concrete_function(model, conc_func, env_setup)
     if isinstance(model, Trackable):
         env_setup = get_environment_setup("tf")
-        # enable eager execution temporarily while TensorFlow 2 model is being loaded
-        tf_v1.reset_default_graph()
-        tf_v1.enable_eager_execution()
         return saved_model_load(model, env_setup)
     raise Exception("Unknown model type {}.".format(type(model)))
 
@@ -310,9 +299,6 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
             # saved model directory
             try:
                 env_setup = get_environment_setup("tf")
-                # enable eager execution temporarily while TensorFlow 2 model is being loaded
-                tf_v1.reset_default_graph()
-                tf_v1.enable_eager_execution()
 
                 try:
                     # Code to extract Keras model.
@@ -324,8 +310,6 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
 
                 return saved_model_load(imported, env_setup)
             except:
-                # disable eager execution since TensorFlow 1 model is handled
-                tf_v1.disable_eager_execution()
                 # code to extract GraphDef for TF 1.0 SavedModel format
                 tags = saved_model_tags if saved_model_tags is not None else [tf_v1.saved_model.tag_constants.SERVING]
                 with tf_v1.Session() as sess:
