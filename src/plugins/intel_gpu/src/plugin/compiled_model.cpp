@@ -53,9 +53,7 @@ CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network, std::shared_p
     m_waitExecutor(executorManager()->getIdleCPUStreamsExecutor({ "GPUWaitExecutor" })) {
     auto casted_context = std::dynamic_pointer_cast<gpu::ClContext>(context);
 
-    if (nullptr == casted_context) {
-        IE_THROW() << "Invalid remote context";
-    }
+    OPENVINO_ASSERT((casted_context != nullptr), "Invalid remote context");
 
     m_context = casted_context;
 
@@ -107,9 +105,7 @@ CompiledModel::CompiledModel(std::istream& networkModel, std::shared_ptr<Inferen
     m_waitExecutor(executorManager()->getIdleCPUStreamsExecutor({ "GPUWaitExecutor" })) {
     auto casted_context = std::dynamic_pointer_cast<gpu::ClContext>(context);
 
-    if (nullptr == casted_context) {
-        IE_THROW() << "Invalid remote context";
-    }
+    OPENVINO_ASSERT((casted_context != nullptr), "Invalid remote context");
 
     m_context = casted_context;
 
@@ -195,7 +191,6 @@ CompiledModel::CompiledModel(std::istream& networkModel, std::shared_ptr<Inferen
             new_param->set_friendly_name(param_name);
             new_param->set_element_type(param_element_type);
             new_param->set_layout(param_layout);
-            // hoho->output(0).get_rt_info() = param_rt_info;
             new_param->output(0).get_tensor().set_names(param_names);
             new_param->validate_and_infer_types();
             new_params.emplace_back(new_param);

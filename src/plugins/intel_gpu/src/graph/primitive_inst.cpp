@@ -443,11 +443,8 @@ void primitive_inst::rebuild_deps(
 
     _deps.resize(_dep_ids.size());
     for (size_t i = 0; i < _dep_ids.size(); i++) {
-        if (primitives.count(_dep_ids[i]) > 0) {
-            _deps[i] = primitives.at(_dep_ids[i]);
-        } else {
-            std::cout << _dep_ids[i] << " is not found in _primitives" << std::endl;
-        }
+        OPENVINO_ASSERT((primitives.count(_dep_ids[i]) > 0), _dep_ids[i], "is not found in _primitives");
+        _deps[i] = primitives.at(_dep_ids[i]);
     }
 }
 
@@ -464,9 +461,7 @@ void primitive_inst::rebuild_exec_deps(
                 break;
             }
         }
-        if (found == false) {
-            std::cout << "not found in _exec_order" << std::endl;
-        }
+        OPENVINO_ASSERT(found, _exec_dep_ids[i], "not found in _exec_order");
     }
 }
 
@@ -1088,7 +1083,7 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
         allocation_type _allocation_type;
         ib >> make_data(&_allocation_type, sizeof(_allocation_type));
 
-        size_t data_size; // = _output->size();
+        size_t data_size;
         ib >> cldnn::make_data(&data_size, sizeof(size_t));
         _outputs[0] = get_network().get_memory_pool().get_memory(output_layout, _allocation_type, false);
 
@@ -1101,7 +1096,6 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
             delete[] _buf;
         }
     } else if (_object_type == object_type::EXECUTABLE_INST) {
-        // primitive_impl
         _impl_params.release();
         _impl_params = make_unique<kernel_impl_params>();
         _impl_params->load(ib);
@@ -1128,7 +1122,6 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
         ib >> _can_share_buffer;
         ib >> _is_constant;
 
-        // output memory
         layout output_layout = layout(cldnn::data_types::bin, cldnn::format::any, cldnn::tensor());
         ib >> output_layout;
 
@@ -1165,5 +1158,4 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
         _output_changed = false;
     }
 }
-
 }  // namespace cldnn

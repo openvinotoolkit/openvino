@@ -163,7 +163,6 @@ Plugin::Plugin() : m_defaultContexts({}) {
         CustomLayer::LoadFromFile(config_path, config.second.customLayers, true);
     }
 
-    isModelCachingEnabled = false;
     if (const char* env_p = std::getenv("OV_GPU_MODEL_CACHING")) {
         if (env_p[0] == '1') {
             isModelCachingEnabled = true;
@@ -279,9 +278,6 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::LoadExeNetworkImpl::CreateContext");
         std::lock_guard<std::mutex> lock(engine_mutex);
         if (!canReuseDefaultContext()) {
-            // if (m_defaultContexts.find(conf.device_id) != m_defaultContexts.end()) {
-            //     statistics_map.erase(m_defaultContexts[conf.device_id]);
-            // }
             m_defaultContexts[conf.device_id] = std::make_shared<RemoteCLContext>(shared_from_this(), AnyMap(), conf);
         } else {
             m_defaultContexts[conf.device_id]->GetConfig().kernels_cache_dir = conf.kernels_cache_dir;
