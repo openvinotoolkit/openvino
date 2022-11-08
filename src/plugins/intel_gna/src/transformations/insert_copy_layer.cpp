@@ -85,12 +85,17 @@ InsertCopyBeforeConcatLayer::InsertCopyBeforeConcatLayer() {
 
         std::set<std::shared_ptr<ngraph::Node>> inputs;
         // Insert copy layers after concat inputs with multiple connections to concat
+        bool is_inputs_same_type = true;
         for (size_t i = 0; i < concat->get_input_size(); i++) {
             auto input_op = concat->get_input_node_shared_ptr(i);
             if (inputs.find(input_op) != inputs.end()) {
                 insert_copy_layer_between(input_op, concat, i);
             } else {
                 inputs.insert(input_op);
+            }
+            // check if all conact inputs have the same type
+            if (i > 0 && !concat->get_input_node_shared_ptr(i - 1)->has_same_type(input_op)) {
+                is_inputs_same_type = false;
             }
         }
 
@@ -99,13 +104,17 @@ InsertCopyBeforeConcatLayer::InsertCopyBeforeConcatLayer() {
             auto concat_input = concat->get_input_node_shared_ptr(i);
             auto current_node = get_prev_node_skipping_certain(concat_input, is_gna_non_functional_node);
 
-            // Crop -> Concat, Input -> Split -> Concat, Memory -> Concat, Parameter -> Concat, Const -> Concat
+            // Crop -> Concat, Input -> Split -> Concat
             if ((std::dynamic_pointer_cast<ngraph::op::CropIE>(current_node) && !is_crop_affined(current_node)) ||
                 std::dynamic_pointer_cast<ngraph::opset8::Split>(current_node) ||
-                std::dynamic_pointer_cast<ngraph::opset8::VariadicSplit>(current_node) ||
-                std::dynamic_pointer_cast<ngraph::opset8::Parameter>(current_node) ||
-                std::dynamic_pointer_cast<ngraph::opset8::Constant>(current_node) ||
-                std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(current_node)) {
+                std::dynamic_pointer_cast<ngraph::opset8::VariadicSplit>(current_node) ) {
+                insert_copy_layer_between(concat_input, concat, i);
+            }
+            // Memory -> Concat, Parameter -> Concat, Const -> Concat
+            // and we don't need to insert copy layers if all inputs have the same type and will be allocated in one memory region.
+            if (!is_inputs_same_type && (std::dynamic_pointer_cast<ngraph::opset8::Parameter>(current_node) ||
+                                        std::dynamic_pointer_cast<ngraph::opset8::Constant>(current_node) ||
+                                        std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(current_node))) {
                 insert_copy_layer_between(concat_input, concat, i);
             }
         }
