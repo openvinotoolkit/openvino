@@ -39,7 +39,7 @@ protected:
             // Smaller # EU tends to be computation bounds.
             // In such case, using larger worksize will result in larger computational inefficiency
             // w.r.t the unalined output feature
-            if (params.outputs[0].Feature().v > 8 || !IsSIMDSizeSupported(params.engineInfo, 8)
+            if (params.outputs[0].Feature().v > 8 || params.outputs[0].Batch().v != 1 || !IsSIMDSizeSupported(params.engineInfo, 8)
                || ((params.outputs[0].GetDType() == Datatype::F16) && params.outputs[0].Feature().v == 8)) {
                 return 16;
             } else {
