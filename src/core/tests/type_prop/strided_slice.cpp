@@ -318,9 +318,8 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                PartialShape{
                                                    Dimension::dynamic(),
                                                    Dimension(0, 200),
-                                                   1,
                                                    Dimension(0, 200),
-                                                   3,
+                                                   Dimension(0, 3),
                                                },             // reference shape
                                                element::f32}  // reference type
                                            ),
