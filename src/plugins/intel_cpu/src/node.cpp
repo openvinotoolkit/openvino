@@ -757,19 +757,6 @@ void Node::initDescriptor(const NodeConfig& config) {
 }
 
 void Node::prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs) {
-    for (size_t i = 0; i < getChildEdges().size(); i++) {
-        auto &dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
-        if (!dstMemPtr || !dstMemPtr->isAllocated())
-            IE_THROW() << "Destination memory didn't allocate for node " << getName()
-                               << " to node " << getChildEdgeAt(i)->getChild()->getName() << ".";
-    }
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        auto &srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
-        if (!srcMemPtr || !srcMemPtr->isAllocated())
-            IE_THROW() << "Destination memory didn't allocate for node " << getName()
-                               << " from node " << getParentEdgeAt(i)->getParent()->getName() << ".";
-    }
-
     if (internalBlobs.size() != intDescs.size()) {
         IE_THROW() << "Can't prepare memory for internal blob, internal blob and internal descs number do not match "
                    << internalBlobs.size() << " vs " << intDescs.size();
