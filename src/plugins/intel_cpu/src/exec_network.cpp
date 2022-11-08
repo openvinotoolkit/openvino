@@ -100,12 +100,6 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
     } else {
         auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig, isFloatModel);
         streamsExecutorConfig._name = "CPUStreamsExecutor";
-        _cfg.streamExecutorConfig._threads =
-            InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE ==
-                    streamsExecutorConfig._threadBindingType
-                ? streamsExecutorConfig._big_core_streams * streamsExecutorConfig._threads_per_stream_big +
-                      streamsExecutorConfig._small_core_streams * streamsExecutorConfig._threads_per_stream_small
-                : streamsExecutorConfig._threadsPerStream * streamsExecutorConfig._streams;
 #if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         _taskExecutor = std::make_shared<TBBStreamsExecutor>(streamsExecutorConfig);
 #else

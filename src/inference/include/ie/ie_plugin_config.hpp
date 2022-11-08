@@ -463,35 +463,6 @@ DECLARE_CONFIG_KEY(CACHE_DIR);
  */
 DECLARE_CONFIG_KEY(FORCE_TBB_TERMINATE);
 
-/**
- * @brief Number of streams in Performance-core(big core) in HYBRID_AWARE and throughput
- *        The value is calculated in loadExeNetwork and is used in binding CPU cores.
- */
-DECLARE_CONFIG_KEY(BIG_CORE_STREAMS);
-
-/**
- * @brief Number of streams in Efficient-core(small core) in HYBRID_AWARE and throughput
- *        The value is calculated in loadExeNetwork and is used in binding CPU cores.
- */
-DECLARE_CONFIG_KEY(SMALL_CORE_STREAMS);
-
-/**
- * @brief Threads per stream in big cores in HYBRID_AWARE and throughput
- *        The value is calculated in loadExeNetwork and is used in binding CPU cores.
- */
-DECLARE_CONFIG_KEY(THREADS_PER_STREAM_BIG);
-
-/**
- * @brief Threads per stream in small cores in HYBRID_AWARE and throughput
- *        The value is calculated in loadExeNetwork and is used in binding CPU cores.
- */
-DECLARE_CONFIG_KEY(THREADS_PER_STREAM_SMALL);
-
-/**
- * @brief Small core start offset when binding cpu cores
- */
-DECLARE_CONFIG_KEY(SMALL_CORE_OFFSET);
-
 }  // namespace PluginConfigParams
 
 /**
