@@ -91,7 +91,7 @@ public:
 
         std::shared_ptr<void> dummy = nullptr;
 
-        return make_unique<reorder_onednn>(engine, dummy, attr, *desc);
+        return cldnn::make_unique<reorder_onednn>(engine, dummy, attr, *desc);
     }
 };
 

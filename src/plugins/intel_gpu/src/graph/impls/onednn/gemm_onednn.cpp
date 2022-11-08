@@ -238,7 +238,7 @@ public:
         auto attr = arg.get_onednn_primitive_attributes();
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
 
-        return make_unique<gemm_onednn>(engine, desc, attr, prim_desc);
+        return cldnn::make_unique<gemm_onednn>(engine, desc, attr, prim_desc);
     }
 };
 

@@ -114,7 +114,7 @@ public:
 
         std::shared_ptr<void> dummy = nullptr;
 
-        return make_unique<concatenation_onednn>(engine, dummy, attr, *desc);
+        return cldnn::make_unique<concatenation_onednn>(engine, dummy, attr, *desc);
     }
 };
 

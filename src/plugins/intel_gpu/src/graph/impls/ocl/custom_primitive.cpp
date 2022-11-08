@@ -245,7 +245,7 @@ static std::unique_ptr<primitive_impl> create(const custom_gpu_primitive_node& a
         cl_kernel->params.arguments.push_back(get_arg(p));
     }
 
-    return make_unique<custom_gpu_primitive_impl>(arg, cl_kernel);
+    return cldnn::make_unique<custom_gpu_primitive_impl>(arg, cl_kernel);
 }
 
 namespace detail {
