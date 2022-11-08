@@ -61,6 +61,8 @@ macro(ov_cpack_settings)
            NOT item STREQUAL "tensorflow" AND
            # we have copyright file for debian package
            NOT item STREQUAL OV_CPACK_COMP_LICENSING AND
+           # compile_tool is not needed
+           NOT item STREQUAL OV_CPACK_COMP_CORE_TOOLS AND
            # not appropriate components
            NOT item STREQUAL OV_CPACK_COMP_DEPLOYMENT_MANAGER AND
            NOT item STREQUAL OV_CPACK_COMP_INSTALL_DEPENDENCIES AND
@@ -278,8 +280,7 @@ macro(ov_cpack_settings)
     set(CPACK_COMPONENT_CORE_DEV_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit C / C++ Development files")
     set(CPACK_COMPONENT_CORE_DEV_DEPENDS "${OV_CPACK_COMP_CORE};${frontends}")
     set(CPACK_DEBIAN_CORE_DEV_PACKAGE_NAME "libopenvino-dev-${cpack_name_ver}")
-    # TODO: update once compile_tool is excluded from the package
-    # set(CPACK_DEBIAN_CORE_DEV_PACKAGE_ARCHITECTURE "all")
+    set(CPACK_DEBIAN_CORE_DEV_PACKAGE_ARCHITECTURE "all")
     ov_debian_generate_conflicts("${OV_CPACK_COMP_CORE_DEV}" ${conflicting_versions})
 
     ov_debian_add_lintian_suppression("${OV_CPACK_COMP_CORE_DEV}"
