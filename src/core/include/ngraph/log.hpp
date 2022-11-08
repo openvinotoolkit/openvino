@@ -99,28 +99,28 @@ void default_logger_handler_func(const std::string& s);
 #    define PROJECT_ROOT_DIR ""
 #endif
 
+#define NGRAPH_ERR                                                        \
+    ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_ERROR,                  \
+                      ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
+                      __LINE__,                                           \
+                      ngraph::default_logger_handler_func)                \
+        .stream()
+
+#define NGRAPH_WARN                                                       \
+    ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_WARNING,                \
+                      ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
+                      __LINE__,                                           \
+                      ngraph::default_logger_handler_func)                \
+        .stream()
+
+#define NGRAPH_INFO                                                       \
+    ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_INFO,                   \
+                      ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
+                      __LINE__,                                           \
+                      ngraph::default_logger_handler_func)                \
+        .stream()
+
 #ifdef ENABLE_OPENVINO_DEBUG
-#    define NGRAPH_ERR                                                        \
-        ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_ERROR,                  \
-                          ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
-                          __LINE__,                                           \
-                          ngraph::default_logger_handler_func)                \
-            .stream()
-
-#    define NGRAPH_WARN                                                       \
-        ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_WARNING,                \
-                          ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
-                          __LINE__,                                           \
-                          ngraph::default_logger_handler_func)                \
-            .stream()
-
-#    define NGRAPH_INFO                                                       \
-        ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_INFO,                   \
-                          ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
-                          __LINE__,                                           \
-                          ngraph::default_logger_handler_func)                \
-            .stream()
-
 #    define NGRAPH_DEBUG                                                      \
         ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_DEBUG,                  \
                           ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
@@ -146,15 +146,6 @@ inline NullLogger&& operator<<(
     std::basic_ostream<char, std::char_traits<char>>& (&)(std::basic_ostream<char, std::char_traits<char>>&)) {
     return std::move(logger);
 }
-
-#    define NGRAPH_ERR \
-        ::ngraph::NullLogger {}
-
-#    define NGRAPH_WARN \
-        ::ngraph::NullLogger {}
-
-#    define NGRAPH_INFO \
-        ::ngraph::NullLogger {}
 
 #    define NGRAPH_DEBUG \
         ::ngraph::NullLogger {}
