@@ -509,11 +509,18 @@ private:
 #    pragma GCC diagnostic push
 #    pragma GCC diagnostic ignored "-Wsign-compare"
 #endif
+#if defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma warning(disable : 4018)
+#endif
         if (!std::is_same<T, StorageDataType>::value) {
             OPENVINO_ASSERT(!std::numeric_limits<T>::is_signed ||
                             std::numeric_limits<StorageDataType>::lowest() <= value);
             OPENVINO_ASSERT(value <= std::numeric_limits<StorageDataType>::max());
         }
+#if defined(_MSC_VER)
+#    pragma warning(pop)
+#endif
 #ifdef __GNUC__
 #    pragma GCC diagnostic pop
 #endif
