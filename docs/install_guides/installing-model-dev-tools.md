@@ -8,7 +8,7 @@ If you want to download, convert, optimize and tune pre-trained deep learning mo
 * Post-Training Optimization Tool
 * Model Downloader and other Open Model Zoo tools
 
-The instructions on this page show how to install OpenVINO Development Tools. If you are a Python developer, it only takes a few simple steps to install the tools with PyPI. If you are developing in C++, OpenVINO Runtime must be installed separately before installing OpenVINO Development Tools.
+> **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI.
 
 In both cases, Python 3.6 - 3.9 need be installed on your machine before starting.
 
