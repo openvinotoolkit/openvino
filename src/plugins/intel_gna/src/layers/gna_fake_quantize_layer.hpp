@@ -10,6 +10,8 @@
 
 #include <ie_algorithm.hpp>
 
+using ov::intel_gna::frontend::make_fp32_blob;
+
 namespace GNAPluginNS {
 class GNAFakeQuantizeLayer {
     InferenceEngine::CNNLayerPtr fqLayer;
@@ -22,7 +24,7 @@ class GNAFakeQuantizeLayer {
     }
 
     /**
-     * @brief convert FQ layer directly to gna-pwl activation layer
+     * @brief Convert FQ layer directly to gna-pwl activation layer
      */
     DnnActivation parseAsActivation() const {
         DnnActivation fqActivation{};
@@ -48,16 +50,17 @@ class GNAFakeQuantizeLayer {
 
         return fqActivation;
      }
-     /**
-      * retrieves input blob for FQ layer that connected to const layer
-      */
-     InferenceEngine::Blob::Ptr getConstInputData() const {
-         return LayerUtils::getParamFromInputAsBlob(fqLayer, 0);
-     }
 
-     /**
-      * fake quantize has 5 input layers, while 4 of them always constant layer, and 1 might be a tensor - connection
-      */
+    /**
+     * @brief Retrieve input blob for FQ layer that connected to const layer
+     */
+    InferenceEngine::Blob::Ptr getConstInputData() const {
+        return LayerUtils::getParamFromInputAsBlob(fqLayer, 0);
+    }
+
+    /**
+     * @brief Fake quantize has 5 input layers, while 4 of them always constant layer, and 1 might be a tensor - connection
+     */
     InferenceEngine::CNNLayerPtr getInputLayer() const {
         return getInputLayerAt(fqLayer, 0);
     }

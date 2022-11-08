@@ -122,6 +122,8 @@ foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
 endforeach()
 
 add_executable(ov_onnx_frontend_tests ${SRC})
+add_test(NAME ov_onnx_frontend_tests COMMAND ov_onnx_frontend_tests)
+set_property(TEST ov_onnx_frontend_tests PROPERTY LABELS OV ONNX_FE)
 
 add_dependencies(ov_onnx_frontend_tests template_extension)
 
