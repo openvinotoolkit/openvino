@@ -10,6 +10,7 @@
 #include "gna_plugin_config.hpp"
 #include "log/log.hpp"
 #include "common/gna_target.hpp"
+#include "common/numerical_utils.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "ie_common.h"
 #include <caseless.hpp>
@@ -53,12 +54,8 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
         auto key = item.first;
         auto value = item.second;
 
-        auto fp32eq = [](float p1, float p2) -> bool {
-            return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
-        };
-
         auto check_scale_factor = [&] (float scale_factor) {
-            if (fp32eq(scale_factor, 0.0f) || std::isinf(scale_factor)) {
+            if (ov::intel_gna::common::fp32eq(scale_factor, 0.0f) || std::isinf(scale_factor)) {
                 THROW_GNA_EXCEPTION << "input scale factor of 0.0f or +-inf not supported";
             }
         };

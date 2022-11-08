@@ -10,6 +10,7 @@
 #include "cnn.h"
 #include "backend/dnn_types.h"
 #include "backend/gna_limitations.hpp"
+#include "frontend/quantization.hpp"
 #include "gna_lib_ver_selector.hpp"
 #include "layers/gna_convolution_layer.hpp"
 #include "log/debug.hpp"
@@ -71,17 +72,8 @@ void CNNMaxPoolLegacy(intel_dnn_component_t *component, intel_dnn_number_type_t 
                     for (uint32_t k = j; k < num_end; k++) {
                         sum += ptr_inputs[k * in_c + i];
                     }
-                    constexpr int32_t sum_max_threshold = std::numeric_limits<int32_t>::max();
-                    constexpr int32_t sum_min_threshold = std::numeric_limits<int32_t>::min();
-                    if (sum > sum_max_threshold) {
-                        ptr_outputs[m * in_c + i] = sum_max_threshold;
-                        num_saturate++;
-                    } else if (sum < sum_min_threshold) {
-                        ptr_outputs[m * in_c + i] = sum_min_threshold;
-                        num_saturate++;
-                    } else {
-                        ptr_outputs[m * in_c + i] = static_cast<int32_t>(sum);
-                    }
+
+                    ptr_outputs[m * in_c + i] = ov::intel_gna::frontend::SaturationCast<int32_t>(sum, &num_saturate);
                     m++;
                 }
                 if (num_saturate > 0) {
