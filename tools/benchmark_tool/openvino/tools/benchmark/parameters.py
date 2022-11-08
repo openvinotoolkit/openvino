@@ -1,8 +1,7 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import sys,argparse
-from fnmatch import fnmatch
+import sys, argparse
 
 from openvino.tools.benchmark.utils.utils import show_available_devices
 
@@ -44,9 +43,8 @@ def parse_args():
                            'Default value is CPU. Use \'-d HETERO:<comma separated devices list>\' format to specify HETERO plugin. '
                            'Use \'-d MULTI:<comma separated devices list>\' format to specify MULTI plugin. '
                            'The application looks for a suitable plugin for the specified device.')
-    args.add_argument('-l', '--path_to_extension', type=str, required=False, default=None,
-                      help='Optional. Required for CPU custom layers. '
-                           'Absolute path to a shared library with the kernels implementations.')
+    args.add_argument('-extensions', '--extensions', type=str, required=False, default=None,
+                      help='Optional. Path or a comma-separated list of paths to libraries (.so or .dll) with extensions.')
     args.add_argument('-c', '--path_to_cldnn_config', type=str, required=False,
                       help='Optional. Required for GPU custom kernels. Absolute path to an .xml file with the '
                            'kernels description.')
@@ -99,7 +97,7 @@ def parse_args():
                            'Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency '
                            'estimations the number of streams should be set to 1. '
                            'See samples README for more details.')
-    args.add_argument('--latency_percentile', type=int, required=False, default=50, choices=range(1,101),
+    args.add_argument('--latency_percentile', type=int, required=False, default=50,
                       help='Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).')
     args.add_argument('-nthreads', '--number_threads', type=int, required=False, default=None,
                       help='Number of threads to use for inference on the CPU, GNA '
@@ -114,6 +112,12 @@ def parse_args():
                       help='Optional. Path to a file where to store executable graph information serialized.')
     args.add_argument('-pc', '--perf_counts', type=str2bool, required=False, default=False, nargs='?', const=True,
                       help='Optional. Report performance counters.', )
+    args.add_argument('-pcsort', '--perf_counts_sort', type=str, required=False, default="",
+                      choices=['no_sort', 'sort', 'simple_sort'],
+                      help='Optional. Report performance counters and analysis the sort hotpoint opts.'
+                           '  sort: Analysis opts time cost, print by hotpoint order'
+                           '  no_sort: Analysis opts time cost, print by normal order'
+                           '  simple_sort: Analysis opts time cost, only print EXECUTED opts by normal order', )
     args.add_argument('-pcseq', '--pcseq', type=str2bool, required=False, default=False, nargs='?', const=True,
                       help='Optional. Report latencies for each shape in -data_shape sequence.', )
     args.add_argument('-inference_only', '--inference_only', type=str2bool, required=False, default=None, nargs='?', const=True,
@@ -153,5 +157,9 @@ def parse_args():
                       help="Optional. Mean values to be used for the input image per channel.\n Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.\n"
                            "Example: -imean data[255,255,255],info[255,255,255]\n")
     parsed_args = parser.parse_args()
+
+    if parsed_args.latency_percentile < 0 or parsed_args.latency_percentile > 100:
+        parser.print_help()
+        raise RuntimeError("The percentile value is incorrect. The applicable values range is [1, 100].")
 
     return parsed_args

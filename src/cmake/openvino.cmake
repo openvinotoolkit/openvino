@@ -137,6 +137,7 @@ install(EXPORT OpenVINOTargets
 
 set(PUBLIC_HEADERS_DIR "${OpenVINO_SOURCE_DIR}/src/inference/include")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}/ie")
+set(IE_TBB_DIR "${TBB_DIR}")
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/InferenceEngineConfig.cmake"
@@ -246,8 +247,13 @@ if(ENABLE_PKGCONFIG_GEN)
             DESTINATION "${OV_CPACK_RUNTIMEDIR}/pkgconfig"
             COMPONENT ${OV_CPACK_COMP_CORE_DEV})
 
+    if (PKG_CONFIG_VERSION_STRING VERSION_LESS 0.29)
+        set(pkgconfig_option "--exists")
+    else()
+        set(pkgconfig_option "--validate")
+    endif()
     add_custom_command(TARGET openvino PRE_BUILD
-        COMMAND "${PKG_CONFIG_EXECUTABLE}" --validate "${pkgconfig_out}"
+        COMMAND "${PKG_CONFIG_EXECUTABLE}" "${pkgconfig_option}" "${pkgconfig_out}"
         COMMENT "[pkg-config] validating openvino.pc"
         VERBATIM)
 endif()

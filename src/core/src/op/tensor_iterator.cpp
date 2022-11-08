@@ -17,7 +17,7 @@ BWDCMP_RTTI_DEFINITION(op::v0::TensorIterator);
 op::v0::TensorIterator::TensorIterator(const OutputVector& values) : op::util::SubGraphOp(values) {}
 
 bool op::v0::TensorIterator::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_TensorIterator_visit_attributes);
+    OV_OP_SCOPE(v0_TensorIterator_visit_attributes);
     visitor.on_attribute("body", m_bodies[0]);
     visitor.on_attribute("input_descriptions", m_input_descriptions[0]);
     visitor.on_attribute("output_descriptions", m_output_descriptions[0]);
@@ -57,7 +57,7 @@ void op::v0::TensorIterator::revalidate_and_infer_types_for_body_ops() {
 }
 
 void op::v0::TensorIterator::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_TensorIterator_validate_and_infer_types);
+    OV_OP_SCOPE(v0_TensorIterator_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this, m_bodies.size() == 1, "Number of bodies for loop is greater than 1");
 
@@ -190,7 +190,7 @@ void op::v0::TensorIterator::try_to_set_num_iterations_if_no_slice_inputs() {
 }
 
 std::shared_ptr<Node> op::v0::TensorIterator::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_TensorIterator_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_TensorIterator_clone_with_new_inputs);
     auto op = make_shared<op::v0::TensorIterator>(new_args);
     NGRAPH_CHECK(op.get(), op != nullptr, "Cannot clone ", description(), " operation with name ", get_friendly_name());
     op->set_output_size(m_output_descriptions[0].size());

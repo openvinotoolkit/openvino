@@ -3,6 +3,7 @@
 //
 
 #include "op_table.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/opsets/opset9.hpp"
 
@@ -42,6 +43,9 @@ template OutputVector translate_unary_op<Cosh>(const NodeContext& node);
 template OutputVector translate_unary_op<Erf>(const NodeContext& node);
 template OutputVector translate_unary_op<Exp>(const NodeContext& node);
 template OutputVector translate_unary_op<Floor>(const NodeContext& node);
+template OutputVector translate_unary_op<opset10::IsFinite>(const NodeContext& node);
+template OutputVector translate_unary_op<opset10::IsInf>(const NodeContext& node);
+template OutputVector translate_unary_op<opset10::IsNaN>(const NodeContext& node);
 template OutputVector translate_unary_op<Log>(const NodeContext& node);
 template OutputVector translate_unary_op<LogicalNot>(const NodeContext& node);
 template OutputVector translate_unary_op<Mish>(const NodeContext& node);

@@ -12,6 +12,19 @@ if(CMAKE_COMPILER_IS_GNUCC)
     ie_add_compiler_flags(-Wno-all)
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # C4267, 4244 issues from mkl-dnn headers conversion from 'XXX' to 'YYY', possible loss of data
+    ie_add_compiler_flags(/wd4267)
+    ie_add_compiler_flags(/wd4244)
+    # mkldnn headers: '<<': result of 32-bit shift implicitly converted to 64 bits
+    ie_add_compiler_flags(/wd4334)
+    # plugin: inherits 'XXX' via dominance
+    ie_add_compiler_flags(/wd4250)
+    # '<': signed/unsigned mismatch
+    ie_add_compiler_flags(/wd4018)
+    ie_add_compiler_flags(/wd4309)
+endif()
+
 if (WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX")
 endif()
@@ -62,6 +75,7 @@ target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/sr
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
     $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
+target_compile_definitions(${TARGET_NAME} PRIVATE $<$<CONFIG:Debug>:DNNL_ENABLE_EXCEPTIONS>)
 
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk

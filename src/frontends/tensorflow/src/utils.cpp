@@ -4,10 +4,16 @@
 
 #include "utils.hpp"
 
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino_conversions.hpp"
 
+using namespace ov;
+using namespace ov::op;
+using namespace ov::opset10;
 using namespace ov::opset8;
+using namespace std;
+using namespace ov::frontend::tensorflow;
 
 void ov::frontend::tensorflow::set_node_name(const std::string& node_name, const std::shared_ptr<Node>& node) {
     const auto& outputs = node->outputs();
@@ -38,14 +44,15 @@ ov::op::PadType ov::frontend::tensorflow::convert_tf_padding(const ov::frontend:
                                            "AvgPool",
                                            "AvgPool3D"};
     auto op_type = node.get_op_type();
-
-    TENSORFLOW_OP_VALIDATION(node,
-                             supported_ops.count(op_type),
-                             "Conversion of padding mode for " + op_type + " is not supported.");
     TENSORFLOW_OP_VALIDATION(
         node,
-        tf_padding == "VALID" || tf_padding == "SAME" || tf_padding == "EXPLICIT",
-        "The deconvolutional operation must have one of the padding type: VALID, SAME, and EXPLICIT.");
+        supported_ops.count(op_type),
+        "OpenVINO TensorFlow Frontend does not support conversion of padding type for " + op_type + " operation.");
+
+    std::set<std::string> supported_modes = {"VALID", "SAME", "EXPLICIT"};
+    TENSORFLOW_OP_VALIDATION(node,
+                             supported_modes.count(tf_padding),
+                             "OpenVINO TensorFlow Frontend does not support " + tf_padding + " padding mode.");
 
     if (tf_padding == "VALID") {
         return ov::op::PadType::VALID;
@@ -197,4 +204,51 @@ void ov::frontend::tensorflow::default_op_checks(const ov::frontend::tensorflow:
 
 bool ov::frontend::tensorflow::is_conditional_edge(const std::string& input_tensor_name) {
     return input_tensor_name.length() > 0 && input_tensor_name[0] == '^';
+}
+
+ov::Output<ov::Node> ov::frontend::tensorflow::get_elements_number_1d(const ov::Output<ov::Node>& output,
+                                                                      ov::element::Type output_type,
+                                                                      ov::pass::NodeRegistry& rg) {
+    auto output_rank = output.get_partial_shape().rank();
+    if (output_rank.is_static() && output_rank.get_length() != 1) {
+        FRONT_END_OP_CONVERSION_CHECK(false,
+                                      "Internal error: get_elements_number_1d method supports only 1D input tensor.");
+    }
+    auto shape = rg.make<ShapeOf>(output, output_type);
+    auto num_elements = rg.make<Squeeze>(shape);
+    return num_elements;
+}
+
+PadMode ov::frontend::tensorflow::convert_padding_mode(const NodeContext& node, const std::string& padding_mode) {
+    std::set<std::string> supported_ops = {"MirrorPad"};
+    auto op_type = node.get_op_type();
+    TENSORFLOW_OP_VALIDATION(
+        node,
+        supported_ops.count(op_type),
+        "OpenVINO TensorFlow Frontend does not support conversion of padding mode for " + op_type + " operation.");
+
+    std::set<std::string> supported_modes = {"REFLECT", "SYMMETRIC"};
+    TENSORFLOW_OP_VALIDATION(node,
+                             supported_modes.count(padding_mode),
+                             "OpenVINO TensorFlow Frontend does not support " + padding_mode + " padding mode.");
+
+    if (padding_mode == "REFLECT") {
+        return PadMode::REFLECT;
+    } else if (padding_mode == "SYMMETRIC") {
+        return PadMode::SYMMETRIC;
+    }
+
+    return PadMode::REFLECT;
+}
+
+Output<Node> ov::frontend::tensorflow::compute_subgraph_scalar_rank(const Output<Node>& output,
+                                                                    element::Type output_type,
+                                                                    bool as_scalar) {
+    auto shape_of = make_shared<opset10::ShapeOf>(output, output_type);
+    auto rank_of = make_shared<opset10::ShapeOf>(shape_of, output_type);
+
+    if (as_scalar) {
+        return make_shared<opset10::Squeeze>(rank_of);
+    }
+    return rank_of;
 }

@@ -336,8 +336,7 @@ void remove_redundant_reorders::run(program& p) {
             if (!same_data_type && !allowed_dt_conversion_fuse)
                 continue;
 
-            auto next_node = node.get_users().empty() ? nullptr : node.get_users().front();
-            if (!lo.can_fuse_reorder_to_prev(input, next_node, input.get_output_layout().format, output_layout.format))
+            if (!lo.can_fuse_reorder_to_prev(input, node, input.get_output_layout().format, output_layout.format))
                 continue;
 
             auto old_output_layout_of_input = input.get_output_layout();
@@ -421,6 +420,7 @@ void remove_redundant_reorders::run(program& p) {
         auto& input = node->input();
 
         if (!(input.is_type<convolution>()) ||
+            (input.is_dynamic()) ||
             !(input.get_output_layout().format == format::b_fs_yx_fsv16) ||
             !(node->get_output_layout().format == format::bfyx))
             return false;

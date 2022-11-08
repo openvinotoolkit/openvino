@@ -1,3 +1,16 @@
+/* footer links */
+footer div.container div.footer-item p a {
+    float: left;
+    margin-right: 30px;
+}
+footer div.container div.footer-item p a:nth-child(1) {
+    margin-right: 50px;
+}
+footer div.container div.footer-item p:nth-child(2) {
+    clear: both;
+}
+
+/* misc */
 .switcher-set {
     margin-bottom:1rem;
 }
@@ -8,6 +21,31 @@ main img {
 
 .doxyrest-title-code-block {
     margin-bottom: 0;
+}
+/* doc version dropdown formatting override*/
+
+[aria-labelledby="version-selector"]  {
+    min-width: 125px!important;
+    overflow-x: hidden!important;
+}
+
+.sst-dropdown #version-selector {
+    min-width: 125px!important;
+}
+
+[aria-labelledby="version-selector"]  .dropdown-item { 
+    padding: 0.25rem 0.5rem!important;
+}
+
+/* Content in two columns */
+
+.row-two-col-content {
+    display: flex;
+}
+
+.column-two-col-content {
+    flex: 50%;
+    padding-right: 10px!important;
 }
 
 /* code reference text formatting override */

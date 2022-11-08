@@ -35,13 +35,13 @@ op::v3::NonZero::NonZero(const Output<Node>& arg, const element::Type& output_ty
 }
 
 bool ngraph::op::v3::NonZero::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v3_NonZero_visit_attributes);
+    OV_OP_SCOPE(v3_NonZero_visit_attributes);
     visitor.on_attribute("output_type", m_output_type);
     return true;
 }
 
 void op::v3::NonZero::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v3_NonZero_validate_and_infer_types);
+    OV_OP_SCOPE(v3_NonZero_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this,
                           m_output_type == element::i64 || m_output_type == element::i32,
@@ -71,7 +71,7 @@ void op::v3::NonZero::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v3::NonZero::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v3_NonZero_clone_with_new_inputs);
+    OV_OP_SCOPE(v3_NonZero_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v3::NonZero>(new_args.at(0), m_output_type);
 }
@@ -105,7 +105,7 @@ bool evaluate_nonzero_execute(const HostTensorPtr& input, const HostTensorPtr& o
 
 #define TYPE_OUT_CASE(a, ...)                                                     \
     case element::Type_t::a: {                                                    \
-        NGRAPH_OP_SCOPE(OV_PP_CAT3(evaluate_nonzero_out, _, a));                  \
+        OV_OP_SCOPE(OV_PP_CAT3(evaluate_nonzero_out, _, a));                      \
         rc = evaluate_nonzero_execute<INPUT_ET, element::Type_t::a>(__VA_ARGS__); \
     } break
 
@@ -150,12 +150,12 @@ bool evaluate_nonzero(const HostTensorPtr& input, const HostTensorPtr& output) {
 }  // namespace nonzero
 
 bool op::v3::NonZero::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v3_NonZero_evaluate);
+    OV_OP_SCOPE(v3_NonZero_evaluate);
     return nonzero::evaluate_nonzero(inputs[0], outputs[0]);
 }
 
 bool op::v3::NonZero::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v3_NonZero_has_evaluate);
+    OV_OP_SCOPE(v3_NonZero_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i8:
     case ngraph::element::i16:

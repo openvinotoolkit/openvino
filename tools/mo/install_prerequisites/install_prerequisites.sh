@@ -36,7 +36,7 @@ for ((i=1;i <= $#;i++)) {
 }
 
 VENV_DIR="$HOME/venv_openvino"
-SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" && pwd )"
+SCRIPTDIR="$( cd "$( dirname "$(realpath "${BASH_SOURCE[0]}")" )" && pwd )"
 
 if [[ -f /etc/centos-release ]]; then
     DISTRO="centos"
@@ -49,8 +49,6 @@ if [[ $DISTRO == "centos" ]]; then
         python_binary=python3.8
     elif command -v python3.7 >/dev/null 2>&1; then
         python_binary=python3.7
-    elif command -v python3.6 >/dev/null 2>&1; then
-        python_binary=python3.6
     fi
 else
     python_binary=python3
