@@ -706,6 +706,20 @@ void Graph::AllocateWithReuse() {
 
     edge_clusters.resize(edge_clusters_count);
 
+    // check if there is an input in the cluster.
+    // TODO: restrict to input nodes who is the to_layer of a backedge
+    std::vector<bool> edge_clusters_cat(edge_clusters_count, false);
+    if (!reuse_input_tensors) {
+        for (int i = 0; i < edge_clusters.size(); i++) {
+            for (auto &edge : edge_clusters[i]) {
+                if (edge->getParent()->getType() == Type::Input) {
+                    edge_clusters_cat[i] = true;
+                    break;
+                }
+            }
+        }
+    }
+
     const int64_t alignment = 32;  // 32 bytes
 
     std::vector<MemorySolver::Box> definedBoxes;
@@ -772,10 +786,14 @@ void Graph::AllocateWithReuse() {
         int count = 0;
         for (auto& edge : edge_clusters[box.id]) {
             if (edge->getStatus() == Edge::Status::NeedAllocation) {
-                int64_t offset = staticMemSolver.getOffset(box.id);
-                // !! Fallback to individual memory allocation !!
-                // if you like to check infer without reuse just call this function without arguments.
-                edge->allocate(workspace_ptr + offset * alignment);  // alignment in byte
+                if (edge_clusters_cat[box.id]) {
+                    edge->allocate();
+                } else {
+                    int64_t offset = staticMemSolver.getOffset(box.id);
+                    // !! Fallback to individual memory allocation !!
+                    // if you like to check infer without reuse just call this function without arguments.
+                    edge->allocate(workspace_ptr + offset * alignment);  // alignment in byte
+                }
 
                 // TODO: WA for some test (like strided_slice_test) which use tensors with
                 //       shapes {0}. And it is implisitly converted into {1} tensor.
@@ -797,12 +815,14 @@ void Graph::AllocateWithReuse() {
         for (size_t i = 1; i < undefinedBoxes.size(); ++i) {
             const auto& box = undefinedBoxes[i];
             bool groupFound = false;
-            for (auto& group : groups) {
-                const auto& lastBox = group.back();
-                if (lastBox.start > box.finish || lastBox.finish < box.start) {
-                    group.push_back(box);
-                    groupFound = true;
-                    break;
+            if (!edge_clusters_cat[box.id]) {
+                for (auto& group : groups) {
+                    const auto& lastBox = group.back();
+                    if (lastBox.start > box.finish || lastBox.finish < box.start) {
+                        group.push_back(box);
+                        groupFound = true;
+                        break;
+                    }
                 }
             }
 

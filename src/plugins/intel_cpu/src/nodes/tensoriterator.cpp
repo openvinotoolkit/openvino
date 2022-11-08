@@ -572,7 +572,7 @@ bool TensorIterator::isSupportedOperation(const std::shared_ptr<const ov::Node>&
 }
 
 TensorIterator::TensorIterator(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache), ngraphOp(op) {
+        Node(op, eng, cache), ngraphOp(op), sub_graph(false) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

@@ -35,6 +35,7 @@ public:
     };
 
     Graph() = default;
+    Graph(bool _reuse_input_tensors) : reuse_input_tensors {_reuse_input_tensors} {};
     ~Graph();
 
     Status GetStatus() {
@@ -266,6 +267,11 @@ private:
     MultiCachePtr rtParamsCache;
     std::shared_ptr<std::mutex> sharedMutex = nullptr;
     DnnlScratchPadPtr rtScratchPad;
+
+    // purpose: to optimize backedges of TensorIterator node by sharing body input tensor memory to
+    // body output tensor of a backedge and avoid memory spoil when memories are reused with memory
+    // manager.
+    bool reuse_input_tensors = true;  // default
 
     void EnforceBF16();
 };
