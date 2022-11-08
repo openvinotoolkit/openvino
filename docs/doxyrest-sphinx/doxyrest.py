@@ -281,6 +281,7 @@ class RefCodeBlock(Directive):
 
 
 class Scrollbox(Directive):
+    has_content = True
     required_arguments = 0
     optional_arguments = 1
     final_argument_whitespace = True
