@@ -1684,37 +1684,54 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data, uint8_t* dst_data, c
     size_t aux_buffer_size = mvnAttrs.execAcrossChannels_ ? 1 : rnd_up(C, blk_size);
     parallel_for(N, [&](size_t b) {
         std::vector<float> mean_buffer(aux_buffer_size * threads_num);
-        std::vector<float> variance_buffer(aux_buffer_size * threads_num);
+        std::vector<float> variance_buffer;
+        if (mvnAttrs.normalizeVariance_) {
+            variance_buffer.resize(aux_buffer_size * threads_num);
+        }
         size_t b_offset = b * C * D * H * W;
-        if (mvnAttrs.execAcrossChannels_) {
-            float size_inv = 1.f / static_cast<float>(C * D * H * W);
+
+        // kernel_type: 0 for mean, 1 for variance, 2 for normalization
+        auto worker = [&](const bool across_channel, const int kernel_type) {
             parallel_nt(0, [&](const int ithr, const int nthr) {
                 size_t start = 0, end = 0;
                 splitter(D * H * W, nthr, ithr, start, end);
 
                 auto arg = jit_mvn_call_args();
                 arg.src = src_data + (b_offset + (start * C)) * src_data_size;
-                arg.sum = &mean_buffer[aux_buffer_size * ithr];
-                arg.work_amount = static_cast<size_t>((end - start) * C);
-                (*mvn_mean_kernel)(&arg);
+                if (0 == kernel_type) {
+                    arg.sum = &mean_buffer[aux_buffer_size * ithr];
+                } else if (1 == kernel_type) {
+                    arg.mean = &mean_buffer[0];
+                    arg.variance = &variance_buffer[aux_buffer_size * ithr];
+                } else if (2 == kernel_type) {
+                    arg.dst = dst_data + (b_offset + (start * C)) * dst_data_size;
+                    arg.mean = &mean_buffer[0];
+                    if (mvnAttrs.normalizeVariance_)
+                        arg.variance = &variance_buffer[0];
+                    arg.oc_off = 0;
+                    arg.post_op_data = post_ops_data_;
+                }
+                arg.work_amount = (across_channel && kernel_type != 2) ? (end - start) * C : (end - start);
+
+                if (0 == kernel_type) {
+                    (*mvn_mean_kernel)(&arg);
+                } else if (1 == kernel_type) {
+                    (*mvn_variance_kernel)(&arg);
+                } else if (2 == kernel_type) {
+                    (*mvn_kernel)(&arg);
+                }
             });
+        };
+
+        if (mvnAttrs.execAcrossChannels_) {
+            float size_inv = 1.f / static_cast<float>(C * D * H * W);
+            worker(true, 0);
             for (size_t i = 1; i < threads_num; i++) {
                 mean_buffer[0] += mean_buffer[i];
             }
             mean_buffer[0] *= size_inv;
             if (mvnAttrs.normalizeVariance_) {
-                parallel_nt(0, [&](const int ithr, const int nthr) {
-                    size_t start = 0, end = 0;
-                    splitter(D * H * W, nthr, ithr, start, end);
-
-                    auto arg = jit_mvn_call_args();
-                    arg.src = src_data + (b_offset + (start * C)) * src_data_size;
-                    arg.mean = &mean_buffer[0];
-                    arg.variance = &variance_buffer[aux_buffer_size * ithr];
-                    arg.work_amount = static_cast<size_t>((end - start) * C);
-                    (*mvn_variance_kernel)(&arg);
-                });
-
+                worker(true, 1);
                 for (size_t i = 1; i < threads_num; i++) {
                     variance_buffer[0] += variance_buffer[i];
                 }
@@ -1722,73 +1739,19 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data, uint8_t* dst_data, c
                     variance_buffer[0] = 1.f / sqrtf(variance_buffer[0] * size_inv + mvnAttrs.epsValue_);
                 else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
                     variance_buffer[0] = 1.f / (sqrtf(variance_buffer[0] * size_inv) + mvnAttrs.epsValue_);
-
-                parallel_nt(0, [&](const int ithr, const int nthr) {
-                    size_t start = 0, end = 0;
-                    splitter(D * H * W, nthr, ithr, start, end);
-
-                    auto arg = jit_mvn_call_args();
-                    arg.src = src_data + (b_offset + (start * C)) * src_data_size;
-                    arg.dst = dst_data + (b_offset + (start * C)) * dst_data_size;
-                    arg.mean = &mean_buffer[0];
-                    arg.variance = &variance_buffer[0];
-                    arg.work_amount = static_cast<size_t>(end - start);
-                    arg.oc_off = 0;
-                    arg.post_op_data = post_ops_data_;
-                    (*mvn_kernel)(&arg);
-                });
-            } else {
-                parallel_nt(0, [&](const int ithr, const int nthr) {
-                    size_t start = 0, end = 0;
-                    splitter(D * H * W, nthr, ithr, start, end);
-
-                    auto arg = jit_mvn_call_args();
-                    arg.src = src_data + (b_offset + (start * C)) * src_data_size;
-                    arg.dst = dst_data + (b_offset + (start * C)) * dst_data_size;
-                    arg.mean = &mean_buffer[0];
-                    arg.work_amount = static_cast<size_t>(end - start);
-                    arg.oc_off = 0;
-                    arg.post_op_data = post_ops_data_;
-                    (*mvn_kernel)(&arg);
-                });
             }
+            worker(true, 2);
         } else {  // for per_channel
             float size_inv = 1.f / static_cast<float>(D * H * W);
-            parallel_nt(0, [&](const int ithr, const int nthr) {
-                size_t start = 0, end = 0;
-                splitter(D * H * W, nthr, ithr, start, end);
-                auto mean_buffer_ptr = &mean_buffer[aux_buffer_size * ithr];
-                memset(mean_buffer_ptr, 0, aux_buffer_size * sizeof(float));
-
-                auto arg = jit_mvn_call_args();
-                arg.src = src_data + (b_offset + (start * C)) * src_data_size;
-                arg.sum = mean_buffer_ptr;
-                arg.work_amount = static_cast<size_t>(end - start);
-                (*mvn_mean_kernel)(&arg);
-            });
-
+            worker(false, 0);
             for (size_t i = 1; i < threads_num; i++) {
                 for (size_t c = 0; c < C; c++)
                     mean_buffer[c] += mean_buffer[c + aux_buffer_size * i];
             }
             for (size_t c = 0; c < C; c++)
                 mean_buffer[c] *= size_inv;
-
             if (mvnAttrs.normalizeVariance_) {
-                parallel_nt(0, [&](const int ithr, const int nthr) {
-                    size_t start = 0, end = 0;
-                    splitter(D * H * W, nthr, ithr, start, end);
-                    auto variance_buffer_ptr = &variance_buffer[aux_buffer_size * ithr];
-                    memset(variance_buffer_ptr, 0, aux_buffer_size * sizeof(float));
-
-                    auto arg = jit_mvn_call_args();
-                    arg.src = src_data + (b_offset + (start * C)) * src_data_size;
-                    arg.mean = &mean_buffer[0];
-                    arg.variance = variance_buffer_ptr;
-                    arg.work_amount = static_cast<size_t>(end - start);
-                    (*mvn_variance_kernel)(&arg);
-                });
-
+                worker(false, 1);
                 for (size_t i = 1; i < threads_num; i++) {
                     for (size_t c = 0; c < C; c++)
                         variance_buffer[c] += variance_buffer[c + aux_buffer_size * i];
@@ -1799,36 +1762,8 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data, uint8_t* dst_data, c
                     else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
                         variance_buffer[c] = 1.f / (sqrtf(variance_buffer[c] * size_inv) + mvnAttrs.epsValue_);
                 }
-
-                parallel_nt(0, [&](const int ithr, const int nthr) {
-                    size_t start = 0, end = 0;
-                    splitter(D * H * W, nthr, ithr, start, end);
-
-                    auto arg = jit_mvn_call_args();
-                    arg.src = src_data + (b_offset + (start * C)) * src_data_size;
-                    arg.dst = dst_data + (b_offset + (start * C)) * dst_data_size;
-                    arg.mean = &mean_buffer[0];
-                    arg.variance = &variance_buffer[0];
-                    arg.work_amount = static_cast<size_t>(end - start);
-                    arg.oc_off = 0;
-                    arg.post_op_data = post_ops_data_;
-                    (*mvn_kernel)(&arg);
-                });
-            } else {
-                parallel_nt(0, [&](const int ithr, const int nthr) {
-                    size_t start = 0, end = 0;
-                    splitter(D * H * W, nthr, ithr, start, end);
-
-                    auto arg = jit_mvn_call_args();
-                    arg.src = src_data + (b_offset + (start * C)) * src_data_size;
-                    arg.dst = dst_data + (b_offset + (start * C)) * dst_data_size;
-                    arg.mean = &mean_buffer[0];
-                    arg.work_amount = static_cast<size_t>(end - start);
-                    arg.oc_off = 0;
-                    arg.post_op_data = post_ops_data_;
-                    (*mvn_kernel)(&arg);
-                });
             }
+            worker(false, 2);
         }
     });
 }
