@@ -512,6 +512,7 @@ private:
 #if defined(_MSC_VER)
 #    pragma warning(push)
 #    pragma warning(disable : 4018)
+#    pragma warning(disable : 4804)
 #endif
         if (!std::is_same<T, StorageDataType>::value) {
             OPENVINO_ASSERT(!std::numeric_limits<T>::is_signed ||
