@@ -51,7 +51,7 @@ enum class Type_t {
     u8,         //!< u8 element type
     u16,        //!< u16 element type
     u32,        //!< u32 element type
-    u64        //!< u64 element type
+    u64         //!< u64 element type
 };
 
 /// \brief Base class to define element type

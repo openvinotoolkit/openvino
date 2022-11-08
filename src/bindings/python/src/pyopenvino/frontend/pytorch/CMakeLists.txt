@@ -3,5 +3,4 @@
 #
 
 include(${pyopenvino_SOURCE_DIR}/frontend/frontend_module.cmake)
-# TODO: Is OV_CPACK_COMP_PYTHON_OPENVINO required? Purpose?
-frontend_module(py_pytorch_frontend pytorch ${OV_CPACK_COMP_PYTHON_OPENVINO}_${PYTHON_VERSION})
+frontend_module(py_pytorch_frontend pytorch ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion})

@@ -10,7 +10,7 @@ from openvino.pyopenvino import OpConversionFailure
 
 class TestAtenTo(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.random.randn(1, 3).astype(self.input_type),)
+        return (np.random.uniform(low=0.0, high=50.0, size=(3,)),)
 
     def create_model(self, type, non_blocking=False, copy=False, memory_format=None):
 

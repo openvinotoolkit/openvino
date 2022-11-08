@@ -15,7 +15,6 @@ namespace ov {
 namespace op {
 namespace util {
 
-// TODO: Consider removing this
 class OPENVINO_API FrameworkNodeAttrs {
 public:
     using attrs_t = std::unordered_map<std::string, std::string>;

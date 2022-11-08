@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #pragma once
 
 #include <openvino/opsets/opset8.hpp>
@@ -43,6 +47,12 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
 
 OutputVector convert_node(NodeContext* context);
 
+std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node, const std::string& type);
+
+// TODO: Elimitate the need of this function by implementing more accurate custom data type handling
+Any simplified_type_interpret(Any type);
+
+namespace op {
 template <OutputVector (*T)(NodeContext&), size_t idx = 0>
 OutputVector inplace_op(NodeContext& context) {
     auto translation_res = T(context);
@@ -66,7 +76,7 @@ OutputVector translate_1to1_match_1_inputs(NodeContext& context) {
 template <typename T>
 OutputVector translate_1to1_match_2_inputs(NodeContext& context) {
     auto inputs = context.inputs();
-    FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= 2, "Operation has no inputs.");
+    FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= 2, "Operation has less then 2 inputs.");
     for (int i = 2; i < inputs.size(); i++) {
         FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(i), "Got more inputs than expected.");
     }
@@ -74,15 +84,14 @@ OutputVector translate_1to1_match_2_inputs(NodeContext& context) {
     return {context.mark_node(std::make_shared<T>(inputs[0], inputs[1]))};
 }
 
-
 inline OutputVector return_false_scalar(NodeContext& context) {
     return {context.mark_node(opset8::Constant::create(element::boolean, Shape{}, {false}))};
 }
 
-std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node, const std::string& type);
-
-// TODO: Elimitate the need of this function by implementing more accurate custom data type handling
-Any simplified_type_interpret (Any type);
+inline OutputVector skip_node(NodeContext& context) {
+    return {context.get_input(0).get_node_shared_ptr()};
+}
+}  // namespace op
 
 }  // namespace pytorch
 }  // namespace frontend

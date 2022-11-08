@@ -141,8 +141,7 @@ bool PluginInfo::load_internal() {
         so = ov::util::load_shared_object(m_file_path.c_str());
 #endif
     } catch (const std::exception& ex) {
-        // TODO: How to activate OPENVINO_DEBUG for diagnostics inside MO?
-        std::cerr << "Error loading FrontEnd '" << m_file_path << "': " << ex.what() << std::endl;
+        OPENVINO_DEBUG << "Error loading FrontEnd '" << m_file_path << "': " << ex.what() << std::endl;
         return false;
     }
 

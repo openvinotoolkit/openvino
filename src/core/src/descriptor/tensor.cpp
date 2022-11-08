@@ -14,7 +14,7 @@ ov::descriptor::Tensor::Tensor(const element::Type& element_type, const PartialS
       m_name(name),
       m_shape_changed(true) {}
 
-ov::descriptor::Tensor::Tensor(const ov::element::Type& element_type,
+ov::descriptor::Tensor::Tensor(const element::Type& element_type,
                                const PartialShape& pshape,
                                ngraph::Node* node,
                                size_t node_output_number)
