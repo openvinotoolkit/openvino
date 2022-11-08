@@ -122,7 +122,7 @@ struct CPUStreamsExecutor::Impl {
                         hybrid_core ? (selected_core_type == 0 ? _impl->_config._threads_per_stream_small
                                                                : _impl->_config._threads_per_stream_big)
                                     : _impl->_config._threads_per_stream_big;
-                                    // Special handling of _threads_per_stream_small == 3
+                    // Special handling of _threads_per_stream_small == 3
                     const auto small_core_id = (selected_core_type == 0 && small_core_skip)
                                                    ? 0
                                                    : streamId_wrapped - _impl->_config._big_core_streams;
