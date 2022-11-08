@@ -116,7 +116,7 @@ class NodeFactory(object):
         """
         # Trim first part of the name if there is only one level of attribute hierarchy.
         if attr_name.count(".") == 1:
-            attr_name = attr_name[attr_name.find(".") + 1 :]
+            attr_name = attr_name[attr_name.find(".") + 1:]
         return prefix + attr_name.replace(".", "_")
 
     @classmethod

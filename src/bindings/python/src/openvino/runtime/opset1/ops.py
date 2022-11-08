@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-# mypy: ignore-errors  # noqa: E800
 
 """Factory functions for all openvino ops."""
 from typing import List, Optional, Union

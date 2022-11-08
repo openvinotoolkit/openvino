@@ -1,6 +1,5 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-# mypy: ignore-errors  # noqa: E800
 
 import logging
 from typing import List, Optional
