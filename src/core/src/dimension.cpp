@@ -49,6 +49,14 @@ int64_t stringToInt64(const std::string& valStr) {
     return ret;
 }
 
+bool check_all_digits(const std::string& value) {
+    auto val = ov::util::trim(value);
+    for (const auto& c : val) {
+        if (!std::isdigit(c) || c == '-')
+            return false;
+    }
+    return true;
+}
 Dimension::value_type dimension_length(Interval::value_type vt) {
     return vt == Interval::s_max ? -1 : vt;
 }
@@ -83,7 +91,7 @@ Dimension::Dimension(const std::string& value) {
         return;
     }
     if (val.find("..") == std::string::npos) {
-        OPENVINO_ASSERT(ov::util::check_all_digits(val), "Cannot parse dimension: \"" + val + "\"");
+        OPENVINO_ASSERT(check_all_digits(val), "Cannot parse dimension: \"" + val + "\"");
         m_dimension = {stringToInt64(val)};
         return;
     }
