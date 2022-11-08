@@ -99,7 +99,6 @@ mo -h
 You will see the help message for Model Optimizer if installation finished successfully.
 
 
-<a name="cpp-developers"></a>
 
 ## <a name="get-started"></a>What's Next?
 Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials.
