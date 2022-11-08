@@ -125,7 +125,8 @@ struct CPUStreamsExecutor::Impl {
                             : streamId_wrapped;
                     const auto thread_binding_step = hybrid_core ? (small_core ? _impl->_config._threadBindingStep : 2)
                                                                  : _impl->_config._threadBindingStep;
-                    // Special handling of _threads_per_stream_small == 3, need to skip 4
+                    // Special handling of _threads_per_stream_small == 3, need to skip 4 (Four cores share one L2 cache
+                    // on the small core), stream_id = 0, cpu_idx_offset cumulative plus 4
                     const auto small_core_offset =
                         small_core_skip ? _impl->_config._small_core_offset + (streamId_wrapped - big_core_streams) * 4
                                         : _impl->_config._small_core_offset;
