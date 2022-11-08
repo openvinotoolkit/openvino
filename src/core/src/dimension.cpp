@@ -8,10 +8,10 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
+#include <openvino/util/common_util.hpp>
 #include <sstream>
 
 #include "dimension_tracker.hpp"
-#include "dimension_util.hpp"
 
 using namespace ngraph;
 
@@ -103,7 +103,7 @@ Dimension::Dimension(const std::string& value) {
     if (min_value_str.empty())
         min_value = 0;
     else {
-        OPENVINO_ASSERT(ov::util::check_all_digits(min_value_str), "Cannot parse min bound: \"" + min_value_str + "\"");
+        OPENVINO_ASSERT(check_all_digits(min_value_str), "Cannot parse min bound: \"" + min_value_str + "\"");
         min_value = stringToInt64(min_value_str);
     }
 
@@ -114,7 +114,7 @@ Dimension::Dimension(const std::string& value) {
     if (max_value_str.empty())
         max_value = Interval::s_max;
     else {
-        OPENVINO_ASSERT(ov::util::check_all_digits(max_value_str), "Cannot parse max bound: \"" + max_value_str + "\"");
+        OPENVINO_ASSERT(check_all_digits(max_value_str), "Cannot parse max bound: \"" + max_value_str + "\"");
         max_value = stringToInt64(max_value_str);
     }
     m_dimension = Interval(min_value, max_value);
