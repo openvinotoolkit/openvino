@@ -47,7 +47,7 @@ void normalize_block_shape_pads_crops(const NodeContext& node,
 
     // normalize pads_begin and pads_end to have it of the same length as the input rank
     auto zero_const = make_shared<Constant>(pads_crops_begin.get_element_type(), Shape{}, 0);
-    auto pad_mode = ov::op::PadMode ::CONSTANT;
+    auto pad_mode = ov::op::PadMode::CONSTANT;
     pads_crops_begin = make_shared<Pad>(pads_crops_begin, num_begin, num_end, zero_const, pad_mode)->output(0);
     pads_crops_end = make_shared<Pad>(pads_crops_end, num_begin, num_end, zero_const, pad_mode)->output(0);
 }
