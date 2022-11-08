@@ -31,22 +31,12 @@ void shape_infer(const TopK* op,
 
     auto output_shape = input_shape;
     if (input_shape.rank().is_static()) {
-        ov::PartialShape k_as_shape;
+        T k_as_shape;
         auto input_rank = static_cast<int64_t>(input_shape.size());
         auto normalized_axis = ov::normalize_axis(op, op->get_provided_axis(), input_rank, -input_rank, input_rank - 1);
         auto& dim_axis = output_shape[normalized_axis];
 
-        std::vector<int64_t> k_as_vals;
-        bool k_is_set = get_data_as_int64<T>(1, op, k_as_vals, constant_data);
-        if (k_is_set) {
-            NODE_VALIDATION_CHECK(op,
-                                  k_as_vals.size() == 1,
-                                  "Only one value (scalar) should be provided as the 'K' input to TopK",
-                                  " (got ",
-                                  k_as_vals.size(),
-                                  " elements).");
-            dim_axis = k_as_vals[0];
-        } else if (ov::evaluate_as_partial_shape(op->input_value(1), k_as_shape)) {
+        if (get_data_as_shape<T>(1, op, k_as_shape, constant_data)) {
             NODE_VALIDATION_CHECK(op,
                                   k_as_shape.size() == 1,
                                   "Only one value (scalar) should be provided as the 'K' input to TopK",

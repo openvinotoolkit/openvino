@@ -20,6 +20,7 @@ template <class T>
 void shape_infer(const NonMaxSuppression* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
+                 bool static_output = false,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 3);
 
@@ -70,18 +71,14 @@ void shape_infer(const NonMaxSuppression* op,
         if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static()) {
             const auto num_boxes = num_boxes_boxes.get_length();
             const auto num_classes = scores_ps[1].get_length();
-            int64_t max_output_boxes_per_class = 0;
             std::vector<int64_t> max_output_boxes_per_class_as_vals;
-            bool status = get_data_as_int64<T>(1, op, max_output_boxes_per_class_as_vals, constant_data);
-            if (constant_data.count(1) && status) {
-                max_output_boxes_per_class = max_output_boxes_per_class_as_vals[0];
-                out_shape[0] =
-                    std::min(num_boxes, max_output_boxes_per_class) * num_classes * scores_ps[0].get_length();
-            } else if (op->get_input_size() > 2 && has_and_set_equal_bounds(op->input_value(2))) {
-                max_output_boxes_per_class = op->max_boxes_output_from_input();
-                out_shape[0] = Dimension(
-                    0,
-                    std::min(num_boxes, max_output_boxes_per_class) * num_classes * scores_ps[0].get_length());
+            if (get_data_as_int64<T>(2, op, max_output_boxes_per_class_as_vals, constant_data)) {
+                int64_t max_output_boxes_per_class = max_output_boxes_per_class_as_vals[0];
+                out_shape[0] = static_output ? std::min(num_boxes, max_output_boxes_per_class) * num_classes *
+                                                   scores_ps[0].get_length()
+                                             : Dimension(0,
+                                                         std::min(num_boxes, max_output_boxes_per_class) * num_classes *
+                                                             scores_ps[0].get_length());
             }
         }
     }

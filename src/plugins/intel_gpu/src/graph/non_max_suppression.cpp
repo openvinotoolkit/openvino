@@ -51,8 +51,8 @@ std::vector<layout> non_max_suppression_inst::calc_output_layouts(non_max_suppre
                                                                                       impl_param.prog->get_stream());
         auto max_output_boxes_per_class_tensor = make_host_tensor(max_output_boxes_per_class_mem->get_layout(),
                                                                   max_output_boxes_per_class_lock.data());
-        const_data.emplace(1, max_output_boxes_per_class_tensor);
-        ov::op::v9::shape_infer(&op, input_shapes, output_shapes, const_data);
+        const_data.emplace(2, max_output_boxes_per_class_tensor);
+        ov::op::v9::shape_infer(&op, input_shapes, output_shapes, true, const_data);
     }
 
     for (size_t i = 0; i < desc->num_outputs; ++i) {
