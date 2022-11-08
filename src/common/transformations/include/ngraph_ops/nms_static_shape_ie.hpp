@@ -113,10 +113,6 @@ void NmsStaticShapeIE<BaseNmsOp>::validate_and_infer_types() {
     }
 }
 
-#ifdef __clang__
-extern template class TRANSFORMATIONS_API op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>;
-#endif  // __clang__
-
 }  // namespace internal
 }  // namespace op
 }  // namespace ov
