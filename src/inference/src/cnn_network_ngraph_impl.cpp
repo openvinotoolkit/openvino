@@ -86,10 +86,12 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
     } else if (rank >= 0) {
         dims = SizeVector(rank, 0);
     }
-    // query shape from ngraph::Parameter output shape and check there are no zeros in it
-    for (const auto& dim : shape) {
-        if (dim.is_static() && dim.get_length() == 0)
-            IE_THROW() << outName << " has zero dimension which is not allowed";
+    if (!_new_api) {
+        // query shape from ngraph::Parameter output shape and check there are no zeros in it
+        for (const auto& dim : shape) {
+            if (dim.is_static() && dim.get_length() == 0)
+                IE_THROW() << outName << " has zero dimension which is not allowed";
+        }
     }
 
     const Layout rankLayout = rank < 0 ? Layout::BLOCKED : TensorDesc::getLayoutByRank(rank);
@@ -165,9 +167,9 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
             Precision prc = info->getPrecision();
 
             // Convert precision into native format (keep element size)
-            prc = prc == Precision::Q78
-                      ? Precision::I16
-                      : prc == Precision::FP16 ? Precision::FP32 : static_cast<Precision::ePrecision>(prc);
+            prc = prc == Precision::Q78    ? Precision::I16
+                  : prc == Precision::FP16 ? Precision::FP32
+                                           : static_cast<Precision::ePrecision>(prc);
 
             info->setPrecision(details::convertPrecision(toLegacyType(details::convertPrecision(prc), true)));
         }
@@ -586,8 +588,9 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
     return OK;
 }
 
-StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& binBuf, ResponseDesc* resp) const
-    noexcept {
+StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf,
+                                           std::ostream& binBuf,
+                                           ResponseDesc* resp) const noexcept {
     try {
         std::map<std::string, ngraph::OpSet> custom_opsets;
         for (const auto& extension : _ie_extensions) {
@@ -608,8 +611,9 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& b
     return OK;
 }
 
-StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binBlob, ResponseDesc* resp) const
-    noexcept {
+StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf,
+                                           Blob::Ptr& binBlob,
+                                           ResponseDesc* resp) const noexcept {
     try {
         std::map<std::string, ngraph::OpSet> custom_opsets;
         for (const auto& extension : _ie_extensions) {

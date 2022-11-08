@@ -48,10 +48,6 @@ IInferRequestInternal::IInferRequestInternal(const std::vector<std::shared_ptr<c
         } else if (rank >= 0) {
             dims = SizeVector(rank, 0);
         }
-        for (const auto& dim : shape) {
-            if (dim.is_static() && dim.get_length() == 0)
-                IE_THROW() << name << " has zero dimension which is not allowed";
-        }
         const Layout rankLayout = rank < 0 ? Layout::BLOCKED : TensorDesc::getLayoutByRank(rank);
         const auto precision = InferenceEngine::details::convertPrecision(output.get_element_type());
         return std::make_shared<Data>(name, TensorDesc{precision, dims, rankLayout});
