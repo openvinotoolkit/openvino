@@ -11,6 +11,16 @@
 
 There are several macros to help enable conditional compilation(CC) feature for new component, and in each CC mode(SELECTIVE_BUILD_ANALYZER and SELECTIVE_BUILD) they must be defined with same name but difference macro content definition. Developer can apply or reference these macros for own component's conditional compilation enablement. You can find these macros in [selective_buld.h](https://github.com/openvinotoolkit/openvino/blob/master/src/common/conditional_compilation/include/openvino/cc/selective_build.h) and [itt.hpp](https://github.com/openvinotoolkit/openvino/blob/master/src/common/conditional_compilation/include/openvino/cc/pass/itt.hpp).
 
+
+|  Macros | SELECTIVE_BUILD_ANALYZER | SELECTIVE_BUILD | Non Conditional Compilation |
+|---------|--------------------------| ----------------|-----------------------------|
+| OV_CC_DOMAINS | defines CC domains |  empty | empty  |
+| OV_SCOPE | annotate code region | exclude inactive code region | empty |
+| OV_SWITCH | annotate match template parameter | exclude inactive template class instance | match template parameter  |
+| MATCHER_SCOPE | defines a string for matcher name | exclude inactive code region   | empty   |
+| RUN_ON_FUNCTION_SCOPE | annotate code region | exclude inactive code region | empty |
+| RUN_ON_MODEL_SCOPE | annotate code region | exclude inactive code region | empty |
+
 ### 1. Macro in SELECTIVE_BUILD_ANALYZER mode
 #### OV_CC_DOMAINS
 It defines domains for conditional compilation, in which contains 3 macros to define detail domains(simple scope, switch/cases and factories). The implement code is:
