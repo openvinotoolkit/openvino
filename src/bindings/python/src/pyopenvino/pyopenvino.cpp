@@ -7,7 +7,6 @@
 #include <openvino/core/model.hpp>
 #include <openvino/core/node.hpp>
 #include <openvino/core/version.hpp>
-#include <sstream>
 #include <string>
 
 #include "openvino/runtime/core.hpp"
