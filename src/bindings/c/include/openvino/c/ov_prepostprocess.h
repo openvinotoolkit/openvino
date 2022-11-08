@@ -99,15 +99,17 @@ typedef enum {
  * @param preprocess A pointer to the ov_preprocess_prepostprocessor_t.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_preprocess_prepostprocessor_create(const ov_model_t* model,
-                                ov_preprocess_prepostprocessor_t** preprocess);
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_prepostprocessor_create(const ov_model_t* model,
+                                      ov_preprocess_prepostprocessor_t** preprocess);
 
 /**
  * @brief Release the memory allocated by ov_preprocess_prepostprocessor_t.
  * @ingroup ov_prepostprocess_c_api
  * @param preprocess A pointer to the ov_preprocess_prepostprocessor_t to free memory.
  */
-OPENVINO_C_API(void) ov_preprocess_prepostprocessor_free(ov_preprocess_prepostprocessor_t* preprocess);
+OPENVINO_C_API(void)
+ov_preprocess_prepostprocessor_free(ov_preprocess_prepostprocessor_t* preprocess);
 
 /**
  * @brief Get the input info of ov_preprocess_prepostprocessor_t instance.
@@ -116,9 +118,10 @@ OPENVINO_C_API(void) ov_preprocess_prepostprocessor_free(ov_preprocess_prepostpr
  * @param preprocess_input_info A pointer to the ov_preprocess_input_info_t.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_preprocess_prepostprocessor_get_input_info(
-                                const ov_preprocess_prepostprocessor_t* preprocess,
-                                ov_preprocess_input_info_t** preprocess_input_info);
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_prepostprocessor_get_input_info(
+                            const ov_preprocess_prepostprocessor_t* preprocess,
+                            ov_preprocess_input_info_t** preprocess_input_info);
 
 /**
  * @brief Get the input info of ov_preprocess_prepostprocessor_t instance by tensor name.
@@ -128,7 +131,8 @@ OPENVINO_C_API(ov_status_e) ov_preprocess_prepostprocessor_get_input_info(
  * @param preprocess_input_info A pointer to the ov_preprocess_input_info_t.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_preprocess_prepostprocessor_get_input_info_by_name(
+OPENVINO_C_API(ov_status_e) 
+ov_preprocess_prepostprocessor_get_input_info_by_name(
                                 const ov_preprocess_prepostprocessor_t* preprocess,
                                 const char* tensor_name,
                                 ov_preprocess_input_info_t** preprocess_input_info);
@@ -141,7 +145,8 @@ OPENVINO_C_API(ov_status_e) ov_preprocess_prepostprocessor_get_input_info_by_nam
  * @param preprocess_input_info A pointer to the ov_preprocess_input_info_t.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_preprocess_prepostprocessor_get_input_info_by_index(
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_prepostprocessor_get_input_info_by_index(
                                 const ov_preprocess_prepostprocessor_t* preprocess,
                                 const size_t tensor_index,
                                 ov_preprocess_input_info_t** preprocess_input_info);
@@ -151,7 +156,8 @@ OPENVINO_C_API(ov_status_e) ov_preprocess_prepostprocessor_get_input_info_by_ind
  * @ingroup ov_prepostprocess_c_api
  * @param preprocess_input_info A pointer to the ov_preprocess_input_info_t to free memory.
  */
-OPENVINO_C_API(void) ov_preprocess_input_info_free(ov_preprocess_input_info_t* preprocess_input_info);
+OPENVINO_C_API(void)
+ov_preprocess_input_info_free(ov_preprocess_input_info_t* preprocess_input_info);
 
 /**
  * @brief Get a ov_preprocess_input_tensor_info_t.
@@ -160,7 +166,8 @@ OPENVINO_C_API(void) ov_preprocess_input_info_free(ov_preprocess_input_info_t* p
  * @param preprocess_input_tensor_info A pointer to ov_preprocess_input_tensor_info_t.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_preprocess_input_info_get_tensor_info(
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_input_info_get_tensor_info(
                                 const ov_preprocess_input_info_t* preprocess_input_info,
                                 ov_preprocess_input_tensor_info_t** preprocess_input_tensor_info);
 
@@ -169,8 +176,8 @@ OPENVINO_C_API(ov_status_e) ov_preprocess_input_info_get_tensor_info(
  * @ingroup ov_prepostprocess_c_api
  * @param preprocess_input_tensor_info A pointer to the ov_preprocess_input_tensor_info_t to free memory.
  */
-OPENVINO_C_API(void) ov_preprocess_input_tensor_info_free(
-                        ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info);
+OPENVINO_C_API(void)
+ov_preprocess_input_tensor_info_free(ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info);
 
 /**
  * @brief Get a ov_preprocess_preprocess_steps_t.
@@ -179,7 +186,8 @@ OPENVINO_C_API(void) ov_preprocess_input_tensor_info_free(
  * @param preprocess_input_steps A pointer to ov_preprocess_preprocess_steps_t.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_preprocess_input_info_get_preprocess_steps(
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_input_info_get_preprocess_steps(
                                 const ov_preprocess_input_info_t* preprocess_input_info,
                                 ov_preprocess_preprocess_steps_t** preprocess_input_steps);
 
@@ -188,7 +196,8 @@ OPENVINO_C_API(ov_status_e) ov_preprocess_input_info_get_preprocess_steps(
  * @ingroup ov_prepostprocess_c_api
  * @param preprocess_input_steps A pointer to the ov_preprocess_preprocess_steps_t to free memory.
  */
-OPENVINO_C_API(void) ov_preprocess_preprocess_steps_free(
+OPENVINO_C_API(void)
+ov_preprocess_preprocess_steps_free(
                         ov_preprocess_preprocess_steps_t* preprocess_input_process_steps);
 
 /**
@@ -198,7 +207,8 @@ OPENVINO_C_API(void) ov_preprocess_preprocess_steps_free(
  * @param resize_algorithm A ov_preprocess_resizeAlgorithm instance
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_preprocess_preprocess_steps_resize(
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_preprocess_steps_resize(
                                 ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
                                 const ov_preprocess_resize_algorithm_e resize_algorithm);
 
@@ -208,7 +218,8 @@ OPENVINO_C_API(ov_status_e) ov_preprocess_preprocess_steps_resize(
  * @param preprocess_input_tensor_info A pointer to the ov_preprocess_input_tensor_info_t.
  * @param element_type A point to element_type
  */
-OPENVINO_C_API(ov_status_e) ov_preprocess_input_tensor_info_set_element_type(
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_input_tensor_info_set_element_type(
                                 ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
                                 const ov_element_type_e element_type);
 
@@ -218,7 +229,8 @@ OPENVINO_C_API(ov_status_e) ov_preprocess_input_tensor_info_set_element_type(
  * @param preprocess_input_tensor_info A pointer to the ov_preprocess_input_tensor_info_t.
  * @param colorFormat The enumerate of colorFormat
  */
-OPENVINO_C_API(ov_status_e) ov_preprocess_input_tensor_info_set_color_format(
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_input_tensor_info_set_color_format(
                                 ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
                                 const ov_color_format_e colorFormat);
 
@@ -229,7 +241,8 @@ OPENVINO_C_API(ov_status_e) ov_preprocess_input_tensor_info_set_color_format(
  * @param input_height The height of input
  * @param input_width The width of input
  */
-OPENVINO_C_API(ov_status_e) ov_preprocess_input_tensor_info_set_spatial_static_shape(
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_input_tensor_info_set_spatial_static_shape(
                                 ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
                                 const size_t input_height,
                                 const size_t input_width);
@@ -240,7 +253,8 @@ OPENVINO_C_API(ov_status_e) ov_preprocess_input_tensor_info_set_spatial_static_s
  * @param preprocess_input_steps A pointer to the ov_preprocess_preprocess_steps_t.
  * @param element_type preprocess input element type.
  */
-OPENVINO_C_API(ov_status_e) ov_preprocess_preprocess_steps_convert_element_type(
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_preprocess_steps_convert_element_type(
                                 ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
                                 const ov_element_type_e element_type);
 
@@ -250,7 +264,8 @@ OPENVINO_C_API(ov_status_e) ov_preprocess_preprocess_steps_convert_element_type(
  * @param preprocess_input_steps A pointer to the ov_preprocess_preprocess_steps_t.
  * @param colorFormat The enumerate of colorFormat.
  */
-OPENVINO_C_API(ov_status_e) ov_preprocess_preprocess_steps_convert_color(
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_preprocess_steps_convert_color(
                                 ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
                                 const ov_color_format_e colorFormat);
 
@@ -260,7 +275,8 @@ OPENVINO_C_API(ov_status_e) ov_preprocess_preprocess_steps_convert_color(
  * @param preprocess_input_tensor_info A pointer to the ov_preprocess_input_tensor_info_t.
  * @param tensor A point to ov_tensor_t
  */
-OPENVINO_C_API(ov_status_e) ov_preprocess_input_tensor_info_set_from(
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_input_tensor_info_set_from(
                                 ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
                                 const ov_tensor_t* tensor);
 
@@ -270,7 +286,8 @@ OPENVINO_C_API(ov_status_e) ov_preprocess_input_tensor_info_set_from(
  * @param preprocess_input_tensor_info A pointer to the ov_preprocess_input_tensor_info_t.
  * @param layout A point to ov_layout_t
  */
-OPENVINO_C_API(ov_status_e) ov_preprocess_input_tensor_info_set_layout(
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_input_tensor_info_set_layout(
                                 ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
                                 ov_layout_t* layout);
 
@@ -281,7 +298,8 @@ OPENVINO_C_API(ov_status_e) ov_preprocess_input_tensor_info_set_layout(
  * @param preprocess_output_info A pointer to the ov_preprocess_output_info_t.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_preprocess_prepostprocessor_get_output_info(
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_prepostprocessor_get_output_info(
                                 const ov_preprocess_prepostprocessor_t* preprocess,
                                 ov_preprocess_output_info_t** preprocess_output_info);
 
@@ -293,7 +311,8 @@ OPENVINO_C_API(ov_status_e) ov_preprocess_prepostprocessor_get_output_info(
  * @param preprocess_output_info A pointer to the ov_preprocess_output_info_t.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_preprocess_prepostprocessor_get_output_info_by_index(
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_prepostprocessor_get_output_info_by_index(
                                 const ov_preprocess_prepostprocessor_t* preprocess,
                                 const size_t tensor_index,
                                 ov_preprocess_output_info_t** preprocess_output_info);
@@ -306,7 +325,8 @@ OPENVINO_C_API(ov_status_e) ov_preprocess_prepostprocessor_get_output_info_by_in
  * @param preprocess_output_info A pointer to the ov_preprocess_output_info_t.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_preprocess_prepostprocessor_get_output_info_by_name(
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_prepostprocessor_get_output_info_by_name(
                                 const ov_preprocess_prepostprocessor_t* preprocess,
                                 const char* tensor_name,
                                 ov_preprocess_output_info_t** preprocess_output_info);
@@ -316,7 +336,8 @@ OPENVINO_C_API(ov_status_e) ov_preprocess_prepostprocessor_get_output_info_by_na
  * @ingroup ov_prepostprocess_c_api
  * @param preprocess_output_info A pointer to the ov_preprocess_output_info_t to free memory.
  */
-OPENVINO_C_API(void) ov_preprocess_output_info_free(ov_preprocess_output_info_t* preprocess_output_info);
+OPENVINO_C_API(void)
+ov_preprocess_output_info_free(ov_preprocess_output_info_t* preprocess_output_info);
 
 /**
  * @brief Get a ov_preprocess_input_tensor_info_t.
@@ -325,7 +346,8 @@ OPENVINO_C_API(void) ov_preprocess_output_info_free(ov_preprocess_output_info_t*
  * @param preprocess_output_tensor_info A pointer to the ov_preprocess_output_tensor_info_t.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_preprocess_output_info_get_tensor_info(
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_output_info_get_tensor_info(
                                 const ov_preprocess_output_info_t* preprocess_output_info,
                                 ov_preprocess_output_tensor_info_t** preprocess_output_tensor_info);
 
@@ -334,7 +356,8 @@ OPENVINO_C_API(ov_status_e) ov_preprocess_output_info_get_tensor_info(
  * @ingroup ov_prepostprocess_c_api
  * @param preprocess_output_tensor_info A pointer to the ov_preprocess_output_tensor_info_t to free memory.
  */
-OPENVINO_C_API(void) ov_preprocess_output_tensor_info_free(
+OPENVINO_C_API(void)
+ov_preprocess_output_tensor_info_free(
                         ov_preprocess_output_tensor_info_t* preprocess_output_tensor_info);
 
 /**
@@ -343,7 +366,8 @@ OPENVINO_C_API(void) ov_preprocess_output_tensor_info_free(
  * @param preprocess_output_tensor_info A pointer to the ov_preprocess_output_tensor_info_t.
  * @param element_type A point to element_type
  */
-OPENVINO_C_API(ov_status_e) ov_preprocess_output_set_element_type(
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_output_set_element_type(
                                 ov_preprocess_output_tensor_info_t* preprocess_output_tensor_info,
                                 const ov_element_type_e element_type);
 
@@ -354,7 +378,8 @@ OPENVINO_C_API(ov_status_e) ov_preprocess_output_set_element_type(
  * @param preprocess_input_model_info A pointer to the ov_preprocess_input_model_info_t
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_preprocess_input_info_get_model_info(
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_input_info_get_model_info(
                                 const ov_preprocess_input_info_t* preprocess_input_info,
                                 ov_preprocess_input_model_info_t** preprocess_input_model_info);
 
@@ -363,7 +388,8 @@ OPENVINO_C_API(ov_status_e) ov_preprocess_input_info_get_model_info(
  * @ingroup ov_prepostprocess_c_api
  * @param preprocess_input_model_info A pointer to the ov_preprocess_input_model_info_t to free memory.
  */
-OPENVINO_C_API(void) ov_preprocess_input_model_info_free(ov_preprocess_input_model_info_t* preprocess_input_model_info);
+OPENVINO_C_API(void)
+ov_preprocess_input_model_info_free(ov_preprocess_input_model_info_t* preprocess_input_model_info);
 
 /**
  * @brief Set layout for model's input tensor.
@@ -371,7 +397,8 @@ OPENVINO_C_API(void) ov_preprocess_input_model_info_free(ov_preprocess_input_mod
  * @param preprocess_input_model_info A pointer to the ov_preprocess_input_model_info_t
  * @param layout A point to ov_layout_t
  */
-OPENVINO_C_API(ov_status_e) ov_preprocess_input_model_info_set_layout(
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_input_model_info_set_layout(
                                 ov_preprocess_input_model_info_t* preprocess_input_model_info,
                                 ov_layout_t* layout);
 
@@ -382,5 +409,6 @@ OPENVINO_C_API(ov_status_e) ov_preprocess_input_model_info_set_layout(
  * @param model A pointer to the ov_model_t.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_preprocess_prepostprocessor_build(
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_prepostprocessor_build(
                                 const ov_preprocess_prepostprocessor_t* preprocess, ov_model_t** model);

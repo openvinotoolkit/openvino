@@ -30,11 +30,11 @@ typedef struct ov_tensor ov_tensor_t;
  * @param tensor A point to ov_tensor_t
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_tensor_create_from_host_ptr(
-                                const ov_element_type_e type,
-                                const ov_shape_t shape,
-                                void* host_ptr,
-                                ov_tensor_t** tensor);
+OPENVINO_C_API(ov_status_e)
+ov_tensor_create_from_host_ptr(const ov_element_type_e type,
+                               const ov_shape_t shape,
+                               void* host_ptr,
+                               ov_tensor_t** tensor);
 
 /**
  * @brief Constructs Tensor using element type and shape. Allocate internal host storage using default allocator
@@ -44,9 +44,10 @@ OPENVINO_C_API(ov_status_e) ov_tensor_create_from_host_ptr(
  * @param tensor A point to ov_tensor_t
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_tensor_create(const ov_element_type_e type,
-                                const ov_shape_t shape,
-                                ov_tensor_t** tensor);
+OPENVINO_C_API(ov_status_e)
+ov_tensor_create(const ov_element_type_e type,
+                 const ov_shape_t shape,
+                 ov_tensor_t** tensor);
 
 /**
  * @brief Set new shape for tensor, deallocate/allocate if new total size is bigger than previous one.
@@ -55,7 +56,8 @@ OPENVINO_C_API(ov_status_e) ov_tensor_create(const ov_element_type_e type,
  * @param tensor A point to ov_tensor_t
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_tensor_set_shape(ov_tensor_t* tensor, const ov_shape_t shape);
+OPENVINO_C_API(ov_status_e)
+ov_tensor_set_shape(ov_tensor_t* tensor, const ov_shape_t shape);
 
 /**
  * @brief Get shape for tensor.
@@ -64,7 +66,8 @@ OPENVINO_C_API(ov_status_e) ov_tensor_set_shape(ov_tensor_t* tensor, const ov_sh
  * @param tensor A point to ov_tensor_t
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_tensor_get_shape(const ov_tensor_t* tensor, ov_shape_t* shape);
+OPENVINO_C_API(ov_status_e)
+ov_tensor_get_shape(const ov_tensor_t* tensor, ov_shape_t* shape);
 
 /**
  * @brief Get type for tensor.
@@ -73,7 +76,8 @@ OPENVINO_C_API(ov_status_e) ov_tensor_get_shape(const ov_tensor_t* tensor, ov_sh
  * @param tensor A point to ov_tensor_t
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_tensor_get_element_type(const ov_tensor_t* tensor, ov_element_type_e* type);
+OPENVINO_C_API(ov_status_e)
+ov_tensor_get_element_type(const ov_tensor_t* tensor, ov_element_type_e* type);
 
 /**
  * @brief the total number of elements (a product of all the dims or 1 for scalar).
@@ -82,7 +86,8 @@ OPENVINO_C_API(ov_status_e) ov_tensor_get_element_type(const ov_tensor_t* tensor
  * @param tensor A point to ov_tensor_t
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_tensor_get_size(const ov_tensor_t* tensor, size_t* elements_size);
+OPENVINO_C_API(ov_status_e)
+ov_tensor_get_size(const ov_tensor_t* tensor, size_t* elements_size);
 
 /**
  * @brief the size of the current Tensor in bytes.
@@ -91,7 +96,8 @@ OPENVINO_C_API(ov_status_e) ov_tensor_get_size(const ov_tensor_t* tensor, size_t
  * @param tensor A point to ov_tensor_t
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_tensor_get_byte_size(const ov_tensor_t* tensor, size_t* byte_size);
+OPENVINO_C_API(ov_status_e)
+ov_tensor_get_byte_size(const ov_tensor_t* tensor, size_t* byte_size);
 
 /**
  * @brief Provides an access to the underlaying host memory.
@@ -100,11 +106,13 @@ OPENVINO_C_API(ov_status_e) ov_tensor_get_byte_size(const ov_tensor_t* tensor, s
  * @param tensor A point to ov_tensor_t
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_tensor_data(const ov_tensor_t* tensor, void** data);
+OPENVINO_C_API(ov_status_e)
+ov_tensor_data(const ov_tensor_t* tensor, void** data);
 
 /**
  * @brief Free ov_tensor_t.
  * @ingroup ov_tensor_c_api
  * @param tensor A point to ov_tensor_t
  */
-OPENVINO_C_API(void) ov_tensor_free(ov_tensor_t* tensor);
+OPENVINO_C_API(void)
+ov_tensor_free(ov_tensor_t* tensor);

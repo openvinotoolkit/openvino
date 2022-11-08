@@ -67,10 +67,10 @@ typedef struct {
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_infer_request_set_tensor(
-                                ov_infer_request_t* infer_request,
-                                const char* tensor_name,
-                                const ov_tensor_t* tensor);
+OPENVINO_C_API(ov_status_e)
+ov_infer_request_set_tensor(ov_infer_request_t* infer_request,
+                            const char* tensor_name,
+                            const ov_tensor_t* tensor);
 
 /**
  * @brief Set an input/output tensor to infer request for the port.
@@ -80,10 +80,10 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_set_tensor(
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_infer_request_set_tensor_by_port(
-                                ov_infer_request_t* infer_request,
-                                const ov_output_port_t* port,
-                                const ov_tensor_t* tensor);
+OPENVINO_C_API(ov_status_e)
+ov_infer_request_set_tensor_by_port(ov_infer_request_t* infer_request,
+                                    const ov_output_port_t* port,
+                                    const ov_tensor_t* tensor);
 
 /**
  * @brief Set an input/output tensor to infer request for the port.
@@ -94,10 +94,10 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_set_tensor_by_port(
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_infer_request_set_tensor_by_const_port(
-                                ov_infer_request_t* infer_request,
-                                const ov_output_const_port_t* port,
-                                const ov_tensor_t* tensor);
+OPENVINO_C_API(ov_status_e)
+ov_infer_request_set_tensor_by_const_port(ov_infer_request_t* infer_request,
+                                          const ov_output_const_port_t* port,
+                                          const ov_tensor_t* tensor);
 
 /**
  * @brief Set an input tensor to infer on by the index of tensor.
@@ -107,10 +107,10 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_set_tensor_by_const_port(
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_infer_request_set_input_tensor_by_index(
-                                ov_infer_request_t* infer_request,
-                                const size_t idx,
-                                const ov_tensor_t* tensor);
+OPENVINO_C_API(ov_status_e)
+ov_infer_request_set_input_tensor_by_index(ov_infer_request_t* infer_request,
+                                           const size_t idx,
+                                           const ov_tensor_t* tensor);
 
 /**
  * @brief Set an input tensor for the model with single input to infer on.
@@ -120,9 +120,8 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_set_input_tensor_by_index(
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_infer_request_set_input_tensor(
-                                ov_infer_request_t* infer_request,
-                                const ov_tensor_t* tensor);
+OPENVINO_C_API(ov_status_e)
+ov_infer_request_set_input_tensor(ov_infer_request_t* infer_request, const ov_tensor_t* tensor);
 
 /**
  * @brief Set an output tensor to infer by the index of output tensor.
@@ -133,10 +132,10 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_set_input_tensor(
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_infer_request_set_output_tensor_by_index(
-                                ov_infer_request_t* infer_request,
-                                const size_t idx,
-                                const ov_tensor_t* tensor);
+OPENVINO_C_API(ov_status_e)
+ov_infer_request_set_output_tensor_by_index(ov_infer_request_t* infer_request,
+                                            const size_t idx,
+                                            const ov_tensor_t* tensor);
 
 /**
  * @brief Set an output tensor to infer models with single output.
@@ -145,9 +144,8 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_set_output_tensor_by_index(
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_infer_request_set_output_tensor(
-                                ov_infer_request_t* infer_request,
-                                const ov_tensor_t* tensor);
+OPENVINO_C_API(ov_status_e)
+ov_infer_request_set_output_tensor(ov_infer_request_t* infer_request, const ov_tensor_t* tensor);
 
 /**
  * @brief Get an input/output tensor by the name of tensor.
@@ -158,10 +156,10 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_set_output_tensor(
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_infer_request_get_tensor(
-                                const ov_infer_request_t* infer_request,
-                                const char* tensor_name,
-                                ov_tensor_t** tensor);
+OPENVINO_C_API(ov_status_e)
+ov_infer_request_get_tensor(const ov_infer_request_t* infer_request,
+                            const char* tensor_name,
+                            ov_tensor_t** tensor);
 
 /**
  * @brief Get an input/output tensor by const port.
@@ -171,10 +169,10 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_get_tensor(
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_infer_request_get_tensor_by_const_port(
-                                const ov_infer_request_t* infer_request,
-                                const ov_output_const_port_t* port,
-                                ov_tensor_t** tensor);
+OPENVINO_C_API(ov_status_e)
+ov_infer_request_get_tensor_by_const_port(const ov_infer_request_t* infer_request,
+                                          const ov_output_const_port_t* port,
+                                          ov_tensor_t** tensor);
 
 /**
  * @brief Get an input/output tensor by port.
@@ -184,10 +182,10 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_get_tensor_by_const_port(
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_infer_request_get_tensor_by_port(
-                                const ov_infer_request_t* infer_request,
-                                const ov_output_port_t* port,
-                                ov_tensor_t** tensor);
+OPENVINO_C_API(ov_status_e)
+ov_infer_request_get_tensor_by_port(const ov_infer_request_t* infer_request,
+                                    const ov_output_port_t* port,
+                                    ov_tensor_t** tensor);
 
 /**
  * @brief Get an input tensor by the index of input tensor.
@@ -198,10 +196,10 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_get_tensor_by_port(
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_infer_request_get_input_tensor_by_index(
-                                const ov_infer_request_t* infer_request,
-                                const size_t idx,
-                                ov_tensor_t** tensor);
+OPENVINO_C_API(ov_status_e)
+ov_infer_request_get_input_tensor_by_index(const ov_infer_request_t* infer_request,
+                                           const size_t idx,
+                                           ov_tensor_t** tensor);
 
 /**
  * @brief Get an input tensor from the model with only one input tensor.
@@ -210,9 +208,9 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_get_input_tensor_by_index(
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_infer_request_get_input_tensor(
-                                const ov_infer_request_t* infer_request,
-                                ov_tensor_t** tensor);
+OPENVINO_C_API(ov_status_e)
+ov_infer_request_get_input_tensor(const ov_infer_request_t* infer_request,
+                                  ov_tensor_t** tensor);
 
 /**
  * @brief Get an output tensor by the index of output tensor.
@@ -223,10 +221,10 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_get_input_tensor(
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_infer_request_get_output_tensor_by_index(
-                                const ov_infer_request_t* infer_request,
-                                const size_t idx,
-                                ov_tensor_t** tensor);
+OPENVINO_C_API(ov_status_e)
+ov_infer_request_get_output_tensor_by_index(const ov_infer_request_t* infer_request,
+                                            const size_t idx,
+                                            ov_tensor_t** tensor);
 
 /**
  * @brief Get an output tensor from the model with only one output tensor.
@@ -236,9 +234,9 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_get_output_tensor_by_index(
  * @param tensor Reference to the tensor.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_infer_request_get_output_tensor(
-                                const ov_infer_request_t* infer_request,
-                                ov_tensor_t** tensor);
+OPENVINO_C_API(ov_status_e)
+ov_infer_request_get_output_tensor(const ov_infer_request_t* infer_request,
+                                   ov_tensor_t** tensor);
 
 /**
  * @brief Infer specified input(s) in synchronous mode.
@@ -246,7 +244,8 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_get_output_tensor(
  * @param infer_request A pointer to the ov_infer_request_t.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_infer_request_infer(ov_infer_request_t* infer_request);
+OPENVINO_C_API(ov_status_e)
+ov_infer_request_infer(ov_infer_request_t* infer_request);
 
 /**
  * @brief Cancel inference request.
@@ -254,7 +253,8 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_infer(ov_infer_request_t* infer_req
  * @param infer_request A pointer to the ov_infer_request_t.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_infer_request_cancel(ov_infer_request_t* infer_request);
+OPENVINO_C_API(ov_status_e)
+ov_infer_request_cancel(ov_infer_request_t* infer_request);
 
 /**
  * @brief Start inference of specified input(s) in asynchronous mode.
@@ -262,7 +262,8 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_cancel(ov_infer_request_t* infer_re
  * @param infer_request A pointer to the ov_infer_request_t.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_infer_request_start_async(ov_infer_request_t* infer_request);
+OPENVINO_C_API(ov_status_e)
+ov_infer_request_start_async(ov_infer_request_t* infer_request);
 
 /**
  * @brief Wait for the result to become available.
@@ -270,7 +271,8 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_start_async(ov_infer_request_t* inf
  * @param infer_request A pointer to the ov_infer_request_t.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_infer_request_wait(ov_infer_request_t* infer_request);
+OPENVINO_C_API(ov_status_e)
+ov_infer_request_wait(ov_infer_request_t* infer_request);
 
 /**
  * @brief Waits for the result to become available. Blocks until the specified timeout has elapsed or the result
@@ -280,9 +282,8 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_wait(ov_infer_request_t* infer_requ
  * @param timeout Maximum duration, in milliseconds, to block for.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_infer_request_wait_for(
-                                ov_infer_request_t* infer_request,
-                                const int64_t timeout);
+OPENVINO_C_API(ov_status_e)
+ov_infer_request_wait_for(ov_infer_request_t* infer_request, const int64_t timeout);
 
 /**
  * @brief Set callback function, which will be called when inference is done.
@@ -291,16 +292,16 @@ OPENVINO_C_API(ov_status_e) ov_infer_request_wait_for(
  * @param callback  A function to be called.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_infer_request_set_callback(
-                                ov_infer_request_t* infer_request,
-                                const ov_callback_t* callback);
+OPENVINO_C_API(ov_status_e)
+ov_infer_request_set_callback(ov_infer_request_t* infer_request, const ov_callback_t* callback);
 
 /**
  * @brief Release the memory allocated by ov_infer_request_t.
  * @ingroup ov_infer_request_c_api
  * @param infer_request A pointer to the ov_infer_request_t to free memory.
  */
-OPENVINO_C_API(void) ov_infer_request_free(ov_infer_request_t* infer_request);
+OPENVINO_C_API(void)
+ov_infer_request_free(ov_infer_request_t* infer_request);
 
 /**
  * @brief Query performance measures per layer to identify the most time consuming operation.
@@ -309,13 +310,13 @@ OPENVINO_C_API(void) ov_infer_request_free(ov_infer_request_t* infer_request);
  * @param profiling_infos  Vector of profiling information for operations in a model.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_infer_request_get_profiling_info(
-                                const ov_infer_request_t* infer_request,
-                                ov_profiling_info_list_t* profiling_infos);
+OPENVINO_C_API(ov_status_e)
+ov_infer_request_get_profiling_info(const ov_infer_request_t* infer_request, ov_profiling_info_list_t* profiling_infos);
 
 /**
  * @brief Release the memory allocated by ov_profiling_info_list_t.
  * @ingroup ov_infer_request_c_api
  * @param profiling_infos A pointer to the ov_profiling_info_list_t to free memory.
  */
-OPENVINO_C_API(void) ov_profiling_info_list_free(ov_profiling_info_list_t* profiling_infos);
+OPENVINO_C_API(void)
+ov_profiling_info_list_free(ov_profiling_info_list_t* profiling_infos);

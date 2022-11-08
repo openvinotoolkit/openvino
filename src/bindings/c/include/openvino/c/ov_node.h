@@ -35,9 +35,8 @@ typedef struct ov_output_port ov_output_port_t;
  * @param tensor_shape tensor shape.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_const_port_get_shape(
-                                const ov_output_const_port_t* port,
-                                ov_shape_t* tensor_shape);
+OPENVINO_C_API(ov_status_e)
+ov_const_port_get_shape(const ov_output_const_port_t* port, ov_shape_t* tensor_shape);
 
 /**
  * @brief Get the shape of port object.
@@ -46,7 +45,8 @@ OPENVINO_C_API(ov_status_e) ov_const_port_get_shape(
  * @param tensor_shape tensor shape.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_port_get_shape(const ov_output_port_t* port, ov_shape_t* tensor_shape);
+OPENVINO_C_API(ov_status_e)
+ov_port_get_shape(const ov_output_port_t* port, ov_shape_t* tensor_shape);
 
 /**
  * @brief Get the tensor name of port.
@@ -55,9 +55,8 @@ OPENVINO_C_API(ov_status_e) ov_port_get_shape(const ov_output_port_t* port, ov_s
  * @param tensor_name A pointer to the tensor name.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_port_get_any_name(
-                                const ov_output_const_port_t* port,
-                                char** tensor_name);
+OPENVINO_C_API(ov_status_e)
+ov_port_get_any_name(const ov_output_const_port_t* port, char** tensor_name);
 
 /**
  * @brief Get the partial shape of port.
@@ -66,9 +65,8 @@ OPENVINO_C_API(ov_status_e) ov_port_get_any_name(
  * @param partial_shape Partial shape.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_port_get_partial_shape(
-                                const ov_output_const_port_t* port,
-                                ov_partial_shape_t* partial_shape);
+OPENVINO_C_API(ov_status_e)
+ov_port_get_partial_shape(const ov_output_const_port_t* port, ov_partial_shape_t* partial_shape);
 
 /**
  * @brief Get the tensor type of port.
@@ -77,20 +75,21 @@ OPENVINO_C_API(ov_status_e) ov_port_get_partial_shape(
  * @param tensor_type tensor type.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_port_get_element_type(
-                                const ov_output_const_port_t* port,
-                                ov_element_type_e* tensor_type);
+OPENVINO_C_API(ov_status_e)
+ov_port_get_element_type(const ov_output_const_port_t* port, ov_element_type_e* tensor_type);
 
 /**
  * @brief free port object
  * @ingroup ov_node_c_api
  * @param port The pointer to the instance of the ov_output_port_t to free.
  */
-OPENVINO_C_API(void) ov_output_port_free(ov_output_port_t* port);
+OPENVINO_C_API(void) 
+ov_output_port_free(ov_output_port_t* port);
 
 /**
  * @brief free const port
  * @ingroup ov_node_c_api
  * @param port The pointer to the instance of the ov_output_const_port_t to free.
  */
-OPENVINO_C_API(void) ov_output_const_port_free(ov_output_const_port_t* port);
+OPENVINO_C_API(void)
+ov_output_const_port_free(ov_output_const_port_t* port);

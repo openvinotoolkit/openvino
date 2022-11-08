@@ -70,14 +70,16 @@ typedef struct {
  * @param ov_version_t a pointer to the version
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_get_openvino_version(ov_version_t* version);
+OPENVINO_C_API(ov_status_e)
+ov_get_openvino_version(ov_version_t* version);
 
 /**
  * @brief Release the memory allocated by ov_version_t.
  * @ingroup ov_core_c_api
  * @param version A pointer to the ov_version_t to free memory.
  */
-OPENVINO_C_API(void) ov_version_free(ov_version_t* version);
+OPENVINO_C_API(void)
+ov_version_free(ov_version_t* version);
 
 /**
  * @brief Constructs OpenVINO Core instance by default.
@@ -86,7 +88,8 @@ OPENVINO_C_API(void) ov_version_free(ov_version_t* version);
  * @param core A pointer to the newly created ov_core_t.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_core_create(ov_core_t** core);
+OPENVINO_C_API(ov_status_e)
+ov_core_create(ov_core_t** core);
 
 /**
  * @brief Constructs OpenVINO Core instance using XML configuration file with devices description.
@@ -97,7 +100,8 @@ OPENVINO_C_API(ov_status_e) ov_core_create(ov_core_t** core);
  * @param core A pointer to the newly created ov_core_t.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_core_create_with_config(const char* xml_config_file, ov_core_t** core);
+OPENVINO_C_API(ov_status_e)
+ov_core_create_with_config(const char* xml_config_file, ov_core_t** core);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 /**
@@ -108,7 +112,8 @@ OPENVINO_C_API(ov_status_e) ov_core_create_with_config(const char* xml_config_fi
  * @param core A pointer to the newly created ov_core_t.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_core_create_with_config_unicode(const wchar_t* xml_config_file_ws, ov_core_t** core);
+OPENVINO_C_API(ov_status_e)
+ov_core_create_with_config_unicode(const wchar_t* xml_config_file_ws, ov_core_t** core);
 #endif
 
 /**
@@ -116,7 +121,8 @@ OPENVINO_C_API(ov_status_e) ov_core_create_with_config_unicode(const wchar_t* xm
  * @ingroup ov_core_c_api
  * @param core A pointer to the ov_core_t to free memory.
  */
-OPENVINO_C_API(void) ov_core_free(ov_core_t* core);
+OPENVINO_C_API(void)
+ov_core_free(ov_core_t* core);
 
 /**
  * @brief Reads models from IR/ONNX/PDPD formats.
@@ -134,10 +140,11 @@ OPENVINO_C_API(void) ov_core_free(ov_core_t* core);
  * @param model A pointer to the newly created model.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_core_read_model(const ov_core_t* core,
-                                const char* model_path,
-                                const char* bin_path,
-                                ov_model_t** model);
+OPENVINO_C_API(ov_status_e)
+ov_core_read_model(const ov_core_t* core,
+                   const char* model_path,
+                   const char* bin_path,
+                   ov_model_t** model);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 /**
@@ -156,10 +163,11 @@ OPENVINO_C_API(ov_status_e) ov_core_read_model(const ov_core_t* core,
  * @param model A pointer to the newly created model.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_core_read_model_unicode(const ov_core_t* core,
-                                const wchar_t* model_path,
-                                const wchar_t* bin_path,
-                                ov_model_t** model);
+OPENVINO_C_API(ov_status_e)
+ov_core_read_model_unicode(const ov_core_t* core,
+                           const wchar_t* model_path,
+                           const wchar_t* bin_path,
+                           ov_model_t** model);
 #endif
 
 /**
@@ -175,10 +183,11 @@ OPENVINO_C_API(ov_status_e) ov_core_read_model_unicode(const ov_core_t* core,
  * constant data will point to an invalid memory.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_core_read_model_from_memory(const ov_core_t* core,
-                                const char* model_str,
-                                const ov_tensor_t* weights,
-                                ov_model_t** model);
+OPENVINO_C_API(ov_status_e)
+ov_core_read_model_from_memory(const ov_core_t* core,
+                               const char* model_str,
+                               const ov_tensor_t* weights,
+                               ov_model_t** model);
 
 /**
  * @brief Creates a compiled model from a source model object.
@@ -194,12 +203,13 @@ OPENVINO_C_API(ov_status_e) ov_core_read_model_from_memory(const ov_core_t* core
  * for this load operation operation. Supported property key please see ov_property.h.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_core_compile_model(const ov_core_t* core,
-                                const ov_model_t* model,
-                                const char* device_name,
-                                const size_t property_args_size,
-                                ov_compiled_model_t** compiled_model,
-                                ...);
+OPENVINO_C_API(ov_status_e)
+ov_core_compile_model(const ov_core_t* core,
+                      const ov_model_t* model,
+                      const char* device_name,
+                      const size_t property_args_size,
+                      ov_compiled_model_t** compiled_model,
+                      ...);
 
 /**
  * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
@@ -215,7 +225,8 @@ OPENVINO_C_API(ov_status_e) ov_core_compile_model(const ov_core_t* core,
  * for this load operation operation. Supported property key please see ov_property.h.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_core_compile_model_from_file(const ov_core_t* core,
+OPENVINO_C_API(ov_status_e)
+ov_core_compile_model_from_file(const ov_core_t* core,
                                 const char* model_path,
                                 const char* device_name,
                                 const size_t property_args_size,
@@ -237,12 +248,13 @@ OPENVINO_C_API(ov_status_e) ov_core_compile_model_from_file(const ov_core_t* cor
  * for this load operation operation. Supported property key please see ov_property.h.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_core_compile_model_from_file_unicode(const ov_core_t* core,
-                                const wchar_t* model_path,
-                                const char* device_name,
-                                const size_t property_args_size,
-                                ov_compiled_model_t** compiled_model,
-                                ...);
+OPENVINO_C_API(ov_status_e)
+ov_core_compile_model_from_file_unicode(const ov_core_t* core,
+                                        const wchar_t* model_path,
+                                        const char* device_name,
+                                        const size_t property_args_size,
+                                        ov_compiled_model_t** compiled_model,
+                                        ...);
 
 #endif
 
@@ -255,7 +267,8 @@ OPENVINO_C_API(ov_status_e) ov_core_compile_model_from_file_unicode(const ov_cor
  * Supported property key please see ov_property.h.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_core_set_property(const ov_core_t* core, const char* device_name, ...);
+OPENVINO_C_API(ov_status_e)
+ov_core_set_property(const ov_core_t* core, const char* device_name, ...);
 
 /**
  * @brief Gets properties related to device behaviour.
@@ -268,7 +281,10 @@ OPENVINO_C_API(ov_status_e) ov_core_set_property(const ov_core_t* core, const ch
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_core_get_property(const ov_core_t* core, const char* device_name, const char* property_key, char** property_value);
+ov_core_get_property(const ov_core_t* core,
+                     const char* device_name,
+                     const char* property_key,
+                     char** property_value);
 
 /**
  * @brief Returns devices available for inference.
@@ -278,7 +294,8 @@ ov_core_get_property(const ov_core_t* core, const char* device_name, const char*
  * Core objects go over all registered plugins and ask about available devices.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_core_get_available_devices(const ov_core_t* core, ov_available_devices_t* devices);
+OPENVINO_C_API(ov_status_e)
+ov_core_get_available_devices(const ov_core_t* core, ov_available_devices_t* devices);
 
 /**
  * @brief Releases memory occpuied by ov_available_devices_t
@@ -286,7 +303,8 @@ OPENVINO_C_API(ov_status_e) ov_core_get_available_devices(const ov_core_t* core,
  * @param devices A pointer to the ov_available_devices_t instance.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(void) ov_available_devices_free(ov_available_devices_t* devices);
+OPENVINO_C_API(void)
+ov_available_devices_free(ov_available_devices_t* devices);
 
 /**
  * @brief Imports a compiled model from the previously exported one.
@@ -298,11 +316,12 @@ OPENVINO_C_API(void) ov_available_devices_free(ov_available_devices_t* devices);
  * @param compiled_model A pointer to the newly created compiled_model.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_core_import_model(const ov_core_t* core,
-                                const char* content,
-                                const size_t content_size,
-                                const char* device_name,
-                                ov_compiled_model_t** compiled_model);
+OPENVINO_C_API(ov_status_e)
+ov_core_import_model(const ov_core_t* core,
+                     const char* content,
+                     const size_t content_size,
+                     const char* device_name,
+                     ov_compiled_model_t** compiled_model);
 
 /**
  * @brief Returns device plugins version information.
@@ -314,13 +333,15 @@ OPENVINO_C_API(ov_status_e) ov_core_import_model(const ov_core_t* core,
  * @param versions A pointer to versions corresponding to device_name.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_core_get_versions_by_device_name(const ov_core_t* core,
-                                const char* device_name,
-                                ov_core_version_list_t* versions);
+OPENVINO_C_API(ov_status_e)
+ov_core_get_versions_by_device_name(const ov_core_t* core,
+                                    const char* device_name,
+                                    ov_core_version_list_t* versions);
 
 /**
  * @brief Releases memory occupied by ov_core_version_list_t.
  * @ingroup ov_core_c_api
  * @param vers A pointer to the ie_core_versions to free memory.
  */
-OPENVINO_C_API(void) ov_core_versions_free(ov_core_version_list_t* versions);
+OPENVINO_C_API(void)
+ov_core_versions_free(ov_core_version_list_t* versions);

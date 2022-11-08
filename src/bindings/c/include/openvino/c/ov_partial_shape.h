@@ -46,10 +46,10 @@ typedef struct ov_partial_shape {
  *
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_partial_shape_create(
-                                const int64_t rank,
-                                const ov_dimension_t* dims,
-                                ov_partial_shape_t* partial_shape_obj);
+OPENVINO_C_API(ov_status_e)
+ov_partial_shape_create(const int64_t rank,
+                        const ov_dimension_t* dims,
+                        ov_partial_shape_t* partial_shape_obj);
 
 /**
  * @brief Initialze a partial shape with dynamic rank and dynamic dimension.
@@ -65,8 +65,8 @@ OPENVINO_C_API(ov_status_e) ov_partial_shape_create(
  *
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_partial_shape_create_dynamic(
-                                const ov_rank_t rank,
+OPENVINO_C_API(ov_status_e)
+ov_partial_shape_create_dynamic(const ov_rank_t rank,
                                 const ov_dimension_t* dims,
                                 ov_partial_shape_t* partial_shape_obj);
 
@@ -80,10 +80,10 @@ OPENVINO_C_API(ov_status_e) ov_partial_shape_create_dynamic(
  *
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_partial_shape_create_static(
-                                const int64_t rank,
-                                const int64_t* dims,
-                                ov_partial_shape_t* partial_shape_obj);
+OPENVINO_C_API(ov_status_e)
+ov_partial_shape_create_static(const int64_t rank,
+                               const int64_t* dims,
+                               ov_partial_shape_t* partial_shape_obj);
 
 /**
  * @brief Release internal memory allocated in partial shape.
@@ -91,7 +91,8 @@ OPENVINO_C_API(ov_status_e) ov_partial_shape_create_static(
  * @param partial_shape The object's internal memory will be released.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(void) ov_partial_shape_free(ov_partial_shape_t* partial_shape);
+OPENVINO_C_API(void)
+ov_partial_shape_free(ov_partial_shape_t* partial_shape);
 
 /**
  * @brief Convert partial shape without dynamic data to a static shape.
@@ -100,7 +101,8 @@ OPENVINO_C_API(void) ov_partial_shape_free(ov_partial_shape_t* partial_shape);
  * @param shape The shape pointer.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_partial_shape_to_shape(const ov_partial_shape_t partial_shape, ov_shape_t* shape);
+OPENVINO_C_API(ov_status_e)
+ov_partial_shape_to_shape(const ov_partial_shape_t partial_shape, ov_shape_t* shape);
 
 /**
  * @brief Convert shape to partial shape.
@@ -109,7 +111,8 @@ OPENVINO_C_API(ov_status_e) ov_partial_shape_to_shape(const ov_partial_shape_t p
  * @param partial_shape The partial_shape pointer.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(ov_status_e) ov_shape_to_partial_shape(const ov_shape_t shape, ov_partial_shape_t* partial_shape);
+OPENVINO_C_API(ov_status_e)
+ov_shape_to_partial_shape(const ov_shape_t shape, ov_partial_shape_t* partial_shape);
 
 /**
  * @brief Check this partial_shape whether is dynamic
@@ -117,7 +120,8 @@ OPENVINO_C_API(ov_status_e) ov_shape_to_partial_shape(const ov_shape_t shape, ov
  * @param partial_shape The partial_shape pointer.
  * @return Status code of the operation: OK(0) for success.
  */
-OPENVINO_C_API(bool) ov_partial_shape_is_dynamic(const ov_partial_shape_t partial_shape);
+OPENVINO_C_API(bool)
+ov_partial_shape_is_dynamic(const ov_partial_shape_t partial_shape);
 
 /**
  * @brief Helper function, convert a partial shape to readable string.
@@ -125,4 +129,5 @@ OPENVINO_C_API(bool) ov_partial_shape_is_dynamic(const ov_partial_shape_t partia
  * @param partial_shape The partial_shape pointer.
  * @return A string reprensts partial_shape's content.
  */
-OPENVINO_C_API(const char*) ov_partial_shape_to_string(const ov_partial_shape_t partial_shape);
+OPENVINO_C_API(const char*)
+ov_partial_shape_to_string(const ov_partial_shape_t partial_shape);
