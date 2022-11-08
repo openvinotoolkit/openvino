@@ -305,7 +305,7 @@ class Scrollbox(Directive):
         if 'width' in self.options:
             node['width'] = self.options['width']
         if 'bar' in self.options:
-            nodes['bar'] = self.options['bar']
+            node['bar'] = self.options['bar']
         self.add_name(node)
         if self.content:
             self.state.nested_parse(self.content, self.content_offset, node)
