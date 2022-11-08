@@ -558,7 +558,7 @@ int main(int argc, char* argv[]) {
 
         // Property setting should be via the core::compile_model()
         // rather than core::set_property() if target device is AUTO/MULTI.
-        if (!if_auto && if_multi) {
+        if (!if_auto && !if_multi) {
             for (auto&& item : config) {
                 core.set_property(item.first, item.second);
             }
