@@ -46,10 +46,10 @@ namespace sink_forward {
 void UpdateInputTransposes(NodePtr main_node, TransposeInputsInfo& transpose_input_info);
 void RemoveZeroInputNode(NodePtr main_node);
 NodeVector InsertOutputTransposes(NodePtr main_node, TransposeInputsInfo& transpose_input_info);
-} // namespace sink_forward
+}  // namespace sink_forward
 
 namespace sink_backward {
 NodeVector InsertTransposeBeforeNode(NodePtr main_node, std::shared_ptr<Constant> transpose_const);
-} // namespace sink_backward
+}  // namespace sink_backward
 
-} // namespace transpose_sinking
+}  // namespace transpose_sinking

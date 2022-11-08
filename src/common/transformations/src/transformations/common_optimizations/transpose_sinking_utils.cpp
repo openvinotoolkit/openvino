@@ -71,7 +71,6 @@ void SwapNames(NodePtr node1, NodePtr node2) {
     SwapOutputNames(node1->output(0), node2->output(0));
 }
 
-
 namespace sink_forward {
 
 // insert input reversed transposes, remove first input tranpose
@@ -98,7 +97,6 @@ void UpdateInputTransposes(NodePtr main_node, TransposeInputsInfo& transpose_inp
         }
     }
 }
-
 
 void RemoveZeroInputNode(NodePtr main_node) {
     auto input_node = main_node->input_value(0);
@@ -166,5 +164,4 @@ NodeVector InsertTransposeBeforeNode(NodePtr main_node, std::shared_ptr<Constant
 }
 }  // namespace sink_backward
 
-
-} // namespace transpose_sinking
+}  // namespace transpose_sinking
