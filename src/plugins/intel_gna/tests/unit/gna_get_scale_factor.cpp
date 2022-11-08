@@ -8,8 +8,8 @@
 #include <gtest/gtest.h>
 // to suppress deprecated definition errors
 #define IMPLEMENT_INFERENCE_ENGINE_PLUGIN
-#include "legacy/layer_transform.hpp"
-#include "frontend/layer_quantizer.hpp"
+#include "frontend/scale_factor_calc.hpp"
+#include "gna_graph_tools.hpp"
 
 namespace {
 
@@ -18,16 +18,20 @@ class GnaGetScaleFactorTest : public ::testing::Test {
     void GetScaleFactorAndCheck(float src_scale, float dst_scale, float weights_scale, float bias_scale) const {
         InferenceEngine::LayerParams params("fc", "FullyConnected", InferenceEngine::Precision::FP32);
         InferenceEngine::CNNLayerPtr layer = std::make_shared<InferenceEngine::CNNLayer>(params);
-        layer = InferenceEngine::injectData<GNAPluginNS::QuantizedLayerParams>(*layer);
-        auto quant = InferenceEngine::getInjectedData<GNAPluginNS::QuantizedLayerParams>(*layer);
+        layer = InferenceEngine::injectData<ov::intel_gna::frontend::QuantizedLayerParams>(*layer);
+        auto quant = InferenceEngine::getInjectedData<ov::intel_gna::frontend::QuantizedLayerParams>(*layer);
         quant->_src_quant.SetScale(src_scale);
         quant->_dst_quant.SetScale(dst_scale);
         quant->_weights_quant.SetScale(weights_scale);
         quant->_bias_quant.SetScale(bias_scale);
-        ASSERT_EQ(GNAPluginNS::GetScaleFactor(layer, GNAPluginNS::QuantizedDataType::input), src_scale);
-        ASSERT_EQ(GNAPluginNS::GetScaleFactor(layer, GNAPluginNS::QuantizedDataType::output), dst_scale);
-        ASSERT_EQ(GNAPluginNS::GetScaleFactor(layer, GNAPluginNS::QuantizedDataType::weights), weights_scale);
-        ASSERT_EQ(GNAPluginNS::GetScaleFactor(layer, GNAPluginNS::QuantizedDataType::bias), bias_scale);
+        ASSERT_EQ(ov::intel_gna::frontend::GetScaleFactor(layer, ov::intel_gna::frontend::QuantizedDataType::input),
+                  src_scale);
+        ASSERT_EQ(ov::intel_gna::frontend::GetScaleFactor(layer, ov::intel_gna::frontend::QuantizedDataType::output),
+                  dst_scale);
+        ASSERT_EQ(ov::intel_gna::frontend::GetScaleFactor(layer, ov::intel_gna::frontend::QuantizedDataType::weights),
+                  weights_scale);
+        ASSERT_EQ(ov::intel_gna::frontend::GetScaleFactor(layer, ov::intel_gna::frontend::QuantizedDataType::bias),
+                  bias_scale);
     }
 };
 

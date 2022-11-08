@@ -4,9 +4,19 @@
 
 #pragma once
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+namespace frontend {
 
 class QuantizationParams {
+    float scale = 1.0f;
+    bool scale_set = false;
+    size_t levels = 0;
+    std::vector<float> input_min_values;
+    std::vector<float> input_max_values;
+    std::vector<float> output_min_values;
+    std::vector<float> output_max_values;
+
 public:
     void SetScale(float s) {
         scale = s;
@@ -66,15 +76,6 @@ public:
         SetMinValues(src.GetMinValues(false), false);
         SetMaxValues(src.GetMaxValues(false), false);
     }
-
-private:
-    float scale = 1.0f;
-    bool scale_set = false;
-    size_t levels = 0;
-    std::vector<float> input_min_values;
-    std::vector<float> input_max_values;
-    std::vector<float> output_min_values;
-    std::vector<float> output_max_values;
 };
 
 struct QuantizedLayerParams {
@@ -84,9 +85,8 @@ struct QuantizedLayerParams {
     // deprecate this
     QuantizationParams _weights_quant;
     QuantizationParams _bias_quant;
-
-    bool _weights_int8_precision = false;
-    bool _inputs_int8_precision = false;
 };
 
-}  // namespace GNAPluginNS
+}  // namespace frontend
+}  // namespace intel_gna
+}  // namespace ov
