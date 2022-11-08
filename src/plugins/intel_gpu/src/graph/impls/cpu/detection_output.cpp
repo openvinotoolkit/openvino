@@ -4,7 +4,6 @@
 
 #include "detection_output_inst.h"
 #include "impls/implementation_map.hpp"
-#include "math_utils.h"
 #include "register.hpp"
 #include "cpu_impl_helpers.hpp"
 
@@ -12,6 +11,7 @@
 #include <stdexcept>
 #include <string>
 #include <type_traits>
+#include <immintrin.h>
 #include <xmmintrin.h>
 #include <vector>
 #include <utility>
