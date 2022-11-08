@@ -7,8 +7,6 @@
 
 import warnings
 
-warnings.warn(message="The module is private and following namespace "
-                      "`pyopenvino` will be removed in the future",
-              category=FutureWarning)
+warnings.warn(message="The module is private and following namespace " "`pyopenvino` will be removed in the future", category=FutureWarning)
 
 from openvino._pyopenvino import *
