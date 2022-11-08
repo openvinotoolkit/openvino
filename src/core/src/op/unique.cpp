@@ -30,12 +30,18 @@ std::tuple<Shape, Shape, Shape> calculate_static_output_shapes(const Tensor& inp
     using Index_t = int32_t;
     using Counts_t = int32_t;
 
+    const auto maybe_extract_axis = [&op]() {
+        std::unique_ptr<int64_t> axis = nullptr;
+        if (op.get_input_size() == 2 && ov::op::util::is_constant(op.input_value(1).get_node())) {
+            const auto axis_constant =
+                std::dynamic_pointer_cast<op::v0::Constant>(op.input_value(1).get_node_shared_ptr());
+            axis = std::unique_ptr<int64_t>(new int64_t{extract_axis(axis_constant)});
+        }
+        return axis;
+    };
+
     ngraph::runtime::reference::UniqueElements<Index_t, Counts_t> unique_elements;
-    std::unique_ptr<int64_t> axis = nullptr;
-    if (op.get_input_size() == 2 && ov::op::util::is_constant(op.input_value(0).get_node())) {
-        const auto axis_const = std::dynamic_pointer_cast<op::v0::Constant>(op.input_value(0).get_node_shared_ptr());
-        axis = std::unique_ptr<int64_t>(new int64_t{extract_axis(axis_const)});
-    }
+    std::unique_ptr<int64_t> axis = maybe_extract_axis();
 
     switch (op.get_input_element_type(0)) {
     case element::boolean:

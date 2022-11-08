@@ -4198,12 +4198,25 @@ bool evaluate(const shared_ptr<op::v9::SoftSign>& op, const HostTensorVector& ou
 }
 
 template <typename Data_t, typename Index_t>
-void execute_unique(const HostTensorVector& outputs, const HostTensorVector& inputs, const bool sorted) {
+void execute_unique(const HostTensorVector& outputs,
+                    const HostTensorVector& inputs,
+                    const shared_ptr<op::v10::Unique>& op) {
+    const auto maybe_extract_axis = [&op]() {
+        std::unique_ptr<int64_t> axis = nullptr;
+        if (op->get_input_size() == 2 && ov::op::util::is_constant(op->input_value(1).get_node())) {
+            const auto axis_constant =
+                std::dynamic_pointer_cast<op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
+            const auto axis_vec = axis_constant->cast_vector<int64_t>();
+            axis = std::unique_ptr<int64_t>(new int64_t{axis_vec.at(0)});
+        }
+        return axis;
+    };
+
     const auto unique_elements =
         runtime::reference::find_unique_elements<Data_t, Index_t>(inputs[0]->get_data_ptr<Data_t>(),
                                                                   inputs[0]->get_shape(),
-                                                                  nullptr,
-                                                                  sorted);
+                                                                  maybe_extract_axis(),
+                                                                  op->get_sorted());
     const auto tensor_shapes = runtime::reference::make_tensor_shapes(unique_elements);
 
     auto& out_unique_elements = outputs[0];
@@ -4228,9 +4241,9 @@ template <element::Type_t Data_ET>
 bool evaluate(const shared_ptr<op::v10::Unique>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     using Data_t = typename element_type_traits<Data_ET>::value_type;
     if (op->get_index_element_type() == element::i32) {
-        execute_unique<Data_t, int32_t>(outputs, inputs, op->get_sorted());
+        execute_unique<Data_t, int32_t>(outputs, inputs, op);
     } else if (op->get_index_element_type() == element::i64) {
-        execute_unique<Data_t, int64_t>(outputs, inputs, op->get_sorted());
+        execute_unique<Data_t, int64_t>(outputs, inputs, op);
     } else {
         return false;
     }
