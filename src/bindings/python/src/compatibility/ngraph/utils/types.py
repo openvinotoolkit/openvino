@@ -1,6 +1,6 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-# mypy: ignore-errors
+# mypy: ignore-errors  # noqa: E800
 
 """Functions related to converting between Python and numpy types and ngraph types."""
 
