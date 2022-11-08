@@ -237,14 +237,6 @@ void regclass_Core(py::module m) {
             :rtype: openvino.runtime.CompiledModel
         )");
 
-    cls.def("get_version",
-            &ov::Core::get_version,
-            R"(
-                Gets OpenVINO version information.
-                :return: Version information.
-                :rtype: openvino.runtime.Version
-            )");
-
     cls.def("get_versions",
             &ov::Core::get_versions,
             py::arg("device_name"),

@@ -39,18 +39,14 @@ class Benchmark:
                 self.core.add_extension(extension)
 
     def print_version_info(self) -> None:
-        version = self.core.get_version()
-        description = f"{version.description} version "
+        version = get_version()
         logger.info("OpenVINO:")
-        logger.info(f"{description:.<39} {version.major}.{version.minor}.{version.patch}")
-        logger.info(f"{'Build ':.<39} {version.build_number}")
+        logger.info(f"{'Build ':.<39} {version}")
         logger.info("")
 
         logger.info("Device info:")
         for device, version in self.core.get_versions(self.device).items():
-            description = f"{version.description} version "
             logger.info(f"{device}")
-            logger.info(f"{description:.<39} {version.major}.{version.minor}.{version.patch}")
             logger.info(f"{'Build ':.<39} {version.build_number}")
 
         logger.info("")

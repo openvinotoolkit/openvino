@@ -43,7 +43,7 @@ std::string get_console_command(int argc, char* argv[]) {
     std::string relative_path(argv[0]);
     std::vector<char> buffer;
 
-    uint32_t len = 1024;
+    uint32_t len = 1;
     do {
         buffer.resize(len);
         len = GetFullPathNameA(relative_path.data(), len, buffer.data(), nullptr);

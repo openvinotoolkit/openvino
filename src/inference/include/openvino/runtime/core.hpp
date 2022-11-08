@@ -65,7 +65,6 @@ public:
      * @param device_name Device name to identify a plugin.
      * @return A vector of versions.
      */
-    Version get_version() const;
     std::map<std::string, Version> get_versions(const std::string& device_name) const;
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT

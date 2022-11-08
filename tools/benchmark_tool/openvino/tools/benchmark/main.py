@@ -62,7 +62,7 @@ def main():
         next_step()
         logger.info("Parsing input parameters")
         args, is_network_compiled = parse_and_check_command_line()
-
+        logger.info(f"Input command: {args_string}")
 
         command_line_arguments = get_command_line_arguments(sys.argv)
         if args.report_type:
