@@ -31,7 +31,7 @@ void prepare_padding::run(program& p) {
                 continue;
 
             auto& conv_input_node = node->get_dependency(0);
-            // Check previous node is one of padding support primitive or not
+            // Check user of previous node is one of padding support primitive or not
             bool user_support_padding = true;
             for (auto& conv_input_node_user : conv_input_node.get_users()) {
                 if (!conv_input_node_user->is_type<pooling>() && !conv_input_node_user->is_type<convolution>() &&
@@ -159,7 +159,7 @@ void prepare_padding::run(program& p) {
         auto& conv_input_node = node.get_dependency(0);
         auto conv_layout = node.get_output_layout();
 
-        // Check previous node is one of padding support primitive or not
+        // Check user of previous node is one of padding support primitive or not
         bool user_support_padding = true;
         for (auto& conv_input_node_user : conv_input_node.get_users()) {
             if (!conv_input_node_user->is_type<pooling>() && !conv_input_node_user->is_type<convolution>() &&
@@ -262,7 +262,7 @@ void prepare_padding::run(program& p) {
         auto& conv_input_node = node.get_dependency(0);
         auto conv_layout = node.get_output_layout();
 
-        // Check previous node is one of padding support primitive or not
+        // Check user of previous node is one of padding support primitive or not
         bool user_support_padding = true;
         for (auto& conv_input_node_user : conv_input_node.get_users()) {
             if (!conv_input_node_user->is_type<pooling>() && !conv_input_node_user->is_type<convolution>() &&
