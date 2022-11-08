@@ -51,9 +51,12 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
         if (transpose && n->get_input_size() == 2) {
             const auto& order = as_type_ptr<const opset1::Constant>(n->get_input_node_shared_ptr(1));
             if (order && order->get_output_element_type(0) == element::i32) {
-                const auto values = order->get_vector<int>();
-                const std::vector<std::vector<int>> supported{{0, 2, 1, 3}, {0, 2, 3, 1}};
-                return std::find(supported.begin(), supported.end(), values) != supported.end();
+                const auto order_value = order->get_vector<int>();
+                // todo: {0, 2, 1, 3} Transpose should also be tokenized to support MHA pattern.
+                //  It's disabled because {0, 2, 1, 3} Transposes to be fused with MatMuls, that are
+                //  not tokenized yet. Enable tokenization of {0, 2, 1, 3} after ticket 95631 is implemented.
+                const std::set<std::vector<int>> supported_cases {{0, 2, 3, 1}};
+                return supported_cases.count(order_value) != 0;
             }
         }
         return false;
