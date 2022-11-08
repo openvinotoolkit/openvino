@@ -10,7 +10,7 @@ If you want to download, convert, optimize and tune pre-trained deep learning mo
 
 > **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI.
 
-In both cases, Python 3.6 - 3.9 need be installed on your machine before starting.
+<a name="python-developers"></a>
 
 ## For Python Developers
 If you are a Python developer, you can find the main steps below to install OpenVINO Development Tools. For more details, see <https://pypi.org/project/openvino-dev>.
