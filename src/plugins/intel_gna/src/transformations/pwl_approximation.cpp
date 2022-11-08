@@ -452,6 +452,8 @@ bool transform_to_pwl(
     pwl->set_friendly_name(node->get_friendly_name());
     ngraph::copy_runtime_info(node, pwl);
     replace_node(node, pwl);
+    // TODO benchmarking
+    std::cout << segments.size() << ";";
     return true;
 }
 

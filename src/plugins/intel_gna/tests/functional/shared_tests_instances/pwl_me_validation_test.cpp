@@ -11,6 +11,57 @@
 #include "ngraph_functions/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
+// TODO benchmarking
+struct Timer {
+    Timer(const std::string& name,
+          bool print_on_destruction = false,
+          std::shared_ptr<std::chrono::duration<double, std::micro>> time_spent = nullptr)
+        : _name(name),
+          _print_on_destruction(print_on_destruction),
+          _time_spent(time_spent) {
+        _start_time = std::chrono::steady_clock::now();
+    }
+
+public:
+    double get_time_spent_in_us() {
+        return get_time_spent().count();
+    }
+    std::chrono::duration<double, std::micro> get_time_spent() {
+        return std::chrono::steady_clock::now() - _start_time;
+    }
+    void print_time_spent() {
+        std::cout << "[" << _name << "]: " << get_time_spent_in_us() << " us" << std::endl;
+        auto current = std::chrono::steady_clock::now();
+        std::chrono::duration<double, std::micro> time_spent = current - _start_time;
+    }
+    ~Timer() {
+        auto time_spent = get_time_spent();
+        if (_time_spent) {
+            *_time_spent += time_spent;
+        }
+        if (_print_on_destruction) {
+            std::cout << "[" << _name << "]: " << time_spent.count() << " us" << std::endl;
+            if (_time_spent) {
+                std::cout << "[" << _name << "][TOTAL]: " << _time_spent->count() << " us" << std::endl;
+            }
+        }
+    }
+    std::string _name;
+    std::chrono::time_point<std::chrono::steady_clock> _start_time;
+    std::shared_ptr<std::chrono::duration<double, std::micro>> _time_spent;
+    bool _print_on_destruction;
+};
+
+// TODO benchmarking
+void print_func(std::string operation, float input_min, float input_max) {
+    std::cout << "[ACT]: " << operation << std::endl;
+    std::cout << "[INPUT_MIN]: " << input_min << std::endl;
+    std::cout << "[INPUT_MAX]: " << input_max << std::endl;
+    std::cout << std::endl;
+}
+// TODO benchmarking
+std::string operation_name;
+
 struct Error {
     double max_error;
     double sum_of_errors;
@@ -149,6 +200,9 @@ void PWLApproxmiationPWLMeTest::SetUp() {
     std::tie(net_precision, input_values, operation, exp) = this->GetParam();
     std::tie(_input_data_min, _input_data_max) = input_values;
 
+    // TODO benchmarking
+    operation_name = operations_names[operation];
+
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(net_precision);
 
     const ngraph::Shape shape = {1, 128};
@@ -165,6 +219,9 @@ void PWLApproxmiationPWLMeTest::SetUp() {
 }
 
 void PWLApproxmiationPWLMeTest::Run() {
+    // TODO benchmarking
+    print_func(operation_name, _input_data_min, _input_data_max);
+
     // execute network for different pwl_me options
     std::vector<std::string> pwl_mes;
     // add 1.0 to 0.1 step 0.1
@@ -180,16 +237,30 @@ void PWLApproxmiationPWLMeTest::Run() {
     std::vector<std::pair<std::string, Error>> pwl_me_errors;
 
     for (const auto& pwl_me : pwl_mes) {
+        // TODO benchmarking
+        std::cout << pwl_me << ";";
+
         configuration = {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PWL_MAX_ERROR_PERCENT", pwl_me}};
+        // TODO benchmarking
+        Timer load_time("LOAD_TIME", false);
 
         LoadNetwork();
+        // TODO benchmarking
+        std::cout << load_time.get_time_spent_in_us() << ";";
+
         GenerateInputs();
         Infer();
 
         Error error = {};
         validate_results_end_cound_error(error);
 
+        // TODO benchmarking
+        std::cout << error.max_error << ";";
+        std::cout << error.avg_error();
+
         pwl_me_errors.emplace_back(pwl_me, std::move(error));
+        // TODO benchmarking
+        std::cout << std::endl;
     }
 
     validate_pwl_me_errors(pwl_me_errors);
