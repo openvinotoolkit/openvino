@@ -27,13 +27,14 @@
 #include "backend/am_intel_dnn.hpp"
 #include "runtime/pwl.h"
 #include "gna_graph_tools.hpp"
-#include "frontend/model_quantizer.hpp"
+#include "frontend/layer_quantizer.hpp"
+#include "frontend/scale_factor_calc.hpp"
 #include "layers/layers_builder.hpp"
 #include "layers/gna_concat_layer.hpp"
 #include "layers/gna_convolution_layer.hpp"
 #include "layers/gna_crop_layer.hpp"
 #include "layers/gna_fake_quantize_layer.hpp"
-#include "round_float_define.hpp"
+#include "common/numerical_utils.hpp"
 #include "gna_groups.hpp"
 #include "backend/gna_limitations.hpp"
 #include "descriptions/gna_desc.hpp"
@@ -43,6 +44,7 @@ using namespace InferenceEngine;
 using namespace std;
 using namespace ov::intel_gna;
 using namespace GNAPluginNS;
+using namespace ov::intel_gna::frontend;
 using namespace memory;
 
 static bool CheckIFLastComponentIsPrecededByConv2D(const GNAPluginNS::backend::DnnComponents::storage_type& components,
@@ -2461,11 +2463,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
     if (LayerInfo(prevLayer).isInput()) {
         auto quantized = getInjectedData<QuantizedLayerParams>(prevLayer);
         if (quantized) {
-            if (quantized->_inputs_int8_precision) {
-                inputs_ptr_->at(prevLayer->name).set_precision(InferenceEngine::Precision::I8);
-            } else {
-                inputs_ptr_->at(prevLayer->name).set_precision(InferenceEngine::Precision::I16);
-            }
+            inputs_ptr_->at(prevLayer->name).set_precision(GetInputPrecision());
         }
         if (0 == inputs_ptr_->at(prevLayer->name).get_allocated_size()) {
             // if request for allocation less that realTensorInput - we need to extend request

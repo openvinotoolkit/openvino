@@ -26,6 +26,7 @@ public:
     }
     void set_low_precision_input() {
         this->gnaFlags->input_low_precision = true;
+        this->config.gnaFlags.input_low_precision = true;
     }
 };
 

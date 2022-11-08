@@ -5,7 +5,7 @@
 #include "pwl_tools.hpp"
 
 #include "gna_slope_scale.h"
-#include "round_float_define.hpp"
+#include "common/numerical_utils.hpp"
 #include "runtime/pwl.h"
 
 namespace ov {
