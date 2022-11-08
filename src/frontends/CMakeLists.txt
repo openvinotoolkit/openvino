@@ -20,7 +20,6 @@ if(ENABLE_OV_IR_FRONTEND)
     add_subdirectory(ir)
 endif()
 
-# TODO: TF -> TENSORFLOW
 if(ENABLE_OV_TF_FRONTEND)
     add_subdirectory(tensorflow)
 endif()

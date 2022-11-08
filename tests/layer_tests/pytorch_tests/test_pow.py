@@ -34,7 +34,7 @@ class TestPow(PytorchLayerTest):
 
         ref_net = None
 
-        return aten_pow(), ref_net
+        return aten_pow(), ref_net, "aten::pow"
 
     @pytest.mark.nightly
     def test_pow(self, ie_device, precision, ir_version, test_input):

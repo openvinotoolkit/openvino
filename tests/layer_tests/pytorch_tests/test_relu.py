@@ -24,7 +24,7 @@ class TestRelu(PytorchLayerTest):
 
         ref_net = None
 
-        return aten_relu(), ref_net
+        return aten_relu(), ref_net, "aten::relu"
 
     @pytest.mark.nightly
     def test_relu(self, ie_device, precision, ir_version):

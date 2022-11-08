@@ -5,7 +5,7 @@ import pytest
 from pytorch_layer_test_class import PytorchLayerTest
 
 
-class TestRelu(PytorchLayerTest):
+class TestSoftmax(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
         return (np.random.randn(1, 3, 224, 224).astype(np.float32),)
@@ -25,9 +25,9 @@ class TestRelu(PytorchLayerTest):
 
         ref_net = None
 
-        return aten_softmax(dim), ref_net
+        return aten_softmax(dim), ref_net, "aten::softmax"
 
     @pytest.mark.parametrize("dim", [-1, 3])
     @pytest.mark.nightly
-    def test_relu(self, dim, ie_device, precision, ir_version):
+    def test_softmax(self, dim, ie_device, precision, ir_version):
         self._test(*self.create_model(dim), ie_device, precision, ir_version)
