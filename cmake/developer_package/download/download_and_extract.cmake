@@ -165,7 +165,7 @@ function (CheckOrDownloadAndExtract component RELATIVE_URL archive_name unpacked
     set(URL "https://storage.openvinotoolkit.org/dependencies/${RELATIVE_URL}")
   elseif(DEFINED ENV{TBB_USE_NEW_LOCATION})
     message(STATUS "defined TBB_USE_NEW_LOCATION")
-    set(URL "http://10-211-120-125.iotg.sclab.intel.com/dl_score_engine/${RELATIVE_URL}")
+    set(URL "http://10.211.120.125/dl_score_engine/${RELATIVE_URL}")
   else()
     set(URL "https://download.01.org/opencv/master/openvinotoolkit/${RELATIVE_URL}")
   endif()
