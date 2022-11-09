@@ -101,6 +101,9 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/graph_util.hpp>
 
+#include "ngraph_ops/augru_cell.hpp"
+#include "ngraph_ops/augru_sequence.hpp"
+
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
@@ -356,6 +359,10 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                 node)) {
             return gru_cell->get_clip() == 0.0f
                    && gru_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh"};
+        } else if (const auto &augru_cell = std::dynamic_pointer_cast<const ov::op::internal::AUGRUCell>(
+                node)) {
+            return augru_cell->get_clip() == 0.0f
+                   && augru_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh"};
         } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::opset4::LSTMCell>(
                 node)) {
             return lstm_cell->get_clip() == 0.0f &&
@@ -391,6 +398,12 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
             return gru_seq->get_clip() == 0.0f &&
                    gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
                    !ngraph::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(2),
+                                                          max_seq_len);
+        } else if (const auto &augru_seq = std::dynamic_pointer_cast<const ov::op::internal::AUGRUSequence>(
+                node)) {
+            return augru_seq->get_clip() == 0.0f &&
+                   augru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
+                   !ngraph::op::util::is_seq_len_provided(augru_seq->get_input_node_shared_ptr(2),
                                                           max_seq_len);
         } else if (const auto &lstm_seq = std::dynamic_pointer_cast<const ngraph::opset6::LSTMSequence>(
                 node)) {
@@ -721,8 +734,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
         const auto default_num_streams =
             engConfig.streamExecutorConfig._threadBindingType ==
                     InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
-                ? IStreamsExecutor::Config::GetHybridNumStreams(engConfig.streamExecutorConfig,
-                                                                IStreamsExecutor::Config::StreamMode::DEFAULT)
+                ? IStreamsExecutor::Config::GetHybridNumStreams(config, IStreamsExecutor::Config::StreamMode::DEFAULT)
                 : IStreamsExecutor::Config::GetDefaultNumStreams();
         int num_streams = default_num_streams;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
@@ -732,7 +744,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
                 num_streams = engConfig.streamExecutorConfig._threadBindingType ==
                                       InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
                                   ? IStreamsExecutor::Config::GetHybridNumStreams(
-                                        engConfig.streamExecutorConfig,
+                                        config,
                                         IStreamsExecutor::Config::StreamMode::AGGRESSIVE)
                                   : num_cores;
             }   // otherwise (no recognized layers) falling back to the default value
@@ -741,7 +753,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             num_streams = engConfig.streamExecutorConfig._threadBindingType ==
                                   InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
                               ? IStreamsExecutor::Config::GetHybridNumStreams(
-                                    engConfig.streamExecutorConfig,
+                                    config,
                                     IStreamsExecutor::Config::StreamMode::AGGRESSIVE)
                               : num_cores;
         } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
@@ -749,7 +761,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             num_streams = engConfig.streamExecutorConfig._threadBindingType ==
                                   InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
                               ? IStreamsExecutor::Config::GetHybridNumStreams(
-                                    engConfig.streamExecutorConfig,
+                                    config,
                                     IStreamsExecutor::Config::StreamMode::LESSAGGRESSIVE)
                               : std::max(default_num_streams, num_streams_less_aggressive);
         }
