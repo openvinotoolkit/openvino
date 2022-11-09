@@ -289,6 +289,7 @@ public:
 #define CASE_CONV_FP32_12 { 1, 16, 4, 5, 4 }, { 1, 16, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::g_os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
 #define CASE_CONV_FP32_13 { 1, 16, 18, 5, 4 }, { 1, 16, 16, 3, 2 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::g_os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
 #define CASE_CONV_FP32_14 { 1, 3, 4, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_FP32_15 { 1, 6, 4, 4 }, { 1, 16, 4, 4 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::bfyx, data_types::f32, format::bfyx
 
 
 #define CASE_CONV_FP16_1 { 1, 15, 4, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx, data_types::f16, format::bfyx
@@ -553,6 +554,35 @@ TEST_P(conv_fp32_double_bias, basic) {
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_double_bias, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_U8S8_1, 2, 4 },
     convolution_test_params{ CASE_CONV_S8S8_1, 2, 4 },
+}));
+
+class conv_fp32_wrong_bias : public ConvFusingTest {};
+TEST_P(conv_fp32_wrong_bias, basic) {
+    // Check case when eltwise add dependency has shape [1, 1, X, Y] and X*Y == CONV_OUT_FEATURES
+    auto p = GetParam();
+    ov::PartialShape eltw_data_shape = get_input_layout(p).get_partial_shape();
+    for (size_t i = 0; i < eltw_data_shape.size() - 2; i++) {
+        eltw_data_shape[i] = 1;
+    }
+
+    auto eltw_data_layout = layout{eltw_data_shape, p.default_type, format::bfyx};
+    ASSERT_EQ(p.out_shape.feature[0], eltw_data_layout.count());
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("non-bias", get_mem(eltw_data_layout)),
+        convolution("conv_prim", "input", { "weights" }, std::vector<primitive_id>{}, p.groups, p.stride, p.pad, p.dilation),
+        eltwise("add", { "conv_prim", "non-bias" }, eltwise_mode::sum),
+        reorder("reorder_bfyx", "add", p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_wrong_bias, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP32_15, 3, 3 },
 }));
 
 class conv_fp32_prelu_eltwise : public ConvFusingTest {};

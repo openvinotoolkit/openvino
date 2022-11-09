@@ -349,18 +349,24 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         if (node->get_output_layout().is_dynamic())
             continue;
 
-        size_t out_features = static_cast<size_t>(node->get_output_layout().feature());
+        cldnn::tensor::value_type out_features = node->get_output_layout().feature();
+        bool is_3d_fc = false;
 
         // Change out_features value to proper dimension for 3D FC case
-        if (is_3d_fully_connected(node->get_dependency(0)))
-            out_features = static_cast<size_t>(node->get_dependency(0).get_output_layout().spatial(1));
-        else if (is_3d_fully_connected(node->get_dependency(1)))
-            out_features = static_cast<size_t>(node->get_dependency(1).get_output_layout().spatial(1));
+        if (is_3d_fully_connected(node->get_dependency(0))) {
+            out_features = node->get_dependency(0).get_output_layout().spatial(1);
+            is_3d_fc = true;
+        } else if (is_3d_fully_connected(node->get_dependency(1))) {
+            out_features = node->get_dependency(1).get_output_layout().spatial(1);
+            is_3d_fc = true;
+        }
 
         int bias_idx = -1;
         for (size_t i = 0; i < eltw_node.get_dependencies().size(); i++) {
             auto& dep = eltw_node.get_dependency(i);
-            if (dep.is_constant() && dep.get_output_layout().count() == out_features) {
+            if (dep.is_constant() &&
+                (dep.get_output_layout().feature() == out_features || is_3d_fc) &&
+                dep.get_output_layout().count() == static_cast<size_t>(out_features)) {
                 bias_idx = static_cast<int>(i);
                 break;
             }
