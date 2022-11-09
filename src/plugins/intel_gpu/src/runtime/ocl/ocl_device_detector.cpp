@@ -22,8 +22,6 @@
 #endif
 
 namespace {
-<<<<<<< HEAD
-=======
 static const char create_device_error_msg[] =
     "[GPU] No supported OCL devices found or unexpected error happened during devices query.\n"
     "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n";
@@ -39,25 +37,10 @@ std::vector<std::string> split(const std::string& s, char delim) {
     return result;
 }
 
->>>>>>> upstream/master
 bool does_device_match_config(bool out_of_order, const cl::Device& device) {
     if (device.getInfo<CL_DEVICE_TYPE>() != CL_DEVICE_TYPE_GPU) {
         return false;
     }
-<<<<<<< HEAD
-
-    // Does device support OOOQ?
-    if (out_of_order) {
-        auto queue_properties = device.getInfo<CL_DEVICE_QUEUE_PROPERTIES>();
-        using cmp_t = std::common_type<decltype(queue_properties),
-                                       typename std::underlying_type<cl::QueueProperties>::type>::type;
-        if (!(static_cast<cmp_t>(queue_properties) & static_cast<cmp_t>(cl::QueueProperties::OutOfOrder))) {
-            return false;
-        }
-    }
-
-    return true;
-=======
 
     // TODO: Remove the check below once kernels are fixed
     if (device.getInfo<CL_DEVICE_VENDOR_ID>() != cldnn::INTEL_VENDOR_ID)
@@ -91,11 +74,11 @@ bool does_device_match_config(bool out_of_order, const cl::Device& device) {
 
     if (ocl_major != -1 && ocl_minor != -1) {
         int32_t ocl_version = ocl_major * 100 + ocl_minor * 10;
-#    if CL_TARGET_OPENCL_VERSION >= 200
+#if CL_TARGET_OPENCL_VERSION >= 200
         int32_t min_ocl_version = 200;
-#    else
+#else
         int32_t min_ocl_version = 120;
-#    endif
+#endif
         if (ocl_version < min_ocl_version)
             return false;
     }
@@ -116,7 +99,6 @@ size_t get_device_priority(const cldnn::device_info& info) {
     } else {
         return std::numeric_limits<size_t>::max();
     }
->>>>>>> upstream/master
 }
 }  // namespace
 
@@ -172,25 +154,10 @@ static std::vector<cl::Device> getSubDevices(cl::Device& rootDevice) {
 }
 
 std::vector<device::ptr> ocl_device_detector::sort_devices(const std::vector<device::ptr>& devices_list) {
-<<<<<<< HEAD
-    std::vector<device::ptr> sorted_list;
-    size_t insert_idx = 0;
-    for (auto& dptr : devices_list) {
-        if (dptr->get_info().dev_type == cldnn::device_type::integrated_gpu) {
-            sorted_list.insert(sorted_list.begin(), dptr);
-            insert_idx++;
-        } else if (dptr->get_info().vendor_id == INTEL_VENDOR_ID) {
-            sorted_list.insert(std::next(sorted_list.begin(), insert_idx++), dptr);
-        } else {
-            sorted_list.push_back(dptr);
-        }
-    }
-=======
     std::vector<device::ptr> sorted_list = devices_list;
     std::stable_sort(sorted_list.begin(), sorted_list.end(), [](device::ptr d1, device::ptr d2) {
         return get_device_priority(d1->get_info()) < get_device_priority(d2->get_info());
     });
->>>>>>> upstream/master
 
     return sorted_list;
 }
@@ -240,14 +207,6 @@ std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(vo
 std::vector<device::ptr> ocl_device_detector::create_device_list(bool out_out_order) const {
     cl_uint num_platforms = 0;
     // Get number of platforms availible
-<<<<<<< HEAD
-    cl_int err = clGetPlatformIDs(0, NULL, &n);
-    OPENVINO_ASSERT(err == CL_SUCCESS, "[GPU] clGetPlatformIDs error ", err);
-    // Get platform list
-    std::vector<cl_platform_id> platform_ids(n);
-    err = clGetPlatformIDs(n, platform_ids.data(), NULL);
-    OPENVINO_ASSERT(err == CL_SUCCESS, "[GPU] clGetPlatformIDs error ", err);
-=======
     cl_int error_code = clGetPlatformIDs(0, NULL, &num_platforms);
     OPENVINO_ASSERT(error_code == CL_SUCCESS,
                     create_device_error_msg,
@@ -260,7 +219,6 @@ std::vector<device::ptr> ocl_device_detector::create_device_list(bool out_out_or
                     create_device_error_msg,
                     "[GPU] clGetPlatformIDs error code: ",
                     std::to_string(error_code));
->>>>>>> upstream/master
 
     std::vector<device::ptr> supported_devices;
     for (auto& id : platform_ids) {
@@ -274,11 +232,7 @@ std::vector<device::ptr> ocl_device_detector::create_device_list(bool out_out_or
             supported_devices.emplace_back(std::make_shared<ocl_device>(device, cl::Context(device), id));
         }
     }
-<<<<<<< HEAD
-    OPENVINO_ASSERT(!supported_devices.empty(), "[GPU] No GPU device was found.");
-=======
     OPENVINO_ASSERT(!supported_devices.empty(), create_device_error_msg);
->>>>>>> upstream/master
     return supported_devices;
 }
 
@@ -296,27 +250,12 @@ std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_conte
         supported_devices.emplace_back(std::make_shared<ocl_device>(device, ctx, device.getInfo<CL_DEVICE_PLATFORM>()));
     }
 
-<<<<<<< HEAD
-    OPENVINO_ASSERT(!supported_devices.empty(), "[GPU] User defined context does not have GPU device included.");
-=======
     OPENVINO_ASSERT(!supported_devices.empty(), "[GPU] User defined context does not have supported GPU device.");
->>>>>>> upstream/master
     return supported_devices;
 }
 
 std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_device(bool out_out_order,
                                                                                   void* user_device) const {
-<<<<<<< HEAD
-    cl_uint n = 0;
-    // Get number of platforms availible
-    cl_int err = clGetPlatformIDs(0, NULL, &n);
-    OPENVINO_ASSERT(err == CL_SUCCESS, "[GPU] clGetPlatformIDs error ", err);
-
-    // Get platform list
-    std::vector<cl_platform_id> platform_ids(n);
-    err = clGetPlatformIDs(n, platform_ids.data(), NULL);
-    OPENVINO_ASSERT(err == CL_SUCCESS, "[GPU] clGetPlatformIDs error ", err);
-=======
     cl_uint num_platforms = 0;
     // Get number of platforms availible
     cl_int error_code = clGetPlatformIDs(0, NULL, &num_platforms);
@@ -332,7 +271,6 @@ std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_devic
                     create_device_error_msg,
                     "[GPU] clGetPlatformIDs error code: ",
                     std::to_string(error_code));
->>>>>>> upstream/master
 
     std::vector<device::ptr> supported_devices;
     for (auto& id : platform_ids) {
