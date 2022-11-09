@@ -18,6 +18,7 @@ public:
     using parent::parent;
 
     program_node& input(size_t index = 0) const { return get_dependency(index); }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 };
 
 using gather_node = typed_program_node<gather>;

@@ -14,7 +14,7 @@ from openvino.runtime.exceptions import UserInputError
 from openvino.runtime import Model, PartialShape, Shape, Type, layout_helpers
 from openvino.runtime import Strides, AxisVector, Coordinate, CoordinateDiff
 from openvino.runtime import Tensor, OVAny
-from openvino.pyopenvino import DescriptorTensor
+from openvino._pyopenvino import DescriptorTensor
 from openvino.runtime.op import Parameter
 from tests.runtime import get_runtime
 from openvino.runtime.utils.types import get_dtype
@@ -249,7 +249,7 @@ def test_bad_data_shape():
 
 def test_constant_get_data_bool():
     input_data = np.array([True, False, False, True])
-    node = ops.constant(input_data, dtype=np.bool)
+    node = ops.constant(input_data, dtype=bool)
     retrieved_data = node.get_data()
     assert np.allclose(input_data, retrieved_data)
 

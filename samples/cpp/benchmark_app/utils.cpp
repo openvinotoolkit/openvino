@@ -108,12 +108,11 @@ std::vector<float> split_float(const std::string& s, char delim) {
 std::vector<std::string> parse_devices(const std::string& device_string) {
     std::string comma_separated_devices = device_string;
     auto colon = comma_separated_devices.find(":");
+    std::vector<std::string> result;
     if (colon != std::string::npos) {
         auto target_device = comma_separated_devices.substr(0, colon);
         if (target_device == "AUTO" || target_device == "MULTI") {
-            std::vector<std::string> result;
             result.push_back(target_device);
-            return result;
         }
         auto bracket = comma_separated_devices.find("(");  // e.g. in BATCH:GPU(4)
         comma_separated_devices = comma_separated_devices.substr(colon + 1, bracket - colon - 1);
@@ -122,7 +121,47 @@ std::vector<std::string> parse_devices(const std::string& device_string) {
         return std::vector<std::string>();
 
     auto devices = split(comma_separated_devices, ',');
-    return devices;
+    result.insert(result.end(), devices.begin(), devices.end());
+    return result;
+}
+
+void parse_value_for_virtual_device(const std::string& device, std::map<std::string, std::string>& values_string) {
+    auto item_virtual = values_string.find(device);
+    if (item_virtual != values_string.end() && values_string.size() > 1) {
+        if (device == "MULTI") {
+            // Remove the element that the key is virtual device MULTI
+            // e.g. MULTI:xxx,xxx -nstreams 2 will set nstreams 2 to CPU.
+            values_string.erase(item_virtual);
+        } else if (device == "AUTO") {
+            // Just keep the element that the key is virtual device AUTO
+            // e.g. AUTO:xxx,xxx -nstreams 2 will trigger exception that AUTO plugin didn't support nstream property.
+            auto value = item_virtual->second;
+            values_string.clear();
+            values_string[device] = value;
+            return;
+        }
+    }
+    auto iter = values_string.begin();
+    while (iter != values_string.end()) {
+        if (iter->first == device) {
+            iter++;
+            continue;
+        }
+        values_string[device] += iter->first + " " + iter->second + " ";
+        iter = values_string.erase(iter);
+    }
+    if (values_string.find(device) != values_string.end()) {
+        auto& nstreams = values_string[device];
+        // Remove the space at the tail.
+        nstreams.erase(std::find_if(nstreams.rbegin(),
+                                    nstreams.rend(),
+                                    [](unsigned char ch) {
+                                        return !std::isspace(ch);
+                                    })
+                           .base(),
+                       nstreams.end());
+    }
+    return;
 }
 
 std::map<std::string, std::string> parse_value_per_device(const std::vector<std::string>& devices,

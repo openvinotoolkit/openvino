@@ -45,6 +45,8 @@ std::vector<layout> mvn_inst::calc_output_layouts(mvn_node const& /*node*/, cons
     return { layout{output_shape, output_type, output_format} };
 }
 
+template std::vector<layout> mvn_inst::calc_output_layouts<ov::PartialShape>(mvn_node const& node, const kernel_impl_params& impl_param);
+
 std::string mvn_inst::to_string(mvn_node const& node) {
     auto node_info = node.desc_to_json();
     auto desc = node.get_primitive();

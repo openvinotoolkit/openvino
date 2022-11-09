@@ -6,7 +6,7 @@
 #pragma once
 #include "intel_gpu/primitives/depth_to_space.hpp"
 #include "primitive_inst.h"
-#include "kernel_selector/core/actual_kernels/depth_to_space/depth_to_space_kernel_base.h"
+#include "kernel_selector/kernels/depth_to_space/depth_to_space_kernel_base.h"
 
 #include <string>
 #include <memory>

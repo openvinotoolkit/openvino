@@ -29,7 +29,7 @@ op::ShuffleChannels::ShuffleChannels(const Output<Node>& data, const int64_t axi
 }
 
 bool ngraph::op::v0::ShuffleChannels::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_ShuffleChannels_visit_attributes);
+    OV_OP_SCOPE(v0_ShuffleChannels_visit_attributes);
     visitor.on_attribute("axis", m_axis);
     visitor.on_attribute("group", m_group);
     return true;
@@ -48,7 +48,7 @@ size_t op::ShuffleChannels::get_zero_based_axis() const {
 }
 
 void op::ShuffleChannels::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_ShuffleChannels_validate_and_infer_types);
+    OV_OP_SCOPE(v0_ShuffleChannels_validate_and_infer_types);
 
     const auto& data_type = get_input_element_type(0);
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
@@ -58,7 +58,7 @@ void op::ShuffleChannels::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::ShuffleChannels::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_ShuffleChannels_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_ShuffleChannels_clone_with_new_inputs);
     if (new_args.size() != 1) {
         throw ngraph_error("Expected 1 element in new_args for the ShuffleChannels op but got " +
                            std::to_string(new_args.size()));
@@ -82,11 +82,11 @@ bool op::ShuffleChannels::evaluate_shuffle_channels(const HostTensorVector& outp
     return true;
 }
 bool op::ShuffleChannels::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_ShuffleChannels_evaluate);
+    OV_OP_SCOPE(v0_ShuffleChannels_evaluate);
     return evaluate_shuffle_channels(outputs, inputs);
 }
 
 bool op::ShuffleChannels::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_ShuffleChannels_has_evaluate);
+    OV_OP_SCOPE(v0_ShuffleChannels_has_evaluate);
     return true;
 }

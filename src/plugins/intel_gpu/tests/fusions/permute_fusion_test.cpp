@@ -166,7 +166,7 @@ TEST_P(permute_activation_scale_eltwise, basic) {
         data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.out_shape })),
         data("scale_data", get_mem(get_per_channel_layout(p), 5e-1f)),
         permute("permute", "input", p.permute_order),
-        scale("scale", "permute", "scale_data"),
+        eltwise("scale", { "permute", "scale_data" }, eltwise_mode::prod, p.default_type),
         activation("actv", "scale", activation_func::relu),
         eltwise("eltwise", { "actv", "eltwise_data" }, eltwise_mode::sum, p.data_type),
         reorder("reorder_bfyx", "eltwise", p.default_format, p.default_type)
@@ -290,10 +290,10 @@ TEST_P(permute_scale_actv_eltw_scale_actv_quant_i8, basic) {
         data("eltw_data", get_mem(layout(p.data_type, p.input_format, p.out_shape))),
         data("scale2_data", get_mem(get_per_channel_layout(p), 1e-1f)),
         permute("permute", "input", p.permute_order),
-        scale("scale1", "permute", "scale1_data"),
+        eltwise("scale1", { "permute", "scale1_data" }, eltwise_mode::prod, p.default_type),
         activation("actv1", "scale1", activation_func::relu),
         eltwise("eltw", { "actv1", "eltw_data" }, eltwise_mode::sum, p.data_type),
-        scale("scale2", "eltw", "scale2_data"),
+        eltwise("scale2", { "eltw", "scale2_data" }, eltwise_mode::prod, p.default_type),
         activation("actv2", "scale2", activation_func::relu),
         quantize("quant", "actv2", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         reorder("out", "quant", p.default_format, p.default_type)
@@ -364,10 +364,10 @@ TEST_P(permute_scale_eltwise_actv_scale_actv, basic) {
         data("scale_data1", get_mem(get_per_channel_layout(p), 1e-1f)),
         data("scale_data2", get_mem(get_per_channel_layout(p), 1e-1f)),
         permute("permute", "input", p.permute_order),
-        scale("scale1", "permute", "scale_data1"),
+        eltwise("scale1", { "permute", "scale_data1" }, eltwise_mode::prod, p.default_type),
         activation("actv1", "scale1", activation_func::relu),
         eltwise("eltwise", { "actv1", "eltwise_data" }, eltwise_mode::sum, p.default_type),
-        scale("scale2", "eltwise", "scale_data2"),
+        eltwise("scale2", { "eltwise", "scale_data2" }, eltwise_mode::prod, p.default_type),
         activation("actv2", "scale2", activation_func::relu),
         reorder("reorder_bfyx", "actv2", p.default_format, p.default_type)
     );

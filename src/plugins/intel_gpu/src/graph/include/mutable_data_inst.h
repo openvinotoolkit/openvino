@@ -42,7 +42,7 @@ public:
     static std::string to_string(mutable_data_node const& node);
 
     typed_primitive_inst(network& network, mutable_data_node const& node);
-    void set_output_memory(memory::ptr mem, bool check = true) override;
+    void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
 };
 
 using mutable_data_inst = typed_primitive_inst<mutable_data>;

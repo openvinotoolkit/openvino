@@ -333,8 +333,12 @@ ExecutionContextImpl::ExecutionContextImpl(const std::shared_ptr<IInferencePlugi
     cldnn::device_query device_query(engine_type, runtime_type, _context_id, _va_device, ctx_device_id, target_tile_id);
     auto device_map = device_query.get_available_devices();
 
-    auto iter = device_map.find(m_config.device_id);
-    auto& dev = iter != device_map.end() ? iter->second : device_map.begin()->second;
+    auto iter = device_map.find(std::to_string(cldnn::device_query::device_id));
+    if (iter == device_map.end())
+        iter = device_map.find(m_config.device_id);
+    if (iter == device_map.end())
+        iter = device_map.begin();
+    auto& dev = iter->second;
 
     bool enable_profiling = (m_config.useProfiling ||
                             (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_tune_and_cache) ||

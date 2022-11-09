@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transpose_sinking.hpp"
+#include "pass/transpose_sinking.hpp"
 
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset8.hpp"
@@ -259,7 +259,7 @@ static void sink_binary(const shared_ptr<Node>& binary,
                     convert_binary_to_default_order(binary, binary->input(1), left, reorders, transposes_to_delete);
                 }
             }
-        } catch (const std::exception& ex) {
+        } catch (const std::exception&) {
             throw std::runtime_error("");
         }
     }

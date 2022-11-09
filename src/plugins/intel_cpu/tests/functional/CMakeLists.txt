@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME cpuFuncTests)
+set(TARGET_NAME ov_cpu_func_tests)
 
-# cpuFuncTests is too big for debugging purpose, cpuDebugFuncTests
+# ov_cpu_func_tests is too big for debugging purpose, cpuDebugFuncTests
 # is a specific version for debugging purpose, just set DEBUG_SRC_PATH
 # to the test case to be debugged and debug using cpuDebugFuncTests
 set(DEBUG_TARGET_NAME cpuDebugFuncTests)
@@ -52,6 +52,7 @@ set(EXCLUDED_SOURCE_PATHS_FOR_DEBUG
 set(OBJECT_FILES_FOR_DEBUG
     ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/core_config.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/skip_tests_config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/set_device_name.cpp
     ${DEBUG_SRC_PATH})
 
 addIeTargetTest(

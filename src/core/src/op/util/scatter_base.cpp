@@ -22,7 +22,7 @@ ov::op::util::ScatterBase::ScatterBase(const Output<Node>& data,
 }
 
 void ov::op::util::ScatterBase::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(util_ScatterBase_validate_and_infer_types);
+    OV_OP_SCOPE(util_ScatterBase_validate_and_infer_types);
     const auto& data_et = get_input_element_type(DATA);
     const auto& indices_et = get_input_element_type(INDICES);
     const auto& updates_et = get_input_element_type(UPDATES);
@@ -113,6 +113,6 @@ void ov::op::util::ScatterBase::validate_and_infer_types() {
 }
 
 bool ov::op::util::ScatterBase::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(util_ScatterBase_visit_attributes);
+    OV_OP_SCOPE(util_ScatterBase_visit_attributes);
     return true;
 }

@@ -108,7 +108,7 @@ To request the current default context of the plugin, use one of the following m
 
 @endsphinxtab
 
-@sphinxtab{Bacthing via throughput hint}
+@sphinxtab{Batching via throughput hint}
 
 @snippet docs/snippets/gpu/remote_objects_creation.cpp default_context_from_model
 

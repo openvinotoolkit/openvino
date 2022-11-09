@@ -31,39 +31,38 @@ static std::mutex cacheAccessMutex;
 
 template <class PType, class DescType, class PrimDescType = dnnl::primitive_desc, class PrimType = dnnl::primitive>
 struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
-    const typed_program_node<PType>& _outer;
+    const engine& _engine;
     std::shared_ptr<DescType> _desc;
     std::shared_ptr<dnnl::primitive_attr> _attrs;
     PrimDescType _pd;
     PrimType _prim;
     std::unordered_map<uint32_t, std::unordered_map<int, dnnl::memory>> _args;
 
-    typed_primitive_onednn_impl(const typed_program_node<PType>& arg,
+    typed_primitive_onednn_impl(const engine& engine,
                                 std::shared_ptr<DescType> desc,
                                 std::shared_ptr<dnnl::primitive_attr> attrs,
                                 const PrimDescType& pd,
                                 kernel_selector::WeightsReorderParams weights_reorder = {})
         : typed_primitive_impl<PType>(weights_reorder, pd.impl_info_str()),
-          _outer(arg),
+          _engine(engine),
           _desc(desc),
           _attrs(attrs),
           _pd(pd) {
             build_primitive();
         }
 
-    typed_primitive_onednn_impl(const typed_program_node<PType>& arg)
+    typed_primitive_onednn_impl(const engine& engine)
         : typed_primitive_impl<PType>({}, "undef"),
-          _outer(arg),
+          _engine(engine),
           _pd(),
           _prim() {
-        assert(arg.can_be_optimized());
     }
 
     bool is_cpu() const override { return false; }
 
 private:
     std::string get_cache_directory() const {
-        auto path = _outer.get_program().get_engine().configuration().kernels_cache_path;
+        auto path = _engine.configuration().kernels_cache_path;
         if (path.empty()) {
             return {};
         }
@@ -133,21 +132,19 @@ protected:
     }
 
     void configure_post_ops_arguments(typed_primitive_inst<PType>& instance, std::unordered_map<int, dnnl::memory>& args) const {
-        auto& node = instance.get_node();
         auto& engine = instance.get_network().get_engine();
         auto dnnl_engine = engine.get_onednn_engine();
 
         // Get current post-ops info
-        auto onednn_attrs = node.get_onednn_primitive_attributes();
-        dnnl::post_ops post_ops = onednn_attrs->get_post_ops();
+        dnnl::post_ops post_ops = _attrs->get_post_ops();
 
         // Create onednn memory buffers for post-ops
-        auto& cur_post_ops = node.get_fused_primitives_onednn();
+        auto& cur_post_ops = instance.get_fused_primitives_onednn();
         auto post_ops_size = cur_post_ops.size();
         for (size_t post_op_idx = 0, num_of_optimized_post_ops = 0; post_op_idx < post_ops_size; post_op_idx++) {
             auto post_op_type = cur_post_ops[post_op_idx].op_type;
             auto memory_offset = cur_post_ops[post_op_idx].mem_offset;
-            auto onednn_post_op_idx = has_output_scales(onednn_attrs) && post_op_idx > 0 ? post_op_idx - 1 : post_op_idx;
+            auto onednn_post_op_idx = has_output_scales(_attrs) && post_op_idx > 0 ? post_op_idx - 1 : post_op_idx;
             onednn_post_op_idx -= num_of_optimized_post_ops;
 
             switch (post_op_type) {
@@ -220,13 +217,13 @@ protected:
 
         {
             auto& input = instance.input_memory(0);
-            auto offset = onednn::get_f_offset(instance.node.input().get_output_layout(), _pd.dnnl::primitive_desc_base::src_desc(0));
+            auto offset = onednn::get_f_offset(instance.get_input_layout(), _pd.dnnl::primitive_desc_base::src_desc(0));
             args.insert({DNNL_ARG_SRC, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0), offset)});
         }
 
         {
             auto& output = instance.output_memory();
-            auto offset = onednn::get_f_offset(instance.node.get_output_layout(), _pd.dnnl::primitive_desc_base::dst_desc(0));
+            auto offset = onednn::get_f_offset(instance.get_output_layout(), _pd.dnnl::primitive_desc_base::dst_desc(0));
             args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0), offset)});
         }
 

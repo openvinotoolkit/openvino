@@ -13,7 +13,6 @@ function(frontend_module TARGET FRAMEWORK INSTALL_COMPONENT)
     set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/frontend/${FRAMEWORK})
     set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/frontend/${FRAMEWORK})
     set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/frontend/${FRAMEWORK})
-    set(PYTHON_BRIDGE_CPACK_PATH "${OV_CPACK_PYTHONDIR}")
 
     file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
@@ -25,7 +24,7 @@ function(frontend_module TARGET FRAMEWORK INSTALL_COMPONENT)
     add_dependencies(py_ov_frontends ${TARGET_NAME})
 
     target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
-                                                      "${PYTHON_SOURCE_DIR}/pyopenvino/utils/")
+                                                      "${OpenVINOPython_SOURCE_DIR}/src/pyopenvino/utils/")
     target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime openvino::frontend::${FRAMEWORK})
 
     set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
@@ -37,10 +36,10 @@ function(frontend_module TARGET FRAMEWORK INSTALL_COMPONENT)
 
     # perform copy
     add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy  ${PYTHON_SOURCE_DIR}/openvino/frontend/${FRAMEWORK}/__init__.py
+            COMMAND ${CMAKE_COMMAND} -E copy  ${OpenVINOPython_SOURCE_DIR}/src/openvino/frontend/${FRAMEWORK}/__init__.py
                                               ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py)
 
     install(TARGETS ${TARGET_NAME}
-            DESTINATION ${OV_CPACK_PYTHONDIR}/${pyversion}/openvino/frontend/${FRAMEWORK}
+            DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/frontend/${FRAMEWORK}
             COMPONENT ${INSTALL_COMPONENT})
 endfunction()

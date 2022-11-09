@@ -31,11 +31,6 @@ public:
     explicit base_pass(const std::string& pass_name) : name(pass_name) {}
     virtual void run(program& p) = 0;
     std::string get_name() { return name; }
-    void clean_marks(program& p) {
-        for (auto& node : p.get_processing_order()) {
-            node->unmark();
-        }
-    }
 
 private:
     const std::string name;
@@ -313,6 +308,16 @@ private:
     virtual void run(program& p, layout_optimizer& lo, reorder_factory& rf);
     layout_optimizer& _lo;
     reorder_factory& _rf;
+};
+
+class select_preferred_formats : public base_pass {
+public:
+    explicit select_preferred_formats(layout_optimizer& lo_ref) :
+        base_pass("select_preferred_formats"), _lo(lo_ref) {}
+
+private:
+    void run(program& p) override;
+    layout_optimizer& _lo;
 };
 
 class trim_to_outputs : public base_pass {

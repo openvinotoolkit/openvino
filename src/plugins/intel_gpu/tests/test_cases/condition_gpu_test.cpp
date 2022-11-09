@@ -11,7 +11,6 @@
 #include <intel_gpu/primitives/pooling.hpp>
 #include <intel_gpu/primitives/condition.hpp>
 #include <intel_gpu/primitives/softmax.hpp>
-#include <intel_gpu/primitives/scale.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
 #include <cstddef>
@@ -19,6 +18,7 @@
 using namespace cldnn;
 using namespace ::tests;
 
+namespace {
 bool is_output_equal(const cldnn::memory::ptr mem, const std::vector<float>& ref)
 {
     cldnn::mem_lock<float> ptr(mem, get_test_stream());
@@ -42,6 +42,49 @@ topology generate_simple_branch (bool branch_true_false, const primitive_id& inp
     }
     return branch;
 }
+
+std::pair<std::vector<float>, std::vector<float>> get_values_to_compare(const cldnn::tensor& offset,
+                                                                        const cldnn::tensor& range,
+                                                                        const std::vector<float>& values,
+                                                                        const cldnn::layout& input_lay,
+                                                                        const cond_functions& func) {
+    std::vector<float> ret_true;
+    std::vector<float> ret_false;
+    auto mem_desc = generic_test::get_linear_memory_desc(input_lay);
+    for (int32_t b = 0; b < range.batch[0]; b++) {
+        for (int32_t f = 0; f < range.feature[0]; f++) {
+            for (int32_t y = 0; y < range.spatial[1]; y++) {
+                for (int32_t x = 0; x < range.spatial[0]; x++) {
+                    auto linear_idx = generic_test::get_linear_index(
+                        input_lay,
+                        offset.batch[0] + b,
+                        offset.feature[0] + f,
+                        offset.spatial[1] + y,
+                        offset.spatial[0] + x,
+                        mem_desc);
+
+                    switch (func) {
+                    case cond_functions::EQUAL:
+                        ret_true.push_back(values.at(linear_idx));
+                        ret_false.push_back(-1.0f);
+                        break;
+                    case cond_functions::GREATER:
+                        ret_true.push_back(values.at(linear_idx) - 1.0f);
+                        ret_false.push_back(99.0f);
+                        break;
+                    case cond_functions::LESS:
+                        ret_true.push_back(values.at(linear_idx) + 1.0f);
+                        ret_false.push_back(-1.0f);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    return { ret_true, ret_false };
+}
+
+}  // namespace
 
 TEST(DISABLED_condition_gpu, basic_equal_comp) {
     auto& engine = get_test_engine();
@@ -68,7 +111,7 @@ TEST(DISABLED_condition_gpu, basic_equal_comp) {
         condition("condi", "input", branch_true, branch_false, "compare", cond_functions::EQUAL)
     );
     topology.add(
-        scale("output", "condi", "scale_data")
+        eltwise("output", { "condi", "scale_data" }, eltwise_mode::prod)
     );
 
     network net(engine, topology, bs);
@@ -168,46 +211,7 @@ TEST(DISABLED_condition_gpu, basic_range_equal_comp) {
     EXPECT_TRUE(is_output_equal(out_data_false, pooling_when_false_data));
 }
 
-std::pair<std::vector<float>, std::vector<float>> get_values_to_compare(const cldnn::tensor& offset, const cldnn::tensor& range, const std::vector<float>& values, const cldnn::layout& input_lay, const cond_functions& func)
-{
-    std::vector<float> ret_true;
-    std::vector<float> ret_false;
-    auto mem_desc = generic_test::get_linear_memory_desc(input_lay);
-    for (int32_t b = 0; b < range.batch[0]; b++) {
-        for (int32_t f = 0; f < range.feature[0]; f++) {
-            for (int32_t y = 0; y < range.spatial[1]; y++) {
-                for (int32_t x = 0; x < range.spatial[0]; x++) {
-                    auto linear_idx = generic_test::get_linear_index(
-                        input_lay,
-                        offset.batch[0] + b,
-                        offset.feature[0] + f,
-                        offset.spatial[1] + y,
-                        offset.spatial[0] + x,
-                        mem_desc);
-
-                    switch (func) {
-                    case cond_functions::EQUAL:
-                        ret_true.push_back(values.at(linear_idx));
-                        ret_false.push_back(-1.0f);
-                        break;
-                    case cond_functions::GREATER:
-                        ret_true.push_back(values.at(linear_idx) - 1.0f);
-                        ret_false.push_back(99.0f);
-                        break;
-                    case cond_functions::LESS:
-                        ret_true.push_back(values.at(linear_idx) + 1.0f);
-                        ret_false.push_back(-1.0f);
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    return { ret_true, ret_false };
-}
-
 TEST(DISABLED_condition_gpu, generic_test_true_false) {
-
     auto& engine = get_test_engine();
     build_options bs;
     bs.set_option(build_option::optimize_data(true));
@@ -306,7 +310,6 @@ TEST(DISABLED_condition_gpu, generic_test_true_false) {
 }
 
 TEST(DISABLED_condition_gpu, basic_stacked_ifs) {
-
     /*
         <prims...>
         <if>
@@ -377,7 +380,6 @@ TEST(DISABLED_condition_gpu, basic_stacked_ifs) {
 }
 
 TEST(DISABLED_condition_gpu, basic_nested_ifs) {
-
     /*
     <prims...>
     <if 0>
@@ -402,12 +404,12 @@ TEST(DISABLED_condition_gpu, basic_nested_ifs) {
 
     topology nested_true;
     {
-        nested_true.add(scale("scale_5", "condi_nested", "scale_5_data"),
+        nested_true.add(eltwise("scale_5", { "condi_nested", "scale_5_data" }, eltwise_mode::prod),
             data("scale_5_data", scale_5_mem));
     }
     topology nested_false;
     {
-        nested_false.add(scale("scale_10", "condi_nested", "scale_10_data"),
+        nested_false.add(eltwise("scale_10", { "condi_nested", "scale_10_data" }, eltwise_mode::prod),
             data("scale_10_data", scale_10_mem));
     }
 

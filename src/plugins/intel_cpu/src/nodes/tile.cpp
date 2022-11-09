@@ -51,6 +51,15 @@ Tile::Tile(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, Weights
 }
 
 void Tile::getSupportedDescriptors() {
+    const auto& vec_to_string = [](const std::vector<size_t>& vec) -> std::string {
+        std::string result = "[";
+        for (size_t i = 0; i < vec.size(); i++) {
+            if (i)
+                result += ", ";
+            result += std::to_string(vec[i]);
+        }
+        return result;
+    };
     if (getParentEdges().size() != 2)
         IE_THROW() << errorPrefix << " has incorrect number of input edges. "
                 "Expected: 2, Actual: " << getParentEdges().size();
@@ -63,8 +72,8 @@ void Tile::getSupportedDescriptors() {
             IE_THROW() << errorPrefix << " has output edges 0 and " << i << " with different ranks: " << dstDims0.size() << " and " << dstDims.size();
         for (size_t j = 0; j < dstDims0.size(); j++) {
             if (dstDims0[j] != dstDims[j]) {
-                IE_THROW() << errorPrefix << " has output edges 0 and " << i << " with different dims: "
-                        << std::string(dstDims0.begin(), dstDims0.end()) << " and " << std::string(dstDims.begin(), dstDims.end());
+                IE_THROW() << errorPrefix << " has output edges 0 and " << i << " with different dims: " << vec_to_string(dstDims0) << " and "
+                           << vec_to_string(dstDims);
             }
         }
     }

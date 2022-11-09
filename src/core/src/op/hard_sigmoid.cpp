@@ -22,12 +22,12 @@ op::v0::HardSigmoid::HardSigmoid(const Output<Node>& data, const Output<Node>& a
 }
 
 bool ngraph::op::v0::HardSigmoid::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_HardSigmoid_visit_attributes);
+    OV_OP_SCOPE(v0_HardSigmoid_visit_attributes);
     return true;
 }
 
 void op::v0::HardSigmoid::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_HardSigmoid_validate_and_infer_types);
+    OV_OP_SCOPE(v0_HardSigmoid_validate_and_infer_types);
     const auto& alpha_pshape = get_input_partial_shape(1);
     const auto& beta_pshape = get_input_partial_shape(2);
 
@@ -59,7 +59,7 @@ void op::v0::HardSigmoid::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v0::HardSigmoid::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_HardSigmoid_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_HardSigmoid_clone_with_new_inputs);
     check_new_args_count(this, new_args);
 
     return std::make_shared<op::v0::HardSigmoid>(new_args.at(0), new_args.at(1), new_args.at(2));

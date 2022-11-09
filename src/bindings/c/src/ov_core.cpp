@@ -3,36 +3,12 @@
 //
 #include "openvino/c/ov_core.h"
 
+#include <stdarg.h>
+
+#include <openvino/util/file_util.hpp>
+#include <string>
+
 #include "common.h"
-
-/**
- * @variable global value for error info.
- * Don't change its order.
- */
-char const* error_infos[] = {"success",
-                             "general error",
-                             "it's not implement",
-                             "failed to network",
-                             "input parameter mismatch",
-                             "cannot find the value",
-                             "out of bounds",
-                             "run with unexpected error",
-                             "request is busy",
-                             "result is not ready",
-                             "it is not allocated",
-                             "inference start with error",
-                             "network is not ready",
-                             "inference is canceled",
-                             "invalid c input parameters",
-                             "unknown c error"};
-
-const char* ov_get_error_info(ov_status_e status) {
-    auto index = -status;
-    auto max_index = sizeof(error_infos) / sizeof(error_infos[0]) - 1;
-    if (static_cast<size_t>(index) > max_index)
-        return error_infos[max_index];
-    return error_infos[index];
-}
 
 char* str_to_char_array(const std::string& str) {
     std::unique_ptr<char> _char_array(new char[str.length() + 1]);
@@ -137,20 +113,30 @@ ov_status_e ov_core_read_model_from_memory(const ov_core_t* core,
 ov_status_e ov_core_compile_model(const ov_core_t* core,
                                   const ov_model_t* model,
                                   const char* device_name,
+                                  const size_t property_args_size,
                                   ov_compiled_model_t** compiled_model,
-                                  const ov_property_t* property) {
-    if (!core || !model || !compiled_model) {
+                                  ...) {
+    if (!core || !model || !compiled_model || property_args_size % 2 != 0) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
+        ov::AnyMap property = {};
+        va_list args_ptr;
+        va_start(args_ptr, compiled_model);
+        size_t property_size = property_args_size / 2;
+        for (size_t i = 0; i < property_size; i++) {
+            GET_PROPERTY_FROM_ARGS_LIST;
+        }
+        va_end(args_ptr);
+
         std::string dev_name = "";
         ov::CompiledModel object;
         if (device_name) {
             dev_name = device_name;
-            object = core->object->compile_model(model->object, dev_name);
+            object = core->object->compile_model(model->object, dev_name, property);
         } else {
-            object = core->object->compile_model(model->object);
+            object = core->object->compile_model(model->object, property);
         }
         std::unique_ptr<ov_compiled_model_t> _compiled_model(new ov_compiled_model_t);
         _compiled_model->object = std::make_shared<ov::CompiledModel>(std::move(object));
@@ -163,20 +149,30 @@ ov_status_e ov_core_compile_model(const ov_core_t* core,
 ov_status_e ov_core_compile_model_from_file(const ov_core_t* core,
                                             const char* model_path,
                                             const char* device_name,
+                                            const size_t property_args_size,
                                             ov_compiled_model_t** compiled_model,
-                                            const ov_property_t* property) {
-    if (!core || !model_path || !compiled_model) {
+                                            ...) {
+    if (!core || !model_path || !compiled_model || property_args_size % 2 != 0) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
+        ov::AnyMap property = {};
+        size_t property_size = property_args_size / 2;
+        va_list args_ptr;
+        va_start(args_ptr, compiled_model);
+        for (size_t i = 0; i < property_size; i++) {
+            GET_PROPERTY_FROM_ARGS_LIST;
+        }
+        va_end(args_ptr);
+
         ov::CompiledModel object;
         std::string dev_name = "";
         if (device_name) {
             dev_name = device_name;
-            object = core->object->compile_model(model_path, dev_name);
+            object = core->object->compile_model(model_path, dev_name, property);
         } else {
-            object = core->object->compile_model(model_path);
+            object = core->object->compile_model(model_path, property);
         }
         std::unique_ptr<ov_compiled_model_t> _compiled_model(new ov_compiled_model_t);
         _compiled_model->object = std::make_shared<ov::CompiledModel>(std::move(object));
@@ -186,16 +182,26 @@ ov_status_e ov_core_compile_model_from_file(const ov_core_t* core,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_core_set_property(const ov_core_t* core, const char* device_name, const ov_property_t* property) {
-    if (!core || !property) {
+ov_status_e ov_core_set_property(const ov_core_t* core, const char* device_name, ...) {
+    if (!core) {
         return ov_status_e::INVALID_C_PARAM;
     }
 
     try {
+        ov::AnyMap property = {};
+        va_list args_ptr;
+        va_start(args_ptr, device_name);
+        GET_PROPERTY_FROM_ARGS_LIST;
+        va_end(args_ptr);
+
+        if (property.size() == 0) {
+            return ov_status_e::INVALID_C_PARAM;
+        }
+
         if (device_name) {
-            core->object->set_property(device_name, property->object);
+            core->object->set_property(device_name, property);
         } else {
-            core->object->set_property(property->object);
+            core->object->set_property(property);
         }
     }
     CATCH_OV_EXCEPTIONS
@@ -204,186 +210,14 @@ ov_status_e ov_core_set_property(const ov_core_t* core, const char* device_name,
 
 ov_status_e ov_core_get_property(const ov_core_t* core,
                                  const char* device_name,
-                                 const ov_property_key_e key,
-                                 ov_property_value_t* value) {
-    if (!core || !device_name || !value) {
+                                 const char* property_key,
+                                 char** property_value) {
+    if (!core || !property_key || !property_value) {
         return ov_status_e::INVALID_C_PARAM;
     }
     try {
-        switch (key) {
-        case ov_property_key_e::SUPPORTED_PROPERTIES: {
-            auto supported_properties = core->object->get_property(device_name, ov::supported_properties);
-            std::string tmp_s;
-            for (const auto& i : supported_properties) {
-                tmp_s = tmp_s + "\n" + i;
-            }
-            char* tmp = new char[tmp_s.length() + 1];
-            std::copy_n(tmp_s.begin(), tmp_s.length() + 1, tmp);
-            value->ptr = static_cast<void*>(tmp);
-            value->cnt = tmp_s.length() + 1;
-            value->type = ov_property_value_type_e::CHAR;
-            break;
-        }
-        case ov_property_key_e::AVAILABLE_DEVICES: {
-            auto available_devices = core->object->get_property(device_name, ov::available_devices);
-            std::string tmp_s;
-            for (const auto& i : available_devices) {
-                tmp_s = tmp_s + "\n" + i;
-            }
-            char* tmp = new char[tmp_s.length() + 1];
-            std::copy_n(tmp_s.begin(), tmp_s.length() + 1, tmp);
-            value->ptr = static_cast<void*>(tmp);
-            value->cnt = tmp_s.length() + 1;
-            value->type = ov_property_value_type_e::CHAR;
-            break;
-        }
-        case ov_property_key_e::OPTIMAL_NUMBER_OF_INFER_REQUESTS: {
-            auto optimal_number_of_infer_requests =
-                core->object->get_property(device_name, ov::optimal_number_of_infer_requests);
-            uint32_t* temp = new uint32_t;
-            *temp = optimal_number_of_infer_requests;
-            value->ptr = static_cast<void*>(temp);
-            value->cnt = 1;
-            value->type = ov_property_value_type_e::UINT32;
-            break;
-        }
-        case ov_property_key_e::RANGE_FOR_ASYNC_INFER_REQUESTS: {
-            auto range = core->object->get_property(device_name, ov::range_for_async_infer_requests);
-            uint32_t* temp = new uint32_t[3];
-            temp[0] = std::get<0>(range);
-            temp[1] = std::get<1>(range);
-            temp[2] = std::get<2>(range);
-            value->ptr = static_cast<void*>(temp);
-            value->cnt = 3;
-            value->type = ov_property_value_type_e::UINT32;
-            break;
-        }
-        case ov_property_key_e::RANGE_FOR_STREAMS: {
-            auto range = core->object->get_property(device_name, ov::range_for_streams);
-            uint32_t* temp = new uint32_t[2];
-            temp[0] = std::get<0>(range);
-            temp[1] = std::get<1>(range);
-            value->ptr = static_cast<void*>(temp);
-            value->cnt = 2;
-            value->type = ov_property_value_type_e::UINT32;
-            break;
-        }
-        case ov_property_key_e::FULL_DEVICE_NAME: {
-            auto name = core->object->get_property(device_name, ov::device::full_name);
-            char* tmp = new char[name.length() + 1];
-            std::copy_n(name.begin(), name.length() + 1, tmp);
-            value->ptr = static_cast<void*>(tmp);
-            value->cnt = name.length() + 1;
-            value->type = ov_property_value_type_e::CHAR;
-            break;
-        }
-        case ov_property_key_e::OPTIMIZATION_CAPABILITIES: {
-            auto capabilities = core->object->get_property(device_name, ov::device::capabilities);
-            std::string tmp_s;
-            for (const auto& i : capabilities) {
-                tmp_s = tmp_s + "\n" + i;
-            }
-            char* tmp = new char[tmp_s.length() + 1];
-            std::copy_n(tmp_s.begin(), tmp_s.length() + 1, tmp);
-            value->ptr = static_cast<void*>(tmp);
-            value->cnt = tmp_s.length() + 1;
-            value->type = ov_property_value_type_e::CHAR;
-            break;
-        }
-        case ov_property_key_e::CACHE_DIR: {
-            auto dir = core->object->get_property(device_name, ov::cache_dir);
-            char* tmp = new char[dir.length() + 1];
-            std::copy_n(dir.begin(), dir.length() + 1, tmp);
-            value->ptr = static_cast<void*>(tmp);
-            value->cnt = dir.length() + 1;
-            value->type = ov_property_value_type_e::CHAR;
-            break;
-        }
-        case ov_property_key_e::NUM_STREAMS: {
-            auto num = core->object->get_property(device_name, ov::num_streams);
-            int32_t* temp = new int32_t;
-            *temp = num.num;
-            value->ptr = static_cast<void*>(temp);
-            value->cnt = 1;
-            value->type = ov_property_value_type_e::INT32;
-            break;
-        }
-        case ov_property_key_e::AFFINITY: {
-            auto affinity = core->object->get_property(device_name, ov::affinity);
-            ov_affinity_e* temp = new ov_affinity_e;
-            *temp = static_cast<ov_affinity_e>(affinity);
-            value->ptr = static_cast<void*>(temp);
-            value->cnt = 1;
-            value->type = ov_property_value_type_e::ENUM;
-            break;
-        }
-        case ov_property_key_e::INFERENCE_NUM_THREADS: {
-            auto num = core->object->get_property(device_name, ov::inference_num_threads);
-            int32_t* temp = new int32_t;
-            *temp = num;
-            value->ptr = static_cast<void*>(temp);
-            value->cnt = 1;
-            value->type = ov_property_value_type_e::INT32;
-            break;
-        }
-        case ov_property_key_e::PERFORMANCE_HINT: {
-            auto perf_mode = core->object->get_property(device_name, ov::hint::performance_mode);
-            ov_performance_mode_e* temp = new ov_performance_mode_e;
-            *temp = static_cast<ov_performance_mode_e>(perf_mode);
-            value->ptr = static_cast<void*>(temp);
-            value->cnt = 1;
-            value->type = ov_property_value_type_e::ENUM;
-            break;
-        }
-        case ov_property_key_e::NETWORK_NAME: {
-            auto name = core->object->get_property(device_name, ov::model_name);
-            char* tmp = new char[name.length() + 1];
-            std::copy_n(name.begin(), name.length() + 1, tmp);
-            value->ptr = static_cast<void*>(tmp);
-            value->cnt = name.length() + 1;
-            value->type = ov_property_value_type_e::CHAR;
-            break;
-        }
-        case ov_property_key_e::INFERENCE_PRECISION_HINT: {
-            auto infer_precision = core->object->get_property(device_name, ov::hint::inference_precision);
-            ov_element_type_e* temp = new ov_element_type_e;
-            *temp = static_cast<ov_element_type_e>(ov::element::Type_t(infer_precision));
-            value->ptr = static_cast<void*>(temp);
-            value->cnt = 1;
-            value->type = ov_property_value_type_e::ENUM;
-            break;
-        }
-        case ov_property_key_e::OPTIMAL_BATCH_SIZE: {
-            auto batch_size = core->object->get_property(device_name, ov::optimal_batch_size);
-            uint32_t* temp = new uint32_t;
-            *temp = batch_size;
-            value->ptr = static_cast<void*>(temp);
-            value->cnt = 1;
-            value->type = ov_property_value_type_e::UINT32;
-            break;
-        }
-        case ov_property_key_e::MAX_BATCH_SIZE: {
-            auto batch_size = core->object->get_property(device_name, ov::max_batch_size);
-            uint32_t* temp = new uint32_t;
-            *temp = batch_size;
-            value->ptr = static_cast<void*>(temp);
-            value->cnt = 1;
-            value->type = ov_property_value_type_e::UINT32;
-            break;
-        }
-        case ov_property_key_e::PERFORMANCE_HINT_NUM_REQUESTS: {
-            auto num_requests = core->object->get_property(device_name, ov::hint::num_requests);
-            uint32_t* temp = new uint32_t;
-            *temp = num_requests;
-            value->ptr = static_cast<void*>(temp);
-            value->cnt = 1;
-            value->type = ov_property_value_type_e::UINT32;
-            break;
-        }
-        default:
-            return ov_status_e::OUT_OF_BOUNDS;
-            break;
-        }
+        auto value = core->object->get_property(device_name, property_key);
+        *property_value = str_to_char_array(value.as<std::string>());
     }
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
@@ -488,7 +322,75 @@ void ov_core_versions_free(ov_core_version_list_t* versions) {
     versions->versions = nullptr;
 }
 
-void ov_free(const char* content) {
-    if (content)
-        delete content;
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+ov_status_e ov_core_create_with_config_unicode(const wchar_t* xml_config_file_ws, ov_core_t** core) {
+    if (!xml_config_file_ws) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    std::string xml_config_file;
+    try {
+        xml_config_file = ov::util::wstring_to_string(std::wstring(xml_config_file_ws));
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_core_create_with_config(xml_config_file.c_str(), core);
 }
+
+ov_status_e ov_core_read_model_unicode(const ov_core_t* core,
+                                       const wchar_t* model_path,
+                                       const wchar_t* bin_path,
+                                       ov_model_t** model) {
+    if (!core || !model_path || !model) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        std::wstring model_path_ws = model_path;
+        std::wstring bin_path_ws = {};
+        if (bin_path) {
+            bin_path_ws = bin_path;
+        }
+        std::unique_ptr<ov_model_t> _model(new ov_model_t);
+        _model->object = core->object->read_model(model_path_ws, bin_path_ws);
+        *model = _model.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_core_compile_model_from_file_unicode(const ov_core_t* core,
+                                                    const wchar_t* model_path_ws,
+                                                    const char* device_name,
+                                                    const size_t property_args_size,
+                                                    ov_compiled_model_t** compiled_model,
+                                                    ...) {
+    if (!core || !model_path_ws || !compiled_model || property_args_size % 2 != 0) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    try {
+        std::string model_path = ov::util::wstring_to_string(std::wstring(model_path_ws));
+        ov::AnyMap property = {};
+        size_t property_size = property_args_size / 2;
+        va_list args_ptr;
+        va_start(args_ptr, compiled_model);
+        for (size_t i = 0; i < property_size; i++) {
+            GET_PROPERTY_FROM_ARGS_LIST;
+        }
+        va_end(args_ptr);
+
+        ov::CompiledModel object;
+        std::string dev_name = "";
+        if (device_name) {
+            dev_name = device_name;
+            object = core->object->compile_model(model_path, dev_name, property);
+        } else {
+            object = core->object->compile_model(model_path, property);
+        }
+        std::unique_ptr<ov_compiled_model_t> _compiled_model(new ov_compiled_model_t);
+        _compiled_model->object = std::make_shared<ov::CompiledModel>(std::move(object));
+        *compiled_model = _compiled_model.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+#endif

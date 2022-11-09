@@ -22,7 +22,7 @@ namespace fake_quantize_details {
 inline std::vector<size_t> calc_broadcast_index_offset(const std::vector<size_t>& memory_offsets,
                                                        const std::vector<size_t>& broadcast_shape) {
     std::vector<size_t> broadcast_offsets(broadcast_shape.size(), 0);
-    for (int i = broadcast_shape.size() - 2; i >= 0; --i) {
+    for (int i = static_cast<int>(broadcast_shape.size()) - 2; i >= 0; --i) {
         if (broadcast_shape[i] == 1) {
             broadcast_offsets[i] = memory_offsets[i];
         }
@@ -34,7 +34,7 @@ inline std::vector<size_t> calc_broadcast_index_offset(const std::vector<size_t>
         broadcast_offsets[broadcast_offsets.size() - 1] = 1;
     }
     if (broadcast_shape.back() == 1) {
-        for (int i = broadcast_shape.size() - 1; i >= 0; --i) {
+        for (int i = static_cast<int>(broadcast_shape.size()) - 1; i >= 0; --i) {
             if (broadcast_shape[i] != 1) {
                 broadcast_offsets[i] = memory_offsets[i] - 1;
                 break;
@@ -45,7 +45,7 @@ inline std::vector<size_t> calc_broadcast_index_offset(const std::vector<size_t>
 }
 
 inline size_t calc_full_broadcast_offset(const std::vector<size_t>& current_dims, const std::vector<size_t>& offsets) {
-    return std::inner_product(begin(current_dims), end(current_dims), begin(offsets), 0);
+    return std::inner_product(begin(current_dims), end(current_dims), begin(offsets), uint64_t(0));
 }
 
 inline Shape align_shape_sizes(const Shape& shape, const Shape& target_shape, const op::AutoBroadcastSpec& broadcast) {
@@ -147,8 +147,9 @@ inline T quantize(const T& arg,
     } else if (arg > std::max(in_low, in_high)) {
         return out_high;
     }
-    return std::nearbyint((arg - in_low) / (in_high - in_low) * (levels - 1)) / (levels - 1) * (out_high - out_low) +
-           out_low;
+    return static_cast<T>(std::nearbyint((arg - in_low) / (in_high - in_low) * (levels - 1)) / (levels - 1) *
+                              (out_high - out_low) +
+                          out_low);
 }
 
 }  // namespace fake_quantize_details

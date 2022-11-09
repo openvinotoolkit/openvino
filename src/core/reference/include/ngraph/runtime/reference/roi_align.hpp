@@ -126,14 +126,14 @@ void roi_align(const T* feature_maps,
                         unsigned int sample_x_high;
 
                         if (sample_y_low >= feature_map_height - 1) {
-                            sample_y_high = sample_y_low = feature_map_height - 1;
+                            sample_y_high = sample_y_low = static_cast<unsigned int>(feature_map_height - 1);
                             sample_y = static_cast<T>(sample_y_low);
                         } else {
                             sample_y_high = sample_y_low + 1;
                         }
 
                         if (sample_x_low >= feature_map_width - 1) {
-                            sample_x_high = sample_x_low = feature_map_width - 1;
+                            sample_x_high = sample_x_low = static_cast<unsigned int>(feature_map_width - 1);
                             sample_x = static_cast<T>(sample_x_low);
                         } else {
                             sample_x_high = sample_x_low + 1;

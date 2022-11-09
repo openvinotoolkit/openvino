@@ -11,6 +11,7 @@
 #include "node.h"
 #include "edge.h"
 #include "cache/multi_cache.h"
+#include "dnnl_scratch_pad.h"
 #include <map>
 #include <string>
 #include <vector>
@@ -53,7 +54,8 @@ public:
     template<typename NET>
     void CreateGraph(NET &network,
                      const ExtensionManager::Ptr& extMgr,
-                     WeightsSharing::Ptr &w_cache);
+                     WeightsSharing::Ptr &w_cache,
+                     const std::shared_ptr<std::mutex>& mutex);
 
     void CreateGraph(const std::vector<NodePtr> &graphNodes,
                      const std::vector<EdgePtr> &graphEdges,
@@ -262,6 +264,8 @@ private:
     std::vector<NodePtr> executableGraphNodes;
 
     MultiCachePtr rtParamsCache;
+    std::shared_ptr<std::mutex> sharedMutex = nullptr;
+    DnnlScratchPadPtr rtScratchPad;
 
     void EnforceBF16();
 };

@@ -15,22 +15,50 @@ from openvino.tools.benchmark.utils.inputs_filling import get_input_data
 from openvino.tools.benchmark.utils.logging import logger
 from openvino.tools.benchmark.utils.progress_bar import ProgressBar
 from openvino.tools.benchmark.utils.utils import next_step, get_number_iterations, pre_post_processing, \
-    process_help_inference_string, print_perf_counters, dump_exec_graph, get_duration_in_milliseconds, \
+    process_help_inference_string, print_perf_counters, print_perf_counters_sort, dump_exec_graph, get_duration_in_milliseconds, \
     get_command_line_arguments, parse_value_per_device, parse_devices, get_inputs_info, \
     print_inputs_and_outputs_info, get_network_batch_size, load_config, dump_config, get_latency_groups, \
     check_for_static, can_measure_as_static
 from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, averageCntReport, detailedCntReport
 
+def parse_and_check_command_line():
+    def arg_not_empty(arg_value,empty_value):
+        return not arg_value is None and not arg_value == empty_value
+
+    args = parse_args()
+
+    if not args.perf_hint == "none" and (arg_not_empty(args.number_streams, "") or arg_not_empty(args.number_threads, 0) or arg_not_empty(args.infer_threads_pinning, "")):
+        raise Exception("-nstreams, -nthreads and -pin options are fine tune options. To use them you " \
+                        "should explicitely set -hint option to none. This is not OpenVINO limitation " \
+                        "(those options can be used in OpenVINO together), but a benchmark_app UI rule.")
+    
+    if args.report_type == "average_counters" and "MULTI" in args.target_device:
+        raise Exception("only detailed_counters report type is supported for MULTI device")
+    
+    _, ext = os.path.splitext(args.path_to_model)
+    is_network_compiled = True if ext == BLOB_EXTENSION else False
+    is_precisiton_set = not (args.input_precision == "" and args.output_precision == "" and args.input_output_precision == "")
+
+    if is_network_compiled and is_precisiton_set:
+        raise Exception("Cannot set precision for a compiled network. " \
+                        "Please re-compile your network with required precision " \
+                        "using compile_tool")
+    
+    return args, is_network_compiled
 
 def main():
-    # ------------------------------ 1. Parsing and validating input arguments -------------------------------------
-    next_step()
-    run(parse_args())
-
-
-def run(args):
     statistics = None
     try:
+        # ------------------------------ 1. Parsing and validating input arguments ------------------------------
+        args_string = f"{os.path.realpath(sys.argv[0])} "
+        for i in range(1,len(sys.argv)):
+            args_string += f"{sys.argv[i]} "
+
+        next_step()
+        args, is_network_compiled = parse_and_check_command_line()
+
+        logger.info(f"Input command: {args_string}")
+
         if args.number_streams is None:
                 logger.warning(" -nstreams default value is determined automatically for a device. "
                                "Although the automatic selection usually provides a reasonable performance, "
@@ -54,11 +82,7 @@ def run(args):
         if args.load_config:
             load_config(args.load_config, config)
 
-        is_network_compiled = False
-        _, ext = os.path.splitext(args.path_to_model)
-
-        if ext == BLOB_EXTENSION:
-            is_network_compiled = True
+        if is_network_compiled:
             print("Model is compiled")
 
         # ------------------------------ 2. Loading OpenVINO ---------------------------------------------------
@@ -67,9 +91,8 @@ def run(args):
         benchmark = Benchmark(args.target_device, args.number_infer_requests,
                               args.number_iterations, args.time, args.api_type, args.inference_only)
 
-        ## CPU (OneDNN) extensions
-        if CPU_DEVICE_NAME in device_name and args.path_to_extension:
-            benchmark.add_extension(path_to_extension=args.path_to_extension)
+        if args.extensions:
+            benchmark.add_extension(path_to_extensions=args.extensions)
 
         ## GPU (clDNN) Extensions
         if GPU_DEVICE_NAME in device_name and args.path_to_cldnn_config:
@@ -87,7 +110,7 @@ def run(args):
                 if is_flag_set_in_command_line('hint'):
                     if args.perf_hint=='none':
                         logger.warning(f"No device {device} performance hint is set.")
-                        args.perf_hint = ""
+                        args.perf_hint = ''
                 else:
                     args.perf_hint = "THROUGHPUT" if benchmark.api_type == "async" else "LATENCY"
                     logger.warning(f"PerformanceMode was not explicitly specified in command line. " +
@@ -101,7 +124,7 @@ def run(args):
 
         # --------------------- 3. Setting device configuration --------------------------------------------------------
         next_step()
-        def get_device_type_from_name(name) :
+        def get_device_type_from_name(name):
             new_name = str(name)
             new_name = new_name.split(".", 1)[0]
             new_name = new_name.split("(", 1)[0]
@@ -138,16 +161,18 @@ def run(args):
                 logger.warning(f"Turn on performance counters for {device} device " +
                                "due to execution graph dumping.")
                 config[device]['PERF_COUNT'] = 'YES'
+            elif is_flag_set_in_command_line('pcsort'):
+                ## set to default value
+                config[device]['PERF_COUNT'] = 'YES' if args.perf_counts_sort else 'NO'
             else:
                 ## set to default value
                 config[device]['PERF_COUNT'] = 'YES' if args.perf_counts else 'NO'
             perf_counts = True if config[device]['PERF_COUNT'] == 'YES' else perf_counts
 
             ## high-level performance hints
-            if is_flag_set_in_command_line('hint') or args.perf_hint:
-                config[device]['PERFORMANCE_HINT'] = args.perf_hint.upper()
-                if is_flag_set_in_command_line('nireq'):
-                    config[device]['PERFORMANCE_HINT_NUM_REQUESTS'] = str(args.number_infer_requests)
+            config[device]['PERFORMANCE_HINT'] = args.perf_hint.upper()
+            if is_flag_set_in_command_line('nireq'):
+                config[device]['PERFORMANCE_HINT_NUM_REQUESTS'] = str(args.number_infer_requests)
 
             ## infer precision
             if device in device_infer_precision and 'INFERENCE_PRECISION_HINT' in supported_properties:
@@ -170,7 +195,8 @@ def run(args):
                     else:
                         raise Exception(f"Device {device} doesn't support config key '{key}'! " +
                                         "Please specify -nstreams for correct devices in format  <dev1>:<nstreams1>,<dev2>:<nstreams2>")
-                elif key not in config[device].keys() and args.api_type == "async" and not is_flag_set_in_command_line('hint'):
+                elif key not in config[device].keys() and args.api_type == "async" \
+                    and 'PERFORMANCE_HINT' in config[device].keys() and config[device]['PERFORMANCE_HINT'] == '':
                     ## set the _AUTO value for the #streams
                     logger.warning(f"-nstreams default value is determined automatically for {device} device. " +
                                    "Although the automatic selection usually provides a reasonable performance, "
@@ -222,6 +248,10 @@ def run(args):
         benchmark.set_config(config)
         if args.cache_dir:
             benchmark.set_cache_dir(args.cache_dir)
+
+        ## If set batch size, disable the auto batching
+        if args.batch_size:
+            benchmark.set_allow_auto_batching(False)
 
         topology_name = ""
         load_from_file_enabled = is_flag_set_in_command_line('load_from_file') or is_flag_set_in_command_line('lfile')
@@ -408,7 +438,10 @@ def run(args):
                 input_tensor = request.get_input_tensor(port)
                 if not static_mode:
                     input_tensor.shape = data_tensor.shape
-                input_tensor.data[:] = data_tensor.data
+                if not len(input_tensor.shape):
+                    input_tensor.data.flat[:] = data_tensor.data
+                else:
+                    input_tensor.data[:] = data_tensor.data
 
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.RUNTIME_CONFIG,
@@ -475,9 +508,17 @@ def run(args):
             perfs_count_list = []
             for request in requests:
                 perfs_count_list.append(request.profiling_info)
-            if args.perf_counts:
+
+            if args.perf_counts_sort:
+                total_sorted_list = print_perf_counters_sort(perfs_count_list,sort_flag=args.perf_counts_sort)
+                if statistics:
+                    statistics.dump_performance_counters_sorted(total_sorted_list)
+            
+            elif args.perf_counts:
                 print_perf_counters(perfs_count_list)
+
             if statistics:
+                # if not args.perf_counts_sort:
                 statistics.dump_performance_counters(perfs_count_list)
 
         if statistics:
@@ -534,26 +575,27 @@ def run(args):
                                       ])
             statistics.dump()
 
-
-        print(f'Count:          {iteration} iterations')
-        print(f'Duration:       {get_duration_in_milliseconds(total_duration_sec):.2f} ms')
+        if devices.count("AUTO"):
+            print(f'ExecutionDevice: {compiled_model.get_property("EXECUTION_DEVICES")}')
+        print(f'Count:           {iteration} iterations')
+        print(f'Duration:        {get_duration_in_milliseconds(total_duration_sec):.2f} ms')
         if MULTI_DEVICE_NAME not in device_name:
             print('Latency:')
             if args.latency_percentile == 50 and static_mode:
-                print(f'    Median:     {median_latency_ms:.2f} ms')
+                print(f'    Median:      {median_latency_ms:.2f} ms')
             elif args.latency_percentile != 50:
                 print(f'({args.latency_percentile} percentile):     {median_latency_ms:.2f} ms')
-            print(f'    AVG:        {avg_latency_ms:.2f} ms')
-            print(f'    MIN:        {min_latency_ms:.2f} ms')
-            print(f'    MAX:        {max_latency_ms:.2f} ms')
+            print(f'    AVG:         {avg_latency_ms:.2f} ms')
+            print(f'    MIN:         {min_latency_ms:.2f} ms')
+            print(f'    MAX:         {max_latency_ms:.2f} ms')
 
             if pcseq:
                 print("Latency for each data shape group: ")
                 for group in benchmark.latency_groups:
                     print(f"  {str(group)}")
-                    print(f'    AVG:        {group.avg:.2f} ms')
-                    print(f'    MIN:        {group.min:.2f} ms')
-                    print(f'    MAX:        {group.max:.2f} ms')
+                    print(f'    AVG:         {group.avg:.2f} ms')
+                    print(f'    MIN:         {group.min:.2f} ms')
+                    print(f'    MAX:         {group.max:.2f} ms')
 
         print(f'Throughput: {fps:.2f} FPS')
 

@@ -36,8 +36,11 @@ void remove_redundant_reorders::run(program& p) {
             return;
 
         node.set_unique_id();
-        auto new_impl = node.type()->choose_impl(node);
-        node.set_selected_impl(std::move(new_impl));
+        node.set_selected_impl(node.type()->choose_impl(node));
+        if (auto impl = node.get_selected_impl()) {
+            auto kernel_ids = p.get_kernels_cache().add_kernels_source(impl->get_kernels_source());
+            impl->set_kernel_ids(kernel_ids);
+        }
     };
 
     // Fuse reorders into primitives
@@ -332,12 +335,11 @@ void remove_redundant_reorders::run(program& p) {
 
             bool same_data_type = input.get_output_layout().data_type == output_layout.data_type;
             bool allowed_dt_conversion_fuse = (input.is_type<one_hot>() || input.is_type<permute>() ||
-                                               input.is_type<depth_to_space>() || input.is_type<region_yolo>());
+                                               input.is_type<depth_to_space>() || input.is_type<region_yolo>() || input.is_type<detection_output>());
             if (!same_data_type && !allowed_dt_conversion_fuse)
                 continue;
 
-            auto next_node = node.get_users().empty() ? nullptr : node.get_users().front();
-            if (!lo.can_fuse_reorder_to_prev(input, next_node, input.get_output_layout().format, output_layout.format))
+            if (!lo.can_fuse_reorder_to_prev(input, node, input.get_output_layout().format, output_layout.format))
                 continue;
 
             auto old_output_layout_of_input = input.get_output_layout();
@@ -382,29 +384,6 @@ void remove_redundant_reorders::run(program& p) {
         p.remove_if_dangling(node);
     }
 
-    // This pass removed reorder if it is between quantize and convolution.
-    itr = p.get_processing_order().begin();
-    while (itr != p.get_processing_order().end()) {
-        auto& node_ptr = *itr++;
-        if (!node_ptr->is_type<reorder>() || !node_ptr->is_in_data_flow() || node_ptr->get_users().size() != 1 || node_ptr->get_dependencies().size() != 1 ||
-            node_ptr->get_output_layout().get_spatial_rank() != 3)
-            continue;
-
-        auto& usr = node_ptr->get_users().front();
-        auto& dep = node_ptr->get_dependency(0);
-        auto& node = node_ptr->as<reorder>();
-
-        if (lo.get_optimization_attributes().use_onednn_impls && dep.is_type<quantize>() && usr->is_type<convolution>()) {
-            dep.merge_output_padding(node.get_output_layout().data_padding);
-
-            LOG_NODE_REMOVAL(node.id());
-            p.replace_all_usages(node, dep);
-            p.add_optimized_primitive_info(node.id());
-            p.remove_all_connections(node);
-            p.remove_if_dangling(node);
-        }
-    }
-
     // Remove reorder for cldnn convolution bfyx -> fs_b_yx_fsv32. (no case for onednn)
     auto try_fuse_reorder_bfyx_to_fsv32 = [&](reorder_node* node) -> bool {
         if (node->get_users().size() != 1)
@@ -444,6 +423,7 @@ void remove_redundant_reorders::run(program& p) {
         auto& input = node->input();
 
         if (!(input.is_type<convolution>()) ||
+            (input.is_dynamic()) ||
             !(input.get_output_layout().format == format::b_fs_yx_fsv16) ||
             !(node->get_output_layout().format == format::bfyx))
             return false;

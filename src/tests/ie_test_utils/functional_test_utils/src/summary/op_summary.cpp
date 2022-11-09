@@ -36,6 +36,7 @@ OpSummary::OpSummary() {
     opsets.push_back(ngraph::get_opset7());
     opsets.push_back(ngraph::get_opset8());
     opsets.push_back(ngraph::get_opset9());
+    opsets.push_back(ngraph::get_opset10());
 }
 
 OpSummary &OpSummary::getInstance() {

@@ -12,6 +12,19 @@
 #include <string>
 #include <vector>
 
+namespace {
+kernel_selector::dev_type get_device_type(cldnn::device_type type) {
+    switch (type) {
+        case cldnn::device_type::integrated_gpu:
+            return kernel_selector::dev_type::integrated_gpu;
+        case cldnn::device_type::discrete_gpu:
+            return kernel_selector::dev_type::discrete_gpu;
+        default:
+            return kernel_selector::dev_type::integrated_gpu;
+    }
+}
+}  // namespace
+
 kernel_selector::data_type to_data_type(data_types dt) {
     switch (dt) {
         case cldnn::data_types::bin:
@@ -134,6 +147,8 @@ kernel_selector::data_layout to_data_layout(format f) {
             return kernel_selector::data_layout::bfwzyx;
         case format::b_fs_zyx_fsv16:
             return kernel_selector::data_layout::b_fs_zyx_fsv16;
+        case format::bs_fs_yx_bsv16_fsv32:
+            return kernel_selector::data_layout::bs_fs_yx_bsv16_fsv32;
         case format::bs_fs_zyx_bsv16_fsv32:
             return kernel_selector::data_layout::bs_fs_zyx_bsv16_fsv32;
         case format::bs_fs_zyx_bsv16_fsv16:
@@ -259,6 +274,7 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::oiyx;
         case format::ioyx:
             return kernel_selector::weights_layout::ioyx;
+        case format::iyxo:
         case format::fyxb:
             return kernel_selector::weights_layout::iyxo;
         case format::byxf:
@@ -384,6 +400,8 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::is_os_zyx_isv16_osv16;
         case format::is_os_yx_isv16_osv16:
             return kernel_selector::weights_layout::is_os_yx_isv16_osv16;
+        case format::is_os_yx_isv16_osv8:
+            return kernel_selector::weights_layout::is_os_yx_isv16_osv8;
         case format::is_os_yx_osa4_isa8_osv8_isv4:
             return kernel_selector::weights_layout::is_os_yx_osa4_isa8_osv8_isv4;
         case format::os_is_osv32_isv32_swizzled_by_4:
@@ -618,6 +636,8 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::is_os_zyx_isv16_osv16;
         case kernel_selector::weights_layout::is_os_yx_isv16_osv16:
             return cldnn::format::is_os_yx_isv16_osv16;
+        case kernel_selector::weights_layout::is_os_yx_isv16_osv8:
+            return cldnn::format::is_os_yx_isv16_osv8;
         case kernel_selector::weights_layout::is_os_zyx_isa8_osv8_isv2:
             return cldnn::format::is_os_zyx_isa8_osv8_isv2;
         case kernel_selector::weights_layout::is_os_zyx_isa8_osv8_isv4:
@@ -785,17 +805,6 @@ kernel_selector::tuning_mode to_tuning_mode(cldnn::tuning_mode mode) {
     }
 }
 
-kernel_selector::dev_type get_device_type(cldnn::device_type type) {
-    switch (type) {
-        case cldnn::device_type::integrated_gpu:
-            return kernel_selector::dev_type::integrated_gpu;
-        case cldnn::device_type::discrete_gpu:
-            return kernel_selector::dev_type::discrete_gpu;
-        default:
-            return kernel_selector::dev_type::integrated_gpu;
-    }
-}
-
 kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split, const tensor view_offset) {
     const auto& pad = l.data_padding;
     const auto& vals = l.get_tensor().sizes(l.format);
@@ -839,11 +848,11 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split
 
     if (ks_layout == kernel_selector::Tensor::bs_fs_yx_bsv16_fsv16) {
         vec[2].pitch = (vec[0].v * vec[1].v) * 16;
-        vec[3].pitch = vec[2].pitch * vec[2].v;
+        vec[3].pitch = vec[2].pitch * vec[2].LogicalDimPadded();
     }
     if (ks_layout == kernel_selector::Tensor::bs_fs_zyx_bsv16_fsv16) {
         vec[3].pitch = (vec[0].v * vec[1].v * vec[2].v) * 16;
-        vec[4].pitch = vec[3].pitch * vec[3].v;
+        vec[4].pitch = vec[3].pitch * vec[3].LogicalDimPadded();
     }
 
     const int feature_index =
@@ -985,7 +994,7 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
 
 void set_params(const kernel_impl_params& param_info, kernel_selector::params& params) {
     const auto& program = param_info.prog;
-    const auto& device_info = program.get_engine().get_device_info();
+    const auto& device_info = program->get_engine().get_device_info();
 
     params.uniqueID = std::to_string(param_info.unique_id);
     params.engineInfo.bSubGroupSupport = device_info.supports_subgroups;
@@ -997,7 +1006,8 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.bIMMADSupport = device_info.supports_immad != 0;
     params.engineInfo.bImageSupport = device_info.supports_image != 0;
     params.engineInfo.bOptHintsSupport = false;
-    params.engineInfo.bLocalBlockIOSupport = device_info.supports_local_block_io;
+
+    params.engineInfo.bLocalBlockIOSupport = device_info.supports_local_block_io && program->is_local_block_io_supported();
     params.engineInfo.deviceType = get_device_type(device_info.dev_type);
     params.engineInfo.maxWorkGroupSize = device_info.max_work_group_size;
     params.engineInfo.maxLocalMemSize = device_info.max_local_mem_size;
@@ -1006,11 +1016,11 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.computeUnitsCount = device_info.execution_units_count;
     params.engineInfo.maxThreadsPerExecutionUnit = device_info.num_threads_per_eu > 0 ? device_info.num_threads_per_eu : 7;
     params.engineInfo.maxThreadsPerDevice = params.engineInfo.maxThreadsPerExecutionUnit * device_info.execution_units_count;
-    params.engineInfo.deviceCache = program.get_tuning_cache();
+    params.engineInfo.deviceCache = program->get_tuning_cache();
     params.engineInfo.driverVersion = device_info.driver_version;
     params.engineInfo.supportedSimdSizes = device_info.supported_simd_sizes;
 
-    auto impl_forcing_bo = program.get_options().get<build_option_type::force_implementations>();
+    auto impl_forcing_bo = program->get_options().get<build_option_type::force_implementations>();
     const auto& impl_forcing = impl_forcing_bo->forcing;
 
     if (impl_forcing.count(param_info.desc->id) != 0) {

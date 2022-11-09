@@ -7,6 +7,8 @@
 #include <vector>
 #include <memory>
 
+#define OV_GPU_USE_OPENCL_HPP
+
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #include "openvino/runtime/core.hpp"
 
@@ -589,6 +591,82 @@ TEST_P(OVRemoteTensor_TestsWithContext, smoke_canInferOnUserQueue_in_order) {
     // 2. Enqueue inference primitives. With shared queue this call ensures that all kernels are scheduled to the corresponding queue
     // before giving the control back
     inf_req_shared.start_async();
+
+    // 3. Post-processing. Enqueue copy from shared blob with inference result to another output blob
+    // Note: inf_req_shared.Wait() can be dropped in some cases, but if plugin-side post-processing is required,
+    // then the result may be incorrect without Wait().
+    {
+        ocl_instance->_queue.enqueueReadBuffer(shared_output_buffer, false, 0, out_size, out_tensor.data(), nullptr, nullptr);
+    }
+
+    // 4. Wait for infer request and post-processing completion
+    ocl_instance->_queue.finish();
+
+    // compare results
+    {
+        ASSERT_EQ(output->get_element_type(), ov::element::f32);
+        ASSERT_EQ(output_tensor_regular.get_size(), out_tensor.get_size());
+        auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
+        ASSERT_NO_THROW(output_tensor_regular.data());
+        FuncTestUtils::compare_tensor(output_tensor_regular, out_tensor, thr);
+    }
+}
+
+TEST_P(OVRemoteTensor_TestsWithContext, smoke_canInferOnUserQueue_infer_call_many_times) {
+    auto ie = ov::Core();
+
+    using namespace ov::preprocess;
+    auto p = PrePostProcessor(fn_ptr);
+    p.input().tensor().set_element_type(ov::element::i8);
+    p.input().preprocess().convert_element_type(ov::element::f32);
+    auto function = p.build();
+
+    auto exec_net_regular = ie.compile_model(function, deviceName);
+    auto input = function->get_parameters().at(0);
+    auto output = function->get_results().at(0);
+
+    // regular inference
+    auto inf_req_regular = exec_net_regular.create_infer_request();
+    auto fakeImageData = FuncTestUtils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
+    inf_req_regular.set_tensor(input, fakeImageData);
+
+    inf_req_regular.infer();
+    auto output_tensor_regular = inf_req_regular.get_tensor(exec_net_regular.output());
+
+    auto in_size = ov::shape_size(input->get_output_shape(0)) * input->get_output_element_type(0).size();
+    auto out_size = ov::shape_size(output->get_output_shape(0)) * output->get_output_element_type(0).size();
+
+    // inference using remote tensor
+    auto ocl_instance = std::make_shared<OpenCL>();
+    ocl_instance->_queue = cl::CommandQueue(ocl_instance->_context, ocl_instance->_device);
+    cl_int err;
+
+    // Allocate shared buffers for input and output data which will be set to infer request
+    cl::Buffer shared_input_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, in_size, NULL, &err);
+    cl::Buffer shared_output_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, out_size, NULL, &err);
+
+    auto remote_context = ov::intel_gpu::ocl::ClContext(ie, ocl_instance->_queue.get());
+    auto exec_net_shared = ie.compile_model(function, remote_context); // no auto-batching support, so no config is passed
+    auto gpu_context = exec_net_shared.get_context().as<ov::intel_gpu::ocl::ClContext>();
+
+    auto gpu_in_tensor = gpu_context.create_tensor(input->get_output_element_type(0), input->get_output_shape(0), shared_input_buffer);
+    auto gpu_out_tensor = gpu_context.create_tensor(output->get_output_element_type(0), output->get_output_shape(0), shared_output_buffer);
+    auto out_tensor = FuncTestUtils::create_and_fill_tensor(output->get_output_element_type(0), output->get_output_shape(0));
+
+    auto inf_req_shared = exec_net_shared.create_infer_request();
+    inf_req_shared.set_tensor(input, gpu_in_tensor);
+    inf_req_shared.set_tensor(output, gpu_out_tensor);
+
+    // 1. Pre-processing. Enqueue non-blocking copy from host ptr to shared device input buffer
+    {
+        void* buffer = fakeImageData.data();
+        ocl_instance->_queue.enqueueWriteBuffer(shared_input_buffer, false, 0, in_size, buffer);
+    }
+
+    // 2. Enqueue inference primitives. Synchronous infer() call waits for completion of the result, thus results of the first iterations are discarded
+    for (size_t i = 0; i < 10; i++) {
+        inf_req_shared.infer();
+    }
 
     // 3. Post-processing. Enqueue copy from shared blob with inference result to another output blob
     // Note: inf_req_shared.Wait() can be dropped in some cases, but if plugin-side post-processing is required,
@@ -1240,3 +1318,72 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_buffer) {
 
 const std::vector<size_t> num_batches{ 1, 2, 4 };
 INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensor, OVRemoteTensorBatched_Test, ::testing::ValuesIn(num_batches), OVRemoteTensorBatched_Test::getTestCaseName);
+
+TEST(OVRemoteContextGPU, smoke_RemoteContextPerDevice) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    auto core = ov::Core();
+    std::vector<std::string> gpuDevices;
+    std::vector<std::string> availableDevices = core.get_available_devices();
+
+    std::for_each(availableDevices.begin(), availableDevices.end(), [&](const std::string& device){
+        if (device.find(CommonTestUtils::DEVICE_GPU) != std::string::npos)
+            gpuDevices.push_back(device);
+    });
+
+    if (gpuDevices.size() < 2)
+        GTEST_SKIP();
+
+    const auto gpuDeviceFirst = gpuDevices[0];
+    const auto gpuDeviceSecond = gpuDevices[1];
+
+    auto defaultContextFirst = core.get_default_context(gpuDeviceFirst);
+    auto defaultContextSecond = core.get_default_context(gpuDeviceSecond);
+
+    // Check devices names
+    ASSERT_EQ(defaultContextFirst.get_device_name(), gpuDeviceFirst);
+    ASSERT_EQ(defaultContextSecond.get_device_name(), gpuDeviceSecond);
+}
+
+TEST(OVRemoteContextGPU, smoke_RemoteContextCaching) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    auto core = ov::Core();
+    std::vector<std::string> gpuDevices;
+    std::vector<std::string> availableDevices = core.get_available_devices();
+
+    std::for_each(availableDevices.begin(), availableDevices.end(), [&](const std::string& device){
+        if (device.find(CommonTestUtils::DEVICE_GPU) != std::string::npos)
+            gpuDevices.push_back(device);
+    });
+
+    if (gpuDevices.size() < 2)
+        GTEST_SKIP();
+
+    const auto gpuDeviceFirst = gpuDevices[0];
+    const auto gpuDeviceSecond = gpuDevices[1];
+    auto model = ngraph::builder::subgraph::makeConvertTranspose();
+
+    auto compiledModelFirst = core.compile_model(model, gpuDeviceFirst);
+    auto compiledModelSecond = core.compile_model(model, gpuDeviceSecond);
+
+    auto compiledModelFirstContext = compiledModelFirst.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    auto compiledModelSecondContext = compiledModelSecond.get_context().as<ov::intel_gpu::ocl::ClContext>();
+
+    auto defaultContextFirst = core.get_default_context(gpuDeviceFirst).as<ov::intel_gpu::ocl::ClContext>();
+    // Check devices names
+    ASSERT_EQ(defaultContextFirst.get_device_name(), gpuDeviceFirst);
+    // Check underlying OpenCL context handles
+    ASSERT_EQ(compiledModelFirstContext.get(), defaultContextFirst.get());
+
+    auto defaultContextSecond = core.get_default_context(gpuDeviceSecond).as<ov::intel_gpu::ocl::ClContext>();
+    // Check devices names
+    ASSERT_EQ(defaultContextSecond.get_device_name(), gpuDeviceSecond);
+    // Check underlying OpenCL context handles
+    ASSERT_EQ(compiledModelSecondContext.get(), compiledModelSecondContext.get());
+
+    // Expect different contexts for different devices
+    ASSERT_NE(compiledModelFirstContext.get(), compiledModelSecondContext.get());
+}

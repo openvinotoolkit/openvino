@@ -508,7 +508,8 @@ std::shared_ptr<ngraph::Node> makeLSTM(const OutputVector& in,
                                            float clip = 0.f,
                                            bool make_sequence = false,
                                            ngraph::op::RecurrentSequenceDirection direction = ngraph::op::RecurrentSequenceDirection::FORWARD,
-                                           ngraph::helpers::SequenceTestsMode mode = ngraph::helpers::SequenceTestsMode::PURE_SEQ);
+                                           ngraph::helpers::SequenceTestsMode mode = ngraph::helpers::SequenceTestsMode::PURE_SEQ,
+                                           float WRB_range = 0.f);
 
 std::shared_ptr<ngraph::Node> makeGRU(const OutputVector& in,
                                       const std::vector<ngraph::Shape>& constants,
@@ -519,6 +520,13 @@ std::shared_ptr<ngraph::Node> makeGRU(const OutputVector& in,
                                       const std::vector<float>& activations_beta = {},
                                       float clip = 0.f,
                                       bool linear_before_reset = false,
+                                      bool make_sequence = false,
+                                      ngraph::op::RecurrentSequenceDirection direction = ngraph::op::RecurrentSequenceDirection::FORWARD,
+                                      ngraph::helpers::SequenceTestsMode mode = ngraph::helpers::SequenceTestsMode::PURE_SEQ);
+
+std::shared_ptr<ngraph::Node> makeAUGRU(const OutputVector& in,
+                                      const std::vector<ngraph::Shape>& constants,
+                                      std::size_t hidden_size,
                                       bool make_sequence = false,
                                       ngraph::op::RecurrentSequenceDirection direction = ngraph::op::RecurrentSequenceDirection::FORWARD,
                                       ngraph::helpers::SequenceTestsMode mode = ngraph::helpers::SequenceTestsMode::PURE_SEQ);

@@ -14,9 +14,6 @@
 #include <memory>
 #include <fstream>
 
-#include "functional_test_utils/test_model/test_model.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
-
 using namespace ::testing;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;

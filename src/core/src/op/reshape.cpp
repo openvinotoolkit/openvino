@@ -51,12 +51,12 @@ op::v1::Reshape::Reshape(const Output<Node>& arg, const Output<Node>& shape_patt
 }
 
 bool op::v1::Reshape::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_Reshape_visit_attributes);
+    OV_OP_SCOPE(v1_Reshape_visit_attributes);
     visitor.on_attribute("special_zero", m_special_zero);
     return true;
 }
 void op::v1::Reshape::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_Reshape_validate_and_infer_types);
+    OV_OP_SCOPE(v1_Reshape_validate_and_infer_types);
     auto shape_pattern_et = get_input_element_type(1);
     // check data types
     NODE_VALIDATION_CHECK(this,
@@ -132,14 +132,14 @@ void op::v1::Reshape::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v1::Reshape::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_Reshape_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_Reshape_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::Reshape>(new_args.at(0), new_args.at(1), m_special_zero);
 }
 
 #define COMPUTE_OUT_SHAPE_CASE(a, ...)                                    \
     case element::Type_t::a: {                                            \
-        NGRAPH_OP_SCOPE(OV_PP_CAT3(compute_reshape_out_shape, _, a));     \
+        OV_OP_SCOPE(OV_PP_CAT3(compute_reshape_out_shape, _, a));         \
         reshapeop::compute_output_shape<element::Type_t::a>(__VA_ARGS__); \
     } break;
 
@@ -182,14 +182,14 @@ bool op::v1::Reshape::evaluate_reshape(const HostTensorVector& outputs, const Ho
 }
 
 bool op::v1::Reshape::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_Reshape_evaluate);
+    OV_OP_SCOPE(v1_Reshape_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
     return evaluate_reshape(outputs, inputs);
 }
 
 bool op::v1::Reshape::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_Reshape_has_evaluate);
+    OV_OP_SCOPE(v1_Reshape_has_evaluate);
     switch (get_input_element_type(1)) {
     case ngraph::element::i8:
     case ngraph::element::i16:

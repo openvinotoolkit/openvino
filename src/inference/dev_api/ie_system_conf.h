@@ -98,6 +98,13 @@ INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx512f();
 INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx512_core();
 
 /**
+ * @brief      Checks whether CPU supports AVX 512 VNNI capability
+ * @ingroup    ie_dev_api_system_conf
+ * @return     `True` is AVX512F, AVX512BW, AVX512DQ, AVX512_VNNI instructions are available, `false` otherwise
+ */
+INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx512_core_vnni();
+
+/**
  * @brief      Checks whether CPU supports BFloat16 capability
  * @ingroup    ie_dev_api_system_conf
  * @return     `True` is tAVX512_BF16 instructions are available, `false` otherwise

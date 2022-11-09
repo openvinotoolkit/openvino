@@ -29,6 +29,17 @@ public:
         auto tile_optional_params =
             get_default_optional_params<kernel_selector::tile_optional_params>(arg.get_program());
 
+        auto repeats = impl_param.typed_desc<tile>()->repeats;
+        auto in_layout = impl_param.get_input_layout(0);
+        auto in_shape = in_layout.get_partial_shape();
+
+        // Extend input shape by prepending ones if repeats rank is higher than input rank.
+        if (in_shape.size() < repeats.size()) {
+            in_shape.insert(in_shape.begin(), repeats.size() - in_shape.size(), 1);
+            in_layout.set_partial_shape(in_shape);
+            tile_params.inputs[0] = convert_data_tensor(in_layout);
+        }
+
         auto& kernel_selector = kernel_selector::tile_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(tile_params, tile_optional_params);
 
@@ -46,23 +57,25 @@ public:
 namespace detail {
 
 attach_tile_impl::attach_tile_impl() {
-    implementation_map<tile>::add(impl_types::ocl, tile_impl::create, {
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfwzyx),
-        std::make_tuple(data_types::u8, format::bfwzyx),
-        std::make_tuple(data_types::i32, format::bfwzyx),
-        std::make_tuple(data_types::f32, format::bfwzyx),
-        std::make_tuple(data_types::f16, format::bfwzyx),
-    });
+    auto types = {data_types::i8, data_types::u8, data_types::i32, data_types::f16, data_types::f32};
+    auto formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx,
+        format::b_fs_zyx_fsv16,
+        format::b_fs_zyx_fsv32,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32,
+        format::bs_fs_zyx_bsv16_fsv32,
+        format::bs_fs_zyx_bsv16_fsv16,
+        format::bs_fs_zyx_bsv32_fsv32,
+        format::bs_fs_zyx_bsv32_fsv16
+    };
+
+    implementation_map<tile>::add(impl_types::ocl, tile_impl::create, types, formats);
 }
 
 }  // namespace detail

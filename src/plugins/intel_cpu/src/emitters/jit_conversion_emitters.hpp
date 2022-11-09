@@ -22,6 +22,7 @@ protected:
     void emit_data() const override;
     void validate_types() const;
 
+    template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void float2bfloat(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 
     ov::element::Type input_type;
@@ -35,7 +36,7 @@ protected:
             ov::element::u8
     };
 
-    std::shared_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16 = nullptr;
+    std::shared_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16 = nullptr;
 };
 
 // This emitter is covered by specification of "Convert" operation. The implementation uses a "warp-around" conversion.

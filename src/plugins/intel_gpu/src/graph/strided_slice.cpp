@@ -39,8 +39,8 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
 
     auto& constant_mem = impl_param.memory_deps;
 
-    if (constant_mem.empty()) {
-        auto out_shape = ov::PartialShape::dynamic(input0_layout.get_rank());
+    if (!constant_mem.count(1) || !constant_mem.count(2) || !constant_mem.count(3)) {
+        auto out_shape = ov::PartialShape::dynamic(input0_layout.get_partial_shape().size());
         return { layout{out_shape, input0_layout.data_type, format::get_default_format(out_shape.rank().get_length())} };
     }
 
@@ -63,9 +63,9 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
     auto mem2 = constant_mem.at(2);
     auto mem3 = constant_mem.at(3);
 
-    cldnn::mem_lock<uint8_t, mem_lock_type::read> lock1(mem1, impl_param.prog.get_stream());
-    cldnn::mem_lock<uint8_t, mem_lock_type::read> lock2(mem2, impl_param.prog.get_stream());
-    cldnn::mem_lock<uint8_t, mem_lock_type::read> lock3(mem3, impl_param.prog.get_stream());
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> lock1(mem1, impl_param.prog->get_stream());
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> lock2(mem2, impl_param.prog->get_stream());
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> lock3(mem3, impl_param.prog->get_stream());
 
     auto tensor1 = make_host_tensor(mem1->get_layout(), lock1.data());
     auto tensor2 = make_host_tensor(mem2->get_layout(), lock2.data());
@@ -81,6 +81,8 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
 
     return { layout{output_shapes[0], input0_layout.data_type, output_format} };
 }
+
+template std::vector<layout> strided_slice_inst::calc_output_layouts<ov::PartialShape>(strided_slice_node const& node, const kernel_impl_params& impl_param);
 
 std::string strided_slice_inst::to_string(strided_slice_node const& node) {
     auto desc = node.get_primitive();

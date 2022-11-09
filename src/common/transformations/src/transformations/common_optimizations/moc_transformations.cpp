@@ -25,6 +25,7 @@
 #include <transformations/common_optimizations/fq_mul_fusion.hpp>
 #include <transformations/common_optimizations/fq_reshape_fusion.hpp>
 #include <transformations/common_optimizations/gelu_fusion.hpp>
+#include <transformations/common_optimizations/gru_cell_fusion.hpp>
 #include <transformations/common_optimizations/hsigmoid_fusion.hpp>
 #include <transformations/common_optimizations/hswish_fusion.hpp>
 #include <transformations/common_optimizations/leaky_relu_fusion.hpp>
@@ -41,8 +42,10 @@
 #include <transformations/common_optimizations/optimize_strided_slice.hpp>
 #include <transformations/common_optimizations/pad_fusion.hpp>
 #include <transformations/common_optimizations/prelu_fusion.hpp>
+#include <transformations/common_optimizations/pull_through_reduce.hpp>
 #include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
 #include <transformations/common_optimizations/random_uniform_fusion.hpp>
+#include <transformations/common_optimizations/reduce_reshape_fusion.hpp>
 #include <transformations/common_optimizations/relu_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
 #include <transformations/common_optimizations/remove_filtering_boxes_by_size.hpp>
@@ -131,10 +134,9 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     }
     // workaround until dynamism in NMS is not supported
     manager.register_pass<ngraph::pass::ConvertNmsGatherPathToUnsigned>();
-
     manager.register_pass<ngraph::pass::StridedSliceOptimization>(m_use_shapes);
-
     manager.register_pass<ngraph::pass::BroadcastElementwiseFusion>();
+    manager.register_pass<ov::pass::PullThroughReduce>();
 
     auto transpose_sinking = manager.register_pass<ngraph::pass::GraphRewrite>();
     transpose_sinking->add_matcher<ngraph::pass::TransposeSinking>();
@@ -161,6 +163,7 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     common_fusions->add_matcher<ngraph::pass::ClampFusion>();
     common_fusions->add_matcher<ngraph::pass::PadFusion>();
     common_fusions->add_matcher<ngraph::pass::SoftmaxFusion>();
+    common_fusions->add_matcher<ov::pass::ReduceReshapeFusion>();
     common_fusions->add_matcher<ngraph::pass::MVNFusion>();
     common_fusions->add_matcher<ngraph::pass::DilatedConvolutionConverter>();
     common_fusions->add_matcher<ngraph::pass::GeluFusion>();

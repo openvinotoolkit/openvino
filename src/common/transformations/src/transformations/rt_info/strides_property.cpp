@@ -15,3 +15,11 @@ ngraph::Strides ov::get_strides_prop(const ngraph::Input<ngraph::Node>& node) {
 void ov::insert_strides_prop(ngraph::Input<ngraph::Node>& node, const ngraph::Strides& strides) {
     node.get_rt_info().emplace(StridesPropagation::get_type_info_static(), StridesPropagation{strides});
 }
+
+void ov::remove_strides_prop(ngraph::Input<ngraph::Node>& node) {
+    auto& rt_info = node.get_rt_info();
+    auto it = rt_info.find(StridesPropagation::get_type_info_static());
+    if (it != rt_info.end()) {
+        rt_info.erase(it);
+    }
+}

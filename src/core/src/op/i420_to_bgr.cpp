@@ -19,7 +19,7 @@ ov::op::v8::I420toBGR::I420toBGR(const Output<Node>& arg_y, const Output<Node>& 
 }
 
 std::shared_ptr<ov::Node> ov::op::v8::I420toBGR::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_I420toBGR_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_I420toBGR_clone_with_new_inputs);
     OPENVINO_ASSERT(new_args.size() == 1 || new_args.size() == 3, "I420toBGR shall have one or three input nodes");
     if (new_args.size() == 1) {
         return std::make_shared<I420toBGR>(new_args.at(0));

@@ -4,12 +4,15 @@
 
 #pragma once
 
-#include <map>
 #include <functional>
-#include <typeinfo>
-#include <tuple>
-#include <string>
+#include <map>
 #include <sstream>
+#include <string>
+#include <tuple>
+#include <typeinfo>
+
+#include "intel_gpu/primitives/implementation_desc.hpp"
+#include "to_string_utils.h"
 #include "kernel_selector_helper.h"
 
 namespace cldnn {
@@ -106,13 +109,6 @@ struct implementation_key<input_layout> {
     typedef int32_t type;
     type operator()(const layout&) { return -1; }
 };
-
-template <>
-struct implementation_key<prior_box> {
-    typedef int32_t type;
-    type operator()(const layout&) { return -1; }
-};
-
 template <>
 struct implementation_key<loop> {
     typedef int32_t type;

@@ -76,7 +76,7 @@ function(ov_download_tbb)
     if(_ov_download_tbb_done OR NOT THREADING MATCHES "^(TBB|TBB_AUTO)$")
         return()
     endif()
-    set(_ov_download_tbb_done ON CACHE BOOL "Whether prebuilt TBB is already downloaded")
+    set(_ov_download_tbb_done ON CACHE INTERNAL "Whether prebuilt TBB is already downloaded")
 
     reset_deps_cache(TBBROOT TBB_DIR)
 
@@ -89,10 +89,11 @@ function(ov_download_tbb)
     if(WIN32 AND X86_64)
         # TODO: add target_path to be platform specific as well, to avoid following if
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_WIN "tbb2020_20200415_win.zip"
+                ARCHIVE_WIN "tbb2020_617e9a71_win.zip"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "f1c9b9e2861efdaa01552bd25312ccbc5feeb45551e5f91ae61e29221c5c1479")
+                SHA256 "01cac3cc48705bd52b83a6e1fa1ed95c708928be76160f5b9c5c37f954d56df4"
+                USE_NEW_LOCATION TRUE)
     elseif(ANDROID AND X86_64)  # Should be before LINUX due LINUX is detected as well
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
@@ -105,7 +106,7 @@ function(ov_download_tbb)
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
                 SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
-    elseif(LINUX AND AARCH64)
+    elseif(YOCTO_AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "keembay/tbb2020_38404_kmb_lic.tgz"
                 TARGET_PATH "${TEMP}/tbb_yocto"
@@ -118,8 +119,7 @@ function(ov_download_tbb)
                 ENVIRONMENT "TBBROOT"
                 SHA256 "ad9cf52e657660058aa6c6844914bc0fc66241fec89a392d8b79a7ff69c3c7f6")
     else()
-        message(WARNING "TBB is not available on current platform")
-        return()
+        message(WARNING "Prebuilt TBB is not available on current platform")
     endif()
 
     update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")
@@ -142,8 +142,6 @@ function(ov_download_tbb)
     debug_message(STATUS "tbb=" ${TBB})
     debug_message(STATUS "tbb_dir=" ${TBB_DIR})
     debug_message(STATUS "tbbroot=" ${TBBROOT})
-
-    set(TBB "${TBB}" PARENT_SCOPE)
 endfunction()
 
 ## TBBBind_2_5 package
@@ -157,9 +155,9 @@ function(ov_download_tbbbind_2_5)
     if(_ov_download_tbbbind_2_5_done OR NOT ENABLE_TBBBIND_2_5)
         return()
     endif()
-    set(_ov_download_tbbbind_2_5_done ON CACHE BOOL "Whether prebuilt TBBBind_2_5 is already downloaded")
+    set(_ov_download_tbbbind_2_5_done ON CACHE INTERNAL "Whether prebuilt TBBBind_2_5 is already downloaded")
 
-    reset_deps_cache(TBBBIND_2_5_DIR)
+    reset_deps_cache(TBBBIND_2_5_ROOT TBBBIND_2_5_DIR)
 
     if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
         set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
@@ -173,22 +171,23 @@ function(ov_download_tbbbind_2_5)
                 TARGET_PATH "${TEMP}/tbbbind_2_5"
                 ENVIRONMENT "TBBBIND_2_5_ROOT"
                 SHA256 "a67afeea8cf194f97968c800dab5b5459972908295242e282045d6b8953573c1")
-    elseif(ANDROID)
-        # don't have TBBBIND_2_5
-    elseif(LINUX AND X86_64)
+    elseif((LINUX AND NOT ANDROID) AND X86_64)
         RESOLVE_DEPENDENCY(TBBBIND_2_5
                 ARCHIVE_LIN "tbbbind_2_5_static_lin_v2.tgz"
                 TARGET_PATH "${TEMP}/tbbbind_2_5"
                 ENVIRONMENT "TBBBIND_2_5_ROOT"
                 SHA256 "865e7894c58402233caf0d1b288056e0e6ab2bf7c9d00c9dc60561c484bc90f4")
     else()
-        message(WARNING "prebuilt TBBBIND_2_5 is not available.
+        # TMP: for Apple Silicon TBB does not provide TBBBind
+        if(NOT (APPLE AND AARCH64))
+            message(WARNING "prebuilt TBBBIND_2_5 is not available.
 Build oneTBB from sources and set TBBROOT environment var before OpenVINO cmake configure")
+        endif()
+        return()
     endif()
 
+    update_deps_cache(TBBBIND_2_5_ROOT "${TBBBIND_2_5}" "Path to TBBBIND_2_5 root folder")
     update_deps_cache(TBBBIND_2_5_DIR "${TBBBIND_2_5}/cmake" "Path to TBBBIND_2_5 cmake folder")
-
-    set(TBBBIND_2_5 "${TBBBIND_2_5}" PARENT_SCOPE)
 endfunction()
 
 ## OpenCV
@@ -199,7 +198,7 @@ if(ENABLE_OPENCV)
     set(OPENCV_BUILD "076")
     set(OPENCV_BUILD_YOCTO "772")
 
-    if(AARCH64)
+    if(YOCTO_AARCH64)
         if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
             set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
         elseif(DEFINED THIRDPARTY_SERVER_PATH)
@@ -237,7 +236,7 @@ if(ENABLE_OPENCV)
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
                     SHA256 "3e162f96e86cba8836618134831d9cf76df0438778b3e27e261dedad9254c514")
         elseif(LINUX)
-            if(AARCH64)
+            if(YOCTO_AARCH64)
                 set(OPENCV_SUFFIX "yocto_kmb")
                 set(OPENCV_BUILD "${OPENCV_BUILD_YOCTO}")
             elseif(ARM)
@@ -295,8 +294,8 @@ if(ENABLE_INTEL_GNA)
             GNA_LIB_DIR
             libGNA_INCLUDE_DIRS
             libGNA_LIBRARIES_BASE_PATH)
-        set(GNA_VERSION "03.00.00.1455.2")
-        set(GNA_HASH "e52785d3f730fefb4e794bb7ab40c8676537ef2f7c69c5b4bb89a5d3cc0bbe60")
+        set(GNA_VERSION "03.00.00.1815.1")
+        set(GNA_HASH "682eb01e5a148ea03b90ee12b7fd67afb1479f35ccf2966f83b208e50e91633c")
 
         set(FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/include)
         if(WIN32)
@@ -306,11 +305,12 @@ if(ENABLE_INTEL_GNA)
         endif()
 
         RESOLVE_DEPENDENCY(GNA_EXT_DIR
-                ARCHIVE_UNIFIED "GNA/GNA_${GNA_VERSION}.zip"
+                ARCHIVE_UNIFIED "gna/GNA_${GNA_VERSION}.zip"
                 TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"
                 VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
                 FILES_TO_EXTRACT FILES_TO_EXTRACT_LIST
-                SHA256 ${GNA_HASH})
+                SHA256 ${GNA_HASH}
+                USE_NEW_LOCATION TRUE)
     update_deps_cache(GNA_EXT_DIR "${GNA_EXT_DIR}" "Path to GNA root folder")
     debug_message(STATUS "gna=" ${GNA_EXT_DIR})
 

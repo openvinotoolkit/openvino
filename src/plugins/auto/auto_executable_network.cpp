@@ -44,7 +44,8 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
             ov::PropertyName{ov::model_name.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::optimal_number_of_infer_requests.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::hint::model_priority.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RO}
+            ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::execution_devices.name(), ov::PropertyMutability::RO}
         };
     } else if (name == ov::device::priorities) {
         auto value = _autoSContext->_config.find(ov::device::priorities.name());
@@ -143,6 +144,8 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
             }
         }
         return decltype(ov::optimal_number_of_infer_requests)::value_type {real};
+    } else if (name == ov::execution_devices) {
+        return decltype(ov::execution_devices)::value_type {_autoSContext->_exeDevices};
     }
     if (_autoSchedule->_loadContext[ACTUALDEVICE].isAlready) {
         return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetMetric(

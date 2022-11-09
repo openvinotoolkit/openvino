@@ -690,7 +690,8 @@ void Node::initDescriptor(const NodeConfig& config) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
             if (selected_count == selectedPrimitiveDescriptorIndex) {
                 if (impl_type != selectedPD->getImplementationType()) {
-                    IE_THROW() << "Cannot get the original layer configuration!";
+                    IE_THROW() << getName() << " expected selectedPD impl_type: " << impl_type_to_string(selectedPD->getImplementationType())
+                                << " but got: " << impl_type_to_string(impl_type);
                 }
                 rightConfig = cfg;
             }
@@ -1582,6 +1583,46 @@ bool Node::canFuseSimpleOperation(const NodePtr& node) const {
 
 void Node::addFusedNode(const NodePtr &fusingNode) {
     fusedWith.push_back(fusingNode);
+}
+
+void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfigs,
+                                const std::vector<PortConfigurator>& outPortConfigs,
+                                impl_desc_type implType,
+                                bool dynBatchSupport) {
+    auto fill_port = [] (const PortConfigurator& portConfigurator, const Shape& shape,
+                         InferenceEngine::Precision prc, std::vector<PortConfig>& port) -> bool {
+        // In order to simplify particular node initialization logic we just don't add config in case target shape is not supported by blockedDescCreator.
+        // This should be suitable for major of scenarios since almost all nodes add `ncsp` blockedDescCreator which supports any shape rank.
+        if (shape.getRank() < portConfigurator.blockedDescCreator->getMinimalRank())
+            return false;
+
+        PortConfig portConfig;
+        portConfig.inPlace(portConfigurator.inPlace);
+        portConfig.constant(portConfigurator.constant);
+        portConfig.setMemDesc(portConfigurator.blockedDescCreator->createSharedDesc(prc, shape));
+
+        port.push_back(std::move(portConfig));
+
+        return true;
+    };
+
+    NodeConfig config;
+    for (size_t i = 0; i < inPortConfigs.size(); i++) {
+        auto shape = inPortConfigs[i].shape.getRank() == 0 ? getInputShapeAtPort(i) : inPortConfigs[i].shape;
+        auto prc = inPortConfigs[i].prc == InferenceEngine::Precision::UNSPECIFIED ? getOriginalInputPrecisionAtPort(i) : inPortConfigs[i].prc;
+        if (!fill_port(inPortConfigs[i], shape, prc, config.inConfs))
+            return;
+    }
+
+    for (size_t i = 0; i < outPortConfigs.size(); i++) {
+        auto dims = outPortConfigs[i].shape.getRank() == 0 ? getOutputShapeAtPort(i) : outPortConfigs[i].shape;
+        auto prc = outPortConfigs[i].prc == InferenceEngine::Precision::UNSPECIFIED ? getOriginalOutputPrecisionAtPort(i) : outPortConfigs[i].prc;
+        if (!fill_port(outPortConfigs[i], dims, prc, config.outConfs))
+            return;
+    }
+
+    config.dynBatchSupport = dynBatchSupport;
+    supportedPrimitiveDescriptors.push_back({config, implType});
 }
 
 }   // namespace intel_cpu

@@ -29,7 +29,7 @@ def test_compare_models():
         status, _ = compare_models(model, model)
         assert status
     except RuntimeError:
-        print("openvino.test_utils.compare_models is not available")
+        print("openvino.test_utils.compare_models is not available")  # noqa: T201
 
 
 def generate_image(shape: Tuple = (1, 3, 32, 32), dtype: Union[str, np.dtype] = "float32") -> np.array:
@@ -47,7 +47,7 @@ def generate_relu_model(input_shape: List[int]) -> openvino.runtime.ie_api.Compi
     return core.compile_model(model, "CPU", {})
 
 
-def generate_add_model() -> openvino.pyopenvino.Model:
+def generate_add_model() -> openvino._pyopenvino.Model:
     param1 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data1")
     param2 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data2")
     add = ops.add(param1, param2)

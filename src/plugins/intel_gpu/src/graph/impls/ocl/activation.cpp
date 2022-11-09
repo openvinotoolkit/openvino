@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "activation/activation_kernel_base.h"
+#include "activation/activation_kernel_selector.h"
 #include "activation_inst.h"
-#include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
-#include "activation/activation_kernel_selector.h"
-#include "activation/activation_kernel_base.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {

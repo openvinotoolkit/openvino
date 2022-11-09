@@ -9,7 +9,7 @@ When evaluating the performance of a model with OpenVINO Runtime, it is required
 
 - Track operations that occur outside OpenVINO Runtime (such as video decoding) separately. 
 
-> **NOTE**: Some image pre-processing can be baked into OpenVINO IR and accelerated accordingly. For more information, refer to [Embedding the Pre-processing](Additional_Optimizations.md) and [General Runtime Optimizations](../../optimization_guide/dldt_deployment_optimization_common).
+> **NOTE**: Some image pre-processing can be baked into OpenVINO IR and accelerated accordingly. For more information, refer to [Embedding the Pre-processing](Additional_Optimizations.md) and [General Runtime Optimizations](../../optimization_guide/dldt_deployment_optimization_common.md).
 
 ## Tip 2: Try to Get Credible Data
 

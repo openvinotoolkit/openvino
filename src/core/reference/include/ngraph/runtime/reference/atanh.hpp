@@ -29,7 +29,7 @@ void atanh(const T* arg, T* out, size_t count) {
             if (arg[i] > 0) {
                 out[i] = std::numeric_limits<T>::max();
             } else {
-                out[i] = std::roundl(std::atanh(arg[i]));
+                out[i] = static_cast<T>(std::roundl(std::atanh(arg[i])));
             }
         } else {
             if (arg[i] <= -1) {
@@ -37,7 +37,7 @@ void atanh(const T* arg, T* out, size_t count) {
             } else if (arg[i] >= 1) {
                 out[i] = std::numeric_limits<T>::max();
             } else {
-                out[i] = std::roundl(std::atanh(arg[i]));
+                out[i] = static_cast<T>(std::roundl(std::atanh(arg[i])));
             }
         }
     }

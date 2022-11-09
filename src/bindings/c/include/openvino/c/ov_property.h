@@ -13,138 +13,161 @@
 
 #include "openvino/c/ov_common.h"
 
-typedef struct ov_property ov_property_t;
+/**
+ * @brief Read-only property<string> to get a string list of supported read-only properties.
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_supported_properties;
 
 /**
- * @enum ov_performance_mode_e
- * @brief Enum to define possible performance mode hints
- * @brief This represents OpenVINO 2.0 ov::hint::PerformanceMode entity.
- *
+ * @brief Read-only property<string> to get a list of available device IDs.
+ * @ingroup ov_property_c_api
  */
-typedef enum {
-    UNDEFINED_MODE = -1,        //!<  Undefined value, performance setting may vary from device to device
-    LATENCY = 1,                //!<  Optimize for latency
-    THROUGHPUT = 2,             //!<  Optimize for throughput
-    CUMULATIVE_THROUGHPUT = 3,  //!< Optimize for cumulative throughput
-} ov_performance_mode_e;
+OPENVINO_C_VAR(const char*)
+ov_property_key_available_devices;
 
 /**
- * @enum ov_affinity_e
- * @brief Enum to define possible affinity patterns
+ * @brief Read-only property<uint32_t string> to get an unsigned integer value of optimaln
+ * number of compiled model infer requests.
+ * @ingroup ov_property_c_api
  */
-typedef enum {
-    NONE = -1,  //!<  Disable threads affinity pinning
-    CORE = 0,   //!<  Pin threads to cores, best for static benchmarks
-    NUMA = 1,   //!<  Pin threads to NUMA nodes, best for real-life, contented cases. On the Windows and MacOS* this
-                //!<  option behaves as CORE
-    HYBRID_AWARE = 2,  //!< Let the runtime to do pinning to the cores types, e.g. prefer the "big" cores for latency
-                       //!< tasks. On the hybrid CPUs this option is default
-} ov_affinity_e;
+OPENVINO_C_VAR(const char*)
+ov_property_key_optimal_number_of_infer_requests;
 
 /**
- * @struct ov_property_key_e
- * @brief Represent all available property key.
+ * @brief Read-only property<string(unsigned int, unsigned int, unsigned int)> to provide a
+ * hint for a range for number of async infer requests. If device supports
+ * streams, the metric provides range for number of IRs per stream.
+ * @ingroup ov_property_c_api
  */
-typedef enum {
-    SUPPORTED_PROPERTIES = 0U,  //!<  Read-only property<char *> to get a string list of supported read-only properties.
-    AVAILABLE_DEVICES,          //!<  Read-only property<char *> to get a list of available device IDs
-    OPTIMAL_NUMBER_OF_INFER_REQUESTS,  //!<  Read-only property<uint32_t> to get an unsigned integer value of optimaln
-                                       //!<  umber of compiled model infer requests.
-    RANGE_FOR_ASYNC_INFER_REQUESTS,    //!<  Read-only property<unsigned int, unsigned int, unsigned int> to provide a
-                                       //!<  hint for a range for number of async infer requests. If device supports
-                                       //!<  streams, the metric provides range for number of IRs per stream.
-    RANGE_FOR_STREAMS,  //!<  Read-only property<unsigned int, unsigned int> to provide information about a range for
-                        //!<  streams on platforms where streams are supported
-    FULL_DEVICE_NAME,   //!<  Read-only property<char *> to get a string value representing a full device name.
-    OPTIMIZATION_CAPABILITIES,  //!<  Read-only property<char *> to get a string list of capabilities options per
-                                //!<  device.
-    CACHE_DIR,    //!<  Read-write property<char *> to set/get the directory which will be used to store any data cached
-                  //!<  by plugins.
-    NUM_STREAMS,  //!<  Read-write property<uint32_t> to set/get the number of executor logical partitions
-    AFFINITY,  //!<  Read-write property<ov_affinity_e> to set/get the name for setting CPU affinity per thread option.
-    INFERENCE_NUM_THREADS,  //!<  Read-write property<int32_t> to set/get the maximum number of threads that can be used
-                            //!<  for inference tasks.
-    PERFORMANCE_HINT,       //!< Read-write property<ov_performance_mode_e>, it is high-level OpenVINO Performance Hints
-                       //!< unlike low-level properties that are individual (per-device), the hints are something that
-                       //!< every device accepts and turns into device-specific settings detail see
-                       //!< ov_performance_mode_e to get its hint's key name
-    NETWORK_NAME,              //!<  Read-only property<char *> to get a name of name of a model
-    INFERENCE_PRECISION_HINT,  //!< Read-write property<ov_element_type_e> to set the hint for device to use specified
-                               //!< precision for inference
-    OPTIMAL_BATCH_SIZE,  //!<  Read-only property<uint32_t> to query information optimal batch size for the given device
-                         //!<  and the network
-    MAX_BATCH_SIZE,  //!<  Read-only property to get maximum batch size which does not cause performance degradation due
-                     //!<  to memory swap impact.
-    PERFORMANCE_HINT_NUM_REQUESTS,  //!<  (Optional) property<uint32_t> that backs the Performance Hints by giving
-                                    //!<  additional information on how many inference requests the application will be
-                                    //!<  keeping in flight usually this value comes from the actual use-case  (e.g.
-                                    //!<  number of video-cameras, or other sources of inputs)
-} ov_property_key_e;
+OPENVINO_C_VAR(const char*)
+ov_property_key_range_for_async_infer_requests;
 
 /**
- * @enum ov_property_value_type_e
- * @brief Enum to define property value type.
+ * @brief Read-only property<string(unsigned int, unsigned int)> to provide information about a range for
+ * streams on platforms where streams are supported
+ * @ingroup ov_property_c_api
  */
-typedef enum {
-    BOOL = 0U,  //!< boolean data
-    CHAR,       //!< char data
-    ENUM,       //!< enum data
-    INT32,      //!< int32 data
-    UINT32,     //!< uint32 data
-    FLOAT,      //!< float data
-} ov_property_value_type_e;
+OPENVINO_C_VAR(const char*)
+ov_property_key_range_for_streams;
 
 /**
- * @struct ov_property_value_t
- * @brief Represent a property value
+ * @brief Read-only property<string> to get a string value representing a full device name.
+ * @ingroup ov_property_c_api
  */
-typedef struct {
-    void* ptr;
-    size_t cnt;
-    ov_property_value_type_e type;
-} ov_property_value_t;
-
-// Property
-/**
- * @defgroup Property Property
- * @ingroup openvino_c
- * Set of functions representing of Property.
- * @{
- */
+OPENVINO_C_VAR(const char*)
+ov_property_key_device_full_name;
 
 /**
- * @brief Create a property object.
- * @ingroup property
- * @param ov_status_e a status code, return OK if successful
+ * @brief Read-only property<string> to get a string list of capabilities options per device.
+ * @ingroup ov_property_c_api
  */
-OPENVINO_C_API(ov_status_e) ov_property_create(ov_property_t** property);
+OPENVINO_C_VAR(const char*)
+ov_property_key_device_capabilities;
 
 /**
- * @brief Free property object.
- * @ingroup property
- * @param property will be released.
+ * @brief Read-only property<string> to get a name of name of a model
+ * @ingroup ov_property_c_api
  */
-OPENVINO_C_API(void) ov_property_free(ov_property_t* property);
+OPENVINO_C_VAR(const char*)
+ov_property_key_model_name;
 
 /**
- * @brief Create a property value object.
- * @ingroup property
- * @param ov_status_e a status code, return OK if successful
+ * @brief Read-only property<uint32_t string> to query information optimal batch size for the given device
+ * and the network
+ * @ingroup ov_property_c_api
  */
-OPENVINO_C_API(ov_status_e) ov_property_value_create(ov_property_value_t** value);
+OPENVINO_C_VAR(const char*)
+ov_property_key_optimal_batch_size;
 
 /**
- * @brief Clean property data.
- * @ingroup property
- * @param property data will be clean.
+ * @brief Read-only property to get maximum batch size which does not cause performance degradation due
+ * to memory swap impact.
+ * @ingroup ov_property_c_api
  */
-OPENVINO_C_API(void) ov_property_value_clean(ov_property_value_t* value);
+OPENVINO_C_VAR(const char*)
+ov_property_key_max_batch_size;
 
 /**
- * @brief Put <key, value> into property object.
- * @ingroup property
- * @param property will be add new <key, value>.
+ * @brief Read-write property<string> to set/get the directory which will be used to store any data cached
+ * by plugins.
+ * @ingroup ov_property_c_api
  */
-OPENVINO_C_API(ov_status_e) ov_property_put(ov_property_t* property, ov_property_key_e key, ov_property_value_t* value);
+OPENVINO_C_VAR(const char*)
+ov_property_key_cache_dir;
 
-/** @} */  // end of Property
+/**
+ * @brief Read-write property<uint32_t string> to set/get the number of executor logical partitions.
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_num_streams;
+
+/**
+ * @brief Read-write property to set/get the name for setting CPU affinity per thread option.
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_affinity;
+
+/**
+ * @brief Read-write property<int32_t string> to set/get the maximum number of threads that can be used
+ * for inference tasks.
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_inference_num_threads;
+
+/**
+ * @brief Read-write property, it is high-level OpenVINO Performance Hints
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_hint_performance_mode;
+
+/**
+ * @brief Read-write property<ov_element_type_e> to set the hint for device to use specified precision for inference.
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_hint_inference_precision;
+
+/**
+ * @brief (Optional) Read-write property<uint32_t string> that backs the Performance Hints by giving
+ * additional information on how many inference requests the application will be
+ * keeping in flight usually this value comes from the actual use-case  (e.g.
+ * number of video-cameras, or other sources of inputs)
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_hint_num_requests;
+
+/**
+ * @brief Read-write property<string> for setting desirable log level.
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_log_level;
+
+/**
+ * @brief Read-write property, high-level OpenVINO model priority hint.
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_hint_model_priority;
+
+/**
+ * @brief Read-write property<string> for setting performance counters option.
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_enable_profiling;
+
+/**
+ * @brief Read-write property<std::pair<std::string, Any>>, device Priorities config option,
+ * with comma-separated devices listed in the desired priority
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_device_priorities;

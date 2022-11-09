@@ -1,4 +1,4 @@
-# Quantizing Model with Accuracy Control{#pot_accuracyaware_usage}
+# Quantizing Models with Accuracy Control{#pot_accuracyaware_usage}
 
 @sphinxdirective
 
@@ -175,7 +175,7 @@ metric_results = pipeline.evaluate(compressed_model)
 
 It is worth noting that now the `evaluate` method that can compute accuracy on demand is also available in the `Pipeline` object.
 
-In case when Accuracy-aware Quantization does not allow achieving the desired accuracy-performance trade-off, it is recommended to try Quantization-aware Training from [NNCF](@ref docs_nncf_introduction).
+In case when Accuracy-aware Quantization does not allow achieving the desired accuracy-performance trade-off, it is recommended to try Quantization-aware Training from [NNCF](@ref tmo_introduction).
 
 ## Examples
 

@@ -1,4 +1,4 @@
-# Performing Inference with OpenVINO Runtime {#openvino_docs_OV_UG_OV_Runtime_User_Guide}
+# Inference with OpenVINO Runtime {#openvino_docs_OV_UG_OV_Runtime_User_Guide}
 
 @sphinxdirective
 
@@ -9,17 +9,13 @@
    :hidden:
 
    openvino_docs_OV_UG_Integrate_OV_with_your_application
-   openvino_docs_OV_UG_ShapeInference
+   openvino_docs_Runtime_Inference_Modes_Overview
    openvino_docs_OV_UG_Working_with_devices
+   openvino_docs_OV_UG_ShapeInference
    openvino_docs_OV_UG_Preprocessing_Overview
    openvino_docs_OV_UG_DynamicShapes
-   openvino_docs_OV_UG_supported_plugins_AUTO
-   openvino_docs_OV_UG_Running_on_multiple_devices
-   openvino_docs_OV_UG_Hetero_execution
    openvino_docs_OV_UG_Performance_Hints
-   openvino_docs_OV_UG_Automatic_Batching
    openvino_docs_OV_UG_network_state_intro
-   ONNX_Format_Support
    
 @endsphinxdirective
 
@@ -41,7 +37,7 @@ The scheme below illustrates the typical workflow for deploying a trained deep l
 
    * - .. raw:: html
 
-           <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen height="315" width="100%"
+           <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen height="315" width="560"
            src="https://www.youtube.com/embed/e6R13V8nbak">
            </iframe>
    * - **OpenVINO Runtime Concept**. Duration: 3:43

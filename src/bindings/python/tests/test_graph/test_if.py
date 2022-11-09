@@ -12,7 +12,7 @@ from openvino.runtime.op.util import InvariantInputDescription, BodyOutputDescri
 
 
 def create_simple_if_with_two_outputs(condition_val):
-    condition = ov.constant(condition_val, dtype=np.bool)
+    condition = ov.constant(condition_val, dtype=bool)
 
     # then_body
     x_t = ov.parameter([], np.float32, "X")
@@ -54,7 +54,7 @@ def create_simple_if_with_two_outputs(condition_val):
 
 
 def create_diff_if_with_two_outputs(condition_val):
-    condition = ov.constant(condition_val, dtype=np.bool)
+    condition = ov.constant(condition_val, dtype=bool)
 
     # then_body
     x_t = ov.parameter([2], np.float32, "X")
@@ -90,7 +90,7 @@ def create_diff_if_with_two_outputs(condition_val):
 
 
 def simple_if(condition_val):
-    condition = ov.constant(condition_val, dtype=np.bool)
+    condition = ov.constant(condition_val, dtype=bool)
     # then_body
     x_t = ov.parameter([2], np.float32, "X")
     y_t = ov.parameter([2], np.float32, "Y")
@@ -121,15 +121,15 @@ def simple_if(condition_val):
 
 
 def simple_if_without_parameters(condition_val):
-    condition = ov.constant(condition_val, dtype=np.bool)
+    condition = ov.constant(condition_val, dtype=bool)
 
     # then_body
-    then_constant = ov.constant(0.7, dtype=np.float)
+    then_constant = ov.constant(0.7, dtype=float)
     then_body_res_1 = ov.result(then_constant)
     then_body = Model([then_body_res_1], [])
 
     # else_body
-    else_const = ov.constant(9.0, dtype=np.float)
+    else_const = ov.constant(9.0, dtype=float)
     else_body_res_1 = ov.result(else_const)
     else_body = Model([else_body_res_1], [])
 
@@ -180,7 +180,7 @@ def test_simple_if_without_body_parameters():
 
 
 def test_simple_if_basic():
-    condition = ov.constant(True, dtype=np.bool)
+    condition = ov.constant(True, dtype=bool)
     # then_body
     x_t = ov.parameter([2], np.float32, "X")
     y_t = ov.parameter([2], np.float32, "Y")

@@ -1,6 +1,6 @@
 # Changing Input Shapes {#openvino_docs_OV_UG_ShapeInference}
 
-
+## Introduction (C++)
 
 @sphinxdirective
 .. raw:: html

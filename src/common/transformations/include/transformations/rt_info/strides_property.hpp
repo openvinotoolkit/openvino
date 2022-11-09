@@ -12,14 +12,22 @@
 #include "openvino/core/runtime_attribute.hpp"
 
 namespace ov {
+
 TRANSFORMATIONS_API bool has_strides_prop(const ngraph::Input<ngraph::Node>& node);
 TRANSFORMATIONS_API ngraph::Strides get_strides_prop(const ngraph::Input<ngraph::Node>& node);
 TRANSFORMATIONS_API void insert_strides_prop(ngraph::Input<ngraph::Node>& node, const ngraph::Strides& strides);
+TRANSFORMATIONS_API void remove_strides_prop(ngraph::Input<ngraph::Node>& node);
+
 class TRANSFORMATIONS_API StridesPropagation : public ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("strides_propagation", "0");
     StridesPropagation() = default;
     StridesPropagation(const ngraph::Strides& value) : value{value} {}
+
+    bool is_copyable() const override {
+        return false;
+    }
+
     ngraph::Strides value;
 };
 }  // namespace ov

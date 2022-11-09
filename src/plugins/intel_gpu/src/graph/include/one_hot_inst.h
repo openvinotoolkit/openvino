@@ -23,6 +23,7 @@ public:
         support_padding_all(true);
     }
     program_node& input() const { return get_dependency(0); }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 };
 
 using one_hot_node = typed_program_node<one_hot>;

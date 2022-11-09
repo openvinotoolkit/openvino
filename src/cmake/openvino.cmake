@@ -8,6 +8,16 @@ set(TARGET_NAME openvino)
 # Add openvino library
 #
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /ignore:4098")
+    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /ignore:4098")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ignore:4098")
+
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /ignore:4286")
+    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /ignore:4286")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ignore:4286")
+endif()
+
 add_library(${TARGET_NAME}
     $<TARGET_OBJECTS:ngraph_obj>
     $<TARGET_OBJECTS:frontend_common_obj>
@@ -138,6 +148,7 @@ install(EXPORT OpenVINOTargets
 
 set(PUBLIC_HEADERS_DIR "${OpenVINO_SOURCE_DIR}/src/inference/include")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}/ie")
+set(IE_TBB_DIR "${TBB_DIR}")
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/InferenceEngineConfig.cmake"
@@ -181,3 +192,79 @@ install(FILES "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
               "${CMAKE_BINARY_DIR}/OpenVINOConfig-version.cmake"
         DESTINATION ${OV_CPACK_OPENVINO_CMAKEDIR}
         COMPONENT ${OV_CPACK_COMP_CORE_DEV})
+
+# Generate and install openvino.pc pkg-config file
+
+if(ENABLE_PKGCONFIG_GEN)
+    # fill in PKGCONFIG_OpenVINO_FRONTENDS
+    get_target_property(PKGCONFIG_OpenVINO_FRONTENDS_LIST ov_frontends MANUALLY_ADDED_DEPENDENCIES)
+    if(ENABLE_OV_IR_FRONTEND)
+        list(REMOVE_ITEM PKGCONFIG_OpenVINO_FRONTENDS_LIST openvino_ir_frontend)
+    endif()
+    if(ENABLE_OV_TF_FRONTEND)
+        list(REMOVE_ITEM PKGCONFIG_OpenVINO_FRONTENDS_LIST openvino_tensorflow_frontend)
+    endif()
+
+    foreach(frontend IN LISTS PKGCONFIG_OpenVINO_FRONTENDS_LIST)
+        if(PKGCONFIG_OpenVINO_FRONTENDS)
+            set(PKGCONFIG_OpenVINO_FRONTENDS "${PKGCONFIG_OpenVINO_FRONTENDS} -l${frontend}")
+        else()
+            set(PKGCONFIG_OpenVINO_FRONTENDS "-l${frontend}")
+        endif()
+    endforeach()
+
+    # fill in PKGCONFIG_OpenVINO_REQUIRES_PRIVATE and PKGCONFIG_OpenVINO_PRIVATE_DEPS
+
+    if(ENABLE_SYSTEM_TBB)
+        set(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE "tbb")
+    elseif(TBB_FOUND)
+        if(NOT pkg_config_tbb_lib_dir)
+            message(FATAL_ERROR "Internal error: variable 'pkg_config_tbb_lib_dir' is not defined")
+        endif()
+
+        set(PKGCONFIG_OpenVINO_PRIVATE_DEPS "-L\${prefix}/${pkg_config_tbb_lib_dir} -ltbb")
+    endif()
+
+    if(ENABLE_SYSTEM_PUGIXML)
+        pkg_check_modules(PKGCONFIG_pugixml QUIET
+                          NO_CMAKE_PATH
+                          NO_CMAKE_ENVIRONMENT_PATH
+                          pugixml)
+        set(pugixml_dep "pugixml = ${PKGCONFIG_pugixml_VERSION}")
+
+        if(pugixml_buggy_pkgconfig)
+            if(PKGCONFIG_OpenVINO_PRIVATE_DEPS)
+                set(PKGCONFIG_OpenVINO_PRIVATE_DEPS "${PKGCONFIG_OpenVINO_PRIVATE_DEPS} -lpugixml")
+            else()
+                set(PKGCONFIG_OpenVINO_PRIVATE_DEPS "-lpugixml")
+            endif()
+        else()
+            if(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE)
+                set(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE "${PKGCONFIG_OpenVINO_REQUIRES_PRIVATE}, ${pugixml_dep}")
+            else()
+                set(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE "${pugixml_dep}")
+            endif()
+        endif()
+    endif()
+
+    # define relative paths
+    file(RELATIVE_PATH PKGCONFIG_OpenVINO_PREFIX "/${OV_CPACK_RUNTIMEDIR}/pkgconfig" "/")
+
+    set(pkgconfig_in "${OpenVINO_SOURCE_DIR}/cmake/templates/openvino.pc.in")
+    set(pkgconfig_out "${OpenVINO_BINARY_DIR}/share/openvino.pc")
+    configure_file("${pkgconfig_in}" "${pkgconfig_out}" @ONLY)
+
+    install(FILES "${pkgconfig_out}"
+            DESTINATION "${OV_CPACK_RUNTIMEDIR}/pkgconfig"
+            COMPONENT ${OV_CPACK_COMP_CORE_DEV})
+
+    if (PKG_CONFIG_VERSION_STRING VERSION_LESS 0.29)
+        set(pkgconfig_option "--exists")
+    else()
+        set(pkgconfig_option "--validate")
+    endif()
+    add_custom_command(TARGET openvino PRE_BUILD
+        COMMAND "${PKG_CONFIG_EXECUTABLE}" "${pkgconfig_option}" "${pkgconfig_out}"
+        COMMENT "[pkg-config] validating openvino.pc"
+        VERBATIM)
+endif()

@@ -8,9 +8,7 @@ Use this script to create a wheel with OpenVINO™ Python* tools:
 
 $ python setup.py sdist bdist_wheel
 """
-import importlib
 import pkg_resources
-import warnings
 from setuptools import setup, find_packages
 
 with open('README.md', 'r', encoding='utf-8') as f:
@@ -22,14 +20,6 @@ with open('requirements.txt') as requirements_txt:
         for requirement
         in pkg_resources.parse_requirements(requirements_txt)
     ]
-
-try:
-    importlib.import_module('cv2')
-except ImportError as opencv_import_error:
-    warnings.warn(
-            "Problem with cv2 import: \n{}\n opencv-python-headless will be added to requirements".format(opencv_import_error)
-    )
-    reqs.append('opencv-python-headless==4.5.*')
 
 setup(
     name='benchmark_tool',
@@ -51,5 +41,5 @@ setup(
     ],
     packages=find_packages(),
     install_requires=reqs,
-    python_requires='>=3.6',
+    python_requires='>=3.7',
 )

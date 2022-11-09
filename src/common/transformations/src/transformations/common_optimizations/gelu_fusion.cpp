@@ -13,6 +13,7 @@
 #include <ngraph/opsets/opset9.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset9.hpp>
 
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
@@ -48,9 +49,10 @@ ngraph::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
             return false;
         }
 
-        bool valid_constant_values = op::util::has_constant_value<float>(div_const_value, M_SQRT2) &&
-                                     op::util::has_constant_value<float>(add_const_value, 1.0f) &&
-                                     op::util::has_constant_value<float>(mul_const_value, 0.5f);
+        bool valid_constant_values =
+            op::util::has_constant_value<float>(div_const_value, static_cast<float>(M_SQRT2)) &&
+            op::util::has_constant_value<float>(add_const_value, 1.0f) &&
+            op::util::has_constant_value<float>(mul_const_value, 0.5f);
 
         if (!valid_constant_values) {
             return false;
@@ -107,9 +109,10 @@ ngraph::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
             return false;
         }
 
-        bool valid_constant_values = op::util::has_constant_value<float>(div_const_value, M_SQRT2) &&
-                                     op::util::has_constant_value<float>(add_const_value, 1.0f) &&
-                                     op::util::has_constant_value<float>(mul_const_value, 0.5f);
+        bool valid_constant_values =
+            op::util::has_constant_value<float>(div_const_value, static_cast<float>(M_SQRT2)) &&
+            op::util::has_constant_value<float>(add_const_value, 1.0f) &&
+            op::util::has_constant_value<float>(mul_const_value, 0.5f);
 
         if (!valid_constant_values) {
             return false;
@@ -166,9 +169,10 @@ ngraph::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
             return false;
         }
 
-        bool valid_constant_values = op::util::has_constant_value<float>(div_const_value, M_SQRT2) &&
-                                     op::util::has_constant_value<float>(add_const_value, 1.0f) &&
-                                     op::util::has_constant_value<float>(mul_const_value, 0.5f);
+        bool valid_constant_values =
+            op::util::has_constant_value<float>(div_const_value, static_cast<float>(M_SQRT2)) &&
+            op::util::has_constant_value<float>(add_const_value, 1.0f) &&
+            op::util::has_constant_value<float>(mul_const_value, 0.5f);
 
         if (!valid_constant_values) {
             return false;
@@ -191,6 +195,58 @@ ngraph::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
+    register_matcher(m, callback);
+}
+
+ov::pass::GeluFusionWithErfFour::GeluFusionWithErfFour() {
+    MATCHER_SCOPE(GeluFusionWithErfFour);
+    using namespace ov;
+    using namespace ov::opset9;
+    using namespace ov::pass::pattern;
+
+    auto input = any_input();
+    auto mul1_constant = wrap_type<Constant>();
+    auto mul1 = wrap_type<Multiply>({input, mul1_constant});
+    auto erf = wrap_type<Erf>({mul1});
+    auto mul2_constant = wrap_type<Constant>();
+    auto mul2 = wrap_type<Multiply>({erf, mul2_constant});
+    auto add_constant = wrap_type<Constant>();
+    auto add = wrap_type<Add>({add_constant, mul2});
+
+    // x * (0.5 + 0.5 * erf(x * (1 / sqrt(2))))
+    auto mul3 = wrap_type<Multiply>({input, add});
+
+    matcher_pass_callback callback = [=](Matcher& m) {
+        NodeRegistry rg;
+        auto pattern_to_output = m.get_pattern_map();
+        auto x_output = pattern_to_output.at(input);
+
+        auto mul1_const_value = std::dynamic_pointer_cast<Constant>(pattern_to_output.at(mul1_constant));
+        auto add_const_value = std::dynamic_pointer_cast<Constant>(pattern_to_output.at(add_constant));
+        auto mul2_const_value = std::dynamic_pointer_cast<Constant>(pattern_to_output.at(mul2_constant));
+
+        if (!mul1_const_value || !add_const_value || !mul2_const_value) {
+            return false;
+        }
+
+        bool valid_constant_values =
+            ngraph::op::util::has_constant_value<float>(mul1_const_value, 1.0f / M_SQRT2, 0.001f) &&
+            ngraph::op::util::has_constant_value<float>(add_const_value, 0.5f) &&
+            ngraph::op::util::has_constant_value<float>(mul2_const_value, 0.5f);
+
+        if (!valid_constant_values) {
+            return false;
+        }
+
+        auto gelu = rg.make<Gelu>(x_output);
+
+        gelu->set_friendly_name(m.get_match_root()->get_friendly_name());
+        copy_runtime_info(m.get_matched_nodes(), rg.get());
+        replace_node(m.get_match_root(), gelu);
+        return true;
+    };
+
+    auto m = std::make_shared<Matcher>(mul3, matcher_name);
     register_matcher(m, callback);
 }
 

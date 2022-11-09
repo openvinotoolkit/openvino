@@ -247,12 +247,13 @@ public:
 
     void load_tuning_cache();
     std::shared_ptr<kernel_selector::TuningCache> get_tuning_cache() const { return tuning_cache; }
-    ImplementationsCache& get_implementations_cache() const { return *_impls_cache; }
 
     // returns {-1, -1} if it failed to estimate by allocating given batch size
     std::pair<int64_t/*const alloc*/, int64_t/*general alloc*/> get_estimated_device_mem_usage();
 
     void remove_kernel(kernel_id id);
+    bool is_local_block_io_supported() const;
+    void query_local_block_io_supported();
 
 private:
     uint32_t prog_id = 0;
@@ -260,7 +261,6 @@ private:
     stream::ptr _stream;
     // TODO: Consider moving it to engine
     std::unique_ptr<kernels_cache> _kernels_cache;
-    std::unique_ptr<ImplementationsCache> _impls_cache;
     build_options options;
     std::list<program_node*> inputs;
     std::vector<program_node*> outputs;
@@ -268,6 +268,7 @@ private:
     std::unique_ptr<pass_manager> pm;
     std::shared_ptr<kernel_selector::TuningCache> tuning_cache;
     bool is_body_program;
+    int8_t is_subgroup_local_block_io_supported;
 
     std::map<primitive_id, std::shared_ptr<program_node>> nodes_map;
     std::list<primitive_id> optimized_out;

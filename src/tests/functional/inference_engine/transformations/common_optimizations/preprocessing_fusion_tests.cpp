@@ -144,7 +144,6 @@ TEST_F(TransformationTestsF, RICFusionSimple) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -201,7 +200,6 @@ TEST_F(TransformationTestsF, RICFusionHard) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -226,7 +224,6 @@ TEST_F(TransformationTestsF, RICFusionDynamic) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-    disable_rt_info_check();
 }
 
 TEST_F(TransformationTestsF, RICFusionEltwise1) {
@@ -251,7 +248,6 @@ TEST_F(TransformationTestsF, RICFusionEltwise1) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -276,7 +272,6 @@ TEST_F(TransformationTestsF, RICFusionEltwise2) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -301,7 +296,6 @@ TEST_F(TransformationTestsF, RICFusionEltwise3) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -327,7 +321,6 @@ TEST_F(TransformationTestsF, RICFusionEltwise4) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -353,7 +346,6 @@ TEST_F(TransformationTestsF, RICFusionEltwise5) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -393,7 +385,6 @@ TEST_F(TransformationTestsF, RICFusionEltwiseTwoRIC) {
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -434,7 +425,6 @@ TEST_F(TransformationTestsF, RICFusionGroupConv) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -476,7 +466,6 @@ TEST_F(TransformationTestsF, RICFusionTranspose) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -502,7 +491,6 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -541,7 +529,6 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay2) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -581,7 +568,6 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay3) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -607,7 +593,6 @@ TEST_F(TransformationTestsF, RICFusionShapeOf) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-    disable_rt_info_check();
 }
 
 TEST_F(TransformationTestsF, RICFusionGatherDetectionNegative) {
@@ -752,7 +737,6 @@ TEST_F(TransformationTestsF, FuseScaleValue) {
         function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
     }
 
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -782,7 +766,6 @@ TEST_F(TransformationTestsF, FuseScaleValues) {
         function_ref = std::make_shared<Function>(NodeVector{ conv }, ParameterVector{ input });
     }
 
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -834,7 +817,6 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiply) {
         apply_reverse_input_channels(function, {{0, "NCHW"}});
     }
     manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
-    disable_rt_info_check();
     {
         auto parameter = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 14, 14});
         std::shared_ptr<Node> activations = std::make_shared<opset8::FakeQuantize>(parameter,
@@ -882,7 +864,6 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyGroupConv) {
         apply_reverse_input_channels(function, {{0, "NCHW"}});
     }
     manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
-    disable_rt_info_check();
     {
         auto data = std::make_shared<opset8::Parameter>(element::f32, data_shape);
         std::shared_ptr<Node> weights = opset8::Constant::create(element::f32, Shape{3, 3, 1, 4, 4}, {-2});
@@ -934,7 +915,6 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyNegative1) {
         apply_reverse_input_channels(function, {{0, "NCHW"}});
     }
     manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
-    disable_rt_info_check();
     {
         auto parameter = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 14, 14});
         std::shared_ptr<Node> activations = std::make_shared<opset8::FakeQuantize>(parameter,
@@ -994,7 +974,6 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyNegativeBroadcast) {
         apply_reverse_input_channels(function, {{0, "NCHW"}});
     }
     manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
-    disable_rt_info_check();
     {
         auto parameter = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 14, 14});
         std::shared_ptr<Node> activations = std::make_shared<opset8::FakeQuantize>(parameter,
@@ -1075,7 +1054,6 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyNonScalarFQInput) {
         apply_reverse_input_channels(function, {{0, "NCHW"}});
     }
     manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
-    disable_rt_info_check();
     {
         auto parameter = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 14, 14});
         auto gather = create_gather(std::make_shared<opset8::Constant>(element::f32, Shape{1, 3, 14, 14}), {2, 1, 0}, 1);
@@ -1147,7 +1125,6 @@ TEST_F(TransformationTestsF, RICFusionTwoConvolutions) {
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
         manager.register_pass<pass::ReverseInputChannelsFusion>();
-        disable_rt_info_check();
     }
     {
         auto conv1_with_gather = create_conv_with_gather(input, create_weights({3, 3, 1, 1}), {2, 1, 0});
@@ -1167,7 +1144,6 @@ TEST_F(TransformationTestsF, RICFusionTwoConvolutionsTheSameWeights) {
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
         manager.register_pass<pass::ReverseInputChannelsFusion>();
-        disable_rt_info_check();
     }
     {
         auto conv1_with_gather = create_conv_with_gather(input, weights, {2, 1, 0});

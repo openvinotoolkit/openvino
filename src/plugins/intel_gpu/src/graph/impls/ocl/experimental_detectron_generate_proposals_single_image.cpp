@@ -6,8 +6,8 @@
 #include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
 #include "kernel_selector_helper.h"
-#include "edgpsi/experimental_detectron_generate_proposals_single_image_kernel_selector.h"
-#include "edgpsi/experimental_detectron_generate_proposals_single_image_kernel_ref.h"
+#include "ed_gpsi/generate_proposals_single_image_kernel_selector.h"
+#include "ed_gpsi/generate_proposals_single_image_kernel_ref.h"
 
 
 namespace cldnn {

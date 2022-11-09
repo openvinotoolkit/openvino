@@ -1,4 +1,4 @@
-# Converting Models with Model Optimizer {#openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide}
+# Model Optimizer Usage {#openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide}
 
 @sphinxdirective
 
@@ -8,19 +8,12 @@
    :maxdepth: 1
    :hidden:
 
+   openvino_docs_model_inputs_outputs
    openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model
-   openvino_docs_MO_DG_prepare_model_Model_Optimization_Techniques
+   openvino_docs_MO_DG_prepare_model_Model_Optimization_Techniques 
    openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model
    openvino_docs_MO_DG_Additional_Optimization_Use_Cases
    openvino_docs_MO_DG_FP16_Compression
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe
-   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi
-   openvino_docs_MO_DG_prepare_model_convert_model_tutorials
    openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ
 
 @endsphinxdirective
@@ -41,7 +34,7 @@ where IR is a pair of files describing the model:
 
 *  <code>.bin</code> - Contains the weights and biases binary data.
 
-The generated IR can be additionally optimized for inference by [Post-training optimization](../../tools/pot/docs/Introduction.md)
+The OpenVINO IR can be additionally optimized for inference by [Post-training optimization](../../tools/pot/docs/Introduction.md)
 > that applies post-training quantization methods.
 
 > **TIP**: You can also work with Model Optimizer in OpenVINO™ [Deep Learning Workbench (DL Workbench)](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Introduction.html), which is a web-based tool with GUI for optimizing, fine-tuning, analyzing, visualizing, and comparing performance of deep learning models.

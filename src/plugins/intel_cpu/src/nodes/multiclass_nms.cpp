@@ -322,7 +322,7 @@ void MultiClassNms::execute(dnnl::stream strm) {
 
     // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
     if (isDynamicNode()) {
-        size_t totalBox = std::accumulate(m_selected_num.begin(), m_selected_num.end(), 0);
+        size_t totalBox = std::accumulate(m_selected_num.begin(), m_selected_num.end(), size_t(0));
         redefineOutputMemory({{totalBox, 6}, {totalBox, 1}, {m_numBatches}});
     }
     int* selected_indices = reinterpret_cast<int*>(selectedIndicesMemPtr->GetPtr());
@@ -372,7 +372,7 @@ void MultiClassNms::execute(dnnl::stream strm) {
         }
         // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
         if (!isDynamicNode()) {
-            std::fill_n(selected_outputs + (output_offset + real_boxes) * 6, (selectedBoxesNum_perBatch - real_boxes) * 6, -1);
+            std::fill_n(selected_outputs + (output_offset + real_boxes) * 6, (selectedBoxesNum_perBatch - real_boxes) * 6, -1.f);
             std::fill_n(selected_indices + (output_offset + real_boxes), selectedBoxesNum_perBatch - real_boxes, -1);
             output_offset += selectedBoxesNum_perBatch;
             original_offset += real_boxes;

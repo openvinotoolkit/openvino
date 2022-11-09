@@ -851,7 +851,7 @@ public:
         concat_network.execute();
 
         bool concat_opt_enabled = options.get<build_option_type::optimize_data>()->enabled();
-        bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network.get_primitive("concat"))->node.can_be_optimized();
+        bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network.get_primitive("concat"))->node->can_be_optimized();
         EXPECT_TRUE(concat_opt_enabled==concat_opt_result);
 
         return concat_network.get_output("reorder").get_memory();
@@ -917,6 +917,8 @@ TEST_P(concat_implicit_gpu_4d_i8, input_order_opt_b_fs_yx_fsv32) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(concat_gpu_onednn, basic_input_types) {
     auto& engine = get_onednn_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
 
     auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 3 } });
     auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 3 } });
@@ -1062,7 +1064,7 @@ public:
         concat_network.execute();
 
         bool concat_opt_enabled = options.get<build_option_type::optimize_data>()->enabled();
-        bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network.get_primitive("concat"))->node.can_be_optimized();
+        bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network.get_primitive("concat"))->node->can_be_optimized();
         EXPECT_TRUE(concat_opt_enabled==concat_opt_result);
 
         return concat_network.get_output("reorder").get_memory();

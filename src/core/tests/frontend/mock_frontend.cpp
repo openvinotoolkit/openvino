@@ -8,12 +8,7 @@
 #include "openvino/frontend/visibility.hpp"
 #include "openvino/opsets/opset8.hpp"
 
-// Defined if we are building the plugin DLL (instead of using it)
-#ifdef openvino_mock1_frontend_EXPORTS
-#    define MOCK_API OPENVINO_CORE_EXPORTS
-#else
-#    define MOCK_API OPENVINO_CORE_IMPORTS
-#endif  // openvino_mock1_frontend_EXPORTS
+#define MOCK_C_API OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS
 
 using namespace ngraph;
 using namespace ov::frontend;
@@ -198,14 +193,14 @@ public:
     }
 };
 
-extern "C" MOCK_API FrontEndVersion GetAPIVersion();
-extern "C" MOCK_API void* GetFrontEndData();
+MOCK_C_API FrontEndVersion GetAPIVersion();
+MOCK_C_API void* GetFrontEndData();
 
-extern "C" MOCK_API FrontEndVersion GetAPIVersion() {
+MOCK_C_API FrontEndVersion GetAPIVersion() {
     return OV_FRONTEND_API_VERSION;
 }
 
-extern "C" MOCK_API void* GetFrontEndData() {
+MOCK_C_API void* GetFrontEndData() {
     auto* res = new FrontEndPluginInfo();
     res->m_name = "mock1";
     res->m_creator = []() {

@@ -17,7 +17,6 @@
 #include <intel_gpu/primitives/concatenation.hpp>
 #include <intel_gpu/primitives/lrn.hpp>
 #include <intel_gpu/primitives/roi_pooling.hpp>
-#include <intel_gpu/primitives/scale.hpp>
 #include <intel_gpu/primitives/softmax.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/normalize.hpp>
@@ -55,6 +54,7 @@ namespace tests {
 
 std::shared_ptr<cldnn::engine> create_test_engine(cldnn::queue_types queue_type = cldnn::queue_types::out_of_order);
 cldnn::engine& get_test_engine();
+cldnn::engine& get_test_engine(const cldnn::engine_configuration& configuration);
 #ifdef ENABLE_ONEDNN_FOR_GPU
 cldnn::engine& get_onednn_test_engine();
 #endif
@@ -469,6 +469,8 @@ public:
             }
     };
 
+    static cldnn::format get_plain_format_for(const cldnn::format);
+
 protected:
     cldnn::engine& engine = get_test_engine();
     std::shared_ptr<test_params> generic_params;
@@ -528,11 +530,8 @@ inline void PrintTupleTo(const std::tuple<std::shared_ptr<test_params>, std::sha
             << " Spatial bins x: " << p->spatial_bins_x
             << " Spatial bins y: " << p->spatial_bins_y
             << " Output dim: " << p->output_dim;
-    } else if(primitive->type == cldnn::scale::type_id()) {
-        auto s = std::static_pointer_cast<cldnn::scale >(primitive);
-        (void)s;
     } else if(primitive->type == cldnn::softmax::type_id()) {
-        auto sm = std::static_pointer_cast<cldnn::softmax >(primitive);
+        auto sm = std::static_pointer_cast<cldnn::softmax>(primitive);
         (void)sm;
     } else if (primitive->type == cldnn::reorder::type_id()) {
         auto reorder = std::static_pointer_cast<cldnn::reorder>(primitive);
@@ -553,7 +552,8 @@ inline void PrintTupleTo(const std::tuple<std::shared_ptr<test_params>, std::sha
         auto pooling = std::static_pointer_cast<cldnn::pooling>(primitive);
         std::string pooling_mode = (pooling->mode == cldnn::pooling_mode::max) ? "max" : "average";
         str << "Pooling mode: " << pooling_mode
-            << " Pad x: " << pooling->pad[1] << " Pad y: " << pooling->pad[0]
+            << " Pads_begin x: " << pooling->pads_begin[1] << " Pads_begin y: " << pooling->pads_begin[0]
+            << " Pads_end x: " << pooling->pads_end[1] << " Pads_end y: " << pooling->pads_end[0]
             << " Stride x: " << pooling->stride[1] << " Stride y: " << pooling->stride[0]
             << " Size x: " << pooling->size[1] << " Size y: " << pooling->size[0];
     } else {
@@ -568,6 +568,8 @@ T div_up(const T a, const U b) {
     assert(b);
     return (a + b - 1) / b;
 }
+
+double default_tolerance(data_types dt);
 
 // inline void print_bin_blob(cldnn::memory& mem, std::string name)
 // {

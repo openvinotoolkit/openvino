@@ -9,7 +9,6 @@
 #include "intel_gpu/runtime/tensor.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
-#include "intel_gpu/primitives/scale.hpp"
 #include "intel_gpu/primitives/quantize.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
@@ -109,12 +108,16 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
 
 struct kernel_impl_params {
     bool has_runtime_layouts = false;
-    const program& prog;
+    const program *prog;
     std::shared_ptr<const primitive> desc;
     size_t unique_id;
     std::vector<layout> input_layouts;
     layout output_layout;
+    std::vector<tensor> input_offsets;
     std::vector<cldnn::fused_primitive_desc> fused_desc;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    std::vector<cldnn::fused_primitive_desc_onednn> fused_desc_onednn;
+#endif // ENABLE_ONEDNN_FOR_GPU
     std::vector<activation_func> fused_act_funcs;
     std::vector<activation_additional_params> activation_params;
 
@@ -126,26 +129,29 @@ struct kernel_impl_params {
     optional_layout compensation_layout = optional_layout();
 
     std::map<size_t, memory::ptr> memory_deps = {};
+    size_t primary_input_idx = 0;
 
     memory::ptr reordered_weights = nullptr;
 
     kernel_impl_params(program& _prog,
                        std::shared_ptr<const primitive> _desc,
                        size_t _uid,
-                       const std::vector<layout>& _int_layouts,
+                       const std::vector<layout>& _in_layouts,
                        layout _out_layout,
                        const std::vector<cldnn::fused_primitive_desc>& _fused_descs,
                        const std::vector<activation_func>& _fused_act_funcs,
                        const std::vector<activation_additional_params>& _act_params)
                        : has_runtime_layouts(true)
-                       , prog(_prog)
+                       , prog(&_prog)
                        , desc(_desc)
                        , unique_id(_uid)
-                       , input_layouts(_int_layouts)
+                       , input_layouts(_in_layouts)
                        , output_layout(_out_layout)
                        , fused_desc(_fused_descs)
                        , fused_act_funcs(_fused_act_funcs)
-                       , activation_params(_act_params) {}
+                       , activation_params(_act_params)
+                       , primary_input_idx(0) {
+    }
 
     layout get_input_layout(size_t idx = 0) const {
         OPENVINO_ASSERT(input_layouts.size() > idx,

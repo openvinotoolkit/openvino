@@ -2,10 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME cpuUnitTests)
+set(TARGET_NAME ov_cpu_unit_tests)
 
 if(BUILD_SHARED_LIBS)
     set (OBJ_LIB $<TARGET_OBJECTS:openvino_intel_cpu_plugin_obj>)
+endif()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    ie_add_compiler_flags(/wd5051)
 endif()
 
 addIeTargetTest(

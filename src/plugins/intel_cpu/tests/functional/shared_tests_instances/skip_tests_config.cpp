@@ -122,8 +122,6 @@ std::vector<std::string> disabledTestPatterns() {
             *IS=_TS=\(\(4\.5\.6\.7\)\)_RS=\(\(1\.1\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.1\.1\.1\)\)_\(\(1\.1\.6\.1\)\).*)",
         // Issue: 69222
         R"(.*smoke_PriorBoxClustered.*PriorBoxClusteredLayerCPUTest.*_netPRC=f16_.*)",
-        // Issue: 71968
-        R"(.*LSTMSequenceCommonZeroClip.*PURE.*CONST.*hidden_size=10.*sigmoid.sigmoid.sigmoid.*reverse.*FP32_targetDevice=CPU.*)",
         // Issue: 72005
         // there are some inconsistency between cpu plugin and ng ref
         // for ctcMergeRepeated is true when legal randomized inputs value.
@@ -143,7 +141,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*CUSTOM.*)",
         R"(smoke_ConversionLayerTest/ConversionLayerTest.CompareWithRefs.*UNSPECIFIED.*)",
         // Issue:
-        R"(.*smoke_VariadicSplit4D_CPU_zero_dims.*)",
         // New API tensor tests
         R"(.*OVInferRequestCheckTensorPrecision.*type=i4.*)",
         R"(.*OVInferRequestCheckTensorPrecision.*type=u1.*)",
@@ -167,6 +164,15 @@ std::vector<std::string> disabledTestPatterns() {
         // is shared across plugins
         // passed local test and cpu has specific test cases with nms9 to cover
         R"(smoke_NmsLayerTest.*)",
+        // Issue: 95915
+        R"(smoke_dynamic/AUGRUCellCPUTest.CompareWithRefs/IS=\(\{\?\.1\}_\{\?\.1\}_\{\?\.1\}_\)_TS=\{\(1\.1\)_\(1\.1\)_\(1\.1\)\}_\{\(3\.1\)_\(3\.1\)_\(3\.1\)\}_\{\(5\.1\)_\(5\.1\)_\(5\.1\)\}_decompose=0_activations=\(sigmoid\.tanh\)_clip=0_linear=0_netPrec=f32__inFmts=nc\.nc_outFmts=nc_primitive=ref_any_PluginConf_ENFORCE_BF16=YES)", // NOLINT
+        R"(smoke_dynamic/GRUCellCPUTest.CompareWithRefs/IS=\(\{\?\.1\}_\{\?\.1\}_\)_TS=\{\(1\.1\)_\(1\.1\)\}_\{\(3\.1\)_\(3\.1\)\}_\{\(5\.1\)_\(5\.1\)\}_decompose=0_activations=\(sigmoid\.tanh\)_clip=0_linear=0_netPrec=f32__inFmts=nc\.nc_outFmts=nc_primitive=ref_any_PluginConf_ENFORCE_BF16=YES)", // NOLINT
+        // 94982. FP32->I32 conversion issue in the reference implementation. There can be some garbage in the rest of float values like 0.333333745.
+        // The kernel does not have such garbage. The diff 0.000000745 is taken into account in calculations and affects further type conversion.
+        // Reorder->GridSample->Reorder also does not work here. Potential fix is to use nearest conversion instead of truncation.
+        R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*(i32|i8).*)",
+        // 94989. BF16 Reference produces different results.
+        R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*gridPrc=bf16.*)"
     };
 
 #define FIX_62820 0
@@ -184,6 +190,10 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*(BF|bf)16.*)");
         retVector.emplace_back(R"(.*bfloat16.*)");
     }
+    if (!InferenceEngine::with_cpu_x86_avx512_core_amx_int8())
+        //TODO: Issue 92895
+        // on platforms which do not support AMX, we are disabling I8 input tests
+        retVector.emplace_back(R"(smoke_LPT/FakeQuantizeWithNotOptimalTransformation.CompareWithRefImpl.*CPU.*I8.*)");
 
     return retVector;
 }
