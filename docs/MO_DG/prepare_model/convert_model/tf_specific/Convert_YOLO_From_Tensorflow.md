@@ -15,30 +15,36 @@ Depending on a YOLO model version, the Model Optimizer converts it differently:
 This section explains how to convert the YOLOv4 Keras model from the [repository](https://github.com/david8862/keras-YOLOv3-model-set) to an IR. To convert the YOLOv4 model, follow the instructions below:
 
 1. Download YOLOv4 weights and associated with it cfg file:
-- for YOLOv4 ([weights](https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v3_optimal/yolov4.weights)/[config file](https://github.com/david8862/keras-YOLOv3-model-set/raw/6c9aff7bb0c1660704ad07c85739e95885676e5b/cfg/yolov4.cfg))
-- for YOLOv4-tiny ([weights](https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v4_pre/yolov4-tiny.weights)/[config file](https://raw.githubusercontent.com/david8862/keras-YOLOv3-model-set/6b4a0ee63771262363e8224b0ee915cad6c5e93e/cfg/yolov4-tiny.cfg))
+
+  - for YOLOv4 ([weights](https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v3_optimal/yolov4.weights)/[config file](https://github.com/david8862/keras-YOLOv3-model-set/raw/6c9aff7bb0c1660704ad07c85739e95885676e5b/cfg/yolov4.cfg))
+  - for YOLOv4-tiny ([weights](https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v4_pre/yolov4-tiny.weights)/[config file](https://raw.githubusercontent.com/david8862/keras-YOLOv3-model-set/6b4a0ee63771262363e8224b0ee915cad6c5e93e/cfg/yolov4-tiny.cfg))
 
 2. Clone the repository with the YOLOv4 model:
-```sh
-git clone https://github.com/david8862/keras-YOLOv3-model-set
-```
+
+  ```sh
+  git clone https://github.com/david8862/keras-YOLOv3-model-set
+  ```
 
 3. Convert the model to the TensorFlow 2 format:
-- for YOLOv4:
-```sh
-python keras-YOLOv3-model-set/tools/model_converter/convert.py <path_to_cfg_file>/yolov4.cfg <path_to_weights>/yolov4.weights <saved_model_dir>
-```
-- for YOLOv4-tiny:
-```sh
-python keras-YOLOv3-model-set/tools/model_converter/convert.py <path_to_cfg_file>/yolov4-tiny.cfg <path_to_weights>/yolov4-tiny.weights <saved_model_dir>
-```
+
+  - for YOLOv4:
+
+  ```sh
+  python keras-YOLOv3-model-set/tools/model_converter/convert.py <path_to_cfg_file>/yolov4.cfg <path_to_weights>/yolov4.weights <saved_model_dir>
+  ```
+
+  - for YOLOv4-tiny:
+
+  ```sh
+  python keras-YOLOv3-model-set/tools/model_converter/convert.py <path_to_cfg_file>/yolov4-tiny.cfg <path_to_weights>/yolov4-tiny.weights <saved_model_dir>
+  ```
 
 4. Run Model Optimizer to converter the model from the TensorFlow 2 format to an IR:
 
 > **NOTE**: Before you run the conversion, make sure you have installed all the Model Optimizer dependencies for TensorFlow 2.
-```sh
-mo --saved_model_dir yolov4 --output_dir models/IRs --input_shape [1,608,608,3] --model_name yolov4
-```
+> ```sh
+> mo --saved_model_dir yolov4 --output_dir models/IRs --input_shape [1,608,608,3] --model_name yolov4
+> ```
 
 ## <a name="yolov3-to-ir"></a>Converting YOLOv3 Model to the OpenVINO format
 
@@ -54,7 +60,7 @@ simple layers. This badly affects performance. For this reason, the main idea of
 custom `Region`-like parts of the model and complete the model with the `Region` layers where required.
 
 ### Dumping a YOLOv3 TensorFlow Model
-To dump TensorFlow model out of  [https://github.com/mystic123/tensorflow-yolo-v3](https://github.com/mystic123/tensorflow-yolo-v3) GitHub repository (commit ed60b90), follow the instructions below:
+To dump TensorFlow model out of [GitHub repository](https://github.com/mystic123/tensorflow-yolo-v3) (commit ed60b90), follow the instructions below:
 
 1. Clone the repository:<br>
 ```sh
@@ -73,6 +79,7 @@ pip install pillow
 ```
 6. Run a converter:
 > **NOTE**: This converter works with TensorFlow 1.x and numpy 1.19 or lower.
+
 - For YOLO-v3:
 ```sh
 python3 convert_weights_pb.py --class_names coco.names --data_format NHWC --weights_file yolov3.weights
@@ -117,7 +124,7 @@ where:
 - `custom_attributes` is a parameter that stores all the YOLOv3 specific attributes:
     - `classes`, `coords`, `num`, and `masks` are attributes that you should copy from the configuration
     file that was used for model training. If you used DarkNet officially shared weights,
-    you can use `yolov3.cfg` or `yolov3-tiny.cfg` configuration file from https://github.com/david8862/keras-YOLOv3-model-set/tree/master/cfg. Replace the default values in `custom_attributes` with the parameters that
+    you can use `yolov3.cfg` or `yolov3-tiny.cfg` configuration file from [GitHub repository](https://github.com/david8862/keras-YOLOv3-model-set/tree/master/cfg). Replace the default values in `custom_attributes` with the parameters that
     follow the `[yolo]` titles in the configuration file.
     - `anchors` is an optional parameter that is not used while inference of the model, but it used in a demo to parse `Region` layer output
     - `entry_points` is a node name list to cut off the model and append the `Region` layer with custom attributes specified above.
@@ -146,9 +153,9 @@ where:
 * `--batch` defines shape of model input. In the example, `--batch` is equal to 1, but you can also specify other integers larger than 1.
 * `--transformations_config` adds missing `Region` layers to the model. In the IR, the `Region` layer has name `RegionYolo`.
 
-> **NOTE**: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the [Converting a Model to Intermediate Representation (IR)](../Converting_Model.md) guide.
+> **NOTE**: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the [Converting a Model to Intermediate Representation (IR)](@ref openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model) guide.
 
-OpenVINO&trade; toolkit provides a demo that uses YOLOv3 model. Refer to the [Object Detection C++ Demo](@ref omz_demos_object_detection_demo_cpp) for more information.
+OpenVINO toolkit provides a demo that uses YOLOv3 model. Refer to the [Object Detection C++ Demo](@ref omz_demos_object_detection_demo_cpp) for more information.
 
 ## Converting YOLOv1 and YOLOv2 Models to the IR
 
@@ -158,11 +165,12 @@ Before converting, choose a YOLOv1 or YOLOv2 model version that best suits your 
 
 To convert DarkNet YOLOv1 and YOLOv2 models to the OpenVINO format, follow these steps:
 
-1. <a href="#install-darkflow">Install DarkFlow </a>
-2. <a href="#yolov1-v2-to-tf">Convert DarkNet YOLOv1 or YOLOv2 model to TensorFlow</a> using DarkFlow
-3. <a href="#yolov1-v2-to-ir">Convert TensorFlow YOLOv1 or YOLOv2 model to IR</a>
+1. [Install DarkFlow](@ref install_darkflow)
+2. [Convert DarkNet YOLOv1 or YOLOv2 model to TensorFlow](@ref yolov1_v2_to_tf) using DarkFlow
+3. [Convert TensorFlow YOLOv1 or YOLOv2 model to IR](@ref yolov1_v2_to_ir)
 
-#### <a name="install-darkflow"></a>Installing DarkFlow
+@anchor install_darkflow
+#### Installing DarkFlow
 
 You need DarkFlow to convert YOLOv1 and YOLOv2 models to TensorFlow. To install DarkFlow:
 1. Install DarkFlow [required dependencies](https://github.com/thtrieu/darkflow#dependencies).
@@ -176,7 +184,8 @@ cd darkflow
 ```
 4. Install DarkFlow, using the instructions from the `README.md` file in the [DarkFlow repository](https://github.com/thtrieu/darkflow/blob/master/README.md#getting-started).
 
-#### <a name="yolov1-v2-to-tf"></a>Converting a DarkNet YOLOv1 or YOLOv2 Model to TensorFlow
+@anchor yolov1_v2_to_tf
+#### Converting a DarkNet YOLOv1 or YOLOv2 Model to TensorFlow
 
 To convert YOLOv1 or YOLOv2 model to TensorFlow, go to the root directory of the cloned DarkFlow repository, place the previously downloaded \*.cfg and \*.weights files in the current directory and run the following command:<br>
 - For YOLOv1:
@@ -185,12 +194,12 @@ python3 flow --model yolov1.cfg --load yolov1.weights --savepb
 ```
 
 - For YOLOv2 with VOC dataset `--labels` argument should be specified and additional changes in the original exporting script are required.
-In the file [https://github.com/thtrieu/darkflow/blob/b187c65/darkflow/utils/loader.py#L121](https://github.com/thtrieu/darkflow/blob/b187c65630f9aa1bb8b809c33ec67c8cc5d60124/darkflow/utils/loader.py#L121)
+In the [file](https://github.com/thtrieu/darkflow/blob/b187c65630f9aa1bb8b809c33ec67c8cc5d60124/darkflow/utils/loader.py#L121)
 change line 121 from `self.offset = 16` to `self.offset = 20`. Then run:
 ```sh
 python3 flow --model yolov2-voc.cfg --load yolov2-voc.weights --labels voc-labels.txt --savepb
 ```
-VOC labels can be found on the following link https://raw.githubusercontent.com/szaza/android-yolo-v2/master/assets/tiny-yolo-voc-labels.txt
+VOC labels can be found on the following [link](https://raw.githubusercontent.com/szaza/android-yolo-v2/master/assets/tiny-yolo-voc-labels.txt)
 
 General conversion command is:
 ```sh
@@ -201,7 +210,8 @@ in `built_graph`  subdirectory of the cloned DarkFlow repository.
 
 File `<model_name>.pb` is a TensorFlow representation of the YOLO model.
 
-#### <a name="yolov1-v2-to-ir"></a>Converting a TensorFlow YOLOv1 or YOLOv2 Model to the IR
+@anchor yolov1_v2_to_ir
+#### Converting a TensorFlow YOLOv1 or YOLOv2 Model to the IR
 
 Converted TensorFlow YOLO model is missing `Region` layer and its parameters. Original YOLO `Region` layer parameters are stored in the configuration `<path_to_model>/<model_name>.cfg`
 file under the `[region]` title.
@@ -224,8 +234,8 @@ where:
 
 * `--batch` defines shape of model input. In the example, `--batch` is equal to 1, but you can also specify other integers larger than 1.
 * `--scale` specifies scale factor that input values will be divided by.
-The model was trained with input values in the range `[0,1]`. OpenVINO&trade; toolkit samples read input images as values in `[0,255]` range, so the scale 255 must be applied.
+The model was trained with input values in the range `[0,1]`. OpenVINO toolkit samples read input images as values in `[0,255]` range, so the scale 255 must be applied.
 * `--transformations_config` adds missing `Region` layers to the model. In the IR, the `Region` layer has name `RegionYolo`.
-For other applicable parameters, refer to the [Convert Model from TensorFlow](../Convert_Model_From_TensorFlow.md) guide.
+For other applicable parameters, refer to the [Convert Model from TensorFlow](@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow) guide.
 
-> **NOTE**: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the [Converting a Model to Intermediate Representation (IR)](../Converting_Model.md) guide.
+> **NOTE**: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the [Converting a Model to Intermediate Representation (IR)](@ref openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model) guide.

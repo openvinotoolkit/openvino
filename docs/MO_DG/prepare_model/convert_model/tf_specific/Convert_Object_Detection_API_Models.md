@@ -1,9 +1,10 @@
 # Converting TensorFlow Object Detection API Models {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models}
 
-> **NOTES**:
-> * Starting with the 2022.1 release, Model Optimizer can convert the TensorFlow Object Detection API Faster and Mask RCNNs topologies differently. By default, Model Optimizer adds operation "Proposal" to the generated IR. This operation needs an additional input to the model with name "image_info" which should be fed with several values describing the preprocessing applied to the input image (refer to the [Proposal](../../../../ops/detection/Proposal_4.md) operation specification for more information). However, this input is redundant for the models trained and inferred with equal size images. Model Optimizer can generate IR for such models and insert operation [DetectionOutput](../../../../ops/detection/DetectionOutput_1.md) instead of `Proposal`. The `DetectionOutput` operation does not require additional model input "image_info". Moreover, for some models the produced inference results are closer to the original TensorFlow model. In order to trigger new behavior, the attribute "operation_to_add" in the corresponding JSON transformation configuration file should be set to value "DetectionOutput" instead of default one "Proposal".
-> * Starting with the 2021.1 release, Model Optimizer converts the TensorFlow Object Detection API SSDs, Faster and Mask RCNNs topologies keeping shape-calculating sub-graphs by default, so topologies can be re-shaped in the OpenVINO Runtime using dedicated reshape API. Refer to the [Using Shape Inference](../../../../OV_Runtime_UG/ShapeInference.md) guide for more information on how to use this feature. It is possible to change the both spatial dimensions of the input image and batch size.
-> * To generate IRs for TF 1 SSD topologies, Model Optimizer creates a number of `PriorBoxClustered` operations instead of a constant node with prior boxes calculated for the particular input image size. This change allows you to reshape the topology in the OpenVINO Runtime using dedicated API. The reshaping is supported for all SSD topologies except FPNs, which contain hardcoded shapes for some operations preventing from changing topology input shape.
+**NOTES**: 
+
+* Starting with the 2022.1 release, Model Optimizer can convert the TensorFlow Object Detection API Faster and Mask RCNNs topologies differently. By default, Model Optimizer adds operation "Proposal" to the generated IR. This operation needs an additional input to the model with name "image_info" which should be fed with several values describing the preprocessing applied to the input image (refer to the [Proposal](@ref openvino_docs_ops_detection_Proposal_4) operation specification for more information). However, this input is redundant for the models trained and inferred with equal size images. Model Optimizer can generate IR for such models and insert operation [DetectionOutput](@ref openvino_docs_ops_detection_DetectionOutput_1) instead of `Proposal`. The `DetectionOutput` operation does not require additional model input "image_info". Moreover, for some models the produced inference results are closer to the original TensorFlow model. In order to trigger new behavior, the attribute "operation_to_add" in the corresponding JSON transformation configuration file should be set to value "DetectionOutput" instead of default one "Proposal".
+* Starting with the 2021.1 release, Model Optimizer converts the TensorFlow Object Detection API SSDs, Faster and Mask RCNNs topologies keeping shape-calculating sub-graphs by default, so topologies can be re-shaped in the OpenVINO Runtime using dedicated reshape API. Refer to the [Using Shape Inference](@ref openvino_docs_OV_UG_ShapeInference) guide for more information on how to use this feature. It is possible to change the both spatial dimensions of the input image and batch size.
+* To generate IRs for TF 1 SSD topologies, Model Optimizer creates a number of `PriorBoxClustered` operations instead of a constant node with prior boxes calculated for the particular input image size. This change allows you to reshape the topology in the OpenVINO Runtime using dedicated API. The reshaping is supported for all SSD topologies except FPNs, which contain hardcoded shapes for some operations preventing from changing topology input shape.
 
 ## Converting a Model
 
@@ -62,7 +63,7 @@ Open Model Zoo provides set of demo applications to show implementation of close
 based on deep learning in various tasks, including Image Classification, Visual Object Detection, Text Recognition,
 Speech Recognition, Natural Language Processing and others. Refer to the links below for more details.
 
-* [OpenVINO Samples](../../../../OV_Runtime_UG/Samples_Overview.md)
+* [OpenVINO Samples](@ref openvino_docs_OV_UG_Samples_Overview)
 * [Open Model Zoo Demos](@ref omz_demos)
 
 ## Feeding Input Images to the Samples
@@ -134,5 +135,5 @@ It is also important to open the model in the [TensorBoard](https://www.tensorfl
 * `--input_model <path_to_frozen.pb>` --- Path to the frozen model.
 * `--tensorboard_logdir` --- Path to the directory where TensorBoard looks for the event files.
 
-Implementation of the transformations for Object Detection API models is located in the file [https://github.com/openvinotoolkit/openvino/blob/releases/2022/1/tools/mo/openvino/tools/mo/front/tf/ObjectDetectionAPI.py](https://github.com/openvinotoolkit/openvino/blob/releases/2022/1/tools/mo/openvino/tools/mo/front/tf/ObjectDetectionAPI.py). Refer to the code in this file to understand the details of the conversion process.
+Implementation of the transformations for Object Detection API models is located in the [file](https://github.com/openvinotoolkit/openvino/blob/releases/2022/1/tools/mo/openvino/tools/mo/front/tf/ObjectDetectionAPI.py). Refer to the code in this file to understand the details of the conversion process.
 
