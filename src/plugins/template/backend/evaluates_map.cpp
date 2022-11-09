@@ -52,6 +52,9 @@
 #include <ngraph/runtime/reference/if.hpp>
 #include <ngraph/runtime/reference/interpolate.hpp>
 #include <ngraph/runtime/reference/irdft.hpp>
+#include <ngraph/runtime/reference/is_finite.hpp>
+#include <ngraph/runtime/reference/is_inf.hpp>
+#include <ngraph/runtime/reference/is_nan.hpp>
 #include <ngraph/runtime/reference/log.hpp>
 #include <ngraph/runtime/reference/log_softmax.hpp>
 #include <ngraph/runtime/reference/lrn.hpp>
@@ -4190,6 +4193,102 @@ bool evaluate(const shared_ptr<op::v9::SoftSign>& op, const HostTensorVector& ou
         runtime::reference::softsign<bfloat16>(inputs[0]->get_data_ptr<bfloat16>(),
                                                outputs[0]->get_data_ptr<bfloat16>(),
                                                shape_size(inputs[0]->get_shape()));
+        break;
+    default:
+        return false;
+    }
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v10::IsFinite>& op,
+              const HostTensorVector& outputs,
+              const HostTensorVector& inputs) {
+    element::Type input_et = op->get_input_element_type(0);
+    switch (input_et) {
+    case element::Type_t::f64:
+        ngraph::runtime::reference::is_finite<double>(inputs[0]->get_data_ptr<double>(),
+                                                      outputs[0]->get_data_ptr<element::Type_t::boolean>(),
+                                                      shape_size(inputs[0]->get_shape()));
+        break;
+    case element::Type_t::f32:
+        ngraph::runtime::reference::is_finite<float>(inputs[0]->get_data_ptr<float>(),
+                                                     outputs[0]->get_data_ptr<element::Type_t::boolean>(),
+                                                     shape_size(inputs[0]->get_shape()));
+        break;
+    case element::Type_t::f16:
+        ngraph::runtime::reference::is_finite<float16>(inputs[0]->get_data_ptr<float16>(),
+                                                       outputs[0]->get_data_ptr<element::Type_t::boolean>(),
+                                                       shape_size(inputs[0]->get_shape()));
+        break;
+    case element::Type_t::bf16:
+        ngraph::runtime::reference::is_finite<bfloat16>(inputs[0]->get_data_ptr<bfloat16>(),
+                                                        outputs[0]->get_data_ptr<element::Type_t::boolean>(),
+                                                        shape_size(inputs[0]->get_shape()));
+        break;
+    default:
+        return false;
+    }
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v10::IsInf>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    element::Type input_et = op->get_input_element_type(0);
+    switch (input_et) {
+    case element::Type_t::f64:
+        ngraph::runtime::reference::is_inf(inputs[0]->get_data_ptr<double>(),
+                                           outputs[0]->get_data_ptr<element::Type_t::boolean>(),
+                                           shape_size(inputs[0]->get_shape()),
+                                           op->get_attributes());
+        break;
+    case element::Type_t::f32:
+        ngraph::runtime::reference::is_inf(inputs[0]->get_data_ptr<float>(),
+                                           outputs[0]->get_data_ptr<element::Type_t::boolean>(),
+                                           shape_size(inputs[0]->get_shape()),
+                                           op->get_attributes());
+        break;
+    case element::Type_t::f16:
+        ngraph::runtime::reference::is_inf(inputs[0]->get_data_ptr<float16>(),
+                                           outputs[0]->get_data_ptr<element::Type_t::boolean>(),
+                                           shape_size(inputs[0]->get_shape()),
+                                           op->get_attributes());
+        break;
+    case element::Type_t::bf16:
+        ngraph::runtime::reference::is_inf(inputs[0]->get_data_ptr<bfloat16>(),
+                                           outputs[0]->get_data_ptr<element::Type_t::boolean>(),
+                                           shape_size(inputs[0]->get_shape()),
+                                           op->get_attributes());
+        break;
+    default:
+        return false;
+    }
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v10::IsNaN>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    element::Type input_et = op->get_input_element_type(0);
+    switch (input_et) {
+    case element::Type_t::f64:
+        ngraph::runtime::reference::is_nan(inputs[0]->get_data_ptr<double>(),
+                                           outputs[0]->get_data_ptr<element::Type_t::boolean>(),
+                                           shape_size(inputs[0]->get_shape()));
+        break;
+    case element::Type_t::f32:
+        ngraph::runtime::reference::is_nan(inputs[0]->get_data_ptr<float>(),
+                                           outputs[0]->get_data_ptr<element::Type_t::boolean>(),
+                                           shape_size(inputs[0]->get_shape()));
+        break;
+    case element::Type_t::f16:
+        ngraph::runtime::reference::is_nan(inputs[0]->get_data_ptr<float16>(),
+                                           outputs[0]->get_data_ptr<element::Type_t::boolean>(),
+                                           shape_size(inputs[0]->get_shape()));
+        break;
+    case element::Type_t::bf16:
+        ngraph::runtime::reference::is_nan(inputs[0]->get_data_ptr<bfloat16>(),
+                                           outputs[0]->get_data_ptr<element::Type_t::boolean>(),
+                                           shape_size(inputs[0]->get_shape()));
         break;
     default:
         return false;
