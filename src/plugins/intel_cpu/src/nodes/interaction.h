@@ -47,7 +47,7 @@ struct jit_uni_move_scale_kernel {
 class Interaction : public Node {
 public:
     Interaction(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
-    void getSupportedDescriptors() override;
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
@@ -59,7 +59,7 @@ public:
     void prepareParams() override;
 
 private:
-    void execRef(dnnl::stream strm, bool fuseFQ = false);
+    void execRef(dnnl::stream strm);
     size_t batchSize = 0;
     size_t featureSize = 0;
     size_t inputSizes = 0;

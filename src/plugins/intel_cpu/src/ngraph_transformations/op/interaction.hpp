@@ -36,18 +36,9 @@ public:
         return m_fq_scales;
     }
 
-    void set_fq_output_type(const ngraph::element::Type& type) {
-        fq_output_type = type;
-    }
-
-    ngraph::element::Type get_fq_output_type() const {
-        return fq_output_type;
-    }
-
 private:
     ngraph::element::Type m_output_type;
     std::vector<float> m_fq_scales;
-    ngraph::element::Type fq_output_type;
 };
 
 }   // namespace intel_cpu

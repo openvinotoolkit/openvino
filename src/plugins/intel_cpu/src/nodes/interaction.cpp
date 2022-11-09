@@ -65,9 +65,7 @@ private:
 
         mov(reg_in_aux, reg_in);
         mov(reg_out_aux, reg_out);
-        if (jcp_.with_scales && !jcp_.broadcast_scales) {
-            mov(reg_scales, ptr[reg_params + GET_OFF(p_scales)]);
-        }
+
         size_t tail_size = jcp_.work_amount % vec_size;
         L(move_scale_loop_label);
         {
@@ -165,11 +163,13 @@ Interaction::Interaction(const std::shared_ptr<ngraph::Node>& op, const dnnl::en
     const std::vector<float>& scales = interaction->get_output_scales();
     if (!scales.empty()) {
         fqScales = scales;
-        outputDataType  = InferenceEngine::details::convertPrecision(interaction->get_fq_output_type());
+        outputDataType  = InferenceEngine::details::convertPrecision(interaction->get_output_element_type(0));
     }
 }
 
-void Interaction::getSupportedDescriptors() {
+void Interaction::initSupportedPrimitiveDescriptors() {
+    if (!supportedPrimitiveDescriptors.empty())
+        return;
     dataPrecision = getOriginalInputPrecisionAtPort(0);
     if (dataPrecision != InferenceEngine::Precision::FP32 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
         dataPrecision = InferenceEngine::Precision::BF16;
@@ -178,13 +178,8 @@ void Interaction::getSupportedDescriptors() {
     }
 
     if (fqScales.empty()) {
-        outputDataType = dataPrecision;;
+        outputDataType = dataPrecision;
     }
-}
-
-void Interaction::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
-        return;
     // initialize input ports
     std::vector<PortConfigurator> inPortConfigs;
     for (size_t i = 0; i < getParentEdges().size(); ++i) {
@@ -236,29 +231,30 @@ static inline void flat_triangle(const uint8_t* in, uint8_t* out, size_t size, s
     }
 }
 
-void Interaction::execRef(dnnl::stream strm, bool fuseFQ) {
+void Interaction::execRef(dnnl::stream strm) {
     using tag = dnnl::memory::format_tag;
     using dt = dnnl::memory::data_type;
     using namespace dnnl;
-
+    bool fuseFQ = !fqScales.empty();
     uint8_t* outFeaturesPtr = reinterpret_cast<uint8_t*>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
     std::vector<const uint8_t*> inputPtrs(inputSizes);
     for (uint32_t n = 0; n < inputSizes; n++) {
         auto inPtr = reinterpret_cast<const uint8_t*>(getParentEdgeAt(n)->getMemoryPtr()->GetPtr());
         inputPtrs[n] = inPtr;
     }
-    std::unordered_map<int, memory> mem_ags {
-    {DNNL_ARG_SRC, inputMemPtr->GetPrimitive()},
-    {DNNL_ARG_WEIGHTS, inputMemPtr->GetPrimitive()},
-    {DNNL_ARG_DST, outputMemPtr->GetPrimitive()}};
+    std::unordered_map<int, memory> mem_ags{{DNNL_ARG_SRC, inputMemPtr->GetPrimitive()},
+                                            {DNNL_ARG_WEIGHTS, inputMemPtr->GetPrimitive()},
+                                            {DNNL_ARG_DST, outputMemPtr->GetPrimitive()}};
     float* scales = fuseFQ ? fqScales.data() : nullptr;
     for (int64_t start = 0; start < batchSize; start++) {
         cat(reinterpret_cast<uint8_t*>(inputMemPtr->GetPtr()), inputPtrs, featureSizes, start, dataPrecision.size());
         (*prim).execute(strm, mem_ags);
         flat_triangle(reinterpret_cast<const uint8_t*>(outputMemPtr->GetPtr()),
-            reinterpret_cast<uint8_t*>(flatMemPtr->GetPtr()), inputSizes, dataPrecision.size());
-        //in1 dense feature
-        //in2 flatted interaction features
+                      reinterpret_cast<uint8_t*>(flatMemPtr->GetPtr()),
+                      inputSizes,
+                      dataPrecision.size());
+        // in1 dense feature
+        // in2 flatted interaction features
         if (fuseFQ) {
             if (moveFeatureKernel) {
                 jit_move_scale_call_args featArgs;
@@ -288,10 +284,7 @@ void Interaction::execRef(dnnl::stream strm, bool fuseFQ) {
 
 
 void Interaction::execute(dnnl::stream strm) {
-    if (fqScales.empty())
-        execRef(strm);
-    else
-        execRef(strm, true);
+    execRef(strm);
 }
 
 bool Interaction::created() const {
