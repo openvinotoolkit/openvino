@@ -306,6 +306,13 @@ The Benchmark Tool can also be used with dynamically shaped networks to measure 
    ```
 
    ```sh
+   [Step 9/11] Creating infer requests and preparing input tensors
+  [ WARNING ] No input files were given for input 'input'!. This input will be filled with random values!
+  [ INFO ] Fill input 'input' with random values
+  [ INFO ] Defined 3 tensor groups:
+  [ INFO ]         input: {1, 3, 16, 224, 224}
+  [ INFO ]         input: {2, 3, 16, 224, 224}
+  [ INFO ]         input: {4, 3, 16, 224, 224}
    [Step 10/11] Measuring performance (Start inference asynchronously, 11 inference requests, limits: 60000 ms duration)
    [ INFO ] Benchmarking in full mode (inputs filling are included in measurement loop).
    [ INFO ] First inference took 201.15 ms
