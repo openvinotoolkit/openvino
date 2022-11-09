@@ -25,10 +25,14 @@ std::shared_ptr<Node> Load::clone_with_new_inputs(const OutputVector& new_args) 
 
 LoadReshape::LoadReshape(const Output<ov::Node>& x, const size_t count, std::vector<size_t> order)
                             : Load(x, count), m_order(std::move(order)) {
-    const auto in_shape_size = x.get_partial_shape().size();
+    const auto& in_shape = x.get_partial_shape();
+    NGRAPH_CHECK(in_shape.is_static(), "LoadReshape supports only static input shapes");
+    const auto in_shape_size = in_shape.size();
     NGRAPH_CHECK(m_order.size() == in_shape_size, "LoadReshape got new_order of invalid size");
     NGRAPH_CHECK(*std::max_element(m_order.begin(), m_order.end()) == in_shape_size - 1 &&
                  *std::min_element(m_order.begin(), m_order.end()) == 0, "LoadReshape detected invalid values in new_order");
+    const std::set<size_t> unique_dims(order.begin(), order.end());
+    NGRAPH_CHECK(unique_dims.size() == order.size(), "LoadReshape order must not contain repeated elements");
     constructor_validate_and_infer_types();
 }
 

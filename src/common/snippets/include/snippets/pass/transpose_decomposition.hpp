@@ -20,6 +20,7 @@ class TransposeDecomposition: public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("TransposeDecomposition", "0");
     TransposeDecomposition();
+    static const std::set<std::vector<int>> supported_cases;
 };
 
 }  // namespace pass

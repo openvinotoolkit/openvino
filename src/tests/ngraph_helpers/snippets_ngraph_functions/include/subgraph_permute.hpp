@@ -15,13 +15,13 @@
 namespace ov {
 namespace test {
 namespace snippets {
-/// Add separated from inputs by Sinh to WA CPU-specific disabling after inputs.
+/// Minimal graph to test Transpose support: Parameter->Sinh->Transpose->Result
 /// Works because Sinh is not supported by tokenization yet.
-/// Tokenized simply by starting subgraph.
-//   in1       in2
-//   Sinh       Sinh
-//        Add
-//      Result
+/// Tokenized simply by starting subgraph, supported through TransposeDecomposition
+//   in1
+//   Sinh       Const(order)
+//        Transpose
+//         Result
 // todo: remove Sinh once "no subgraph after input" limitation is relaxed
 class TransposeSinhFunction : public SnippetsFunctionBase {
 public:
