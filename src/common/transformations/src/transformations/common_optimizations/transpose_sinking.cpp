@@ -293,6 +293,10 @@ ov::pass::TransposeFuse::TransposeFuse() {
                 is_ordered = false;
         }
 
+        auto transpose_oder_type = transpose1_order->get_element_type();
+        if (transpose_oder_type != transpose2_order->get_element_type())
+            transpose_oder_type = element::i64;
+
         if (is_ordered) {
             return ngraph::replace_output_update_name(transpose2->output(0), input);
         } else {
