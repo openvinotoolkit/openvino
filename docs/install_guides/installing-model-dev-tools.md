@@ -136,7 +136,7 @@ Note that the commands are different for a Python installation and a C++ install
 
    .. code-block:: sh
 
-      pip install openvino-dev[EXTRAS]==2022.2
+      pip install openvino-dev[EXTRAS]==2022.1
 
   where the EXTRAS parameter specifies one or more deep learning frameworks via these values: caffe, kaldi, mxnet, onnx, pytorch, tensorflow, tensorflow2. Make sure that you install the corresponding frameworks for your models. For example:
 
