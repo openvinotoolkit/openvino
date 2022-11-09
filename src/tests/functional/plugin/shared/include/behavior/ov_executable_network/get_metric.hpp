@@ -82,6 +82,7 @@ using OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS = OVClas
 using OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS = OVClassHeteroExecutableNetworkGetMetricTest;
 using OVClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME = OVClassHeteroExecutableNetworkGetMetricTest;
 using OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK = OVClassHeteroExecutableNetworkGetMetricTest;
+using OVClassHeteroExecutableNetworkGetMetricTest_EXEC_DEVICES = OVClassHeteroExecutableNetworkGetMetricTest;
 
 //
 // ImportExportNetwork
@@ -345,6 +346,25 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK, GetMetricNoT
     ASSERT_EQ(expectedTargets, targets);
 }
 
+TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_EXEC_DEVICES, GetMetricNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    auto layermap = ie.query_model(actualNetwork, heteroDeviceName);
+    for (auto &iter : layermap) {
+        if (iter.first.find("Concat") != std::string::npos)
+            layermap[iter.first] = CommonTestUtils::DEVICE_CPU;
+    }
+    for (auto& node : actualNetwork->get_ops()) {
+        auto affinity = layermap[node->get_friendly_name()];
+        node->get_rt_info()["affinity"] = affinity;
+    }
+    auto compiled_model = ie.compile_model(actualNetwork, heteroDeviceName);
+
+    std::string exeTargets;
+    OV_ASSERT_NO_THROW(exeTargets = compiled_model.get_property(ov::execution_devices));
+    auto expectedTargets = target_device + "," + CommonTestUtils::DEVICE_CPU + "," + target_device;
+
+    ASSERT_EQ(expectedTargets, exeTargets);
+}
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
