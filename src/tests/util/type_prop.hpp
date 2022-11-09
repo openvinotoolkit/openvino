@@ -41,7 +41,7 @@ class UnSqueezeBoundTest : public testing::WithParamInterface<BoundTestParam>, p
 protected:
     void SetUp() override {
         std::tie(p_shape, exp_shape) = GetParam();
-        UnSqueezeFixture::SetUp();
+        param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     }
 
     std::vector<size_t> in_labels;

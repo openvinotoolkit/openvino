@@ -107,16 +107,18 @@ program::program(engine& engine_ref,
       options(options),
       processing_order(),
       tuning_cache(nullptr),
-      is_body_program(is_body_program) {
+      is_body_program(is_body_program),
+      is_subgroup_local_block_io_supported(-1) {
     init_primitives();
     set_options();
+    query_local_block_io_supported();
+
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(topology);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
-    _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(_impls_cache_capacity));
-    _in_mem_kernels_cache = std::unique_ptr<KernelsCache>(new KernelsCache(_in_mem_kernels_cache_capacity));
     program_node::reset_unique_id();
+
     if (no_optimizations) {
         init_graph();
     } else {
@@ -132,13 +134,14 @@ program::program(engine& engine_ref,
       _stream(_engine.create_stream()),
       options(options),
       processing_order(),
-      tuning_cache(nullptr) {
+      tuning_cache(nullptr),
+      is_subgroup_local_block_io_supported(-1) {
     init_primitives();
     set_options();
+    query_local_block_io_supported();
+
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
-    _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(_impls_cache_capacity));
-    _in_mem_kernels_cache = std::unique_ptr<KernelsCache>(new KernelsCache(_in_mem_kernels_cache_capacity));
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(nodes);
     build_program(is_internal);
@@ -149,9 +152,10 @@ program::program(engine& engine)
       _stream(_engine.create_stream()),
       options(build_options()),
       processing_order(),
-      tuning_cache(nullptr) { }
-
+      tuning_cache(nullptr),
+      is_subgroup_local_block_io_supported(-1) { }
 program::~program() {
+    query_local_block_io_supported();
 }
 
 void program::init_primitives() {
@@ -463,6 +467,59 @@ void program::set_options() {
 
     if (!options.get<build_option_type::force_implementations>()->forcing.empty()) {
         options.set_option(build_option::optimize_data(true));
+    }
+}
+
+bool program::is_local_block_io_supported() const {
+    if (is_subgroup_local_block_io_supported == -1)
+        throw std::invalid_argument("subgroup_local_block_io_supported has NOT been initialized!");
+
+    return  static_cast<bool>(is_subgroup_local_block_io_supported);
+}
+
+void program::query_local_block_io_supported() {
+    auto& device = _engine.get_device();
+    auto device_info = device->get_info();
+    if (device_info.supports_local_block_io == false)
+        is_subgroup_local_block_io_supported = static_cast<int8_t>(false);
+
+    if (is_subgroup_local_block_io_supported != -1)
+        return;
+
+    std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
+    std::string kernel_code =
+        "__attribute__((intel_reqd_sub_group_size(8)))"
+        "__attribute__((reqd_work_group_size(8, 1, 1)))"
+        "void kernel is_local_block_io_supported(global uchar* dst) {"
+        "    uint lid = get_sub_group_local_id();"
+        "    uchar val = (uchar)lid * 2;"
+        "    __local uchar tmp_slm[8];"
+        "    intel_sub_group_block_write_uc2(tmp_slm, (uchar2)(val));"
+        "    barrier(CLK_LOCAL_MEM_FENCE);"
+        "    uchar2 read = intel_sub_group_block_read_uc2(tmp_slm);"
+        "    dst[lid] = read.s0 + 1;"
+        "}";
+
+    kernel_string->str = kernel_code;
+    kernel_string->options = "-Dcl_intel_subgroup_local_block_io -DLOCAL_BLOCK_IO_SUPPORTED=1";
+    kernel_string->entry_point = "is_local_block_io_supported";
+    kernel_string->batch_compilation = true;
+
+    try {
+        auto _kernels_cache_device_query = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
+                                                                    kernel_selector::KernelBase::get_db().get_batch_header_str()));
+        auto id = _kernels_cache_device_query->set_kernel_source(kernel_string, false);
+        _kernels_cache_device_query->build_all();
+
+        auto kernel = _kernels_cache_device_query->get_kernel(id);
+        bool is_valid = _kernels_cache_device_query->validate_simple_kernel_execution(kernel);
+        is_subgroup_local_block_io_supported = static_cast<int8_t>(is_valid);
+
+        _kernels_cache_device_query->remove_kernel(id);
+        return;
+    } catch (...) {
+        is_subgroup_local_block_io_supported = static_cast<int8_t>(false);
+        return;
     }
 }
 
@@ -1371,18 +1428,21 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             if (conv.get_primitive()->deformable_mode)
                 lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::deformable_convolution, 1);
 
-            auto input_size = node->get_dependency(0).get_output_layout().get_tensor();
-            auto ifm = static_cast<uint32_t>(input_size.feature[0]);
-            if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16)
-                total_dw_conv_layers++;
-            else if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups < 16)
-                total_dw_splitted_conv_layers++;  // this counter is needed due to compatibility with b_fs_yx_fsv16 heuristics
-            else if (conv.get_primitive()->groups > 1 || conv.get_primitive()->split() > 1)
-                total_grouped_conv_layers++;
+            if (!conv.is_dynamic()) {
+                // In dynamic shape, conv is fixed as a predefined format b_fs_yx_fsv16
+                auto input_size = node->get_dependency(0).get_output_layout().get_tensor();
+                auto ifm = static_cast<uint32_t>(input_size.feature[0]);
+                if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16)
+                    total_dw_conv_layers++;
+                else if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups < 16)
+                    total_dw_splitted_conv_layers++;  // this counter is needed due to compatibility with b_fs_yx_fsv16
+                                                      // heuristics
+                else if (conv.get_primitive()->groups > 1 || conv.get_primitive()->split() > 1)
+                    total_grouped_conv_layers++;
 
-            if (input_size.spatial[0] == 1 && input_size.spatial[1] == 1)
-                total_1x1_fm_conv_layers++;
-
+                if (input_size.spatial[0] == 1 && input_size.spatial[1] == 1)
+                    total_1x1_fm_conv_layers++;
+            }
             lo.update_formats_map(conv);
 
             if (conv.weights_zero_points_term() || conv.activations_zero_points_term())
@@ -1507,7 +1567,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::experimental_detectron_detection_output::type_id() &&
             prim.type() != cldnn::deconvolution::type_id() &&
             prim.type() != cldnn::arg_max_min::type_id() &&
-            prim.type() != cldnn::experimental_detectron_topk_rois::type_id()) {
+            prim.type() != cldnn::experimental_detectron_topk_rois::type_id() &&
+            prim.type() != cldnn::normalize::type_id()) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
         }
     }

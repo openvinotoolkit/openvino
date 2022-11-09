@@ -106,6 +106,10 @@ private:
     uint16_t m_value;
 };
 
+#if defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma warning(disable : 4756)
+#endif
 template <typename T>
 bool bfloat16::operator==(const T& other) const {
 #if defined(__GNUC__)
@@ -177,6 +181,9 @@ template <typename T>
 bfloat16 bfloat16::operator/=(const T& other) {
     return *this = *this / other;
 }
+#if defined(_MSC_VER)
+#    pragma warning(pop)
+#endif
 }  // namespace ov
 
 namespace std {
