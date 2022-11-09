@@ -55,6 +55,7 @@ def binary_op(node_factory_function: Callable) -> Callable:
 
 def custom_preprocess_function(custom_function: Callable) -> Callable:
     """Convert Node returned from custom_function to Output."""
+
     @wraps(custom_function)
     def wrapper(node: Node) -> Output:
         return Output._from_node(custom_function(node))

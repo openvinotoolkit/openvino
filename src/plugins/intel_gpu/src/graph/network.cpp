@@ -31,6 +31,7 @@
 #include "kernel_selector_helper.h"
 #include "program_helpers.h"
 #include "runtime/cldnn_itt.hpp"
+#include "kernels_cache.hpp"
 
 #include <algorithm>
 #include <string>
@@ -293,6 +294,13 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     build_exec_order();
     validate_primitives();
     add_default_output_chains();
+
+    if (is_dynamic()) {
+        _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(program->get_engine(), program->get_id(),
+                                                                        kernel_selector::KernelBase::get_db().get_batch_header_str()));
+        _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(_impls_cache_capacity));
+        _in_mem_kernels_cache = std::unique_ptr<KernelsCache>(new KernelsCache(_in_mem_kernels_cache_capacity));
+    }
 }
 
 network::network(engine& engine,
