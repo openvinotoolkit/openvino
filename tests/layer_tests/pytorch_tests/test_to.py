@@ -38,8 +38,8 @@ class TestAtenTo(PytorchLayerTest):
     @pytest.mark.parametrize("output_type", [torch.uint8, torch.int8, torch.int16, torch.int32, torch.float32, torch.int64])
     @pytest.mark.nightly
     def test_aten_to(self, input_type, output_type, ie_device, precision, ir_version):
-	    self.input_type = input_type
-	    self._test(*self.create_model(output_type), ie_device, precision, ir_version)
+        self.input_type = input_type
+        self._test(*self.create_model(output_type), ie_device, precision, ir_version)
 
     # Cartesian product of input/output types
     @pytest.mark.parametrize("input_type", [np.int32, np.float32, np.float64])
@@ -54,8 +54,8 @@ class TestAtenTo(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     def test_aten_to_non_blocking_arg(self, input_type, output_type, non_blocking, ie_device, precision, ir_version):
-	    self.input_type = input_type
-	    self._test(*self.create_model(output_type, non_blocking=non_blocking), ie_device, precision, ir_version) 
+        self.input_type = input_type
+        self._test(*self.create_model(output_type, non_blocking=non_blocking), ie_device, precision, ir_version) 
 
 
     # Cartesian product of input/output types
