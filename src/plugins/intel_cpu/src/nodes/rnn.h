@@ -59,6 +59,8 @@ private:
     /** Specify mode Cell or Seq. true - Cell, false - Seq */
     bool is_cell = false;
 
+    bool is_augru = false;
+
     /** Native order if [batch, seq, data], other case is [seq, batch, data] */
     bool nativeOrder = true;
 
@@ -107,7 +109,8 @@ private:
     enum RNNInOutKind {
         Layer       = 0,
         HiddenState = 1,
-        CellState   = 2
+        CellState   = 2,
+        Attention   = 2
     };
 
     size_t wIdx = 0;
@@ -120,6 +123,7 @@ private:
     static constexpr size_t batchDimDummyValue = 64lu;
 
     bool wasMemoryPrepared = false;
+    MemoryPtr scratchpadMem;
 };
 
 }   // namespace node

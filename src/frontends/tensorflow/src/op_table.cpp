@@ -29,7 +29,7 @@ OP_CONVERTER(translate_arg_max_op);
 OP_CONVERTER(translate_arg_min_op);
 OP_CONVERTER(translate_avg_pool_op);
 OP_CONVERTER(translate_batch_mat_mul_op);
-OP_CONVERTER(translate_batch_nd_and_space_nd_op);
+OP_CONVERTER(translate_batch_to_space_nd_op);
 OP_CONVERTER(translate_bias_add_op);
 OP_CONVERTER(translate_block_lstm_op);
 OP_CONVERTER(translate_broadcast_args_op);
@@ -77,15 +77,17 @@ OP_CONVERTER(translate_lrn_op);
 OP_CONVERTER(translate_mat_mul_op);
 OP_CONVERTER(translate_matrix_diag_op);
 OP_CONVERTER(translate_max_pool_op);
+OP_CONVERTER(translate_mirror_pad_op);
 OP_CONVERTER(translate_non_max_suppression_op);
 OP_CONVERTER(translate_normalize_l2_op);
-OP_CONVERTER(translate_pad_op);
 OP_CONVERTER(translate_parallel_dynamic_stitch_op);
 OP_CONVERTER(translate_placeholder_op);
 OP_CONVERTER(translate_placeholder_with_default_op);
 OP_CONVERTER(translate_no_op);
 OP_CONVERTER(translate_one_hot_op);
 OP_CONVERTER(translate_pack_op);
+OP_CONVERTER(translate_pad_op);
+OP_CONVERTER(translate_padv2_op);
 OP_CONVERTER(translate_range_op);
 OP_CONVERTER(translate_rank_op);
 OP_CONVERTER(translate_random_uniform_op);
@@ -102,6 +104,7 @@ OP_CONVERTER(translate_round_op);
 OP_CONVERTER(translate_rsqrt_op);
 OP_CONVERTER(translate_scatter_nd_op);
 OP_CONVERTER(translate_segment_sum_op);
+OP_CONVERTER(translate_space_to_batch_nd_op);
 OP_CONVERTER(translate_sparse_to_dense_op);
 OP_CONVERTER(translate_select_op);
 OP_CONVERTER(translate_select_v2_op);
@@ -205,7 +208,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"AvgPool3D", translate_avg_pool_op},
         {"BatchMatMul", translate_batch_mat_mul_op},
         {"BatchMatMulV2", translate_batch_mat_mul_op},
-        {"BatchToSpaceND", translate_batch_nd_and_space_nd_op},
+        {"BatchToSpaceND", translate_batch_to_space_nd_op},
         {"BroadcastArgs", translate_broadcast_args_op},
         {"BroadcastTo", translate_broadcast_to_op},
         {"Bucketize", translate_bucketize_op},
@@ -253,7 +256,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"MaxPool", translate_max_pool_op},
         {"MaxPoolV2", translate_max_pool_op},
         {"MaxPool3D", translate_max_pool_op},
-        {"MirrorPad", translate_pad_op},
+        {"MirrorPad", translate_mirror_pad_op},
         {"NonMaxSuppression", translate_non_max_suppression_op},
         {"NonMaxSuppressionV2", translate_non_max_suppression_op},
         {"NonMaxSuppressionV3", translate_non_max_suppression_op},
@@ -264,7 +267,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"OneHot", translate_one_hot_op},
         {"Pack", translate_pack_op},
         {"Pad", translate_pad_op},
-        {"PadV2", translate_pad_op},
+        {"PadV2", translate_padv2_op},
         {"DynamicStitch", translate_parallel_dynamic_stitch_op},
         {"ParallelDynamicStitch", translate_parallel_dynamic_stitch_op},
         {"Placeholder", translate_placeholder_op},
@@ -304,7 +307,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Sqrt", translate_sqrt_op},
         {"Square", translate_square_op},
         {"Squeeze", translate_squeeze_op},
-        {"SpaceToBatchND", translate_batch_nd_and_space_nd_op},
+        {"SpaceToBatchND", translate_space_to_batch_nd_op},
         {"StridedSlice", translate_strided_slice_op},
         {"Tile", translate_tile_op},
         {"TopK", translate_top_k_op},

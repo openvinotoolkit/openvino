@@ -842,7 +842,7 @@ int main(int argc, char* argv[]) {
                     throw ov::Exception("Every device used with the benchmark_app should support " +
                                         std::string(ov::optimal_number_of_infer_requests.name()) +
                                         " Failed to query the metric for the " + device_name +
-                                        " with error:" + ex.what());
+                                        " with error: " + ex.what());
                 }
             }
         }
@@ -1132,13 +1132,6 @@ int main(int argc, char* argv[]) {
             if (FLAGS_api == "sync") {
                 inferRequest->infer();
             } else {
-                // As the inference request is currently idle, the wait() adds no
-                // additional overhead (and should return immediately). The primary
-                // reason for calling the method is exception checking/re-throwing.
-                // Callback, that governs the actual execution can handle errors as
-                // well, but as it uses just error codes it has no details like ‘what()’
-                // method of `std::exception` So, rechecking for any exceptions here.
-                inferRequest->wait();
                 inferRequest->start_async();
             }
             ++iteration;
@@ -1182,8 +1175,7 @@ int main(int argc, char* argv[]) {
         }
 
         double totalDuration = inferRequestsQueue.get_duration_in_milliseconds();
-        double fps = (FLAGS_api == "sync") ? batchSize * 1000.0 / generalLatency.median_or_percentile
-                                           : 1000.0 * processedFramesN / totalDuration;
+        double fps = 1000.0 * processedFramesN / totalDuration;
 
         if (statistics) {
             statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
@@ -1261,10 +1253,12 @@ int main(int argc, char* argv[]) {
             statistics->dump();
 
         // Performance metrics report
-        slog::info << "Count:      " << iteration << " iterations" << slog::endl;
-        slog::info << "Duration:   " << double_to_string(totalDuration) << " ms" << slog::endl;
+        if (device_name.find("AUTO") != std::string::npos)
+            slog::info << "ExecutionDevice:   " << compiledModel.get_property(ov::execution_devices) << slog::endl;
+        slog::info << "Count:             " << iteration << " iterations" << slog::endl;
+        slog::info << "Duration:          " << double_to_string(totalDuration) << " ms" << slog::endl;
         if (device_name.find("MULTI") == std::string::npos) {
-            slog::info << "Latency: " << slog::endl;
+            slog::info << "Latency:" << slog::endl;
             generalLatency.write_to_slog();
 
             if (FLAGS_pcseq && app_inputs_info.size() > 1) {
