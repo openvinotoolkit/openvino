@@ -48,6 +48,26 @@ ov::Node* ov::OpSet::create_insensitive(const std::string& name) const {
     return m_factory_registry.create(type_info_it->second);
 }
 
+#define _OPENVINO_REG_OPSET(OPSET) opset_map[#OPSET] = ov::get_##OPSET;
+
+const std::map<std::string, std::function<const ov::OpSet&()>>& ov::get_avalable_opsets() {
+    static std::map<std::string, std::function<const ov::OpSet&()>> opset_map;
+    static std::once_flag flag;
+    std::call_once(flag, [&]() {
+        _OPENVINO_REG_OPSET(opset1);
+        _OPENVINO_REG_OPSET(opset2);
+        _OPENVINO_REG_OPSET(opset3);
+        _OPENVINO_REG_OPSET(opset4);
+        _OPENVINO_REG_OPSET(opset5);
+        _OPENVINO_REG_OPSET(opset6);
+        _OPENVINO_REG_OPSET(opset7);
+        _OPENVINO_REG_OPSET(opset8);
+        _OPENVINO_REG_OPSET(opset9);
+        _OPENVINO_REG_OPSET(opset10);
+    });
+    return opset_map;
+}
+
 const ov::OpSet& ov::get_opset1() {
     static OpSet opset("opset1");
     static std::once_flag flag;
@@ -206,4 +226,24 @@ const ngraph::OpSet& ngraph::get_opset9() {
 const ngraph::OpSet& ngraph::get_opset10() {
     static OpSet opset(ov::get_opset10());
     return opset;
+}
+
+#define _NGRAPH_REG_OPSET(OPSET) opset_map[#OPSET] = ngraph::get_##OPSET;
+
+const std::map<std::string, std::function<const ngraph::OpSet&()>>& ngraph::get_avalable_opsets() {
+    static std::map<std::string, std::function<const ngraph::OpSet&()>> opset_map;
+    static std::once_flag flag;
+    std::call_once(flag, [&]() {
+        _NGRAPH_REG_OPSET(opset1);
+        _NGRAPH_REG_OPSET(opset2);
+        _NGRAPH_REG_OPSET(opset3);
+        _NGRAPH_REG_OPSET(opset4);
+        _NGRAPH_REG_OPSET(opset5);
+        _NGRAPH_REG_OPSET(opset6);
+        _NGRAPH_REG_OPSET(opset7);
+        _NGRAPH_REG_OPSET(opset8);
+        _NGRAPH_REG_OPSET(opset9);
+        _NGRAPH_REG_OPSET(opset10);
+    });
+    return opset_map;
 }
