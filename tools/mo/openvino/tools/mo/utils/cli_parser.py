@@ -436,6 +436,15 @@ def transform_param_to_str(value):
 ParamDescription = namedtuple("ParamData",
                               ["description", "possible_types_command_line", "possible_types_python_api", "to_string"])
 mo_convert_params = {
+    'optional':
+    {
+    'help': ParamDescription(
+        'Print available parameters.', '', '', None),
+    'framework': ParamDescription(
+        'Name of the framework used to train the input model.', '', '', None),
+    },
+    'fw_agnostic':
+    {
     'input_model': ParamDescription(
         '{} Tensorflow*: a file with a pre-trained model ' +
         ' (binary or text .pb file after freezing).\n' +
@@ -447,8 +456,6 @@ mo_convert_params = {
         'tf.python.training.tracking.base.Trackable for case when it is output from tf.saved_model.load().\n' +
         'File formats examples:\n',
         path_to_str_or_object),
-    'framework': ParamDescription(
-        'Name of the framework used to train the input model.', '', '', None),
     'model_name': ParamDescription(
         'Model_name parameter passed to the final create_ir transform. ' +
         'This parameter is used to name ' +
@@ -577,10 +584,11 @@ mo_convert_params = {
         'Apply additional transformations. {}' +
         '"--transform transformation_name1[args],transformation_name2..." ' +
         'where [args] is key=value pairs separated by semicolon. ' +
-        'Examples: "--transform LowLatency2" or ' +
-        '          "--transform Pruning" or ' +
-        '          "--transform LowLatency2[use_const_initializer=False]" or ' +
-        '          "--transform \"MakeStateful[param_res_names='
+        'Examples:' +
+        '          "--transform LowLatency2" or \n' +
+        '          "--transform Pruning" or \n' +
+        '          "--transform LowLatency2[use_const_initializer=False]" or \n' +
+        '          "--transform \"MakeStateful[param_res_names=\n'
         '{{\'input_name_1\':\'output_name_1\',\'input_name_2\':\'output_name_2\'}}]\"" ' +
         'Available transformations: "LowLatency2", "MakeStateful", "Pruning"', 'Usage: ',
         '\'transform\' can be set by a list of tuples, where the first element is '
@@ -629,6 +637,17 @@ mo_convert_params = {
         'Force the usage of legacy Frontend of Model Optimizer for model conversion into IR. '
         'The legacy Frontend is Python based and is available for TensorFlow*, ONNX*, MXNet*, '
         'Caffe*, and Kaldi* models.', '', '', None),
+    },
+    "caffe":
+    {
+    'input_proto': ParamDescription(
+        'Deploy-ready prototxt file that contains a topology structure ' +
+        'and layer attributes', '', '', path_to_str),
+    'caffe_parser_path': ParamDescription(
+        'Path to Python Caffe* parser generated from caffe.proto', '', '',
+        path_to_str),
+    'k': ParamDescription(
+        'Path to CustomLayersMapping.xml to register custom layers', '', '', path_to_str),
     'disable_omitting_optional': ParamDescription(
         'Disable omitting optional attributes to be used for custom layers. ' +
         'Use this option if you want to transfer all attributes of a custom layer to IR. ' +
@@ -639,6 +658,9 @@ mo_convert_params = {
         'Enable flattening optional params to be used for custom layers. ' +
         'Use this option if you want to transfer attributes of a custom layer to IR with flattened nested parameters. ' +
         'Default behavior is to transfer the attributes without flattening nested parameters.', '', '', None),
+    },
+    "tf":
+    {
     'input_model_is_text': ParamDescription(
         'TensorFlow*: treat the input model file as a text protobuf format. If not specified, ' +
         'the Model Optimizer treats it as a binary file by default.', '', '', None),
@@ -665,14 +687,9 @@ mo_convert_params = {
     'tensorflow_custom_layer_libraries': ParamDescription(
         'TensorFlow*: comma separated list of shared libraries with TensorFlow* custom '
         'operations implementation.', '', '', path_to_str),
-    'input_proto': ParamDescription(
-        'Deploy-ready prototxt file that contains a topology structure ' +
-        'and layer attributes', '', '', path_to_str),
-    'caffe_parser_path': ParamDescription(
-        'Path to Python Caffe* parser generated from caffe.proto', '', '',
-        path_to_str),
-    'k': ParamDescription(
-        'Path to CustomLayersMapping.xml to register custom layers', '', '', path_to_str),
+    },
+    "mxnet":
+    {
     'input_symbol': ParamDescription(
         'Symbol file (for example, model-symbol.json) that contains a topology structure ' +
         'and layer attributes', '', '', path_to_str),
@@ -691,6 +708,9 @@ mo_convert_params = {
     'enable_ssd_gluoncv': ParamDescription(
         "Enable pattern matchers replacers for converting gluoncv ssd topologies.",
         '', '', None),
+    },
+    "kaldi":
+    {
     'counts': ParamDescription(
         "Path to the counts file", '', '', path_to_str),
     'remove_output_softmax': ParamDescription(
@@ -698,13 +718,14 @@ mo_convert_params = {
     'remove_memory': ParamDescription(
         "Removes the Memory layer and use additional inputs outputs instead", '', '',
         None),
-    'help': ParamDescription(
-        'Print available parameters.', '', '', None),
+    },
+    "pytorch":
+    {
     'example_inputs': ParamDescription('Sample of model input in original framework. '
                                        'For PyTorch it can be torch.Tensor.', '', '', None),
     'onnx_opset_version': ParamDescription('Version of ONNX opset that is used for converting from PyTorch to ONNX.',
                                            '', '', None)
-
+    }
 }
 
 
@@ -937,9 +958,10 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     if not parser:
         parser = argparse.ArgumentParser()
     common_group = parser.add_argument_group('Framework-agnostic parameters')
+    mo_convert_params_common = mo_convert_params['fw_agnostic']
     # Common parameters
     common_group.add_argument('--input_model', '-w', '-m',
-                              help=mo_convert_params['input_model'].description,
+                              help=mo_convert_params_common['input_model'].description,
                               action=CanonicalizePathCheckExistenceAction,
                               type=readable_file_or_dir)
     common_group.add_argument('--model_name', '-n',
@@ -953,8 +975,8 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               action=CanonicalizePathAction,
                               type=writable_dir)
     common_group.add_argument('--input_shape',
-                              help=mo_convert_params['input_shape'].description.format(
-                                  mo_convert_params['input_shape'].possible_types_command_line))
+                              help=mo_convert_params_common['input_shape'].description.format(
+                                  mo_convert_params_common['input_shape'].possible_types_command_line))
     common_group.add_argument('--scale', '-s',
                               type=float,
                               help='All input values coming from original network inputs will be ' +
@@ -981,39 +1003,39 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                        'DEBUG', 'NOTSET'],
                               default='ERROR')
     common_group.add_argument('--input',
-                              help=mo_convert_params['input'].description.format(
-                                  mo_convert_params['input'].possible_types_command_line))
+                              help=mo_convert_params_common['input'].description.format(
+                                  mo_convert_params_common['input'].possible_types_command_line))
     common_group.add_argument('--output',
-                              help=mo_convert_params['output'].description.format(
-                                  mo_convert_params['output'].possible_types_command_line))
+                              help=mo_convert_params_common['output'].description.format(
+                                  mo_convert_params_common['output'].possible_types_command_line))
     common_group.add_argument('--mean_values', '-ms',
-                              help=mo_convert_params['mean_values'].description.format(
-                                  mo_convert_params['mean_values'].possible_types_command_line),
+                              help=mo_convert_params_common['mean_values'].description.format(
+                                  mo_convert_params_common['mean_values'].possible_types_command_line),
                               default=())
     common_group.add_argument('--scale_values',
-                              help=mo_convert_params['scale_values'].description.format(
-                                  mo_convert_params['scale_values'].possible_types_command_line),
+                              help=mo_convert_params_common['scale_values'].description.format(
+                                  mo_convert_params_common['scale_values'].possible_types_command_line),
                               default=())
     common_group.add_argument('--source_layout',
-                              help=mo_convert_params['source_layout'].description.format(
-                                  mo_convert_params['source_layout'].possible_types_command_line),
+                              help=mo_convert_params_common['source_layout'].description.format(
+                                  mo_convert_params_common['source_layout'].possible_types_command_line),
                               default=())
     common_group.add_argument('--target_layout',
-                              help=mo_convert_params['target_layout'].description.format(
-                                  mo_convert_params['target_layout'].possible_types_command_line),
+                              help=mo_convert_params_common['target_layout'].description.format(
+                                  mo_convert_params_common['target_layout'].possible_types_command_line),
                               default=())
     common_group.add_argument('--layout',
-                              help=mo_convert_params['layout'].description.format(
-                                  mo_convert_params['layout'].possible_types_command_line),
+                              help=mo_convert_params_common['layout'].description.format(
+                                  mo_convert_params_common['layout'].possible_types_command_line),
                               default=())
     # TODO: isn't it a weights precision type
     common_group.add_argument('--data_type',
-                              help=mo_convert_params['data_type'].description,
+                              help=mo_convert_params_common['data_type'].description,
                               choices=["FP16", "FP32", "half", "float"],
                               default='float')
     common_group.add_argument('--transform',
-                              help=mo_convert_params['transform'].description.format(
-                                  mo_convert_params['transform'].possible_types_command_line),
+                              help=mo_convert_params_common['transform'].description.format(
+                                  mo_convert_params_common['transform'].possible_types_command_line),
                               default="")
     common_group.add_argument('--disable_fusing',
                               help='[DEPRECATED] Turn off fusing of linear operations to Convolution.',
@@ -1030,22 +1052,22 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               action=DeprecatedStoreTrue, default=False)
     # we use CanonicalizeDirCheckExistenceAction instead of readable_dirs to handle empty strings
     common_group.add_argument("--extensions",
-                              help=mo_convert_params['extensions'].description.format(
-                                  mo_convert_params['extensions'].possible_types_command_line),
+                              help=mo_convert_params_common['extensions'].description.format(
+                                  mo_convert_params_common['extensions'].possible_types_command_line),
                               default=[import_extensions.default_path()],
                               action=CanonicalizePathCheckExistenceAction,
                               type=readable_dirs_or_files_or_empty)
     common_group.add_argument("--batch", "-b",
                               type=check_positive,
                               default=None,
-                              help=mo_convert_params['batch'].description)
+                              help=mo_convert_params_common['batch'].description)
     common_group.add_argument("--version",
                               action='version',
                               version='Version of Model Optimizer is: {}'.format(get_version()),
-                              help=mo_convert_params['version'].description)
+                              help=mo_convert_params_common['version'].description)
 
     common_group.add_argument('--silent',
-                              help=mo_convert_params['silent'].description,
+                              help=mo_convert_params_common['silent'].description,
                               type=check_bool,
                               default=True)
     common_group.add_argument('--freeze_placeholder_with_value',
@@ -1055,26 +1077,26 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'Use --input option to specify a value for freezing.',
                               default=None)
     common_group.add_argument('--static_shape',
-                              help=mo_convert_params['static_shape'].description,
+                              help=mo_convert_params_common['static_shape'].description,
                               action='store_true', default=False)
     common_group.add_argument('--disable_weights_compression',
                               help='[DEPRECATED] Disable compression and store weights with original precision.',
                               action=DeprecatedStoreTrue, default=False)
     common_group.add_argument('--progress',
-                              help=mo_convert_params['progress'].description,
+                              help=mo_convert_params_common['progress'].description,
                               action='store_true', default=False)
     common_group.add_argument('--stream_output',
-                              help=mo_convert_params['stream_output'].description,
+                              help=mo_convert_params_common['stream_output'].description,
                               action='store_true', default=False)
     common_group.add_argument('--transformations_config',
-                              help=mo_convert_params['transformations_config'].description.format(
-                                  mo_convert_params['transformations_config'].possible_types_command_line),
+                              help=mo_convert_params_common['transformations_config'].description.format(
+                                  mo_convert_params_common['transformations_config'].possible_types_command_line),
                               action=CanonicalizeTransformationPathCheckExistenceAction)
     common_group.add_argument("--use_new_frontend",
-                              help=mo_convert_params['use_new_frontend'].description,
+                              help=mo_convert_params_common['use_new_frontend'].description,
                               action='store_true', default=False)
     common_group.add_argument("--use_legacy_frontend",
-                              help=mo_convert_params['use_legacy_frontend'].description,
+                              help=mo_convert_params_common['use_legacy_frontend'].description,
                               action='store_true', default=False)
     return parser
 
@@ -1189,18 +1211,19 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
         get_common_cli_parser(parser=parser)
 
     caffe_group = parser.add_argument_group('Caffe*-specific parameters')
+    mo_convert_params_caffe = mo_convert_params['caffe']
 
     caffe_group.add_argument('--input_proto', '-d',
-                             help=mo_convert_params['input_proto'].description,
+                             help=mo_convert_params_caffe['input_proto'].description,
                              type=str,
                              action=CanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('--caffe_parser_path',
-                             help=mo_convert_params['caffe_parser_path'].description,
+                             help=mo_convert_params_caffe['caffe_parser_path'].description,
                              type=str,
                              default=os.path.join(os.path.dirname(__file__), os.pardir, 'front', 'caffe', 'proto'),
                              action=CanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('-k',
-                             help=mo_convert_params['k'].description,
+                             help=mo_convert_params_caffe['k'].description,
                              type=str,
                              default=os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, 'extensions',
                                                   'front', 'caffe',
@@ -1221,11 +1244,11 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
                                   'from the upper left corner of the mean image',
                              default=None)
     caffe_group.add_argument('--disable_omitting_optional',
-                             help=mo_convert_params['disable_omitting_optional'].description,
+                             help=mo_convert_params_caffe['disable_omitting_optional'].description,
                              action='store_true',
                              default=False)
     caffe_group.add_argument('--enable_flattening_nested_params',
-                             help=mo_convert_params['enable_flattening_nested_params'].description,
+                             help=mo_convert_params_caffe['enable_flattening_nested_params'].description,
                              action='store_true',
                              default=False)
     return parser
@@ -1242,39 +1265,40 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
     if not parser:
         parser = argparse.ArgumentParser(usage='%(prog)s [options]')
         get_common_cli_parser(parser=parser)
+    mo_convert_params_tf = mo_convert_params['tf']
 
     tf_group = parser.add_argument_group('TensorFlow*-specific parameters')
     tf_group.add_argument('--input_model_is_text',
-                          help=mo_convert_params['input_model_is_text'].description,
+                          help=mo_convert_params_tf['input_model_is_text'].description,
                           action='store_true')
     tf_group.add_argument('--input_checkpoint', type=str, default=None,
-                          help=mo_convert_params['input_checkpoint'].description,
+                          help=mo_convert_params_tf['input_checkpoint'].description,
                           action=CanonicalizePathCheckExistenceAction)
     tf_group.add_argument('--input_meta_graph',
-                          help=mo_convert_params['input_meta_graph'].description,
+                          help=mo_convert_params_tf['input_meta_graph'].description,
                           action=CanonicalizePathCheckExistenceAction,
                           type=readable_file)
     tf_group.add_argument('--saved_model_dir', default=None,
-                          help=mo_convert_params['saved_model_dir'].description,
+                          help=mo_convert_params_tf['saved_model_dir'].description,
                           action=CanonicalizePathCheckExistenceAction,
                           type=readable_dirs)
     tf_group.add_argument('--saved_model_tags', type=str, default=None,
-                          help=mo_convert_params['saved_model_tags'].description)
+                          help=mo_convert_params_tf['saved_model_tags'].description)
     tf_group.add_argument('--tensorflow_custom_operations_config_update',
-                          help=mo_convert_params['tensorflow_custom_operations_config_update'].description,
+                          help=mo_convert_params_tf['tensorflow_custom_operations_config_update'].description,
                           action=CanonicalizePathCheckExistenceAction)
     tf_group.add_argument('--tensorflow_use_custom_operations_config',
                           help='Use the configuration file with custom operation description.',
                           action=DeprecatedCanonicalizePathCheckExistenceAction)
     tf_group.add_argument('--tensorflow_object_detection_api_pipeline_config',
-                          help=mo_convert_params['tensorflow_object_detection_api_pipeline_config'].description,
+                          help=mo_convert_params_tf['tensorflow_object_detection_api_pipeline_config'].description,
                           action=CanonicalizePathCheckExistenceAction)
     tf_group.add_argument('--tensorboard_logdir',
-                          help=mo_convert_params['tensorboard_logdir'].description,
+                          help=mo_convert_params_tf['tensorboard_logdir'].description,
                           default=None,
                           action=CanonicalizePathCheckExistenceAction)
     tf_group.add_argument('--tensorflow_custom_layer_libraries',
-                          help=mo_convert_params['tensorflow_custom_layer_libraries'].description,
+                          help=mo_convert_params_tf['tensorflow_custom_layer_libraries'].description,
                           default=None,
                           action=CanonicalizePathCheckExistenceAction)
     tf_group.add_argument('--disable_nhwc_to_nchw',
@@ -1297,26 +1321,27 @@ def get_mxnet_cli_parser(parser: argparse.ArgumentParser = None):
         get_common_cli_parser(parser=parser)
 
     mx_group = parser.add_argument_group('Mxnet-specific parameters')
+    mo_convert_params_mxnet = mo_convert_params['mxnet']
 
     mx_group.add_argument('--input_symbol',
-                          help=mo_convert_params['input_symbol'].description,
+                          help=mo_convert_params_mxnet['input_symbol'].description,
                           type=str,
                           action=CanonicalizePathCheckExistenceAction)
     mx_group.add_argument("--nd_prefix_name",
-                          help=mo_convert_params['nd_prefix_name'].description,
+                          help=mo_convert_params_mxnet['nd_prefix_name'].description,
                           default=None)
     mx_group.add_argument("--pretrained_model_name",
-                          help=mo_convert_params['pretrained_model_name'].description,
+                          help=mo_convert_params_mxnet['pretrained_model_name'].description,
                           default=None)
     mx_group.add_argument("--save_params_from_nd",
                           action='store_true',
-                          help=mo_convert_params['save_params_from_nd'].description)
+                          help=mo_convert_params_mxnet['save_params_from_nd'].description)
     mx_group.add_argument("--legacy_mxnet_model",
                           action='store_true',
-                          help=mo_convert_params['legacy_mxnet_model'].description)
+                          help=mo_convert_params_mxnet['legacy_mxnet_model'].description)
     mx_group.add_argument("--enable_ssd_gluoncv",
                           action='store_true',
-                          help=mo_convert_params['enable_ssd_gluoncv'].description,
+                          help=mo_convert_params_mxnet['enable_ssd_gluoncv'].description,
                           default=False)
 
     return parser
@@ -1335,19 +1360,20 @@ def get_kaldi_cli_parser(parser: argparse.ArgumentParser = None):
         get_common_cli_parser(parser=parser)
 
     kaldi_group = parser.add_argument_group('Kaldi-specific parameters')
+    mo_convert_params_kaldi = mo_convert_params['kaldi']
 
     kaldi_group.add_argument("--counts",
-                             help=mo_convert_params['counts'].description,
+                             help=mo_convert_params_kaldi['counts'].description,
                              default=None,
                              action=CanonicalizePathCheckExistenceIfNeededAction)
 
     kaldi_group.add_argument("--remove_output_softmax",
-                             help=mo_convert_params['remove_output_softmax'].description,
+                             help=mo_convert_params_kaldi['remove_output_softmax'].description,
                              action='store_true',
                              default=False)
 
     kaldi_group.add_argument("--remove_memory",
-                             help=mo_convert_params['remove_memory'].description,
+                             help=mo_convert_params_kaldi['remove_memory'].description,
                              action='store_true',
                              default=False)
     return parser

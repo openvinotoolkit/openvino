@@ -791,11 +791,45 @@ def params_to_string(**kwargs):
     return kwargs
 
 
+def add_line_breaks(text: str, char_num: int, line_break: str):
+    words = text.split(" ")
+    cnt = 0
+    for i, w in enumerate(words):
+        cnt += len(w)
+        if '\n' in w:
+            cnt = len(w) - w.find('\n') - 1
+        if cnt > char_num:
+            if words[i][-1] not in ['\n', '\t']:
+                words[i] = w + '\n'
+            cnt = 0
+    text = ' '.join(words).replace("\n ", "\n")
+    return line_break + text.replace("\n", line_break)
+
+
 def show_mo_convert_help():
-    print('MO convert parameters:')
-    for param_name in mo_convert_params.keys():
-        param_data = mo_convert_params[param_name]
-        print("{}: {}".format(param_name, param_data.description.format(param_data.possible_types_python_api)))
+    for group_name, group in mo_convert_params.items():
+        if group_name == "optional":
+            print("optional arguments:")
+        elif group_name == "fw_agnostic":
+            print("Framework-agnostic parameters:")
+        elif group_name == "tf":
+            print("TensorFlow*-specific parameters:")
+        elif group_name == "caffe":
+            print("Caffe*-specific parameters:")
+        elif group_name == "mxnet":
+            print("Mxnet-specific parameters:")
+        elif group_name == "kaldi":
+            print("Kaldi-specific parameters:")
+        elif group_name == "pytorch":
+            print("Pytorch-specific parameters:")
+        else:
+            raise Error("Unknown parameters group {}.".format(group_name))
+        for param_name in group:
+            param_data = group[param_name]
+            text = param_data.description.format(param_data.possible_types_python_api)
+            text = add_line_breaks(text, 56, "\n\t\t\t")
+            print("  --{} {}".format(param_name, text))
+        print()
 
 
 def input_model_is_object(argv):
