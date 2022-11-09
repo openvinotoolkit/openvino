@@ -85,7 +85,9 @@ std::tuple<Shape, Shape, Shape> calculate_static_output_shapes(const Tensor& inp
         break;
     }
 
-    return ngraph::runtime::reference::make_tensor_shapes(unique_elements);
+    return ngraph::runtime::reference::make_tensor_shapes(unique_elements,
+                                                          input_data.get_shape(),
+                                                          maybe_extract_axis());
 }
 }  // namespace
 

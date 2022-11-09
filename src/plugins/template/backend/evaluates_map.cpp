@@ -4217,7 +4217,8 @@ void execute_unique(const HostTensorVector& outputs,
                                                                   inputs[0]->get_shape(),
                                                                   maybe_extract_axis(),
                                                                   op->get_sorted());
-    const auto tensor_shapes = runtime::reference::make_tensor_shapes(unique_elements);
+    const auto tensor_shapes =
+        runtime::reference::make_tensor_shapes(unique_elements, inputs[0]->get_shape(), maybe_extract_axis());
 
     auto& out_unique_elements = outputs[0];
     auto& out_indices = outputs[1];
