@@ -72,7 +72,7 @@ private:
             return std::tolower(c, loc);
         });
 
-        const auto& s_opsets = ov::get_avalable_opsets();
+        const auto& s_opsets = ov::get_available_opsets();
 
         auto it = s_opsets.find(opset_ver);
         if (it == s_opsets.end()) {

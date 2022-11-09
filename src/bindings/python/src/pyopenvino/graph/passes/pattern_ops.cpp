@@ -35,7 +35,7 @@ static ov::NodeTypeInfo get_type(const std::string& type_name) {
     // Get operation type name
     std::string operation_type(it, type_name.end());
 
-    const auto& opsets = ov::get_avalable_opsets();
+    const auto& opsets = ov::get_available_opsets();
     if (!opsets.count(opset_type)) {
         throw ov::Exception("Unsupported opset type: " + opset_type);
     }

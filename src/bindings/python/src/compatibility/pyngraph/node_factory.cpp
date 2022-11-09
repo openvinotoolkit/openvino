@@ -73,9 +73,7 @@ private:
             return std::tolower(c, loc);
         });
 
-        using OpsetFunction = std::function<const ngraph::OpSet&()>;
-
-        const auto& s_opsets = ngraph::get_avalable_opsets();
+        const auto& s_opsets = ngraph::get_available_opsets();
 
         auto it = s_opsets.find(opset_ver);
         if (it == s_opsets.end()) {

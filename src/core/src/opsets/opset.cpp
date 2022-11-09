@@ -50,7 +50,7 @@ ov::Node* ov::OpSet::create_insensitive(const std::string& name) const {
 
 #define _OPENVINO_REG_OPSET(OPSET) opset_map[#OPSET] = ov::get_##OPSET;
 
-const std::map<std::string, std::function<const ov::OpSet&()>>& ov::get_avalable_opsets() {
+const std::map<std::string, std::function<const ov::OpSet&()>>& ov::get_available_opsets() {
     static std::map<std::string, std::function<const ov::OpSet&()>> opset_map;
     static std::once_flag flag;
     std::call_once(flag, [&]() {
@@ -230,7 +230,7 @@ const ngraph::OpSet& ngraph::get_opset10() {
 
 #define _NGRAPH_REG_OPSET(OPSET) opset_map[#OPSET] = ngraph::get_##OPSET;
 
-const std::map<std::string, std::function<const ngraph::OpSet&()>>& ngraph::get_avalable_opsets() {
+const std::map<std::string, std::function<const ngraph::OpSet&()>>& ngraph::get_available_opsets() {
     static std::map<std::string, std::function<const ngraph::OpSet&()>> opset_map;
     static std::once_flag flag;
     std::call_once(flag, [&]() {

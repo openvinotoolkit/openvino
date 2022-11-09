@@ -21,7 +21,7 @@ namespace frontend {
 /// operations from provided opset by name.
 /// \param opset_name Opset name (opsetN) to initialize OpSet class.
 inline const ov::OpSet& get_opset_by_name(const std::string& opset_name) {
-    const auto& opsets = ov::get_avalable_opsets();
+    const auto& opsets = ov::get_available_opsets();
     if (opsets.find(opset_name) != opsets.end())
         return opsets.at(opset_name)();
     if (opset_name.empty() || opset_name == "latest") {

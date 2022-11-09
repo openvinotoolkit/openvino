@@ -207,7 +207,7 @@ public:
             IE_THROW() << res.description() << " at offset " << res.offset;
         }
         m_root = m_xml_doc.document_element();
-        for (const auto& it : ov::get_avalable_opsets()) {
+        for (const auto& it : ov::get_available_opsets()) {
             m_opsets[it.first] = it.second();
         }
     }
