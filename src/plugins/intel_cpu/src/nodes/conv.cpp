@@ -591,7 +591,7 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
     auto& args = convPostOpsArgs[useLegacyPostOps];
     bool isINT8 = canBeExecutedInInt8();
 
-    DnnlPostOpsComposer dnnlpoc(this, attr, ops, args, dims, 1, isINT8);
+    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, args, dims, 1, isINT8);
 
     auto getBinPostOpShape = [&]() {
         const auto outShapeRank = dims.size();
@@ -671,8 +671,8 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
         auto* convolutionNode = dynamic_cast<Convolution*>(node.get());
         if (convolutionNode) {
             if (initWeights) {
-                args.push_back(getParentEdgeAt(getOriginalInputsNumber() + 0)->getMemoryPtr());
-                args.push_back(getParentEdgeAt(getOriginalInputsNumber() + 1)->getMemoryPtr());
+                args[DNNL_ARG_ATTR_POST_OP_DW | DNNL_ARG_WEIGHTS] = getParentEdgeAt(getOriginalInputsNumber() + 0)->getMemoryPtr();
+                args[DNNL_ARG_ATTR_POST_OP_DW | DNNL_ARG_BIAS] = getParentEdgeAt(getOriginalInputsNumber() + 1)->getMemoryPtr();
 
                 // todo: rewrite onto append_dw_k3s2p1
                 ops.append_dw_conv(dw_conv_ih,
@@ -695,8 +695,7 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
             continue;
         }
 
-        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType())
-                   << " node is not implemented";
+        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
     }
 
     attr.set_post_ops(ops);

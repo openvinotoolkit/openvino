@@ -48,7 +48,7 @@ public:
         const std::shared_ptr<ngraph::Node>& elementwise,
         std::shared_ptr<ngraph::opset1::Constant>& constant);
 
-    size_t indexOfChannelDimension;
+    size_t channelDimIndex;
     Output<Node> data;
     std::shared_ptr<opset1::Convert> convert;
     std::shared_ptr<opset1::Subtract> subtract;

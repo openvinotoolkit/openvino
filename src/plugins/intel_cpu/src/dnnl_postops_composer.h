@@ -20,19 +20,16 @@
 namespace ov {
 namespace intel_cpu {
 
-class Node;
-
 // so far the API only support per-Tensor or per-OC
 class DnnlPostOpsComposer {
 public:
-    DnnlPostOpsComposer(ov::intel_cpu::Node* node,
+    DnnlPostOpsComposer(const dnnl::engine& engine,
                         dnnl::primitive_attr& attr,
                         dnnl::post_ops& ops,
-                        std::vector<MemoryPtr>& args,
+                        std::unordered_map<int, MemoryPtr>& args,
                         const VectorDims& outputDims,
                         int indexOfOutputChannelDim,
                         bool isINT8);
-    ~DnnlPostOpsComposer();
 
     void appendBinary(const dnnl::algorithm alg, const std::vector<float>& data);
     void appendEltwise(float scale, const dnnl::algorithm alg, float alpha, float beta);
@@ -47,18 +44,20 @@ public:
     }
 
 private:
+    const dnnl::engine& engine;
     dnnl::primitive_attr& attr;
     dnnl::post_ops& ops;
-    std::vector<MemoryPtr>& args;
+    std::unordered_map<int, MemoryPtr>& args;
     const VectorDims outputDims;
     int idxOC;
     VectorDims dimsPerTensor;
     VectorDims dimsPerOC;
     Dim OC;
-    const bool isINT8;  // isINT8 has no output scale
-    ov::intel_cpu::Node* node;
+    const bool isINT8;  // only INT8 primitive support output scale
     int oscale_mask;
     std::vector<float> oscale_values;
+
+    void updateOutputScales();
 };
 
 }  // namespace intel_cpu

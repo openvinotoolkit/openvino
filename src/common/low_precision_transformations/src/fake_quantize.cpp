@@ -137,42 +137,6 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
             return nullptr;
         }
 
-        // This pattern is pretty common in real model, usually with the Multiply being the dequanization
-        // of an result tensor from integer convolution/matmul node, and it's also a per-Channel one.
-        //
-        // Considering the fact that runtime usually use following equation to implement FQ:
-        //
-        //    x = x * inputScale + inputShift
-        //    x = round(clip(x))
-        //    x = x * outputScale + outputShift
-        //
-        // with inputScale/inputShift derived from inputLow/inputHigh as following
-        //
-        //   inputScale = (levels - 1) / (inputHigh - inputLow);
-        //   inputShift = -inputLow * (levels - 1) / (inputHigh - inputLow);
-        //
-        // Fusing with another multiply shouldn't change inputShift but due to rounding errors
-        // incured by limited precision of floating point format(e.g consider 0.5*0.5=0.25 which
-        // requires 1 more bit precision in mantissa), this is not ensured:
-        //
-        //      inputShift = -(FP32(S*inputLow) + EL) * (levels - 1) / ((FP32(S*inputHigh) + EH) - (FP32(S*inputLow) + EL));
-        //
-        // here EL/EH are rounding errors introduced by multiplication of S with inputLow/inputHi,
-        // which causes actual inputShift being changed after this fusing.
-        //
-        // There are performance reasons to keep inputShift unchanged, especially when and per-Tensor FQ
-        // fused with per-OutputChannel multiplication, we'd like to keep the inputShift to be per-Tensor.
-        //
-        // keep a copy of orginal per-Tensor inputShift, and the final inputShift will be compared with
-        // this original copy with a relaxed torlerance to see if it's actually per-Tensor.
-        const auto valueVecLow = ov::as_type_ptr<opset1::Constant>(inputLowConst_f32)->cast_vector<float>();
-        const auto valueVecHigh = ov::as_type_ptr<opset1::Constant>(inputHighConst_f32)->cast_vector<float>();
-        float inputShift = NAN;
-        if (valueVecLow.size() == 1 && valueVecHigh.size() == 1) {
-            inputShift = -valueVecLow[0] * (fakeQuantize->get_levels() - 1) / (valueVecHigh[0] - valueVecLow[0]);
-        }
-        fakeQuantize->get_rt_info()["originalPerTensorInputShift"] = inputShift;
-
         inputLowConst_f32 = fold<opset1::Divide>(inputLowConst_f32, value);
         inputHighConst_f32 = fold<opset1::Divide>(inputHighConst_f32, value);
         const auto resultLow = ov::as_type_ptr<opset1::Constant>(inputLowConst_f32)->cast_vector<float>();

@@ -378,7 +378,7 @@ void Deconvolution::getSupportedDescriptors() {
     //ONEDNN convolution_data_bwd_t can't support bias fusing.
     //Current only int8 precision choose deconvolution_fwd_t.
     if (withBiases && !isInt8) {
-        IE_THROW() << errorPrefix << "deconv withBiases is only support on INT8";
+        IE_THROW() << errorPrefix << " supports bias fusing only for int8 execution precision";
     }
 
     InferenceEngine::Precision inPrecision = getOriginalInputPrecisionAtPort(0);
@@ -450,9 +450,7 @@ void Deconvolution::initPaddingR(const Shape &inShape, const Shape &outShape) {
 void Deconvolution::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims) {
     dnnl::post_ops ops;
 
-    DEBUG_LOG(getName());
-
-    DnnlPostOpsComposer dnnlpoc(this, attr, ops, postOpsArgs, dims, 1, isInt8);
+    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, 1, isInt8);
 
     for (int i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
@@ -722,7 +720,7 @@ void Deconvolution::createPrimitive() {
             inDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inDummyDsc);
             outDesc = MemoryDescUtils::convertToDnnlMemoryDesc(outDummyDsc);
             if (withBiases) {
-                const VectorDims biasVecDims = MemoryDescUtils::makeDummyShape(getInputShapeAtPort(biasPort), 1).getStaticDims();
+                const VectorDims biasVecDims = getInputShapeAtPort(biasPort).getStaticDims();
                 auto biasDummyDsc = getBaseMemDescAtInputPort(biasPort)->cloneWithNewDims(biasVecDims);
                 biasDesc = MemoryDescUtils::convertToDnnlMemoryDesc(biasDummyDsc);
             }
@@ -1083,14 +1081,12 @@ std::vector<int32_t> Deconvolution::readOutputSpatialDims() const {
     return outSpDims;
 }
 
-bool Deconvolution:: canFuseBias() const {
+bool Deconvolution::canFuseBias() const {
     //ONEDNN deconvolution_fwd_t primitive can support bias fusing.
     //ONEDNN convolution_data_bwd_t can't support bias fusing.
     //Current only int8 precision choose deconvolution_fwd_t.
     return  (canBeExecutedInInt8() &&
-            getChildEdges().size() == 1 &&
-            (externOutShape ? getParentEdges().size() == 3 : getParentEdges().size() == 2) &&
-            fusedWith.empty());
+            (externOutShape ? getParentEdges().size() == 3 : getParentEdges().size() == 2));
 }
 
 

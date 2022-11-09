@@ -999,13 +999,6 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::
         const auto outputHighNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(4));
         auto outputHighData = outputHighNode->cast_vector<float>();
 
-        const auto& rtInfo = fq->get_rt_info();
-        if (rtInfo.count("originalPerTensorInputShift")) {
-            originalPerTensorInputShift = rtInfo.at("originalPerTensorInputShift").as<float>();
-        } else {
-            originalPerTensorInputShift = NAN;
-        }
-
         binarization = levels == 2;
 
         if (binarization) {
@@ -1870,9 +1863,16 @@ void FakeQuantize::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &post
     }
 }
 
-void FakeQuantize::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem,
+void FakeQuantize::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem,
                                  const int channelAxis) {
-    appendPostOpsImpl(ops, postOpDims, postOpsMem);
+    std::vector<MemoryPtr> postOpsMemPtrs;
+    appendPostOpsImpl(ops, postOpDims, postOpsMemPtrs);
+
+    IE_ASSERT(postOpsMemPtrs.size() <= 1) << "at most 1 post ops memory args can be appended.";
+
+    if (!postOpsMemPtrs.empty()) {
+        postOpsMem[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = postOpsMemPtrs[0];
+    }
 }
 
 void FakeQuantize::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem,
@@ -1918,16 +1918,16 @@ void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
     IE_ASSERT(outputScale.size() == 1 || outputScale.size() == OC);
     IE_ASSERT(outputShift.size() == 1 || outputShift.size() == OC);
 
-    // input shift has special threshold as a workaround
-    if (!std::isnan(originalPerTensorInputShift) && isPerTensor(inputShift, originalPerTensorInputShift, 0.0001f)) {
+    // WA: a per-Tensor input shift may little drift away randomly
+    //     from it's orginal value when FQ was fused with any
+    //     preceding per-channel multiply and create a false
+    //     per-channel input shift, this threshold was chosen carefully
+    //     to recorver the per-Tensor nature w/o mistaking a real
+    //     per-channel FQ.
+    if (isPerTensor(inputShift, inputShift[0], 0.00005f)) {
         f.ish.resize(OC);
         for (auto & v : f.ish)
-            v = originalPerTensorInputShift;
-    } else if (isPerTensor(inputShift, 128.0f, 0.0001f)) {
-        // due to FQ's definition, symmetric input range tends to generate 128 input shift
-        f.ish.resize(OC);
-        for (auto & v : f.ish)
-            v = 128.0f;
+            v = inputShift[0];
     } else {
         f.ish = inputShift;
     }
@@ -2031,7 +2031,7 @@ bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
     DEBUG_LOG("\t outputScale=[", PrintableVector<float>(outputScale), "]");
     DEBUG_LOG("\t outputShift=[", PrintableVector<float>(outputShift), "]");
 
-    const size_t bufferAlignment = 16;
+    const size_t bufferAlignment = 1;
     initializePostOpData(dnnlpoc.getOutputDims(), bufferAlignment, doRounding);
 
     auto& f = optimizedFormula;

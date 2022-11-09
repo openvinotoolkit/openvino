@@ -6,19 +6,17 @@
 
 #include <common/primitive_attr.hpp>
 
-#include "node.h"
-
 namespace ov {
 namespace intel_cpu {
 
-DnnlPostOpsComposer::DnnlPostOpsComposer(ov::intel_cpu::Node* node,
+DnnlPostOpsComposer::DnnlPostOpsComposer(const dnnl::engine& engine,
                                          dnnl::primitive_attr& attr,
                                          dnnl::post_ops& ops,
-                                         std::vector<MemoryPtr>& args,
+                                         std::unordered_map<int, MemoryPtr>& args,
                                          const VectorDims& outputDims,
                                          int indexOfOutputChannelDim,
                                          bool isINT8)
-    : node(node),
+    : engine(engine),
       attr(attr),
       ops(ops),
       args(args),
@@ -33,18 +31,17 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(ov::intel_cpu::Node* node,
     oscale_values = {1.0f};
 }
 
-DnnlPostOpsComposer::~DnnlPostOpsComposer() {
+void DnnlPostOpsComposer::updateOutputScales() {
     if (oscale_mask == 0 && oscale_values[0] == 1.0f)
         return;
 
     attr.set_output_scales(oscale_mask, {DNNL_RUNTIME_F32_VAL});
 
-    // append runtime output scales to the end of vector
     DnnlBlockedMemoryDesc memoryDesc(InferenceEngine::Precision::FP32, Shape({oscale_values.size()}));
-    auto mem = std::make_shared<Memory>(node->getEngine());
+    auto mem = std::make_shared<Memory>(engine);
     mem->Create(memoryDesc);
     memcpy(mem->GetPtr(), oscale_values.data(), oscale_values.size() * sizeof(float));
-    args.emplace_back(std::move(mem));
+    args[DNNL_ARG_ATTR_OUTPUT_SCALES] = mem;
 }
 
 void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vector<float>& data) {
@@ -57,10 +54,10 @@ void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vec
     ops.append_binary(alg, memoryDesc.getDnnlDesc());
 
     // copy the data as args
-    auto mem = std::make_shared<Memory>(node->getEngine());
+    auto mem = std::make_shared<Memory>(engine);
     mem->Create(memoryDesc);
     memcpy(mem->GetPtr(), data.data(), data.size() * sizeof(float));
-    args.emplace_back(std::move(mem));
+    args[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = mem;
 }
 
 void DnnlPostOpsComposer::appendEltwise(float scale, const dnnl::algorithm alg, float alpha, float beta) {
@@ -134,7 +131,7 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool allo
             oscale_mask = 0;
         else
             oscale_mask = 1 << 1;  // it works for both Conv/Matmul
-
+        updateOutputScales();
         return true;
     }
 

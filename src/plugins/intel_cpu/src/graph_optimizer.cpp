@@ -178,11 +178,16 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
 
     auto isSuitableParentNode = [](const NodePtr& node) {
         const auto deconv = std::dynamic_pointer_cast<Deconvolution>(node);
+        // bias should be the first child
+        if (!node->getFusedWith().empty())
+            return false;
+        // no other child other than bias-add
+        if (node->getChildEdges().size() != 1)
+            return false;
+
         if (!deconv)
             return (node->getType() == Type::Convolution || node->getType() == Type::MatMul) &&
-                node->getChildEdges().size() == 1 &&
-                node->getParentEdges().size() == 2 &&
-                node->getFusedWith().empty();
+                   node->getParentEdges().size() == 2;
         else
             return deconv->canFuseBias();
     };

@@ -409,12 +409,10 @@ void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& di
         IE_THROW() << "Unexpected rank(" << dims_ext.size() << ") for output tensor of node: " << getName();
     }
 
-    DEBUG_LOG(getName(), " dims_ext=", dims_ext, " dims=", dims, ", initWeights=", initWeights);
-
     bool isINT8 = getOriginalInputPrecisionAtPort(WEIGHTS_ID) == Precision::U8 ||
                   getOriginalInputPrecisionAtPort(WEIGHTS_ID) == Precision::I8;
 
-    DnnlPostOpsComposer dnnlpoc(this, attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8);
+    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8);
 
     for (int i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];

@@ -33,17 +33,17 @@ FakeQuantizeDequantization::FakeQuantizeDequantization(
     multiply(multiply),
     multiplyConstant(multiplyConstant) {
     // for most node with layout NC, NCHW, NCDWH, index of channel dimension is 1
-    indexOfChannelDimension = 1ul;
+    channelDimIndex = 1ul;
 
     const auto rank = data.get_partial_shape().rank();
     if (rank.is_static()) {
         std::string data_src_type = data.get_node()->get_type_name();
         if (data_src_type == "MatMul" && data.get_index() == 0) {
             // for MatMul, index of channel dimension is the last one
-            indexOfChannelDimension = static_cast<size_t>(rank.get_length()) - 1;
+            channelDimIndex = static_cast<size_t>(rank.get_length()) - 1;
         } else if (rank.get_length() == 1) {
             // special 1D case: C
-            indexOfChannelDimension = 0ul;
+            channelDimIndex = 0ul;
         }
     }
 }
@@ -129,10 +129,7 @@ bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::
         return false;
     }
 
-    // 1 element vector or scalar, pass
-    // otherwise:
-    //   channel dimension can be 1 or matching output channel dimension
-    //   all other dimensions should be 1 and broadcasted
+    // scalar-like const tensor is broadcastable to any shape of data
     if (ngraph::shape_size(constShape) == 1) {
         return true;
     }
@@ -142,7 +139,7 @@ bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::
         return false;
     }
 
-    auto dimc = indexOfChannelDimension;
+    auto dimc = channelDimIndex;
 
     const auto channelsDimension = partialShape[dimc];
     if (channelsDimension.is_dynamic()) {
@@ -150,35 +147,44 @@ bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::
     }
 
     const size_t channelsShapeVal = channelsDimension.get_length();
+
+    // special case: 1D const tensor is considered to be per-channel w/o comparing actual shapes using broadcast rules
+    // as long as the number of elements matches channel dimension.
     if (constShape.size() == 1ul) {
         return constShape[0] == channelsShapeVal;
     }
 
+    auto checkConstShape = [&constShape, &channelsShapeVal] (const size_t chDimIdx) {
+        for (size_t i = 0ul; i < constShape.size(); ++i) {
+            auto curDim = constShape[i];
+            if (curDim == 1ul)
+                continue;
+            if (i == chDimIdx) {
+                if (curDim != channelsShapeVal)
+                    return false;
+            }
+        }
+        return true;
+    };
+
     const size_t rank = partialShape.rank().get_length();
     if (constShape.size() == rank) {
-        if ((constShape[dimc] != channelsShapeVal)) {
+        // special case: ND const tensor with N matches data rank
+        // element-wise comparing works under any broadcast rules.
+        return checkConstShape(dimc);
+    } else if (constShape.size() < rank) {
+        // rank mismatch, we have to apply broadcast rules to align dimensions, all dequantization nodes are constructed
+        // by LPT itself, thus should has default NUMPY type
+        if (dequantizationElementwise->get_autob() != ov::op::AutoBroadcastType::NUMPY)
             return false;
-        }
-        for (size_t i = 0ul; i < constShape.size(); ++i) {
-            if (constShape[i] != 1ul && i != dimc) {
-                return false;
-            }
-        }
-    } else if (constShape.size() == (rank - 1)) {
-        dimc -= 1;
-        if (constShape[dimc] != channelsShapeVal) {
+        // the prepended dimensions are all 1 and can be skipped;
+        // derive index of channel dimension in const tensor after right aligned
+        if (dimc < rank - constShape.size())
             return false;
-        }
-        for (size_t i = 0ul; i < constShape.size(); ++i) {
-            if (constShape[i] != 1ul && i != dimc) {
-                return false;
-            }
-        }
-    } else {
-        return false;
+        return checkConstShape(dimc - (rank - constShape.size()));
     }
 
-    return true;
+    return false;
 }
 
 std::shared_ptr<Node> FakeQuantizeDequantization::copyWithNewInput(const std::shared_ptr<Node>& input) const {

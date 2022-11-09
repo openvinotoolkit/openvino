@@ -124,7 +124,7 @@ public:
     InferenceEngine::Precision getInputPrecision() const { return inputPrecision; }
     InferenceEngine::Precision getOutputPrecision() const { return outputPrecision; }
 
-    void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem, const int channelAxis = 1) override;
+    void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem, const int channelAxis = 1) override;
     void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1) override;
     bool appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
                            bool isLastPostOp,
@@ -228,7 +228,6 @@ private:
     } optimizedFormula;
 
     void updateOptimizedFormula(bool do_rounding);
-    float originalPerTensorInputShift;
 
     std::vector<float> quantizationData;
     size_t quantizationDataSize = 0lu;
