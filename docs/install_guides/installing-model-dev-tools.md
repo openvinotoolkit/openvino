@@ -142,7 +142,7 @@ Note that the commands are different for a Python installation and a C++ install
 
    .. code-block:: sh
 
-      pip install openvino-dev[tensorflow2,onnx]==2022.2
+      pip install openvino-dev[tensorflow2,onnx]==2022.1
 
    .. note::
 
