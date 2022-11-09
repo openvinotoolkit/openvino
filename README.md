@@ -42,7 +42,7 @@ source and public models in popular formats such as TensorFlow, ONNX, PaddlePadd
 * [OpenVINO™ Runtime] - is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice.
     * [core](https://github.com/openvinotoolkit/openvino/tree/master/src/core) - provides the base API for model representation and modification.
     * [inference](https://github.com/openvinotoolkit/openvino/tree/master/src/inference) - provides an API to infer models on the device.
-    * [transformations](https://github.com/openvinotoolkit/openvino/tree/master/src/common/transformations) - contains the set of common transformations which are used in OpenVINO plugins.
+    * [transformations](./src/common/transformations) - contains the set of common transformations which are used in OpenVINO plugins.
     * [low precision transformations](./src/common/low_precision_transformations) - contains the set of transformations that are used in low precision models
     * [bindings](./src/bindings) - contains all available OpenVINO bindings which are maintained by the OpenVINO team.
         * [c](./src/bindings/c) - C API for OpenVINO™ Runtime
