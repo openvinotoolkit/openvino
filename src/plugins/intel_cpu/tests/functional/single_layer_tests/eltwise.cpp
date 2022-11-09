@@ -169,7 +169,7 @@ private:
 
 TEST_P(EltwiseLayerCPUTest, CompareWithRefs) {
     run();
-    CheckPluginRelatedResults(compiledModel, "Eltwise");
+    CheckPluginRelatedResults(compiledModel, std::set<std::string>{"Eltwise", "Subgraph"});
 }
 
 namespace {
