@@ -50,12 +50,6 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
         _kernel_data.weightsReorderParams.cpuKernel = nullptr;
         _kernel_data.weightsReorderParams.clKernel = nullptr;
-
-        _kernel_ids.reserve(kd.kernels.size());
-        // Add selected kernels to kernels_cache for the following compilation and save output ids
-        for (size_t i = 0; i < kd.kernels.size(); ++i) {
-            _kernel_ids.emplace_back(arg.get_program().add_kernel(kd.kernels[i].code.kernelString));
-        }
     }
 
     bool is_cpu() const override { return false; }
@@ -197,6 +191,18 @@ protected:
 
         bool group_events = (all_events.size() > 1);
         return aggregate_events(all_events, stream, group_events);
+    }
+
+    void set_kernel_ids(std::vector<kernel_id> kernel_ids) override {
+        _kernel_ids = kernel_ids;
+    }
+
+    std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {
+        std::vector<std::shared_ptr<cldnn::kernel_string>> kernel_strings;
+        for (size_t i = 0; i < _kernel_data.kernels.size(); ++i) {
+            kernel_strings.push_back(_kernel_data.kernels[i].code.kernelString);
+        }
+        return kernel_strings;
     }
 };
 

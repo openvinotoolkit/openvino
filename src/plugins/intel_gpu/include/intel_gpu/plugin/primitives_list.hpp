@@ -247,3 +247,4 @@ REGISTER_FACTORY(v9, Eye);
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
 REGISTER_FACTORY(internal, GenerateProposalsIEInternal);
+REGISTER_FACTORY(internal, NmsStaticShapeIE8);

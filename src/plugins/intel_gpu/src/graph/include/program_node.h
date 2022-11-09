@@ -36,58 +36,6 @@ struct typed_program_node;
 class json_composite;
 class xml_composite;
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
-enum class onednn_post_op_type : uint32_t {
-    eltwise_act,
-    eltwise_clip,
-    eltwise_linear,
-    eltwise_round,
-    binary_mul,
-    binary_add,
-    binary_max,
-    binary_min,
-    binary_relu,
-    scale,
-    sum,
-    optimized,
-    optimized_eltwise_act,
-    optimized_eltwise_clip,
-    optimized_eltwise_linear,
-    optimized_eltwise_round,
-    optimized_sum
-};
-
-static inline std::ostream& operator<< (std::ostream& os, onednn_post_op_type& t) {
-    switch (t) {
-        case onednn_post_op_type::eltwise_act: os << "eltwise_act"; break;
-        case onednn_post_op_type::eltwise_clip: os << "eltwise_clip"; break;
-        case onednn_post_op_type::eltwise_linear: os << "eltwise_linear"; break;
-        case onednn_post_op_type::eltwise_round: os << "eltwise_round"; break;
-        case onednn_post_op_type::binary_mul: os << "binary_mul"; break;
-        case onednn_post_op_type::binary_add: os << "binary_add"; break;
-        case onednn_post_op_type::binary_max: os << "binary_max"; break;
-        case onednn_post_op_type::binary_min: os << "binary_min"; break;
-        case onednn_post_op_type::binary_relu: os << "binary_relu"; break;
-        case onednn_post_op_type::scale: os << "scale"; break;
-        case onednn_post_op_type::sum: os << "sum"; break;
-        case onednn_post_op_type::optimized: os << "optimized"; break;
-        case onednn_post_op_type::optimized_eltwise_act: os << "optimized_eltwise_act"; break;
-        case onednn_post_op_type::optimized_eltwise_clip: os << "optimized_eltwise_clip"; break;
-        case onednn_post_op_type::optimized_eltwise_linear: os << "optimized_eltwise_linear"; break;
-        case onednn_post_op_type::optimized_eltwise_round: os << "optimized_eltwise_round"; break;
-        case onednn_post_op_type::optimized_sum: os << "optimized_sum"; break;
-        default: os << "invalid";
-    }
-    return os;
-}
-
-struct fused_primitive_desc_onednn {
-    onednn_post_op_type op_type; // onednn post-operation type
-    size_t mem_offset;           // index of a memory buffer for current post-operation
-    size_t mem_dep;              // memory dependency for working with fused node
-};
-#endif // ENABLE_ONEDNN_FOR_GPU
-
 /*
     Base class for all primitives which wraps API class and extends it to be used
     in graph context.
@@ -154,6 +102,9 @@ public:
                 break;
             }
         }
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        params->fused_desc_onednn = get_fused_primitives_onednn();
+#endif // ENABLE_ONEDNN_FOR_GPU
         return params;
     }
 

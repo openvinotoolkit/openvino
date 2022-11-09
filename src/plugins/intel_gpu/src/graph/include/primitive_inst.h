@@ -54,6 +54,9 @@ struct primitive_impl {
     virtual std::vector<std::string> get_kernel_ids() {
         return {};
     }
+    virtual std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() { return {}; }
+    virtual void set_kernels(std::vector<kernel::ptr>) {}
+    virtual void set_kernel_ids(std::vector<kernel_id> kernel_ids) {}
 
     // If this flag is set as false, the memory allocated for this primitive is not allowed to be reused
     bool can_reuse_memory = true;
@@ -99,8 +102,8 @@ public:
     }
     memory& output_memory(size_t index = 0) const { return *_outputs[index]; }
     memory::ptr output_memory_ptr(size_t index = 0) const { return _outputs[index]; }
-    size_t inputs_memory_count() const { return _node->get_primitive()->input_size(); }
-    size_t outputs_memory_count() const { return _node->get_primitive()->output_size(); }
+    size_t inputs_memory_count() const { return _inputs_memory_count; }
+    size_t outputs_memory_count() const { return _outputs_memory_count; }
     bool outputs_allocated() const {
         if (_outputs.empty()) return false;
         for (const auto& output : _outputs) {
@@ -108,10 +111,10 @@ public:
         }
         return true;
     }
-    primitive_type_id type() const { return _node->type(); }
-    primitive_id id() const { return _node->id(); }
-    primitive_id org_id() const { return _node->get_org_primitive_id(); }
-    bool can_be_optimized() const { return _node->can_be_optimized(); }
+    primitive_type_id type() const { return _type; }
+    primitive_id id() const { return _id; }
+    primitive_id org_id() const { return _org_id; }
+    bool can_be_optimized() const { return _can_be_optimized; }
     std::shared_ptr<const primitive> desc() const { return _node->get_primitive(); }
     program_node const& get_node() const { return *_node; }
     network& get_network() const { return _network; }
@@ -159,29 +162,18 @@ public:
         return dep_memory_ptr(get_fused_mem_offset() + dep_id);
     }
 
-    bool has_fused_primitives() const { return !_node->get_fused_primitives().empty(); }
-    size_t get_fused_mem_count() const { return _node->get_fused_inputs_count(); }
-    size_t get_fused_mem_offset() const { return _node->get_fused_primitives()[0].dep_start_idx; }
+    bool has_fused_primitives() const { return _impl_params->has_fused_primitives(); }
+    size_t get_fused_mem_count() const { return _fused_mem_count; }
+    size_t get_fused_mem_offset() const { return _fused_mem_offset; }
+    bool has_mutable_input() const { return _has_mutable_input; }
+    void set_mutable_input(bool val) { _has_mutable_input = val; }
+    bool is_input() const { return _is_input; }
+    bool is_output() const { return _is_output; }
+    bool mem_allocated() const { return _mem_allocated; }
+    bool is_dynamic() const { return _is_dynamic; }
+    bool can_share_buffer() const { return _can_share_buffer; }
+    bool is_constant() const { return _is_constant; }
 
-    bool has_mutable_input() const {
-        return _has_mutable_input;
-    }
-
-    void set_mutable_input(bool val) {
-        _has_mutable_input = val;
-    }
-
-    bool is_output() const {
-        return _node->is_output();
-    }
-
-    bool mem_allocated() const {
-        return _mem_allocated;
-    }
-
-    bool is_dynamic() const {
-        return _is_dynamic;
-    }
 
     void allocate_internal_buffers();
     static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node,
@@ -195,7 +187,12 @@ public:
     const std::unordered_map<size_t, std::tuple<int64_t, size_t>>& get_profiling_data() const { return _profiling_data; }
     const std::unordered_map<size_t, instrumentation::perf_counter_key>& get_profiling_info() const { return _profiling_info; }
 
+    layout get_input_layout(size_t idx = 0) const { return _impl_params->get_input_layout(idx); }
+    layout get_output_layout() const { return _impl_params->output_layout; }
     layout get_node_output_layout() const { return _node_output_layout; }
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    std::vector<cldnn::fused_primitive_desc_onednn>& get_fused_primitives_onednn() const { return _impl_params->fused_desc_onednn; }
+#endif // ENABLE_ONEDNN_FOR_GPU
 
     virtual void update_output_memory() {}
 
@@ -242,6 +239,18 @@ protected:
     bool _has_mutable_input = false;
     bool _mem_allocated = false;
     bool _is_dynamic = false;
+    primitive_type_id _type;
+    primitive_id _id;
+    primitive_id _org_id;
+    bool _is_input = false;
+    bool _is_output = false;
+    size_t _inputs_memory_count = 0;
+    size_t _outputs_memory_count = 0;
+    size_t _fused_mem_count = 0;
+    size_t _fused_mem_offset = 0;
+    bool _can_be_optimized = false;
+    bool _can_share_buffer = true;
+    bool _is_constant = false;
 
     size_t max_output_layout_size = 0;
 
