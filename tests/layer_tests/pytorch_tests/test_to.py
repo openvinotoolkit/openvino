@@ -52,10 +52,9 @@ class TestAtenTo(PytorchLayerTest):
             [torch.float64, True],
     ])
     @pytest.mark.nightly
-    def test_aten_to_raise_non_blocking_arg(self, input_type, output_type, non_blocking, ie_device, precision, ir_version):
+    def test_aten_to_non_blocking_arg(self, input_type, output_type, non_blocking, ie_device, precision, ir_version):
         self.input_type = input_type
-        with pytest.raises(OpConversionFailure) as e:
-            self._test(*self.create_model(output_type, non_blocking=non_blocking), ie_device, precision, ir_version)
+        self._test(*self.create_model(output_type, non_blocking=non_blocking), ie_device, precision, ir_version)
 
 
     # Cartesian product of input/output types
@@ -70,10 +69,9 @@ class TestAtenTo(PytorchLayerTest):
             [torch.float64, True],
     ])
     @pytest.mark.nightly
-    def test_aten_raise_to_copy_arg(self, input_type, output_type, copy, ie_device, precision, ir_version):
+    def test_aten_to_copy_arg(self, input_type, output_type, copy, ie_device, precision, ir_version):
         self.input_type = input_type
-        with pytest.raises(OpConversionFailure) as e:
-            self._test(*self.create_model(output_type, copy=copy), ie_device, precision, ir_version)
+        self._test(*self.create_model(output_type, copy=copy), ie_device, precision, ir_version)
 
 
     # Cartesian product of input/output types
