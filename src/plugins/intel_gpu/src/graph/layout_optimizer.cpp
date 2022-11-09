@@ -89,15 +89,21 @@ static size_t get_post_ops_count(const program_node& node) {
     return onednn_post_ops_count;
 }
 
+// Return true if one of blocked axes (b or f) is reduced and one of spatial axes is NOT reduced
 static bool is_reduce_blocked_axes(reduce_node const& node) {
     auto prim = node.get_primitive();
     auto reduce_axes = prim->axes;
     auto input_layout = node.input().get_output_layout();
+    auto num_spatial = format::spatial_num(node.get_output_layout().format);
+    auto dims = node.get_output_layout().format.dimension();
 
     if (prim->keep_dims == false &&
         (count(reduce_axes.begin(), reduce_axes.end(), 1) > 0 ||
         (count(reduce_axes.begin(), reduce_axes.end(), 0) > 0 && input_layout.batch() > 1))) {
-        return true;
+        for (size_t idx_spatial = dims - num_spatial ; idx_spatial < dims ; idx_spatial++) {
+            if (count(reduce_axes.begin(), reduce_axes.end(), idx_spatial) == 0)
+                return true;
+        }
     }
 
     return false;
@@ -1033,12 +1039,20 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
                                              convolution_node const& node,
                                              layout const& weights_layout) {
     auto prim = node.get_primitive();
-    auto expected_tensor = current_layout.get_tensor();
     auto expected_data_type = current_layout.data_type;
     auto expected_format = current_layout.format;
     auto input_layout = node.get_dependency(0).get_output_layout();
     auto output_layout = node.calc_output_layout();
 
+    if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
+        if (input_layout.get_partial_shape().size() <= 4)
+            expected_format = format::b_fs_yx_fsv16;
+        else if (input_layout.get_partial_shape().size() == 5)
+            expected_format = format::b_fs_zyx_fsv16;
+        return layout(current_layout.get_partial_shape(), expected_data_type, expected_format);
+    }
+
+    auto expected_tensor = current_layout.get_tensor();
     const float cond_denom = _total_conv > 0 ? 1.0f / static_cast<float>(_total_conv) : 1.0f;
 
     bool onednn_valid_post_ops = get_post_ops_count(node) <= 32;
@@ -1864,6 +1878,8 @@ bool layout_optimizer::is_format_optimized(const convolution_node& node, const f
     auto output_layout = node.calc_output_layout();
     auto prim = node.get_primitive();
 
+    if (input_layout.is_dynamic() || output_layout.is_dynamic())
+        return true;
     switch (format) {
         case format::b_fs_yx_fsv16:
             return convolution_b_fs_yx_fsv16_opt(input_layout, output_layout, weights_layout, prim, use_weak_restrictions) &&

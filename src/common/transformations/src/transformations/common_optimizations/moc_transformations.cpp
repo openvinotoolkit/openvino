@@ -42,8 +42,10 @@
 #include <transformations/common_optimizations/optimize_strided_slice.hpp>
 #include <transformations/common_optimizations/pad_fusion.hpp>
 #include <transformations/common_optimizations/prelu_fusion.hpp>
+#include <transformations/common_optimizations/pull_through_reduce.hpp>
 #include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
 #include <transformations/common_optimizations/random_uniform_fusion.hpp>
+#include <transformations/common_optimizations/reduce_reshape_fusion.hpp>
 #include <transformations/common_optimizations/relu_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
 #include <transformations/common_optimizations/remove_filtering_boxes_by_size.hpp>
@@ -132,8 +134,11 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     }
     // workaround until dynamism in NMS is not supported
     manager.register_pass<ngraph::pass::ConvertNmsGatherPathToUnsigned>();
+
     REGISTER_PASS(manager, ngraph::pass, StridedSliceOptimization, _run_on_function, m_use_shapes)
     REGISTER_PASS(manager, ngraph::pass, BroadcastElementwiseFusion, )
+    REGISTER_PASS(manager, ov::pass, PullThroughReduce, )
+
     REGISTER_PASS_MODEL_IF(GraphRewrite) {
         auto transpose_sinking = manager.register_pass<ngraph::pass::GraphRewrite>();
         ADD_MATCHER(transpose_sinking, ngraph::pass, TransposeSinking)
@@ -173,16 +178,6 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
         if (m_use_shapes) {
             ADD_MATCHER(common_fusions, ngraph::pass, NearestNeighborUpsamplingFusion)
         }
-        ADD_MATCHER(common_fusions, ngraph::pass, DivideFusion)
-        ADD_MATCHER(common_fusions, ngraph::pass, SubtractFusion);
-
-        ADD_MATCHER(common_fusions, ngraph::pass, TransposeToReshape)
-        ADD_MATCHER(common_fusions, ngraph::pass, ReshapeSequenceFusion, m_use_shapes)
-        ADD_MATCHER(common_fusions, ngraph::pass, MatMulConstTransposesExtraction)
-        ADD_MATCHER(common_fusions, ngraph::pass, PReluFusion)
-        ADD_MATCHER(common_fusions, ngraph::pass, DepthToSpaceFusion)
-        ADD_MATCHER(common_fusions, ngraph::pass, ShuffleChannelsFusion, !m_use_shapes)
-        common_fusions->set_name("ngraph::pass::CommonFusions");
     }
 
     REGISTER_PASS(manager, ngraph::pass, BinarizeWeights, )

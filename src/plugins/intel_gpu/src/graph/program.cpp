@@ -114,8 +114,6 @@ program::program(engine& engine_ref,
     prepare_nodes(topology);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
-    _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(_impls_cache_capacity));
-    _in_mem_kernels_cache = std::unique_ptr<KernelsCache>(new KernelsCache(_in_mem_kernels_cache_capacity));
     program_node::reset_unique_id();
     if (no_optimizations) {
         init_graph();
@@ -137,8 +135,6 @@ program::program(engine& engine_ref,
     set_options();
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
-    _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(_impls_cache_capacity));
-    _in_mem_kernels_cache = std::unique_ptr<KernelsCache>(new KernelsCache(_in_mem_kernels_cache_capacity));
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(nodes);
     build_program(is_internal);
@@ -1371,18 +1367,21 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             if (conv.get_primitive()->deformable_mode)
                 lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::deformable_convolution, 1);
 
-            auto input_size = node->get_dependency(0).get_output_layout().get_tensor();
-            auto ifm = static_cast<uint32_t>(input_size.feature[0]);
-            if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16)
-                total_dw_conv_layers++;
-            else if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups < 16)
-                total_dw_splitted_conv_layers++;  // this counter is needed due to compatibility with b_fs_yx_fsv16 heuristics
-            else if (conv.get_primitive()->groups > 1 || conv.get_primitive()->split() > 1)
-                total_grouped_conv_layers++;
+            if (!conv.is_dynamic()) {
+                // In dynamic shape, conv is fixed as a predefined format b_fs_yx_fsv16
+                auto input_size = node->get_dependency(0).get_output_layout().get_tensor();
+                auto ifm = static_cast<uint32_t>(input_size.feature[0]);
+                if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16)
+                    total_dw_conv_layers++;
+                else if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups < 16)
+                    total_dw_splitted_conv_layers++;  // this counter is needed due to compatibility with b_fs_yx_fsv16
+                                                      // heuristics
+                else if (conv.get_primitive()->groups > 1 || conv.get_primitive()->split() > 1)
+                    total_grouped_conv_layers++;
 
-            if (input_size.spatial[0] == 1 && input_size.spatial[1] == 1)
-                total_1x1_fm_conv_layers++;
-
+                if (input_size.spatial[0] == 1 && input_size.spatial[1] == 1)
+                    total_1x1_fm_conv_layers++;
+            }
             lo.update_formats_map(conv);
 
             if (conv.weights_zero_points_term() || conv.activations_zero_points_term())
@@ -1507,7 +1506,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::experimental_detectron_detection_output::type_id() &&
             prim.type() != cldnn::deconvolution::type_id() &&
             prim.type() != cldnn::arg_max_min::type_id() &&
-            prim.type() != cldnn::experimental_detectron_topk_rois::type_id()) {
+            prim.type() != cldnn::experimental_detectron_topk_rois::type_id() &&
+            prim.type() != cldnn::normalize::type_id()) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
         }
     }
