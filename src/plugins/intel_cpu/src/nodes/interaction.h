@@ -18,7 +18,7 @@ struct jit_move_scale_compile_params {
     InferenceEngine::Precision src_prc;
     InferenceEngine::Precision dst_prc;
     bool with_scales;
-    size_t work_amount;
+    size_t input_size;
     bool broadcast_scales;
 };
 

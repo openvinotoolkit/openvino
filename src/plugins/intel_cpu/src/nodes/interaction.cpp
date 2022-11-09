@@ -49,7 +49,7 @@ private:
 #define GET_OFF(field) offsetof(jit_move_scale_call_args, field)
         mov(reg_in, ptr[reg_params + GET_OFF(p_in)]);
         mov(reg_out, ptr[reg_params + GET_OFF(p_out)]);
-        mov(reg_work_amount, jcp_.work_amount);
+        mov(reg_work_amount, jcp_.input_size);
 
         if (jcp_.with_scales) {
             mov(reg_scales, ptr[reg_params + GET_OFF(p_scales)]);
@@ -66,7 +66,7 @@ private:
         mov(reg_in_aux, reg_in);
         mov(reg_out_aux, reg_out);
 
-        size_t tail_size = jcp_.work_amount % vec_size;
+        size_t tail_size = jcp_.input_size % vec_size;
         L(move_scale_loop_label);
         {
             cmp(reg_work_amount, vec_size);
@@ -203,12 +203,6 @@ void Interaction::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any, true);
 }
 
-static inline void cat(const uint8_t* in1, const uint8_t* in2, uint8_t* out,
-    size_t in1Size, size_t in2Size, size_t elemSize) {
-    cpu_memcpy(out, in1, in1Size * elemSize);
-    cpu_memcpy(out + in1Size * elemSize, in2, in2Size * elemSize);
-}
-
 static inline void cat(uint8_t* out,
                        const std::vector<const uint8_t*>& in,
                        const std::vector<uint32_t>& feature_sizes,
@@ -222,7 +216,6 @@ static inline void cat(uint8_t* out,
     }
 }
 
-
 static inline void flat_triangle(const uint8_t* in, uint8_t* out, size_t size, size_t elemSize) {
     size_t offset = 0;
     for (int i = 1; i < size; i++) {
@@ -235,7 +228,6 @@ void Interaction::execRef(dnnl::stream strm) {
     using tag = dnnl::memory::format_tag;
     using dt = dnnl::memory::data_type;
     using namespace dnnl;
-    bool fuseFQ = !fqScales.empty();
     uint8_t* outFeaturesPtr = reinterpret_cast<uint8_t*>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
     std::vector<const uint8_t*> inputPtrs(inputSizes);
     for (uint32_t n = 0; n < inputSizes; n++) {
@@ -245,7 +237,7 @@ void Interaction::execRef(dnnl::stream strm) {
     std::unordered_map<int, memory> mem_ags{{DNNL_ARG_SRC, inputMemPtr->GetPrimitive()},
                                             {DNNL_ARG_WEIGHTS, inputMemPtr->GetPrimitive()},
                                             {DNNL_ARG_DST, outputMemPtr->GetPrimitive()}};
-    float* scales = fuseFQ ? fqScales.data() : nullptr;
+    float* scales = fqScales.empty() ? nullptr : fqScales.data();
     for (int64_t start = 0; start < batchSize; start++) {
         cat(reinterpret_cast<uint8_t*>(inputMemPtr->GetPtr()), inputPtrs, featureSizes, start, dataPrecision.size());
         (*prim).execute(strm, mem_ags);
@@ -255,28 +247,19 @@ void Interaction::execRef(dnnl::stream strm) {
                       dataPrecision.size());
         // in1 dense feature
         // in2 flatted interaction features
-        if (fuseFQ) {
-            if (moveFeatureKernel) {
-                jit_move_scale_call_args featArgs;
-                featArgs.p_in = inputPtrs[0] + start * featureSize * dataPrecision.size();
-                featArgs.p_out = outFeaturesPtr + start * outputFeaturesLen * outputDataType.size();
-                featArgs.p_scales = scales;
-                (*moveFeatureKernel)(&featArgs);
-            }
-            if (moveInteractKernel) {
-                jit_move_scale_call_args interArgs;
-                interArgs.p_in = flatMemPtr->GetPtr();
-                interArgs.p_out = outFeaturesPtr + start * outputFeaturesLen * outputDataType.size() + featureSize;
-                interArgs.p_scales = scales;
-                (*moveInteractKernel)(&interArgs);
-            }
-        } else {
-            cat(inputPtrs[0] + start * featureSize * dataPrecision.size(),
-                reinterpret_cast<const uint8_t*>(flatMemPtr->GetPtr()),
-                outFeaturesPtr + start * outputFeaturesLen * dataPrecision.size(),
-                featureSize,
-                interactFeatureSize,
-                dataPrecision.size());
+        if (moveFeatureKernel) {
+            jit_move_scale_call_args featArgs;
+            featArgs.p_in = inputPtrs[0] + start * featureSize * dataPrecision.size();
+            featArgs.p_out = outFeaturesPtr + start * outputFeaturesLen * outputDataType.size();
+            featArgs.p_scales = scales;
+            (*moveFeatureKernel)(&featArgs);
+        }
+        if (moveInteractKernel) {
+            jit_move_scale_call_args interArgs;
+            interArgs.p_in = flatMemPtr->GetPtr();
+            interArgs.p_out = outFeaturesPtr + (start * outputFeaturesLen + featureSize) * outputDataType.size();
+            interArgs.p_scales = scales;
+            (*moveInteractKernel)(&interArgs);
         }
     }
 }
@@ -330,32 +313,31 @@ void Interaction::prepareParams() {
     jcp.dst_prc = getOriginalOutputPrecisionAtPort(0);
     jcp.with_scales = !fqScales.empty();
     jcp.broadcast_scales = fqScales.size() == 1;
-    jcp.work_amount = featureSize;
+    jcp.input_size = featureSize;
 
     jit_move_scale_compile_params interJcp;
     interJcp.src_prc = dataPrecision;
     interJcp.dst_prc = getOriginalOutputPrecisionAtPort(0);
     interJcp.with_scales = !fqScales.empty();
     interJcp.broadcast_scales = fqScales.size() == 1;
-    interJcp.work_amount = interactFeatureSize;
-    if (!fqScales.empty()) {
-        if (mayiuse(cpu_isa_t::avx512_core)) {
-            moveFeatureKernel.reset(new jit_move_scale_kernel<cpu_isa_t::avx512_core>(jcp));
-            moveInteractKernel.reset(new jit_move_scale_kernel<cpu_isa_t::avx512_core>(interJcp));
-        } else if (mayiuse(cpu_isa_t::avx2)) {
-            moveFeatureKernel.reset(new jit_move_scale_kernel<cpu_isa_t::avx2>(jcp));
-            moveInteractKernel.reset(new jit_move_scale_kernel<cpu_isa_t::avx2>(interJcp));
-        } else if (mayiuse(cpu_isa_t::sse41)) {
-            moveFeatureKernel.reset(new jit_move_scale_kernel<cpu_isa_t::sse41>(jcp));
-            moveInteractKernel.reset(new jit_move_scale_kernel<cpu_isa_t::sse41>(interJcp));
-        } else {
-            THROW_ERROR << "cannot create jit eltwise kernel";
-        }
+    interJcp.input_size = interactFeatureSize;
 
-        if (moveFeatureKernel && moveInteractKernel) {
-            moveFeatureKernel->create_ker();
-            moveInteractKernel->create_ker();
-        }
+    if (mayiuse(cpu_isa_t::avx512_core)) {
+        moveFeatureKernel.reset(new jit_move_scale_kernel<cpu_isa_t::avx512_core>(jcp));
+        moveInteractKernel.reset(new jit_move_scale_kernel<cpu_isa_t::avx512_core>(interJcp));
+    } else if (mayiuse(cpu_isa_t::avx2)) {
+        moveFeatureKernel.reset(new jit_move_scale_kernel<cpu_isa_t::avx2>(jcp));
+        moveInteractKernel.reset(new jit_move_scale_kernel<cpu_isa_t::avx2>(interJcp));
+    } else if (mayiuse(cpu_isa_t::sse41)) {
+        moveFeatureKernel.reset(new jit_move_scale_kernel<cpu_isa_t::sse41>(jcp));
+        moveInteractKernel.reset(new jit_move_scale_kernel<cpu_isa_t::sse41>(interJcp));
+    } else {
+        THROW_ERROR << "cannot create jit eltwise kernel";
+    }
+
+    if (moveFeatureKernel && moveInteractKernel) {
+        moveFeatureKernel->create_ker();
+        moveInteractKernel->create_ker();
     }
 }
 
