@@ -175,7 +175,7 @@ void OVCompileModelGetExecutionDeviceTests::SetUp() {
     std::tie(target_device, userConfig) = GetParam();
     compileModelProperties = userConfig.first;
     expectedDeviceName = userConfig.second;
-    model = ngraph::builder::subgraph::makeConvPoolRelu();
+    model = ngraph::builder::subgraph::makeSplitConvConcat();;
 }
 
 TEST_P(OVCompileModelGetExecutionDeviceTests, CanGetExecutionDeviceInfo) {
@@ -203,6 +203,21 @@ TEST_P(OVCompileModelGetExecutionDeviceTests, CanGetExecutionDeviceInfo) {
         ASSERT_EQ(property, updatedExpectDevices);
     else
         ASSERT_FALSE(property.empty());
+}
+
+TEST_P(OVHeteroCompileModelGetExecutionDeviceTests, GetExecutionDeviceWithAffinitySet) {
+    InferenceEngine::Parameter p;
+    std::string targetDevice;
+    for (auto &iter : compileModelProperties) {
+        if (iter.first == ov::device::priorities) {
+            targetDevice = iter.second.as<std::string>();
+        }
+    }
+    setHeteroNetworkAffinity(targetDevice);
+    InferenceEngine::ExecutableNetwork exeNetWork = core->compile_model(model, target_device, compileModelProperties);
+    ov::Any property;
+    OV_ASSERT_NO_THROW(property = exeNetWork.get_property(ov::execution_devices));
+    ASSERT_EQ(property, expectedDeviceName);
 }
 }  // namespace behavior
 }  // namespace test

@@ -149,4 +149,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiCompileModelBehaviorTests,
                                             ::testing::ValuesIn(autoExeDeviceConfigs)),
                          OVCompileModelGetExecutionDeviceTests::getTestCaseName);
 
+const std::vector<std::pair<ov::AnyMap, std::string>> heteroDeviceConfigs = {
+    #ifdef ENABLE_INTEL_CPU
+        std::make_pair(ov::AnyMap{{ov::device::priorities("GPU")}}, "GPU,CPU"),
+    #else
+        std::make_pair(ov::AnyMap{{ov::device::priorities("GPU")}}, "GPU"),
+    #endif
+    };
+
+INSTANTIATE_TEST_SUITE_P(smoke_HeteroCompileModelBehaviorTests,
+                         OVCompileModelGetExecutionDeviceTests,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                            ::testing::ValuesIn(heteroDeviceConfigs)),
+                         OVCompileModelGetExecutionDeviceTests::getTestCaseName);
+
 } // namespace

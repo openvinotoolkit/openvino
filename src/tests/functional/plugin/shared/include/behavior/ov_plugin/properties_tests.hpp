@@ -73,7 +73,7 @@ public:
 
     std::string expectedDeviceName;
 };
-
+using OVHeteroCompileModelGetExecutionDeviceTests = OVCompileModelGetExecutionDeviceTests;
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

@@ -515,7 +515,9 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         network._network = _heteroPlugin->GetCore()->LoadNetwork(network._clonedNetwork,
                                                                  network._device,
                                                                  metaDevices[network._device]);
+        _exeDevices += network._device + ",";
     }
+    _exeDevices.pop_back();
 }
 
 HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
@@ -631,8 +633,10 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
             loaded ? cnnnetwork : CNNNetwork{},
             executableNetwork,
         });
-    }
 
+        _exeDevices += deviceName + ",";
+    }
+    _exeDevices.pop_back();
     const auto parseNode = [](const pugi::xml_node& xml_node, bool is_param) -> std::shared_ptr<const ov::Node> {
         const std::string operation_name = GetStrAttr(xml_node, "operation_name");
         const auto elementType = ov::EnumNames<ov::element::Type_t>::as_enum(GetStrAttr(xml_node, "element_type"));
@@ -908,7 +912,8 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string&
         std::vector<std::string> heteroMetrics = {ov::model_name.name(),
                                                   METRIC_KEY(SUPPORTED_METRICS),
                                                   METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-                                                  ov::optimal_number_of_infer_requests.name()};
+                                                  ov::optimal_number_of_infer_requests.name(),
+                                                  ov::execution_devices.name()};
 
         {
             std::vector<::Metrics> pluginMetrics;
@@ -957,6 +962,8 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string&
                              desc._network->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>());
         }
         return decltype(ov::optimal_number_of_infer_requests)::value_type{value};
+    } else if (name == ov::execution_devices) {
+        return decltype(ov::execution_devices)::value_type {_exeDevices};
     } else {
         // find metric key among plugin metrics
         for (auto&& desc : _networks) {
