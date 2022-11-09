@@ -136,9 +136,19 @@ class TorchScriptPythonDecoder (Decoder):
             return OVAny(OVType.dynamic)
 
     def get_input_transpose_order(self, index):
+        input = self._raw_input(index)
+        if input.type() is not None and input.type().kind() == 'TensorType':
+            strides = input.type().strides()
+            if strides is not None:
+                return [s[0] for s in sorted(enumerate(strides), key=lambda x:x[1], reverse=True)]
         return []
 
     def get_output_transpose_order(self, index):
+        output = self._raw_output(index)
+        if output.type() is not None and output.type().kind() == 'TensorType':
+            strides = output.type().strides()
+            if strides is not None:
+                return [s[0] for s in sorted(enumerate(strides), key=lambda x:x[1], reverse=True)]
         return []
 
     def get_subgraph_size(self):
@@ -228,7 +238,7 @@ class TorchScriptPythonDecoder (Decoder):
         ivalue = pt_value.toIValue()
         if pt_value.isCompleteTensor():            
             try:
-                ivalue = ivalue.detach().cpu()
+                ivalue = ivalue.to(memory_format=torch.contiguous_format).detach().cpu()
             except:
                 print("[ WARNING ] Tensor couldn't detach")
             if str(pt_value.type().dtype()) in pt_to_py_type_map:
