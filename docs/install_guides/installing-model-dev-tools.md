@@ -24,7 +24,6 @@ If you are a C++ developer, you must first install OpenVINO Runtime separately t
 
 Once OpenVINO Runtime is installed, you may install OpenVINO Development Tools for access to tools like Model Optimizer, Model Downloader, Benchmark Tool, and other utilities that will help you optimize your model and develop your application. Follow the steps in the <a href="#install-dev-tools">Installing OpenVINO Development Tools</a> section on this page to install it. In Step 4, make sure that you follow the instructions in the "C++" tab.
 
-
 ## <a name="install-dev-tools"></a>Installing OpenVINO™ Development Tools
 Follow these step-by-step instructions to install OpenVINO Development Tools on your computer.
 
