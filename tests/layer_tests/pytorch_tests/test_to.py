@@ -27,11 +27,10 @@ class TestAtenTo(PytorchLayerTest):
 
             def forward(self, x):
                 return x.to(self.type, self.non_blocking, self.copy, self.memory_format)
-                # return x.to(self.type)
 
         ref_net = None
 
-        return aten_to(type, non_blocking, copy, memory_format), ref_net
+        return aten_to(type, non_blocking, copy, memory_format), ref_net, "aten::to"
 
     # Cartesian product of input/output types
     @pytest.mark.parametrize("input_type", [np.int32, np.float32, np.float64])
@@ -53,9 +52,10 @@ class TestAtenTo(PytorchLayerTest):
             [torch.float64, True],
     ])
     @pytest.mark.nightly
-    def test_aten_to_non_blocking_arg(self, input_type, output_type, non_blocking, ie_device, precision, ir_version):
+    def test_aten_to_raise_non_blocking_arg(self, input_type, output_type, non_blocking, ie_device, precision, ir_version):
         self.input_type = input_type
-        self._test(*self.create_model(output_type, non_blocking=non_blocking), ie_device, precision, ir_version) 
+        with pytest.raises(OpConversionFailure) as e:
+            self._test(*self.create_model(output_type, non_blocking=non_blocking), ie_device, precision, ir_version)
 
 
     # Cartesian product of input/output types
@@ -70,9 +70,11 @@ class TestAtenTo(PytorchLayerTest):
             [torch.float64, True],
     ])
     @pytest.mark.nightly
-    def test_aten_to_copy_arg(self, input_type, output_type, copy, ie_device, precision, ir_version):
-            self.input_type = input_type
+    def test_aten_raise_to_copy_arg(self, input_type, output_type, copy, ie_device, precision, ir_version):
+        self.input_type = input_type
+        with pytest.raises(OpConversionFailure) as e:
             self._test(*self.create_model(output_type, copy=copy), ie_device, precision, ir_version)
+
 
     # Cartesian product of input/output types
     @pytest.mark.parametrize("input_type", [np.int32, np.float32, np.float64])
@@ -87,6 +89,6 @@ class TestAtenTo(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     def test_aten_to_raise_memory_format_arg(self, input_type, output_type, memory_format, ie_device, precision, ir_version):
-            self.input_type = input_type
-            with pytest.raises(OpConversionFailure) as e:
-                self._test(*self.create_model(output_type, memory_format=memory_format), ie_device, precision, ir_version)
+        self.input_type = input_type
+        with pytest.raises(OpConversionFailure) as e:
+            self._test(*self.create_model(output_type, memory_format=memory_format), ie_device, precision, ir_version)
