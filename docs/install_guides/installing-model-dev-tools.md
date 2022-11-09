@@ -152,7 +152,7 @@ Note that the commands are different for a Python installation and a C++ install
 
 For more details on the openvino-dev PyPI package, see https://pypi.org/project/openvino-dev/.
 
-### Step 4. Test the Installation
+### Step 5. Verify the Installation
 
 To verify the package is properly installed, run the command below (this may take a few seconds):
 
