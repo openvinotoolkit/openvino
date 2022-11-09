@@ -95,6 +95,9 @@ public:
     void set_batch_header_str(const std::vector<std::string> &batch_headers) {
         batch_header_str = std::move(batch_headers);
     }
+
+    bool validate_simple_kernel_execution(kernel::ptr kernel);
+
     // forces compilation of all pending kernels/programs
     void build_all();
     void reset();

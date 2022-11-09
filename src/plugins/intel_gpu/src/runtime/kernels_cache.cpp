@@ -4,7 +4,9 @@
 
 #include "kernels_factory.hpp"
 #include "kernels_cache.hpp"
+#include "ocl/ocl_kernel.hpp"
 #include "ocl/ocl_engine.hpp"
+#include "ocl/ocl_common.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/util/file_util.hpp"
 
@@ -134,8 +136,10 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
         auto& batches = std::get<1>(c.second);
         for (auto& b : batches) {
             std::string full_code = options + " " + _engine.get_device_info().driver_version;
+            full_code += _engine.get_device_info().dev_name;
             for (auto& ss : b.source)
                 full_code += ss;
+
             b.hash_value = std::hash<std::string>()(full_code);
             all_batches->push_back(b);
         }
@@ -226,7 +230,8 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
             cl::Program program(cl_build_engine.get_cl_context(), batch.source);
             {
                 OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildProgram::RunCompilation");
-                program.build(cl_build_engine.get_cl_device(), batch.options.c_str());
+                if (program.build(cl_build_engine.get_cl_device(), batch.options.c_str()) != CL_SUCCESS)
+                    throw std::runtime_error("Failed in building program.");
             }
 
             if (dump_sources && dump_file.good()) {
@@ -249,9 +254,12 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
             }
         } else {
             cl::Program program(cl_build_engine.get_cl_context(), {cl_build_engine.get_cl_device()}, precompiled_kernels);
-            program.build(cl_build_engine.get_cl_device(), batch.options.c_str());
+            if (program.build(cl_build_engine.get_cl_device(), batch.options.c_str()) != CL_SUCCESS)
+                throw std::runtime_error("Failed in building program with a precompiled kernel.");
+
             program.createKernels(&kernels);
         }
+
         {
             std::lock_guard<std::mutex> lock(_mutex);
             for (auto& k : kernels) {
@@ -315,6 +323,40 @@ kernel::ptr kernels_cache::get_kernel(kernel_id id) const {
     if (_kernels.end() == res)
         throw std::runtime_error("Kernel " + id + " not found in the kernel cache!");
     return res->second;
+}
+
+bool kernels_cache::validate_simple_kernel_execution(kernel::ptr krl) {
+    auto casted = downcast<ocl::ocl_kernel>(krl.get());
+    auto kernel = casted->get_handle();
+    try {
+        auto casted_dev = dynamic_cast<ocl::ocl_device*>(_engine.get_device().get());
+        auto device = casted_dev->get_device();
+        cl::Context ctx(device);
+
+        cl::Buffer buffer(ctx, CL_MEM_READ_WRITE, sizeof(uint8_t) * 8);
+        if (kernel.setArg(0, buffer) != CL_SUCCESS)
+            return false;
+
+        cl::Event ev;
+        cl::CommandQueue queue(ctx, device);
+        if (queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(8), cl::NDRange(8), nullptr, &ev) != CL_SUCCESS)
+            return false;
+
+        uint8_t result[8];
+        uint8_t expected[8] = { 1, 3, 5, 7, 9, 11, 13, 15 };
+        if (queue.enqueueReadBuffer(buffer, CL_TRUE, 0, sizeof(uint8_t) * 8, &result) != CL_SUCCESS)
+            return false;
+
+        for (int i = 0; i < 8; ++i) {
+            if (result[i] != expected[i])
+                return false;
+        }
+
+        ev.wait();
+        return true;
+    } catch (...) {
+        return false;
+    }
 }
 
 void kernels_cache::build_all() {
