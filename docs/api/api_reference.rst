@@ -12,5 +12,5 @@ API references available:
    :maxdepth: 2
 
    ../groupov_cpp_api
-   ../groupie_c_api
+   ../groupov_c_api
    ie_python_api/api
