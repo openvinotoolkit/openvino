@@ -16,7 +16,7 @@ addIeTargetTest(
             snippetsNgraphFunctions
         ADD_CPPLINT
         LABELS
-        IE SNIPPETS
+        IE OV SNIPPETS
 )
 
 ie_faster_build(${TARGET_NAME}
