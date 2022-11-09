@@ -46,7 +46,7 @@ div#supported-layers-table table {
     border-collapse: separate;
     border-spacing: 0;
  }
-div#supported-layers-table table thead tr th {
+div#supported-layers-table table thead {
     background: white!important;
     position: sticky!important;
     top: 0!important;
