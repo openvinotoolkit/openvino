@@ -99,7 +99,7 @@ The OpenVINO™ Runtime can infer models on different hardware devices. This sec
     </tbody>
 </table>
 
-Also OpenVINO™ Toolkit also contains several plugins which simplify loading models on several hardware devices:
+OpenVINO™ Toolkit also contains several plugins which simplify loading models on several hardware devices:
 <table>
     <thead>
         <tr>
