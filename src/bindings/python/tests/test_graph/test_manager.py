@@ -39,6 +39,7 @@ def test_constant_folding():
     assert np.allclose(values_out, values_expected)
 
 
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_serialize_seperate_paths_kwargs(request):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name)
@@ -62,6 +63,7 @@ def test_serialize_seperate_paths_kwargs(request):
     os.remove(bin_path)
 
 
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_serialize_seperate_paths_args(request):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name)
@@ -86,6 +88,7 @@ def test_serialize_seperate_paths_args(request):
     os.remove(bin_path)
 
 
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_serialize_pass_mixed_args_kwargs(request):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name)
@@ -108,6 +111,7 @@ def test_serialize_pass_mixed_args_kwargs(request):
     os.remove(bin_path)
 
 
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_serialize_pass_mixed_args_kwargs_v2(request):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name)
@@ -131,6 +135,7 @@ def test_serialize_pass_mixed_args_kwargs_v2(request):
     os.remove(bin_path)
 
 
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_serialize_pass_wrong_num_of_args(request):
     xml_path, bin_path = create_filename_for_test(request.node.name)
 
@@ -140,6 +145,7 @@ def test_serialize_pass_wrong_num_of_args(request):
     assert "Invoked with:" in str(e.value)
 
 
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_serialize_results(request):
     core = Core()
     node_constant = ov.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
@@ -161,6 +167,7 @@ def test_serialize_results(request):
     os.remove(bin_path)
 
 
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_serialize_pass_tuple(request):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name)
@@ -184,6 +191,7 @@ def test_serialize_pass_tuple(request):
     os.remove(bin_path)
 
 
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_default_version(request):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name)
@@ -207,6 +215,7 @@ def test_default_version(request):
     os.remove(bin_path)
 
 
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_default_version_IR_V11_tuple(request):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name)
@@ -230,6 +239,7 @@ def test_default_version_IR_V11_tuple(request):
     os.remove(bin_path)
 
 
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_default_version_IR_V11_seperate_paths(request):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name)

@@ -84,5 +84,5 @@ def test_deprecation_decorator():
 
 def create_filename_for_test(test_name):
     python_version = str(sys.version_info.major) + "." + str(sys.version_info.minor)
-    filename = "./" + test_name[5:] + "_" + python_version
+    filename = "./" + test_name.replace("test_", "") + "_" + python_version
     return (filename + ".xml", filename + ".bin")

@@ -452,6 +452,7 @@ def test_reshape_with_python_types(device):
     )
 
 
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_serialize_rt_info(request):
     version = "TestVersion"
     config = "TestConfig"

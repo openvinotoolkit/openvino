@@ -156,6 +156,7 @@ def test_fused_names_cleanup():
         assert len(node.get_rt_info()) == 0
 
 
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_serialize_pass_v2(request):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name)
@@ -191,6 +192,7 @@ def test_compress_model_transformation():
     assert elem_type == "f16"
 
 
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_version_default(request):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name)
@@ -210,6 +212,7 @@ def test_version_default(request):
     os.remove(bin_path)
 
 
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_serialize_default_bin(request):
     xml_path, bin_path = create_filename_for_test(request.node.name)
     model = get_test_model()
@@ -219,6 +222,7 @@ def test_serialize_default_bin(request):
     os.remove(bin_path)
 
 
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_version_ir_v10(request):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name)
@@ -238,6 +242,7 @@ def test_version_ir_v10(request):
     os.remove(bin_path)
 
 
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_version_ir_v11(request):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name)

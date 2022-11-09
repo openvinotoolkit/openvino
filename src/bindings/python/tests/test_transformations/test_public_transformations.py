@@ -103,6 +103,7 @@ def test_low_latency2():
     assert count_ops(model, "TensorIterator") == [1]
 
 
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_serialize_pass(request):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name)
