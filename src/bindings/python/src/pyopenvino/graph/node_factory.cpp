@@ -72,8 +72,6 @@ private:
             return std::tolower(c, loc);
         });
 
-        using OpsetFunction = std::function<const ov::OpSet&()>;
-
         const auto& s_opsets = ov::get_avalable_opsets();
 
         auto it = s_opsets.find(opset_ver);
