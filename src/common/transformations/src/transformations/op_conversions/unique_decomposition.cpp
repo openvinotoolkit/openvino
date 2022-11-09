@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "helper_transforms/unique_replacer.hpp"
+#include "transformations/op_conversions/unique_decomposition.hpp"
 
 #include <memory>
 #include <vector>
 
-#include "helper_ops/unique.hpp"
+#include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -18,10 +18,22 @@
 using namespace std;
 using namespace ov;
 using namespace ov::pass;
-using namespace ov::opset9;
-using namespace ov::frontend::tensorflow;
+using namespace ov::opset10;
 
-ov::frontend::tensorflow::pass::UniqueReplacer::UniqueReplacer() {
+namespace {
+Output<Node> get_elements_number_1d(const ov::Output<ov::Node>& output,
+                                    ov::element::Type output_type,
+                                    ov::pass::NodeRegistry& rg) {
+    auto output_rank = output.get_partial_shape().rank();
+    auto shape = rg.make<ShapeOf>(output, output_type);
+    auto num_elements = rg.make<Squeeze>(shape);
+    return num_elements;
+}
+}  // namespace
+
+ov::pass::UniqueDecomposition::UniqueDecomposition() {
+    MATCHER_SCOPE(UniqueDecomposition);
+
     auto unique = pattern::wrap_type<Unique>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& matcher) {
@@ -32,9 +44,27 @@ ov::frontend::tensorflow::pass::UniqueReplacer::UniqueReplacer() {
             return false;
         }
 
-        auto x = unique_node->input_value(0);
-        auto output_indices_type = unique_node->get_output_indices_type();
-        auto x_type = x.get_element_type();
+        // currently, the transformation supports only the first and the third outputs
+        if (!unique_node->get_output_target_inputs(1).empty() || !unique_node->get_output_target_inputs(3).empty()) {
+            return false;
+        }
+
+        // the second input to Unique is optional and this an axis parameter. When it has the single parameter we can
+        // decompose. Otherwise, we need to check a rank of the input tensor. Currently, the transformation supports
+        // only searching for unique elements among scalar elements, not vectors.
+        auto input_rank = unique_node->get_input_partial_shape(0).rank();
+        if (unique_node->get_input_size() > 1 && (input_rank.is_dynamic() || input_rank.get_length() > 1)) {
+            return false;
+        }
+
+        auto x_unflatten = unique_node->input_value(0);
+
+        // make input tensor flatten
+        auto minus_one_const = rg.make<Constant>(element::i32, Shape{1}, -1);
+        auto x = rg.make<Reshape>(x_unflatten, minus_one_const, false);
+
+        auto output_indices_type = unique_node->get_index_element_type();
+        auto x_type = x_unflatten.get_element_type();
         if (!x_type.is_real() && !x_type.is_integral_number()) {
             return false;
         }
@@ -46,7 +76,6 @@ ov::frontend::tensorflow::pass::UniqueReplacer::UniqueReplacer() {
         auto zero_const = rg.make<Constant>(element::i32, Shape{1}, 0);
         auto one_const = rg.make<Constant>(element::i32, Shape{1}, 1);
         auto one_const_scalar = rg.make<Constant>(element::i32, Shape{}, 1);
-        auto minus_one_const = rg.make<Constant>(element::i32, Shape{1}, -1);
         auto true_const = rg.make<Constant>(element::boolean, Shape{1}, true);
         auto one_const_out_idx = rg.make<Constant>(output_indices_type, Shape{1}, 1);
         auto zero_const_out_idx = rg.make<Constant>(output_indices_type, Shape{1}, 0);
@@ -96,11 +125,11 @@ ov::frontend::tensorflow::pass::UniqueReplacer::UniqueReplacer() {
         auto output_unique_elements = rg.make<Gather>(x, sorted_minumum_indices->output(0), zero_const);
 
         if (!unique_node->get_output_target_inputs(0).empty()) {
-            output_unique_elements->set_friendly_name(unique_node->get_friendly_name() + ":0");
+            output_unique_elements->set_friendly_name(unique_node->get_friendly_name() + ".0");
             unique_node->output(0).replace(output_unique_elements->output(0));
         }
 
-        if (!unique_node->get_output_target_inputs(1).empty()) {
+        if (!unique_node->get_output_target_inputs(2).empty()) {
             // compute the second output
             // indices of elements of x in the vector of unique elements
             // 1. compute a mask for unique elements in the original order
@@ -116,8 +145,8 @@ ov::frontend::tensorflow::pass::UniqueReplacer::UniqueReplacer() {
             auto output_idx_plus1 = rg.make<ReduceMax>(unique_vs_x_ind_orig, zero_const);
             auto output_idx = rg.make<Subtract>(output_idx_plus1, one_const_out_idx);
 
-            output_idx->set_friendly_name(unique_node->get_friendly_name() + ":1");
-            unique_node->output(1).replace(output_idx->output(0));
+            output_idx->set_friendly_name(unique_node->get_friendly_name() + ".2");
+            unique_node->output(2).replace(output_idx->output(0));
         }
 
         copy_runtime_info(unique_node, rg.get());
@@ -125,6 +154,6 @@ ov::frontend::tensorflow::pass::UniqueReplacer::UniqueReplacer() {
         return true;
     };
 
-    auto m = make_shared<pattern::Matcher>(unique, "ov::frontend::tensorflow::pass::UniqueReplacer");
-    register_matcher(m, callback);
+    auto m = make_shared<pattern::Matcher>(unique, matcher_name);
+    this->register_matcher(m, callback);
 }

@@ -30,6 +30,7 @@
 #include "preprocessing.hpp"
 #include "frontend/weights_converter.hpp"
 #include "frontend/model_quantizer.hpp"
+#include "frontend/scale_factor_calc.hpp"
 #include "gna_fused_iterator.hpp"
 #include "backend/am_intel_dnn.hpp"
 #include "memory/gna_memory_state.hpp"
@@ -418,7 +419,7 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network
             // GNA input is always quantized to int16, so number of levels can't be greater than max uint16
             // todo: should be solved in POT (issue 63330)
             size_t levels = std::min(fqLayer.getLevels(), static_cast<size_t>(std::numeric_limits<uint16_t>::max() + 1));
-            auto scaleInput = frontend::CalculateScaleFactorFromStats(levels, inputRange.first[0], inputRange.second[0]);
+            auto scaleInput = ov::intel_gna::frontend::CalculateScaleFactorFromStats(levels, inputRange.first[0], inputRange.second[0]);
 
             if (!config.inputScaleFactorsPerInput.empty() || !config.inputScaleFactors.empty()) {
                 log::warning() << "Scale factor calculated during model quantization (" << scaleInput
@@ -511,7 +512,7 @@ void GNAPlugin::UpdateInputsAndOutputsInfoFromModel(std::shared_ptr<const ov::Mo
 bool GNAPlugin::TryToInitOutput(const std::string &portName, InferenceEngine::CNNLayerPtr layer) {
     auto initOutput = [this, portName, layer]
             (intel_dnn_orientation_t orientation, size_t numBytesPerElem, size_t numElem, void* outputPtr) {
-        auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+        auto quantized = InferenceEngine::getInjectedData<ov::intel_gna::frontend::QuantizedLayerParams>(layer);
 
         outputs_.at(portName).ptrs.resize(gnaFlags->num_requests);
         outputs_.at(portName).orientation = orientation;
@@ -868,7 +869,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
 
     if (gnaFlags->sw_fp32) {
         auto visitor = [&](InferenceEngine::CNNLayerPtr lp) {
-            transformLayer(lp, WeightsConverter());
+            ov::intel_gna::frontend::convert_blobs_precision(*lp);
             return lp;
         };
         newNet = InferenceEngine::CNNNetCopy(network, visitor);
@@ -876,8 +877,8 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         run_passes(newNet, true, gnaFlags->input_low_precision);
         run_passes(newNet, false, gnaFlags->input_low_precision);
     } else {
-        ModelQuantizer modelQuantizer;
-        newNet = modelQuantizer.quantize(network, run_passes, *inputs_ptr_, config.gnaPrecision, gnaFlags->input_low_precision);
+        ov::intel_gna::frontend::ModelQuantizer modelQuantizer(config, fake_quantized);
+        newNet = modelQuantizer.quantize(network, run_passes, *inputs_ptr_);
     }
 
     auto inputLayers = CNNNetGetAllInputLayers(newNet);
