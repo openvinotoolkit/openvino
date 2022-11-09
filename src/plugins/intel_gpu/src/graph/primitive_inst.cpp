@@ -286,17 +286,19 @@ void primitive_inst::update_impl() {
         };
 
         auto layout_key = get_layout_key();
-        auto& cache = _network.get_program()->get_implementations_cache();
+        auto& cache = get_network().get_implementations_cache();
         if (cache.has(layout_key)) {
             _impl = cache.get(layout_key)->clone();
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
         } else {
-            auto lru = cache.get_lru_element();
             _impl = _node->type()->choose_impl(*_node, *_impl_params);
-            _network.get_program()->compile();
-            _impl->init_kernels(_network.get_program()->get_kernels_cache());
+            auto& kernels_cache = get_network().get_kernels_cache();
+            auto kernel_ids = kernels_cache.add_kernels_source(_impl->get_kernels_source());
+            _impl->set_kernel_ids(kernel_ids);
+            kernels_cache.compile();
+            _impl->init_kernels(kernels_cache);
             cache.add(layout_key, _impl->clone());
-            _network.get_program()->get_kernels_cache().reset();
+            kernels_cache.reset();
         }
 
         reset_shape_change();
@@ -560,8 +562,6 @@ event::ptr primitive_inst::update_weights() {
         auto original_weights_memory = dep_memory_ptr(weights_idx);
         auto original_layout = original_weights_memory->get_layout();
         layout expected_layout = from_weights_tensor(weights_params.dest);
-
-        auto& program = _node->get_program();
         auto& engine = _network.get_engine();
 
         auto get_layout_key = [&]() -> std::string {
@@ -574,7 +574,7 @@ event::ptr primitive_inst::update_weights() {
         cldnn::kernel::ptr kernel = nullptr;
         auto layout_key = get_layout_key();
         if (layout_key != "") {
-            auto& cache = program.get_in_mem_kernels_cache();
+            auto& cache = get_network().get_in_mem_kernels_cache();
             if (cache.has(layout_key)) {
                 GPU_DEBUG_IF(debug_config->verbose >= 4) {
                     GPU_DEBUG_COUT << id() << ": reorder weights (cached) from " << original_layout << "\nto " << expected_layout << std::endl;
@@ -585,14 +585,16 @@ event::ptr primitive_inst::update_weights() {
                 GPU_DEBUG_IF(debug_config->verbose >= 4) {
                     GPU_DEBUG_COUT << id() << ": reorder weights from " << original_layout << "\nto " << expected_layout << std::endl;
                 }
-                auto _kernel_id = program.add_kernel(weights_params.clKernel->code.kernelString);
-                program.compile();
-                kernel = program.get_kernel(_kernel_id);
+                auto& kernels_cache = get_network().get_kernels_cache();
+                auto kernel_id = kernels_cache.set_kernel_source(weights_params.clKernel->code.kernelString, false);
+                kernels_cache.compile();
+                kernel = kernels_cache.get_kernel(kernel_id);
                 cache.add(layout_key, kernel);
+                kernels_cache.reset();
             }
         }
 
-        auto& stream = _network.get_stream();
+        auto& stream = get_network().get_stream();
 
         bool can_reuse = _impl_params->reordered_weights != nullptr && _impl_params->reordered_weights->size() <= expected_layout.bytes_count();
         if (can_reuse) {

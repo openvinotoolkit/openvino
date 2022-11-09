@@ -10,6 +10,8 @@ ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for inference engine" ON "X86_
 
 ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
 
+ie_option (ENABLE_COMPILE_TOOL "Enables compile_tool" ON)
+
 ie_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependencies for efficient parallel builds" ON)
 
 ie_dependent_option (ENABLE_CLDNN "clDnn based plugin for inference engine" ON "X86_64;NOT APPLE;NOT MINGW;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)

@@ -18,11 +18,11 @@
 namespace py = pybind11;
 
 template <typename T>
-std::vector<ssize_t> _get_byte_strides(const ngraph::Shape& s) {
-    std::vector<ssize_t> byte_strides;
+std::vector<size_t> _get_byte_strides(const ngraph::Shape& s) {
+    std::vector<size_t> byte_strides;
     std::vector<size_t> element_strides = ngraph::row_major_strides(s);
     for (auto v : element_strides) {
-        byte_strides.push_back(static_cast<ssize_t>(v) * sizeof(T));
+        byte_strides.push_back(static_cast<size_t>(v) * sizeof(T));
     }
     return byte_strides;
 }
@@ -30,11 +30,11 @@ std::vector<ssize_t> _get_byte_strides(const ngraph::Shape& s) {
 template <typename T>
 py::buffer_info _get_buffer_info(const ngraph::op::Constant& c) {
     ngraph::Shape shape = c.get_shape();
-    return py::buffer_info(const_cast<void*>(c.get_data_ptr()),               /* Pointer to buffer */
-                           static_cast<ssize_t>(c.get_element_type().size()), /* Size of one scalar */
+    return py::buffer_info(const_cast<void*>(c.get_data_ptr()),              /* Pointer to buffer */
+                           static_cast<size_t>(c.get_element_type().size()), /* Size of one scalar */
                            py::format_descriptor<T>::format(),               /* Python struct-style format descriptor */
-                           static_cast<ssize_t>(shape.size()),               /* Number of dimensions */
-                           std::vector<ssize_t>{shape.begin(), shape.end()}, /* Buffer dimensions */
+                           static_cast<size_t>(shape.size()),                /* Number of dimensions */
+                           std::vector<size_t>{shape.begin(), shape.end()},  /* Buffer dimensions */
                            _get_byte_strides<T>(shape)                       /* Strides (in bytes) for each index */
     );
 }
@@ -42,11 +42,11 @@ py::buffer_info _get_buffer_info(const ngraph::op::Constant& c) {
 template <>
 py::buffer_info _get_buffer_info<ngraph::float16>(const ngraph::op::Constant& c) {
     ngraph::Shape shape = c.get_shape();
-    return py::buffer_info(const_cast<void*>(c.get_data_ptr()),               /* Pointer to buffer */
-                           static_cast<ssize_t>(c.get_element_type().size()), /* Size of one scalar */
+    return py::buffer_info(const_cast<void*>(c.get_data_ptr()),              /* Pointer to buffer */
+                           static_cast<size_t>(c.get_element_type().size()), /* Size of one scalar */
                            std::string(1, 'H'),                              /* Python struct-style format descriptor */
-                           static_cast<ssize_t>(shape.size()),               /* Number of dimensions */
-                           std::vector<ssize_t>{shape.begin(), shape.end()}, /* Buffer dimensions */
+                           static_cast<size_t>(shape.size()),                /* Number of dimensions */
+                           std::vector<size_t>{shape.begin(), shape.end()},  /* Buffer dimensions */
                            _get_byte_strides<ngraph::float16>(shape)         /* Strides (in bytes) for each index */
     );
 }
