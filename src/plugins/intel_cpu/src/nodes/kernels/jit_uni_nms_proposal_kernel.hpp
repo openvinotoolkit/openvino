@@ -84,6 +84,7 @@ protected:
 
 private:
     static constexpr unsigned simd_width = details::x64::cpu_isa_traits<isa>::vlen / sizeof(float);
+    static constexpr unsigned modulo_mask = details::x64::cpu_isa_traits<isa>::vlen - 1;
     Xbyak::Reg64 reg_box_idx = r8;
     Xbyak::Reg64 reg_count = r9;
     Xbyak::Reg64 reg_tail = r10;
@@ -96,6 +97,11 @@ private:
     Xbyak::Reg64 reg_is_dead_ptr;
     Xbyak::Reg64 reg_params;
 };
+
+template<typename T>
+T align_value(T i, T alignment = 16) {
+    return i % alignment == 0 ? i : i + alignment - (i % alignment);
+}
 
 } // namespace node
 } // namespace intel_cpu

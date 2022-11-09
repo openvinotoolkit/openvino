@@ -112,11 +112,11 @@ void refine_anchors(const float* deltas, const float* scores, const float* ancho
 
 void unpack_boxes(const float* p_proposals, float* unpacked_boxes, int* is_dead, int pre_nms_topn) {
     parallel_for(pre_nms_topn, [&](size_t i) {
-        unpacked_boxes[0*pre_nms_topn + i] = p_proposals[6*i + 0];
-        unpacked_boxes[1*pre_nms_topn + i] = p_proposals[6*i + 1];
-        unpacked_boxes[2*pre_nms_topn + i] = p_proposals[6*i + 2];
-        unpacked_boxes[3*pre_nms_topn + i] = p_proposals[6*i + 3];
-        unpacked_boxes[4*pre_nms_topn + i] = p_proposals[6*i + 4];
+        unpacked_boxes[0*align_value(pre_nms_topn) + i] = p_proposals[6*i + 0];
+        unpacked_boxes[1*align_value(pre_nms_topn) + i] = p_proposals[6*i + 1];
+        unpacked_boxes[2*align_value(pre_nms_topn) + i] = p_proposals[6*i + 2];
+        unpacked_boxes[3*align_value(pre_nms_topn) + i] = p_proposals[6*i + 3];
+        unpacked_boxes[4*align_value(pre_nms_topn) + i] = p_proposals[6*i + 4];
         is_dead[i] = (p_proposals[6*i + 5] == 1.0) ? 0 : 1;
     });
 }
@@ -125,11 +125,11 @@ void fill_output_blobs(const float* proposals, const int* roi_indices,
                        float* rois, float* scores, uint8_t* roi_num,
                        const int num_proposals, const size_t num_rois, const int post_nms_topn,
                        Precision roi_num_type) {
-    const float *src_x0 = proposals + 0 * num_proposals;
-    const float *src_y0 = proposals + 1 * num_proposals;
-    const float *src_x1 = proposals + 2 * num_proposals;
-    const float *src_y1 = proposals + 3 * num_proposals;
-    const float *src_score = proposals + 4 * num_proposals;
+    const float *src_x0 = proposals + 0 * align_value(num_proposals);
+    const float *src_y0 = proposals + 1 * align_value(num_proposals);
+    const float *src_x1 = proposals + 2 * align_value(num_proposals);
+    const float *src_y1 = proposals + 3 * align_value(num_proposals);
+    const float *src_score = proposals + 4 * align_value(num_proposals);
 
     parallel_for(num_rois, [&](size_t i) {
         int index = roi_indices[i];
@@ -272,8 +272,10 @@ void GenerateProposals::execute(dnnl::stream strm) {
             float keep;
         };
         std::vector<ProposalBox> proposals_(num_proposals);
-        std::vector<float> unpacked_boxes(5 * pre_nms_topn);
-        std::vector<int> is_dead(pre_nms_topn);
+        // Unpacked boxes buffers and is_dead buffers combined to achieve the same alignment along the buffer start.
+        // Buffers alignment significantly impacts NMS kernel performance.
+        std::vector<float> unpacked_boxes(5 * align_value(pre_nms_topn) + pre_nms_topn);
+        int *is_dead = reinterpret_cast<int*>(&unpacked_boxes[5 * align_value(pre_nms_topn)]);
 
         // Execute
         size_t batch_size = scoreDims[0];
@@ -302,7 +304,7 @@ void GenerateProposals::execute(dnnl::stream strm) {
             const float min_box_W = min_size_ * scale_w;
 
             refine_anchors(p_deltas_item, p_scores_item, p_anchors_item,
-                           reinterpret_cast<float *>(&proposals_[0]), anchors_num, bottom_H,
+                           reinterpret_cast<float *>(proposals_.data()), anchors_num, bottom_H,
                            bottom_W, img_H, img_W,
                            min_box_H, min_box_W,
                            static_cast<const float>(log(1000. / 16.)),
@@ -312,26 +314,22 @@ void GenerateProposals::execute(dnnl::stream strm) {
                                   return (struct1.score > struct2.score);
                               });
 
-            unpack_boxes(reinterpret_cast<float *>(&proposals_[0]), &unpacked_boxes[0], &is_dead[0], pre_nms_topn);
+            unpack_boxes(reinterpret_cast<float *>(proposals_.data()), unpacked_boxes.data(), is_dead, pre_nms_topn);
 
-#ifdef __GNUC__
-            if (__builtin_expect(static_cast<bool>(nms_kernel_), true)) {
-#else
             if (nms_kernel_) {
-#endif
                 jit_uni_nms_proposal_kernel::jit_nms_call_args args {
                     pre_nms_topn,
-                    is_dead.data(),
+                    is_dead,
                     unpacked_boxes.data(),
-                    &unpacked_boxes[2 * pre_nms_topn],
-                    &unpacked_boxes[pre_nms_topn],
-                    &unpacked_boxes[3 * pre_nms_topn],
+                    &unpacked_boxes[2 * align_value(pre_nms_topn)],
+                    &unpacked_boxes[align_value(pre_nms_topn)],
+                    &unpacked_boxes[3 * align_value(pre_nms_topn)],
                     roi_indices_.data(),
                     &num_rois
                 };
                 nms_kernel_->operator()(&args);
             } else {
-                nms_cpu(pre_nms_topn, &is_dead[0], &unpacked_boxes[0], &roi_indices_[0], &num_rois, 0,
+                nms_cpu(pre_nms_topn, is_dead, unpacked_boxes.data(), roi_indices_.data(), &num_rois, 0,
                     nms_thresh_, post_nms_topn_, coordinates_offset_);
             }
 
@@ -339,7 +337,7 @@ void GenerateProposals::execute(dnnl::stream strm) {
             roi_item.resize(new_num_rois * 4);
             score_item.resize(new_num_rois);
 
-            fill_output_blobs(&unpacked_boxes[0], &roi_indices_[0], &roi_item[total_num_rois * 4], &score_item[total_num_rois],
+            fill_output_blobs(&unpacked_boxes[0], roi_indices_.data(), &roi_item[total_num_rois * 4], &score_item[total_num_rois],
                               p_roi_num, pre_nms_topn, num_rois, post_nms_topn_, roi_num_type);
             p_deltas_item += deltas_dims_size;
             p_scores_item += score_dims_size;

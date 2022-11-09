@@ -166,18 +166,18 @@ void enumerate_proposals_cpu(const float* bottom4d, const float* d_anchor4d, con
 void unpack_boxes(const float* p_proposals, float* unpacked_boxes, int pre_nms_topn, bool store_prob) {
     if (store_prob) {
         parallel_for(pre_nms_topn, [&](size_t i) {
-            unpacked_boxes[0 * pre_nms_topn + i] = p_proposals[5 * i + 0];
-            unpacked_boxes[1 * pre_nms_topn + i] = p_proposals[5 * i + 1];
-            unpacked_boxes[2 * pre_nms_topn + i] = p_proposals[5 * i + 2];
-            unpacked_boxes[3 * pre_nms_topn + i] = p_proposals[5 * i + 3];
-            unpacked_boxes[4 * pre_nms_topn + i] = p_proposals[5 * i + 4];
+            unpacked_boxes[0 * align_value(pre_nms_topn) + i] = p_proposals[5 * i + 0];
+            unpacked_boxes[1 * align_value(pre_nms_topn) + i] = p_proposals[5 * i + 1];
+            unpacked_boxes[2 * align_value(pre_nms_topn) + i] = p_proposals[5 * i + 2];
+            unpacked_boxes[3 * align_value(pre_nms_topn) + i] = p_proposals[5 * i + 3];
+            unpacked_boxes[4 * align_value(pre_nms_topn) + i] = p_proposals[5 * i + 4];
         });
     } else {
         parallel_for(pre_nms_topn, [&](size_t i) {
-            unpacked_boxes[0 * pre_nms_topn + i] = p_proposals[5 * i + 0];
-            unpacked_boxes[1 * pre_nms_topn + i] = p_proposals[5 * i + 1];
-            unpacked_boxes[2 * pre_nms_topn + i] = p_proposals[5 * i + 2];
-            unpacked_boxes[3 * pre_nms_topn + i] = p_proposals[5 * i + 3];
+            unpacked_boxes[0 * align_value(pre_nms_topn) + i] = p_proposals[5 * i + 0];
+            unpacked_boxes[1 * align_value(pre_nms_topn) + i] = p_proposals[5 * i + 1];
+            unpacked_boxes[2 * align_value(pre_nms_topn) + i] = p_proposals[5 * i + 2];
+            unpacked_boxes[3 * align_value(pre_nms_topn) + i] = p_proposals[5 * i + 3];
         });
     }
 }
@@ -187,11 +187,11 @@ void retrieve_rois_cpu(const int num_rois, const int item_index,
                               const float* proposals, const int roi_indices[],
                               float* rois, int post_nms_topn_,
                               bool normalize, float img_h, float img_w, bool clip_after_nms, float* probs) {
-    const float *src_x0 = proposals + 0 * num_proposals;
-    const float *src_y0 = proposals + 1 * num_proposals;
-    const float *src_x1 = proposals + 2 * num_proposals;
-    const float *src_y1 = proposals + 3 * num_proposals;
-    const float *src_probs = proposals + 4 * num_proposals;
+    const float *src_x0 = proposals + 0 * align_value(num_proposals);
+    const float *src_y0 = proposals + 1 * align_value(num_proposals);
+    const float *src_x1 = proposals + 2 * align_value(num_proposals);
+    const float *src_y1 = proposals + 3 * align_value(num_proposals);
+    const float *src_probs = proposals + 4 * align_value(num_proposals);
 
     parallel_for(num_rois, [&](size_t roi) {
         int index = roi_indices[roi];
@@ -244,10 +244,10 @@ void nms_cpu(const int num_boxes, int is_dead[],
     const int num_proposals = num_boxes;
     std::size_t count = 0;
 
-    const float* x0 = boxes + 0 * num_proposals;
-    const float* y0 = boxes + 1 * num_proposals;
-    const float* x1 = boxes + 2 * num_proposals;
-    const float* y1 = boxes + 3 * num_proposals;
+    const float* x0 = boxes + 0 * align_value(num_proposals);
+    const float* y0 = boxes + 1 * align_value(num_proposals);
+    const float* x1 = boxes + 2 * align_value(num_proposals);
+    const float* y1 = boxes + 3 * align_value(num_proposals);
 
     for (int box = 0; box < num_boxes; ++box) {
         if (is_dead[box])
@@ -455,9 +455,11 @@ void Proposal::executeImpl(const float *input0, const float *input1, std::vector
         float score;
     };
     std::vector<ProposalBox> proposals_(num_proposals);
-    const int unpacked_boxes_buffer_size = store_prob ? 5 * pre_nms_topn : 4 * pre_nms_topn;
-    std::vector<float> unpacked_boxes(unpacked_boxes_buffer_size);
-    std::vector<int> is_dead(pre_nms_topn, 0);
+    // Unpacked boxes buffers and is_dead buffers combined to achieve the same alignment along the buffer start.
+    // Buffers alignment significantly impacts NMS kernel performance.
+    const int unpacked_boxes_buffer_size = store_prob ? 5 * align_value(pre_nms_topn) : 4 * align_value(pre_nms_topn);
+    std::vector<float> unpacked_boxes(unpacked_boxes_buffer_size + pre_nms_topn);
+    int *is_dead = reinterpret_cast<int*>(&unpacked_boxes[unpacked_boxes_buffer_size]);
 
     // Execute
     int nn = dims0[0];
@@ -474,32 +476,28 @@ void Proposal::executeImpl(const float *input0, const float *input1, std::vector
                               return (struct1.score > struct2.score);
                           });
 
-        unpack_boxes(reinterpret_cast<float *>(&proposals_[0]), &unpacked_boxes[0], pre_nms_topn, store_prob);
+        unpack_boxes(reinterpret_cast<float *>(proposals_.data()), unpacked_boxes.data(), pre_nms_topn, store_prob);
         if (n > 0)
-            std::fill(is_dead.begin(), is_dead.end(), 0);
-#ifdef __GNUC__
-        if (__builtin_expect(static_cast<bool>(nms_kernel_), true)) {
-#else
+            std::fill(is_dead, is_dead + pre_nms_topn, 0);
         if (nms_kernel_) {
-#endif
             jit_uni_nms_proposal_kernel::jit_nms_call_args args {
                 pre_nms_topn,
-                is_dead.data(),
+                is_dead,
                 unpacked_boxes.data(),
-                &unpacked_boxes[2 * pre_nms_topn],
-                &unpacked_boxes[pre_nms_topn],
-                &unpacked_boxes[3 * pre_nms_topn],
+                &unpacked_boxes[2 * align_value(pre_nms_topn)],
+                &unpacked_boxes[align_value(pre_nms_topn)],
+                &unpacked_boxes[3 * align_value(pre_nms_topn)],
                 roi_indices,
                 &num_rois
             };
             nms_kernel_->operator()(&args);
         } else {
-            nms_cpu(pre_nms_topn, &is_dead[0], &unpacked_boxes[0], roi_indices, &num_rois, 0, conf.nms_thresh_,
+            nms_cpu(pre_nms_topn, is_dead, unpacked_boxes.data(), roi_indices, &num_rois, 0, conf.nms_thresh_,
                 conf.post_nms_topn_, conf.coordinates_offset);
         }
 
         float* p_probs = store_prob ? p_prob_item + n * conf.post_nms_topn_ : nullptr;
-        retrieve_rois_cpu(num_rois, n, pre_nms_topn, &unpacked_boxes[0], roi_indices,
+        retrieve_rois_cpu(num_rois, n, pre_nms_topn, unpacked_boxes.data(), roi_indices,
                           p_roi_item + n * conf.post_nms_topn_ * 5,
                           conf.post_nms_topn_, conf.normalize_, img_H, img_W, conf.clip_after_nms, p_probs);
     }
