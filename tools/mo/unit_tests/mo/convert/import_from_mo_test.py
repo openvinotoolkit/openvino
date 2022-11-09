@@ -16,7 +16,6 @@ from utils import create_onnx_model, save_to_onnx
 
 @generator
 class ConvertImportMOTest(UnitTestWithMockedTelemetry):
-    # Checks convert import from openvino.tools.mo
     test_directory = os.path.dirname(os.path.realpath(__file__))
 
     @generate(*[
@@ -24,8 +23,26 @@ class ConvertImportMOTest(UnitTestWithMockedTelemetry):
         ({'input': InputCutInfo(name='LeakyRelu_out', shape=None, type=None, value=None)}),
         ({'layout': {'input': LayoutMap(source_layout='NCHW', target_layout='NHWC')}}),
     ])
+    # Checks convert import from openvino.tools.mo
     def test_import(self, params):
         from openvino.tools.mo import convert_model
+
+        with tempfile.TemporaryDirectory(dir=self.test_directory) as tmpdir:
+            model = create_onnx_model()
+            model_path = save_to_onnx(model, tmpdir)
+            out_xml = os.path.join(tmpdir, "model.xml")
+
+            ov_model = convert_model(input_model=model_path, **params)
+            serialize(ov_model, out_xml.encode('utf-8'), out_xml.replace('.xml', '.bin').encode('utf-8'))
+            assert os.path.exists(out_xml)
+
+    @generate(*[
+        ({}),
+        ({'input': InputCutInfo(name='LeakyRelu_out', shape=None, type=None, value=None)}),
+        ({'layout': {'input': LayoutMap(source_layout='NCHW', target_layout='NHWC')}}),
+    ])
+    def test_import(self, params):
+        from openvino.runtime import convert_model
 
         with tempfile.TemporaryDirectory(dir=self.test_directory) as tmpdir:
             model = create_onnx_model()

@@ -546,6 +546,7 @@ jobs:
     continueOnError: false
 
   - script: |
+      . $(PY_VENV)/bin/activate
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       export TEST_DEVICE=CPU
@@ -554,6 +555,7 @@ jobs:
     continueOnError: false
 
   - script: |
+      . $(PY_VENV)/bin/activate
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       export TEST_DEVICE=CPU
@@ -562,6 +564,7 @@ jobs:
     continueOnError: false
 
   - script: |
+      . $(PY_VENV)/bin/activate
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       export TEST_DEVICE=CPU

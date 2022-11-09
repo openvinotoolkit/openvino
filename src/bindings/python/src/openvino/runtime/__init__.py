@@ -82,3 +82,10 @@ Node.__lt__ = opset10.less
 Node.__le__ = opset10.less_equal
 Node.__gt__ = opset10.greater
 Node.__ge__ = opset10.greater_equal
+
+
+# Import MO Python API
+try:
+    from openvino.tools.mo import convert_model
+except ImportException:
+    pass
