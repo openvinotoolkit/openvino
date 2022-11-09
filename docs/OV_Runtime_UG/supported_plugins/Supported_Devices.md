@@ -45,7 +45,7 @@ The OpenVINO Runtime can inference models in different formats with various inpu
 This page shows supported and optimal configurations for each plugin.
 
 Terminology
-~~~~~~~~~~~~~~~~~~~~~~
+++++++++++++
 
 +-------------------+-----------------------------------------------+
 | Acronym/Term      | Description                                   |
@@ -80,7 +80,7 @@ CHW, NC, C  - Tensor memory layout.
 For example, the CHW value at index (c,h,w) is physically located at index (c\*H+h)\*W+w, for others by analogy.
 
 Supported Model Formats
-~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++
 
 +-------------------+------------------------+------------------------+------------------------+
 |Plugin             |FP32                    |FP16                    |I8                      |
@@ -100,7 +100,7 @@ For :ref:`Multi-Device <openvino_docs_OV_UG_Running_on_multiple_devices>` and :r
 the supported models formats depends on the actual underlying devices. *Generally, FP16 is preferable as it is most ubiquitous and performant*.
 
 Supported Input Precision
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+++++++++++++++++++++++++++
 
 +-------------------+----------+---------------+---------------+---------------+--------------+---------------+
 |Plugin             |FP32      |FP16           |U8             |U16            |I8            |I16            |
@@ -122,7 +122,7 @@ For :ref:`Multi-Device <openvino_docs_OV_UG_Running_on_multiple_devices>` and :r
 the supported input precision depends on the actual underlying devices. *Generally, U8 is preferable as it is most ubiquitous*.
 
 Supported Output Precision
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++
 
 +-------------------+----------+--------------+
 |Plugin             |FP32      |FP16          |
@@ -142,7 +142,7 @@ For :ref:`Multi-Device <openvino_docs_OV_UG_Running_on_multiple_devices>` and :r
 the supported output precision depends on the actual underlying devices. *Generally, FP32 is preferable as it is most ubiquitous*.
 
 Supported Input Layout
-~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++
 
 +-------------------+--------------+--------------+--------------+--------------+
 |Plugin             |NCDHW         |NCHW          |NHWC          |NC            |
@@ -159,7 +159,7 @@ Supported Input Layout
 +-------------------+--------------+--------------+--------------+--------------+
 
 Supported Output Layout
-~~~~~~~~~~~~~~~~~~~~~~~~
+++++++++++++++++++++++++
 
 +--------------------+-----+-----+-----+-----+-----+
 |Number of dimensions|5    |4    |3    |2    |1    |
@@ -171,7 +171,7 @@ For setting relevant configuration, refer to the **Step 3 "Configure input and o
  :ref:`Integrate with Customer Application <openvino_docs_OV_UG_Integrate_OV_with_your_application` guide.
 
 Supported Layers
-~~~~~~~~~~~~~~~~~
++++++++++++++++++
 
 The following layers are supported by the plugins:
 
