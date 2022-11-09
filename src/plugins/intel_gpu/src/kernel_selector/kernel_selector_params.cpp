@@ -374,9 +374,6 @@ void ParamsKey::EnableQuantization(QuantizationType q) {
 bool ParamsKey::Support(const ParamsKey& k) const {
     if (!((key.restrict.raw & k.key.restrict.raw) == k.key.restrict.raw))  // check if this kernel supports this params
         return false;
-    if (!((key.machineInfo.raw & k.key.machineInfo.raw) ==
-          key.machineInfo.raw))  // check if machine supports this kernel
-        return false;
     if (!((key.inputType.raw & k.key.inputType.raw) == k.key.inputType.raw))
         return false;
     if (!((key.outputType.raw & k.key.outputType.raw) == k.key.outputType.raw))
@@ -402,7 +399,6 @@ bool ParamsKey::Support(const ParamsKey& k) const {
 ParamsKey ParamsKey::Merge(const ParamsKey& k) const {
     ParamsKey ret;
     ret.key.restrict.raw = key.restrict.raw | k.key.restrict.raw;
-    ret.key.machineInfo.raw = key.machineInfo.raw | k.key.machineInfo.raw;
     ret.key.inputType.raw = key.inputType.raw | k.key.inputType.raw;
     ret.key.outputType.raw = key.outputType.raw | k.key.outputType.raw;
     ret.key.inputWeightsType.raw = key.inputWeightsType.raw | k.key.inputWeightsType.raw;
@@ -417,21 +413,7 @@ ParamsKey ParamsKey::Merge(const ParamsKey& k) const {
 // Params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ParamsKey Params::GetParamsKey() const {
-    ParamsKey k;
-
-    if (engineInfo.bSubGroupSupport) {
-        k.EnableSubGroup();
-    }
-
-    if (engineInfo.bSubGroupShortSupport) {
-        k.EnableSubGroupShort();
-    }
-
-    if (engineInfo.bSubGroupCharSupport) {
-        k.EnableSubGroupChar();
-    }
-
-    return k;
+    return ParamsKey();
 }
 
 std::string Params::to_string() const {
@@ -513,7 +495,7 @@ ParamsKey base_params::GetParamsKey() const {
         k.EnableDynamicShapesSupport();
     }
 
-    if (!engineInfo.bFP16Support && bFP16Used) {
+    if (!engineInfo.supports_fp16 && bFP16Used) {
         // I'm not sure it's the best idea, but we can live with it right now
         k.EnableFP16Emulation();
     }

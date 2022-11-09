@@ -101,7 +101,7 @@ bool ConvolutionKernel_bfyx_GEMMLike::Validate(const Params& p, const optional_p
     if (!IsSIMDSizeSupported(p.engineInfo, 8) && params.inputs[0].GetDType() == Datatype::F32)
         return false;
 
-    if (!params.engineInfo.bSubGroupShortSupport && params.inputs[0].GetDType() == Datatype::F16) {
+    if (!params.engineInfo.supports_intel_subgroups_short && params.inputs[0].GetDType() == Datatype::F16) {
         return false;
     }
 

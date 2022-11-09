@@ -49,7 +49,7 @@ bool FullyConnected_bs_f_bsv16_af8::Validate(const Params& p, const optional_par
     const auto& params = static_cast<const fully_connected_params&>(p);
     const auto& optParams = static_cast<const fully_connected_optional_params&>(o);
 
-    if (!params.engineInfo.bSubGroupShortSupport && params.inputs[0].GetDType() == Datatype::F16) {
+    if (!params.engineInfo.supports_intel_subgroups_short && params.inputs[0].GetDType() == Datatype::F16) {
         return false;
     }
 

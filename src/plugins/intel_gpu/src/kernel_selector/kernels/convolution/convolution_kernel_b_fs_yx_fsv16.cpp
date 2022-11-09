@@ -82,7 +82,7 @@ ConvolutionKernel_b_fs_yx_fsv16::ConvolutionTuningData ConvolutionKernel_b_fs_yx
     bool slm_exception = params.outputs[0].X().v == 3 && params.outputs[0].Y().v == 3 && params.outputs[0].ElementSize() == 4
                          && params.outputs[0].Feature().v <= 512;
 
-    if (params.engineInfo.deviceType == dev_type::integrated_gpu && params.engineInfo.bIMADSupport && !slm_exception)
+    if (params.engineInfo.deviceType == dev_type::integrated_gpu && params.engineInfo.supports_imad && !slm_exception)
         while (ic_blocks % (tuning_data.slm_div_factor * 2) == 0 && (tuning_data.slm_div_factor * 2 <= max_slm_div_factor) &&
                EstimateOccupancy(params, tuning_data) < 4.0)
             tuning_data.slm_div_factor *= 2;
@@ -121,10 +121,12 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv16::GetSupportedKey() const {
     k.EnableSplitSupport();
     k.EnableBatching();
     k.EnableDepthwiseSeparableOpt();
-    k.EnableSubGroup();
-    k.EnableSubGroupShort();
     k.EnableGroupedConvolution();
     return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_b_fs_yx_fsv16::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    return get_common_subgroups_device_features_key(params, options);
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16::SetDefault(const convolution_params& params,

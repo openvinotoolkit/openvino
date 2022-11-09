@@ -42,12 +42,58 @@ protected:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ParamsKey
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+class DeviceFeaturesKey {
+public:
+    DeviceFeaturesKey() {
+        key.machine_features.raw = 0;
+    }
+
+    void requires_subgroups() { key.machine_features.val.subgroups = 1; }
+    void requires_blocked_read_write() { key.machine_features.val.subgroup_blocked_read_write = 1; }
+    void requires_blocked_read_write_short() { key.machine_features.val.subgroup_blocked_read_write_short = 1; }
+    void requires_blocked_read_write_char() { key.machine_features.val.subgroup_blocked_read_write_char = 1; }
+    void requires_subgroup_shuffle() { key.machine_features.val.subgroup_shuffle = 1; }
+    void requires_subgroup_reduce() { key.machine_features.val.subgroup_reduce = 1; }
+    void requires_reqd_subgroup_size() { key.machine_features.val.reqd_subgroup_size = 1; }
+
+    void enable_subgroups() { key.machine_features.val.subgroups = 1; }
+    void enable_blocked_read_write() { key.machine_features.val.subgroup_blocked_read_write = 1; }
+    void enable_blocked_read_write_short() { key.machine_features.val.subgroup_blocked_read_write_short = 1; }
+    void enable_blocked_read_write_char() { key.machine_features.val.subgroup_blocked_read_write_char = 1; }
+    void enable_subgroup_shuffle() { key.machine_features.val.subgroup_shuffle = 1; }
+    void enable_subgroup_reduce() { key.machine_features.val.subgroup_reduce = 1; }
+    void enable_reqd_subgroup_size() { key.machine_features.val.reqd_subgroup_size = 1; }
+
+    void merge(DeviceFeaturesKey k) { key.machine_features.raw = key.machine_features.raw | k.key.machine_features.raw; }
+
+    bool supports(DeviceFeaturesKey k) const {
+        return (key.machine_features.raw & k.key.machine_features.raw) == k.key.machine_features.raw;
+    }
+
+    struct Key {
+        union machine_features_t {
+            struct val_t {
+                uint32_t subgroups : 1;
+                uint32_t subgroup_blocked_read_write : 1;
+                uint32_t subgroup_blocked_read_write_short : 1;
+                uint32_t subgroup_blocked_read_write_char : 1;
+                uint32_t reqd_subgroup_size : 1;
+                uint32_t subgroup_shuffle : 1;
+                uint32_t subgroup_reduce : 1;
+            } val;
+            uint32_t raw;
+        } machine_features;
+        static_assert(sizeof(machine_features_t) == sizeof(uint32_t), "problem with union");
+    };
+
+    Key key;
+};
+
 class ParamsKey {
 public:
     ParamsKey() {
         key.restrict.raw = 0;
         key.enableTuning = 1;
-        key.machineInfo.raw = 0;
         key.inputType.raw = 0;
         key.outputType.raw = 0;
         key.inputWeightsType.raw = 0;
@@ -195,15 +241,6 @@ public:
             uint64_t raw;
         } restrict;
 
-        union machine_info_t {
-            struct val_t {
-                uint32_t subgroup : 1;
-                uint32_t subgroupShort : 1;
-                uint32_t subgroupChar : 1;
-            } val;
-            uint32_t raw;
-        } machineInfo;
-
         static_assert(sizeof(restrict_t) == sizeof(uint64_t), "problem with union");
 
         typedef union DataTypesKey_t {
@@ -260,9 +297,9 @@ public:
     void EnableTensorOffset() { key.restrict.val.offset = 1; }
     void EnableTensorPitches() { key.restrict.val.pitches = 1; }
     void EnableBatching() { key.restrict.val.batching = 1; }
-    void EnableSubGroup() { key.machineInfo.val.subgroup = 1; }
-    void EnableSubGroupShort() { key.machineInfo.val.subgroupShort = 1; }
-    void EnableSubGroupChar() { key.machineInfo.val.subgroupChar = 1; }
+    void EnableSubGroup() { }
+    void EnableSubGroupShort() { }
+    void EnableSubGroupChar() { }
     void EnableNonBiasTerm() { key.restrict.val.nonBias = 1; }
     void EnableBiasPerFeature() { key.restrict.val.biasPerFeatureMap = 1; }
     void EnableBiasPerOutput() { key.restrict.val.biasPerOutput = 1; }
@@ -338,16 +375,22 @@ enum class dev_type {
 // EngineInfo
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct EngineInfo {
-    bool bSubGroupSupport = false;
-    bool bSubGroupShortSupport = false;
-    bool bSubGroupCharSupport = false;
-    bool bFP16Support = false;
-    bool bFP64Support = false;
-    bool bImageSupport = false;
-    bool bIMADSupport = false;
-    bool bIMMADSupport = false;
+    bool supports_fp16 = false;
+    bool supports_fp64 = false;
+    bool supports_fp16_denorms = false;
+    bool supports_khr_subgroups = false;
+    bool supports_intel_subgroups = false;
+    bool supports_intel_subgroups_short = false;
+    bool supports_intel_subgroups_char = false;
+    bool supports_intel_required_subgroup_size = false;
+    bool supports_local_block_io = false;
+    bool supports_queue_families = false;
+    bool supports_image = false;
+    bool supports_imad = false;
+    bool supports_immad = false;
     bool bOptHintsSupport = false;
     bool bLocalBlockIOSupport = false;
+    uint32_t vendor_id = 0x0;
     dev_type deviceType = dev_type::integrated_gpu;
     uint32_t computeUnitsCount = 0;
     uint32_t maxThreadsPerExecutionUnit = 0;
@@ -360,6 +403,31 @@ struct EngineInfo {
     std::string driverVersion = "";
     std::vector<size_t> supportedSimdSizes = {};
     std::shared_ptr<TuningCache> deviceCache;
+
+    DeviceFeaturesKey get_supported_device_features_key() const {
+        DeviceFeaturesKey k;
+
+        if (supports_khr_subgroups || supports_intel_subgroups)
+            k.enable_subgroups();
+
+        if (supports_intel_subgroups) {
+            k.enable_blocked_read_write();
+            k.enable_subgroup_reduce();
+            k.enable_subgroup_shuffle();
+        }
+
+        if (supports_intel_subgroups_short)
+            k.enable_blocked_read_write_short();
+
+        // For char type we have block read wrappers for the cases when extension is unavaliable, so it requires subgroups support only
+        if (supports_intel_subgroups_char || supports_khr_subgroups || supports_intel_subgroups)
+            k.enable_blocked_read_write_char();
+
+        if (supports_intel_required_subgroup_size)
+            k.enable_reqd_subgroup_size();
+
+        return k;
+    }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

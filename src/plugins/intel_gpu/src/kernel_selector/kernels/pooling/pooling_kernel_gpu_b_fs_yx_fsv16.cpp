@@ -32,6 +32,10 @@ ParamsKey PoolingKernel_b_fs_yx_fsv16::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey PoolingKernel_b_fs_yx_fsv16::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    return get_common_subgroups_device_features_key(params, options);
+}
+
 size_t PoolingKernel_b_fs_yx_fsv16::GetBlockSize(const pooling_params& params) const {
     if (params.outputs[0].X().v > 4)
         return 8;

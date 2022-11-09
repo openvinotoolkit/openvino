@@ -42,8 +42,8 @@ bool does_device_match_config(const cl::Device& device) {
     }
 
     // TODO: Remove the check below once kernels are fixed
-    if (device.getInfo<CL_DEVICE_VENDOR_ID>() != cldnn::INTEL_VENDOR_ID)
-        return false;
+    // if (device.getInfo<CL_DEVICE_VENDOR_ID>() != cldnn::INTEL_VENDOR_ID)
+        // return false;
 
     int32_t ocl_major = -1;
     int32_t ocl_minor = -1;
