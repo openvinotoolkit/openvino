@@ -362,16 +362,17 @@ void Concat::prepareParams() {
         return;
 
     const auto& dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
-    const auto dstMemDesc = dstMemPtr->GetDescWithType<BlockedMemoryDesc>();
+    auto dstMemDesc = dstMemPtr->GetDescWithType<BlockedMemoryDesc>();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << "Destination memory didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
-    const auto& outputStride = dstMemDesc->getStrides();
+    const auto& outputStrides = dstMemDesc->getStrides();
     size_t curConcatOffset = 0;
     const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemPtr->GetDataType());
-    const auto& outputOrder = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getDescPtr()->as<BlockedMemoryDesc>()->getOrder();
+    const auto& src0BlkMemDesc = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getDescPtr()->as<BlockedMemoryDesc>();
+    const auto& outputOrder = src0BlkMemDesc->getOrder();
     for (size_t i = 0; i < outputOrder.size(); i++) {
         if (outputOrder[i] == axis) {
             reorderedAxis = i;
@@ -396,7 +397,7 @@ void Concat::prepareParams() {
                 nElem *= inputShape[j];
             }
             nelemToCopy[i] = nElem * elemSize;
-            dstOffset[i] = outputStride[reorderedAxis] * curConcatOffset * elemSize;
+            dstOffset[i] = outputStrides[reorderedAxis] * curConcatOffset * elemSize;
             curConcatOffset += inputShape[reorderedAxis];
         } else {
             if (srcMemPtr->GetShape().hasZeroDims()) {
@@ -601,7 +602,7 @@ void Concat::execRef() {
         const Memory& srcMem = getParentEdgesAtPort(i)[0]->getMemory();
         srcPtrs.push_back(reinterpret_cast<const uint8_t*>(srcMem.GetPtr()));
     }
-    const auto& outputStride = dstMemBlkDesc->getStrides();
+    const auto& outputStrides = dstMemBlkDesc->getStrides();
     bool hasOuterLoop = false;
     for (size_t i = 0; i < reorderedAxis; i++) {
         if (outputShape[i] != 1) {
@@ -641,8 +642,8 @@ void Concat::execRef() {
 
             size_t inOff = inputStrides[a][0] * n0 + inputStrides[a][1] * n1 + inputStrides[a][2] * n2
                             + inputStrides[a][3] * n3 + inputStrides[a][4] * n4;
-            size_t outOff = outputStride[0] * n0 + outputStride[1] * n1 + outputStride[2] * n2
-                             + outputStride[3] * n3 + outputStride[4] * n4;
+            size_t outOff = outputStrides[0] * n0 + outputStrides[1] * n1 + outputStrides[2] * n2
+                             + outputStrides[3] * n3 + outputStrides[4] * n4;
             const uint8_t *i = srcPtrs[a] + inOff * elemSize;
             uint8_t *o = dstPtr + dstOffset[a] + outOff * elemSize;
 
