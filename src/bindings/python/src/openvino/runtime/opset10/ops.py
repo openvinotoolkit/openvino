@@ -76,13 +76,22 @@ def interpolate(
     attrs["pads_begin"] = [] if pads_begin is None else pads_begin
     attrs["pads_end"] = [] if pads_end is None else pads_end
 
-    inputs = as_nodes(image, output_shape, scales) if axes is None else as_nodes(image,
-                                                                                 output_shape,
-                                                                                 scales, axes)
+    inputs = as_nodes(image, output_shape, scales) if axes is None else as_nodes(image, output_shape, scales, axes)
 
     # This is an update of the operator version, so even though this is opset 10,
     # the operator is taken from opset 4.
     return _get_node_factory_opset4().create("Interpolate", inputs, attrs)
+
+
+@nameable_op
+def is_finite(data: NodeInput, name: Optional[str] = None) -> Node:
+    """Performs element-wise mapping from NaN and Infinity to False. Other values are mapped to True.
+
+    :param  data:          A tensor of floating-point numeric type and arbitrary shape.
+    :param  name:          Optional name for the output node. The default is None.
+    :return: Node representing is_finite operation.
+    """
+    return _get_node_factory_opset10().create("IsFinite", as_nodes(data))
 
 
 @nameable_op

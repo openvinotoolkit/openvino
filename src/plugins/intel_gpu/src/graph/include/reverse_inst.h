@@ -10,17 +10,6 @@
 #include "primitive_inst.h"
 
 namespace cldnn {
-template <>
-struct typed_program_node<reverse> : public typed_program_node_base<reverse> {
-    using parent = typed_program_node_base<reverse>;
-
-public:
-    using parent::parent;
-
-    program_node& input(size_t index = 0) const {
-        return get_dependency(index);
-    }
-};
 
 using reverse_node = typed_program_node<reverse>;
 

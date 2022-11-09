@@ -154,7 +154,10 @@ elif [ "$os" == "rhel8" ] ; then
     pkgs_core=(libtbb2 libpugixml1v5)
     pkgs_opencv_req=(gtk3)
     pkgs_python=(python38 python38-pip)
-    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake pkg-config zlib-devel.i686 curl sudo)
+    pkgs_dev=(
+    gcc gcc-c++ make glibc libstdc++ libgcc cmake pkg-config zlib-devel.i686 curl sudo
+    https://vault.centos.org/centos/8/PowerTools/x86_64/os/Packages/gflags-2.1.2-6.el8.x86_64.rpm
+    )
     pkgs_myriad=()
     pkgs_opencv_opt=(
         https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libcdio-2.0.0-3.el8.x86_64.rpm

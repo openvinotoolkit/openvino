@@ -18,13 +18,19 @@ namespace onednn {
 
 static void reorder_unreduced_axis_no_fusion(const cldnn::layout& input_layout, cldnn::layout& output_layout, std::vector<int64_t> axes) {
     auto in_dims = input_layout.get_tensor().sizes();
+    auto num_dims = input_layout.format.dimension();
+    auto num_spatial = format::spatial_num(input_layout.format);
+    size_t num_others = num_dims - num_spatial;
 
     for (size_t idx = 0; idx < axes.size(); idx++) {
-        in_dims[axes[idx]] = 1;
+        if (axes[idx] < static_cast<int64_t>(num_others))
+            in_dims[axes[idx]] = 1;
+        else
+            in_dims[(num_dims - axes[idx] - 1 + num_others)] = 1;
     }
 
     auto output_tensor = output_layout.get_tensor();
-    for (size_t idx = 0; idx < in_dims.size(); idx++) {
+    for (size_t idx = 0; idx < output_layout.get_rank(); idx++) {
         output_tensor.raw[idx] = in_dims[idx];
     }
 
@@ -86,7 +92,7 @@ protected:
 
 public:
     static primitive_impl* create(const reduce_node& arg, const kernel_impl_params& impl_params) {
-        auto& engine = impl_params.prog.get_engine();
+        auto& engine = impl_params.prog->get_engine();
         auto desc = get_reduction_descriptor(impl_params);
         auto attr = arg.get_onednn_primitive_attributes();
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
@@ -106,12 +112,18 @@ attach_reduction_onednn::attach_reduction_onednn() {
     };
     std::vector<format::type> fmt = {
         format::bfyx,
+        format::bfzyx,
         format::b_fs_yx_fsv16,
         format::b_fs_yx_fsv32,
+        format::b_fs_zyx_fsv32,
         format::bs_fs_yx_bsv16_fsv16,
         format::bs_fs_yx_bsv16_fsv32,
         format::bs_fs_yx_bsv32_fsv16,
         format::bs_fs_yx_bsv32_fsv32,
+        format::bs_fs_zyx_bsv16_fsv16,
+        format::bs_fs_zyx_bsv16_fsv32,
+        format::bs_fs_zyx_bsv32_fsv16,
+        format::bs_fs_zyx_bsv32_fsv32,
     };
 
     implementation_map<reduce>::add(impl_types::onednn, reduction_onednn::create, dt, fmt);

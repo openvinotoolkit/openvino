@@ -6,6 +6,7 @@
 
 try:
     from ngraph.impl import util
+
     __version__ = util.get_ngraph_version_string()
 except ImportError:
     __version__ = "0.0.0.dev0"
@@ -91,6 +92,7 @@ from ngraph.opset10 import idft
 from ngraph.opset10 import if_op
 from ngraph.opset10 import interpolate
 from ngraph.opset10 import irdft
+from ngraph.opset10 import is_finite
 from ngraph.opset10 import is_inf
 from ngraph.opset10 import is_nan
 from ngraph.opset10 import i420_to_bgr

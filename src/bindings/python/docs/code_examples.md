@@ -127,7 +127,7 @@ Add a new submodule by writing:
 ```cpp
 py::module mymodule = m.def_submodule("mymodule", "My first feature - openvino.runtime.mymodule");
 ```
-This is a shorthand way of adding new submodules which can later be used to extend the package. The mysterious `m` is actaully the main OpenVINO:tm: module called `pyopenvino` -- it is registered with `PYBIND11_MODULE(pyopenvino, m)` at the top of the "registering-point" file. Later imports from it are done by calling upon the `openvino.pyopenvino` package.
+This is a shorthand way of adding new submodules which can later be used to extend the package. The mysterious `m` is actaully the main OpenVINO:tm: module called `pyopenvino` -- it is registered with `PYBIND11_MODULE(pyopenvino, m)` at the top of the "registering-point" file. Later imports from it are done by calling upon the `openvino._pyopenvino` package.
 
 Keep in mind that in most real-life scenarios, modules and classes are registered in different files. The general idea is to create a helper function that will hold all of the registered modules, classes, and functions. This function needs to be exposed within a separate header file and included in "registering-point". The project's common guideline suggests to use names in the following convention: `regmodule_[domain]_[name_of_the_module]` or `regclass_[domain]_[name_of_the_class]`. Where optional `[domain]` generally points to parts of the API such as graph or frontend, or stay empty in the case of core runtime. Examples can be found in the "registering-point" file, `openvino/src/bindings/python/src/pyopenvino/pyopenvino.cpp`.
 
@@ -220,7 +220,7 @@ mymodule.def("get_smile", []() {
 
 **Don't forget to rebuild the project** and test it out:
 ```python
-import openvino.pyopenvino.mymodule as mymodule
+import openvino._pyopenvino.mymodule as mymodule
 from openvino.runtime import Tensor, Type
 
 a = mymodule.MyTensor([1,2,3])
@@ -276,7 +276,7 @@ cls.def("say_hello", [](const MyTensor& self, std::string& message) {
 
 **Don't forget to rebuild the project** and test it out:
 ```python
-import openvino.pyopenvino.mymodule as mymodule
+import openvino._pyopenvino.mymodule as mymodule
 a = mymodule.MyTensor([1,2,3])
 a.say_hello()
 >>> Hello there!
@@ -293,10 +293,10 @@ a.say_hello(777)
 >>> Traceback (most recent call last):
 >>>   File "<stdin>", line 1, in <module>
 >>> TypeError: say_hello(): incompatible function arguments. The following argument types are supported:
->>>     1. (self: openvino.pyopenvino.mymodule.MyTensor) -> None
->>>     2. (self: openvino.pyopenvino.mymodule.MyTensor, arg0: str) -> None
+>>>     1. (self: openvino._pyopenvino.mymodule.MyTensor) -> None
+>>>     2. (self: openvino._pyopenvino.mymodule.MyTensor, arg0: str) -> None
 >>> 
->>> Invoked with: <openvino.pyopenvino.mymodule.MyTensor object at >>> 0x7fdfef5bb4f0>, 777
+>>> Invoked with: <openvino._pyopenvino.mymodule.MyTensor object at >>> 0x7fdfef5bb4f0>, 777
 ```
 Notice that only functions with correct arguments are **not** throwing exceptions. It is helpful to combine this method with your code when binding templated or multi-argument functions. Most of the time (but not always!), using this approach saves a lot of written code, reducing `if-else/switch-case` blocks to a minimum, thus making it cleaner and easier to understand.
 <!-- Link to one of our classes? --->
@@ -311,16 +311,16 @@ Notice that only functions with correct arguments are **not** throwing exception
 Although *pybind11* is a powerful tool, it is sometimes required (or simply easier and more efficent) to combine both approaches and utilize both languages to achive best results.
 
 ##### Making pybind11-based module/class visible in OpenVINO:tm: package
-Let's move a new class from `openvino.pyopenvino.mymodule` to the actual package. Simply introduce a new import statement in the desired file. Let it be `openvino/src/bindings/python/src/openvino/runtime/__init__.py`: 
+Let's move a new class from `openvino._pyopenvino.mymodule` to the actual package. Simply introduce a new import statement in the desired file. Let it be `openvino/src/bindings/python/src/openvino/runtime/__init__.py`: 
 ```python
-from openvino.pyopenvino.mymodule import MyTensor
+from openvino._pyopenvino.mymodule import MyTensor
 ```
 
 Now, while importing `openvino`, a new class is accessible from the `runtime` level:
 ```python
 import openvino.runtime as ov
 ov.MyTensor
->>> <class 'openvino.pyopenvino.mymodule.MyTensor'>
+>>> <class 'openvino._pyopenvino.mymodule.MyTensor'>
 ```
 
 Same rule applies to whole modules and free functions. **This is a required step when adding something to the public API**. Without exposing it, all of the work is hidden in the depths of the `pyopenvino` namespace, rendering it hard to access for the user.
@@ -330,7 +330,7 @@ As mentioned earlier, it may be helpful to utilize Python in-between to achieve 
 
 First, create a new file in the `openvino/src/bindings/python/src/openvino/runtime` directory and call it `mymodule_ext.py`. There are no strict rules for naming, just make sure the names are in good taste. Import the class here:
 ```python
-from openvino.pyopenvino.mymodule import MyTensor as MyTensorBase
+from openvino._pyopenvino.mymodule import MyTensor as MyTensorBase
 ```
 
 Notice how an alias is created for the `MyTensor` class. Do not worry, it will make sense as we progress. Let's follow it up with a more advanced class implementation:

@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-from typing import List
+from typing import List, Optional
 
 from openvino.runtime import AxisSet, Node
 from openvino.runtime.utils.types import (
@@ -17,7 +17,9 @@ log = logging.getLogger(__name__)
 
 
 def get_broadcast_axes(
-    output_shape: TensorShape, input_shape: TensorShape, axis: int = None,
+    output_shape: TensorShape,
+    input_shape: TensorShape,
+    axis: Optional[int] = None,
 ) -> AxisSet:
     """Generate a list of broadcast axes for openvino broadcast.
 

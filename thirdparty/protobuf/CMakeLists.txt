@@ -103,6 +103,8 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
             NO_DEFAULT_PATH)
     else()
         set(HOST_CMAKE_COMMAND "${CMAKE_COMMAND}")
+        # if env has CMAKE_TOOLCHAIN_FILE, we need to skip it
+        list(APPEND cmake_env --unset=CMAKE_TOOLCHAIN_FILE)
     endif()
 
     # compile flags

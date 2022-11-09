@@ -119,7 +119,7 @@ void StatisticsReport::dump_sort_performance_counters_request(CsvDumper& dumper,
     dumper.endLine();
 
     for (const auto& layer : perfCounts) {
-        if (status_names[(int)layer.status] == "EXECUTED") {
+        if (std::string(status_names[(int)layer.status]).compare("EXECUTED") == 0) {
             total += layer.real_time;
             total_cpu += layer.cpu_time;
         }
@@ -129,7 +129,7 @@ void StatisticsReport::dump_sort_performance_counters_request(CsvDumper& dumper,
     std::vector<ov::ProfilingInfo> profiling{std::begin(perfCounts), std::end(perfCounts)};
     std::sort(profiling.begin(), profiling.end(), sort_profiling_descend);
     for (const auto& layer : profiling) {
-        if (status_names[(int)layer.status] == "EXECUTED") {
+        if (std::string(status_names[(int)layer.status]).compare("EXECUTED") == 0) {
             dumper << layer.node_name;  // layer name
             dumper << ((int)layer.status < (sizeof(status_names) / sizeof(status_names[0]))
                            ? status_names[(int)layer.status]

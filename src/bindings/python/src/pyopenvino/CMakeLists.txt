@@ -29,6 +29,7 @@ endif()
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # disable warning: This operator was deprecated and will be removed with v0 operation.
     add_compile_options(/wd4996)
+    add_compile_options(/wd4244)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     add_compile_options(-Wno-deprecated-register -Wno-range-loop-analysis)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
@@ -75,7 +76,7 @@ endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime::dev openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
-set_target_properties(${PROJECT_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+set_target_properties(${PROJECT_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO} OUTPUT_NAME "_pyopenvino")
 
 addVersionDefines(pyopenvino.cpp CI_BUILD_NUMBER)
 

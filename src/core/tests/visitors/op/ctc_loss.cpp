@@ -26,7 +26,7 @@ TEST(attributes, ctc_loss) {
     auto blank_index = make_shared<op::Parameter>(element::i32, Shape{});
 
     auto ctc_loss = make_shared<opset4::CTCLoss>(logits, logit_length, labels, label_length, blank_index);
-    NodeBuilder builder(ctc_loss);
+    NodeBuilder builder(ctc_loss, {logits, logit_length, labels, label_length, blank_index});
     auto g_ctc_loss = as_type_ptr<opset4::CTCLoss>(builder.create());
 
     // attribute count

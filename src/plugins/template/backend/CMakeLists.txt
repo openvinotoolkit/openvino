@@ -17,6 +17,12 @@ set (SRC
     int_backend.cpp int_executable.cpp evaluates_map.cpp
     )
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    ie_add_compiler_flags(/wd4244)
+    ie_add_compiler_flags(/wd4018)
+endif()
+
+
 add_library(interpreter_backend STATIC EXCLUDE_FROM_ALL ${SRC})
 add_library(openvino::interpreter_backend ALIAS interpreter_backend)
 
