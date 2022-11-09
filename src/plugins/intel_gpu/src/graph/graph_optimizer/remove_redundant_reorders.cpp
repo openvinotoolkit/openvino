@@ -36,8 +36,11 @@ void remove_redundant_reorders::run(program& p) {
             return;
 
         node.set_unique_id();
-        auto new_impl = node.type()->choose_impl(node);
-        node.set_selected_impl(std::move(new_impl));
+        node.set_selected_impl(node.type()->choose_impl(node));
+        if (auto impl = node.get_selected_impl()) {
+            auto kernel_ids = p.get_kernels_cache().add_kernels_source(impl->get_kernels_source());
+            impl->set_kernel_ids(kernel_ids);
+        }
     };
 
     // Fuse reorders into primitives
