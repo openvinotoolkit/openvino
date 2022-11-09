@@ -160,8 +160,8 @@ namespace {
 const std::vector<Precision> outPrc = {
         Precision::FP32,
         Precision::BF16,
-        Precision::I8,
-        Precision::U8
+        Precision::I8
+        // Precision::U8  // Precision cannot be wrapped to constant one hot
 };
 
 std::vector<std::pair<ngraph::helpers::InputLayerType, bool>> secondaryInputTypesStaticCase = {
