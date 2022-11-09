@@ -36,13 +36,13 @@ The OpenVINO Runtime provides unique capabilities to infer deep learning models 
 | :ref:`Heterogeneous plugin <openvino_docs_OV_UG_Hetero_execution>`                                                                      | Heterogeneous execution enables automatic inference splitting between several devices (for example if a device doesn't :ref:`support certain operation <supported-layers>`.     |
 +-----------------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-Devices similar to the ones we have used for benchmarking can be accessed using `Intel® DevCloud for the Edge <https://devcloud.intel.com/edge/>`__ , a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit. `Learn more <https://devcloud.intel.com/edge/get_started/devcloud/>`__ or `Register here <https://inteliot.force.com/DevcloudForEdge/s/>`__.
+You can access devices similar to the ones used for benchmarking by using `Intel® DevCloud for the Edge <https://devcloud.intel.com/edge/>`__ , a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit. `Learn more <https://devcloud.intel.com/edge/get_started/devcloud/>`__ or `Register here <https://inteliot.force.com/DevcloudForEdge/s/>`__.
 
 Supported Configurations
 ------------------------
 
-The OpenVINO Runtime can inference models in different formats with various input and output formats.
-This page shows supported and optimal configurations for each plugin.
+The OpenVINO Runtime can infer models in different formats with various input and output formats.
+Below are supported and optimal configurations for each plugin.
 
 Terminology
 ++++++++++++
@@ -96,8 +96,8 @@ Supported Model Formats
 |Arm® CPU plugin    |Supported and preferred |Supported               |Supported (partially)   |
 +-------------------+------------------------+------------------------+------------------------+
 
-For :ref:`Multi-Device <openvino_docs_OV_UG_Running_on_multiple_devices>` and :ref:`Heterogeneous <openvino_docs_OV_UG_Hetero_execution>` executions
-the supported models formats depends on the actual underlying devices. **Generally, FP16 is preferable as it is most ubiquitous and performant**.
+For :ref:`Multi-Device <openvino_docs_OV_UG_Running_on_multiple_devices>` and :ref:`Heterogeneous <openvino_docs_OV_UG_Hetero_execution>` executions, 
+the supported models formats depend on the actual underlying devices. **Generally, FP16 is preferable since it is most ubiquitous and performant**.
 
 Supported Input Precision
 ++++++++++++++++++++++++++
@@ -118,8 +118,8 @@ Supported Input Precision
 
 \* - Supported via `SetBlob` only, `GetBlob` returns FP32
 
-For :ref:`Multi-Device <openvino_docs_OV_UG_Running_on_multiple_devices>` and :ref:`Heterogeneous <openvino_docs_OV_UG_Hetero_execution>` executions
-the supported input precision depends on the actual underlying devices. **Generally, U8 is preferable as it is most ubiquitous**.
+For :ref:`Multi-Device <openvino_docs_OV_UG_Running_on_multiple_devices>` and :ref:`Heterogeneous <openvino_docs_OV_UG_Hetero_execution>` executions, 
+the supported input precision depends on the actual underlying devices. **Generally, U8 is preferable since it is most ubiquitous**.
 
 Supported Output Precision
 +++++++++++++++++++++++++++
@@ -138,8 +138,8 @@ Supported Output Precision
 |Arm® CPU plugin    |Supported |Supported     |
 +-------------------+----------+--------------+
 
-For :ref:`Multi-Device <openvino_docs_OV_UG_Running_on_multiple_devices>` and :ref:`Heterogeneous <openvino_docs_OV_UG_Hetero_execution>` executions
-the supported output precision depends on the actual underlying devices. **Generally, FP32 is preferable as it is most ubiquitous**.
+For :ref:`Multi-Device <openvino_docs_OV_UG_Running_on_multiple_devices>` and :ref:`Heterogeneous <openvino_docs_OV_UG_Hetero_execution>` executions, 
+the supported output precision depends on the actual underlying devices. **Generally, FP32 is preferable since it is most ubiquitous**.
 
 Supported Input Layout
 +++++++++++++++++++++++
@@ -167,7 +167,7 @@ Supported Output Layout
 |Layout              |NCDHW|NCHW |CHW  |NC   |C    |
 +--------------------+-----+-----+-----+-----+-----+
 
-For setting relevant configuration, refer to the **Step 3 "Configure input and output"** in :ref:`Integrate with Customer Application <openvino_docs_OV_UG_Integrate_OV_with_your_application` guide.
+For setting relevant configuration, refer to **Step 3: Configure input and output** in :ref:`Integrate with Customer Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>` guide.
 
 Supported Layers
 +++++++++++++++++
@@ -486,3 +486,4 @@ The following layers are supported by the plugins:
    <br />
 
 @endsphinxdirective
+
