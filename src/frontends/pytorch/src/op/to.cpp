@@ -35,11 +35,14 @@ OutputVector translate_to(NodeContext& context) {
     } else {
         FRONT_END_OP_CONVERSION_CHECK(false, "Unknown aten::to format");
     }
-    FRONT_END_OP_CONVERSION_CHECK(
-        context.input_is_none(non_blocking_idx) || context.const_input<bool>(non_blocking_idx) == false,
-        "aten::to translation do not support non_blocking attribute");
-    FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(copy_idx) || context.const_input<bool>(copy_idx) == false,
-                                  "aten::to translation do not support copy attribute");
+    // We ignore both non_blocking and copy inputs since non_blocking argument is used
+    // in Pytorch during training to overlap data transfer from CPU to GPU which does
+    // not have a use case in OV. To copy or not to copy inputs should not be set
+    // on the frontend level since it can produce unexpected beviour in the later
+    // stages. (e.g. transformations passes)
+
+    // memory_format sets the desired memory format of returned Tensor.
+    // memory format should not be set on the frontend level
     FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(memory_format_idx),
                                   "aten::to translation do not support memory_format attribute");
     auto dtype_ext_node = context.get_input_from_visible_context(dtype_idx).get_node_shared_ptr();

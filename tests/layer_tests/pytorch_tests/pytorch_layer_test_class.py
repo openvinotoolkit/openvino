@@ -79,6 +79,10 @@ class PytorchLayerTest:
         # Framework infer:
         torch_inps = [torch.from_numpy(inp) for inp in inputs]
         fw_res = model(*torch_inps)
+
+        # check if results dtypes match
+        assert torch.tensor(np.array(list(infer_res.values()))).dtype == fw_res.dtype
+
         if not isinstance(fw_res, tuple):
             fw_res = (fw_res,)
 
