@@ -167,8 +167,7 @@ Supported Output Layout
 |Layout              |NCDHW|NCHW |CHW  |NC   |C    |
 +--------------------+-----+-----+-----+-----+-----+
 
-For setting relevant configuration, refer to the **Step 3 "Configure input and output"** in
- :ref:`Integrate with Customer Application <openvino_docs_OV_UG_Integrate_OV_with_your_application` guide.
+For setting relevant configuration, refer to the **Step 3 "Configure input and output"** in :ref:`Integrate with Customer Application <openvino_docs_OV_UG_Integrate_OV_with_your_application` guide.
 
 Supported Layers
 +++++++++++++++++
