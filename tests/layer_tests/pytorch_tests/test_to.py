@@ -38,9 +38,8 @@ class TestAtenTo(PytorchLayerTest):
     @pytest.mark.parametrize("output_type", [torch.uint8, torch.int8, torch.int16, torch.int32, torch.float32, torch.int64])
     @pytest.mark.nightly
     def test_aten_to(self, input_type, output_type, ie_device, precision, ir_version):
-        if ie_device == "CPU":
-            self.input_type = input_type
-            self._test(*self.create_model(output_type), ie_device, precision, ir_version)
+	    self.input_type = input_type
+	    self._test(*self.create_model(output_type), ie_device, precision, ir_version)
 
     # Cartesian product of input/output types
     @pytest.mark.parametrize("input_type", [np.int32, np.float32, np.float64])
@@ -54,11 +53,9 @@ class TestAtenTo(PytorchLayerTest):
             [torch.float64, True],
     ])
     @pytest.mark.nightly
-    def test_aten_to_raise_non_blocking_arg(self, input_type, output_type, non_blocking, ie_device, precision, ir_version):
-        if ie_device == "CPU":
-            self.input_type = input_type
-            with pytest.raises(OpConversionFailure) as e:
-                self._test(*self.create_model(output_type, non_blocking=non_blocking), ie_device, precision, ir_version) 
+    def test_aten_to_non_blocking_arg(self, input_type, output_type, non_blocking, ie_device, precision, ir_version):
+	    self.input_type = input_type
+	    self._test(*self.create_model(output_type, non_blocking=non_blocking), ie_device, precision, ir_version) 
 
 
     # Cartesian product of input/output types
@@ -73,11 +70,9 @@ class TestAtenTo(PytorchLayerTest):
             [torch.float64, True],
     ])
     @pytest.mark.nightly
-    def test_aten_to_raise_copy_arg(self, input_type, output_type, copy, ie_device, precision, ir_version):
-        if ie_device == "CPU":
+    def test_aten_to_copy_arg(self, input_type, output_type, copy, ie_device, precision, ir_version):
             self.input_type = input_type
-            with pytest.raises(OpConversionFailure) as e:
-                self._test(*self.create_model(output_type, copy=copy), ie_device, precision, ir_version) 
+            self._test(*self.create_model(output_type, copy=copy), ie_device, precision, ir_version)
 
     # Cartesian product of input/output types
     @pytest.mark.parametrize("input_type", [np.int32, np.float32, np.float64])
@@ -92,7 +87,6 @@ class TestAtenTo(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     def test_aten_to_raise_memory_format_arg(self, input_type, output_type, memory_format, ie_device, precision, ir_version):
-        if ie_device == "CPU":
             self.input_type = input_type
             with pytest.raises(OpConversionFailure) as e:
-                self._test(*self.create_model(output_type, memory_format=memory_format), ie_device, precision, ir_version) 
+                self._test(*self.create_model(output_type, memory_format=memory_format), ie_device, precision, ir_version)
