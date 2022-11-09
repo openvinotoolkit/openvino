@@ -15,6 +15,7 @@
 #include "ie_core.hpp"
 #include "ngraph/function.hpp"
 #include "ie_metric_helpers.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/op/logical_not.hpp"
 
 #include "openvino/util/file_util.hpp"
@@ -120,10 +121,11 @@ public:
 
 class MockExecutableNetwork : public IExecutableNetworkInternal {
     std::mutex m_pluginMutex;
-    std::shared_ptr<const ov::Model> m_model = nullptr;
+    std::shared_ptr<ov::Model> m_model = nullptr;
 
 public:
     MockExecutableNetwork() {}
+
     MOCK_METHOD1(Export, void(std::ostream& networkModel));
     MOCK_METHOD0(CreateInferRequest, IInferRequestInternal::Ptr());
     MOCK_CONST_METHOD0(GetInputsInfo, ConstInputsDataMap());
@@ -140,8 +142,8 @@ public:
     //     IExecutableNetworkInternal::Export(networkModel);
     // }
 
-    void set_model(const std::shared_ptr<const ov::Model>& model) { m_model = model; }
-    const std::shared_ptr<const ov::Model>& get_model() const { return m_model; }
+    void set_model(const std::shared_ptr<const ov::Model>& model) { m_model = model->clone(); }
+    const std::shared_ptr<ov::Model>& get_model() const { return m_model; }
 
     void SetPointerToPlugin(const IInferencePlugin::Ptr& plugin) override {
         std::lock_guard<std::mutex> guard(m_pluginMutex);
