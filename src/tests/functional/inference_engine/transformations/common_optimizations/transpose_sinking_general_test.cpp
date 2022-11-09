@@ -122,7 +122,7 @@ TEST(TransposeSinkingGeneralTests, UnariesTransposesBackward) {
 TEST(TransposeSinkingGeneralTests, UnariesTransposesGeneral) {
     ov::Shape input_shape = {1, 96, 55, 55};
     ov::element::Type input_type = ov::element::f32;
-    size_t num_unary_ops = 10;
+    size_t num_unary_ops = 2;
 
     ModelPtr model, original_model, reference_model;
     {
@@ -164,9 +164,61 @@ TEST(TransposeSinkingGeneralTests, UnariesTransposesGeneral) {
     //
     ngraph::pass::Manager pass_manager;
     pass_manager.register_pass<ngraph::pass::InitNodeInfo>();
-    //pass_manager.register_pass<ngraph::pass::VisualizeTree>("./0before.png"); // DEBUG
     pass_manager.register_pass<ov::pass::TransposeSinkingGeneral>();
-    //pass_manager.register_pass<ngraph::pass::VisualizeTree>("./1after.png"); // DEBUG
+    pass_manager.run_passes(model);
+    ASSERT_NO_THROW(check_rt_info(model));
+    //
+    FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    func_comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    const FunctionsComparator::Result result = func_comparator(model, reference_model);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransposeSinkingGeneralTests, BinaryTransposesGeneral) {
+    ov::Shape input_shape = {1, 96, 55, 55};
+    ov::element::Type input_type = ov::element::f32;
+    size_t num_binary_ops = 1;
+
+    ModelPtr model, original_model, reference_model;
+    {
+        auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+
+        auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+        auto transpose0 = std::make_shared<ov::opset9::Transpose>(X, ng_order0);
+
+        NodePtr in_op = transpose0;
+        for (size_t i = 0; i < num_binary_ops; ++i) {
+            auto in_constant = std::make_shared<ov::opset9::Constant>(input_type, input_shape, ov::Shape{1});
+            auto ng_order1 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+            auto transpose1 = std::make_shared<ov::opset9::Transpose>(in_constant, ng_order1);
+
+            in_op = std::make_shared<ov::opset9::Add>(in_op, transpose1);
+        }
+
+        original_model = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
+    }
+
+    {
+        auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+
+        NodePtr in_op = X;
+        for (size_t i = 0; i < num_binary_ops; ++i) {
+            auto in_constant = std::make_shared<ov::opset9::Constant>(input_type, input_shape, ov::Shape{1});
+            in_op = std::make_shared<ov::opset9::Add>(in_op, in_constant);
+        }
+
+        auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+        auto transpose0 = std::make_shared<ov::opset9::Transpose>(in_op, ng_order0);
+
+        reference_model = std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
+    }
+
+    model = original_model->clone();
+
+    //
+    ngraph::pass::Manager pass_manager;
+    pass_manager.register_pass<ngraph::pass::InitNodeInfo>();
+    pass_manager.register_pass<ov::pass::TransposeSinkingGeneral>();
     pass_manager.run_passes(model);
     ASSERT_NO_THROW(check_rt_info(model));
     //

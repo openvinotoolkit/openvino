@@ -194,6 +194,7 @@ bool CanPropagateForward(NodePtr node) {
                 return false;
         }
     }
+
     return true;
 }
 
@@ -207,7 +208,7 @@ void SetNoSinking(NodePtr node) {
 } // namespace
 
 void UpdateForwardSinkingAbility(NodePtr node) {
-    if (CanPropagateForward(node))
+    if (!CanPropagateForward(node))
         SetNoSinking(node);
 }
 
