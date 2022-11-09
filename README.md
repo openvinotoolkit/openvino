@@ -44,7 +44,7 @@ source and public models in popular formats such as TensorFlow, ONNX, PaddlePadd
     * [inference](https://github.com/openvinotoolkit/openvino/tree/master/src/inference) - provides an API to infer models on the device.
     * [transformations](https://github.com/openvinotoolkit/openvino/tree/master/src/common/transformations) - contains the set of common transformations which are used in OpenVINO plugins.
     * [low precision transformations](https://github.com/openvinotoolkit/openvino/tree/master/src/common/low_precision_transformations) - contains the set of transformations that are used in low precision models
-    * [bindings](https://github.com/openvinotoolkit/openvino/tree/master/src/bindings) - contains all available OpenVINO bindings which are maintained by the OpenVINO team.
+    * [bindings](./src/bindings) - contains all available OpenVINO bindings which are maintained by the OpenVINO team.
         * [c](./src/bindings/c) - C API for OpenVINO™ Runtime
         * [python](./src/bindings/python) - Python API for OpenVINO™ Runtime
 * [Plugins](./src/plugins) - contains OpenVINO plugins which are maintained in open-source by the OpenVINO team. For more information, take a look at the [list of supported devices](#supported-hardware-matrix).
