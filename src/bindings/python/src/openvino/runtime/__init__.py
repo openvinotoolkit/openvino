@@ -87,5 +87,5 @@ Node.__ge__ = opset10.greater_equal
 # Import MO Python API
 try:
     from openvino.tools.mo import convert_model
-except ImportException:
+except ImportError:
     pass
