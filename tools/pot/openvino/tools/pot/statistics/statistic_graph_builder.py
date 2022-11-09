@@ -102,11 +102,11 @@ class StatisticGraphBuilder:
         return model, nodes_names_map, node_to_result_names
 
     def insert_reduce(self, model_graph, insert_op, node, granularity, type_stat, node_name, axis=1):
-        axis_const = self.find_axis(node, granularity, axis)
+        out_port = self.get_out_port(node_name)
+        axis_const = self.find_axis(node, granularity, axis, port=out_port)
         if isinstance(axis_const, str):
             return (True, node.name)
 
-        out_port = self.get_out_port(node_name)
         if out_port is not None:
             node_name = f'{node_name[0]}.{out_port}'
         reduce_op = create_op_node_with_second_input(node.graph, insert_op, int64_array(axis_const),
@@ -135,11 +135,11 @@ class StatisticGraphBuilder:
                                   axis_channel)
 
     def insert_abs_max(self, model_graph, node, type_stat, node_name, **kwargs):
-        axis_const = self.find_axis(node, kwargs.get('granularity'))
+        out_port = self.get_out_port(node_name)
+        axis_const = self.find_axis(node, kwargs.get('granularity'), port=out_port)
         if isinstance(axis_const, str):
             return (True, node.name)
 
-        out_port = self.get_out_port(node_name)
         if out_port is not None:
             node_name = f'{node_name[0]}.{out_port}'
         clean_name = node_name.split("|")[-1]
@@ -168,8 +168,8 @@ class StatisticGraphBuilder:
         return (False, ie_result_name)
 
     @staticmethod
-    def find_axis(node, granularity, axis=1):
-        shape = len(get_output_shape(node, 0))
+    def find_axis(node, granularity, axis=1, port=None):
+        shape = len(get_output_shape(node, port if port else 0))
         if shape < 3 and granularity == 'perchannel':
             return node.name
         axis_const = list(i for i in range(shape))
