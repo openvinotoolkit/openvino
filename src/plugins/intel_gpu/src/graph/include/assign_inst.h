@@ -23,15 +23,6 @@ private:
 
 } // namespace memory_state
 
-template<>
-struct typed_program_node<assign> : public typed_program_node_base<assign> {
-    using parent = typed_program_node_base<assign>;
-public:
-    using parent::parent;
-
-    const program_node& input(std::size_t index = 0) const { return get_dependency(index); }
-};
-
 using assign_node = typed_program_node<assign>;
 
 template<>

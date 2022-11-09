@@ -179,6 +179,7 @@
 #include "openvino/op/tile.hpp"
 #include "openvino/op/topk.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/unique.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/op_types.hpp"
