@@ -5,9 +5,9 @@
 #include <limits>
 #include "pwl_border_values_counter_identity.hpp"
 
-#include "gna_plugin_log.hpp"
+#include "log/debug.hpp"
 #include "pwl_input_params.hpp"
-#include "round_float_define.hpp"
+#include "common/numerical_utils.hpp"
 
 namespace ov {
 namespace intel_gna {

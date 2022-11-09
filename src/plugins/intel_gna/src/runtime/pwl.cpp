@@ -9,6 +9,7 @@
 #include <limits>
 #include <cstdint>
 #include <algorithm>
+#include "frontend/quantization.hpp"
 
 #ifdef _NO_MKL_
 #include <cmath>
@@ -25,10 +26,13 @@
 #endif
 
 #include "pwl.h"
-#include "gna_plugin_log.hpp"
+#include "log/debug.hpp"
+#include "log/log.hpp"
 #include "gna_slope_scale.h"
-#include "round_float_define.hpp"
+#include "common/numerical_utils.hpp"
 #include "ops/reference/pwl.hpp"
+
+using namespace ov::intel_gna;
 
 double relu(const double x) { if (x < 0) { return(0.0); } else { return(x); } }
 double leaky_relu(const double x) { if (x < 0.0) { return(LEAKYRELU_SLOPE*x); } else { return(x); } }
@@ -129,7 +133,7 @@ void PwlDesign(const DnnActivation& activation_type,
     switch (activation_type) {
         case kActSigmoid:
            {
-                gnalog() <<  "=========================== Sigmoid Segments===========================\n";
+                log::debug() <<  "=========================== Sigmoid Segments===========================\n";
                 uint32_t num_segment_size = 0;
                 int32_t offset = 0;
                 ptr_segment[0].xBase = static_cast<int32_t>(INT32_MIN & XBASEMASK);  // zero out the 2 lsb
@@ -165,7 +169,7 @@ void PwlDesign(const DnnActivation& activation_type,
                         ptr_segment[i].xBase = ptr_segment[i].xBase | slope_scale_index;
                     }
                     ptr_segment[i].yBase = FLOAT_TO_INT16(floatval * scale_out);
-                    gnalog() << (static_cast<int32_t>((ptr_segment[i].xBase & XBASEMASK))/scale_out)
+                    log::debug() << (static_cast<int32_t>((ptr_segment[i].xBase & XBASEMASK))/scale_out)
                              << " "
                              << (static_cast<float>((ptr_segment[i].yBase))/scale_out)
                              << " "
@@ -176,7 +180,7 @@ void PwlDesign(const DnnActivation& activation_type,
             break;
         case kActTanh:
             {
-                gnalog() <<  "=========================== Tanh Segments===========================\n";
+                log::debug() <<  "=========================== Tanh Segments===========================\n";
                 uint32_t num_segment_size = 0;
                 int32_t offset = 0;
                 ptr_segment[0].xBase = static_cast<int32_t>(INT32_MIN & XBASEMASK);  // zero out the 2 lsb
@@ -212,7 +216,7 @@ void PwlDesign(const DnnActivation& activation_type,
                         ptr_segment[i].xBase = ptr_segment[i].xBase | slope_scale_index;
                     }
                     ptr_segment[i].yBase = FLOAT_TO_INT16(floatval * scale_out);
-                    gnalog() << (static_cast<int32_t>((ptr_segment[i].xBase & XBASEMASK))/scale_out)
+                    log::debug() << (static_cast<int32_t>((ptr_segment[i].xBase & XBASEMASK))/scale_out)
                              << " "
                              << (static_cast<float>((ptr_segment[i].yBase))/scale_out)
                              << " "
@@ -226,7 +230,7 @@ void PwlDesign(const DnnActivation& activation_type,
                 auto softsign = [](const double x) {
                     return(x / (1.0 + fabs(x)));
                 };
-                gnalog() << "=========================== SoftSign Segments===========================\n";
+                log::debug() << "=========================== SoftSign Segments===========================\n";
                 uint32_t num_segment_size = 0;
                 int32_t offset = 0;
                 ptr_segment[0].xBase = static_cast<int32_t>(INT32_MIN & XBASEMASK);  // zero out the 2 lsb
@@ -259,7 +263,7 @@ void PwlDesign(const DnnActivation& activation_type,
                         ptr_segment[i].xBase = ptr_segment[i].xBase | slope_scale_index;
                     }
                     ptr_segment[i].yBase = FLOAT_TO_INT16(floatval * scale_out);
-                    gnalog() << (static_cast<int32_t>((ptr_segment[i].xBase & XBASEMASK)) / scale_out)
+                    log::debug() << (static_cast<int32_t>((ptr_segment[i].xBase & XBASEMASK)) / scale_out)
                         << " "
                         << (static_cast<float>((ptr_segment[i].yBase)) / scale_out)
                         << " "
@@ -279,16 +283,16 @@ void PwlDesign(const DnnActivation& activation_type,
                 int16_t y_lower_limit = INT16_MIN;
                 int16_t y_upper_limit = INT16_MAX;
                 if (activation_type == kActKaldiLstmClipping)
-                    gnalog() << "=========================== Clipping Segments ===========================\n";
+                    log::debug() << "=========================== Clipping Segments ===========================\n";
                 else
-                    gnalog() << "=========================== Identity Segments ===========================\n";
+                    log::debug() << "=========================== Identity Segments ===========================\n";
                 if (x_lower_limit < INT32_MIN) {
-                    std::cerr << "Warning:  saturation in PwlDesign! " << x_lower_limit  << " < INT32_MIN"<< std::endl;
+                    log::warning() << "Saturation in PwlDesign! " << x_lower_limit  << " < INT32_MIN"<< std::endl;
                     x_lower_limit = INT32_MIN;
                     y_lower_limit = static_cast<int16_t>((scale_out / scale_in)*static_cast<float>(INT32_MIN) - 0.5);
                 }
                 if (x_upper_limit > INT32_MAX) {
-                    std::cerr << "Warning:  saturation in PwlDesign! " << x_upper_limit  << " > INT32_MAX"<< std::endl;
+                    log::warning() << "Saturation in PwlDesign! " << x_upper_limit  << " > INT32_MAX"<< std::endl;
                     x_upper_limit = INT32_MAX;
                     y_upper_limit = static_cast<int16_t>((scale_out / scale_in)*static_cast<float>(INT32_MAX) + 0.5);
                 }
@@ -299,7 +303,7 @@ void PwlDesign(const DnnActivation& activation_type,
                 ptr_segment[0].yBase = y_lower_limit;
                 ptr_segment[0].slope = 0;
 
-                gnalog() << ptr_segment[0].xBase / scale_in
+                log::debug() << ptr_segment[0].xBase / scale_in
                     << " " << ptr_segment[0].yBase / scale_out
                     << " " << 0
                     << "\n";
@@ -327,12 +331,8 @@ void PwlDesign(const DnnActivation& activation_type,
             break;
         case kActPow:
             {
-                gnalog() << "=========================== Pow Segments===========================\n";
+                log::debug() << "=========================== Pow Segments===========================\n";
                 uint32_t num_segment_size = 0;
-
-                auto fp32eq = [](float p1, float p2) -> bool {
-                    return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
-                };
 
                 auto args = std::tuple<double, double, double>{ activation_type.args.pow.exponent,
                                                                 activation_type.args.pow.scale,
@@ -340,7 +340,7 @@ void PwlDesign(const DnnActivation& activation_type,
 
                 auto input_min_value = static_cast<double>(std::numeric_limits<int32_t>::min());
                 auto input_max_value = static_cast<double>(std::numeric_limits<int32_t>::max());
-                double x_min = fp32eq(fmod(activation_type.args.pow.exponent, 1.0), 0.0f)? input_min_value / scale_in: 0.0;
+                double x_min = ov::intel_gna::common::fp32eq(fmod(activation_type.args.pow.exponent, 1.0), 0.0f)? input_min_value / scale_in: 0.0;
                 x_min = std::max(x_min, -POW_DOMAIN);
 
                 double x_max = input_max_value / scale_in;
@@ -375,7 +375,7 @@ void PwlDesign(const DnnActivation& activation_type,
                     ptr_segment[i].xBase = ptr_segment[i].xBase | s.slope_scale_index;
 
                     ptr_segment[i].yBase = FLOAT_TO_INT16(val * scale_out);
-                    gnalog() << (static_cast<int32_t>((ptr_segment[i].xBase & XBASEMASK)) / scale_out)
+                    log::debug() << (static_cast<int32_t>((ptr_segment[i].xBase & XBASEMASK)) / scale_out)
                         << " "
                         << (static_cast<float>((ptr_segment[i].yBase)) / scale_out)
                         << " "
@@ -473,7 +473,7 @@ void PwlApply32(intel_dnn_component_t *component,
         case kActLog:
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
-                    ptr_out[i * num_columns + j] = log(ptr_in[i * num_columns + j]);
+                    ptr_out[i * num_columns + j] = std::log(ptr_in[i * num_columns + j]);
                 }
             }
             break;
@@ -494,14 +494,14 @@ void PwlApply32(intel_dnn_component_t *component,
         case kActNegLog:
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
-                    ptr_out[i * num_columns + j] = static_cast<float>(-1.0 * log(ptr_in[i * num_columns + j]));
+                    ptr_out[i * num_columns + j] = static_cast<float>(-1.0 * std::log(ptr_in[i * num_columns + j]));
                 }
             }
             break;
         case kActNegHalfLog:
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
-                    ptr_out[i * num_columns + j] = static_cast<float>(-0.5 * log(ptr_in[i * num_columns + j]));
+                    ptr_out[i * num_columns + j] = static_cast<float>(-0.5 * std::log(ptr_in[i * num_columns + j]));
                 }
             }
             break;
@@ -530,16 +530,8 @@ void PwlApply32(intel_dnn_component_t *component,
 
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
                     auto offset = i * num_columns + j;
-                    auto x = ptr_in[offset];
 
-                    if (x <= std::min(input_low, input_high)) {
-                        ptr_out[offset] = static_cast<float>(output_low);
-                    } else if (x > std::max(input_low, input_high)) {
-                        ptr_out[offset] = static_cast<float>(output_high);
-                    } else {
-                        ptr_out[offset] = static_cast<float>(nearbyint((x - input_low) / (input_high - input_low) * (levels - 1)) /
-                            (levels - 1) * (output_high - output_low) + output_low);
-                    }
+                    ptr_out[offset] = ov::intel_gna::frontend::ApplyFQ(ptr_in[offset], input_low, input_high, output_low, output_high, levels);
                 }
             }
             break;

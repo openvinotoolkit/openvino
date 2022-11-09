@@ -4,6 +4,8 @@
 
 #include "openvino/frontend/paddle/frontend.hpp"
 
+#include <google/protobuf/stubs/logging.h>
+
 #include <fstream>
 #include <map>
 #include <string>
@@ -523,5 +525,10 @@ PADDLE_C_API void* GetFrontEndData() {
     res->m_creator = []() {
         return std::make_shared<ov::frontend::paddle::FrontEnd>();
     };
+
+#ifndef OPENVINO_DEBUG_ENABLE
+    // disable protobuf logging
+    google::protobuf::SetLogHandler(nullptr);
+#endif
     return res;
 }
