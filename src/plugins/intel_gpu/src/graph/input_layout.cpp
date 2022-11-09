@@ -41,7 +41,9 @@ input_layout_inst::typed_primitive_inst(network& network, input_layout_node cons
 }
 
 void input_layout_inst::set_data(memory::ptr mem) {
-    check_memory_to_set(*mem, _impl_params->output_layout);
+    auto ol = get_node_output_layout();
+
+    check_memory_to_set(*mem, ol);
 
     if (mem->is_allocated_by(get_network().get_engine())) {
         OPENVINO_ASSERT(!_outputs.empty(), "[GPU] Can't set data for empty input memory");
