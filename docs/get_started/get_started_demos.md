@@ -249,12 +249,12 @@ Create an `<ir_dir>` directory to contain the model's Intermediate Representatio
 
 @endsphinxdirective
 
-The OpenVINO Runtime can infer models where floating-point weights are [compressed to FP16](../MO_DG/prepare_model/FP16_Compression.md). To generate an IR with FP16 precision, run the Model Optimizer with the `--compress_to_fp16` option.
+The OpenVINO Runtime can infer models where floating-point weights are [compressed to FP16](../MO_DG/prepare_model/FP16_Compression.md). To generate an IR with FP16 weights, run the Model Optimizer with the `--compress_to_fp16` option.
 
 Generic Model Optimizer script:
 
 ``` sh
-   mo --input_model <model_dir>/<model_file> --compress_to_fp16 --output_dir <ir_dir>
+   mo --input_model <model_dir>/<model_file>
 ```
 
 IR files produced by the script are written to the <ir_dir> directory.
