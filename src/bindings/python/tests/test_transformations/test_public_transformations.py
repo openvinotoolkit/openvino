@@ -15,8 +15,8 @@ from openvino.runtime.passes import (
     LowLatency2,
     Serialize,
 )
-from .utils.utils import count_ops, get_test_model
-from ..test_utils.test_utils import create_filename_for_test
+from tests.test_transformations.utils.utils import count_ops, get_test_model
+from tests.test_utils.test_utils import create_filename_for_test
 
 
 def get_model():

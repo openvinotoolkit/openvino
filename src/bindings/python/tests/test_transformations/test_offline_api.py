@@ -19,7 +19,7 @@ from openvino.offline_transformations import (
 from openvino.runtime import Model, PartialShape, Core
 import openvino.runtime as ov
 
-from ..test_utils.test_utils import create_filename_for_test
+from tests.test_utils.test_utils import create_filename_for_test
 
 
 def get_test_model():

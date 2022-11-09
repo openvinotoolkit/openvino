@@ -15,7 +15,7 @@ from openvino.runtime.passes import Manager
 from tests.test_graph.util import count_ops_of_type
 from openvino.runtime import Core
 
-from ..test_utils.test_utils import create_filename_for_test
+from tests.test_utils.test_utils import create_filename_for_test
 
 def test_constant_folding():
     node_constant = ov.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
