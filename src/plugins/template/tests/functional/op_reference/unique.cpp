@@ -14,7 +14,7 @@ using namespace ov;
 
 namespace {
 
-std::shared_ptr<op::v0::Constant> make_axis(const int64_t axis, const element::Type& et) {
+std::shared_ptr<op::v0::Constant> make_axis(const int64_t axis, const element::Type& et = element::i32) {
     return op::v0::Constant::create(et, Shape{}, {axis});
 }
 
@@ -33,6 +33,7 @@ struct UniqueParams {
           m_data_type{element::from<Data_t>()},
           m_index_type{element::from<Index_t>()},
           m_input_data{CreateTensor(m_data_type, input_data)},
+          m_axis{axis_descritptor},
           m_sorted{sorted},
           m_tested_case{tested_case} {
         m_expected_outputs[0] = CreateTensor(m_data_type, expected_unique_values);
@@ -46,7 +47,7 @@ struct UniqueParams {
     element::Type m_index_type;
     ov::Tensor m_input_data;
     ov::TensorVector m_expected_outputs = ov::TensorVector(4);
-    std::shared_ptr<op::v0::Constant> m_axis;
+    std::shared_ptr<op::v0::Constant> m_axis = nullptr;
     bool m_sorted;
     std::string m_tested_case;
 };
@@ -68,6 +69,9 @@ public:
         result << "data_type=" << param.m_data_type << "; ";
         result << "index_type=" << param.m_index_type << "; ";
         result << "sorted=" << param.m_sorted << "; ";
+        if (param.m_axis) {
+            result << "axis=" << param.m_axis->cast_vector<int64_t>()[0] << "; ";
+        }
         if (!param.m_tested_case.empty()) {
             result << "tested_case=" << param.m_tested_case << "; ";
         }
@@ -181,7 +185,7 @@ std::vector<UniqueParams> params_unique_int() {
                                                          std::vector<Index_t>{0, 4, 1, 5, 2},
                                                          std::vector<Index_t>{0, 2, 4, 2, 1, 3, 1},
                                                          std::vector<int64_t>{1, 2, 2, 1, 1},
-                                                         make_axis(0, element::i32),
+                                                         make_axis(0),
                                                          true,
                                                          "1D with duplicates and axis"}};
 
@@ -193,7 +197,25 @@ std::vector<UniqueParams> params_unique_int() {
                                                       std::vector<int64_t>{3, 2, 3, 2, 1, 1},
                                                       nullptr,
                                                       false,
-                                                      "2D no axis"}};
+                                                      "2D no axis"},
+                                         UniqueParams{Shape{2, 4},
+                                                      std::vector<Data_t>{1, 2, 3, 4, 1, 2, 3, 5},
+                                                      std::vector<Data_t>{1, 2, 3, 4, 1, 2, 3, 5},
+                                                      std::vector<Index_t>{0, 1},
+                                                      std::vector<Index_t>{0, 1},
+                                                      std::vector<int64_t>{1, 1},
+                                                      make_axis(0),
+                                                      false,
+                                                      "2D no duplicates"},
+                                         UniqueParams{Shape{2, 4},
+                                                      std::vector<Data_t>{1, 2, 3, 4, 1, 2, 3, 5},
+                                                      std::vector<Data_t>{1, 2, 3, 4, 1, 2, 3, 5},
+                                                      std::vector<Index_t>{0, 1, 2, 3},
+                                                      std::vector<Index_t>{0, 1, 2, 3},
+                                                      std::vector<int64_t>{1, 1, 1, 1},
+                                                      make_axis(1),
+                                                      false,
+                                                      "2D no duplicates"}};
 
     return flatten({std::move(scalar_and_1D), std::move(N_C_layout)});
 }

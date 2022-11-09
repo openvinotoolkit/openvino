@@ -32,23 +32,42 @@ struct Element {
 template <typename Index_t, typename Count_t>
 struct TensorSlice {
     TensorSlice() = delete;
-    TensorSlice(const Index_t idx_, const Shape& first_elem_coord_)
-        : unique_info{idx_},
-          first_elem_coord{first_elem_coord_} {}
-    Element<Index_t, Count_t> unique_info;
+    TensorSlice(const Index_t idx_) : idx{idx_}, single_value{true} {}
+    TensorSlice(const Index_t idx_, const Index_t rev_idx_, const Count_t count_)
+        : idx{idx_},
+          rev_idx{rev_idx_},
+          count{count_},
+          single_value{true} {}
+    TensorSlice(const Index_t idx_, const Shape& first_elem_coord_, const size_t slice_elems_)
+        : idx{idx_},
+          first_elem_coord{first_elem_coord_},
+          slice_elems{slice_elems_},
+          single_value{false} {}
+    /// The index of the current element in the original input tensor. It never changes even if the elements get sorted.
+    /// This value is used as a mapping between a unique element in the first output tensor and the position of this
+    /// element in the original input tensor.
+    Index_t idx = 0;
+    /// The rev_idx is a mapping between every element in the original input and the location of a unique element
+    /// in the first output tensor. More than one Element can have the same rev_idx.
+    Index_t rev_idx = -1;
+    /// The number of occurrences of a given element in the input tensor. This value is different than one only for
+    /// duplicates found in the input tensor.
+    Count_t count = 1;
     Shape first_elem_coord;
+    size_t slice_elems;
+    bool single_value;
 };
 
 template <typename Index_t, typename Count_t>
 struct UniqueElements {
-    std::vector<Element<Index_t, Count_t>> all_tensor_elements;
-    std::vector<Element<Index_t, Count_t>> unique_tensor_elements;
+    std::vector<TensorSlice<Index_t, Count_t>> all_tensor_elements;
+    std::vector<TensorSlice<Index_t, Count_t>> unique_tensor_elements;
 };
 
 namespace {
 template <typename Index_t, typename Count_t>
-std::vector<Element<Index_t, Count_t>> generate_element_descriptors(const size_t count) {
-    std::vector<Element<Index_t, Count_t>> descriptors;
+std::vector<TensorSlice<Index_t, Count_t>> generate_element_descriptors(const size_t count) {
+    std::vector<TensorSlice<Index_t, Count_t>> descriptors;
     descriptors.reserve(count);
 
     for (Index_t i = 0; i < count; ++i) {
@@ -62,11 +81,15 @@ std::vector<TensorSlice<Index_t, Count_t>> generate_slice_descriptors(const Shap
     std::vector<TensorSlice<Index_t, Count_t>> descriptors;
     descriptors.reserve(axis);
 
+    auto shape_copy = data_shape;
+    shape_copy.erase(shape_copy.begin() + axis);
+    const auto tensor_slice_elems = shape_size(shape_copy);
+
     for (int64_t i = 0; i < axis; ++i) {
         // the coordinate of the first element in a given tensor slice
         auto first_elem_of_this_slice = Shape(data_shape.size(), 0);
         first_elem_of_this_slice[axis] = i;
-        descriptors.emplace_back(i, first_elem_of_this_slice);
+        descriptors.emplace_back(i, first_elem_of_this_slice, tensor_slice_elems);
     }
 
     return descriptors;
@@ -81,23 +104,24 @@ bool scalar_or_single_element(const Shape& s) {
 
 template <typename Data_t, typename Index_t, typename Count_t = int64_t>
 UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
-                                                       const Shape& data_shape,
-                                                       std::unique_ptr<int64_t> axis,
-                                                       const bool sorted) {
+                                                      const Shape& data_shape,
+                                                      std::unique_ptr<int64_t> axis,
+                                                      const bool sorted) {
     using std::begin;
     using std::end;
 
-    const auto ascending_order = [&data](const Element<Index_t, Count_t>& lhs, const Element<Index_t, Count_t>& rhs) {
+    const auto ascending_order = [&data](const TensorSlice<Index_t, Count_t>& lhs,
+                                         const TensorSlice<Index_t, Count_t>& rhs) {
         return *(data + lhs.idx) < *(data + rhs.idx);
     };
 
-    const auto elements_are_equal = [&data](const Element<Index_t, Count_t>& lhs,
-                                            const Element<Index_t, Count_t>& rhs) {
+    const auto elements_are_equal = [&data](const TensorSlice<Index_t, Count_t>& lhs,
+                                            const TensorSlice<Index_t, Count_t>& rhs) {
         return *(data + lhs.idx) == *(data + rhs.idx);
     };
 
-    const auto already_unique = [&elements_are_equal](const Element<Index_t, Count_t>& existing_unique_elem) {
-        return [&elements_are_equal, &existing_unique_elem](const Element<Index_t, Count_t>& x) {
+    const auto already_unique = [&elements_are_equal](const TensorSlice<Index_t, Count_t>& existing_unique_elem) {
+        return [&elements_are_equal, &existing_unique_elem](const TensorSlice<Index_t, Count_t>& x) {
             return elements_are_equal(existing_unique_elem, x);
         };
     };
@@ -143,7 +167,9 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
 
         return ret;
     } else {
-        throw std::runtime_error("Not implemented yet");
+        UniqueElements<Index_t, Count_t> ret;
+        ret.all_tensor_elements = generate_slice_descriptors<Index_t, Count_t>(data_shape, *axis);
+        ret.unique_tensor_elements = ret.all_tensor_elements;
     }
 
     return {};
@@ -166,9 +192,13 @@ void unique(Data_t* out_unique_elements,
             const UniqueElements<Index_t, Count_t>& unique_elements) {
     for (size_t i = 0; i < unique_elements.unique_tensor_elements.size(); ++i) {
         const auto& descriptor = unique_elements.unique_tensor_elements[i];
-        out_unique_elements[i] = *(data + descriptor.idx);
-        out_indices[i] = descriptor.idx;
-        out_counts[i] = descriptor.count;
+        if (descriptor.single_value) {
+            out_unique_elements[i] = *(data + descriptor.idx);
+            out_indices[i] = descriptor.idx;
+            out_counts[i] = descriptor.count;
+        } else {
+            std::cout << "Not implemented yet\n";
+        }
     }
 
     // filling out this output tensor requires a separate pass over all elements of the input tensor
