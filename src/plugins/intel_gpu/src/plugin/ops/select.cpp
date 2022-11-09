@@ -33,54 +33,54 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
         // Preprocess inputs
         for (size_t i = 0; i < inputPrimitives.size(); ++i) {
             auto input_pshape = op->get_input_partial_shape(i);
-            OPENVINO_ASSERT(input_pshape.is_static(), "Dynamic shapes are not supported for v1::Select with NUMPY mode yet");
-            auto input_shape = input_pshape.to_shape();
-            auto input_rank = input_shape.size();
 
-            // Add reorder if changing number of dimensions requires changing format
-            auto targetFormat = cldnn::format::get_default_format(output_rank);
+            if (input_pshape.is_static() && !p.use_new_shape_infer()) {
+                auto input_shape = input_pshape.to_shape();
+                auto input_rank = input_shape.size();
 
-            if (targetFormat.value != cldnn::format::get_default_format(input_rank).value) {
-                auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
-                auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(i));
-                auto reorderPrim = cldnn::reorder(reorderName,
-                                                  inputPrimitives[i],
-                                                  targetFormat,
-                                                  targetDatatype,
-                                                  std::vector<float>(),
-                                                  cldnn::reorder_mean_mode::subtract);
+                // Add reorder if changing number of dimensions requires changing format
+                auto targetFormat = cldnn::format::get_default_format(output_rank);
 
-                p.add_primitive(*op, reorderPrim);
+                if (targetFormat.value != cldnn::format::get_default_format(input_rank).value) {
+                    auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
+                    auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(i));
+                    auto reorderPrim = cldnn::reorder(reorderName,
+                                                    inputPrimitives[i],
+                                                    targetFormat,
+                                                    targetDatatype,
+                                                    std::vector<float>(),
+                                                    cldnn::reorder_mean_mode::subtract);
 
-                inputPrimitives[i] = reorderName;
-            }
+                    p.add_primitive(*op, reorderPrim);
 
-            // Reshape input if they differ or select specific shape matches default one
-            if (input_rank != output_rank || input_rank < 4) {
-                auto reshapeName = layerName + "_cldnn_in" + std::to_string(i) + "_reshape";
+                    inputPrimitives[i] = reorderName;
+                }
 
-                // Extend input dimensions to the same size as output dimensions by prepending ones
-                input_shape.insert(input_shape.begin(), output_rank - input_rank, 1ul);
+                // Reshape input if they differ or select specific shape matches default one
+                if (input_rank != output_rank || input_rank < 4) {
+                    auto reshapeName = layerName + "_cldnn_in" + std::to_string(i) + "_reshape";
 
-                auto targetShape = tensor_from_dims(input_shape);
+                    // Extend input dimensions to the same size as output dimensions by prepending ones
+                    input_shape.insert(input_shape.begin(), output_rank - input_rank, 1ul);
 
-                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape);
+                    auto targetShape = tensor_from_dims(input_shape);
 
-                p.add_primitive(*op, reshapePrim);
+                    auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape);
 
-                inputPrimitives[i] = reshapeName;
+                    p.add_primitive(*op, reshapePrim);
+
+                    inputPrimitives[i] = reshapeName;
+                }
             }
         }
     }
-
-    std::string bc_string = broadcast_type.m_type == ngraph::op::AutoBroadcastType::NUMPY ? "numpy" : "none";
 
     auto selectPrim = cldnn::select(layerName,
                                     inputPrimitives[0],
                                     inputPrimitives[1],
                                     inputPrimitives[2],
-                                    cldnn::padding(),
-                                    bc_string);
+                                    broadcast_type,
+                                    cldnn::padding());
 
     p.add_primitive(*op, selectPrim);
 }
