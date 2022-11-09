@@ -162,9 +162,9 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
             Precision prc = info->getPrecision();
 
             // Convert precision into native format (keep element size)
-            prc = prc == Precision::Q78    ? Precision::I16
-                  : prc == Precision::FP16 ? Precision::FP32
-                                           : static_cast<Precision::ePrecision>(prc);
+            prc = prc == Precision::Q78
+                      ? Precision::I16
+                      : prc == Precision::FP16 ? Precision::FP32 : static_cast<Precision::ePrecision>(prc);
 
             info->setPrecision(details::convertPrecision(toLegacyType(details::convertPrecision(prc), true)));
         }
@@ -562,9 +562,8 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
     return OK;
 }
 
-StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf,
-                                           std::ostream& binBuf,
-                                           ResponseDesc* resp) const noexcept {
+StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& binBuf, ResponseDesc* resp) const
+    noexcept {
     try {
         std::map<std::string, ngraph::OpSet> custom_opsets;
         for (const auto& extension : _ie_extensions) {
@@ -591,9 +590,8 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf,
     return OK;
 }
 
-StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf,
-                                           Blob::Ptr& binBlob,
-                                           ResponseDesc* resp) const noexcept {
+StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binBlob, ResponseDesc* resp) const
+    noexcept {
     try {
         std::map<std::string, ngraph::OpSet> custom_opsets;
         for (const auto& extension : _ie_extensions) {
