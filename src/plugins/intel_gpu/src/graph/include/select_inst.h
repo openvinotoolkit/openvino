@@ -28,6 +28,8 @@ class typed_primitive_inst<select> : public typed_primitive_inst_base<select> {
     using parent = typed_primitive_inst_base<select>;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(const select_node& /*node*/, const kernel_impl_params& impl_param);
     static layout calc_output_layout(select_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(select_node const& node);
     typed_primitive_inst(network& network, select_node const& node);

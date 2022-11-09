@@ -259,7 +259,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
     //  |FP32
     //  |
     // Convert    Convert   Constant  Constant
-    //  |U8        |U8       |U8       |U8
+    //  |U8        |U8       |I8       |I8
     //  |          |         |         |
     // Convert    Convert   Convert   Convert
     //   \FP32    /FP32      \FP32    /FP32
@@ -301,7 +301,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         {},
         {
             { ngraph::element::f32, false },
-            { {128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true },
+            { {127.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true },
             { {0.2f}, ngraph::element::f32, {}, false }
         },
         { {2, 1, 2, 1, 1} },
@@ -316,7 +316,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
     //  |FP32
     //  |
     // Convert    Convert   Constant  Constant
-    //  |U8        |U8       |U8       |U8
+    //  |U8        |U8       |I8       |I8
     //  |          |         |         |
     // Convert    Convert   Convert   Convert
     //   \FP32    /FP32      \FP32    /FP32
@@ -361,7 +361,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         {},
         {
             { ngraph::element::f32, false },
-            { {128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true },
+            { {127.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true },
             { {0.2f}, ngraph::element::f32, {}, false }
         },
         { {2, 1, 2, 1, 1} },
