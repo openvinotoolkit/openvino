@@ -533,6 +533,9 @@ int main(int argc, char* argv[]) {
                 } else if (if_auto || if_multi) {
                     // create nthreads/pin secondary property setting for each hw device from hw device list if -d
                     // contains ':' like AUTO:XXX or MULTI:XXX.
+                    // For the case like AUTO:XXX,XXX, -nthreads/-pin/-affinity setting is only for CPU instead of other
+                    // hw device if CPU appears in the devices list.
+
                     for (auto& device : hardware_devices) {
                         // check if the HW device supported this property
                         setDeviceProperty(device, device_config, property);
