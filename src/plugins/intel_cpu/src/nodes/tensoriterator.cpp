@@ -493,7 +493,7 @@ void TensorIterator::prepareParams() {
     before_mappers.clear();
     back_mappers.clear();
 
-    if ((lastUsedCond && lastUsedTripCount != 0) || !isDynamicNode()) {
+    if ((lastUsedCond && trip_count_check->getStatus() != 0) || !isDynamicNode()) {
         reshapeSubgraphInput();
 
         prepareInputPorts();
@@ -510,26 +510,27 @@ void TensorIterator::prepareParams() {
 void TensorIterator::execute(dnnl::stream strm) {
     sub_graph.ResetInferCount();
 
-    bool continue_cond = initial_cond_check->getStatus();
-    int max_num_iter = trip_count_check->getStatus();
+    const int max_num_iter = trip_count_check->getStatus();
 
     for (auto &mapper : first_mappers)
         mapper->execute(strm);
 
-    // use  "i != max_num_iter" only to allow "-1" works like infinite loop
-    for (int i = 0; i != max_num_iter && continue_cond; i++) {
+    // use  "lastUsedTripCount != max_num_iter" only to allow "-1" works like infinite loop
+    for (; lastUsedTripCount != max_num_iter; ++lastUsedTripCount) {
         // copy data to subgraph iteration
         for (auto &mapper : before_mappers)
-            mapper->execute(strm, i);
+            mapper->execute(strm, lastUsedTripCount);
 
         sub_graph.Infer();
 
-        continue_cond = continue_cond_check->getStatus();
+        if (!continue_cond_check->getStatus()) {
+            break;
+        }
 
         // copy data from subgraph iteration to outputs
         // or to the next iteration inputs
         for (auto &mapper : after_mappers)
-            mapper->execute(strm, i);
+            mapper->execute(strm, lastUsedTripCount);
     }
 
     for (auto &mapper : last_mappers)
@@ -540,29 +541,30 @@ void TensorIterator::executeDynamicImpl(dnnl::stream strm) {
     const auto &eng = getEngine();
     sub_graph.ResetInferCount();
 
-    bool continue_cond = initial_cond_check->getStatus();
-    int max_num_iter = trip_count_check->getStatus();
+    const auto max_num_iter = trip_count_check->getStatus();
 
     for (auto &mapper : first_mappers)
         mapper->execute(strm);
 
-    // use  "i != max_num_iter" only to allow "-1" works like infinite loop
-    for (int i = 0; i != max_num_iter && continue_cond; i++) {
+    // use  "lastUsedTripCount != max_num_iter" only to allow "-1" works like infinite loop
+    for (; lastUsedTripCount != max_num_iter; ++lastUsedTripCount) {
         // copy data to subgraph iteration
-        for (auto &mapper : before_mappers)
-            mapper->execute(strm, i);
-        for (auto &mapper : back_mappers)
-            mapper->execute(strm, i);
+        for (auto& mapper : before_mappers)
+            mapper->execute(strm, lastUsedTripCount);
+        for (auto& mapper : back_mappers)
+            mapper->execute(strm, lastUsedTripCount);
 
         sub_graph.Infer();
 
-        continue_cond = continue_cond_check->getStatus();
+        if (!continue_cond_check->getStatus()) {
+            break;
+        }
 
         for (auto& buffer : buffers)
-            buffer->execute(eng, i);
+            buffer->execute(eng, lastUsedTripCount);
 
         // on the last iteration we shouldn't reshape body inputs and init back edges
-        if ((i + 1 != max_num_iter) && continue_cond)
+        if ((lastUsedTripCount + 1) != max_num_iter)
             prepareDynamicBackEdges();
     }
 
@@ -662,7 +664,7 @@ void TensorIterator::prepareTripCount() {
         auto mem = getParentEdgesAtPort(loopTripCountIdx)[0]->getMemoryPtr();
         trip_count_check.reset(new asIntCheck(mem));
     }
-    lastUsedTripCount = trip_count_check->getStatus();
+    lastUsedTripCount = 0;
 }
 
 /* *==============* *==============* *==============* *==============* *==============* */
