@@ -38,7 +38,7 @@ void prepare_padding::run(program& p) {
                     !conv_input_node_user->is_type<quantize>() && !conv_input_node_user->is_type<activation>() &&
                     !conv_input_node_user->is_type<deconvolution>() && !conv_input_node_user->is_type<concatenation>() &&
                     !conv_input_node_user->is_type<crop>() && !conv_input_node_user->is_type<eltwise>() &&
-                    !conv_input_node_user->is_type<resample>())
+                    !conv_input_node_user->is_type<binary_convolution>() && !conv_input_node_user->is_type<resample>())
                     user_support_padding = false;
             }
             if (!user_support_padding)
@@ -166,7 +166,7 @@ void prepare_padding::run(program& p) {
                 !conv_input_node_user->is_type<quantize>() && !conv_input_node_user->is_type<activation>() &&
                 !conv_input_node_user->is_type<deconvolution>() && !conv_input_node_user->is_type<concatenation>() &&
                 !conv_input_node_user->is_type<crop>() && !conv_input_node_user->is_type<eltwise>() &&
-                !conv_input_node_user->is_type<resample>())
+                !conv_input_node_user->is_type<binary_convolution>() && !conv_input_node_user->is_type<resample>())
                 user_support_padding = false;
         }
         if (!user_support_padding)
@@ -269,7 +269,7 @@ void prepare_padding::run(program& p) {
                 !conv_input_node_user->is_type<quantize>() && !conv_input_node_user->is_type<activation>() &&
                 !conv_input_node_user->is_type<deconvolution>() && !conv_input_node_user->is_type<concatenation>() &&
                 !conv_input_node_user->is_type<crop>() && !conv_input_node_user->is_type<eltwise>() &&
-                !conv_input_node_user->is_type<resample>())
+                !conv_input_node_user->is_type<binary_convolution>() && !conv_input_node_user->is_type<resample>())
                 user_support_padding = false;
         }
         if (!user_support_padding)
