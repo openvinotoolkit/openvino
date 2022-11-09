@@ -93,7 +93,6 @@ To get pb-file from the archive contents, you need to do the following.
        with tf.compat.v1.summary.FileWriter(logdir=OUTPUT_DIR, graph_def=graph_def_freezed) as writer:
            writer.flush()
    ```
-   
 
 ## Downloading the Pretrained Large XLNet Model
 

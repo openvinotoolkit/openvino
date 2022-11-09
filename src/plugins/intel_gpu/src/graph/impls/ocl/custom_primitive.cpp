@@ -70,7 +70,7 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
             args.inputs.push_back(dep->output_memory_ptr());
         }
         args.outputs = { instance.output_memory_ptr() };
-        return stream.enqueue_kernel(*_kernels.front(), cl_kernel.get()->params, args, events, instance.node.is_output());
+        return stream.enqueue_kernel(*_kernels.front(), cl_kernel.get()->params, args, events, instance.node->is_output());
     }
 
     std::vector<std::string> get_kernel_ids() override {
@@ -97,7 +97,7 @@ static kernel_selector::kernel_argument_element get_arg(custom_gpu_primitive::ar
     return ret;
 }
 
-std::string value_macro(const std::string& name, const std::string& value) {
+static std::string value_macro(const std::string& name, const std::string& value) {
     std::ostringstream oss;
     oss << "#define " << name << " " << value << std::endl;
     return oss.str();

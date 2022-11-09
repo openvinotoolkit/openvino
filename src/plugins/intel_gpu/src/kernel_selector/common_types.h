@@ -38,7 +38,6 @@ enum class KernelType {
     RESAMPLE,
     REGION_YOLO,
     REORG_YOLO,
-    MAX_UNPOOLING,
     MVN,
     LSTM_GEMM,
     LSTM_ELT,
@@ -48,6 +47,7 @@ enum class KernelType {
     BROADCAST,
     BUCKETIZE,
     GEMM,
+    GRID_SAMPLE,
     PYRAMID_ROI_ALIGN,
     CONTRACT,
     ONE_HOT,
@@ -89,6 +89,7 @@ enum class KernelType {
     CONVERT_COLOR,
     RANDOM_UNIFORM,
     ADAPTIVE_POOLING,
+    MATRIX_NMS,
     REVERSE,
     PRIOR_BOX,
     EYE,
@@ -182,7 +183,6 @@ enum class ActivationFunction {
 enum class PoolType {
     MAX,
     AVG,
-    MAX_WITH_ARGMAX,
     BILINEAR,
     DEFORMABLE_BILINEAR
 };

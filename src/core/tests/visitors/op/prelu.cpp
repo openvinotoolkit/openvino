@@ -18,7 +18,8 @@ TEST(attributes, prelu_op) {
     const auto slope = make_shared<op::Parameter>(element::f32, Shape{5});
 
     const auto prelu = make_shared<opset1::PRelu>(data, slope);
-    NodeBuilder builder(prelu);
+    NodeBuilder builder(prelu, {data, slope});
+    EXPECT_NO_THROW(auto g_prelu = ov::as_type_ptr<opset1::PRelu>(builder.create()));
 
     const auto expected_attr_count = 0;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

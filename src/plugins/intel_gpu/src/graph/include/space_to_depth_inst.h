@@ -11,15 +11,6 @@
 #include <string>
 
 namespace cldnn {
-template <>
-struct typed_program_node<space_to_depth> : public typed_program_node_base<space_to_depth> {
-    using parent = typed_program_node_base<space_to_depth>;
-
-public:
-    using parent::parent;
-
-    program_node& input(size_t index = 0) const { return get_dependency(index); }
-};
 
 using space_to_depth_node = typed_program_node<space_to_depth>;
 

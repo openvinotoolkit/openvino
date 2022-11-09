@@ -30,7 +30,7 @@ class Plugin : public InferenceEngine::IInferencePlugin,
     mutable std::map<RemoteCLContext::Ptr, std::map<std::string, uint64_t>> statistics_map;
     mutable std::mutex engine_mutex;
 
-    mutable RemoteCLContext::Ptr m_defaultContext;
+    mutable std::map<std::string, RemoteCLContext::Ptr> m_defaultContexts;
 
     cldnn::device_info GetDeviceInfo(const std::map<std::string, std::string> &config) const;
     InferenceEngine::CNNNetwork CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,

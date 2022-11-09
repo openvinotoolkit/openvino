@@ -7,6 +7,7 @@
 #include <ngraph/log.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset8.hpp>
+#include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/util.hpp>
 #include <numeric>
@@ -696,12 +697,15 @@ pass::EliminateEltwise::EliminateEltwise() {
     auto constant_pattern = pattern::wrap_type<opset8::Constant>();
     auto eltwise_pattern =
         pattern::wrap_type<opset8::Add, opset8::Subtract, opset8::Multiply, opset8::Divide>({input, constant_pattern});
+    auto subtract_pattern =
+        pattern::wrap_type<opset8::Subtract>({input, pattern::wrap_type<opset8::Convert>({constant_pattern})});
+    auto root = make_shared<pattern::op::Or>(OutputVector{eltwise_pattern, subtract_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        auto eltwise = pattern_map.at(eltwise_pattern).get_node_shared_ptr();
-        auto non_const_input = pattern_map.at(input);
-        auto constant = pattern_map.at(constant_pattern);
+        auto eltwise = m.get_match_root();
+        const auto& non_const_input = pattern_map.at(input);
+        const auto& constant = pattern_map.at(constant_pattern);
 
         if (!op::util::can_eliminate_eltwise_node(eltwise, constant, non_const_input)) {
             return false;
@@ -709,7 +713,7 @@ pass::EliminateEltwise::EliminateEltwise() {
         return replace_output_update_name(eltwise->output(0), non_const_input);
     };
 
-    auto m = make_shared<pattern::Matcher>(eltwise_pattern, matcher_name);
+    auto m = make_shared<pattern::Matcher>(root, matcher_name);
     this->register_matcher(m, callback);
 }
 

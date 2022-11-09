@@ -94,9 +94,11 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "Transpose", Type::Transpose },
         { "LSTMCell", Type::RNNCell },
         { "GRUCell", Type::RNNCell },
+        { "AUGRUCell", Type::RNNCell },
         { "RNNCell", Type::RNNCell },
         { "LSTMSequence", Type::RNNSeq },
         { "GRUSequence", Type::RNNSeq },
+        { "AUGRUSequence", Type::RNNSeq },
         { "RNNSequence", Type::RNNSeq },
         { "FakeQuantize", Type::FakeQuantize },
         { "BinaryConvolution", Type::BinaryConvolution },
@@ -135,6 +137,7 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "Gather", Type::Gather},
         { "GatherElements", Type::GatherElements},
         { "GatherND", Type::GatherND},
+        { "GridSample", Type::GridSample},
         { "OneHot", Type::OneHot},
         { "RegionYolo", Type::RegionYolo},
         { "Select", Type::Select},
@@ -322,6 +325,8 @@ std::string NameFromType(const Type type) {
             return "GatherElements";
         case Type::GatherND:
             return "GatherND";
+        case Type::GridSample:
+            return "GridSample";
         case Type::OneHot:
             return "OneHot";
         case Type::RegionYolo:

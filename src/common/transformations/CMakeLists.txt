@@ -9,6 +9,13 @@ file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    ie_add_compiler_flags(/wd4018)
+    ie_add_compiler_flags(/wd4305)
+    ie_add_compiler_flags(/wd4267)
+endif()
+
+
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 

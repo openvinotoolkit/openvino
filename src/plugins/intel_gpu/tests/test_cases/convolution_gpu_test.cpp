@@ -26,6 +26,26 @@
 using namespace cldnn;
 using namespace ::tests;
 
+namespace {
+void add_primitives(engine& engine, topology& topology) {
+    auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, { 2, 1, 3, 2 } });
+
+    std::vector<char> weights_values = { 1, 2, 1,
+                                         2, 1, 2,
+
+                                         19, 17, -1,
+                                         -10, 32, 23 };
+    set_values<char>(weights, weights_values);
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
+    set_values(biases, { 1.0f, -8.0f });
+
+    topology.add(
+        data("weights", weights),
+        data("biases", biases),
+        convolution("conv", "input", { "weights" }, { "biases" }, { 2, 1 }, { 0, 0 }, { 1, 1 }),
+        activation( "out", "conv", activation_func::relu)
+    );
+}
 template<typename T>
 T kahan_summation(std::vector<T> &input) {
     T sum = 0;
@@ -38,6 +58,7 @@ T kahan_summation(std::vector<T> &input) {
     }
     return sum;
 }
+}  // namespace
 
 template <typename InputT>
 struct convolution_accumulator {
@@ -213,37 +234,6 @@ VVF<T> reference_scale_post_op(const VVF<T>& input, const T& scale, const T& shi
     }
 
     return output_shrinked;
-}
-
-void dump_buffer(memory::ptr mem, std::string const& name) {
-    std::ofstream out(name);
-    auto l = mem->get_layout();
-    cldnn::mem_lock<const float> ptr(mem, get_test_stream());
-    auto pitches = mem->get_layout().get_pitches();
-    out << "Data size: " << l.to_string() << "\n";
-    out << "Lower padding: " << mem->get_layout().data_padding.lower_size() << "\n";
-    out << "Upper padding: " << mem->get_layout().data_padding.upper_size() << "\n";
-    out << "\n";
-
-    for (int b = 0; b < l.batch(); ++b) {
-        out << " ================ BATCH " << b << " =================\n\n";
-        for (int f = 0; f < l.feature(); ++f) {
-            out << "feature " << f << ":\n";
-            for (int z = 0; z < l.spatial(2); ++z) {
-                for (int y = 0; y < l.spatial(1); ++y) {
-                    for (int x = 0; x < l.spatial(0); ++x) {
-                        size_t idx = b * pitches.batch[0] + f * pitches.feature[0] + z * pitches.spatial[2] + y * pitches.spatial[1] + x * pitches.spatial[0];
-                        out << ptr[idx] << " ";
-                    }
-                    out << "\n";
-                }
-            }
-
-            out << "\n";
-        }
-
-        out << "\n";
-    }
 }
 
 TEST(deformable_convolution_f32_fw_gpu, basic_deformable_convolution_def_group1_2) {
@@ -3973,26 +3963,6 @@ TEST(convolution_gpu, basic_yxfb_4_4_yxfb_2_2_b16_if2_of16_st2_2_p0_sp1_fp32)
     }
 
 #undef USE_OLD_WEIGHTS_FORMAT
-}
-
-void add_primitives(engine& engine, topology& topology) {
-    auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, { 2, 1, 3, 2 } });
-
-    std::vector<char> weights_values = { 1, 2, 1,
-                                         2, 1, 2,
-
-                                         19, 17, -1,
-                                         -10, 32, 23 };
-    set_values<char>(weights, weights_values);
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
-    set_values(biases, { 1.0f, -8.0f });
-
-    topology.add(
-        data("weights", weights),
-        data("biases", biases),
-        convolution("conv", "input", { "weights" }, { "biases" }, { 2, 1 }, { 0, 0 }, { 1, 1 }),
-        activation( "out", "conv", activation_func::relu)
-    );
 }
 
 TEST(convolution_f32_fw_gpu, byte_activation) {

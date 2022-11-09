@@ -50,8 +50,14 @@ def main():
     statistics = None
     try:
         # ------------------------------ 1. Parsing and validating input arguments ------------------------------
+        args_string = f"{os.path.realpath(sys.argv[0])} "
+        for i in range(1,len(sys.argv)):
+            args_string += f"{sys.argv[i]} "
+
         next_step()
         args, is_network_compiled = parse_and_check_command_line()
+
+        logger.info(f"Input command: {args_string}")
 
         if args.number_streams is None:
                 logger.warning(" -nstreams default value is determined automatically for a device. "
@@ -85,9 +91,8 @@ def main():
         benchmark = Benchmark(args.target_device, args.number_infer_requests,
                               args.number_iterations, args.time, args.api_type, args.inference_only)
 
-        ## CPU (OneDNN) extensions
-        if CPU_DEVICE_NAME in device_name and args.path_to_extension:
-            benchmark.add_extension(path_to_extension=args.path_to_extension)
+        if args.extensions:
+            benchmark.add_extension(path_to_extensions=args.extensions)
 
         ## GPU (clDNN) Extensions
         if GPU_DEVICE_NAME in device_name and args.path_to_cldnn_config:
@@ -119,7 +124,7 @@ def main():
 
         # --------------------- 3. Setting device configuration --------------------------------------------------------
         next_step()
-        def get_device_type_from_name(name) :
+        def get_device_type_from_name(name):
             new_name = str(name)
             new_name = new_name.split(".", 1)[0]
             new_name = new_name.split("(", 1)[0]
@@ -570,26 +575,27 @@ def main():
                                       ])
             statistics.dump()
 
-
-        print(f'Count:          {iteration} iterations')
-        print(f'Duration:       {get_duration_in_milliseconds(total_duration_sec):.2f} ms')
+        if devices.count("AUTO"):
+            print(f'ExecutionDevice: {compiled_model.get_property("EXECUTION_DEVICES")}')
+        print(f'Count:           {iteration} iterations')
+        print(f'Duration:        {get_duration_in_milliseconds(total_duration_sec):.2f} ms')
         if MULTI_DEVICE_NAME not in device_name:
             print('Latency:')
             if args.latency_percentile == 50 and static_mode:
-                print(f'    Median:     {median_latency_ms:.2f} ms')
+                print(f'    Median:      {median_latency_ms:.2f} ms')
             elif args.latency_percentile != 50:
                 print(f'({args.latency_percentile} percentile):     {median_latency_ms:.2f} ms')
-            print(f'    AVG:        {avg_latency_ms:.2f} ms')
-            print(f'    MIN:        {min_latency_ms:.2f} ms')
-            print(f'    MAX:        {max_latency_ms:.2f} ms')
+            print(f'    AVG:         {avg_latency_ms:.2f} ms')
+            print(f'    MIN:         {min_latency_ms:.2f} ms')
+            print(f'    MAX:         {max_latency_ms:.2f} ms')
 
             if pcseq:
                 print("Latency for each data shape group: ")
                 for group in benchmark.latency_groups:
                     print(f"  {str(group)}")
-                    print(f'    AVG:        {group.avg:.2f} ms')
-                    print(f'    MIN:        {group.min:.2f} ms')
-                    print(f'    MAX:        {group.max:.2f} ms')
+                    print(f'    AVG:         {group.avg:.2f} ms')
+                    print(f'    MIN:         {group.min:.2f} ms')
+                    print(f'    MAX:         {group.max:.2f} ms')
 
         print(f'Throughput: {fps:.2f} FPS')
 

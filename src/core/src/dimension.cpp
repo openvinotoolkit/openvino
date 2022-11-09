@@ -86,8 +86,8 @@ Dimension Dimension::operator/(const value_type divisor) const {
         return *this;
     if (m_dimension.get_max_val() == Interval::s_max && m_dimension.get_min_val() == 0)
         return Dimension::dynamic();
-    const auto& lower_bound = ceil(static_cast<double>(m_dimension.get_min_val()) / divisor);
-    const auto& upper_bound = floor(static_cast<double>(m_dimension.get_max_val()) / divisor);
+    const auto& lower_bound = static_cast<int64_t>(ceil(static_cast<double>(m_dimension.get_min_val()) / divisor));
+    const auto& upper_bound = static_cast<int64_t>(floor(static_cast<double>(m_dimension.get_max_val()) / divisor));
     return Dimension(lower_bound, upper_bound);
 }
 
