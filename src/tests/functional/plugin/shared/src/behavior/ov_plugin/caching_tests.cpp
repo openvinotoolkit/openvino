@@ -183,7 +183,7 @@ void CompileModelCacheTestBase::run() {
     }
     if ((targetDevice.find("GPU") != std::string::npos)) {
 #if !defined(_WIN32) && !defined(_WIN64)
-        setenv("OV_GPU_MODEL_CACHING", "1", 1);
+        setenv("OV_GPU_CACHE_MODEL", "1", 1);
 #endif
     }
     if ((targetDevice.find("AUTO") == std::string::npos) && !importExportSupported(*core)) {
@@ -224,7 +224,7 @@ void CompileModelCacheTestBase::run() {
     }
     if ((targetDevice.find("GPU") != std::string::npos)) {
 #if !defined(_WIN32) && !defined(_WIN64)
-        setenv("OV_GPU_MODEL_CACHING", "", 1);
+        setenv("OV_GPU_CACHE_MODEL", "", 1);
 #endif
     }
 }
