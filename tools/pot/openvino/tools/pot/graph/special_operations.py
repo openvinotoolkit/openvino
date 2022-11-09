@@ -65,9 +65,8 @@ DETECTION_OUTPUT_FINAL_TYPES = [
     {'type': 'TopK'}
 ]
 
-RECURRENT_TYPES = [
-    'LSTMCell', 'GRUCell', 'RNNCell', 'LSTMSequence', 'GRUSequence', 'RNNSequence'
-]
+# TODO: Add attributes to GraphTransformer hw_config
+TYPES_TO_QUANTIZABLE_PORTS = {'LSTMSequence': [0, 1, 4, 5], 'GRUSequence': [0, 1, 3, 4]}
 
 ELTWISE_TYPES = ['Add', 'Multiply', 'Subtract', 'Divide', 'Less', 'LessEqual', 'Greater', 'GreaterEqual',
                  'Equal', 'NotEqual', 'FloorMod', 'LogicalOr', 'LogicalXor', 'LogicalAnd', 'Maximum', 'Minimum']

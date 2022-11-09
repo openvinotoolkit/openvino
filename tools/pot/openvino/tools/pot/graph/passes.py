@@ -28,7 +28,7 @@ from . import node_utils as nu
 from .editor import get_nodes_by_type
 from .pattern_utils import get_fq_result_pattern
 from .special_operations import OPERATIONS_WITH_WEIGHTS, DETECTION_OUTPUT_FINAL_TYPES, \
-    SPLIT_OPERATIONS, OPERATIONS_WITH_BIAS
+    SPLIT_OPERATIONS, OPERATIONS_WITH_BIAS, TYPES_TO_QUANTIZABLE_PORTS
 from .utils import find_operation_matches, is_ignored, get_hw_aware_ignored_patterns
 from ..graph.node_utils import get_all_node_outputs, get_node_inputs, get_node_input, get_weights_for_node
 from ..graph.special_patterns import get_ignored_patterns
@@ -149,12 +149,9 @@ class InsertFakeQuantize(BackReplacementPattern):
 
         if m_op.type in ['Convolution', 'ConvolutionBackpropData', 'MatMul']:
             insert_fake_quantize(graph, m_op, [0, 1], hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
-        elif m_op.type == 'LSTMCell':
-            insert_fake_quantize(graph, m_op, [0, 1, 3, 4], hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
-        elif m_op.type == 'LSTMSequence':
-            insert_fake_quantize(graph, m_op, [0, 1, 4, 5], hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
-        elif m_op.type == 'GRUSequence':
-            insert_fake_quantize(graph, m_op, [0, 1, 3, 4], hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
+        elif m_op.type in TYPES_TO_QUANTIZABLE_PORTS:
+            ports = TYPES_TO_QUANTIZABLE_PORTS[m_op.type]
+            insert_fake_quantize(graph, m_op, ports, hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
         elif self.quantize_only_input(m_op):
             insert_fake_quantize(graph, m_op, [0], hw_config=self.hardware_config, input_priority_types=self.input_priority_types)
         else:

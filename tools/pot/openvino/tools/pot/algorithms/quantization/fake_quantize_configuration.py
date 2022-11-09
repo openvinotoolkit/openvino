@@ -7,7 +7,7 @@ from copy import deepcopy
 from .range_estimator import get_range_estimator_config
 from .utils import load_hardware_config
 from ...graph.special_operations import QUANTIZE_AGNOSTIC_OPERATIONS, CONCAT_UNIFY_OUTPUTS,\
-    CONCAT_UNIFY_INPUTS, RECURRENT_TYPES
+    CONCAT_UNIFY_INPUTS, TYPES_TO_QUANTIZABLE_PORTS
 from ...graph.utils import find_operation_matches, get_operation_list, is_data_type_quantizable,\
     get_hardware_config_operation_type
 from ...graph.model_utils import get_nodes_by_type, get_node_by_name
@@ -325,7 +325,8 @@ def find_fqs_to_unify(model, config):
     def _get_unified_scales_ops(hw_ops_):
         unified_scales_ops_ = []
         for hw_op in hw_ops_:
-            if 'attributes' in hw_op and 'unified_scales' in hw_op['attributes']:
+            if 'attributes' in hw_op and 'unified_scales' in hw_op['attributes'] and \
+                hw_op['attributes']['unified_scales'] == 'all':
                 del hw_op['attributes']['unified_scales']
                 if not hw_op['attributes']:
                     del hw_op['attributes']
@@ -415,7 +416,7 @@ def find_fqs_to_unify(model, config):
     def _get_unified_recurrent_scales_ops(hw_ops_):
         unified_scales_ops_ = {}
         for hw_op in hw_ops_:
-            if hw_op['type'] in RECURRENT_TYPES and 'unified_scales' in hw_op['attributes']:
+            if hw_op['type'] in TYPES_TO_QUANTIZABLE_PORTS and 'unified_scales' in hw_op['attributes']:
                 unified_scales_ops_[hw_op['type']] = hw_op['attributes']['unified_scales']
         return unified_scales_ops_
 
