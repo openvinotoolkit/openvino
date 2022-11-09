@@ -36,23 +36,6 @@ class ConvertImportMOTest(UnitTestWithMockedTelemetry):
             serialize(ov_model, out_xml.encode('utf-8'), out_xml.replace('.xml', '.bin').encode('utf-8'))
             assert os.path.exists(out_xml)
 
-    @generate(*[
-        ({}),
-        ({'input': InputCutInfo(name='LeakyRelu_out', shape=None, type=None, value=None)}),
-        ({'layout': {'input': LayoutMap(source_layout='NCHW', target_layout='NHWC')}}),
-    ])
-    def test_import(self, params):
-        from openvino.runtime import convert_model
-
-        with tempfile.TemporaryDirectory(dir=self.test_directory) as tmpdir:
-            model = create_onnx_model()
-            model_path = save_to_onnx(model, tmpdir)
-            out_xml = os.path.join(tmpdir, "model.xml")
-
-            ov_model = convert_model(input_model=model_path, **params)
-            serialize(ov_model, out_xml.encode('utf-8'), out_xml.replace('.xml', '.bin').encode('utf-8'))
-            assert os.path.exists(out_xml)
-
     def test_unnamed_input_model(self):
         def create_onnx_model():
             #
