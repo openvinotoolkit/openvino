@@ -47,4 +47,7 @@ ov::NodeVector InsertTransposeBeforeNode(std::shared_ptr<ov::Node> main_node,
                                          std::shared_ptr<ov::opset9::Constant> transpose_const);
 }  // namespace sink_backward
 
+bool IsSinkingEnable(NodePtr);
+void UpdateForwardSinkingAbility(NodePtr);
+
 }  // namespace transpose_sinking
