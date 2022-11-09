@@ -151,6 +151,8 @@ class typed_primitive_inst<convolution> : public typed_primitive_inst_base<convo
     using parent = typed_primitive_inst_base<convolution>;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(convolution_node const& node, kernel_impl_params const& impl_param);
     static layout calc_output_layout(convolution_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(convolution_node const& node);
 

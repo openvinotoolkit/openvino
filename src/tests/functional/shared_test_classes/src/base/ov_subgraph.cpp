@@ -166,6 +166,7 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
                 }
             }
             auto it = compareMap.find(inputNode->get_type_info());
+            ASSERT_NE(it, compareMap.end());
             it->second(inputNode, i, expected[j], actual[j], abs_threshold, rel_threshold);
         }
     }
@@ -232,6 +233,7 @@ void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInput
                     }
                 }
                 auto it = inputMap.find(nodePtr->get_type_info());
+                ASSERT_NE(it, inputMap.end());
                 for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
                     if (nodePtr->get_input_node_ptr(port)->shared_from_this() == inputNode->shared_from_this()) {
                         inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), *itTargetShape++)});
