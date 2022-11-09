@@ -47,7 +47,7 @@ source and public models in popular formats such as TensorFlow, ONNX, PaddlePadd
     * [bindings](https://github.com/openvinotoolkit/openvino/tree/master/src/bindings) - contains all available OpenVINO bindings which are maintained by the OpenVINO team.
         * [c](https://github.com/openvinotoolkit/openvino/tree/master/src/bindings/c) - provides C API for OpenVINO™ Runtime
         * [python](https://github.com/openvinotoolkit/openvino/tree/master/src/bindings/python) - Python API for OpenVINO™ Runtime
-* [Plugins](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins) - contains OpenVINO plugins which are maintained in open-source by the OpenVINO team. For more information, see the [list of supported devices](#supported-hardware-matrix).
+* [Plugins](./src/plugins) - contains OpenVINO plugins which are maintained in open-source by the OpenVINO team. For more information, take a look at the [list of supported devices](#supported-hardware-matrix).
 * [Frontends](./src/frontends) - contains available OpenVINO frontends that allow reading models from the native framework format.
 * [Model Optimizer] - is a cross-platform command-line tool that facilitates the transition between training and deployment environments, performs static model analysis, and adjusts deep learning models for optimal execution on end-point target devices.
 * [Post-Training Optimization Tool] - is designed to accelerate the inference of deep learning models by applying special methods without model retraining or fine-tuning, for example, post-training 8-bit quantization. 
