@@ -45,7 +45,7 @@ div.scrollable {
     border-collapse: separate;
     border-spacing: 0;
  }
- .scrollable table th {
+ .scrollbox table thead tr th {
     background: white;
     position: sticky;
     top: 0;
