@@ -8,6 +8,7 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ShapeOfConstFolding::ShapeOfConstFolding() {
     MATCHER_SCOPE(ShapeOfConstFolding);
