@@ -6,6 +6,8 @@
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/transpose_sinking_unary.hpp"
 #include "transformations/common_optimizations/transpose_sinking_binary.hpp"
+#include "transformations/common_optimizations/transpose_sinking_concat.hpp"
+#include "transformations/common_optimizations/transpose_sinking_split.hpp"
 
 #include <ngraph/pass/constant_folding.hpp>
 
@@ -21,9 +23,9 @@
 ov::pass::TransposeSinkingGeneralForward::TransposeSinkingGeneralForward() {
     MATCHER_SCOPE(TransposeSinkingGeneralForward);
     add_matcher<ov::pass::TransposeSinkingUnaryForward>();
-    add_matcher<ngraph::pass::TransposeSinkingBinaryForward>();
-    add_matcher<ngraph::pass::TransposeSinkingConcatForward>();
-    add_matcher<ngraph::pass::TransposeSinkingSplitForward>();
+    add_matcher<ov::pass::TransposeSinkingBinaryElementwiseForward>();
+    add_matcher<ov::pass::TransposeSinkingConcatForward>();
+    add_matcher<ov::pass::TransposeSinkingSplitForward>();
     add_matcher<ngraph::pass::TransposeFuse>();
 }
 
@@ -31,9 +33,9 @@ ov::pass::TransposeSinkingGeneralBackward::TransposeSinkingGeneralBackward() {
 
     MATCHER_SCOPE(TransposeSinkingGeneralBackward);
     add_matcher<ov::pass::TransposeSinkingUnaryBackward>();
-    add_matcher<ngraph::pass::TransposeSinkingBinaryBackward>();
-    add_matcher<ngraph::pass::TransposeSinkingConcatBackward>();
-    // WANTFIX add_matcher<ngraph::pass::TransposeSinkingSplitBackward>();
+    add_matcher<ov::pass::TransposeSinkingBinaryElementwiseBackward>();
+    add_matcher<ov::pass::TransposeSinkingConcatBackward>();
+    add_matcher<ov::pass::TransposeSinkingSplitBackward>();
     add_matcher<ngraph::pass::TransposeFuse>();
 }
 
