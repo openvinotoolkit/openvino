@@ -140,9 +140,6 @@ public:
     //     IExecutableNetworkInternal::Export(networkModel);
     // }
 
-    void set_model(const std::shared_ptr<const ov::Model>& model) { m_model = model; }
-    const std::shared_ptr<const ov::Model>& get_model() const { return m_model; }
-
     void SetPointerToPlugin(const IInferencePlugin::Ptr& plugin) override {
         std::lock_guard<std::mutex> guard(m_pluginMutex);
         IExecutableNetworkInternal::SetPointerToPlugin(plugin);
@@ -448,7 +445,6 @@ private:
             auto exe_net = createMockIExecutableNet(cnn.getFunction()->get_friendly_name(),
                                                     m_inputs_map[name],
                                                     m_outputs_map[name]);
-            exe_net->set_model(cnn.getFunction());
             for (const auto& cb : m_post_mock_net_callbacks) {
                 cb(*exe_net);
             }
@@ -469,7 +465,6 @@ private:
             auto exe_net = createMockIExecutableNet(cnn.getFunction()->get_friendly_name(),
                                                     m_inputs_map[name],
                                                     m_outputs_map[name]);
-            exe_net->set_model(cnn.getFunction());
             for (const auto& cb : m_post_mock_net_callbacks) {
                 cb(*exe_net);
             }
@@ -609,7 +604,7 @@ TEST_P(CachingTest, TestLoadCustomImportExport) {
     m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
         ON_CALL(net, Export(_)).WillByDefault(Invoke([&] (std::ostream& s) {
             s.write(customData, sizeof(customData));
-            s << net.get_model()->get_friendly_name();
+            // s << net.get_model()->get_friendly_name();
         }));
     });
 
