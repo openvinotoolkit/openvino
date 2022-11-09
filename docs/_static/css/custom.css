@@ -41,11 +41,11 @@ main img {
 div.scrollable {
     overflow-y: scroll;
     }
- .scrollable table {
+.scrollable table {
     border-collapse: separate;
     border-spacing: 0;
  }
- .scrollable table thead tr th {
+.scrollable table thead tr th {
     background: white!important;
     position: sticky!important;
     top: 0!important;
