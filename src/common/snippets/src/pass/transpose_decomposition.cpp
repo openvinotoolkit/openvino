@@ -14,7 +14,7 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <numeric>
-
+const std::set<std::vector<int>> ngraph::snippets::pass::TransposeDecomposition::supported_cases = {{0, 2, 3, 1}};
 ngraph::snippets::pass::TransposeDecomposition::TransposeDecomposition() {
     MATCHER_SCOPE(TransposeDecomposition);
     // todo: we need a special transformation that detects and propagates data access pattern to Parameters and Results
@@ -37,7 +37,6 @@ ngraph::snippets::pass::TransposeDecomposition::TransposeDecomposition() {
             return false;
 
         auto order_value = order->get_vector<int>();
-        std::set<std::vector<int>> supported_cases{{0, 2, 3, 1}};
         if (supported_cases.count(order_value) == 0)
             throw ngraph::ngraph_error("TransposeDecomposition: unsupported order");
 
