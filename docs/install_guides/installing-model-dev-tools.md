@@ -16,7 +16,6 @@ In both cases, Python 3.6 - 3.9 need be installed on your machine before startin
 
 ## <a name="python-developers"></a>For Python Developers
 
-
 If you are a Python developer, follow the steps in the <a href="#install-dev-tools">Installing OpenVINO Development Tools</a> section on this page to install it. Installing OpenVINO Development Tools will also install OpenVINO Runtime as a dependency, so you don’t need to install OpenVINO Runtime separately. This option is recommended for new users.
 
 ## <a name="cpp-developers"></a>For C++ Developers
