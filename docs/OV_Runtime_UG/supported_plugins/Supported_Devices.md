@@ -97,7 +97,7 @@ Supported Model Formats
 +-------------------+------------------------+------------------------+------------------------+
 
 For :ref:`Multi-Device <openvino_docs_OV_UG_Running_on_multiple_devices>` and :ref:`Heterogeneous <openvino_docs_OV_UG_Hetero_execution>` executions
-the supported models formats depends on the actual underlying devices. *Generally, FP16 is preferable as it is most ubiquitous and performant*.
+the supported models formats depends on the actual underlying devices. **Generally, FP16 is preferable as it is most ubiquitous and performant**.
 
 Supported Input Precision
 ++++++++++++++++++++++++++
@@ -119,7 +119,7 @@ Supported Input Precision
 \* - Supported via `SetBlob` only, `GetBlob` returns FP32
 
 For :ref:`Multi-Device <openvino_docs_OV_UG_Running_on_multiple_devices>` and :ref:`Heterogeneous <openvino_docs_OV_UG_Hetero_execution>` executions
-the supported input precision depends on the actual underlying devices. *Generally, U8 is preferable as it is most ubiquitous*.
+the supported input precision depends on the actual underlying devices. **Generally, U8 is preferable as it is most ubiquitous**.
 
 Supported Output Precision
 +++++++++++++++++++++++++++
@@ -139,7 +139,7 @@ Supported Output Precision
 +-------------------+----------+--------------+
 
 For :ref:`Multi-Device <openvino_docs_OV_UG_Running_on_multiple_devices>` and :ref:`Heterogeneous <openvino_docs_OV_UG_Hetero_execution>` executions
-the supported output precision depends on the actual underlying devices. *Generally, FP32 is preferable as it is most ubiquitous*.
+the supported output precision depends on the actual underlying devices. **Generally, FP32 is preferable as it is most ubiquitous**.
 
 Supported Input Layout
 +++++++++++++++++++++++
@@ -470,7 +470,7 @@ The following layers are supported by the plugins:
    | Upsampling                     | Supported     | Not Supported | Not Supported | Not Supported | Not Supported   |
    +--------------------------------+---------------+---------------+---------------+---------------+-----------------+
 
-
+|br|
 
 \*- support is limited to the specific parameters. For more information, refer to "Known Layers Limitation" section of the article for the :ref:`supported device <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`.
 
@@ -479,5 +479,10 @@ The following layers are supported by the plugins:
 \*\*\*- supports NCDHW layout.
 
 \*\*\*\*- support is implemented via runtime reference.
+
+
+.. |br| raw:: html
+
+   <br />
 
 @endsphinxdirective
