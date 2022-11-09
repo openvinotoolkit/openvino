@@ -670,49 +670,59 @@ paddlepaddle>=2.1
 
 | Operator Name in PaddlePaddle| Limitations|
 | :----------| :----------|
-| adpative_pool2d | The `NHWC` data_layout is not supported. |
 | arg_max | The `int32` output data_type is not supported. |
 | assign |  |
 | assign_value |  |
 | batch_norm |  |
+| bicubic_interp_v2 |  |
 | bilinear_interp | `NCW`, `NWC`, `NHWC`, `NCDHW`, `NDHWC` data_layout are not supported. |
 | bilinear_interp_v2 | `NCW`, `NWC`, `NHWC`, `NCDHW`, `NDHWC` data_layout are not supported. |
 | bmm |  |
+| box_coder |  |
 | cast |  |
+| ceil |  |
 | clip |  |
 | concat |  |
+| conditional_block |  |
 | conv2d | `NHWC` data_layout is not supported. |
+| conv2d_transpose |  |
+| cumsum |  |
 | deformable_conv |  |
+| deformable_conv_v1 |  |
 | depthwise_conv2d | `NHWC` data_layout is not supported. |
+| depthwise_conv2d_transpose |  |
+| dropout |  |
 | elementwise_add |  |
 | elementwise_div |  |
+| elementwise_floordiv |  |
 | elementwise_max |  |
 | elementwise_min |  |
+| elementwise_mod |  |
 | elementwise_mul |  |
-| elementwise_not_equal |  |
 | elementwise_pow |  |
 | elementwise_sub |  |
 | equal |  |
 | exp |  |
-| expand |  |
 | expand_v2 |  |
 | fill_any_like |  |
 | fill_constant |  |
 | fill_constant_batch_size_like |  |
-| fill_zeros_like |  |
 | flatten_contiguous_range |  |
 | floor |  |
 | gather |  |
-| gather_tree |  |
+| gather_nd |  |
 | gelu |  |
 | generate_proposals_v2 |  |
 | greater_equal |  |
 | greater_than |  |
+| group_norm |  |
 | hard_sigmoid |  |
 | hard_swish |  |
 | layer_norm |  |
 | leaky_relu |  |
 | less_than |  |
+| linear_interp_v2 |  |
+| lod_array_length |  |
 | log |  |
 | logical_and |  |
 | logical_not |  |
@@ -724,10 +734,11 @@ paddlepaddle>=2.1
 | matrix_nms | Only supports IE CPU plugin with *"number of selected boxes"* static shape(e.g.: `min(min(num_boxes, nms_top_k) * num_classes_output, keep_top_k)`). |
 | max_pool2d_with_index |  |
 | meshgrid |  |
-| mul |  |
 | multiclass_nms3 | Only supports IE CPU plugin with *"number of selected boxes"* static shape(e.g.: `min(min(num_boxes, nms_top_k) * num_classes_output, keep_top_k)`). |
 | nearest_interp | `NCW`, `NWC`, `NHWC`, `NCDHW`, `NDHWC` data_layout are not supported. |
 | nearest_interp_v2 | `NCW`, `NWC`, `NHWC`, `NCDHW`, `NDHWC` data_layout are not supported. |
+| not_equal |  |
+| p_norm |  |
 | pad3d | `Circular` mode is not supported. |
 | pool2d | `NHWC` data_layout is not supported. |
 | pow |  |
@@ -741,9 +752,11 @@ paddlepaddle>=2.1
 | relu |  |
 | relu6 |  |
 | reshape2 |  |
+| reverse |  |
 | rnn | `SimpleRNN` and `GRU` modes are not supported. |
 | roi_align |  |
 | scale |  |
+| select_input |  |
 | shape |  |
 | sigmoid |  |
 | slice |  |
@@ -754,11 +767,18 @@ paddlepaddle>=2.1
 | squeeze2 |  |
 | stack |  |
 | strided_slice |  |
+| sum |  |
 | swish |  |
+| sync_batch_norm |  |
 | tanh |  |
-| top_k |  |
+| tensor_array_to_tensor |  |
+| tile |  |
 | top_k_v2 |  |
 | transpose2 |  |
+| trilinear_interp_v2 |  |
 | unsqueeze2 |  |
 | where |  |
+| where_index |  |
+| while |  |
+| write_to_array |  |
 | yolo_box |  |
