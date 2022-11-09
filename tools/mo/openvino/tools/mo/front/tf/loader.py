@@ -287,11 +287,12 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
 
 def convert_to_pb(argv: argparse.Namespace):
     from openvino.tools.mo.utils.cli_parser import get_model_name
+    user_output_node_names_list = argv.output.split(',') if argv.output else None
     graph_def, _, _, _ = load_tf_graph_def(
         graph_file_name=argv.input_model,
         is_binary=not argv.input_model_is_text,
         checkpoint=argv.input_checkpoint,
-        user_output_node_names_list=argv.output,
+        user_output_node_names_list=user_output_node_names_list,
         model_dir=argv.saved_model_dir,
         meta_graph_file=argv.input_meta_graph,
         saved_model_tags=argv.saved_model_tags)
@@ -306,7 +307,9 @@ def convert_to_pb(argv: argparse.Namespace):
     argv.model_name = model_name
     tf_v1.io.write_graph(graph_def, argv.output_dir if argv.output_dir != '.' else os.getcwd(),
                          model_name + "_tmp.pb", as_text=False)
-    argv.input_model = model_name + "_tmp.pb"
+    path_to_pb = os.path.normpath(os.path.join(argv.output_dir, model_name + "_tmp.pb"))
+    argv.input_model = path_to_pb
+    return path_to_pb
 
 
 def protobuf_attrs(pb: tf_v1.NodeDef):

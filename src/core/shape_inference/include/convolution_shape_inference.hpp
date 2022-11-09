@@ -30,25 +30,25 @@ int64_t calculate_num_spatial(const ConvType* op,
 
         if (const auto& size = op->m_dilations.size()) {
             NODE_VALIDATION_CHECK(op,
-                                  num_spatial == -1 || num_spatial == size,
+                                  num_spatial == -1 || num_spatial == static_cast<int64_t>(size),
                                   "Dilations should be defined for all and only spatial dimensions.");
             num_spatial = static_cast<int64_t>(size);
         }
         if (const auto& size = op->m_strides.size()) {
             NODE_VALIDATION_CHECK(op,
-                                  num_spatial == -1 || num_spatial == size,
+                                  num_spatial == -1 || num_spatial == static_cast<int64_t>(size),
                                   "Strides should be defined for all and only spatial dimensions.");
             num_spatial = static_cast<int64_t>(size);
         }
         if (const auto& size = op->m_pads_begin.size()) {
             NODE_VALIDATION_CHECK(op,
-                                  num_spatial == -1 || num_spatial == size,
+                                  num_spatial == -1 || num_spatial == static_cast<int64_t>(size),
                                   "Pads begin should be defined for all and only spatial dimensions.");
             num_spatial = static_cast<int64_t>(size);
         }
         if (const auto& size = op->m_pads_end.size()) {
             NODE_VALIDATION_CHECK(op,
-                                  num_spatial == -1 || num_spatial == size,
+                                  num_spatial == -1 || num_spatial == static_cast<int64_t>(size),
                                   "Pads end should be defined for all and only spatial dimensions.");
             num_spatial = static_cast<int64_t>(size);
         }
@@ -207,8 +207,8 @@ void divide_ceil(const DimType& dividend, const typename DimType::value_type& di
     if (dividend.get_max_length() == -1) {
         quotient = -1;
     } else {
-        auto lb = ceil(1. * dividend.get_min_length() / divisor);
-        auto ub = ceil(1. * dividend.get_max_length() / divisor);
+        auto lb = static_cast<int64_t>(ceil(1. * dividend.get_min_length() / divisor));
+        auto ub = static_cast<int64_t>(ceil(1. * dividend.get_max_length() / divisor));
         quotient = DimType(lb, ub);
     }
 }
@@ -299,8 +299,9 @@ void shape_infer(const Convolution* op,
 
     NODE_VALIDATION_CHECK(
         op,
-        (static_cast<int64_t>(input_shape.size()) == (num_spatial + num_non_spatial_data_dims)) &&
-            (static_cast<int64_t>(filters_shape.size()) == (num_spatial + num_non_spatial_filter_dims)),
+        (static_cast<int64_t>(input_shape.size()) == static_cast<int64_t>(num_spatial + num_non_spatial_data_dims)) &&
+            (static_cast<int64_t>(filters_shape.size()) ==
+             static_cast<int64_t>(num_spatial + num_non_spatial_filter_dims)),
         "Data batch and filters rank do not match (data batch shape: ",
         input_shape,
         ", filters shape: ",
@@ -362,8 +363,9 @@ void shape_infer(const GroupConvolution* op,
 
     NODE_VALIDATION_CHECK(
         op,
-        (static_cast<int64_t>(input_shape.size()) == (num_spatial + num_non_spatial_data_dims)) &&
-            (static_cast<int64_t>(filters_shape.size()) == (num_spatial + num_non_spatial_filter_dims)),
+        (static_cast<int64_t>(input_shape.size()) == static_cast<int64_t>((num_spatial + num_non_spatial_data_dims))) &&
+            (static_cast<int64_t>(filters_shape.size()) ==
+             static_cast<int64_t>((num_spatial + num_non_spatial_filter_dims))),
         "Data batch and filters rank do not match (data batch shape: ",
         input_shape,
         ", filters shape: ",
@@ -528,10 +530,10 @@ bool resolve_auto_pad_for_shape_back_prop(const ConvType* op,
         if (data_dim.is_static() && filter_dim.is_static() && output_dim.is_static()) {
             const auto& strides = op->m_strides[i];
             const auto& dilations = op->m_dilations[i];
-            int total_padding =
-                std::max<int>(strides * (data_dim.get_length() - 1) + dilations * (filter_dim.get_length() - 1) + 1 -
-                                  output_dim.get_length() + output_padding,
-                              0);
+            int total_padding = std::max<int>(
+                static_cast<int>(strides * (data_dim.get_length() - 1) + dilations * (filter_dim.get_length() - 1) + 1 -
+                                 output_dim.get_length() + output_padding),
+                0);
             if (auto_pad != op::PadType::SAME_UPPER) {
                 pads_begin[i] = total_padding / 2;
                 pads_end[i] = total_padding - pads_begin[i];

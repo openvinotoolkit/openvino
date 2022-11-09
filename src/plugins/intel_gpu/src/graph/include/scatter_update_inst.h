@@ -10,15 +10,6 @@
 #include <string>
 
 namespace cldnn {
-template <>
-struct typed_program_node<scatter_update> : public typed_program_node_base<scatter_update> {
-    using parent = typed_program_node_base<scatter_update>;
-
-public:
-    using parent::parent;
-
-    program_node& input(size_t index = 0) const { return get_dependency(index); }
-};
 
 using scatter_update_node = typed_program_node<scatter_update>;
 

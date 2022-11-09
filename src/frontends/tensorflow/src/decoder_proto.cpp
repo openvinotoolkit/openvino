@@ -261,7 +261,7 @@ void DecoderProto::get_input_node(size_t input_port_idx,
                                   std::string& producer_name,
                                   size_t& producer_output_port_index) const {
     // TODO: handle body graph nodes with a couple of columns
-    std::string producer_port_name = m_node_def->input(input_port_idx);
+    std::string producer_port_name = m_node_def->input(static_cast<int>(input_port_idx));
     auto delim_pos = producer_port_name.find(':');
     if (delim_pos != std::string::npos) {
         producer_name = producer_port_name.substr(0, delim_pos);

@@ -48,7 +48,7 @@ class TestKerasLSTM(CommonTF2LayerTest):
              flags=(False, False)),
         dict(input_names=["x"], input_shapes=[[1, 3, 4]], input_type=tf.float32, units=3,
              activation='linear', recurrent_activation='sigmoid', dropouts=(.4, .6),
-             flags=(False, False), use_bias=True)
+             flags=(False, False), use_bias=True),
     ]
 
     @pytest.mark.parametrize("params", test_data_simple)

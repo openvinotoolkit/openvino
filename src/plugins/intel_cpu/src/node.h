@@ -20,6 +20,7 @@
 #include "extension_mngr.h"
 #include "primitive.h"
 #include "weights_cache.hpp"
+#include "dnnl_scratch_pad.h"
 #include <openvino/itt.hpp>
 #include "utils/ngraph_utils.hpp"
 #include <ngraph/ops.hpp>
@@ -28,6 +29,7 @@
 #include <nodes/common/blocked_desc_creator.h>
 #include "cpu_types.h"
 #include "cpu_shape.h"
+#include "config.h"
 #include "nodes/node_config.h"
 #include "cache/multi_cache.h"
 
@@ -573,6 +575,14 @@ public:
         rtParamsCache = cache;
     }
 
+    void setRuntimeScratchPad(DnnlScratchPadPtr scratchPad) {
+        rtScratchPad = scratchPad;
+    }
+
+    void setSharedMutex(const std::shared_ptr<std::mutex>& mutex) {
+        sharedMutex = mutex;
+    }
+
 protected:
     bool canFuseSimpleOperation(const NodePtr& node) const;
 
@@ -669,42 +679,7 @@ protected:
     void addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfigs,
                               const std::vector<PortConfigurator>& outPortConfigs,
                               impl_desc_type implType,
-                              bool dynBatchSupport = false) {
-        auto fill_port = [] (const PortConfigurator& portConfigurator, const Shape& shape,
-                             InferenceEngine::Precision prc, std::vector<PortConfig>& port) -> bool {
-            // In order to simplify particular node initialization logic we just don't add config in case target shape is not supported by blockedDescCreator.
-            // This should be suitable for major of scenarios since almost all nodes add `ncsp` blockedDescCreator which supports any shape rank.
-            if (shape.getRank() < portConfigurator.blockedDescCreator->getMinimalRank())
-                return false;
-
-            PortConfig portConfig;
-            portConfig.inPlace(portConfigurator.inPlace);
-            portConfig.constant(portConfigurator.constant);
-            portConfig.setMemDesc(portConfigurator.blockedDescCreator->createSharedDesc(prc, shape));
-
-            port.push_back(std::move(portConfig));
-
-            return true;
-        };
-
-        NodeConfig config;
-        for (size_t i = 0; i < inPortConfigs.size(); i++) {
-            auto shape = inPortConfigs[i].shape.getRank() == 0 ? getInputShapeAtPort(i) : inPortConfigs[i].shape;
-            auto prc = inPortConfigs[i].prc == InferenceEngine::Precision::UNSPECIFIED ? getOriginalInputPrecisionAtPort(i) : inPortConfigs[i].prc;
-            if (!fill_port(inPortConfigs[i], shape, prc, config.inConfs))
-                return;
-        }
-
-        for (size_t i = 0; i < outPortConfigs.size(); i++) {
-            auto dims = outPortConfigs[i].shape.getRank() == 0 ? getOutputShapeAtPort(i) : outPortConfigs[i].shape;
-            auto prc = outPortConfigs[i].prc == InferenceEngine::Precision::UNSPECIFIED ? getOriginalOutputPrecisionAtPort(i) : outPortConfigs[i].prc;
-            if (!fill_port(outPortConfigs[i], dims, prc, config.outConfs))
-                return;
-        }
-
-        config.dynBatchSupport = dynBatchSupport;
-        supportedPrimitiveDescriptors.push_back({config, implType});
-    }
+                              bool dynBatchSupport = false);
 
     void prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs);
     void prepareMemory(dnnl::primitive_desc_iterator& itpd);
@@ -743,9 +718,21 @@ protected:
         return rtParamsCache;
     }
 
+    DnnlScratchPadPtr getRuntimeScratchPad() const {
+        return rtScratchPad;
+    }
+
+    MemoryPtr getScratchPadMem(const const_dnnl_primitive_desc_t& pd) {
+        auto scratchpadMemoryDesc = DnnlExtensionUtils::query_md(pd, dnnl::query::scratchpad_md);
+        scratchpadMem = getRuntimeScratchPad()->createScratchPadMem(scratchpadMemoryDesc);
+        return scratchpadMem;
+    }
+
     std::vector<VectorDims> lastInputDims = {};
 
     std::shared_ptr<IShapeInfer> shapeInference;
+
+    std::shared_ptr<std::mutex> sharedMutex = nullptr;
 
 private:
     std::vector<EdgeWeakPtr> parentEdges;
@@ -769,6 +756,8 @@ private:
     PerfCounters profiling;
 
     MultiCachePtr rtParamsCache;
+    DnnlScratchPadPtr rtScratchPad;
+    MemoryPtr scratchpadMem;
 
     bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const;
 

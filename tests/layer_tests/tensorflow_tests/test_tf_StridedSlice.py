@@ -12,9 +12,7 @@ class TestStridedSlice(CommonTFLayerTest):
     def create_strided_slice_net(input_shape, begin, end, strides, begin_mask, end_mask,
                                  ellipsis_mask,
                                  new_axis_mask, shrink_axis_mask, ir_version, use_new_frontend):
-        #
-        # Create Tensorflow model
-        #
+
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()

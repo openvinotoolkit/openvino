@@ -68,10 +68,11 @@ static MemBandwidthPressure MemBandwidthPressureTolerance(
                 const auto non_const = !get_constant_from_source(node->input_value(1));
                 const auto& shapeOutput = output.get_shape();
                 const auto dataSizeInput0 =
-                    std::accumulate(shapeInput0.begin(), shapeInput0.end(), 1, std::multiplies<int>());
+                    std::accumulate(shapeInput0.begin(), shapeInput0.end(), size_t(1), std::multiplies<size_t>());
                 const auto dataSizeInput1 =
-                    std::accumulate(shapeInput1.begin(), shapeInput1.end(), 1, std::multiplies<int>());
-                dataSizeOutput = std::accumulate(shapeOutput.begin(), shapeOutput.end(), 1, std::multiplies<int>());
+                    std::accumulate(shapeInput1.begin(), shapeInput1.end(), size_t(1), std::multiplies<size_t>());
+                dataSizeOutput =
+                    std::accumulate(shapeOutput.begin(), shapeOutput.end(), size_t(1), std::multiplies<size_t>());
                 const auto total_data = dataSizeInput0 + non_const * dataSizeInput1 + dataSizeOutput;
                 total_gemms++;
                 const auto factor = memLimitedFactor(total_data, data_type_size);
@@ -96,8 +97,10 @@ static MemBandwidthPressure MemBandwidthPressureTolerance(
                     compute_convs++;
                     continue;
                 }
-                dataSizeInput = std::accumulate(shapeInput.begin(), shapeInput.end(), 1, std::multiplies<int>());
-                dataSizeOutput = std::accumulate(shapeOutput.begin(), shapeOutput.end(), 1, std::multiplies<int>());
+                dataSizeInput =
+                    std::accumulate(shapeInput.begin(), shapeInput.end(), size_t(1), std::multiplies<size_t>());
+                dataSizeOutput =
+                    std::accumulate(shapeOutput.begin(), shapeOutput.end(), size_t(1), std::multiplies<size_t>());
                 const auto factor = memLimitedFactor(dataSizeInput + dataSizeOutput, data_type_size);
                 mem_limited_convs += factor < memThresholdAssumeLimited;
                 worst_case = std::min(factor, worst_case);
@@ -115,8 +118,10 @@ static MemBandwidthPressure MemBandwidthPressureTolerance(
                     compute_deconvs++;
                     continue;
                 }
-                dataSizeInput = std::accumulate(shapeInput.begin(), shapeInput.end(), 1, std::multiplies<int>());
-                dataSizeOutput = std::accumulate(shapeOutput.begin(), shapeOutput.end(), 1, std::multiplies<int>());
+                dataSizeInput =
+                    std::accumulate(shapeInput.begin(), shapeInput.end(), size_t(1), std::multiplies<size_t>());
+                dataSizeOutput =
+                    std::accumulate(shapeOutput.begin(), shapeOutput.end(), size_t(1), std::multiplies<size_t>());
                 const auto factor = memLimitedFactor(dataSizeInput + dataSizeOutput, data_type_size);
                 mem_limited_deconvs += factor < memThresholdAssumeLimited;
                 worst_case = std::min(factor, worst_case);

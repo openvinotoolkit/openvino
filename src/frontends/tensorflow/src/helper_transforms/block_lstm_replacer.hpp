@@ -16,12 +16,12 @@ namespace frontend {
 namespace tensorflow {
 namespace pass {
 
-// This transformation handles BlockLSTM with just one output, concatenation of all the intermediate
-// output values of the hidden.
-class TENSORFLOW_API BlockLSTMToLSTMSequenceOneOutput : public ov::pass::MatcherPass {
+// This transformation replaces BlockLSTM with such outputs as concatenated hidden states
+// and cell state from the last time step.
+class BlockLSTMReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::tensorflow::pass::BlockLSTMToLSTMSequenceOneOutput");
-    BlockLSTMToLSTMSequenceOneOutput();
+    OPENVINO_RTTI("ov::frontend::tensorflow::pass::BlockLSTMReplacer");
+    BlockLSTMReplacer();
 };
 
 }  // namespace pass

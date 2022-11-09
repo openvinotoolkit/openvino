@@ -97,11 +97,17 @@ struct PluginConfig {
                 _devicePriority = kvp.second;
             } else if (std::find(perf_hints_configs.begin(), perf_hints_configs.end(), kvp.first) != perf_hints_configs.end()) {
                 _perfHintsConfig.SetConfig(kvp.first, kvp.second);
-            } else if (_availableDevices.end() !=
-                   std::find(_availableDevices.begin(), _availableDevices.end(), kvp.first)) {
+                if (kvp.first == ov::hint::performance_mode.name())
+                    _isSetPerHint = true;
+            } else if (_availableDevices.end() != std::find(_availableDevices.begin(),
+                                                            _availableDevices.end(),
+                                                            DeviceIDParser(kvp.first).getDeviceName())) {
                 _passThroughConfig.emplace(kvp.first, kvp.second);
             } else if (kvp.first.find("AUTO_") == 0) {
                 _passThroughConfig.emplace(kvp.first, kvp.second);
+            } else if (kvp.first == ov::cache_dir.name()) {
+                _cacheDir = kvp.second;
+                _isSetCacheDir = true;
             } else {
                 if (pluginName.find("AUTO") != std::string::npos)
                     IE_THROW(NotFound) << "Unsupported property " << kvp.first;
@@ -187,11 +193,14 @@ struct PluginConfig {
 
         _keyConfigMap[ov::log::level.name()] = _logLevel;
 
+        _keyConfigMap[ov::cache_dir.name()] = _cacheDir;
+
         // for 2nd properties or independent configs from multi
         for (auto && kvp : _passThroughConfig) {
             _keyConfigMap[kvp.first] = kvp.second;
         }
     }
+    std::string _cacheDir{};
     bool _useProfiling;
     bool _exclusiveAsyncRequests;
     bool _disableAutoBatching;
@@ -201,6 +210,9 @@ struct PluginConfig {
     bool _deviceBindBuffer;
     std::string _logLevel;
     PerfHintsConfig  _perfHintsConfig;
+    // Add this flag to check if user app sets hint with none value that is equal to the default value of hint.
+    bool _isSetPerHint = false;
+    bool _isSetCacheDir = false;
     std::map<std::string, std::string> _passThroughConfig;
     std::map<std::string, std::string> _keyConfigMap;
     const std::set<std::string> _availableDevices = {"AUTO",

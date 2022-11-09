@@ -23,6 +23,7 @@ void TransformationTestsF::SetUp() {
 }
 
 void TransformationTestsF::TearDown() {
+    OPENVINO_ASSERT(function != nullptr, "Test Model is not initialized.");
     auto cloned_function = ngraph::clone_function(*function);
     if (!function_ref) {
         function_ref = cloned_function;

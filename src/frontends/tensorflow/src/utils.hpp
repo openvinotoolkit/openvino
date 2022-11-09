@@ -7,6 +7,7 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov {
 namespace frontend {
@@ -24,37 +25,9 @@ void set_node_name(const std::string& node_name, const std::shared_ptr<Node>& no
 
 bool is_conditional_edge(const std::string& input_tensor_name);
 
-static bool vec_str_cmp(const std::vector<std::string>& a, const std::vector<std::string>& b) {
-    return a == b;
-}
-
-template <typename T>
-void make_padding(const std::string& tf_padding_type,
-                  const ov::Shape& ng_image_shape,
-                  const ov::Shape& ng_kernel_shape,
-                  const ov::Strides& ng_strides,
-                  const ov::Shape& ng_dilations,
-                  T& ng_padding_below,
-                  T& ng_padding_above) {
-    if (tf_padding_type == "SAME") {
-        ov::Shape img_shape = {0, 0};
-        img_shape.insert(img_shape.end(), ng_image_shape.begin(), ng_image_shape.end());
-        ov::infer_auto_padding(img_shape,
-                               ng_kernel_shape,
-                               ng_strides,
-                               ng_dilations,
-                               ov::op::PadType::SAME_UPPER,
-                               ng_padding_above,
-                               ng_padding_below);
-    } else if (tf_padding_type == "VALID") {
-        ng_padding_below.assign(ng_image_shape.size(), 0);
-        ng_padding_above.assign(ng_image_shape.size(), 0);
-    }
-}
-
 template <typename T>
 void get_const_input(const NodeContext& node, int64_t input_index, std::vector<T>* vector) {
-    auto ng_input = node.get_input(input_index);
+    auto ng_input = node.get_input(static_cast<int>(input_index));
     if (auto constant = std::dynamic_pointer_cast<opset8::Constant>(ng_input.get_node_shared_ptr())) {
         *vector = constant->cast_vector<T>();
         return;
@@ -75,6 +48,15 @@ void fill_explicit_pads_vectors(const NodeContext& node,
 
 void default_op_checks(const NodeContext& node, int min_input_size, const std::vector<std::string>& supported_ops);
 
+ov::Output<Node> get_elements_number_1d(const Output<Node>& output,
+                                        ov::element::Type output_type,
+                                        ov::pass::NodeRegistry& rg);
+
+ov::op::PadMode convert_padding_mode(const NodeContext& node, const std::string& padding_mode);
+
+Output<Node> compute_subgraph_scalar_rank(const Output<Node>& output,
+                                          element::Type output_type,
+                                          bool as_scalar = false);
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

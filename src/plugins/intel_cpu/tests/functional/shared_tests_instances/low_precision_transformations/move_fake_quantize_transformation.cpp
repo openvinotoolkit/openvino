@@ -164,7 +164,7 @@ namespace testValues2 {
             {},
             {},
             "Concatenation",
-            "FP32",
+            "I8",
             -1
         },
     };

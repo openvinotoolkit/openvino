@@ -4,6 +4,7 @@
 
 #include "extension.h"
 #include "ngraph_transformations/op/fully_connected.hpp"
+#include "ngraph_transformations/op/interaction.hpp"
 #include "ngraph_transformations/op/leaky_relu.hpp"
 #include "ngraph_transformations/op/power_static.hpp"
 #include "ngraph_transformations/op/swish_cpu.hpp"
@@ -41,6 +42,7 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         ngraph::OpSet opset;
 
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
+        NGRAPH_OP(InteractionNode, ov::intel_cpu)
         NGRAPH_OP(FullyConnectedNode, ov::intel_cpu)
         NGRAPH_OP(LeakyReluNode, ov::intel_cpu)
         NGRAPH_OP(PowerStaticNode, ov::intel_cpu)

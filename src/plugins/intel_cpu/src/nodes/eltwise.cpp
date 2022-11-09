@@ -104,7 +104,7 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
                                      const std::vector<Eltwise::EltwiseData>& eltwise_data,
                                      const std::vector<ov::intel_cpu::Type>& ops_list,
                                      const dnnl::post_ops& post_ops)
-    : jit_uni_eltwise_kernel(jep), jit_generator(), eltwise_data_(eltwise_data), ops_list_(ops_list), post_ops_(post_ops) {}
+    : jit_uni_eltwise_kernel(jep), jit_generator(jit_name()), eltwise_data_(eltwise_data), ops_list_(ops_list), post_ops_(post_ops) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -2252,16 +2252,19 @@ void Eltwise::appendBinPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims
 }
 
 bool Eltwise::canFuse(const NodePtr& node) const {
-    auto isSuitableNode = [this](const Eltwise* node) {
-        // [WA] Since execution precision change from I32 to FP32 for Divide operation may lead to incorrect results
-        // we disable its fusing otherwise there is no guarantee it will be executed it I32
-        // [TODO] We need to rewrite support for different precisions at all to avoid implicit conversions to FP32
-        // (all should be handled via explicit convert operations)
-        if (node->getAlgorithm() == Algorithm::EltwiseDivide) {
-            for (const auto &originalInputPrecision : getOriginalInputPrecisions()) {
-                if (originalInputPrecision == Precision::I32) {
-                    return false;
-                }
+    auto isIntegerComputeSupported = [this](const Node* node) {
+        if (!one_of(node->getAlgorithm(), Algorithm::EltwiseAdd,
+                                          Algorithm::EltwiseMultiply,
+                                          Algorithm::EltwiseMulAdd,
+                                          Algorithm::EltwiseSubtract,
+                                          Algorithm::EltwiseDivide,
+                                          Algorithm::EltwiseSquaredDifference)) {
+            return false;
+        }
+
+        for (const auto &originalInputPrecision : node->getOriginalInputPrecisions()) {
+            if (originalInputPrecision != Precision::I32) {
+                return false;
             }
         }
 
@@ -2271,9 +2274,10 @@ bool Eltwise::canFuse(const NodePtr& node) const {
     if (!mayiuse(x64::sse41) || getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK)
         return false;
 
-    if (!isSuitableNode(this)) {
+
+    bool isIntegerNode = isIntegerComputeSupported(this);
+    if (isIntegerNode && node->getType() != Type::Eltwise)
         return false;
-    }
 
     // FQ inputs with quantization parameters will be hided inside post_op object, so will not increase inputs number
     size_t addedInputEdgesNum = node->getType() != Type::FakeQuantize ? (node->getParentEdges().size() - 1) : 0;
@@ -2281,6 +2285,16 @@ bool Eltwise::canFuse(const NodePtr& node) const {
         return false;
 
     if (node->getType() == Type::Eltwise) {
+        // [WA] Since execution precision change from I32 to FP32 for arithmetic operations may lead to incorrect results
+        // we disable fusing cases which may lead to invalid precision conversions inside the kernel
+        // [TODO] We need to rewrite support for different precisions at all to avoid implicit conversions to FP32
+        // (all should be handled via explicit convert operations)
+        bool isIntegerFusingNode = isIntegerComputeSupported(node.get());
+        if (isIntegerNode && !isIntegerFusingNode ||
+                !isIntegerNode && isIntegerFusingNode) {
+            return false;
+        }
+
         if (node->getParentEdgesAtPort(0)[0]->getParent().get() != this) {
             // Eltwise jitter doesn't respect commutative property, so fusing is disabled in case it applied not for 0-th port.
             if (one_of(node->getAlgorithm(), Algorithm::EltwiseSubtract,

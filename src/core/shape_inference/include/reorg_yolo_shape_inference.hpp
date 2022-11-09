@@ -30,7 +30,8 @@ void shape_infer(const ReorgYolo* op, const std::vector<T>& input_shapes, std::v
                               "For [N, C, H, W] input shape, W should be divisible by stride.");
 
         NODE_VALIDATION_CHECK(op,
-                              input_shape[1].is_dynamic() || input_shape[1].get_length() >= (strides[0] * strides[0]),
+                              input_shape[1].is_dynamic() ||
+                                  static_cast<size_t>(input_shape[1].get_length()) >= (strides[0] * strides[0]),
                               "For [N, C, H, W] input shape, C >= (stride*stride) is required.");
 
         output_shape = T({input_shape[0], input_shape[1]});

@@ -184,13 +184,15 @@ void allowNotImplemented(F&& f) {
 
 ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& properties) {
     ov::AnyMap result = properties;
+    bool isVirtualDev = device.find("AUTO") != std::string::npos || device.find("MULTI") != std::string::npos ||
+                        device.find("HETERO") != std::string::npos;
     for (auto item = result.begin(); item != result.end();) {
         auto parsed = parseDeviceNameIntoConfig(item->first);
         if (!item->second.is<ov::AnyMap>()) {
             item++;
             continue;
         }
-        if (device.find(parsed._deviceName) != std::string::npos) {
+        if (device == parsed._deviceName) {
             // 1. flatten the scondary property for target device
             for (auto&& sub_property : item->second.as<ov::AnyMap>()) {
                 // 1.1 1st level property overides 2nd level property
@@ -199,12 +201,12 @@ ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& p
                 result[sub_property.first] = sub_property.second;
             }
             item = result.erase(item);
-        } else if (device != "AUTO" && device != "MULTI" && device != "HETERO") {
-            // 2. remove the secondary property setting for other hard ware device
-            item = result.erase(item);
-        } else {
-            // 3. keep the secondary property for the other virtual devices
+        } else if (isVirtualDev) {
+            // 2. keep the secondary property for the other virtual devices
             item++;
+        } else {
+            // 3. remove the secondary property setting for other hardware device
+            item = result.erase(item);
         }
     }
     return result;
@@ -229,7 +231,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         std::lock_guard<std::mutex> lock(global_mutex);
         try {
             return dev_mutexes.at(dev_name);
-        } catch (const std::out_of_range& ex) {
+        } catch (const std::out_of_range&) {
             throw ov::Exception("Cannot get mutex for device: " + dev_name);
         }
     }
@@ -2122,11 +2124,35 @@ void Core::add_extension(const ie::IExtensionPtr& extension) {
 }
 
 void Core::add_extension(const std::string& library_path) {
-    add_extension(ov::detail::load_extensions(library_path));
+    try {
+        add_extension(ov::detail::load_extensions(library_path));
+    } catch (const std::runtime_error&) {
+        try {
+            // Try to load legacy extension
+            const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(library_path);
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            add_extension(extension_ptr);
+            OPENVINO_SUPPRESS_DEPRECATED_END
+        } catch (const std::runtime_error&) {
+            throw ov::Exception("Cannot add extension. Cannot find entry point to the extension library");
+        }
+    }
 }
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 void Core::add_extension(const std::wstring& library_path) {
-    add_extension(ov::detail::load_extensions(library_path));
+    try {
+        add_extension(ov::detail::load_extensions(library_path));
+    } catch (const std::runtime_error&) {
+        try {
+            // Try to load legacy extension
+            const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(library_path);
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            add_extension(extension_ptr);
+            OPENVINO_SUPPRESS_DEPRECATED_END
+        } catch (const std::runtime_error&) {
+            throw ov::Exception("Cannot add extension. Cannot find entry point to the extension library");
+        }
+    }
 }
 #endif
 

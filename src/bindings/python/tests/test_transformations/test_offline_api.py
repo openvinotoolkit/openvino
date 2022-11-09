@@ -13,6 +13,7 @@ from openvino.offline_transformations import (
     apply_make_stateful_transformation,
     compress_model_transformation,
     convert_sequence_to_tensor_iterator_transformation,
+    apply_fused_names_cleanup,
 )
 
 from openvino.runtime import Model, PartialShape, Core
@@ -136,6 +137,21 @@ def test_make_stateful_transformations():
     assert model is not None
     assert len(model.get_parameters()) == 0
     assert len(model.get_results()) == 0
+
+
+def test_fused_names_cleanup():
+    model = get_test_model()
+
+    for node in model.get_ops():
+        node.get_rt_info()["fused_names_0"] = "test_op_name"
+
+    apply_fused_names_cleanup(model)
+
+    assert model is not None
+    assert len(model.get_ops()) == 3
+
+    for node in model.get_ops():
+        assert len(node.get_rt_info()) == 0
 
 
 def test_serialize_pass_v2():

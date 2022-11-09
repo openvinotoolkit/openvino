@@ -253,6 +253,22 @@ NGRAPH_API EnumNames<ngraph::op::LSTMWeightsFormat>& EnumNames<ngraph::op::LSTMW
 
 BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::LSTMWeightsFormat>);
 
+ov::op::util::LSTMWeightsFormat op::convert_lstm_weights_enums(op::LSTMWeightsFormat format) {
+    switch (format) {
+    case LSTMWeightsFormat::FICO:
+        return ov::op::util::LSTMWeightsFormat::FICO;
+    case LSTMWeightsFormat::ICOF:
+        return ov::op::util::LSTMWeightsFormat::ICOF;
+    case LSTMWeightsFormat::IFCO:
+        return ov::op::util::LSTMWeightsFormat::IFCO;
+    case LSTMWeightsFormat::IFOC:
+        return ov::op::util::LSTMWeightsFormat::IFOC;
+    case LSTMWeightsFormat::IOFC:
+        return ov::op::util::LSTMWeightsFormat::IOFC;
+    default:
+        OPENVINO_ASSERT(false, "Incorrect LSTM weights format");
+    }
+}
 }  // namespace ov
 
 std::ostream& ov::operator<<(std::ostream& s, const op::LSTMWeightsFormat& type) {

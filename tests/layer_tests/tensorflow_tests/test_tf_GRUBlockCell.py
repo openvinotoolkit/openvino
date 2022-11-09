@@ -13,10 +13,6 @@ class TestTFGRUBlockCell(CommonTFLayerTest):
         return inputs_dict
 
     def create_tf_gru_block_cell(self, batch_size, input_size, hidden_size):
-        #
-        #   Create Tensorflow model
-        #
-
         import tensorflow as tf
         tf.compat.v1.reset_default_graph()
 

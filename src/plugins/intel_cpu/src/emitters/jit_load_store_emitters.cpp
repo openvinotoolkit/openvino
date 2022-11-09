@@ -18,10 +18,12 @@ using namespace Xbyak::util;
 namespace ov {
 namespace intel_cpu {
 
+namespace {
 // heuristic threshold number by byte between mask load and emulation with several simple partial load
-const int threshold_for_mask_emu_load = 14;
+constexpr int threshold_for_mask_emu_load = 14;
 // heuristic threshold number by byte between mask store and emulation with several simple partial store
-const int threshold_for_mask_emu_store = 6;
+constexpr int threshold_for_mask_emu_store = 6;
+}   // namespace
 
 size_t load_emitter_params::hash() const {
     size_t seed = 0;

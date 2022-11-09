@@ -54,7 +54,7 @@ protected:
     bool optimized_out(detection_output_inst& instance) const override {
         /// purpose: To optimize out detection_output for perf measurement.
         /// how-to: update nms_threshold to '-100' from ir file.
-        return (instance.argument.nms_threshold < -1);
+        return (instance.argument->nms_threshold < -1);
     }
 
 public:
@@ -86,10 +86,16 @@ public:
 namespace detail {
 
 attach_detection_output_impl::attach_detection_output_impl() {
-    implementation_map<detection_output>::add(impl_types::ocl, detection_output_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx)
-    });
+    std::vector<data_types> dt = {
+        data_types::f32,
+        data_types::f16,
+    };
+    std::vector<format::type> fmt = {
+        format::bfyx,
+        format::bs_fs_yx_bsv16_fsv32,
+        format::bs_fs_zyx_bsv16_fsv32,
+    };
+    implementation_map<detection_output>::add(impl_types::ocl, detection_output_impl::create, dt, fmt);
 }
 
 }  // namespace detail

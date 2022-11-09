@@ -9,7 +9,7 @@ from texttable import Texttable
 from ....algorithms.algorithm import Algorithm
 from ....algorithms.algorithm_selector import COMPRESSION_ALGORITHMS
 from ....graph.model_utils import get_nodes_by_type
-from ....graph.node_utils import get_node_value, set_node_value, get_node_output
+from ....graph.node_utils import get_first_convolutions, get_node_value, set_node_value, get_node_output
 from ....graph.special_operations import OPERATIONS_WITH_WEIGHTS
 
 
@@ -38,10 +38,25 @@ class MagnitudeSparsity(Algorithm):
             self._config.normed_threshold is not False
         )  # True by default
 
-        all_weights_nodes = self._get_all_weights_nodes(model)
-        all_nodes_with_weights = [self._get_node_weight(node) for node in
-                                  get_nodes_by_type(model, [op['type'] for op in OPERATIONS_WITH_WEIGHTS])
-                                  if self._get_node_weight(node) is not None]
+        # MO fuses preprocessing with the first convolution weights: weights /= scale.
+        # As a result, the first convolution weights can be near zero and reset to zero.
+        # To avoid this, POT skips the first convolution.
+        if not normalize_before_sparse:
+            input_nodes = get_nodes_by_type(model, ['Parameter'], recursively=False)
+            input_convolutions = get_first_convolutions(input_nodes)
+            input_convolutions_names = [node.fullname for node in input_convolutions]
+            if self.ignored_scope is None:
+                self.ignored_scope = input_convolutions_names
+            else:
+                self.ignored_scope.extend(input_convolutions_names)
+
+        all_nodes_with_weights = []
+        for node in get_nodes_by_type(model, [op['type'] for op in OPERATIONS_WITH_WEIGHTS]):
+            node_weights = self._get_node_weight(node)
+            if node_weights is not None and \
+               (self.ignored_scope is None or node.fullname not in self.ignored_scope):
+                all_nodes_with_weights.append(node_weights)
+
         all_weights = self._weights_preparation(
             all_nodes_with_weights, normalize_before_sparse
         )
@@ -49,7 +64,7 @@ class MagnitudeSparsity(Algorithm):
         sparsity_threshold = all_weights[int(float(sparsity_level) * len(all_weights))]
 
         # Calculating and setting sparse values to nodes
-        for node in all_weights_nodes:
+        for node in self._get_all_weights_nodes(model):
             node_sparsity_mask = self._sparsify_node(
                 node,
                 normalize_before_sparse,

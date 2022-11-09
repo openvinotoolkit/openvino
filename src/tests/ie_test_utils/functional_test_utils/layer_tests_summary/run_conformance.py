@@ -52,7 +52,9 @@ def get_ov_path(ov_dir=None, is_bin=False):
         ov_dir = os.path.join(get_latest_dir(ov_dir))
     return ov_dir
 
-
+def get_default_working_dir():
+    path = Path(__file__).parent.resolve()
+    return os.path.join(path, "temp")
 
 def parse_arguments():
     parser = ArgumentParser()
@@ -67,7 +69,7 @@ def parse_arguments():
     parser.add_argument("-m", "--models_path", help=models_path_help, type=str, required=False, default=NO_MODEL_CONSTANT)
     parser.add_argument("-d", "--device", help= device_help, type=str, required=False, default="CPU")
     parser.add_argument("-ov", "--ov_path", help=ov_help, type=str, required=False, default=get_ov_path())
-    parser.add_argument("-w", "--working_dir", help=working_dir_help, type=str, required=False, default='temp')
+    parser.add_argument("-w", "--working_dir", help=working_dir_help, type=str, required=False, default=get_default_working_dir())
     parser.add_argument("-t", "--type", help=type_help, type=str, required=False, default="OP")
     parser.add_argument("-s", "--dump_conformance", help=dump_conformance_help, type=int, required=False, default=1)
 

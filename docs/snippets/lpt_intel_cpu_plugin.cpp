@@ -72,20 +72,20 @@ if (useLpt) {
     // Low precision transformations plugin specific configuration: restrictions definition
     auto supportedPrecisions = std::vector<PrecisionsRestriction>({
         PrecisionsRestriction::create<ngraph::opset1::Convolution>({
-            {0, {ngraph::element::u8}},
-            {1, {ngraph::element::i8}},
+            {{0}, {ngraph::element::u8}},
+            {{1}, {ngraph::element::i8}},
         }),
         PrecisionsRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
-            {0, {ngraph::element::u8, ngraph::element::i8}},
-            {1, {ngraph::element::i8}}
+            {{0}, {ngraph::element::u8, ngraph::element::i8}},
+            {{1}, {ngraph::element::i8}}
         }),
         PrecisionsRestriction::create<ngraph::opset1::GroupConvolution>({
-            {0, {ngraph::element::u8}},
-            {1, {ngraph::element::i8}}
+            {{0}, {ngraph::element::u8}},
+            {{1}, {ngraph::element::i8}}
         }),
         PrecisionsRestriction::create<ngraph::opset1::Multiply>({
-            {0, {ngraph::element::u8}},
-            {1, {ngraph::element::i8}},
+            {{0}, {ngraph::element::u8}},
+            {{1}, {ngraph::element::i8}},
         }),
     });
 
@@ -135,8 +135,8 @@ using namespace ngraph::pass::low_precision;
 //! [lpt_supported_precisions]
 auto supportedPrecisions = std::vector<PrecisionsRestriction>({
     PrecisionsRestriction::create<ngraph::opset1::Convolution>({
-        {0, {ngraph::element::u8}},
-        {1, {ngraph::element::i8}},
+        {{0}, {ngraph::element::u8}},
+        {{1}, {ngraph::element::i8}},
     }),
 });
 
@@ -199,8 +199,8 @@ using namespace ngraph::pass::low_precision;
 //! [lpt_markup_pipeline]
 auto supportedPrecisions = std::vector<PrecisionsRestriction>({
     PrecisionsRestriction::create<ngraph::opset1::Convolution>({
-        {0, {ngraph::element::u8}},
-        {1, {ngraph::element::i8}},
+        {{0}, {ngraph::element::u8}},
+        {{1}, {ngraph::element::i8}},
     }),
 });
 

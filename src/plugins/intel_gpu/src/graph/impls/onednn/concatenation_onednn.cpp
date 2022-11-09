@@ -48,7 +48,7 @@ protected:
     static std::shared_ptr<dnnl::concat::primitive_desc> get_concatenation_descriptor(const kernel_impl_params& impl_params) {
         auto prim = impl_params.typed_desc<concatenation>();
 
-        auto& engine = impl_params.prog.get_engine();
+        auto& engine = impl_params.prog->get_engine();
         std::vector<dnnl::memory::desc> input_mds;
         for (size_t i = 0; i < impl_params.input_layouts.size(); i++) {
             input_mds.push_back(onednn::layout_to_memory_desc(impl_params.get_input_layout(i)));
@@ -63,7 +63,7 @@ protected:
 
 public:
     static primitive_impl* create(const concatenation_node& arg, const kernel_impl_params& impl_params) {
-        auto& engine = impl_params.prog.get_engine();
+        auto& engine = impl_params.prog->get_engine();
         if (arg.can_be_optimized())
             return new concatenation_onednn(engine);
         auto desc = get_concatenation_descriptor(impl_params);
@@ -90,11 +90,13 @@ attach_concatenation_onednn::attach_concatenation_onednn() {
         format::b_fs_yx_fsv16,
         format::b_fs_yx_fsv32,
         format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv16_fsv32,
         format::bs_fs_yx_bsv32_fsv16,
         format::bs_fs_yx_bsv32_fsv32,
         format::b_fs_zyx_fsv16,
         format::b_fs_zyx_fsv32,
         format::bs_fs_zyx_bsv16_fsv16,
+        format::bs_fs_zyx_bsv16_fsv32,
         format::bs_fs_zyx_bsv32_fsv16,
         format::bs_fs_zyx_bsv32_fsv32,
         format::bs_fs_yx_bsv4_fsv4,

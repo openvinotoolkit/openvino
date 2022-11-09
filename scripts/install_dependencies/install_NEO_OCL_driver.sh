@@ -18,7 +18,7 @@ EXIT_WRONG_ARG=2
 RHEL_VERSION=
 UBUNTU_VERSION=
 DISTRO=
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" >/dev/null 2>&1 && pwd )"
+SCRIPT_DIR="$( cd "$( dirname "$(realpath "${BASH_SOURCE[0]}")" )" >/dev/null 2>&1 && pwd )"
 INSTALL_DRIVER_VERSION='unknown'
 
 

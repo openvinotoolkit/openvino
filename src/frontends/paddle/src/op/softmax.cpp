@@ -15,7 +15,7 @@ NamedOutputs softmax(const NodeContext& node) {
     if (axis < 0) {
         PADDLE_OP_CHECK(node, data.get_partial_shape().rank().is_static(), "Softmax rank must be static");
         auto data_rank = data.get_partial_shape().rank().get_length();
-        axis = data_rank + axis;
+        axis = static_cast<uint32_t>(data_rank + axis);
     }
     return node.default_single_output_mapping({std::make_shared<ov::opset6::Softmax>(data, axis)}, {"Out"});
 }

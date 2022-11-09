@@ -122,8 +122,8 @@ class jit_convert_array : public jit::Generator {
 
         foreach (rsi, 1, r8, [&, this](const Xbyak::Reg64& idx) {
             ctx.convert_vec(*this, reg_src, reg_dst);
-            add(reg_src, ctx.src.type_size * vlen);
-            add(reg_dst, ctx.dst.type_size * vlen);
+            add(reg_src, static_cast<uint32_t>(ctx.src.type_size * vlen));
+            add(reg_dst, static_cast<uint32_t>(ctx.dst.type_size * vlen));
         })
             ;
 

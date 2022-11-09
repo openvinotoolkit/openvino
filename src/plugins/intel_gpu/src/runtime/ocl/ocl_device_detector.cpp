@@ -3,13 +3,14 @@
 //
 
 #include "ocl_device_detector.hpp"
-#include "ocl_device.hpp"
-#include "ocl_common.hpp"
 
-#include <string>
-#include <vector>
 #include <list>
+#include <string>
 #include <utility>
+#include <vector>
+
+#include "ocl_common.hpp"
+#include "ocl_device.hpp"
 
 // NOTE: Due to buggy scope transition of warnings we need to disable warning in place of use/instantation
 //       of some types (even though we already disabled them in scope of definition of these types).
@@ -17,26 +18,105 @@
 //       of proper support for mangling of custom GCC attributes into type name (usually when used
 //       with templates, even from standard library).
 #if defined __GNUC__ && __GNUC__ >= 6
-#pragma GCC diagnostic ignored "-Wignored-attributes"
+#    pragma GCC diagnostic ignored "-Wignored-attributes"
 #endif
 
 namespace {
+<<<<<<< HEAD
+=======
+static const char create_device_error_msg[] =
+    "[GPU] No supported OCL devices found or unexpected error happened during devices query.\n"
+    "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n";
+
+std::vector<std::string> split(const std::string& s, char delim) {
+    std::vector<std::string> result;
+    std::stringstream ss(s);
+    std::string item;
+
+    while (getline(ss, item, delim)) {
+        result.push_back(item);
+    }
+    return result;
+}
+
+>>>>>>> upstream/master
 bool does_device_match_config(bool out_of_order, const cl::Device& device) {
     if (device.getInfo<CL_DEVICE_TYPE>() != CL_DEVICE_TYPE_GPU) {
         return false;
     }
+<<<<<<< HEAD
 
     // Does device support OOOQ?
     if (out_of_order) {
         auto queue_properties = device.getInfo<CL_DEVICE_QUEUE_PROPERTIES>();
         using cmp_t = std::common_type<decltype(queue_properties),
-            typename std::underlying_type<cl::QueueProperties>::type>::type;
+                                       typename std::underlying_type<cl::QueueProperties>::type>::type;
         if (!(static_cast<cmp_t>(queue_properties) & static_cast<cmp_t>(cl::QueueProperties::OutOfOrder))) {
             return false;
         }
     }
 
     return true;
+=======
+
+    // TODO: Remove the check below once kernels are fixed
+    if (device.getInfo<CL_DEVICE_VENDOR_ID>() != cldnn::INTEL_VENDOR_ID)
+        return false;
+
+    // Does device support OOOQ?
+    if (out_of_order) {
+        auto queue_properties = device.getInfo<CL_DEVICE_QUEUE_PROPERTIES>();
+        using cmp_t = std::common_type<decltype(queue_properties),
+                                       typename std::underlying_type<cl::QueueProperties>::type>::type;
+        if (!(static_cast<cmp_t>(queue_properties) & static_cast<cmp_t>(cl::QueueProperties::OutOfOrder))) {
+            return false;
+        }
+    }
+
+    int32_t ocl_major = -1;
+    int32_t ocl_minor = -1;
+    // Spec says that the format of this string is OpenCL<space><major_version.minor_version><space><vendor-specific
+    // information>
+    auto ocl_version_string = device.getInfo<CL_DEVICE_VERSION>();
+    auto tokens = split(ocl_version_string, ' ');
+
+    if (tokens.size() > 1) {
+        auto version_string = tokens[1];
+        auto version_tokens = split(version_string, '.');
+        if (version_tokens.size() == 2) {
+            ocl_major = std::stoi(version_tokens[0]);
+            ocl_minor = std::stoi(version_tokens[1]);
+        }
+    }
+
+    if (ocl_major != -1 && ocl_minor != -1) {
+        int32_t ocl_version = ocl_major * 100 + ocl_minor * 10;
+#    if CL_TARGET_OPENCL_VERSION >= 200
+        int32_t min_ocl_version = 200;
+#    else
+        int32_t min_ocl_version = 120;
+#    endif
+        if (ocl_version < min_ocl_version)
+            return false;
+    }
+
+    return true;
+}
+
+// The priority return by this function impacts the order of devices reported by GPU plugin and devices enumeration
+// Lower priority value means lower device ID
+// Current behavior is: Intel iGPU < Intel dGPU < any other GPU
+// Order of Intel dGPUs is undefined and depends on the OCL impl
+// Order of other vendor GPUs is undefined and depends on the OCL impl
+size_t get_device_priority(const cldnn::device_info& info) {
+    if (info.vendor_id == cldnn::INTEL_VENDOR_ID && info.dev_type == cldnn::device_type::integrated_gpu) {
+        return 0;
+    } else if (info.vendor_id == cldnn::INTEL_VENDOR_ID) {
+        return 1;
+    } else {
+        return std::numeric_limits<size_t>::max();
+    }
+>>>>>>> upstream/master
 }
 }  // namespace
 
@@ -45,7 +125,7 @@ namespace ocl {
 static constexpr auto INTEL_PLATFORM_VENDOR = "Intel(R) Corporation";
 #ifdef _WIN32
 static constexpr auto INTEL_D3D11_SHARING_EXT_NAME = "cl_khr_d3d11_sharing";
-#endif // _WIN32
+#endif  // _WIN32
 
 static std::vector<cl::Device> getSubDevices(cl::Device& rootDevice) {
     cl_uint maxSubDevices;
@@ -53,7 +133,8 @@ static std::vector<cl::Device> getSubDevices(cl::Device& rootDevice) {
     const auto err = clGetDeviceInfo(rootDevice(),
                                      CL_DEVICE_PARTITION_MAX_SUB_DEVICES,
                                      sizeof(maxSubDevices),
-                                     &maxSubDevices, &maxSubDevicesSize);
+                                     &maxSubDevices,
+                                     &maxSubDevicesSize);
 
     OPENVINO_ASSERT(err == CL_SUCCESS && maxSubDevicesSize == sizeof(maxSubDevices),
                     "[GPU] clGetDeviceInfo(..., CL_DEVICE_PARTITION_MAX_SUB_DEVICES,...)");
@@ -62,10 +143,11 @@ static std::vector<cl::Device> getSubDevices(cl::Device& rootDevice) {
     }
 
     const auto partitionProperties = rootDevice.getInfo<CL_DEVICE_PARTITION_PROPERTIES>();
-    const auto partitionable = std::any_of(partitionProperties.begin(), partitionProperties.end(),
-                                            [](const decltype(partitionProperties)::value_type& prop) {
-                                                return prop == CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN;
-                                            });
+    const auto partitionable = std::any_of(partitionProperties.begin(),
+                                           partitionProperties.end(),
+                                           [](const decltype(partitionProperties)::value_type& prop) {
+                                               return prop == CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN;
+                                           });
 
     if (!partitionable) {
         return {};
@@ -81,7 +163,8 @@ static std::vector<cl::Device> getSubDevices(cl::Device& rootDevice) {
 
     std::vector<cl::Device> subDevices;
     cl_device_partition_property partitionProperty[] = {CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN,
-                                                        CL_DEVICE_AFFINITY_DOMAIN_NUMA, 0};
+                                                        CL_DEVICE_AFFINITY_DOMAIN_NUMA,
+                                                        0};
 
     rootDevice.createSubDevices(partitionProperty, &subDevices);
 
@@ -89,6 +172,7 @@ static std::vector<cl::Device> getSubDevices(cl::Device& rootDevice) {
 }
 
 std::vector<device::ptr> ocl_device_detector::sort_devices(const std::vector<device::ptr>& devices_list) {
+<<<<<<< HEAD
     std::vector<device::ptr> sorted_list;
     size_t insert_idx = 0;
     for (auto& dptr : devices_list) {
@@ -101,6 +185,12 @@ std::vector<device::ptr> ocl_device_detector::sort_devices(const std::vector<dev
             sorted_list.push_back(dptr);
         }
     }
+=======
+    std::vector<device::ptr> sorted_list = devices_list;
+    std::stable_sort(sorted_list.begin(), sorted_list.end(), [](device::ptr d1, device::ptr d2) {
+        return get_device_priority(d1->get_info()) < get_device_priority(d2->get_info());
+    });
+>>>>>>> upstream/master
 
     return sorted_list;
 }
@@ -138,7 +228,8 @@ std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(vo
                     sub_idx++;
                     continue;
                 }
-                auto sub_device_ptr = std::make_shared<ocl_device>(sub_device, cl::Context(sub_device), root_device->get_platform());
+                auto sub_device_ptr =
+                    std::make_shared<ocl_device>(sub_device, cl::Context(sub_device), root_device->get_platform());
                 ret[map_id + "." + std::to_string(sub_idx++)] = sub_device_ptr;
             }
         }
@@ -147,14 +238,29 @@ std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(vo
 }
 
 std::vector<device::ptr> ocl_device_detector::create_device_list(bool out_out_order) const {
-    cl_uint n = 0;
+    cl_uint num_platforms = 0;
     // Get number of platforms availible
+<<<<<<< HEAD
     cl_int err = clGetPlatformIDs(0, NULL, &n);
-    OPENVINO_ASSERT(err == CL_SUCCESS, "[GPU] clGetPlatformIDs error ",  err);
+    OPENVINO_ASSERT(err == CL_SUCCESS, "[GPU] clGetPlatformIDs error ", err);
     // Get platform list
     std::vector<cl_platform_id> platform_ids(n);
     err = clGetPlatformIDs(n, platform_ids.data(), NULL);
-    OPENVINO_ASSERT(err == CL_SUCCESS, "[GPU] clGetPlatformIDs error ",  err);
+    OPENVINO_ASSERT(err == CL_SUCCESS, "[GPU] clGetPlatformIDs error ", err);
+=======
+    cl_int error_code = clGetPlatformIDs(0, NULL, &num_platforms);
+    OPENVINO_ASSERT(error_code == CL_SUCCESS,
+                    create_device_error_msg,
+                    "[GPU] clGetPlatformIDs error code: ",
+                    std::to_string(error_code));
+    // Get platform list
+    std::vector<cl_platform_id> platform_ids(num_platforms);
+    error_code = clGetPlatformIDs(num_platforms, platform_ids.data(), NULL);
+    OPENVINO_ASSERT(error_code == CL_SUCCESS,
+                    create_device_error_msg,
+                    "[GPU] clGetPlatformIDs error code: ",
+                    std::to_string(error_code));
+>>>>>>> upstream/master
 
     std::vector<device::ptr> supported_devices;
     for (auto& id : platform_ids) {
@@ -168,11 +274,17 @@ std::vector<device::ptr> ocl_device_detector::create_device_list(bool out_out_or
             supported_devices.emplace_back(std::make_shared<ocl_device>(device, cl::Context(device), id));
         }
     }
+<<<<<<< HEAD
     OPENVINO_ASSERT(!supported_devices.empty(), "[GPU] No GPU device was found.");
+=======
+    OPENVINO_ASSERT(!supported_devices.empty(), create_device_error_msg);
+>>>>>>> upstream/master
     return supported_devices;
 }
 
-std::vector<device::ptr>  ocl_device_detector::create_device_list_from_user_context(bool out_out_order, void* user_context, int ctx_device_id) const {
+std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_context(bool out_out_order,
+                                                                                   void* user_context,
+                                                                                   int ctx_device_id) const {
     cl::Context ctx = cl::Context(static_cast<cl_context>(user_context), true);
     auto all_devices = ctx.getInfo<CL_CONTEXT_DEVICES>();
 
@@ -184,20 +296,43 @@ std::vector<device::ptr>  ocl_device_detector::create_device_list_from_user_cont
         supported_devices.emplace_back(std::make_shared<ocl_device>(device, ctx, device.getInfo<CL_DEVICE_PLATFORM>()));
     }
 
+<<<<<<< HEAD
     OPENVINO_ASSERT(!supported_devices.empty(), "[GPU] User defined context does not have GPU device included.");
+=======
+    OPENVINO_ASSERT(!supported_devices.empty(), "[GPU] User defined context does not have supported GPU device.");
+>>>>>>> upstream/master
     return supported_devices;
 }
 
-std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_device(bool out_out_order, void* user_device) const {
+std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_device(bool out_out_order,
+                                                                                  void* user_device) const {
+<<<<<<< HEAD
     cl_uint n = 0;
     // Get number of platforms availible
     cl_int err = clGetPlatformIDs(0, NULL, &n);
-    OPENVINO_ASSERT(err == CL_SUCCESS, "[GPU] clGetPlatformIDs error ",  err);
+    OPENVINO_ASSERT(err == CL_SUCCESS, "[GPU] clGetPlatformIDs error ", err);
 
     // Get platform list
     std::vector<cl_platform_id> platform_ids(n);
     err = clGetPlatformIDs(n, platform_ids.data(), NULL);
-    OPENVINO_ASSERT(err == CL_SUCCESS, "[GPU] clGetPlatformIDs error ",  err);
+    OPENVINO_ASSERT(err == CL_SUCCESS, "[GPU] clGetPlatformIDs error ", err);
+=======
+    cl_uint num_platforms = 0;
+    // Get number of platforms availible
+    cl_int error_code = clGetPlatformIDs(0, NULL, &num_platforms);
+    OPENVINO_ASSERT(error_code == CL_SUCCESS,
+                    create_device_error_msg,
+                    "[GPU] clGetPlatformIDs error code: ",
+                    std::to_string(error_code));
+
+    // Get platform list
+    std::vector<cl_platform_id> platform_ids(num_platforms);
+    error_code = clGetPlatformIDs(num_platforms, platform_ids.data(), NULL);
+    OPENVINO_ASSERT(error_code == CL_SUCCESS,
+                    create_device_error_msg,
+                    "[GPU] clGetPlatformIDs error code: ",
+                    std::to_string(error_code));
+>>>>>>> upstream/master
 
     std::vector<device::ptr> supported_devices;
     for (auto& id : platform_ids) {
@@ -221,17 +356,19 @@ std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_devic
         }
 
         platform.getDevices(CL_D3D11_DEVICE_KHR,
-            user_device,
-            CL_PREFERRED_DEVICES_FOR_D3D11_KHR,
+                            user_device,
+                            CL_PREFERRED_DEVICES_FOR_D3D11_KHR,
 #else
         platform.getDevices(CL_VA_API_DISPLAY_INTEL,
-            user_device,
-            CL_PREFERRED_DEVICES_FOR_VA_API_INTEL,
+                            user_device,
+                            CL_PREFERRED_DEVICES_FOR_VA_API_INTEL,
 #endif
-            &devices);
+                            &devices);
 
         for (auto& device : devices) {
-            if (!does_device_match_config(out_out_order, device)) continue;
+            if (!does_device_match_config(out_out_order, device))
+                continue;
+
             cl_context_properties props[] = {
 #ifdef _WIN32
                 CL_CONTEXT_D3D11_DEVICE_KHR,
@@ -239,9 +376,11 @@ std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_devic
                 CL_CONTEXT_VA_API_DISPLAY_INTEL,
 #endif
                 (intptr_t)user_device,
-                CL_CONTEXT_INTEROP_USER_SYNC, CL_FALSE,
-                CL_CONTEXT_PLATFORM, (cl_context_properties)id,
-                0 };
+                CL_CONTEXT_INTEROP_USER_SYNC,
+                CL_FALSE,
+                CL_CONTEXT_PLATFORM,
+                (cl_context_properties)id,
+                0};
             supported_devices.emplace_back(std::make_shared<ocl_device>(device, cl::Context(device, props), id));
         }
     }

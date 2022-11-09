@@ -27,8 +27,35 @@ public:
         auto select_optional_params =
             get_default_optional_params<kernel_selector::select_optional_params>(arg.get_program());
 
+        std::vector<layout> layouts = impl_param.input_layouts;
+        auto o_layout = impl_param.output_layout;
+
+        auto broadcastable = [&](layout a, layout b) {
+            auto dims_a = a.get_dims();
+            auto dims_b = b.get_dims();
+            size_t min_size = (dims_a.size() < dims_b.size()) ? dims_a.size(): dims_b.size();
+
+            for (size_t i = 0; i < min_size; i++) {
+                if (!(dims_a[i] == 1 || dims_b[i] == 1 || dims_a[i] == dims_b[i])) {
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        for (size_t i = 0; i < layouts.size(); i++) {
+            auto shape = layouts[i].get_shape();
+            auto shape_size = shape.size();
+            if (shape_size < 4 && !broadcastable(o_layout, layouts[i])) {
+                shape.insert(shape.begin(), 4 - shape_size, 1);
+                layout new_layout = layouts[i];
+                new_layout.set_partial_shape(shape);
+                layouts[i] = new_layout;
+            }
+        }
+
         for (size_t i = 1; i < arg.inputs_count(); i++) {
-            select_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
+            select_params.inputs.push_back(convert_data_tensor(layouts[i]));
         }
 
         auto& kernel_selector = kernel_selector::select_kernel_selector::Instance();

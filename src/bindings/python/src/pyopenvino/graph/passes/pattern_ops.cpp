@@ -46,6 +46,7 @@ static ov::NodeTypeInfo get_type(const std::string& type_name) {
         {"opset7", ngraph::get_opset7},
         {"opset8", ngraph::get_opset8},
         {"opset9", ngraph::get_opset9},
+        {"opset10", ngraph::get_opset10},
     };
 
     if (!get_opset.count(opset_type)) {

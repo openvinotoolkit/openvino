@@ -104,9 +104,9 @@ int64_t op::v0::PriorBox::number_of_priors(const PriorBox::Attributes& attrs) {
 std::vector<float> op::v0::PriorBox::normalized_aspect_ratio(const std::vector<float>& aspect_ratio, bool flip) {
     std::set<float> unique_ratios;
     for (auto ratio : aspect_ratio) {
-        unique_ratios.insert(std::round(ratio * 1e6) / 1e6);
+        unique_ratios.insert(std::round(ratio * 1e6f) / 1e6f);
         if (flip)
-            unique_ratios.insert(std::round(1 / ratio * 1e6) / 1e6);
+            unique_ratios.insert(std::round(1 / ratio * 1e6f) / 1e6f);
     }
     unique_ratios.insert(1);
     return std::vector<float>(unique_ratios.begin(), unique_ratios.end());
@@ -294,9 +294,9 @@ int64_t op::v8::PriorBox::number_of_priors(const PriorBox::Attributes& attrs) {
 std::vector<float> op::v8::PriorBox::normalized_aspect_ratio(const std::vector<float>& aspect_ratio, bool flip) {
     std::set<float> unique_ratios;
     for (auto ratio : aspect_ratio) {
-        unique_ratios.insert(std::round(ratio * 1e6) / 1e6);
+        unique_ratios.insert(std::round(ratio * 1e6f) / 1e6f);
         if (flip)
-            unique_ratios.insert(std::round(1 / ratio * 1e6) / 1e6);
+            unique_ratios.insert(std::round(1 / ratio * 1e6f) / 1e6f);
     }
     unique_ratios.insert(1);
     return std::vector<float>(unique_ratios.begin(), unique_ratios.end());

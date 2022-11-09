@@ -21,9 +21,9 @@ OutputVector roi_align(const Node& node) {
     const auto& rois = inputs[1];
     const auto& num_rois = inputs[2];
 
-    const auto pooled_h = node.get_attribute_value<int64_t>("output_height", 1);
-    const auto pooled_w = node.get_attribute_value<int64_t>("output_width", 1);
-    const auto sampling_ratio = node.get_attribute_value<int64_t>("sampling_ratio", 1);
+    const auto pooled_h = static_cast<int>(node.get_attribute_value<int64_t>("output_height", 1));
+    const auto pooled_w = static_cast<int>(node.get_attribute_value<int64_t>("output_width", 1));
+    const auto sampling_ratio = static_cast<int>(node.get_attribute_value<int64_t>("sampling_ratio", 1));
     const auto spatial_scale = node.get_attribute_value<float>("spatial_scale", 1.0f);
     const auto mode = node.get_attribute_value<std::string>("mode", "avg");
     const auto pooling_mode = EnumNames<opset9::ROIAlign::PoolingMode>::as_enum(mode);

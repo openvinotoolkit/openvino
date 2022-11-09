@@ -10,15 +10,6 @@
 
 namespace cldnn {
 
-template<>
-struct typed_program_node<experimental_detectron_topk_rois> : public typed_program_node_base<experimental_detectron_topk_rois> {
-    using parent = typed_program_node_base<experimental_detectron_topk_rois>;
-public:
-    using parent::parent;
-
-    const program_node &input(std::size_t index = 0) const { return get_dependency(index); }
-};
-
 using experimental_detectron_topk_rois_node = typed_program_node<experimental_detectron_topk_rois>;
 
 template<>

@@ -29,7 +29,8 @@ shared_ptr<Model> gen_model(Dimension batch_size,
                             Dimension input_size,
                             float forget_bias,
                             float cell_clip,
-                            bool use_peephole) {
+                            bool use_peephole,
+                            bool with_two_outputs = false) {
     auto seq_len_max = make_shared<Parameter>(i64, Shape{});
     auto x = make_shared<Parameter>(f32, PartialShape{time_len, batch_size, input_size});
     auto cs_prev = make_shared<Parameter>(f32, PartialShape::dynamic());
@@ -43,6 +44,20 @@ shared_ptr<Model> gen_model(Dimension batch_size,
     auto block_lstm = make_shared<
         BlockLSTM>(seq_len_max, x, cs_prev, h_prev, w, wci, wcf, wco, b, forget_bias, cell_clip, use_peephole);
 
+    if (with_two_outputs) {
+        auto prev_cell_states = make_shared<Constant>(
+            ov::element::f32,
+            ov::Shape{1, static_cast<uint64_t>(batch_size.get_length()), static_cast<uint64_t>(hidden_size)},
+            0);
+        auto concat = make_shared<Concat>(OutputVector{prev_cell_states, block_lstm->output(1)}, 0);
+        auto indices_const = make_shared<Constant>(ov::element::i32,
+                                                   ov::Shape{2},
+                                                   vector<int32_t>{static_cast<int32_t>(time_len.get_length()), 0});
+        auto gather_nd = make_shared<GatherND>(concat, indices_const);
+        return make_shared<Model>(OutputVector{gather_nd->output(0), block_lstm->output(6)},
+                                  ParameterVector{seq_len_max, x, cs_prev, h_prev, w, wci, wcf, wco, b});
+    }
+
     return make_shared<Model>(OutputVector{block_lstm->output(6)},
                               ParameterVector{seq_len_max, x, cs_prev, h_prev, w, wci, wcf, wco, b});
 }
@@ -51,7 +66,8 @@ shared_ptr<Model> gen_model_ref(Dimension m_batch_size,
                                 Dimension m_time_len,
                                 int64_t m_hidden_size,
                                 Dimension m_input_size,
-                                float forget_bias) {
+                                float forget_bias,
+                                bool with_two_outputs = false) {
     auto seq_len_max = make_shared<Parameter>(i64, Shape{});
     auto x = make_shared<Parameter>(f32, PartialShape{m_time_len, m_batch_size, m_input_size});
     auto cs_prev = make_shared<Parameter>(f32, PartialShape::dynamic());
@@ -150,24 +166,41 @@ shared_ptr<Model> gen_model_ref(Dimension m_batch_size,
     auto output_hidden_states_order = make_shared<Constant>(element::i64, Shape{3}, std::vector<int64_t>{1, 0, 2});
     auto output_hidden_states = make_shared<Transpose>(squeeze_output_hidden_states, output_hidden_states_order);
 
+    if (with_two_outputs) {
+        // adjust output with the last state cell and connect to the main graph
+        // squeeze extra dimension - num_directions
+        auto squeeze_axis = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
+        auto squeeze_last_state_cell = make_shared<Squeeze>(lstm_sequence->output(2), squeeze_axis);
+        return make_shared<Model>(OutputVector{squeeze_last_state_cell->output(0), output_hidden_states->output(0)},
+                                  ParameterVector{seq_len_max, x, cs_prev, h_prev, weights, bias});
+    }
+
     return make_shared<Model>(OutputVector{output_hidden_states->output(0)},
                               ParameterVector{seq_len_max, x, cs_prev, h_prev, weights, bias});
 }
 
 }  // namespace
 
-TEST_F(TransformationTestsF, BlockLSTMReplacerOneOutput) {
+TEST_F(TransformationTestsF, BlockLSTMReplacerWithHiddenOutput) {
     {
         function = gen_model(2, 10, 120, 20, 1.0f, -1.0f, false);
-        manager.register_pass<BlockLSTMToLSTMSequenceOneOutput>();
+        manager.register_pass<BlockLSTMReplacer>();
     }
     { function_ref = gen_model_ref(2, 10, 120, 20, 1.0f); }
 }
 
-TEST_F(TransformationTestsF, BlockLSTMReplacerOneOutputPeepHole) {
+TEST_F(TransformationTestsF, BlockLSTMReplacerWithHiddenOutputAndLastCellState) {
+    {
+        function = gen_model(2, 10, 120, 20, 1.0f, -1.0f, false, true);
+        manager.register_pass<BlockLSTMReplacer>();
+    }
+    { function_ref = gen_model_ref(2, 10, 120, 20, 1.0f, true); }
+}
+
+TEST_F(TransformationTestsF, BlockLSTMReplacerWithPeepHole) {
     {
         function = gen_model(2, 10, 120, 20, 1.0f, -1.0f, true);
-        manager.register_pass<BlockLSTMToLSTMSequenceOneOutput>();
+        manager.register_pass<BlockLSTMReplacer>();
     }
     {
         // the transformation is not applied for the peep hole case

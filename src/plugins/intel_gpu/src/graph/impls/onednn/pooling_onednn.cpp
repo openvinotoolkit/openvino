@@ -32,16 +32,11 @@ protected:
 
         dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
         dnnl::memory::dims kernel(prim->size.begin(), prim->size.end());
-        dnnl::memory::dims pad_l(prim->pad.begin(), prim->pad.end());
-        dnnl::memory::dims pad_r(prim->pad_end.begin(), prim->pad_end.end());
+        dnnl::memory::dims pad_l(prim->pads_begin.begin(), prim->pads_begin.end());
+        dnnl::memory::dims pad_r(prim->pads_end.begin(), prim->pads_end.end());
 
         auto input_md = onednn::layout_to_memory_desc(input_layout);
         auto output_md = onednn::layout_to_memory_desc(output_layout);
-
-        if (prim->global_pooling) {
-            for (size_t i = 0; i < kernel.size(); i++)
-                kernel[i] = input_md.dims()[2 + i];
-        }
 
         for (size_t i = 0; i < kernel.size(); i++) {
             pad_r[i] = (output_md.dims()[2 + i] - 1) * stride[i] - input_md.dims()[2 + i] + kernel[i] - pad_l[i];
@@ -68,7 +63,7 @@ protected:
 
 public:
     static primitive_impl* create(const pooling_node& arg, const kernel_impl_params& impl_params) {
-        auto& engine = impl_params.prog.get_engine();
+        auto& engine = impl_params.prog->get_engine();
         auto desc = get_pooling_descriptor(impl_params);
         auto attr = arg.get_onednn_primitive_attributes();
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
@@ -93,9 +88,11 @@ attach_pooling_onednn::attach_pooling_onednn() {
         format::b_fs_yx_fsv32,
         format::b_fs_zyx_fsv32,
         format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv16_fsv32,
         format::bs_fs_yx_bsv32_fsv16,
         format::bs_fs_yx_bsv32_fsv32,
         format::bs_fs_zyx_bsv16_fsv16,
+        format::bs_fs_zyx_bsv16_fsv32,
         format::bs_fs_zyx_bsv32_fsv16,
         format::bs_fs_zyx_bsv32_fsv32,
     };

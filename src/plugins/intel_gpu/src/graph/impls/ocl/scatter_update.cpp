@@ -14,6 +14,7 @@ using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
+namespace {
 kernel_selector::scatter_update_axis convert_axis(int64_t axis, const scatter_update_node& arg) {
     auto rank = arg.input(0).get_output_layout().get_rank();
     if (axis < 0) {
@@ -38,6 +39,7 @@ kernel_selector::scatter_update_axis convert_axis(int64_t axis, const scatter_up
     }
     return kernel_selector::scatter_update_axis::X;
 }
+}  // namespace
 
 struct scatter_update_impl : typed_primitive_impl_ocl<scatter_update> {
     using parent = typed_primitive_impl_ocl<scatter_update>;

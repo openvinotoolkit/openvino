@@ -69,8 +69,6 @@ inline static std::vector<uint8_t> content_from_file(const char* filename, bool 
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-extern const std::vector<std::wstring> test_unicode_postfix_vector;
-
 inline void fix_slashes(std::string& str) {
     std::replace(str.begin(), str.end(), '/', '\\');
 }

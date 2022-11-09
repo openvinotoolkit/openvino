@@ -16,6 +16,7 @@ typedef std::tuple<
         float,                                  // nms_threshold: specifies NMS threshold
         int64_t,                                // post_nms_count: number of top-n proposals after NMS
         int64_t,                                // pre_nms_count: number of top-n proposals after NMS
+        bool,                                   // normalized: specifies whether box is normalized or not
         std::pair<std::string, std::vector<ov::Tensor>>, // input tensors
         ElementType,                            // Network precision
         ElementType,                            // roi_num precision
@@ -28,6 +29,7 @@ class GenerateProposalsLayerTest :
 protected:
     void SetUp() override;
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
+    void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) override;
 
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<GenerateProposalsTestParams>& obj);

@@ -123,7 +123,7 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
                  "Invalid element values of crops_begin/crops_end input/s");
 
     const std::size_t block_prod =
-        std::accumulate(block_values, block_values + block_values_size, 1UL, std::multiplies<std::size_t>());
+        std::accumulate(block_values, block_values + block_values_size, int64_t(1), std::multiplies<int64_t>());
     NGRAPH_CHECK(data_shape[0] % block_prod == 0,
                  "Invalid batch axis of data input with respect to block_shape values");
 

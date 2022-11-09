@@ -8,6 +8,8 @@ trigger:
     - docs/
     - /**/docs/*
     - /**/*.md
+    - README.md
+    - /**/layer_tests_summary/**
 
 pr:
   branches:
@@ -19,6 +21,8 @@ pr:
     - docs/
     - /**/docs/*
     - /**/*.md
+    - README.md
+    - /**/layer_tests_summary/**
 
 jobs:
 - job: LinCC
@@ -75,6 +79,19 @@ jobs:
   - script: |
       set -e
       $(REPO_DIR)/install_build_dependencies.sh
+      wget https://www.python.org/ftp/python/3.10.6/Python-3.10.6.tgz
+      tar -xzf Python-3.10.6.tgz
+      cd Python-3.10.6 || exit
+      ./configure --enable-optimizations --prefix=/usr/local --enable-shared LDFLAGS="-Wl,-rpath /usr/local/lib"
+      make -j 1 python
+      sudo make -j 1 install
+      export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+      /usr/local/bin/python3.10 -m venv $(WORK_DIR)/.venv
+      . $(WORK_DIR)/.venv/bin/activate
+      echo Python3 info ; which python3 ; python3 --version
+      python3 --version
+      python3.10 --version
+      curl https://bootstrap.pypa.io/get-pip.py | python3
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
       # Speed up build
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
@@ -87,11 +104,13 @@ jobs:
     inputs:
       cmakeArgs: >
         -GNinja
-        -DVERBOSE_BUILD=ON
+        -DCMAKE_VERBOSE_MAKEFILE=ON
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_FASTER_BUILD=ON
         -DENABLE_PROFILING_ITT=ON
         -DSELECTIVE_BUILD=COLLECT
+        -DPYTHON_EXECUTABLE=$(WORK_DIR)/.venv/bin/python3.10
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 

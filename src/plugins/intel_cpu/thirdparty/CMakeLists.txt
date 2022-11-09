@@ -56,6 +56,10 @@ function(ie_add_onednn)
     if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
         ie_add_compiler_flags(-Wno-undef)
         ie_add_compiler_flags(-Wno-missing-declarations)
+        if(OV_COMPILER_IS_CONDA)
+            ie_add_compiler_flags(-Wno-error=array-bounds)
+            ie_add_compiler_flags(-Wno-error=stringop-overflow=)
+        endif()
     elseif(UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable=10121")
     endif()
@@ -71,6 +75,17 @@ function(ie_add_onednn)
         link_libraries(TBB::tbb)
     endif()
 
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        # C4849 OpenMP 'reduction' clause ignored in 'simd' directive
+        ie_add_compiler_flags(/wd4849)
+        # C4661 no suitable definition provided for explicit template instantiation request
+        ie_add_compiler_flags(/wd4661)
+        # C4267, 4244 conversion from 'XXX' to 'YYY', possible loss of data
+        ie_add_compiler_flags(/wd4267)
+        ie_add_compiler_flags(/wd4244)
+        # C4334 '<<': result of 32-bit shift implicitly converted to 64 bits
+        ie_add_compiler_flags(/wd4334)
+    endif()
     add_subdirectory(onednn EXCLUDE_FROM_ALL)
     ov_install_static_lib(dnnl cpu)
 endfunction()

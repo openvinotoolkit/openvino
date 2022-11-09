@@ -48,6 +48,9 @@ def compress_model(func: object):
     from openvino._offline_transformations import compress_model_transformation  # pylint: disable=import-error,no-name-in-module
     compress_model_transformation(func)
 
+def apply_fused_names_cleanup(func: object):
+    from openvino.offline_transformations import apply_fused_names_cleanup  # pylint: disable=import-error,no-name-in-module
+    apply_fused_names_cleanup(func)
 
 
 def apply_offline_transformations(func: Model, argv: argparse.Namespace):
@@ -65,4 +68,7 @@ def apply_offline_transformations(func: Model, argv: argparse.Namespace):
     if "compress_fp16" in argv and argv.compress_fp16:
         compress_model(func)
 
+    apply_fused_names_cleanup(func)
+
     return func
+

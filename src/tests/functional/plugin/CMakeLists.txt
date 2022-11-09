@@ -8,10 +8,6 @@ if (ENABLE_INTEL_GPU)
     add_subdirectory(gpu)
 endif()
 
-if (ENABLE_INTEL_GNA)
-    add_subdirectory(gna)
-endif()
-
 if (ENABLE_INTEL_MYRIAD)
     add_subdirectory(myriad)
 endif()

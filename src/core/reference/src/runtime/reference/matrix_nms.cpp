@@ -34,7 +34,7 @@ struct decay_score<T, true> {
 template <typename T>
 struct decay_score<T, false> {
     T operator()(T iou, T max_iou, T sigma) {
-        return (1. - iou) / (1. - max_iou + 1e-10f);
+        return static_cast<T>((1. - iou) / (1. - max_iou + 1e-10f));
     }
 };
 
@@ -252,7 +252,7 @@ void matrix_nms(const float* boxes_data,
             filtered_boxes.push_back(
                 BoxInfo{Rectangle{bbox[0], bbox[1], bbox[2], bbox[3]}, batch * num_boxes + idx, score, 0, batch, cls});
         }
-        num_per_batch.push_back(num_det);
+        num_per_batch.push_back(static_cast<int32_t>(num_det));
     }
 
     if (attrs.sort_result_across_batch) { /* sort across batch */
@@ -278,7 +278,7 @@ void matrix_nms(const float* boxes_data,
     for (size_t i = 0; i < filtered_boxes.size(); i++) {
         selected_indices[i] = filtered_boxes[i].index;
         auto selected_base = selected_outputs + i * 6;
-        selected_base[0] = filtered_boxes[i].class_index;
+        selected_base[0] = static_cast<float>(filtered_boxes[i].class_index);
         selected_base[1] = filtered_boxes[i].score;
         selected_base[2] = filtered_boxes[i].box.x1;
         selected_base[3] = filtered_boxes[i].box.y1;

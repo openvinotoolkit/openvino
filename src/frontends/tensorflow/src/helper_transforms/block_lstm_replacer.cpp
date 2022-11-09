@@ -18,20 +18,69 @@
 
 using namespace std;
 using namespace ov::pass;
+using namespace ov::pass::pattern;
 using namespace ov::opset9;
 using namespace ov::frontend::tensorflow;
 
-pass::BlockLSTMToLSTMSequenceOneOutput::BlockLSTMToLSTMSequenceOneOutput() {
-    auto block_lstm = pattern::wrap_type<BlockLSTM>();
+namespace {
+std::function<bool(ov::Output<ov::Node>)> can_have_outputs(const std::vector<size_t>& allowed_output_indices) {
+    return [=](ov::Output<ov::Node> output) -> bool {
+        auto block_lstm_node = output.get_node_shared_ptr();
+        auto output_size = block_lstm_node->get_output_size();
+        for (size_t output_ind = 0; output_ind < output_size; ++output_ind) {
+            if (std::find(allowed_output_indices.begin(), allowed_output_indices.end(), output_ind) !=
+                allowed_output_indices.end()) {
+                continue;
+            }
+            if (block_lstm_node->output(output_ind).get_target_inputs().size() > 0) {
+                return false;
+            }
+        }
+        return true;
+    };
+}
+}  // namespace
+
+pass::BlockLSTMReplacer::BlockLSTMReplacer() {
+    // Pattern 1: BlockLSTM with last state cell output (BlockLSTM -> Concat -> GatherND)
+    // used in DeepSpeech model
+    auto block_lstm_1 = pattern::wrap_type<BlockLSTM>(can_have_outputs({1, 6}));
+    auto states_cell_1 = pattern::wrap_type<Concat>({pattern::any_input(), block_lstm_1});
+    auto pattern1 = pattern::wrap_type<GatherND>({states_cell_1, pattern::any_input()});
+
+    // Pattern 2: BlockLSTM with just one output, concatenated hidden states (BlockLSTM)
+    auto pattern2 = pattern::wrap_type<BlockLSTM>(can_have_outputs({6}));
+
+    auto root = std::make_shared<pattern::op::Or>(OutputVector{pattern1, pattern2});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        NodeRegistry rg;
+        auto pattern_map = m.get_pattern_map();
+        auto is_pattern1 = (pattern_map.find(pattern1) != std::end(pattern_map));
+        auto is_pattern2 = (pattern_map.find(pattern2) != std::end(pattern_map));
 
-        auto block_lstm_node = std::dynamic_pointer_cast<BlockLSTM>(m.get_match_root());
+        // find for each pattern BlockLSTM node for which we adjust inputs
+        // and check its attributes before the transformation
+        std::shared_ptr<BlockLSTM> block_lstm_node;
+        std::shared_ptr<Node> last_state_c_node;
+        ov::NodeVector rt_info_from;
+        if (is_pattern1) {
+            block_lstm_node = std::dynamic_pointer_cast<BlockLSTM>(pattern_map.at(block_lstm_1));
+            auto concat_node = std::dynamic_pointer_cast<Concat>(pattern_map.at(states_cell_1));
+            if (!concat_node || concat_node->get_axis() != 0) {
+                // timestep is the first dimension
+                return false;
+            }
+            last_state_c_node = pattern_map.at(pattern1);
+            rt_info_from = {block_lstm_node, concat_node, last_state_c_node};
+        } else if (is_pattern2) {
+            block_lstm_node = std::dynamic_pointer_cast<BlockLSTM>(pattern_map.at(pattern2));
+            rt_info_from = {block_lstm_node};
+        }
         if (!block_lstm_node) {
             return false;
         }
 
+        NodeRegistry rg;
         // currently, LSTMSequence does not support peephole and cell clip
         if (block_lstm_node->get_use_peephole()) {
             return false;
@@ -47,7 +96,7 @@ pass::BlockLSTMToLSTMSequenceOneOutput::BlockLSTMToLSTMSequenceOneOutput() {
             return false;
         }
 
-        auto block_lstm_node_name = block_lstm->get_friendly_name();
+        auto block_lstm_node_name = block_lstm_node->get_friendly_name();
         auto seq_len_max = block_lstm_node->input_value(0);
         auto x = block_lstm_node->input_value(1);
         auto cs_prev = block_lstm_node->input_value(2);
@@ -83,15 +132,6 @@ pass::BlockLSTMToLSTMSequenceOneOutput::BlockLSTMToLSTMSequenceOneOutput() {
 
         auto hidden_size_const =
             rg.make<Constant>(element::i64, Shape{1}, std::vector<int64_t>{hidden_size.get_length()});
-
-        // this transformation expects only one output - concatenated hidden states
-        // the only output of BlockLSTM that is supported by LSTMSequence
-        std::vector<int> restricted_output_indices = {0, 1, 2, 3, 4, 5};
-        for (size_t output_ind : restricted_output_indices) {
-            if (block_lstm_node->output(output_ind).get_target_inputs().size() > 0) {
-                return false;
-            }
-        }
 
         // adjust weights and bias
         // 1. reshape weights and bias to highlight channel dimension
@@ -152,28 +192,42 @@ pass::BlockLSTMToLSTMSequenceOneOutput::BlockLSTMToLSTMSequenceOneOutput() {
                                                    hidden_size.get_length(),
                                                    LSTMSequence::direction::FORWARD);
 
-        // adjust output of concatenated of hidden states from LSTMSequence to have it in a format [time_len,
-        // batch_size, hidden_size]
-        // 1. squeeze extra dimension - num_directions
-        auto squeeze_axis = rg.make<Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
-        auto squeeze_output_hidden_states = rg.make<Squeeze>(lstm_sequence->output(0), squeeze_axis);
-        // 2. transpose the output to rotate batch and time dimensions
-        auto output_hidden_states_order = rg.make<Constant>(element::i64, Shape{3}, std::vector<int64_t>{1, 0, 2});
-        auto output_hidden_states = rg.make<Transpose>(squeeze_output_hidden_states, output_hidden_states_order);
+        if (block_lstm_node->output(1).get_target_inputs().size() > 0) {
+            // adjust output with the last state cell and connect to the main graph
+            // squeeze extra dimension - num_directions
+            auto squeeze_axis = rg.make<Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
+            auto squeeze_last_state_cell = rg.make<Squeeze>(lstm_sequence->output(2), squeeze_axis);
 
-        // preserve names of the node and the output tensor
-        output_hidden_states->set_friendly_name(m.get_match_root()->get_friendly_name() + ":6");
-        copy_runtime_info(block_lstm_node, rg.get());
+            // preserve names of the node and the output tensor
+            squeeze_last_state_cell->set_friendly_name(last_state_c_node->get_friendly_name());
 
-        // replace BlockLSTM with LSTMSequence manually instead of calling
-        // ov::replace_node(m.get_match_root(), lstm_sequence);
-        // because BlockLSTM has 7 outputs and LSTMSequence has three outputs
-        m.get_match_root()->output(6).replace(output_hidden_states->output(0));
+            ov::replace_node(last_state_c_node, squeeze_last_state_cell);
+        }
+
+        if (block_lstm_node->output(6).get_target_inputs().size() > 0) {
+            // adjust output of concatenated of hidden states from LSTMSequence
+            // to have it in a format [time_len, batch_size, hidden_size]
+            // 1. squeeze extra dimension - num_directions
+            auto squeeze_axis = rg.make<Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
+            auto squeeze_output_hidden_states = rg.make<Squeeze>(lstm_sequence->output(0), squeeze_axis);
+            // 2. transpose the output to rotate batch and time dimensions
+            auto output_hidden_states_order = rg.make<Constant>(element::i64, Shape{3}, std::vector<int64_t>{1, 0, 2});
+            auto output_hidden_states = rg.make<Transpose>(squeeze_output_hidden_states, output_hidden_states_order);
+
+            // preserve names of the node and the output tensor
+            output_hidden_states->set_friendly_name(block_lstm_node->get_friendly_name() + ":6");
+
+            // replace BlockLSTM with LSTMSequence manually instead of calling
+            // ov::replace_node(m.get_match_root(), lstm_sequence);
+            // because BlockLSTM has 7 outputs and LSTMSequence has three outputs
+            block_lstm_node->output(6).replace(output_hidden_states->output(0));
+        }
+
+        copy_runtime_info(rt_info_from, rg.get());
+
         return true;
     };
 
-    auto m =
-        std::make_shared<ngraph::pattern::Matcher>(block_lstm,
-                                                   "ov::frontend::tensorflow::pass::BlockLSTMToLSTMSequenceOneOutput");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(root, "ov::frontend::tensorflow::pass::BlockLSTMReplacer");
     register_matcher(m, callback);
 }
