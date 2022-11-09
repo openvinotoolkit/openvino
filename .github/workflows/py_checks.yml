@@ -47,9 +47,9 @@ jobs:
           name: samples_diff
           path: samples_diff.diff
       # IE Python API Flake code-style
-      #- name: Run flake8 on IE Python API
-      #  run: python -m flake8 ./ --config=setup.cfg
-      #  working-directory: src/bindings/python/src/compatibility/openvino
+      - name: Run flake8 on IE Python API
+        run: python -m flake8 ./ --config=setup.cfg
+        working-directory: src/bindings/python/src/compatibility/openvino
       - name: Create code style diff for IE Python API
         if: failure()
         run: |
@@ -62,9 +62,9 @@ jobs:
           name: ie_python_diff
           path: ie_python_diff.diff
       # nGraph Python API Flake code-style
-      #- name: Run flake8 on nGraph Python API
-      #  run: python -m flake8 ./src/compatibility/ngraph --config=setup.cfg
-      #  working-directory: src/bindings/python
+      - name: Run flake8 on nGraph Python API
+        run: python -m flake8 ./src/compatibility/ngraph --config=setup.cfg
+        working-directory: src/bindings/python
       - name: Create code style diff for nGraph Python API
         if: failure()
         run: |
@@ -77,9 +77,9 @@ jobs:
           name: pyngraph_diff
           path: pyngraph_diff.diff
       # Python API 2.0 Flake code-style
-      #- name: Run flake8 on Python API 2.0
-      #  run: python -m flake8 ./src/openvino --config=setup.cfg
-      #  working-directory: src/bindings/python
+      - name: Run flake8 on Python API 2.0
+        run: python -m flake8 ./src/openvino --config=setup.cfg
+        working-directory: src/bindings/python
       - name: Create code style diff for Python API 2.0
         if: failure()
         run: |
@@ -107,22 +107,22 @@ jobs:
           name: wheel_diff
           path: wheel_diff.diff
       # Python API 2.0 tests Flake code-style
-      #- name: Run flake8 on python tests
+      - name: Run flake8 on python tests
         # ignore lack of docs in tests
-      #  run: python -m flake8 tests/ --config=setup.cfg
-      #  working-directory: src/bindings/python
+        run: python -m flake8 tests/ --config=setup.cfg
+        working-directory: src/bindings/python
       # IE Python API mypy check
-      #- name: Run mypy on IE Python API
-      #  run: python -m mypy ./ --config-file ./setup.cfg
-      #  working-directory: src/bindings/python/src/compatibility/openvino
+      - name: Run mypy on IE Python API
+        run: python -m mypy ./ --config-file ./setup.cfg
+        working-directory: src/bindings/python/src/compatibility/openvino
       # nGraph Python API mypy check
-      #- name: Run mypy on nGraph Python API
-      #  run: python -m mypy ./src/compatibility/ngraph --config-file ./setup.cfg
-      #  working-directory: src/bindings/python
+      - name: Run mypy on nGraph Python API
+        run: python -m mypy ./src/compatibility/ngraph --config-file ./setup.cfg
+        working-directory: src/bindings/python
       # Python API 2.0 mypy check
-      #- name: Run mypy on Python API 2.0
-      #  run: python -m mypy ./src/openvino --config-file ./setup.cfg
-      #  working-directory: src/bindings/python
+      - name: Run mypy on Python API 2.0
+        run: python -m mypy ./src/openvino --config-file ./setup.cfg
+        working-directory: src/bindings/python
 
       - name: Run Bandit
         run: python -m bandit -r ./ -f screen
