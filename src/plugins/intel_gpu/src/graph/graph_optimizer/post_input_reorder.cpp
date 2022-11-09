@@ -66,6 +66,10 @@ void post_input_reorder::run(program& p) {
                 reorder.get_output_layout(false);
                 node->set_output_layout(previous_layout, false);
                 reorder.set_selected_impl(reorder.type()->choose_impl(reorder));
+                if (auto impl = reorder.get_selected_impl()) {
+                    auto kernel_ids = p.get_kernels_cache().add_kernels_source(impl->get_kernels_source());
+                    impl->set_kernel_ids(kernel_ids);
+                }
             }
         }
     }

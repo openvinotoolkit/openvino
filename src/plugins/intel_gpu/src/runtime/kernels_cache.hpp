@@ -101,6 +101,8 @@ public:
     void remove_kernel(kernel_id id) {
         _kernels.erase(id);
     }
+    std::vector<kernel_id> add_kernels_source(std::vector<std::shared_ptr<kernel_string>> kernel_sources, bool dump_custom_program = false);
+    void compile();
 };
 
 }  // namespace cldnn
