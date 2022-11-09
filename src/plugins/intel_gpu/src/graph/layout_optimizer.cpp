@@ -342,6 +342,12 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         return true;
 
     if (next.is_type<convolution>() &&
+        fmt_prev == format::bfyx &&
+        ((fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv16) &&
+            next_output_layout.feature() >= 16 && prev_output_layout.feature() == 3))
+        return true;
+
+    if (next.is_type<convolution>() &&
         fmt_prev == format::bfzyx &&
         ((fmt_next == format::b_fs_zyx_fsv16 || fmt_next == format::bs_fs_zyx_bsv16_fsv16) &&
             next_output_layout.feature() >= 16 && prev_output_layout.feature() == 3))
