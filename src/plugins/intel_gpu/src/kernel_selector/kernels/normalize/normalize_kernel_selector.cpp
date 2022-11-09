@@ -3,8 +3,9 @@
 //
 
 #include "normalize_kernel_selector.h"
-#include "normalize_kernel_within_spatial_ref.h"
+
 #include "normalize_kernel_across_spatial_ref.h"
+#include "normalize_kernel_within_spatial_ref.h"
 
 namespace kernel_selector {
 normalize_kernel_selector::normalize_kernel_selector() {

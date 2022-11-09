@@ -44,7 +44,11 @@ public:
         norm_params.normMode = prim->across_spatial ? kernel_selector::normalize_mode::ACROSS_SPATIAL
                                                                    : kernel_selector::normalize_mode::WITHIN_SPATIAL;
         norm_params.epsilon = prim->epsilon;
-        norm_params.scaleTable = convert_data_tensor(scale_layout).FlattenFeatureAndSpatials();
+        if (format::is_simple_data_format(scale_layout.format)) {
+            norm_params.scaleTable = convert_data_tensor(scale_layout).FlattenFeatureAndSpatials();
+        } else {
+            norm_params.scaleTable = convert_data_tensor(scale_layout);
+        }
 
         auto& kernel_selector = kernel_selector::normalize_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(norm_params, norm_optional_params);
@@ -63,20 +67,18 @@ public:
 namespace detail {
 
 attach_normalize_impl::attach_normalize_impl() {
-    implementation_map<normalize>::add(impl_types::ocl, normalize_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f16, format::yxfb),
-        std::make_tuple(data_types::i8, format::yxfb),
-        std::make_tuple(data_types::u8, format::yxfb),
-        std::make_tuple(data_types::f32, format::byxf),
-        std::make_tuple(data_types::f16, format::byxf),
-        std::make_tuple(data_types::i8, format::byxf),
-        std::make_tuple(data_types::u8, format::byxf),
-    });
+    auto types = {data_types::f16, data_types::f32, data_types::i8, data_types::u8};
+    auto formats = {
+        format::bfyx,
+        format::yxfb,
+        format::byxf,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv32,
+        format::bs_fs_yx_bsv32_fsv16,
+    };
+    implementation_map<normalize>::add(impl_types::ocl, normalize_impl::create, types, formats);
 }
 
 }  // namespace detail
