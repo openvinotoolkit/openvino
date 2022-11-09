@@ -121,7 +121,7 @@ InferenceEngine::CNNNetwork Plugin::CloneAndTransformNetwork(const InferenceEngi
     return clonedNetwork;
 }
 
-Plugin::Plugin() : m_defaultContext(nullptr) {
+Plugin::Plugin() : m_defaultContexts({}) {
     _pluginName = "GPU";
     _impl = std::make_shared<impl>();
     RegisterPrimitives();
@@ -264,37 +264,22 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     RemoteCLContext::Ptr context;
 
     auto canReuseDefaultContext = [&]() -> bool {
-        if (m_defaultContext == nullptr)
+        if (m_defaultContexts.find(conf.device_id) == m_defaultContexts.end())
             return false;
 
-        const Config& context_config = m_defaultContext->GetConfig();
-        const Config& current_config = conf;
-
-        return context_config.throughput_streams == current_config.throughput_streams &&
-               context_config.useProfiling == current_config.useProfiling &&
-               context_config.dumpCustomKernels == current_config.dumpCustomKernels &&
-               context_config.memory_pool_on == current_config.memory_pool_on &&
-               context_config.queueThrottle == current_config.queueThrottle &&
-               context_config.queuePriority == current_config.queuePriority &&
-               context_config.sources_dumps_dir == current_config.sources_dumps_dir &&
-               context_config.tuningConfig.mode == current_config.tuningConfig.mode &&
-               context_config.tuningConfig.cache_file_path == current_config.tuningConfig.cache_file_path &&
-               context_config.kernels_cache_dir == current_config.kernels_cache_dir &&
-               context_config.device_id == current_config.device_id &&
-               context_config.task_exec_config._streams == current_config.task_exec_config._streams &&
-               context_config.task_exec_config._threadPreferredCoreType == current_config.task_exec_config._threadPreferredCoreType &&
-               context_config.enable_loop_unrolling == current_config.enable_loop_unrolling;
+        return m_defaultContexts.at(conf.device_id)->GetConfig().CanShareContextWith(conf);
     };
 
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::LoadExeNetworkImpl::CreateContext");
         std::lock_guard<std::mutex> lock(engine_mutex);
         if (!canReuseDefaultContext()) {
-            m_defaultContext.reset(new RemoteCLContext(shared_from_this(), AnyMap(), conf));
+            context = std::make_shared<RemoteCLContext>(shared_from_this(), AnyMap(), conf);
+            m_defaultContexts[conf.device_id] = context;
         }
     }
 
-    context = m_defaultContext;
+    context = m_defaultContexts[conf.device_id];
 
     auto transformedNetwork = CloneAndTransformNetwork(network, conf);
     {
@@ -342,10 +327,22 @@ InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const AnyMap& params) 
 }
 
 InferenceEngine::RemoteContext::Ptr Plugin::GetDefaultContext(const AnyMap& params) {
-    if (nullptr == m_defaultContext) {
-        m_defaultContext.reset(new RemoteCLContext(shared_from_this(), params, _impl->m_configs.GetDefaultDeviceConfig()));
+    RemoteCLContext::Ptr ctx;
+    std::string device_id = "";
+
+    if (params.find(CONFIG_KEY(DEVICE_ID)) != params.end())
+        device_id = params.at(CONFIG_KEY(DEVICE_ID)).as<std::string>();
+
+    const Config conf = _impl->m_configs.GetConfig(device_id);
+
+    if (m_defaultContexts.find(conf.device_id) != m_defaultContexts.end() &&
+        m_defaultContexts.at(conf.device_id)->GetConfig().CanShareContextWith(conf)) {
+        ctx = m_defaultContexts.at(conf.device_id);
+    } else {
+        ctx = std::make_shared<RemoteCLContext>(shared_from_this(), AnyMap(), conf);
     }
-    return m_defaultContext;
+
+    return ctx;
 }
 
 void Plugin::SetConfig(const std::map<std::string, std::string> &config) {
@@ -381,12 +378,17 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
 
     UpdateConfig(conf, network, config);
 
-    if (m_defaultContext == nullptr) {
-        m_defaultContext.reset(new RemoteCLContext(
+    RemoteCLContext::Ptr ctx;
+    if (m_defaultContexts.find(conf.device_id) != m_defaultContexts.end() &&
+        m_defaultContexts.at(conf.device_id)->GetConfig().CanShareContextWith(conf)) {
+        ctx = m_defaultContexts.at(conf.device_id);
+    } else {
+        ctx = std::make_shared<RemoteCLContext>(
             std::const_pointer_cast<InferenceEngine::IInferencePlugin>(shared_from_this()),
-            AnyMap(), conf));
+            AnyMap(), conf);
+        m_defaultContexts[conf.device_id] = ctx;
     }
-    Program prog(m_defaultContext->getImpl()->GetEngine(), conf);
+    Program prog(ctx->getImpl()->GetEngine(), conf);
     bool dyn_shape_batch_found = false;
 
     auto model = network.getFunction();

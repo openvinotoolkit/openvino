@@ -8,7 +8,27 @@
 #include <vector>
 
 namespace kernel_selector {
-static uint32_t GetNumberOfInputs(EltwiseMode m) {
+namespace {
+std::vector<size_t> GetLimitedOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const EngineInfo& info, std::vector<size_t> limited_size_lws) {
+    const size_t lws_max = info.maxWorkGroupSize;
+    const size_t optimal_lws_values[] = {256, 227, 224, 192, 160, 128, 96, 64, 32, 16, 8, 7, 6, 5, 4, 3, 2, 1};
+    size_t total_lws = 1;
+    std::vector<size_t> lws;
+    for (size_t i = 0; i < gws.size(); ++i) {
+        auto rest_lws = lws_max / total_lws;
+        size_t lws_idx = 0;
+        while (rest_lws < optimal_lws_values[lws_idx] || optimal_lws_values[lws_idx] > limited_size_lws[i]) lws_idx++;
+
+        while (gws[i] % optimal_lws_values[lws_idx]) lws_idx++;
+
+        lws.push_back(optimal_lws_values[lws_idx]);
+        total_lws *= optimal_lws_values[lws_idx];
+    }
+
+    return lws;
+}
+
+uint32_t GetNumberOfInputs(EltwiseMode m) {
     switch (m) {
         case EltwiseMode::ADD:
         case EltwiseMode::SUB:
@@ -38,25 +58,7 @@ static uint32_t GetNumberOfInputs(EltwiseMode m) {
             return 0;
     }
 }
-
-std::vector<size_t> GetLimitedOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const EngineInfo& info, std::vector<size_t> limited_size_lws) {
-    const size_t lws_max = info.maxWorkGroupSize;
-    const size_t optimal_lws_values[] = {256, 227, 224, 192, 160, 128, 96, 64, 32, 16, 8, 7, 6, 5, 4, 3, 2, 1};
-    size_t total_lws = 1;
-    std::vector<size_t> lws;
-    for (size_t i = 0; i < gws.size(); ++i) {
-        auto rest_lws = lws_max / total_lws;
-        size_t lws_idx = 0;
-        while (rest_lws < optimal_lws_values[lws_idx] || optimal_lws_values[lws_idx] > limited_size_lws[i]) lws_idx++;
-
-        while (gws[i] % optimal_lws_values[lws_idx]) lws_idx++;
-
-        lws.push_back(optimal_lws_values[lws_idx]);
-        total_lws *= optimal_lws_values[lws_idx];
-    }
-
-    return lws;
-}
+}  // namespace
 
 ParamsKey eltwise_params::GetParamsKey() const {
     ParamsKey k = base_params::GetParamsKey();

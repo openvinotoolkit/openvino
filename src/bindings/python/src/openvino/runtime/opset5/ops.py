@@ -134,11 +134,20 @@ def non_max_suppression(
         score_threshold = make_constant_node(0, np.float32)
     if soft_nms_sigma is None:
         inputs = as_nodes(
-            boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold,
+            boxes,
+            scores,
+            max_output_boxes_per_class,
+            iou_threshold,
+            score_threshold,
         )
     else:
         inputs = as_nodes(
-            boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, soft_nms_sigma,
+            boxes,
+            scores,
+            max_output_boxes_per_class,
+            iou_threshold,
+            score_threshold,
+            soft_nms_sigma,
         )
 
     attributes = {
@@ -166,20 +175,20 @@ def round(data: NodeInput, mode: str = "half_to_even", name: Optional[str] = Non
 
 @nameable_op
 def lstm_sequence(
-        X: NodeInput,
-        initial_hidden_state: NodeInput,
-        initial_cell_state: NodeInput,
-        sequence_lengths: NodeInput,
-        W: NodeInput,
-        R: NodeInput,
-        B: NodeInput,
-        hidden_size: int,
-        direction: str,
-        activations: List[str] = None,
-        activations_alpha: List[float] = None,
-        activations_beta: List[float] = None,
-        clip: float = 0.0,
-        name: Optional[str] = None,
+    X: NodeInput,
+    initial_hidden_state: NodeInput,
+    initial_cell_state: NodeInput,
+    sequence_lengths: NodeInput,
+    W: NodeInput,
+    R: NodeInput,
+    B: NodeInput,
+    hidden_size: int,
+    direction: str,
+    activations: Optional[List[str]] = None,
+    activations_alpha: Optional[List[float]] = None,
+    activations_beta: Optional[List[float]] = None,
+    clip: float = 0.0,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs LSTMSequence operation.
 
@@ -239,20 +248,20 @@ def hsigmoid(data: NodeInput, name: Optional[str] = None) -> Node:
 
 @nameable_op
 def gru_sequence(
-        X: NodeInput,
-        initial_hidden_state: NodeInput,
-        sequence_lengths: NodeInput,
-        W: NodeInput,
-        R: NodeInput,
-        B: NodeInput,
-        hidden_size: int,
-        direction: str,
-        activations: List[str] = None,
-        activations_alpha: List[float] = None,
-        activations_beta: List[float] = None,
-        clip: float = 0.0,
-        linear_before_reset: bool = False,
-        name: Optional[str] = None,
+    X: NodeInput,
+    initial_hidden_state: NodeInput,
+    sequence_lengths: NodeInput,
+    W: NodeInput,
+    R: NodeInput,
+    B: NodeInput,
+    hidden_size: int,
+    direction: str,
+    activations: Optional[List[str]] = None,
+    activations_alpha: Optional[List[float]] = None,
+    activations_beta: Optional[List[float]] = None,
+    clip: float = 0.0,
+    linear_before_reset: bool = False,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs GRUSequence operation.
 
@@ -303,19 +312,19 @@ def gru_sequence(
 
 @nameable_op
 def rnn_sequence(
-        X: NodeInput,
-        initial_hidden_state: NodeInput,
-        sequence_lengths: NodeInput,
-        W: NodeInput,
-        R: NodeInput,
-        B: NodeInput,
-        hidden_size: int,
-        direction: str,
-        activations: List[str] = None,
-        activations_alpha: List[float] = None,
-        activations_beta: List[float] = None,
-        clip: float = 0.0,
-        name: Optional[str] = None,
+    X: NodeInput,
+    initial_hidden_state: NodeInput,
+    sequence_lengths: NodeInput,
+    W: NodeInput,
+    R: NodeInput,
+    B: NodeInput,
+    hidden_size: int,
+    direction: str,
+    activations: Optional[List[str]] = None,
+    activations_alpha: Optional[List[float]] = None,
+    activations_beta: Optional[List[float]] = None,
+    clip: float = 0.0,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs RNNSequence operation.
 
