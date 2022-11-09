@@ -112,8 +112,8 @@ void run_matcher_with_manager2(std::shared_ptr<ov::Model> f) {
     // Register anchor GraphRewrite pass inside manager that will execute two matchers simultaneously
     ov::pass::Manager manager;
     auto anchor = manager.register_pass<ov::pass::GraphRewrite>();
-    ADD_MATCHER_SCOPE(anchor, ov::pass, DecomposeDivideMatcher)
-    ADD_MATCHER_SCOPE(anchor, ov::pass, ReluReluFusionMatcher)
+    ADD_MATCHER(anchor, ov::pass, DecomposeDivideMatcher)
+    ADD_MATCHER(anchor, ov::pass, ReluReluFusionMatcher)
     manager.run_passes(f);
     // ! [matcher_pass:manager2]
 }

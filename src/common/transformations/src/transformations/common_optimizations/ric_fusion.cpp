@@ -822,35 +822,35 @@ bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_pt
 
     NodeVector nodes_to_fuse;
     // First we need to initialize and propagate RIC attributes through entire graph
-    REGISTER_PASS_MODEL_SCOPE_IF(GraphRewrite) {
+    REGISTER_PASS_MODEL_IF(GraphRewrite) {
         auto ric_prop = m.register_pass<GraphRewrite>();
-        ADD_MATCHER_SCOPE(ric_prop, init, SplitConcat, nodes_to_fuse)
-        ADD_MATCHER_SCOPE(ric_prop, init, Gather, nodes_to_fuse)
-        ADD_MATCHER_SCOPE(ric_prop, prop, Convolution)
-        ADD_MATCHER_SCOPE(ric_prop, prop, GroupConvolution)
-        ADD_MATCHER_SCOPE(ric_prop, prop, Binary)
-        ADD_MATCHER_SCOPE(ric_prop, prop, ShapeOf)
-        ADD_MATCHER_SCOPE(ric_prop, prop, Transpose)
-        ADD_MATCHER_SCOPE(ric_prop, prop, PassThrough)
-        ADD_MATCHER_SCOPE(ric_prop, prop, Unsupported)
+        ADD_MATCHER(ric_prop, init, SplitConcat, nodes_to_fuse)
+        ADD_MATCHER(ric_prop, init, Gather, nodes_to_fuse)
+        ADD_MATCHER(ric_prop, prop, Convolution)
+        ADD_MATCHER(ric_prop, prop, GroupConvolution)
+        ADD_MATCHER(ric_prop, prop, Binary)
+        ADD_MATCHER(ric_prop, prop, ShapeOf)
+        ADD_MATCHER(ric_prop, prop, Transpose)
+        ADD_MATCHER(ric_prop, prop, PassThrough)
+        ADD_MATCHER(ric_prop, prop, Unsupported)
     }
 
     // Handle quantized weights case (dequantize sub-graph is on the weights path)
-    REGISTER_PASS_MODEL_SCOPE_IF(BackwardGraphRewrite) {
+    REGISTER_PASS_MODEL_IF(BackwardGraphRewrite) {
         auto ric_back_prop = m.register_pass<ov::pass::BackwardGraphRewrite>();
-        ADD_MATCHER_SCOPE(ric_back_prop, back_prop, Binary)
-        ADD_MATCHER_SCOPE(ric_back_prop, back_prop, ConvertPassThrough)
+        ADD_MATCHER(ric_back_prop, back_prop, Binary)
+        ADD_MATCHER(ric_back_prop, back_prop, ConvertPassThrough)
     }
 
-    REGISTER_PASS_SCOPE(m, back_prop, Constant, _run_on_function)
+    REGISTER_PASS(m, back_prop, Constant, _run_on_function)
     // TODO: validate attributes by request
 
     // Second we fuse available RIC into nodes and remove original nodes related to fused RIC
-    REGISTER_PASS_MODEL_SCOPE_IF(GraphRewrite) {
+    REGISTER_PASS_MODEL_IF(GraphRewrite) {
         auto ric_fuse = m.register_pass<GraphRewrite>();
-        ADD_MATCHER_SCOPE(ric_fuse, fuse, InsertReverseInputChannel, nodes_to_fuse)
-        ADD_MATCHER_SCOPE(ric_fuse, fuse, EraseSplitConcat)
-        ADD_MATCHER_SCOPE(ric_fuse, fuse, EraseGather)
+        ADD_MATCHER(ric_fuse, fuse, InsertReverseInputChannel, nodes_to_fuse)
+        ADD_MATCHER(ric_fuse, fuse, EraseSplitConcat)
+        ADD_MATCHER(ric_fuse, fuse, EraseGather)
     }
 
     m.run_passes(model);

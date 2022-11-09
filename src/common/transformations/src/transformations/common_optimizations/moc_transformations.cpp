@@ -88,7 +88,7 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
 
     ngraph::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, InitNodeInfo, _run_on_model)
+    REGISTER_PASS(manager, ngraph::pass, InitNodeInfo, _run_on_model)
     if (m_low_precision_enabled) {
         manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
             element::TypeVector{ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4});
@@ -102,129 +102,129 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     // Zero dimensions in shape causes creation empty tensors, which are incorrect during CF.
     // In particular, if zero dim tensor is consumed in body of MultiSubGraphOp
     // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParams should be called together.
-    REGISTER_PASS_SCOPE(manager, ov::pass, RemoveConcatZeroDimInput, )
-    REGISTER_PASS_SCOPE(manager, ov::pass, Validate, )
-    REGISTER_PASS_SCOPE(manager, ov::pass, RemoveMultiSubGraphOpDanglingParams, )
-    REGISTER_PASS_SCOPE(manager, ov::pass, FoldSubgraphEmptyInputs, )
+    REGISTER_PASS(manager, ov::pass, RemoveConcatZeroDimInput, )
+    REGISTER_PASS(manager, ov::pass, Validate, )
+    REGISTER_PASS(manager, ov::pass, RemoveMultiSubGraphOpDanglingParams, )
+    REGISTER_PASS(manager, ov::pass, FoldSubgraphEmptyInputs, )
 
     manager.register_pass<ngraph::pass::DisableRandomUniformConstantFolding>();
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConstantFolding, )
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, Validate, )
+    REGISTER_PASS(manager, ngraph::pass, ConstantFolding, )
+    REGISTER_PASS(manager, ngraph::pass, Validate, )
 
     // FusedFilteringBoxesBySize transformation has the complex pattern
     // which can be affected by further transformations. So we have to
     // execute it at the beginning of the pipeline. Also, this pass resolves
     // dynamism, so we have to execute type/shape propagation after.
     manager.register_pass<ngraph::pass::FuseFilteringBoxesBySize>();
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, Validate, _run_on_model)
+    REGISTER_PASS(manager, ngraph::pass, Validate, _run_on_model)
 
     if (!m_use_shapes) {  // Approved Smart Reshape
-        REGISTER_PASS_SCOPE(manager, ov::pass, LSTMStatesBroadcast, _run_on_function)
-        REGISTER_PASS_SCOPE(manager, ov::pass, Validate, _run_on_model)
-        REGISTER_PASS_SCOPE(manager, ov::pass, ReshapeSinkingMatMul, )
-        REGISTER_PASS_SCOPE(manager, ov::pass, Validate, _run_on_model)
+        REGISTER_PASS(manager, ov::pass, LSTMStatesBroadcast, _run_on_function)
+        REGISTER_PASS(manager, ov::pass, Validate, _run_on_model)
+        REGISTER_PASS(manager, ov::pass, ReshapeSinkingMatMul, )
+        REGISTER_PASS(manager, ov::pass, Validate, _run_on_model)
     }
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvertQuantizeDequantize, )
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, SimplifyShapeOfSubGraph, _run_on_function)
+    REGISTER_PASS(manager, ngraph::pass, ConvertQuantizeDequantize, )
+    REGISTER_PASS(manager, ngraph::pass, SimplifyShapeOfSubGraph, _run_on_function)
 
     if (!m_use_shapes) {
         manager.register_pass<ngraph::pass::DisableShapeOfConstantFolding>();
     }
     // workaround until dynamism in NMS is not supported
     manager.register_pass<ngraph::pass::ConvertNmsGatherPathToUnsigned>();
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, StridedSliceOptimization, _run_on_function, m_use_shapes)
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, BroadcastElementwiseFusion, )
-    REGISTER_PASS_MODEL_SCOPE_IF(GraphRewrite) {
+    REGISTER_PASS(manager, ngraph::pass, StridedSliceOptimization, _run_on_function, m_use_shapes)
+    REGISTER_PASS(manager, ngraph::pass, BroadcastElementwiseFusion, )
+    REGISTER_PASS_MODEL_IF(GraphRewrite) {
         auto transpose_sinking = manager.register_pass<ngraph::pass::GraphRewrite>();
-        ADD_MATCHER_SCOPE(transpose_sinking, ngraph::pass, TransposeSinking)
+        ADD_MATCHER(transpose_sinking, ngraph::pass, TransposeSinking)
 
         // SplitSqueezeConcatFusion should work in same GraphRewrite as TransposesSinking,
         // because it replaces pattern that may contain Transposes which must be optimized before
         // the transformation and it also inserts Transpose that can be optimized by TransposeSinking
-        ADD_MATCHER_SCOPE(transpose_sinking, ngraph::pass, SplitSqueezeConcatFusion)
+        ADD_MATCHER(transpose_sinking, ngraph::pass, SplitSqueezeConcatFusion)
     }
-    REGISTER_PASS_MODEL_SCOPE_IF(GraphRewrite) {
+    REGISTER_PASS_MODEL_IF(GraphRewrite) {
         auto eliminations = manager.register_pass<ngraph::pass::GraphRewrite>();
-        ADD_MATCHER_SCOPE(eliminations, ngraph::pass, EliminateUnsqueezeGather)
-        ADD_MATCHER_SCOPE(eliminations, ngraph::pass, NopElimination, m_use_shapes)
+        ADD_MATCHER(eliminations, ngraph::pass, EliminateUnsqueezeGather)
+        ADD_MATCHER(eliminations, ngraph::pass, NopElimination, m_use_shapes)
         eliminations->set_name("ngraph::pass::CommonEliminations");
     }
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
-    REGISTER_PASS_MODEL_SCOPE_IF(GraphRewrite) {
+    REGISTER_PASS_MODEL_IF(GraphRewrite) {
         auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
-        ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, ConvertScatterElementsToScatter)
-        ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, SoftPlusFusion)
-        ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, SoftPlusToMishFusion)
-        ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, SwishFusion)
-        ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, HSwishFusion)
-        ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, HSigmoidFusion)
-        ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, NormalizeL2Fusion)
-        ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, ClampFusion)
-        ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, PadFusion)
-        ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, SoftmaxFusion)
-        ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, MVNFusion)
-        ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, DilatedConvolutionConverter)
-        ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, GeluFusion)
-        ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, LeakyReluFusion)
-        ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, RandomUniformFusion)
-        ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, SplitConcatPairToInterpolateFusion)
-        ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, SplitConcatPairToInterpolateFusion, m_use_shapes)
+        ADD_MATCHER(common_fusions, ngraph::pass, ConvertScatterElementsToScatter)
+        ADD_MATCHER(common_fusions, ngraph::pass, SoftPlusFusion)
+        ADD_MATCHER(common_fusions, ngraph::pass, SoftPlusToMishFusion)
+        ADD_MATCHER(common_fusions, ngraph::pass, SwishFusion)
+        ADD_MATCHER(common_fusions, ngraph::pass, HSwishFusion)
+        ADD_MATCHER(common_fusions, ngraph::pass, HSigmoidFusion)
+        ADD_MATCHER(common_fusions, ngraph::pass, NormalizeL2Fusion)
+        ADD_MATCHER(common_fusions, ngraph::pass, ClampFusion)
+        ADD_MATCHER(common_fusions, ngraph::pass, PadFusion)
+        ADD_MATCHER(common_fusions, ngraph::pass, SoftmaxFusion)
+        ADD_MATCHER(common_fusions, ngraph::pass, MVNFusion)
+        ADD_MATCHER(common_fusions, ngraph::pass, DilatedConvolutionConverter)
+        ADD_MATCHER(common_fusions, ngraph::pass, GeluFusion)
+        ADD_MATCHER(common_fusions, ngraph::pass, LeakyReluFusion)
+        ADD_MATCHER(common_fusions, ngraph::pass, RandomUniformFusion)
+        ADD_MATCHER(common_fusions, ngraph::pass, SplitConcatPairToInterpolateFusion)
+        ADD_MATCHER(common_fusions, ngraph::pass, SplitConcatPairToInterpolateFusion, m_use_shapes)
         if (m_use_shapes) {
-            ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, NearestNeighborUpsamplingFusion)
+            ADD_MATCHER(common_fusions, ngraph::pass, NearestNeighborUpsamplingFusion)
         }
-        ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, DivideFusion)
-        ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, SubtractFusion);
+        ADD_MATCHER(common_fusions, ngraph::pass, DivideFusion)
+        ADD_MATCHER(common_fusions, ngraph::pass, SubtractFusion);
 
-        ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, TransposeToReshape)
-        ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, ReshapeSequenceFusion, m_use_shapes)
-        ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, MatMulConstTransposesExtraction)
-        ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, PReluFusion)
-        ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, DepthToSpaceFusion)
-        ADD_MATCHER_SCOPE(common_fusions, ngraph::pass, ShuffleChannelsFusion, !m_use_shapes)
+        ADD_MATCHER(common_fusions, ngraph::pass, TransposeToReshape)
+        ADD_MATCHER(common_fusions, ngraph::pass, ReshapeSequenceFusion, m_use_shapes)
+        ADD_MATCHER(common_fusions, ngraph::pass, MatMulConstTransposesExtraction)
+        ADD_MATCHER(common_fusions, ngraph::pass, PReluFusion)
+        ADD_MATCHER(common_fusions, ngraph::pass, DepthToSpaceFusion)
+        ADD_MATCHER(common_fusions, ngraph::pass, ShuffleChannelsFusion, !m_use_shapes)
         common_fusions->set_name("ngraph::pass::CommonFusions");
     }
 
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, BinarizeWeights, )
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConvToBinaryConv, )
+    REGISTER_PASS(manager, ngraph::pass, BinarizeWeights, )
+    REGISTER_PASS(manager, ngraph::pass, ConvToBinaryConv, )
 
-    REGISTER_PASS_MODEL_SCOPE_IF(GraphRewrite) {
+    REGISTER_PASS_MODEL_IF(GraphRewrite) {
         auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
-        ADD_MATCHER_SCOPE(decomp, ngraph::pass, BatchNormDecomposition)
-        ADD_MATCHER_SCOPE(decomp, ngraph::pass, ConvertDivideWithConstant)
-        ADD_MATCHER_SCOPE(decomp, ngraph::pass, ConvertNegative)
+        ADD_MATCHER(decomp, ngraph::pass, BatchNormDecomposition)
+        ADD_MATCHER(decomp, ngraph::pass, ConvertDivideWithConstant)
+        ADD_MATCHER(decomp, ngraph::pass, ConvertNegative)
     }
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
-    REGISTER_PASS_MODEL_SCOPE_IF(GraphRewrite) {
+    REGISTER_PASS_MODEL_IF(GraphRewrite) {
         auto multiply_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
-        ADD_MATCHER_SCOPE(multiply_fusions, ngraph::pass, ConvolutionMultiplyFusion)
-        ADD_MATCHER_SCOPE(multiply_fusions, ngraph::pass, GroupConvolutionMultiplyFusion)
-        ADD_MATCHER_SCOPE(multiply_fusions, ngraph::pass, ConvolutionBackpropDataMultiplyFusion)
-        ADD_MATCHER_SCOPE(multiply_fusions, ngraph::pass, GroupConvolutionBackpropDataMultiplyFusion)
-        ADD_MATCHER_SCOPE(multiply_fusions, ngraph::pass, MultiplyConvolutionFusion)
-        ADD_MATCHER_SCOPE(multiply_fusions, ngraph::pass, MultiplyGroupConvolutionFusion)
-        ADD_MATCHER_SCOPE(multiply_fusions, ngraph::pass, MultiplyConvolutionBackpropDataFusion)
-        ADD_MATCHER_SCOPE(multiply_fusions, ngraph::pass, MultiplyGroupConvolutionBackpropDataFusion)
-        ADD_MATCHER_SCOPE(multiply_fusions, ngraph::pass, MatMulMultiplyFusion)
+        ADD_MATCHER(multiply_fusions, ngraph::pass, ConvolutionMultiplyFusion)
+        ADD_MATCHER(multiply_fusions, ngraph::pass, GroupConvolutionMultiplyFusion)
+        ADD_MATCHER(multiply_fusions, ngraph::pass, ConvolutionBackpropDataMultiplyFusion)
+        ADD_MATCHER(multiply_fusions, ngraph::pass, GroupConvolutionBackpropDataMultiplyFusion)
+        ADD_MATCHER(multiply_fusions, ngraph::pass, MultiplyConvolutionFusion)
+        ADD_MATCHER(multiply_fusions, ngraph::pass, MultiplyGroupConvolutionFusion)
+        ADD_MATCHER(multiply_fusions, ngraph::pass, MultiplyConvolutionBackpropDataFusion)
+        ADD_MATCHER(multiply_fusions, ngraph::pass, MultiplyGroupConvolutionBackpropDataFusion)
+        ADD_MATCHER(multiply_fusions, ngraph::pass, MatMulMultiplyFusion)
         multiply_fusions->set_name("ngraph::pass::MultiplyFusions");
     }
 
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConstantFolding, )
+    REGISTER_PASS(manager, ngraph::pass, ConstantFolding, )
 
-    REGISTER_PASS_MODEL_SCOPE_IF(GraphRewrite) {
+    REGISTER_PASS_MODEL_IF(GraphRewrite) {
         auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
-        ADD_MATCHER_SCOPE(fq_fusions, ngraph::pass, FakeQuantizeMulFusion)
-        ADD_MATCHER_SCOPE(fq_fusions, ngraph::pass, FakeQuantizeReshapeFusion)
-        ADD_MATCHER_SCOPE(fq_fusions, ngraph::pass, PullTransposeThroughFQUp)
-        ADD_MATCHER_SCOPE(fq_fusions, ngraph::pass, ReluFakeQuantizeFusion)
-        ADD_MATCHER_SCOPE(fq_fusions, ngraph::pass, AddFakeQuantizeFusion)
-        ADD_MATCHER_SCOPE(fq_fusions, ngraph::pass, MulFakeQuantizeFusion)
+        ADD_MATCHER(fq_fusions, ngraph::pass, FakeQuantizeMulFusion)
+        ADD_MATCHER(fq_fusions, ngraph::pass, FakeQuantizeReshapeFusion)
+        ADD_MATCHER(fq_fusions, ngraph::pass, PullTransposeThroughFQUp)
+        ADD_MATCHER(fq_fusions, ngraph::pass, ReluFakeQuantizeFusion)
+        ADD_MATCHER(fq_fusions, ngraph::pass, AddFakeQuantizeFusion)
+        ADD_MATCHER(fq_fusions, ngraph::pass, MulFakeQuantizeFusion)
         fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
     }
     manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
 
     manager.register_pass<ngraph::pass::AlignEltwiseInputRanks>();
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, ConstantFolding, _run_on_model)
+    REGISTER_PASS(manager, ngraph::pass, ConstantFolding, _run_on_model)
 
     manager.run_passes(f);
 

@@ -325,18 +325,18 @@ bool ngraph::pass::SimplifyShapeOfSubGraph::run_on_model(const std::shared_ptr<n
     RUN_ON_FUNCTION_SCOPE(SimplifyShapeOfSubGraph);
     ngraph::pass::Manager manager;
     manager.set_per_pass_validation(false);
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, EliminateGatherUnsqueeze, )
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, SharedShapeOf, _run_on_function)
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, GroupedGatherElimination, )
+    REGISTER_PASS(manager, ngraph::pass, EliminateGatherUnsqueeze, )
+    REGISTER_PASS(manager, ngraph::pass, SharedShapeOf, _run_on_function)
+    REGISTER_PASS(manager, ngraph::pass, GroupedGatherElimination, )
     // GatherNopElimination depends on shape, so it requires shape propagation
     // if previous transformations has resolved some dynamic shapes.
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, Validate, _run_on_model)
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, GatherNopElimination, )
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, SimplifyGatherShapeOf, )
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, SimplifySecondInputOfReshape, )
+    REGISTER_PASS(manager, ngraph::pass, Validate, _run_on_model)
+    REGISTER_PASS(manager, ngraph::pass, GatherNopElimination, )
+    REGISTER_PASS(manager, ngraph::pass, SimplifyGatherShapeOf, )
+    REGISTER_PASS(manager, ngraph::pass, SimplifySecondInputOfReshape, )
 
     // TODO: potentially this Validate is not needed but it requires additional validation
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, Validate, _run_on_model)
+    REGISTER_PASS(manager, ngraph::pass, Validate, _run_on_model)
     manager.run_passes(f);
     return false;
 }

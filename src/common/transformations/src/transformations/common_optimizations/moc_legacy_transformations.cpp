@@ -13,7 +13,7 @@
 bool ov::pass::MOCLegacyTransformations::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_MODEL_SCOPE(MOCLegacyTransformations);
     ov::pass::Manager manager(get_pass_config());
-    REGISTER_PASS_SCOPE(manager, ov::pass, ChangePlaceholderTypes, _run_on_model, m_params_with_custom_types)
+    REGISTER_PASS(manager, ov::pass, ChangePlaceholderTypes, _run_on_model, m_params_with_custom_types)
     manager.run_passes(f);
 
     return false;

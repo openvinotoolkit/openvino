@@ -35,8 +35,8 @@ bool ov::pass::ConvertCompressedOnlyToLegacy::run_on_model(const std::shared_ptr
 
         const precisions_array convert_precision_list{{ov::element::f32, ov::element::f16}};
         manager.register_pass<ngraph::pass::ConvertPrecision>(convert_precision_list);
-        REGISTER_PASS_SCOPE(manager, ov::pass, EnableDecompressionConvertConstantFolding, )
-        REGISTER_PASS_SCOPE(manager, ov::pass, ConstantFolding, _run_on_model)
+        REGISTER_PASS(manager, ov::pass, EnableDecompressionConvertConstantFolding, )
+        REGISTER_PASS(manager, ov::pass, ConstantFolding, _run_on_model)
 
         manager.run_passes(f);
     }

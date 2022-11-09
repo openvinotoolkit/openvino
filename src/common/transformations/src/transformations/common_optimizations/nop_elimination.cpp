@@ -719,21 +719,21 @@ pass::EliminateEltwise::EliminateEltwise() {
 
 ngraph::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
     // shape-agnostic transformations
-    ADD_MATCHER_SCOPE_FOR_THIS_WITHOUT_NSPACE(EliminatePad)
-    ADD_MATCHER_SCOPE_FOR_THIS_WITHOUT_NSPACE(EliminateConvert)
-    ADD_MATCHER_SCOPE_FOR_THIS_WITHOUT_NSPACE(EliminateConvertNonZero)
-    ADD_MATCHER_SCOPE_FOR_THIS_WITHOUT_NSPACE(EliminateConcat)
-    ADD_MATCHER_SCOPE_FOR_THIS_WITHOUT_NSPACE(EliminateSplit)
-    ADD_MATCHER_SCOPE_FOR_THIS_WITHOUT_NSPACE(EliminateTranspose)
-    ADD_MATCHER_SCOPE_FOR_THIS_WITHOUT_NSPACE(EliminateEltwise)
-    ADD_MATCHER_SCOPE_FOR_THIS(ov::pass, EliminateSplitConcat)
+    ADD_MATCHER_FOR_THIS_WITHOUT_NSPACE(EliminatePad)
+    ADD_MATCHER_FOR_THIS_WITHOUT_NSPACE(EliminateConvert)
+    ADD_MATCHER_FOR_THIS_WITHOUT_NSPACE(EliminateConvertNonZero)
+    ADD_MATCHER_FOR_THIS_WITHOUT_NSPACE(EliminateConcat)
+    ADD_MATCHER_FOR_THIS_WITHOUT_NSPACE(EliminateSplit)
+    ADD_MATCHER_FOR_THIS_WITHOUT_NSPACE(EliminateTranspose)
+    ADD_MATCHER_FOR_THIS_WITHOUT_NSPACE(EliminateEltwise)
+    ADD_MATCHER_FOR_THIS(ov::pass, EliminateSplitConcat)
 
     // shape-dependent transformations
     if (use_shape_for_elimination) {
-        ADD_MATCHER_SCOPE_FOR_THIS_WITHOUT_NSPACE(EliminateReshape)
-        ADD_MATCHER_SCOPE_FOR_THIS_WITHOUT_NSPACE(EliminateSqueeze)
-        ADD_MATCHER_SCOPE_FOR_THIS_WITHOUT_NSPACE(EliminateUnsqueeze)
-        ADD_MATCHER_SCOPE_FOR_THIS_WITHOUT_NSPACE(EliminateBroadcast)
-        ADD_MATCHER_SCOPE_FOR_THIS_WITHOUT_NSPACE(EliminateGather)
+        ADD_MATCHER_FOR_THIS_WITHOUT_NSPACE(EliminateReshape)
+        ADD_MATCHER_FOR_THIS_WITHOUT_NSPACE(EliminateSqueeze)
+        ADD_MATCHER_FOR_THIS_WITHOUT_NSPACE(EliminateUnsqueeze)
+        ADD_MATCHER_FOR_THIS_WITHOUT_NSPACE(EliminateBroadcast)
+        ADD_MATCHER_FOR_THIS_WITHOUT_NSPACE(EliminateGather)
     }
 }

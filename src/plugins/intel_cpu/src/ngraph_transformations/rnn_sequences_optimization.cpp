@@ -147,7 +147,7 @@ ov::intel_cpu::OptimizeLSTMSequenceTransposes::OptimizeLSTMSequenceTransposes() 
 }
 
 ov::intel_cpu::OptimizeSequenceTransposes::OptimizeSequenceTransposes() {
-    ADD_MATCHER_SCOPE_FOR_THIS_WITHOUT_NSPACE(OptimizeLSTMSequenceTransposes)
-    ADD_MATCHER_SCOPE_FOR_THIS_WITHOUT_NSPACE(OptimizeRNNSequenceTransposes)
-    ADD_MATCHER_SCOPE_FOR_THIS_WITHOUT_NSPACE(OptimizeGRUSequenceTransposes)
+    ADD_MATCHER_FOR_THIS_WITHOUT_NSPACE(OptimizeLSTMSequenceTransposes)
+    ADD_MATCHER_FOR_THIS_WITHOUT_NSPACE(OptimizeRNNSequenceTransposes)
+    ADD_MATCHER_FOR_THIS_WITHOUT_NSPACE(OptimizeGRUSequenceTransposes)
 }

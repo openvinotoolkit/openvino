@@ -259,7 +259,7 @@ ngraph::pass::StridedSliceOptimization::StridedSliceOptimization(bool use_shapes
 bool ngraph::pass::StridedSliceOptimization::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(StridedSliceOptimization);
     ngraph::pass::Manager manager(get_pass_config());
-    REGISTER_PASS_SCOPE(manager, ngraph::pass, SliceToStridedSlice, , m_use_shapes)
+    REGISTER_PASS(manager, ngraph::pass, SliceToStridedSlice, , m_use_shapes)
     manager.run_passes(f);
 
     bool rewritten = false;
