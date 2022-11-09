@@ -53,8 +53,10 @@ void CpuTestWithFusing::CheckFusingResults(const std::shared_ptr<const ov::Model
             isNodeFound = true;
             auto originalLayersNames = getExecValue("originalLayersNames", rtInfo);
             std::string opFriendlyName = op->get_friendly_name();
-            auto pos = originalLayersNames.find(opFriendlyName);
-            ASSERT_TRUE(pos != std::string::npos) << "Operation name " << op->get_friendly_name() << " has not been found in originalLayersNames!";
+            ASSERT_TRUE(originalLayersNames.find(opFriendlyName) != std::string::npos)
+                << "Operation name " << opFriendlyName << " has not been found in originalLayersNames!";
+
+            size_t pos = 0;
             for (const auto& fusedOp : fusedOps) {
                 pos = originalLayersNames.find(fusedOp, checkFusingPosition ? pos : 0);
                 ASSERT_TRUE(pos != std::string::npos) << "Fused op " << fusedOp << " has not been found!";
