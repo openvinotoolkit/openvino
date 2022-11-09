@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <google/protobuf/stubs/logging.h>
+
 #include <fstream>
 #include <input_model.hpp>
 #include <onnx_import/onnx.hpp>
@@ -33,6 +35,10 @@ ONNX_FRONTEND_C_API void* GetFrontEndData() {
     res->m_creator = []() {
         return std::make_shared<FrontEnd>();
     };
+#ifndef OPENVINO_DEBUG_ENABLE
+    // disable protobuf logging
+    google::protobuf::SetLogHandler(nullptr);
+#endif
     return res;
 }
 

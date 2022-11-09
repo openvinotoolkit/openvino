@@ -53,8 +53,10 @@ LogHelper::LogHelper(LOG_TYPE type, const char* file, int line, function<void(co
 }
 
 LogHelper::~LogHelper() {
+#ifdef ENABLE_OPENVINO_DEBUG
     if (m_handler_func) {
         m_handler_func(m_stream.str());
     }
     // Logger::log_item(m_stream.str());
+#endif
 }
