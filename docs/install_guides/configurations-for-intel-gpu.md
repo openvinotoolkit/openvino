@@ -1,4 +1,4 @@
-# Configurations for Intel® Processor Graphics (GPU) with Intel® Distribution of OpenVINO™ toolkit {#openvino_docs_install_guides_configurations_for_intel_gpu}
+# Configurations for Intel® Processor Graphics (GPU) with OpenVINO™ {#openvino_docs_install_guides_configurations_for_intel_gpu}
 
 
 @sphinxdirective
@@ -8,7 +8,6 @@
 @endsphinxdirective
 
 
-This page introduces additional configurations for Intel® Processor Graphics (GPU) with Intel® Distribution of OpenVINO™ toolkit on Linux and Windows.
 
 ## Linux
 
@@ -78,4 +77,3 @@ Developing in C++:
    * [Image Classification Async C++ Sample](@ref openvino_inference_engine_samples_classification_sample_async_README)
    * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
    * [Hello Reshape SSD C++ Sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
-
