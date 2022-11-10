@@ -510,27 +510,26 @@ void TensorIterator::prepareParams() {
 void TensorIterator::execute(dnnl::stream strm) {
     sub_graph.ResetInferCount();
 
+    bool continue_cond = initial_cond_check->getStatus();
     const int max_num_iter = trip_count_check->getStatus();
 
     for (auto &mapper : first_mappers)
         mapper->execute(strm);
 
-    // use  "lastUsedTripCount != max_num_iter" only to allow "-1" works like infinite loop
-    for (; lastUsedTripCount != max_num_iter; ++lastUsedTripCount) {
+    // use  "i != max_num_iter" only to allow "-1" works like infinite loop
+    for (int i = 0; i != max_num_iter && continue_cond; ++i) {
         // copy data to subgraph iteration
         for (auto &mapper : before_mappers)
-            mapper->execute(strm, lastUsedTripCount);
+            mapper->execute(strm, i);
 
         sub_graph.Infer();
 
-        if (!continue_cond_check->getStatus()) {
-            break;
-        }
+        continue_cond = continue_cond_check->getStatus();
 
         // copy data from subgraph iteration to outputs
         // or to the next iteration inputs
         for (auto &mapper : after_mappers)
-            mapper->execute(strm, lastUsedTripCount);
+            mapper->execute(strm, i);
     }
 
     for (auto &mapper : last_mappers)
