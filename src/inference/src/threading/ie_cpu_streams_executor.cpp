@@ -245,11 +245,9 @@ struct CPUStreamsExecutor::Impl {
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         if (ThreadBindingType::HYBRID_AWARE == config._threadBindingType) {
             const auto core_types = custom::info::core_types();
+            const auto num_core_phys = getNumberOfCPUCores();
             const auto num_big_core_phys = getNumberOfCPUCores(true);
-            const auto num_small_core =
-                core_types.size() > 1
-                    ? custom::info::default_concurrency(custom::task_arena::constraints{}.set_core_type(0))
-                    : 0;
+            const auto num_small_core_phys = num_core_phys - num_big_core_phys;
             int sum = 0;
             // reversed order, so BIG cores are first
             for (auto iter = core_types.rbegin(); iter < core_types.rend(); iter++) {
@@ -260,7 +258,7 @@ struct CPUStreamsExecutor::Impl {
                                          std::min(config._small_core_streams,
                                                   config._threads_per_stream_small == 0
                                                       ? 0
-                                                      : num_small_core / config._threads_per_stream_small))
+                                                      : num_small_core_phys / config._threads_per_stream_small))
                               : std::max(1,
                                          std::min(config._big_core_streams,
                                                   num_big_core_phys / config._threads_per_stream_big * 2));
