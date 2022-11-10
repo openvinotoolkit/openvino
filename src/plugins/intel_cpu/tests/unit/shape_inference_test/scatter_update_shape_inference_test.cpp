@@ -4,10 +4,8 @@
 
 #include <gtest/gtest.h>
 
-#include <broadcast_shape_inference.hpp>
 #include <openvino/op/ops.hpp>
 #include <openvino/op/parameter.hpp>
-#include <openvino/op/scatter_update.hpp>
 #include <utils/shape_inference/shape_inference.hpp>
 #include <utils/shape_inference/static_shape.hpp>
 
