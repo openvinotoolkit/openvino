@@ -5,7 +5,6 @@
 #include "openvino/op/is_finite.hpp"
 
 #include "itt.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 
 ov::op::v10::IsFinite::IsFinite(const Output<Node>& data) : op::Op{{data}} {
     constructor_validate_and_infer_types();
