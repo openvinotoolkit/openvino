@@ -80,7 +80,7 @@ def create_pytorch_nn_module_case1(tmp_dir):
     sample_input = sample_input1, sample_input2
 
     return pt_model, ref_model, {'input_shape': [PartialShape([-1, 3, -1, -1]), PartialShape([-1, 3, -1, -1])],
-                                 'example_inputs': sample_input}
+                                 'example_input': sample_input}
 
 
 def create_pytorch_nn_module_case2(tmp_dir):
@@ -92,7 +92,7 @@ def create_pytorch_nn_module_case2(tmp_dir):
     sample_input = sample_input1, sample_input2
 
     return pt_model, ref_model, {'input_shape': ["[?,3,?,?]", PartialShape([-1, 3, -1, -1])],
-                                 'example_inputs': sample_input, 'onnx_opset_version': 11}
+                                 'example_input': sample_input, 'onnx_opset_version': 11}
 
 
 def create_pytorch_nn_module_case3(tmp_dir):
@@ -103,7 +103,7 @@ def create_pytorch_nn_module_case3(tmp_dir):
     sample_input2 = torch.zeros(1, 3, 10, 10)
     sample_input = tuple([sample_input1, sample_input2])
 
-    return pt_model, ref_model, {'input_shape': "[?,3,?,?],[?,3,?,?]", 'example_inputs': sample_input}
+    return pt_model, ref_model, {'input_shape': "[?,3,?,?],[?,3,?,?]", 'example_input': sample_input}
 
 
 def create_pytorch_nn_module_case4(tmp_dir):
@@ -113,7 +113,7 @@ def create_pytorch_nn_module_case4(tmp_dir):
 
     ref_model = make_ref_pt_model_one_input([1, 3, 10, 10])
 
-    return pt_model, ref_model, {'example_inputs': sample_input}
+    return pt_model, ref_model, {'example_input': sample_input}
 
 
 def create_pytorch_nn_module_case5(tmp_dir):
@@ -121,7 +121,7 @@ def create_pytorch_nn_module_case5(tmp_dir):
     ref_model = make_ref_pt_model_one_input([-1, 3, 10, 10])
 
     sample_input = torch.zeros(3, 3, 10, 10)
-    return pt_model, ref_model, {'example_inputs': sample_input,
+    return pt_model, ref_model, {'example_input': sample_input,
                                  'input_shape': PartialShape([-1, 3, Dimension(2, -1), Dimension(-1, 10)])}
 
 
@@ -146,7 +146,7 @@ def create_pytorch_nn_module_sample_input_int32(tmp_dir):
 
     ref_model = make_ref_pt_model_one_input([-1, 3, 10, 10], dtype=numpy.int32)
 
-    return pt_model, ref_model, {'example_inputs': sample_input,
+    return pt_model, ref_model, {'example_input': sample_input,
                                  'input_shape': PartialShape([-1, 3, Dimension(2, -1), Dimension(-1, 10)])}
 
 
@@ -159,7 +159,7 @@ def create_pytorch_nn_module_sample_input_int32_two_inputs(tmp_dir):
     ref_model = make_ref_pt_model_two_inputs([-1, 3, -1, -1], dtype=np.int32)
 
     return pt_model, ref_model, {'input_shape': ["[?,3,?,?]", PartialShape([-1, 3, -1, -1])],
-                                 'example_inputs': sample_input, 'onnx_opset_version': 11}
+                                 'example_input': sample_input, 'onnx_opset_version': 11}
 
 
 def create_pytorch_nn_module_compare_convert_paths_case1(tmp_dir):
@@ -171,7 +171,7 @@ def create_pytorch_nn_module_compare_convert_paths_case1(tmp_dir):
     torch.onnx.export(pt_model, sample_input, onnx_model_path, opset_version=16)
 
     ref_model = convert_model(onnx_model_path)
-    return pt_model, ref_model, {'example_inputs': sample_input, 'onnx_opset_version': 16}
+    return pt_model, ref_model, {'example_input': sample_input, 'onnx_opset_version': 16}
 
 
 def create_pytorch_nn_module_compare_convert_paths_case2(tmp_dir):
@@ -183,7 +183,7 @@ def create_pytorch_nn_module_compare_convert_paths_case2(tmp_dir):
     torch.onnx.export(pt_model, sample_input, onnx_model_path, opset_version=16)
 
     ref_model = convert_model(onnx_model_path)
-    return pt_model, ref_model, {'example_inputs': sample_input,
+    return pt_model, ref_model, {'example_input': sample_input,
                                  'input_shape': [1, 3, 10, 10],
                                  'onnx_opset_version': 16}
 
@@ -214,7 +214,7 @@ def create_pytorch_nn_module_compare_convert_paths_case4(tmp_dir):
 
     ref_model = convert_model(onnx_model_path)
 
-    return pt_model, ref_model, {'example_inputs': sample_input, 'onnx_opset_version': 16}
+    return pt_model, ref_model, {'example_input': sample_input, 'onnx_opset_version': 16}
 
 
 def create_pytorch_nn_module_compare_convert_paths_case5(tmp_dir):
@@ -230,7 +230,7 @@ def create_pytorch_nn_module_compare_convert_paths_case5(tmp_dir):
 
     ref_model = convert_model(onnx_model_path)
 
-    return pt_model, ref_model, {'example_inputs': sample_input,
+    return pt_model, ref_model, {'example_input': sample_input,
                                  'input_shape': [torch.Size([1, 3, 10, 10]), PartialShape([1, 3, 10, 10])],
                                  'onnx_opset_version': 16}
 
@@ -283,7 +283,7 @@ def create_pytorch_nn_module_sample_input_numpy(tmp_dir):
     torch.onnx.export(pt_model, torch.zeros(1, 3, 10, 10, dtype=torch.int32), onnx_model_path, opset_version=16)
 
     ref_model = convert_model(onnx_model_path)
-    return pt_model, ref_model, {'example_inputs': example_inputs,
+    return pt_model, ref_model, {'example_input': example_inputs,
                                  'input_shape': [1, 3, 10, 10],
                                  'onnx_opset_version': 16}
 
@@ -297,7 +297,7 @@ def create_pytorch_nn_module_sample_input_dict(tmp_dir):
     torch.onnx.export(pt_model, torch.zeros(1, 3, 10, 10, dtype=torch.int32), onnx_model_path, opset_version=16)
 
     ref_model = convert_model(onnx_model_path)
-    return pt_model, ref_model, {'example_inputs': example_inputs,
+    return pt_model, ref_model, {'example_input': example_inputs,
                                  'onnx_opset_version': 16}
 
 
@@ -312,7 +312,7 @@ def create_pytorch_nn_module_sample_input_dict_two_inputs(tmp_dir):
                                  "x": torch.zeros(1, 3, 10, 10, dtype=torch.int32)}, onnx_model_path, opset_version=16)
 
     ref_model = convert_model(onnx_model_path)
-    return pt_model, ref_model, {'example_inputs': example_inputs,
+    return pt_model, ref_model, {'example_input': example_inputs,
                                  'onnx_opset_version': 16}
 
 
@@ -327,7 +327,7 @@ def create_pytorch_nn_module_sample_list_of_tensors(tmp_dir):
     torch.onnx.export(pt_model, torch.unsqueeze(example_inputs[0], 0), onnx_model_path, opset_version=16)
 
     ref_model = convert_model(onnx_model_path)
-    return pt_model, ref_model, {'example_inputs': example_inputs,
+    return pt_model, ref_model, {'example_input': example_inputs,
                                  'onnx_opset_version': 16}
 
 
@@ -341,7 +341,7 @@ def create_pytorch_nn_module_sample_input_ov_host_tensor(tmp_dir):
     torch.onnx.export(pt_model, torch.zeros(1, 3, 10, 10, dtype=torch.int32), onnx_model_path, opset_version=16)
 
     ref_model = convert_model(onnx_model_path)
-    return pt_model, ref_model, {'example_inputs': sample_input,
+    return pt_model, ref_model, {'example_input': sample_input,
                                  'input_shape': [1, 3, 10, 10],
                                  'onnx_opset_version': 16}
 
@@ -362,7 +362,7 @@ def create_pytorch_nn_module_sample_input_ov_host_tensor_two_inputs(tmp_dir):
 
     ref_model = convert_model(onnx_model_path)
 
-    return pt_model, ref_model, {'example_inputs': sample_input,
+    return pt_model, ref_model, {'example_input': sample_input,
                                  'onnx_opset_version': 16}
 
 

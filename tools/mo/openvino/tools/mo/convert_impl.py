@@ -629,7 +629,7 @@ def to_torch_tensor(tensor):
     if isinstance(tensor, Tensor):
         return torch.tensor(tensor.data)
     else:
-        raise Error("Unexpected type of example_inputs. Supported types torch.Tensor, np.array or ov.Tensor. "
+        raise Error("Unexpected type of example_input. Supported types torch.Tensor, np.array or ov.Tensor. "
                     "Got {}".format(type(tensor)))
 
 
@@ -662,12 +662,12 @@ def convert_pytorch_to_onnx(model, input_shape, opset_version, example_inputs, o
         for shape_idx, shape in enumerate(input_shape):
             static_shape = get_static_shape(shape,
                                             "For converting PyTorch model with dynamic dimensions please provide "
-                                            "sample input using example_inputs parameter or provide input shapes "
+                                            "sample input using example_input parameter or provide input shapes "
                                             "with boundaries.")
             inputs.append(torch.zeros(static_shape))
         inputs = tuple(inputs)
     else:
-        raise Error("Please provide input_shape or example_inputs for converting PyTorch model.")
+        raise Error("Please provide input_shape or example_input for converting PyTorch model.")
 
     dynamic_dims_dict = {}
     if input_shape is not None and input_names is None:
@@ -878,8 +878,8 @@ def _convert(**args):
                 opset_version = args['onnx_opset_version']
 
             example_inputs = None
-            if 'example_inputs' in args and args['example_inputs'] is not None:
-                example_inputs = args['example_inputs']
+            if 'example_input' in args and args['example_input'] is not None:
+                example_inputs = args['example_input']
 
             out_dir = args['output_dir'] if 'output_dir' in args else None
 
