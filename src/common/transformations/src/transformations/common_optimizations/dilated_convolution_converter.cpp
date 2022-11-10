@@ -5,15 +5,15 @@
 #include "transformations/common_optimizations/dilated_convolution_converter.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset6.hpp>
 #include <vector>
 
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-ngraph::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
+ov::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
     MATCHER_SCOPE(DilatedConvolutionConverter);
     auto data_pattern = pattern::any_input();
     auto block_shape_pattern = pattern::wrap_type<opset6::Constant>();

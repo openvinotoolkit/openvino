@@ -5,19 +5,19 @@
 #include "transformations/op_conversions/gru_cell_decomposition.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset4.hpp>
 #include <transformations/utils/utils.hpp>
 #include <vector>
 
 #include "itt.hpp"
 
-ngraph::pass::GRUCellDecomposition::GRUCellDecomposition() {
+ov::pass::GRUCellDecomposition::GRUCellDecomposition() {
     MATCHER_SCOPE(GRUCellDecomposition);
     auto gru_cell = ngraph::pattern::wrap_type<opset4::GRUCell>();
-    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
-        auto gru_cell = std::dynamic_pointer_cast<ngraph::opset4::GRUCell>(m.get_match_root());
+    matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
+        auto gru_cell = std::dynamic_pointer_cast<ov::opset4::GRUCell>(m.get_match_root());
         if (!gru_cell || transformation_callback(gru_cell)) {
             return false;
         }
@@ -34,8 +34,8 @@ ngraph::pass::GRUCellDecomposition::GRUCellDecomposition() {
         auto Ht_R = std::make_shared<opset4::MatMul>(H_t, R, false, true);
 
         // split to gates:
-        auto axis_0 = ngraph::opset4::Constant::create(element::i64, Shape{}, {0});
-        auto axis_1 = ngraph::opset4::Constant::create(element::i64, Shape{}, {1});
+        auto axis_0 = ov::opset4::Constant::create(element::i64, Shape{}, {0});
+        auto axis_1 = ov::opset4::Constant::create(element::i64, Shape{}, {1});
         auto Xt_W_zrh = std::make_shared<opset4::Split>(Xt_W, axis_1, 3);
         auto R_zrh = std::make_shared<opset4::Split>(R, axis_0, 3);
         auto Ht_R_zrh = std::make_shared<opset4::Split>(Ht_R, axis_1, 3);

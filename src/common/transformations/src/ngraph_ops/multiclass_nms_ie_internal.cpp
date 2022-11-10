@@ -8,7 +8,7 @@
 #include "itt.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 BWDCMP_RTTI_DEFINITION(op::internal::MulticlassNmsIEInternal);
 

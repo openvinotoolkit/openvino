@@ -5,20 +5,26 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertBroadcastToTiles;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ConvertBroadcastToTiles : public ngraph::pass::MatcherPass {
+class ov::pass::ConvertBroadcastToTiles : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertBroadcastToTiles", "0");
     ConvertBroadcastToTiles();
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::ConvertBroadcastToTiles;
+}  // namespace pass
+}  // namespace ngraph

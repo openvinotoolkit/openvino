@@ -5,21 +5,21 @@
 #include "transformations/op_conversions/convert_shuffle_channels3.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset2.hpp>
-#include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset2.hpp>
+#include <openvino/opsets/opset3.hpp>
 #include <vector>
 
 #include "itt.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
-ngraph::pass::ConvertShuffleChannels3::ConvertShuffleChannels3() {
+ov::pass::ConvertShuffleChannels3::ConvertShuffleChannels3() {
     MATCHER_SCOPE(ConvertShuffleChannels3);
     auto shuffle_channels = pattern::wrap_type<opset3::ShuffleChannels>();
 
-    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto shuffle_channels = std::dynamic_pointer_cast<::opset3::ShuffleChannels>(m.get_match_root());
         if (!shuffle_channels || transformation_callback(shuffle_channels)) {
             return false;

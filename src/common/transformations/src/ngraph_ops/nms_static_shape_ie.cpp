@@ -9,7 +9,7 @@
 
 #include <memory>
 
-namespace ngraph {
+namespace ov {
 namespace op {
 namespace internal {
 
@@ -17,4 +17,4 @@ template class TRANSFORMATIONS_API op::internal::NmsStaticShapeIE<op::v8::Matrix
 
 }  // namespace internal
 }  // namespace op
-}  // namespace ngraph
+}  // namespace ov

@@ -9,6 +9,7 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph_transformations/op/fully_connected.hpp>
 #include <ngraph_transformations/convert_matmul_to_fc.hpp>

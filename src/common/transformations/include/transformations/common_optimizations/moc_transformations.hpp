@@ -5,16 +5,16 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API MOCTransformations;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @brief This transformation is an entry point for nGraph transformations that will be
@@ -22,7 +22,7 @@ class TRANSFORMATIONS_API MOCTransformations;
  * with transformations pipeline but now it remains empty.
  */
 
-class ngraph::pass::MOCTransformations : public ngraph::pass::FunctionPass {
+class ov::pass::MOCTransformations : public ov::pass::ModelPass {
     bool m_use_shapes;
     bool m_low_precision_enabled;
 
@@ -41,3 +41,9 @@ public:
 
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::MOCTransformations;
+}  // namespace pass
+}  // namespace ngraph

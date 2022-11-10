@@ -5,20 +5,20 @@
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pattern/op/pattern.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset4.hpp>
 #include <vector>
 
 #include "itt.hpp"
 
-ngraph::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
+ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
     MATCHER_SCOPE(ConvertPadToGroupConvolution);
     auto neg = ngraph::pattern::wrap_type<opset4::Pad>(pattern::has_static_dim(1));
 
-    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto pad = std::dynamic_pointer_cast<ngraph::opset4::Pad>(m.get_match_root());
+    matcher_pass_callback callback = [this](pattern::Matcher& m) {
+        auto pad = std::dynamic_pointer_cast<ov::opset4::Pad>(m.get_match_root());
         if (!pad) {
             return false;
         }

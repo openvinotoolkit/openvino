@@ -6,18 +6,18 @@
 
 #include <memory>
 #include <ngraph/op/util/activation_functions.hpp>
-#include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset4.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
 
-ngraph::pass::RNNCellDecomposition::RNNCellDecomposition() {
+ov::pass::RNNCellDecomposition::RNNCellDecomposition() {
     MATCHER_SCOPE(RNNCellDecomposition);
     auto rnn_cell = ngraph::pattern::wrap_type<opset4::RNNCell>();
-    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
-        auto rnn_cell = std::dynamic_pointer_cast<ngraph::opset4::RNNCell>(m.get_match_root());
+    matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
+        auto rnn_cell = std::dynamic_pointer_cast<ov::opset4::RNNCell>(m.get_match_root());
         if (!rnn_cell || transformation_callback(rnn_cell)) {
             return false;
         }

@@ -5,11 +5,11 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertRNNSequenceToTensorIterator;
@@ -18,7 +18,7 @@ class TRANSFORMATIONS_API ConvertLSTMSequenceToTensorIterator;
 class TRANSFORMATIONS_API ConvertSequenceToTensorIterator;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -26,7 +26,7 @@ class TRANSFORMATIONS_API ConvertSequenceToTensorIterator;
  * *
  */
 
-class ngraph::pass::ConvertRNNSequenceToTensorIterator : public ngraph::pass::MatcherPass {
+class ov::pass::ConvertRNNSequenceToTensorIterator : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertRNNSequenceToTensorIterator", "0");
     ConvertRNNSequenceToTensorIterator();
@@ -38,7 +38,7 @@ public:
  * *
  */
 
-class ngraph::pass::ConvertGRUSequenceToTensorIterator : public ngraph::pass::MatcherPass {
+class ov::pass::ConvertGRUSequenceToTensorIterator : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertGRUSequenceToTensorIterator", "0");
     ConvertGRUSequenceToTensorIterator();
@@ -50,14 +50,23 @@ public:
  * *
  */
 
-class ngraph::pass::ConvertLSTMSequenceToTensorIterator : public ngraph::pass::MatcherPass {
+class ov::pass::ConvertLSTMSequenceToTensorIterator : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertLSTMSequenceToTensorIterator", "0");
     ConvertLSTMSequenceToTensorIterator();
 };
 
-class ngraph::pass::ConvertSequenceToTensorIterator : public GraphRewrite {
+class ov::pass::ConvertSequenceToTensorIterator : public GraphRewrite {
 public:
     OPENVINO_RTTI("ConvertSequenceToTensorIterator", "0");
     ConvertSequenceToTensorIterator();
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::ConvertGRUSequenceToTensorIterator;
+using ov::pass::ConvertLSTMSequenceToTensorIterator;
+using ov::pass::ConvertRNNSequenceToTensorIterator;
+using ov::pass::ConvertSequenceToTensorIterator;
+}  // namespace pass
+}  // namespace ngraph

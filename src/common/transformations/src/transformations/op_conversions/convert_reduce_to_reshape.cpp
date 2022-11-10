@@ -18,7 +18,7 @@ bool CvtReduceBase::is_redundant(ngraph::Shape input, ngraph::Shape output) {
     return true;
 }
 
-ngraph::pass::ConvertReduceMeanToReshape::ConvertReduceMeanToReshape() {
+ov::pass::ConvertReduceMeanToReshape::ConvertReduceMeanToReshape() {
     MATCHER_SCOPE(ConvertReduceMeanToReshape);
     auto m = std::make_shared<ngraph::pattern::Matcher>(
         ngraph::pattern::wrap_type<opset1::ReduceMean>(
@@ -28,7 +28,7 @@ ngraph::pass::ConvertReduceMeanToReshape::ConvertReduceMeanToReshape() {
     register_matcher(m, convert_reduce_to_reshape<opset1::ReduceMean>());
 }
 
-ngraph::pass::ConvertReduceSumToReshape::ConvertReduceSumToReshape() {
+ov::pass::ConvertReduceSumToReshape::ConvertReduceSumToReshape() {
     MATCHER_SCOPE(ConvertReduceSumToReshape);
     auto m = std::make_shared<ngraph::pattern::Matcher>(
         ngraph::pattern::wrap_type<opset1::ReduceSum>(
@@ -38,7 +38,7 @@ ngraph::pass::ConvertReduceSumToReshape::ConvertReduceSumToReshape() {
     register_matcher(m, convert_reduce_to_reshape<opset1::ReduceSum>());
 }
 
-ngraph::pass::ConvertReduceMaxToReshape::ConvertReduceMaxToReshape() {
+ov::pass::ConvertReduceMaxToReshape::ConvertReduceMaxToReshape() {
     MATCHER_SCOPE(ConvertReduceMaxToReshape);
     auto m = std::make_shared<ngraph::pattern::Matcher>(
         ngraph::pattern::wrap_type<opset1::ReduceMax>(
@@ -48,7 +48,7 @@ ngraph::pass::ConvertReduceMaxToReshape::ConvertReduceMaxToReshape() {
     register_matcher(m, convert_reduce_to_reshape<opset1::ReduceMax>());
 }
 
-ngraph::pass::ConvertReduceMinToReshape::ConvertReduceMinToReshape() {
+ov::pass::ConvertReduceMinToReshape::ConvertReduceMinToReshape() {
     MATCHER_SCOPE(ConvertReduceMinToReshape);
     auto m = std::make_shared<ngraph::pattern::Matcher>(
         ngraph::pattern::wrap_type<opset1::ReduceMin>(
@@ -58,7 +58,7 @@ ngraph::pass::ConvertReduceMinToReshape::ConvertReduceMinToReshape() {
     register_matcher(m, convert_reduce_to_reshape<opset1::ReduceMin>());
 }
 
-ngraph::pass::ConvertReduceLogicalAndToReshape::ConvertReduceLogicalAndToReshape() {
+ov::pass::ConvertReduceLogicalAndToReshape::ConvertReduceLogicalAndToReshape() {
     MATCHER_SCOPE(ConvertReduceLogicalAndToReshape);
     auto m = std::make_shared<ngraph::pattern::Matcher>(
         ngraph::pattern::wrap_type<opset1::ReduceLogicalAnd>(
@@ -68,7 +68,7 @@ ngraph::pass::ConvertReduceLogicalAndToReshape::ConvertReduceLogicalAndToReshape
     register_matcher(m, convert_reduce_to_reshape<opset1::ReduceLogicalAnd>());
 }
 
-ngraph::pass::ConvertReduceLogicalOrToReshape::ConvertReduceLogicalOrToReshape() {
+ov::pass::ConvertReduceLogicalOrToReshape::ConvertReduceLogicalOrToReshape() {
     MATCHER_SCOPE(ConvertReduceLogicalOrToReshape);
     auto m = std::make_shared<ngraph::pattern::Matcher>(
         ngraph::pattern::wrap_type<opset1::ReduceLogicalOr>(

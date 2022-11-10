@@ -8,6 +8,7 @@
 #include <memory>
 #include <queue>
 
+#include "ngraph/opsets/opset4.hpp"
 #include "transformations/utils/utils.hpp"
 
 TEST(TransformationTests, HasConstantValueHelper) {

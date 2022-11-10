@@ -4,23 +4,29 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertROIAlign9To3;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
  * @brief ConvertROIAlign9To3 converts v9::ROIAlign into v3::ROIAlign.
  */
-class ngraph::pass::ConvertROIAlign9To3 : public ngraph::pass::MatcherPass {
+class ov::pass::ConvertROIAlign9To3 : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertROIAlign9To3", "0");
     ConvertROIAlign9To3();
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::ConvertROIAlign9To3;
+}  // namespace pass
+}  // namespace ngraph

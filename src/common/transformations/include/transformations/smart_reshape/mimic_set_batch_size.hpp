@@ -9,13 +9,13 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <numeric>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class NGRAPH_API MimicSetBatchSize;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -29,8 +29,14 @@ class NGRAPH_API MimicSetBatchSize;
  * This transformation should be executed only while setBatchSize method call
  */
 
-class ngraph::pass::MimicSetBatchSize : public ngraph::pass::FunctionPass {
+class ov::pass::MimicSetBatchSize : public ngraph::pass::FunctionPass {
 public:
     OPENVINO_RTTI("MimicSetBatchSize", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::MimicSetBatchSize;
+}  // namespace pass
+}  // namespace ngraph

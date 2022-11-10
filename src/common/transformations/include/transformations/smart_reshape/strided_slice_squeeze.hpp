@@ -8,7 +8,7 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <vector>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class NGRAPH_API StridedSliceSqueeze;
@@ -16,7 +16,7 @@ class NGRAPH_API SqueezeStridedSlice;
 class NGRAPH_API SharedSqueeze;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -24,7 +24,7 @@ class NGRAPH_API SharedSqueeze;
  * to be squeeze-able
  */
 
-class ngraph::pass::StridedSliceSqueeze : public ngraph::pass::MatcherPass {
+class ov::pass::StridedSliceSqueeze : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("StridedSliceSqueeze", "0");
     StridedSliceSqueeze();
@@ -36,7 +36,7 @@ public:
  * output to be squeeze-able
  */
 
-class ngraph::pass::SqueezeStridedSlice : public ngraph::pass::MatcherPass {
+class ov::pass::SqueezeStridedSlice : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("SqueezeStridedSlice", "0");
     SqueezeStridedSlice();
@@ -48,8 +48,16 @@ public:
  * outputs to it
  */
 
-class ngraph::pass::SharedSqueeze : public ngraph::pass::FunctionPass {
+class ov::pass::SharedSqueeze : public ngraph::pass::FunctionPass {
 public:
     OPENVINO_RTTI("SharedSqueeze", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::SharedSqueeze;
+using ov::pass::SqueezeStridedSlice;
+using ov::pass::StridedSliceSqueeze;
+}  // namespace pass
+}  // namespace ngraph

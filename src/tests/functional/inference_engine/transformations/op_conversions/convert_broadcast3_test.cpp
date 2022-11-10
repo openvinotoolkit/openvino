@@ -14,6 +14,7 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>

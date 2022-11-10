@@ -8,10 +8,10 @@
 #include <string>
 #include <transformations_visibility.hpp>
 
-#include "ngraph/coordinate_diff.hpp"
-#include "ngraph/op/op.hpp"
+#include "openvino/core/coordinate_diff.hpp"
+#include "openvino/op/op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 namespace internal {
 
@@ -29,8 +29,8 @@ public:
                                 const Output<Node>& score_threshold,
                                 int center_point_box,
                                 bool sort_result_descending,
-                                const ngraph::element::Type& output_type = ngraph::element::i64,
-                                const ngraph::element::Type& score_output_type = ngraph::element::f32);
+                                const element::Type& output_type = element::i64,
+                                const element::Type& score_output_type = element::f32);
 
     NonMaxSuppressionIEInternal(const Output<Node>& boxes,
                                 const Output<Node>& scores,
@@ -40,8 +40,8 @@ public:
                                 const Output<Node>& soft_nms_sigma,
                                 int center_point_box,
                                 bool sort_result_descending,
-                                const ngraph::element::Type& output_type = ngraph::element::i64,
-                                const ngraph::element::Type& score_output_type = ngraph::element::f32);
+                                const element::Type& output_type = element::i64,
+                                const element::Type& score_output_type = element::f32);
 
     void validate_and_infer_types() override;
 
@@ -58,6 +58,14 @@ private:
     int64_t max_boxes_output_from_input() const;
 };
 
+}  // namespace internal
+}  // namespace op
+}  // namespace ov
+
+namespace ngraph {
+namespace op {
+namespace internal {
+using ov::op::internal::NonMaxSuppressionIEInternal;
 }  // namespace internal
 }  // namespace op
 }  // namespace ngraph

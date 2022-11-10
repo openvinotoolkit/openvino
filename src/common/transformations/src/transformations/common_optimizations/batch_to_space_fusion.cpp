@@ -5,16 +5,16 @@
 #include "transformations/common_optimizations/batch_to_space_fusion.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset6.hpp>
 #include <vector>
 
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-ngraph::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
+ov::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
     MATCHER_SCOPE(BatchToSpaceFusion);
     auto data_pattern = pattern::any_input(pattern::has_static_shape());
     auto reshape_before_pattern =
@@ -39,7 +39,7 @@ ngraph::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
     auto reshape_or_transpose_after_pattern =
         std::make_shared<pattern::op::Or>(OutputVector{reshape_after_pattern, trans_after_pattern});
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto get_reshape_or_transpose = [&pattern_map](
@@ -83,7 +83,7 @@ ngraph::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
             return false;
         auto block_size = static_cast<int64_t>(depth_to_space->get_block_size());
         auto block_shape =
-            op::Constant::create(element::i64, Shape{4}, std::vector<int64_t>{1, 1, block_size, block_size});
+            opset6::Constant::create(element::i64, Shape{4}, std::vector<int64_t>{1, 1, block_size, block_size});
         auto starts = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(starts_pattern).get_node_shared_ptr());
         if (!starts)
             return false;
@@ -106,12 +106,10 @@ ngraph::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
                 ends_value[i] = dts_shape[i] - ends_value[i];
             }
         }
-        auto crops_begin = op::Constant::create(element::i64, Shape{4}, starts_value);
-        auto crops_end = op::Constant::create(element::i64, Shape{4}, ends_value);
-        auto batch_to_space = register_new_node<ngraph::opset6::BatchToSpace>(pattern_map.at(data_pattern),
-                                                                              block_shape,
-                                                                              crops_begin,
-                                                                              crops_end);
+        auto crops_begin = opset6::Constant::create(element::i64, Shape{4}, starts_value);
+        auto crops_end = opset6::Constant::create(element::i64, Shape{4}, ends_value);
+        auto batch_to_space =
+            register_new_node<opset6::BatchToSpace>(pattern_map.at(data_pattern), block_shape, crops_begin, crops_end);
         batch_to_space->set_friendly_name(reshape_or_trans_after->get_friendly_name());
 
         copy_runtime_info({reshape_or_trans_before,

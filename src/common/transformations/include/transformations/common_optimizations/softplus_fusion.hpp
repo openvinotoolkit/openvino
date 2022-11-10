@@ -5,25 +5,31 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API SoftPlusFusion;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
  * @brief SoftPlusFusion transformation replaces group of
  * operations: log(exp(x) + 1) to SoftPlus op.
  */
-class ngraph::pass::SoftPlusFusion : public ngraph::pass::MatcherPass {
+class ov::pass::SoftPlusFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("SoftPlusFusion", "0");
     SoftPlusFusion();
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::SoftPlusFusion;
+}  // namespace pass
+}  // namespace ngraph

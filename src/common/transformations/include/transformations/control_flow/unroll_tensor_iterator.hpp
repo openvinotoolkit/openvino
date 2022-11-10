@@ -9,13 +9,13 @@
 #include <transformations_visibility.hpp>
 #include <vector>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API UnrollTensorIterator;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -25,8 +25,14 @@ class TRANSFORMATIONS_API UnrollTensorIterator;
  * are added to the network.
  */
 
-class ngraph::pass::UnrollTensorIterator : public ngraph::pass::FunctionPass {
+class ov::pass::UnrollTensorIterator : public ngraph::pass::FunctionPass {
 public:
     OPENVINO_RTTI("UnrollTensorIterator", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::UnrollTensorIterator;
+}  // namespace pass
+}  // namespace ngraph

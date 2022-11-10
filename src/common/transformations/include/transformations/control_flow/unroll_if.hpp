@@ -7,13 +7,13 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API UnrollIf;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 // clang-format off
 /**
@@ -24,8 +24,14 @@ class TRANSFORMATIONS_API UnrollIf;
  */
 // clang-format on
 
-class ngraph::pass::UnrollIf : public ngraph::pass::FunctionPass {
+class ov::pass::UnrollIf : public ngraph::pass::FunctionPass {
 public:
     OPENVINO_RTTI("UnrollIf", "0");
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::UnrollIf;
+}  // namespace pass
+}  // namespace ngraph

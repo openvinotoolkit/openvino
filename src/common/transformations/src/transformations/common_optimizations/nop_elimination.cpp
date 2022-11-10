@@ -5,20 +5,21 @@
 #include <functional>
 #include <memory>
 #include <ngraph/log.hpp>
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/util.hpp>
 #include <numeric>
+#include <openvino/core/validation_util.hpp>
+#include <openvino/opsets/opset3.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <openvino/opsets/opset9.hpp>
+#include <openvino/pass/pattern/op/or.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 //`simplify_gather`, optimizes gather if Gather is gathering the
 // whole input tensor
@@ -298,8 +299,8 @@ pass::EliminatePad::EliminatePad() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pad = m.get_match_root();
 
-        auto pad_begin_const = ngraph::get_constant_from_source(pad->input_value(1));
-        auto pad_end_const = ngraph::get_constant_from_source(pad->input_value(2));
+        auto pad_begin_const = get_constant_from_source(pad->input_value(1));
+        auto pad_end_const = get_constant_from_source(pad->input_value(2));
 
         if (!pad_begin_const || !pad_end_const) {
             return false;
@@ -423,7 +424,7 @@ pass::EliminateSqueeze::EliminateSqueeze() {
         // eliminate redundant unsqueeze->squeeze
         if (auto unsqueeze = ov::as_type_ptr<opset3::Unsqueeze>(input)) {
             PartialShape data_shape;
-            if (op::is_parameter(input)) {
+            if (op::util::is_parameter(input)) {
                 data_shape = unsqueeze->input(0).get_partial_shape();
             } else {
                 data_shape = input->input(0).get_partial_shape();
@@ -461,7 +462,7 @@ pass::EliminateSqueeze::EliminateSqueeze() {
         // eliminate redundant squeeze->squeeze
         if (auto squeeze_i = ov::as_type_ptr<opset3::Squeeze>(input)) {
             PartialShape data_shape;
-            if (op::is_parameter(input)) {
+            if (op::util::is_parameter(input)) {
                 data_shape = squeeze_i->input(0).get_partial_shape();
             } else {
                 data_shape = input->input(0).get_partial_shape();

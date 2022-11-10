@@ -6,10 +6,10 @@
 
 #include <transformations_visibility.hpp>
 
-#include "ngraph/op/util/multiclass_nms_base.hpp"
-#include "ngraph/opsets/opset9.hpp"
+#include "openvino/op/util/multiclass_nms_base.hpp"
+#include "openvino/opsets/opset9.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 namespace internal {
 
@@ -22,17 +22,25 @@ public:
 
     MulticlassNmsIEInternal(const Output<Node>& boxes,
                             const Output<Node>& scores,
-                            const ngraph::op::util::MulticlassNmsBase::Attributes& attrs);
+                            const op::util::MulticlassNmsBase::Attributes& attrs);
 
     MulticlassNmsIEInternal(const Output<Node>& boxes,
                             const Output<Node>& scores,
                             const Output<Node>& roisnum,
-                            const ngraph::op::util::MulticlassNmsBase::Attributes& attrs);
+                            const op::util::MulticlassNmsBase::Attributes& attrs);
 
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
+}  // namespace internal
+}  // namespace op
+}  // namespace ov
+
+namespace ngraph {
+namespace op {
+namespace internal {
+using ov::op::internal::MulticlassNmsIEInternal;
 }  // namespace internal
 }  // namespace op
 }  // namespace ngraph
