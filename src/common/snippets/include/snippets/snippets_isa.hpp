@@ -23,6 +23,7 @@
 #include "op/store.hpp"
 #include "op/loop.hpp"
 #include "op/vector_buffer.hpp"
+#include "op/matmul_cpu.hpp"
 
 namespace ngraph {
 namespace snippets {

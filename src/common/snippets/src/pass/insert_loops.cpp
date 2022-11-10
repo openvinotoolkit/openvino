@@ -119,17 +119,23 @@ void insert_explicitly_loops(const ov::NodeVector& ops, const ov::PartialShape& 
             continue;
         }
 
-        // If we meet loopBegin, it means that all previous nodes from ordered body
+        // If we meet loopBegin or MatMul, it means that all previous nodes from ordered body
         // should be in one body. It's like stop signal
         const auto& loop_begin = ov::as_type_ptr<op::LoopBegin>(op);
-        if (loop_begin) {
+        const auto& matmul = ov::as_type_ptr<op::MatMulCPU>(op);
+        if (loop_begin || matmul) {
             if (body.size() > 0) {
                 wrapBodyByLoop(body, body_parameters, body_results);
             }
 
-            // we should skip the next existing Loop body
-            const auto& loop_end = loop_begin->get_loop_end();
-            iter = std::find(iter, ops.end(), loop_end);
+            // we should go to the next iterator
+            if (loop_begin) {
+                // we should skip the next existing Loop body
+                const auto &loop_end = loop_begin->get_loop_end();
+                iter = std::find(iter, ops.end(), loop_end);
+            } else if (matmul) {
+                iter++;
+            }
 
             // clear loop body to create the next
             body.clear();
@@ -141,7 +147,8 @@ void insert_explicitly_loops(const ov::NodeVector& ops, const ov::PartialShape& 
                 auto parent = input.get_source_output().get_node_shared_ptr();
                 if (ov::is_type<op::LoopEnd>(parent) ||
                     ov::is_type<op::Buffer>(parent) ||
-                    ov::is_type<ov::op::v0::Parameter>(parent)) {
+                    ov::is_type<ov::op::v0::Parameter>(parent) ||
+                    ov::is_type<op::MatMulCPU>(parent)) {
                     body_parameters.push_back(input.get_source_output());
                 }
             }
@@ -152,7 +159,8 @@ void insert_explicitly_loops(const ov::NodeVector& ops, const ov::PartialShape& 
                     auto child = target_input.get_node()->shared_from_this();
                     if (ov::is_type<op::LoopBegin>(child) ||
                         ov::is_type<op::Buffer>(child) ||
-                        ov::is_type<ov::op::v0::Result>(child)) {
+                        ov::is_type<ov::op::v0::Result>(child) ||
+                        ov::is_type<op::MatMulCPU>(child)) {
                         body_results.push_back(target_input);
                     }
                 }

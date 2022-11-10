@@ -36,6 +36,7 @@ auto getRegisters(const std::shared_ptr<ngraph::Node> &n) -> RegInfo {
         if (it_rt != rt.end())
             rin.push_back(it_rt->second.as<size_t>());
     }
+
     return std::make_pair(rin, rout);
 }
 
@@ -88,7 +89,7 @@ auto tail_transformations(NodeVector& tail, const size_t tail_size, const Subgra
 
 ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov::Model>& m,
                                                              const SubgraphConfig& config,
-                                                             const void* compile_params) const {
+                                                             const void* compile_params) {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator::generate")
     if (!target->is_supported())
         throw ngraph_error("unsupported architecture for code generation");
@@ -204,6 +205,12 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
         op.first->emit_data();
     }
     OV_ITT_TASK_NEXT(GENERATE, "::GetSnippet")
+
+    // todo: we save lowered to access compiled brgemm kernels on execution time (normally lowered is destructed by then)
+    //  remove this when kernel caching is implemented. Don't forget to make generate const method.
+    if (config.m_has_domain_sensitive_ops)
+        lowered_saved = lowered;
+
     return target->get_snippet();
 }
 

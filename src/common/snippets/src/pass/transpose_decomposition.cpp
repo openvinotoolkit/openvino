@@ -38,7 +38,8 @@ ngraph::snippets::pass::TransposeDecomposition::TransposeDecomposition() {
 
         auto order_value = order->get_vector<int>();
         if (supported_cases.count(order_value) == 0)
-            throw ngraph::ngraph_error("TransposeDecomposition: unsupported order");
+            return false;
+            // throw ngraph::ngraph_error("TransposeDecomposition: unsupported order");
 
         auto data_input = pattern_to_output.at(match_data);
         const auto& data_node = pattern_to_output.at(match_data).get_node_shared_ptr();

@@ -27,7 +27,10 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
                 std::dynamic_pointer_cast<opset1::Result>(op) ||
                 std::dynamic_pointer_cast<op::LoopBegin>(op) ||
                 std::dynamic_pointer_cast<op::LoopEnd>(op) ||
-                std::dynamic_pointer_cast<op::Buffer>(op))
+                std::dynamic_pointer_cast<op::Buffer>(op) ||
+                // todo: do we need to support ngraph MatMul?
+                std::dynamic_pointer_cast<opset1::MatMul>(op) ||
+                std::dynamic_pointer_cast<op::MatMulCPU>(op))
             return gpr2gpr;
         else if (std::dynamic_pointer_cast<snippets::op::Load>(op) ||
                  std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(op))
@@ -127,7 +130,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
         std::set<Reg> result;
         for (const auto& t : tensors) {
             if (reg_map.count(t) == 0)
-                ngraph::ngraph_error("Assign registers: attempt to access not enumerated tensor");
+                throw ngraph::ngraph_error("Assign registers: attempt to access not enumerated tensor");
             Reg reg_id = reg_map.at(t);
             if (reg_id != IS_MANUALLY_ALLOCATED_REG)
                 result.insert(reg_id);
@@ -295,7 +298,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
             if (reg.second == IS_MANUALLY_ALLOCATED_REG)
                 continue;
             if (unique2reused.count(reg.second) == 0)
-                ngraph::ngraph_error("Assign registers failed to allocate register for a tensor");
+                throw ngraph::ngraph_error("Assign registers failed to allocate register for a tensor");
             assigned_regs[reg.first] = unique2reused.at(reg.second);
         }
     };

@@ -7,7 +7,9 @@
 #include <cpu/x64/jit_generator.hpp>
 
 #include "jit_snippets_emitters.hpp"
+#include "snippets/op/matmul_cpu.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "snippets/utils.hpp"
 
 using namespace Xbyak;
 using ngraph::snippets::op::Subgraph;
@@ -62,7 +64,8 @@ void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  
                 // todo: Note that LoopBeginEmitter and LoopEndEmitter demonstrate new paradigm,
                 //  where all utility emitters align with conventional Op emitters
                 if (std::dynamic_pointer_cast<LoopBeginEmitter>(emitter) ||
-                        std::dynamic_pointer_cast<LoopEndEmitter>(emitter))
+                    std::dynamic_pointer_cast<LoopEndEmitter>(emitter) ||
+                    std::dynamic_pointer_cast<MatMulEmitter>(emitter))
                     in_physical_regs = std::move(map_regs(in_abstract_regs, gpr_map_pool));
                 else
                     in_physical_regs = std::move(in_abstract_regs);
@@ -111,24 +114,19 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
             IE_THROW() << "KernelEmitter can't calc offsets for dynamic shapes";
         return pshape.get_shape();
     };
-    const auto get_access_pattern = [](const Output<ov::Node>& out, std::vector<size_t>& shape) {
-        std::vector<size_t> access_pattern{};
-        auto &rt = out.get_tensor_ptr()->get_rt_info();
-        const auto rinfo = rt.find("Layout");
+    const auto get_data_layout = [](const Output<ov::Node>& out, std::vector<size_t>& shape) {
+        const auto& layout = ngraph::snippets::utils::get_port_layout(out);
         // default access pattern
-        if (rinfo != rt.end()) {
-            access_pattern = rinfo->second.as<std::vector<size_t>>();
-            const int64_t pattern_shape_diff = static_cast<int64_t>(shape.size()) - static_cast<int64_t>(access_pattern.size());
+        if (!layout.empty()) {
+            const auto layout_shape_diff = static_cast<int64_t>(shape.size()) - static_cast<int64_t>(layout.size());
             // Plugin can (and usually does) prepend shapes with 1's to facilitate scheduling, here we can safely remove leading 1's
-            if (pattern_shape_diff > 0) {
-                if (std::any_of(shape.begin(), shape.begin() + pattern_shape_diff, [](size_t x){return x != 1;}))
+            if (layout_shape_diff > 0) {
+                if (std::any_of(shape.begin(), shape.begin() + layout_shape_diff, [](size_t x){return x != 1;}))
                     IE_THROW() << "KernelEmitter detected shape vs access pattern conflict: only leading 1's can be removed from the shape";
-                shape.erase(shape.begin(), shape.begin() + pattern_shape_diff);
-            } else if (pattern_shape_diff < 0) {
-                IE_THROW() << "KernelEmitter detected invalid access pattern: pattern size can't be larger than shape size";
+                shape.erase(shape.begin(), shape.begin() + layout_shape_diff);
             }
         }
-        return access_pattern;
+        return layout;
     };
     const auto& ops = model->get_ordered_ops();
     auto params = model->get_parameters();
@@ -153,7 +151,7 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     }
     for (int i = 0; i < io_nodes.size(); i++) {
         const auto& out = io_nodes[i]->output(0);
-        data_access_pattern.push_back(get_access_pattern(out, io_shapes[i]));
+        data_layout.push_back(get_data_layout(out, io_shapes[i]));
         io_data_size.push_back(out.get_element_type().size());
     }
     // Initialize pools of gp and vec registers
@@ -181,7 +179,11 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
                            [](const AllocatedEmitter& code){
                                    const auto& emitter = code.first;
                                    const auto emitter_type = std::dynamic_pointer_cast<jit_emitter>(emitter)->get_in_out_type();
-                                   return emitter_type == gpr_to_vec || emitter_type == vec_to_gpr;
+                                   // todo: how this will be handled if Matmul in & out are op::Buffer
+                                   // Matmul is a special case since it incorporates input and output (we use onednn kernel)
+                                   // Just like Load & Store it requires offsets calculation
+                                   const auto is_matmul = std::dynamic_pointer_cast<MatMulEmitter>(emitter) != nullptr;
+                                   return emitter_type == gpr_to_vec || emitter_type == vec_to_gpr || is_matmul;
                            });
     // Note that we can't use reg_indexes_idx or reg_const_params_idx to store data pointers because these two
     // regs are used to calculate offsets for the data pointers
@@ -225,7 +227,7 @@ void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, boo
     //const size_t tile_rank = jcp.tile_rank;
     std::vector<std::vector<size_t>> data_offsets(num_params, std::vector<size_t>{});
     auto offset_calculation = [=](const std::vector<size_t>& shape,
-                                            const std::vector<size_t>& access_pattern, const size_t data_size) {
+                                            const std::vector<size_t>& layout, const size_t data_size) {
         // Strides represent distance between consecutive elements of corresponding dimension.
         // If a dim size == 1, then the next dim starts immediately and the stride is 0
         // case 1:
@@ -242,10 +244,10 @@ void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, boo
             strides[k] = shape[k] != 1 ? dim_step * data_size : 0;
         }
         // Note: this is an extra copy, but let's keep it for clarity
-        if (!access_pattern.empty()) {
+        if (!layout.empty()) {
             std::vector<size_t> reordered_strides(strides.size());
-            for (auto i = 0; i < access_pattern.size(); i++)
-                reordered_strides[i] = strides[access_pattern[i]];
+            for (auto i = 0; i < layout.size(); i++)
+                reordered_strides[i] = strides[layout[i]];
             strides = std::move(reordered_strides);
         }
         // the last stride is ignored, since the entire last dim is processed by kernel
@@ -260,7 +262,7 @@ void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, boo
         return strides;
     };
     for (size_t i = 0; i < num_params; i++) {
-        data_offsets[i] = offset_calculation(io_shapes[i],  data_access_pattern[i], io_data_size[i]);
+        data_offsets[i] = offset_calculation(io_shapes[i],  data_layout[i], io_data_size[i]);
     }
     // master_shape size must be valid in both static and dynamic cases
     std::function<void(Reg64, const std::vector<size_t>&, Reg64)> init_ptr_with_offset;
@@ -926,5 +928,295 @@ void FillEmitter::register_table_entries() {
     push_arg_entry_of("value", fill_value, true);
 }
 
+size_t MatMulEmitter::getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) const {
+    return mIdx * 4 + kIdx * 2 + nIdx;
+}
+MatMulEmitter::MatMulEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
+                             const std::shared_ptr<ov::Node>& node) : jit_emitter(h, isa, node) {
+    in_out_type_ = emitter_in_out_map::gpr_to_gpr;
+    const auto& matmul_node = as_type_ptr<ngraph::snippets::op::MatMulCPU>(node);
+    if (matmul_node->is_dynamic())
+        IE_THROW() << "Snippets don't support code generation for dynamic MatmulCPU";
+    const OutputVector io_values {matmul_node->input_value(0), matmul_node->input_value(1), matmul_node->output(0)};
+    std::vector<size_t> leading_dimensions;
+    std::vector<std::vector<size_t>> io_layouts;
+    for (const auto& val : io_values) {
+        const auto& layout = ngraph::snippets::utils::get_port_layout(val);
+        const auto& io_shape = val.get_shape();
+        if (layout.empty()) {
+            // empty value indicates a planar layout
+            leading_dimensions.push_back(io_shape.back());
+            std::vector<size_t> default_layout(io_shape.size());
+            std::iota(default_layout.begin(), default_layout.end(), 0);
+            io_layouts.push_back(default_layout);
+        } else {
+            // The idea here is to find "2" (for 4D shapes) in the layout and multiply dimensions that are to the right
+            // This implies that "3" is the last layout value, otherwise this layout is not supported.
+            // counting from the end since shape could be prepended with ones
+            const int64_t num_last_dims = layout.end() - std::find(layout.begin(), layout.end(), layout.size() - 2) - 1;
+            if (layout.back() != layout.size() - 1 || num_last_dims < 1)
+                IE_THROW() << "MatMulEmitter detected invalid layout values: " <<
+                           "check that this shape + layout combination is schedulable";
+            leading_dimensions.emplace_back(
+                    std::accumulate(io_shape.end() - num_last_dims, io_shape.end(), 1, std::multiplies<size_t>()));
+            io_layouts.push_back(layout);
+        }
+    }
+    // todo: leave AMX and VNNI related code for now, it'll help to enable int8 and bf16 support
+    bool isAMXSupported = mayiuse(avx512_core_bf16_amx_int8) || mayiuse(avx512_core_bf16_amx_bf16);
+
+    const auto& A_shape = io_values[0].get_shape();
+    const auto& A_layout = io_layouts[0];
+    const auto& C_shape = io_values[2].get_shape();
+    const auto& C_layout = io_layouts[2];
+    // Batch could be broadcasted, so must be read from the out shape
+    batch0 = C_shape[C_layout[0]];
+    batch1 = C_shape[C_layout[1]];
+
+    M = C_shape[C_layout[2]];
+    K0 = A_shape[A_layout[3]];
+    M_blk = matmulOptimalM;
+    M_tail = M % M_blk;
+    // B_shape[B_layout[3]]
+    N0 = C_shape[C_layout[3]];
+
+    auto brg0Prc = InferenceEngine::details::convertPrecision(matmul_node->get_input_element_type(0));
+    auto brg1Prc = InferenceEngine::details::convertPrecision(matmul_node->get_input_element_type(1));
+    io_data_size = {brg0Prc.size(), brg1Prc.size(), matmul_node->get_output_element_type(0).size()};
+    brg0VnniFactor = 4 / brg0Prc.size();
+    bool brg0WithAMX = isAMXSupported && brg0Prc != Precision::FP32 && (K0 % brg0VnniFactor == 0) && (N0 % brg0VnniFactor == 0);
+
+    N0_blk = brg0Prc == Precision::FP32 ? N0 :
+             brg0Prc == Precision::BF16 ? 32 : 64;
+    N0_tail = N0 % N0_blk;
+    K0_blk = brg0WithAMX ? brg0Prc == Precision::BF16 ? 32 : 64
+                         : K0;
+    K0_tail = K0 % K0_blk;
+
+    size_t brg0BaseIdx = -1;
+    for (size_t m = 0; m < 2; m++) {
+        for (size_t k = 0; k < 2; k++) {
+            for (size_t n = 0; n < 2; n++) {
+                auto& brgemmCtx = brgCtxs0[getBrgIdx(m, k, n)];
+
+                auto M_ = m ? M_tail
+                            : M < M_blk ? 0 : M_blk;
+                auto N_ = n ? N0_tail : N0 - N0_tail;
+                auto K_ = k ? K0_tail : K0 - K0_tail;
+                auto beta = k && brgCtxs0[getBrgIdx(m, 0, n)].K != 0 ? 1.0f : 0.0f;
+
+                brgemmCtx.M = M_;
+                brgemmCtx.N = N_;
+                brgemmCtx.K = K_;
+                brgemmCtx.LDA = leading_dimensions[0];
+                brgemmCtx.LDB = leading_dimensions[1];
+                brgemmCtx.LDC = leading_dimensions[2];
+                brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg0Prc));
+                brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1Prc));
+                brgemmCtx.beta = beta;
+
+                // don't create brgemm kernels for empty tiles
+                if (M_ != 0 && K_ != 0 && N_ != 0) {
+                    if (brg0BaseIdx == -1)
+                        brg0BaseIdx = getBrgIdx(m, k, n);
+                    initBrgemm(brgemmCtx, brgKernels0[getBrgIdx(m, k, n)], brg0WithAMX);
+                }
+            }
+        }
+    }
+}
+
+void MatMulEmitter::initBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, bool use_amx) const {
+    brgemm_t brgDesc;
+    brgemm_strides_t strides {static_cast<dnnl_dim_t>(ctx.M * ctx.K), static_cast<dnnl_dim_t>(ctx.K * ctx.N)};
+
+    const bool is_int8 = utils::one_of(ctx.dt_in0, data_type::u8, data_type::s8) && utils::one_of(ctx.dt_in1, data_type::u8, data_type::s8);
+    auto isa = use_amx ? isa_any
+                       : ctx.dt_in0 == dnnl_data_type_t::dnnl_bf16 ? avx512_core_bf16 : (is_int8 ? avx512_core_vnni : avx512_core);
+    auto status = brgemm_desc_init(&brgDesc, isa, brgemm_strd, ctx.dt_in0, ctx.dt_in1,
+                                   false, false, brgemm_row_major, 1.f, ctx.beta, ctx.LDA, ctx.LDB, ctx.LDC, ctx.M, ctx.N, ctx.K, &strides);
+    if (status != dnnl_success)
+        IE_THROW() << "MatMulEmitter cannot initialize brgemm descriptor due to invalid params";
+
+    ctx.is_with_amx = use_amx;
+    status = brgemm_init_tiles(brgDesc, ctx.palette);
+    if (use_amx)
+        amx_tile_configure(ctx.palette);
+
+    ctx.is_with_comp = ctx.dt_in0 == dnnl_data_type_t::dnnl_s8 && !ctx.is_with_amx;
+
+    brgemm_kernel_t* brgKernel_ = nullptr;
+    status = brgemm_kernel_create(&brgKernel_, brgDesc);
+    if (status != dnnl_success)
+        IE_THROW() << "MatMulEmitter cannot initialize brgemm kernel due to invalid params";
+    brgKernel.reset(brgKernel_);
+}
+
+void MatMulEmitter::emit_impl(const std::vector<size_t>& in,
+                              const std::vector<size_t>& out,
+                              const std::vector<size_t>& pool,
+                              const std::vector<size_t>& gpr,
+                              const ov::intel_cpu::emitter_context *emit_context) const {
+    if (host_isa_ == cpu::x64::sse41) {
+        emit_isa<cpu::x64::sse41>(in, out);
+    } else if (host_isa_ == cpu::x64::avx2) {
+        emit_isa<cpu::x64::avx2>(in, out);
+    } else if (host_isa_ == cpu::x64::avx512_core) {
+        emit_isa<cpu::x64::avx512_core>(in, out);
+    } else {
+        assert(!"unsupported isa");
+    }
+}
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+void MatMulEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brgKernel, int bs,
+                                            Reg64 addr_A, Reg64 addr_B,
+                                            const brgemm_batch_element_t *batch, Reg64 addr_C, void *scratch) const {
+    using Vmm = typename dnnl::impl::utils::conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
+    size_t gpr_size = 8;
+    Xbyak::Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->rax,
+                                     h->rcx, h->rdx, h->rdi, h->rsi, h->rbp, h->rbx};
+    size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
+
+    h->sub(h->rsp, n_gprs_to_save * gpr_size);
+    for (size_t i = 0; i < n_gprs_to_save; ++i)
+        h->mov(h->ptr[h->rsp + i * gpr_size], gprs_to_save[i]);
+
+    // caller obligation to save k-regs as callee may use them
+    size_t n_k_regs_to_save = 8;
+    if (isa == cpu::x64::avx512_core) {
+        h->sub(h->rsp, n_k_regs_to_save * k_mask_size);
+        for (size_t i = 0; i < n_k_regs_to_save; ++i) {
+            if (mayiuse(avx512_core))
+                h->kmovq(h->ptr[h->rsp + i * k_mask_size], Opmask(static_cast<int>(i)));
+            else
+                h->kmovw(h->ptr[h->rsp + i * k_mask_size], Opmask(static_cast<int>(i)));
+        }
+    }
+
+    // 1. Caller obligation to save vector registers as callee may use them.
+    // 2. There is an implicit assumption that the host code uses the same
+    // `isa` as the injector. Once the assumption is wrong, `vecs_count` and
+    // `vlen` should be replaced with `host_isa::vlen` and
+    // `host_isa::vecs_count`.
+    h->sub(h->rsp, get_max_vecs_count() * get_vec_length());
+    for (size_t i = 0; i < get_max_vecs_count(); ++i)
+        h->uni_vmovups(h->ptr[h->rsp + i * get_vec_length()], Vmm(i));
+
+    // save function address in gpr to pass in call instruction
+    const auto& brgemm_kernel_overload =   static_cast<void (*)(const brgemm_kernel_t*,
+                                                                int,
+                                                                const void*,
+                                                                const void*,
+                                                                const brgemm_batch_element_t*,
+                                                                void*,
+                                                                void*)>(brgemm_kernel_execute);
+    h->mov(h->rbp, reinterpret_cast<uintptr_t>(brgemm_kernel_overload));
+    // todo: several of addr_{A, B, C} could be also abi_paramX, so one of them could be corrupted
+    //  if moving directly h->uni_vmovq(abi_paramX, adr_X). Save them to vector regs to avoid corruption.
+    //  It's likely that a more efficient solution exists.
+    h->uni_vmovq(Xmm(0), addr_A);
+    h->uni_vmovq(Xmm(1), addr_B);
+    h->uni_vmovq(Xmm(2), addr_C);
+    // todo: Windows ABI : requires different num of arguments passed in regs and on the stack. Need to align.
+    h->mov(abi_param1, reinterpret_cast<uintptr_t>(brgKernel));
+    h->mov(abi_param2, bs);
+    h->uni_vmovq(abi_param3, Xmm(0));
+    h->uni_vmovq(abi_param4, Xmm(1));
+    size_t num_args_passed_on_stack = 1;
+#ifdef _WIN32
+        num_args_passed_on_stack = 3;
+    h->sub(h->rsp, gpr_size * num_args_passed_on_stack);
+    h->sub(h->rsp, gpr_size);
+    h->mov(h->qword[h->rsp], reinterpret_cast<uint64_t>(scratch));
+    h->mov(h->qword[h->rsp + gpr_size], reinterpret_cast<uintptr_t>(batch));
+    h->mov(h->qword[h->rsp + 2 * gpr_size], Xmm(2));
+#else
+    h->mov(abi_param5, reinterpret_cast<uintptr_t>(batch));
+    h->uni_vmovq(abi_param6, Xmm(2));
+    h->sub(h->rsp, gpr_size);
+    h->mov(h->qword[h->rsp], reinterpret_cast<uint64_t>(scratch));
+#endif
+    // align stack on 16-byte as ABI requires
+    // note that RBX must not be changed by the callee
+    h->mov(h->rbx, h->rsp);
+    h->and_(h->rbx, 0xf);
+    h->sub(h->rsp, h->rbx);
+
+    h->call(h->rbp);
+
+    h->add(h->rsp, h->rbx);
+    h->add(h->rsp, gpr_size * num_args_passed_on_stack);
+    // restore vector registers
+    for (int i = static_cast<int>(get_max_vecs_count()) - 1; i >= 0; --i) {
+        h->uni_vmovups(Vmm(i), h->ptr[h->rsp + i * get_vec_length()]);
+    }
+    h->add(h->rsp, (get_max_vecs_count()) * get_vec_length());
+
+    // restore k registers
+    if (isa == cpu::x64::avx512_core) {
+        for (int i = n_k_regs_to_save - 1; i >= 0; --i) {
+            if (mayiuse(avx512_core))
+                h->kmovq(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
+            else
+                h->kmovw(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
+        }
+        h->add(h->rsp, n_k_regs_to_save * k_mask_size);
+    }
+
+
+    // restore gpr registers
+    for (int i = n_gprs_to_save - 1; i >= 0; --i)
+        h->mov(gprs_to_save[i], h->ptr[h->rsp + i * gpr_size]);
+    h->add(h->rsp, n_gprs_to_save * gpr_size);
+}
+
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+void MatMulEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
+    using Vmm = typename dnnl::impl::utils::conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
+    Reg64 input_0(static_cast<int>(in[0]));
+    Reg64 input_1(static_cast<int>(in[1]));
+    Reg64 output_0(static_cast<int>(out[0]));
+
+    for (size_t mb = 0; mb < div_up(M, M_blk); mb++) {
+        const bool is_M_tail = (M - mb * M_blk < M_blk);
+
+        size_t brgIdx0 = getBrgIdx(0, 0, 0);
+        size_t K0_step0 = brgCtxs0[brgIdx0].K;
+        size_t K0_step1 = brgCtxs0[brgIdx0].K * brgCtxs0[brgIdx0].LDB;
+        size_t N0_step0 = brgCtxs0[brgIdx0].N * brg0VnniFactor;
+        size_t N0_step1 = brgCtxs0[brgIdx0].N;
+        for (size_t n = 0; n < 2; n++) {
+            for (size_t k = 0; k < 2; k++) {
+                size_t mIdx = is_M_tail ? 1 : 0;
+                auto& brgemmCtx = brgCtxs0[getBrgIdx(mIdx, k, n)];
+
+                if (brgemmCtx.K != 0 && brgemmCtx.N != 0) {
+                    const size_t in0_offset = (k * K0_step0 + mb * M_blk * brgemmCtx.LDA) * io_data_size[0];
+                    const size_t in1_offset = (k * K0_step1 + n * N0_step0) * io_data_size[1];
+                    const size_t out0_offset = (n * N0_step1 + mb * M_blk * brgemmCtx.LDC) * io_data_size[2];
+                    if (in0_offset != 0)
+                        h->add(input_0, in0_offset);
+                    if (in1_offset != 0)
+                        h->add(input_1, in1_offset);
+                    if (out0_offset != 0)
+                        h->add(output_0, out0_offset);
+                    emit_brgemm_kernel_call<isa>(brgKernels0[getBrgIdx(mIdx, k, n)].get(),
+                                                 1,
+                                                 input_0,
+                                                 input_1,
+                                                 nullptr,
+                                                 output_0,
+                                                 nullptr);
+                    if (in0_offset != 0)
+                        h->sub(input_0, in0_offset);
+                    if (in1_offset != 0)
+                        h->sub(input_1, in1_offset);
+                    if (out0_offset != 0)
+                        h->sub(output_0, out0_offset);
+                }
+            }
+        }
+    }
+}
 }   // namespace intel_cpu
 }   // namespace ov

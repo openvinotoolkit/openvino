@@ -147,7 +147,9 @@ std::shared_ptr<ov::Model> EltwiseMaxNumParamsSinhFunction::initOriginal() const
 std::shared_ptr<ov::Model> MatMulEltwiseBranchesFunction::initOriginal() const {
     auto data_1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto data_2 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
-    auto non_snippet_op = std::make_shared<op::v0::MatMul>(data_1, data_2);
+    auto sinh_1 = std::make_shared<op::v0::Sinh>(data_1);
+    auto sinh_2 = std::make_shared<op::v0::Sinh>(data_2);
+    auto non_snippet_op = std::make_shared<op::v0::MatMul>(sinh_1, sinh_2);
     const std::vector<float> const_values = CommonTestUtils::generate_float_numbers(4, -10., 10.);
     auto mul_const_1 = op::v0::Constant::create(precision, {1}, {const_values[0]});
     auto mul_1 = std::make_shared<op::v1::Multiply>(non_snippet_op, mul_const_1);
@@ -170,9 +172,11 @@ std::shared_ptr<ov::Model> MatMulEltwiseBranchesFunction::initOriginal() const {
 std::shared_ptr<ov::Model> MatMulEltwiseBranchesFunction::initReference() const {
     auto data_1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto data_2 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
+    auto sinh_1 = std::make_shared<op::v0::Sinh>(data_1);
+    auto sinh_2 = std::make_shared<op::v0::Sinh>(data_2);
     const std::vector<float> const_values = CommonTestUtils::generate_float_numbers(4, -10., 10.);
     // snippet inputs
-    auto non_snippet_op = std::make_shared<op::v0::MatMul>(data_1, data_2);
+    auto non_snippet_op = std::make_shared<op::v0::MatMul>(sinh_1, sinh_2);
     auto mul_const_1 = std::make_shared<ngraph::snippets::op::Scalar>(precision, Shape{1}, const_values[0]);
     auto add_const_1 = std::make_shared<ngraph::snippets::op::Scalar>(precision, Shape{1}, const_values[1]);
     auto mul_const_2 = std::make_shared<ngraph::snippets::op::Scalar>(precision, Shape{1}, const_values[2]);

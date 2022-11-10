@@ -145,7 +145,6 @@ private:
     const ov::element::Type execution_element_type = ov::element::f32;
 
     SubgraphConfig config;
-
     ov::PartialShape master_shape;
 };
 

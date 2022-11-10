@@ -22,6 +22,8 @@
 #include "snippets/pass/set_buffer_offset.hpp"
 #include "snippets/pass/reset_buffer.hpp"
 #include "snippets/pass/insert_buffer.hpp"
+#include "snippets/pass/matmul_to_matmul_cpu.hpp"
+#include "snippets/pass/fuse_transpose_and_matmul_cpu.hpp"
 #include "snippets/utils.hpp"
 
 #include "transformations/common_optimizations/nop_elimination.hpp"
@@ -68,7 +70,8 @@ void snippets::op::Subgraph::init_config() {
         config.m_has_domain_sensitive_ops = config.m_has_domain_sensitive_ops ||
             ov::is_type<ov::op::v1::Transpose>(op) ||
             ov::is_type<ov::op::v1::Softmax>(op) ||
-            ov::is_type<ov::op::v8::Softmax>(op);
+            ov::is_type<ov::op::v8::Softmax>(op) ||
+            ov::is_type<ov::op::v0::MatMul>(op);
     }
     // Domain sensitive ops are decomposed with explicit Loops. So, we should explicitly insert Loops in Subgraph if it contains these ops
     config.m_explicit_loop_insertion = config.m_has_domain_sensitive_ops;
@@ -279,13 +282,12 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
                                   equal(baseOrder.begin(), baseOrder.end(), inOrder.begin()),
                                   "Snippets canonicalization got input shapes of equal ranks but different layouts, which is not supported");
         }
-        if (!config.m_has_domain_sensitive_ops) {
-            ov::PartialShape tmpPShape(baseShape);
+        ov::PartialShape tmpPShape(baseShape);
+        // todo: we need to generalize canonicalization for domain-sensitive ops. E.g. MatMul inputs can;t be broadcasted one to another
+        if (!config.m_has_domain_sensitive_ops)
             NODE_VALIDATION_CHECK(this,
-                                  PartialShape::broadcast_merge_into(tmpPShape, inShape,
-                                                                     ::ngraph::op::AutoBroadcastType::NUMPY),
+                                  PartialShape::broadcast_merge_into(tmpPShape, inShape, ::ngraph::op::AutoBroadcastType::NUMPY),
                                   "Failed to create broadcastable shapes in snippets canonicalization");
-        }
         const auto paramShape = m_body->get_parameters()[i]->get_partial_shape();
         const auto paramType =  m_body->get_parameters()[i]->get_element_type();
         if (paramShape.size() != inShape.size() || !equal(paramShape.begin(), paramShape.end(), inShape.begin()))
@@ -328,6 +330,12 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
     // to align precision inside Subgraph body that is supported by Plugin
     align_element_types(outputShapes, inputShapes);
 
+    // todo: we need a slightly more general approach for backward ROI propagation
+    const auto& result_parent = body_results[0]->get_input_node_shared_ptr(0);
+    if (body_results.size() == 1 &&
+        ov::is_type<opset1::Transpose>(result_parent) &&
+        ov::is_type<snippets::op::MatMulCPU>(result_parent->get_input_node_shared_ptr(0)))
+        outPShape = result_parent->get_input_partial_shape(0);
     master_shape = outPShape;
     return master_shape;
 }
@@ -410,6 +418,8 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
                                                         return p->get_partial_shape().rbegin()->is_dynamic();
                                                     });
     ngraph::pass::Manager manager;
+    manager.register_pass<snippets::pass::MatMulToMatMulCPU>();
+    manager.register_pass<snippets::pass::FuseTransposeMatMulCPU>();
     manager.register_pass<snippets::pass::InsertBuffer>();
     manager.register_pass<snippets::pass::SoftmaxDecomposition>(count);
     manager.register_pass<snippets::pass::TransposeDecomposition>();

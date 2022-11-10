@@ -42,6 +42,10 @@ inline auto constant_input_should_be_inside_body(const std::shared_ptr<ov::Node>
            ov::is_type<ov::op::v1::Reshape>(node);
 }
 
+std::vector<size_t> get_port_layout(const Output<Node>& out);
+std::vector<size_t> get_port_layout(const std::shared_ptr<descriptor::Tensor>& tensor);
+ov::PartialShape get_port_planar_shape(const Output<Node>& out);
+
 } // namespace utils
 } // namespace snippets
 } // namespace ngraph

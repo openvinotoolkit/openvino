@@ -89,6 +89,9 @@ void shape_infer(const ov::op::v0::MatMul* op, const std::vector<T>& input_shape
     // Broadcast all batches (last two dimensions represent matrix),
     // expand dim with value 1 to bigger dim if dimensions are not equal.
     for (size_t i = 0; i < max_rank - 2; ++i) {
+        if (! (DimType::broadcast_merge(output_shape[i], arg0_shape_tmp[i], arg1_shape_tmp[i]) ||
+            arg0_shape_tmp[i].is_dynamic() || arg1_shape_tmp[i].is_dynamic()))
+            std::cerr << "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE";
         NODE_VALIDATION_CHECK(op,
                               DimType::broadcast_merge(output_shape[i], arg0_shape_tmp[i], arg1_shape_tmp[i]) ||
                                   arg0_shape_tmp[i].is_dynamic() || arg1_shape_tmp[i].is_dynamic(),

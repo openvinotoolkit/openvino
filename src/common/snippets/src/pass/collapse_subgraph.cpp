@@ -47,6 +47,12 @@ auto outputs_are_not_broadcastable(const std::shared_ptr<const Node>& node) -> b
 
 auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::is_supported_op")
+    auto is_supported_matmul = [](const std::shared_ptr<const Node>& n) -> bool {
+        const auto& matmul = is_type<const opset1::MatMul>(n);
+        const auto& out_shape = n->get_output_partial_shape(0);
+        // todo: we need to create a general way to tokenize only MHA transposes
+        return matmul && out_shape.is_static() && out_shape.size() == 4;
+    };
     auto is_supported_transpose = [](const std::shared_ptr<const Node>& n) -> bool {
         const auto& transpose = as_type_ptr<const opset1::Transpose>(n);
         const auto& out_shape = n->get_output_partial_shape(0);
@@ -58,7 +64,8 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
                 // todo: {0, 2, 1, 3} Transpose should also be tokenized to support MHA pattern.
                 //  It's disabled because {0, 2, 1, 3} Transposes to be fused with MatMuls, that are
                 //  not tokenized yet. Enable tokenization of {0, 2, 1, 3} after ticket 95631 is implemented.
-                return TransposeDecomposition::supported_cases.count(order_value) != 0;
+                return TransposeDecomposition::supported_cases.count(order_value) != 0 ||
+                        order_value == std::vector<int>{0, 2, 1, 3};
             }
         }
         return false;
@@ -159,7 +166,8 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
            is_supported_ternary_eltwise_op(n) ||
            is_supported_transpose(n) ||
            is_supported_softmax(n) ||
-           is_supported_broadcast_op(n);
+           is_supported_broadcast_op(n) ||
+           is_supported_matmul(n);
 }
 
 auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
@@ -261,7 +269,11 @@ TokenizeSnippets::TokenizeSnippets() {
     continuation_strategy strategy = continuation_strategy::reset;
     auto label = std::make_shared<pattern::op::Label>(pattern::any_input(),
         [](const std::shared_ptr<const Node> &n) {
-            return GetSnippetsNodeType(n) != SnippetsNodeType::SkippedByPlugin && AppropriateForSubgraph(n);
+            // todo: This is a temprorary work-around. remove when custom MHA tokenization pass is implemented
+            return (GetSnippetsNodeType(n) != SnippetsNodeType::SkippedByPlugin ||
+                    ov::is_type<opset1::MatMul>(n) || ov::is_type<opset1::Transpose>(n))
+                    && AppropriateForSubgraph(n);
+            // return GetSnippetsNodeType(n) != SnippetsNodeType::SkippedByPlugin && AppropriateForSubgraph(n);
         });
     ngraph::graph_rewrite_callback callback = [&, strategy](ngraph::pattern::Matcher &m) -> bool {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::CreateSubgraph_callback")

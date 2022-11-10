@@ -309,7 +309,7 @@ ov::PartialShape Snippet::canonicalizeBody() {
         output_blocked_shapes.push_back(blockedShape);
     }
 
-    const auto canonicalShape = snippet->canonicalize(output_blocked_shapes, input_blocked_shapes);
+    const auto& canonicalShape = snippet->canonicalize(output_blocked_shapes, input_blocked_shapes);
     return canonicalShape;
 }
 void Snippet::createPrimitive() {
