@@ -1,4 +1,4 @@
-# Install OpenVINO™ Runtime on Linux from Installer {#openvino_docs_install_guides_installing_openvino_linux}
+# Install Intel® Distribution of OpenVINO™ Toolkit on Linux Using the Installer{#openvino_docs_install_guides_installing_openvino_linux}
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. These tools are now only available on [pypi.org](https://pypi.org/project/openvino-dev/).
 
@@ -19,7 +19,7 @@ You can also check the [Release Notes](https://software.intel.com/en-us/articles
 
   Optimized for these processors:
 
-  * 6th to 12th generation Intel® Core™ processors and Intel® Xeon® processors
+  * 6th to 12th generation Intel® Core™ processors and Intel® Xeon® processors 
   * 3rd generation Intel® Xeon® Scalable processor (formerly code named Cooper Lake)
   * Intel® Xeon® Scalable processor (formerly Skylake and Cascade Lake)
   * Intel Atom® processor with support for Intel® Streaming SIMD Extensions 4.1 (Intel® SSE4.1)
@@ -30,9 +30,9 @@ You can also check the [Release Notes](https://software.intel.com/en-us/articles
 
 .. tab:: Processor Notes
 
-  Processor graphics are not included in all processors.
+  Processor graphics are not included in all processors. 
   See `Product Specifications`_ for information about your processor.
-
+  
   .. _Product Specifications: https://ark.intel.com/
 
 .. tab:: Software
@@ -82,11 +82,11 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
    <br>You should see the following dialog box open up:
 
    @sphinxdirective
-
+   
    .. image:: _static/images/openvino-install.png
       :width: 400px
       :align: center
-
+   
    @endsphinxdirective
 
    Otherwise, you can add parameters `-a` for additional arguments and `--cli` to run installation in command line (CLI):
@@ -94,7 +94,7 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
    ./l_openvino_toolkit_p_<version>.sh -a --cli
    ```
    > **NOTE**: To get additional information on all parameters that can be used, use the help option: `--help`. Among others, you can find there `-s` option which offers silent mode, which together with `--eula approve` allows you to run whole installation with default values without any user inference.
-
+   
 6. Follow the instructions on your screen. During the installation you will be asked to accept the license agreement. Your acceptance is required to continue. Check the installation process on the image below:<br>
 
    ![](../img/openvino-install-linux-run-boostrapper-script.gif)
@@ -121,7 +121,7 @@ This script enables you to install Linux platform development tools and componen
    ```sh
    sudo -E ./install_openvino_dependencies.sh
    ```
-
+   
    Once the dependencies are installed, continue to the next section to set your environment variables.
 
 ## <a name="set-the-environment-variables"></a>Step 3: Configure the Environment
@@ -170,7 +170,7 @@ The environment variables are set. Next, you can download some additional tools.
 .. tab:: VPU
 
    To install and configure your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, see the :ref:`VPU Configuration Guide <vpu guide>`.
-   After configuration is done, you are ready to run the verification scripts with the HDDL Plugin for your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
+   After configuration is done, you are ready to run the verification scripts with the HDDL Plugin for your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs. 
 
    .. warning::
       While working with either HDDL or NCS, choose one of them as they cannot run simultaneously on the same machine.
@@ -178,7 +178,7 @@ The environment variables are set. Next, you can download some additional tools.
 .. tab:: GNA
 
    To enable the toolkit components to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide>`.
-
+   
 @endsphinxdirective
 
 ## <a name="get-started"></a>Step 6: What's Next?
@@ -202,13 +202,13 @@ To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalli
 ## Additional Resources
 
 @sphinxdirective
-
+      
 * :ref:`Troubleshooting Guide for OpenVINO Installation & Configuration <troubleshooting guide for install>`
 * Converting models for use with OpenVINO™: :ref:`Model Optimizer User Guide <deep learning model optimizer>`
 * Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
 * Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
 * Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
-* IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_
+* IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_ 
 
 .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
