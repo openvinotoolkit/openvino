@@ -359,9 +359,9 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_EXEC_DEVICES, GetMetricNoThro
     }
     auto compiled_model = ie.compile_model(actualNetwork, heteroDeviceName);
 
-    std::string exeTargets;
+    std::vector<std::string> exeTargets;
     OV_ASSERT_NO_THROW(exeTargets = compiled_model.get_property(ov::execution_devices));
-    auto expectedTargets = target_device + "," + CommonTestUtils::DEVICE_CPU + "," + target_device;
+    std::vector<std::string> expectedTargets = {target_device, CommonTestUtils::DEVICE_CPU};
 
     ASSERT_EQ(expectedTargets, exeTargets);
 }

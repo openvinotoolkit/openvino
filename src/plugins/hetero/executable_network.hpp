@@ -77,7 +77,6 @@ private:
     std::string _name;
     std::map<std::string, std::string> _config;
     std::unordered_map<std::string, std::string> _blobNameMap;
-    std::string _exeDevices;
 };
 
 }  // namespace HeteroPlugin

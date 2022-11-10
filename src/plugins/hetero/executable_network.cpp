@@ -515,9 +515,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         network._network = _heteroPlugin->GetCore()->LoadNetwork(network._clonedNetwork,
                                                                  network._device,
                                                                  metaDevices[network._device]);
-        _exeDevices += network._device + ",";
     }
-    _exeDevices.pop_back();
 }
 
 HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
@@ -634,9 +632,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
             executableNetwork,
         });
 
-        _exeDevices += deviceName + ",";
     }
-    _exeDevices.pop_back();
     const auto parseNode = [](const pugi::xml_node& xml_node, bool is_param) -> std::shared_ptr<const ov::Node> {
         const std::string operation_name = GetStrAttr(xml_node, "operation_name");
         const auto elementType = ov::EnumNames<ov::element::Type_t>::as_enum(GetStrAttr(xml_node, "element_type"));
@@ -963,7 +959,19 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string&
         }
         return decltype(ov::optimal_number_of_infer_requests)::value_type{value};
     } else if (name == ov::execution_devices) {
-        return decltype(ov::execution_devices)::value_type {_exeDevices};
+        std::vector<std::string> exeDevices;
+        for (auto&& subnetwork : _networks)
+            exeDevices.push_back(subnetwork._device);
+        std::set<std::string> s;
+        for (auto iter = exeDevices.begin(); iter != exeDevices.end();) {
+            if (s.count(*iter) == 0){
+                s.insert(*iter);
+            } else {
+                exeDevices.erase(iter--);
+            }
+            iter++;
+        }
+        return decltype(ov::execution_devices)::value_type {exeDevices};
     } else {
         // find metric key among plugin metrics
         for (auto&& desc : _networks) {

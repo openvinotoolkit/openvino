@@ -575,8 +575,10 @@ def main():
                                       ])
             statistics.dump()
 
-        if devices.count("AUTO"):
+        try:
             print(f'ExecutionDevice: {compiled_model.get_property("EXECUTION_DEVICES")}')
+        except:
+            pass
         print(f'Count:           {iteration} iterations')
         print(f'Duration:        {get_duration_in_milliseconds(total_duration_sec):.2f} ms')
         if MULTI_DEVICE_NAME not in device_name:
