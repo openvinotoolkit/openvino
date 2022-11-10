@@ -14,7 +14,6 @@
 #include "ie_parallel.hpp"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "nodes/kernels/jit_kernel.hpp"
-#include "nodes/kernels/jit_kernel_traits.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -64,14 +63,14 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
  public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_refine_anchors_kernel_fp32)
 
-    using Vmm = typename jit_kernel_traits<isa, ov::element::Type_t::f32>::Vmm;
-    static constexpr unsigned VCMPPS_LE = jit_kernel_traits<isa, ov::element::Type_t::f32>::VCMPPS_LE;
-    static constexpr unsigned VCMPPS_LT = jit_kernel_traits<isa, ov::element::Type_t::f32>::VCMPPS_LT;
-    static constexpr unsigned VCMPPS_GT = jit_kernel_traits<isa, ov::element::Type_t::f32>::VCMPPS_GT;
-    static constexpr unsigned SIMD_WIDTH = jit_kernel_traits<isa, ov::element::Type_t::f32>::SIMD_WIDTH;
+    using Vmm = typename conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    static constexpr unsigned VCMPPS_LE = 0x02;
+    static constexpr unsigned VCMPPS_LT = 0x05;
+    static constexpr unsigned VCMPPS_GT = 0x0e;
+    static constexpr unsigned SIMD_WIDTH = x64::cpu_isa_traits<isa>::vlen / sizeof(typename ov::element_type_traits<ov::element::Type_t::f32>::value_type);
 
     jit_refine_anchors_kernel_fp32(const jit_refine_anchors_conf &jqp)
-        : jit_refine_anchors_kernel(isa, jqp) {}
+        : jit_refine_anchors_kernel(jit_name(), isa, jqp) {}
 
     void generate() override {
         jit_refine_anchors_kernel::generate();

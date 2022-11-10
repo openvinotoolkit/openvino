@@ -120,6 +120,31 @@ public:
         }
     }
 
+    template <typename TReg>
+    inline TReg getInplaceFree(std::vector<Xbyak::Reg>& not_available) const {
+        static_assert(std::is_base_of<Xbyak::Reg, TReg>::value, "Xbyak::Reg should be base of TReg !!");
+        PhysicalSet localGeneralSet{16};
+        localGeneralSet.exclude(Xbyak::Reg64(Xbyak::Operand::RSP));
+        for (const auto& reg : not_available) {
+            localGeneralSet.exclude(Xbyak::Reg64(reg.getIdx()));
+        }
+        const auto reg = TReg{localGeneralSet.getUnused(anyIdx)};
+        not_available.push_back(reg);
+        return std::move(reg);
+    }
+
+    template <typename TVmm>
+    inline TVmm getInplaceFree(std::vector<Xbyak::Xmm>& not_available) const {
+        static_assert(std::is_base_of<Xbyak::Xmm, TVmm>::value, "Xbyak::Xmm should be base of TVmm !!");
+        PhysicalSet localSimdSet{simdRegistersNumber};
+        for (const auto& xmm : not_available) {
+            localSimdSet.exclude(Xbyak::Xmm(xmm.getIdx()));
+        }
+        const auto reg = TVmm{localSimdSet.getUnused(anyIdx)};
+        not_available.push_back(reg);
+        return std::move(reg);
+    }
+
 protected:
     class PhysicalSet {
     public:
@@ -259,6 +284,7 @@ private:
 
     PhysicalSet generalSet {16};
     PhysicalSet simdSet;
+    int simdRegistersNumber;
 };
 
 template <x64::cpu_isa_t isa>
@@ -314,6 +340,11 @@ public:
     IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude) : IsaRegistersPool<x64::avx512_core>(regsToExclude) {}
     IsaRegistersPool() : IsaRegistersPool<x64::avx512_core>() {}
 };
+
+template <x64::cpu_isa_t isa>
+RegistersPool::Ptr RegistersPool::create(std::initializer_list<Xbyak::Reg> regsToExclude) {
+    return std::make_shared<IsaRegistersPool<isa>>(regsToExclude);
+}
 
 inline
 RegistersPool::Ptr RegistersPool::create(x64::cpu_isa_t isa) {
