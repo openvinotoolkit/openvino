@@ -84,12 +84,12 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
         auto param2 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
         param2->set_friendly_name("param2");
         param2->output(0).get_tensor().set_names({"data2"});
-        auto relu = std::make_shared<ov::opset8::Relu>(param1);
-        relu->set_friendly_name("relu_op");
-        relu->output(0).get_tensor().set_names({"relu"});
-        auto result1 = std::make_shared<ov::opset8::Result>(relu);
+        auto sin = std::make_shared<ov::opset8::Sin>(param1);
+        sin->set_friendly_name("sin_op");
+        sin->output(0).get_tensor().set_names({"sin"});
+        auto result1 = std::make_shared<ov::opset8::Result>(sin);
         result1->set_friendly_name("result1");
-        auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{relu, param2}, 1);
+        auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{sin, param2}, 1);
         concat->set_friendly_name("concat_op");
         concat->output(0).get_tensor().set_names({"concat"});
         auto result2 = std::make_shared<ov::opset8::Result>(concat);
@@ -142,14 +142,14 @@ TEST_P(OVExecGraphImportExportTest, importExportedFunction) {
               importedExecNet.output(1).get_tensor().get_element_type());
     EXPECT_EQ(function->output(1).get_element_type(),
               importedExecNet.output(1).get_tensor().get_element_type());
-    EXPECT_EQ(importedExecNet.output(0).get_node(), importedExecNet.output("relu").get_node());
-    EXPECT_NE(importedExecNet.output(1).get_node(), importedExecNet.output("relu").get_node());
+    EXPECT_EQ(importedExecNet.output(0).get_node(), importedExecNet.output("sin").get_node());
+    EXPECT_NE(importedExecNet.output(1).get_node(), importedExecNet.output("sin").get_node());
     EXPECT_EQ(importedExecNet.output(1).get_node(), importedExecNet.output("concat").get_node());
     EXPECT_NE(importedExecNet.output(0).get_node(), importedExecNet.output("concat").get_node());
     EXPECT_THROW(importedExecNet.input("param1"), ov::Exception);
     EXPECT_THROW(importedExecNet.input("param2"), ov::Exception);
     EXPECT_THROW(importedExecNet.output("concat_op"), ov::Exception);
-    EXPECT_THROW(importedExecNet.output("relu_op"), ov::Exception);
+    EXPECT_THROW(importedExecNet.output("sin_op"), ov::Exception);
 }
 
 TEST_P(OVExecGraphImportExportTest, importExportedFunctionParameterResultOnly) {
@@ -246,7 +246,7 @@ TEST_P(OVExecGraphImportExportTest, readFromV10IR) {
                 </port>
             </output>
         </layer>
-        <layer name="round" id="1" type="Round" version="opset8">
+        <layer name="sin" id="1" type="Sin" version="opset8">
             <data mode="half_to_even"/>
             <input>
                 <port id="1" precision="FP16">
@@ -286,13 +286,13 @@ TEST_P(OVExecGraphImportExportTest, readFromV10IR) {
     EXPECT_EQ(function->inputs().size(), 1);
     EXPECT_EQ(function->outputs().size(), 1);
     EXPECT_NO_THROW(function->input("in1"));     // remove if read_model does not change function names
-    EXPECT_NO_THROW(function->output("round"));  // remove if read_model does not change function names
+    EXPECT_NO_THROW(function->output("sin"));  // remove if read_model does not change function names
 
     ov::CompiledModel execNet = core->compile_model(function, target_device, configuration);
     EXPECT_EQ(execNet.inputs().size(), 1);
     EXPECT_EQ(execNet.outputs().size(), 1);
     EXPECT_NO_THROW(execNet.input("in1"));
-    EXPECT_NO_THROW(execNet.output("round"));
+    EXPECT_NO_THROW(execNet.output("sin"));
 
     if (target_device == CommonTestUtils::DEVICE_MULTI || target_device == CommonTestUtils::DEVICE_AUTO) {
         GTEST_SKIP() << "MULTI / AUTO does not support import / export" << std::endl;
@@ -305,7 +305,7 @@ TEST_P(OVExecGraphImportExportTest, readFromV10IR) {
     EXPECT_EQ(importedExecNet.inputs().size(), 1);
     EXPECT_EQ(importedExecNet.outputs().size(), 1);
     EXPECT_NO_THROW(importedExecNet.input("in1"));
-    EXPECT_NO_THROW(importedExecNet.output("round"));
+    EXPECT_NO_THROW(importedExecNet.output("sin"));
 
     EXPECT_EQ(importedExecNet.input().get_element_type(), ov::element::f32);
     EXPECT_EQ(importedExecNet.output().get_element_type(), ov::element::f32);
@@ -344,12 +344,12 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
         auto param2 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
         param2->set_friendly_name("param2");
         param2->output(0).get_tensor().set_names({"data2"});
-        auto relu = std::make_shared<ov::opset8::Relu>(param1);
-        relu->set_friendly_name("relu_op");
-        relu->output(0).get_tensor().set_names({"relu"});
-        auto result1 = std::make_shared<ov::opset8::Result>(relu);
+        auto sin = std::make_shared<ov::opset8::Sin>(param1);
+        sin->set_friendly_name("sin_op");
+        sin->output(0).get_tensor().set_names({"sin"});
+        auto result1 = std::make_shared<ov::opset8::Result>(sin);
         result1->set_friendly_name("result1");
-        auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{relu, param2}, 1);
+        auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{sin, param2}, 1);
         concat->set_friendly_name("concat_op");
         concat->output(0).get_tensor().set_names({"concat"});
         auto result2 = std::make_shared<ov::opset8::Result>(concat);
@@ -376,9 +376,9 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
     EXPECT_THROW(importedExecNet.output(), ov::Exception);
     EXPECT_NE(function->output(0).get_tensor().get_names(),
               importedExecNet.output(0).get_tensor().get_names());
-    EXPECT_NO_THROW(importedExecNet.output("relu").get_node());
+    EXPECT_NO_THROW(importedExecNet.output("sin").get_node());
     EXPECT_NO_THROW(importedExecNet.output("concat").get_node());
-    EXPECT_NO_THROW(importedExecNet.output("relu_op").get_node());
+    EXPECT_NO_THROW(importedExecNet.output("sin_op").get_node());
     EXPECT_NO_THROW(importedExecNet.output("concat_op").get_node());
 
     const auto outputType = elementType == ngraph::element::i32 ||
@@ -390,7 +390,7 @@ TEST_P(OVExecGraphImportExportTest, importExportedIENetwork) {
     EXPECT_EQ(inputType, importedExecNet.input("param1").get_element_type());
     EXPECT_EQ(inputType, importedExecNet.input("param2").get_element_type());
     EXPECT_EQ(outputType, importedExecNet.output("concat_op").get_element_type());
-    EXPECT_EQ(outputType, importedExecNet.output("relu_op").get_element_type());
+    EXPECT_EQ(outputType, importedExecNet.output("sin_op").get_element_type());
 }
 
 TEST_P(OVExecGraphImportExportTest, importExportedIENetworkParameterResultOnly) {
@@ -500,19 +500,19 @@ TEST_P(OVExecGraphImportExportTest, ieImportExportedFunction) {
         auto param2 = std::make_shared<ov::opset8::Parameter>(elementType, ngraph::Shape({1, 3, 24, 24}));
         param2->set_friendly_name("param2");
         param2->output(0).get_tensor().set_names({"data2"});
-        auto relu = std::make_shared<ov::opset8::Relu>(param1);
-        relu->set_friendly_name("relu_op");
-        relu->output(0).get_tensor().set_names({"relu"});
-        auto result1 = std::make_shared<ov::opset8::Result>(relu);
+        auto sin = std::make_shared<ov::opset8::Sin>(param1);
+        sin->set_friendly_name("sin_op");
+        sin->output(0).get_tensor().set_names({"sin"});
+        auto result1 = std::make_shared<ov::opset8::Result>(sin);
         result1->set_friendly_name("result1");
-        auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{relu, param2}, 1);
+        auto concat = std::make_shared<ov::opset8::Concat>(OutputVector{sin, param2}, 1);
         concat->set_friendly_name("concat_op");
         concat->output(0).get_tensor().set_names({"concat"});
         auto result2 = std::make_shared<ov::opset8::Result>(concat);
         result2->set_friendly_name("result2");
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2},
                                                       ngraph::ParameterVector{param1, param2});
-        function->set_friendly_name("SingleReLU");
+        function->set_friendly_name("SingleSin");
     }
     execNet = core->compile_model(function, target_device, configuration);
 
@@ -526,7 +526,7 @@ TEST_P(OVExecGraphImportExportTest, ieImportExportedFunction) {
     EXPECT_NO_THROW(importedExecNet.GetInputsInfo()["param2"]);
     EXPECT_EQ(function->outputs().size(), 2);
     EXPECT_EQ(function->outputs().size(), importedExecNet.GetOutputsInfo().size());
-    EXPECT_NO_THROW(importedExecNet.GetOutputsInfo()["relu_op"]);
+    EXPECT_NO_THROW(importedExecNet.GetOutputsInfo()["sin_op"]);
     EXPECT_NO_THROW(importedExecNet.GetOutputsInfo()["concat_op"]);
 
     const auto prc = InferenceEngine::details::convertPrecision(elementType);
@@ -534,7 +534,7 @@ TEST_P(OVExecGraphImportExportTest, ieImportExportedFunction) {
     EXPECT_EQ(prc, importedExecNet.GetInputsInfo()["param1"]->getPrecision());
     EXPECT_EQ(prc, importedExecNet.GetInputsInfo()["param2"]->getPrecision());
     EXPECT_EQ(prc, importedExecNet.GetOutputsInfo()["concat_op"]->getPrecision());
-    EXPECT_EQ(prc, importedExecNet.GetOutputsInfo()["relu_op"]->getPrecision());
+    EXPECT_EQ(prc, importedExecNet.GetOutputsInfo()["sin_op"]->getPrecision());
 }
 
 }  // namespace behavior
