@@ -319,11 +319,8 @@ int main(int argc, char* argv[]) {
         // Remove the hardware devices if AUTO/MULTI appears in the devices list.
         if (if_auto || if_multi) {
             devices.clear();
-            std::string virtual_device = if_auto ? "AUTO" : "MULTI";
-            // check if device name specified by -d contains both AUTO and MULTI, like AUTO:MULTI,xxx, or like
-            // MULTI:AUTO,xxx.
-            if (if_auto && if_multi)
-                virtual_device = split(device_name, ':').at(0);
+            // Parse out the currect virtual device as the target device.
+            std::string virtual_device = split(device_name, ':').at(0);
             auto iter_virtual = std::find(hardware_devices.begin(), hardware_devices.end(), virtual_device);
             hardware_devices.erase(iter_virtual);
             devices.push_back(virtual_device);
