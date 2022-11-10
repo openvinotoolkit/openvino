@@ -25,12 +25,19 @@
         const instance_creator<buffer, type>& bind_creator<buffer, type>::creator =        \
             static_instance<instance_creator<buffer, type>>::get_instance().instantiate();
 
+// It's a defect, and was fixed in C++14
+// https://www.open-std.org/jtc1/sc22/wg21/docs/lwg-defects.html#2148
+struct enum_class_hash {
+    template <typename T>
+    std::size_t operator()(T t) const { return static_cast<std::size_t>(t); }
+};
+
 namespace cldnn {
 
 template <typename BufferType>
 struct saver_storage {
     using save_function = std::function<void(BufferType&, const void*)>;
-    using value_type = typename std::unordered_map<object_type, save_function>::value_type;
+    using value_type = typename std::unordered_map<object_type, save_function, enum_class_hash>::value_type;
 
     static saver_storage<BufferType>& instance() {
         static saver_storage<BufferType> instance;
@@ -50,7 +57,7 @@ private:
     saver_storage(const saver_storage&) = delete;
     void operator=(const saver_storage&) = delete;
 
-    std::unordered_map<object_type, save_function> map;
+    std::unordered_map<object_type, save_function, enum_class_hash> map;
 };
 
 template <typename T>
@@ -60,7 +67,7 @@ struct void_deleter {
 
 template <typename BufferType, typename FuncT>
 struct loader_storage {
-    using value_type = typename std::unordered_map<object_type, FuncT>::value_type;
+    using value_type = typename std::unordered_map<object_type, FuncT, enum_class_hash>::value_type;
 
     static loader_storage& instance() {
         static loader_storage instance;
@@ -80,7 +87,7 @@ private:
     loader_storage(const loader_storage&) = delete;
     void operator=(const loader_storage&) = delete;
 
-    std::unordered_map<object_type, FuncT> map;
+    std::unordered_map<object_type, FuncT, enum_class_hash> map;
 };
 
 template <typename BufferType>
