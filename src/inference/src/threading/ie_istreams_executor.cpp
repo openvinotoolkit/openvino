@@ -27,27 +27,17 @@ std::vector<std::string> IStreamsExecutor::Config::SupportedKeys() const {
         CONFIG_KEY(CPU_BIND_THREAD),
         CONFIG_KEY(CPU_THREADS_NUM),
         CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM),
+        CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD),
         ov::num_streams.name(),
         ov::inference_num_threads.name(),
         ov::affinity.name(),
     };
 }
-int IStreamsExecutor::Config::GetDefaultNumStreams() {
+int IStreamsExecutor::Config::GetDefaultNumStreams(const bool enable_hyper_thread) {
     const int sockets = static_cast<int>(getAvailableNUMANodes().size());
     // bare minimum of streams (that evenly divides available number of core)
-    const int num_cores = sockets == 1 ? parallel_get_max_threads() : getNumberOfCPUCores();
-    if (0 == num_cores % 4)
-        return std::max(4, num_cores / 4);
-    else if (0 == num_cores % 5)
-        return std::max(5, num_cores / 5);
-    else if (0 == num_cores % 3)
-        return std::max(3, num_cores / 3);
-    else  // if user disables some cores say in BIOS, so we got weird #cores which is not easy to divide
-        return 1;
-}
-
-int IStreamsExecutor::Config::GetNumaNumStreams() {
-    const int num_cores = getNumberOfCPUCores();
+    const int num_cores = sockets == 1 ? (enable_hyper_thread ? parallel_get_max_threads() : getNumberOfCPUCores())
+                                       : getNumberOfCPUCores();
     if (0 == num_cores % 4)
         return std::max(4, num_cores / 4);
     else if (0 == num_cores % 5)
@@ -210,6 +200,16 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
                        << ". Expected only non negative numbers (#threads)";
         }
         _threadsPerStream = val_i;
+    } else if (key == CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD)) {
+        int val_i;
+        if (value == CONFIG_VALUE_INTERNAL(YES)) {
+            val_i = true;
+        } else if (value == CONFIG_VALUE_INTERNAL(NO)) {
+            val_i = false;
+        } else {
+            OPENVINO_UNREACHABLE("Unsupported enable hyper thread type");
+        }
+        _enable_hyper_thread = val_i;
     } else {
         IE_THROW() << "Wrong value for property key " << key;
     }
@@ -248,6 +248,8 @@ Parameter IStreamsExecutor::Config::GetConfig(const std::string& key) const {
         return decltype(ov::inference_num_threads)::value_type{_threads};
     } else if (key == CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)) {
         return {std::to_string(_threadsPerStream)};
+    } else if (key == CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD)) {
+        return {_enable_hyper_thread ? CONFIG_VALUE_INTERNAL(YES) : CONFIG_VALUE_INTERNAL(NO)};
     } else {
         IE_THROW() << "Wrong value for property key " << key;
     }
@@ -291,20 +293,21 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
         }
     }
 #endif
-    const auto hwCores =
-        !bLatencyCase && numaNodesNum == 1
-            // throughput case on a single-NUMA node machine uses all available cores
-            ? (ThreadBindingType::NUMA == streamExecutorConfig._threadBindingType ? num_cores_default
-                                                                                  : parallel_get_max_threads())
-            // in the rest of cases:
-            //    multi-node machine
-            //    or
-            //    latency case, single-node yet hybrid case that uses
-            //      all core types
-            //      or
-            //      big-cores only, but the #cores is "enough" (pls see the logic above)
-            // it is usually beneficial not to use the hyper-threading (which is default)
-            : num_cores_default;
+    const auto hwCores = !bLatencyCase && numaNodesNum == 1
+                             // throughput case on a single-NUMA node machine uses all available cores
+                             ? ((ThreadBindingType::NUMA == streamExecutorConfig._threadBindingType &&
+                                 !streamExecutorConfig._enable_hyper_thread)
+                                    ? num_cores_default
+                                    : parallel_get_max_threads())
+                             // in the rest of cases:
+                             //    multi-node machine
+                             //    or
+                             //    latency case, single-node yet hybrid case that uses
+                             //      all core types
+                             //      or
+                             //      big-cores only, but the #cores is "enough" (pls see the logic above)
+                             // it is usually beneficial not to use the hyper-threading (which is default)
+                             : num_cores_default;
     const auto threads =
         streamExecutorConfig._threads ? streamExecutorConfig._threads : (envThreads ? envThreads : hwCores);
     streamExecutorConfig._threadsPerStream =
