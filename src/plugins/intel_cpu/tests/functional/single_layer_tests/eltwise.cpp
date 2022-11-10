@@ -223,7 +223,7 @@ const std::vector<fusingSpecificParams> fusingParamsSet{
     // fake quantize
     fusingFakeQuantizePerTensorRelu,
     fusingFakeQuantizePerChannelRelu,
-    fusingFQPerChannelSigmoidFQPerChannel
+    fusingFQPerChannelSigmoidFQPerTensor
 };
 
 std::vector<std::vector<ov::Shape>> inShapes_4D = {
