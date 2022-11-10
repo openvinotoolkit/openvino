@@ -66,7 +66,7 @@ macro(ov_override_component_names)
     # move requirements.txt to core-dev
     set(OV_CPACK_COMP_DEV_REQ_FILES "${OV_CPACK_COMP_CORE_DEV}")
     # move core_tools to core-dev
-    set(OV_CPACK_COMP_CORE_TOOLS "${OV_CPACK_COMP_CORE_DEV}")
+    # set(OV_CPACK_COMP_CORE_TOOLS "${OV_CPACK_COMP_CORE_DEV}")
 endmacro()
 
 ov_override_component_names()
