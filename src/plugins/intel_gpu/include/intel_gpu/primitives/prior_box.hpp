@@ -40,7 +40,7 @@ struct prior_box : public primitive_base<prior_box> {
     /// @param step_height Step height.
     /// @param offset Offset to the top left corner of each cell.
     prior_box(const primitive_id& id,
-              const primitive_id& input,
+              const input_info& input,
               const tensor& img_size,
               const std::vector<float>& min_sizes,
               const std::vector<float>& max_sizes = {},
@@ -75,7 +75,7 @@ struct prior_box : public primitive_base<prior_box> {
 
     /// @brief Constructs prior-box primitive, which supports v8 features.
     prior_box(const primitive_id& id,
-              const std::vector<primitive_id>& inputs,
+              const std::vector<input_info>& inputs,
               const tensor& output_size,
               const tensor& img_size,
               const std::vector<float>& min_sizes,
@@ -113,7 +113,7 @@ struct prior_box : public primitive_base<prior_box> {
 
     /// @brief Constructs prior-box primitive, which executes clustered version.
     prior_box(const primitive_id& id,
-              const primitive_id& input,
+              const input_info& input,
               const tensor& img_size,
               const bool clip,
               const std::vector<float>& variance,

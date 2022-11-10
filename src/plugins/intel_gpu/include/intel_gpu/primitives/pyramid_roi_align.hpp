@@ -41,11 +41,11 @@ struct pyramid_roi_align : public primitive_base<pyramid_roi_align> {
     /// @param pyramid_scales Scales of each level of pyramid in relation to original image.
     /// @param pyramid_starting_level Starting level of the pyramid that should be used for region of whole image.
     pyramid_roi_align(const primitive_id& id,
-                      const primitive_id& rois,
-                      const primitive_id& P2,
-                      const primitive_id& P3,
-                      const primitive_id& P4,
-                      const primitive_id& P5,
+                      const input_info& rois,
+                      const input_info& P2,
+                      const input_info& P3,
+                      const input_info& P4,
+                      const input_info& P5,
                       int output_size,
                       int sampling_ratio,
                       std::vector<int> pyramid_scales,

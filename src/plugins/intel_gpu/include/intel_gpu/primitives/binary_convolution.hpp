@@ -36,7 +36,7 @@ struct binary_convolution : public primitive_base<binary_convolution> {
     /// @param pad_value Logical value of padding. Can be one of 3 values: 1 - pad bits equal to 1; -1 -> pad bits equal to 0; 0 -> pad is not counted
     /// @param calc_precision Precision of intermediate accumulators
     binary_convolution(const primitive_id& id,
-                       const primitive_id& input,
+                       const input_info& input,
                        const std::vector<primitive_id>& weights,
                        ov::Strides stride = {1, 1},
                        ov::CoordinateDiff pad = {0, 0},

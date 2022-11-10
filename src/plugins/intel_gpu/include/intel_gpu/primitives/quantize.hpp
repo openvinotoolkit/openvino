@@ -24,11 +24,11 @@ struct quantize : public primitive_base<quantize> {
     CLDNN_DECLARE_PRIMITIVE(quantize)
 
     quantize(const primitive_id& id,
-             const primitive_id& input,
-             const primitive_id& input_low,
-             const primitive_id& input_high,
-             const primitive_id& output_low,
-             const primitive_id& output_high,
+             const input_info& input,
+             const input_info& input_low,
+             const input_info& input_high,
+             const input_info& output_low,
+             const input_info& output_high,
              const int levels,
              const data_types output_data_type,
              const padding& output_padding = padding())

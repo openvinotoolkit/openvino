@@ -405,19 +405,9 @@ void program::add_node_dependencies(program_node* node) {
     // add pointers to node's dependencies
     for (auto& dep : deps) {
         try {
-            auto dep_node = nodes_map.at(dep);
-            node->dependencies.push_back(dep_node.get());
-            dep_node->users.push_back(node);
-        } catch (...) {
-            throw std::runtime_error("Program doesn't contain primitive: " + dep +
-                                     " that is input to: " + node->get_primitive()->id);
-        }
-    }
-    auto deps_new = node->get_primitive()->dependencies_new();
-    for (auto& dep : deps_new) {
-        try {
             auto dep_node = nodes_map.at(dep.pid);
             node->dependencies_new.push_back({dep_node.get(), dep.idx});
+            dep_node->users.push_back(node);
         } catch (...) {
             throw std::runtime_error("Program doesn't contain primitive: " + dep.pid +
                                      " that is input to: " + node->get_primitive()->id);
@@ -774,7 +764,7 @@ void program::add_split_outputs() {
 
         if (node->is_type<split>()) {
             auto split_prim = node->as<split>().typed_desc();
-            primitive_id input_id = split_prim->input[0];
+            input_info input(split_prim->input[0]);
             auto split_num = split_prim->output_offsets.size();
 
             // create crop for each split output provided
@@ -783,7 +773,7 @@ void program::add_split_outputs() {
 
                 // create dummy crop primitive and add it to nodes map
                 auto crop_prim =
-                    std::make_shared<crop>(output_id, input_id, tensor{1, 1, 1, 1}, split_prim->output_offsets[i]);
+                    std::make_shared<crop>(output_id, input, tensor{1, 1, 1, 1}, split_prim->output_offsets[i]);
                 get_or_create(crop_prim);
             }
         }

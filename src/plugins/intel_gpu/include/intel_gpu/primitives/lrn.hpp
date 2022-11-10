@@ -42,7 +42,7 @@ struct lrn : public primitive_base<lrn> {
     /// @param beta Hyper parameter "beta".
     /// @param lrn_norm_region Normalize across or within channel
     lrn(const primitive_id& id,
-        const primitive_id& input,
+        const input_info& input,
         uint32_t size,
         float k,
         float alpha,

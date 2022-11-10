@@ -26,7 +26,7 @@ struct shuffle_channels : public primitive_base<shuffle_channels> {
     /// @param group The number of groups to split the channel dimension.
     /// @param axis The index of the channel dimension.
     shuffle_channels(const primitive_id& id,
-                     const primitive_id& input,
+                     const input_info& input,
                      const int32_t group,
                      const int32_t axis = 1,
                      const padding& output_padding = padding())

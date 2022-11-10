@@ -293,9 +293,9 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
     }
     // if there is no next lstm, concatenation is created
     if (!has_lstm_children) {
-        std::vector<primitive_id> output_ids_offsets;
+        std::vector<input_info> output_ids_offsets;
         for (auto& e : output_map) {
-            output_ids_offsets.push_back(e.second.first);
+            output_ids_offsets.push_back(input_info(e.second.first));
         }
         primitive_id concatenation_id = node.id() + ":concat";
         auto concatenation_primitive = std::make_shared<concatenation>(concatenation_id, output_ids_offsets, 1);

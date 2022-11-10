@@ -985,7 +985,10 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                 // And when we construct unfused subgraph for prim2, we take original eltwise2 primitive which expects eltwise1 primitive as input
                 // which doesn't exist anymore in the graph
                 // Thus we update dependency name used dependencies idx stored in fused descriptor.
-                if (std::find(dep_ids.begin(), dep_ids.end(), in) == dep_ids.end()) {
+                if (std::find_if(dep_ids.begin(), dep_ids.end(),
+                                 [&](const primitive_id& pid) {
+                                     return pid == in.pid;
+                                 }) == dep_ids.end()) {
                     size_t dep_id = fd.dep_start_idx;
                     in = _node->get_dependency(dep_id).id();
                 }
@@ -997,7 +1000,10 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
         auto prim_of_fused_node = std::const_pointer_cast<primitive>(_impl_params->desc);
         for (size_t i = 0; i < prim_of_fused_node->input.size(); ++i) {
             auto& in = prim_of_fused_node->input[i];
-            if (std::find(dep_ids.begin(), dep_ids.end(), in) == dep_ids.end()) {
+            if (std::find_if(dep_ids.begin(), dep_ids.end(),
+                             [&](const primitive_id& pid) {
+                                 return pid == in.pid;
+                             }) == dep_ids.end()) {
                 in = _node->get_dependency(i).id();
             }
         }

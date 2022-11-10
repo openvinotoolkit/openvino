@@ -37,7 +37,7 @@ struct extract_image_patches : public primitive_base<extract_image_patches> {
     /// @param auto_pad How the padding is calculated.
     /// @param output_shape Tensor with shape of output layout
     extract_image_patches(const primitive_id& id,
-                          const primitive_id& input,
+                          const input_info& input,
                           const std::vector<unsigned int>& sizes,
                           const std::vector<unsigned int>& strides,
                           const std::vector<unsigned int>& rates,

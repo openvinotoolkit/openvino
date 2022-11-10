@@ -51,7 +51,7 @@ struct space_to_batch : public primitive_base<space_to_batch> {
     /// @param pads_end Amount to pad for the ending along each axis of data input.
     /// @param out_size Size of output tensor.
     space_to_batch(const primitive_id& id,
-                   const primitive_id& input,
+                   const input_info& input,
                    const tensor& block_shape,
                    const tensor& pads_begin,
                    const tensor& pads_end,

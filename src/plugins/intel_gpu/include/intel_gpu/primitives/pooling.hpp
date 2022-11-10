@@ -47,7 +47,7 @@ struct pooling : public primitive_base<pooling> {
     /// @param size Pooling kernel size.
     /// @param pad Defines logical pad value added to input tensor.
     pooling(const primitive_id& id,
-            const primitive_id& input,
+            const input_info& input,
             pooling_mode mode,
             const ov::Shape& size,
             const ov::Strides& stride,
@@ -75,7 +75,7 @@ struct pooling : public primitive_base<pooling> {
     /// @param pad Defines logical pad value added to input tensor.
     /// @param output_size User-defined output data size of the primitive (w/o padding).
     pooling(const primitive_id& id,
-            const primitive_id& input,
+            const input_info& input,
             pooling_mode mode,
             const ov::Shape& size,
             const ov::Strides& stride,
@@ -108,8 +108,8 @@ struct pooling : public primitive_base<pooling> {
     /// @param index_element_type Data type of index output.
     /// @param output_size User-defined output data size of the primitive (w/o padding).
     pooling(const primitive_id& id,
-            const primitive_id& input,
-            const primitive_id& indices_output,
+            const input_info& input,
+            const input_info& indices_output,
             const ov::Shape& size,
             const ov::Strides& stride,
             const ov::Strides& dilation,
@@ -123,7 +123,7 @@ struct pooling : public primitive_base<pooling> {
             const data_types output_data_type,
             const padding& output_padding = padding())
             : primitive_base(id, {input, indices_output}, output_padding, optional_data_type{output_data_type}),
-              indices_output(indices_output),
+              indices_output(indices_output.pid),
               mode(pooling_mode::max),
               size(size),
               stride(stride),

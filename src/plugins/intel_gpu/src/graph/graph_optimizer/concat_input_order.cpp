@@ -201,13 +201,13 @@ void concat_input_order::run(program& p) {
         for (size_t i = 0; i < new_dependencies.size(); ++i) {
             mutable_dependencies[i] = new_dependencies[i];
         }
-        std::vector<primitive_id> new_input_ids;
-        new_input_ids.reserve(inputs_count);
+        std::vector<input_info> new_input_info;
+        new_input_info.reserve(inputs_count);
         for (auto& ord : new_order) {
-            new_input_ids.push_back(prim->input[ord]);
+            new_input_info.push_back(input_info(prim->input[ord].pid, prim->input[ord].idx));
         }
         auto mutable_prim = std::const_pointer_cast<concatenation>(prim);
-        mutable_prim->input = new_input_ids;
+        mutable_prim->input = new_input_info;
         // Correct users for shuffled features
         for (auto& user : concat_node.get_users()) {
             shuffle_features(*user, shuffled_ranges, p.get_stream());

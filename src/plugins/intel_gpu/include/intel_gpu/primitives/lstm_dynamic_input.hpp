@@ -35,7 +35,7 @@ struct lstm_dynamic_input : public primitive_base<lstm_dynamic_input> {
     /// @param recurrent Primitive id containing recurrent data.
     /// @param bias Primitive id containing bias data. Provide empty string if using lstm_dynamic without bias.
     lstm_dynamic_input(const primitive_id& id,
-                       const primitive_id& input,
+                       const input_info& input,
                        const primitive_id& dyn_length,
                        const primitive_id& weights,
                        const primitive_id& bias = "",

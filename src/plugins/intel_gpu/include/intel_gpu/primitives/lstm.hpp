@@ -72,7 +72,7 @@ struct lstm : public primitive_base<lstm> {
     /// @brief Output selection. Default the entire hidden sequence is returned.
     /// @param offset_order Order of the concatenated weights, recurrent, and bias. ONNX default is iofz [input, output, forget, block].
     lstm(const primitive_id& id,
-         const std::vector<primitive_id>& input,
+         const std::vector<input_info>& input,
          const primitive_id& weights,
          const primitive_id& recurrent,
          const primitive_id& bias = "",
@@ -160,7 +160,7 @@ struct lstm_gemm : public primitive_base<lstm_gemm> {
     /// @param input hidden Primitive id containing hidden data. Provide empty string if using lstm without hidden values.
     /// @param direction default = 0, bidirectional = 1.
     lstm_gemm(const primitive_id& id,
-              const primitive_id& input,
+              const input_info& input,
               const primitive_id& weights,
               const primitive_id& recurrent,
               const primitive_id& bias = "",
@@ -212,7 +212,7 @@ struct lstm_elt : public primitive_base<lstm_elt> {
     /// @param offset_order. Order of the concatenated weights, recurrent, and bias. ONNX default is iofz [input, output, forget, block].
     /// @param direction default = 0, bidirectional = 1.
     lstm_elt(const primitive_id& id,
-             const primitive_id& input,
+             const input_info& input,
              const primitive_id& cell = "",
              const float clip = 0,
              const bool input_forget = 0,

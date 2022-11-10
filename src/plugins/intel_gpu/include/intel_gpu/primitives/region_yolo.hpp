@@ -26,7 +26,7 @@ struct region_yolo : public primitive_base<region_yolo> {
     /// @param input Input primitive id.
     /// @param dimension Defines a scope of normalization (see #dimension).
     region_yolo(const primitive_id& id,
-                const primitive_id& input,
+                const input_info& input,
                 const uint32_t coords,
                 const uint32_t classes,
                 const uint32_t num,

@@ -44,7 +44,7 @@ struct border : public primitive_base<border> {
     /// @param pad_mode           Value of elements which is used for paddings
     /// @param output_padding     Optional padding for output from primitive.
     border(const primitive_id& id,
-           const primitive_id& input,
+           const input_info& input,
            const ov::CoordinateDiff& pads_begin = {0, 0, 0, 0},
            const ov::CoordinateDiff& pads_end = {0, 0, 0, 0},
            const ov::op::PadMode pad_mode = ov::op::PadMode::CONSTANT,
@@ -58,9 +58,9 @@ struct border : public primitive_base<border> {
 
     /// @brief Constructs border primitive / layer with dynamic pads.
     border(const primitive_id& id,
-           const primitive_id& input,
-           const primitive_id& pads_begin_id,
-           const primitive_id& pads_end_id,
+           const input_info& input,
+           const input_info& pads_begin_id,
+           const input_info& pads_end_id,
            const ov::op::PadMode pad_mode = ov::op::PadMode::CONSTANT,
            const float pad_value = 0.0f,
            const padding& output_padding = padding())

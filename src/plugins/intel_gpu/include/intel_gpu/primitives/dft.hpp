@@ -42,7 +42,7 @@ struct dft : public primitive_base<dft> {
     /// @param direction Direction of DFT operation.
     /// @param mode Mode of DFT operation.
     dft(const primitive_id& id,
-        const primitive_id& input,
+        const input_info& input,
         std::vector<int64_t> axes,
         std::vector<int64_t> signal_size,
         const ov::Shape& output_shape,

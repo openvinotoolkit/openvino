@@ -26,7 +26,7 @@ struct ctc_loss : primitive_base<ctc_loss> {
     /// @param ctc_merge_repeated Flag for merging repeated characters in a potential alignment.
     /// @param unique Flag to find unique elements in a target.
     ctc_loss(const primitive_id& id,
-             const std::vector<primitive_id>& inputs,
+             const std::vector<input_info>& inputs,
              bool preprocess_collapse_repeated,
              bool ctc_merge_repeated,
              bool unique,

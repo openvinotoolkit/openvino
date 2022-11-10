@@ -74,7 +74,7 @@ struct broadcast : public primitive_base<broadcast> {
     ///                        dimension values.
     /// @param output_padding  Optional padding for output from primitive.
     broadcast(const primitive_id& id,
-              const primitive_id& input,
+              const input_info& input,
               const tensor& broadcast_sizes,
               const std::vector<uint16_t>& broadcast_axes = {},
               const padding& output_padding = padding())
@@ -98,7 +98,7 @@ struct broadcast : public primitive_base<broadcast> {
     ///                       axes. 'axes_mapping' should not be provided if mode other
     ///                       than explicit (none) is used.
     broadcast(const primitive_id& id,
-              const primitive_id& input,
+              const input_info& input,
               const ov::Shape& target_shape,
               const ngraph::AxisSet& axes_mapping,
               const ov::op::BroadcastModeSpec& broadcast_spec = ov::op::BroadcastType::EXPLICIT,
@@ -112,8 +112,8 @@ struct broadcast : public primitive_base<broadcast> {
 
     /// @brief Constructs broadcast primitive / layer with dynamic target_shape.
     broadcast(const primitive_id& id,
-          const primitive_id& input,
-          const primitive_id& target_shape_id,
+          const input_info& input,
+          const input_info& target_shape_id,
           const ngraph::AxisSet& axes_mapping,
           const ov::op::BroadcastModeSpec& broadcast_spec = ov::op::BroadcastType::EXPLICIT,
           const padding& output_padding = padding())

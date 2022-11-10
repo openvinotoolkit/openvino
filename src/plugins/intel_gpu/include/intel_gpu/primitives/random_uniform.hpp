@@ -31,7 +31,7 @@ struct random_uniform : public primitive_base<random_uniform> {
      * @param output_shape output data shape
      * @param output_format output data shape format
      */
-    random_uniform(const primitive_id &id, const std::vector<primitive_id> &inputs,
+    random_uniform(const primitive_id &id, const std::vector<input_info> &inputs,
                    const data_types &data_type, const uint64_t global_seed,
                    const uint64_t op_seed, const tensor output_shape,
                    const format output_format,

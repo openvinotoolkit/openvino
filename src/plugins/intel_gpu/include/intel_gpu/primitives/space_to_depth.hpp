@@ -60,7 +60,7 @@ struct space_to_depth : public primitive_base<space_to_depth> {
     /// @param depth_mode Depth mode (blocks_first / depth_first).
     /// @param block_size Block size (optional).
     space_to_depth(const primitive_id& id,
-                   const primitive_id& input,
+                   const input_info& input,
                    depth_mode mode,
                    const size_t block_size = 1,
                    const padding& output_padding = padding())

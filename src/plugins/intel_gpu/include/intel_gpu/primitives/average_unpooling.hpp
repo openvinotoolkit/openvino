@@ -28,7 +28,7 @@ struct average_unpooling : public primitive_base<average_unpooling> {
     /// @param size Pooling kernel size.
     average_unpooling(
         const primitive_id& id,
-        const primitive_id& input,
+        const input_info& input,
         const tensor output_size,
         const tensor& size,
         const tensor& stride,
