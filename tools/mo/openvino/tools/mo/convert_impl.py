@@ -894,7 +894,7 @@ def _convert(**args):
             if os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):
                 args['use_legacy_frontend'] = True
             args['input_shape'] = None
-            args['example_inputs'] = None
+            args['example_input'] = None
             args['onnx_opset_version'] = None
 
             try:
