@@ -97,6 +97,8 @@ private:
     void load_scale_store(size_t step) {
         bool is_tail = step < vec_size;
         Precision internal_prc = jcp_.src_prc == Precision::BF16 ? Precision::BF16 : Precision::FP32;
+        if (jcp_.dst_prc == Precision::I8 || jcp_.dst_prc == Precision::U8)
+            internal_prc = Precision::FP32;
         load(vmm_in, reg_in_aux, jcp_.src_prc, internal_prc, step, false);
 
         if (jcp_.with_scales) {
