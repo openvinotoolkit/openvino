@@ -382,6 +382,12 @@ static void sink_prelu(const shared_ptr<PRelu>& prelu,
     }
 }
 
+void purge_transposes(const set<shared_ptr<Node>>& transposes_to_delete) {
+    for (const auto& r : transposes_to_delete) {
+        delete_transpose(r);
+    }
+}
+
 // The goal of TransposeSinking is to remove
 // round-trip transposes(i.e. nhwc->nchw(nchw-only-op)->nhwc)
 // around nchw-only-op (e.g.Convolution, Batchnorm, Avg/MaxPool)
@@ -425,14 +431,13 @@ bool ov::frontend::tensorflow::pass::TransposeSinking::run_on_model(const shared
         }
     } catch (...) {
         OPENVINO_DEBUG << "Caught exception while sinking op";
+        purge_transposes(transposes_to_delete);
         return false;
     }
 
     // STEP 2: purge all the transposes we either sunk or swam.
     OPENVINO_DEBUG << "Purging transposes ";
-    for (const auto& r : transposes_to_delete) {
-        delete_transpose(r);
-    }
+    purge_transposes(transposes_to_delete);
 
     // STEP 3: fix wrong shape info wholesale
     OPENVINO_DEBUG << "Fixing wrong shape info for the whole graph";
