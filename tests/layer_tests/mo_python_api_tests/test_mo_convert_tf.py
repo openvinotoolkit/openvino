@@ -325,21 +325,21 @@ def create_tf_saved_model(temp_dir):
 class TestMoConvertTF(CommonMOConvertTest):
     test_data = [
         # TF2
-        # create_keras_model,
-        # create_keras_layer,
-        # create_tf_function,
-        # create_tf_module,
-        # create_tf_checkpoint,
-        # create_tf_saved_model,
-        # create_keras_layer_dynamic,
-        # create_tf_module_dynamic,
+        create_keras_model,
+        create_keras_layer,
+        create_tf_function,
+        create_tf_module,
+        create_tf_checkpoint,
+        create_tf_saved_model,
+        create_keras_layer_dynamic,
+        create_tf_module_dynamic,
         create_tf_module_layout_list,
 
 
         # TF1
-        # create_tf_graph_def,
-        # create_tf1_wrap_function,
-        # create_tf_session,
+        create_tf_graph_def,
+        create_tf1_wrap_function,
+        create_tf_session,
     ]
 
     @pytest.mark.parametrize("create_model", test_data)
