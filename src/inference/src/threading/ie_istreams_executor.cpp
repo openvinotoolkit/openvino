@@ -134,7 +134,6 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
     } else if (key == ov::affinity) {
         ov::Affinity affinity;
         std::stringstream{value} >> affinity;
-        const auto core_type_size = getAvailableCoresTypes().size();
         switch (affinity) {
         case ov::Affinity::NONE:
             _threadBindingType = ThreadBindingType::NONE;
