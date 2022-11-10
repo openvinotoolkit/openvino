@@ -19,6 +19,8 @@ from openvino.offline_transformations import (
 from openvino.runtime import Model, PartialShape, Core
 import openvino.runtime as ov
 
+from tests.test_utils.test_utils import create_filename_for_test
+
 
 def get_test_model():
     param = ov.opset8.parameter(PartialShape([1, 3, 22, 22]), name="parameter")
@@ -154,10 +156,10 @@ def test_fused_names_cleanup():
         assert len(node.get_rt_info()) == 0
 
 
-def test_serialize_pass_v2():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_serialize_pass_v2(request):
     core = Core()
-    xml_path = "./serialized_model.xml"
-    bin_path = "./serialized_model.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name)
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
@@ -190,10 +192,10 @@ def test_compress_model_transformation():
     assert elem_type == "f16"
 
 
-def test_version_default():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_version_default(request):
     core = Core()
-    xml_path = "./serialized_model.xml"
-    bin_path = "./serialized_model.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name)
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
@@ -210,9 +212,9 @@ def test_version_default():
     os.remove(bin_path)
 
 
-def test_serialize_default_bin():
-    xml_path = "./serialized_model.xml"
-    bin_path = "./serialized_model.bin"
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_serialize_default_bin(request):
+    xml_path, bin_path = create_filename_for_test(request.node.name)
     model = get_test_model()
     serialize(model, xml_path)
     assert os.path.exists(bin_path)
@@ -220,10 +222,10 @@ def test_serialize_default_bin():
     os.remove(bin_path)
 
 
-def test_version_ir_v10():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_version_ir_v10(request):
     core = Core()
-    xml_path = "./serialized_model.xml"
-    bin_path = "./serialized_model.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name)
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
@@ -240,10 +242,10 @@ def test_version_ir_v10():
     os.remove(bin_path)
 
 
-def test_version_ir_v11():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_version_ir_v11(request):
     core = Core()
-    xml_path = "./serialized_model.xml"
-    bin_path = "./serialized_model.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name)
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
