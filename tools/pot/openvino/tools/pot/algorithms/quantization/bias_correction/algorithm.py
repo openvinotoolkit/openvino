@@ -88,7 +88,7 @@ class BiasCorrection(Algorithm):
             logger.update_progress(self._batch_stat_size)
 
             bias = nu.get_bias_for_node(node)
-            bias_copy = nu.get_node_input(node_copy_bias_add, 1)
+            bias_copy = nu.get_bias_for_node(node_copy)
             current_bias_value = nu.get_node_value(bias)
 
             bias_is_updated = False
@@ -184,6 +184,7 @@ class BiasCorrection(Algorithm):
         def walk_to_children(node, is_this_branch_node=False):
             node_parents = self.get_node_parents(node)
             node_input_0 = nu.get_node_input(node, 0)
+            node_input_0 = nu.get_node_input(node, 1) if node_input_0.type == 'Const' else node_input_0
             if is_this_branch_node:
                 # Jump over Split nodes
                 if node_input_0.type in self._split_types:
