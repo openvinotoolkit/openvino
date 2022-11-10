@@ -6,6 +6,7 @@
 #include "snippets/transpose.hpp"
 #include "subgraph_permute.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 namespace ov {
 namespace test {
@@ -35,6 +36,10 @@ void Transpose::SetUp() {
 
     auto f = ov::test::snippets::TransposeSinhFunction({inputShape}, order);
     function = f.getOriginal();
+    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MHA_OPS_TOKENIZATION_ENABLE)) {
+        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MHA_OPS_TOKENIZATION_ENABLE,
+                              InferenceEngine::PluginConfigParams::YES});
+    }
 }
 
 TEST_P(Transpose, CompareWithRefImpl) {
