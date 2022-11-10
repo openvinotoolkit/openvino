@@ -773,8 +773,13 @@ def pack_params_to_args_namespace(**kwargs):
     fe_manager = FrontEndManager()
     cli_parser = get_all_cli_parser(fe_manager)
     argv = cli_parser.parse_args(args_dict_to_list(cli_parser, **kwargs))
+
+    all_params = {}
+    for key, value in mo_convert_params.items():
+        all_params.update(value)
+
     for key, value in kwargs.items():
-        if key not in argv and key not in mo_convert_params.keys():
+        if key not in argv and key not in all_params.keys():
             raise Error("Unrecognized argument: {}".format(key))
         if value is not None:
             setattr(argv, key, value)
@@ -783,9 +788,13 @@ def pack_params_to_args_namespace(**kwargs):
 
 
 def params_to_string(**kwargs):
+    all_params = {}
+    for key, value in mo_convert_params.items():
+        all_params.update(value)
+
     for key, value in kwargs.items():
-        if key in mo_convert_params.keys():
-            param_data = mo_convert_params[key]
+        if key in all_params:
+            param_data = all_params[key]
             if param_data.to_string is not None:
                 kwargs[key] = param_data.to_string(value)
     return kwargs
