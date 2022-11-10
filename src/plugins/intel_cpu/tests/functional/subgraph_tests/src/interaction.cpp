@@ -31,11 +31,11 @@ static std::shared_ptr<opset8::FakeQuantize> createFQ(const std::shared_ptr<ov::
 }
 
 static std::shared_ptr<ov::Model> makeInteraction(const ElementType inType, const ov::PartialShape& inputShape) {
-    std::shared_ptr<ov::opset1::Parameter> input = std::make_shared<ov::opset1::Parameter>(element::f32, inputShape);
-    std::shared_ptr<ov::Node> dense_feature = nullptr;
     bool intraFQ = inType == ElementType::i8;
+    auto paramType = intraFQ ? ElementType::f32 : inType;
+    std::shared_ptr<ov::opset1::Parameter> input = std::make_shared<ov::opset1::Parameter>(paramType, inputShape);
+    std::shared_ptr<ov::Node> dense_feature = nullptr;
     if (intraFQ) {
-        std::cout << "intra fq" << std::endl;
         dense_feature = createFQ(input);
     } else {
         dense_feature = input;
@@ -44,7 +44,7 @@ static std::shared_ptr<ov::Model> makeInteraction(const ElementType inType, cons
     ParameterVector inputsParams{input};
     const size_t sparse_feature_num = 26;
     for (size_t i = 0; i < sparse_feature_num; i++) {
-        auto sparse_input = std::make_shared<ov::opset1::Parameter>(element::f32, inputShape);
+        auto sparse_input = std::make_shared<ov::opset1::Parameter>(paramType, inputShape);
         std::shared_ptr<ov::Node> sparse_feat = nullptr;
         if (intraFQ) {
             sparse_feat = createFQ(sparse_input);

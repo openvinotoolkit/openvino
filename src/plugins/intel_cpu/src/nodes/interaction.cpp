@@ -93,18 +93,18 @@ private:
 
     void load_scale_store(size_t step) {
         bool is_tail = step < vec_size;
-
-        load(vmm_in, reg_in_aux, jcp_.src_prc, step, is_tail);
+        Precision internal_prc = jcp_.src_prc == Precision::BF16 ? Precision::BF16 : Precision::FP32;
+        load(vmm_in, reg_in_aux, jcp_.src_prc, internal_prc, step, is_tail);
 
         if (jcp_.with_scales) {
             if (!jcp_.broadcast_scales) {
-                load(vmm_scales, reg_scales, Precision::FP32, step, is_tail);
+                load(vmm_scales, reg_scales, Precision::FP32, Precision::FP32, step, is_tail);
                 add(reg_scales,  sizeof(float) * step);
             }
             uni_vmulps(vmm_in, vmm_in, vmm_scales);
         }
 
-        store(reg_out_aux, vmm_in, jcp_.dst_prc, step);
+        store(reg_out_aux, vmm_in, internal_prc, jcp_.dst_prc, step);
 
         if (!is_tail) {
             add(reg_in_aux, jcp_.src_prc.size() * step);
@@ -113,19 +113,19 @@ private:
     }
 #undef GET_OFF
 
-    inline void load(const Vmm& vmm_dst, const Xbyak::Reg64& reg_src, Precision src_prc, const int& elt_num, bool fill) {
-        const auto seed = load_emitter_params(src_prc, Precision::FP32, elt_num, fill, "float_min").hash();
+    inline void load(const Vmm& vmm_dst, const Xbyak::Reg64& reg_src, Precision src_prc, Precision dst_prc, const int& elt_num, bool fill) {
+        const auto seed = load_emitter_params(src_prc, dst_prc, elt_num, fill, "float_min").hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, Precision::FP32, elt_num, Precision::FP32, fill, "float_min"));
+            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num, Precision::FP32, fill, "float_min"));
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0}, {static_cast<size_t>(vmm_dst.getIdx())},
                                   pool_aux_vmm_idxs, pool_aux_gpr_idxs);
     }
-    inline void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, Precision dst_prc, const int& elt_num) {
-        const auto seed = store_emitter_params(Precision::FP32, dst_prc, elt_num).hash();
+    inline void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, Precision src_prc, Precision dst_prc, const int& elt_num) {
+        const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_store_emitter(this, isa, Precision::FP32, dst_prc, elt_num));
+            emitters[seed].reset(new jit_store_emitter(this, isa, src_prc, dst_prc, elt_num));
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx()), 0}, {static_cast<size_t>(reg_dst.getIdx())},
@@ -310,14 +310,14 @@ void Interaction::prepareParams() {
 
     jit_move_scale_compile_params jcp;
     jcp.src_prc = dataPrecision;
-    jcp.dst_prc = getOriginalOutputPrecisionAtPort(0);
+    jcp.dst_prc = outputDataType;
     jcp.with_scales = !fqScales.empty();
     jcp.broadcast_scales = fqScales.size() == 1;
     jcp.input_size = featureSize;
 
     jit_move_scale_compile_params interJcp;
     interJcp.src_prc = dataPrecision;
-    interJcp.dst_prc = getOriginalOutputPrecisionAtPort(0);
+    interJcp.dst_prc = outputDataType;
     interJcp.with_scales = !fqScales.empty();
     interJcp.broadcast_scales = fqScales.size() == 1;
     interJcp.input_size = interactFeatureSize;
