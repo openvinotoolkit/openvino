@@ -183,6 +183,32 @@ GenerateProposals::GenerateProposals
     coordinates_offset_ = proposalAttrs.normalized ? 0.f : 1.f;
 
     roi_indices_.resize(post_nms_topn_);
+
+    if (op->output(0).get_element_type() == ov::element::f32) {
+        jit_nms_conf nms_jcp {post_nms_topn_, nms_thresh_, coordinates_offset_};
+        if (mayiuse(x64::avx512_core)) {
+            nms_kernel_.reset(new jit_nms_kernel_fp32<x64::avx512_core>{nms_jcp});
+        } else if (mayiuse(x64::avx2)) {
+            nms_kernel_.reset(new jit_nms_kernel_fp32<x64::avx2>{nms_jcp});
+        } else if (mayiuse(x64::sse41)) {
+            nms_kernel_.reset(new jit_nms_kernel_fp32<x64::sse41>{nms_jcp});
+        }
+        if (nms_kernel_) {
+            nms_kernel_->create_kernel();
+        }
+    }
+    if (op->output(0).get_element_type() == ov::element::f32) {
+        if (mayiuse(x64::avx512_core)) {
+            unpack_boxes_kernel_.reset(new jit_unpack_boxes_kernel_fp32<x64::avx512_core>{{}});
+        } else if (mayiuse(x64::avx2)) {
+            unpack_boxes_kernel_.reset(new jit_unpack_boxes_kernel_fp32<x64::avx2>{{}});
+        } else if (mayiuse(x64::sse41)) {
+            unpack_boxes_kernel_.reset(new jit_unpack_boxes_kernel_fp32<x64::sse41>{{}});
+        }
+        if (unpack_boxes_kernel_) {
+            unpack_boxes_kernel_->create_kernel();
+        }
+    }
 }
 
 void GenerateProposals::initSupportedPrimitiveDescriptors() {
@@ -312,7 +338,38 @@ void GenerateProposals::execute(dnnl::stream strm) {
                                   return (struct1.score > struct2.score);
                               });
 
-            unpack_boxes(reinterpret_cast<float *>(&proposals_[0]), &unpacked_boxes[0], &is_dead[0], pre_nms_topn);
+            if (unpack_boxes_kernel_) {
+                std::cout << "&proposals_[0] = " << &proposals_[0] << std::endl;
+                std::cout << "indices_.get() = " << indices_.get() << std::endl;
+                for (int i = 0; i < 6; ++i) {
+                    std::cout << "indices_[i] = " << indices_[i] << std::endl;
+                }
+                for (int k = 0; k < 6; ++k) {
+                    std::cout << "proposals_[k] = " << *reinterpret_cast<float *>(&proposals_[k]) << std::endl;
+                }
+                for (int i = 0; i < pre_nms_topn; ++i) {
+                    (*unpack_boxes_kernel_)(jit_unpack_boxes_call_args {
+                        static_cast<int32_t>(i),
+                        indices_.get(),
+                        pre_nms_topn,
+                        is_dead.data(),
+                        reinterpret_cast<float *>(&proposals_[0]),
+                        unpacked_boxes.data()
+                    });
+                }
+//                parallel_for(pre_nms_topn, [&](size_t i) {
+//                    (*unpack_boxes_kernel_)(jit_unpack_boxes_call_args {
+//                        static_cast<int32_t>(i),
+//                        indices_.get(),
+//                        pre_nms_topn,
+//                        is_dead.data(),
+//                        reinterpret_cast<float *>(&proposals_[0]),
+//                        unpacked_boxes.data()
+//                    });
+//                });
+            } else {
+                unpack_boxes(reinterpret_cast<float *>(&proposals_[0]), &unpacked_boxes[0], &is_dead[0], pre_nms_topn);
+            }
 
 #ifdef __GNUC__
             if (__builtin_expect(static_cast<bool>(nms_kernel_), true)) {
@@ -335,7 +392,33 @@ void GenerateProposals::execute(dnnl::stream strm) {
                     nms_thresh_, post_nms_topn_, coordinates_offset_);
             }
 
-            size_t new_num_rois = total_num_rois + num_rois;
+            nms_kernel_.reset();
+            if (nms_kernel_) {
+                int new_num_rois = num_rois;
+                (*nms_kernel_)(jit_nms_call_args {
+                    pre_nms_topn,
+                    is_dead.data(),
+                    unpacked_boxes.data(),
+                    &unpacked_boxes[2 * pre_nms_topn],
+                    &unpacked_boxes[pre_nms_topn],
+                    &unpacked_boxes[3 * pre_nms_topn],
+                    roi_indices_.data(),
+                    &new_num_rois
+                });
+                num_rois = new_num_rois;
+            } else {
+                nms_cpu(pre_nms_topn,
+                        &is_dead[0],
+                        &unpacked_boxes[0],
+                        &roi_indices_[0],
+                        &num_rois,
+                        0,
+                        nms_thresh_,
+                        post_nms_topn_,
+                        coordinates_offset_);
+            }
+
+            const size_t new_num_rois = total_num_rois + num_rois;
             roi_item.resize(new_num_rois * 4);
             score_item.resize(new_num_rois);
 

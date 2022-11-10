@@ -43,38 +43,11 @@ public:
 
 protected:
     void Infer() override {
-        // Operation names search
         std::map<std::string, long long> results_us{};
-        LayerTestsUtils::LayerTestsCommon::Infer();
-        const auto& perfResults = LayerTestsUtils::LayerTestsCommon::inferRequest.GetPerformanceCounts();
         for (const auto& name : bench_names_) {
-            bool found = false;
-            for (const auto& result : perfResults) {
-                const auto& resName = result.first;
-                const bool shouldAdd =
-                    !name.empty() && resName.find(name) != std::string::npos && resName.find('_') != std::string::npos;
-                // Adding operations with numbers for the case there are several operations of the same type
-                if (shouldAdd) {
-                    found = true;
-                    results_us.emplace(std::make_pair(resName, 0));
-                }
-            }
-            if (!found) {
-                std::cout << "WARNING! Performance count for \"" << name << "\" wasn't found!\n";
-            }
+            results_us[name] = {};
         }
-        // If no operations were found adding the time of all operations except Parameter and Result
-        if (results_us.empty()) {
-            for (const auto& result : perfResults) {
-                const auto& resName = result.first;
-                const bool shouldAdd = (resName.find("Parameter") == std::string::npos) &&
-                                       (resName.find("Result") == std::string::npos) &&
-                                       (resName.find('_') != std::string::npos);
-                if (shouldAdd) {
-                    results_us.emplace(std::make_pair(resName, 0));
-                }
-            }
-        }
+
         // Warmup
         auto warmCur = std::chrono::steady_clock::now();
         const auto warmEnd = warmCur + warmup_time_;
@@ -82,6 +55,7 @@ protected:
             LayerTestsUtils::LayerTestsCommon::Infer();
             warmCur = std::chrono::steady_clock::now();
         }
+
         // Benchmark
         for (int i = 0; i < num_attempts_; ++i) {
             LayerTestsUtils::LayerTestsCommon::Infer();
@@ -147,39 +121,9 @@ class BenchmarkLayerTest : public BaseLayerTest {
 
  protected:
     void infer() override {
-        // Operation names search
         std::map<std::string, long long> results_us{};
-        {
-            SubgraphBaseTest::infer();
-            const auto& profiling_info = SubgraphBaseTest::inferRequest.get_profiling_info();
-            for (const auto& name : bench_names_) {
-                bool found = false;
-                for (const auto& result : profiling_info) {
-                    const auto& resName = result.node_name;
-                    const bool shouldAdd =
-                        !name.empty() && resName.find(name) != std::string::npos && resName.find('_') != std::string::npos;
-                    // Adding operations with numbers for the case there are several operations of the same type
-                    if (shouldAdd) {
-                        found = true;
-                        results_us.emplace(std::make_pair(resName, 0));
-                    }
-                }
-                if (!found) {
-                    std::cout << "WARNING! Performance count for \"" << name << "\" wasn't found!\n";
-                }
-            }
-            // If no operations were found adding the time of all operations except Parameter and Result
-            if (results_us.empty()) {
-                for (const auto& result : profiling_info) {
-                    const auto& resName = result.node_name;
-                    const bool shouldAdd = (resName.find("Parameter") == std::string::npos) &&
-                        (resName.find("Result") == std::string::npos) &&
-                        (resName.find('_') != std::string::npos);
-                    if (shouldAdd) {
-                        results_us.emplace(std::make_pair(resName, 0));
-                    }
-                }
-            }
+        for (const auto& name : bench_names_) {
+            results_us[name] = {};
         }
 
         // Warmup
@@ -199,7 +143,7 @@ class BenchmarkLayerTest : public BaseLayerTest {
                 long long& time = res.second;
                 auto found_profile = std::find_if(profiling_info.begin(), profiling_info.end(),
                     [&name](const ProfilingInfo& profile) {
-                        return profile.node_name == name;
+                        return profile.node_type == name;
                     });
                 assert(found_profile != profiling_info.end());
                 time += found_profile->real_time.count();
