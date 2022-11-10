@@ -11,7 +11,7 @@ BERT-NER model repository. The model with configuration files is stored in the `
 
 To convert the model to ONNX format, create and run the following script in the root
 directory of the model repository. If you download the pretrained model, you need
-to download [`bert.py`](https://github.com/kamalkraj/BERT-NER/blob/dev/bert.py) to run the script.
+to download [bert.py](https://github.com/kamalkraj/BERT-NER/blob/dev/bert.py) to run the script.
 The instructions were tested with the commit-SHA: `e5be564156f194f1becb0d82aeaf6e762d9eb9ed`.
 
 ```python

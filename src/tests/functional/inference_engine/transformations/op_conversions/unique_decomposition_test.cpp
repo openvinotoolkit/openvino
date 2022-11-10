@@ -2,24 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "helper_transforms/unique_replacer.hpp"
+#include "transformations/op_conversions/unique_decomposition.hpp"
 
 #include <gtest/gtest.h>
 
-#include <frontend/shared/include/utils.hpp>
-#include <openvino/opsets/opset9.hpp>
+#include <memory>
+#include <openvino/opsets/opset10.hpp>
 #include <openvino/pass/manager.hpp>
+#include <string>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
-#include "helper_ops/unique.hpp"
+#include "openvino/core/model.hpp"
 
 using namespace std;
 using namespace ov;
-using namespace opset9;
+using namespace opset10;
 using namespace element;
-using namespace frontend::tensorflow;
-using namespace frontend::tensorflow::pass;
 
 namespace {
 Output<Node> get_elements_number_1d(const Output<Node>& output, element::Type output_type) {
@@ -30,13 +29,17 @@ Output<Node> get_elements_number_1d(const Output<Node>& output, element::Type ou
 
 shared_ptr<Model> gen_model(PartialShape input_shape, element::Type out_idx) {
     auto x = make_shared<Parameter>(f32, input_shape);
-    auto unique = make_shared<Unique>(x, out_idx);
+    auto unique = make_shared<Unique>(x, false, out_idx);
 
-    return make_shared<Model>(OutputVector{unique->output(0), unique->output(1)}, ParameterVector{x});
+    return make_shared<Model>(OutputVector{unique->output(0), unique->output(2)}, ParameterVector{x});
 }
 
 shared_ptr<Model> gen_model_ref(PartialShape input_shape, element::Type out_idx) {
-    auto x = make_shared<Parameter>(f32, input_shape);
+    auto x_unflatten = make_shared<Parameter>(f32, input_shape);
+
+    auto minus_one_const = make_shared<Constant>(element::i32, Shape{1}, -1);
+    // flatten input
+    auto x = make_shared<Reshape>(x_unflatten, minus_one_const, false);
 
     // denote a number of elements in x as n
     auto n = get_elements_number_1d(x, element::i32);
@@ -45,7 +48,6 @@ shared_ptr<Model> gen_model_ref(PartialShape input_shape, element::Type out_idx)
     auto zero_const = make_shared<Constant>(element::i32, Shape{1}, 0);
     auto one_const = make_shared<Constant>(element::i32, Shape{1}, 1);
     auto one_const_scalar = make_shared<Constant>(element::i32, Shape{}, 1);
-    auto minus_one_const = make_shared<Constant>(element::i32, Shape{1}, -1);
     auto true_const = make_shared<Constant>(element::boolean, Shape{1}, true);
     auto one_const_out_idx = make_shared<Constant>(out_idx, Shape{1}, 1);
     auto zero_const_out_idx = make_shared<Constant>(out_idx, Shape{1}, 0);
@@ -109,25 +111,25 @@ shared_ptr<Model> gen_model_ref(PartialShape input_shape, element::Type out_idx)
     auto output_idx_plus1 = make_shared<ReduceMax>(unique_vs_x_ind_orig, zero_const);
     auto output_idx = make_shared<Subtract>(output_idx_plus1, one_const_out_idx);
 
-    return make_shared<Model>(OutputVector{output_idx->output(0), output_unique_elements->output(0)},
-                              ParameterVector{x});
+    return make_shared<Model>(OutputVector{output_unique_elements->output(0), output_idx->output(0)},
+                              ParameterVector{x_unflatten});
 }
 
 }  // namespace
 
-TEST_F(TransformationTestsF, UniqueReplacerInt32) {
+TEST_F(TransformationTestsF, UniqueDecompositionInt32) {
     {
         function = gen_model(PartialShape{10}, element::i32);
-        manager.register_pass<UniqueReplacer>();
+        manager.register_pass<ov::pass::UniqueDecomposition>();
     }
     { function_ref = gen_model_ref(PartialShape{10}, element::i32); }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
-TEST_F(TransformationTestsF, UniqueReplacerInt64) {
+TEST_F(TransformationTestsF, UniqueDecompositionInt64) {
     {
         function = gen_model(PartialShape{42}, element::i64);
-        manager.register_pass<UniqueReplacer>();
+        manager.register_pass<ov::pass::UniqueDecomposition>();
     }
     { function_ref = gen_model_ref(PartialShape{42}, element::i64); }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);

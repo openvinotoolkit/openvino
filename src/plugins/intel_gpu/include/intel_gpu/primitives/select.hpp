@@ -32,21 +32,21 @@ struct select : public primitive_base<select> {
     /// @param mask Input primitive id with values needed for select computation.
     /// @param input Input primitive id.
     /// @param input2 Second input primitive id.
+    /// @param spec Auto broadcast rule specification
     /// @param output_padding Output data padding information.
-    /// @param broadcast_type String which determines broadcasting type:
     /// "numpy" means that numpy-tyle (ONNX) broadcasting is allowed,
     /// "none" means that all inputs need to have the same shape.
     select(const primitive_id& id,
            const primitive_id& mask,
            const primitive_id& input,
            const primitive_id& input2,
-           const padding& output_padding = padding(),
-           const std::string& broadcast_type = "numpy")
+           const ov::op::AutoBroadcastSpec& spec = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY),
+           const padding& output_padding = padding())
         : primitive_base(id, {mask, input, input2}, output_padding),
-          broadcast_type(broadcast_type) {}
+          broadcast_spec(spec.m_type, spec.m_axis) {}
 
-    /// @brief String which determines broadcast type.
-    std::string broadcast_type;
+    /// @brief Define auto broadcast rule specification.
+    ov::op::AutoBroadcastSpec broadcast_spec;
 };
 /// @}
 /// @}
