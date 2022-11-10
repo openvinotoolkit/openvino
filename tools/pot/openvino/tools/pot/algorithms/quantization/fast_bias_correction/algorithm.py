@@ -111,6 +111,7 @@ class FastBiasCorrection(Algorithm):
                 continue
 
             if bias_shift_magnitude < self._threshold:
+                logger.debug('Setting bias for %s. Magnitude: %f', op_node.fullname, bias_shift_magnitude)
                 op_node['original_bias'] = current_bias_value
                 nu.set_node_value(bias_node, bias_shift)
             else:

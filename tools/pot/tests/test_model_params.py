@@ -7,36 +7,18 @@ import numpy as np
 import pytest
 from addict import Dict
 
-from openvino.tools.pot import DataLoader, IEEngine, create_pipeline, load_model
+from openvino.tools.pot import create_pipeline, load_model
+from openvino.tools.pot.engines.simplified_engine import SimplifiedEngine
 from openvino.tools.pot.graph.model_utils import get_nodes_by_type, get_node_by_name
 from openvino.tools.pot.graph.node_utils import get_bias_for_node, get_node_value
 from openvino.tools.pot.graph.special_operations import OPERATIONS_WITH_BIAS
 
 from .utils.config import merge_configs
-from .utils.data_helper import dump_intermediate_data, get_ref_stats
+from .utils.data_helper import dump_intermediate_data, load_json
+from .test_scales import RandomDataLoader
 
 
 EPS = 1e-6
-
-
-class SyntheticDataLoader(DataLoader):
-    def __init__(self, config):
-        self._samples = self._generate_synthetic_data(config)
-
-    def __len__(self):
-        return len(self._samples)
-
-    def __getitem__(self, index):
-        return self._samples[index], index
-
-    def _generate_synthetic_data(self, config):
-        samples = []
-        np.random.seed(config.seed)
-        for _ in range(config.num_samples):
-            sample = np.random.normal(size=config.input_shape)
-            samples.append(sample)
-
-        return samples
 
 
 TEST_TRANSFORMERS_MODELS = [
@@ -93,14 +75,9 @@ def test_transformer_biases_after_correction(_params, tmp_path, models):
     engine_config = {'device': 'CPU'}
     config = merge_configs(model.model_params, engine_config, algorithm_config)
 
-    data_loader_config = Dict({
-        'num_samples': algorithm_params['stat_subset_size'],
-        'seed': 0,
-        'input_shape': (1, 128)
-    })
-    data_loader = SyntheticDataLoader(data_loader_config)
+    data_loader = RandomDataLoader(shapes={'input': (1, 128)}, seed=0)
 
-    engine = IEEngine(config.engine, data_loader=data_loader)
+    engine = SimplifiedEngine(config.engine, data_loader=data_loader)
     pipeline = create_pipeline(config.compression.algorithms, engine)
     model = load_model(config.model)
     compressed_model = pipeline.run(model)
@@ -112,14 +89,14 @@ def test_transformer_biases_after_correction(_params, tmp_path, models):
     for node_with_bias in nodes_with_bias:
         bias = get_bias_for_node(node_with_bias)
         if bias is not None:
-            values[node_with_bias.name] = get_node_value(bias)
+            values[node_with_bias.fullname] = get_node_value(bias)
 
     if not reference_exists:
         dump_intermediate_data(reference_path, values)
         return
     dump_intermediate_data(local_path, values)
 
-    references = get_ref_stats(reference_path)
+    references = load_json(reference_path)
 
     assert len(references) == len(values)
     for node_name, ref_val in references.items():

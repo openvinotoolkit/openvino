@@ -26,6 +26,7 @@ def dump_intermediate_data(local_path, data):
     local_file = open(local_path, 'w')
     json.dump(data, local_file)
 
-def get_ref_stats(stats_path):
+
+def load_json(stats_path):
     with open(stats_path) as json_file:
         return json.load(json_file)

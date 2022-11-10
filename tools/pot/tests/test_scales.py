@@ -16,7 +16,7 @@ from openvino.tools.pot.graph import load_model
 from openvino.tools.pot.graph.node_utils import get_node_inputs, get_node_input, get_node_value
 from openvino.tools.pot.graph import model_utils as mu
 from openvino.tools.pot.statistics.collector import StatisticsCollector
-from .utils.data_helper import dump_intermediate_data, get_ref_stats
+from .utils.data_helper import dump_intermediate_data, load_json
 
 
 EPS = 1e-6
@@ -110,7 +110,7 @@ def test_activation_scales(tmp_path, models, preset, bits, stats_path, clipping_
 
     model = models.get('mobilenet-v2-pytorch', 'pytorch', tmp_path)
 
-    ref_nodes = get_ref_stats(stats_path)
+    ref_nodes = load_json(stats_path)
     nodes = normalize(get_fq_nodes_stats_algo(model, preset, bits, False,
                                               clipping_value=clipping_value))
     local_path = os.path.join(tmp_path, '{}.json'.format(stats_path.split("_")[-2]))
@@ -137,7 +137,7 @@ def test_weights_scales(tmp_path, models):
                                    './data/reference_scale/mobilenet-v2-pytorch_weights.json')
 
     model = models.get('mobilenet-v2-pytorch', 'pytorch', tmp_path)
-    ref_weights = get_ref_stats(path_to_weights)
+    ref_weights = load_json(path_to_weights)
     weights = get_fq_nodes_stats_algo(model, False, 8, True)
     local_path = os.path.join(tmp_path, '{}.json'.format('mv2_weights'))
     dump_intermediate_data(local_path, weights)
@@ -276,7 +276,7 @@ def test_fake_quantize_configurations(tmp_path, models, model_name, model_framew
     refs_path = os.path.join(REFERENCES_DIR, '{}_{}.json'.format(model_name, algo_mode))
     local_path = os.path.join(tmp_path, '{}.json'.format(model_name))
     ref_exists = os.path.isfile(refs_path)
-    refs = get_ref_stats(refs_path) if ref_exists else {}
+    refs = load_json(refs_path) if ref_exists else {}
     local_file = open(local_path, 'w')
 
     if not ref_exists:
@@ -340,7 +340,7 @@ def test_matmul_scale_unification(tmp_path, models, model_name, model_framework,
     refs_path = os.path.join(REFERENCES_DIR, f'{model_name}.json')
     local_path = os.path.join(tmp_path, f'{model_name}.json')
     ref_exists = os.path.isfile(refs_path)
-    refs = get_ref_stats(refs_path) if ref_exists else {}
+    refs = load_json(refs_path) if ref_exists else {}
     local_file = open(local_path, 'w')
 
     if not ref_exists:

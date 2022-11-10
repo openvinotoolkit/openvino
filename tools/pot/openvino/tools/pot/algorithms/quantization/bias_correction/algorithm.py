@@ -500,6 +500,7 @@ class BiasCorrection(Algorithm):
         child_nodes = []
         for output_node in nu.get_all_node_outputs(node):
             for input_port_id, _ in enumerate(nu.get_node_input_ports(output_node)):
-                if nu.get_input_data_value(output_node, input_port_id) is None:
+                if nu.get_input_data_value(output_node, input_port_id) is None \
+                        and output_node not in child_nodes:
                     child_nodes.append(output_node)
         return child_nodes
