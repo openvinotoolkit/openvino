@@ -80,12 +80,12 @@ private:
 
     using executorPtr = std::shared_ptr<DnnlExecutor>;
     executorPtr execPtr = nullptr;
-    bool shouldUseConv1x1 = false;
+    bool useConv1x1 = false;
     impl_desc_type implementationTypeIP;
     MemoryDescPtr weightDescIP;
-    // when weightCache does not enable(such as stream=1) brgconv weights may change due to
-    // different shapes. Weights will cache in privateWeightCache
-    // when weightCache enabled hold weight ptr reference since weightCache does not hold the
+    // when weightCache is not enabled (such as stream=1), brgconv weights may change due to
+    // different shapes. Weights will be cached in privateWeightCache.
+    // When weightCache is enabled, it holds weight ptr reference since weightCache does not hold the
     // reference
     std::map<std::string, MemoryPtr> privateWeightCache;
 
@@ -97,21 +97,12 @@ private:
     class ExecutorConv1x1 : public DnnlExecutor {
         public:
             ExecutorConv1x1(const dnnl::convolution_forward::primitive_desc& pd);
-            const dnnl::memory::desc& getSrcDesc() const { return srcDesc; }
-            const dnnl::memory::desc& getWeightDesc() const { return weightDesc; }
-            const dnnl::memory::desc& getDstDesc() const { return dstDesc; }
-            impl_desc_type getImplementationType() const { return implementationType; }
-
-        private:
-            dnnl::memory::desc srcDesc;
-            dnnl::memory::desc weightDesc;
-            dnnl::memory::desc dstDesc;
-            impl_desc_type implementationType;
     };
 
-    DnnlDesriptor createDescriptorInternalForConv(const dnnl::memory::desc &inputDesc,
-                                const dnnl::memory::desc &biasDesc,
-                                const dnnl::memory::desc &outputDesc) const;
+    static DnnlDesriptor createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
+                                                         DnnlMemoryDescCPtr weightDescPtr,
+                                                         DnnlMemoryDescCPtr biasDescPtr,
+                                                         DnnlMemoryDescCPtr outputDescPtr);
 
     bool canBeExecutedInConv1x1() const;
     MemoryPtr prepareWeightMemory(const DnnlMemoryDescPtr weightDesc);

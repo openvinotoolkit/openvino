@@ -6,6 +6,7 @@
 
 #include <cpu_memory.h>
 #include <primitive.h>
+#include <onednn/iml_type_mapper.h>
 
 namespace ov {
 namespace intel_cpu {
@@ -30,6 +31,10 @@ class DnnlExecutor {
         bool needReordering() const;
         virtual ~DnnlExecutor() = default;
         Primitive getExecPrim() const;
+        const dnnl::memory::desc& getSrcDesc() const { return srcDesc; }
+        const dnnl::memory::desc& getWeightDesc() const { return weightDesc; }
+        const dnnl::memory::desc& getDstDesc() const { return dstDesc; }
+        impl_desc_type getImplementationType() const { return implementationType; }
 
     protected:
         DnnlExecutor() = default;
@@ -37,6 +42,11 @@ class DnnlExecutor {
         // key is the port number for the primitive that needs memory reordering
         std::unordered_map<int, IntermReorder> inputReorders;
         std::unordered_map<int, IntermReorder> outputReorders;
+        // information about primitive
+        dnnl::memory::desc srcDesc;
+        dnnl::memory::desc weightDesc;
+        dnnl::memory::desc dstDesc;
+        impl_desc_type implementationType;
 };
 
 }   // namespace intel_cpu

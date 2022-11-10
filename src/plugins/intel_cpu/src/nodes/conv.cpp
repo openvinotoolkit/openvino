@@ -1347,7 +1347,7 @@ void Convolution::prepareParams() {
                    selected_pd->getImplementationType()};
 
     auto engine = getEngine();
-    auto builder = [this, &engine](const ConvKey& key) -> executorPtr {
+    auto builder = [&engine](const ConvKey& key) -> executorPtr {
         auto createDnnlConvDesc = [](const dnnl::memory::desc& srcDesc,
                                      const dnnl::memory::desc& wghDesc,
                                      const dnnl::memory::desc& dstDesc,
@@ -1399,10 +1399,6 @@ void Convolution::prepareParams() {
                                                                 key.inp1->getDnnlDesc(),
                                                                 key.out->getDnnlDesc(),
                                                                 engine);
-#ifdef CPU_DEBUG_CAPS
-                auto* pd_inner = reinterpret_cast<const dnnl_primitive_desc*>(prim_desc.get());
-                DEBUG_LOG("verbose##", getName(), "##", pd_inner->info(), "\n");
-#endif
                 break;
             }
 
@@ -1440,10 +1436,6 @@ void Convolution::prepareParams() {
                                                                 key.inp1->getDnnlDesc(),
                                                                 key.out->getDnnlDesc(),
                                                                 engine);
-#ifdef CPU_DEBUG_CAPS
-                auto* pd_inner = reinterpret_cast<const dnnl_primitive_desc*>(prim_desc.get());
-                DEBUG_LOG("verbose##", getName(), "##", pd_inner->info(), "\n");
-#endif
             }
         }
 
@@ -1475,6 +1467,11 @@ void Convolution::prepareParams() {
         auto pd = (*(execPtr->getExecPrim())).get_primitive_desc();
         auto scratchpadMem = getScratchPadMem(pd);
         primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
+#ifdef CPU_DEBUG_CAPS
+        if (result.second == CacheEntryBase::LookUpStatus::Miss) {
+            DEBUG_LOG("verbose##", getName(), "##", pd->info(), "\n");
+        }
+#endif
     } else {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
