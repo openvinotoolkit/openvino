@@ -66,9 +66,9 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_onednn)
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights", weights));
     topology.add(data("bias", bias));
-    topology.add(reorder("reorder_input", "input", format::b_fs_yx_fsv32, data_types::u8));
-    topology.add(cldnn::convolution("conv", { "reorder_input" }, { "weights" }, { "bias"}, 1, {1, 1}, {0, 0}, {1, 1}, {1, 32, 2, 2}, data_types::f32, false));
-    topology.add(reorder("reorder_conv", "conv", reorder_layout));
+    topology.add(reorder("reorder_input", input_info("input"), format::b_fs_yx_fsv32, data_types::u8));
+    topology.add(cldnn::convolution("conv", { input_info("reorder_input") }, { "weights" }, { "bias"}, 1, {1, 1}, {0, 0}, {1, 1}, {1, 32, 2, 2}, data_types::f32, false));
+    topology.add(reorder("reorder_conv", input_info("conv"), reorder_layout));
 
     program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
     layout_optimizer lo = layout_optimizer();
@@ -107,9 +107,9 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_cldnn)
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights", weights));
     topology.add(data("bias", bias));
-    topology.add(reorder("reorder_input", "input", format::b_fs_yx_fsv32, data_types::u8));
-    topology.add(cldnn::convolution("conv", { "reorder_input" }, { "weights" }, { "bias"}, 1, {1, 1}, {0, 0}, {1, 1}, {1, 32, 2, 2}, data_types::f32, false));
-    topology.add(reorder("reorder_conv", "conv", reorder_layout));
+    topology.add(reorder("reorder_input", input_info("input"), format::b_fs_yx_fsv32, data_types::u8));
+    topology.add(cldnn::convolution("conv", { input_info("reorder_input") }, { "weights" }, { "bias"}, 1, {1, 1}, {0, 0}, {1, 1}, {1, 32, 2, 2}, data_types::f32, false));
+    topology.add(reorder("reorder_conv", input_info("conv"), reorder_layout));
 
     program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
     layout_optimizer lo = layout_optimizer();
@@ -183,9 +183,9 @@ TEST_P(test_fused_reorder_deep_depth, no_removal_for_deep_depth_conv)
 
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights", weights));
-    topology.add(reorder("reorder_input", "input", p.output_format, p.input_data_type));
-    topology.add(cldnn::convolution("conv", { "reorder_input" }, { "weights" }));
-    topology.add(reorder("reorder_conv", "conv", reorder_layout));
+    topology.add(reorder("reorder_input", input_info("input"), p.output_format, p.input_data_type));
+    topology.add(cldnn::convolution("conv", { input_info("reorder_input") }, { "weights" }));
+    topology.add(reorder("reorder_conv", input_info("conv"), reorder_layout));
 
     program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
     layout_optimizer lo = layout_optimizer();
@@ -234,9 +234,9 @@ TEST_P(test_can_fuse_reorder_cldnn, reorder_for_firstconv_cldnn)
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights", weights));
     topology.add(data("bias", bias));
-    topology.add(reorder("reorder_input", "input", p.output_format, p.input_data_type));
-    topology.add(cldnn::convolution("conv2", { "reorder_input" }, { "weights" }, { "bias"}, 1, {1, 1}, {0, 0}, {1, 1}, p.out_shape, p.input_data_type, false));
-    topology.add(reorder("reorder_conv", "conv2", reorder_layout));
+    topology.add(reorder("reorder_input", input_info("input"), p.output_format, p.input_data_type));
+    topology.add(cldnn::convolution("conv2", { input_info("reorder_input") }, { "weights" }, { "bias"}, 1, {1, 1}, {0, 0}, {1, 1}, p.out_shape, p.input_data_type, false));
+    topology.add(reorder("reorder_conv", input_info("conv2"), reorder_layout));
 
     program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
     layout_optimizer lo = layout_optimizer();
@@ -279,10 +279,10 @@ TEST_P(test_can_fuse_reorder_onednn, reorder_for_firstconv_onednn)
 
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights", weights));
-    topology.add(reorder("reorder_input", "input", p.input_format, p.output_data_type));
-    topology.add(reorder("reorder_conv", "reorder_input", p.output_format, p.output_data_type));
-    topology.add(cldnn::convolution("conv", { "reorder_input" }, { "weights" }));
-    topology.add(reorder("reorder_result", "conv", reorder_layout));
+    topology.add(reorder("reorder_input", input_info("input"), p.input_format, p.output_data_type));
+    topology.add(reorder("reorder_conv", input_info("reorder_input"), p.output_format, p.output_data_type));
+    topology.add(cldnn::convolution("conv", { input_info("reorder_input") }, { "weights" }));
+    topology.add(reorder("reorder_result", input_info("conv"), reorder_layout));
 
     program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
     layout_optimizer lo = layout_optimizer();

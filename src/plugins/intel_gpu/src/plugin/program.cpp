@@ -410,12 +410,12 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::s
     }
 }
 
-std::vector<cldnn::primitive_id> Program::GetInputPrimitiveIDs(const std::shared_ptr<ngraph::Node>& op) const {
+std::vector<cldnn::input_info> Program::GetInputInfo(const std::shared_ptr<ngraph::Node>& op) const {
     if (!op) {
         return {};
     }
 
-    std::vector<cldnn::primitive_id> inputPrimitives;
+    std::vector<cldnn::input_info> inputInfo;
     for (size_t i = 0; i < op->get_input_size(); i++) {
         auto prevOp = op->get_input_node_ptr(i);
         std::string prevName = layer_type_name_ID(prevOp);
@@ -431,12 +431,12 @@ std::vector<cldnn::primitive_id> Program::GetInputPrimitiveIDs(const std::shared
             if (primitive_ids.find(prevName) == primitive_ids.end()) {
                 IE_THROW() << "Input " << prevName << " hasn't been found in primitive_ids map";
             }
-            inputPrimitives.push_back(primitive_ids.at(prevName));
+            inputInfo.push_back(cldnn::input_info(primitive_ids.at(prevName), op->get_input_source_output(i).get_index()));
         } else {
-            inputPrimitives.push_back(prevName);
+            inputInfo.push_back(cldnn::input_info(prevName, op->get_input_source_output(i).get_index()));
         }
     }
-    return inputPrimitives;
+    return inputInfo;
 }
 
 void Program::init_profile_info(const cldnn::primitive& prim) {

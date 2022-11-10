@@ -51,7 +51,7 @@ static cldnn::mutable_data CreateAdditionalOutputData(Program &p, const std::sha
 
 static void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
     const std::string layerName = layer_type_name_ID(op);
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     const auto& loop_input_descs = op->get_input_descriptions();
     const auto& loop_output_descs = op->get_output_descriptions();
     const auto& body_inputs = op->get_function()->get_parameters();
@@ -94,7 +94,7 @@ static void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
 
     // set input mapping & back edges
     for (const auto& loop_input_desc : loop_input_descs) {
-        const cldnn::primitive_id& external_id = inputPrimitives.at(loop_input_desc->m_input_index);
+        const cldnn::primitive_id& external_id = inputs.at(loop_input_desc->m_input_index).pid;
         auto& body_input = body_inputs.at(loop_input_desc->m_body_parameter_index);
         cldnn::primitive_id internal_id = layer_type_name_ID(body_input);
 
@@ -179,7 +179,7 @@ static void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
 
     const cldnn::loop loopPrimitive(
         layerName,              /* layer name of this primitive (output id) */
-        inputPrimitives,        /* inputs of this layer */
+        inputs,                 /* inputs of this layer */
         body_topology,          /* body network */
         trip_count_id,          /* trip_count data in outer network, always same as num_iterations in TI */
         execution_condition_id, /* initial_execution_condition data in outer network, always true in TI */

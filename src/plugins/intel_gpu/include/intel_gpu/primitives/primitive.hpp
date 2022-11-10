@@ -32,10 +32,21 @@ using primitive_id = std::string;
 
 struct primitive_info;
 
+/// @brief Describes information of inputs.
+/// @details Contains infomation about id and output index of input primitive.
 struct input_info {
     input_info() : pid(""), idx(0) {}
     input_info(primitive_id pid) : pid(pid), idx(0) {}
     input_info(primitive_id pid, int idx) : pid(pid), idx(idx) {}
+
+    /// @brief Copy assignment.
+    input_info& operator=(const input_info& other) {
+        if (this == &other)
+            return *this;
+        pid = other.pid;
+        idx = other.idx;
+        return *this;
+    }
 
     primitive_id pid;
     int32_t idx;

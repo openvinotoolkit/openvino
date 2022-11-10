@@ -55,7 +55,7 @@ TEST(concat_gpu, mixed_input_types) {
             input_layout("input3", input3->get_layout()),
             input_layout("input4", input4->get_layout()),
             concatenation("concat",
-                          { "input0", "input1", "input2", "input3", "input4" },
+                          { input_info("input0"), input_info("input1"), input_info("input2"), input_info("input3"), input_info("input4") },
                           1,
                           data_types::f32,
                           padding{ { 0,0,0,0 }, 0 })
@@ -128,7 +128,7 @@ TEST(concat_gpu, mixed_input_types_5d) {
             input_layout("input2", input2->get_layout()),
             input_layout("input3", input3->get_layout()),
             concatenation("concat",
-                          { "input0", "input1", "input2", "input3" },
+                          { input_info("input0"), input_info("input1"), input_info("input2"), input_info("input3") },
                           1,
                           data_types::f32,
                           padding{ { 0,0,0,0 }, 0 })
@@ -199,14 +199,14 @@ TEST(concat_gpu, i8_optimization_with_pool) {
     layout reorder_layout(data_types::i8, format::yxfb, {7, 2, 2, 1});
     topology topology(input_layout("input0", input0->get_layout()),
                       input_layout("input1", input1->get_layout()),
-                      pooling("pool0", "input0", pooling_mode::max, {2, 2}, {1, 1}),
-                      pooling("pool1", "input1", pooling_mode::max, {2, 2}, {1, 1}),
+                      pooling("pool0", input_info("input0"), pooling_mode::max, {2, 2}, {1, 1}),
+                      pooling("pool1", input_info("input1"), pooling_mode::max, {2, 2}, {1, 1}),
                       concatenation("concat",
-                                    {"pool0", "pool1"},
+                                    { input_info("pool0"), input_info("pool1") },
                                     1,
                                     data_types::i8,
                                     padding{{0, 0, 0, 0}, 0}),
-                      reorder("reorder", "concat", reorder_layout));
+                      reorder("reorder", input_info("concat"), reorder_layout));
     cldnn::build_options options;
     options.set_option(cldnn::build_option::optimize_data(true));
     network network(engine, topology, options);
@@ -302,13 +302,13 @@ TEST(concat_gpu, i8_optimization_with_conv) {
                       input_layout("input1", input1->get_layout()),
                       input_layout("input2", input2->get_layout()),
                       concatenation("concat",
-                                    {"input0", "input1", "input2"},
+                                    { input_info("input0"), input_info("input1"), input_info("input2") },
                                     1,
                                     data_types::i8,
                                     padding{{0, 0, 0, 0}, 0}),
                       data("weights", weights),
-                      convolution("conv", "concat", { "weights" }, { 2, 1 }),
-                      reorder("output", "conv", reorder_layout));
+                      convolution("conv", input_info("concat"), { "weights" }, { 2, 1 }),
+                      reorder("output", input_info("conv"), reorder_layout));
     cldnn::build_options options;
     options.set_option(cldnn::build_option::optimize_data(true));
     network network(engine, topology, options);
@@ -400,16 +400,16 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
     layout reorder_layout(data_types::i8, format::bfyx, {1, 1, 3, 1});
     topology topology(input_layout("input0", input0->get_layout()),
                       input_layout("input1", input1->get_layout()),
-                      pooling("pool0", "input0", pooling_mode::max, {2, 2}, {1, 1}),
-                      pooling("pool1", "input1", pooling_mode::max, {2, 2}, {1, 1}),
+                      pooling("pool0", input_info("input0"), pooling_mode::max, {2, 2}, {1, 1}),
+                      pooling("pool1", input_info("input1"), pooling_mode::max, {2, 2}, {1, 1}),
                       concatenation("concat",
-                                    {"pool0", "pool1"},
+                                    { input_info("pool0"), input_info("pool1") },
                                     1,
                                     data_types::i8,
                                     padding{{0, 0, 0, 0}, 0}),
                       data("weights", weights),
-                      convolution("conv", "concat", {"weights"}, {1, 1}, {0, 1}),
-                      reorder("output", "conv", reorder_layout) );
+                      convolution("conv", input_info("concat"), {"weights"}, {1, 1}, {0, 1}),
+                      reorder("output", input_info("conv"), reorder_layout) );
     cldnn::build_options options;
     options.set_option(cldnn::build_option::optimize_data(true));
     network network(engine, topology, options);
@@ -553,7 +553,7 @@ public:
 
         std::vector<VVVVF<Type>> in_data;
         std::vector<memory::ptr> in_memory;
-        std::vector<primitive_id> input_ids;
+        std::vector<input_info> input_ids;
         for (size_t i = 0; i < in_features.size(); i++) {
             auto size = tensor(static_cast<int32_t>(batch_num),
                                static_cast<int32_t>(in_features[i]),
@@ -582,7 +582,7 @@ public:
 
             topology.add(input_layout("input" + std::to_string(i), in_lay));
             in_data.emplace_back(std::move(data));
-            input_ids.push_back("input" + std::to_string(i));
+            input_ids.push_back(input_info("input" + std::to_string(i)));
         }
 
         topology.add(concatenation("concat", input_ids, 1));
@@ -592,7 +592,7 @@ public:
         network network(engine, topology, options);
 
         for (size_t i = 0; i < in_features.size(); i++) {
-            network.set_input_data(input_ids[i], in_memory[i]);
+            network.set_input_data(input_ids[i].pid, in_memory[i]);
         }
 
         network.execute();
@@ -792,7 +792,7 @@ public:
 
         std::vector<VVVVF<Type>> in_data;
         std::vector<memory::ptr> in_memory;
-        std::vector<primitive_id> input_ids;
+        std::vector<input_info> input_ids;
         for (size_t i = 0; i < in_features.size(); i++) {
             auto size = tensor(static_cast<int32_t>(batch_num),
                                static_cast<int32_t>(in_features[i]),
@@ -821,7 +821,7 @@ public:
 
             topology.add(input_layout("input" + std::to_string(i), in_lay));
             in_data.emplace_back(std::move(data));
-            input_ids.push_back("input" + std::to_string(i));
+            input_ids.push_back(input_info("input" + std::to_string(i)));
         }
 
         topology.add(concatenation("concat", input_ids, 1));
@@ -839,7 +839,7 @@ public:
             }
         }
         topology.add(data("weights", weights_mem));
-        topology.add(convolution("conv", "concat", { "weights" }));
+        topology.add(convolution("conv", input_info("concat"), { "weights" }));
 
         build_options options;
         options.set_option(build_option::optimize_data(true));
@@ -848,7 +848,7 @@ public:
         network network(engine, topology, options);
 
         for (size_t i = 0; i < in_features.size(); i++) {
-            network.set_input_data(input_ids[i], in_memory[i]);
+            network.set_input_data(input_ids[i].pid, in_memory[i]);
         }
 
         network.execute();
@@ -931,7 +931,7 @@ public:
 
         std::vector<memory::ptr> in_memory;
         std::vector<primitive_id> input_ids;
-        std::vector<primitive_id> pooling_ids;
+        std::vector<input_info> pooling_ids;
 
         for (size_t i = 0; i < in_features.size(); i++) {
             auto size = tensor(static_cast<int32_t>(batch_num),
@@ -959,10 +959,10 @@ public:
             in_memory.push_back(in_mem);
 
             topology.add(input_layout("input" + std::to_string(i), in_lay));
-            topology.add(pooling("pool" +  std::to_string(i), "input" + std::to_string(i), pooling_mode::max, {1, 1}, {1, 1}));
+            topology.add(pooling("pool" +  std::to_string(i), input_info("input" + std::to_string(i)), pooling_mode::max, {1, 1}, {1, 1}));
 
             input_ids.push_back("input" + std::to_string(i));
-            pooling_ids.push_back("pool" + std::to_string(i));
+            pooling_ids.push_back(input_info("pool" + std::to_string(i)));
         }
 
         topology.add(concatenation("concat", pooling_ids, 1));
@@ -979,9 +979,9 @@ public:
             }
         }
         topology.add(data("weights" , weights_mem));
-        topology.add(convolution("conv", "concat", { "weights" }));
-        topology.add(pooling("pool_final", "conv", pooling_mode::max, {1, 1}, {1, 1}));
-        topology.add(reorder("reorder", "pool_final", layout(data_type, format::bfyx, {(int32_t)batch_num, (int32_t)output_f, (int32_t)input_y, (int32_t)input_x})));
+        topology.add(convolution("conv", input_info("concat"), { "weights" }));
+        topology.add(pooling("pool_final", input_info("conv"), pooling_mode::max, {1, 1}, {1, 1}));
+        topology.add(reorder("reorder", input_info("pool_final"), layout(data_type, format::bfyx, {(int32_t)batch_num, (int32_t)output_f, (int32_t)input_y, (int32_t)input_x})));
 
         std::shared_ptr<cldnn::network> concat_network;
 
@@ -1110,7 +1110,7 @@ TEST(concat_gpu_onednn, basic_input_types) {
             input_layout("input3", input3->get_layout()),
             input_layout("input4", input4->get_layout()),
             concatenation("concat",
-                          { "input0", "input1", "input2", "input3", "input4" },
+                          { input_info("input0"), input_info("input1"), input_info("input2"), input_info("input3"), input_info("input4") },
                           1,
                           data_types::f32,
                           padding{ { 0,0,0,0 }, 0 })
@@ -1169,7 +1169,7 @@ public:
 
         std::vector<memory::ptr> in_memory;
         std::vector<primitive_id> input_ids;
-        std::vector<primitive_id> pooling_ids;
+        std::vector<input_info> pooling_ids;
 
         for (size_t i = 0; i < in_features.size(); i++) {
             auto size = tensor(static_cast<int32_t>(batch_num),
@@ -1197,10 +1197,10 @@ public:
             in_memory.push_back(in_mem);
 
             topology.add(input_layout("input" + std::to_string(i), in_lay));
-            topology.add(pooling("pool" +  std::to_string(i), "input" + std::to_string(i), pooling_mode::max, {1, 1}, {1, 1}));
+            topology.add(pooling("pool" +  std::to_string(i), input_info("input" + std::to_string(i)), pooling_mode::max, {1, 1}, {1, 1}));
 
             input_ids.push_back("input" + std::to_string(i));
-            pooling_ids.push_back("pool" + std::to_string(i));
+            pooling_ids.push_back(input_info("pool" + std::to_string(i)));
         }
 
         topology.add(concatenation("concat", pooling_ids, 1));
@@ -1217,9 +1217,9 @@ public:
             }
         }
         topology.add(data("weights" , weights_mem));
-        topology.add(convolution("conv", "concat", { "weights" }));
-        topology.add(pooling("pool_final", "conv", pooling_mode::max, {1, 1}, {1, 1}));
-        topology.add(reorder("reorder", "pool_final", layout(data_type, format::bfyx, {(int32_t)batch_num, (int32_t)output_f, (int32_t)input_y, (int32_t)input_x})));
+        topology.add(convolution("conv", input_info("concat"), { "weights" }));
+        topology.add(pooling("pool_final", input_info("conv"), pooling_mode::max, {1, 1}, {1, 1}));
+        topology.add(reorder("reorder", input_info("pool_final"), layout(data_type, format::bfyx, {(int32_t)batch_num, (int32_t)output_f, (int32_t)input_y, (int32_t)input_x})));
 
         network concat_network(engine, topology, options);
         for (size_t i = 0; i < in_features.size(); i++) {

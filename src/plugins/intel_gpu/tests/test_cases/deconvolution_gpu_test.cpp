@@ -170,11 +170,11 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_nopad) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 1,1 }),
-        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, { 1,1 }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
@@ -231,10 +231,10 @@ TYPED_TEST(deconvolution_basic, no_bias_basic_wsiz2x2_in2x2x1x1_nopad) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
         data("weights", weights),
-        deconvolution("deconv", "reordered_input", { "weights" }),
-        reorder("plane_output", "deconv", format::bfyx, data_types::f32)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, data_types::f32)
     );
 
     network network(engine, topology);
@@ -292,11 +292,11 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_nopad_bfyx) {    //  Fil
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 1,1 }),
-        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, { 1,1 }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
@@ -354,11 +354,11 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_pad1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 1, 1 }, { 1, 1}),
-        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, { 1, 1 }, { 1, 1}),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
@@ -405,11 +405,11 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_stride2_nopad) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 2,2 }),
-        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, { 2,2 }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
@@ -470,11 +470,11 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_stride4_pad2) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, {4, 4 }, { 2, 2 }),
-        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, {4, 4 }, { 2, 2 }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
@@ -532,11 +532,11 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x2_stride2_pad1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
-        reorder("plane_output", "deconv", format::yxfb, cldnn::data_types::f32)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", input_info("deconv"), format::yxfb, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
@@ -599,11 +599,11 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2x2_in2x2x1x1_stride2_pad1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
-        reorder("plane_output", "deconv", format::yxfb, cldnn::data_types::f32)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", input_info("deconv"), format::yxfb, cldnn::data_types::f32)
     );
 
     network network(engine, topology, options);
@@ -660,11 +660,11 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_pad1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
-        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
@@ -722,10 +722,10 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_pad1_input_p
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", input->get_layout().with_padding(padding{ { 0, 0, 1, 2 }, 0 })),
+        reorder("reorder", input_info("input"), input->get_layout().with_padding(padding{ { 0, 0, 1, 2 }, 0 })),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reorder", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 })
+        deconvolution("deconv", input_info("reorder"), { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 })
     );
 
     network network(engine, topology);
@@ -791,10 +791,10 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2x2_in2x2x1x1_stride2_pad1_input_padd
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", input->get_layout().with_padding(padding{ { 0, 0, 1, 2 }, 0 })),
+        reorder("reorder", input_info("input"), input->get_layout().with_padding(padding{ { 0, 0, 1, 2 }, 0 })),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reorder", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 })
+        deconvolution("deconv", input_info("reorder"), { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 })
     );
 
     network network(engine, topology, options);
@@ -853,11 +853,11 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x2_bfyx_yxfb_stride2_pad1) 
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
-        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
@@ -923,11 +923,11 @@ TYPED_TEST(deconvolution_basic, basic_f16_wsiz2x2_in2x2x1x2_bfyx_yxfb_stride2_pa
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f16),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f16),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
-        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f16)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f16)
     );
 
     network network(engine, topology, options);
@@ -994,8 +994,8 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_split2
         reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, 2, { 2, 2 }, { 1, 1 }),
-        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, 2, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
@@ -1036,11 +1036,11 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group2
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, 2, { 2, 2 }, { 1, 1 }),
-        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, 2, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
@@ -1116,9 +1116,9 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group1
     );
 
     topology.add(
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "bias" }, 16, { 2, 2 }, { 1, 1 }),
-        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32));
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "bias" }, 16, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1207,7 +1207,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group1
 
     topology.add(
         reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "bias" }, 16, { 2, 2 }, { 1, 1 }),
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "bias" }, 16, { 2, 2 }, { 1, 1 }),
         reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32));
 
     network network(engine, topology);

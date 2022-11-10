@@ -35,7 +35,7 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
     std::string originalOutName = it->first;
     DataPtr outputData = it->second;
 
-    auto inputs = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     const auto outputDesc = outputData->getTensorDesc();
     auto outputlayout = outputDesc.getLayout();
 
@@ -61,7 +61,7 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
 
     auto outLayerName = layer_type_name_ID(op);
     Precision precision = outputData->getPrecision();
-    std::string outputID = inputs[0];
+    cldnn::input_info outputID = inputs[0];
 
     if (p.use_new_shape_infer()
         // Note:: Currently Split/Variadic Split are divided to multiple crops

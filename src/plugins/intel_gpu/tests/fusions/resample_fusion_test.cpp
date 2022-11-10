@@ -93,9 +93,10 @@ TEST_P(resample_quantize, basic) {
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        resample("resample_prim", "input", p.out_shape, p.in_shape.feature[0], p.type),
-        quantize("quantize", "resample_prim", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
-        reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+        resample("resample_prim", input_info("input"), p.out_shape, p.in_shape.feature[0], p.type),
+        quantize("quantize", input_info("resample_prim"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
 
     tolerance = 1.f;
@@ -131,11 +132,11 @@ TEST_P(resample_scale_activation_eltwise, basic) {
         input_layout("input", get_input_layout(p)),
         data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
         data("eltwise_data", get_mem(get_output_layout(p), -10, 10)),
-        resample("resample_prim", "input", p.out_shape, p.in_shape.feature[0], p.type),
-        eltwise("scale", { "resample_prim", "scale_data" }, eltwise_mode::prod, data_types::f16),
-        activation("activation", "scale", activation_func::abs),
-        eltwise("eltwise", { "activation", "eltwise_data" }, eltwise_mode::sum),
-        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+        resample("resample_prim", input_info("input"), p.out_shape, p.in_shape.feature[0], p.type),
+        eltwise("scale", { input_info("resample_prim"), input_info("scale_data") }, eltwise_mode::prod, data_types::f16),
+        activation("activation", input_info("scale"), activation_func::abs),
+        eltwise("eltwise", { input_info("activation"), input_info("eltwise_data") }, eltwise_mode::sum),
+        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -175,20 +176,22 @@ TEST_P(resample_quantize_concat, along_f) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        resample("resample1", "input", p.out_shape, p.in_shape.feature[0], p.type),
+        resample("resample1", input_info("input"), p.out_shape, p.in_shape.feature[0], p.type),
         data("in_lo_1", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_hi_1", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo_1", get_mem(get_single_element_layout(p), -128)),
         data("out_hi_1", get_mem(get_single_element_layout(p), 127)),
-        quantize("quant1", "resample1", "in_lo_1", "in_hi_1", "out_lo_1", "out_hi_1", 256, data_types::i8),
-        resample("resample2", "input", p.out_shape, p.in_shape.feature[0], p.type),
+        quantize("quant1", input_info("resample1"), input_info("in_lo_1"), input_info("in_hi_1"),
+                 input_info("out_lo_1"), input_info("out_hi_1"), 256, data_types::i8),
+        resample("resample2", input_info("input"), p.out_shape, p.in_shape.feature[0], p.type),
         data("in_lo_2", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_hi_2", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo_2", get_mem(get_single_element_layout(p), -127)),
         data("out_hi_2", get_mem(get_single_element_layout(p), 127)),
-        quantize("quant2", "resample2", "in_lo_2", "in_hi_2", "out_lo_2", "out_hi_2", 255, data_types::i8),
-        concatenation("concat", { "quant1", "quant2" }, 1),
-        reorder("reorder_bfyx", "concat", cldnn::format::bfyx, p.default_type)
+        quantize("quant2", input_info("resample2"), input_info("in_lo_2"), input_info("in_hi_2"),
+                 input_info("out_lo_2"), input_info("out_hi_2"), 255, data_types::i8),
+        concatenation("concat", { input_info("quant1"), input_info("quant2") }, 1),
+        reorder("reorder_bfyx", input_info("concat"), cldnn::format::bfyx, p.default_type)
     );
 
     tolerance = 1.f;
@@ -222,18 +225,18 @@ TEST_P(resample_eltwise_concat, along_f) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        resample("resample1", "input", p.out_shape, p.in_shape.feature[0], p.type),
+        resample("resample1", input_info("input"), p.out_shape, p.in_shape.feature[0], p.type),
         data("eltwise1_shift", get_mem(get_per_channel_layout(p), -10, 10)),
         data("eltwise1_scale", get_mem(get_per_channel_layout(p), -10, 10)),
-        eltwise("eltwise1_bias", { "resample1", "eltwise1_shift" }, eltwise_mode::sum),
-        eltwise("eltwise1", { "eltwise1_bias", "eltwise1_scale" }, eltwise_mode::prod),
-        resample("resample2", "input", p.out_shape, p.in_shape.feature[0], p.type),
+        eltwise("eltwise1_bias", { input_info("resample1"), input_info("eltwise1_shift") }, eltwise_mode::sum),
+        eltwise("eltwise1", { input_info("eltwise1_bias"), input_info("eltwise1_scale") }, eltwise_mode::prod),
+        resample("resample2", input_info("input"), p.out_shape, p.in_shape.feature[0], p.type),
         data("eltwise2_shift", get_mem(get_per_channel_layout(p), -10, 10)),
         data("eltwise2_scale", get_mem(get_per_channel_layout(p), -10, 10)),
-        eltwise("eltwise2_bias", { "resample2", "eltwise2_shift" }, eltwise_mode::sum),
-        eltwise("eltwise2", { "eltwise2_bias", "eltwise2_scale" }, eltwise_mode::prod),
-        concatenation("concat", { "eltwise1", "eltwise2" }, 1),
-        reorder("reorder_bfyx", "concat", cldnn::format::bfyx, p.default_type)
+        eltwise("eltwise2_bias", { input_info("resample2"), input_info("eltwise2_shift") }, eltwise_mode::sum),
+        eltwise("eltwise2", { input_info("eltwise2_bias"), input_info("eltwise2_scale") }, eltwise_mode::prod),
+        concatenation("concat", { input_info("eltwise1"), input_info("eltwise2") }, 1),
+        reorder("reorder_bfyx", input_info("concat"), cldnn::format::bfyx, p.default_type)
     );
 
     tolerance = 1e-5f;
@@ -278,10 +281,10 @@ TEST_P(resample_eltwise_fusing_through, reshape) {
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("eltwise_data", get_mem(layout{ p.default_type, p.default_format, tensor{ 1, 1, 1, 1 } })),
-        resample("resample_prim", "input", p.out_shape, p.in_shape.feature[0], p.type),
-        reshape("reshape", "resample_prim", reshape_shape),
-        eltwise("eltwise", "reshape", "eltwise_data", eltwise_mode::prod),
-        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+        resample("resample_prim", input_info("input"), p.out_shape, p.in_shape.feature[0], p.type),
+        reshape("reshape", input_info("resample_prim"), reshape_shape),
+        eltwise("eltwise", input_info("reshape"), input_info("eltwise_data"), eltwise_mode::prod),
+        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -322,11 +325,11 @@ TEST_P(resample_eltwise_fusing_through_not_allowed, reshape_two_users) {
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("eltwise_data", get_mem(layout{ p.default_type, p.default_format, tensor{ 1, 1, 1, 1 } })),
-        resample("resample_prim", "input", p.out_shape, p.in_shape.feature[0], p.type),
-        reshape("reshape", "resample_prim", reshape_shape),
-        eltwise("eltwise", "reshape", "eltwise_data", eltwise_mode::prod),
-        eltwise("sum", "reshape", "eltwise", eltwise_mode::sum),
-        reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
+        resample("resample_prim", input_info("input"), p.out_shape, p.in_shape.feature[0], p.type),
+        reshape("reshape", input_info("resample_prim"), reshape_shape),
+        eltwise("eltwise", input_info("reshape"), input_info("eltwise_data"), eltwise_mode::prod),
+        eltwise("sum", input_info("reshape"), input_info("eltwise"), eltwise_mode::sum),
+        reorder("reorder_bfyx", input_info("sum"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;

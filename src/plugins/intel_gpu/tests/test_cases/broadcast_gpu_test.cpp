@@ -57,9 +57,9 @@ void start_broadcast_test(format cldnn_format, data_types cldnn_data_type, std::
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(reorder("reorder", "input", cldnn_format, cldnn_data_type));
-    topology.add(broadcast("broadcast", "reorder", {output_4d.at(0), output_4d.at(1), output_4d.at(3), output_4d.at(2)}, fixed_b_axes));
-    topology.add(reorder("output", "broadcast", format::bfyx, cldnn_data_type));
+    topology.add(reorder("reorder", input_info("input"), cldnn_format, cldnn_data_type));
+    topology.add(broadcast("broadcast", input_info("reorder"), {output_4d.at(0), output_4d.at(1), output_4d.at(3), output_4d.at(2)}, fixed_b_axes));
+    topology.add(reorder("output", input_info("broadcast"), format::bfyx, cldnn_data_type));
 
 
     set_values(input, input_data);
@@ -189,9 +189,9 @@ void start_broadcast_test_5d(format cldnn_format, data_types cldnn_data_type, st
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(reorder("reorder", "input", cldnn_format, cldnn_data_type));
-    topology.add(broadcast("broadcast", "reorder", { output_5d.at(0), output_5d.at(1), output_5d.at(4), output_5d.at(3), output_5d.at(2) }, fixed_b_axes));
-    topology.add(reorder("output", "broadcast", format::bfzyx, cldnn_data_type));
+    topology.add(reorder("reorder", input_info("input"), cldnn_format, cldnn_data_type));
+    topology.add(broadcast("broadcast", input_info("reorder"), { output_5d.at(0), output_5d.at(1), output_5d.at(4), output_5d.at(3), output_5d.at(2) }, fixed_b_axes));
+    topology.add(reorder("output", input_info("broadcast"), format::bfzyx, cldnn_data_type));
 
 
     set_values(input, input_data);
@@ -991,7 +991,7 @@ TEST(broadcast_gpu, basic_error_wrong_b_axes_size) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(broadcast("output", "input", tensor{2, 3, 4, 5}, {0, 1, 2, 3, 4}));
+    topology.add(broadcast("output", input_info("input"), tensor{2, 3, 4, 5}, {0, 1, 2, 3, 4}));
 
     std::string msg_to_find = "Incorrect parameters configuration: broadcast_axes size should be less or equal 4.";
     EXPECT_ANY_THROW(check_exception_massage(engine, topology, msg_to_find));
@@ -1003,7 +1003,7 @@ TEST(broadcast_gpu, basic_error_wrong_b_axis_value) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(broadcast("output", "input", tensor{2, 3, 4, 5}, {0, 4}));
+    topology.add(broadcast("output", input_info("input"), tensor{2, 3, 4, 5}, {0, 4}));
 
     std::string msg_to_find = "Incorrect parameters configuration: broadcast_axes index should be within broadcast_sizes range.";
     EXPECT_ANY_THROW(check_exception_massage(engine, topology, msg_to_find));
@@ -1015,7 +1015,7 @@ TEST(broadcast_gpu, basic_error_duplicate_b_axis_values) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(broadcast("output", "input", tensor{2, 3, 4, 5}, {0, 1, 1}));
+    topology.add(broadcast("output", input_info("input"), tensor{2, 3, 4, 5}, {0, 1, 1}));
 
     std::string msg_to_find = "Incorrect parameters configuration: Duplicate axes numbers was found in broadcast_axes.";
     EXPECT_ANY_THROW(check_exception_massage(engine, topology, msg_to_find));
@@ -1027,7 +1027,7 @@ TEST(broadcast_gpu, basic_error_wrong_input_dimension_0) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(broadcast("output", "input", tensor{2, 3, 4, 5}, {1}));
+    topology.add(broadcast("output", input_info("input"), tensor{2, 3, 4, 5}, {1}));
 
     std::string msg_to_find = "Input size on dimension number 0(=2) is not equal to: (=1)";
     EXPECT_ANY_THROW(check_exception_massage(engine, topology, msg_to_find));
@@ -1039,7 +1039,7 @@ TEST(broadcast_gpu, basic_error_not_dividable_2x3x4x5_to_3x3x4x5) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(broadcast("output", "input", tensor{3, 3, 4, 5}, {}));
+    topology.add(broadcast("output", input_info("input"), tensor{3, 3, 4, 5}, {}));
 
     std::string msg_to_find = "Invalid broadcast size: not dividable by input size";
     EXPECT_ANY_THROW(check_exception_massage(engine, topology, msg_to_find));
@@ -1051,7 +1051,7 @@ TEST(broadcast_gpu, basic_error_not_dividable_3_to_2x3x4x5_w_b_axes_0x1x3) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(broadcast("output", "input", tensor{2, 3, 4, 5}, {0, 1, 3}));
+    topology.add(broadcast("output", input_info("input"), tensor{2, 3, 4, 5}, {0, 1, 3}));
 
     std::string msg_to_find = "Invalid broadcast size: not dividable by input size";
     EXPECT_ANY_THROW(check_exception_massage(engine, topology, msg_to_find));
@@ -1063,7 +1063,7 @@ TEST(broadcast_gpu, basic_error_not_dividable_4x5_to_3x4x5_w_b_axes_1) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(broadcast("output", "input", tensor{2, 3, 4, 5}, {1}));
+    topology.add(broadcast("output", input_info("input"), tensor{2, 3, 4, 5}, {1}));
 
     std::string msg_to_find = "Invalid broadcast size: not dividable by input size";
     EXPECT_ANY_THROW(check_exception_massage(engine, topology, msg_to_find));

@@ -46,8 +46,8 @@ TEST_P(non_max_suppression_test, shape_infer) {
     set_values(data_mem, {p.max_output_boxes_per_class});
     auto data_prim = std::make_shared<data>("const", data_mem);
     auto non_max_suppression_prim = std::make_shared<non_max_suppression>("output",
-                                                                          "input0",
-                                                                          "input1",
+                                                                          p.inputs[0],
+                                                                          p.inputs[1],
                                                                           p.selected_indices_num,
                                                                           p.center_point_box,
                                                                           p.sort_result_descending,
@@ -57,7 +57,6 @@ TEST_P(non_max_suppression_test, shape_infer) {
                                                                           primitive_id(),
                                                                           primitive_id(),
                                                                           primitive_id(),
-                                                                          p.inputs,
                                                                           p.num_outputs);
 
     cldnn::program prog(engine);
