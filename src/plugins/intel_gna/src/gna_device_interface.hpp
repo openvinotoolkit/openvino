@@ -69,9 +69,9 @@ public:
     virtual uint32_t maxLayersCount() const = 0;
 
     /**
-     * @brief Stop the activities. Usually used just prior destructor is called.
+     * @brief close the device.
      **/
-    virtual void stop() {}
+    virtual void close() {}
 };
 
 }  // namespace GNAPluginNS

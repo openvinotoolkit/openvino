@@ -548,26 +548,22 @@ void GNADeviceHelper::open() {
     deviceOpened = true;
 }
 
-void GNADeviceHelper::stop() {
-    using UnwReqIt = std::pair<bool, UnwaitedRequestIds::value_type>;
-
-    auto firstId = [this]() {
-        std::unique_lock<std::mutex> lockGnaCalls{acrossPluginsSync};
-        auto it = unwaitedRequestIds.begin();
-        return (it == unwaitedRequestIds.end()) ? UnwReqIt(false, 0) : UnwReqIt(true, *it);
-    };
-
-    UnwReqIt it;
-    while ((it = firstId()).first)
-        try {
-            waitForRequest(it.second);
-        } catch (...) {
-            log::warning() << "Request with Id " << it.second << " was not awaited successfully";
-        }
-}
-
 void GNADeviceHelper::close() {
-    stop();
+    if (!deviceOpened)
+        return;
+
+    acrossPluginsSync.lock();
+    auto requestsToClose = unwaitedRequestIds;
+    acrossPluginsSync.unlock();
+
+    for (auto requestId : requestsToClose)
+        try {
+            if (waitForRequest(requestId) == GNAPluginNS::RequestStatus::kPending)
+                log::warning() << "Request with Id " << requestId << " is still pending";
+        } catch (...) {
+            log::warning() << "Request with Id " << requestId << " was not awaited successfully";
+        }
+
     std::unique_lock<std::mutex> lockGnaCalls{acrossPluginsSync};
     const auto status = Gna2DeviceClose(nGnaDeviceIndex);
     const auto message = checkGna2Status(status, "Gna2DeviceClose", true);

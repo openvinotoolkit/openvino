@@ -163,12 +163,14 @@ public:
      */
      uint32_t maxLayersCount() const override;
 
-     void stop() override;
+     /**
+      * @brief close the device
+      **/
+     void close() override;
 
  private:
      void open();
 
-     void close();
      uint32_t retrieveMaxLayersCount();
 
      static std::string getGnaLibraryVersionPrivate();
