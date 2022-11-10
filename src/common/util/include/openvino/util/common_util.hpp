@@ -118,6 +118,5 @@ bool contains(const std::vector<T, A>& vec, const V& v) {
         return x == v;
     });
 }
-
 }  // namespace util
 }  // namespace ov
