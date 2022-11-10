@@ -96,6 +96,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
     Xbyak::Label loop_mask;
     Xbyak::Label l_mask;
     {
+//        StackAllocator::Transaction transaction{allocator};
         StackAllocator::Address vmm_anchor_mask_addr{allocator, vmm_reg_size_in_bytes};
         StackAllocator::Address vmm_ww_addr{allocator, vmm_reg_size_in_bytes};
         StackAllocator::Address vmm_hh_addr{allocator, vmm_reg_size_in_bytes};
@@ -116,6 +117,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
         StackAllocator::Address vmm_img_h_addr{allocator, vmm_reg_size_in_bytes};
         StackAllocator::Address reg_0_0_addr{allocator, sizeof(float)};
         StackAllocator::Address vmm_0_0_addr{allocator, vmm_reg_size_in_bytes};
+//        transaction.commit();
 
         L(anchor_loop);
         {
@@ -136,9 +138,9 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
             not_available_vmm = {vmm_x0, vmm_y0, vmm_x1, vmm_y1};
 
             // Prepare indexes
-            Vmm vmm_anchor_idx = this->get_free_vmm<Vmm>(not_available_vmm);
-            Vmm vmm_anchor_anchor_offset = this->get_free_vmm<Vmm>(not_available_vmm);
-            Vmm vmm_anchor_idx_offset = this->get_free_vmm<Vmm>(not_available_vmm);
+            Vmm vmm_anchor_idx = this->get_free_reg<Vmm>(not_available_vmm);
+            Vmm vmm_anchor_anchor_offset = this->get_free_reg<Vmm>(not_available_vmm);
+            Vmm vmm_anchor_idx_offset = this->get_free_reg<Vmm>(not_available_vmm);
             uni_vbroadcastss(vmm_anchor_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchor_start_idx)]);
             uni_vbroadcastss(vmm_anchor_anchor_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchor_anchor_offset)]);
             uni_vbroadcastss(vmm_anchor_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchor_idx_offset)]);
@@ -147,7 +149,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
             uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_anchor_offset);
 
             // Prepare mask
-            Vmm vmm_anchor_mask = this->get_free_vmm<Vmm>(not_available_vmm);
+            Vmm vmm_anchor_mask = this->get_free_reg<Vmm>(not_available_vmm);
             mov(rax.cvt32(), this->SIMD_WIDTH);
             sub(rax, reg_anchors_chunk);
             add(rax, 16);
@@ -158,19 +160,19 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
 
             {
                 // float x0 = anchors[a_idx + 0 * a_idx_offset];
-                this->uni_vgatherdps(vmm_x0, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
+                uni_vgatherdps(vmm_x0, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), 0, vmm_anchor_mask);
                 // float y0 = anchors[a_idx + 1 * a_idx_offset];
                 uni_vmovdqu(vmm_anchor_mask, vmm_anchor_mask_addr);
                 uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_idx_offset);
-                this->uni_vgatherdps(vmm_y0, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
+                uni_vgatherdps(vmm_y0, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), 0, vmm_anchor_mask);
                 // float x1 = anchors[a_idx + 2 * a_idx_offset];
                 uni_vmovdqu(vmm_anchor_mask, vmm_anchor_mask_addr);
                 uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_idx_offset);
-                this->uni_vgatherdps(vmm_x1, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
+                uni_vgatherdps(vmm_x1, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), 0, vmm_anchor_mask);
                 // float y1 = anchors[a_idx + 3 * a_idx_offset];
                 uni_vmovdqu(vmm_anchor_mask, vmm_anchor_mask_addr);
                 uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_idx_offset);
-                this->uni_vgatherdps(vmm_y1, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
+                uni_vgatherdps(vmm_y1, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), 0, vmm_anchor_mask);
             }
 
             /** @code
@@ -185,9 +187,9 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
                                  vmm_dx, vmm_dy, vmm_d_log_w, vmm_d_log_h};
 
             // Prepare indexes
-            Vmm vmm_delta_idx = this->get_free_vmm<Vmm>(not_available_vmm);
-            Vmm vmm_delta_anchor_offset = this->get_free_vmm<Vmm>(not_available_vmm);
-            Vmm vmm_delta_idx_offset = this->get_free_vmm<Vmm>(not_available_vmm);
+            Vmm vmm_delta_idx = this->get_free_reg<Vmm>(not_available_vmm);
+            Vmm vmm_delta_anchor_offset = this->get_free_reg<Vmm>(not_available_vmm);
+            Vmm vmm_delta_idx_offset = this->get_free_reg<Vmm>(not_available_vmm);
             uni_vbroadcastss(vmm_delta_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_start_idx)]);
             uni_vbroadcastss(vmm_delta_anchor_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_anchor_offset)]);
             uni_vbroadcastss(vmm_delta_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_idx_offset)]);
@@ -196,29 +198,29 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
             uni_vpaddd(vmm_delta_idx, vmm_delta_idx, vmm_delta_anchor_offset);
 
             // Prepare mask
-            Vmm vmm_delta_mask = this->get_free_vmm<Vmm>(not_available_vmm);
+            Vmm vmm_delta_mask = this->get_free_reg<Vmm>(not_available_vmm);
             uni_vmovdqu(vmm_delta_mask, vmm_anchor_mask_addr);
 
             {
                 // const float dx = deltas[d_idx + 0 * d_idx_offset];
-                this->uni_vgatherdps(vmm_dx, reg_deltas_ptr, vmm_delta_idx, sizeof(float), vmm_delta_mask);
+                uni_vgatherdps(vmm_dx, reg_deltas_ptr, vmm_delta_idx, sizeof(float), 0, vmm_delta_mask);
                 // const float dy = deltas[d_idx + 1 * d_idx_offset];
                 uni_vmovdqu(vmm_delta_mask, vmm_anchor_mask_addr);
                 uni_vpaddd(vmm_delta_idx, vmm_delta_idx, vmm_delta_idx_offset);
-                this->uni_vgatherdps(vmm_dy, reg_deltas_ptr, vmm_delta_idx, sizeof(float), vmm_delta_mask);
+                uni_vgatherdps(vmm_dy, reg_deltas_ptr, vmm_delta_idx, sizeof(float), 0, vmm_delta_mask);
                 // const float d_log_w = deltas[d_idx + 2 * d_idx_offset];
                 uni_vmovdqu(vmm_delta_mask, vmm_anchor_mask_addr);
                 uni_vpaddd(vmm_delta_idx, vmm_delta_idx, vmm_delta_idx_offset);
-                this->uni_vgatherdps(vmm_d_log_w, reg_deltas_ptr, vmm_delta_idx, sizeof(float), vmm_delta_mask);
+                uni_vgatherdps(vmm_d_log_w, reg_deltas_ptr, vmm_delta_idx, sizeof(float), 0, vmm_delta_mask);
                 // const float d_log_h = deltas[d_idx + 3 * d_idx_offset];
                 uni_vmovdqu(vmm_delta_mask, vmm_anchor_mask_addr);
                 uni_vpaddd(vmm_delta_idx, vmm_delta_idx, vmm_delta_idx_offset);
-                this->uni_vgatherdps(vmm_d_log_h, reg_deltas_ptr, vmm_delta_idx, sizeof(float), vmm_delta_mask);
+                uni_vgatherdps(vmm_d_log_h, reg_deltas_ptr, vmm_delta_idx, sizeof(float), 0, vmm_delta_mask);
             }
 
             not_available_vmm = {vmm_x0, vmm_y0, vmm_x1, vmm_y1,
                                  vmm_dx, vmm_dy, vmm_d_log_w, vmm_d_log_h};
-            Vmm vmm_temp = this->get_free_vmm<Vmm>(not_available_vmm);
+            Vmm vmm_temp = this->get_free_reg<Vmm>(not_available_vmm);
 
             /** @code
                 // width & height of box
@@ -382,9 +384,9 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
             not_available_vmm = {vmm_x0, vmm_y0, vmm_x1, vmm_y1};
 
             // Prepare indexes
-            Vmm vmm_proposals_idx = this->get_free_vmm<Vmm>(not_available_vmm);
-            Vmm vmm_proposals_anchor_offset = this->get_free_vmm<Vmm>(not_available_vmm);
-            Vmm vmm_proposals_idx_offset = this->get_free_vmm<Vmm>(not_available_vmm);
+            Vmm vmm_proposals_idx = this->get_free_reg<Vmm>(not_available_vmm);
+            Vmm vmm_proposals_anchor_offset = this->get_free_reg<Vmm>(not_available_vmm);
+            Vmm vmm_proposals_idx_offset = this->get_free_reg<Vmm>(not_available_vmm);
             uni_vbroadcastss(vmm_proposals_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposal_start_idx)]);
             uni_vbroadcastss(vmm_proposals_anchor_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposal_anchor_offset)]);
             uni_vbroadcastss(vmm_proposals_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposal_idx_offset)]);
@@ -393,34 +395,34 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
             uni_vpaddd(vmm_proposals_idx, vmm_proposals_idx, vmm_proposals_anchor_offset);
 
             // Prepare mask
-            Vmm vmm_proposals_mask = this->get_free_vmm<Vmm>(not_available_vmm);
+            Vmm vmm_proposals_mask = this->get_free_reg<Vmm>(not_available_vmm);
             uni_vmovdqu(vmm_proposals_mask, vmm_anchor_mask_addr);
 
             {
                 // proposals[p_idx + 0] = x0;
-                uni_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), vmm_x0, vmm_proposals_mask);
+                uni_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), 0, vmm_x0, vmm_proposals_mask);
                 // proposals[p_idx + 1] = y0;
                 uni_vmovdqu(vmm_proposals_mask, vmm_anchor_mask_addr);
                 uni_vpaddd(vmm_proposals_idx, vmm_proposals_idx, vmm_proposals_idx_offset);
-                uni_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), vmm_y0, vmm_proposals_mask);
+                uni_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), 0, vmm_y0, vmm_proposals_mask);
                 // proposals[p_idx + 2] = x1;
                 uni_vmovdqu(vmm_proposals_mask, vmm_anchor_mask_addr);
                 uni_vpaddd(vmm_proposals_idx, vmm_proposals_idx, vmm_proposals_idx_offset);
-                uni_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), vmm_x1, vmm_proposals_mask);
+                uni_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), 0, vmm_x1, vmm_proposals_mask);
                 // proposals[p_idx + 3] = y1;
                 uni_vmovdqu(vmm_proposals_mask, vmm_anchor_mask_addr);
                 uni_vpaddd(vmm_proposals_idx, vmm_proposals_idx, vmm_proposals_idx_offset);
-                uni_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), vmm_y1, vmm_proposals_mask);
+                uni_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), 0, vmm_y1, vmm_proposals_mask);
             }
 
             /** @code
                 const float score = scores[score_idx(anchor, 0, h, w)];
              */
-            Vmm vmm_score = this->get_free_vmm<Vmm>(not_available_vmm);
+            Vmm vmm_score = this->get_free_reg<Vmm>(not_available_vmm);
 
             // Prepare indexes
-            Vmm vmm_score_idx = this->get_free_vmm<Vmm>(not_available_vmm);
-            Vmm vmm_score_anchor_offset = this->get_free_vmm<Vmm>(not_available_vmm);
+            Vmm vmm_score_idx = this->get_free_reg<Vmm>(not_available_vmm);
+            Vmm vmm_score_anchor_offset = this->get_free_reg<Vmm>(not_available_vmm);
             uni_vbroadcastss(vmm_score_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, score_start_idx)]);
             uni_vbroadcastss(vmm_score_anchor_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, score_anchor_offset)]);
             mov(rbx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, refine_anchor_indices)]);
@@ -428,12 +430,12 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
             uni_vpaddd(vmm_score_idx, vmm_score_idx, vmm_score_anchor_offset);
 
             // Prepare mask
-            Vmm vmm_score_mask = this->get_free_vmm<Vmm>(not_available_vmm);
+            Vmm vmm_score_mask = this->get_free_reg<Vmm>(not_available_vmm);
             uni_vmovdqu(vmm_score_mask, vmm_anchor_mask_addr);
 
             {
                 // const float score = scores[score_idx(anchor, 0, h, w)];
-                this->uni_vgatherdps(vmm_score, reg_scores_ptr, vmm_score_idx, sizeof(float), vmm_score_mask);
+                uni_vgatherdps(vmm_score, reg_scores_ptr, vmm_score_idx, sizeof(float), 0, vmm_score_mask);
             }
 
             /** @code
@@ -446,7 +448,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
                 // proposals[p_idx + 4] = score;
                 uni_vmovdqu(vmm_proposals_mask, vmm_anchor_mask_addr);
                 uni_vpaddd(vmm_proposals_idx, vmm_proposals_idx, vmm_proposals_idx_offset);
-                uni_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), vmm_score, vmm_proposals_mask);
+                uni_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), 0, vmm_score, vmm_proposals_mask);
             }
 
             /** @code
@@ -454,10 +456,10 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
                 const float box_w = x1 - x0 + coordinates_offset;
                 const float box_h = y1 - y0 + coordinates_offset;
              */
-            Vmm vmm_box_w = this->get_free_vmm<Vmm>(not_available_vmm);
-            Vmm vmm_box_h = this->get_free_vmm<Vmm>(not_available_vmm);
-            Vmm vmm_min_box_w = this->get_free_vmm<Vmm>(not_available_vmm);
-            Vmm vmm_min_box_h = this->get_free_vmm<Vmm>(not_available_vmm);
+            Vmm vmm_box_w = this->get_free_reg<Vmm>(not_available_vmm);
+            Vmm vmm_box_h = this->get_free_reg<Vmm>(not_available_vmm);
+            Vmm vmm_min_box_w = this->get_free_reg<Vmm>(not_available_vmm);
+            Vmm vmm_min_box_h = this->get_free_reg<Vmm>(not_available_vmm);
 
             // const float box_w = x1 - x0 + coordinates_offset;
             uni_vsubps(vmm_box_w, vmm_x1, vmm_x0);
@@ -482,7 +484,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
                 // proposals[p_idx + 5] = (min_box_w <= box_w) * (min_box_h <= box_h) * 1.0;
                 uni_vmovdqu(vmm_proposals_mask, vmm_anchor_mask_addr);
                 uni_vpaddd(vmm_proposals_idx, vmm_proposals_idx, vmm_proposals_idx_offset);
-                uni_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), vmm_box_h, vmm_proposals_mask);
+                uni_vscatterdps(reg_proposals_ptr, vmm_proposals_idx, sizeof(float), 0, vmm_box_h, vmm_proposals_mask);
             }
 
             this->update_input_output_ptrs();

@@ -134,7 +134,8 @@ void refine_anchors(const float* deltas, const float* scores, const float* ancho
 
             // adjust new corner locations to be within the image region,
             x0 = std::max<float>(0.0f, std::min<float>(x0, img_W - coordinates_offset));
-            y0 = std::max<float>(0.0f, std::min<float>(y0, img_H - coordinates_offset));
+            auto t = std::min<float>(y0, img_H - coordinates_offset);
+            y0 = std::max<float>(0.0f, t);
             x1 = std::max<float>(0.0f, std::min<float>(x1, img_W - coordinates_offset));
             y1 = std::max<float>(0.0f, std::min<float>(y1, img_H - coordinates_offset));
 
@@ -175,7 +176,7 @@ void refine_anchors_jit(const jit_refine_anchors_kernel& refine_anchors_kernel,
     uint32_t proposal_anchor_offset = proposal_idx(0, 0, 1, 0) - proposal_idx(0, 0, 0, 0);
     uint32_t proposal_idx_offset    = proposal_idx(0, 0, 0, 1) - proposal_idx(0, 0, 0, 0);
 
-    seq::parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
+    parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
         const uint32_t anchor_start_idx = anchor_idx(h, w, 0, 0);
         const uint32_t delta_start_idx = delta_idx(0, 0, h, w);
         const uint32_t score_start_idx = score_idx(0, 0, h, w);
@@ -291,20 +292,6 @@ GenerateProposals::GenerateProposals
     }
 
     if (op->output(0).get_element_type() == ov::element::f32) {
-        jit_nms_conf nms_jcp {post_nms_topn_, nms_thresh_, coordinates_offset_};
-        if (mayiuse(x64::avx512_core)) {
-            nms_kernel_.reset(new jit_nms_kernel_fp32<x64::avx512_core>{nms_jcp});
-        } else if (mayiuse(x64::avx2)) {
-            nms_kernel_.reset(new jit_nms_kernel_fp32<x64::avx2>{nms_jcp});
-        } else if (mayiuse(x64::sse41)) {
-            nms_kernel_.reset(new jit_nms_kernel_fp32<x64::sse41>{nms_jcp});
-        }
-        if (nms_kernel_) {
-            nms_kernel_->create_kernel();
-        }
-    }
-
-    if (op->output(0).get_element_type() == ov::element::f32) {
         int32_t anchors_chunk = 0;
         if (mayiuse(x64::avx512_core)) {
             refine_anchors_kernel_.reset(new jit_refine_anchors_kernel_fp32<x64::avx512_core>{
@@ -320,6 +307,21 @@ GenerateProposals::GenerateProposals
             refine_anchors_kernel_->create_kernel();
         }
     }
+
+    if (op->output(0).get_element_type() == ov::element::f32) {
+        jit_nms_conf nms_jcp {post_nms_topn_, nms_thresh_, coordinates_offset_};
+        if (mayiuse(x64::avx512_core)) {
+            nms_kernel_.reset(new jit_nms_kernel_fp32<x64::avx512_core>{nms_jcp});
+        } else if (mayiuse(x64::avx2)) {
+            nms_kernel_.reset(new jit_nms_kernel_fp32<x64::avx2>{nms_jcp});
+        } else if (mayiuse(x64::sse41)) {
+            nms_kernel_.reset(new jit_nms_kernel_fp32<x64::sse41>{nms_jcp});
+        }
+        if (nms_kernel_) {
+            nms_kernel_->create_kernel();
+        }
+    }
+
 }
 
 void GenerateProposals::initSupportedPrimitiveDescriptors() {
@@ -378,7 +380,7 @@ void GenerateProposals::execute(dnnl::stream strm) {
         // Prepare memory
         const float *p_deltas_item  = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_DELTAS)->getMemoryPtr()->GetPtr());
         const float *p_scores_item  = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_SCORES)->getMemoryPtr()->GetPtr());
-        const float *p_anchors_item = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ANCHORS)->getMemoryPtr()->GetPtr());
+        [[maybe_unused]]const float *p_anchors_item = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ANCHORS)->getMemoryPtr()->GetPtr());
         const float *p_img_info_cpu = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_IM_INFO)->getMemoryPtr()->GetPtr());
 
         const int anchors_num = scoreDims[1];
@@ -407,8 +409,26 @@ void GenerateProposals::execute(dnnl::stream strm) {
             float y1;
             float score;
             float keep;
+
+            bool compare_float(float x, float y, float epsilon = 0.01f) const {
+                return fabs(x - y) < epsilon;
+            }
+
+            bool operator==(const ProposalBox &rhs) const {
+                return compare_float(x0, rhs.x0, 0.01f) &&
+                       compare_float(y0, rhs.y0, 0.01f) &&
+                       compare_float(x1, rhs.x1, 0.01f) &&
+                       compare_float(y1, rhs.y1, 0.01f) &&
+                       compare_float(score, rhs.score, 0.01f) &&
+                       compare_float(keep, rhs.keep, 0.01f);
+            }
+
+            bool operator!=(const ProposalBox &rhs) const {
+                return !(rhs == *this);
+            }
         };
         std::vector<ProposalBox> proposals_(num_proposals);
+        std::vector<ProposalBox> cpu_proposals_(num_proposals);
         std::vector<float> unpacked_boxes(5 * pre_nms_topn);
         std::vector<int> is_dead(pre_nms_topn);
 
@@ -422,8 +442,8 @@ void GenerateProposals::execute(dnnl::stream strm) {
         const auto roi_num_item_size = roi_num_type == Precision::I32 ? sizeof(int32_t) : sizeof(int64_t);
         for (size_t n = 0; n < batch_size; ++n) {
             // input image height & width
-            const float img_H = p_img_info_cpu[0];
-            const float img_W = p_img_info_cpu[1];
+            [[maybe_unused]]const float img_H = p_img_info_cpu[0];
+            [[maybe_unused]]const float img_W = p_img_info_cpu[1];
             // scale factor for height & width
             float scale_h = 1.0;
             float scale_w = 1.0;
@@ -435,10 +455,11 @@ void GenerateProposals::execute(dnnl::stream strm) {
                 scale_w = p_img_info_cpu[3];
             }
             // minimum box width & height
-            const float min_box_H = min_size_ * scale_h;
-            const float min_box_W = min_size_ * scale_w;
+            [[maybe_unused]]const float min_box_H = min_size_ * scale_h;
+            [[maybe_unused]]const float min_box_W = min_size_ * scale_w;
 
-//            refine_anchors_kernel_.reset();
+//            auto start = high_resolution_clock::now();
+            refine_anchors_kernel_.reset();
             if (refine_anchors_kernel_) {
                 refine_anchors_jit(
                         *refine_anchors_kernel_,
@@ -453,6 +474,16 @@ void GenerateProposals::execute(dnnl::stream strm) {
                         static_cast<const float>(log(1000. / 16.)),
                         coordinates_offset_
                 );
+//                refine_anchors(
+//                        p_deltas_item, p_scores_item, p_anchors_item,
+//                        reinterpret_cast<float *>(&cpu_proposals_[0]),
+//                        anchors_num,
+//                        bottom_H, bottom_W,
+//                        img_H, img_W,
+//                        min_box_H, min_box_W,
+//                        static_cast<const float>(log(1000. / 16.)),
+//                        coordinates_offset_
+//                );
             } else {
                 refine_anchors(
                     p_deltas_item, p_scores_item, p_anchors_item,
@@ -465,6 +496,10 @@ void GenerateProposals::execute(dnnl::stream strm) {
                     coordinates_offset_
                 );
             }
+//            auto stop = high_resolution_clock::now();
+//            auto duration = duration_cast<microseconds>(stop - start);
+//            std::cout << "refine_anchors in ms:" << duration.count() << std::endl;
+
             std::partial_sort(proposals_.begin(), proposals_.begin() + pre_nms_topn, proposals_.end(),
                               [](const ProposalBox &struct1, const ProposalBox &struct2) {
                                   return (struct1.score > struct2.score);

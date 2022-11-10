@@ -26,7 +26,6 @@ using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::cpu::x64::eltwise_injector;
 
 struct jit_refine_anchors_conf {
-    int32_t anchors_chunk;
 };
 
 struct jit_refine_anchors_call_args {
@@ -65,19 +64,10 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
  public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_refine_anchors_kernel_fp32)
 
-    static constexpr auto KERNEL_ELEMENT_TYPE = ov::element::Type_t::f32;
-
-    using Vmm = typename jit_kernel_traits<isa, KERNEL_ELEMENT_TYPE>::Vmm;
-    static constexpr unsigned VCMPPS_LE = 0x02;
-    static constexpr unsigned VCMPPS_GT = 0x0e;
-//    using Vmm = Xbyak::Xmm;
-    static constexpr unsigned XMM_SIMD_WIDTH = 16 / sizeof(typename ov::element_type_traits<KERNEL_ELEMENT_TYPE>::value_type);
-    static constexpr unsigned YMM_SIMD_WIDTH = 32 / sizeof(typename ov::element_type_traits<KERNEL_ELEMENT_TYPE>::value_type);
-    static constexpr unsigned ZMM_SIMD_WIDTH = 64 / sizeof(typename ov::element_type_traits<KERNEL_ELEMENT_TYPE>::value_type);
-    static constexpr unsigned DTYPE_SIZE = sizeof(typename ov::element_type_traits<KERNEL_ELEMENT_TYPE>::value_type);
-    static constexpr unsigned SIMD_WIDTH = jit_kernel_traits<isa, KERNEL_ELEMENT_TYPE>::SIMD_WIDTH;
-//    static constexpr unsigned SIMD_WIDTH = XMM_SIMD_WIDTH;
-
+    using Vmm = typename jit_kernel_traits<isa, ov::element::Type_t::f32>::Vmm;
+    static constexpr unsigned VCMPPS_LE = jit_kernel_traits<isa, ov::element::Type_t::f32>::VCMPPS_LE;
+    static constexpr unsigned VCMPPS_GT = jit_kernel_traits<isa, ov::element::Type_t::f32>::VCMPPS_GT;
+    static constexpr unsigned SIMD_WIDTH = jit_kernel_traits<isa, ov::element::Type_t::f32>::SIMD_WIDTH;
 
     jit_refine_anchors_kernel_fp32(const jit_refine_anchors_conf &jqp)
         : jit_refine_anchors_kernel(isa, jqp) {}
@@ -85,202 +75,7 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
     void generate() override;
 
  private:
-//    const size_t xmm_len = 16;
-    
     void update_input_output_ptrs();
-
-//    inline void push_xmm(const Xbyak::Xmm &xmm) {
-//        sub(rsp, xmm_len);
-//        uni_vmovdqu(ptr[rsp], xmm);
-//    }
-//
-//    inline void push_xmm(const std::vector<Xbyak::Xmm> &xmms) {
-//        sub(rsp, xmms.size() * xmm_len);
-//        for (size_t i = 0; i < xmms.size(); ++i) {
-//            uni_vmovdqu(ptr[rsp + i * xmm_len], xmms[i]);
-//        }
-//    }
-//
-//    inline void pop_xmm(const Xbyak::Xmm &xmm) {
-//        uni_vmovdqu(xmm, ptr[rsp]);
-//        add(rsp, xmm_len);
-//    }
-//
-//    inline void pop_xmm(const std::vector<Xbyak::Xmm> &xmms) {
-//        for (size_t i = 0; i < xmms.size(); ++i) {
-//            uni_vmovdqu(xmms[i], ptr[rsp + i * xmm_len]);
-//        }
-//        sub(rsp, xmms.size() * xmm_len);
-//    }
-
-    template<typename Tmm>
-    inline Tmm get_free_vmm_const(const std::vector<Xbyak::Xmm>& not_available) {
-        static_assert(std::is_base_of<Xbyak::Xmm, Tmm>::value, "Xbyak::Xmm should be base of Tmm");
-        std::vector<int> xmm_idxs{
-                xmm0.getIdx(), xmm1.getIdx(), xmm2.getIdx(), xmm3.getIdx(), xmm4.getIdx(), xmm5.getIdx(), xmm6.getIdx(), xmm7.getIdx(),
-#ifdef XBYAK64
-                xmm8.getIdx(), xmm9.getIdx(), xmm10.getIdx(), xmm11.getIdx(), xmm12.getIdx(), xmm13.getIdx(), xmm14.getIdx(), xmm15.getIdx()
-#endif
-        };
-        std::vector<int> not_available_idx(not_available.size());
-        std::transform(not_available.begin(), not_available.end(), not_available_idx.begin(),
-                       [](const Xbyak::Xmm& xmm) {
-                           return xmm.getIdx();
-                       });
-        auto removed = std::remove_if(xmm_idxs.begin(), xmm_idxs.end(),
-                                      [&not_available_idx](const int& xmm_idx) {
-                                          return not_available_idx.end() != std::find(not_available_idx.begin(), not_available_idx.end(), xmm_idx);
-                                      });
-        xmm_idxs.erase(removed, xmm_idxs.end());
-        return Tmm{xmm_idxs.front()};
-    }
-
-    template<typename Tmm>
-    inline Tmm get_free_vmm(std::vector<Xbyak::Xmm>& not_available) {
-        auto available_tmm = this->get_free_vmm_const<Tmm>(not_available);
-        not_available.push_back(available_tmm);
-        return available_tmm;
-    }
-
-    template<typename TReg>
-    inline TReg get_free_reg_const(const std::vector<Xbyak::Reg>& not_available) {
-        static_assert(std::is_base_of<Xbyak::Reg, TReg>::value, "Reg::Reg should be base of Tmm");
-        std::vector<int> reg_idxs{
-                rax.getIdx(), rcx.getIdx(), rdx.getIdx(), rbx.getIdx(), /*rsp,*/ rbp.getIdx(), rsi.getIdx(), rdi.getIdx(),
-                r8.getIdx(), r9.getIdx(), r10.getIdx(), r11.getIdx(), r12.getIdx(), r13.getIdx(), r14.getIdx(), r15.getIdx()
-        };
-        std::vector<int> not_available_idx(not_available.size());
-        std::transform(not_available.begin(), not_available.end(), not_available_idx.begin(),
-                       [](const Xbyak::Reg& reg) {
-                           return reg.getIdx();
-                       });
-        auto removed = std::remove_if(reg_idxs.begin(), reg_idxs.end(),
-                                      [&not_available_idx](const int& reg_idx) {
-                                          return not_available_idx.end() != std::find(not_available_idx.begin(), not_available_idx.end(), reg_idx);
-                                      });
-        reg_idxs.erase(removed, reg_idxs.end());
-        return TReg{reg_idxs.front()};
-    }
-
-    template<typename Tmm>
-    inline Tmm get_free_reg(std::vector<Xbyak::Reg>& not_available) {
-        auto available_reg = this->get_free_reg_const<Tmm>(not_available);
-        not_available.push_back(available_reg);
-        return available_reg;
-    }
-
-    inline void uni_vgatherdps(const Xbyak::Xmm &xmm_val,
-                               const Xbyak::Reg64 &reg_addr,
-                               const Xbyak::Xmm &xmm_index,
-                               const int &scale,
-                               const Xbyak::Reg &reg_mask) {
-        assert(scale != 0);
-        const size_t scale_remainder = scale % 4;
-        if (mayiuse(cpu_isa_t::avx512_core) && (0 == scale_remainder)) {
-            assert(reg_mask.isOPMASK());
-            vgatherdps(xmm_val, ptr[reg_addr + xmm_index * scale]);
-        } else if (mayiuse(cpu_isa_t::avx2) && (0 == scale_remainder)) {
-            assert(reg_mask.isYMM());
-            Xbyak::Ymm ymm_mask{reg_mask.getIdx()};
-            vgatherdps(xmm_val, ptr[reg_addr + xmm_index * scale], ymm_mask);
-        } else {
-            assert(reg_mask.isXMM());
-            Xbyak::Xmm xmm_mask{reg_mask.getIdx()};
-            assert(xmm_val.getKind() == xmm_index.getKind());
-            assert(xmm_index.getKind() == xmm_mask.getKind());
-
-            std::vector<Xbyak::Reg> not_available_reg{reg_addr};
-            const Xbyak::Reg64 idx = this->get_free_reg<Xbyak::Reg64>(not_available_reg);
-            const Xbyak::Reg64 mask = this->get_free_reg<Xbyak::Reg64>(not_available_reg);
-
-            push(idx);
-            push(mask);
-            xor_(idx, idx);
-            xor_(mask, mask);
-
-            for (int i = 0; i < SIMD_WIDTH; i++) {
-                Xbyak::Label gather_end;
-                uni_vpextrd(mask.cvt32(), xmm_mask, i);
-                cmp(mask.cvt32(), 0xFFFFFFFF);
-                jne(gather_end, T_NEAR);
-                uni_vpextrd(idx.cvt32(), xmm_index, i);
-                Xbyak::Address addr = ptr[reg_addr + idx * scale];
-                switch (scale) {
-                    case 8: uni_vpinsrq(xmm_val, xmm_val, addr, i); break;
-                    case 4: uni_vpinsrd(xmm_val, xmm_val, addr, i); break;
-                    case 2: uni_vpinsrw(xmm_val, xmm_val, addr, i); break;
-                    case 1: uni_vpinsrb(xmm_val, xmm_val, addr, i); break;
-                    default: IE_THROW() << "The data type of size '" << scale << "' is not supported.";
-                }
-                L(gather_end);
-            }
-            pop(mask);
-            pop(idx);
-        }
-    }
-
-    inline void uni_vscatterdps(const Xbyak::Reg64 &reg_addr,
-                                const Xbyak::Xmm &xmm_index,
-                                const int &scale,
-                                const Xbyak::Xmm &xmm_val,
-                                const Xbyak::Reg &reg_mask) {
-        assert(scale != 0);
-        const size_t scale_remainder = scale % 4;
-        if (mayiuse(cpu_isa_t::avx512_core) && (0 == scale_remainder)) {
-            assert(reg_mask.isOPMASK());
-            vscatterdps(ptr[reg_addr + xmm_index * scale], xmm_val);
-        } else {
-            assert(reg_mask.isXMM() || reg_mask.isYMM());
-            Vmm xmm_mask{reg_mask.getIdx()};
-            assert(xmm_val.getKind() == xmm_index.getKind());
-            assert(xmm_index.getKind() == xmm_mask.getKind());
-
-            std::vector<Xbyak::Reg> not_available_reg{reg_addr};
-            std::vector<Xbyak::Xmm> not_available_xmm{xmm_index, xmm_val, xmm_mask};
-            const Xbyak::Reg64 idx = this->get_free_reg<Xbyak::Reg64>(not_available_reg);
-            const Xbyak::Reg64 mask = this->get_free_reg<Xbyak::Reg64>(not_available_reg);
-            const Xbyak::Reg64 val = this->get_free_reg<Xbyak::Reg64>(not_available_reg);
-            const Xbyak::Xmm xmm_val_temp = this->get_free_vmm<Xbyak::Xmm>(not_available_xmm);
-
-            push(idx);
-            push(mask);
-            push(val);
-            push_vmm(Vmm{xmm_val_temp.getIdx()});
-            xor_(idx, idx);
-            xor_(mask, mask);
-            xor_(val, val);
-
-            auto extract_xmm = [this](const Xbyak::Reg64 in, const Xbyak::Xmm& xmm_val_temp, const Xbyak::Xmm& xmm_reg, const int& i, const int &scale) {
-                if (mayiuse(cpu_isa_t::avx2)) {
-                    vextracti128(xmm_val_temp, Xbyak::Ymm{xmm_reg.getIdx()}, i/scale);
-                    uni_vpextrd(in.cvt32(), xmm_val_temp, i%scale);
-                } else {
-                    uni_vpextrd(in.cvt32(), xmm_reg, i);
-                }
-            };
-
-            for (int i = 0; i < SIMD_WIDTH; i++) {
-                Xbyak::Label scatter_end;
-                extract_xmm(mask, xmm_val_temp, xmm_mask, i, scale);
-                cmp(mask.cvt32(), 0xFFFFFFFF);
-                jne(scatter_end, T_NEAR);
-                extract_xmm(idx, xmm_val_temp, xmm_index, i, scale);
-                Xbyak::Address addr = ptr[reg_addr + idx * scale];
-                switch (scale) {
-                    case 8: uni_vpextrq(val, xmm_val, i); mov(addr, val); break;
-                    case 4: extract_xmm(val, xmm_val_temp, xmm_val, i, scale); mov(addr, val.cvt32()); break;
-                    case 2: uni_vpextrw(val.cvt16(), xmm_val, i); mov(addr, val.cvt16()); break;
-                    case 1: uni_vpextrb(val.cvt8(), xmm_val, i); mov(addr, val.cvt8()); break;
-                    default: IE_THROW() << "The data type of size '" << scale << "' is not supported.";
-                }
-                L(scatter_end);
-            }
-            pop_vmm(Vmm{xmm_val_temp.getIdx()});
-            pop(val);
-            pop(mask);
-            pop(idx);
-        }
-    }
 
     template<typename Tmm>
     void uni_expf(const Tmm& arg) {
@@ -312,16 +107,7 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
     Vmm vmm_dy = Vmm(5);
     Vmm vmm_d_log_w = Vmm(6);
     Vmm vmm_d_log_h = Vmm(7);
-
-
 };
-
-//template <x64::cpu_isa_t isa>
-//template <>
-//struct jit_refine_anchors_kernel_fp32<isa>::jit_traits<x64::sse41> {
-//    using Vmm = Xbyak::Xmm;
-//    static constexpr unsigned SIMD_WIDTH = x64::cpu_isa_traits<x64::sse41>::vlen / sizeof(typename ov::element_type_traits<KERNEL_ELEMENT_TYPE>::value_type);
-//};
 
 }
 }

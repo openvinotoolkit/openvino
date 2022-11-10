@@ -17,54 +17,6 @@ const std::vector<float> nms_threshold = { 0.699999988079071 };
 const std::vector<int64_t> post_nms_count = { 6 };
 const std::vector<int64_t> pre_nms_count = { 1000 };
 
-ov::Tensor create_and_fill_im_info_tensor(
-        const ov::element::Type element_type,
-        const ov::Shape& shape,
-        const uint32_t range,
-        const int32_t start_from,
-        const int32_t resolution,
-        const int seed) {
-    auto tensor = ov::Tensor{element_type, shape};
-
-    return tensor;
-}
-
-ov::Tensor create_and_fill_anchors_tensor(
-        const ov::element::Type element_type,
-        const ov::Shape& shape,
-        const uint32_t range,
-        const int32_t start_from,
-        const int32_t resolution,
-        const int seed) {
-    auto tensor = ov::Tensor{element_type, shape};
-
-    return tensor;
-}
-
-ov::Tensor create_and_fill_deltas_tensor(
-        const ov::element::Type element_type,
-        const ov::Shape& shape,
-        const uint32_t range,
-        const int32_t start_from,
-        const int32_t resolution,
-        const int seed) {
-    auto tensor = ov::Tensor{element_type, shape};
-
-    return tensor;
-}
-
-ov::Tensor create_and_fill_scores_tensor(
-        const ov::element::Type element_type,
-        const ov::Shape& shape,
-        const uint32_t range,
-        const int32_t start_from,
-        const int32_t resolution,
-        const int seed) {
-    auto tensor = ov::Tensor{element_type, shape};
-
-    return tensor;
-}
-
 const std::vector<std::pair<std::string, std::vector<ov::Tensor>>> inputTensors0 = {
     {
         "anchor_9",
@@ -227,7 +179,7 @@ struct GenerateProposalsBenchmarkTest : ov::test::BenchmarkLayerTest<GeneratePro
 
 TEST_P(GenerateProposalsBenchmarkTest, GenerateProposals_Benchmark) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    run("GenerateProposals", std::chrono::milliseconds(2000), 1000);
+    run("GenerateProposals", std::chrono::milliseconds(2000), 10000);
 }
 
 INSTANTIATE_TEST_SUITE_P(
