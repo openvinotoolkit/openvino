@@ -576,7 +576,8 @@ def main():
             statistics.dump()
 
         try:
-            print(f'ExecutionDevice: {compiled_model.get_property("EXECUTION_DEVICES")}')
+            exeDevice = compiled_model.get_property("EXECUTION_DEVICES")
+            print(f'ExecutionDevice: {exeDevice}')
         except:
             pass
         print(f'Count:           {iteration} iterations')

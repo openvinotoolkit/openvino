@@ -1254,7 +1254,8 @@ int main(int argc, char* argv[]) {
 
         // Performance metrics report
         try {
-            slog::info << "ExecutionDevice:   " << compiledModel.get_property(ov::execution_devices) << slog::endl;
+            auto exeDevice = compiledModel.get_property(ov::execution_devices);
+            slog::info << "ExecutionDevice:   " << exeDevice << slog::endl;
         } catch (...) {
         }
         slog::info << "Count:             " << iteration << " iterations" << slog::endl;
