@@ -7,6 +7,7 @@
 
 namespace kernel_selector {
 
+namespace {
 size_t getOperationNumber(const arg_max_min_params& params) {
     switch (params.argMaxMinAxis) {
         case ArgMaxMinAxis::BATCH: return params.outputs[0].Feature().v * params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v;
@@ -30,6 +31,7 @@ size_t getSortSize(const arg_max_min_params& params) {
             throw std::invalid_argument("Unsupported axis");
     }
 }
+}  // namespace
 
 ParamsKey ArgMaxMinKernelAxis::GetSupportedKey() const {
     ParamsKey k;
@@ -39,11 +41,21 @@ ParamsKey ArgMaxMinKernelAxis::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::INT32);
     k.EnableAllOutputDataType();
     k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
+    k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
+    k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::yxfb);
     k.EnableOutputLayout(DataLayout::yxfb);
     k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::bfzyx);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
+    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
+    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableArgMaxMinAxis(ArgMaxMinAxis::BATCH);
     k.EnableArgMaxMinAxis(ArgMaxMinAxis::X);
     k.EnableArgMaxMinAxis(ArgMaxMinAxis::Y);

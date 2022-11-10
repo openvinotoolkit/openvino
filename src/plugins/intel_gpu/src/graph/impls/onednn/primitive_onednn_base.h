@@ -132,21 +132,19 @@ protected:
     }
 
     void configure_post_ops_arguments(typed_primitive_inst<PType>& instance, std::unordered_map<int, dnnl::memory>& args) const {
-        auto& node = instance.get_node();
         auto& engine = instance.get_network().get_engine();
         auto dnnl_engine = engine.get_onednn_engine();
 
         // Get current post-ops info
-        auto onednn_attrs = node.get_onednn_primitive_attributes();
-        dnnl::post_ops post_ops = onednn_attrs->get_post_ops();
+        dnnl::post_ops post_ops = _attrs->get_post_ops();
 
         // Create onednn memory buffers for post-ops
-        auto& cur_post_ops = node.get_fused_primitives_onednn();
+        auto& cur_post_ops = instance.get_fused_primitives_onednn();
         auto post_ops_size = cur_post_ops.size();
         for (size_t post_op_idx = 0, num_of_optimized_post_ops = 0; post_op_idx < post_ops_size; post_op_idx++) {
             auto post_op_type = cur_post_ops[post_op_idx].op_type;
             auto memory_offset = cur_post_ops[post_op_idx].mem_offset;
-            auto onednn_post_op_idx = has_output_scales(onednn_attrs) && post_op_idx > 0 ? post_op_idx - 1 : post_op_idx;
+            auto onednn_post_op_idx = has_output_scales(_attrs) && post_op_idx > 0 ? post_op_idx - 1 : post_op_idx;
             onednn_post_op_idx -= num_of_optimized_post_ops;
 
             switch (post_op_type) {
@@ -219,13 +217,13 @@ protected:
 
         {
             auto& input = instance.input_memory(0);
-            auto offset = onednn::get_f_offset(instance.node->input().get_output_layout(), _pd.dnnl::primitive_desc_base::src_desc(0));
+            auto offset = onednn::get_f_offset(instance.get_input_layout(), _pd.dnnl::primitive_desc_base::src_desc(0));
             args.insert({DNNL_ARG_SRC, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0), offset)});
         }
 
         {
             auto& output = instance.output_memory();
-            auto offset = onednn::get_f_offset(instance.node->get_output_layout(), _pd.dnnl::primitive_desc_base::dst_desc(0));
+            auto offset = onednn::get_f_offset(instance.get_output_layout(), _pd.dnnl::primitive_desc_base::dst_desc(0));
             args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0), offset)});
         }
 

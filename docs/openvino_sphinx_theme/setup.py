@@ -12,7 +12,7 @@ setup(
     include_package_data=True,
     entry_points={"sphinx.html_themes": ["openvino_sphinx_theme = openvino_sphinx_theme"]},
     install_requires=['pydata_sphinx_theme', 'sphinx_inline_tabs'],
-    python_requires='>=3.5',
+    python_requires='>=3.7',
     url='https://github.com/openvinotoolkit/openvino',
     license='',
     author='Intel Corporation',

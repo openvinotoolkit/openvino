@@ -20,7 +20,8 @@
 #include "backend/am_intel_dnn.hpp"
 #include "gna_data_types.hpp"
 #include "gna_graph_compiler.hpp"
-#include "gna_plugin_log.hpp"
+#include "log/debug.hpp"
+#include "log/log.hpp"
 #include "gna_plugin_config.hpp"
 #include <legacy/ie_util_internal.hpp>
 #include <gna2-model-api.h>

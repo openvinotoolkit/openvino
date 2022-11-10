@@ -11,15 +11,6 @@
 
 namespace cldnn {
 
-template<>
-struct typed_program_node<read_value> : public typed_program_node_base<read_value> {
-    using parent = typed_program_node_base<read_value>;
-public:
-    using parent::parent;
-
-    const program_node& input(std::size_t index = 0) const { return get_dependency(index); }
-};
-
 using read_value_node = typed_program_node<read_value>;
 
 template<>
