@@ -35,6 +35,7 @@ ov::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
         sink_forward::UpdateInputTransposes(main_node, transpose_input_info);
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
             register_new_node(new_node);
+            transpose_sinking::UpdateForwardSinkingAbility(new_node);
         }
 
         auto concat_node = as_type_ptr<Concat>(main_node);
@@ -55,7 +56,7 @@ ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
     auto main_node_label = wrap_type<Concat>(consumers_count(1));
 
     auto transpose_const_label = wrap_type<Constant>(consumers_count(1));
-    auto transpose_label = wrap_type<Transpose>({main_node_label, transpose_const_label}, consumers_count(1));
+    auto transpose_label = wrap_type<Transpose>({main_node_label, transpose_const_label}, IfSinkingEnable);
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
