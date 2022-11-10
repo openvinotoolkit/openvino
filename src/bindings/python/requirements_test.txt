@@ -28,9 +28,10 @@ pydocstyle
 pytest-forked; platform_system != "Windows"
 pytest-xdist
 pytest
+py>=1.9.0
 radon
 retrying
 tox
 types-pkg_resources
-wheel>=0.36.2
+wheel>=0.38.1
 protobuf~=3.18.1
