@@ -29,7 +29,7 @@ public:
         for (size_t i = 0; i < args.size(); ++i) {
             auto output = node->get_input_source_output(i);
             orig_shapes.push_back(output.get_partial_shape());
-            output.get_tensor().set_partial_shape(args[i]->get_shape());
+            output.get_tensor().set_partial_shape(args[i]->get_partial_shape());
         }
     }
 
@@ -158,9 +158,31 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
                 variable_context.set_variable_value(variable, std::make_shared<VariableValue>(h_tensor));
             }
         }
+        auto convert_hosttensors_2_tensors = [](const HostTensorVector& host_tensors,
+                                                bool copy_data) -> ov::TensorVector {
+            ov::TensorVector ret_value;
+            for (const auto& hosttensor : host_tensors) {
+                if (hosttensor->get_element_type().is_dynamic()) {
+                    ret_value.emplace_back(ov::Tensor());
+                } else if (hosttensor->get_partial_shape().is_dynamic()) {
+                    ret_value.emplace_back(ov::Tensor(hosttensor->get_element_type(), {0}));
+                } else {
+                    auto tensor = ov::Tensor(hosttensor->get_element_type(), hosttensor->get_shape());
+                    if (copy_data) {
+                        std::copy_n(hosttensor->get_data_ptr<uint8_t>(),
+                                    hosttensor->get_size_in_bytes(),
+                                    static_cast<uint8_t*>(tensor.data()));
+                    }
+                    ret_value.emplace_back(tensor);
+                }
+            }
+            return ret_value;
+        };
+        ov::TensorVector tensor_inputs = convert_hosttensors_2_tensors(op_inputs, true);
+        ov::TensorVector tensor_outputs = convert_hosttensors_2_tensors(op_outputs, false);
 
         // Call evaluate for cloned_node with static shapes
-        if (!cloned_node->evaluate(op_outputs, op_inputs, eval_context)) {
+        if (!cloned_node->evaluate(tensor_outputs, tensor_inputs, eval_context)) {
             evaluate_node(cloned_node, op_outputs, op_inputs);
         }
         if (m_performance_counters_enabled) {
