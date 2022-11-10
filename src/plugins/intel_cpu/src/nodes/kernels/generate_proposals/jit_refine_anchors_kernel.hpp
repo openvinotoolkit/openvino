@@ -13,7 +13,7 @@
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 #include "ie_parallel.hpp"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "nodes/kernels/jit_kernel_base.hpp"
+#include "nodes/kernels/jit_kernel.hpp"
 #include "nodes/kernels/jit_kernel_traits.hpp"
 
 namespace ov {
@@ -57,7 +57,7 @@ struct jit_refine_anchors_call_args {
     const float coordinates_offset;
 };
 
-using jit_refine_anchors_kernel = jit_kernel_tbase<jit_refine_anchors_conf, jit_refine_anchors_call_args>;
+using jit_refine_anchors_kernel = jit_kernel<jit_refine_anchors_conf, jit_refine_anchors_call_args>;
 
 template <x64::cpu_isa_t isa>
 class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
@@ -78,7 +78,7 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
         exp_injector->prepare_table();
     }
 
-    void generate(RegistersPool::Ptr registers_pool, StackAllocator::Ptr stack_allocator) override;
+    void generate_impl() override;
 
  private:
     void update_input_output_ptrs();
