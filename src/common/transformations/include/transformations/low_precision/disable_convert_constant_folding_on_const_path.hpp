@@ -9,16 +9,22 @@
 #include <transformations_visibility.hpp>
 #include <utility>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API DisableConvertConstantFoldingOnConstPath;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::DisableConvertConstantFoldingOnConstPath : public ngraph::pass::MatcherPass {
+class ov::pass::DisableConvertConstantFoldingOnConstPath : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("DisableConvertConstantFoldingOnConstPath", "0");
     DisableConvertConstantFoldingOnConstPath(const element::TypeVector& inputPrecisions = {});
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::DisableConvertConstantFoldingOnConstPath;
+}  // namespace pass
+}  // namespace ngraph

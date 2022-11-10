@@ -5,12 +5,12 @@
 #include "ngraph_ops/generate_proposals_ie_internal.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset9.hpp>
+#include <openvino/opsets/opset9.hpp>
 
 #include "itt.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 BWDCMP_RTTI_DEFINITION(op::internal::GenerateProposalsIEInternal);
 
@@ -25,7 +25,7 @@ op::internal::GenerateProposalsIEInternal::GenerateProposalsIEInternal(const Out
 }
 
 std::shared_ptr<Node> op::internal::GenerateProposalsIEInternal::clone_with_new_inputs(
-    const ngraph::OutputVector& new_args) const {
+    const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(internal_GenerateProposalsIEInternal_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::internal::GenerateProposalsIEInternal>(new_args.at(0),
