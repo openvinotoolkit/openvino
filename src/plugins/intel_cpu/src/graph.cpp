@@ -1033,8 +1033,14 @@ void Graph::InferDynamic(InferRequestBase* request) {
     size_t prepareCounter = 0;
     size_t inferCounter = 0;
 
-    auto syncIndcsWorkSet = syncNodesInds;
-    syncIndcsWorkSet.push_back(executableGraphNodes.size());
+    std::set<size_t> syncIndsWorkSet;
+    for (auto nodeIndx : syncNodesInds) {
+        syncIndsWorkSet.insert(nodeIndx);
+        //since sometimes we need to run the synchronization node  alone (for example in the case of internal dynamism)
+        //let's add another sync point after the node index
+        syncIndsWorkSet.insert(nodeIndx + 1);
+    }
+    syncIndsWorkSet.insert(executableGraphNodes.size());
 
     std::function<void(size_t)> updateNodes;
 
@@ -1087,7 +1093,7 @@ void Graph::InferDynamic(InferRequestBase* request) {
     };
 #endif
 
-    for (auto stopIndx : syncIndcsWorkSet) {
+    for (auto stopIndx : syncIndsWorkSet) {
         updateNodes(stopIndx);
         for (; inferCounter < stopIndx; ++inferCounter) {
             auto& node = executableGraphNodes[inferCounter];

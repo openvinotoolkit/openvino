@@ -18,6 +18,7 @@
 #include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "generate_proposals.h"
+#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
 
 namespace ov {
 namespace intel_cpu {
@@ -289,7 +290,7 @@ bool GenerateProposals::isSupportedOperation
 }
 
 GenerateProposals::GenerateProposals(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache, DefaultShapeInferFactory(op, EMPTY_PORT_MASK)) {
+                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
