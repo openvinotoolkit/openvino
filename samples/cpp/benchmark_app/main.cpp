@@ -538,6 +538,8 @@ int main(int argc, char* argv[]) {
 
                     for (auto& device : hardware_devices) {
                         // check if the HW device supported this property
+                        if (if_auto && !if_multi && device != "CPU")
+                            continue;
                         setDeviceProperty(device, device_config, property);
                     }
                 }

@@ -52,7 +52,7 @@ namespace {
         }
         return METRIC_VALUE(FP32);
     }
-    }  // namespace
+}  // namespace
 
 std::mutex MultiDeviceInferencePlugin::_mtx;
 std::map<unsigned int, std::list<std::string>> MultiDeviceInferencePlugin::_priorityMap;
