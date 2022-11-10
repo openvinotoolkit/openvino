@@ -150,13 +150,13 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
 
 void snippets::op::Subgraph::fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node) {
     NGRAPH_SUPPRESS_DEPRECATED_START
-    auto out_tensor = target_output_node.get_tensor_ptr();
+    auto& out_tensor = target_output_node.get_tensor();
     const std::string new_name = ngraph::op::util::get_ie_output_name(replacement_output_node);
-    if (out_tensor->get_name().empty()) {
-        out_tensor->set_name(new_name);
+    if (ov::descriptor::get_ov_tensor_legacy_name(out_tensor).empty()) {
+        ov::descriptor::set_ov_tensor_legacy_name(out_tensor, new_name);
     }
     if (!replacement_output_node.get_names().empty()) {
-        out_tensor->set_names(replacement_output_node.get_names());
+        out_tensor.set_names(replacement_output_node.get_names());
     }
     NGRAPH_SUPPRESS_DEPRECATED_END
 }

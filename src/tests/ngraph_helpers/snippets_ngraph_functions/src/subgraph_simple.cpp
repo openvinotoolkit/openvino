@@ -241,11 +241,11 @@ std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initOriginal() const {
 
     NGRAPH_SUPPRESS_DEPRECATED_START
     auto& out_tensor0 = add->get_output_tensor(0);
-    out_tensor0.set_name("add_out");
+    ov::descriptor::set_ov_tensor_legacy_name(out_tensor0, "add_out");
     out_tensor0.set_names({"add_out", "y0"});
 
     auto& out_tensor1 = relu->get_output_tensor(0);
-    out_tensor1.set_name("relu_out");
+    ov::descriptor::set_ov_tensor_legacy_name(out_tensor1, "relu_out");
     out_tensor1.set_names({"relu_out", "y1"});
     NGRAPH_SUPPRESS_DEPRECATED_END
 
@@ -270,11 +270,11 @@ std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initReference() const {
                                                                     ParameterVector{indata2}));
     NGRAPH_SUPPRESS_DEPRECATED_START
     auto& out_tensor0 = subgraph0->get_output_tensor(0);
-    out_tensor0.set_name("add_out");
+    ov::descriptor::set_ov_tensor_legacy_name(out_tensor0, "add_out");
     out_tensor0.set_names({"add_out", "y0"});
 
     auto& out_tensor1 = subgraph1->get_output_tensor(0);
-    out_tensor1.set_name("relu_out");
+    ov::descriptor::set_ov_tensor_legacy_name(out_tensor1, "relu_out");
     out_tensor1.set_names({"relu_out", "y1"});
     NGRAPH_SUPPRESS_DEPRECATED_END
     return std::make_shared<Model>(OutputVector{subgraph0->output(0), subgraph1->output(0)}, ParameterVector{data0, data1});
