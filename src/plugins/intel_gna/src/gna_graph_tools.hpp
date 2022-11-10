@@ -491,7 +491,7 @@ inline DataPtr CNNReplaceDataWithChangedTensorDescription(DataPtr old_data, Tens
 */
 inline CNNLayerPtr CNNNetworkCreateReshape(const TensorDesc& td, const std::string& name, bool quantized) {
     auto reshape = std::make_shared<ReshapeLayer>(LayerParams({name, "reshape", Precision::FP32}));
-    auto reshapeLayerWithQuant = quantized ? InferenceEngine::injectData<GNAPluginNS::QuantizedLayerParams>(reshape) : reshape;
+    auto reshapeLayerWithQuant = quantized ? InferenceEngine::injectData<ov::intel_gna::frontend::QuantizedLayerParams>(reshape) : reshape;
     auto dataPtr = std::make_shared<Data>(name + "_data", td);
     getCreatorLayer(dataPtr) = reshapeLayerWithQuant;
     reshapeLayerWithQuant->outData.push_back(dataPtr);

@@ -4,7 +4,9 @@
 
 #include "kernels_factory.hpp"
 #include "kernels_cache.hpp"
+#include "ocl/ocl_kernel.hpp"
 #include "ocl/ocl_engine.hpp"
+#include "ocl/ocl_common.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/util/file_util.hpp"
 
@@ -134,8 +136,10 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
         auto& batches = std::get<1>(c.second);
         for (auto& b : batches) {
             std::string full_code = options + " " + _engine.get_device_info().driver_version;
+            full_code += _engine.get_device_info().dev_name;
             for (auto& ss : b.source)
                 full_code += ss;
+
             b.hash_value = std::hash<std::string>()(full_code);
             all_batches->push_back(b);
         }
@@ -148,18 +152,8 @@ kernels_cache::kernels_cache(engine& engine, uint32_t prog_id, const std::vector
 kernel_id kernels_cache::set_kernel_source(
     const std::shared_ptr<kernel_string>& kernel_string,
     bool dump_custom_program) {
-    std::lock_guard<std::mutex> lock(_mutex);
-    // we need unique id in order to avoid conflict across topologies.
-    const auto kernel_num = _kernels.size() + (_kernel_idx++);
-    kernel_id id = kernel_string->entry_point + "_" + std::to_string(kernel_num);
-
-    auto res = _kernels_code.emplace(kernel_string, id, dump_custom_program);
-
-    assert(_kernels.find(id) == _kernels.end());
-    if (res.second) {
-        _pending_compilation = true;
-    }
-    return id;
+    auto kernel_ids = add_kernels_source({kernel_string}, dump_custom_program);
+    return kernel_ids[0];
 }
 
 static std::vector<unsigned char> getProgramBinaries(cl::Program program) {
@@ -236,7 +230,8 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
             cl::Program program(cl_build_engine.get_cl_context(), batch.source);
             {
                 OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildProgram::RunCompilation");
-                program.build(cl_build_engine.get_cl_device(), batch.options.c_str());
+                if (program.build(cl_build_engine.get_cl_device(), batch.options.c_str()) != CL_SUCCESS)
+                    throw std::runtime_error("Failed in building program.");
             }
 
             if (dump_sources && dump_file.good()) {
@@ -259,9 +254,12 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
             }
         } else {
             cl::Program program(cl_build_engine.get_cl_context(), {cl_build_engine.get_cl_device()}, precompiled_kernels);
-            program.build(cl_build_engine.get_cl_device(), batch.options.c_str());
+            if (program.build(cl_build_engine.get_cl_device(), batch.options.c_str()) != CL_SUCCESS)
+                throw std::runtime_error("Failed in building program with a precompiled kernel.");
+
             program.createKernels(&kernels);
         }
+
         {
             std::lock_guard<std::mutex> lock(_mutex);
             for (auto& k : kernels) {
@@ -327,6 +325,40 @@ kernel::ptr kernels_cache::get_kernel(kernel_id id) const {
     return res->second;
 }
 
+bool kernels_cache::validate_simple_kernel_execution(kernel::ptr krl) {
+    auto casted = downcast<ocl::ocl_kernel>(krl.get());
+    auto kernel = casted->get_handle();
+    try {
+        auto casted_dev = dynamic_cast<ocl::ocl_device*>(_engine.get_device().get());
+        auto device = casted_dev->get_device();
+        cl::Context ctx(device);
+
+        cl::Buffer buffer(ctx, CL_MEM_READ_WRITE, sizeof(uint8_t) * 8);
+        if (kernel.setArg(0, buffer) != CL_SUCCESS)
+            return false;
+
+        cl::Event ev;
+        cl::CommandQueue queue(ctx, device);
+        if (queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(8), cl::NDRange(8), nullptr, &ev) != CL_SUCCESS)
+            return false;
+
+        uint8_t result[8];
+        uint8_t expected[8] = { 1, 3, 5, 7, 9, 11, 13, 15 };
+        if (queue.enqueueReadBuffer(buffer, CL_TRUE, 0, sizeof(uint8_t) * 8, &result) != CL_SUCCESS)
+            return false;
+
+        for (int i = 0; i < 8; ++i) {
+            if (result[i] != expected[i])
+                return false;
+        }
+
+        ev.wait();
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
 void kernels_cache::build_all() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildAll");
     if (!_pending_compilation)
@@ -384,4 +416,54 @@ void kernels_cache::reset() {
     _pending_compilation = false;
 }
 
+std::vector<kernel_id> kernels_cache::add_kernels_source(std::vector<std::shared_ptr<kernel_string>> kernel_sources, bool dump_custom_program) {
+    std::vector<kernel_id> kernel_ids;
+    kernel_ids.reserve(kernel_sources.size());
+    for (size_t i = 0; i < kernel_sources.size(); ++i) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        auto kernel_string = kernel_sources[i];
+        // we need unique id in order to avoid conflict across topologies.
+        const auto kernel_num = _kernels.size() + (_kernel_idx++);
+        kernel_id id = kernel_string->entry_point + "_" + std::to_string(kernel_num);
+
+        auto res = _kernels_code.emplace(kernel_string, id, dump_custom_program);
+
+        assert(_kernels.find(id) == _kernels.end());
+        if (res.second) {
+            _pending_compilation = true;
+        }
+        kernel_ids.emplace_back(id);
+    }
+    return kernel_ids;
+}
+
+void kernels_cache::compile() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildAll");
+
+    std::unique_ptr<ocl::ocl_engine> _build_engine = nullptr;
+    if (_engine.type() == engine_types::ocl) {
+        _build_engine = std::unique_ptr<ocl::ocl_engine>(new ocl::ocl_engine(_engine.get_device(), runtime_types::ocl,
+                                                                    _engine.configuration(), _engine.get_task_executor()));
+    }
+
+    // create batches
+    std::vector<batch_program> batches;
+    get_program_source(_kernels_code, &batches);
+
+    // build batches
+    for (size_t idx = 0; idx < batches.size(); idx++) {
+        build_batch(*_build_engine, batches[idx]);
+    }
+
+    _kernels_code.clear();
+    _pending_compilation = false;
+#if defined(__unix__) && !defined(__ANDROID__)
+    //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
+    //  (It is at least 500 MB when we perform parallel compilation)
+    //  It is observed that freeing the memory manually with malloc_trim saves significant amount of the memory.
+    //  Also, this is not happening in Windows.
+    //  So, added malloc_trim for linux build until we figure out a better solution.
+        malloc_trim(0);
+#endif
+}
 }  // namespace cldnn

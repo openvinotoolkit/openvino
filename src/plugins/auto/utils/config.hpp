@@ -99,8 +99,9 @@ struct PluginConfig {
                 _perfHintsConfig.SetConfig(kvp.first, kvp.second);
                 if (kvp.first == ov::hint::performance_mode.name())
                     _isSetPerHint = true;
-            } else if (_availableDevices.end() !=
-                   std::find(_availableDevices.begin(), _availableDevices.end(), kvp.first)) {
+            } else if (_availableDevices.end() != std::find(_availableDevices.begin(),
+                                                            _availableDevices.end(),
+                                                            DeviceIDParser(kvp.first).getDeviceName())) {
                 _passThroughConfig.emplace(kvp.first, kvp.second);
             } else if (kvp.first.find("AUTO_") == 0) {
                 _passThroughConfig.emplace(kvp.first, kvp.second);

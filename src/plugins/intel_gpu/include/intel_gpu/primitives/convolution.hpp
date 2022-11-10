@@ -295,6 +295,7 @@ struct convolution : public primitive_base<convolution> {
                 ov::Strides dilation,
                 ov::CoordinateDiff padding_above,
                 ov::CoordinateDiff padding_below,
+                bool grouped_weights_shape = false,
                 const padding& output_padding = padding())
         : primitive_base(id, {input}, output_padding),
           pad(pad),
@@ -305,7 +306,7 @@ struct convolution : public primitive_base<convolution> {
           deformable_groups(1),
           padding_above(padding_above),
           padding_below(padding_below),
-          grouped_weights_shape(false),
+          grouped_weights_shape(grouped_weights_shape),
           weights(weights),
           bias(bias),
           weights_zero_points(std::vector<primitive_id>(0)),
