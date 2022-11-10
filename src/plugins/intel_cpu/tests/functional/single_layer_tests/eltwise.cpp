@@ -488,8 +488,6 @@ const auto params_4D_1D_constant_mode = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_1D_Constant, EltwiseLayerCPUTest, params_4D_1D_constant_mode, EltwiseLayerCPUTest::getTestCaseName);
 
 std::vector<CPUSpecificParams> cpuParams_4D_1D_Parameter_mode = {
-        CPUSpecificParams({nChw16c, x}, {nChw16c}, {}, {}),
-        CPUSpecificParams({nhwc, x}, {nhwc}, {}, {}),
         CPUSpecificParams({nchw, x}, {nchw}, {}, {})
 };
 
@@ -537,8 +535,6 @@ const auto params_5D_1D_constant = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_1D_Constant, EltwiseLayerCPUTest, params_5D_1D_constant, EltwiseLayerCPUTest::getTestCaseName);
 
 std::vector<CPUSpecificParams> cpuParams_5D_1D_parameter = {
-        CPUSpecificParams({nCdhw16c, x}, {nCdhw16c}, {}, {}),
-        CPUSpecificParams({ndhwc, x}, {ndhwc}, {}, {}),
         CPUSpecificParams({ncdhw, x}, {ncdhw}, {}, {})
 };
 
