@@ -21,7 +21,7 @@ ngraph::snippets::pass::TransposeDecomposition::TransposeDecomposition() {
     //  this is needed to communicate access pattern to the plugin node and op::Kernel
     // This is the reason we me match only to Parameter, this limitation could be relaxed if we propagate access pattern
     // to the appropriate parameter
-    auto match_data = ngraph::pattern::wrap_type<opset1::Parameter>();
+    auto match_data = ngraph::pattern::any_input();
     auto match_order = ngraph::pattern::wrap_type<opset1::Constant>();
     auto match_transpose = ngraph::pattern::wrap_type<ngraph::opset1::Transpose>({match_data, match_order});
 
@@ -64,6 +64,13 @@ ngraph::snippets::pass::TransposeDecomposition::TransposeDecomposition() {
         }
          */
         auto data_input = pattern_to_output.at(match_data);
+        const auto& data_node = pattern_to_output.at(match_data).get_node_shared_ptr();
+        // todo: we can decompose any transpose, but if it's not after parameter then it's not MHA-like pattern
+        //  and this Transpose is likely tokenized by error. So this exception is more like a sanity check:
+        //  if it's thrown => make sure that tokenization worked as expected
+        if (!ov::is_type<opset1::Parameter>(data_node))
+            throw ngraph_error("TransposeDecomposition: it's valid to decompose Transpose only after Parameter, not after " +
+                                std::string(data_node->get_type_name()));
         auto &param_rt = data_input.get_node_shared_ptr()->get_rt_info();
         // Note: store and usage inside emitters as size_t is more convenient, so static_cast here
         std::vector<size_t> access_pattern;
