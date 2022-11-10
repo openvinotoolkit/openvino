@@ -191,9 +191,6 @@ public:
     layout calc_output_layout() const;
     std::vector<layout> calc_output_layouts() const;
 
-    kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
-        return std::move(orig_impl_param);
-    }
     // uses cached output layout if valid, if not calls 'calc_output_layout' and stores its result + invalidate all
     // users if layout has changed and @p invalidate_users_if_changed is set to true
     layout get_output_layout(bool invalidate_users_if_changed = true);
