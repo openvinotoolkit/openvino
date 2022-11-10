@@ -278,6 +278,18 @@ public:
     }
 
 protected:
+#ifdef CPU_DEBUG_CAPS
+#define DEBUG_RETURN(ret_val)                                               \
+        do {                                                                \
+            std::cout << __LINE__ << ", " << ret_val << std::endl;          \
+            return ret_val;                                                 \
+        } while (0)
+#else //!CPU_DEBUG_CAPS
+#define DEBUG_RETURN(ret_val)                                               \
+        do {                                                                \
+            return ret_val;                                                 \
+        } while (0)
+#endif //CPU_DEBUG_CAPS
     bool check_shareable() {
         const auto& edge_from = m_from->getParentEdgeAt(inputNodePortIdx);
         const auto& parent_from = edge_from->getParent();
@@ -290,14 +302,14 @@ protected:
             // 1. no edge shares memory of from-layer, that's equivalent to -
             // from-layer has no siblings at the same output of parent; and the edge is not inplaced.
             enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
-            if (edge_from->isMemShared(LOOK_UP)) return false;
+            if (edge_from->isMemShared(LOOK_UP)) DEBUG_RETURN(false);
 
             // 2. no edge shares memory of to-layer, that's equivalent to -
             // to-layer has no child edges, and the edge is not inplaced.
             const auto& edges_to = m_to->getChildEdgesAtPort(outputNodePortIdx);
-            if (edges_to.size() > 1) return false;
+            if (edges_to.size() > 1) DEBUG_RETURN(false);
 
-            if (edges_to[0]->isMemShared(LOOK_DOWN)) return false;
+            if (edges_to[0]->isMemShared(LOOK_DOWN)) DEBUG_RETURN(false);
 
             // 3. from-layer should not be a child nor a grandchild of to-layer.
             // Parameter
@@ -308,24 +320,24 @@ protected:
             //    |-------------------|
             // Result
             if (parent_from.get() == m_to || parent_from == edges_to[0]->getChild()) // based on #2.
-                return false;
+                DEBUG_RETURN(false);
         }
 
         // Simplify more situations -
         // 1. from-layer's parent node is also another backedge's to-layer.
         for (auto map_rule : m_tiOp->backEdges) {
             const auto to_node = m_tiOp->input_nodes[map_rule.to];
-            if (parent_from.get() == to_node) return false;
+            if (parent_from.get() == to_node) DEBUG_RETURN(false);
         }
 
         // 2. Disable backedge memory share for nested-loop/if
         for (auto& node : const_cast<TensorIterator*>(m_tiOp)->sub_graph.GetNodes()) {
             if (one_of(node->getType(), Type::TensorIterator, Type::If)) {
-                return false;
+                DEBUG_RETURN(false);
             }
         }
 
-        return true;
+        DEBUG_RETURN(true);
     }
 
 private:
