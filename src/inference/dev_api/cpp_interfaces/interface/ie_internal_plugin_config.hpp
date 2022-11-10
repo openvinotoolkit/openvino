@@ -108,6 +108,14 @@ DECLARE_CONFIG_KEY(CONFIG_DEVICE_ID);
  * @brief enable hyper thread
  */
 DECLARE_CONFIG_KEY(ENABLE_HYPER_THREAD);
+
+/**
+ * @brief Defines if MHA ops can be tokenized in Snippets
+ *        Softmax, Transpose should be tokenized in Snippets only in tests and in MHA pattern
+ * @ingroup ie_dev_api_plugin_api
+ */
+DECLARE_CONFIG_KEY(SNIPPETS_MHA_OPS_TOKENIZATION_ENABLE);
+
 }  // namespace PluginConfigInternalParams
 
 }  // namespace InferenceEngine
