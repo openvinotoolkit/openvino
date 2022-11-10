@@ -649,8 +649,12 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                     // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant
                     const bool is_unsupported_swish = ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
                                                       !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1));
-                    const bool is_disabled_softmax_tokenization =
-                            (ov::is_type<const ov::op::v1::Softmax>(n) || ov::is_type<const ov::op::v8::Softmax>(n)) && !_tokenizeSpecOpsSnippets;
+                    // todo: general tokenization flow is not currently supported for these operations.
+                    //  they can be tokenized only as a part of complex patterns
+                    const bool is_disabled_tokenization = !_tokenizeSpecOpsSnippets &&
+                                                          (ov::is_type<const ov::op::v1::Softmax>(n) ||
+                                                           ov::is_type<const ov::op::v8::Softmax>(n) ||
+                                                           ov::is_type<const ov::op::v1::Transpose>(n));
                     const auto& inputs = n->inputs();
                     // todo: clarify whether we can evaluate snippets on const paths
                     const bool has_only_const_inputs = std::all_of(inputs.begin(), inputs.end(),
@@ -667,7 +671,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                     const auto& outputs = n->outputs();
                     const bool bad_output_rank = std::any_of(outputs.begin(), outputs.end(),
                                                              [&](const ov::Output<const ov::Node>& out) {return  rank_is_too_large(out.get_tensor());});
-                    return has_only_const_inputs || bad_input_rank || bad_output_rank || is_unsupported_swish || is_disabled_softmax_tokenization;
+                    return has_only_const_inputs || bad_input_rank || bad_output_rank || is_unsupported_swish || is_disabled_tokenization;
                 });
         snippetsManager.register_pass<ngraph::snippets::pass::CommonOptimizations>();
         snippetsManager.run_passes(nGraphFunc);
