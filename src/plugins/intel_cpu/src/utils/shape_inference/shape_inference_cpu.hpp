@@ -28,10 +28,10 @@ public:
 
 class ShapeInferEmptyPads : public IShapeInfer {
 public:
-    const ov::CoordinateDiff& get_pads_begin() final {
+    const ov::CoordinateDiff& get_pads_begin() override final { // NOLINT
         return m_emptyVec;
     }
-    const ov::CoordinateDiff& get_pads_end() final {
+    const ov::CoordinateDiff& get_pads_end() override final { // NOLINT
         return m_emptyVec;
     }
 private:

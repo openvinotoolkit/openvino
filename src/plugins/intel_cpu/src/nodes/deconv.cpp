@@ -562,7 +562,7 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims &inDims, std::vect
                             << ", because the node has 'output_shape' input, but provided output spatial dims number is incorrect";
                 }
                 outSpDimsVecShape = {outSpDims.size()};
-                inputShapesRefs.push_back(std::ref(outSpDimsVecShape));
+                inputShapesRefs.push_back(std::cref(outSpDimsVecShape));
                 CpuBlockedMemoryDesc desc(Precision::I32, Shape(outSpDimsVecShape));
                 auto mem = std::make_shared<Memory>(getEngine());
                 mem->Create(desc, outSpDims.data());
