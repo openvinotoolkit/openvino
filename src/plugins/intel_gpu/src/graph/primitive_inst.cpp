@@ -238,7 +238,9 @@ void primitive_inst::realloc_if_needed() {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
 
-    auto actual_layout = _impl_params->output_layout;
+    // Update param if fake_alignment is available
+    auto updated_params = _node->type()->get_fake_aligned_params(*_impl_params);
+    auto actual_layout = updated_params.output_layout;
     OPENVINO_ASSERT(actual_layout.is_static(), "[GPU] Can't realloc mem for dynamic layout");
 
     // input_layout node is supposed to always use external memory in dynamic case
@@ -267,36 +269,39 @@ void primitive_inst::update_impl() {
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::update_implementation);
     auto prev_impl_str =  _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
     if (!_node->is_type<data>() && !(_node->is_type<mutable_data>() && _node->get_dependencies().empty())) {
+        // Update param if fake_alignment is available
+        auto updated_params = _node->type()->get_fake_aligned_params(*_impl_params);
         auto get_layout_key = [&]() -> size_t {
             size_t seed = 0;
-            auto& id = _impl_params->desc->id;
+            auto& id = updated_params.desc->id;
             for (size_t i = 0; i < id.size(); i++) {
                 seed = hash_combine(seed, id[i]);
             }
             seed = hash_combine(seed, _node->get_unique_id());
-            for (auto& layout : _impl_params->input_layouts) {
+            for (auto& layout : updated_params.input_layouts) {
                 for (auto& d : layout.get_shape()) {
                     seed = hash_combine(seed, d);
                 }
             }
-            for (auto& d : _impl_params->output_layout.get_shape()) {
+            for (auto& d : updated_params.output_layout.get_shape()) {
                 seed = hash_combine(seed, d);
             }
             return seed;
         };
-
         auto layout_key = get_layout_key();
-        auto& cache = _network.get_program()->get_implementations_cache();
+        auto& cache = get_network().get_implementations_cache();
         if (cache.has(layout_key)) {
             _impl = cache.get(layout_key)->clone();
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
         } else {
-            auto lru = cache.get_lru_element();
-            _impl = _node->type()->choose_impl(*_node, *_impl_params);
-            _network.get_program()->compile();
-            _impl->init_kernels(_network.get_program()->get_kernels_cache());
+            _impl = _node->type()->choose_impl(*_node, updated_params);
+            auto& kernels_cache = get_network().get_kernels_cache();
+            auto kernel_ids = kernels_cache.add_kernels_source(_impl->get_kernels_source());
+            _impl->set_kernel_ids(kernel_ids);
+            kernels_cache.compile();
+            _impl->init_kernels(kernels_cache);
             cache.add(layout_key, _impl->clone());
-            _network.get_program()->get_kernels_cache().reset();
+            kernels_cache.reset();
         }
 
         reset_shape_change();
@@ -510,7 +515,7 @@ void primitive_inst::allocate_internal_buffers(void) {
 
     auto total_device_mem_size = std::accumulate(inst_deps.begin(), inst_deps.end(), size_t(0), device_mem_acc);
     for (const auto& output : _outputs) {
-        if (output->get_allocation_type() ==  allocation_type::usm_device)
+        if (output->get_allocation_type() == allocation_type::usm_device)
             total_device_mem_size += output->size();
     }
 
@@ -530,10 +535,13 @@ void primitive_inst::allocate_internal_buffers(void) {
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
             GPU_DEBUG_COUT << "[" << _node->id() << ": internal buf]" << std::endl;
         }
-        if (input_device_mem && (available_device_mem_size - (int64_t)layout.bytes_count() >= 0))
-            _intermediates_memory.push_back(engine.allocate_memory(layout, allocation_type::usm_device));
-        else
-            _intermediates_memory.push_back(engine.allocate_memory(layout, allocation_type::usm_host));
+        auto alloc_type = allocation_type::unknown;
+        if (input_device_mem && (available_device_mem_size - (int64_t)layout.bytes_count() >= 0)) {
+            alloc_type = engine.get_preferred_memory_allocation_type();
+        } else {
+            alloc_type = engine.get_lockable_preferred_memory_allocation_type();
+        }
+        _intermediates_memory.push_back(engine.allocate_memory(layout, alloc_type));
     }
 }
 
@@ -557,8 +565,6 @@ event::ptr primitive_inst::update_weights() {
         auto original_weights_memory = dep_memory_ptr(weights_idx);
         auto original_layout = original_weights_memory->get_layout();
         layout expected_layout = from_weights_tensor(weights_params.dest);
-
-        auto& program = _node->get_program();
         auto& engine = _network.get_engine();
 
         auto get_layout_key = [&]() -> std::string {
@@ -571,7 +577,7 @@ event::ptr primitive_inst::update_weights() {
         cldnn::kernel::ptr kernel = nullptr;
         auto layout_key = get_layout_key();
         if (layout_key != "") {
-            auto& cache = program.get_in_mem_kernels_cache();
+            auto& cache = get_network().get_in_mem_kernels_cache();
             if (cache.has(layout_key)) {
                 GPU_DEBUG_IF(debug_config->verbose >= 4) {
                     GPU_DEBUG_COUT << id() << ": reorder weights (cached) from " << original_layout << "\nto " << expected_layout << std::endl;
@@ -582,14 +588,16 @@ event::ptr primitive_inst::update_weights() {
                 GPU_DEBUG_IF(debug_config->verbose >= 4) {
                     GPU_DEBUG_COUT << id() << ": reorder weights from " << original_layout << "\nto " << expected_layout << std::endl;
                 }
-                auto _kernel_id = program.add_kernel(weights_params.clKernel->code.kernelString);
-                program.compile();
-                kernel = program.get_kernel(_kernel_id);
+                auto& kernels_cache = get_network().get_kernels_cache();
+                auto kernel_id = kernels_cache.set_kernel_source(weights_params.clKernel->code.kernelString, false);
+                kernels_cache.compile();
+                kernel = kernels_cache.get_kernel(kernel_id);
                 cache.add(layout_key, kernel);
+                kernels_cache.reset();
             }
         }
 
-        auto& stream = _network.get_stream();
+        auto& stream = get_network().get_stream();
 
         bool can_reuse = _impl_params->reordered_weights != nullptr && _impl_params->reordered_weights->size() <= expected_layout.bytes_count();
         if (can_reuse) {
@@ -598,7 +606,8 @@ event::ptr primitive_inst::update_weights() {
             }
             _impl_params->reordered_weights = engine.reinterpret_buffer(*_impl_params->reordered_weights, expected_layout);
         } else {
-            _impl_params->reordered_weights = engine.allocate_memory(expected_layout, allocation_type::usm_device);
+            auto alloc_type = engine.get_preferred_memory_allocation_type();
+            _impl_params->reordered_weights = engine.allocate_memory(expected_layout, alloc_type);
         }
 
         kernel_arguments_data args;

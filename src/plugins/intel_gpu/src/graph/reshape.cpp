@@ -11,6 +11,7 @@
 #include "primitive_type_base.h"
 #include "reshape_inst.h"
 #include "shape_nodes.hpp"
+#include "squeeze_shape_inference.hpp"
 #include "unsqueeze_shape_inference.hpp"
 
 namespace cldnn {

@@ -7,6 +7,7 @@
 #include "transformations/utils/utils.hpp"
 #include "ops/pwl.hpp"
 #include "ops/reference/pwl.hpp"
+#include "common/numerical_utils.hpp"
 
 #include <memory>
 #include <vector>
@@ -361,10 +362,10 @@ static bool pwl_search_power(const std::shared_ptr<ngraph::Node>& node,
         }
     }
 
-    if (details::are_floats_equal(exponent, 1.0)) {
+    if (common::fp32eq(exponent, 1.0)) {
         // An affine primitive will be used in this case.
         return false;
-    } else if (details::are_floats_equal(exponent, 0.0)) {
+    } else if (common::fp32eq(exponent, 0.0)) {
         segments.emplace_back(0, 1, -std::numeric_limits<double>::infinity());
         segments.emplace_back(0, 1, std::numeric_limits<double>::infinity());
         segments.emplace_back(0, 0, std::numeric_limits<double>::infinity());
@@ -383,7 +384,7 @@ static bool pwl_search_power(const std::shared_ptr<ngraph::Node>& node,
     segments.insert(segments.begin(), {
         0,
         segments.front().beta,
-        details::are_floats_equal(fmod(exponent, 1.0), 0.0f) ? -std::numeric_limits<double>::infinity() : 0});
+        common::fp32eq(fmod(exponent, 1.0), 0.0f) ? -std::numeric_limits<double>::infinity() : 0});
     segments.back().b = segments.back().beta;
     segments.push_back({0, 0, std::numeric_limits<double>::infinity()});
     return true;

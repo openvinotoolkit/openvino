@@ -244,6 +244,7 @@ Gna2DeviceVersion GNADeviceHelper::parseTarget(const std::string& target) {
     static const std::map<std::string, Gna2DeviceVersion> targetMap {
         {GNAPluginNS::common::kGnaTarget2_0, Gna2DeviceVersion2_0},
         {GNAPluginNS::common::kGnaTarget3_0, Gna2DeviceVersion3_0},
+        {GNAPluginNS::common::kGnaTarget3_5, Gna2DeviceVersion3_5},
         {GNAPluginNS::common::kGnaTargetUnspecified, Gna2DeviceVersionSoftwareEmulation},
     };
     const auto f = targetMap.find(target);
@@ -591,6 +592,8 @@ std::string GNADeviceHelper::GetCompileTarget() const {
     static const std::map<Gna2DeviceVersion, std::string> targetMap = {
         {Gna2DeviceVersion2_0, GNAPluginNS::common::kGnaTarget2_0},
         {Gna2DeviceVersion3_0, GNAPluginNS::common::kGnaTarget3_0},
+        {Gna2DeviceVersion3_5, GNAPluginNS::common::kGnaTarget3_5},
+        {Gna2DeviceVersionEmbedded3_5, GNAPluginNS::common::kGnaTarget3_5},
     };
     const auto target = getTargetDevice(false);
     auto found = targetMap.find(target);

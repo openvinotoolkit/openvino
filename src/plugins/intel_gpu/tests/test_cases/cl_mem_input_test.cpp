@@ -190,7 +190,7 @@ TEST(cl_mem_check, check_input) {
     image_desc.image_slice_pitch = 0;
     image_desc.num_mip_levels = 0;
     image_desc.num_samples = 0;
-    image_desc.mem_object = NULL;
+    image_desc.buffer = NULL;
 
     cl_mem img = clCreateImage(ocl_instance->_context.get(), CL_MEM_READ_WRITE | CL_MEM_HOST_NO_ACCESS | CL_MEM_ACCESS_FLAGS_UNRESTRICTED_INTEL,
         &image_format, &image_desc, NULL, &err);
@@ -198,7 +198,7 @@ TEST(cl_mem_check, check_input) {
 
     image_desc.image_width = 0;
     image_desc.image_height = 0;
-    image_desc.mem_object = img;
+    image_desc.buffer = img;
     image_desc.image_depth = 0;
     image_format.image_channel_order = CL_R;
 
