@@ -110,9 +110,9 @@ bool MVNTransformation::canBeTransformed(const TransformationContext& context, s
     }
 
     // per-channel scale-only-dequantization can be pushed through MVN only
-    // if the channel dimension is within the reduction_axes (so a single
+    // if the channel dimension is not among the reduction_axes (so a single
     // scale is applied to the whole normalization slice)
-    if (reduction_axes.count(dequantization.channelDimIndex))
+    if (reduction_axes.count(dequantization.channelDimIndex) == 0)
         return true;
 
     return false;
