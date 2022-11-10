@@ -636,7 +636,6 @@ def to_torch_tensor(tensor):
 def convert_pytorch_to_onnx(model, input_shape, opset_version, example_inputs, output_dir):
     import io
     import torch
-    from collections.abc import Iterable
 
     input_names = None
     if example_inputs is not None:

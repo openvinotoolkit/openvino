@@ -42,7 +42,7 @@ class CommonMOConvertTest:
         flag, msg = compare_functions(ir_test, ir_ref)
         assert flag, '\n'.join(msg)
 
-    def _test_by_ref_graph(self, temp_dir, test_params, ref_graph, compare_tensor_names=True):
+    def _test_by_ref_graph(self, temp_dir, test_params, ref_graph, compare_tensor_names=True, compare_layout=True):
         """
         Generates IR using MO Python API, reads it and compares with reference graph.
         """
@@ -54,3 +54,7 @@ class CommonMOConvertTest:
         ir_test = core.read_model(Path(temp_dir, 'model_test.xml'))
         flag, msg = compare_functions(ir_test, ref_graph, compare_tensor_names=compare_tensor_names)
         assert flag, msg
+
+        if compare_layout:
+            for idx in range(len(ir_test.inputs)):
+                assert ir_test.inputs[idx].node.layout == ref_graph.inputs[idx].node.layout

@@ -140,6 +140,33 @@ def create_tf_module(tmp_dir):
     return net, model_ref, {'input_shape': [PartialShape([1, 2, 3]), PartialShape([1, 2, 3])]}
 
 
+def create_tf_module_layout_list(tmp_dir):
+    from openvino.runtime import Layout
+    import tensorflow as tf
+
+    class Net(tf.Module):
+        def __init__(self, name=None):
+            super(Net, self).__init__(name=name)
+
+        def __call__(self, x, y):
+            return tf.nn.sigmoid(tf.nn.relu(x + y))
+
+    shape = PartialShape([1, 2, 3])
+    param1 = ov.opset8.parameter(shape, dtype=np.float32)
+    param2 = ov.opset8.parameter(shape,  dtype=np.float32)
+    add = ov.opset8.add(param1, param2)
+    relu = ov.opset8.relu(add)
+    sigm = ov.opset8.sigmoid(relu)
+
+    parameter_list = [param1, param2]
+    model_ref = Model([sigm], parameter_list, "test")
+    model_ref.inputs[0].node.layout = Layout('NCH')
+    model_ref.inputs[1].node.layout = Layout('NHC')
+
+    net = Net()
+    return net, model_ref, {'input_shape': [PartialShape([1, 2, 3]), PartialShape([1, 2, 3])], 'layout': ["NCH", "NHC"]}
+
+
 def create_tf_module_dynamic(tmp_dir):
     import tensorflow as tf
 
@@ -298,20 +325,21 @@ def create_tf_saved_model(temp_dir):
 class TestMoConvertTF(CommonMOConvertTest):
     test_data = [
         # TF2
-        create_keras_model,
-        create_keras_layer,
-        create_tf_function,
-        create_tf_module,
-        create_tf_checkpoint,
-        create_tf_saved_model,
-        create_keras_layer_dynamic,
-        create_tf_module_dynamic,
+        # create_keras_model,
+        # create_keras_layer,
+        # create_tf_function,
+        # create_tf_module,
+        # create_tf_checkpoint,
+        # create_tf_saved_model,
+        # create_keras_layer_dynamic,
+        # create_tf_module_dynamic,
+        create_tf_module_layout_list,
 
 
         # TF1
-        create_tf_graph_def,
-        create_tf1_wrap_function,
-        create_tf_session,
+        # create_tf_graph_def,
+        # create_tf1_wrap_function,
+        # create_tf_session,
     ]
 
     @pytest.mark.parametrize("create_model", test_data)

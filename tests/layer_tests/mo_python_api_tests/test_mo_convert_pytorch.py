@@ -366,6 +366,61 @@ def create_pytorch_nn_module_sample_input_ov_host_tensor_two_inputs(tmp_dir):
                                  'onnx_opset_version': 16}
 
 
+def create_pytorch_nn_module_layout_list(tmp_dir):
+    from openvino.runtime import Layout
+    pt_model = make_pt_model_two_inputs()
+    shape = [1, 3, 10, 10]
+
+    shape = PartialShape(shape)
+    ref_model = make_ref_pt_model_two_inputs(shape)
+    ref_model.inputs[0].node.layout = Layout('nchw')
+    ref_model.inputs[1].node.layout = Layout('nhwc')
+
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'layout': ['nchw', Layout('nhwc')], 'onnx_opset_version': 11}
+
+
+def create_pytorch_nn_module_mean_list(tmp_dir):
+    pt_model = make_pt_model_two_inputs()
+    shape = [1, 10, 10, 3]
+
+    shape = PartialShape(shape)
+    param1 = ov.opset8.parameter(shape)
+    param2 = ov.opset8.parameter(shape)
+    const1 = ov.opset8.constant([[[[0, 0, 0]]]], dtype=np.float32)
+    const2 = ov.opset8.constant([[[[0, 0, 0]]]], dtype=np.float32)
+    sub1 = ov.opset8.subtract(param1, const1)
+    sub2 = ov.opset8.subtract(param2, const2)
+    add = ov.opset8.add(sub1, sub2)
+    relu = ov.opset8.relu(add)
+    sigm = ov.opset8.sigmoid(relu)
+
+    parameter_list = [param1, param2]
+    ref_model = Model([sigm], parameter_list, "test")
+
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]], 'onnx_opset_version': 11}
+
+
+def create_pytorch_nn_module_scale_list(tmp_dir):
+    pt_model = make_pt_model_two_inputs()
+    shape = [1, 10, 10, 3]
+
+    shape = PartialShape(shape)
+    param1 = ov.opset8.parameter(shape)
+    param2 = ov.opset8.parameter(shape)
+    const1 = ov.opset8.constant([[[[1, 1, 1]]]], dtype=np.float32)
+    const2 = ov.opset8.constant([[[[1, 1, 1]]]], dtype=np.float32)
+    sub1 = ov.opset8.multiply(param1, const1)
+    sub2 = ov.opset8.multiply(param2, const2)
+    add = ov.opset8.add(sub1, sub2)
+    relu = ov.opset8.relu(add)
+    sigm = ov.opset8.sigmoid(relu)
+
+    parameter_list = [param1, param2]
+    ref_model = Model([sigm], parameter_list, "test")
+
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]], 'onnx_opset_version': 11}
+
+
 class TestMoConvertPyTorch(CommonMOConvertTest):
     test_data = [
         create_pytorch_nn_module_case1,
@@ -390,6 +445,9 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_nn_module_sample_list_of_tensors,
         create_pytorch_jit_script_module,
         create_pytorch_jit_script_function,
+        create_pytorch_nn_module_layout_list,
+        create_pytorch_nn_module_mean_list,
+        create_pytorch_nn_module_scale_list
     ]
 
     @pytest.mark.parametrize("create_model", test_data)

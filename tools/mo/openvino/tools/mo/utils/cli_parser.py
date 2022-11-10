@@ -306,7 +306,7 @@ def layout_to_str(layout):
     if isinstance(layout, Layout):
         return layout.to_string()
     raise Exception("Incorrect layout type. Expected Layout or string or dictionary, "
-                    "where key is operation name and value is Layout, got {}".format(type(layout)))
+                    "where key is operation name and value is layout or list of layouts, got {}".format(type(layout)))
 
 
 def source_target_layout_to_str(value):
@@ -354,6 +354,12 @@ def layout_param_to_str(value):
             if not isinstance(op_name, str):
                 raise Exception("Incorrect operation name type. Expected string, got {}".format(type(op_name)))
             values_str.append(op_name + "(" + layoutmap_to_str(layout) + ")")
+        return ",".join(values_str)
+
+    if isinstance(value, list):
+        values_str = []
+        for layout in value:
+            values_str.append(layoutmap_to_str(layout))
         return ",".join(values_str)
 
     return layoutmap_to_str(value)
@@ -1624,7 +1630,38 @@ def write_found_layout(name: str, found_layout: str, parsed: dict, dest: str = N
     parsed[name] = {'source_layout': s_layout, 'target_layout': t_layout}
 
 
-def parse_layouts_by_destination(s: str, parsed: dict, dest: str = None) -> None:
+def write_found_layout_list(idx: int, found_layout: str, parsed: list, dest: str = None):
+    """
+    Writes found layout data to the 'parsed' dict.
+    :param idx: idx of of the node to add layout
+    :param found_layout: string containing layout for the node
+    :param parsed: list where result will be stored
+    :param dest: type of the command line:
+      * 'source' is --source_layout
+      * 'target' is --target_layout
+      * None is --layout
+    """
+    s_layout = None
+    t_layout = None
+    if idx < len(parsed):
+        s_layout = parsed[idx]['source_layout']
+        t_layout = parsed[idx]['target_layout']
+    if dest == 'source':
+        s_layout = found_layout
+    elif dest == 'target':
+        t_layout = found_layout
+    else:
+        s_layout, t_layout = split_layouts_by_arrow(found_layout)
+    validate_layout(s_layout)
+    validate_layout(t_layout)
+
+    if idx < len(parsed):
+        parsed[idx] = {'source_layout': s_layout, 'target_layout': t_layout}
+    else:
+        parsed.append({'source_layout': s_layout, 'target_layout': t_layout})
+
+
+def parse_layouts_by_destination(s: str, parsed: dict, parsed_list: list, dest: str = None) -> None:
     """
     Parses layout command line to get all names and layouts from it. Adds all found data in the 'parsed' dict.
     :param s: string to parse
@@ -1639,29 +1676,25 @@ def parse_layouts_by_destination(s: str, parsed: dict, dest: str = None) -> None
         # single layout case
         write_found_layout('', list_s[0], parsed, dest)
     else:
-        for layout_str in list_s:
+        for idx, layout_str in enumerate(list_s):
             # case for: "name1(nhwc->[n,c,h,w])"
-            p1 = re.compile(r'(\S+)\((\S+)\)')
+            p1 = re.compile(r'(\w*)\((\S+)\)')
             m1 = p1.match(layout_str)
             # case for: "name1[n,h,w,c]->[n,c,h,w]"
-            p2 = re.compile(r'(\S+)(\[\S*\])')
+            p2 = re.compile(r'(\w*)(\[\S*\])')
             m2 = p2.match(layout_str)
             if m1:
                 found_g = m1.groups()
             elif m2:
                 found_g = m2.groups()
             else:
-                error_msg = "Invalid usage of --{}layout parameter. Please use following syntax for each tensor " \
-                            "or operation name:" \
-                            "\n  name(nchw)" \
-                            "\n  name[n,c,h,w]".format(dest + '_' if dest else '')
-                if dest is None:
-                    error_msg += "\n  name(nhwc->[n,h,w,c])" \
-                                 "\n  name[n,h,w,c]->[n,c,h,w]"
-                error_msg += '\n Please do not forget to surround whole expression with quotes, otherwise' \
-                             ' symbols >[]() would be treated as special characters.'
-                raise Error(error_msg)
-            write_found_layout(found_g[0], found_g[1], parsed, dest)
+                # case for layout without name
+                write_found_layout_list(idx, layout_str, parsed_list, dest)
+                continue
+            if len(found_g[0]) > 0:
+                write_found_layout(found_g[0], found_g[1], parsed, dest)
+            else:
+                write_found_layout_list(idx, found_g[1], parsed_list, dest)
 
 
 def get_layout_values(argv_layout: str = '', argv_source_layout: str = '', argv_target_layout: str = ''):
@@ -1676,13 +1709,20 @@ def get_layout_values(argv_layout: str = '', argv_source_layout: str = '', argv_
         raise Error("--layout is used as well as --source_layout and/or --target_layout which is not allowed, please "
                     "use one of them.")
     res = {}
+    res_list = []
     if argv_layout:
-        parse_layouts_by_destination(argv_layout, res)
+        parse_layouts_by_destination(argv_layout, res, res_list)
     if argv_source_layout:
-        parse_layouts_by_destination(argv_source_layout, res, 'source')
+        parse_layouts_by_destination(argv_source_layout, res, res_list, 'source')
     if argv_target_layout:
-        parse_layouts_by_destination(argv_target_layout, res, 'target')
-    return res
+        parse_layouts_by_destination(argv_target_layout, res, res_list, 'target')
+    if len(res) > 0 and len(res_list) > 0:
+        raise Error("Some layout values are provided with names, and some without names. "
+                    "Please provide ether all layouts with names or all layouts without names.")
+    if len(res) > 0:
+        return res
+    else:
+        return res_list
 
 
 def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_value: str):
