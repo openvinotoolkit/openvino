@@ -53,9 +53,20 @@ static string describe(shared_ptr<Node> node) {
     stringstream ss;
     auto transpose = as_type_ptr<T>(node);
     auto const1 = as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
-    ss << transpose->get_name() << " ( axis order = " << ov::util::vector_to_string(const1->get_axis_vector_val())
-       << " , shape = " << ov::util::vector_to_string(transpose->get_shape()) << " ) "
-       << " , input = " << transpose->input_value(0).get_node()->get_name();
+    if (transpose) {
+        ss << "transpose name: " << transpose->get_name();
+        ss << " , input = " << transpose->input_value(0).get_node()->get_name();
+        if (transpose->output(0).get_partial_shape().is_static()) {
+            ss << " , shape = " << ov::util::vector_to_string(transpose->output(0).get_shape());
+        }
+        if (const1) {
+            ss << " , axis order = " << ov::util::vector_to_string(const1->get_axis_vector_val());
+        } else {
+            ss << " , axis order = (unknown, not constant values)";
+        }
+    } else {
+        ss << "Node can not be cast to Transpose/Reshape operations.";
+    }
     return ss.str();
 }
 
@@ -76,7 +87,7 @@ static void write_transposemap(TransposeMap& reorders,
 
 static shared_ptr<Transpose> read_transposemap(TransposeMap& reorders, const Output<Node>& target) {
     auto name = target.get_node()->get_name() + "." + to_string(target.get_index());
-    auto transpose = reorders[name];
+    auto transpose = reorders.at(name);
     OPENVINO_DEBUG << "Read TransposeMap[" << name << "]  -> " << describe<Transpose>(transpose);
     return transpose;
 }
@@ -86,13 +97,16 @@ static shared_ptr<Transpose> combine_transposes(const shared_ptr<Transpose>& t1,
     auto t1_const = as_type_ptr<Constant>(t1->input_value(1).get_node_shared_ptr());
     auto t2_const = as_type_ptr<Constant>(t2->input_value(1).get_node_shared_ptr());
 
-    auto perm_t1 = apply_permutation(default_order, t1_const->get_axis_vector_val());
-    auto perm_t2 = apply_permutation(perm_t1, t2_const->get_axis_vector_val());
+    if (t1_const && t2_const) {
+        auto perm_t1 = apply_permutation(default_order, t1_const->get_axis_vector_val());
+        auto perm_t2 = apply_permutation(perm_t1, t2_const->get_axis_vector_val());
 
-    auto combined = make_transpose(t2->input_value(0), perm_t2);
-    OPENVINO_DEBUG << "Combining " << describe<Transpose>(t1) << " and " << describe<Transpose>(t2) << " into "
-                   << describe<Transpose>(combined);
-    return combined;
+        auto combined = make_transpose(t2->input_value(0), perm_t2);
+        OPENVINO_DEBUG << "Combining " << describe<Transpose>(t1) << " and " << describe<Transpose>(t2) << " into "
+                       << describe<Transpose>(combined);
+        return combined;
+    }
+    return {};
 }
 
 static void insert_transpose(const shared_ptr<Node>& target, const shared_ptr<Node>& transpose, size_t input_index) {
@@ -204,13 +218,15 @@ static void sink_transpose(const shared_ptr<Transpose>& transpose,
     auto orig_transpose = read_transposemap(reorders, transpose_in);
     // combine both transposes
     auto new_transpose = combine_transposes(orig_transpose, transpose);
-    // remove original transpose now it's combined with a new one
-    // should be safe to remove an already detached node
-    mark_transpose_for_deletion(orig_transpose, transposes_to_delete);
-    // replace transpose with combined one
-    replace_node(transpose, new_transpose);
-    mark_transpose_for_deletion(new_transpose, transposes_to_delete);
-    write_transposemap(reorders, new_transpose, new_transpose);
+    if (new_transpose) {
+        // remove original transpose now it's combined with a new one
+        // should be safe to remove an already detached node
+        mark_transpose_for_deletion(orig_transpose, transposes_to_delete);
+        // replace transpose with combined one
+        replace_node(transpose, new_transpose);
+        mark_transpose_for_deletion(new_transpose, transposes_to_delete);
+        write_transposemap(reorders, new_transpose, new_transpose);
+    }
 }
 
 static void sink_unary(const shared_ptr<Node>& n,
