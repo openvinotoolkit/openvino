@@ -412,7 +412,8 @@ std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::
                ov::is_type<ov::opset8::Softmax>(op) || ov::is_type<ov::opset5::Round>(op)) {
         return std::make_shared<entryCopy>(op);
     } else if (ov::is_type<ov::opset6::MVN>(op) || ov::is_type<ov::opset1::LRN>(op) ||
-               ov::is_type<ov::opset1::PRelu>(op) || ov::is_type<ov::opset4::Swish>(op)) {
+               ov::is_type<ov::opset1::PRelu>(op) || ov::is_type<ov::opset4::Swish>(op) ||
+               ov::is_type<ov::opset3::ScatterUpdate>(op)) {
         return std::make_shared<entryFirstPassthrough>(op);
     } else if (ov::is_type<ov::op::util::BinaryElementwiseArithmetic>(op) ||
                ov::is_type<ov::op::util::BinaryElementwiseComparison>(op) ||
