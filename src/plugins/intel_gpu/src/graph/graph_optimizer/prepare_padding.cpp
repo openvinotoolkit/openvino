@@ -8,8 +8,7 @@
 #include "program_node.h"
 #include "pass_manager.h"
 #include "convolution_inst.h"
-#include "crop_inst.h"
-#include "resample_inst.h"
+#include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "sliding_window_utils.hpp"
 #include <algorithm>
 
@@ -31,14 +30,10 @@ void prepare_padding::run(program& p) {
                 continue;
 
             auto& conv_input_node = node->get_dependency(0);
-            // Check user of previous node is one of padding support primitive or not
+            // WA: Check user of previous node is experimental_detectron_roi_feature_extractor which doesn't support padded input
             bool user_support_padding = true;
             for (auto& conv_input_node_user : conv_input_node.get_users()) {
-                if (!conv_input_node_user->is_type<pooling>() && !conv_input_node_user->is_type<convolution>() &&
-                    !conv_input_node_user->is_type<quantize>() && !conv_input_node_user->is_type<activation>() &&
-                    !conv_input_node_user->is_type<deconvolution>() && !conv_input_node_user->is_type<concatenation>() &&
-                    !conv_input_node_user->is_type<crop>() && !conv_input_node_user->is_type<eltwise>() &&
-                    !conv_input_node_user->is_type<binary_convolution>() && !conv_input_node_user->is_type<resample>())
+                if (conv_input_node_user->is_type<experimental_detectron_roi_feature_extractor>())
                     user_support_padding = false;
             }
             if (!user_support_padding)
@@ -159,14 +154,10 @@ void prepare_padding::run(program& p) {
         auto& conv_input_node = node.get_dependency(0);
         auto conv_layout = node.get_output_layout();
 
-        // Check user of previous node is one of padding support primitive or not
+        // WA: Check user of previous node is experimental_detectron_roi_feature_extractor which doesn't support padded input
         bool user_support_padding = true;
         for (auto& conv_input_node_user : conv_input_node.get_users()) {
-            if (!conv_input_node_user->is_type<pooling>() && !conv_input_node_user->is_type<convolution>() &&
-                !conv_input_node_user->is_type<quantize>() && !conv_input_node_user->is_type<activation>() &&
-                !conv_input_node_user->is_type<deconvolution>() && !conv_input_node_user->is_type<concatenation>() &&
-                !conv_input_node_user->is_type<crop>() && !conv_input_node_user->is_type<eltwise>() &&
-                !conv_input_node_user->is_type<binary_convolution>() && !conv_input_node_user->is_type<resample>())
+            if (conv_input_node_user->is_type<experimental_detectron_roi_feature_extractor>())
                 user_support_padding = false;
         }
         if (!user_support_padding)
@@ -262,14 +253,10 @@ void prepare_padding::run(program& p) {
         auto& conv_input_node = node.get_dependency(0);
         auto conv_layout = node.get_output_layout();
 
-        // Check user of previous node is one of padding support primitive or not
+        // WA: Check user of previous node is experimental_detectron_roi_feature_extractor which doesn't support padded input
         bool user_support_padding = true;
         for (auto& conv_input_node_user : conv_input_node.get_users()) {
-            if (!conv_input_node_user->is_type<pooling>() && !conv_input_node_user->is_type<convolution>() &&
-                !conv_input_node_user->is_type<quantize>() && !conv_input_node_user->is_type<activation>() &&
-                !conv_input_node_user->is_type<deconvolution>() && !conv_input_node_user->is_type<concatenation>() &&
-                !conv_input_node_user->is_type<crop>() && !conv_input_node_user->is_type<eltwise>() &&
-                !conv_input_node_user->is_type<binary_convolution>() && !conv_input_node_user->is_type<resample>())
+            if (conv_input_node_user->is_type<experimental_detectron_roi_feature_extractor>())
                 user_support_padding = false;
         }
         if (!user_support_padding)
