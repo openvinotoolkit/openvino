@@ -189,294 +189,6 @@ ov::hint::PerformanceMode get_performance_hint(const std::string& device, const 
 }
 
 /**
- * @brief update device configuration with the properties supported by device.
- */
-void setDeviceProperty(ov::Core& core,
-                       std::string& device,
-                       ov::AnyMap& device_config,
-                       const std::pair<std::string, ov::Any>& property,
-                       const std::pair<std::string, ov::Any>& config = {}) {
-    auto supported_properties = core.get_property(device, ov::supported_properties);
-    auto supported = [&](const std::string& key) {
-        return std::find(std::begin(supported_properties), std::end(supported_properties), key) !=
-               std::end(supported_properties);
-    };
-    // check if the HW device supported this property
-    std::pair<std::string, ov::Any> device_property;
-    if (!config.first.empty() && supported(config.first)) {
-        device_property = config;
-    } else if (supported(property.first))
-        device_property = property;
-
-    if (device_property.first.empty())
-        return;
-    if (device_config.find(device) == device_config.end()) {
-        device_config.insert(ov::device::properties(device, device_property));
-    } else {
-        auto& properties = device_config[device].as<ov::AnyMap>();
-        properties.emplace(device_property);
-        device_config.insert(ov::device::properties(device, properties));
-    }
-}
-
-/**
- * @brief Update the device configuration based on command line
- */
-void update_device_configuration(std::vector<std::string>& devices,
-                                 std::map<std::string, ov::AnyMap>& config,
-                                 ov::Core& core,
-                                 StatisticsReport::Parameters& command_line_arguments,
-                                 bool& perf_counts,
-                                 std::map<std::string, std::string>& device_nstreams,
-                                 std::map<std::string, std::string>& device_infer_precision,
-                                 std::vector<std::string>& hardware_devices) {
-    auto isFlagSetInCommandLine = [&command_line_arguments](const std::string& name) {
-        return (std::find_if(command_line_arguments.begin(),
-                             command_line_arguments.end(),
-                             [name](const StatisticsVariant& p) {
-                                 return p.json_name == name;
-                             }) != command_line_arguments.end());
-    };
-    auto getDeviceTypeFromName = [](std::string device) -> std::string {
-        return device.substr(0, device.find_first_of(".("));
-    };
-    auto device_name = FLAGS_d;
-    auto if_auto = std::find(devices.begin(), devices.end(), "AUTO") != devices.end();
-    auto if_multi = std::find(devices.begin(), devices.end(), "MULTI") != devices.end();
-    for (auto& device : devices) {
-        auto& device_config = config[device];
-
-        // high-level performance modes
-        auto ov_perf_hint = get_performance_hint(device, core);
-        device_config.emplace(ov::hint::performance_mode(ov_perf_hint));
-        if (FLAGS_nireq != 0)
-            device_config.emplace(ov::hint::num_requests(FLAGS_nireq));
-
-        // Set performance counter
-        if (isFlagSetInCommandLine("pc")) {
-            // set to user defined value
-            device_config.emplace(ov::enable_profiling(FLAGS_pc));
-        } else if (device_config.count(ov::enable_profiling.name()) &&
-                   (device_config.at(ov::enable_profiling.name()).as<bool>())) {
-            slog::warn << "Performance counters for " << device
-                       << " device is turned on. To print results use -pc option." << slog::endl;
-        } else if (FLAGS_report_type == detailedCntReport || FLAGS_report_type == averageCntReport ||
-                   FLAGS_report_type == sortDetailedCntReport) {
-            slog::warn << "Turn on performance counters for " << device << " device since report type is "
-                       << FLAGS_report_type << "." << slog::endl;
-            device_config.emplace(ov::enable_profiling(true));
-        } else if (!FLAGS_exec_graph_path.empty()) {
-            slog::warn << "Turn on performance counters for " << device << " device due to execution graph dumping."
-                       << slog::endl;
-            device_config.emplace(ov::enable_profiling(true));
-        } else if (!FLAGS_pcsort.empty()) {
-            slog::warn << "Turn on sorted performance counters for " << device << " device since pcsort is"
-                       << FLAGS_pcsort << "." << slog::endl;
-            device_config.emplace(ov::enable_profiling(true));
-        } else {
-            // set to default value
-            device_config.emplace(ov::enable_profiling(FLAGS_pc));
-        }
-        perf_counts = (device_config.at(ov::enable_profiling.name()).as<bool>()) ? true : perf_counts;
-
-        auto supported_properties = core.get_property(device, ov::supported_properties);
-
-        auto supported = [&](const std::string& key) {
-            return std::find(std::begin(supported_properties), std::end(supported_properties), key) !=
-                   std::end(supported_properties);
-        };
-        // the rest are individual per-device settings (overriding the values set with perf modes)
-        auto setThroughputStreams = [&]() {
-            std::string key = getDeviceTypeFromName(device) + "_THROUGHPUT_STREAMS";
-            auto it_device_nstreams = device_nstreams.find(device);
-            if (it_device_nstreams != device_nstreams.end()) {
-                // set to user defined value
-                if (supported(key)) {
-                    device_config[key] = it_device_nstreams->second;
-                } else if (supported(ov::num_streams.name())) {
-                    // Use API 2.0 key for streams
-                    key = ov::num_streams.name();
-                    device_config[key] = it_device_nstreams->second;
-                } else if (device == "MULTI" || device == "AUTO") {
-                    // check if the element contains the hardware device property
-                    auto value_vec = split(it_device_nstreams->second, ' ');
-                    if (value_vec.size() == 1) {
-                        key = ov::num_streams.name();
-                        device_config[key] = it_device_nstreams->second;
-                    } else {
-                        // set device nstreams properties in the AUTO/MULTI plugin
-                        std::stringstream strm(it_device_nstreams->second);
-                        std::map<std::string, std::string> devices_property;
-                        ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
-                        for (auto it : devices_property) {
-                            if (device_config.find(it.first) == device_config.end())
-                                device_config.insert(
-                                    ov::device::properties(it.first, ov::num_streams(std::stoi(it.second))));
-                            else {
-                                auto& property = device_config[it.first].as<ov::AnyMap>();
-                                property.emplace(ov::num_streams(std::stoi(it.second)));
-                                device_config.insert(ov::device::properties(it.first, property));
-                            }
-                        }
-                    }
-                } else {
-                    throw std::logic_error("Device " + device + " doesn't support config key '" + key + "' " + "and '" +
-                                           ov::num_streams.name() + "'!" +
-                                           "Please specify -nstreams for correct devices in format  "
-                                           "<dev1>:<nstreams1>,<dev2>:<nstreams2>" +
-                                           " or via configuration file.");
-                }
-            } else if (ov_perf_hint == ov::hint::PerformanceMode::UNDEFINED && !device_config.count(key) &&
-                       (FLAGS_api == "async")) {
-                slog::warn << "-nstreams default value is determined automatically for " << device
-                           << " device. "
-                              "Although the automatic selection usually provides a "
-                              "reasonable performance, "
-                              "but it still may be non-optimal for some cases, for more "
-                              "information look at README."
-                           << slog::endl;
-                if (std::string::npos == device.find("MYRIAD")) {  // MYRIAD sets the default number of
-                                                                   // streams implicitly (without _AUTO)
-                    if (supported(key)) {
-                        device_config[key] = std::string(getDeviceTypeFromName(device) + "_THROUGHPUT_AUTO");
-                    } else if (supported(ov::num_streams.name())) {
-                        // Use API 2.0 key for streams
-                        key = ov::num_streams.name();
-                        device_config[key] = ov::streams::AUTO;
-                    } else if (device == "MULTI" || device == "AUTO") {
-                        // Set nstreams to default value auto if no nstreams specified from cmd line.
-                        std::string key = std::string(getDeviceTypeFromName(device) + "_THROUGHPUT_STREAMS");
-                        for (auto& hwdevice : hardware_devices) {
-                            auto value = std::string(getDeviceTypeFromName(hwdevice) + "_THROUGHPUT_AUTO");
-                            setDeviceProperty(core,
-                                              hwdevice,
-                                              device_config,
-                                              ov::num_streams(ov::streams::AUTO),
-                                              std::make_pair(key, value));
-                        }
-                    }
-                }
-            }
-            auto it_streams = device_config.find(ov::num_streams.name());
-            if (it_streams != device_config.end())
-                device_nstreams[device] = it_streams->second.as<std::string>();
-        };
-
-        auto set_infer_precision = [&] {
-            auto it_device_infer_precision = device_infer_precision.find(device);
-            if (it_device_infer_precision != device_infer_precision.end()) {
-                // set to user defined value
-                if (supported(ov::hint::inference_precision.name())) {
-                    device_config.emplace(ov::hint::inference_precision(it_device_infer_precision->second));
-                } else if (device == "MULTI" || device == "AUTO") {
-                    // check if the element contains the hardware device property
-                    auto value_vec = split(it_device_infer_precision->second, ' ');
-                    if (value_vec.size() == 1) {
-                        auto key = ov::hint::inference_precision.name();
-                        device_config[key] = it_device_infer_precision->second;
-                    } else {
-                        // set device nstreams properties in the AUTO/MULTI plugin
-                        std::stringstream strm(it_device_infer_precision->second);
-                        std::map<std::string, std::string> devices_property;
-                        ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
-                        for (auto it : devices_property) {
-                            if (device_config.find(it.first) == device_config.end())
-                                device_config.insert(
-                                    ov::device::properties(it.first, ov::hint::inference_precision(it.second)));
-                            else {
-                                auto& property = device_config[it.first].as<ov::AnyMap>();
-                                property.emplace(ov::hint::inference_precision(it.second));
-                                device_config.insert(ov::device::properties(it.first, property));
-                            }
-                        }
-                    }
-                } else {
-                    throw std::logic_error("Device " + device + " doesn't support config key '" +
-                                           ov::hint::inference_precision.name() + "'! " +
-                                           "Please specify -infer_precision for correct devices in format  "
-                                           "<dev1>:<infer_precision1>,<dev2>:<infer_precision2>" +
-                                           " or via configuration file.");
-                }
-            }
-        };
-
-        auto fix_pin_option = [](const std::string& str) -> std::string {
-            if (str == "NO")
-                return "NONE";
-            else if (str == "YES")
-                return "CORE";
-            else
-                return str;
-        };
-
-        auto set_nthreads_pin = [&](const std::string& str) {
-            auto property_name = str == "nthreads" ? ov::inference_num_threads.name() : ov::affinity.name();
-            auto property =
-                str == "nthreads" ? ov::inference_num_threads(FLAGS_nthreads) : ov::affinity(fix_pin_option(FLAGS_pin));
-            if (supported(property_name) || device_name == "AUTO") {
-                // create nthreads/pin primary property for HW device or AUTO if -d is AUTO directly.
-                device_config.emplace(property);
-            } else if (if_auto || if_multi) {
-                // create nthreads/pin secondary property setting for each hw device from hw device list if -d
-                // contains ':' like AUTO:XXX or MULTI:XXX.
-                // For the case like AUTO:XXX,XXX, -nthreads/-pin/-affinity setting is only for CPU instead of other
-                // hw device if CPU appears in the devices list.
-
-                for (auto& device : hardware_devices) {
-                    // check if the HW device supported this property
-                    if (if_auto && !if_multi && device != "CPU")
-                        continue;
-                    setDeviceProperty(core, device, device_config, property);
-                }
-            }
-        };
-        if (isFlagSetInCommandLine("nthreads"))
-            set_nthreads_pin("nthreads");
-
-        if (isFlagSetInCommandLine("pin"))
-            set_nthreads_pin("pin");
-
-        if (device.find("CPU") != std::string::npos || device.find("GPU") != std::string::npos) {
-            // CPU supports few special performance-oriented keys
-            // for CPU and GPU execution, more throughput-oriented execution via streams
-            setThroughputStreams();
-            set_infer_precision();
-        } else if (device.find("MYRIAD") != std::string::npos) {
-            device_config.emplace(ov::log::level(ov::log::Level::WARNING));
-            setThroughputStreams();
-        } else if (device.find("GNA") != std::string::npos) {
-            set_infer_precision();
-        } else if (device.find("AUTO") != std::string::npos) {
-            setThroughputStreams();
-            set_infer_precision();
-            device_nstreams.erase(device);
-        } else if (device.find("MULTI") != std::string::npos) {
-            setThroughputStreams();
-            set_infer_precision();
-            if ((device_name.find("GPU") != std::string::npos) && (device_name.find("CPU") != std::string::npos)) {
-                slog::warn << "GPU throttling is turned on. Multi-device execution with "
-                              "the CPU + GPU performs best with GPU throttling hint, "
-                           << "which releases another CPU thread (that is otherwise "
-                              "used by the GPU driver for active polling)."
-                           << slog::endl;
-
-                device_config.insert(ov::device::properties("GPU", {{GPU_CONFIG_KEY(PLUGIN_THROTTLE), 1}}));
-                // limit threading for CPU portion of inference
-                if (!isFlagSetInCommandLine("pin")) {
-                    auto it_affinity = device_config.find(ov::affinity.name());
-                    if (it_affinity != device_config.end()) {
-                        slog::warn << "Turn off threads pinning for " << device
-                                   << " device since multi-scenario with GPU device is used." << slog::endl;
-                        it_affinity->second = ov::Affinity::NONE;
-                    }
-                }
-            }
-            device_nstreams.erase(device);
-        }
-    }
-}
-
-/**
  * @brief The entry point of the benchmark application
  */
 int main(int argc, char* argv[]) {
@@ -616,15 +328,263 @@ int main(int argc, char* argv[]) {
             parse_value_for_virtual_device(virtual_device, device_infer_precision);
         }
 
+        auto setDeviceProperty = [&core](std::string& device,
+                                         ov::AnyMap& device_config,
+                                         const std::pair<std::string, ov::Any>& property,
+                                         const std::pair<std::string, ov::Any>& config = {}) {
+            auto supported_properties = core.get_property(device, ov::supported_properties);
+            auto supported = [&](const std::string& key) {
+                return std::find(std::begin(supported_properties), std::end(supported_properties), key) !=
+                       std::end(supported_properties);
+            };
+            // check if the HW device supported this property
+            std::pair<std::string, ov::Any> device_property;
+            if (!config.first.empty() && supported(config.first)) {
+                device_property = config;
+            } else if (supported(property.first))
+                device_property = property;
+
+            if (device_property.first.empty())
+                return;
+            if (device_config.find(device) == device_config.end()) {
+                device_config.insert(ov::device::properties(device, device_property));
+            } else {
+                auto& properties = device_config[device].as<ov::AnyMap>();
+                properties.emplace(device_property);
+                device_config.insert(ov::device::properties(device, properties));
+            }
+        };
         // Update config per device according to command line parameters
-        update_device_configuration(devices,
-                                    config,
-                                    core,
-                                    command_line_arguments,
-                                    perf_counts,
-                                    device_nstreams,
-                                    device_infer_precision,
-                                    hardware_devices);
+        for (auto& device : devices) {
+            auto& device_config = config[device];
+
+            // high-level performance modes
+            auto ov_perf_hint = get_performance_hint(device, core);
+            device_config.emplace(ov::hint::performance_mode(ov_perf_hint));
+            if (FLAGS_nireq != 0)
+                device_config.emplace(ov::hint::num_requests(FLAGS_nireq));
+
+            // Set performance counter
+            if (isFlagSetInCommandLine("pc")) {
+                // set to user defined value
+                device_config.emplace(ov::enable_profiling(FLAGS_pc));
+            } else if (device_config.count(ov::enable_profiling.name()) &&
+                       (device_config.at(ov::enable_profiling.name()).as<bool>())) {
+                slog::warn << "Performance counters for " << device
+                           << " device is turned on. To print results use -pc option." << slog::endl;
+            } else if (FLAGS_report_type == detailedCntReport || FLAGS_report_type == averageCntReport ||
+                       FLAGS_report_type == sortDetailedCntReport) {
+                slog::warn << "Turn on performance counters for " << device << " device since report type is "
+                           << FLAGS_report_type << "." << slog::endl;
+                device_config.emplace(ov::enable_profiling(true));
+            } else if (!FLAGS_exec_graph_path.empty()) {
+                slog::warn << "Turn on performance counters for " << device << " device due to execution graph dumping."
+                           << slog::endl;
+                device_config.emplace(ov::enable_profiling(true));
+            } else if (!FLAGS_pcsort.empty()) {
+                slog::warn << "Turn on sorted performance counters for " << device << " device since pcsort is"
+                           << FLAGS_pcsort << "." << slog::endl;
+                device_config.emplace(ov::enable_profiling(true));
+            } else {
+                // set to default value
+                device_config.emplace(ov::enable_profiling(FLAGS_pc));
+            }
+            perf_counts = (device_config.at(ov::enable_profiling.name()).as<bool>()) ? true : perf_counts;
+
+            auto supported_properties = core.get_property(device, ov::supported_properties);
+
+            auto supported = [&](const std::string& key) {
+                return std::find(std::begin(supported_properties), std::end(supported_properties), key) !=
+                       std::end(supported_properties);
+            };
+            // the rest are individual per-device settings (overriding the values set with perf modes)
+            auto setThroughputStreams = [&]() {
+                std::string key = getDeviceTypeFromName(device) + "_THROUGHPUT_STREAMS";
+                auto it_device_nstreams = device_nstreams.find(device);
+                if (it_device_nstreams != device_nstreams.end()) {
+                    // set to user defined value
+                    if (supported(key)) {
+                        device_config[key] = it_device_nstreams->second;
+                    } else if (supported(ov::num_streams.name())) {
+                        // Use API 2.0 key for streams
+                        key = ov::num_streams.name();
+                        device_config[key] = it_device_nstreams->second;
+                    } else if (device == "MULTI" || device == "AUTO") {
+                        // check if the element contains the hardware device property
+                        auto value_vec = split(it_device_nstreams->second, ' ');
+                        if (value_vec.size() == 1) {
+                            key = ov::num_streams.name();
+                            device_config[key] = it_device_nstreams->second;
+                        } else {
+                            // set device nstreams properties in the AUTO/MULTI plugin
+                            std::stringstream strm(it_device_nstreams->second);
+                            std::map<std::string, std::string> devices_property;
+                            ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
+                            for (auto it : devices_property) {
+                                if (device_config.find(it.first) == device_config.end())
+                                    device_config.insert(
+                                        ov::device::properties(it.first, ov::num_streams(std::stoi(it.second))));
+                                else {
+                                    auto& property = device_config[it.first].as<ov::AnyMap>();
+                                    property.emplace(ov::num_streams(std::stoi(it.second)));
+                                    device_config.insert(ov::device::properties(it.first, property));
+                                }
+                            }
+                        }
+                    } else {
+                        throw std::logic_error("Device " + device + " doesn't support config key '" + key + "' " +
+                                               "and '" + ov::num_streams.name() + "'!" +
+                                               "Please specify -nstreams for correct devices in format  "
+                                               "<dev1>:<nstreams1>,<dev2>:<nstreams2>" +
+                                               " or via configuration file.");
+                    }
+                } else if (ov_perf_hint == ov::hint::PerformanceMode::UNDEFINED && !device_config.count(key) &&
+                           (FLAGS_api == "async")) {
+                    slog::warn << "-nstreams default value is determined automatically for " << device
+                               << " device. "
+                                  "Although the automatic selection usually provides a "
+                                  "reasonable performance, "
+                                  "but it still may be non-optimal for some cases, for more "
+                                  "information look at README."
+                               << slog::endl;
+                    if (std::string::npos == device.find("MYRIAD")) {  // MYRIAD sets the default number of
+                                                                       // streams implicitly (without _AUTO)
+                        if (supported(key)) {
+                            device_config[key] = std::string(getDeviceTypeFromName(device) + "_THROUGHPUT_AUTO");
+                        } else if (supported(ov::num_streams.name())) {
+                            // Use API 2.0 key for streams
+                            key = ov::num_streams.name();
+                            device_config[key] = ov::streams::AUTO;
+                        } else if (device == "MULTI" || device == "AUTO") {
+                            // Set nstreams to default value auto if no nstreams specified from cmd line.
+                            std::string key = std::string(getDeviceTypeFromName(device) + "_THROUGHPUT_STREAMS");
+                            for (auto& hwdevice : hardware_devices) {
+                                auto value = std::string(getDeviceTypeFromName(hwdevice) + "_THROUGHPUT_AUTO");
+                                setDeviceProperty(hwdevice,
+                                                  device_config,
+                                                  ov::num_streams(ov::streams::AUTO),
+                                                  std::make_pair(key, value));
+                            }
+                        }
+                    }
+                }
+                auto it_streams = device_config.find(ov::num_streams.name());
+                if (it_streams != device_config.end())
+                    device_nstreams[device] = it_streams->second.as<std::string>();
+            };
+
+            auto set_infer_precision = [&] {
+                auto it_device_infer_precision = device_infer_precision.find(device);
+                if (it_device_infer_precision != device_infer_precision.end()) {
+                    // set to user defined value
+                    if (supported(ov::hint::inference_precision.name())) {
+                        device_config.emplace(ov::hint::inference_precision(it_device_infer_precision->second));
+                    } else if (device == "MULTI" || device == "AUTO") {
+                        // check if the element contains the hardware device property
+                        auto value_vec = split(it_device_infer_precision->second, ' ');
+                        if (value_vec.size() == 1) {
+                            auto key = ov::hint::inference_precision.name();
+                            device_config[key] = it_device_infer_precision->second;
+                        } else {
+                            // set device nstreams properties in the AUTO/MULTI plugin
+                            std::stringstream strm(it_device_infer_precision->second);
+                            std::map<std::string, std::string> devices_property;
+                            ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
+                            for (auto it : devices_property) {
+                                if (device_config.find(it.first) == device_config.end())
+                                    device_config.insert(
+                                        ov::device::properties(it.first, ov::hint::inference_precision(it.second)));
+                                else {
+                                    auto& property = device_config[it.first].as<ov::AnyMap>();
+                                    property.emplace(ov::hint::inference_precision(it.second));
+                                    device_config.insert(ov::device::properties(it.first, property));
+                                }
+                            }
+                        }
+                    } else {
+                        throw std::logic_error("Device " + device + " doesn't support config key '" +
+                                               ov::hint::inference_precision.name() + "'! " +
+                                               "Please specify -infer_precision for correct devices in format  "
+                                               "<dev1>:<infer_precision1>,<dev2>:<infer_precision2>" +
+                                               " or via configuration file.");
+                    }
+                }
+            };
+
+            auto fix_pin_option = [](const std::string& str) -> std::string {
+                if (str == "NO")
+                    return "NONE";
+                else if (str == "YES")
+                    return "CORE";
+                else
+                    return str;
+            };
+
+            auto set_nthreads_pin = [&](const std::string& str) {
+                auto property_name = str == "nthreads" ? ov::inference_num_threads.name() : ov::affinity.name();
+                auto property = str == "nthreads" ? ov::inference_num_threads(FLAGS_nthreads)
+                                                  : ov::affinity(fix_pin_option(FLAGS_pin));
+                if (supported(property_name) || device_name == "AUTO") {
+                    // create nthreads/pin primary property for HW device or AUTO if -d is AUTO directly.
+                    device_config.emplace(property);
+                } else if (if_auto || if_multi) {
+                    // create nthreads/pin secondary property setting for each hw device from hw device list if -d
+                    // contains ':' like AUTO:XXX or MULTI:XXX.
+                    // For the case like AUTO:XXX,XXX, -nthreads/-pin/-affinity setting is only for CPU instead of other
+                    // hw device if CPU appears in the devices list.
+
+                    for (auto& device : hardware_devices) {
+                        // check if the HW device supported this property
+                        if (if_auto && !if_multi && device != "CPU")
+                            continue;
+                        setDeviceProperty(device, device_config, property);
+                    }
+                }
+            };
+            if (isFlagSetInCommandLine("nthreads"))
+                set_nthreads_pin("nthreads");
+
+            if (isFlagSetInCommandLine("pin"))
+                set_nthreads_pin("pin");
+
+            if (device.find("CPU") != std::string::npos || device.find("GPU") != std::string::npos) {
+                // CPU supports few special performance-oriented keys
+                // for CPU and GPU execution, more throughput-oriented execution via streams
+                setThroughputStreams();
+                set_infer_precision();
+            } else if (device.find("MYRIAD") != std::string::npos) {
+                device_config.emplace(ov::log::level(ov::log::Level::WARNING));
+                setThroughputStreams();
+            } else if (device.find("GNA") != std::string::npos) {
+                set_infer_precision();
+            } else if (device.find("AUTO") != std::string::npos) {
+                setThroughputStreams();
+                set_infer_precision();
+                device_nstreams.erase(device);
+            } else if (device.find("MULTI") != std::string::npos) {
+                setThroughputStreams();
+                set_infer_precision();
+                if ((device_name.find("GPU") != std::string::npos) && (device_name.find("CPU") != std::string::npos)) {
+                    slog::warn << "GPU throttling is turned on. Multi-device execution with "
+                                  "the CPU + GPU performs best with GPU throttling hint, "
+                               << "which releases another CPU thread (that is otherwise "
+                                  "used by the GPU driver for active polling)."
+                               << slog::endl;
+
+                    device_config.insert(ov::device::properties("GPU", {{GPU_CONFIG_KEY(PLUGIN_THROTTLE), 1}}));
+                    // limit threading for CPU portion of inference
+                    if (!isFlagSetInCommandLine("pin")) {
+                        auto it_affinity = device_config.find(ov::affinity.name());
+                        if (it_affinity != device_config.end()) {
+                            slog::warn << "Turn off threads pinning for " << device
+                                       << " device since multi-scenario with GPU device is used." << slog::endl;
+                            it_affinity->second = ov::Affinity::NONE;
+                        }
+                    }
+                }
+                device_nstreams.erase(device);
+            }
+        }
 
         // Property setting should be via the core::compile_model()
         // rather than core::set_property() if target device is AUTO/MULTI.
