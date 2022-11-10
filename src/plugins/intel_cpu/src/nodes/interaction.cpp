@@ -31,7 +31,10 @@ struct jit_move_scale_kernel : public jit_uni_move_scale_kernel, public jit_gene
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_move_scale_kernel)
 
     explicit jit_move_scale_kernel(const jit_move_scale_compile_params& jcp) : jit_uni_move_scale_kernel(jcp), jit_generator(jit_name()) {
-        if (jcp.src_prc == Precision::BF16)
+        runtime_prc = jcp_.src_prc == Precision::BF16 ? Precision::BF16 : Precision::FP32;
+        if (jcp_.dst_prc == Precision::I8 || jcp_.dst_prc == Precision::U8)
+            runtime_prc = Precision::FP32;
+        if (runtime_prc == Precision::BF16)
             vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / sizeof(uint16_t);
         else
             vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / sizeof(float);
@@ -96,10 +99,7 @@ private:
 
     void load_scale_store(size_t step) {
         bool is_tail = step < vec_size;
-        Precision internal_prc = jcp_.src_prc == Precision::BF16 ? Precision::BF16 : Precision::FP32;
-        if (jcp_.dst_prc == Precision::I8 || jcp_.dst_prc == Precision::U8)
-            internal_prc = Precision::FP32;
-        load(vmm_in, reg_in_aux, jcp_.src_prc, internal_prc, step, false);
+        load(vmm_in, reg_in_aux, jcp_.src_prc, runtime_prc, step, false);
 
         if (jcp_.with_scales) {
             if (!jcp_.broadcast_scales) {
@@ -109,7 +109,7 @@ private:
             uni_vmulps(vmm_in, vmm_in, vmm_scales);
         }
 
-        store(reg_out_aux, vmm_in, internal_prc, jcp_.dst_prc, step);
+        store(reg_out_aux, vmm_in, runtime_prc, jcp_.dst_prc, step);
 
         if (!is_tail) {
             add(reg_in_aux, jcp_.src_prc.size() * step);
@@ -138,6 +138,7 @@ private:
     }
 
     size_t vec_size;
+    Precision runtime_prc;
 
     Xmm xmm_tmp = Xmm(2);
     Vmm vmm_scales = Vmm(0);
