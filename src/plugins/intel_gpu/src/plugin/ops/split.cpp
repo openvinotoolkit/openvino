@@ -44,7 +44,7 @@ static void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>&
             for (size_t idx = 0; idx < input_pshape.size(); idx++) {
                 if ((outPartialShape[idx].get_length() + static_cast<ov::Dimension::value_type>(start_offset[idx])) > input_pshape[idx].get_length()) {
                     IE_THROW() << "Invalid dimesions in split layer: " << op->get_friendly_name()
-                                    << " output: " <<  ov::descriptor::get_ov_tensor_legacy_name(op->get_output_tensor_name(idx));
+                                    << " output: " <<  ov::descriptor::get_ov_tensor_legacy_name(op->get_output_tensor(idx));
                 }
             }
             NGRAPH_SUPPRESS_DEPRECATED_END
