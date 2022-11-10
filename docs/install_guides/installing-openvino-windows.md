@@ -1,4 +1,4 @@
-# Install OpenVINO™ Runtime on Windows from Installer {#openvino_docs_install_guides_installing_openvino_windows}
+# Install Intel® Distribution of OpenVINO™ Toolkit on Windows 10 Using the Installer{#openvino_docs_install_guides_installing_openvino_windows}
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. These tools are now only available on [pypi.org](https://pypi.org/project/openvino-dev/).
 
@@ -15,7 +15,7 @@ You can also check the [Release Notes](https://software.intel.com/en-us/articles
 
   Optimized for these processors:
 
-  * 6th to 12th generation Intel® Core™ processors and Intel® Xeon® processors
+  * 6th to 12th generation Intel® Core™ processors and Intel® Xeon® processors 
   * 3rd generation Intel® Xeon® Scalable processor (formerly code named Cooper Lake)
   * Intel® Xeon® Scalable processor (formerly Skylake and Cascade Lake)
   * Intel Atom® processor with support for Intel® Streaming SIMD Extensions 4.1 (Intel® SSE4.1)
@@ -23,12 +23,12 @@ You can also check the [Release Notes](https://software.intel.com/en-us/articles
   * Intel® Iris® Xe MAX Graphics
   * Intel® Neural Compute Stick 2
   * Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
-
+  
 .. tab:: Processor Notes
 
-  Processor graphics are not included in all processors.
+  Processor graphics are not included in all processors. 
   See `Product Specifications`_ for information about your processor.
-
+  
   .. _Product Specifications: https://ark.intel.com/
 
 .. tab:: Software
@@ -38,13 +38,13 @@ You can also check the [Release Notes](https://software.intel.com/en-us/articles
      * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`_ (optional, only required for building sample applications)
   * For Python developers: `Python 3.6 - 3.9, 64-bit <https://www.python.org/downloads/windows/>`_
      * Note that OpenVINO is gradually stopping the support for Python 3.6. Python 3.7 - 3.9 are recommended.
-
+  
   .. note::
     You can choose to download Community version. Use `Microsoft Visual Studio installation guide <https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019>`_ to walk you through the installation. During installation in the **Workloads** tab, choose **Desktop development with C++**.
 
   .. note::
     You can either use `cmake<version>.msi` which is the installation wizard or `cmake<version>.zip` where you have to go into the `bin` folder and then manually add the path to environmental variables.
-
+  
   .. important::
     As part of this installation, make sure you click the option **Add Python 3.x to PATH** to `add Python <https://docs.python.org/3/using/windows.html#installation-steps>`_ to your `PATH` environment variable.
 
@@ -64,17 +64,17 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 
 1. Download the Intel® Distribution of OpenVINO™ toolkit package file from [Intel® Distribution of OpenVINO™ toolkit for Windows](https://software.intel.com/en-us/openvino-toolkit/choose-download).
    Select the Intel® Distribution of OpenVINO™ toolkit for Windows package from the dropdown menu.
-
+   
 2. Go to the `Downloads` folder and double-click `w_openvino_toolkit_p_<version>.exe`. In the opened window, you can select the folder where installer files will be placed. The directory will be referred to as <INSTALL_DIR> elsewhere in the documentation. Once the files are extracted, you should see the following dialog box open up:
 
    @sphinxdirective
-
+   
    .. image:: _static/images/openvino-install.png
      :width: 400px
      :align: center
-
+   
    @endsphinxdirective
-
+   
 3. Follow the instructions on your screen. During the installation you will be asked to accept the license agreement. Your acceptance is required to continue. Check out the installation process in the image below:<br>
    ![](../img/openvino-install-win-run-boostrapper-script.gif)
    Click on the image to see the details.
@@ -113,26 +113,26 @@ The environment variables are set. Next, you can download some additional tools.
 
    .. note::
       No prerequisites are needed.
-
+      
    There are three ways to run the script:
-
+   
    * GUI: right-click the script and select ``Run with PowerShell``.
-
+      
    * Command prompt (CMD) console:
-
+   
    .. code-block:: sh
-
+   
       powershell <INSTALL_DIR>\extras\scripts\download_opencv.ps1
-
-
+      
+      
    * PowerShell console:
-
+   
    .. code-block:: sh
+   
+      .\<INSTALL_DIR>\scripts\download_opencv.ps1 
+      
 
-      .\<INSTALL_DIR>\scripts\download_opencv.ps1
-
-
-   If the Intel® Distribution of OpenVINO™ is installed to the system location (e.g. ``Program Files (x86)``) then privilege elevation dialog will be shown. The script can be run from CMD/PowerShell Administrator console to avoid this dialog in case of system-wide installation.
+   If the Intel® Distribution of OpenVINO™ is installed to the system location (e.g. ``Program Files (x86)``) then privilege elevation dialog will be shown. The script can be run from CMD/PowerShell Administrator console to avoid this dialog in case of system-wide installation. 
    The script is interactive by default, so during the execution it will wait for user to press ``Enter`` If you want to avoid this, use the ``-batch`` option, e.g. ``powershell <openvino>\extras\scripts\download_opencv.ps1 -batch``. After the execution of the script, you will find OpenCV extracted to ``<INSTALL_DIR>/extras/opencv``.
 
 @endsphinxdirective
@@ -147,15 +147,15 @@ The environment variables are set. Next, you can download some additional tools.
 .. tab:: VPU
 
    To install and configure your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, see the :ref:`VPU Configuration Guide <vpu guide windows>`.
-
+   
 .. tab:: NCS 2
-
+   
    No additional configurations are needed.
-
+   
 .. tab:: GNA
 
    To enable the toolkit components to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide windows>`.
-
+   
 @endsphinxdirective
 
 ## <a name="get-started"></a>Step 5: What's next?
@@ -171,7 +171,7 @@ To start with C++ samples, see [Build Sample Applications on Windows](../OV_Runt
    * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
    * [Hello Reshape SSD C++ Sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
    * [Image Classification Async C++ Sample](@ref openvino_inference_engine_samples_classification_sample_async_README)
-
+    
 ## <a name="uninstall"></a>Uninstalling the Intel® Distribution of OpenVINO™ Toolkit
 
 To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
@@ -179,15 +179,15 @@ To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalli
 @sphinxdirective
 
 .. dropdown:: Additional Resources
-
+      
    * Converting models for use with OpenVINO™: :ref:`Model Optimizer Developer Guide <deep learning model optimizer>`
    * Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
    * Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
    * Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
-   * IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_
-
+   * IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_ 
+      
 <!---  
-   To learn more about converting models from specific frameworks, go to:
+   To learn more about converting models from specific frameworks, go to: 
    * :ref:`Convert Your Caffe Model <convert model caffe>`
    * :ref:`Convert Your TensorFlow Model <convert model tf>`
    * :ref:`Convert Your MXNet Modele <convert model mxnet>`
