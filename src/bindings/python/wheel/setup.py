@@ -32,7 +32,7 @@ CONFIG = "Release" if platform.system() in {"Windows", "Darwin"} else ""
 machine = platform.machine()
 if machine == "x86_64" or machine == "AMD64":
     ARCH = "intel64"
-elif machine == "X86":
+elif machine == "X86" or machine == "i686":
     ARCH = "ia32"
 elif machine == "arm" or machine == "armv7l":
     ARCH = "arm"

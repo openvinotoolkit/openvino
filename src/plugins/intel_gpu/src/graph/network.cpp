@@ -19,6 +19,7 @@
 #include "intel_gpu/graph/network.hpp"
 #include "assign_inst.h"
 #include "read_value_inst.h"
+#include "reshape_inst.h"
 
 #include "to_string_utils.h"
 #include "primitive_inst.h"
@@ -723,21 +724,26 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         GPU_DEBUG_COUT << "----------------------------------------------" << std::endl;
 
     std::vector<memory::ptr> in_out_mem;
+    auto is_surface_lock_check_needed = [&](const shared_mem_type& shared_mem_type) {
+        return shared_mem_type == shared_mem_type::shared_mem_vasurface ||
+               shared_mem_type == shared_mem_type::shared_mem_dxbuffer ||
+               shared_mem_type == shared_mem_type::shared_mem_image;
+    };
+
     bool shared_mem_found = std::any_of(_in_out_shared_mem_types.begin(),
                                         _in_out_shared_mem_types.end(),
-                                        [](const shared_mem_type& shared_mem_type) {
-                                            return shared_mem_type == shared_mem_type::shared_mem_vasurface ||
-                                                   shared_mem_type == shared_mem_type::shared_mem_dxbuffer;
-                                        });
+                                        is_surface_lock_check_needed);
 
     if (shared_mem_found) {
         for (auto& inst : _inputs) {
-            if (inst->output_memory_ptr())
+            if (inst->output_memory_ptr() &&
+                is_surface_lock_check_needed(inst->output_memory_ptr()->get_internal_params().mem_type))
                 in_out_mem.push_back(inst->output_memory_ptr());
         }
 
         for (auto& inst : _outputs) {
-            if (inst->output_memory_ptr())
+            if (inst->output_memory_ptr() &&
+                is_surface_lock_check_needed(inst->output_memory_ptr()->get_internal_params().mem_type))
                 in_out_mem.push_back(inst->output_memory_ptr());
         }
     }
@@ -993,6 +999,12 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "NetworkImpl::TransferMemory");
     auto& inst_mem = instance->output_memory();
     auto alloc_type = inst_mem.get_allocation_type();
+
+    auto users = node.get_users();
+    if (users.size() == 1
+        && users.front()->is_type<reshape>()
+        && users.front()->is_dynamic())
+            return;
 
     // Do not transfer memory if a user requires lockable memory.
     // If memory is used in both gpu and cpu implementations, primitive itself is responsible for correct allocation type

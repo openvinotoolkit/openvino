@@ -310,6 +310,14 @@ cldnn::engine& get_test_engine() {
     return *test_engine;
 }
 
+cldnn::engine& get_test_engine(const cldnn::engine_configuration& configuration) {
+   static std::shared_ptr<cldnn::engine> test_engine = nullptr;
+   if (!test_engine) {
+       test_engine = cldnn::engine::create(engine_types::ocl, runtime_types::ocl, configuration);
+   }
+   return *test_engine;
+}
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 cldnn::engine& get_onednn_test_engine() {
     static std::shared_ptr<cldnn::engine> test_engine = nullptr;

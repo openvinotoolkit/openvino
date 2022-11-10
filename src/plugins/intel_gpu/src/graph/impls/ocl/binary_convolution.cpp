@@ -42,14 +42,14 @@ protected:
     bool validate_impl(const typed_primitive_inst<binary_convolution>& instance) const override {
         bool res = true;
 
-        auto data_type = instance.node.input().get_output_layout().data_type;
+        auto data_type = instance.node->input().get_output_layout().data_type;
 
         // Check whether all memory elements use the same unit type (FP16 or FP32).
         CLDNN_ERROR_DATA_TYPES_MISMATCH(_node_id,
                                         "Input memory",
                                         data_type,
                                         "output memory",
-                                        instance.node.get_output_layout().data_type,
+                                        instance.node->get_output_layout().data_type,
                                         "");
         CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(_node_id,
                                                     "Input memory",

@@ -304,3 +304,72 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_1) {
     ASSERT_EQ(lock[2], 285 + 30);
     ASSERT_EQ(lock[3], 285 + 40);
 }
+
+TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_2) {
+    auto& engine = get_test_engine();
+    auto weights0 = engine.allocate_memory({ ov::PartialShape{ 2, 10 }, data_types::i8, format::bfyx });
+    auto weights1 = engine.allocate_memory({ ov::PartialShape{ 1, 2 }, data_types::i8, format::bfyx });
+    auto in_layout = layout{ ov::PartialShape::dynamic(2), data_types::i8, format::bfyx };
+    auto in_eltw_layout = layout{ ov::PartialShape::dynamic(2), data_types::f32, format::bfyx };
+
+    set_values<uint8_t>(weights0, {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1});
+    set_values<uint8_t>(weights1, {1, 1});
+
+
+    // The topology below is intended to check the following tricky things:
+    // 1. Cases where original eltw input is also optimized (act_e2 is fused into act_e1)
+    // 1. There is another layers in fusion pattern (activations before & after eltwise)
+    // 1. Also, the input (act_fc1) of the fused node of the eltw (i.e., fc2) is fused to other node (fc1)
+
+    topology topology;
+    topology.add(data("weights0", weights0));
+    topology.add(data("weights1", weights1));
+    topology.add(input_layout("input", in_layout));
+    topology.add(fully_connected("fc1", "input", { "weights0" }, "", data_types::i8));
+    topology.add(activation("act_fc1", "fc1", activation_func::relu));
+    topology.add(fully_connected("fc2", "act_fc1", { "weights1" }, "", data_types::i8));
+    topology.add(activation("act_fc2", "fc2", activation_func::relu));
+    topology.add(input_layout("extra_input", in_eltw_layout));
+    topology.add(activation("act_e1", "extra_input", activation_func::abs));
+    topology.add(activation("act_e2", "act_e1", activation_func::relu));
+    topology.add(eltwise("eltw", {"act_fc2", "act_e2"}, eltwise_mode::sum));
+    topology.add(activation("act_fc3", "eltw", activation_func::relu));
+    topology.add(reorder("reorder", "act_fc3", format::bfyx, data_types::f32));
+
+    build_options build_opts;
+    build_opts.set_option(build_option::optimize_data(true));
+    build_opts.set_option(build_option::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, build_opts, false, true);
+
+    layout_optimizer lo(true);
+
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+
+    ASSERT_NE(prog, nullptr);
+    ASSERT_FALSE(has_node_with_type<eltwise>(*prog));
+
+    cldnn::network net(prog, 0);
+
+    auto input_memory = engine.allocate_memory(layout{ ov::PartialShape{1, 10}, data_types::i8, format::bfyx });
+    auto extra_input_memory = engine.allocate_memory(layout{ ov::PartialShape{4, 4}, data_types::f32, format::bfyx });
+    set_values<int8_t>(input_memory, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, -10});
+    set_values<float>(extra_input_memory, {1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4});
+
+    net.set_input_data("input", input_memory);
+    net.set_input_data("extra_input", extra_input_memory);
+
+    auto output = net.execute();
+    auto out_mem = output.at("reorder").get_memory();
+
+    ASSERT_NE(out_mem, nullptr);
+
+    ASSERT_EQ(out_mem->count(),16);
+    ASSERT_EQ(out_mem->size(), 16 * sizeof(float));
+
+    mem_lock<float> lock(out_mem, net.get_stream());
+
+    ASSERT_EQ(lock[0], 91);
+    ASSERT_EQ(lock[1], 92);
+    ASSERT_EQ(lock[2], 93);
+    ASSERT_EQ(lock[3], 94);
+}

@@ -200,7 +200,7 @@ std::string reorder_inst::to_string(reorder_node const& node) {
 }
 
 reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
-    : parent(network, node, !node.can_be_optimized() && !node.is_dynamic()) {
+    : parent(network, node, (!node.can_be_optimized() && node.get_output_layout().is_static()) ? true : false) {
     if (node.can_be_optimized())
         reuse_input();
 
@@ -218,7 +218,7 @@ reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
                               "Input dimension < output dimension. Reorder primitive woks only with same dimension sizes "
                               "(reorder) or when input > output (flatten).");
     }
-    if (!argument.subtract_per_feature.empty()) {
+    if (!argument->subtract_per_feature.empty()) {
         CLDNN_ERROR_GREATER_THAN(node.id(),
                                  "Input feature dimension size",
                                  input_layout.get_tensor().feature.size(),
@@ -230,7 +230,7 @@ reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
                 "Input feature size[0]",
                 static_cast<size_t>(input_layout.feature()),
                 "argument subtract per feature size",
-                argument.subtract_per_feature.size(),
+                argument->subtract_per_feature.size(),
                 "Number of features/channels in input does not match the number of features/channels in "
                 "values to subtract");
         }
@@ -238,7 +238,7 @@ reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
 }
 
 void reorder_inst::on_execute() {
-    if (node.can_be_optimized())
+    if (node->can_be_optimized())
         reuse_input();
 }
 
@@ -248,8 +248,8 @@ void reorder_inst::reuse_input() {
 
     build_deps();
 
-    if (node.requires_reinterpret()) {
-        _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), node.get_output_layout());
+    if (node->requires_reinterpret()) {
+        _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), node->get_output_layout());
     } else {
         _outputs[0] = input_memory_ptr();
     }

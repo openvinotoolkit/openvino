@@ -76,6 +76,7 @@ from openvino.runtime.opset7.ops import idft
 from openvino.runtime.opset8.ops import if_op
 from openvino.runtime.opset10.ops import interpolate
 from openvino.runtime.opset9.ops import irdft
+from openvino.runtime.opset10.ops import is_finite
 from openvino.runtime.opset10.ops import is_inf
 from openvino.runtime.opset10.ops import is_nan
 from openvino.runtime.opset8.ops import i420_to_bgr

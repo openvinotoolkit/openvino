@@ -99,8 +99,8 @@ public:
     }
     memory& output_memory(size_t index = 0) const { return *_outputs[index]; }
     memory::ptr output_memory_ptr(size_t index = 0) const { return _outputs[index]; }
-    size_t inputs_memory_count() const { return _node.get_primitive()->input_size(); }
-    size_t outputs_memory_count() const { return _node.get_primitive()->output_size(); }
+    size_t inputs_memory_count() const { return _node->get_primitive()->input_size(); }
+    size_t outputs_memory_count() const { return _node->get_primitive()->output_size(); }
     bool outputs_allocated() const {
         if (_outputs.empty()) return false;
         for (const auto& output : _outputs) {
@@ -108,17 +108,17 @@ public:
         }
         return true;
     }
-    primitive_type_id type() const { return _node.type(); }
-    primitive_id id() const { return _node.id(); }
-    primitive_id org_id() const { return _node.get_org_primitive_id(); }
-    bool can_be_optimized() const { return _node.can_be_optimized(); }
-    std::shared_ptr<const primitive> desc() const { return _node.get_primitive(); }
-    program_node const& get_node() const { return _node; }
+    primitive_type_id type() const { return _node->type(); }
+    primitive_id id() const { return _node->id(); }
+    primitive_id org_id() const { return _node->get_org_primitive_id(); }
+    bool can_be_optimized() const { return _node->can_be_optimized(); }
+    std::shared_ptr<const primitive> desc() const { return _node->get_primitive(); }
+    program_node const& get_node() const { return *_node; }
     network& get_network() const { return _network; }
     uint32_t get_network_id() const;
     virtual void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0);
     void check_memory_to_set(const memory& mem, const layout& layout) const;
-    const std::list<const cldnn::program_node *>& get_users() const { return _node.get_users(); }
+    const std::list<const cldnn::program_node *>& get_users() const { return _node->get_users(); }
 
     // return pointer to const to prevent arbitrary 'execute' call -> use primitive_inst.execute() instead
     const primitive_impl* get_impl() const { return _impl.get(); }
@@ -159,9 +159,9 @@ public:
         return dep_memory_ptr(get_fused_mem_offset() + dep_id);
     }
 
-    bool has_fused_primitives() const { return !_node.get_fused_primitives().empty(); }
-    size_t get_fused_mem_count() const { return _node.get_fused_inputs_count(); }
-    size_t get_fused_mem_offset() const { return _node.get_fused_primitives()[0].dep_start_idx; }
+    bool has_fused_primitives() const { return !_node->get_fused_primitives().empty(); }
+    size_t get_fused_mem_count() const { return _node->get_fused_inputs_count(); }
+    size_t get_fused_mem_offset() const { return _node->get_fused_primitives()[0].dep_start_idx; }
 
     bool has_mutable_input() const {
         return _has_mutable_input;
@@ -172,7 +172,7 @@ public:
     }
 
     bool is_output() const {
-        return _node.is_output();
+        return _node->is_output();
     }
 
     bool mem_allocated() const {
@@ -201,7 +201,7 @@ protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
 
     network& _network;
-    program_node const& _node;
+    program_node const* _node;
     const layout _node_output_layout;
 
     std::unique_ptr<kernel_impl_params> _impl_params;
@@ -346,8 +346,8 @@ public:
     using typed_node = typed_program_node<PType>;
     using typed_impl = typed_primitive_impl<PType>;
 
-    const typed_node& node;
-    const PType& argument;
+    const typed_node* node;
+    std::shared_ptr<const PType> argument;
 
     template<typename T>
     static std::vector<layout> calc_output_layouts(const typed_node& node, const kernel_impl_params& impl_param) { return {}; }
@@ -357,7 +357,7 @@ public:
 
 protected:
     typed_primitive_inst_base(network& network, typed_node const& node, bool allocate_memory)
-        : primitive_inst(network, node, allocate_memory), node(_node), argument(*node.get_primitive()) {}
+        : primitive_inst(network, node, allocate_memory), node(&node), argument(node.get_primitive()) {}
 
     typed_primitive_inst_base(network& network, typed_node const& node, memory::ptr buffer)
         : typed_primitive_inst_base(network, node, false) {
@@ -366,7 +366,7 @@ protected:
 
 private:
     bool do_allocate_memory(typed_node const& typ_node) {
-        if (typ_node.is_dynamic())
+        if (typ_node.get_output_layout().is_dynamic())
             return false;
 
         if (typ_node.template have_user_with_type<concatenation>() && typ_node.get_users().size() == 1 &&

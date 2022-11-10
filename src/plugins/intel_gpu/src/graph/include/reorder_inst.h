@@ -65,7 +65,7 @@ public:
     memory::ptr mean_nv12_memory() const { return dep_memory_ptr(2); }
     memory::ptr mean_memory() const { return dep_memory_ptr(1); }
 
-    bool has_mean() const { return !argument.mean.empty(); }
+    bool has_mean() const { return !argument->mean.empty(); }
 
 private:
     void on_execute() override;

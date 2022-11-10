@@ -197,7 +197,7 @@ void add_required_reorders::run(program& p) {
 
             if (!correct_layout_selected) {
                 for (auto new_layout_format : preferred_layout_formats) {
-                    layout current_layout(original_layout.data_type, new_layout_format, original_layout.get_tensor());
+                    layout current_layout(original_layout.get_partial_shape(), original_layout.data_type, new_layout_format);
                     usr->set_output_layout(current_layout, false);
                     if (usr->type()->does_possible_implementation_exist(*usr)) {
                         correct_layout_selected = true;
@@ -210,21 +210,19 @@ void add_required_reorders::run(program& p) {
                 // goal of this section is to use int32 implementation
                 // if int64 is not available for usr primitive
                 if (original_layout.data_type == data_types::i64) {
-                    layout original_layout_i32(data_types::i32,
-                                          original_layout.format,
-                                          original_layout.get_tensor());
-
+                    layout original_layout_i32(original_layout.get_partial_shape(),
+                                               data_types::i32,
+                                               original_layout.format);
                     usr->set_output_layout(original_layout_i32, false);
-
                     if (usr->type()->does_possible_implementation_exist(*usr)) {
                         correct_layout_selected = true;
                     }
 
                     if (!correct_layout_selected) {
                         for (auto new_layout_format : preferred_layout_formats) {
-                            layout current_layout_i32(original_layout_i32.data_type,
-                                                  new_layout_format,
-                                                  original_layout_i32.get_tensor());
+                            layout current_layout_i32(original_layout_i32.get_partial_shape(),
+                                                      original_layout_i32.data_type,
+                                                      new_layout_format);
                             usr->set_output_layout(current_layout_i32, false);
                             if (usr->type()->does_possible_implementation_exist(*usr)) {
                                 correct_layout_selected = true;
@@ -232,7 +230,6 @@ void add_required_reorders::run(program& p) {
                             }
                         }
                     }
-
                     if (!correct_layout_selected) {
                         throw std::runtime_error("Internal Error: no implementation for " + usr->id() +
                             " kernel which satisfies output format dependecies.");

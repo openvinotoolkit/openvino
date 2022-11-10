@@ -63,12 +63,12 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
 
         OPENVINO_ASSERT(impl_param.memory_deps.count(1) > 0, "[GPU] Can't find Crop(ngraph VariadicSplit op mode) axis values memory dependency");
         auto axis_values_mem = impl_param.memory_deps.at(1);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> axis_values_mem_lock(axis_values_mem, impl_param.prog.get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> axis_values_mem_lock(axis_values_mem, impl_param.prog->get_stream());
         const_data.emplace(1, make_host_tensor(axis_values_mem->get_layout(), axis_values_mem_lock.data()));
 
         OPENVINO_ASSERT(impl_param.memory_deps.count(2) > 0, "[GPU] Can't find Crop(ngraph VariadicSplit op mode) split length values memory dependency");
         auto split_length_mem = impl_param.memory_deps.at(2);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> split_length_mem_lock(split_length_mem, impl_param.prog.get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> split_length_mem_lock(split_length_mem, impl_param.prog->get_stream());
         const_data.emplace(2, make_host_tensor(split_length_mem->get_layout(), split_length_mem_lock.data()));
 
         ov::op::v1::VariadicSplit op;
@@ -78,7 +78,7 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
 
         OPENVINO_ASSERT(impl_param.memory_deps.count(1) > 0, "[GPU] Can't find Crop(ngraph Split op mode) axis values memory dependency");
         auto axis_values_mem = impl_param.memory_deps.at(1);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> axis_values_mem_lock(axis_values_mem, impl_param.prog.get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> axis_values_mem_lock(axis_values_mem, impl_param.prog->get_stream());
         const_data.emplace(1, make_host_tensor(axis_values_mem->get_layout(), axis_values_mem_lock.data()));
 
         ov::op::v1::Split op;
@@ -175,9 +175,9 @@ std::string crop_inst::to_string(crop_node const& node) {
 }
 
 crop_inst::typed_primitive_inst(network& network, crop_node const& node) : parent(network, node) {
-    const auto& ref_in_sizes = argument.reference_input;
+    const auto& ref_in_sizes = argument->reference_input;
     const auto in_layout = node.input().get_output_layout();
-    const auto& offsets = argument.offsets;
+    const auto& offsets = argument->offsets;
     tensor null_tensor {};
     tensor value_tensor { 1, 1, 1, 1, 1 };
 
@@ -244,7 +244,7 @@ crop_inst::typed_primitive_inst(network& network, crop_node const& node) : paren
 }
 
 void crop_inst::on_execute() {
-    if (!node.can_be_optimized())
+    if (!node->can_be_optimized())
         return;
 
     if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
@@ -254,6 +254,6 @@ void crop_inst::on_execute() {
 }
 
 void crop_inst::reuse_input() {
-    _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), node.get_output_layout());
+    _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), node->get_output_layout());
 }
 }  // namespace cldnn

@@ -49,7 +49,7 @@ TYPED_TEST_P(BinaryOperatorVisitor, Auto_Broadcast)
     auto auto_broadcast = ngraph::op::AutoBroadcastType::NUMPY;
 
     const auto op_func = std::make_shared<OP_Type>(A, B, auto_broadcast);
-    ngraph::test::NodeBuilder builder(op_func);
+    ngraph::test::NodeBuilder builder(op_func, {A, B});
     const auto g_op_func = ngraph::as_type_ptr<OP_Type>(builder.create());
 
     const auto expected_attr_count = 1;
@@ -57,4 +57,24 @@ TYPED_TEST_P(BinaryOperatorVisitor, Auto_Broadcast)
     EXPECT_EQ(op_func->get_autob(), g_op_func->get_autob());
 }
 
-REGISTER_TYPED_TEST_SUITE_P(BinaryOperatorVisitor, Auto_Broadcast);
+TYPED_TEST_P(BinaryOperatorVisitor, No_Broadcast)
+{
+    using OP_Type = typename TypeParam::op_type;
+    const ngraph::element::Type_t element_type = TypeParam::element_type;
+
+    ngraph::test::NodeBuilder::get_ops().register_factory<OP_Type>();
+    const auto A =
+        std::make_shared<ngraph::op::Parameter>(element_type, ngraph::PartialShape{1, 2, 3});
+    const auto B =
+        std::make_shared<ngraph::op::Parameter>(element_type, ngraph::PartialShape{1, 2, 3});
+
+    const auto op_func = std::make_shared<OP_Type>(A, B);
+    ngraph::test::NodeBuilder builder(op_func, {A, B});
+    const auto g_op_func = ngraph::as_type_ptr<OP_Type>(builder.create());
+
+    const auto expected_attr_count = 1;
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
+    EXPECT_EQ(op_func->get_autob(), g_op_func->get_autob());
+}
+
+REGISTER_TYPED_TEST_SUITE_P(BinaryOperatorVisitor, Auto_Broadcast, No_Broadcast);

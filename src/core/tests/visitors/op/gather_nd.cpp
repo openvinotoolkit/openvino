@@ -21,7 +21,7 @@ TEST(attributes, gather_nd_v5_op) {
     auto I = make_shared<op::Parameter>(element::i32, Shape{2, 1});
     auto G = make_shared<op::v5::GatherND>(P, I, batch_dims);
 
-    NodeBuilder builder(G);
+    NodeBuilder builder(G, {P, I});
     auto g_G = ov::as_type_ptr<opset5::GatherND>(builder.create());
 
     EXPECT_EQ(g_G->get_batch_dims(), G->get_batch_dims());
@@ -34,7 +34,7 @@ TEST(attributes, gather_nd_v8_op) {
     auto I = make_shared<op::Parameter>(element::i32, Shape{2, 1});
     auto G = make_shared<op::v8::GatherND>(P, I, batch_dims);
 
-    NodeBuilder builder(G);
+    NodeBuilder builder(G, {P, I});
     auto g_G = ov::as_type_ptr<opset8::GatherND>(builder.create());
 
     EXPECT_EQ(g_G->get_batch_dims(), G->get_batch_dims());

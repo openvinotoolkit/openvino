@@ -118,6 +118,11 @@ bool equal_type_and_partial_shape(const InOut1& lhs, const InOut2& rhs) {
     return lhs.get_element_type() == rhs.get_element_type() && lhs.get_partial_shape() == rhs.get_partial_shape();
 }
 
+template <typename InOut1, typename InOut2>
+bool equal_type_and_partial_shape_compatible(const InOut1& lhs, const InOut2& rhs) {
+    return lhs.get_element_type() == rhs.get_element_type() && lhs.get_partial_shape().compatible(rhs.get_partial_shape());
+}
+
 class NodeAndInputDescription {
 public:
     using SubGraphOp = ov::op::util::SubGraphOp;
@@ -187,7 +192,8 @@ public:
             return true;
         } else if (m_description->get_type_info() == SubGraphOp::MergedInputDescription::get_type_info_static() ||
                    m_description->get_type_info() == SubGraphOp::InvariantInputDescription::get_type_info_static()) {
-            return equal_type_and_partial_shape(*m_parameter, m_input);
+            // If loop op has back edge it may change the parameter to dynamic. The shape will be different with the initial op
+            return equal_type_and_partial_shape_compatible(*m_parameter, m_input);
         }
 
         std::stringstream ss;

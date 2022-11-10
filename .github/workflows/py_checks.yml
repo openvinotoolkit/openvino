@@ -12,6 +12,11 @@ on:
       - 'src/bindings/python/**'
       - 'samples/python/**'
       - '.github/workflows/py_checks.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   linters:
     runs-on: ubuntu-20.04

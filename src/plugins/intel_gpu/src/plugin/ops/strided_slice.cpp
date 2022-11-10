@@ -227,9 +227,14 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
 
         // Reshape in case of deleting of axis
         if (!shrink_axis_mask.empty()) {
-            auto targetShape = tensor_from_dims(output_shape);
+            std::vector<int64_t> output_pattern(output_shape.size());
+            auto out_p = output_pattern.begin();
+            for (auto s = output_shape.begin(); s != output_shape.end() && out_p != output_pattern.end(); s++, out_p++) {
+                *out_p = *s;
+            }
+
             auto reshapeOutName = op->get_friendly_name() + "/Crop";
-            auto reshapePrim = cldnn::reshape(reshapeOutName, layerName, targetShape);
+            auto reshapePrim = cldnn::reshape(reshapeOutName, layerName, false, output_pattern, output_pshape);
             p.add_primitive(*op, reshapePrim);
             last_layer_primitive = reshapeOutName;
         }

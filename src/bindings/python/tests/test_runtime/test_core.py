@@ -199,10 +199,10 @@ def test_available_devices(device):
     )
 
 
-def test_get_property():
+def test_get_property(device):
     core = Core()
-    conf = core.get_property("CPU", "CPU_BIND_THREAD")
-    assert conf == "YES"
+    conf = core.get_property(device, "SUPPORTED_CONFIG_KEYS")
+    assert "PERF_COUNT" in conf
 
 
 @pytest.mark.skipif(

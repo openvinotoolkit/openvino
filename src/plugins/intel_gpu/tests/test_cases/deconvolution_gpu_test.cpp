@@ -116,7 +116,28 @@ VVVF<OutputT> reference_deconvolution(
     return output;
 }
 
-TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_nopad) {
+template <cldnn::format::type input>
+struct deconvolution_input {
+   static const cldnn::format::type input_layout_format = input;
+};
+
+template <typename TypeInput>
+struct deconvolution_basic : public testing::Test {
+protected:
+    static const cldnn::format::type input_layout_format = TypeInput::input_layout_format;
+};
+
+using deconvolution_types = testing::Types<deconvolution_input<cldnn::format::bfyx>,
+                                           deconvolution_input<cldnn::format::yxfb>,
+                                           deconvolution_input<cldnn::format::b_fs_yx_fsv32>,
+                                           deconvolution_input<cldnn::format::b_fs_yx_fsv16>,
+                                           deconvolution_input<cldnn::format::bs_fs_yx_bsv32_fsv16>,
+                                           deconvolution_input<cldnn::format::bs_fs_yx_bsv16_fsv16>,
+                                           deconvolution_input<cldnn::format::bs_fs_yx_bsv32_fsv32>>;
+
+TYPED_TEST_SUITE(deconvolution_basic, deconvolution_types);
+
+TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_nopad) {
     //  Filter : 2x2
     //  Input  : 2x2
     //  Output : 3x3
@@ -149,9 +170,11 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_nopad) {
 
     topology topology(
         input_layout("input", input->get_layout()),
+        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1,1 })
+        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 1,1 }),
+        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
@@ -159,7 +182,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_nopad) {
 
     auto outputs = network.execute();
     EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
+    EXPECT_EQ(outputs.begin()->first, "plane_output");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -177,7 +200,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_nopad) {
     }
 }
 
-TEST(deconvolution_f32_fw_gpu, no_bias_basic_wsiz2x2_in2x2x1x1_nopad) {
+TYPED_TEST(deconvolution_basic, no_bias_basic_wsiz2x2_in2x2x1x1_nopad) {
     //  Filter : 2x2
     //  Input  : 2x2
     //  Output : 3x3
@@ -208,8 +231,10 @@ TEST(deconvolution_f32_fw_gpu, no_bias_basic_wsiz2x2_in2x2x1x1_nopad) {
 
     topology topology(
         input_layout("input", input->get_layout()),
+        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
         data("weights", weights),
-        deconvolution("deconv", "input", { "weights" })
+        deconvolution("deconv", "reordered_input", { "weights" }),
+        reorder("plane_output", "deconv", format::bfyx, data_types::f32)
     );
 
     network network(engine, topology);
@@ -217,7 +242,7 @@ TEST(deconvolution_f32_fw_gpu, no_bias_basic_wsiz2x2_in2x2x1x1_nopad) {
 
     auto outputs = network.execute();
     EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
+    EXPECT_EQ(outputs.begin()->first, "plane_output");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -235,7 +260,7 @@ TEST(deconvolution_f32_fw_gpu, no_bias_basic_wsiz2x2_in2x2x1x1_nopad) {
     }
 }
 
-TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_nopad_bfyx) {    //  Filter : 2x2
+TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_nopad_bfyx) {    //  Filter : 2x2
     //  Input  : 2x2
     //  Output : 3x3
     //
@@ -267,9 +292,11 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_nopad_bfyx) {    //  Filt
 
     topology topology(
         input_layout("input", input->get_layout()),
+        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1,1 })
+        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 1,1 }),
+        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
@@ -277,7 +304,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_nopad_bfyx) {    //  Filt
 
     auto outputs = network.execute();
     EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
+    EXPECT_EQ(outputs.begin()->first, "plane_output");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -295,7 +322,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_nopad_bfyx) {    //  Filt
     }
 }
 
-TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_pad1) {
+TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_pad1) {
     //  Filter : 2x2
     //  Input  : 2x2
     //  Output : 1x1
@@ -327,26 +354,26 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_pad1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
+        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1, 1 }, { 1, 1})
+        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 1, 1 }, { 1, 1}),
+        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
 
-    auto output_prim = outputs.begin()->second.get_memory();
+    auto output_prim = outputs.at("plane_output").get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
     EXPECT_FLOAT_EQ(0.75f, output_ptr[0]);
 }
 
-TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride2_nopad) {
+TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_stride2_nopad) {
     //  Filter : 2x2
     //  Input  : 2x2
     //  Output : 1x1
@@ -378,19 +405,19 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride2_nopad) {
 
     topology topology(
         input_layout("input", input->get_layout()),
+        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 2,2 })
+        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 2,2 }),
+        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
 
-    auto output_prim = outputs.begin()->second.get_memory();
+    auto output_prim = outputs.at("plane_output").get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
@@ -407,7 +434,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride2_nopad) {
     }
 }
 
-TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride4_pad2) {
+TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_stride4_pad2) {
     //  Filter : 3x3
     //  Input  : 2x2
     //  Output : 1x1
@@ -443,19 +470,19 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride4_pad2) {
 
     topology topology(
         input_layout("input", input->get_layout()),
+        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, {4, 4 }, { 2, 2 })
+        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, {4, 4 }, { 2, 2 }),
+        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
 
-    auto output_prim = outputs.begin()->second.get_memory();
+    auto output_prim = outputs.at("plane_output").get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
@@ -471,7 +498,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride4_pad2) {
     }
 }
 
-TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_stride2_pad1) {
+TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x2_stride2_pad1) {
     //  Filter : 2x2
     //  Input  : 2x2x1x2
     //  Output : 2x2x1x2
@@ -505,19 +532,19 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_stride2_pad1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
+        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 })
+        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", "deconv", format::yxfb, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
 
-    auto output_prim = outputs.begin()->second.get_memory();
+    auto output_prim = outputs.at("plane_output").get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
@@ -532,7 +559,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_stride2_pad1) {
     }
 }
 
-TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2x2_in2x2x1x1_stride2_pad1) {
+TYPED_TEST(deconvolution_basic, basic_wsiz2x2x2_in2x2x1x1_stride2_pad1) {
     //  Filter : 2x2
     //  Input  : 2x2x1x1
     //  Output : 2x2x1x1
@@ -572,19 +599,19 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2x2_in2x2x1x1_stride2_pad1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
+        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 })
+        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", "deconv", format::yxfb, cldnn::data_types::f32)
     );
 
     network network(engine, topology, options);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
 
-    auto output_prim = outputs.begin()->second.get_memory();
+    auto output_prim = outputs.at("plane_output").get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
@@ -599,7 +626,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2x2_in2x2x1x1_stride2_pad1) {
     }
 }
 
-TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_pad1) {
+TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_pad1) {
     //  Filter : 2x2
     //  Input  : 2x2x1x2
     //  Output : 2x2x1x2
@@ -633,19 +660,19 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_pad1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
+        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 })
+        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
 
-    auto output_prim = outputs.begin()->second.get_memory();
+    auto output_prim = outputs.at("plane_output").get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
@@ -792,7 +819,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2x2_in2x2x1x1_stride2_pad1_input_padd
     }
 }
 
-TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_yxfb_stride2_pad1) {
+TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x2_bfyx_yxfb_stride2_pad1) {
     //  Filter : 2x2
     //  Input  : 2x2x1x2
     //  Output : 2x2x1x2
@@ -826,19 +853,20 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_yxfb_stride2_pad1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
+        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 })
+        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
 
-    auto output_prim = outputs.begin()->second.get_memory();
+
+    auto output_prim = outputs.at("plane_output").get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
@@ -853,7 +881,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_yxfb_stride2_pad1) {
     }
 }
 
-TEST(deconvolution_f16_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_yxfb_stride2_pad1) {
+TYPED_TEST(deconvolution_basic, basic_f16_wsiz2x2_in2x2x1x2_bfyx_yxfb_stride2_pad1) {
     //  Filter : 2x2
     //  Input  : 2x2x1x2
     //  Output : 2x2x1x2
@@ -895,19 +923,19 @@ TEST(deconvolution_f16_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_yxfb_stride2_pad1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
+        reorder("reordered_input", "input", this->input_layout_format, data_types::f16),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 })
+        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f16)
     );
 
     network network(engine, topology, options);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
 
-    auto output_prim = outputs.begin()->second.get_memory();
+    auto output_prim = outputs.at("plane_output").get_memory();
 
     cldnn::mem_lock<uint16_t> output_ptr (output_prim, get_test_stream());
 
@@ -922,7 +950,7 @@ TEST(deconvolution_f16_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_yxfb_stride2_pad1) {
     }
 }
 
-TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_split2) {
+TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_split2) {
     //  Filter : 2x2x2x2
     //  Input  : 2x2x1x2
     //  Output : 2x2x1x2
@@ -963,19 +991,19 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_split2)
 
     topology topology(
         input_layout("input", input->get_layout()),
+        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, 2, { 2, 2 }, { 1, 1 })
+        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, 2, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
 
-    auto output_prim = outputs.begin()->second.get_memory();
+    auto output_prim = outputs.at("plane_output").get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
@@ -990,7 +1018,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_split2)
     }
 }
 
-TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group2) {
+TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group2) {
     //  data is similar as in basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_split2
 
     auto& engine = get_test_engine();
@@ -1008,17 +1036,17 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group2)
 
     topology topology(
         input_layout("input", input->get_layout()),
+        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, 2, { 2, 2 }, { 1, 1 })
+        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, 2, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -1035,7 +1063,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group2)
     }
 }
 
-TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group16) {
+TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group16) {
     //  Test for depthwise separable optimization, there are 16 joined weights and biases (group 16)
     //  data is similar as in basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_split2_depthwise_sep_opt
 
@@ -1087,16 +1115,17 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group16
         data("bias", biases)
     );
 
-    topology.add(deconvolution("deconv", "input", { "weights" }, { "bias" }, 16, { 2, 2 }, { 1, 1 }));
+    topology.add(
+        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        deconvolution("deconv", "reordered_input", { "weights" }, { "bias" }, 16, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32));
 
     network network(engine, topology);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
 
-    auto output_prim = outputs.begin()->second.get_memory();
+    auto output_prim = outputs.at("plane_output").get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
@@ -1117,7 +1146,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group16
     }
 }
 
-TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group16_ofm2) {
+TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group16_ofm2) {
     //  Test for depthwise separable optimization, there are 16 joined weights and biases (group 16)
     //  data is similar as in basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_split2_depthwise_sep_opt_ofm2
 
@@ -1176,16 +1205,17 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group16
         data("bias", biases)
     );
 
-    topology.add(deconvolution("deconv", "input", { "weights" }, { "bias" }, 16, { 2, 2 }, { 1, 1 }));
+    topology.add(
+        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        deconvolution("deconv", "reordered_input", { "weights" }, { "bias" }, 16, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32));
 
     network network(engine, topology);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
 
-    auto output_prim = outputs.begin()->second.get_memory();
+    auto output_prim = outputs.at("plane_output").get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
@@ -1206,7 +1236,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group16
     }
 }
 
-TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x6x1x1_bfyx_stride2_pad1_group2_ofm3) {
+TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x6x1x1_bfyx_stride2_pad1_group2_ofm3) {
     //  data is similar as in basic_wsiz2x2_in1x6x1x1_bfyx_stride2_pad1_split2_ofm3
 
     auto& engine = get_test_engine();
@@ -1231,17 +1261,17 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x6x1x1_bfyx_stride2_pad1_group2_
         input_layout("input", input->get_layout()),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, 2, { 1, 1 }, { 0, 0 })
+        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, 2, { 1, 1 }, { 0, 0 }),
+        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
 
-    auto output_prim = outputs.begin()->second.get_memory();
+    auto output_prim = outputs.at("plane_output").get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
@@ -1253,7 +1283,23 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x6x1x1_bfyx_stride2_pad1_group2_
         EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
-TEST(deconvolution_f32_fw_gpu, basic3D_wsiz2x2x1_in1x1x2x2x1_nopad) {
+
+template<typename  DeconvolutionInput>
+class deconvolution_basic_3d : public deconvolution_basic<DeconvolutionInput> {
+
+};
+
+using deconvolution_3d_types = testing::Types<deconvolution_input<cldnn::format::bfzyx>,
+                                           deconvolution_input<cldnn::format::b_fs_zyx_fsv32>,
+                                           deconvolution_input<cldnn::format::b_fs_zyx_fsv16>,
+                                           deconvolution_input<cldnn::format::bs_fs_zyx_bsv32_fsv16>,
+                                           deconvolution_input<cldnn::format::bs_fs_zyx_bsv16_fsv16>,
+                                           deconvolution_input<cldnn::format::bs_fs_zyx_bsv16_fsv32>,
+                                           deconvolution_input<cldnn::format::bs_fs_zyx_bsv32_fsv32>>;
+
+TYPED_TEST_SUITE(deconvolution_basic_3d, deconvolution_3d_types);
+
+TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz2x2x1_in1x1x2x2x1_nopad) {
     //  Filter : 2x2x1
     //  Input  : 2x2x1
     //  Output : 3x3x1
@@ -1288,17 +1334,18 @@ TEST(deconvolution_f32_fw_gpu, basic3D_wsiz2x2x1_in1x1x2x2x1_nopad) {
         input_layout("input", input->get_layout()),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1,1,1 }, {0, 0, 0})
+        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 1,1,1 }, {0, 0, 0}),
+        reorder("plane_output", "deconv", format::bfzyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
 
-    auto output_prim = outputs.begin()->second.get_memory();
+
+    auto output_prim = outputs.at("plane_output").get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
@@ -1314,7 +1361,7 @@ TEST(deconvolution_f32_fw_gpu, basic3D_wsiz2x2x1_in1x1x2x2x1_nopad) {
     }
 }
 
-TEST(deconvolution_f32_fw_gpu, basic3D_wsiz3x3x3_in1x1x4x4x4_nopad) {
+TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz3x3x3_in1x1x4x4x4_nopad) {
     //  Filter : 3x3x3
     //  Input  : 3x3x3
     //  Output : 6x6x6
@@ -1439,17 +1486,17 @@ TEST(deconvolution_f32_fw_gpu, basic3D_wsiz3x3x3_in1x1x4x4x4_nopad) {
     topology topology(
         input_layout("input", input->get_layout()),
         data("weights", weights),
-        deconvolution("deconv", "input", { "weights" }, {1, 1, 1}, {0, 0, 0})
+        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        deconvolution("deconv", "reordered_input", { "weights" }, {1, 1, 1}, {0, 0, 0}),
+        reorder("plane_output", "deconv", format::bfzyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
 
-    auto output_prim = outputs.begin()->second.get_memory();
+    auto output_prim = outputs.at("plane_output").get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
@@ -1503,7 +1550,7 @@ TEST(deconvolution_f32_fw_gpu, basic3D_wsiz3x3x3_in1x1x4x4x4_nopad) {
     }
 }
 
-TEST(deconvolution_f32_fw_gpu, basic3D_wsiz2x2x2_in1x1x2x2x2_stride2_nopad) {
+TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz2x2x2_in1x1x2x2x2_stride2_nopad) {
     //  Filter : 2x2x2
     //  Input  : 2x2x2
     //  Output : 1x1
@@ -1529,23 +1576,21 @@ TEST(deconvolution_f32_fw_gpu, basic3D_wsiz2x2x2_in1x1x2x2x2_stride2_nopad) {
 
     set_values(input, { 8.f, 0.5f, 6.f, 9.f, 8.f, 0.5f, 6.f, 9.f });
     set_values(weights, { -2.0f, 0.5f, 3.5f, 1.5f, -2.0f, 0.5f, 3.5f, 1.5f });
-    //set_values(input, { 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f });
-    //set_values(weights, { 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f });
 
     topology topology(
         input_layout("input", input->get_layout()),
         data("weights", weights),
-        deconvolution("deconv", "input", { "weights" }, { 2,2,2 }, {0, 0, 0})
+        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        deconvolution("deconv", "reordered_input", { "weights" }, { 2,2,2 }, {0, 0, 0}),
+        reorder("plane_output", "deconv", format::bfzyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
 
-    auto output_prim = outputs.begin()->second.get_memory();
+    auto output_prim = outputs.at("plane_output").get_memory();
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
     std::vector<float> expected_output_vec = {
@@ -1573,7 +1618,7 @@ TEST(deconvolution_f32_fw_gpu, basic3D_wsiz2x2x2_in1x1x2x2x2_stride2_nopad) {
     }
 }
 
-TEST(deconvolution_f32_fw_gpu, basic3D_wsiz2x2x2_in1x1x2x2x2_stride2_pad1) {
+TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz2x2x2_in1x1x2x2x2_stride2_pad1) {
     //  Filter : 2x2x2
     //  Input  : 2x2x2
     //  Output : 1x1
@@ -1608,17 +1653,17 @@ TEST(deconvolution_f32_fw_gpu, basic3D_wsiz2x2x2_in1x1x2x2x2_stride2_pad1) {
     topology topology(
         input_layout("input", input->get_layout()),
         data("weights", weights),
-        deconvolution("deconv", "input", { "weights" }, { 2,2,2 }, { 1, 1, 1 })
+        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        deconvolution("deconv", "reordered_input", { "weights" }, { 2,2,2 }, { 1, 1, 1 }),
+        reorder("plane_output", "deconv", format::bfzyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
 
-    auto output_prim = outputs.begin()->second.get_memory();
+    auto output_prim = outputs.at("plane_output").get_memory();
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
     std::vector<float> expected_output_vec = {
@@ -1633,7 +1678,7 @@ TEST(deconvolution_f32_fw_gpu, basic3D_wsiz2x2x2_in1x1x2x2x2_stride2_pad1) {
 
 }
 
-TEST(deconvolution_f16_gpu, basic_k9x9_s2x2_pad4x4) {
+TYPED_TEST(deconvolution_basic, basic_f16_k9x9_s2x2_pad4x4) {
     //  Filter : 1x32x9x9
     //  Input  : 1x32x16x16
     //  Stride : 2x2
@@ -1669,18 +1714,18 @@ TEST(deconvolution_f16_gpu, basic_k9x9_s2x2_pad4x4) {
 
     topology topology_ref(
         input_layout("input", input->get_layout()),
+        reorder("reordered_input", "input", this->input_layout_format, data_types::f16),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 2, 2 }, { 4, 4 }, tensor{ 1, 1, 32, 32 })
+        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 2, 2 }, { 4, 4 }, tensor{ 1, 1, 32, 32 }),
+        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f16)
     );
 
     network network_ref(engine, topology_ref);
     network_ref.set_input_data("input", input);
 
     auto outputs_ref = network_ref.execute();
-    EXPECT_EQ(outputs_ref.size(), size_t(1));
-    EXPECT_EQ(outputs_ref.begin()->first, "deconv");
-    auto output_ref_prim = outputs_ref.begin()->second.get_memory();
+    auto output_ref_prim = outputs_ref.at("plane_output").get_memory();
     cldnn::mem_lock<FLOAT16> output_ref_ptr(output_ref_prim, get_test_stream());
 
     std::vector<FLOAT16> output_vec_ref;
@@ -2566,6 +2611,11 @@ public:
             topo.add(cldnn::deconvolution("deconv", "input", { "weights" }, groups, params.strides, params.pad));
         }
 
+        // turn off optimizer to check blocked format without reordering to plane format
+        if (params.deconv_desc.output_format == cldnn::format::any && !format::is_simple_data_format(in_layout.format))  {
+            build_opts.set_option(build_option::optimize_data(false));
+        }
+
         if (!params.deconv_desc.kernel_name.empty() || params.deconv_desc.output_format != cldnn::format::any) {
             build_opts.set_option(cldnn::build_option::force_implementations({ { "deconv", params.deconv_desc } }));
         }
@@ -2604,7 +2654,10 @@ public:
                     ASSERT_EQ(reference.size(), out_mem->get_layout().spatial(2));
                     ASSERT_EQ(reference[0].size(), out_mem->get_layout().spatial(1));
                     ASSERT_EQ(reference[0][0].size(), out_mem->get_layout().spatial(0));
-
+                    // check that reordering not happened
+                    if (!format::is_simple_data_format(in_layout.format)) {
+                        ASSERT_FALSE(format::is_simple_data_format(out_mem->get_layout().format));
+                    }
                     for (size_t zi = 0; zi < reference.size(); zi++) {
                         for (size_t yi = 0; yi < reference[0].size(); yi++) {
                             for (size_t xi = 0; xi < reference[0][0].size(); xi++) {
@@ -2816,15 +2869,47 @@ INSTANTIATE_TEST_SUITE_P(smoke, deconvolution_random_test, testing::ValuesIn(
     .add_smoke_2d(data_types::f32, data_types::f32, data_types::f32, format::bfyx, format::any)
     .add_smoke_3d(data_types::f32, data_types::f32, data_types::f32, format::bfzyx, format::any)
     .add_smoke_2d(data_types::f32, data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+    .add_smoke_2d(data_types::f32, data_types::f32, data_types::f32, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+    .add_smoke_2d(data_types::f32, data_types::f32, data_types::f32, format::bs_fs_yx_bsv16_fsv16, format::any)
+    .add_smoke_2d(data_types::f32, data_types::f32, data_types::f32, format::bs_fs_yx_bsv32_fsv16, format::any)
+    .add_smoke_2d(data_types::f32, data_types::f32, data_types::f32, format::bs_fs_yx_bsv32_fsv32, format::any)
+
     .add_smoke_3d(data_types::f32, data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16)
+    .add_smoke_3d(data_types::f32, data_types::f32, data_types::f32, format::b_fs_zyx_fsv32, format::any)
+    .add_smoke_3d(data_types::f32, data_types::f32, data_types::f32, format::bs_fs_zyx_bsv16_fsv16, format::any)
+    .add_smoke_3d(data_types::f32, data_types::f32, data_types::f32, format::bs_fs_zyx_bsv16_fsv32, format::any)
+    .add_smoke_3d(data_types::f32, data_types::f32, data_types::f32, format::bs_fs_zyx_bsv32_fsv16, format::any)
+    .add_smoke_3d(data_types::f32, data_types::f32, data_types::f32, format::bs_fs_zyx_bsv32_fsv32, format::any)
 
     .add_smoke_2d(data_types::f16, data_types::f16, data_types::f16, format::bfyx, format::any)
     .add_smoke_3d(data_types::f16, data_types::f16, data_types::f16, format::bfzyx, format::any)
     .add_smoke_2d(data_types::f16, data_types::f16, data_types::f16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+    .add_smoke_2d(data_types::f16, data_types::f16, data_types::f16, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+    .add_smoke_2d(data_types::f16, data_types::f16, data_types::f16, format::bs_fs_yx_bsv16_fsv16, format::any)
+    .add_smoke_2d(data_types::f16, data_types::f16, data_types::f16, format::bs_fs_yx_bsv32_fsv16, format::any)
+    .add_smoke_2d(data_types::f16, data_types::f16, data_types::f16, format::bs_fs_yx_bsv32_fsv32, format::any)
+
     .add_smoke_3d(data_types::f16, data_types::f16, data_types::f16, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16)
+    .add_smoke_3d(data_types::f16, data_types::f16, data_types::f16, format::b_fs_zyx_fsv32, format::any)
+    .add_smoke_3d(data_types::f16, data_types::f16, data_types::f16, format::bs_fs_zyx_bsv16_fsv16, format::any)
+    .add_smoke_3d(data_types::f16, data_types::f16, data_types::f16, format::bs_fs_zyx_bsv16_fsv32, format::any)
+    .add_smoke_3d(data_types::f16, data_types::f16, data_types::f16, format::bs_fs_zyx_bsv32_fsv16, format::any)
+    .add_smoke_3d(data_types::f16, data_types::f16, data_types::f16, format::bs_fs_zyx_bsv32_fsv32, format::any)
 
     .add_smoke_2d(data_types::i8, data_types::i8, data_types::f32, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+    .add_smoke_2d(data_types::i8, data_types::i8, data_types::i8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+    .add_smoke_2d(data_types::i8, data_types::i8, data_types::i8, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+    .add_smoke_2d(data_types::i8, data_types::i8, data_types::i8, format::bs_fs_yx_bsv16_fsv16, format::any)
+    .add_smoke_2d(data_types::i8, data_types::i8, data_types::i8, format::bs_fs_yx_bsv32_fsv16, format::any)
+    .add_smoke_2d(data_types::i8, data_types::i8, data_types::i8, format::bs_fs_yx_bsv32_fsv32, format::any)
+
     .add_smoke_3d(data_types::i8, data_types::i8, data_types::f32, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16)
+    .add_smoke_3d(data_types::i8, data_types::i8, data_types::i8, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16)
+    .add_smoke_3d(data_types::i8, data_types::i8, data_types::i8, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32)
+    .add_smoke_3d(data_types::i8, data_types::i8, data_types::i8, format::bs_fs_zyx_bsv16_fsv16, format::any)
+    .add_smoke_3d(data_types::i8, data_types::i8, data_types::i8, format::bs_fs_zyx_bsv16_fsv32, format::any)
+    .add_smoke_3d(data_types::i8, data_types::i8, data_types::i8, format::bs_fs_zyx_bsv32_fsv16, format::any)
+    .add_smoke_3d(data_types::i8, data_types::i8, data_types::i8, format::bs_fs_zyx_bsv32_fsv32, format::any)
 ), deconvolution_random_test_params::print_params);
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_extended, deconvolution_random_test, testing::ValuesIn(

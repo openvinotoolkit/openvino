@@ -405,9 +405,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
 #else
         OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
 #endif
-
     output[OUTPUT_GET_INDEX(batch, feature, oz, oy, ox)] = res;
-
 #endif // #if OUTPUT_DIMS == 5
 
 #elif defined(SAMPLE_TYPE_INTERP) // defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE

@@ -86,6 +86,17 @@ def interpolate(
 
 
 @nameable_op
+def is_finite(data: NodeInput, name: Optional[str] = None) -> Node:
+    """Performs element-wise mapping from NaN and Infinity to False. Other values are mapped to True.
+
+    :param  data:          A tensor of floating-point numeric type and arbitrary shape.
+    :param  name:          Optional name for the output node. The default is None.
+    :return: Node representing is_finite operation.
+    """
+    return _get_node_factory_opset10().create("IsFinite", as_nodes(data))
+
+
+@nameable_op
 def is_inf(
     data: NodeInput,
     attributes: Optional[dict] = None,
