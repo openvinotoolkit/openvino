@@ -17,6 +17,7 @@
 
 #include "snippets_transformations/op/load_convert.hpp"
 #include "snippets_transformations/op/store_convert.hpp"
+#include "snippets/op/matmul_cpu.hpp"
 #include "ngraph_transformations/op/swish_cpu.hpp"
 
 #include <ngraph/opsets/opset5.hpp>
@@ -126,6 +127,7 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
     jitters[ngraph::snippets::op::Kernel::get_type_info_static()] = CREATE_EMITTER(KernelEmitter);
     jitters[ngraph::snippets::op::LoopBegin::get_type_info_static()] = CREATE_EMITTER(LoopBeginEmitter);
     jitters[ngraph::snippets::op::LoopEnd::get_type_info_static()] = CREATE_EMITTER(LoopEndEmitter);
+    jitters[ngraph::snippets::op::MatMulCPU::get_type_info_static()] = CREATE_EMITTER(MatMulEmitter);
 }
 
 size_t ov::intel_cpu::CPUTargetMachine::get_lanes() const {

@@ -12,6 +12,11 @@
 #include "jit_load_store_emitters.hpp"
 
 #include "snippets_transformations/op/store_convert.hpp"
+// Matmul support:
+#include <cpu/x64/brgemm/brgemm.hpp>
+#include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
+#include <cpu/x64/matmul/brgemm_matmul_utils.hpp>
+#include <cpu/x64/amx_tile_configure.hpp>
 
 using namespace Xbyak;
 using ngraph::snippets::AllocatedEmitter;
@@ -98,7 +103,7 @@ private:
     // Vector of indices (lenght = input tensor rank) per every input and output that describes in which order
     // corresponding tensor dimensions are accessed (default: consecutive dense, e.g. 0,1,2,3 for 4D tensor).
     // Needed to calc i/o offsets.
-    std::vector<std::vector<size_t>> data_access_pattern;
+    std::vector<std::vector<size_t>> data_layout;
     std::vector<std::vector<size_t>> io_shapes = {};
     std::vector<size_t> io_data_size {};
 
@@ -355,5 +360,50 @@ private:
     size_t count;
     std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
 };
+
+class MatMulEmitter : public jit_emitter {
+public:
+    MatMulEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
+
+    size_t get_inputs_num() const override {return 2;}
+
+private:
+    void emit_impl(const std::vector<size_t>& in,
+                   const std::vector<size_t>& out,
+                   const std::vector<size_t>& pool,
+                   const std::vector<size_t>& gpr,
+                   const ov::intel_cpu::emitter_context *emit_context) const override;
+
+    template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
+    std::vector<size_t> io_data_size {};
+    struct brgemmCtx {
+        size_t M, N, K, LDA, LDB, LDC;
+        dnnl_data_type_t dt_in0, dt_in1;
+        char palette[64];
+        bool is_with_amx;
+        bool is_with_comp;
+        float beta;
+    };
+    void initBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, bool use_amx) const;
+    template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+    void callBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, const void* pin0, const void* pin1, void* pout, void* wsp) const;
+    size_t getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) const;
+    template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+    void emit_brgemm_kernel_call(const brgemm_kernel_t *brg_kernel, int bs,
+                                             Reg64 addr_A, Reg64 addr_B,
+                                              const brgemm_batch_element_t *batch, Reg64 addr_C, void *scratch) const;
+
+    static constexpr size_t MHA_BRGEMM_KERNELS_NUM = 8;
+    static constexpr size_t matmulOptimalM = 32;
+    brgemmCtx brgCtxs0[MHA_BRGEMM_KERNELS_NUM];
+    std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgKernels0[MHA_BRGEMM_KERNELS_NUM];
+
+    size_t batch0, batch1;
+    size_t M, M_blk, M_tail;
+    size_t K0, K0_blk, K0_tail, N0, N0_blk, N0_tail;
+    size_t brg0VnniFactor;
+};
+
 }   // namespace intel_cpu
 }   // namespace ov

@@ -37,11 +37,11 @@ ngraph::snippets::pass::TransposeDecomposition::TransposeDecomposition() {
 
         auto order_value = order->cast_vector<int>();
         if (supported_cases.count(order_value) == 0)
-            throw ngraph::ngraph_error("TransposeDecomposition: unsupported order");
+            return false;
 
         auto data_input = pattern_to_output.at(match_data);
         const auto& data_node = pattern_to_output.at(match_data).get_node_shared_ptr();
-        auto &param_rt = data_input.get_tensor_ptr()->get_rt_info();
+        auto &param_rt = data_node->get_rt_info();
         // Note: store and usage inside emitters as size_t is more convenient, so static_cast here
         const auto& access_pattern = order->cast_vector<size_t>();
         param_rt["Layout"] = access_pattern;

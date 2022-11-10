@@ -8,6 +8,7 @@
  */
 #pragma once
 
+#include "snippets/config.hpp"
 #include "snippets_isa.hpp"
 #include "emitter.hpp"
 
@@ -117,7 +118,7 @@ public:
      * @param m model in canonical for for table-based code generation
      * @return pointer to generated code
      */
-    code generate(std::shared_ptr<ov::Model>& m, const void* compile_params = nullptr) const;
+    code generate(std::shared_ptr<ov::Model>& m, const SubgraphConfig& config, const void* compile_params = nullptr);
 
     /**
      * @brief gets target machine
@@ -127,6 +128,8 @@ public:
 
 protected:
     std::shared_ptr<TargetMachine> target;
+    // todo: this is a temp WA remove it
+    std::vector<AllocatedEmitter> lowered_saved;
 };
 
 } // namespace snippets

@@ -25,10 +25,13 @@ ngraph::snippets::pass::InsertLoad::InsertLoad(const size_t count) {
                 for (auto consumer : output.get_target_inputs()) {
                     // if a parameter is connected to a Load => we don't need another one
                     // if a parameter is connected to LoopBegin => there must be Load inside the Loop
+                    // if a parameter is connected to MatMul => we don't need Load (read/write is inside onednn kernel)
                     // (it's the responsibility of transformation that inserted the Loops)
                     const auto& consumer_node = consumer.get_node();
                     if (ov::is_type<ngraph::snippets::op::Load>(consumer_node) ||
-                        ov::is_type<ngraph::snippets::op::LoopBegin>(consumer_node)) {
+                        ov::is_type<ngraph::snippets::op::LoopBegin>(consumer_node) ||
+                        ov::is_type<ngraph::op::v0::MatMul>(consumer_node) ||
+                        ov::is_type<ngraph::op::v1::Transpose>(consumer_node)) {
                         return false;
                     }
                 }
@@ -63,7 +66,9 @@ ngraph::snippets::pass::InsertStore::InsertStore(const size_t count) {
             for (auto input : root->inputs()) {
                 const auto& parent_node = input.get_source_output().get_node();
                 if (ov::is_type<ngraph::snippets::op::Store>(parent_node) ||
-                    ov::is_type<ngraph::snippets::op::LoopEnd>(parent_node)) {
+                    ov::is_type<ngraph::snippets::op::LoopEnd>(parent_node) ||
+                    ov::is_type<ngraph::op::v0::MatMul>(parent_node)  ||
+                    ov::is_type<ngraph::op::v1::Transpose>(parent_node)) {
                     return false;
                 }
             }

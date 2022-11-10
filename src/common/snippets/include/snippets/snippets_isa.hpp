@@ -18,6 +18,7 @@
 #include "op/powerstatic.hpp"
 #include "op/store.hpp"
 #include "op/loop.hpp"
+#include "op/matmul_cpu.hpp"
 
 namespace ngraph {
 namespace snippets {

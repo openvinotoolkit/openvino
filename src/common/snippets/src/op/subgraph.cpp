@@ -18,6 +18,8 @@
 #include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/pass/transform_convert.hpp"
 #include "snippets/pass/align_element_type.hpp"
+#include "snippets/pass/matmul_to_matmul_cpu.hpp"
+#include "snippets/pass/fuse_transpose_and_matmul_cpu.hpp"
 #include "snippets/utils.hpp"
 
 #include "transformations/common_optimizations/nop_elimination.hpp"
@@ -43,17 +45,33 @@ void snippets::op::Subgraph::set_non_scalar_constants_count(const size_t count) 
     m_non_scalar_constants_count = count;
 }
 
-snippets::op::Subgraph::Subgraph(const OutputVector& args, std::shared_ptr<ov::Model> body)
-    : Op(args), m_body(std::move(body)), m_generator(nullptr) {
+void snippets::op::Subgraph::init_config() {
     const auto ops = m_body->get_ops();
     for (const auto& op : ops) {
-        config.m_is_quantized = config.m_is_quantized || ov::is_type<ov::op::v0::FakeQuantize>(op);
-        config.m_has_type_relaxed_ops = config.m_has_type_relaxed_ops || std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(op);
-        config.m_is_needed_to_align_precision = config.m_is_needed_to_align_precision || is_quantized() || has_type_relaxed_ops() ||
+        config.m_is_quantized = config.m_is_quantized ||
+            ov::is_type<ov::op::v0::FakeQuantize>(op);
+        config.m_need_fill_tail_register = config.m_need_fill_tail_register ||
+            ov::is_type<ov::op::v1::Softmax>(op) ||
+            ov::is_type<ov::op::v8::Softmax>(op);
+        config.m_has_type_relaxed_ops = config.m_has_type_relaxed_ops ||
+            std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(op);
+        config.m_is_needed_to_align_precision = config.m_is_needed_to_align_precision ||
+            is_quantized() ||
+            has_type_relaxed_ops() ||
             snippets::pass::AlignElementType::opNeedsAlignElementType(op, execution_element_type);
-        config.m_has_domain_sensitive_ops = config.m_has_domain_sensitive_ops || ov::is_type<ov::op::v1::Transpose>(op);
+        config.m_has_domain_sensitive_ops = config.m_has_domain_sensitive_ops ||
+                                            ov::is_type<ov::op::v1::Transpose>(op) ||
+                                            ov::is_type<ov::op::v1::Softmax>(op) ||
+                                            ov::is_type<ov::op::v8::Softmax>(op) ||
+                                            ov::is_type<ov::op::v0::MatMul>(op);
     }
+    // Domain sensitive ops are decomposed with explicit Loops. So, we should explicitly insert Loops in Subgraph if it contains these ops
+    config.m_explicit_loop_insertion = config.m_has_domain_sensitive_ops;
+}
 
+snippets::op::Subgraph::Subgraph(const OutputVector& args, std::shared_ptr<ov::Model> body)
+    : Op(args), m_body(body), m_generator(nullptr) {
+    init_config();
     constructor_validate_and_infer_types();
 }
 
@@ -251,9 +269,11 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
                                   "Snippets canonicalization got input shapes of equal ranks but different layouts, which is not supported");
         }
         ov::PartialShape tmpPShape(baseShape);
-        NODE_VALIDATION_CHECK(this,
-                              PartialShape::broadcast_merge_into(tmpPShape, inShape, ::ngraph::op::AutoBroadcastType::NUMPY),
-                              "Failed to create broadcastable shapes in snippets canonicalization");
+        // todo: we need to generalize canonicalization for domain-sensitive ops. E.g. MatMul inputs can't be broadcasted one to another
+        if (!config.m_has_domain_sensitive_ops)
+            NODE_VALIDATION_CHECK(this,
+                                  PartialShape::broadcast_merge_into(tmpPShape, inShape, ::ngraph::op::AutoBroadcastType::NUMPY),
+                                  "Failed to create broadcastable shapes in snippets canonicalization");
         const auto paramShape = m_body->get_parameters()[i]->get_partial_shape();
         const auto paramType =  m_body->get_parameters()[i]->get_element_type();
         if (paramShape.size() != inShape.size() || !equal(paramShape.begin(), paramShape.end(), inShape.begin()))
@@ -296,6 +316,12 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
     // to align precision inside Subgraph body that is supported by Plugin
     align_element_types(outputShapes, inputShapes);
 
+    // todo: we need a slightly more general approach for backward ROI propagation
+    const auto& result_parent = body_results[0]->get_input_node_shared_ptr(0);
+    if (body_results.size() == 1 &&
+        ov::is_type<opset1::Transpose>(result_parent) &&
+        ov::is_type<snippets::op::MatMulCPU>(result_parent->get_input_node_shared_ptr(0)))
+        outPShape = result_parent->get_input_partial_shape(0);
     master_shape = outPShape;
     return master_shape;
 }
@@ -357,6 +383,8 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     ngraph::pass::Manager manager;
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
     manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
+    manager.register_pass<snippets::pass::MatMulToMatMulCPU>();
+    manager.register_pass<snippets::pass::FuseTransposeMatMulCPU>();
     manager.register_pass<snippets::pass::TransposeDecomposition>();
     manager.register_pass<snippets::pass::InsertLoad>(count);
     manager.register_pass<snippets::pass::InsertStore>(count);
@@ -429,12 +457,10 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
 
     convert_to_snippet_dialect();
     opt.run_passes(m_body);
-
     snippets::pass::AssignRegisters().run_on_model(m_body);
-
     // schedule generation should go here and be target agnostic
     // actual code emission
-    ngraph::snippets::code ptr = m_generator->generate(m_body, compile_params);
+    ngraph::snippets::code ptr = m_generator->generate(m_body, config, compile_params);
 
     // check that body doesn't have constants for scheduling
     std::vector<std::shared_ptr<opset1::Constant>> constants;

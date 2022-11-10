@@ -47,6 +47,11 @@ auto outputs_are_not_broadcastable(const std::shared_ptr<const Node>& node) -> b
 
 auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::is_supported_op")
+    auto is_supported_matmul = [](const std::shared_ptr<const Node>& n) -> bool {
+        const auto& matmul = is_type<const opset1::MatMul>(n);
+        const auto& out_shape = n->get_output_partial_shape(0);
+        return matmul && out_shape.is_static() && out_shape.size() == 4;
+    };
     auto is_supported_transpose = [](const std::shared_ptr<const Node>& n) -> bool {
         const auto& transpose = as_type_ptr<const opset1::Transpose>(n);
         const auto& out_shape = n->get_output_partial_shape(0);
@@ -54,7 +59,8 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
             const auto& order = as_type_ptr<const opset1::Constant>(n->get_input_node_shared_ptr(1));
             if (order) {
                 const auto order_value = order->cast_vector<int>();
-                return TransposeDecomposition::supported_cases.count(order_value) != 0;
+                return TransposeDecomposition::supported_cases.count(order_value) != 0 ||
+                       order_value == std::vector<int>{0, 2, 1, 3};
             }
         }
         return false;
@@ -116,7 +122,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
             || ov::is_type<ngraph::op::v4::HSwish>(n);
     };
     return is_supported_unary_eltwise_op(n) || is_supported_binary_eltwise_op(n) ||
-           is_supported_transpose(n) || is_supported_fq_op(n);
+           is_supported_transpose(n) || is_supported_fq_op(n) || is_supported_matmul(n);
 }
 
 auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
@@ -230,7 +236,11 @@ TokenizeSnippets::TokenizeSnippets() {
     continuation_strategy strategy = continuation_strategy::reset;
     auto label = std::make_shared<pattern::op::Label>(pattern::any_input(),
         [](const std::shared_ptr<const Node> &n) {
-            return GetSnippetsNodeType(n) != SnippetsNodeType::SkippedByPlugin && AppropriateForSubgraph(n);
+            // todo: This is a temprorary work-around. remove when custom MHA tokenization pass is implemented
+            return (GetSnippetsNodeType(n) != SnippetsNodeType::SkippedByPlugin ||
+                    ov::is_type<opset1::MatMul>(n) || ov::is_type<opset1::Transpose>(n))
+                    && AppropriateForSubgraph(n);
+            // return GetSnippetsNodeType(n) != SnippetsNodeType::SkippedByPlugin && AppropriateForSubgraph(n);
         });
     ngraph::graph_rewrite_callback callback = [&, strategy](ngraph::pattern::Matcher &m) -> bool {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::CreateSubgraph_callback")
