@@ -11,14 +11,21 @@
 
 ## Linux
 
-Once you have installed OpenVINO, follow these steps to configure it to work on GPU:
+Once you have installed OpenVINO, to work with GPU, you need to install the **Intel® Graphics Compute Runtime for OpenCL™** driver components required to use the GPU plugin and write custom layers for Intel® Integrated Graphics. Those drivers are not included in the OpenVINO installation package, so OpenVINO provides a script to download and install them separately.
 
-1. Download the `install_NEO_OCL_driver.sh` script from the OpenVINO GitHub repository:
+Do the following steps:
+
+1. If you installed OpenVINO Runtime from the archive file, you can find the `install_NEO_OCL_driver.sh` script in the following directory:
    ```sh
-   curl -L https://raw.githubusercontent.com/openvinotoolkit/openvino/master/scripts/install_dependencies/install_NEO_OCL_driver.sh --output install_NEO_OCL_driver.sh
+   cd <INSTALL_DIR>/install_dependencies/
    ```
-
-2. Install the **Intel® Graphics Compute Runtime for OpenCL™** driver components required to use the GPU plugin and write custom layers for Intel® Integrated Graphics. These drivers are not included in the OpenVINO installation package, so the install script downloads and installs them separately. To install, run the script:
+   
+   If you installed OpenVINO Runtime via PyPI, you can download the `install_NEO_OCL_driver.sh` script from the OpenVINO GitHub repository:
+   ```sh
+   curl -L https://raw.githubusercontent.com/openvinotoolkit/openvino/releases/2022/2/scripts/install_dependencies/install_NEO_OCL_driver.sh --output install_NEO_OCL_driver.sh
+   ```
+   
+2. Run the script:
    ```sh
    chmod +x install_NEO_OCL_driver.sh
    sudo -E ./install_NEO_OCL_driver.sh
