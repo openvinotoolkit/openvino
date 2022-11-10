@@ -163,3 +163,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_LoadNetworkUnsupportedPropertyTestNoThrow,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                             ::testing::ValuesIn(configsAutoLoadNetworkUnsupportedPropertyTest)),
                          ::testing::PrintToStringParamName());
+

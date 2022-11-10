@@ -188,6 +188,34 @@ ov::hint::PerformanceMode get_performance_hint(const std::string& device, const 
     return ov_perf_hint;
 }
 
+void setDeviceProperty(ov::Core& core,
+                       std::string& device,
+                       ov::AnyMap& device_config,
+                       const std::pair<std::string, ov::Any>& property,
+                       const std::pair<std::string, ov::Any>& config = {}) {
+    auto supported_properties = core.get_property(device, ov::supported_properties);
+    auto supported = [&](const std::string& key) {
+        return std::find(std::begin(supported_properties), std::end(supported_properties), key) !=
+               std::end(supported_properties);
+    };
+    // check if the HW device supported this property
+    std::pair<std::string, ov::Any> device_property;
+    if (!config.first.empty() && supported(config.first)) {
+        device_property = config;
+    } else if (supported(property.first))
+        device_property = property;
+
+    if (device_property.first.empty())
+        return;
+    if (device_config.find(device) == device_config.end()) {
+        device_config.insert(ov::device::properties(device, device_property));
+    } else {
+        auto& properties = device_config[device].as<ov::AnyMap>();
+        properties.emplace(device_property);
+        device_config.insert(ov::device::properties(device, properties));
+    }
+}
+
 /**
  * @brief The entry point of the benchmark application
  */
@@ -328,32 +356,6 @@ int main(int argc, char* argv[]) {
             parse_value_for_virtual_device(virtual_device, device_infer_precision);
         }
 
-        auto setDeviceProperty = [&core](std::string& device,
-                                         ov::AnyMap& device_config,
-                                         const std::pair<std::string, ov::Any>& property,
-                                         const std::pair<std::string, ov::Any>& config = {}) {
-            auto supported_properties = core.get_property(device, ov::supported_properties);
-            auto supported = [&](const std::string& key) {
-                return std::find(std::begin(supported_properties), std::end(supported_properties), key) !=
-                       std::end(supported_properties);
-            };
-            // check if the HW device supported this property
-            std::pair<std::string, ov::Any> device_property;
-            if (!config.first.empty() && supported(config.first)) {
-                device_property = config;
-            } else if (supported(property.first))
-                device_property = property;
-
-            if (device_property.first.empty())
-                return;
-            if (device_config.find(device) == device_config.end()) {
-                device_config.insert(ov::device::properties(device, device_property));
-            } else {
-                auto& properties = device_config[device].as<ov::AnyMap>();
-                properties.emplace(device_property);
-                device_config.insert(ov::device::properties(device, properties));
-            }
-        };
         // Update config per device according to command line parameters
         for (auto& device : devices) {
             auto& device_config = config[device];
@@ -460,7 +462,8 @@ int main(int argc, char* argv[]) {
                             std::string key = std::string(getDeviceTypeFromName(device) + "_THROUGHPUT_STREAMS");
                             for (auto& hwdevice : hardware_devices) {
                                 auto value = std::string(getDeviceTypeFromName(hwdevice) + "_THROUGHPUT_AUTO");
-                                setDeviceProperty(hwdevice,
+                                setDeviceProperty(core,
+                                                  hwdevice,
                                                   device_config,
                                                   ov::num_streams(ov::streams::AUTO),
                                                   std::make_pair(key, value));
@@ -537,7 +540,7 @@ int main(int argc, char* argv[]) {
                         // check if the HW device supported this property
                         if (if_auto && !if_multi && device != "CPU")
                             continue;
-                        setDeviceProperty(device, device_config, property);
+                        setDeviceProperty(core, device, device_config, property);
                     }
                 }
             };
