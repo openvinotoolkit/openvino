@@ -56,12 +56,12 @@ std::cout << layout.to_string(); // prints [N,C,H,W]
 //! [ov:layout:dump]
 
 std::shared_ptr<ov::Model> model;
-//! [ov::layout::get_from_model]
+//! [ov:layout:get_from_model]
 // Get layout for model input
 layout = ov::layout::get_layout(model->input("input_tensor_name"));
 // Get layout for model with single output
 layout = ov::layout::get_layout(model->output());
-//! [ov::layout::get_from_model]
+//! [ov:layout:get_from_model]
 
     return 0;
 }
