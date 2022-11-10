@@ -14,7 +14,7 @@ file_patterns_to_skip = ['.*\\.DS_Store$',
                          '.*\\.swp',
                          '.*\\.pyc$',
                          'requirements.*\.txt',
-                         '.*version.txt']
+                         'version.txt']
 full_name_patterns_to_skip = ['^openvino/tools/mo/utils/convert.py$',
                               '^openvino/tools/mo/front/caffe/CustomLayersMapping.xml$',
                               ]
@@ -74,7 +74,6 @@ class TestBOMFile(unittest.TestCase):
         for file_name in self.existing_files:
             self.assertFalse(file_name.endswith('_test.py'), 'BOM file contains test file {}'.format(file_name))
 
-    # @unittest.skip("83076 - test infra change affects bom tests")
     def test_deleted_files_still_stored_in_bom(self):
         deleted = list()
         for file in self.existing_files:
