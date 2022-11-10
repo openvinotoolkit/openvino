@@ -195,6 +195,12 @@ inline uint FUNC(get_input_index)(uint g, uint o, uint i, uint z, uint y, uint x
     return GET_FILTER_G_OS_Y_IS_X_OSV8_ISV2_INDEX(INPUT0, g, o, i, y, x);
 #elif defined INPUT0_LAYOUT_G_OS_Y_IS_X_OSV8_ISV4
     return GET_FILTER_G_OS_Y_IS_X_OSV8_ISV4_INDEX(INPUT0, g, o, i, y, x);
+#elif defined INPUT0_LAYOUT_G_OS_ZY_IS_X_OSV8_ISV2
+    return GET_FILTER_G_OS_ZY_IS_X_OSV8_ISV2_INDEX(INPUT0, g, o, i, z, y, x);
+#elif defined INPUT0_LAYOUT_G_OS_ZYX_IS_OSV8_ISV2
+    return GET_FILTER_G_OS_ZYX_IS_OSV8_ISV2_INDEX(INPUT0, g, o, i, z, y, x);
+#elif defined INPUT0_LAYOUT_G_OS_IS_ZYX_ISA8_OSV8_ISV2
+    return GET_FILTER_G_OS_IS_ZYX_ISA8_OSV8_ISV2_INDEX(INPUT0, g, o, i, z, y, x);
 #else
 #error reorder_weights.cl: input format - not supported
 #endif
@@ -435,6 +441,12 @@ inline uint FUNC(get_output_index)(uint g, uint o, uint i, uint z, uint y, uint 
     return GET_FILTER_G_OS_Y_IS_X_OSV8_ISV2_INDEX(OUTPUT, g, o, i, y, x);
 #elif defined OUTPUT_LAYOUT_G_OS_Y_IS_X_OSV8_ISV4
     return GET_FILTER_G_OS_Y_IS_X_OSV8_ISV4_INDEX(OUTPUT, g, o, i, y, x);
+#elif defined OUTPUT_LAYOUT_G_OS_ZY_IS_X_OSV8_ISV2
+    return GET_FILTER_G_OS_ZY_IS_X_OSV8_ISV2_INDEX(OUTPUT, g, o, i, z, y, x);
+#elif defined OUTPUT_LAYOUT_G_OS_ZYX_IS_OSV8_ISV2
+    return GET_FILTER_G_OS_ZYX_IS_OSV8_ISV2_INDEX(OUTPUT, g, o, i, z, y, x);
+#elif defined OUTPUT_LAYOUT_G_OS_IS_ZYX_ISA8_OSV8_ISV2
+    return GET_FILTER_G_OS_IS_ZYX_ISA8_OSV8_ISV2_INDEX(OUTPUT, g, o, i, z, y, x);
 #else
 #error reorder_weights.cl: output format - not supported
 #endif
