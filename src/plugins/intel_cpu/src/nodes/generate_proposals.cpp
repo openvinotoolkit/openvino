@@ -93,8 +93,7 @@ void refine_anchors(const float* deltas, const float* scores, const float* ancho
     Indexer4d score_idx(anchors_num, 1, bottom_H, bottom_W);
     Indexer4d proposal_idx(bottom_H, bottom_W, anchors_num, 6);
 
-    seq::parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
-//    parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
+    parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
         for (int anchor = 0; anchor < anchors_num; ++anchor) {
             const int a_idx = anchor_idx(h, w, anchor, 0);
             const int a_idx_offset = anchor_idx(h, w, anchor, 1) - anchor_idx(h, w, anchor, 0);
@@ -177,8 +176,7 @@ void refine_anchors_jit(const jit_refine_anchors_kernel& refine_anchors_kernel,
     const uint32_t proposal_anchor_offset = proposal_idx(0, 0, 1, 0) - proposal_idx(0, 0, 0, 0);
     const uint32_t proposal_idx_offset    = proposal_idx(0, 0, 0, 1) - proposal_idx(0, 0, 0, 0);
 
-    seq::parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
-//    parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
+    parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
         const uint32_t anchor_start_idx = anchor_idx(h, w, 0, 0);
         const uint32_t delta_start_idx = delta_idx(0, 0, h, w);
         const uint32_t score_start_idx = score_idx(0, 0, h, w);
@@ -455,10 +453,9 @@ void GenerateProposals::execute(dnnl::stream strm) {
                 scale_w = p_img_info_cpu[3];
             }
             // minimum box width & height
-            [[maybe_unused]]const float min_box_H = min_size_ * scale_h;
-            [[maybe_unused]]const float min_box_W = min_size_ * scale_w;
+            const float min_box_H = min_size_ * scale_h;
+            const float min_box_W = min_size_ * scale_w;
 
-//            auto start = high_resolution_clock::now();
 //            refine_anchors_kernel_.reset();
             if (refine_anchors_kernel_) {
                 refine_anchors_jit(
@@ -473,18 +470,6 @@ void GenerateProposals::execute(dnnl::stream strm) {
                         min_box_H, min_box_W,
                         static_cast<const float>(log(1000. / 16.)),
                         coordinates_offset_);
-//                refine_anchors(
-//                        p_deltas_item, p_scores_item, p_anchors_item,
-//                        reinterpret_cast<float *>(&cpu_proposals_[0]),
-//                        anchors_num,
-//                        bottom_H, bottom_W,
-//                        img_H, img_W,
-//                        min_box_H, min_box_W,
-//                        static_cast<const float>(log(1000. / 16.)),
-//                        coordinates_offset_);
-//                for (int i = 0; i < cpu_proposals_.size(); ++i) {
-//                    assert(proposals_[i] == cpu_proposals_[i]);
-//                }
             } else {
                 refine_anchors(
                     p_deltas_item, p_scores_item, p_anchors_item,
@@ -496,9 +481,6 @@ void GenerateProposals::execute(dnnl::stream strm) {
                     static_cast<const float>(log(1000. / 16.)),
                     coordinates_offset_);
             }
-//            auto stop = high_resolution_clock::now();
-//            auto duration = duration_cast<microseconds>(stop - start);
-//            std::cout << "refine_anchors in ms:" << duration.count() << std::endl;
 
             std::partial_sort(proposals_.begin(), proposals_.begin() + pre_nms_topn, proposals_.end(),
                               [](const ProposalBox &struct1, const ProposalBox &struct2) {
