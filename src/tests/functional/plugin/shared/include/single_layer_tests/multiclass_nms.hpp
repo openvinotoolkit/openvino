@@ -14,6 +14,10 @@ TEST_P(MulticlassNmsLayerTest, CompareWithRefs) {
     run();
 };
 
+TEST_P(MulticlassNmsLayerTest8, CompareWithRefs) {
+    run();
+};
+
 } // namespace subgraph
 } // namespace test
 } // namespace ov
