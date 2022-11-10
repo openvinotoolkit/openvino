@@ -53,6 +53,7 @@ NodeVector InsertTransposeBeforeNode(NodePtr main_node, std::shared_ptr<Constant
 }  // namespace sink_backward
 
 bool IsSinkingEnable(NodePtr);
+bool IsSinkingEnable(Node *);
 void UpdateForwardSinkingAbility(NodePtr);
 
 }  // namespace transpose_sinking

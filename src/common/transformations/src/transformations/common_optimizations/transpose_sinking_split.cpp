@@ -66,6 +66,9 @@ std::shared_ptr<Constant> GetTransposeConstant(Input<Node> input) {
     if (!transpose_node)
         return {};
 
+    if (!transpose_sinking::IsSinkingEnable(input.get_node()))
+        return {};
+
     auto constant_node = as_type_ptr<Constant>(transpose_node->input_value(1).get_node_shared_ptr());
     if (!constant_node)
         return {};
@@ -181,6 +184,7 @@ pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
         sink_forward::RemoveZeroInputNode(main_node);
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
             register_new_node(new_node);
+            transpose_sinking::UpdateForwardSinkingAbility(new_node);
         }
 
         const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();

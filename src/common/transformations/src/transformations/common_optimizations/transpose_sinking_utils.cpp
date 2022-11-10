@@ -216,4 +216,8 @@ bool IsSinkingEnable(NodePtr node) {
     return node->get_rt_info().count(NO_TRANSPOSE_SINKING_KEY) == 0;
 }
 
+bool IsSinkingEnable(Node * node) {
+    return node->get_rt_info().count(NO_TRANSPOSE_SINKING_KEY) == 0;
+}
+
 }  // namespace transpose_sinking
