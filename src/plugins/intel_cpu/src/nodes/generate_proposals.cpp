@@ -25,6 +25,48 @@ namespace {
 
 using namespace InferenceEngine;
 
+namespace seq {
+void parallel_for(int first,
+                  std::function<void(int)> callback);
+void parallel_for2d(int first, int second,
+                    std::function<void(int, int)> callback);
+void parallel_for3d(int first, int second, int third,
+                    std::function<void(int, int, int)> callback);
+void parallel_for4d(int first, int second, int third, int fourth, std::function<void(int, int, int, int)> callback);
+void parallel_for(int first, std::function<void(int)> callback) {
+    for (int f = 0; f < first; ++f) {
+        callback(f);
+    }
+}
+void parallel_for2d(int first, int second, std::function<void(int, int)> callback) {
+    for (int f = 0; f < first; ++f) {
+        for (int s = 0; s < second; ++s) {
+            callback(f, s);
+        }
+    }
+}
+void parallel_for3d(int first, int second, int third, std::function<void(int, int, int)> callback) {
+    for (int f = 0; f < first; ++f) {
+        for (int s = 0; s < second; ++s) {
+            for (int t = 0; t < third; ++t) {
+                callback(f, s, t);
+            }
+        }
+    }
+}
+void parallel_for4d(int first, int second, int third, int fourth, std::function<void(int, int, int, int)> callback) {
+    for (int f = 0; f < first; ++f) {
+        for (int s = 0; s < second; ++s) {
+            for (int t = 0; t < third; ++t) {
+                for (int ff = 0; ff < fourth; ++ff) {
+                    callback(f, s, t, ff);
+                }
+            }
+        }
+    }
+}
+}
+
 struct Indexer4d {
     int dim3_;
     int dim23_;
@@ -111,6 +153,59 @@ void refine_anchors(const float* deltas, const float* scores, const float* ancho
     });
 }
 
+void refine_anchors_jit(const jit_refine_anchors_kernel& refine_anchors_kernel,
+                        const int32_t* refine_anchor_indices,
+                        const uint32_t* refine_anchor_masks,
+                        const float* deltas, const float* scores, const float* anchors,
+                        float* proposals, const int anchors_num, const int bottom_H,
+                        const int bottom_W, const float img_H, const float img_W,
+                        const float min_box_H, const float min_box_W,
+                        const float max_delta_log_wh,
+                        float coordinates_offset) {
+    Indexer4d anchor_idx(bottom_H, bottom_W, anchors_num, 4);
+    Indexer4d delta_idx(anchors_num, 4, bottom_H, bottom_W);
+    Indexer4d score_idx(anchors_num, 1, bottom_H, bottom_W);
+    Indexer4d proposal_idx(bottom_H, bottom_W, anchors_num, 6);
+
+    uint32_t anchor_anchor_offset   =   anchor_idx(0, 0, 1, 0) - anchor_idx(0, 0, 0, 0);
+    uint32_t anchor_idx_offset      =   anchor_idx(0, 0, 0, 1) - anchor_idx(0, 0, 0, 0);
+    uint32_t delta_anchor_offset    =    delta_idx(1, 0, 0, 0) - delta_idx(0, 0, 0, 0);
+    uint32_t delta_idx_offset       =    delta_idx(0, 1, 0, 0) - delta_idx(0, 0, 0, 0);
+    uint32_t score_anchor_offset    =    score_idx(1, 0, 0, 0) - score_idx(0, 0, 0, 0);
+    uint32_t proposal_anchor_offset = proposal_idx(0, 0, 1, 0) - proposal_idx(0, 0, 0, 0);
+    uint32_t proposal_idx_offset    = proposal_idx(0, 0, 0, 1) - proposal_idx(0, 0, 0, 0);
+
+    seq::parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
+        const uint32_t anchor_start_idx = anchor_idx(h, w, 0, 0);
+        const uint32_t delta_start_idx = delta_idx(0, 0, h, w);
+        const uint32_t score_start_idx = score_idx(0, 0, h, w);
+        const uint32_t proposal_start_idx = proposal_idx(h, w, 0, 0);
+        refine_anchors_kernel(jit_refine_anchors_call_args{
+                deltas, scores, anchors,
+                reinterpret_cast<float *>(&proposals[0]),
+                h, w,
+                anchors_num,
+                refine_anchor_indices,
+                refine_anchor_masks,
+                anchor_start_idx,
+                anchor_anchor_offset,
+                anchor_idx_offset,
+                delta_start_idx,
+                delta_anchor_offset,
+                delta_idx_offset,
+                score_start_idx,
+                score_anchor_offset,
+                proposal_start_idx,
+                proposal_anchor_offset,
+                proposal_idx_offset,
+                img_H, img_W,
+                min_box_H, min_box_W,
+                static_cast<const float>(log(1000. / 16.)),
+                coordinates_offset
+        });
+    });
+}
+
 void unpack_boxes(const float* p_proposals, float* unpacked_boxes, int* is_dead, int pre_nms_topn) {
     parallel_for(pre_nms_topn, [&](size_t i) {
         unpacked_boxes[0*pre_nms_topn + i] = p_proposals[6*i + 0];
@@ -185,6 +280,15 @@ GenerateProposals::GenerateProposals
     coordinates_offset_ = proposalAttrs.normalized ? 0.f : 1.f;
 
     roi_indices_.resize(post_nms_topn_);
+    for (int i = 0; i < 16; ++i) {
+        refine_anchor_indices_.push_back(i);
+    }
+    for (int i = 0; i < 16; ++i) {
+        refine_anchor_masks_.push_back(0xFFFFFFFF);
+    }
+    for (int i = 0; i < 16; ++i) {
+        refine_anchor_masks_.push_back(0x0000);
+    }
 
     if (op->output(0).get_element_type() == ov::element::f32) {
         jit_nms_conf nms_jcp {post_nms_topn_, nms_thresh_, coordinates_offset_};
@@ -235,48 +339,6 @@ void GenerateProposals::initSupportedPrimitiveDescriptors() {
 
 void GenerateProposals::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
-}
-
-namespace seq {
-void parallel_for(int first,
-                    std::function<void(int)> callback);
-void parallel_for2d(int first, int second,
-                    std::function<void(int, int)> callback);
-void parallel_for3d(int first, int second, int third,
-                    std::function<void(int, int, int)> callback);
-void parallel_for4d(int first, int second, int third, int fourth, std::function<void(int, int, int, int)> callback);
-void parallel_for(int first, std::function<void(int)> callback) {
-    for (int f = 0; f < first; ++f) {
-        callback(f);
-    }
-}
-void parallel_for2d(int first, int second, std::function<void(int, int)> callback) {
-    for (int f = 0; f < first; ++f) {
-        for (int s = 0; s < second; ++s) {
-            callback(f, s);
-        }
-    }
-}
-void parallel_for3d(int first, int second, int third, std::function<void(int, int, int)> callback) {
-    for (int f = 0; f < first; ++f) {
-        for (int s = 0; s < second; ++s) {
-            for (int t = 0; t < third; ++t) {
-                callback(f, s, t);
-            }
-        }
-    }
-}
-void parallel_for4d(int first, int second, int third, int fourth, std::function<void(int, int, int, int)> callback) {
-    for (int f = 0; f < first; ++f) {
-        for (int s = 0; s < second; ++s) {
-            for (int t = 0; t < third; ++t) {
-                for (int ff = 0; ff < fourth; ++ff) {
-                    callback(f, s, t, ff);
-                }
-            }
-        }
-    }
-}
 }
 
 void GenerateProposals::execute(dnnl::stream strm) {
@@ -378,42 +440,19 @@ void GenerateProposals::execute(dnnl::stream strm) {
 
 //            refine_anchors_kernel_.reset();
             if (refine_anchors_kernel_) {
-
-//                parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
-                uint32_t anchor_idx_offset = 1;
-                uint32_t anchor_chunk_offset = 4;
-                uint32_t delta_idx_offset = bottom_H * bottom_W;
-                uint32_t delta_chunk_offset = 4 * delta_idx_offset;
-                uint32_t score_idx_offset = bottom_H * bottom_W;
-                uint32_t score_chunk_offset = score_idx_offset;
-                uint32_t proposal_idx_offset = 1;
-                uint32_t proposal_chunk_offset = 6;
-
-                seq::parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
-//                Indexer4d anchor_idx(bottom_H, bottom_W, anchors_num, 4);
-//                Indexer4d delta_idx(anchors_num, 4, bottom_H, bottom_W);
-//                Indexer4d score_idx(anchors_num, 1, bottom_H, bottom_W);
-//                Indexer4d proposal_idx(bottom_H, bottom_W, anchors_num, 6);
-
-                    (*refine_anchors_kernel_)(jit_refine_anchors_call_args{
+                refine_anchors_jit(
+                        *refine_anchors_kernel_,
+                        refine_anchor_indices_.data(),
+                        refine_anchor_masks_.data(),
                         p_deltas_item, p_scores_item, p_anchors_item,
                         reinterpret_cast<float *>(&proposals_[0]),
-                        h, w,
                         anchors_num,
-                        anchor_idx_offset,
-                        anchor_chunk_offset,
-                        delta_idx_offset,
-                        delta_chunk_offset,
-                        score_idx_offset,
-                        score_chunk_offset,
-                        proposal_idx_offset,
-                        proposal_chunk_offset,
+                        bottom_H, bottom_W,
                         img_H, img_W,
                         min_box_H, min_box_W,
                         static_cast<const float>(log(1000. / 16.)),
                         coordinates_offset_
-                    });
-                });
+                );
             } else {
                 refine_anchors(
                     p_deltas_item, p_scores_item, p_anchors_item,

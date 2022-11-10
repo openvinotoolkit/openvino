@@ -74,7 +74,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
     this->preamble();
 
     xor_(reg_anchors_loop, reg_anchors_loop);
-    mov(reg_anchors_loop.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchors_num)]);
+    mov(reg_anchors_loop, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchors_num)]);
     mov(reg_anchors_ptr, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchors)]);
     mov(reg_deltas_ptr, ptr[reg_params + offsetof(jit_refine_anchors_call_args, deltas)]);
     mov(reg_scores_ptr, ptr[reg_params + offsetof(jit_refine_anchors_call_args, scores)]);
@@ -83,8 +83,11 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
 //    mov(reg_delta_index_ptr, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_idx)]);
 //    mov(reg_delta_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_idx_offset)]);
 
+    std::vector<Xbyak::Xmm> not_available_vmm;
+
     Xbyak::Label anchor_loop;
     Xbyak::Label loop_mask;
+    Xbyak::Label l_mask;
     L(anchor_loop);
     {
         mov(reg_anchors_chunk, this->SIMD_WIDTH);
@@ -92,6 +95,15 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
         jae(loop_mask);
         mov(reg_anchors_chunk, reg_anchors_loop);
         L(loop_mask);
+
+        // Prepare mask
+        Vmm vmm_anchor_mask = this->get_free_vmm<Vmm>(not_available_vmm);
+        mov(rax, this->SIMD_WIDTH);
+        sub(rax, reg_anchors_chunk);
+        add(rax, 16);
+        sub(rax, this->SIMD_WIDTH);
+        mov(rbx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, refine_anchor_masks)]);
+        uni_vmovdqu(vmm_anchor_mask, ptr[rbx + rax * sizeof(float)]);
 
         /** @code
             const int a_idx = anchor_idx(h, w, anchor, 0);
@@ -101,20 +113,30 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
             float x1 = anchors[a_idx + 2 * a_idx_offset];
             float y1 = anchors[a_idx + 3 * a_idx_offset];
          */
-        xor_(reg_anchor_chunk_offset, reg_anchor_chunk_offset);
-        mov(reg_anchor_chunk_offset.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchor_chunk_offset)]);
+        not_available_vmm = {vmm_x0, vmm_y0, vmm_x1, vmm_y1};
+
+        // Prepare indexes
+        Vmm vmm_anchor_idx = this->get_free_vmm<Vmm>(not_available_vmm);
+        Vmm vmm_anchor_anchor_offset = this->get_free_vmm<Vmm>(not_available_vmm);
+        Vmm vmm_anchor_idx_offset = this->get_free_vmm<Vmm>(not_available_vmm);
+        uni_vbroadcastss(vmm_anchor_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchor_start_idx)]);
+        uni_vbroadcastss(vmm_anchor_anchor_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchor_anchor_offset)]);
+        uni_vbroadcastss(vmm_anchor_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchor_idx_offset)]);
+        mov(rbx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, refine_anchor_indices)]);
+        uni_vpmulld(vmm_anchor_anchor_offset, vmm_anchor_anchor_offset, ptr[rbx]);
+        uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_anchor_offset);
+
         // float x0 = anchors[a_idx + 0 * a_idx_offset];
-        mov(reg_anchor_idx, 0);
-        emulate_gather(vmm_x0, reg_anchors_chunk, reg_anchors_ptr, reg_anchor_chunk_offset, reg_anchor_idx);
+        this->uni_gather(vmm_x0, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
         // float y0 = anchors[a_idx + 1 * a_idx_offset];
-        mov(reg_anchor_idx, 1);
-        emulate_gather(vmm_y0, reg_anchors_chunk, reg_anchors_ptr, reg_anchor_chunk_offset, reg_anchor_idx);
+        uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_idx_offset);
+        this->uni_gather(vmm_y0, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
         // float x1 = anchors[a_idx + 2 * a_idx_offset];
-        mov(reg_anchor_idx, 2);
-        emulate_gather(vmm_x1, reg_anchors_chunk, reg_anchors_ptr, reg_anchor_chunk_offset, reg_anchor_idx);
+        uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_idx_offset);
+        this->uni_gather(vmm_x1, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
         // float y1 = anchors[a_idx + 3 * a_idx_offset];
-        mov(reg_anchor_idx, 3);
-        emulate_gather(vmm_y1, reg_anchors_chunk, reg_anchors_ptr, reg_anchor_chunk_offset, reg_anchor_idx);
+        uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_idx_offset);
+        this->uni_gather(vmm_y1, reg_anchors_ptr, vmm_anchor_idx, sizeof(float), vmm_anchor_mask);
 
         /** @code
             const int d_idx = delta_idx(anchor, 0, h, w);
@@ -124,29 +146,29 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
             const float d_log_w = deltas[d_idx + 2 * d_idx_offset];
             const float d_log_h = deltas[d_idx + 3 * d_idx_offset];
          */
-        xor_(reg_delta_chunk_offset, reg_delta_chunk_offset);
-        xor_(reg_delta_idx_offset, reg_delta_idx_offset);
-        mov(reg_delta_chunk_offset.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_chunk_offset)]);
-        mov(reg_delta_idx_offset.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_idx_offset)]);
-        // const float dx = deltas[d_idx + 0 * d_idx_offset];
-        mov(reg_anchor_idx, 0);
-        add(reg_anchor_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, img_w)]);
-        emulate_gather(vmm_dx, reg_anchors_chunk, reg_deltas_ptr, reg_delta_chunk_offset, reg_anchor_idx);
-        // const float dy = deltas[d_idx + 1 * d_idx_offset];
-        mov(reg_anchor_idx, 2);
-        imul(reg_anchor_idx, reg_delta_idx_offset);
-        add(reg_anchor_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, img_w)]);
-        emulate_gather(vmm_dy, reg_anchors_chunk, reg_deltas_ptr, reg_delta_chunk_offset, reg_anchor_idx);
-        // const float d_log_w = deltas[d_idx + 2 * d_idx_offset];
-        mov(reg_anchor_idx, 3);
-        imul(reg_anchor_idx, reg_delta_idx_offset);
-        add(reg_anchor_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, img_w)]);
-        emulate_gather(vmm_d_log_w, reg_anchors_chunk, reg_deltas_ptr, reg_delta_chunk_offset, reg_anchor_idx);
-        // const float d_log_h = deltas[d_idx + 2 * d_idx_offset];
-        mov(reg_anchor_idx, 4);
-        imul(reg_anchor_idx, reg_delta_idx_offset);
-        add(reg_anchor_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, img_w)]);
-        emulate_gather(vmm_d_log_h, reg_anchors_chunk, reg_deltas_ptr, reg_delta_chunk_offset, reg_anchor_idx);
+//        xor_(reg_delta_chunk_offset, reg_delta_chunk_offset);
+//        xor_(reg_delta_idx_offset, reg_delta_idx_offset);
+//        mov(reg_delta_chunk_offset.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_chunk_offset)]);
+//        mov(reg_delta_idx_offset.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_idx_offset)]);
+//        // const float dx = deltas[d_idx + 0 * d_idx_offset];
+//        mov(reg_anchor_idx, 0);
+//        add(reg_anchor_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, img_w)]);
+//        emulate_gather(vmm_dx, reg_anchors_chunk, reg_deltas_ptr, reg_delta_chunk_offset, reg_anchor_idx);
+//        // const float dy = deltas[d_idx + 1 * d_idx_offset];
+//        mov(reg_anchor_idx, 2);
+//        imul(reg_anchor_idx, reg_delta_idx_offset);
+//        add(reg_anchor_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, img_w)]);
+//        emulate_gather(vmm_dy, reg_anchors_chunk, reg_deltas_ptr, reg_delta_chunk_offset, reg_anchor_idx);
+//        // const float d_log_w = deltas[d_idx + 2 * d_idx_offset];
+//        mov(reg_anchor_idx, 3);
+//        imul(reg_anchor_idx, reg_delta_idx_offset);
+//        add(reg_anchor_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, img_w)]);
+//        emulate_gather(vmm_d_log_w, reg_anchors_chunk, reg_deltas_ptr, reg_delta_chunk_offset, reg_anchor_idx);
+//        // const float d_log_h = deltas[d_idx + 2 * d_idx_offset];
+//        mov(reg_anchor_idx, 4);
+//        imul(reg_anchor_idx, reg_delta_idx_offset);
+//        add(reg_anchor_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, img_w)]);
+//        emulate_gather(vmm_d_log_h, reg_anchors_chunk, reg_deltas_ptr, reg_delta_chunk_offset, reg_anchor_idx);
 
 //        /** @code
 //            // width & height of box
@@ -263,14 +285,14 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
 //        uni_vaddps(xmm_box_h, vmm_y1, xmm_box_h);
 //
 
-        /** @code
-            const float score = scores[score_idx(anchor, 0, h, w)];
-         */
-        xor_(reg_score_idx_offset, reg_score_idx_offset);
-        mov(reg_score_idx_offset.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, score_chunk_offset)]);
-        // const float score = scores[score_idx(anchor, 0, h, w)];
-        mov(reg_anchor_idx, 0);
-        emulate_gather(vmm_score, reg_anchors_chunk, reg_scores_ptr, reg_anchor_idx_offset, reg_anchor_idx);
+//        /** @code
+//            const float score = scores[score_idx(anchor, 0, h, w)];
+//         */
+//        xor_(reg_score_idx_offset, reg_score_idx_offset);
+//        mov(reg_score_idx_offset.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, score_chunk_offset)]);
+//        // const float score = scores[score_idx(anchor, 0, h, w)];
+//        mov(reg_anchor_idx, 0);
+//        emulate_gather(vmm_score, reg_anchors_chunk, reg_scores_ptr, reg_anchor_idx_offset, reg_anchor_idx);
 
 //        /** @code
 //            int p_idx = proposal_idx(h, w, anchor, 0);
@@ -303,10 +325,13 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
 //        vcmpeq_uqps(xmm_min_box_h, xmm_min_box_h, xmm_box_h);
 //        uni_vmulps(xmm_min_box_w, xmm_min_box_w, xmm_min_box_h);
 //        vscatterdps(ptr[reg_proposals_ptr + xmm_proposals_index], xmm_min_box_w);
-
-        this->update_input_output_ptrs();
-
-        sub(reg_anchors_loop, reg_anchors_chunk);
+//
+//        this->update_input_output_ptrs();
+//
+        inc(reg_anchors_loop);
+        mov(rax, this->SIMD_WIDTH);
+        imul(rax, reg_anchors_loop);
+        sub(rax, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchors_num)]);
         jbe(anchor_loop);
     }
 
@@ -317,26 +342,26 @@ void jit_refine_anchors_kernel_fp32<isa>::generate() {
 
 template <x64::cpu_isa_t isa>
 void jit_refine_anchors_kernel_fp32<isa>::update_input_output_ptrs() {
-    mov(reg_num_proc_elem, reg_anchors_chunk);
-    imul(reg_num_proc_elem, reg_num_proc_elem, 4);
-    mov(reg_anchor_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchor_idx_offset)]);
-    imul(reg_num_proc_elem, reg_anchor_idx_offset);
-    add(reg_anchors_ptr, reg_num_proc_elem);
-    mov(reg_num_proc_elem, reg_anchors_chunk);
-    imul(reg_num_proc_elem, reg_num_proc_elem, 4);
-    mov(reg_delta_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_idx_offset)]);
-    imul(reg_num_proc_elem, reg_delta_idx_offset);
-    add(reg_deltas_ptr, reg_num_proc_elem);
-    mov(reg_num_proc_elem, reg_anchors_chunk);
-    imul(reg_num_proc_elem, reg_num_proc_elem, 4);
-    mov(reg_score_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, score_idx_offset)]);
-    imul(reg_num_proc_elem, reg_score_idx_offset);
-    add(reg_scores_ptr, reg_num_proc_elem);
-    mov(reg_num_proc_elem, reg_anchors_chunk);
-    imul(reg_num_proc_elem, reg_num_proc_elem, 4);
-    mov(reg_proposal_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposal_idx_offset)]);
-    imul(reg_num_proc_elem, reg_proposal_idx_offset);
-    add(reg_proposals_ptr, reg_num_proc_elem);
+//    mov(reg_num_proc_elem, reg_anchors_chunk);
+//    imul(reg_num_proc_elem, reg_num_proc_elem, 4);
+//    mov(reg_anchor_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchor_idx_offset)]);
+//    imul(reg_num_proc_elem, reg_anchor_idx_offset);
+//    add(reg_anchors_ptr, reg_num_proc_elem);
+//    mov(reg_num_proc_elem, reg_anchors_chunk);
+//    imul(reg_num_proc_elem, reg_num_proc_elem, 4);
+//    mov(reg_delta_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_idx_offset)]);
+//    imul(reg_num_proc_elem, reg_delta_idx_offset);
+//    add(reg_deltas_ptr, reg_num_proc_elem);
+//    mov(reg_num_proc_elem, reg_anchors_chunk);
+//    imul(reg_num_proc_elem, reg_num_proc_elem, 4);
+//    mov(reg_score_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, score_idx_offset)]);
+//    imul(reg_num_proc_elem, reg_score_idx_offset);
+//    add(reg_scores_ptr, reg_num_proc_elem);
+//    mov(reg_num_proc_elem, reg_anchors_chunk);
+//    imul(reg_num_proc_elem, reg_num_proc_elem, 4);
+//    mov(reg_proposal_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposal_idx_offset)]);
+//    imul(reg_num_proc_elem, reg_proposal_idx_offset);
+//    add(reg_proposals_ptr, reg_num_proc_elem);
 }
 
 template struct jit_refine_anchors_kernel_fp32<x64::avx512_core>;
