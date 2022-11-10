@@ -631,7 +631,6 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
             loaded ? cnnnetwork : CNNNetwork{},
             executableNetwork,
         });
-
     }
     const auto parseNode = [](const pugi::xml_node& xml_node, bool is_param) -> std::shared_ptr<const ov::Node> {
         const std::string operation_name = GetStrAttr(xml_node, "operation_name");
@@ -964,14 +963,14 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string&
             exeDevices.push_back(subnetwork._device);
         std::set<std::string> s;
         for (auto iter = exeDevices.begin(); iter != exeDevices.end();) {
-            if (s.count(*iter) == 0){
+            if (s.count(*iter) == 0) {
                 s.insert(*iter);
             } else {
                 exeDevices.erase(iter--);
             }
             iter++;
         }
-        return decltype(ov::execution_devices)::value_type {exeDevices};
+        return decltype(ov::execution_devices)::value_type{exeDevices};
     } else {
         // find metric key among plugin metrics
         for (auto&& desc : _networks) {
