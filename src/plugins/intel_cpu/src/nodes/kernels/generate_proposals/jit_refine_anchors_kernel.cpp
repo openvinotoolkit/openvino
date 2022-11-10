@@ -97,22 +97,23 @@ void jit_refine_anchors_kernel_fp32<isa>::generate(RegistersPool::Ptr registers_
         StackAllocator::Address vmm_ww_addr{stack_allocator, vmm_reg_size_in_bytes};
         StackAllocator::Address vmm_hh_addr{stack_allocator, vmm_reg_size_in_bytes};
         StackAllocator::Address vmm_coordinates_offset_addr{stack_allocator, vmm_reg_size_in_bytes};
-        StackAllocator::Address reg_scale_0_5_addr{stack_allocator, sizeof(float)};
         StackAllocator::Address vmm_scale_0_5_addr{stack_allocator, vmm_reg_size_in_bytes};
         StackAllocator::Address vmm_ctr_x_addr{stack_allocator, vmm_reg_size_in_bytes};
         StackAllocator::Address vmm_ctr_y_addr{stack_allocator, vmm_reg_size_in_bytes};
         StackAllocator::Address vmm_pred_ctr_x_addr{stack_allocator, vmm_reg_size_in_bytes};
         StackAllocator::Address vmm_pred_ctr_y_addr{stack_allocator, vmm_reg_size_in_bytes};
-        StackAllocator::Address reg_max_delta_log_wh_addr{stack_allocator, sizeof(float)};
         StackAllocator::Address vmm_max_delta_log_wh_addr{stack_allocator, vmm_reg_size_in_bytes};
         StackAllocator::Address vmm_pred_w_addr{stack_allocator, vmm_reg_size_in_bytes};
         StackAllocator::Address vmm_pred_h_addr{stack_allocator, vmm_reg_size_in_bytes};
-        StackAllocator::Address reg_img_w_addr{stack_allocator, sizeof(float)};
         StackAllocator::Address vmm_img_w_addr{stack_allocator, vmm_reg_size_in_bytes};
-        StackAllocator::Address reg_img_h_addr{stack_allocator, sizeof(float)};
         StackAllocator::Address vmm_img_h_addr{stack_allocator, vmm_reg_size_in_bytes};
-        StackAllocator::Address reg_0_0_addr{stack_allocator, sizeof(float)};
         StackAllocator::Address vmm_0_0_addr{stack_allocator, vmm_reg_size_in_bytes};
+        StackAllocator::Address reg_max_delta_log_wh_addr{stack_allocator, sizeof(float)};
+        StackAllocator::Address reg_img_w_addr{stack_allocator, sizeof(float)};
+        StackAllocator::Address reg_scale_0_5_addr{stack_allocator, sizeof(float)};
+        StackAllocator::Address reg_0_0_addr{stack_allocator, sizeof(float)};
+        StackAllocator::Address reg_img_h_addr{stack_allocator, sizeof(float)};
+
         stack_allocator->commit();
 
         L(anchor_loop);
