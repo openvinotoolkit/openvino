@@ -77,6 +77,10 @@ bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& la
                 constShape.insert(constShape.begin(), 1ul);
             }
 
+            // special case: 1D const is assumed to imply per-channel
+            if (constShape.size() == 1)
+                return true;
+
             if ((constShape.size() >= 2ul) && (constShape[0] != 1ul)) {
                 return false;
             }
