@@ -31,7 +31,10 @@ struct jit_move_scale_kernel : public jit_uni_move_scale_kernel, public jit_gene
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_move_scale_kernel)
 
     explicit jit_move_scale_kernel(const jit_move_scale_compile_params& jcp) : jit_uni_move_scale_kernel(jcp), jit_generator(jit_name()) {
-        vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / sizeof(float);
+        if (jcp.src_prc == Precision::BF16)
+            vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / sizeof(uint16_t);
+        else
+            vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / sizeof(float);
     }
     virtual ~jit_move_scale_kernel() {}
 
@@ -94,11 +97,11 @@ private:
     void load_scale_store(size_t step) {
         bool is_tail = step < vec_size;
         Precision internal_prc = jcp_.src_prc == Precision::BF16 ? Precision::BF16 : Precision::FP32;
-        load(vmm_in, reg_in_aux, jcp_.src_prc, internal_prc, step, is_tail);
+        load(vmm_in, reg_in_aux, jcp_.src_prc, internal_prc, step, false);
 
         if (jcp_.with_scales) {
             if (!jcp_.broadcast_scales) {
-                load(vmm_scales, reg_scales, Precision::FP32, Precision::FP32, step, is_tail);
+                load(vmm_scales, reg_scales, Precision::FP32, Precision::FP32, step, false);
                 add(reg_scales,  sizeof(float) * step);
             }
             uni_vmulps(vmm_in, vmm_in, vmm_scales);
@@ -116,7 +119,7 @@ private:
     inline void load(const Vmm& vmm_dst, const Xbyak::Reg64& reg_src, Precision src_prc, Precision dst_prc, const int& elt_num, bool fill) {
         const auto seed = load_emitter_params(src_prc, dst_prc, elt_num, fill, "float_min").hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num, Precision::FP32, fill, "float_min"));
+            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num, src_prc, fill, "float_min"));
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0}, {static_cast<size_t>(vmm_dst.getIdx())},
