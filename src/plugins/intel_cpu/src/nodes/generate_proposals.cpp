@@ -40,30 +40,32 @@ struct Indexer4d {
     }
 };
 
-
 void refine_anchors(const float* deltas, const float* scores, const float* anchors,
                     float* proposals, const int anchors_num, const int bottom_H,
                     const int bottom_W, const float img_H, const float img_W,
                     const float min_box_H, const float min_box_W,
                     const float max_delta_log_wh,
                     float coordinates_offset) {
+    Indexer4d anchor_idx(bottom_H, bottom_W, anchors_num, 4);
     Indexer4d delta_idx(anchors_num, 4, bottom_H, bottom_W);
     Indexer4d score_idx(anchors_num, 1, bottom_H, bottom_W);
     Indexer4d proposal_idx(bottom_H, bottom_W, anchors_num, 6);
-    Indexer4d anchor_idx(bottom_H, bottom_W, anchors_num, 4);
 
     parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
         for (int anchor = 0; anchor < anchors_num; ++anchor) {
-            int a_idx = anchor_idx(h, w, anchor, 0);
-            float x0 = anchors[a_idx + 0];
-            float y0 = anchors[a_idx + 1];
-            float x1 = anchors[a_idx + 2];
-            float y1 = anchors[a_idx + 3];
+            const int a_idx = anchor_idx(h, w, anchor, 0);
+            const int a_idx_offset = anchor_idx(h, w, anchor, 1) - anchor_idx(h, w, anchor, 0);
+            float x0 = anchors[a_idx + 0 * a_idx_offset];
+            float y0 = anchors[a_idx + 1 * a_idx_offset];
+            float x1 = anchors[a_idx + 2 * a_idx_offset];
+            float y1 = anchors[a_idx + 3 * a_idx_offset];
 
-            const float dx = deltas[delta_idx(anchor, 0, h, w)];
-            const float dy = deltas[delta_idx(anchor, 1, h, w)];
-            const float d_log_w = deltas[delta_idx(anchor, 2, h, w)];
-            const float d_log_h = deltas[delta_idx(anchor, 3, h, w)];
+            const int d_idx = delta_idx(anchor, 0, h, w);
+            const int d_idx_offset = delta_idx(anchor, 1, h, w) - delta_idx(anchor, 0, h, w);
+            const float dx = deltas[d_idx + 0 * d_idx_offset];
+            const float dy = deltas[d_idx + 1 * d_idx_offset];
+            const float d_log_w = deltas[d_idx + 2 * d_idx_offset];
+            const float d_log_h = deltas[d_idx + 3 * d_idx_offset];
 
             const float score = scores[score_idx(anchor, 0, h, w)];
 
@@ -98,7 +100,7 @@ void refine_anchors(const float* deltas, const float* scores, const float* ancho
             const float box_w = x1 - x0 + coordinates_offset;
             const float box_h = y1 - y0 + coordinates_offset;
 
-            int p_idx = proposal_idx(h, w, anchor, 0);
+            const int p_idx = proposal_idx(h, w, anchor, 0);
             proposals[p_idx + 0] = x0;
             proposals[p_idx + 1] = y0;
             proposals[p_idx + 2] = x1;
@@ -197,16 +199,21 @@ GenerateProposals::GenerateProposals
             nms_kernel_->create_kernel();
         }
     }
+
     if (op->output(0).get_element_type() == ov::element::f32) {
+        int32_t anchors_chunk = 0;
         if (mayiuse(x64::avx512_core)) {
-            unpack_boxes_kernel_.reset(new jit_unpack_boxes_kernel_fp32<x64::avx512_core>{{}});
+            refine_anchors_kernel_.reset(new jit_refine_anchors_kernel_fp32<x64::avx512_core>{
+                jit_refine_anchors_conf{anchors_chunk}});
         } else if (mayiuse(x64::avx2)) {
-            unpack_boxes_kernel_.reset(new jit_unpack_boxes_kernel_fp32<x64::avx2>{{}});
+            refine_anchors_kernel_.reset(new jit_refine_anchors_kernel_fp32<x64::avx2>{
+                jit_refine_anchors_conf{anchors_chunk}});
         } else if (mayiuse(x64::sse41)) {
-            unpack_boxes_kernel_.reset(new jit_unpack_boxes_kernel_fp32<x64::sse41>{{}});
+            refine_anchors_kernel_.reset(new jit_refine_anchors_kernel_fp32<x64::sse41>{
+                jit_refine_anchors_conf{anchors_chunk}});
         }
-        if (unpack_boxes_kernel_) {
-            unpack_boxes_kernel_->create_kernel();
+        if (refine_anchors_kernel_) {
+            refine_anchors_kernel_->create_kernel();
         }
     }
 }
@@ -228,6 +235,48 @@ void GenerateProposals::initSupportedPrimitiveDescriptors() {
 
 void GenerateProposals::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
+}
+
+namespace seq {
+void parallel_for(int first,
+                    std::function<void(int)> callback);
+void parallel_for2d(int first, int second,
+                    std::function<void(int, int)> callback);
+void parallel_for3d(int first, int second, int third,
+                    std::function<void(int, int, int)> callback);
+void parallel_for4d(int first, int second, int third, int fourth, std::function<void(int, int, int, int)> callback);
+void parallel_for(int first, std::function<void(int)> callback) {
+    for (int f = 0; f < first; ++f) {
+        callback(f);
+    }
+}
+void parallel_for2d(int first, int second, std::function<void(int, int)> callback) {
+    for (int f = 0; f < first; ++f) {
+        for (int s = 0; s < second; ++s) {
+            callback(f, s);
+        }
+    }
+}
+void parallel_for3d(int first, int second, int third, std::function<void(int, int, int)> callback) {
+    for (int f = 0; f < first; ++f) {
+        for (int s = 0; s < second; ++s) {
+            for (int t = 0; t < third; ++t) {
+                callback(f, s, t);
+            }
+        }
+    }
+}
+void parallel_for4d(int first, int second, int third, int fourth, std::function<void(int, int, int, int)> callback) {
+    for (int f = 0; f < first; ++f) {
+        for (int s = 0; s < second; ++s) {
+            for (int t = 0; t < third; ++t) {
+                for (int ff = 0; ff < fourth; ++ff) {
+                    callback(f, s, t, ff);
+                }
+            }
+        }
+    }
+}
 }
 
 void GenerateProposals::execute(dnnl::stream strm) {
@@ -327,49 +376,62 @@ void GenerateProposals::execute(dnnl::stream strm) {
             const float min_box_H = min_size_ * scale_h;
             const float min_box_W = min_size_ * scale_w;
 
-            refine_anchors(p_deltas_item, p_scores_item, p_anchors_item,
-                           reinterpret_cast<float *>(&proposals_[0]), anchors_num, bottom_H,
-                           bottom_W, img_H, img_W,
-                           min_box_H, min_box_W,
-                           static_cast<const float>(log(1000. / 16.)),
-                           coordinates_offset_);
+//            refine_anchors_kernel_.reset();
+            if (refine_anchors_kernel_) {
+
+//                parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
+                uint32_t anchor_idx_offset = 1;
+                uint32_t anchor_chunk_offset = 4;
+                uint32_t delta_idx_offset = bottom_H * bottom_W;
+                uint32_t delta_chunk_offset = 4 * delta_idx_offset;
+                uint32_t score_idx_offset = bottom_H * bottom_W;
+                uint32_t score_chunk_offset = score_idx_offset;
+                uint32_t proposal_idx_offset = 1;
+                uint32_t proposal_chunk_offset = 6;
+
+                seq::parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
+//                Indexer4d anchor_idx(bottom_H, bottom_W, anchors_num, 4);
+//                Indexer4d delta_idx(anchors_num, 4, bottom_H, bottom_W);
+//                Indexer4d score_idx(anchors_num, 1, bottom_H, bottom_W);
+//                Indexer4d proposal_idx(bottom_H, bottom_W, anchors_num, 6);
+
+                    (*refine_anchors_kernel_)(jit_refine_anchors_call_args{
+                        p_deltas_item, p_scores_item, p_anchors_item,
+                        reinterpret_cast<float *>(&proposals_[0]),
+                        h, w,
+                        anchors_num,
+                        anchor_idx_offset,
+                        anchor_chunk_offset,
+                        delta_idx_offset,
+                        delta_chunk_offset,
+                        score_idx_offset,
+                        score_chunk_offset,
+                        proposal_idx_offset,
+                        proposal_chunk_offset,
+                        img_H, img_W,
+                        min_box_H, min_box_W,
+                        static_cast<const float>(log(1000. / 16.)),
+                        coordinates_offset_
+                    });
+                });
+            } else {
+                refine_anchors(
+                    p_deltas_item, p_scores_item, p_anchors_item,
+                    reinterpret_cast<float *>(&proposals_[0]),
+                    anchors_num,
+                    bottom_H, bottom_W,
+                    img_H, img_W,
+                    min_box_H, min_box_W,
+                    static_cast<const float>(log(1000. / 16.)),
+                    coordinates_offset_
+                );
+            }
             std::partial_sort(proposals_.begin(), proposals_.begin() + pre_nms_topn, proposals_.end(),
                               [](const ProposalBox &struct1, const ProposalBox &struct2) {
                                   return (struct1.score > struct2.score);
                               });
 
-            if (unpack_boxes_kernel_) {
-                std::cout << "&proposals_[0] = " << &proposals_[0] << std::endl;
-                std::cout << "indices_.get() = " << indices_.get() << std::endl;
-                for (int i = 0; i < 6; ++i) {
-                    std::cout << "indices_[i] = " << indices_[i] << std::endl;
-                }
-                for (int k = 0; k < 6; ++k) {
-                    std::cout << "proposals_[k] = " << *reinterpret_cast<float *>(&proposals_[k]) << std::endl;
-                }
-                for (int i = 0; i < pre_nms_topn; ++i) {
-                    (*unpack_boxes_kernel_)(jit_unpack_boxes_call_args {
-                        static_cast<int32_t>(i),
-                        indices_.get(),
-                        pre_nms_topn,
-                        is_dead.data(),
-                        reinterpret_cast<float *>(&proposals_[0]),
-                        unpacked_boxes.data()
-                    });
-                }
-//                parallel_for(pre_nms_topn, [&](size_t i) {
-//                    (*unpack_boxes_kernel_)(jit_unpack_boxes_call_args {
-//                        static_cast<int32_t>(i),
-//                        indices_.get(),
-//                        pre_nms_topn,
-//                        is_dead.data(),
-//                        reinterpret_cast<float *>(&proposals_[0]),
-//                        unpacked_boxes.data()
-//                    });
-//                });
-            } else {
-                unpack_boxes(reinterpret_cast<float *>(&proposals_[0]), &unpacked_boxes[0], &is_dead[0], pre_nms_topn);
-            }
+            unpack_boxes(reinterpret_cast<float *>(&proposals_[0]), &unpacked_boxes[0], &is_dead[0], pre_nms_topn);
 
 #ifdef __GNUC__
             if (__builtin_expect(static_cast<bool>(nms_kernel_), true)) {

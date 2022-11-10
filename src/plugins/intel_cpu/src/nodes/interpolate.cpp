@@ -2411,6 +2411,7 @@ float Interpolate::InterpolateExecutor::coordTransToInput(int outCoord, float sc
             break;
         }
     }
+    return 0.0f;
 }
 
 int Interpolate::InterpolateExecutor::nearestRound(float originCoord, bool isDownsample, InterpolateNearestMode nearestMode) const {
@@ -2445,6 +2446,7 @@ int Interpolate::InterpolateExecutor::nearestRound(float originCoord, bool isDow
             break;
         }
     }
+    return 0;
 }
 
 void Interpolate::InterpolateExecutor::linearOnnxCF(int outCoord, float scale, int inShape, int outShape,

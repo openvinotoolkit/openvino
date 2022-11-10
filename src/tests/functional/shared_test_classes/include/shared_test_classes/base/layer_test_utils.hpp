@@ -101,6 +101,28 @@ public:
 
     template<class T_IE, class T_NGRAPH>
     static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold, float abs_threshold = -1.f) {
+//        std::cout << "expected:" << std::endl;
+//        for (std::size_t k = 0; k < size / (64 * 64); ++k) {
+//            std::cout << "[" << std::endl;
+//            for (std::size_t i = 0; i < 64; ++i) {
+//                for (std::size_t j = 0; j < 64; ++j) {
+//                    std::cout << expected[k * (64 * 64) + i * 64 + j] << ", ";
+//                }
+//                std::cout << std::endl;
+//            }
+//            std::cout << std::endl << "]" << std::endl;
+//        }
+//        std::cout << "actual:" << std::endl;
+//        for (std::size_t k = 0; k < size / (64 * 64); ++k) {
+//            std::cout << "[" << std::endl;
+//            for (std::size_t i = 0; i < 64; ++i) {
+//                for (std::size_t j = 0; j < 64; ++j) {
+//                    std::cout << actual[k * (64 * 64) + i * 64 + j] << ", ";
+//                }
+//                std::cout << std::endl;
+//            }
+//            std::cout << std::endl << "]" << std::endl;
+//        }
         for (std::size_t i = 0; i < size; ++i) {
             const T_NGRAPH &ref = expected[i];
             const auto &res = actual[i];

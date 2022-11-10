@@ -12,7 +12,7 @@
 namespace LayerTestsDefinitions {
 
 template <typename BaseLayerTest>
-class LegacyBenchmarkLayerTest : public BaseLayerTest {
+class BenchmarkLayerTest : public BaseLayerTest {
     static_assert(std::is_base_of<LayerTestsUtils::LayerTestsCommon, BaseLayerTest>::value,
                   "BaseLayerTest should inherit from LayerTestsUtils::LayerTestsCommon");
 
