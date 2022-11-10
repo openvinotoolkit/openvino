@@ -19,6 +19,7 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
@@ -98,6 +99,7 @@
 #include <low_precision/strided_slice.hpp>
 #include <low_precision/network_helper.hpp>
 #include "transformations/op_conversions/eye_decomposition.hpp"
+#include <low_precision/recurrent_cell.hpp>
 
 #include "intel_gpu/plugin/itt.hpp"
 
@@ -425,7 +427,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             PrecisionsRestriction::create<ngraph::opset1::GroupConvolution>({
                 {{0}, {ngraph::element::u8, ngraph::element::i8}},
                 {{1}, {ngraph::element::i8}}
-            })
+            }),
+            PrecisionsRestriction::create<ngraph::opset5::LSTMSequence>({}),
+            PrecisionsRestriction::create<ngraph::opset6::GRUSequence>({})
         });
 
         auto perTensorQuantization = std::vector<QuantizationGranularityRestriction>({
@@ -436,6 +440,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ngraph::pass::Manager lptManager;
 
         auto lptPassConfig = lptManager.get_pass_config();
+        // quantized LSTMSequence / GPUSequence are not supported yet. Avoid extra transformation
+        lptPassConfig->disable<ngraph::pass::low_precision::RecurrentCellTransformation>();
         lptPassConfig->set_callback<ngraph::pass::low_precision::MarkupPrecisions>([](const_node_ptr& node) -> bool {
             if (const auto mulitply = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
                 return !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(mulitply);

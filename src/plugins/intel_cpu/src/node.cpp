@@ -741,7 +741,8 @@ void Node::prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs) {
     }
 
     if (internalBlobs.size() != intDescs.size()) {
-        IE_THROW() << "Can't prepare memory for internal blob, internal blobs and internal descs number do not match";
+        IE_THROW() << "Can't prepare memory for internal blob, internal blob and internal descs number do not match "
+                   << internalBlobs.size() << " vs " << intDescs.size();
     }
 
     internalBlobMemory.clear();
