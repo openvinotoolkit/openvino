@@ -54,6 +54,9 @@ struct primitive_impl {
     virtual std::vector<std::string> get_kernel_ids() {
         return {};
     }
+    virtual std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() { return {}; }
+    virtual void set_kernels(std::vector<kernel::ptr>) {}
+    virtual void set_kernel_ids(std::vector<kernel_id> kernel_ids) {}
 
     // If this flag is set as false, the memory allocated for this primitive is not allowed to be reused
     bool can_reuse_memory = true;
@@ -359,6 +362,10 @@ public:
 
     template<typename T>
     static std::vector<layout> calc_output_layouts(const typed_node& node, const kernel_impl_params& impl_param) { return {}; }
+
+    static kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
+        return std::move(orig_impl_param);
+    }
 
     typed_primitive_inst_base(network& network, typed_node const& node)
         : typed_primitive_inst_base(network, node, do_allocate_memory(node)) {}
