@@ -1044,7 +1044,6 @@ TEST(type_prop, broadcast_v3_in0_interval_in1_param_rank_bigger_bidirectional) {
     auto target_shape_param = make_shared<op::Parameter>(element::i32, Shape{3});
     auto broadcast = make_shared<op::v3::Broadcast>(data, target_shape_param, op::BroadcastType::BIDIRECTIONAL);
 
-    EXPECT_EQ(broadcast->get_output_partial_shape(0), (PartialShape::dynamic(3)));
     EXPECT_EQ(broadcast->get_output_partial_shape(0), (PartialShape{-1, {4, 8}, -1}));
 }
 
@@ -1054,7 +1053,6 @@ TEST(type_prop, broadcast_v3_in0_interval_in1_param_rank_smaller_bidirectional) 
     auto target_shape_param = make_shared<op::Parameter>(element::i32, Shape{3});
     auto broadcast = make_shared<op::v3::Broadcast>(data, target_shape_param, op::BroadcastType::BIDIRECTIONAL);
 
-    EXPECT_EQ(broadcast->get_output_partial_shape(0), (PartialShape::dynamic(5)));
     EXPECT_EQ(broadcast->get_output_partial_shape(0), (PartialShape{-1, 2, -1, {4, 8}, -1}));
 }
 
@@ -1069,9 +1067,7 @@ TEST(type_prop, broadcast_v3_labels_in0_dims_in1_param_bidirectional) {
     auto target_shape_param = std::make_shared<op::Parameter>(element::i32, Shape{5});
     auto broadcast = make_shared<op::v3::Broadcast>(data, target_shape_param, op::BroadcastType::BIDIRECTIONAL);
 
-    const auto out_shape = broadcast->get_output_partial_shape(0);
-    EXPECT_EQ(broadcast->get_output_partial_shape(0), (PartialShape::dynamic(5)));
-    EXPECT_EQ(get_shape_labels(out_shape), std::vector<size_t>(5, 0));
+    const auto& out_shape = broadcast->get_output_partial_shape(0);
 
     EXPECT_EQ(out_shape, expected_shape);
     EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
