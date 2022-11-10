@@ -17,7 +17,7 @@ static void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& 
     validate_inputs_count(op, {3, 4});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
-    size_t rank = std::max(op->get_input_shape(0).size(), static_cast<size_t>(4));
+    size_t rank = std::max(op->get_input_partial_shape(0).size(), static_cast<size_t>(4));
 
     float pad_value = 0.f;
     if (op->get_input_size() == 4) {
