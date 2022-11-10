@@ -1010,6 +1010,13 @@ void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
         for (const auto& dep : _exec_deps) {
             ob << dep->id();
         }
+
+        ob << _intermediates_memory.size();
+        for (const auto& ibuf : _intermediates_memory) {
+            ob << ibuf->get_layout();
+            const auto _allocation_type = ibuf->get_allocation_type();
+            ob << make_data(&_allocation_type, sizeof(_allocation_type));
+        }
     }
 }
 
@@ -1018,13 +1025,6 @@ void primitive_inst::convert_args(const kernel_arguments_data& args, kernel_argu
         args_idx.inputs.resize(args.inputs.size());
         for (uint32_t idx = 0; idx < args.inputs.size(); ++idx) {
             args_idx.inputs[idx] = get_index_in_deps(args.inputs[idx]);
-        }
-    }
-
-    if (args.intermediates.size() > 0) {
-        args_idx.intermediates.resize(args.intermediates.size());
-        for (uint32_t idx = 0; idx < args.intermediates.size(); ++idx) {
-            args_idx.intermediates[idx] = get_index_in_deps(args.intermediates[idx]);
         }
     }
 
@@ -1156,6 +1156,17 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
             }
         }
         _output_changed = false;
+
+        ib >> vector_size;
+        _intermediates_memory.resize(vector_size);
+        for (size_t i = 0; i < vector_size; i++) {
+            layout ibuf_layout = layout(cldnn::data_types::bin, cldnn::format::any, cldnn::tensor());
+            ib >> ibuf_layout;
+            allocation_type _allocation_type;
+            ib >> make_data(&_allocation_type, sizeof(_allocation_type));
+
+            _intermediates_memory[i] = get_network().get_engine().allocate_memory(ibuf_layout, _allocation_type);
+        }
     }
 }
 }  // namespace cldnn

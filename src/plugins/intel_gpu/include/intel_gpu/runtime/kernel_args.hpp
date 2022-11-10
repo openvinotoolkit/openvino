@@ -116,8 +116,6 @@ struct kernel_arguments_data {
 
 struct kernel_arguments_data_idx {
     std::vector<int32_t> inputs;
-    std::vector<int32_t> intermediates;
-    // std::vector<int32_t> outputs;
     int32_t weights;
     int32_t recurrent;
     int32_t hidden;
@@ -137,7 +135,6 @@ struct kernel_arguments_data_idx {
     template <typename BufferType>
     void save(BufferType& ob) const {
         ob << inputs;
-        ob << intermediates;
         ob << weights;
         ob << recurrent;
         ob << hidden;
@@ -156,7 +153,6 @@ struct kernel_arguments_data_idx {
     template <typename BufferType>
     void load(BufferType& ib) {
         ib >> inputs;
-        ib >> intermediates;
         ib >> weights;
         ib >> recurrent;
         ib >> hidden;

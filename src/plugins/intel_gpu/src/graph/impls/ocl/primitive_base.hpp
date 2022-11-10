@@ -114,10 +114,6 @@ protected:
             args.inputs.push_back(instance.dep_memory_ptr(_kernel_args.inputs[i]));
         }
 
-        for (uint32_t i = 0; i < _kernel_args.intermediates.size(); i++) {
-            args.intermediates.push_back(instance.dep_memory_ptr(_kernel_args.intermediates[i]));
-        }
-
         args.weights = (_kernel_args.weights >= 0) ? instance.dep_memory_ptr(_kernel_args.weights) : args.weights;
         args.recurrent = (_kernel_args.recurrent >= 0) ? instance.dep_memory_ptr(_kernel_args.recurrent) : args.recurrent;
         args.hidden = (_kernel_args.hidden >= 0) ? instance.dep_memory_ptr(_kernel_args.hidden) : args.hidden;
@@ -204,10 +200,10 @@ protected:
                     args = get_arguments_by_idx(instance, i);
                 } else {
                     args = get_arguments(instance, i);
+                }
 
-                    for (const auto& m : instance.get_intermediates_memories()) {
-                        args.intermediates.push_back(m);
-                    }
+                for (const auto& m : instance.get_intermediates_memories()) {
+                    args.intermediates.push_back(m);
                 }
 
                 args.scalars = &_kernel_data.kernels[k].params.scalars;
