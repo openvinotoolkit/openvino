@@ -302,7 +302,25 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                                                       1,
                                                                       Dimension(0, 200),
                                                                       3,
-                                                                  },             // reference shape
-                                                                  element::f32}  // reference type
+                                                                  },              // reference shape
+                                                                  element::f32},  // reference type
+                                           // case when input has dynamic dimensions
+                                           StridedSliceTestParams{
+                                               PartialShape{Dimension(8, -1), 200, 200, 3},  // input_shape
+                                               {4},                                          // begin shape
+                                               {4},                                          // end shape
+                                               {4},                                          // strides shape
+                                               {0, 0, 0, 0},                                 // begin mask
+                                               {0, 0, 0, 0},                                 // end mask
+                                               {0, 0, 0, 0},                                 // new axis mask
+                                               {0, 0, 0, 0},                                 // shrink axis mask
+                                               {0, 0, 0, 0},                                 // ellipsis mask
+                                               PartialShape{
+                                                   Dimension::dynamic(),
+                                                   Dimension(0, 200),
+                                                   Dimension(0, 200),
+                                                   Dimension(0, 3),
+                                               },             // reference shape
+                                               element::f32}  // reference type
                                            ),
                          PrintToDummyParamName());
