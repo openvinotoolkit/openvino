@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 from openvino.runtime.passes import Manager, GraphRewrite, BackwardGraphRewrite, Serialize
 
-from utils.utils import MyModelPass, PatternReplacement, expect_exception
+from tests.test_transformations.utils.utils import MyModelPass, PatternReplacement, expect_exception
 
 
 def test_registration_and_pass_name():
