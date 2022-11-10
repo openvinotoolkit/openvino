@@ -11,6 +11,7 @@ from ngraph.utils.tensor_iterator_types import (
 )
 from tests_compatibility.runtime import get_runtime
 
+
 def create_simple_if_with_two_outputs(condition_val):
     condition = ng.constant(condition_val, dtype=np.bool)
 

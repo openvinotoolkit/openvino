@@ -173,6 +173,7 @@ def test_convolution_backprop_data():
     filter_data = np.array([[1.0, 0.0, -1.0], [2.0, 0.0, -2.0], [1.0, 0.0, -1.0]], dtype=np.float32).reshape(
         1, 1, 3, 3
     )
+
     model = runtime.computation(deconvolution, data_node, filter_node)
     result = model(input_data, filter_data)
     assert np.allclose(
