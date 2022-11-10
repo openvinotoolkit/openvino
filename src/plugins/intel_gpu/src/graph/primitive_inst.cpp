@@ -252,7 +252,7 @@ void primitive_inst::realloc_if_needed() {
 
     // Update param if fake_alignment is available
     auto updated_params = _node->type()->get_fake_aligned_params(*_impl_params);
-    auto actual_layout = updated_params.output_layout;
+    auto actual_layout = updated_params.get_output_layout();
     OPENVINO_ASSERT(actual_layout.is_static(), "[GPU] Can't realloc mem for dynamic layout");
 
     // input_layout node is supposed to always use external memory in dynamic case
