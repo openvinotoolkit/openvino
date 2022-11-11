@@ -91,6 +91,7 @@ std::vector<std::string> disabledTestPatterns() {
             // Issue: 76197
             R"(.*registerPluginsXMLUnicodePath.*)",
             // Not supported yet
+            R"(.*CompileModelCacheTestBase.*ConvBias.*)",
             R"(.*CompileModelCacheTestBase.*KSOFunction.*)",
             R"(.*CompileModelCacheTestBase.*ReadConcatSplitAssign.*)",
             R"(.*LoadNetworkCacheTestBase.*)",
