@@ -50,14 +50,8 @@ def main():
     statistics = None
     try:
         # ------------------------------ 1. Parsing and validating input arguments ------------------------------
-        args_string = f"{os.path.realpath(sys.argv[0])} "
-        for i in range(1,len(sys.argv)):
-            args_string += f"{sys.argv[i]} "
-
         next_step()
         args, is_network_compiled = parse_and_check_command_line()
-
-        logger.info(f"Input command: {args_string}")
 
         if args.number_streams is None:
                 logger.warning(" -nstreams default value is determined automatically for a device. "
