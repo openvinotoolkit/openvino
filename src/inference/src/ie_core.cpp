@@ -490,32 +490,41 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                                                            const std::string& deviceFamily,
                                                            const std::map<std::string, std::string>& origConfig) const {
         std::map<std::string, Any> getMetricConfig;
-        auto compileConfig = origConfig;
+        std::map<std::string, std::string> compileConfig;
 
-        // 0. Remove TARGET_FALLBACK key, move it to getMetricConfig
-        auto targetFallbackIt = compileConfig.find("TARGET_FALLBACK");
-        if (targetFallbackIt == compileConfig.end()) {
-            targetFallbackIt = compileConfig.find(ov::device::priorities.name());
+        // 0. Move TARGET_FALLBACK key to getMetricConfig
+        auto targetFallbackIt = origConfig.find("TARGET_FALLBACK");
+        if (targetFallbackIt == origConfig.end()) {
+            targetFallbackIt = origConfig.find(ov::device::priorities.name());
         }
-        if (targetFallbackIt != compileConfig.end()) {
+        if (targetFallbackIt != origConfig.end()) {
             getMetricConfig[targetFallbackIt->first] = targetFallbackIt->second;
-            compileConfig.erase(targetFallbackIt);
         }
 
-        // 1. remove DEVICE_ID key
-        auto deviceIt = compileConfig.find(ov::device::id.name());
-        if (deviceIt != compileConfig.end()) {
+        // 1. Move DEVICE_ID key to getMetricConfig
+        auto deviceIt = origConfig.find(ov::device::id.name());
+        if (deviceIt != origConfig.end()) {
             getMetricConfig[deviceIt->first] = deviceIt->second;
-            compileConfig.erase(deviceIt);
         }
 
-        // 2. replace it with DEVICE_ARCHITECTURE value
+        // 2. Replace it with DEVICE_ARCHITECTURE value
         if (DeviceSupportsConfigKey(plugin, ov::device::architecture.name())) {
             compileConfig[ov::device::architecture.name()] =
                 plugin.get_property(ov::device::architecture, getMetricConfig);
         } else {
             // Take device name if device does not support DEVICE_ARCHITECTURE metric
             compileConfig[ov::device::architecture.name()] = deviceFamily;
+        }
+
+        // 3. Extract config keys which affect compile config
+        if (DeviceSupportsConfigKey(plugin, ov::caching_properties.name())) {
+            auto cachingProps = plugin.get_property(ov::caching_properties);
+            for (const auto& prop : cachingProps) {
+                // origConfig values have higher priority than plugin parameters
+                auto it = origConfig.find(prop);
+                compileConfig[prop] =
+                    it == origConfig.end() ? plugin.get_property(prop, {}).as<std::string>() : it->second;
+            }
         }
         return compileConfig;
     }
