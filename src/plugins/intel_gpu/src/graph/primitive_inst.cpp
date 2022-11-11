@@ -613,7 +613,7 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
 }
 
 void primitive_inst::allocate_internal_buffers(void) {
-    if (_impl == nullptr)
+    if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
         return;
     const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
     if (ibuf_layouts.empty())
