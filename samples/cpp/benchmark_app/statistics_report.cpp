@@ -346,7 +346,7 @@ const nlohmann::json to_json(const LatencyMetrics& latenct_metrics) {
     stat["latency_max"] = latenct_metrics.max;
     return stat;
 }
-}
+}  // namespace
 
 std::string StatisticsVariant::to_string() const {
     switch (type) {
