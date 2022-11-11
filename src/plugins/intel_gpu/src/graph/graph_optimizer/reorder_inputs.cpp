@@ -801,7 +801,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                     new_layout.data_type = expected_dt;
                     auto new_input = rf.get_reorder(node->get_dependency(dep_idx).id(), orig_layout, new_layout);
                     if (new_input.first)
-                        p.add_intermediate(new_input.first, *node, dep_idx);
+                        p.add_intermediate(new_input.first, *node, dep_idx, !new_input.second);
                 }
             }
         }
