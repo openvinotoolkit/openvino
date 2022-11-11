@@ -163,7 +163,7 @@ bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
     context.model_shape() = data.m_param->get_partial_shape();
     context.target_element_type() = data.m_param->get_element_type();
 
-    // 2. Apply preprocessing
+    // Apply preprocessing
     auto nodes = data.as_nodes();
     for (const auto& action : get_preprocess()->actions()) {
         auto action_result = action.m_op(nodes, model, context);
@@ -177,7 +177,7 @@ bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
                     color_format_name(context.color_format()),
                     "'");
     OPENVINO_ASSERT(is_rgb_family(context.color_format()) ||
-                    context.color_format() == ColorFormat::GRAY,
+                    context.color_format() == ColorFormat::GRAY ||
                     context.color_format() == ColorFormat::UNDEFINED,
                     "model shall have RGB/BGR/GRAY color format. Consider add 'convert_color' preprocessing operation "
                     "to convert current color format '",
