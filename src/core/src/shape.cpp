@@ -10,7 +10,7 @@ using namespace std;
 
 std::ostream& ov::operator<<(std::ostream& s, const Shape& shape) {
     s << "[";
-    s << ngraph::join(shape);
+    s << ngraph::join(shape, ",");
     s << "]";
     return s;
 }
