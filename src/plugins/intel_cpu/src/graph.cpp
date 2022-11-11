@@ -409,6 +409,17 @@ void Graph::InitGraph() {
     optimizer.ApplyImplSpecificGraphOptimizations(*this);
     SortTopologically();
 
+    bool haveDynNodes = false;
+    for (size_t i = 0; i < graphNodes.size(); ++i) {
+        const auto& node = graphNodes[i];
+        if (node->isDynamicNode()) {
+            haveDynNodes = true;
+            if (node->outputShapeDataDependency()) {
+                syncNodesInds.insert({node.get(), i});
+            }
+        }
+    }
+
     Allocate();
 
     CreatePrimitives();
@@ -421,16 +432,7 @@ void Graph::InitGraph() {
     ExtractConstantAndExecutableNodes();
 
     ExecuteConstantNodesOnly();
-    status = Status::ReadyStatic;
-    for (size_t i = 0; i < executableGraphNodes.size(); ++i) {
-        const auto& node = executableGraphNodes[i];
-        if (node->isDynamicNode()) {
-            status = Status::ReadyDynamic;
-            if (node->outputShapeDataDependency()) {
-                syncNodesInds.push_back(i);
-            }
-        }
-    }
+    status = haveDynNodes ? Status::ReadyDynamic : Status::ReadyStatic;
 }
 
 void Graph::InitNodes() {
@@ -493,6 +495,10 @@ void Graph::ExtractConstantAndExecutableNodes() {
              * With current way it is possible that with debug_caps enabled
              * we execute a node, which is not ready to be executed
              */
+            auto itr = syncNodesInds.find(graphNode.get());
+            if (itr != syncNodesInds.end()) {
+                itr->second = executableGraphNodes.size();
+            }
             executableGraphNodes.emplace_back(graphNode);
         }
     }
@@ -796,6 +802,33 @@ void Graph::AllocateWithReuse() {
     }
 
     if (!undefinedBoxes.empty()) {
+        //We have to extend sync point nodes output tensors lifespan in order to save
+        //the intermediate computation results from possible loss due to tensor resize
+        if (!syncNodesInds.empty()) {
+            for (auto& box : undefinedBoxes) {
+                for (auto& edge : edge_clusters[box.id]) {
+                    auto node = edge->getParent();
+                    //1. Check whether the nod is a sync point
+                    auto itr = syncNodesInds.find(node.get());
+                    if (itr != syncNodesInds.end()) {
+                        //2. Extend the lifespan of the box to the next sync point after the finish time,
+                        //or set -1 if there are no sync points beyond the expiration time of the box
+                        int endTime = -1;
+                        while (++itr != syncNodesInds.end()) {
+                            auto time = graphNodes[itr->second]->execIndex;
+                            if (time > box.finish) {
+                                endTime = time;
+                                break;
+                            }
+                        }
+                        //3. assign the next sync node execIndx as the end_time of the box lifespan
+                        box.finish = endTime;
+                        break;
+                    }
+                }
+            }
+        }
+
         MemorySolver::normalizeBoxes(undefinedBoxes);
 
         std::vector<std::vector<MemorySolver::Box>> groups; //groups of nonoverlapping boxes
@@ -1034,11 +1067,11 @@ void Graph::InferDynamic(InferRequestBase* request) {
     size_t inferCounter = 0;
 
     std::set<size_t> syncIndsWorkSet;
-    for (auto nodeIndx : syncNodesInds) {
-        syncIndsWorkSet.insert(nodeIndx);
+    for (const auto& nodeIndx : syncNodesInds) {
+        syncIndsWorkSet.insert(nodeIndx.second);
         //since sometimes we need to run the synchronization node  alone (for example in the case of internal dynamism)
-        //let's add another sync point after the node index
-        syncIndsWorkSet.insert(nodeIndx + 1);
+        //let's add another sync index after the sync point node
+        syncIndsWorkSet.insert(nodeIndx.second + 1);
     }
     syncIndsWorkSet.insert(executableGraphNodes.size());
 

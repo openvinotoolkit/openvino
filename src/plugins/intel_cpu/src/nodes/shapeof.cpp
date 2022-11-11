@@ -13,7 +13,7 @@ namespace intel_cpu {
 namespace node {
 
 namespace {
-class ShapeOfShapeInfer final : public ShapeInferEmptyPads {
+class ShapeOfShapeInfer : public ShapeInferEmptyPads {
 public:
     ShapeOfShapeInfer() = default;
     std::vector<VectorDims> infer(
@@ -28,7 +28,7 @@ public:
     }
 };
 
-class ShapeOfShapeInferFactory final : public ShapeInferFactory {
+class ShapeOfShapeInferFactory : public ShapeInferFactory {
 public:
     ShapeInferPtr makeShapeInfer() const override {
         return std::make_shared<ShapeOfShapeInfer>();

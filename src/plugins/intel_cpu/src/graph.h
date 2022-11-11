@@ -17,6 +17,7 @@
 #include <vector>
 #include <memory>
 #include <atomic>
+#include <utils/ordered_map.hpp>
 
 namespace ov {
 namespace intel_cpu {
@@ -266,7 +267,7 @@ private:
     MultiCachePtr rtParamsCache;
     std::shared_ptr<std::mutex> sharedMutex = nullptr;
     DnnlScratchPadPtr rtScratchPad;
-    std::vector<size_t> syncNodesInds;
+    ordered_map<Node*, size_t> syncNodesInds;
 
     void EnforceBF16();
 };
