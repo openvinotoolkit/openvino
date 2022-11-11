@@ -245,32 +245,62 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             std::shared_ptr<ie::ICacheManager> _cacheManager;
         };
 
-        bool flag_allow_auto_batching = true;
+        // Core default supported properties and values, which are core global properties.
+        // They don't require a specified device.
+        const ov::AnyMap default_core_supported_properties = {ov::cache_dir(""),
+                                                              ov::hint::allow_auto_batching(true),
+                                                              ov::force_tbb_terminate(false)};
 
         void setAndUpdate(ov::AnyMap& config) {
-            auto it = config.find(CONFIG_KEY(CACHE_DIR));
-            if (it != config.end()) {
-                std::lock_guard<std::mutex> lock(_cacheConfigMutex);
-                fillConfig(_cacheConfig, it->second.as<std::string>());
-                for (auto& deviceCfg : _cacheConfigPerDevice) {
-                    fillConfig(deviceCfg.second, it->second.as<std::string>());
+            for (auto it = config.begin(); it != config.end();) {
+                auto item = default_core_supported_properties.find(it->first);
+                if (item == default_core_supported_properties.end()) {
+                    IE_THROW() << "Exception: ov::core set_property with unsupported core property: '" << it->first
+                               << "'";
                 }
-                config.erase(it);
+
+                if (it->first == ov::cache_dir.name()) {
+                    std::lock_guard<std::mutex> lock(_cacheConfigMutex);
+                    fillConfig(_cacheConfig, it->second.as<std::string>());
+                    for (auto& deviceCfg : _cacheConfigPerDevice) {
+                        fillConfig(deviceCfg.second, it->second.as<std::string>());
+                    }
+                } else if (it->first == ov::force_tbb_terminate.name()) {
+                    auto flag = it->second.as<std::string>() == CONFIG_VALUE(YES) ? true : false;
+                    executorManager()->setTbbFlag(flag);
+                }
+
+                {
+                    std::lock_guard<std::mutex> lock(_commonConfigMutex);
+                    auto temp = _commonConfig.find(it->first);
+                    if (temp != _commonConfig.end()) {
+                        _commonConfig[it->first] = it->second;
+                    } else {
+                        _commonConfig.insert(*it);
+                    }
+                }
+                it = config.erase(it);
+            }
+        }
+
+        ov::Any getCoreConfig(const std::string& name) const {
+            {
+                std::lock_guard<std::mutex> lock(_commonConfigMutex);
+                auto it = _commonConfig.find(name);
+                if (it != _commonConfig.end()) {
+                    return it->second;
+                }
             }
 
-            it = config.find(ov::force_tbb_terminate.name());
-            if (it != config.end()) {
-                auto flag = it->second.as<std::string>() == CONFIG_VALUE(YES) ? true : false;
-                executorManager()->setTbbFlag(flag);
-                config.erase(it);
+            // Return default if not set before.
+            auto item = default_core_supported_properties.find(name);
+            if (item != default_core_supported_properties.end()) {
+                return item->second;
             }
 
-            it = config.find(ov::hint::allow_auto_batching.name());
-            if (it != config.end()) {
-                auto flag = it->second.as<bool>();
-                flag_allow_auto_batching = flag;
-                config.erase(it);
-            }
+            IE_THROW() << "Exception: ov::core get_property with unsupported core property name: '" << item->first
+                       << "'";
+            return ov::Any();
         }
 
         void setCacheForDevice(const std::string& dir, const std::string& name) {
@@ -329,6 +359,8 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         mutable std::mutex _cacheConfigMutex;
         CacheConfig _cacheConfig;
         std::map<std::string, CacheConfig> _cacheConfigPerDevice;
+        mutable std::mutex _commonConfigMutex;
+        ov::AnyMap _commonConfig;
     };
 
     struct CacheContent {
@@ -757,7 +789,7 @@ public:
                     config.erase(batch_mode);
                 if (disabled)
                     return;
-            } else if (!coreConfig.flag_allow_auto_batching) {
+            } else if (!coreConfig.getCoreConfig(ov::hint::allow_auto_batching.name()).as<bool>()) {
                 return;
             }
             // check whether if the Auto-Batching is applicable to the device
@@ -994,21 +1026,6 @@ public:
         SetConfigForPlugins(properties, device_name);
     }
 
-    Any get_property_for_core(const std::string& name) const {
-        if (name == ov::force_tbb_terminate.name()) {
-            const auto flag = executorManager()->getTbbFlag();
-            return decltype(ov::force_tbb_terminate)::value_type(flag);
-        } else if (name == ov::cache_dir.name()) {
-            return ov::Any(coreConfig.get_cache_dir());
-        } else if (name == ov::hint::allow_auto_batching.name()) {
-            const auto flag = coreConfig.flag_allow_auto_batching;
-            return decltype(ov::hint::allow_auto_batching)::value_type(flag);
-        }
-
-        IE_THROW() << "Exception is thrown while trying to call get_property with unsupported property: '" << name
-                   << "'";
-    }
-
     Any get_property(const std::string& device_name, const std::string& name, const AnyMap& arguments) const override {
         OPENVINO_ASSERT(device_name.find("HETERO:") != 0,
                         "You can only get_property of the HETERO itself (without devices). "
@@ -1024,7 +1041,7 @@ public:
                         "get_property is also possible for the individual devices before creating the BATCH on top.");
 
         if (device_name.empty()) {
-            return get_property_for_core(name);
+            return coreConfig.getCoreConfig(name);
         }
 
         auto parsed = parseDeviceNameIntoConfig(device_name, arguments);
