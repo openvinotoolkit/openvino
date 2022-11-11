@@ -11,6 +11,8 @@
 #include "snippets_isa.hpp"
 #include "emitter.hpp"
 
+#include "snippets/op/subgraph.hpp"
+
 namespace ngraph {
 namespace snippets {
 namespace utils {
@@ -22,6 +24,10 @@ auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ngraph::opset1::
 inline auto is_scalar_constant(const std::shared_ptr<ngraph::Node>& source_output_node) -> bool {
     return ngraph::is_type<ngraph::opset1::Constant>(source_output_node) && ngraph::shape_size(source_output_node->get_shape()) == 1;
 }
+
+// Need to update tensor name manually, since intel_cpu::Graph::Replicate() looks at input.get_tensor().get_name();
+// If subgraph->get_output_size() == 1, then the name will be restored correctly from the node name
+auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> &subgraph) -> void;
 
 inline ov::Dimension get_inner_dim(const ov::PartialShape &shape) { return *(shape.rbegin()); }
 inline ov::Dimension get_outer_dim(const ov::PartialShape &shape) { return *(shape.rbegin() + 1); }

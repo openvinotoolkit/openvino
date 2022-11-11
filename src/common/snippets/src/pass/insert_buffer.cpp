@@ -16,7 +16,8 @@ ngraph::snippets::pass::InsertBuffer::InsertBuffer() {
     // The list of operations that require Buffers on their Inputs and Outputs
     const auto pattern = ngraph::pattern::wrap_type<ngraph::op::v1::Softmax,
                                                     ngraph::op::v8::Softmax,
-                                                    ngraph::op::v1::Transpose>();
+                                                    ngraph::op::v1::Transpose,
+                                                    ngraph::op::v0::MatMul>();
 
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(pattern, matcher_name),
             [this](ngraph::pattern::Matcher &m) {
