@@ -96,7 +96,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
                             METRIC_KEY(RANGE_FOR_STREAMS),
                             options).as<std::tuple<unsigned int, unsigned int>>();
                     upperBoundStreamsNum = std::get<1>(rangeOfStreams);
-                } catch (const IE::Exception& iie) {
+                } catch (const IE::Exception&) {
                     LOG_DEBUG_TAG("GetMetric RANGE_FOR_STREAMS failed");
                 }
                 if (!_autoSContext->_batchingDisabled) {

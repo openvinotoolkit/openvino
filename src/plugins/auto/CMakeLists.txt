@@ -5,10 +5,7 @@ if(NOT ENABLE_AUTO AND NOT ENABLE_MULTI)
     return()
 endif()
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    ie_add_compiler_flags(/wd4101)
-    ie_add_compiler_flags(/wd4267)
-endif()
+
 
 set (TARGET_NAME "openvino_auto_plugin")
 
