@@ -230,7 +230,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                                         deviceName.c_str(),
                                         cfg.c_str(),
                                         contextPtr->executableNetwork->GetConfig(cfg).as<std::string>().c_str());
-                                } catch (...) {
+                                } catch (const IE::Exception&) {
                                 }
                             }
                         });
@@ -342,7 +342,7 @@ void AutoSchedule::TryToLoadNetWork(AutoLoadContext& context, const std::string&
             int maxNumThreads = 0;
             try {
                 maxNumThreads = _autoSContext->_core->GetConfig(device, GPU_CONFIG_KEY(MAX_NUM_THREADS)).as<int>();
-            } catch (...) {
+            } catch (const IE::Exception&) {
                 LOG_DEBUG_TAG("cannot get MAX_NUM_THREADS from GPU");
             }
             if (maxNumThreads == static_cast<int>(std::thread::hardware_concurrency())) {
@@ -562,7 +562,7 @@ IInferPtr AutoSchedule::CreateInferRequest() {
         try {
             perfmode = _passthroughExeNet->GetConfig(
                                 CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>();
-        } catch(...) {
+        } catch(const IE::Exception&) {
             LOG_INFO("query perf hint from passthrough network failed");
         }
         if (_autoSContext->_batchingDisabled || perfmode != CONFIG_VALUE(THROUGHPUT)) {
