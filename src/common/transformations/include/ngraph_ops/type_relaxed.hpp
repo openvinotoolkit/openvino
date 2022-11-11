@@ -7,19 +7,16 @@
 #include <algorithm>
 #include <memory>
 #include <mutex>
-#include <ngraph/op/convert.hpp>
+#include <openvino/op/convert.hpp>
 #include <string>
 #include <transformations_visibility.hpp>
 #include <vector>
 
-#include "ngraph/op/op.hpp"
-#include "ngraph/variant.hpp"
-
-namespace ngraph {
+namespace ov {
 namespace op {
 
 /// A base class for templated TypeRelaxed that maintains overridden input types and output types for an operation.
-class NGRAPH_API TypeRelaxedBase {
+class OPENVINO_API TypeRelaxedBase {
 public:
     virtual ~TypeRelaxedBase();
 
@@ -180,7 +177,7 @@ public:
 };
 
 // TODO: remove once FusedOp is removed
-NGRAPH_SUPPRESS_DEPRECATED_START
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 /// Relaxes tensor element type requirements for BaseOp inputs and outputs
 /// This class template should be used with Node descendant class. Defines a new operation by extending the
@@ -192,7 +189,10 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 template <typename BaseOp>
 class TypeRelaxed : public BaseOp, public TypeRelaxedBase {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP(BaseOp::get_type_info_static().name,
+                BaseOp::get_type_info_static().version_id,
+                BaseOp,
+                BaseOp::get_type_info_static().version);
 
     using BaseOp::BaseOp;
 
@@ -242,7 +242,7 @@ private:
 OPENVINO_SUPPRESS_DEPRECATED_START
 template <typename BaseOp>
 bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    std::shared_ptr<ngraph::op::v0::Convert> convert;
+    std::shared_ptr<ov::op::v0::Convert> convert;
     HostTensorVector casted_inputs(BaseOp::get_input_size());
     for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
         const auto expected_input_type = get_origin_input_type(i);
@@ -251,7 +251,7 @@ bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTe
             casted_inputs[i] = inputs[i];
         } else {
             if (convert == nullptr) {
-                convert = std::make_shared<ngraph::op::v0::Convert>();
+                convert = std::make_shared<ov::op::v0::Convert>();
             }
 
             convert->set_destination_type(expected_input_type);
@@ -283,7 +283,7 @@ bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTe
         if (expected_output_type != element::undefined &&
             original_outputs[i]->get_element_type() != expected_output_type) {
             if (convert == nullptr) {
-                convert = std::make_shared<ngraph::op::v0::Convert>();
+                convert = std::make_shared<ov::op::v0::Convert>();
             }
 
             convert->set_destination_type(expected_output_type);
@@ -305,9 +305,9 @@ void TypeRelaxed<BaseOp>::validate_and_infer_types() {
 
     remember_input_data_types(*this, old_input_types);
 
-    NGRAPH_SUPPRESS_DEPRECATED_START
+    OPENVINO_SUPPRESS_DEPRECATED_START
     BaseOp::validate_and_infer_types();
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     restore_input_data_types(*this, old_input_types);
 }
@@ -333,27 +333,15 @@ bool TypeRelaxed<BaseOp>::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-template <typename BaseOp>
-const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info() const {
-    return get_type_info_static();
-}
+OPENVINO_SUPPRESS_DEPRECATED_END
 
-template <typename BaseOp>
-const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info_static() {
-    auto baseOpTypeInfoPtr = &BaseOp::get_type_info_static();
-    static const ::ngraph::Node::type_info_t type_info_static{baseOpTypeInfoPtr->name,
-                                                              baseOpTypeInfoPtr->version,
-                                                              baseOpTypeInfoPtr->version_id,
-                                                              baseOpTypeInfoPtr};
-    return type_info_static;
-}
+}  // namespace op
+}  // namespace ov
 
-#ifndef OPENVINO_STATIC_LIBRARY
-template <typename BaseOp>
-const ::ngraph::Node::type_info_t TypeRelaxed<BaseOp>::type_info = TypeRelaxed<BaseOp>::get_type_info_static();
-#endif
-
-NGRAPH_SUPPRESS_DEPRECATED_END
-
+namespace ngraph {
+namespace op {
+using ov::op::TemporaryReplaceOutputType;
+using ov::op::TypeRelaxed;
+using ov::op::TypeRelaxedBase;
 }  // namespace op
 }  // namespace ngraph

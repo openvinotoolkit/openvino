@@ -10,11 +10,11 @@
 
 #include "itt.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/opsets/opset8.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 namespace {
 bool is_node_casts_to_float_or_shapeof(const Node* node) {
