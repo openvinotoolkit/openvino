@@ -176,9 +176,8 @@ bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
                     "preprocessing operation. Current format is '",
                     color_format_name(context.color_format()),
                     "'");
-    OPENVINO_ASSERT(is_rgb_family(context.color_format()) ||
-                    context.color_format() == ColorFormat::GRAY ||
-                    context.color_format() == ColorFormat::UNDEFINED,
+    OPENVINO_ASSERT(is_rgb_family(context.color_format()) || context.color_format() == ColorFormat::GRAY ||
+                        context.color_format() == ColorFormat::UNDEFINED,
                     "model shall have RGB/BGR/GRAY color format. Consider add 'convert_color' preprocessing operation "
                     "to convert current color format '",
                     color_format_name(context.color_format()),

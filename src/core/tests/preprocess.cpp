@@ -308,36 +308,40 @@ TEST(pre_post_process, convert_color_rgb_gray_asserts) {
                  auto p = PrePostProcessor(f);
                  p.input().tensor().set_layout("HWC").set_color_format(ColorFormat::RGB);
                  p.input().preprocess().convert_color(ColorFormat::GRAY);
-                 p.build();, ov::AssertFailure);
+                 p.build();
+                 , ov::AssertFailure);
 
     // No "C" dimension name
     EXPECT_THROW(auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 3});
                  auto p = PrePostProcessor(f);
                  p.input().tensor().set_layout("NHW").set_color_format(ColorFormat::RGB);
                  p.input().preprocess().convert_color(ColorFormat::GRAY);
-                 p.build();, ov::AssertFailure);
-    
+                 p.build();
+                 , ov::AssertFailure);
+
     // Rank < 3
     EXPECT_THROW(auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 3});
                  auto p = PrePostProcessor(f);
                  p.input().tensor().set_layout("NC").set_color_format(ColorFormat::RGB);
                  p.input().preprocess().convert_color(ColorFormat::GRAY);
-                 p.build();, ov::AssertFailure);
+                 p.build();
+                 , ov::AssertFailure);
 
     // Rank < 5
     EXPECT_THROW(auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 2, 2, 3});
                  auto p = PrePostProcessor(f);
                  p.input().tensor().set_layout("NXDHWC").set_color_format(ColorFormat::RGB);
                  p.input().preprocess().convert_color(ColorFormat::GRAY);
-                 p.build();, ov::AssertFailure);
-
+                 p.build();
+                 , ov::AssertFailure);
 
     // "C" != 3
     EXPECT_THROW(auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 1});
                  auto p = PrePostProcessor(f);
                  p.input().tensor().set_layout("NHC").set_color_format(ColorFormat::RGB);
                  p.input().preprocess().convert_color(ColorFormat::GRAY);
-                 p.build();, ov::AssertFailure);
+                 p.build();
+                 , ov::AssertFailure);
 }
 
 TEST(pre_post_process, convert_color_nv12_rgb_single) {

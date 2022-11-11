@@ -456,15 +456,23 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                     is_converted = true;
                 }
 
-                auto weights_data = context.color_format() == ColorFormat::RGB ? std::vector<float>{0.299, 0.587, 0.114} : std::vector<float>{0.114, 0.587, 0.299};
+                auto weights_data = context.color_format() == ColorFormat::RGB
+                                        ? std::vector<float>{0.299, 0.587, 0.114}
+                                        : std::vector<float>{0.114, 0.587, 0.299};
                 auto weights_shape = ov::Shape(shape.size(), 1);
-                weights_shape[1] = 3; // Set kernel layout to [1, 3, 1, ...]
+                weights_shape[1] = 3;  // Set kernel layout to [1, 3, 1, ...]
                 auto weights_node = std::make_shared<ov::op::v0::Constant>(element::f32, weights_shape, weights_data);
-                node = std::make_shared<ov::op::v1::Convolution>(node, weights_node, ov::Strides(weights_shape.size()-2, 1), ov::CoordinateDiff(weights_shape.size()-2, 0), ov::CoordinateDiff(weights_shape.size()-2, 0), ov::Strides(weights_shape.size()-2, 1));
+                node = std::make_shared<ov::op::v1::Convolution>(node,
+                                                                 weights_node,
+                                                                 ov::Strides(weights_shape.size() - 2, 1),
+                                                                 ov::CoordinateDiff(weights_shape.size() - 2, 0),
+                                                                 ov::CoordinateDiff(weights_shape.size() - 2, 0),
+                                                                 ov::Strides(weights_shape.size() - 2, 1));
 
                 if (is_converted) {
                     // Round values according to OpenCV rule before converting to integral values
-                    auto round_val = std::make_shared<ov::op::v5::Round>(node, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
+                    auto round_val =
+                        std::make_shared<ov::op::v5::Round>(node, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
                     node = std::make_shared<op::v0::Convert>(round_val, elem_type);
                 }
                 if (is_transposed) {
