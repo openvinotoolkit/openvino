@@ -379,6 +379,19 @@ def create_pytorch_nn_module_layout_list(tmp_dir):
     return pt_model, ref_model, {'input_shape': [shape, shape], 'layout': ['nchw', Layout('nhwc')], 'onnx_opset_version': 11}
 
 
+def create_pytorch_nn_module_layout_list_case2(tmp_dir):
+    from openvino.runtime import Layout
+    pt_model = make_pt_model_two_inputs()
+    shape = [1, 3, 10, 10]
+
+    shape = PartialShape(shape)
+    ref_model = make_ref_pt_model_two_inputs(shape)
+    ref_model.inputs[0].node.layout = Layout('nchw')
+    ref_model.inputs[1].node.layout = Layout('nhwc')
+
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'layout': ('nchw', Layout('nhwc')), 'onnx_opset_version': 11}
+
+
 def create_pytorch_nn_module_mean_list(tmp_dir):
     pt_model = make_pt_model_two_inputs()
     shape = [1, 10, 10, 3]
@@ -446,6 +459,7 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_jit_script_module,
         create_pytorch_jit_script_function,
         create_pytorch_nn_module_layout_list,
+        create_pytorch_nn_module_layout_list_case2,
         create_pytorch_nn_module_mean_list,
         create_pytorch_nn_module_scale_list
     ]

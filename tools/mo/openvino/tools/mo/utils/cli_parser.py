@@ -356,7 +356,7 @@ def layout_param_to_str(value):
             values_str.append(op_name + "(" + layoutmap_to_str(layout) + ")")
         return ",".join(values_str)
 
-    if isinstance(value, list):
+    if isinstance(value, list) or isinstance(value, tuple):
         values_str = []
         for layout in value:
             values_str.append(layoutmap_to_str(layout))
