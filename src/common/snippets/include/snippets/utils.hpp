@@ -11,6 +11,8 @@
 #include "snippets_isa.hpp"
 #include "emitter.hpp"
 
+#include "snippets/op/subgraph.hpp"
+
 namespace ngraph {
 namespace snippets {
 namespace utils {
@@ -28,6 +30,10 @@ ov::PartialShape get_port_planar_shape(const Output<Node>& out);
 ov::PartialShape get_reordered_planar_shape(const ov::PartialShape& shape, const std::vector<size_t>& layout);
 std::vector<size_t> get_node_output_layout(const std::shared_ptr<Node>& node);
 std::vector<size_t> get_node_output_layout(const Node* node);
+
+// Need to update tensor name manually, since intel_cpu::Graph::Replicate() looks at input.get_tensor().get_name();
+// If subgraph->get_output_size() == 1, then the name will be restored correctly from the node name
+void update_out_tensor_name(const std::shared_ptr<ngraph::snippets::op::Subgraph>& subgraph);
 
 inline ov::Dimension get_inner_dim(const ov::PartialShape &shape) { return *(shape.rbegin()); }
 inline ov::Dimension get_outer_dim(const ov::PartialShape &shape) { return *(shape.rbegin() + 1); }

@@ -1,0 +1,333 @@
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <snippets/itt.hpp>
+#include "snippets/remarks.hpp"
+
+#include "snippets/pass/mha_tokenization.hpp"
+#include "snippets/pass/collapse_subgraph.hpp"
+#include "snippets/op/subgraph.hpp"
+#include "snippets/snippets_isa.hpp"
+#include "snippets/utils.hpp"
+
+#include <ngraph/opsets/opset8.hpp>
+#include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/pattern/op/or.hpp>
+#include <ngraph/validation_util.hpp>
+
+
+auto is_supported_tensor(const ngraph::descriptor::Tensor& t) -> bool {
+    // TODO: Add support of all supported by common tokenization element types
+    //       return ngraph::snippets::pass::TokenizeSnippets::supported_element_types.count(input.get_element_type()) != 0;
+    //       Also only 4D is supported at the moment
+    return t.get_element_type() == ngraph::element::f32 && t.get_partial_shape().is_static() && t.get_shape().size() == 4;
+}
+
+// TODO: Add support of FQ, Reshape?
+auto is_supported_op(const std::shared_ptr<ngraph::Node>& node) -> bool {
+    return ngraph::snippets::pass::AppropriateForSubgraph(node) &&
+           (ngraph::is_type<ngraph::op::util::UnaryElementwiseArithmetic>(node) ||
+            ngraph::is_type<ngraph::op::util::BinaryElementwiseArithmetic>(node) ||
+            ngraph::is_type<ngraph::op::v1::Select>(node));
+}
+
+auto valid_transpose(const std::shared_ptr<ngraph::opset1::Transpose>& node, std::vector<int64_t> expected_order) -> bool {
+    auto valid_transpose_order = [expected_order](const std::shared_ptr<ngraph::Node>& node) -> bool {
+        const auto transpose_pattern = ngraph::as_type_ptr<ngraph::opset1::Constant>(node);
+        if (!transpose_pattern)
+            return false;
+        return transpose_pattern->cast_vector<int64_t>() == expected_order;
+    };
+
+    return node && node->get_output_target_inputs(0).size() == 1 && node->get_shape().size() == 4 &&
+           valid_transpose_order(node->get_input_node_shared_ptr(1)) && is_supported_tensor(node->get_input_tensor(0));
+}
+
+auto collapse_intermediate_supported_ops(std::shared_ptr<ov::Node>& interm_op, ngraph::NodeVector& ordered_ops) -> bool {
+    // TODO: Add Reshape, FQ support
+    while (is_supported_op(interm_op)) {
+        // All supported intermediate ops have only one output port
+        // To verify output element type is enough because all supported intermediate ops have the same output element type as input type
+        if (interm_op->get_output_target_inputs(0).size() != 1 || !is_supported_tensor(interm_op->get_output_tensor(0)))
+            return false;
+
+        // Check for supported Broadcast op
+        if (interm_op->get_input_size() > 1) {
+            for (auto input : interm_op->inputs()) {
+                auto broadcast = ov::as_type_ptr<ngraph::opset1::Broadcast>(input.get_source_output().get_node_shared_ptr());
+                // TODO: Can we reuse AppropriateForSubgraph here? Seems like it's huge check for Broadcast
+                if (broadcast && broadcast->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NUMPY &&
+                    broadcast->get_output_target_inputs(0).size() == 1) {
+                    ordered_ops.push_back(broadcast);
+                }
+            }
+        }
+
+        ordered_ops.push_back(interm_op);
+        interm_op = interm_op->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+    }
+    return true;
+};
+
+ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
+    MATCHER_SCOPE(TokenizeMHASnippets);
+
+    auto m_matmul0 = std::make_shared<ngraph::opset1::MatMul>(ngraph::pattern::any_input(ngraph::pattern::has_static_shape()),
+                                                              ngraph::pattern::any_input(ngraph::pattern::has_static_shape()));
+
+    register_matcher(std::make_shared<ngraph::pattern::Matcher>(m_matmul0, matcher_name),
+        [=](ngraph::pattern::Matcher &m) {
+        OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::TokenizeMHASnippets")
+        auto& pattern_to_output = m.get_pattern_value_map();
+
+        // After some transformations, a different number of Constants for some operations may be created
+        // than the actual number of Constants during tokenization.
+        // To avoid unsupported number of non-scalar Constants in the future (plugin specific limitation)
+        // we should calculate potential number of non-scalar Constants that will be moved up from body.
+        // TODO: Need update this variable when FQ will be supported
+        size_t hidden_virtual_ports_count = 0;
+        // Default value is 1 because MHA pattern requires always Buffer op
+        bool need_buffer = true;
+        std::string fused_names;
+        ngraph::NodeVector ordered_ops;
+
+        /* ======== Matcher Pass ========== */
+
+        /****** Skeleton ******/
+        /* Skeleton on MHA-pattern is:
+         *              \     /
+         *              MatMul0
+         *                 |
+         *    Eltwise/Select/Reshape/FakeQuantize
+         *                 |
+         *              Softmax
+         *                 |
+         *    Eltwise/Select/Reshape/FakeQuantize
+         *                  \      /
+         *                   MatMul1
+         */
+        const auto matmul0 = ngraph::as_type_ptr<ngraph::opset1::MatMul>(pattern_to_output.at(m_matmul0).get_node_shared_ptr());
+        if (!matmul0 || matmul0->get_output_target_inputs(0).size() != 1 || matmul0->get_transpose_a() ||
+            !is_supported_tensor(matmul0->get_input_tensor(0)) || !is_supported_tensor(matmul0->get_input_tensor(1)))
+            return false;
+
+        ordered_ops.push_back(matmul0);
+
+        auto interm_op = matmul0->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+        // Collapse operations which are between MatMul0 and Softmax
+        auto status = collapse_intermediate_supported_ops(interm_op, ordered_ops);
+        if (!status)
+            return false;
+
+        ngraph::Shape in_shape, out_shape;
+        const auto reshape0 = ngraph::as_type_ptr<ngraph::opset1::Reshape>(interm_op);
+        if (reshape0) {
+            in_shape = reshape0->get_input_shape(0);
+            if (in_shape.back() != reshape0->get_output_shape(0).back() || reshape0->get_output_target_inputs(0).size() != 1)
+                return false;
+            ordered_ops.push_back(reshape0);
+            interm_op = reshape0->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+        }
+
+        int64_t axis = 0;
+        const auto rank = interm_op->get_input_partial_shape(0).rank();
+        if (const auto softmax_v8 = ngraph::as_type_ptr<ngraph::opset8::Softmax>(interm_op)) {
+            axis = ngraph::normalize_axis(interm_op->get_friendly_name(), softmax_v8->get_axis(), rank);
+        } else if (const auto softmax_v1 = ngraph::as_type_ptr<ngraph::opset1::Softmax>(interm_op)) {
+            axis = softmax_v1->get_axis();
+        } else {
+            return false;
+        }
+
+        if (axis != rank.get_length() - 1 || interm_op->get_output_target_inputs(0).size() != 1)
+            return false;
+        ordered_ops.push_back(interm_op);
+
+        interm_op = interm_op->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+        const auto reshape1 = ngraph::as_type_ptr<ngraph::opset1::Reshape>(interm_op);
+        if (reshape1) {
+            out_shape = reshape1->get_output_shape(0);
+            if (reshape1->get_input_shape(0).back() != out_shape.back() || reshape1->get_output_target_inputs(0).size() != 1)
+                return false;
+            ordered_ops.push_back(interm_op);
+            interm_op = reshape1->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+        }
+
+        if (((reshape0 == nullptr) != (reshape0 == nullptr)) || (in_shape != out_shape))
+            return false;
+
+        // Collapse operations which are between Softmax and MatMul1
+        status = collapse_intermediate_supported_ops(interm_op, ordered_ops);
+        if (!status)
+            return false;
+
+        const auto matmul1 = ngraph::as_type_ptr<ngraph::opset1::MatMul>(interm_op);
+        if (!matmul1 || matmul1->get_output_target_inputs(0).size() != 1 || matmul1->get_transpose_a() || matmul1->get_transpose_b() ||
+            !is_supported_tensor(matmul1->get_input_tensor(0)) || !is_supported_tensor(matmul1->get_input_tensor(1)))
+            return false;
+
+        /***********************/
+
+        /***** Transposes *****/
+        /* There are may be Transpose and Reshape ops on inputs and outputs of MHA-pattern skeleton
+         * We can add them into Subgraph body
+         */
+
+        // TODO: Add Reshape Support for all Transposes
+        //       Add 3D support for all Transposes
+        const auto transpose0 = ngraph::as_type_ptr<ngraph::opset1::Transpose>(matmul0->get_input_node_shared_ptr(0));
+        if (valid_transpose(transpose0, {0, 2, 1, 3})) {
+            ordered_ops.insert(ordered_ops.begin(), transpose0);
+        } else if (matmul0->get_transpose_b()) {
+            return false;
+        }
+
+        // First input branch of MatMul0 should be executed before second input branch of MatMul0
+        const auto shift = transpose0 ? 1 : 0;
+        auto parent = matmul0->get_input_node_shared_ptr(1);
+        while (is_supported_op(parent)) {
+            // All supported ops have only one output port
+            // To verify output element type is enough because all supported ops have the same output element type as input type
+            if (parent->get_output_target_inputs(0).size() != 1 || !is_supported_tensor(parent->get_output_tensor(0)))
+                break;
+
+            ordered_ops.insert(ordered_ops.begin() + shift, parent);
+            // We think that sequence of ops goes through input port 0
+            // But can be Select here? If it can be, parent shouldn't be on input port 0. Need another way?
+            parent = parent->get_input_node_shared_ptr(0);
+        }
+
+        auto transpose1 = ngraph::as_type_ptr<ngraph::opset1::Transpose>(parent);
+        if ((matmul0->get_transpose_b() && valid_transpose(transpose1, {0, 2, 1, 3})) ||
+            (!matmul0->get_transpose_b() && valid_transpose(transpose1, {0, 2, 3, 1}))) {
+            ordered_ops.insert(ordered_ops.begin() + shift, transpose1);
+        }
+
+        const auto transpose2 = ngraph::as_type_ptr<ngraph::opset1::Transpose>(matmul1->get_input_node_shared_ptr(1));
+        if (valid_transpose(transpose2, {0, 2, 1, 3})) {
+            ordered_ops.push_back(transpose2);
+        }
+        ordered_ops.push_back(matmul1);
+
+        auto child = matmul1->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+        // TODO: Add support Eltwises between MatMul1 and Transpose out in FuseBrgemmTranspose
+        // status = collapse_intermediate_supported_ops(child, ordered_ops);
+        // if (!status) {
+        //     ordered_ops.push_back(child);
+        // }
+
+        auto transpose3 = ngraph::as_type_ptr<ngraph::opset1::Transpose>(child);
+        if (valid_transpose(transpose3, {0, 2, 1, 3})) {
+            ordered_ops.push_back(transpose3);
+        }
+
+        /**********************/
+
+        /* ================================ */
+
+        /* ====== Subgraph creation ======= */
+
+        ngraph::OutputVector body_inputs, subgraph_inputs;
+        ngraph::ParameterVector body_parameters;
+        ngraph::ResultVector body_results;
+        std::vector<std::set<Input<Node>>> subgraph_result_inputs;
+
+        auto create_body_inputs = [&](const std::shared_ptr<ngraph::Node>& node) -> void {
+            for (size_t i = 0; i < node->get_input_size(); ++i) {
+                const auto input = node->input(i);
+                const auto parent = input.get_source_output().get_node_shared_ptr();
+                const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(parent);
+                if (constant && (ngraph::shape_size(input.get_shape()) == 1 || utils::constant_input_should_be_inside_body(node))) {
+                    // If Constant has one consumer - target node, we add Constant to body_inputs
+                    // If Constant has several consumers, we should check that all these consumers are inside Subgraph body
+                    // and if all of them are inside body, we can explicitly add Constant to the body_inputs, otherwise we should
+                    // make a copy and add copy of Constant to body_inputs
+                    // For example, this case is especially valid for Transposes nodes
+                    //              (several Transposes have the same order so there can be the common Constant with this order)
+                    if (constant->get_output_target_inputs(0).size() == 1) {
+                        body_inputs.push_back(input.get_source_output());
+                    } else {
+                        const auto constant_consumers = constant->get_output_target_inputs(0);
+                        bool all_consumers_are_inside = std::all_of(constant_consumers.begin(), constant_consumers.end(),
+                                                                    [&ordered_ops](const ngraph::Input<ngraph::Node>& input) {
+                                                                        return std::find(ordered_ops.begin(), ordered_ops.end(),
+                                                                                         input.get_node()->shared_from_this()) != ordered_ops.end();
+                                                                    });
+                        if (all_consumers_are_inside) {
+                            body_inputs.push_back(input.get_source_output());
+                        } else {
+                            const auto constant_copy = constant->clone_with_new_inputs({});
+                            node->set_argument(input.get_index(), constant_copy);
+                            body_inputs.push_back(constant_copy);
+                        }
+                    }
+                } else if (std::find(ordered_ops.begin(), ordered_ops.end(), parent) == ordered_ops.end()) {
+                    auto parameter = std::make_shared<ngraph::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
+                    body_parameters.push_back(parameter);
+                    body_parameters.back()->set_friendly_name(input.get_node()->get_friendly_name());
+                    body_inputs.push_back(parameter->output(0));
+
+                    subgraph_inputs.push_back(input.get_source_output());
+
+                    node->input(i).replace_source_output(parameter);
+                }
+            }
+        };
+
+        for (const auto& op : ordered_ops) {
+            create_body_inputs(op);
+            op->clear_control_dependencies();
+            fused_names += op->get_friendly_name() + ",";
+        }
+
+        const auto last_node = ordered_ops.back();
+        for (const auto output : last_node->outputs()) {
+            subgraph_result_inputs.push_back(output.get_target_inputs());
+        }
+        for (auto output : last_node->outputs()) {
+            body_results.push_back(std::make_shared<ngraph::opset1::Result>(last_node->output(output.get_index())));
+        }
+
+        if (body_results.size() != subgraph_result_inputs.size()) {
+            throw ngraph_error("body results and node results size mismatch during subgraph collapse");
+        }
+
+        // todo: move this plugin-specific constraint to the plugin callback
+        if (body_parameters.size() + body_results.size() + hidden_virtual_ports_count > 12) {
+            return false;
+        }
+
+        auto body = op::create_body(last_node->get_friendly_name(), body_results, body_parameters);
+        auto subgraph = std::make_shared<op::Subgraph>(subgraph_inputs, body);
+        // Copy runtime info from last node to subgraph - to copy topological order
+        copy_runtime_info(last_node, subgraph);
+        subgraph->set_friendly_name(last_node->get_friendly_name());
+
+        for (size_t i = 0; i < subgraph->get_output_size(); ++i) {
+            for (auto target_input : subgraph_result_inputs[i]) {
+                target_input.replace_source_output(subgraph->output(i));
+            }
+        }
+        utils::update_out_tensor_name(subgraph);
+
+        subgraph->validate_and_infer_types();
+
+        auto act_body = subgraph->get_body();
+        for (size_t i = 0; i < act_body->get_parameters().size(); i++) {
+            act_body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
+        }
+        subgraph->get_rt_info()["originalLayersNames"] = fused_names;
+        subgraph->set_virtual_port_count(hidden_virtual_ports_count);
+        subgraph->buffer_needed(need_buffer);
+
+        if (transformation_callback(subgraph)) {
+            return false;
+        }
+
+        return true;
+
+        /* ================================ */
+    });
+}

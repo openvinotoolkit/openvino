@@ -34,6 +34,17 @@ protected:
     std::shared_ptr<ov::Model> initReference() const override;
 };
 
+// As same as MatMulSinhFunction but with biases
+class MatMulBiasSinhFunction : public SnippetsFunctionBase {
+public:
+    explicit MatMulBiasSinhFunction(const std::vector<PartialShape>& inputShapes)
+            : SnippetsFunctionBase(inputShapes) {
+        NGRAPH_CHECK(input_shapes.size() == 3, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
+
 /// Minimal graph to test MatMul+Transpose combinations. Transpose location is specified via the position argument:
 /// 0 - before the first MatMul input; 1 - before the second MatMul input; 2 - after the MatMul output.
 /// Tokenized simply by starting subgraph,
@@ -57,6 +68,33 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     size_t transpose_position;
     bool insert_guard; // true if Sinh ops should be inserted after inputs
+};
+
+class TransposeMatMulSinhFunction : public SnippetsFunctionBase {
+public:
+    explicit TransposeMatMulSinhFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+        NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
+
+class TransposeMatMulBiasSinhFunction : public SnippetsFunctionBase {
+public:
+    explicit TransposeMatMulBiasSinhFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+        NGRAPH_CHECK(input_shapes.size() == 3, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
+
+class TransposeMulMatMulBiasSinhFunction : public SnippetsFunctionBase {
+public:
+    explicit TransposeMulMatMulBiasSinhFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+        NGRAPH_CHECK(input_shapes.size() == 4, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
 };
 
 }  // namespace snippets

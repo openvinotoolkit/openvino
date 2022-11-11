@@ -61,6 +61,8 @@ class TokenizeSnippets: public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("TokenizeSnippets", "0");
     explicit TokenizeSnippets();
+
+    static const std::set<ngraph::element::Type> supported_element_types;
 };
 
 }  // namespace pass

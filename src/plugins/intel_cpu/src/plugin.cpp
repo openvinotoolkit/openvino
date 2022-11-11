@@ -99,7 +99,7 @@
 
 #include <snippets/pass/collapse_subgraph.hpp>
 #include <snippets/pass/common_optimizations.hpp>
-#include <snippets/pass/convert_constants.hpp>
+#include <snippets/pass/mha_tokenization.hpp>
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
@@ -613,7 +613,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     postLPTPassManager.register_pass<ngraph::pass::ConstantFolding>();
 
     // Snippets may brake MHA patterns so the fusion has to performed before
-    postLPTPassManager.register_pass<MHAFusion>();
+    //postLPTPassManager.register_pass<MHAFusion>();
     postLPTPassManager.register_pass<FuseFQtoInteraction>();
     postLPTPassManager.get_pass_config()->set_callback<MHAFloatFusion, MHAFloatFusion2,
                                                        MHAQuantFusion, MHAQuantFusion2>([_enableBF16](const std::shared_ptr<const ov::Node>& n) -> bool {
@@ -643,6 +643,10 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         if (_snippetsMode != Config::SnippetsMode::IgnoreCallback)
             snippetsManager.register_pass<SnippetsMarkSkipped>();
         snippetsManager.register_pass<ngraph::snippets::pass::EnumerateNodes>();
+        if (!_enableBF16) {
+            // TODO: Need to add BF16 support for MHA in Snippets
+            snippetsManager.register_pass<ngraph::snippets::pass::TokenizeMHASnippets>();
+        }
         snippetsManager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
         if (_snippetsMode != Config::SnippetsMode::IgnoreCallback) {
             snippetsManager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeSnippets>(

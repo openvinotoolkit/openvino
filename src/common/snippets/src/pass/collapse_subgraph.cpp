@@ -168,12 +168,10 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
 
 auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
     auto supported = [&n](descriptor::Tensor& t) -> bool {
-        static const std::set<ngraph::element::Type> supported_data_types =
-                { ngraph::element::f32, ngraph::element::bf16, ngraph::element::i8, ngraph::element::u8 };
         // Todo: int32 isn't supported in general because i32 emitters are required for bit-exact i32 calculations in some cases
         //  So i32 is supported exclusively for transposes and broadcast
         return t.get_partial_shape().is_static() &&
-               (supported_data_types.count(t.get_element_type()) != 0 ||
+               (ngraph::snippets::pass::TokenizeSnippets::supported_element_types.count(t.get_element_type()) != 0 ||
                 (t.get_element_type() == ngraph::element::i32 &&
                         (ov::is_type<const opset1::Transpose>(n) ||
                          ov::is_type<const opset1::Broadcast>(n))));
@@ -209,22 +207,6 @@ auto get_num_result_children(const std::shared_ptr<const Node> &node) -> size_t 
         }
     }
     return result;
-}
-// Need to update tensor name manually, since intel_cpu::Graph::Replicate() looks at input.get_tensor().get_name();
-// If subgraph->get_output_size() == 1, then the name will be restored correctly from the node name
-auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> &subgraph) -> void {
-    bool not_set = true;
-    for (unsigned int i = 0; i < subgraph->get_output_size() && not_set; i++) {
-        for (const auto &in : subgraph->get_output_target_inputs(i)) {
-            if (ov::is_type<opset1::Result>(in.get_node())) {
-                const auto& body_result = subgraph->get_body()->get_output_op(i);
-                const auto& body_result_input = body_result->get_input_source_output(0);
-                op::Subgraph::fill_empty_output_names(subgraph->output(i), body_result_input);
-                not_set = false;
-                break;
-            }
-        }
-    }
 }
 } // namespace
 
@@ -269,6 +251,10 @@ bool EnumerateNodes::run_on_model(const std::shared_ptr<ov::Model> &m) {
     }
     return true;
 }
+
+const std::set<ngraph::element::Type> ngraph::snippets::pass::TokenizeSnippets::supported_element_types =
+        { ngraph::element::f32, ngraph::element::bf16, ngraph::element::i8, ngraph::element::u8 };
+
 TokenizeSnippets::TokenizeSnippets() {
     MATCHER_SCOPE(TokenizeSnippets);
     enum continuation_strategy {
@@ -308,7 +294,7 @@ TokenizeSnippets::TokenizeSnippets() {
             auto subgraph = op::Subgraph::wrap_node_as_subgraph(node);
             subgraph->get_rt_info()["originalLayersNames"] = getFusedNames(node) + node->get_friendly_name();
             ngraph::replace_node(node, subgraph);
-            update_out_tensor_name(subgraph);
+            utils::update_out_tensor_name(subgraph);
         };
 
         auto abort_with_strategy = [&](const std::string& message_reset,
@@ -635,7 +621,7 @@ TokenizeSnippets::TokenizeSnippets() {
                 target_input.replace_source_output(subgraph->output(i));
             }
         }
-        update_out_tensor_name(subgraph);
+        utils::update_out_tensor_name(subgraph);
 
         subgraph->validate_and_infer_types();
 
