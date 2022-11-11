@@ -5,14 +5,12 @@
 #pragma once
 
 #include <map>
-#include <nlohmann/json.hpp>
 #include <string>
 #include <utility>
 #include <vector>
 
 // clang-format off
 #include "samples/common.hpp"
-#include "samples/csv_dumper.hpp"
 #include "samples/slog.hpp"
 // clang-format on
 
@@ -31,9 +29,7 @@ public:
 
     void write_to_stream(std::ostream& stream) const;
     void write_to_slog() const;
-    const nlohmann::json to_json() const;
 
-public:
     double median_or_percentile = 0;
     double avg = 0;
     double min = 0;

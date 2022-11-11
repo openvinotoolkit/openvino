@@ -39,7 +39,7 @@ def main():
     # but there are exceptions like MYRIAD
     latency = {'PERFORMANCE_HINT': 'LATENCY'}
 
-    # Create Core and use it to compile a model
+    # Create Core and use it to compile a model.
     # Pick device by replacing CPU, for example AUTO:GPU,CPU.
     # Using MULTI device is pointless in sync scenario
     # because only one instance of openvino.runtime.InferRequest is used

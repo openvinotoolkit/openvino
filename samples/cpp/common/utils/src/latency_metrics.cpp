@@ -32,16 +32,6 @@ void LatencyMetrics::write_to_slog() const {
     slog::info << "\tMax:        " << double_to_string(max) << " ms" << slog::endl;
 }
 
-const nlohmann::json LatencyMetrics::to_json() const {
-    nlohmann::json stat;
-    stat["data_shape"] = data_shape;
-    stat["latency_median"] = median_or_percentile;
-    stat["latency_average"] = avg;
-    stat["latency_min"] = min;
-    stat["latency_max"] = max;
-    return stat;
-}
-
 void LatencyMetrics::fill_data(std::vector<double> latencies, size_t percentile_boundary) {
     if (latencies.empty()) {
         throw std::logic_error("Latency metrics class expects non-empty vector of latencies at consturction.");

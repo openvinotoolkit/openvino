@@ -28,22 +28,13 @@ int main(int argc, char* argv[]) {
         // running multiple ov::InferRequest instances asyncronously
         ov::AnyMap tput{{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT}};
 
-        // Uncomment the following line to enable detailed performace counters
-        // tput[ov::enable_profiling.name()] = true;
-
-        // Create ov::Core and use it to compile a model
-        // Pick device by replacing CPU, for example MULTI:CPU(4),GPU(8)
+        // Create ov::Core and use it to compile a model.
+        // Pick device by replacing CPU, for example MULTI:CPU(4),GPU(8).
+        // It is possible to set CUMULATIVE_THROUGHPUT as ov::hint::PerformanceMode for AUTO device
         ov::Core core;
         ov::CompiledModel compiled_model = core.compile_model(argv[1], "CPU", tput);
         // Create optimal number of ov::InferRequest instances
-        uint32_t nireq;
-        try {
-            nireq = compiled_model.get_property(ov::optimal_number_of_infer_requests);
-        } catch (const std::exception& ex) {
-            throw std::runtime_error("Every used device must support " +
-                                     std::string(ov::optimal_number_of_infer_requests.name()) +
-                                     " Failed to query the property with error: " + ex.what());
-        }
+        uint32_t nireq = compiled_model.get_property(ov::optimal_number_of_infer_requests);
         std::vector<ov::InferRequest> ireqs;
         for (uint32_t i = 0; i < nireq; ++i) {
             ireqs.push_back(compiled_model.create_infer_request());
@@ -63,8 +54,8 @@ int main(int argc, char* argv[]) {
         }
         // Benchmark for seconds_to_run seconds and at least niter iterations
         std::chrono::seconds seconds_to_run{15};
-        int init_niter = 12;
-        int niter = ((init_niter + nireq - 1) / nireq) * nireq;
+        size_t init_niter = 12;
+        size_t niter = ((init_niter + nireq - 1) / nireq) * nireq;
         if (init_niter != niter) {
             slog::warn << "Number of iterations was aligned by request number from " << init_niter << " to " << niter
                        << " using number of requests " << nireq << slog::endl;
@@ -132,9 +123,9 @@ int main(int argc, char* argv[]) {
         auto end = std::chrono::steady_clock::now();
         double duration = std::chrono::duration_cast<Ms>(end - start).count();
         // Report results
-        slog::info << "Count:      " << latencies.size() << " iterations" << slog::endl;
-        slog::info << "Duration:   " << duration << " ms" << slog::endl;
-        slog::info << "Latency:" << slog::endl;
+        slog::info << "Count:      " << latencies.size() << " iterations" << slog::endl
+                   << "Duration:   " << duration << " ms" << slog::endl
+                   << "Latency:" << slog::endl;
         size_t percent = 50;
         LatencyMetrics{latencies, "", percent}.write_to_slog();
         slog::info << "Throughput: " << double_to_string(1000 * latencies.size() / duration) << " FPS" << slog::endl;

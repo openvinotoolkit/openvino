@@ -45,7 +45,8 @@ def main():
     # Optimize for throughput. Best throughput can be reached by
     # running multiple openvino.runtime.InferRequest instances asyncronously
     tput = {'PERFORMANCE_HINT': 'THROUGHPUT'}
-    # Pick device by replacing CPU, for example MULTI:CPU(4),GPU(8)
+    # Pick a device by replacing CPU, for example MULTI:CPU(4),GPU(8).
+    # It is possible to set CUMULATIVE_THROUGHPUT as PERFORMANCE_HINT for AUTO device
     compiled_model = core.compile_model(model, 'CPU', tput)
     # AsyncInferQueue creates optimal number of InferRequest instances
     ireqs = AsyncInferQueue(compiled_model)

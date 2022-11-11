@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
         // but there are exceptions like MYRIAD
         ov::AnyMap latency{{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::LATENCY}};
 
-        // Create ov::Core and use it to compile a model
+        // Create ov::Core and use it to compile a model.
         // Pick device by replacing CPU, for example AUTO:GPU,CPU.
         // Using MULTI device is pointless in sync scenario
         // because only one instance of ov::InferRequest is used
@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
         ireq.infer();
         // Benchmark for seconds_to_run seconds and at least niter iterations
         std::chrono::seconds seconds_to_run{15};
-        int niter = 12;
+        size_t niter = 12;
         std::vector<double> latencies;
         latencies.reserve(niter);
         auto start = std::chrono::steady_clock::now();
@@ -57,9 +57,9 @@ int main(int argc, char* argv[]) {
         auto end = time_point;
         double duration = std::chrono::duration_cast<Ms>(end - start).count();
         // Report results
-        slog::info << "Count:      " << latencies.size() << " iterations" << slog::endl;
-        slog::info << "Duration:   " << duration << " ms" << slog::endl;
-        slog::info << "Latency:" << slog::endl;
+        slog::info << "Count:      " << latencies.size() << " iterations" << slog::endl
+                   << "Duration:   " << duration << " ms" << slog::endl
+                   << "Latency:" << slog::endl;
         size_t percent = 50;
         LatencyMetrics{latencies, "", percent}.write_to_slog();
         slog::info << "Throughput: " << double_to_string(latencies.size() * 1000 / duration) << " FPS" << slog::endl;
