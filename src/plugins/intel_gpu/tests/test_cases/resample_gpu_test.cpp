@@ -746,7 +746,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest1) {
     auto ctm = resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL;
     auto nm = resample::InterpolateOp::NearestMode::CEIL;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+    topology.add(resample("interpolate", "input", output_pattern, std::vector<float>{}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
 
     set_values(input, {
         0.f, 1.f, 2.f,
@@ -836,7 +836,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest2) {
     auto ctm = resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL;
     auto nm = resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+    topology.add(resample("interpolate", "input", output_pattern, std::vector<float>{}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
 
     set_values(input, {
         0.f, 1.f, 2.f,
@@ -926,7 +926,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest3) {
     auto ctm = resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL;
     auto nm = resample::InterpolateOp::NearestMode::ROUND_PREFER_CEIL;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+    topology.add(resample("interpolate", "input", output_pattern, std::vector<float>{}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
 
     set_values(input, {
         0.f, 1.f, 2.f,
@@ -1016,7 +1016,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest4) {
     auto ctm = resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL;
     auto nm = resample::InterpolateOp::NearestMode::FLOOR;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+    topology.add(resample("interpolate", "input", output_pattern, std::vector<float>{}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
 
     set_values(input, {
         0.f, 1.f, 2.f,
@@ -1106,7 +1106,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_nearest5) {
     auto ctm = resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL;
     auto nm = resample::InterpolateOp::NearestMode::SIMPLE;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+    topology.add(resample("interpolate", "input", output_pattern, std::vector<float>{}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
 
     set_values(input, {
         0.f, 1.f, 2.f,
@@ -1198,7 +1198,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode1) {
     auto ctm = resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL;
     auto nm = resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+    topology.add(resample("interpolate", "input", output_pattern, std::vector<float>{}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
 
     set_values(input, {
         0.f, 1.f, 2.f,
@@ -1268,7 +1268,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode2) {
     auto ctm = resample::InterpolateOp::CoordinateTransformMode::PYTORCH_HALF_PIXEL;
     auto nm = resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+    topology.add(resample("interpolate", "input", output_pattern, std::vector<float>{}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
 
     set_values(input, {
         0.f, 1.f, 2.f,
@@ -1332,7 +1332,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode3) {
     auto ctm = resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC;
     auto nm = resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+    topology.add(resample("interpolate", "input", output_pattern, std::vector<float>{}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
 
     set_values(input, {
         0.f, 1.f, 2.f,
@@ -1402,7 +1402,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode4) {
     auto ctm = resample::InterpolateOp::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN;
     auto nm = resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+    topology.add(resample("interpolate", "input", output_pattern, std::vector<float>{}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
 
     set_values(input, {
         0.f, 1.f, 2.f,
@@ -1472,7 +1472,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_coord_transform_mode5) {
     auto ctm = resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS;
     auto nm = resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
+    topology.add(resample("interpolate", "input", output_pattern, std::vector<float>{}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode, ctm, nm));
 
     set_values(input, {
         0.f, 1.f, 2.f,
@@ -1540,7 +1540,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_cubic) {
     float cube_coeff = -0.75f;
     auto mode = resample::InterpolateOp::InterpolateMode::CUBIC;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode));
+    topology.add(resample("interpolate", "input", output_pattern, std::vector<float>{}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode));
 
     set_values(input, {
         0.f, 1.f, 2.f,
@@ -1607,7 +1607,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_cubic2) {
     float cube_coeff = -0.75f;
     auto mode = resample::InterpolateOp::InterpolateMode::CUBIC;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode));
+    topology.add(resample("interpolate", "input", output_pattern, std::vector<float>{}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode));
 
     set_values(input, {
         5.f, 1.f, 2.f,
@@ -1661,7 +1661,7 @@ TEST(resample_gpu, interpolate_in2x2x3x2_linear) {
     float cube_coeff = -0.75f;
     auto mode = resample::InterpolateOp::InterpolateMode::LINEAR;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SIZES;
-    topology.add(resample("interpolate", "input", output_pattern, {}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode));
+    topology.add(resample("interpolate", "input", output_pattern, std::vector<float>{}, {}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode));
 
     set_values(input, {
         0.f, 1.f, 2.f,
@@ -1889,7 +1889,7 @@ TEST(resample_gpu, interpolate_in1x1x2x4_linear_scale) {
     auto mode = resample::InterpolateOp::InterpolateMode::LINEAR;
     auto shapeCalcMode = resample::InterpolateOp::ShapeCalcMode::SCALES;
 
-    topology.add(resample("interpolate", "input", output_pattern, {0.6f, 0.6f}, {2, 3}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode));
+    topology.add(resample("interpolate", "input", output_pattern, std::vector<float>{0.6f, 0.6f}, {2, 3}, {0, 0, 0, 0}, {0, 0, 0, 0}, antialias, cube_coeff, mode, shapeCalcMode));
 
     set_values(input, {
         1.f, 2.f, 3.f, 4.f,

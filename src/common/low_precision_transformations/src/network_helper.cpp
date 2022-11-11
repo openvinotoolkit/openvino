@@ -22,6 +22,7 @@
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
+#include "ngraph/opsets/opset3.hpp"
 #include "ngraph/opsets/opset6.hpp"
 
 namespace ngraph {
