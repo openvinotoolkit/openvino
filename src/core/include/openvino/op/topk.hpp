@@ -65,7 +65,7 @@ public:
         return m_axis;
     }
     void set_axis(const int64_t axis);
-    void set_axis(const Rank input_rank, const int64_t axis);
+    void set_axis(const Rank& input_rank, const int64_t axis);
     Mode get_mode() const {
         return m_mode;
     }
