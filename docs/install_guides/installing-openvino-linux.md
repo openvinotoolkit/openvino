@@ -1,4 +1,4 @@
-# Install OpenVINO™ Runtime on Linux from Installer{#openvino_docs_install_guides_installing_openvino_linux}
+# Install OpenVINO™ Runtime on Linux from Installer {#openvino_docs_install_guides_installing_openvino_linux}
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. These tools are now only available on [pypi.org](https://pypi.org/project/openvino-dev/).
 
