@@ -229,7 +229,7 @@ KERNEL (reorder_data_fast_b1)(
     const uint output_idx = data_idx;
 #else
     uint8 ov = RESHAPE_DIMS(OUTPUT, INPUT0, b, f, w, z, y, x);
-    const uint input_idx = FUNC_CALL(get_input_index)(ov[1], ov[2], ov[3], ov[4], ov[5],ov[6]);
+    const uint input_idx = FUNC_CALL(get_input_index)(ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
     const uint output_idx  = FUNC_CALL(get_output_index)(b, f, w, z, y, x);
 #endif
 
@@ -239,7 +239,7 @@ KERNEL (reorder_data_fast_b1)(
 #elif defined MEAN_SUBTRACT_IN_BUFFER
     MEAN_SUBTRACT_TYPE res = TO_MEAN_TYPE(input[input_idx]);
     uint8 msv = RESHAPE_DIMS(INPUT0, MEAN_SUBTRACT, b, f, w, z, y, x);
-    res -= mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv[1], msv[2], msv[5], msv[6])];
+    res -= mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv.s1, msv.s2, msv.s5, msv.s6)];
 #else
     CALC_TYPE res = TO_CALC_TYPE(input[input_idx]);
 #endif

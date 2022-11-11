@@ -10,6 +10,8 @@ ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for inference engine" ON "X86_
 
 ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
 
+ie_option (ENABLE_COMPILE_TOOL "Enables compile_tool" ON)
+
 ie_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependencies for efficient parallel builds" ON)
 
 ie_dependent_option (ENABLE_CLDNN "clDnn based plugin for inference engine" ON "X86_64;NOT APPLE;NOT MINGW;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
@@ -102,7 +104,7 @@ else()
     set(ENABLE_INTEL_MYRIAD_DEFAULT ON)
 endif()
 
-ie_dependent_option (ENABLE_INTEL_MYRIAD "myriad targeted plugin for inference engine" ${ENABLE_INTEL_MYRIAD_DEFAULT} "ENABLE_INTEL_MYRIAD_COMMON" OFF)
+ie_dependent_option (ENABLE_INTEL_MYRIAD "myriad targeted plugin for inference engine" ${ENABLE_INTEL_MYRIAD_DEFAULT} "NOT RISCV64;ENABLE_INTEL_MYRIAD_COMMON" OFF)
 
 ie_dependent_option (ENABLE_MYRIAD_NO_BOOT "myriad plugin will skip device boot" OFF "ENABLE_INTEL_MYRIAD" OFF)
 
@@ -128,8 +130,7 @@ set(OPENVINO_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to inc
 
 ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the Inference Engine binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
 
-get_linux_name(LINUX_OS_NAME)
-if(LINUX_OS_NAME MATCHES "(Ubuntu|Debian)")
+if(LINUX)
     # Debian packages are enabled on Ubuntu systems
     # so, system TBB / pugixml can be tried for usage
     set(ENABLE_SYSTEM_LIBS_DEFAULT ON)

@@ -54,6 +54,7 @@ public:
     static layout calc_output_layout(crop_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(crop_node const& node);
     typed_primitive_inst(network& network, crop_node const& node);
+    void update_output_memory() override;
 
 private:
     void on_execute() override;

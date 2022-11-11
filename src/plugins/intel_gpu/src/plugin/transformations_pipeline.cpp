@@ -19,6 +19,7 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
@@ -70,11 +71,13 @@
 #include <transformations/op_conversions/bidirectional_sequences_decomposition.hpp>
 #include <transformations/op_conversions/convert_previous_nms_to_nms_9.hpp>
 #include <transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp>
+#include <transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/op_conversions/convert_gather_downgrade.hpp>
 #include <transformations/op_conversions/convert_gather_0d.hpp>
 #include <transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp>
 #include <transformations/op_conversions/convert_gp9_to_gp_ie_internal.hpp>
+#include <transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include "transformations/op_conversions/softmax_decomposition.hpp"
 #include <transformations/op_conversions/gelu7_downgrade.hpp>
@@ -96,6 +99,7 @@
 #include <low_precision/strided_slice.hpp>
 #include <low_precision/network_helper.hpp>
 #include "transformations/op_conversions/eye_decomposition.hpp"
+#include <low_precision/recurrent_cell.hpp>
 
 #include "intel_gpu/plugin/itt.hpp"
 
@@ -165,8 +169,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ngraph::pass::ConvertNMS5ToNMS9>();
         manager.register_pass<ngraph::pass::ConvertNMS9ToNMSIEInternal>();
         manager.register_pass<ngraph::pass::ConvertGP9ToGPIEInternal>();
+        manager.register_pass<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
         manager.register_pass<ngraph::pass::ConvertGather0D>();
         manager.register_pass<ngraph::pass::ConvertPriorBox8To0, false>();
+        manager.register_pass<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
 
         precisions_array convert_precision_list {
                 {ngraph::element::f64, ngraph::element::f32},
@@ -421,7 +427,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             PrecisionsRestriction::create<ngraph::opset1::GroupConvolution>({
                 {{0}, {ngraph::element::u8, ngraph::element::i8}},
                 {{1}, {ngraph::element::i8}}
-            })
+            }),
+            PrecisionsRestriction::create<ngraph::opset5::LSTMSequence>({}),
+            PrecisionsRestriction::create<ngraph::opset6::GRUSequence>({})
         });
 
         auto perTensorQuantization = std::vector<QuantizationGranularityRestriction>({
@@ -432,6 +440,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ngraph::pass::Manager lptManager;
 
         auto lptPassConfig = lptManager.get_pass_config();
+        // quantized LSTMSequence / GPUSequence are not supported yet. Avoid extra transformation
+        lptPassConfig->disable<ngraph::pass::low_precision::RecurrentCellTransformation>();
         lptPassConfig->set_callback<ngraph::pass::low_precision::MarkupPrecisions>([](const_node_ptr& node) -> bool {
             if (const auto mulitply = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
                 return !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(mulitply);

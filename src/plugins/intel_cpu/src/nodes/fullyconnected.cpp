@@ -226,6 +226,7 @@ void FullyConnected::prepareParams() {
 
     AttrPtr attr = std::make_shared<dnnl::primitive_attr>();
     setPostOps(*attr, dstMemPtr->getStaticDims());
+    (*attr).set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
     DnnlMemoryDescCPtr weightDesc = wghMemPtr->GetDescWithType<DnnlMemoryDesc>();
     DnnlMemoryDescCPtr biasDesc = nullptr;
@@ -310,6 +311,10 @@ void FullyConnected::prepareParams() {
     }
 
     appendPostOpArgs(*attr, primArgs, postOpsArgs);
+
+    auto pd = (*prim).get_primitive_desc();
+    auto scratchpadMem = getScratchPadMem(pd);
+    primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
 
     auto reshapeMemory = [this](int argType) {
         auto param = primArgs.find(argType);

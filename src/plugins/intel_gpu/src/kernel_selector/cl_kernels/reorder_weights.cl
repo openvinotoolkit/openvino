@@ -452,7 +452,7 @@ KERNEL (reorder_weights)(const __global INPUT0_TYPE* input, write_only image2d_t
     MAKE_VECTOR_TYPE(UNIT_TYPE, 4) input_val = (MAKE_VECTOR_TYPE(UNIT_TYPE, 4))(UNIT_VAL_ZERO, UNIT_VAL_ZERO, UNIT_VAL_ZERO, UNIT_VAL_ZERO);
     const int2 coord = (int2)(o, iyx);
     uint8 ir = RESHAPE_WEIGHT_DIMS(OUTPUT, INPUT0, o, i, 0, 0, y, x);
-    input_val.s0 = TO_OUTPUT_TYPE(input[FUNC_CALL(get_input_index)(ir[0],ir[1],ir[2],ir[4],ir[5],ir[6])]);
+    input_val.s0 = TO_OUTPUT_TYPE(input[FUNC_CALL(get_input_index)(ir.s0,ir.s1,ir.s2,ir.s4,ir.s5,ir.s6)]);
     IMAGE_WRITE(output, coord, input_val);
 }
 #else
@@ -489,7 +489,7 @@ KERNEL (reorder_weights)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE
     uint8 ir = RESHAPE_WEIGHT_DIMS(OUTPUT, INPUT0, o, i, 0, z, y, x);
 #endif
 
-    uint input_idx = FUNC_CALL(get_input_index)(ir[0],ir[1],ir[2],ir[4],ir[5],ir[6]);
+    uint input_idx = FUNC_CALL(get_input_index)(ir.s0,ir.s1,ir.s2,ir.s4,ir.s5,ir.s6);
 #if !REORDER_ROTATE
     uint output_idx = FUNC_CALL(get_output_index)(g, o, i, z, y, x);
 #else

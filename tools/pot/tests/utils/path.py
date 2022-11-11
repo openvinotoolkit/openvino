@@ -9,11 +9,12 @@ from openvino.tools.mo import mo
 TEST_ROOT = Path(__file__).parent.parent.absolute()
 LIBS_ROOT = Path(__file__).resolve().parents[4] / 'thirdparty'
 MO_PATH = Path(mo.__file__).parent
+POT_PATH = Path(__file__).parents[2].absolute()
 
 MODELS_PATH = TEST_ROOT / 'data' / 'models'
 REFERENCE_MODELS_PATH = TEST_ROOT / 'data' / 'reference_models'
-HARDWARE_CONFIG_PATH = TEST_ROOT / 'data' / 'hardware_configs'
-HARDWARE_CONFIG_REFERENCE_PATH = HARDWARE_CONFIG_PATH / 'reference'
+HARDWARE_CONFIG_PATH = POT_PATH / 'openvino' / 'tools' / 'pot' / 'configs' / 'hardware'
+HARDWARE_CONFIG_REFERENCE_PATH = TEST_ROOT / 'data' / 'hardware_configs' / 'reference'
 
 TOOL_CONFIG_PATH = TEST_ROOT / 'data' / 'tool_configs'
 ENGINE_CONFIG_PATH = TEST_ROOT / 'data' / 'engine_configs'

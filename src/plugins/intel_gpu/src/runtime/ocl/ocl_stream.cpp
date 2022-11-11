@@ -291,7 +291,7 @@ ocl_stream::ocl_stream(const ocl_engine &engine)
     _command_queue = queue_builder.build(context, device);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    if (config.queue_type == queue_types::in_order) {
+    if (config.queue_type == queue_types::in_order && engine.get_device_info().vendor_id == INTEL_VENDOR_ID) {
         auto onednn_engine = engine.get_onednn_engine();
         _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ocl_interop::make_stream(engine.get_onednn_engine(), _command_queue.get()));
     }

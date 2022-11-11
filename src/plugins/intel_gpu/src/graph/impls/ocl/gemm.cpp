@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gemm_inst.h"
-
-#include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
-#include "gemm/gemm_kernel_selector.h"
 #include "gemm/gemm_kernel_base.h"
+#include "gemm/gemm_kernel_selector.h"
+#include "gemm_inst.h"
+#include "impls/implementation_map.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include <algorithm>
+#include "kernel_selector_helper.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -142,20 +141,30 @@ public:
 namespace detail {
 
 attach_gemm_impl::attach_gemm_impl() {
-    implementation_map<gemm>::add(impl_types::ocl, gemm_impl::create, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
-        std::make_tuple(data_types::f32, format::bfwzyx),
-        std::make_tuple(data_types::f16, format::bfwzyx),
-        std::make_tuple(data_types::i8, format::bfwzyx),
-        std::make_tuple(data_types::u8, format::bfwzyx),
-    });
+    const std::vector<data_types> types{data_types::f16,
+                                        data_types::f32,
+                                        data_types::i8,
+                                        data_types::u8,
+                                        data_types::i32};
+
+    const std::vector<format::type> formats {
+        format::bfyx,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32,
+
+        format::bfzyx,
+        format::bs_fs_zyx_bsv16_fsv32,
+        format::bs_fs_zyx_bsv16_fsv16,
+        format::bs_fs_zyx_bsv32_fsv32,
+        format::bs_fs_zyx_bsv32_fsv16,
+
+        format::bfwzyx,
+    };
+
+    implementation_map<gemm>::add(impl_types::ocl, gemm_impl::create, types, formats);
 }
 
 }  // namespace detail

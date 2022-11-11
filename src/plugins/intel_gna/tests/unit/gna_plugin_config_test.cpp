@@ -196,7 +196,12 @@ TEST_F(GNAPluginConfigTest, GnaConfigGnaExecTargetTest) {
     EXPECT_EQ(config.gnaExecTarget, "GNA_TARGET_2_0");
     SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_0");
     EXPECT_EQ(config.gnaExecTarget, "GNA_TARGET_3_0");
+
     ExpectThrow(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_7");
+
+    SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_5");
+    EXPECT_EQ(config.gnaExecTarget, "GNA_TARGET_3_5");
+
     ExpectThrow(GNA_CONFIG_KEY(EXEC_TARGET), "0");
     ExpectThrow(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_1_5");
     ExpectThrow(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET");
@@ -207,7 +212,12 @@ TEST_F(GNAPluginConfigTest, GnaConfigGnaCompileTargetTest) {
     EXPECT_EQ(config.gnaCompileTarget, "GNA_TARGET_2_0");
     SetAndCompare(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_3_0");
     EXPECT_EQ(config.gnaCompileTarget, "GNA_TARGET_3_0");
+
     ExpectThrow(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_3_7");
+
+    SetAndCompare(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_3_5");
+    EXPECT_EQ(config.gnaCompileTarget, "GNA_TARGET_3_5");
+
     ExpectThrow(GNA_CONFIG_KEY(COMPILE_TARGET), "0");
     ExpectThrow(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_1_5");
     ExpectThrow(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET");
@@ -220,7 +230,11 @@ TEST_F(GNAPluginConfigTest, GnaConfigLogLevel) {
     EXPECT_EQ(config.gnaFlags.log_level, ov::log::Level::NO);
     SetAndCompare(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_DEBUG);
     EXPECT_EQ(config.gnaFlags.log_level, ov::log::Level::DEBUG);
-    ExpectThrow(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_ERROR);
-    ExpectThrow(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_INFO);
-    ExpectThrow(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_TRACE);
+    SetAndCompare(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_ERROR);
+    EXPECT_EQ(config.gnaFlags.log_level, ov::log::Level::ERR);
+    SetAndCompare(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_INFO);
+    EXPECT_EQ(config.gnaFlags.log_level, ov::log::Level::INFO);
+    SetAndCompare(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_TRACE);
+    EXPECT_EQ(config.gnaFlags.log_level, ov::log::Level::TRACE);
+    EXPECT_THROW(config.UpdateFromMap({{CONFIG_KEY(LOG_LEVEL), "LOG_UNSUPPORTED"}}), ov::Exception);
 }

@@ -175,6 +175,7 @@ std::string toString(KernelType kt) {
                                           return "BINARY_CONVOLUTION";
         case KernelType::NON_MAX_SUPPRESSION:
                                           return "NON_MAX_SUPPRESSION";
+        case KernelType::MATRIX_NMS:      return "MATRIX_NMS";
         default: return "";
     }
 }
@@ -241,7 +242,6 @@ std::string toString(PoolType mode) {
     switch (mode) {
         case PoolType::MAX:                 return "MAX";
         case PoolType::AVG:                 return "AVG";
-        case PoolType::MAX_WITH_ARGMAX:     return "MAX_WITH_ARGMAX";
         case PoolType::BILINEAR:            return "BILINEAR";
         case PoolType::DEFORMABLE_BILINEAR: return "DEFORMABLE_BILINEAR";
         default: return "";

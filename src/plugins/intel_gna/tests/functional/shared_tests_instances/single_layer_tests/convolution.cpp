@@ -12,14 +12,10 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-class GnaConvolutionLayerTest : public ConvolutionLayerTest, GnaLayerTestCheck {
+class GnaConvolutionLayerTest : public ConvolutionLayerTest {
 protected:
     void Run() override {
-        GnaLayerTestCheck::SkipTestCheck();
-
-        if (!GnaLayerTestCheck::skipTest) {
-            ConvolutionLayerTest::Run();
-        }
+        ConvolutionLayerTest::Run();
     }
 
     void SetUp() override {

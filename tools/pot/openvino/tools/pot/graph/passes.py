@@ -240,7 +240,8 @@ class FakeQuantizePropagation(BackReplacementPattern):
 
     jump_single_branch_ops = ['ReduceMax', 'MaxPool', 'Reshape', 'Flatten', 'Squeeze', 'Unsqueeze', 'Interpolate',
                               'Split', 'Crop', 'ReduceMean', 'AvgPool', 'Result', 'Tile', 'Transpose', 'StridedSlice',
-                              'VariadicSplit', 'ShuffleChannels', 'Broadcast', 'Minimum', 'Maximum', 'DepthToSpace']
+                              'VariadicSplit', 'ShuffleChannels', 'Broadcast', 'Minimum', 'Maximum', 'DepthToSpace',
+                              'Gather']
     remove_duplication_ops = ['FakeQuantize', 'Parameter']
     jump_multi_branch_ops = 'Concat'
     jump_multi_branch_ops_except_const = ['Pad', 'ConvertLike']

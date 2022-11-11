@@ -8,10 +8,10 @@
 #include <string>
 #include <transformations_visibility.hpp>
 
-#include "ngraph/op/generate_proposals.hpp"
-#include "ngraph/op/op.hpp"
+#include "openvino/op/generate_proposals.hpp"
+#include "openvino/op/op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 namespace internal {
 
@@ -33,9 +33,17 @@ public:
 
     void validate_and_infer_types() override;
 
-    std::shared_ptr<Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 };
 
+}  // namespace internal
+}  // namespace op
+}  // namespace ov
+
+namespace ngraph {
+namespace op {
+namespace internal {
+using ov::op::internal::GenerateProposalsIEInternal;
 }  // namespace internal
 }  // namespace op
 }  // namespace ngraph
