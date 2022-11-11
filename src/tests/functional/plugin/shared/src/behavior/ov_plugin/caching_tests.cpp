@@ -13,6 +13,7 @@
 
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 #define GTEST_COUT std::cout << "[          ] [ INFO ] "
 
@@ -183,6 +184,9 @@ void CompileModelCacheTestBase::run() {
     if ((targetDevice.find("AUTO") == std::string::npos) && !importExportSupported(*core)) {
         GTEST_COUT << "Plugin doesn't support import and export - skipping test" << std::endl;
         GTEST_SKIP();
+    }
+    if (importExportSupported(*core)) {
+        ASSERT_NO_THROW(core->get_property(targetDevice, ov::caching_properties));
     }
     configure_model();
     try {

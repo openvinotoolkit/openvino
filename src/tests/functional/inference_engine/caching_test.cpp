@@ -35,6 +35,8 @@
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
 #include "cpp/ie_plugin.hpp"
 
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+
 using namespace InferenceEngine;
 using namespace ::testing;
 using namespace InferenceEngine::details;
@@ -652,10 +654,26 @@ TEST_P(CachingTest, TestChangeLoadConfig) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    ON_CALL(*mockPlugin, GetMetric(ov::supported_properties.name(), _)).
+                WillByDefault(Invoke([&](const std::string &, const std::map<std::string, Parameter> &) {
+            return std::vector<ov::PropertyName>{
+                ov::supported_properties.name(),
+                METRIC_KEY(IMPORT_EXPORT_SUPPORT),
+                ov::device::capabilities.name(),
+                ov::device::architecture.name(),
+                ov::caching_properties.name()};
+    }));
+    ON_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).
+            WillByDefault(Invoke([&](const std::string &, const std::map<std::string, Parameter> &) {
+        std::vector<ov::PropertyName> res;
+        res.push_back(ov::PropertyName(CUSTOM_KEY, ov::PropertyMutability::RO));
+        return decltype(ov::caching_properties)::value_type(res);
+    }));
     ON_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _)).
             WillByDefault(Invoke([&](const std::string &, const std::map<std::string, Parameter> &) {
         std::vector<std::string> res;
-        res.push_back(CUSTOM_KEY);
+        res.push_back(ov::caching_properties.name());
         return res;
     }));
     {

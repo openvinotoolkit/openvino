@@ -53,6 +53,7 @@ struct Config {
 
     void readProperties(const std::map<std::string, std::string> &config);
     void updateProperties();
+
     std::map<std::string, std::string> _config;
 
 #ifdef CPU_DEBUG_CAPS

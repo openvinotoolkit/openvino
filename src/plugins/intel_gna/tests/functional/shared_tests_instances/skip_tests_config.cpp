@@ -86,6 +86,8 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 71068
         R"(.*OVInferRequestCancellationTests.*)",
         // TODO: Issue: 71070
-        R"(.*OVInferenceChaining.*(StaticOutputToStaticInput).*)"
+        R"(.*OVInferenceChaining.*(StaticOutputToStaticInput).*)",
+        // TODO: Issue: 95234
+        R"(.*smoke_CachingSupportCase_GNA.*)"
     };
 }
