@@ -1,6 +1,6 @@
-# Install Intel® Distribution of OpenVINO™ Toolkit for Linux Using YUM Repository {#openvino_docs_install_guides_installing_openvino_yum}
+# Install OpenVINO™ Runtime on Linux Using YUM Repository {#openvino_docs_install_guides_installing_openvino_yum}
 
-This guide provides installation steps for Intel® Distribution of OpenVINO™ toolkit for Linux distributed through the YUM repository.
+This guide provides installation steps for OpenVINO™ Runtime for Linux distributed through the YUM repository.
 
 > **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. If you want to develop or optimize your models with OpenVINO, see [Install OpenVINO Development Tools](installing-model-dev-tools.md) for detailed steps.
 
@@ -59,7 +59,7 @@ To list available OpenVINO packages, use the following command:
 
 ### Step 2: Install OpenVINO Runtime Using the YUM Package Manager
 
-Intel® Distribution of OpenVINO™ toolkit will be installed in: `/opt/intel/openvino_<VERSION>.<UPDATE>.<PATCH>`
+OpenVINO™ Runtime will be installed in: `/opt/intel/openvino_<VERSION>.<UPDATE>.<PATCH>`
 
 A symlink will be created: `/opt/intel/openvino_<VERSION>`
 
@@ -170,9 +170,9 @@ Now you may continue with the following tasks:
 * See pre-trained deep learning models in our [Open Model Zoo](../model_zoo.md).
 * Try out OpenVINO via [OpenVINO Notebooks](https://docs.openvino.ai/2022.1/notebooks/notebooks.html).
 * To write your own OpenVINO™ applications, see [OpenVINO Runtime User Guide](../OV_Runtime_UG/openvino_intro.md).
-* See sample applications in [OpenVINO™ Toolkit Samples Overview](../OV_Runtime_UG/Samples_Overview.md).
+* See sample applications in [OpenVINO™ Samples Overview](../OV_Runtime_UG/Samples_Overview.md).
 
 ## Additional Resources
 
-- Intel® Distribution of OpenVINO™ toolkit home page: <https://software.intel.com/en-us/openvino-toolkit>
+- OpenVINO™ home page: <https://software.intel.com/en-us/openvino-toolkit>
 - For IoT Libraries & Code Samples, see [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
