@@ -10,8 +10,9 @@
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
