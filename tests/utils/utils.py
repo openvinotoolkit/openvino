@@ -65,6 +65,8 @@ def modify_data_for_push_to_new_db(data):
         del new_data['raw_results']
         for raw_result_name, raw_result in data['raw_results'].items():
             new_data['results'][raw_result_name]['raw_results'] = raw_result
+    new_data['ext'] = {}
+    new_data = {'data': [new_data]}
     return new_data
 
 

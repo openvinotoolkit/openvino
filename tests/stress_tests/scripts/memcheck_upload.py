@@ -168,6 +168,7 @@ def upload_memcheck_records(records, db_url, db_collection):
 
 def modify_data_for_push_to_new_db(records):
     new_records = deepcopy(records)
+    records_to_push = []
 
     for record in new_records:
         if 'os_name' in record and 'os_version' in record:
@@ -187,6 +188,8 @@ def modify_data_for_push_to_new_db(records):
         except FileNotFoundError:
             log = ''
         record['log'] = log
+        record['ext'] = {}
+        records_to_push.append({'data': [record]})
 
     return new_records
 
