@@ -1224,11 +1224,8 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
             return true;
         if ((in_dt == data_types::i8 || out_dt == data_types::i8) || (in_dt == data_types::u8 || out_dt == data_types::u8))
             return true;
-    } else if (node.is_type<convolution>() || node.is_type<deconvolution>()) {
-        bool is_conv = node.is_type<convolution>();
-        auto wei_dt = is_conv ? node.as<convolution>().weights().get_output_layout().data_type :
-                                node.as<deconvolution>().weights().get_output_layout().data_type;
-
+    } else if (node.is_type<convolution>()) {
+        auto wei_dt = node.as<convolution>().weights().get_output_layout().data_type;
         if ((in_dt == data_types::f16 && wei_dt == data_types::f16) &&
             (out_dt == data_types::f16 || out_dt == data_types::f32 || out_dt == data_types::i8 || out_dt == data_types::u8))
             return true;
@@ -1237,6 +1234,17 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
             return true;
         if ((in_dt == data_types::f32 && wei_dt == data_types::f32) &&
             (out_dt == data_types::i8 || out_dt == data_types::u8))
+            return true;
+    } else if (node.is_type<deconvolution>()) {
+        auto wei_dt = node.as<deconvolution>().weights().get_output_layout().data_type;
+        if ((in_dt == data_types::f16 && wei_dt == data_types::f16) &&
+            (out_dt == data_types::f16 || out_dt == data_types::i8 || out_dt == data_types::u8))
+            return true;
+        if ((in_dt == data_types::i8 || in_dt == data_types::u8) && wei_dt == data_types::i8 &&
+            (out_dt == data_types::f32 || out_dt == data_types::i32 || out_dt == data_types::i8 || out_dt == data_types::u8))
+            return true;
+        if ((in_dt == data_types::f32 && wei_dt == data_types::f32) &&
+            (out_dt == data_types::f32 || out_dt == data_types::f16 || out_dt == data_types::i8 || out_dt == data_types::u8))
             return true;
     } else if (node.is_type<fully_connected>() || node.is_type<gemm>()) {
         bool is_fc = node.is_type<fully_connected>();
