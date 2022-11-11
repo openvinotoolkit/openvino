@@ -1,6 +1,6 @@
-# Install Intel® Distribution of OpenVINO™ toolkit from Anaconda Cloud {#openvino_docs_install_guides_installing_openvino_conda}
+# Install OpenVINO™ Runtime from Anaconda Cloud {#openvino_docs_install_guides_installing_openvino_conda}
 
-This guide provides installation steps for Intel® Distribution of OpenVINO™ toolkit for Linux distributed through the Anaconda Cloud.
+This guide provides installation steps for OpenVINO™ Runtime distributed through the Anaconda Cloud.
 
 > **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. If you want to develop or optimize your models with OpenVINO, see [Install OpenVINO Development Tools](installing-model-dev-tools.md) for detailed steps.
 
@@ -31,7 +31,7 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
    ```sh
    conda update --all
    ```
-3. Install the Intel® Distribution of OpenVINO™ toolkit:
+3. Install the OpenVINO Runtime package:
  - Ubuntu* 20.04
    ```sh
    conda install openvino-ie4py-ubuntu20 -c intel
