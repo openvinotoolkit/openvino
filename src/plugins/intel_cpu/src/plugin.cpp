@@ -22,8 +22,6 @@
 #include <ie_system_conf.h>
 #include <ie_ngraph_utils.hpp>
 
-#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
-#include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 
 #include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
@@ -35,6 +33,10 @@
 #include <transformations/common_optimizations/wrap_interpolate_into_transposes.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
+#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
+
+#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
+#include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include <transformations/op_conversions/convert_broadcast_to_tiles.hpp>
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_shuffle_channels3.hpp>
@@ -81,15 +83,23 @@
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/op_conversions/fq_decomposition.hpp>
 #include <transformations/utils/utils.hpp>
-#include <snippets/pass/collapse_subgraph.hpp>
-#include <snippets/pass/common_optimizations.hpp>
-#include <snippets/pass/convert_constants.hpp>
-#include "ngraph_transformations/snippets_mark_skipped.hpp"
 #include <transformations/op_conversions/convert_roi_align_v9_to_v3.hpp>
 #include <transformations/op_conversions/convert_roi_align_v3_to_v9.hpp>
 #include <transformations/op_conversions/softsign_decomposition.hpp>
 #include "transformations/op_conversions/eye_decomposition.hpp"
+#include "transformations/smart_reshape/smart_reshape.hpp"
+
+#include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
+#include "ngraph_transformations/snippets_mark_skipped.hpp"
 #include "ngraph_transformations/mha_fusion.hpp"
+#include "ngraph_transformations/convert_to_interaction.hpp"
+#include "ngraph_transformations/convert_fq_rnn_to_quantized_rnn.hpp"
+#include "ngraph_transformations/move_eltwise_up_data_movement.hpp"
+#include "ngraph_transformations/swap_convert_transpose.hpp"
+
+#include <snippets/pass/collapse_subgraph.hpp>
+#include <snippets/pass/common_optimizations.hpp>
+#include <snippets/pass/convert_constants.hpp>
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
@@ -97,11 +107,11 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset6.hpp>
+#include "ngraph_ops/augru_cell.hpp"
+#include "ngraph_ops/augru_sequence.hpp"
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/graph_util.hpp>
-
-#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
 #include <low_precision/common/quantization_granularity_restriction.hpp>
@@ -123,11 +133,6 @@
 #include "nodes/fake_quantize.h"
 #include "nodes/normalize.h"
 #include "nodes/mha.h"
-#include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
-#include "ngraph_transformations/convert_to_interaction.hpp"
-#include "ngraph_transformations/move_eltwise_up_data_movement.hpp"
-#include "transformations/smart_reshape/smart_reshape.hpp"
-#include "ngraph_transformations/swap_convert_transpose.hpp"
 #include "utils/denormals.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
@@ -355,6 +360,10 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                 node)) {
             return gru_cell->get_clip() == 0.0f
                    && gru_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh"};
+        } else if (const auto &augru_cell = std::dynamic_pointer_cast<const ov::op::internal::AUGRUCell>(
+                node)) {
+            return augru_cell->get_clip() == 0.0f
+                   && augru_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh"};
         } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::opset4::LSTMCell>(
                 node)) {
             return lstm_cell->get_clip() == 0.0f &&
@@ -390,6 +399,12 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
             return gru_seq->get_clip() == 0.0f &&
                    gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
                    !ngraph::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(2),
+                                                          max_seq_len);
+        } else if (const auto &augru_seq = std::dynamic_pointer_cast<const ov::op::internal::AUGRUSequence>(
+                node)) {
+            return augru_seq->get_clip() == 0.0f &&
+                   augru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
+                   !ngraph::op::util::is_seq_len_provided(augru_seq->get_input_node_shared_ptr(2),
                                                           max_seq_len);
         } else if (const auto &lstm_seq = std::dynamic_pointer_cast<const ngraph::opset6::LSTMSequence>(
                 node)) {
@@ -553,6 +568,12 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                 {{0}, {ngraph::element::u8, ngraph::element::i8}},
                 {{1}, {ngraph::element::i8}}
             }),
+            PrecisionsRestriction::create<ngraph::opset5::LSTMSequence>({
+                {{0, 1}, {ngraph::element::u8, ngraph::element::i8}},
+            }),
+            PrecisionsRestriction::create<ngraph::opset6::GRUSequence>({
+                {{0, 1}, {ngraph::element::u8, ngraph::element::i8}},
+            }),
         });
 
         auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>({
@@ -626,6 +647,9 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 
         return false;
     });
+
+    // Execute before snippets. Otherwise FQ will be converted to Subgraph
+    postLPTPassManager.register_pass<ConvertFqRnnToQuantizedRnn>();
     postLPTPassManager.run_passes(nGraphFunc);
 
     if (_enableSnippets && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
@@ -733,8 +757,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
         const auto default_num_streams =
             engConfig.streamExecutorConfig._threadBindingType ==
                     InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
-                ? IStreamsExecutor::Config::GetHybridNumStreams(engConfig.streamExecutorConfig,
-                                                                IStreamsExecutor::Config::StreamMode::DEFAULT)
+                ? IStreamsExecutor::Config::GetHybridNumStreams(config, IStreamsExecutor::Config::StreamMode::DEFAULT)
                 : IStreamsExecutor::Config::GetDefaultNumStreams();
         int num_streams = default_num_streams;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
@@ -744,7 +767,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
                 num_streams = engConfig.streamExecutorConfig._threadBindingType ==
                                       InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
                                   ? IStreamsExecutor::Config::GetHybridNumStreams(
-                                        engConfig.streamExecutorConfig,
+                                        config,
                                         IStreamsExecutor::Config::StreamMode::AGGRESSIVE)
                                   : num_cores;
             }   // otherwise (no recognized layers) falling back to the default value
@@ -753,7 +776,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             num_streams = engConfig.streamExecutorConfig._threadBindingType ==
                                   InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
                               ? IStreamsExecutor::Config::GetHybridNumStreams(
-                                    engConfig.streamExecutorConfig,
+                                    config,
                                     IStreamsExecutor::Config::StreamMode::AGGRESSIVE)
                               : num_cores;
         } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
@@ -761,7 +784,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             num_streams = engConfig.streamExecutorConfig._threadBindingType ==
                                   InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
                               ? IStreamsExecutor::Config::GetHybridNumStreams(
-                                    engConfig.streamExecutorConfig,
+                                    config,
                                     IStreamsExecutor::Config::StreamMode::LESSAGGRESSIVE)
                               : std::max(default_num_streams, num_streams_less_aggressive);
         }
