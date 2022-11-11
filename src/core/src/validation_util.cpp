@@ -1349,12 +1349,12 @@ bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_lab
     HostTensorVector input_tensors(input_values.size());
     for (size_t i = 0; i < input_values.size(); ++i) {
         const auto& input = input_values[i];
-        if (i != 0)
+        if (i != 0) {
             if (input.get_tensor().has_and_set_bound())
                 input_tensors[i] = input.get_tensor().get_lower_value();
             else
                 return false;
-        else {
+        } else {
             const auto& input_labels = input.get_tensor().get_value_label();
             if (has_no_labels(input_labels)) {
                 return false;

@@ -34,10 +34,9 @@ protected:
     std::shared_ptr<ov::op::v0::Parameter> param;
 };
 
-using BoundTestParam = std::tuple<ov::PartialShape, ov::PartialShape>;
-
 /** \brief Test fixture for Unsqueeze/Squeeze type_prop bound tests. */
-class UnSqueezeBoundTest : public testing::WithParamInterface<BoundTestParam>, public UnSqueezeFixture {
+class UnSqueezeBoundTest : public testing::WithParamInterface<std::tuple<ov::PartialShape, ov::PartialShape>>,
+                           public UnSqueezeFixture {
 protected:
     void SetUp() override {
         std::tie(p_shape, exp_shape) = GetParam();
@@ -46,3 +45,5 @@ protected:
 
     std::vector<size_t> in_labels;
 };
+
+using PartialShapes = std::vector<ov::PartialShape>;
