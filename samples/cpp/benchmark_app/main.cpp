@@ -489,7 +489,7 @@ int main(int argc, char* argv[]) {
                             auto key = ov::hint::inference_precision.name();
                             device_config[key] = it_device_infer_precision->second;
                         } else {
-                            // set device nstreams properties in the AUTO/MULTI plugin
+                            // set device inference_precison properties in the AUTO/MULTI plugin
                             std::stringstream strm(it_device_infer_precision->second);
                             std::map<std::string, std::string> devices_property;
                             ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
@@ -531,14 +531,10 @@ int main(int argc, char* argv[]) {
                     // create nthreads/pin primary property for HW device or AUTO if -d is AUTO directly.
                     device_config.emplace(property);
                 } else if (if_auto || if_multi) {
-                    // create nthreads/pin secondary property setting for each hw device from hw device list if -d
-                    // contains ':' like AUTO:XXX or MULTI:XXX.
-                    // For the case like AUTO:XXX,XXX, -nthreads/-pin/-affinity setting is only for CPU instead of other
-                    // hw device if CPU appears in the devices list.
-
+                    // Create secondary property of -nthreads/-pin only for CPU if CPU device appears in the devices
+                    // list specified by -d.
                     for (auto& device : hardware_devices) {
-                        // check if the HW device supported this property
-                        if (if_auto && !if_multi && device != "CPU")
+                        if (device != "CPU")
                             continue;
                         setDeviceProperty(core, device, device_config, property);
                     }
@@ -591,10 +587,8 @@ int main(int argc, char* argv[]) {
 
         // Property setting should be via the core::compile_model()
         // rather than core::set_property() if target device is AUTO/MULTI.
-        if (!if_auto && !if_multi) {
-            for (auto&& item : config) {
-                core.set_property(item.first, item.second);
-            }
+        for (auto&& item : config) {
+            core.set_property(item.first, item.second);
         }
 
         size_t batchSize = FLAGS_b;
@@ -623,14 +617,7 @@ int main(int argc, char* argv[]) {
             next_step();
             slog::info << "Skipping the step for loading network from file" << slog::endl;
             auto startTime = Time::now();
-            ov::AnyMap properties = {};
-            if (if_auto || if_multi) {
-                std::string virtual_device = if_auto ? "AUTO" : "MULTI";
-                if (if_auto && if_multi)
-                    virtual_device = split(device_name, ':').at(0);
-                properties = config[virtual_device];
-            }
-            compiledModel = core.compile_model(FLAGS_m, device_name, properties);
+            compiledModel = core.compile_model(FLAGS_m, device_name);
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Load network took " << double_to_string(duration_ms) << " ms" << slog::endl;
             slog::info << "Original network I/O parameters:" << slog::endl;
@@ -813,14 +800,7 @@ int main(int argc, char* argv[]) {
             // --------------------------------------------------------
             next_step();
             startTime = Time::now();
-            ov::AnyMap properties = {};
-            if (if_auto || if_multi) {
-                std::string virtual_device = if_auto ? "AUTO" : "MULTI";
-                if (if_auto && if_multi)
-                    virtual_device = split(device_name, ':').at(0);
-                properties = config[virtual_device];
-            }
-            compiledModel = core.compile_model(model, device_name, properties);
+            compiledModel = core.compile_model(model, device_name);
             duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Load network took " << double_to_string(duration_ms) << " ms" << slog::endl;
             if (statistics)
