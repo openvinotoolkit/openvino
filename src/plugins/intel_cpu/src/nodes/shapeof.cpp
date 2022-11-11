@@ -13,7 +13,7 @@ namespace intel_cpu {
 namespace node {
 
 namespace {
-class ShapeOfShapeInfer final : public IShapeInfer {
+class ShapeOfShapeInfer final : public ShapeInferEmptyPads {
 public:
     ShapeOfShapeInfer() = default;
     std::vector<VectorDims> infer(
@@ -23,18 +23,9 @@ public:
         return {VectorDims{input_shapes.front().get().size()}};
     }
 
-    const ov::CoordinateDiff& get_pads_begin() override {
-        return empty_vec;
-    }
-    const ov::CoordinateDiff& get_pads_end() override {
-        return empty_vec;
-    }
     port_mask_t get_port_mask() const override {
         return EMPTY_PORT_MASK;
     }
-
-private:
-    ov::CoordinateDiff empty_vec;
 };
 
 class ShapeOfShapeInferFactory final : public ShapeInferFactory {
