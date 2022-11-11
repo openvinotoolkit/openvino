@@ -19,7 +19,7 @@ using namespace ov;
 using namespace ov::opset9;
 using namespace transpose_sinking;
 
-pass::TransposeSinkingBinaryElementwiseForward::TransposeSinkingBinaryElementwiseForward() {
+ov::pass::TransposeSinkingBinaryElementwiseForward::TransposeSinkingBinaryElementwiseForward() {
     MATCHER_SCOPE(TransposeSinkingBinaryElementwiseForward);
 
     auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic>(IfNodeHasTransposeInputs);
