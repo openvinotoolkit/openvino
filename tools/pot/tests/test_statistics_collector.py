@@ -16,6 +16,7 @@ from openvino.tools.pot.statistics.collector import StatisticsCollector
 from openvino.tools.pot.algorithms.quantization.minmax.algorithm import MinMaxQuantization
 from openvino.tools.pot.algorithms.quantization.bias_correction.algorithm import BiasCorrection
 from .utils.config import PATHS2DATASETS_CONFIG
+from .utils.data_helper import load_json
 
 TEST_MODELS = [('mobilenet-v2-pytorch', 'pytorch'), ('lstm_outs_quantization', 'tf')]
 
@@ -60,8 +61,7 @@ def test_statistics_collector_subsets(tmp_path, models, model_name, model_framew
     local_path = os.path.join(tmp_path, '{}_{}.json'.format(model_name, 'statistics_data'))
     local_file = open(local_path, 'w')
 
-    with open(refs_file.as_posix()) as file:
-        refs = json.load(file)
+    refs = load_json(refs_file.as_posix())
 
     eps = 1e-6
     local_out = {}
