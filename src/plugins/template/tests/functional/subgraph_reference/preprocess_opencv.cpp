@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef OPENCV_TEMPLATE_TESTS
+// #ifdef OPENCV_TEMPLATE_TESTS
 
 #include <gtest/gtest.h>
 
@@ -29,7 +29,12 @@ public:
     }
 };
 
-class PreprocessOpenCVReferenceTest_YUV : public PreprocessOpenCVReferenceTest {
+/// \brief Test class with counting deviated pixels
+///
+/// OpenCV contains custom implementation for 8U and 16U (all calculations 
+/// are done in INTs instead of FLOATs), so deviation in 1 color step 
+/// between pixels is expected
+class PreprocessOpenCVReferenceTest_8U : public PreprocessOpenCVReferenceTest {
 public:
     void Validate() override {
         threshold = 1.f;
@@ -58,7 +63,133 @@ static std::shared_ptr<Model> create_simple_function(element::Type type, const P
     return std::make_shared<ov::Model>(ResultVector{res}, ParameterVector{data1});
 }
 
-TEST_F(PreprocessOpenCVReferenceTest_YUV, convert_i420_full_color_range) {
+TEST_F(PreprocessOpenCVReferenceTest, convert_rgb_gray_fp32) {
+    const size_t input_height = 50;
+    const size_t input_width = 50;
+    auto input_shape = Shape{1, input_height, input_width, 3};
+    auto input_img = std::vector<float> (shape_size(input_shape));
+    std::default_random_engine random(0); // hard-coded seed to make test results predictable
+    std::uniform_int_distribution<int> distrib(-5, 300);
+    for (std::size_t i = 0; i < shape_size(input_shape); i++)
+        input_img[i] = static_cast<float>(distrib(random));
+    
+    function = create_simple_function(element::f32, input_shape);
+
+    inputData.clear();
+
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_color_format(ColorFormat::RGB);
+    p.input().preprocess().convert_color(ColorFormat::GRAY);
+    function = p.build();
+
+    const auto &param = function->get_parameters()[0];
+    inputData.emplace_back(param->get_element_type(), param->get_shape(), input_img.data());
+
+    // Calculate reference expected values from OpenCV
+    cv::Mat cvPic = cv::Mat(input_height, input_width, CV_32FC3, input_img.data());
+    cv::Mat picGRAY;
+    cv::cvtColor(cvPic, picGRAY, CV_RGB2GRAY);
+    refOutData.emplace_back(param->get_element_type(), Shape{1, input_height, input_width, 1}, picGRAY.data);
+    // Exec now
+    Exec();
+}
+
+TEST_F(PreprocessOpenCVReferenceTest, convert_bgr_gray_fp32) {
+    const size_t input_height = 50;
+    const size_t input_width = 50;
+    auto input_shape = Shape{1, input_height, input_width, 3};
+    auto input_img = std::vector<float> (shape_size(input_shape));
+    std::default_random_engine random(0); // hard-coded seed to make test results predictable
+    std::uniform_int_distribution<int> distrib(-5, 300);
+    for (std::size_t i = 0; i < shape_size(input_shape); i++)
+        input_img[i] = static_cast<float>(distrib(random));
+
+    function = create_simple_function(element::f32, input_shape);
+
+    inputData.clear();
+
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_color_format(ColorFormat::BGR);
+    p.input().preprocess().convert_color(ColorFormat::GRAY);
+    function = p.build();
+
+    const auto &param = function->get_parameters()[0];
+    inputData.emplace_back(param->get_element_type(), param->get_shape(), input_img.data());
+
+    // Calculate reference expected values from OpenCV
+    cv::Mat cvPic = cv::Mat(input_height, input_width, CV_32FC3, input_img.data());
+    cv::Mat picGRAY;
+    cv::cvtColor(cvPic, picGRAY, CV_BGR2GRAY);
+    refOutData.emplace_back(param->get_element_type(), Shape{1, input_height, input_width, 1}, picGRAY.data);
+
+    // Exec now
+    Exec();
+}
+
+TEST_F(PreprocessOpenCVReferenceTest_8U, convert_rgb_gray_u8) {
+    const size_t input_height = 50;
+    const size_t input_width = 50;
+    auto input_shape = Shape{1, input_height, input_width, 3};
+    auto input_img = std::vector<float> (shape_size(input_shape));
+    std::default_random_engine random(0); // hard-coded seed to make test results predictable
+    std::uniform_int_distribution<int> distrib(0, 255);
+    for (std::size_t i = 0; i < shape_size(input_shape); i++)
+        input_img[i] = static_cast<uint8_t>(distrib(random));
+
+    function = create_simple_function(element::u8, input_shape);
+
+    inputData.clear();
+
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_color_format(ColorFormat::RGB);
+    p.input().preprocess().convert_color(ColorFormat::GRAY);
+    function = p.build();
+
+    const auto &param = function->get_parameters()[0];
+    inputData.emplace_back(param->get_element_type(), param->get_shape(), input_img.data());
+
+    // Calculate reference expected values from OpenCV
+    cv::Mat cvPic = cv::Mat(input_height, input_width, CV_8UC3, input_img.data());
+    cv::Mat picGRAY;
+    cv::cvtColor(cvPic, picGRAY, CV_RGB2GRAY);
+    refOutData.emplace_back(param->get_element_type(), Shape{1, input_height, input_width, 1}, picGRAY.data);
+    // Exec now
+    Exec();
+}
+
+TEST_F(PreprocessOpenCVReferenceTest_8U, convert_bgr_gray_u8) {
+    const size_t input_height = 50;
+    const size_t input_width = 50;
+    auto input_shape = Shape{1, input_height, input_width, 3};
+    auto input_img = std::vector<uint8_t> (shape_size(input_shape));
+    std::default_random_engine random(0); // hard-coded seed to make test results predictable
+    std::uniform_int_distribution<int> distrib(0, 255);
+    for (std::size_t i = 0; i < shape_size(input_shape); i++) 
+        input_img[i] = static_cast<uint8_t>(distrib(random));
+
+    function = create_simple_function(element::u8, input_shape);
+
+    inputData.clear();
+
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_color_format(ColorFormat::BGR);
+    p.input().preprocess().convert_color(ColorFormat::GRAY);
+    function = p.build();
+
+    const auto &param = function->get_parameters()[0];
+    inputData.emplace_back(param->get_element_type(), param->get_shape(), input_img.data());
+
+    // Calculate reference expected values from OpenCV
+    cv::Mat cvPic = cv::Mat(input_height, input_width, CV_8UC3, input_img.data());
+    cv::Mat picGRAY;
+    cv::cvtColor(cvPic, picGRAY, CV_BGR2GRAY);
+    refOutData.emplace_back(param->get_element_type(), Shape{1, input_height, input_width, 1}, picGRAY.data);
+
+    // Exec now
+    Exec();
+}
+
+TEST_F(PreprocessOpenCVReferenceTest_8U, convert_i420_full_color_range) {
     size_t height = 64; // 64/2 = 32 values for R
     size_t width = 64;  // 64/2 = 32 values for G
     int b_step = 5;
@@ -94,7 +225,7 @@ TEST_F(PreprocessOpenCVReferenceTest_YUV, convert_i420_full_color_range) {
     Exec();
 }
 
-TEST_F(PreprocessOpenCVReferenceTest_YUV, convert_nv12_full_color_range) {
+TEST_F(PreprocessOpenCVReferenceTest_8U, convert_nv12_full_color_range) {
     size_t height = 64; // 64/2 = 32 values for R
     size_t width = 64;  // 64/2 = 32 values for G
     int b_step = 5;
@@ -130,7 +261,7 @@ TEST_F(PreprocessOpenCVReferenceTest_YUV, convert_nv12_full_color_range) {
     Exec();
 }
 
-TEST_F(PreprocessOpenCVReferenceTest_YUV, convert_nv12_colored) {
+TEST_F(PreprocessOpenCVReferenceTest_8U, convert_nv12_colored) {
     auto input_yuv = std::vector<uint8_t> {235, 81, 235, 81, 109, 184};
     auto func_shape = Shape{1, 2, 2, 3};
     function = create_simple_function(element::u8, func_shape);
@@ -180,9 +311,7 @@ TEST_F(PreprocessOpenCVReferenceTest, resize_u8_simple_linear) {
     Exec();
 }
 
-TEST_F(PreprocessOpenCVReferenceTest, resize_u8_large_picture_linear) {
-    threshold = 1.f;
-    abs_threshold = 1.f; // Some pixels still have deviations of 1 step
+TEST_F(PreprocessOpenCVReferenceTest_8U, resize_u8_large_picture_linear) {
     const size_t input_height = 50;
     const size_t input_width = 50;
     const size_t func_height = 37;
@@ -282,4 +411,4 @@ TEST_F(PreprocessOpenCVReferenceTest, DISABLED_resize_f32_large_picture_cubic_sm
     Exec();
 }
 
-#endif // OPENCV_TEMPLATE_TESTS
+// #endif // OPENCV_TEMPLATE_TESTS

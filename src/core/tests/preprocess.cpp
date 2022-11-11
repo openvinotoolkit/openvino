@@ -209,6 +209,18 @@ TEST(pre_post_process, tensor_element_type_and_scale) {
     EXPECT_EQ(ov::layout::get_layout(f->input(0)), Layout());
 }
 
+TEST(pre_post_process, convert_color_bgr_gray) {
+    auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 3});
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_color_format(ColorFormat::BGR);
+    p.input().preprocess().convert_color(ColorFormat::GRAY);
+    f = p.build();
+
+    EXPECT_EQ(f->get_parameters().size(), 1);
+    EXPECT_EQ(f->get_parameters().front()->get_partial_shape(), (PartialShape{Dimension::dynamic(), 2, 2, 3}));
+    EXPECT_EQ(f->get_result()->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 2, 2, 1}));
+}
+
 TEST(pre_post_process, convert_color_rgb_gray_nhwc_to_nhwc) {
     auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 3});
     auto p = PrePostProcessor(f);
