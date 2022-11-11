@@ -80,6 +80,25 @@ std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getLoweredSubgrap
     auto subgraph = getTokenizedSubgraph(f);
     subgraph->set_generator(std::make_shared<DummyGenerator>());
     subgraph->set_master_shape(master_shape);
+    const auto& body = subgraph->get_body();
+    auto& body_rt_info = body->get_rt_info();
+    // todo: insertLoops pass requires body_rt_info["PluginShapesOverride"] and subgraph->tileRank to work normally
+    //  consider revising snippets-plugin shape and scheduling communication
+    std::vector<std::vector<size_t>> new_shapes;
+    for (const auto& p : body->get_parameters()) {
+        const auto pshape = p->get_output_partial_shape(0);
+        if (pshape.is_dynamic())
+            IE_THROW() << "getLoweredSubgraph supports only static shapes";
+        new_shapes.push_back(pshape.get_shape());
+    }
+    for (const auto& r : body->get_results()) {
+        const auto pshape = r->get_input_partial_shape(0);
+        if (pshape.is_dynamic())
+            IE_THROW() << "getLoweredSubgraph supports only static shapes";
+        new_shapes.push_back(pshape.get_shape());
+    }
+    body_rt_info["PluginShapesOverride"] = new_shapes;
+    subgraph->tileRank = 2;
     subgraph->generate();
     return subgraph;
 }

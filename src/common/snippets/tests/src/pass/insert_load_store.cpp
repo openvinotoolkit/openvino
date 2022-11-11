@@ -36,9 +36,7 @@ void InsertLoadStoreTests::SetUp() {
 }
 
 TEST_P(InsertLoadStoreTests, ThreeInputsEltwise) {
-    PartialShape scheduler_shape({master_shape[master_shape.size() - 2],
-                                  master_shape[master_shape.size() - 1]});
-    auto subgraph = getLoweredSubgraph(snippets_function->getOriginal(), scheduler_shape);
+    auto subgraph = getLoweredSubgraph(snippets_function->getOriginal(), master_shape);
     function = subgraph->get_body();
     function_ref = snippets_function->getLowered();
 }
