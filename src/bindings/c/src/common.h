@@ -173,7 +173,7 @@ struct mem_stringbuf : std::streambuf {
         char* bptr(const_cast<char*>(buffer));
         setg(bptr, bptr, bptr + sz);
     }
-
+    
     pos_type seekoff(off_type off,
                      std::ios_base::seekdir dir,
                      std::ios_base::openmode which = std::ios_base::in) override {
@@ -209,5 +209,4 @@ struct mem_istream : virtual mem_stringbuf, std::istream {
 };
 
 char* str_to_char_array(const std::string& str);
-ov_element_type_e find_ov_element_type_e(ov::element::Type type);
 ov::element::Type get_element_type(ov_element_type_e type);
