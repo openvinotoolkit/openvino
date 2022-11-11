@@ -40,7 +40,7 @@ def main():
     tput = {'PERFORMANCE_HINT': 'THROUGHPUT'}
 
     # Create Core and use it to compile a model.
-    # Pick device by replacing CPU, for example MULTI:CPU(4),GPU(8).
+    # Pick a device by replacing CPU, for example MULTI:CPU(4),GPU(8).
     # It is possible to set CUMULATIVE_THROUGHPUT as PERFORMANCE_HINT for AUTO device
     core = Core()
     compiled_model = core.compile_model(sys.argv[1], 'CPU', tput)
