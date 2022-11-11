@@ -355,7 +355,10 @@ void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config) {
     // big_streams = all_streams * base_big_streams / base_streams
     config._big_core_streams = (streams * base_big_streams + base_streams - 1) / base_streams;
     config._small_core_streams = config._streams - config._big_core_streams;
-    config._threads_per_stream_big = std::min(num_big_cores_phys, num_big_cores / base_big_streams);
+    // _big_core_streams > 2, num_big_cores_phys must be divisible by threads_per_stream_big
+    config._threads_per_stream_big = (config._big_core_streams > 2 && num_big_cores_phys % threads_per_stream_big != 0)
+                                         ? std::min(num_big_cores_phys, num_big_cores / base_big_streams)
+                                         : threads_per_stream_big;
     config._threads_per_stream_small = config._small_core_streams > 0 ? threads_per_stream_small : 0;
 }
 
