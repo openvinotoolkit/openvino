@@ -111,7 +111,7 @@ bool HasInputSplitAndTransposeSiblings(const Output<Node>& output) {
 }
 }  // namespace
 
-pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
+ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
     MATCHER_SCOPE(TransposeSinkingSplitBackward);
 
     auto transpose_const_label = wrap_type<Constant>(consumers_count(1));
@@ -168,7 +168,7 @@ pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
     register_matcher(m, matcher_pass_callback);
 }
 
-pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
+ov::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
     MATCHER_SCOPE(TransposeSinkingSplitForward);
 
     auto main_node_label = wrap_type<Split>(IfNodeHasTransposeInputs);

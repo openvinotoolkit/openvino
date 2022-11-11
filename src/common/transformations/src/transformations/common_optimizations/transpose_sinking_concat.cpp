@@ -19,7 +19,7 @@ using namespace ov;
 using namespace ov::opset9;
 using namespace transpose_sinking;
 
-pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
+ov::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
     MATCHER_SCOPE(TransposeSinkingConcatForward);
 
     auto main_node_label = wrap_type<Concat>(IfNodeHasTransposeInputs);
@@ -57,7 +57,7 @@ bool IfSinkingEnable(const Output<Node>& output) {
 }
 } // namespace
 
-pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
+ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
     MATCHER_SCOPE(TransposeSinkingConcatBackward);
 
     auto main_node_label = wrap_type<Concat>(consumers_count(1));
