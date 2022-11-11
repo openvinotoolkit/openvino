@@ -16,6 +16,14 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
     set(OpenVINO_BINARY_DIR "${OpenVINODeveloperPackage_DIR}")
 endif()
 
+if(DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT "$ENV{CI_BUILD_DEV_TAG}" STREQUAL "")
+    set(WHEEL_VERSION "${OpenVINO_VERSION}.$ENV{CI_BUILD_DEV_TAG}" CACHE STRING "Version of this release" FORCE)
+    set(wheel_pre_release ON)
+else()
+    set(WHEEL_VERSION ${OpenVINO_VERSION} CACHE STRING "Version of this release" FORCE)
+endif()
+set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
+
 #
 # Check python requirements
 #
