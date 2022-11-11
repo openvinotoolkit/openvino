@@ -9,6 +9,7 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <transformations/common_optimizations/normalize_l2_fusion.hpp>
 #include <transformations/init_node_info.hpp>
