@@ -1,6 +1,6 @@
-# Install Intel® Distribution of OpenVINO™ toolkit from Anaconda Cloud {#openvino_docs_install_guides_installing_openvino_conda}
+# Install OpenVINO™ Runtime from Anaconda Cloud {#openvino_docs_install_guides_installing_openvino_conda}
 
-This guide provides installation steps for Intel® Distribution of OpenVINO™ toolkit for Linux distributed through the Anaconda Cloud.
+This guide provides installation steps for OpenVINO™ Runtime distributed through the Anaconda Cloud.
 
 > **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. If you want to develop or optimize your models with OpenVINO, see [Install OpenVINO Development Tools](installing-model-dev-tools.md) for detailed steps.
 
@@ -31,8 +31,8 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
    ```sh
    conda update --all
    ```
-3. Install the Intel® Distribution of OpenVINO™ toolkit:
- - Ubuntu* 20.04 
+3. Install the OpenVINO Runtime package:
+ - Ubuntu* 20.04
    ```sh
    conda install openvino-ie4py-ubuntu20 -c intel
    ```
@@ -40,7 +40,7 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
    ```sh
    conda install openvino-ie4py-ubuntu18 -c intel
    ```
- - Red Hat Enterprise Linux 8, 64-bit 
+ - Red Hat Enterprise Linux 8, 64-bit
    ```sh
    conda install openvino-ie4py-rhel8 -c intel
    ```
@@ -63,7 +63,7 @@ Now you may continue with the following tasks:
 
 * To convert models for use with OpenVINO, see [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 * See pre-trained deep learning models in our [Open Model Zoo](../model_zoo.md).
-* Try out OpenVINO via [OpenVINO Notebooks](https://docs.openvino.ai/latest/notebooks/notebooks.html).
+* Try out OpenVINO via [OpenVINO Notebooks](https://docs.openvino.ai/2022.1/notebooks/notebooks.html).
 * To write your own OpenVINO™ applications, see [OpenVINO Runtime User Guide](../OV_Runtime_UG/openvino_intro.md).
 * See sample applications in [OpenVINO™ Toolkit Samples Overview](../OV_Runtime_UG/Samples_Overview.md).
 

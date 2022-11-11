@@ -1,4 +1,4 @@
-# Install Intel® Distribution of OpenVINO™ Toolkit on macOS {#openvino_docs_install_guides_installing_openvino_macos_header}
+# Install OpenVINO™ Runtime for macOS {#openvino_docs_install_guides_installing_openvino_macos_header}
 
 @sphinxdirective
 
@@ -12,7 +12,7 @@
 
 @endsphinxdirective
 
-If you want to install Intel® Distribution of OpenVINO™ toolkit on macOS, there are a few ways to accomplish this. We prepared following options for you: 
+If you want to install OpenVINO™ Runtime on macOS, there are a few ways to accomplish this. We prepared following options for you:
 
 * [Install OpenVINO Runtime Using the Installer](installing-openvino-macos.md)
 * [Install OpenVINO from PyPI](installing-openvino-pip.md)

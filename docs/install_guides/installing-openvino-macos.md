@@ -1,4 +1,4 @@
-# Install Intel® Distribution of OpenVINO™ toolkit on macOS Using the Installer{#openvino_docs_install_guides_installing_openvino_macos}
+# Install OpenVINO™ Runtime for macOS from Installer{#openvino_docs_install_guides_installing_openvino_macos}
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. These tools are now only available on [pypi.org](https://pypi.org/project/openvino-dev/).
 
@@ -17,17 +17,17 @@ You can also check the [Release Notes](https://software.intel.com/en-us/articles
 
   Optimized for these processors:
 
-  * 6th to 12th generation Intel® Core™ processors and Intel® Xeon® processors 
+  * 6th to 12th generation Intel® Core™ processors and Intel® Xeon® processors
   * 3rd generation Intel® Xeon® Scalable processor (formerly code named Cooper Lake)
   * Intel® Xeon® Scalable processor (formerly Skylake and Cascade Lake)
   * Intel® Neural Compute Stick 2
-  
+
   .. note::
     The current version of the Intel® Distribution of OpenVINO™ toolkit for macOS supports inference on Intel CPUs and Intel® Neural Compute Stick 2 devices only.
 
 .. tab:: Software Requirements
 
-  * `CMake 3.13 or higher <https://cmake.org/download/>`_ (choose "macOS 10.13 or later"). Add `/Applications/CMake.app/Contents/bin` to path (for default install). 
+  * `CMake 3.13 or higher <https://cmake.org/download/>`_ (choose "macOS 10.13 or later"). Add `/Applications/CMake.app/Contents/bin` to path (for default install).
   * `Python 3.6 - 3.9 <https://www.python.org/downloads/mac-osx/>`_ (choose 3.6 - 3.9). Install and	add to path.
   * Apple Xcode Command Line Tools. In the terminal, run `xcode-select --install` from any directory
   * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
@@ -90,7 +90,7 @@ The environment variables are set. Continue to the next section if you want to d
 
 ## <a name="model-optimizer"></a>Step 3 (Optional): Download Additional Components
 
-> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO™ Development Tools can only be installed via PyPI now. See [Install OpenVINO™ Development Tools](installing-model-dev-tools.md) for detailed steps. 
+> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter are not part of the installer. The OpenVINO™ Development Tools can only be installed via PyPI now. See [Install OpenVINO™ Development Tools](installing-model-dev-tools.md) for detailed steps.
 
 @sphinxdirective
 
@@ -105,7 +105,7 @@ The environment variables are set. Continue to the next section if you want to d
 
 @endsphinxdirective
 
-## <a name="configure-ncs2"></a>Step 4 (Optional): Configure the Intel® Neural Compute Stick 2 
+## <a name="configure-ncs2"></a>Step 4 (Optional): Configure the Intel® Neural Compute Stick 2
 
 @sphinxdirective
 
@@ -118,9 +118,9 @@ If you want to run inference on Intel® Neural Compute Stick 2 use the following
 Now you are ready to try out the toolkit. You can use the following tutorials to write your applications using Python and C++.
 
 Start with some Python tutorials:
-   * [Hello Image Classification](https://docs.openvino.ai/latest/notebooks/001-hello-world-with-output.html)
-   * [Convert TensorFlow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
-   * [Convert a PyTorch model and remove the image background](https://docs.openvino.ai/latest/notebooks/205-vision-background-removal-with-output.html)
+   * [Hello Image Classification](https://docs.openvino.ai/2022.1/notebooks/001-hello-world-with-output.html)
+   * [Convert TensorFlow models with OpenVINO™](https://docs.openvino.ai/2022.1/notebooks/101-tensorflow-to-openvino-with-output.html)
+   * [Convert a PyTorch model and remove the image background](https://docs.openvino.ai/2022.1/notebooks/205-vision-background-removal-with-output.html)
 
 To start with C++ samples, see [Build Sample Applications on macOS](../OV_Runtime_UG/Samples_Overview.md#build_samples_macos) first, and then you can try the following samples:
    * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
@@ -141,12 +141,12 @@ To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalli
 @sphinxdirective
 
 .. dropdown:: Additional Resources
-      
+
    * Converting models for use with OpenVINO™: :ref:`Model Optimizer Developer Guide <deep learning model optimizer>`
    * Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
    * Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
    * Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
-   * IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_ 
+   * IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_
 
 <!---
    To learn more about converting models from specific frameworks, go to:  
