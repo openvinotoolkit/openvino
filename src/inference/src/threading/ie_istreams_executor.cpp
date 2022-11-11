@@ -345,17 +345,18 @@ void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config) {
 
     config._small_core_offset = num_big_cores;
     const int threads_per_stream = std::max(1, threads / streams);
-    config._threads_per_stream_big = std::min(num_big_cores_phys, threads_per_stream);
-    config._threads_per_stream_small = std::min(num_small_cores_phys, threads_per_stream);
-    const int base_big_streams = num_big_cores_phys / config._threads_per_stream_big * 2;
-    const int base_small_streams =
-        num_small_cores_phys > 0 ? num_small_cores_phys / config._threads_per_stream_small : 0;
+    const int threads_per_stream_big = std::min(num_big_cores_phys, threads_per_stream);
+    const int threads_per_stream_small = std::min(num_small_cores_phys, threads_per_stream);
+    const int base_big_streams = num_cores > num_cores_phys
+                                     ? (num_big_cores_phys + threads_per_stream_big - 1) / threads_per_stream_big * 2
+                                     : (num_big_cores_phys + threads_per_stream_big - 1) / threads_per_stream_big;
+    const int base_small_streams = num_small_cores_phys > 0 ? num_small_cores_phys / threads_per_stream_small : 0;
     const int base_streams = base_big_streams + base_small_streams;
     // big_streams = all_streams * base_big_streams / base_streams
-    config._big_core_streams = streams * base_big_streams % base_streams == 0
-                                   ? streams * base_big_streams / base_streams
-                                   : (streams * base_big_streams + base_streams) / base_streams;
+    config._big_core_streams = (streams * base_big_streams + base_streams - 1) / base_streams;
     config._small_core_streams = config._streams - config._big_core_streams;
+    config._threads_per_stream_big = std::min(num_big_cores_phys, num_big_cores / base_big_streams);
+    config._threads_per_stream_small = config._small_core_streams > 0 ? threads_per_stream_small : 0;
 }
 
 IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(const IStreamsExecutor::Config& initial,
