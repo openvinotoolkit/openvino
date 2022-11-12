@@ -589,7 +589,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         if (!executableNetworkPerDevice.empty() && iterCPU->config.find(ov::affinity.name()) == iterCPU->config.end()) {
             LOG_DEBUG_TAG("set affinity to NUMA for CPU");
             // If the other devices load successfully and no user set affinity then set NUMA to CPU
-            GetCore()->set_property(iterCPU->deviceName, ov::affinity(ov::Affinity::NUMA));
+            iterCPU->config.insert({ov::affinity.name(), ov::affinity(ov::Affinity::NUMA).second.as<std::string>()});
+            iterCPU->config.insert({CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD), CONFIG_VALUE_INTERNAL(YES)});
         }
         loads.push_back([&]() {
             loadInferEngTask(*iterCPU);
