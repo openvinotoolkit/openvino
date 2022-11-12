@@ -62,7 +62,7 @@ jobs:
         CMAKE_CPACK_GENERATOR:
         SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
         PYTHON_SAMPLES_INSTALL_DIR: $(SAMPLES_INSTALL_DIR)/python
-        RUN_PREFIX: . $(SETUPVARS) -pyver 3.8 &&
+        RUN_PREFIX: . $(SETUPVARS) -pyver 3.10 &&
     maxParallel: 2
 
   # About 150% of total time
@@ -92,8 +92,33 @@ jobs:
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
     CMAKE_VERSION: 3.24.0
+    BUILD_PYTHON: $(WORK_DIR)/build_python
+    INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
+    PY_VENV: $(WORK_DIR)/.venv
+    PYTHON_VERSION: 3.10.7
 
   steps:
+  - script: |
+      curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
+      whoami
+      uname -a
+      echo Python3 info ; which python3 ; python3 --version
+      echo Java info ; which java ; java -version
+      echo gcc info ; which gcc ; gcc --version
+      echo cmake info ; which cmake ; cmake --version
+      lsb_release
+      env
+      cat /proc/cpuinfo
+      cat /proc/meminfo
+      cat /etc/fstab
+      vmstat -s
+      df
+      lsblk -o NAME,HCTL,SIZE,MOUNTPOINT | grep -i "sd"
+      free -h
+      echo TargetBranch: $(System.PullRequest.TargetBranch)
+      echo SourceBranch: $(Build.SourceBranch)
+    displayName: 'System info'
+
   - script: |
       set -e
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
@@ -130,8 +155,21 @@ jobs:
       $(REPO_DIR)/install_build_dependencies.sh
       # Move jdk into contrib
       # 'clang' compiler is to check that samples can be built using it
-      sudo apt --assume-yes install openjdk-11-jdk clang
+      sudo apt --assume-yes install openjdk-11-jdk libbz2-dev clang
       # For opencv-python: python3-setuptools and pip upgrade
+      wget https://www.python.org/ftp/python/"$PYTHON_VERSION"/Python-"$PYTHON_VERSION".tgz
+      tar -xzf Python-"$PYTHON_VERSION".tgz
+      cd Python-"$PYTHON_VERSION" || exit
+      ./configure --enable-optimizations --prefix=/usr/local --enable-shared LDFLAGS="-Wl,-rpath /usr/local/lib"
+      make python
+      sudo make install
+      export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+      /usr/local/bin/python3.10 -m venv $(PY_VENV)
+      . $(PY_VENV)/bin/activate
+      echo Python3 info ; which python3 ; python3 --version
+      python3 --version
+      python3.10 --version
+      curl https://bootstrap.pypa.io/get-pip.py | python3
       python3 -m pip install --upgrade pip
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
@@ -139,7 +177,7 @@ jobs:
       # For running Python API tests
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
       # For running Paddle frontend unit tests
-      python3 -m pip install -r $(REPO_DIR)/src/core/tests/frontend/paddle/requirements_dev.txt
+      python3 -m pip install -r $(REPO_DIR)/src/frontends/paddle/tests/requirements.txt
       # For running ONNX frontend unit tests
       python3 -m pip install -r $(REPO_DIR)/src/frontends/onnx/tests/requirements.txt
       # For MO unit tests
@@ -194,7 +232,7 @@ jobs:
         -DENABLE_PYTHON=ON
         -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS)
         -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS)
-        -DPYTHON_EXECUTABLE=/usr/bin/python3.8
+        -DPYTHON_EXECUTABLE=$(PY_VENV)/bin/python3.10
         -DENABLE_TESTS=ON
         -DENABLE_OV_ONNX_FRONTEND=ON
         -DENABLE_FASTER_BUILD=ON
@@ -234,8 +272,8 @@ jobs:
     inputs:
       cmakeArgs: >
         -GNinja
-        -S $(REPO_DIR)/tests/layer_tests
-        -B $(BUILD_LAYER_TESTS_DIR)
+        $(REPO_DIR)/tests/layer_tests
+      workingDirectory: $(BUILD_LAYER_TESTS_DIR)
 
   - script: ninja -C $(BUILD_LAYER_TESTS_DIR)
     displayName: 'Build Layer Tests'
@@ -244,26 +282,24 @@ jobs:
     displayName: 'Remove debian dependencies'
     condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
     continueOnError: false
-
   - script: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
     displayName: 'Install wheel packages'
-
   - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_LAYER_TESTS_DIR)/cmake_install.cmake
     displayName: 'Install Layer Tests'
-
-  - script: python3 -m pip install openvino-dev --find-links=$(INSTALL_DIR)/tools
+  - script: |
+      . $(PY_VENV)/bin/activate
+      python3 -m pip install openvino-dev --find-links=$(INSTALL_DIR)/tools
     displayName: 'Install python wheels'
-
   - script: |
       set -e
       cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P $(BUILD_DIR)/cmake_install.cmake
     displayName: 'Install tests'
-
   - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install test files'
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
+      . $(PY_VENV)/bin/activate
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
       # because of static build libgna is needed for python binary
@@ -277,6 +313,7 @@ jobs:
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
+      . $(PY_VENV)/bin/activate
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
       # because of static build libgna is needed for python binary and mock_py frontend library
@@ -294,6 +331,7 @@ jobs:
     continueOnError: false
 
   - script: |
+      . $(PY_VENV)/bin/activate
       # because of static build libgna is needed for python binary
       export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1815.1/linux/x64:$LD_LIBRARY_PATH
       python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
@@ -440,17 +478,23 @@ jobs:
     inputs:
       cmakeArgs: >
         -GNinja
-        -S $(REPO_DIR)/tests/samples_tests
-        -B $(BUILD_SAMPLES_TESTS_DIR)
+        $(REPO_DIR)/tests/samples_tests
+      workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
 
-  - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_SAMPLES_TESTS_DIR)/cmake_install.cmake
+  - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
+    workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
     displayName: 'Install Samples Tests'
 
-  - script: python3 -m pip install -r $(INSTALL_TEST_DIR)/smoke_tests/requirements.txt
+  - script: |
+      . $(PY_VENV)/bin/activate
+      python3 -m pip install -r $(INSTALL_TEST_DIR)/smoke_tests/requirements.txt
+    workingDirectory: $(INSTALL_TEST_DIR)
+
     displayName: 'Install dependencies for samples smoke tests'
     continueOnError: false
 
   - script: |
+      . $(PY_VENV)/bin/activate
       export PATH=$HOME/.local/bin:$PATH
       export IE_APP_PATH=$(INSTALL_DIR)/samples_bin
       export LD_LIBRARY_PATH=$IE_APP_PATH:$LD_LIBRARY_PATH
@@ -462,6 +506,7 @@ jobs:
     continueOnError: false
 
   - script: |
+      . $(PY_VENV)/bin/activate
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR):$PYTHONPATH
       export TEST_DEVICE=CPU
@@ -470,6 +515,7 @@ jobs:
     continueOnError: false
 
   - script: |
+      . $(PY_VENV)/bin/activate
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR):$PYTHONPATH
       export TEST_DEVICE=CPU
@@ -478,6 +524,7 @@ jobs:
     continueOnError: false
 
   - script: |
+      . $(PY_VENV)/bin/activate
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
@@ -485,6 +532,7 @@ jobs:
     continueOnError: false
 
   - script: |
+      . $(PY_VENV)/bin/activate
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       export TEST_DEVICE=CPU

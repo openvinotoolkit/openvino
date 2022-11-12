@@ -24,6 +24,8 @@ macro(ov_cpack_settings)
            NOT item STREQUAL "pugixml" AND
            # we have `license_file` field in conda meta.yml
            NOT item STREQUAL OV_CPACK_COMP_LICENSING AND
+           # compile_tool is not needed
+           NOT item STREQUAL OV_CPACK_COMP_CORE_TOOLS AND
            # not appropriate components
            NOT item STREQUAL OV_CPACK_COMP_DEPLOYMENT_MANAGER AND
            NOT item STREQUAL OV_CPACK_COMP_INSTALL_DEPENDENCIES AND

@@ -4,6 +4,7 @@
 
 from typing import Tuple, Union, List
 
+import sys
 import numpy as np
 import openvino
 import openvino.runtime.opset8 as ops
@@ -79,3 +80,9 @@ def test_deprecation_decorator():
         deprecated_function3()
     with pytest.warns(DeprecationWarning, match="deprecated_function4 is deprecated and will be removed in version 2025.4. Use another function instead"):
         deprecated_function4()
+
+
+def create_filename_for_test(test_name):
+    python_version = str(sys.version_info.major) + "_" + str(sys.version_info.minor)
+    filename = "./" + test_name.replace("test_", "") + "_" + python_version
+    return (filename + ".xml", filename + ".bin")

@@ -13,6 +13,7 @@
 #include "ops/util/util.hpp"
 #include "backend/gna_limitations.hpp"
 #include "layers/gna_split_layer.hpp"
+#include "log/log.hpp"
 
 using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::ngraph_util;
@@ -60,7 +61,7 @@ SplitEltwise::SplitEltwise() {
 
         auto split_sizes_per_axis = GNAPluginNS::AlignedSplitSizesPerAxis(o_dims);
         if (0 == split_sizes_per_axis.second.size()) {
-            gnalog() << "Splitting didn't succeed for layer " << eltwise_node->get_friendly_name()
+            log::debug() << "Splitting didn't succeed for layer " << eltwise_node->get_friendly_name()
             << " on axis " << split_sizes_per_axis.first << std::endl;
             return false;
         }

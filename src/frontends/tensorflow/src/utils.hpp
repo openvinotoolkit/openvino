@@ -52,6 +52,8 @@ ov::Output<Node> get_elements_number_1d(const Output<Node>& output,
                                         ov::element::Type output_type,
                                         ov::pass::NodeRegistry& rg);
 
+ov::op::PadMode convert_padding_mode(const NodeContext& node, const std::string& padding_mode);
+
 Output<Node> compute_subgraph_scalar_rank(const Output<Node>& output,
                                           element::Type output_type,
                                           bool as_scalar = false);

@@ -203,14 +203,10 @@ protected:
     }
 };
 
-class Gna30PaddedToValidConvTest : public PaddedToValidConvTest, GnaLayerTestCheck {
+class Gna30PaddedToValidConvTest : public PaddedToValidConvTest {
 protected:
     void Run() override {
-        GnaLayerTestCheck::SkipTestCheck();
-
-        if (!GnaLayerTestCheck::skipTest) {
-            PaddedToValidConvTest::Run();
-        }
+        PaddedToValidConvTest::Run();
     }
 
     void SetUp() override {

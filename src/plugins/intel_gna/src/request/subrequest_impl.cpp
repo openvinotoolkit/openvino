@@ -6,7 +6,7 @@
 
 #include <gna2-inference-api.h>
 
-#include "gna_plugin_log.hpp"
+#include "log/debug.hpp"
 
 namespace GNAPluginNS {
 namespace request {
