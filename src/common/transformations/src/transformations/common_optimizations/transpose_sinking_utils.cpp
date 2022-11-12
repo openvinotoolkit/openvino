@@ -164,15 +164,14 @@ NodeVector InsertTransposeBeforeNode(NodePtr main_node, std::shared_ptr<Constant
 }
 }  // namespace sink_backward
 
-
 #define CHECK_TRANSPOSE_SINKING_SUPPORTED(TYPE, node) \
-    if (dynamic_cast<TYPE *>(node)) {                 \
-        return true;                               \
+    if (dynamic_cast<TYPE*>(node)) {                  \
+        return true;                                  \
     }
 
 namespace {
 
-bool CanPropagateForwardThrough(Node * node) {
+bool CanPropagateForwardThrough(Node* node) {
     CHECK_TRANSPOSE_SINKING_SUPPORTED(op::util::UnaryElementwiseArithmetic, node);
     CHECK_TRANSPOSE_SINKING_SUPPORTED(Clamp, node);
     CHECK_TRANSPOSE_SINKING_SUPPORTED(Elu, node);
@@ -189,7 +188,7 @@ bool CanPropagateForwardThrough(Node * node) {
 
 bool CanPropagateForward(NodePtr node) {
     for (size_t i = 0; i < node->get_output_size(); ++i) {
-        for (auto & consumer_input : node->output(i).get_target_inputs()) {
+        for (auto& consumer_input : node->output(i).get_target_inputs()) {
             if (!CanPropagateForwardThrough(consumer_input.get_node()))
                 return false;
         }
@@ -205,7 +204,7 @@ void SetNoSinking(NodePtr node) {
     rt_info[NO_TRANSPOSE_SINKING_KEY] = "1";
 }
 
-} // namespace
+}  // namespace
 
 void UpdateForwardSinkingAbility(NodePtr node) {
     if (!CanPropagateForward(node))
@@ -216,7 +215,7 @@ bool IsSinkingEnable(NodePtr node) {
     return node->get_rt_info().count(NO_TRANSPOSE_SINKING_KEY) == 0;
 }
 
-bool IsSinkingEnable(Node * node) {
+bool IsSinkingEnable(Node* node) {
     return node->get_rt_info().count(NO_TRANSPOSE_SINKING_KEY) == 0;
 }
 

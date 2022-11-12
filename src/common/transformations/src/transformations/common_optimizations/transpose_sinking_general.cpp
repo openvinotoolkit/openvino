@@ -3,22 +3,20 @@
 //
 
 #include "transformations/common_optimizations/transpose_sinking_general.hpp"
-#include "transformations/common_optimizations/transpose_sinking.hpp"
-#include "transformations/common_optimizations/transpose_sinking_unary.hpp"
-#include "transformations/common_optimizations/transpose_sinking_binary.hpp"
-#include "transformations/common_optimizations/transpose_sinking_concat.hpp"
-#include "transformations/common_optimizations/transpose_sinking_split.hpp"
 
 #include <ngraph/pass/constant_folding.hpp>
-
+#include <ngraph/pass/graph_rewrite.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 
 #include "itt.hpp"
+#include "transformations/common_optimizations/transpose_sinking.hpp"
+#include "transformations/common_optimizations/transpose_sinking_binary.hpp"
+#include "transformations/common_optimizations/transpose_sinking_concat.hpp"
+#include "transformations/common_optimizations/transpose_sinking_split.hpp"
+#include "transformations/common_optimizations/transpose_sinking_unary.hpp"
 #include "transformations/utils/utils.hpp"
-
-#include <ngraph/pass/manager.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
 
 ov::pass::TransposeSinkingGeneralForward::TransposeSinkingGeneralForward() {
     MATCHER_SCOPE(TransposeSinkingGeneralForward);
@@ -30,7 +28,6 @@ ov::pass::TransposeSinkingGeneralForward::TransposeSinkingGeneralForward() {
 }
 
 ov::pass::TransposeSinkingGeneralBackward::TransposeSinkingGeneralBackward() {
-
     MATCHER_SCOPE(TransposeSinkingGeneralBackward);
     add_matcher<ov::pass::TransposeSinkingUnaryBackward>();
     add_matcher<ov::pass::TransposeSinkingBinaryElementwiseBackward>();
@@ -39,7 +36,7 @@ ov::pass::TransposeSinkingGeneralBackward::TransposeSinkingGeneralBackward() {
     add_matcher<ngraph::pass::TransposeFuse>();
 }
 
-bool ov::pass::TransposeSinkingGeneral::run_on_model(const std::shared_ptr<ov::Model>& f) {    
+bool ov::pass::TransposeSinkingGeneral::run_on_model(const std::shared_ptr<ov::Model>& f) {
     {
         ngraph::pass::Manager manager(get_pass_config());
         manager.register_pass<ov::pass::TransposeSinkingGeneralForward>();
