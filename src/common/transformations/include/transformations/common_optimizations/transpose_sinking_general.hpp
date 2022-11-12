@@ -15,7 +15,7 @@ class TRANSFORMATIONS_API TransposeSinkingGeneralBackward;
 class TRANSFORMATIONS_API TransposeSinkingGeneral;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 class ov::pass::TransposeSinkingGeneralForward : public ov::pass::GraphRewrite {
 public:
@@ -28,7 +28,6 @@ public:
     OPENVINO_RTTI("TransposeSinkingGeneralBackward", "0");
     TransposeSinkingGeneralBackward();
 };
-
 
 class ov::pass::TransposeSinkingGeneral : public ov::pass::ModelPass {
 public:

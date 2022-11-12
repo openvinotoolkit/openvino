@@ -1,5 +1,4 @@
 #include "transformations/common_optimizations/transpose_sinking_unary.hpp"
-#include "transformations/common_optimizations/transpose_sinking_utils.hpp"
 
 #include <transformations/utils/utils.hpp>
 #include <utility>
@@ -7,6 +6,7 @@
 #include "itt.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/common_optimizations/transpose_sinking_utils.hpp"
 
 using namespace ov;
 
@@ -121,7 +121,7 @@ namespace {
 bool IfSinkingEnable(const Output<Node>& output) {
     return transpose_sinking::IsSinkingEnable(output.get_node_shared_ptr());
 }
-} // namespace
+}  // namespace
 
 ov::pass::TransposeSinkingUnaryBackward::TransposeSinkingUnaryBackward() {
     MATCHER_SCOPE(TransposeSinkingUnaryBackward);
@@ -135,7 +135,7 @@ ov::pass::TransposeSinkingUnaryBackward::TransposeSinkingUnaryBackward() {
 
     auto transpose_label =
         ov::pass::pattern::wrap_type<ov::opset9::Transpose>({unary_label, ov::pass::pattern::any_input()},
-                                                             IfSinkingEnable);
+                                                            IfSinkingEnable);
 
     ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
