@@ -579,6 +579,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             ov::PropertyName{ov::range_for_streams.name(), PropertyMutability::RO},
             ov::PropertyName{ov::optimal_batch_size.name(), PropertyMutability::RO},
             ov::PropertyName{ov::max_batch_size.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::caching_properties.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::full_name.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::uuid.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::type.name(), PropertyMutability::RO},
@@ -964,6 +965,9 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
     } else if (isModelCachingEnabled && name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
+    } else if (name == ov::caching_properties) {
+        std::vector<ov::PropertyName> cachingProperties;
+        return decltype(ov::caching_properties)::value_type(cachingProperties);
     } else {
         IE_THROW() << "Unsupported metric key " << name;
     }
