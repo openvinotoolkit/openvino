@@ -79,9 +79,13 @@ TEST(type_prop, unsqueeze_empty_axes) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
-using TypePropTestParam = std::tuple<PartialShape, std::vector<int64_t>, PartialShape>;
 
-class UnsqueezeTest : public WithParamInterface<TypePropTestParam>, public UnSqueezeFixture {
+using UnSqueezeTypePropTestParam = std::tuple<PartialShape,          // Input shape
+                                              std::vector<int64_t>,  // Unsqueeze axis
+                                              PartialShape           // Expected shape
+                                              >;
+
+class UnsqueezeTest : public WithParamInterface<UnSqueezeTypePropTestParam>, public UnSqueezeFixture {
 protected:
     void SetUp() override {
         std::tie(p_shape, axes, exp_shape) = GetParam();
