@@ -262,8 +262,8 @@ struct CPUStreamsExecutor::Impl {
                               : std::max(1,
                                          std::min(config._big_core_streams,
                                                   config._threads_per_stream_big == 0
-                                                  ? 0
-                                                  : num_big_core_phys / config._threads_per_stream_big * 2));
+                                                      ? 0
+                                                      : num_big_core_phys / config._threads_per_stream_big * 2));
                 sum += num_streams_for_core_type;
                 // prefix sum, so the core type for a given stream id will be deduced just as a upper_bound
                 // (notice that the map keeps the elements in the descending order, so the big cores are populated
