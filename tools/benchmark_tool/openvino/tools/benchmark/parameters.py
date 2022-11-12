@@ -1,8 +1,7 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import sys,argparse
-from fnmatch import fnmatch
+import sys, argparse
 
 from openvino.tools.benchmark.utils.utils import show_available_devices
 
@@ -98,7 +97,7 @@ def parse_args():
                            'Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency '
                            'estimations the number of streams should be set to 1. '
                            'See samples README for more details.')
-    args.add_argument('--latency_percentile', type=int, required=False, default=50, choices=range(1,101),
+    args.add_argument('--latency_percentile', type=int, required=False, default=50,
                       help='Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).')
     args.add_argument('-nthreads', '--number_threads', type=int, required=False, default=None,
                       help='Number of threads to use for inference on the CPU, GNA '
@@ -158,5 +157,9 @@ def parse_args():
                       help="Optional. Mean values to be used for the input image per channel.\n Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.\n"
                            "Example: -imean data[255,255,255],info[255,255,255]\n")
     parsed_args = parser.parse_args()
+
+    if parsed_args.latency_percentile < 0 or parsed_args.latency_percentile > 100:
+        parser.print_help()
+        raise RuntimeError("The percentile value is incorrect. The applicable values range is [1, 100].")
 
     return parsed_args

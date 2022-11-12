@@ -52,6 +52,7 @@ set(EXCLUDED_SOURCE_PATHS_FOR_DEBUG
 set(OBJECT_FILES_FOR_DEBUG
     ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/core_config.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/skip_tests_config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/set_device_name.cpp
     ${DEBUG_SRC_PATH})
 
 addIeTargetTest(

@@ -506,3 +506,28 @@ std::pair<std::string, std::vector<std::string>> parse_parameters(const std::str
     }
     return {filename, layers_names};
 }
+
+std::vector<std::pair<std::string, size_t>> parse_to_extract_port(const std::vector<std::string>& full_names) {
+    std::vector<std::pair<std::string, size_t>> result;
+    for (const auto& full_name : full_names) {
+        auto pos_layer = full_name.rfind(":");
+        if (pos_layer == std::string::npos) {
+            throw std::logic_error("Output " + full_name + " doesn't have a port");
+        }
+        const auto name = full_name.substr(0, pos_layer);
+        try {
+            const size_t port = std::stoul(full_name.substr(pos_layer + 1));
+            result.push_back({name, port});
+        } catch (const std::exception&) {
+            throw std::logic_error("Ports should have integer type");
+        }
+    }
+    return result;
+}
+
+const std::vector<std::string>& get_first_non_empty(const std::vector<std::string>& first,
+                                                    const std::vector<std::string>& second) {
+    if (!first.empty())
+        return first;
+    return second;
+}

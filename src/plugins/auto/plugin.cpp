@@ -16,7 +16,7 @@
 #include <ie_metric_helpers.hpp>
 #include <ie_performance_hints.hpp>
 #include <threading/ie_executor_manager.hpp>
-#include "openvino/runtime/intel_auto/properties.hpp"
+#include "openvino/runtime/auto/properties.hpp"
 #include "plugin.hpp"
 #include <ie_algorithm.hpp>
 #include <ie_icore.hpp>
@@ -443,29 +443,22 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                 LOG_INFO_TAG("load with model path");
             }
         }
-        // replace the configure with configure that auto want to pass to device
-        // and reset the strDevices to support devices
-        auto validConfigKey = PerfHintsConfig::SupportedKeys();
-        validConfigKey.push_back(PluginConfigParams::KEY_PERF_COUNT);
-        validConfigKey.push_back(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS);
+        // reset the strDevices to support devices
         strDevices = "";
         for (auto iter = supportDevices.begin(); iter != supportDevices.end(); iter++) {
-             std::map<std::string, std::string> deviceConfig;
-             auto& configs = iter->config;
-             for (auto& config : configs) {
-                 if (std::find(validConfigKey.begin(), validConfigKey.end(), config.first) != validConfigKey.end()) {
-                     deviceConfig.insert({config.first, config.second});
-                     LOG_INFO_TAG("device:%s, config:%s=%s", iter->deviceName.c_str(),
-                             config.first.c_str(), config.second.c_str());
-                 }
-             }
-             insertPropToConfig(CONFIG_KEY(ALLOW_AUTO_BATCHING), iter->deviceName, deviceConfig);
-             insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), iter->deviceName, deviceConfig);
-             insertPropToConfig(CONFIG_KEY(CACHE_DIR), iter->deviceName, deviceConfig);
-             iter->config = deviceConfig;
-             strDevices += iter->deviceName;
-             strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
-             LOG_INFO_TAG("device:%s, priority:%ld", iter->deviceName.c_str(), iter->devicePriority);
+            auto& configs = iter->config;
+            for (auto& config : configs) {
+                LOG_INFO_TAG("device:%s, config:%s=%s",
+                             iter->deviceName.c_str(),
+                             config.first.c_str(),
+                             config.second.c_str());
+            }
+            insertPropToConfig(CONFIG_KEY(ALLOW_AUTO_BATCHING), iter->deviceName, configs);
+            insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), iter->deviceName, configs);
+            insertPropToConfig(CONFIG_KEY(CACHE_DIR), iter->deviceName, configs);
+            strDevices += iter->deviceName;
+            strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
+            LOG_INFO_TAG("device:%s, priority:%ld", iter->deviceName.c_str(), iter->devicePriority);
         }
         autoSContext->_modelPath = clonedModelPath;
         // clone the network, in case of reshape conflict

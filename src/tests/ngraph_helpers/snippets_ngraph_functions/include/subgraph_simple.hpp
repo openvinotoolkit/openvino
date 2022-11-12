@@ -61,6 +61,23 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 //    std::shared_ptr<ov::Model> initReference() const override;
 };
+// Function is to check for different model precision
+/// Like AddSinhConst but with a Roll instead of Sinh because Roll is movement operation which
+//  supports different precisions but Sinh supports only FP32 in CPU Plugin
+//   in1
+//   Roll     Const
+//        Add
+//      Result
+// The function is needed to check different input element types (model precision change)
+class AddRollConstFunction : public SnippetsFunctionBase {
+public:
+    explicit AddRollConstFunction(const std::vector<Shape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+        NGRAPH_CHECK(input_shapes.size() == 1, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+//    std::shared_ptr<ov::Model> initReference() const override;
+};
 /// Simple Eltwise graph fully convertible to Subgraph.
 /// Tokenized simply by attaching eltwises.
 // in1   in2

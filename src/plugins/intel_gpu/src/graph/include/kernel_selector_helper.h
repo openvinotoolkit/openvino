@@ -115,6 +115,9 @@ struct kernel_impl_params {
     layout output_layout;
     std::vector<tensor> input_offsets;
     std::vector<cldnn::fused_primitive_desc> fused_desc;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    std::vector<cldnn::fused_primitive_desc_onednn> fused_desc_onednn;
+#endif // ENABLE_ONEDNN_FOR_GPU
     std::vector<activation_func> fused_act_funcs;
     std::vector<activation_additional_params> activation_params;
 

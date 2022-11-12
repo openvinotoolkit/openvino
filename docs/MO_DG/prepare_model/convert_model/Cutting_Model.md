@@ -21,7 +21,7 @@ Model Optimizer provides command line options `--input` and `--output` to specif
 
 The `--input` option is required for cases unrelated to model cutting. For example, when the model contains several inputs and `--input_shape` or `--mean_values` options are used, the `--input` option specifies the order of input nodes for correct mapping between multiple items provided in `--input_shape` and `--mean_values` and the inputs in the model. 
 
-Model cutting is illustrated with the Inception V1 model, found in the `models/research/slim` repository. To proceed with this chapter, make sure you do the necessary steps to [prepare the model for Model Optimizer](Converting_Model.md).
+Model cutting is illustrated with the Inception V1 model, found in the `models/research/slim` repository. To proceed with this chapter, make sure you do the necessary steps to [prepare the model for Model Optimizer](@ref openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model).
 
 ## Default Behavior without --input and --output
 
@@ -377,7 +377,7 @@ Different behavior occurs when `--input_shape` is also used as an attempt to ove
 ```sh
 mo --input_model inception_v1.pb--input=InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution --input_shape [1,224,224,3]  --output_dir <OUTPUT_MODEL_DIR>
 ```
-An error occurs (for more information, see the [Model Optimizer FAQ](../Model_Optimizer_FAQ.md#FAQ30)):
+An error occurs (for more information, see the [Model Optimizer FAQ](@ref FAQ30):
 ```sh
 [ ERROR ]  Node InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution has more than 1 input and input shapes were provided.
 Try not to provide input shapes or specify input port with PORT:NODE notation, where PORT is an integer.

@@ -51,6 +51,8 @@ public:
 
     typed_primitive_inst(network& network, reshape_node const& node);
 
+    void update_output_memory() override;
+
 private:
     void on_execute() override;
 

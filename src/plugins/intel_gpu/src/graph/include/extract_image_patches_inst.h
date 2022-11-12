@@ -8,15 +8,6 @@
 #include "primitive_inst.h"
 
 namespace cldnn {
-template <>
-struct typed_program_node<extract_image_patches> : public typed_program_node_base<extract_image_patches> {
-    using parent = typed_program_node_base<extract_image_patches>;
-
-public:
-    using parent::parent;
-
-    program_node& input(size_t index = 0) const { return get_dependency(index); }
-};
 
 using extract_image_patches_node = typed_program_node<extract_image_patches>;
 

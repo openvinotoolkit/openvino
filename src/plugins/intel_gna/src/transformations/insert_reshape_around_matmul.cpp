@@ -11,7 +11,7 @@
 #include <transformations/utils/utils.hpp>
 #include <ie/ie_common.h>
 
-#include "gna_plugin_log.hpp"
+#include "log/debug.hpp"
 
 using namespace ov::intel_gna::pass;
 

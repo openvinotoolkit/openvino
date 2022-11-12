@@ -17,7 +17,7 @@ namespace cldnn {
 namespace cpu {
 
 using namespace cldnn::cpu;
-
+namespace {
 struct result_indices {
     float score;
     int batch_index;
@@ -377,6 +377,8 @@ void run(non_max_suppression_inst& instance) {
 
     store_result(stream, instance.output_memory_ptr(), result);
 }
+
+}  // namespace
 
 struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
     using parent = typed_primitive_impl<non_max_suppression>;
