@@ -16,15 +16,15 @@
 
 #include "gtest/gtest.h"
 
+using namespace testing;
+
 using NodePtr = std::shared_ptr<ov::Node>;
-using ModelPtr = std::shared_ptr<ov::Model>;
 
-TEST(TransposeSinkingGeneralTests, UnariesTransposesForward) {
+TEST_F(TransformationTestsF, TransposeSinkingGeneralTestUnariesTransposesForward) {
     ov::Shape input_shape = {1, 96, 55, 55};
     ov::element::Type input_type = ov::element::f32;
     size_t num_unary_ops = 10;
 
-    ModelPtr model, original_model, reference_model;
     {
         auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
 
@@ -39,7 +39,7 @@ TEST(TransposeSinkingGeneralTests, UnariesTransposesForward) {
             in_op = std::make_shared<ov::opset9::Transpose>(unary, ng_order1);
         }
 
-        original_model = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
+        function = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
     }
 
     {
@@ -50,30 +50,17 @@ TEST(TransposeSinkingGeneralTests, UnariesTransposesForward) {
             in_op = std::make_shared<ov::opset9::Tanh>(in_op);
         }
 
-        reference_model = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
+        function_ref = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
     }
 
-    model = original_model->clone();
-
-    //
-    ngraph::pass::Manager pass_manager;
-    pass_manager.register_pass<ngraph::pass::InitNodeInfo>();
-    pass_manager.register_pass<ov::pass::TransposeSinkingGeneralForward>();
-    pass_manager.run_passes(model);
-    ASSERT_NO_THROW(check_rt_info(model));
-    //
-    FunctionsComparator func_comparator = FunctionsComparator::with_default();
-    func_comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    const FunctionsComparator::Result result = func_comparator(model, reference_model);
-    ASSERT_TRUE(result.valid) << result.message;
+    manager.register_pass<ov::pass::TransposeSinkingGeneralForward>();
 }
 
-TEST(TransposeSinkingGeneralTests, UnariesTransposesBackward) {
+TEST_F(TransformationTestsF, TransposeSinkingGeneralTestUnariesTransposesBackward) {
     ov::Shape input_shape = {1, 96, 55, 55};
     ov::element::Type input_type = ov::element::f32;
     size_t num_unary_ops = 10;
 
-    ModelPtr model, original_model, reference_model;
     {
         auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
 
@@ -88,7 +75,7 @@ TEST(TransposeSinkingGeneralTests, UnariesTransposesBackward) {
             in_op = std::make_shared<ov::opset9::Transpose>(unary, ng_order1);
         }
 
-        original_model = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
+        function = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
     }
 
     {
@@ -99,30 +86,17 @@ TEST(TransposeSinkingGeneralTests, UnariesTransposesBackward) {
             in_op = std::make_shared<ov::opset9::Tanh>(in_op);
         }
 
-        reference_model = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
+        function_ref = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
     }
 
-    model = original_model->clone();
-
-    //
-    ngraph::pass::Manager pass_manager;
-    pass_manager.register_pass<ngraph::pass::InitNodeInfo>();
-    pass_manager.register_pass<ov::pass::TransposeSinkingGeneralBackward>();
-    pass_manager.run_passes(model);
-    ASSERT_NO_THROW(check_rt_info(model));
-    //
-    FunctionsComparator func_comparator = FunctionsComparator::with_default();
-    func_comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    const FunctionsComparator::Result result = func_comparator(model, reference_model);
-    ASSERT_TRUE(result.valid) << result.message;
+    manager.register_pass<ov::pass::TransposeSinkingGeneralBackward>();
 }
 
-TEST(TransposeSinkingGeneralTests, UnariesTransposesGeneral) {
+TEST_F(TransformationTestsF, TransposeSinkingGeneralTestUnariesTransposesGeneral) {
     ov::Shape input_shape = {1, 96, 55, 55};
     ov::element::Type input_type = ov::element::f32;
-    size_t num_unary_ops = 2;
+    size_t num_unary_ops = 10;
 
-    ModelPtr model, original_model, reference_model;
     {
         auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
 
@@ -140,7 +114,7 @@ TEST(TransposeSinkingGeneralTests, UnariesTransposesGeneral) {
             in_op = std::make_shared<ov::opset9::Transpose>(unary, ng_order1);
         }
 
-        original_model = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
+        function = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
     }
 
     {
@@ -154,30 +128,17 @@ TEST(TransposeSinkingGeneralTests, UnariesTransposesGeneral) {
         auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
         auto transpose0 = std::make_shared<ov::opset9::Transpose>(in_op, ng_order0);
 
-        reference_model = std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
+        function_ref = std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
     }
 
-    model = original_model->clone();
-
-    //
-    ngraph::pass::Manager pass_manager;
-    pass_manager.register_pass<ngraph::pass::InitNodeInfo>();
-    pass_manager.register_pass<ov::pass::TransposeSinkingGeneral>();
-    pass_manager.run_passes(model);
-    ASSERT_NO_THROW(check_rt_info(model));
-    //
-    FunctionsComparator func_comparator = FunctionsComparator::with_default();
-    func_comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    const FunctionsComparator::Result result = func_comparator(model, reference_model);
-    ASSERT_TRUE(result.valid) << result.message;
+    manager.register_pass<ov::pass::TransposeSinkingGeneral>();
 }
 
-TEST(TransposeSinkingGeneralTests, BinaryTransposesGeneral) {
+TEST_F(TransformationTestsF, TransposeSinkingGeneralTestBinaryGeneral) {
     ov::Shape input_shape = {1, 96, 55, 55};
     ov::element::Type input_type = ov::element::f32;
-    size_t num_binary_ops = 3;
+    size_t num_binary_ops = 10;
 
-    ModelPtr model, original_model, reference_model;
     {
         auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
 
@@ -193,7 +154,7 @@ TEST(TransposeSinkingGeneralTests, BinaryTransposesGeneral) {
             in_op = std::make_shared<ov::opset9::Add>(in_op, transpose1);
         }
 
-        original_model = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
+        function = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
     }
 
     {
@@ -208,31 +169,18 @@ TEST(TransposeSinkingGeneralTests, BinaryTransposesGeneral) {
         auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
         auto transpose0 = std::make_shared<ov::opset9::Transpose>(in_op, ng_order0);
 
-        reference_model = std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
+        function_ref = std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
     }
 
-    model = original_model->clone();
-
-    //
-    ngraph::pass::Manager pass_manager;
-    pass_manager.register_pass<ngraph::pass::InitNodeInfo>();
-    pass_manager.register_pass<ov::pass::TransposeSinkingGeneral>();
-    pass_manager.run_passes(model);
-    ASSERT_NO_THROW(check_rt_info(model));
-    //
-    FunctionsComparator func_comparator = FunctionsComparator::with_default();
-    func_comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    const FunctionsComparator::Result result = func_comparator(model, reference_model);
-    ASSERT_TRUE(result.valid) << result.message;
+    manager.register_pass<ov::pass::TransposeSinkingGeneral>();
 }
 
-TEST(TransposeSinkingGeneralTests, ConcatTransposesGeneral) {
+TEST_F(TransformationTestsF, TransposeSinkingGeneralTestConcatGeneral) {
     ov::Shape input_shape = {1, 96, 55, 55};
     ov::element::Type input_type = ov::element::f32;
     const size_t num_concat_ops = 3;
     const size_t num_concat_inputs = 2;
 
-    ModelPtr model, original_model, reference_model;
     {
         auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
 
@@ -253,7 +201,7 @@ TEST(TransposeSinkingGeneralTests, ConcatTransposesGeneral) {
             in_op = std::make_shared<ov::opset9::Concat>(concat_inputs, 1);
         }
 
-        original_model = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
+        function = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
     }
 
     {
@@ -275,23 +223,13 @@ TEST(TransposeSinkingGeneralTests, ConcatTransposesGeneral) {
         auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
         auto transpose0 = std::make_shared<ov::opset9::Transpose>(in_op, ng_order0);
 
-        reference_model = std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
+        function_ref = std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
     }
 
-    model = original_model->clone();
-
-    //
-    ngraph::pass::Manager pass_manager;
-    pass_manager.register_pass<ngraph::pass::InitNodeInfo>();
-    pass_manager.register_pass<ov::pass::TransposeSinkingGeneral>();
-    pass_manager.run_passes(model);
-    ASSERT_NO_THROW(check_rt_info(model));
-    //
-    FunctionsComparator func_comparator = FunctionsComparator::with_default();
-    func_comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    const FunctionsComparator::Result result = func_comparator(model, reference_model);
-    ASSERT_TRUE(result.valid) << result.message;
+    manager.register_pass<ov::pass::TransposeSinkingGeneral>();
 }
+
+// ----------------------------------------------------------------------------------------------------------------------
 
 class IFactory {
 public:
@@ -408,11 +346,10 @@ NodePtr MakeAllNodesSubgraph(NodePtr parent, size_t split_axis, size_t concat_ax
     return in_op;
 }
 
-TEST(TransposeSinkingGeneralTests, AllNodesTransposesGeneral) {
+TEST_F(TransformationTestsF, TransposeSinkingGeneralTestMultipleTypes) {
     ov::Shape input_shape = {1, 96, 40, 55};
     ov::element::Type input_type = ov::element::f32;
 
-    ModelPtr model, original_model, reference_model;
     {
         auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
 
@@ -429,7 +366,7 @@ TEST(TransposeSinkingGeneralTests, AllNodesTransposesGeneral) {
 
         auto node1 = MakeAllNodesSubgraph(transpose1, 1, 1);
 
-        original_model = std::make_shared<ov::Model>(node1, ov::ParameterVector{X});
+        function = std::make_shared<ov::Model>(node1, ov::ParameterVector{X});
     }
 
     {
@@ -448,20 +385,8 @@ TEST(TransposeSinkingGeneralTests, AllNodesTransposesGeneral) {
         auto ng_order1 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
         auto transpose1 = std::make_shared<ov::opset9::Transpose>(node1, ng_order1);
 
-        reference_model = std::make_shared<ov::Model>(transpose1, ov::ParameterVector{X});
+        function_ref = std::make_shared<ov::Model>(transpose1, ov::ParameterVector{X});
     }
 
-    model = original_model->clone();
-
-    //
-    ngraph::pass::Manager pass_manager;
-    pass_manager.register_pass<ngraph::pass::InitNodeInfo>();
-    pass_manager.register_pass<ov::pass::TransposeSinkingGeneral>();
-    pass_manager.run_passes(model);
-    ASSERT_NO_THROW(check_rt_info(model));
-    //
-    FunctionsComparator func_comparator = FunctionsComparator::with_default();
-    func_comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    const FunctionsComparator::Result result = func_comparator(model, reference_model);
-    ASSERT_TRUE(result.valid) << result.message;
+    manager.register_pass<ov::pass::TransposeSinkingGeneral>();
 }
