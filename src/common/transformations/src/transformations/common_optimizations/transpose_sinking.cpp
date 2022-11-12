@@ -3,7 +3,6 @@
 //
 
 #include "transformations/common_optimizations/transpose_sinking.hpp"
-#include "transformations/common_optimizations/transpose_sinking_utils.hpp"
 
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
@@ -14,6 +13,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "transformations/common_optimizations/transpose_sinking_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
