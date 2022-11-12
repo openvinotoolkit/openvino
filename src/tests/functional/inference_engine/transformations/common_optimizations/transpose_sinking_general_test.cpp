@@ -16,8 +16,6 @@
 
 #include "gtest/gtest.h"
 
-#include "ngraph/pass/visualize_tree.hpp" // DEBUG
-
 using NodePtr = std::shared_ptr<ov::Node>;
 using ModelPtr = std::shared_ptr<ov::Model>;
 
@@ -35,10 +33,10 @@ TEST(TransposeSinkingGeneralTests, UnariesTransposesForward) {
             auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
             auto transpose0 = std::make_shared<ov::opset9::Transpose>(in_op, ng_order0);
 
-            auto binary = std::make_shared<ov::opset9::Tanh>(transpose0);
+            auto unary = std::make_shared<ov::opset9::Tanh>(transpose0);
 
             auto ng_order1 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
-            in_op = std::make_shared<ov::opset9::Transpose>(binary, ng_order1);
+            in_op = std::make_shared<ov::opset9::Transpose>(unary, ng_order1);
         }
 
         original_model = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
@@ -84,10 +82,10 @@ TEST(TransposeSinkingGeneralTests, UnariesTransposesBackward) {
             auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
             auto transpose0 = std::make_shared<ov::opset9::Transpose>(in_op, ng_order0);
 
-            auto binary = std::make_shared<ov::opset9::Tanh>(transpose0);
+            auto unary = std::make_shared<ov::opset9::Tanh>(transpose0);
 
             auto ng_order1 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
-            in_op = std::make_shared<ov::opset9::Transpose>(binary, ng_order1);
+            in_op = std::make_shared<ov::opset9::Transpose>(unary, ng_order1);
         }
 
         original_model = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
@@ -136,10 +134,10 @@ TEST(TransposeSinkingGeneralTests, UnariesTransposesGeneral) {
             auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
             auto transpose0 = std::make_shared<ov::opset9::Transpose>(in_op, ng_order0);
 
-            auto binary = std::make_shared<ov::opset9::Tanh>(transpose0);
+            auto unary = std::make_shared<ov::opset9::Tanh>(transpose0);
 
             auto ng_order1 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
-            in_op = std::make_shared<ov::opset9::Transpose>(binary, ng_order1);
+            in_op = std::make_shared<ov::opset9::Transpose>(unary, ng_order1);
         }
 
         original_model = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
@@ -278,6 +276,179 @@ TEST(TransposeSinkingGeneralTests, ConcatTransposesGeneral) {
         auto transpose0 = std::make_shared<ov::opset9::Transpose>(in_op, ng_order0);
 
         reference_model = std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
+    }
+
+    model = original_model->clone();
+
+    //
+    ngraph::pass::Manager pass_manager;
+    pass_manager.register_pass<ngraph::pass::InitNodeInfo>();
+    pass_manager.register_pass<ov::pass::TransposeSinkingGeneral>();
+    pass_manager.run_passes(model);
+    ASSERT_NO_THROW(check_rt_info(model));
+    //
+    FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    func_comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    const FunctionsComparator::Result result = func_comparator(model, reference_model);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+class IFactory {
+public:
+    virtual ~IFactory() = default;
+    virtual NodePtr create(const ov::OutputVector & parent) = 0;
+
+    virtual size_t getNumInputs() const = 0;
+    virtual size_t getNumOuputs() const = 0;
+};
+
+using FactoryPtr = std::shared_ptr<IFactory>;
+
+class UnaryFactory : public IFactory {
+public:
+    NodePtr create(const ov::OutputVector & parent) override {
+        return std::make_shared<ov::opset9::Sinh>(parent.front());
+    }
+
+    static FactoryPtr createFactory() {
+        return std::make_shared<UnaryFactory>();
+    }
+
+    size_t getNumInputs() const override { return 1; }
+    size_t getNumOuputs() const override { return 1; }
+};
+
+class BinaryFactory : public IFactory {
+public:
+    NodePtr create(const ov::OutputVector & parent) override {
+        return std::make_shared<ov::opset9::Add>(parent[0], parent[1]);
+    }
+
+    static FactoryPtr createFactory() {
+        return std::make_shared<BinaryFactory>();
+    }
+
+    size_t getNumInputs() const override { return 2; }
+    size_t getNumOuputs() const override { return 1; }
+};
+
+class SplitFactory : public IFactory {
+public:
+    SplitFactory(size_t axis) : axis_(axis) {}
+    NodePtr create(const ov::OutputVector & parent) override {
+        auto split_axis_const = std::make_shared<ov::opset9::Constant>(ov::element::u64,
+                                                                       ov::Shape{},
+                                                                       axis_);
+        return std::make_shared<ov::opset9::Split>(parent.front(), split_axis_const, 2);
+    }
+
+    static FactoryPtr createFactory(size_t axis) {
+        return std::make_shared<SplitFactory>(axis);
+    }
+
+    size_t getNumInputs() const override { return 1; }
+    size_t getNumOuputs() const override { return 2; }
+private:
+    const size_t axis_;
+};
+
+class ConcatFactory : public IFactory {
+public:
+    ConcatFactory(size_t axis) : axis_(axis) {}
+    NodePtr create(const ov::OutputVector & parent) override {
+        return std::make_shared<ov::opset9::Concat>(parent, axis_);
+    }
+
+    static FactoryPtr createFactory(size_t axis) {
+        return std::make_shared<ConcatFactory>(axis);
+    }
+
+    size_t getNumInputs() const override { return 2; }
+    size_t getNumOuputs() const override { return 1; }
+private:
+    const size_t axis_;
+};
+
+/* 
+    Each node pair should be started with input size = 1 node and finished with node output size = 1
+    Insert Split/Concat to fullfill that.
+*/
+NodePtr CreateNodePair(FactoryPtr factory_first, FactoryPtr factory_second, NodePtr parent, size_t split_axis, size_t concat_axis) {
+    NodePtr input = parent;
+    if (factory_first->getNumInputs() != 1) {
+        input = SplitFactory(split_axis).create(input->outputs());
+    }
+
+    input = factory_first->create(input->outputs());
+    if (factory_first->getNumOuputs() < factory_second->getNumInputs()) {
+        input = SplitFactory(split_axis).create(input->outputs());
+    } else if (factory_first->getNumOuputs() > factory_second->getNumInputs()) {
+        input = ConcatFactory(concat_axis).create(input->outputs());
+    }
+
+    auto output = factory_second->create(input->outputs());
+    if (output->get_output_size() > 1) {
+        output = ConcatFactory(concat_axis).create(output->outputs());
+    }
+
+    return output;
+}
+
+NodePtr MakeAllNodesSubgraph(NodePtr parent, size_t split_axis, size_t concat_axis) {
+    std::vector<FactoryPtr> factories = { UnaryFactory::createFactory(),
+                                          SplitFactory::createFactory(split_axis),
+                                          ConcatFactory::createFactory(concat_axis) };
+    NodePtr in_op = parent;
+    for (int i = 0; i < factories.size(); ++i) {
+        for (int j = 0; j < factories.size(); ++j) {
+            in_op = CreateNodePair(factories[i], factories[j], in_op, split_axis, concat_axis);
+        }
+    }
+
+    return in_op;
+}
+
+TEST(TransposeSinkingGeneralTests, AllNodesTransposesGeneral) {
+    ov::Shape input_shape = {1, 96, 40, 55};
+    ov::element::Type input_type = ov::element::f32;
+
+    ModelPtr model, original_model, reference_model;
+    {
+        auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+
+        auto node0 = MakeAllNodesSubgraph(X, 1, 1);
+
+        auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+        auto transpose0 = std::make_shared<ov::opset9::Transpose>(node0, ng_order0);
+
+        auto reshape_const = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{1, 40, 55, 96});
+        auto reshape = std::make_shared<ov::opset9::Reshape>(transpose0, reshape_const, false);
+
+        auto ng_order1 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+        auto transpose1 = std::make_shared<ov::opset9::Transpose>(reshape, ng_order1);
+
+        auto node1 = MakeAllNodesSubgraph(transpose1, 1, 1);
+
+        original_model = std::make_shared<ov::Model>(node1, ov::ParameterVector{X});
+    }
+
+    {
+        auto X = std::make_shared<ov::opset9::Parameter>(input_type, input_shape);
+
+        auto ng_order0 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+        auto transpose0 = std::make_shared<ov::opset9::Transpose>(X, ng_order0);
+
+        auto node0 = MakeAllNodesSubgraph(transpose0, 3, 3);
+
+        auto reshape_const = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{1, 40, 55, 96});
+        auto reshape = std::make_shared<ov::opset9::Reshape>(node0, reshape_const, false);
+
+        auto node1 = MakeAllNodesSubgraph(reshape, 3, 3);
+
+        auto ng_order1 = std::make_shared<ov::opset9::Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+        auto transpose1 = std::make_shared<ov::opset9::Transpose>(node1, ng_order1);
+
+        reference_model = std::make_shared<ov::Model>(transpose1, ov::ParameterVector{X});
     }
 
     model = original_model->clone();
