@@ -48,6 +48,7 @@ jobs:
     MODELS_PATH: $(REPO_DIR)\..\testdata
     WORK_DIR: $(Pipeline.Workspace)\_w
     BUILD_DIR: $(WORK_DIR)\build
+    BUILD_DIR_2: $(WORK_DIR)\build_s
     MSVS_VARS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
     MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
     INSTALL_DIR: $(WORK_DIR)\install_pkg
@@ -70,6 +71,7 @@ jobs:
   - script: |
       rd /Q /S $(WORK_DIR) & mkdir $(WORK_DIR)
       rd /Q /S $(BUILD_DIR) & mkdir $(BUILD_DIR)
+      rd /Q /S $(BUILD_DIR_2) & mkdir $(BUILD_DIR_2)
     displayName: 'Make dir'
 
   - checkout: self
@@ -92,7 +94,7 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && cmake -G"Visual Studio 16 2019" ^
+      call "$(MSVS_VARS_PATH)" && cmake -GNinja ^
         -DENABLE_FASTER_BUILD=ON ^
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
@@ -157,11 +159,11 @@ jobs:
         -DENABLE_OV_PADDLE_FRONTEND=OFF ^
         -DENABLE_OV_TF_FRONTEND=OFF ^
         $(REPO_DIR)
-    workingDirectory: $(BUILD_DIR)
+    workingDirectory: $(BUILD_DIR_2)
     displayName: 'CMake2'
 
   - script: cmake --build . --config $(BUILD_TYPE)
-    workingDirectory: $(BUILD_DIR)
+    workingDirectory: $(BUILD_DIR_2)
     displayName: 'Build WinCC ON'
 
   - script: dir $(REPO_DIR)\bin\ /s

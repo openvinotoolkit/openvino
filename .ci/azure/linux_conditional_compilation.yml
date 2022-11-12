@@ -190,8 +190,8 @@ jobs:
       mkdir artifacts
       cp $(BUILD_DIR)/*.csv artifacts/
       cp $(BUILD_DIR)/src/common/conditional_compilation/conditional_compilation_gen.h artifacts/
-      zip -9 -r $(Build.ArtifactStagingDirectory)/openvino_cc_linux.zip ./artifacts/*
-    displayName: 'Create OpenVINO ARM64 linux package'
+      cp -r ./artifacts $(Build.ArtifactStagingDirectory) 
+    displayName: 'Create OpenVINO CC Artifacts'
 
   - task: PublishBuildArtifacts@1
     inputs:
