@@ -187,6 +187,19 @@ jobs:
     displayName: 'List bin files ON'
 
   - script: |
+      mkdir artifacts
+      cp $(BUILD_DIR)/*.csv artifacts/
+      cp $(BUILD_DIR)/src/common/conditional_compilation/conditional_compilation_gen.h artifacts/
+      zip -9 -r $(Build.ArtifactStagingDirectory)/openvino_cc_linux.zip ./artifacts/*
+    displayName: 'Create OpenVINO ARM64 linux package'
+
+  - task: PublishBuildArtifacts@1
+    inputs:
+      pathToPublish: $(Build.ArtifactStagingDirectory)
+      artifactName: 'openvino_c_linux'
+    displayName: 'Publish OpenVINO CC linux artifacts'
+
+  - script: |
       $(REPO_DIR)/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 -m $(MODELS_PATH)/models/test_model/test_model_fp32.xml -d CPU
     workingDirectory: $(REPO_DIR)
     displayName: 'Use OpenVINO after CC'
