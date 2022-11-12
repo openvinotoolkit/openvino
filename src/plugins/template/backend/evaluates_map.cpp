@@ -4239,6 +4239,8 @@ void execute_unique(const HostTensorVector& outputs,
                                out_rev_indices->get_data_ptr<Index_t>(),
                                out_counts->get_data_ptr<int64_t>(),
                                inputs[0]->get_data_ptr<Data_t>(),
+                               inputs[0]->get_shape(),
+                               std::get<0>(tensor_shapes),
                                unique_elements);
 }
 

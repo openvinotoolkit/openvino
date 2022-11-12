@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "gather.hpp"
 #include "ngraph/shape.hpp"
 
 namespace ngraph {
@@ -42,6 +43,7 @@ template <typename Index_t, typename Count_t>
 struct UniqueElements {
     std::vector<TensorSlice<Index_t, Count_t>> all_tensor_elements;
     std::vector<TensorSlice<Index_t, Count_t>> unique_tensor_elements;
+    int64_t axis = 0;
 };
 
 namespace {
@@ -95,14 +97,14 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
         return *(data + lhs.idx) < *(data + rhs.idx);
     };
 
-    const auto slices_are_equal = [&data](const TensorSlice<Index_t, Count_t>& lhs,
-                                          const TensorSlice<Index_t, Count_t>& rhs) {
-        return false;
-    };
-
     const auto elements_are_equal = [&data](const TensorSlice<Index_t, Count_t>& lhs,
                                             const TensorSlice<Index_t, Count_t>& rhs) {
         return *(data + lhs.idx) == *(data + rhs.idx);
+    };
+
+    const auto slices_are_equal = [&data](const TensorSlice<Index_t, Count_t>& lhs,
+                                          const TensorSlice<Index_t, Count_t>& rhs) {
+        return false;
     };
 
     const auto already_unique = [&elements_are_equal](const TensorSlice<Index_t, Count_t>& existing_unique_elem) {
@@ -156,6 +158,7 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
             }
         }
     } else {
+        ret.axis = *axis;
         ret.all_tensor_elements = generate_slice_descriptors<Index_t, Count_t>(data_shape, *axis);
 
         ret.all_tensor_elements[0].rev_idx = 0;
@@ -192,6 +195,9 @@ std::tuple<Shape, Shape, Shape> make_tensor_shapes(const UniqueElements<Index_t,
                                                    const Shape& data_shape,
                                                    std::unique_ptr<int64_t> axis) {
     if (axis) {
+        // if the axis was specified we need to return a data shape with a modified dimention-at-axis
+        // this is where we need to insert the number of detected unique elements
+        // all other dimensions stay the same as in the original data_shape
         auto output0 = data_shape;
         output0[*axis] = unique_elements.unique_tensor_elements.size();
         const auto output1_3 = Shape{unique_elements.unique_tensor_elements.size()};
@@ -211,23 +217,42 @@ void unique(Data_t* out_unique_elements,
             Index_t* out_rev_indices,
             Count_t* out_counts,
             const Data_t* data,
-            const UniqueElements<Index_t, Count_t>& unique_elements) {
-    for (size_t i = 0; i < unique_elements.unique_tensor_elements.size(); ++i) {
-        const auto& descriptor = unique_elements.unique_tensor_elements[i];
-        if (descriptor.single_value) {
+            const Shape& data_shape,
+            const Shape& out_shape,
+            const UniqueElements<Index_t, Count_t>& descriptors) {
+    if (descriptors.unique_tensor_elements[0].single_value) {
+        for (size_t i = 0; i < descriptors.unique_tensor_elements.size(); ++i) {
+            const auto& descriptor = descriptors.unique_tensor_elements[i];
             out_unique_elements[i] = *(data + descriptor.idx);
             out_indices[i] = descriptor.idx;
             out_counts[i] = descriptor.count;
-        } else {
-            std::cout << "Not implemented yet\n";
         }
+    } else {
+        std::vector<Index_t> indices;
+        indices.reserve(descriptors.unique_tensor_elements.size());
+
+        for (size_t i = 0; i < descriptors.unique_tensor_elements.size(); ++i) {
+            const auto& descriptor = descriptors.unique_tensor_elements[i];
+            out_indices[i] = descriptor.idx;
+            out_counts[i] = descriptor.count;
+
+            indices.push_back(descriptor.idx);
+        }
+
+        ngraph::runtime::reference::gather(data,
+                                           indices.data(),
+                                           out_unique_elements,
+                                           data_shape,
+                                           Shape{descriptors.unique_tensor_elements.size()},
+                                           out_shape,
+                                           descriptors.axis);
     }
 
     // filling out this output tensor requires a separate pass over all elements of the input tensor
     // for each input element we need to output and index fo that element in the first output tensor
     // additionally if sorting was involved the "all_tensor_elements" might be ordered differently than the elements
     // in the original input tensor - this is why descriptor.idx is used for indexing the output tensor below
-    for (const auto& descriptor : unique_elements.all_tensor_elements) {
+    for (const auto& descriptor : descriptors.all_tensor_elements) {
         out_rev_indices[descriptor.idx] = descriptor.rev_idx;
     }
 }
