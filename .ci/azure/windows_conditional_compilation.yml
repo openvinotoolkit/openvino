@@ -48,7 +48,6 @@ jobs:
     MODELS_PATH: $(REPO_DIR)\..\testdata
     WORK_DIR: $(Pipeline.Workspace)\_w
     BUILD_DIR: $(WORK_DIR)\build
-    BUILD_DIR_2: $(WORK_DIR)\build_s
     MSVS_VARS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
     MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
     INSTALL_DIR: $(WORK_DIR)\install_pkg
@@ -71,7 +70,6 @@ jobs:
   - script: |
       rd /Q /S $(WORK_DIR) & mkdir $(WORK_DIR)
       rd /Q /S $(BUILD_DIR) & mkdir $(BUILD_DIR)
-      rd /Q /S $(BUILD_DIR_2) & mkdir $(BUILD_DIR_2)
     displayName: 'Make dir'
 
   - checkout: self
@@ -102,6 +100,19 @@ jobs:
         -DSELECTIVE_BUILD=COLLECT ^
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
+        -DENABLE_CLDNN=OFF ^
+        -DENABLE_INTEL_GPU=OFF ^
+        -DENABLE_MULTI=OFF ^
+        -DENABLE_AUTO=OFF ^
+        -DENABLE_AUTO_BATCH=OFF ^
+        -DENABLE_HETERO=OFF ^
+        -DENABLE_TEMPLATE=OFF ^
+        -DENABLE_INTEL_MYRIAD=OFF ^
+        -DENABLE_INTEL_MYRIAD_COMMON=OFF ^
+        -DENABLE_TESTS=OFF ^
+        -DENABLE_OV_ONNX_FRONTEND=OFF ^
+        -DENABLE_OV_PADDLE_FRONTEND=OFF ^
+        -DENABLE_OV_TF_FRONTEND=OFF ^
         $(REPO_DIR)
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
@@ -118,18 +129,45 @@ jobs:
     displayName: 'List bin files'
 
   - script: |
-      call "$(MSVS_VARS_PATH)" && python thirdparty\itt_collector\runtool\sea_runtool.py --bindir $(REPO_DIR)\bin\intel64\$(BUILD_TYPE) -o $(BUILD_DIR)\itt_stat ! $(REPO_DIR)\bin\intel64\$(BUILD_TYPE)\benchmark_app.exe -niter 1 -nireq 1 -m $(MODELS_PATH)\models\test_model\test_model_fp32.xml
+      call "$(MSVS_VARS_PATH)" && python thirdparty\itt_collector\runtool\sea_runtool.py --bindir $(REPO_DIR)\bin\intel64\$(BUILD_TYPE) -o $(BUILD_DIR)\itt_stat ! $(REPO_DIR)\bin\intel64\$(BUILD_TYPE)\benchmark_app.exe -niter 1 -nireq 1 -m $(MODELS_PATH)\models\test_model\test_model_fp32.xml -d CPU
     workingDirectory: $(REPO_DIR)
     displayName: 'Code usage analysis'
 
   - script: |
-      call "$(MSVS_VARS_PATH)" && cmake -G"Visual Studio 16 2019" -DVERBOSE_BUILD=ON -DENABLE_FASTER_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PROFILING_ITT=OFF -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=$(BUILD_DIR)\*.csv -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(REPO_DIR)
-    workingDirectory: $(BUILD_DIR_2)
+      call "$(MSVS_VARS_PATH)" && cmake -G"Visual Studio 16 2019" ^
+        -DVERBOSE_BUILD=ON ^
+        -DENABLE_FASTER_BUILD=ON ^
+        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
+        -DENABLE_PROFILING_ITT=OFF ^
+        -DSELECTIVE_BUILD=ON ^
+        -DSELECTIVE_BUILD_STAT=$(BUILD_DIR)\*.csv ^
+        -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
+        -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
+        -DENABLE_CLDNN=OFF ^
+        -DENABLE_INTEL_GPU=OFF ^
+        -DENABLE_MULTI=OFF ^
+        -DENABLE_AUTO=OFF ^
+        -DENABLE_AUTO_BATCH=OFF ^
+        -DENABLE_HETERO=OFF ^
+        -DENABLE_TEMPLATE=OFF ^
+        -DENABLE_INTEL_MYRIAD=OFF ^
+        -DENABLE_INTEL_MYRIAD_COMMON=OFF ^
+        -DENABLE_TESTS=OFF ^
+        -DENABLE_OV_ONNX_FRONTEND=OFF ^
+        -DENABLE_OV_PADDLE_FRONTEND=OFF ^
+        -DENABLE_OV_TF_FRONTEND=OFF ^
+        $(REPO_DIR)
+    workingDirectory: $(BUILD_DIR)
     displayName: 'CMake2'
 
   - script: cmake --build . --config $(BUILD_TYPE)
-    workingDirectory: $(BUILD_DIR_2)
+    workingDirectory: $(BUILD_DIR)
     displayName: 'Build WinCC ON'
 
   - script: dir $(REPO_DIR)\bin\ /s
     displayName: 'List bin files ON'
+
+  - script: |
+      $(REPO_DIR)\bin\intel64\$(BUILD_TYPE)\benchmark_app.exe -niter 1 -nireq 1 -m $(MODELS_PATH)\models\test_model\test_model_fp32.xml -d CPU
+    workingDirectory: $(REPO_DIR)
+    displayName: 'Use OpenVINO after CC'
