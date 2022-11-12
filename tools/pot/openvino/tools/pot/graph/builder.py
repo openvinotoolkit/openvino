@@ -52,25 +52,25 @@ def make_copy_fake_quantize(nodes, edges, fq):
         fq_attrs['levels'] = int(fq_attrs['levels'])
 
     nodes.extend([
-        (fq.name, fq.type, fq_attrs),
-        (input_low.name, input_low.type,
+        (fq.fullname, fq.type, fq_attrs),
+        (input_low.fullname, input_low.type,
          {'value': input_low.value}),
-        (input_height.name, input_height.type,
+        (input_height.fullname, input_height.type,
          {'value': input_height.value}),
-        (output_low.name, output_low.type,
+        (output_low.fullname, output_low.type,
          {'value': output_low.value}),
-        (output_height.name, output_height.type,
+        (output_height.fullname, output_height.type,
          {'value': output_height.value}),
-        (weights.name, weights.type, {'value': weights.value.copy()})])
+        (weights.fullname, weights.type, {'value': weights.value.copy()})])
 
     edges.extend([
-        (weights.name, fq.name, {'out': 0, 'in': 0}),
-        (input_low.name, fq.name, {'out': 0, 'in': 1}),
-        (input_height.name, fq.name, {'out': 0, 'in': 2}),
-        (output_low.name, fq.name, {'out': 0, 'in': 3}),
-        (output_height.name, fq.name, {'out': 0, 'in': 4})
+        (weights.fullname, fq.fullname, {'out': 0, 'in': 0}),
+        (input_low.fullname, fq.fullname, {'out': 0, 'in': 1}),
+        (input_height.fullname, fq.fullname, {'out': 0, 'in': 2}),
+        (output_low.fullname, fq.fullname, {'out': 0, 'in': 3}),
+        (output_height.fullname, fq.fullname, {'out': 0, 'in': 4})
     ])
-    return fq.name
+    return fq.fullname
 
 
 def make_copy_graph_attrs(model, input_name, input_shape):
@@ -95,7 +95,7 @@ def make_copy_graph_attrs(model, input_name, input_shape):
 
 
 def build_graph_for_node(model, input_name, input_shape, node, remove_bias=False, remove_fake_quantize=False):
-    """ Build the Graph (input - node - output). The Convolution, FullyConnected node types are supported.
+    """ Build the Graph (input - node - output). The Convolution, MatMul node types are supported.
      :param model: source model
      :param input_name: name of the input node in the generated graph
      :param input_shape: shape of the input node in the generated graph
@@ -113,36 +113,36 @@ def build_graph_for_node(model, input_name, input_shape, node, remove_bias=False
     if node.has_valid('output') and node.has_valid('get_output_feature_dim'):
         node_attrs['get_output_feature_dim'] = None
 
-    nodes.append((node.name, node.type, node_attrs))
-    edges.append((input_name, node.name, {'out': 0, 'in': 0}))
+    nodes.append((node.fullname, node.type, node_attrs))
+    edges.append((input_name, node.fullname, {'out': 0, 'in': 0}))
 
     parent_nodes = get_node_inputs(node)
     if parent_nodes[1].type == 'FakeQuantize' and not remove_fake_quantize:
         fq = parent_nodes[1]
         fq_name = make_copy_fake_quantize(nodes, edges, fq)
-        edges.append((fq_name, node.name, {'out': 0, 'in': 1}))
+        edges.append((fq_name, node.fullname, {'out': 0, 'in': 1}))
     else:
         weights = parent_nodes[1]
-        nodes.append((weights.name, weights.type, {'value': weights.value.copy()}))
-        edges.append((weights.name, node.name, {'out': 0, 'in': 1}))
+        nodes.append((weights.fullname, weights.type, {'value': weights.value.copy()}))
+        edges.append((weights.fullname, node.fullname, {'out': 0, 'in': 1}))
 
     if not remove_bias:
         if parent_nodes[2].type == 'FakeQuantize' and not remove_fake_quantize:
             fq = parent_nodes[1]
             fq_name = make_copy_fake_quantize(nodes, edges, fq)
-            edges.append((fq_name, node.name, {'out': 0, 'in': 2}))
+            edges.append((fq_name, node.fullname, {'out': 0, 'in': 2}))
         else:
             weights = parent_nodes[2]
-            nodes.append((weights.name, weights.type, {'value': weights.value.copy()}))
-            edges.append((weights.name, node.name, {'out': 0, 'in': 2}))
+            nodes.append((weights.fullname, weights.type, {'value': weights.value.copy()}))
+            edges.append((weights.fullname, node.fullname, {'out': 0, 'in': 2}))
 
-    result_name = '{}/out'.format(node.name)
+    result_name = '{}/out'.format(node.fullname)
     nodes.append((result_name, 'Result', {}))
-    edges.append((node.name, result_name, {'out': 0, 'in': 0}))
+    edges.append((node.fullname, result_name, {'out': 0, 'in': 0}))
     graph = build_graph(*make_copy_graph_attrs(model, input_name, input_shape), nodes, edges)
 
     # Add the neccessary attribute to the new graph
-    src_node = get_node_by_name(graph, node.name)
+    src_node = get_node_by_name(graph, node.fullname)
     weights_node = get_node_input(src_node, 1)
     weights_node = get_node_input(weights_node, 0) \
         if weights_node.type == 'FakeQuantize' else weights_node

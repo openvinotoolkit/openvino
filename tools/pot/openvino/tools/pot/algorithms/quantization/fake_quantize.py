@@ -131,7 +131,7 @@ def compute_stats_layouts(config, model, qscheme=None):
     fake_quantize_config = {}
     for fq in fq_nodes:
         is_weights = fq['fq_group'] == 'weights'
-        fq_config = copy(fq_configuration[fq.name][fq['fq_group']])
+        fq_config = copy(fq_configuration[fq.fullname][fq['fq_group']])
         fake_quantize_config[fq.fullname] = fq_config
         if fq.fullname in config.layerwise_configs[0]:
             fq_config = Dict(merge_nested_dicts(fq_config, config.layerwise_configs[0][fq.fullname]))
