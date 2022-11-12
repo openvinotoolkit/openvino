@@ -255,8 +255,8 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             for (auto it = config.begin(); it != config.end();) {
                 auto item = default_core_supported_properties.find(it->first);
                 if (item == default_core_supported_properties.end()) {
-                    IE_THROW() << "Exception: ov::core set_property with unsupported core property: '" << it->first
-                               << "'";
+                    it++;
+                    continue;
                 }
 
                 if (it->first == ov::cache_dir.name()) {
@@ -292,7 +292,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                 }
             }
 
-            // Return default if not set before.
+            // Return default value if not set before.
             auto item = default_core_supported_properties.find(name);
             if (item != default_core_supported_properties.end()) {
                 return item->second;
