@@ -134,7 +134,7 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
                 constDims = slope_shape;
             }
         } else if (ngraph::is_type<ngraph::op::v1::GroupConvolution>(outOp) && node.get_index() == 1) {
-            auto input_shape = outOp->get_input_shape(0);
+            auto input_shape = outOp->get_input_partial_shape(0);
             if (constDims.size() == 4 && input_shape.size() == 3) { // In case of weight dim 4 and input dim 3,
                 constDims[2] = constDims[3];                        // The weight cldnn tensor adds 1d to the end
                 constDims[3] = 1;                                   // as the input cldnn tensor does.

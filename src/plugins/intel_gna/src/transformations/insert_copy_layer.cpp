@@ -12,7 +12,6 @@
 #include <legacy/ngraph_ops/crop_ie.hpp>
 #include <openvino/core/except.hpp>
 
-#include "gna_plugin_log.hpp"
 #include "ops/util/util.hpp"
 
 using namespace ov::intel_gna::pass;
