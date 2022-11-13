@@ -23,20 +23,17 @@ def pack_data(array: np.ndarray, type: Type) -> np.ndarray:
     :param type: Type to interpret the array values. Type must be u1, u4 or i4.
     :type type: openvino.runtime.Type
     """
-    assert type in [Type.u1, Type.u4, Type.i4], "Packing algorithm for the" \
-                                                "data types stored in 1, 2 or 4 bits"
+    assert type in [Type.u1, Type.u4, Type.i4], "Packing algorithm for the" "data types stored in 1, 2 or 4 bits"
 
     minimum_regular_dtype = np.int8 if type == Type.i4 else np.uint8
     casted_to_regular_type = array.astype(dtype=minimum_regular_dtype, casting="unsafe")
     if not np.array_equal(casted_to_regular_type, array):
-        raise RuntimeError(f'The conversion of array "{array}" to dtype'
-                           f' "{casted_to_regular_type}" results in rounding')
+        raise RuntimeError(f'The conversion of array "{array}" to dtype' f' "{casted_to_regular_type}" results in rounding')
 
     data_size = casted_to_regular_type.size
     num_bits = type.bitwidth
 
-    assert num_bits < 8 and 8 % num_bits == 0, "Packing algorithm for the" \
-                                               "data types stored in 1, 2 or 4 bits"
+    assert num_bits < 8 and 8 % num_bits == 0, "Packing algorithm for the" "data types stored in 1, 2 or 4 bits"
     num_values_fitting_into_uint8 = 8 // num_bits
     pad = (-data_size) % num_values_fitting_into_uint8
 
@@ -65,8 +62,7 @@ def unpack_data(array: np.ndarray, type: Type, shape: Union[list, Shape]) -> np.
     :param shape: the new shape for the unpacked array.
     :type shape: Union[list, openvino.runtime.Shape]
     """
-    assert type in [Type.u1, Type.u4, Type.i4], "Unpacking algorithm for the" \
-                                                "data types stored in 1, 2 or 4 bits"
+    assert type in [Type.u1, Type.u4, Type.i4], "Unpacking algorithm for the" "data types stored in 1, 2 or 4 bits"
     unpacked = np.unpackbits(array.view(np.uint8))
     shape = list(shape)
     if type.bitwidth == 1:

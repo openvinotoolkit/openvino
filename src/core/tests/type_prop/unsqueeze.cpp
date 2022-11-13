@@ -79,9 +79,13 @@ TEST(type_prop, unsqueeze_empty_axes) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
-using TypePropTestParam = std::tuple<PartialShape, std::vector<int64_t>, PartialShape>;
 
-class UnsqueezeTest : public WithParamInterface<TypePropTestParam>, public UnSqueezeFixture {
+using UnSqueezeTypePropTestParam = std::tuple<PartialShape,          // Input shape
+                                              std::vector<int64_t>,  // Unsqueeze axis
+                                              PartialShape           // Expected shape
+                                              >;
+
+class UnsqueezeTest : public WithParamInterface<UnSqueezeTypePropTestParam>, public UnSqueezeFixture {
 protected:
     void SetUp() override {
         std::tie(p_shape, axes, exp_shape) = GetParam();
@@ -282,7 +286,7 @@ TEST_P(UnsqueezeBoundTest, propagate_label_and_dynamic_value) {
     const auto gather = std::make_shared<op::v7::Gather>(labeled_shape_of, indices, axis);
     const auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(gather, axis);
 
-    const auto bc = std::make_shared<op::v1::Broadcast>(param, unsqueeze);
+    const auto bc = std::make_shared<op::v3::Broadcast>(param, unsqueeze);
 
     EXPECT_EQ(bc->get_output_partial_shape(0), exp_shape);
     const auto labels = get_shape_labels(bc->get_output_partial_shape(0));
