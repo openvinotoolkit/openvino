@@ -353,28 +353,24 @@ INSTANTIATE_TEST_SUITE_P(
     PrintToStringParamName());
 
 TEST_P(SplitBoundTest, propagate_label_and_dynamic_value) {
-    PartialShape labeled_shape = PartialShape{p_shape};
-    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{1});
-
     const auto in_exp_labels = make_in_exp_labels();
-    set_shape_labels(labeled_shape, in_exp_labels.first);
+    set_shape_labels(p_shape, in_exp_labels.first);
 
     constexpr auto et = element::i64;
-    const auto labeled_param = std::make_shared<op::Parameter>(et, labeled_shape);
+    const auto labeled_param = std::make_shared<op::Parameter>(et, p_shape);
     const auto labeled_shape_of = std::make_shared<op::ShapeOf>(labeled_param);
 
     const auto zero = std::vector<int64_t>{0};
     const auto axis = std::make_shared<op::v0::Constant>(et, Shape{}, zero);
-    const auto indices = std::make_shared<op::v0::Constant>(et, Shape{}, zero);
     const auto split = std::make_shared<op::v1::Split>(labeled_shape_of, axis, num_of_splits);
 
     for (auto& output : split->outputs()) {
-        const auto& bc = std::make_shared<op::v3::Broadcast>(param, output);
+        const auto& bc = std::make_shared<op::v3::Broadcast>(
+            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{1}),
+            output);
         out_shapes.push_back(bc->get_output_partial_shape(0));
         out_labels.push_back(get_shape_labels(bc->get_output_partial_shape(0)));
     }
-
-    auto exp_labels_it = in_exp_labels.second.begin();
 
     EXPECT_EQ(out_shapes, exp_shapes);
     EXPECT_EQ(out_labels, in_exp_labels.second);

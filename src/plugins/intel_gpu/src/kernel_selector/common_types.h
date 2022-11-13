@@ -93,7 +93,8 @@ enum class KernelType {
     REVERSE,
     PRIOR_BOX,
     EYE,
-    GENERATE_PROPOSALS
+    GENERATE_PROPOSALS,
+    MULTICLASS_NMS
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -607,6 +608,15 @@ enum class color_format : uint32_t {
 enum class memory_type : uint32_t {
     buffer,
     image
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// MultiClassNms SortResultType
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum class SortResultType {
+    CLASSID,  // sort selected boxes by class id (ascending) in each batch element
+    SCORE,    // sort selected boxes by score (descending) in each batch element
+    NONE      // do not guarantee the order in each batch element
 };
 
 }  // namespace kernel_selector

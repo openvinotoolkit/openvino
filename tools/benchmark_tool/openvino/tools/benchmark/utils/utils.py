@@ -324,8 +324,8 @@ def print_perf_counters_sort(perf_counts_list,sort_flag="sort"):
     """
     for ni in range(len(perf_counts_list)):
         perf_counts = perf_counts_list[ni]
-        total_time = datetime.timedelta()
-        total_time_cpu = datetime.timedelta()
+        total_time = timedelta()
+        total_time_cpu = timedelta()
         logger.info(f"Performance counts sorted for {ni}-th infer request")
         for pi in perf_counts:
             total_time += pi.real_time
