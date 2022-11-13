@@ -215,9 +215,59 @@ std::vector<UniqueParams> params_unique_int() {
                                                       std::vector<int64_t>{1, 1, 1, 1},
                                                       make_axis(1),
                                                       false,
-                                                      "2D no duplicates"}};
+                                                      "2D no duplicates"},
+                                         UniqueParams{Shape{2, 4},
+                                                      std::vector<Data_t>{1, 2, 2, 4, 1, 2, 2, 5},
+                                                      std::vector<Data_t>{1, 2, 4, 1, 2, 5},
+                                                      std::vector<Index_t>{0, 1, 3},
+                                                      std::vector<Index_t>{0, 1, 1, 2},
+                                                      std::vector<int64_t>{1, 2, 1},
+                                                      make_axis(1),
+                                                      false,
+                                                      "2D with duplicates"}};
 
-    return flatten({std::move(scalar_and_1D), std::move(N_C_layout)});
+    std::vector<UniqueParams> N_D_layout{UniqueParams{Shape{2, 2, 3},
+                                                      // 2 identical 2D slices over axis 0
+                                                      std::vector<Data_t>{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6},
+                                                      std::vector<Data_t>{1, 2, 3, 4, 5, 6},
+                                                      std::vector<Index_t>{0},
+                                                      std::vector<Index_t>{0, 0},
+                                                      std::vector<int64_t>{2},
+                                                      make_axis(0),
+                                                      false,
+                                                      "3D with duplicates"},
+                                         UniqueParams{Shape{2, 2, 3},
+                                                      // 2 identical 2D slices over axis 1
+                                                      std::vector<Data_t>{6, 5, 4, 6, 5, 4, 3, 2, 1, 3, 2, 1},
+                                                      std::vector<Data_t>{6, 5, 4, 3, 2, 1},
+                                                      std::vector<Index_t>{0},
+                                                      std::vector<Index_t>{0, 0},
+                                                      std::vector<int64_t>{2},
+                                                      make_axis(1),
+                                                      false,
+                                                      "3D with duplicates"},
+                                         UniqueParams{Shape{2, 2, 3},
+                                                      // the first and the last slice over axis 2 are equal
+                                                      std::vector<Data_t>{-1, 2, -1, 5, -3, 5, 7, -8, 7, 4, 4, 4},
+                                                      std::vector<Data_t>{-1, 2, 5, -3, 7, -8, 4, 4},
+                                                      std::vector<Index_t>{0, 1},
+                                                      std::vector<Index_t>{0, 1, 0},
+                                                      std::vector<int64_t>{2, 1},
+                                                      make_axis(2),
+                                                      false,
+                                                      "3D with duplicates(1 & 3)"},
+                                         UniqueParams{Shape{2, 2, 3},
+                                                      // the first and the second slice over axis 2 are equal
+                                                      std::vector<Data_t>{-1, -1, 2, 5, 5, -3, 7, 7, -8, 4, 4, 4},
+                                                      std::vector<Data_t>{-1, 2, 5, -3, 7, -8, 4, 4},
+                                                      std::vector<Index_t>{0, 2},
+                                                      std::vector<Index_t>{0, 0, 1},
+                                                      std::vector<int64_t>{2, 1},
+                                                      make_axis(2),
+                                                      false,
+                                                      "3D with duplicates (1 & 2)"}};
+
+    return flatten({std::move(scalar_and_1D), std::move(N_C_layout), std::move(N_D_layout)});
 }
 
 template <typename Data_t, typename Index_t>
@@ -285,10 +335,23 @@ std::vector<UniqueParams> params_unique_float() {
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReferenceUniqueLayerTest_NoAxis,
                          ReferenceUniqueLayerTest_NoAxis,
-                         ::testing::ValuesIn(flatten({params_unique_float<float, int32_t>(),
+                         ::testing::ValuesIn(flatten({params_unique_float<float16, int32_t>(),
+                                                      params_unique_float<float16, int64_t>(),
+                                                      params_unique_float<bfloat16, int32_t>(),
+                                                      params_unique_float<bfloat16, int64_t>(),
+                                                      params_unique_float<float, int32_t>(),
                                                       params_unique_float<float, int64_t>(),
+                                                      params_unique_float<double, int32_t>(),
+                                                      params_unique_float<double, int64_t>(),
+                                                      params_unique_int<int16_t, int32_t>(),
+                                                      params_unique_int<int8_t, int64_t>(),
+                                                      params_unique_int<int8_t, int32_t>(),
+                                                      params_unique_int<int16_t, int64_t>(),
                                                       params_unique_int<int32_t, int32_t>(),
-                                                      params_unique_int<int32_t, int64_t>()})),
+                                                      params_unique_int<int32_t, int64_t>(),
+                                                      params_unique_int<int64_t, int32_t>(),
+                                                      params_unique_int<int64_t, int64_t>()})),
+
                          ReferenceUniqueLayerTest_NoAxis::getTestCaseName);
 
 }  // namespace

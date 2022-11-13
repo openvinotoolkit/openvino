@@ -5,27 +5,30 @@
 #pragma once
 
 #include "gather.hpp"
+#include "ngraph/coordinate_index.hpp"
+#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/shape.hpp"
 
 namespace ngraph {
 namespace runtime {
 namespace reference {
+
+enum class DescriptorType { SINGLE_VALUE, SLICE };
+
 template <typename Index_t, typename Count_t>
 struct TensorSlice {
     TensorSlice() = delete;
-    TensorSlice(const Index_t idx_) : idx{idx_}, single_value{true} {}
+    TensorSlice(const Index_t idx_, const DescriptorType descriptor_type_)
+        : idx{idx_},
+          descriptor_type{descriptor_type_} {}
     TensorSlice(const Index_t idx_, const Index_t rev_idx_, const Count_t count_)
         : idx{idx_},
           rev_idx{rev_idx_},
           count{count_},
-          single_value{true} {}
-    TensorSlice(const Index_t idx_, const Shape& first_elem_coord_, const size_t slice_elems_)
-        : idx{idx_},
-          first_elem_coord{first_elem_coord_},
-          slice_elems{slice_elems_} {}
-    /// The index of the current element in the original input tensor. It never changes even if the elements get sorted.
-    /// This value is used as a mapping between a unique element in the first output tensor and the position of this
-    /// element in the original input tensor.
+          descriptor_type{DescriptorType::SINGLE_VALUE} {}
+    /// The index of the current element in the original input tensor. It never changes even if the elements get
+    /// sorted. This value is used as a mapping between a unique element in the first output tensor and the position
+    /// of this element in the original input tensor.
     Index_t idx = 0;
     /// The rev_idx is a mapping between every element in the original input and the location of a unique element
     /// in the first output tensor. More than one Element can have the same rev_idx.
@@ -33,48 +36,61 @@ struct TensorSlice {
     /// The number of occurrences of a given element in the input tensor. This value is different than one only for
     /// duplicates found in the input tensor.
     Count_t count = 1;
-    Shape first_elem_coord;
-    size_t slice_elems;
     /// Indicates if this object points to a single value in the input tensor (rather than a slice of the tensor)
-    bool single_value = false;
+    DescriptorType descriptor_type;
 };
 
 template <typename Index_t, typename Count_t>
 struct UniqueElements {
+    /// Contains descriptors of all elements in the input tensor. Possibly sorted by value.
     std::vector<TensorSlice<Index_t, Count_t>> all_tensor_elements;
+    /// Subset of all tensor elements. First occurrences of the unique values.
     std::vector<TensorSlice<Index_t, Count_t>> unique_tensor_elements;
+    /// Axis (optional). Used to gather unique elements over a given dimension.
     int64_t axis = 0;
 };
 
 namespace {
+
+// Generates descriptors of slices or individual elems of the input tensor. This function returns a vector of
+// helper objects representing elements that the "unique" algorithm is supposed to process later.
 template <typename Index_t, typename Count_t>
-std::vector<TensorSlice<Index_t, Count_t>> generate_single_value_descriptors(const size_t count) {
+std::vector<TensorSlice<Index_t, Count_t>> generate_descriptors(const size_t count, const DescriptorType type) {
     std::vector<TensorSlice<Index_t, Count_t>> descriptors;
     descriptors.reserve(count);
 
     for (Index_t i = 0; i < count; ++i) {
-        descriptors.emplace_back(i);
+        descriptors.emplace_back(i, type);
     }
+
     return descriptors;
 }
 
+// Returns indices of the first element of each tensor slice. The index is equal to a coordinate index.
 template <typename Index_t, typename Count_t>
-std::vector<TensorSlice<Index_t, Count_t>> generate_slice_descriptors(const Shape& data_shape, const int64_t axis) {
-    std::vector<TensorSlice<Index_t, Count_t>> descriptors;
-    descriptors.reserve(axis);
+inline std::pair<size_t, size_t> first_elems_of_both_slices(const TensorSlice<Index_t, Count_t>& lhs,
+                                                            const TensorSlice<Index_t, Count_t>& rhs,
+                                                            const std::vector<size_t>& data_shape_strides,
+                                                            const int64_t axis) {
+    return {data_shape_strides[axis] * lhs.idx, data_shape_strides[axis] * rhs.idx};
+}
 
-    auto shape_copy = data_shape;
-    shape_copy.erase(shape_copy.begin() + axis);
-    const auto tensor_slice_elems = shape_size(shape_copy);
-
-    for (int64_t i = 0; i < data_shape[axis]; ++i) {
-        // the coordinate of the first element in a given tensor slice
-        auto first_elem_of_this_slice = Shape(data_shape.size(), 0);
-        first_elem_of_this_slice[axis] = i;
-        descriptors.emplace_back(i, first_elem_of_this_slice, tensor_slice_elems);
+template <typename Index_t, typename Count_t>
+inline size_t calc_slices_offset(const TensorSlice<Index_t, Count_t>& lhs,
+                                 const TensorSlice<Index_t, Count_t>& rhs,
+                                 const std::vector<size_t>& data_shape_strides,
+                                 const int64_t axis) {
+    const auto first_elem_indices = first_elems_of_both_slices(lhs, rhs, data_shape_strides, axis);
+    if (first_elem_indices.first > first_elem_indices.second) {
+        return first_elem_indices.first - first_elem_indices.second;
+    } else {
+        return first_elem_indices.second - first_elem_indices.first;
     }
+}
 
-    return descriptors;
+inline Shape slice_shape_to_iterate(Shape data_shape, const int64_t axis) {
+    data_shape.erase(data_shape.begin() + axis, data_shape.begin() + axis + 1);
+    return data_shape;
 }
 
 bool scalar_or_single_element(const Shape& s) {
@@ -92,9 +108,29 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
     using std::begin;
     using std::end;
 
+    const auto data_shape_strides = ngraph::row_major_strides(data_shape);
+
     const auto ascending_order = [&data](const TensorSlice<Index_t, Count_t>& lhs,
                                          const TensorSlice<Index_t, Count_t>& rhs) {
         return *(data + lhs.idx) < *(data + rhs.idx);
+    };
+
+    const auto slices_ascending_order = [&](const TensorSlice<Index_t, Count_t>& lhs,
+                                            const TensorSlice<Index_t, Count_t>& rhs) {
+        const auto slices_offset = calc_slices_offset(lhs, rhs, data_shape_strides, *axis);
+        const auto shape_to_iterate = slice_shape_to_iterate(data_shape, *axis);
+
+        for (auto it = CoordinateIterator(shape_to_iterate); it != CoordinateIterator::end(); ++it) {
+            auto elem_coord = *it;
+            elem_coord.insert(elem_coord.cbegin() + *axis, lhs.idx);
+            const auto lhs_elem_idx = ngraph::coordinate_index(elem_coord, data_shape);
+            const auto rhs_elem_idx = lhs_elem_idx + slices_offset;
+            if (*(data + rhs_elem_idx) > *(data + lhs_elem_idx)) {
+                return false;
+            }
+        }
+
+        return true;
     };
 
     const auto elements_are_equal = [&data](const TensorSlice<Index_t, Count_t>& lhs,
@@ -102,9 +138,31 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
         return *(data + lhs.idx) == *(data + rhs.idx);
     };
 
-    const auto slices_are_equal = [&data](const TensorSlice<Index_t, Count_t>& lhs,
-                                          const TensorSlice<Index_t, Count_t>& rhs) {
-        return false;
+    const auto slices_are_equal = [&](const TensorSlice<Index_t, Count_t>& lhs,
+                                      const TensorSlice<Index_t, Count_t>& rhs) {
+        const auto& slice_with_lower_idx =
+            std::min(lhs, rhs, [](const TensorSlice<Index_t, Count_t>& a, const TensorSlice<Index_t, Count_t>& b) {
+                return a.idx < b.idx;
+            });
+
+        // the individual elements in the two compared slices are always separated by the same offset
+        // and this can be used to compare them elementwise
+        const auto slices_offset = calc_slices_offset(lhs, rhs, data_shape_strides, *axis);
+        const auto shape_to_iterate = slice_shape_to_iterate(data_shape, *axis);
+
+        for (auto it = CoordinateIterator(shape_to_iterate); it != CoordinateIterator::end(); ++it) {
+            // All slice elements have a "slice index" constant value at the axis position, only the other dimensions
+            // vary for each slice element. Those dimensions are provided by CoordinateIterator, the value at axis
+            // needs to be injected manually.
+            auto elem_coord = *it;
+            elem_coord.insert(elem_coord.cbegin() + *axis, slice_with_lower_idx.idx);
+            const auto lhs_elem_idx = ngraph::coordinate_index(elem_coord, data_shape);
+            const auto rhs_elem_idx = lhs_elem_idx + slices_offset;
+            if (*(data + lhs_elem_idx) != *(data + rhs_elem_idx)) {
+                return false;
+            }
+        }
+        return true;
     };
 
     const auto already_unique = [&elements_are_equal](const TensorSlice<Index_t, Count_t>& existing_unique_elem) {
@@ -127,7 +185,8 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
         return ret;
     } else if (!axis || (data_shape.size() == 1 && data_shape[0] > 1)) {  // 1D or N-D without any axis
         const auto data_elems_count = shape_size(data_shape);
-        ret.all_tensor_elements = generate_single_value_descriptors<Index_t, Count_t>(data_elems_count);
+        ret.all_tensor_elements =
+            generate_descriptors<Index_t, Count_t>(data_elems_count, DescriptorType::SINGLE_VALUE);
 
         if (sorted) {
             std::sort(begin(ret.all_tensor_elements), end(ret.all_tensor_elements), ascending_order);
@@ -159,7 +218,11 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
         }
     } else {
         ret.axis = *axis;
-        ret.all_tensor_elements = generate_slice_descriptors<Index_t, Count_t>(data_shape, *axis);
+        ret.all_tensor_elements = generate_descriptors<Index_t, Count_t>(data_shape[*axis], DescriptorType::SLICE);
+
+        if (sorted) {
+            std::sort(begin(ret.all_tensor_elements), end(ret.all_tensor_elements), slices_ascending_order);
+        }
 
         ret.all_tensor_elements[0].rev_idx = 0;
         ret.unique_tensor_elements.push_back(ret.all_tensor_elements[0]);
@@ -167,15 +230,16 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
         for (int64_t i = 1; i < data_shape[*axis]; ++i) {
             auto& tensor_element = ret.all_tensor_elements[i];
             auto existing_unique = end(ret.unique_tensor_elements);
-            // if (sorted) {
-            //     existing_unique = std::lower_bound(begin(ret.unique_tensor_elements),
-            //                                        end(ret.unique_tensor_elements),
-            //                                        tensor_element,
-            //                                        ascending_order);
-            // } else {
-            existing_unique = std::find_if(begin(ret.unique_tensor_elements),
-                                           end(ret.unique_tensor_elements),
-                                           already_unique_slice(tensor_element));
+            if (sorted) {
+                existing_unique = std::lower_bound(begin(ret.unique_tensor_elements),
+                                                   end(ret.unique_tensor_elements),
+                                                   tensor_element,
+                                                   slices_ascending_order);
+            } else {
+                existing_unique = std::find_if(begin(ret.unique_tensor_elements),
+                                               end(ret.unique_tensor_elements),
+                                               already_unique_slice(tensor_element));
+            }
 
             if (existing_unique != end(ret.unique_tensor_elements)) {
                 tensor_element.rev_idx = existing_unique->rev_idx;
@@ -220,7 +284,7 @@ void unique(Data_t* out_unique_elements,
             const Shape& data_shape,
             const Shape& out_shape,
             const UniqueElements<Index_t, Count_t>& descriptors) {
-    if (descriptors.unique_tensor_elements[0].single_value) {
+    if (descriptors.unique_tensor_elements[0].descriptor_type == DescriptorType::SINGLE_VALUE) {
         for (size_t i = 0; i < descriptors.unique_tensor_elements.size(); ++i) {
             const auto& descriptor = descriptors.unique_tensor_elements[i];
             out_unique_elements[i] = *(data + descriptor.idx);
