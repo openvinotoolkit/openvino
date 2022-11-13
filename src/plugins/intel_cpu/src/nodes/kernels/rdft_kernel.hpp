@@ -60,7 +60,15 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
     public:
         DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_dft_kernel_f32)
 
-        jit_dft_kernel_f32(bool is_inverse, enum dft_type type) : jit_dft_kernel(is_inverse, type), jit_generator(jit_name()) {}
+        jit_dft_kernel_f32(bool is_inverse, enum dft_type type) : jit_dft_kernel(is_inverse, type), jit_generator(jit_name()) {
+            int simd_size = vlen / sizeof(float);
+            for (int i = 0; i < simd_size / 2; i++) {
+                perm_low_values.push_back(i);
+                perm_low_values.push_back(i + simd_size);
+                perm_high_values.push_back(i + simd_size / 2);
+                perm_high_values.push_back(i + simd_size / 2 + simd_size);
+            }
+        }
 
         void create_ker() override {
             jit_generator::create_kernel();
@@ -70,17 +78,12 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
         void generate() override;
 
     private:
-        void uni_vbroadcastsd(const Xbyak::Xmm& x, const Xbyak::Operand& op);
-        void uni_vbroadcastsd(const Xbyak::Ymm& x, const Xbyak::Operand& op);
-
-        void uni_vpermilps(const Xbyak::Xmm& x, const Xbyak::Operand& op, int8_t control);
-        void uni_vpermilps(const Xbyak::Ymm& x, const Xbyak::Operand& op, int8_t control);
-
-        void load_and_broadcast_every_other_elem(const Xbyak::Zmm& x, const Xbyak::RegExp& reg_exp, const Xbyak::Xmm& tmp);
-        void load_and_broadcast_every_other_elem(const Xbyak::Ymm& x, const Xbyak::RegExp& reg_exp, const Xbyak::Xmm& tmp);
-        void load_and_broadcast_every_other_elem(const Xbyak::Xmm& x, const Xbyak::RegExp& reg_exp, const Xbyak::Xmm& tmp);
+        void interleave_and_store(const Xbyak::Zmm& real, const Xbyak::Zmm& imag, const Xbyak::RegExp& reg_exp, const Xbyak::Zmm& tmp);
+        void interleave_and_store(const Xbyak::Ymm& real, const Xbyak::Ymm& imag, const Xbyak::RegExp& reg_exp, const Xbyak::Ymm& tmp);
+        void interleave_and_store(const Xbyak::Xmm& real, const Xbyak::Xmm& imag, const Xbyak::RegExp& reg_exp, const Xbyak::Xmm& tmp);
 
         int type_size = sizeof(float);
+        int vlen = cpu_isa_traits<isa>::vlen;
 
         Xbyak::Reg8 is_signal_size_even = al;
         Xbyak::Reg64 input_ptr = rbx;
@@ -90,6 +93,14 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
         Xbyak::Reg64 signal_size = r11;
         Xbyak::Reg64 output_start = r12;
         Xbyak::Reg64 output_end = r13;
+
+        std::vector<int> perm_low_values;
+        std::vector<int> perm_high_values;
+
+        using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm,
+                                          isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+        Vmm perm_low;
+        Vmm perm_high;
 };
 
 }   // namespace intel_cpu
