@@ -41,8 +41,7 @@ class Squeeze(Op):
         output_shape = input_shape.copy()
         assert len(node.in_nodes()) == 2, 'The Squeeze node {} must have 2 inputs'.format(node_name)
 
-        # TODO remove the following 'if' statement when IE start support 0D tensors
-        squeeze_dims = node.in_port(1).data.get_value()
+        squeeze_dims = node.in_port(1).data.get_value().copy()
         if squeeze_dims.ndim == 0:
             squeeze_dims = squeeze_dims.reshape([1])
 
@@ -61,10 +60,6 @@ class Squeeze(Op):
         assert is_fully_defined(real_squeeze_dims), 'Squeeze dimension(s) is not defined for op "{}"'.format(node_name)
         output_shape = shape_delete(output_shape, real_squeeze_dims)
         node.out_port(0).data.set_shape(output_shape)
-
-        # make dimensions positive to correctly translate from NHWC to NCHW layout
-        if node.in_port(1).get_source().node.op == 'Const':
-            node.in_port(1).data.set_value(real_squeeze_dims)
 
         if node.in_port(0).data.get_value() is not None:
             node.out_port(0).data.set_value(node.in_port(0).data.get_value().reshape(output_shape))
