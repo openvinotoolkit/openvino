@@ -212,7 +212,6 @@ jobs:
         -GNinja \
         -DENABLE_PYTHON=ON \
         -DENABLE_WHEEL=ON \
-        -DPYTHON_EXECUTABLE=$(CROSSENV_DIR)/bin/python3 \
         -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake \
         -DOpenVINODeveloperPackage_DIR=$(BUILD_OPENVINO) \
         -S $(OPENVINO_REPO_DIR)/src/bindings/python \
