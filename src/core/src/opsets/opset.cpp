@@ -48,10 +48,9 @@ ov::Node* ov::OpSet::create_insensitive(const std::string& name) const {
     return m_factory_registry.create(type_info_it->second);
 }
 
+const std::map<std::string, std::function<const ngraph::OpSet&()>>& ngraph::get_available_opsets() {
 #define _NGRAPH_REG_OPSET(OPSET) \
     { #OPSET, ngraph::get_##OPSET }
-
-const std::map<std::string, std::function<const ngraph::OpSet&()>>& ngraph::get_available_opsets() {
     const static std::map<std::string, std::function<const ngraph::OpSet&()>> opset_map = {_NGRAPH_REG_OPSET(opset1),
                                                                                            _NGRAPH_REG_OPSET(opset2),
                                                                                            _NGRAPH_REG_OPSET(opset3),
@@ -62,13 +61,13 @@ const std::map<std::string, std::function<const ngraph::OpSet&()>>& ngraph::get_
                                                                                            _NGRAPH_REG_OPSET(opset8),
                                                                                            _NGRAPH_REG_OPSET(opset9),
                                                                                            _NGRAPH_REG_OPSET(opset10)};
+#undef _NGRAPH_REG_OPSET
     return opset_map;
 }
 
+const std::map<std::string, std::function<const ov::OpSet&()>>& ov::get_available_opsets() {
 #define _OPENVINO_REG_OPSET(OPSET) \
     { #OPSET, ov::get_##OPSET }
-
-const std::map<std::string, std::function<const ov::OpSet&()>>& ov::get_available_opsets() {
     static std::map<std::string, std::function<const ov::OpSet&()>> opset_map = {_OPENVINO_REG_OPSET(opset1),
                                                                                  _OPENVINO_REG_OPSET(opset2),
                                                                                  _OPENVINO_REG_OPSET(opset3),
@@ -79,6 +78,7 @@ const std::map<std::string, std::function<const ov::OpSet&()>>& ov::get_availabl
                                                                                  _OPENVINO_REG_OPSET(opset8),
                                                                                  _OPENVINO_REG_OPSET(opset9),
                                                                                  _OPENVINO_REG_OPSET(opset10)};
+#undef _OPENVINO_REG_OPSET
     return opset_map;
 }
 
