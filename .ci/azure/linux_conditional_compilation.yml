@@ -187,9 +187,12 @@ jobs:
     displayName: 'List bin files ON'
 
   - script: |
+      cat $(MODELS_PATH)/models/test_model/test_model_fp32.xml
+      echo AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
       cat $(BUILD_DIR)/*.csv
+      echo AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
       cat $(BUILD_DIR)/src/common/conditional_compilation/conditional_compilation_gen.h artifacts/
-      cp -r ./artifacts $(Build.ArtifactStagingDirectory) 
+      echo AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
     displayName: 'Create OpenVINO CC Artifacts'
 
   - script: |
