@@ -59,12 +59,14 @@ struct pooling_impl : typed_primitive_impl_ocl<pooling> {
     using parent = typed_primitive_impl_ocl<pooling>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<pooling_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<pooling>& instance, int32_t split) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<pooling>& instance, int32_t split) const override {
         kernel_arguments_data args = parent::get_arguments(instance, split);
         return args;
     }
@@ -223,3 +225,5 @@ attach_pooling_impl::attach_pooling_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::pooling_impl, cldnn::object_type::POOLING_IMPL)

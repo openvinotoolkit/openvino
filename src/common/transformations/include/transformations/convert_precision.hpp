@@ -15,13 +15,13 @@
 #include <unordered_map>
 #include <vector>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class NGRAPH_API ConvertPrecision;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -73,19 +73,17 @@ using type_to_fuse_map =
                        std::function<bool(const std::shared_ptr<ngraph::Node>&, ngraph::element::Type, size_t idx)>>;
 using precisions_array = std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>>;
 
-class ngraph::pass::ConvertPrecision : public ngraph::pass::FunctionPass {
+class ov::pass::ConvertPrecision : public ngraph::pass::FunctionPass {
 public:
     OPENVINO_RTTI("ConvertPrecision", "0");
     ConvertPrecision(ngraph::element::Type_t from,
                      ngraph::element::Type_t to,
                      type_to_fuse_map additional_type_to_fuse_map = {})
-        : FunctionPass(),
-          m_precisions(precisions_array{{from, to}}),
+        : m_precisions(precisions_array{{from, to}}),
           m_additional_type_to_fuse_map(additional_type_to_fuse_map) {}
 
     ConvertPrecision(const precisions_array& precisions, const type_to_fuse_map& additional_type_to_fuse_map = {})
-        : FunctionPass(),
-          m_precisions(precisions),
+        : m_precisions(precisions),
           m_additional_type_to_fuse_map(additional_type_to_fuse_map) {}
 
     bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
@@ -94,3 +92,9 @@ private:
     precisions_array m_precisions;
     type_to_fuse_map m_additional_type_to_fuse_map;
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::ConvertPrecision;
+}  // namespace pass
+}  // namespace ngraph
