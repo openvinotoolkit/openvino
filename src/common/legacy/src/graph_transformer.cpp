@@ -233,9 +233,6 @@ const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::ve
     for (const auto& layer : sortedLayers) {
         // Layers with "Shape" and "Const" type are Const by definition
         if (layer->type == "Shape" || layer->type == "Const") {
-            if (layer->insData.size() == 0 && layer->type == "Const") {
-                continue;
-            }
             mapConstLayers[layer->name] = false;
         } else if (std::find(skipConstInfer.begin(), skipConstInfer.end(), layer->type) == skipConstInfer.end() &&
                    !isForLayers(*layer, {"FakeQuantize", "Quantize"})) {
@@ -477,6 +474,20 @@ void ConstTransformer::fullTrim() {
     std::lock_guard<std::mutex> lock(lockFullTrim);
     auto sortedLayers = details::CNNSubnetSortTopologically({inputs, outputs});
     auto constMapLayers = getConstLayers(sortedLayers);
+
+    for (auto& layer : sortedLayers) {
+        if (layer->type == "Const") {
+            for (auto& out : outputs) {
+                for (auto& out_const : layer->outData) {
+                    if (out_const == out) {
+                        constMapLayers.erase(layer->name);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
     auto constData = getConstData(constMapLayers, sortedLayers);
     auto constLayers = foldConstSubgraphsInternal(constMapLayers, constData, sortedLayers);
     trimShapeInputs(constLayers, sortedLayers);
