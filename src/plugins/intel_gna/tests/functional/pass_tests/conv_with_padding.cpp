@@ -68,7 +68,7 @@ protected:
         std::tie(precision, targetDevice, configuration, input_shape, filter_shape, padding_size) = this->GetParam();
 
         GnaLayerTestCheck::SetUp(targetDevice);
-        if (GnaLayerTestCheck::gnaLibVersionLessThan(3.5f)) {
+        if (GnaLayerTestCheck::gnaLibVersionLessThan("3.5")) {
             GTEST_SKIP() << GnaLayerTestCheck::getLastCmpResultMsg() << std::endl;
         }
 
