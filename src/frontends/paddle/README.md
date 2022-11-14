@@ -1,4 +1,4 @@
-# OpenVINO™ Padddle Frontend
+# OpenVINO™ Paddle Frontend
 
 OpenVINO Paddle Frontend is one of the OpenVINO Frontend libraries that is dedicated for the Baidu PaddlePaddle™ framework.
 The component is responsible for:
