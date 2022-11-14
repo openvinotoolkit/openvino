@@ -284,7 +284,8 @@ public:
                 ov::op::v5::GRUSequence::get_type_info_static(),
                 ov::op::v0::LSTMSequence::get_type_info_static(),
                 ov::op::v5::LSTMSequence::get_type_info_static(),
-                ov::op::v5::RNNSequence::get_type_info_static());
+                ov::op::v5::RNNSequence::get_type_info_static(),
+                ov::op::internal::AUGRUSequence::get_type_info_static());
 
             if (is_sequence) {
                 native_order = false;
