@@ -39,7 +39,6 @@ public:
         auto const read_size = stream.rdbuf()->sgetn(reinterpret_cast<char*>(data), size);
         OPENVINO_ASSERT(read_size == size,
             "Failed to read " + std::to_string(size) + " bytes from stream! Read " + std::to_string(read_size));
-        }
     }
 
     void setKernlImplParams(void* impl_params) { _impl_params = impl_params; }
