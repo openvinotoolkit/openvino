@@ -2,8 +2,8 @@
 
 OpenVINO Paddle Frontend is covered by tests from the binary `paddle_tests`. This binary can be built by the target with the same name.
 
-OpenVINO Paddle Frontend [tests](../../../core/tests/frontend/paddle/) have next structure:
- * `test_models/gen_scripts/` - The python script to generate PaddlePaddle test models with handy helpers.
+OpenVINO Paddle Frontend [tests](../../../core/tests/frontend/paddle/) have the next structure:
+ * `test_models/gen_scripts/` - Python script to generate PaddlePaddle test models with handy helpers.
  * `standalone_build` - PaddlePaddle frontend standalone build test.
  * a couple of files - PaddlePaddle frontend tests suite written using Google Test.
 
