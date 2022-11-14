@@ -163,6 +163,8 @@ def main():
                 config[device]['PERF_COUNT'] = 'YES'
             elif is_flag_set_in_command_line('pcsort'):
                 ## set to default value
+                logger.warning(f"Turn on performance counters for {device} device " +
+                               f"since pcsort value is {args.perf_counts_sort}.")
                 config[device]['PERF_COUNT'] = 'YES' if args.perf_counts_sort else 'NO'
             else:
                 ## set to default value
