@@ -34,7 +34,7 @@ If you have not yet installed and configured OpenVINO Runtime, see the following
 
 ### Install OpenVINO Development Tools
 
-To install OpenVINO Development Tools, visit the <a href="openvino_docs_install_guides_install_dev_tools.html">installation guide</a> and follow the instructions for C++ developers. The code for the example on this page uses the `googlenet-v1` model from the Caffe framework. When you get to Step 4 of the installation guide, issue the following command to install OpenVINO with the Caffe requirements:
+To install OpenVINO Development Tools, follow the <a href="openvino_docs_install_guides_install_dev_tools.html#cpp-developers">instructions for C++ developers on the Install OpenVINO Development Tools page</a>. The code for the example on this page uses the `googlenet-v1` model from the Caffe framework. When you get to Step 4 of the installation, run the following command to install OpenVINO with the Caffe requirements:
 
 ``` sh
    pip install openvino-dev[caffe]
