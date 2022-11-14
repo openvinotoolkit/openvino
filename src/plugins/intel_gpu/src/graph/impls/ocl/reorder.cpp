@@ -134,6 +134,8 @@ public:
         }
 
         params.winograd = impl_param.input_layouts[0].format.is_winograd() || output_layout.format.is_winograd();
+        params.truncate = impl_param.typed_desc<reorder>()->truncate;
+
         return {params, optional_params};
     }
 
