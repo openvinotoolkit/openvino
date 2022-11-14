@@ -361,6 +361,7 @@ using loop_node = typed_program_node<loop>;
 template <>
 class typed_primitive_inst<loop> : public typed_primitive_inst_base<loop> {
     using parent = typed_primitive_inst_base<loop>;
+    using parent::parent;
 
 public:
     struct backedge_memory_mapping {

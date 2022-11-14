@@ -41,7 +41,7 @@ TEST(attributes, mvn_v6_op) {
     const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 4, 5});
     auto axes = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {2, 3});
 
-    const auto op = make_shared<opset6::MVN>(data, axes, false, 0.1, op::MVNEpsMode::INSIDE_SQRT);
+    const auto op = make_shared<opset6::MVN>(data, axes, false, 0.1f, op::MVNEpsMode::INSIDE_SQRT);
 
     NodeBuilder builder(op, {data, axes});
     const auto g_op = ov::as_type_ptr<opset6::MVN>(builder.create());

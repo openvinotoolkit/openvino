@@ -13,7 +13,15 @@ inline uint FUNC(get_input0_index_nt)(uint b, uint f, uint w, uint z, uint y, ui
 #if INPUT0_SIMPLE
     return GET_DATA_INDEX_6D_SAFE(INPUT0, b, f, w, z, y, x);
 #else
+#if INPUT0_DIMS == 4
+    return INPUT0_GET_INDEX_SAFE(b, f, y, x);
+#elif INPUT0_DIMS == 5
+    return INPUT0_GET_INDEX_SAFE(b, f, z, y, x);
+#elif INPUT0_DIMS == 6
+    return INPUT0_GET_INDEX_SAFE(b, f, w, z, y, x);
+#else
 #   error gemm_ref.cl : Unsupported input 0 format
+#endif
 #endif
 }
 
@@ -29,7 +37,15 @@ inline uint FUNC(get_input1_index_nt)(uint b, uint f, uint w, uint z, uint y, ui
 #if INPUT1_SIMPLE
     return GET_DATA_INDEX_6D_SAFE(INPUT1, b, f, w, z, y, x);
 #else
+#if INPUT1_DIMS == 4
+    return INPUT1_GET_INDEX_SAFE(b, f, y, x);
+#elif INPUT1_DIMS == 5
+    return INPUT1_GET_INDEX_SAFE(b, f, z, y, x);
+#elif INPUT1_DIMS == 6
+    return INPUT1_GET_INDEX_SAFE(b, f, w, z, y, x);
+#else
 #   error gemm_ref.cl : Unsupported input 1 format
+#endif
 #endif
 }
 
@@ -46,7 +62,15 @@ inline uint FUNC(get_input2_index)(uint b, uint f, uint w, uint z, uint y, uint 
 #if INPUT2_SIMPLE
     return GET_DATA_INDEX_6D_SAFE(INPUT2, b, f, w, z, y, x);
 #else
+#if INPUT2_DIMS == 4
+    return INPUT2_GET_INDEX_SAFE(b, f, y, x);
+#elif INPUT2_DIMS == 5
+    return INPUT2_GET_INDEX_SAFE(b, f, z, y, x);
+#elif INPUT2_DIMS == 6
+    return INPUT2_GET_INDEX_SAFE(b, f, w, z, y, x);
+#else
 #   error gemm_ref.cl : Unsupported input 2 format
+#endif
 #endif
 }
 #endif // INPUT2_TYPE
@@ -55,7 +79,15 @@ inline uint FUNC(get_output_index)(uint b, uint f, uint w, uint z, uint y, uint 
 #if OUTPUT_SIMPLE
     return GET_DATA_INDEX_6D(OUTPUT, b, f, w, z, y, x);
 #else
+#if OUTPUT_DIMS == 4
+    return OUTPUT_GET_INDEX(b, f, y, x);
+#elif OUTPUT_DIMS == 5
+    return OUTPUT_GET_INDEX(b, f, z, y, x);
+#elif OUTPUT_DIMS == 6
+    return OUTPUT_GET_INDEX(b, f, w, z, y, x);
+#else
 #   error gemm_ref.cl : Unsupported output format
+#endif
 #endif
 }
 

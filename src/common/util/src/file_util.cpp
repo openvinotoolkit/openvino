@@ -208,6 +208,10 @@ static void iterate_files_worker(const std::string& path,
                     }
                     break;
                 case DT_REG:
+                case DT_UNKNOWN:
+                    // Comment from READDIR(3):
+                    //     only some filesystems have full support for returning the file type in d_type.
+                    //     All applications must properly handle a return of DT_UNKNOWN.
                     func(path_name, false);
                     break;
                 default:
