@@ -237,7 +237,7 @@ Generic Model Optimizer script:
    mo --input_model <model_dir>/<model_file> --data_type <model_precision> --output_dir <ir_dir>
 ```
 
-IR files produced by the script are written to the `<ir_dir>` directory.
+The IR files produced by the script are written to the `<ir_dir>` directory.
 
 The command with most placeholders filled in and FP16 precision:
 
