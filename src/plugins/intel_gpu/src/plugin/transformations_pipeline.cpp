@@ -185,11 +185,48 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 {ngraph::element::u4, ngraph::element::u8},
         };
 
+        auto fp_precision_supported = [&](ngraph::element::Type e) -> bool {
+            switch (e) {
+                case ngraph::element::f16: return device_info.supports_fp16;
+                case ngraph::element::f32: return true; // assume that all GPUs support f32 data type
+                case ngraph::element::f64: return device_info.supports_fp64;
+                case ngraph::element::bf16: return false;
+                default: return false;
+            }
+            return false;
+        };
+
+        const auto fallback_precision = ngraph::element::f32;
+        std::vector<ov::element::Type> fp_element_types = {
+            ngraph::element::f32,
+            ngraph::element::f16,
+            ngraph::element::bf16
+        };
+
+        // Add conversion from FP data types to infer precision if it's specified
         if (config.inference_precision != ov::element::undefined) {
-            std::vector<ov::element::Type> supported_fp_element_types = {ngraph::element::f32, ngraph::element::f16};
-            for (auto& et : supported_fp_element_types) {
-                if (et != config.inference_precision) {
-                    convert_precision_list.push_back({et, config.inference_precision});
+            auto inference_precision = config.inference_precision;
+            if (!fp_precision_supported(inference_precision))
+                inference_precision = fallback_precision;
+
+            for (auto& et : fp_element_types) {
+                if (et != inference_precision) {
+                    convert_precision_list.push_back({et, inference_precision});
+                }
+            }
+        }
+
+        // Add conversion from unsupported FP data types to f32 if we don't have a conversion to something valid already in the list
+        for (auto& et : fp_element_types) {
+            if (!fp_precision_supported(et)) {
+                auto et_pair = std::make_pair(et, fallback_precision);
+                bool has_valid_conversion = std::find_if(convert_precision_list.begin(), convert_precision_list.end(),
+                    [&](std::pair<ov::element::Type, ov::element::Type> v) -> bool {
+                        return v.first == et_pair.first && fp_precision_supported(v.second);
+                }) != convert_precision_list.end();
+
+                if (!has_valid_conversion) {
+                    convert_precision_list.push_back(et_pair);
                 }
             }
         }
