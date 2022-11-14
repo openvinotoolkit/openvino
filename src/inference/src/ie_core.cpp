@@ -249,9 +249,10 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         // They don't require a specified device.
         const ov::AnyMap default_core_supported_properties = {ov::cache_dir(""),
                                                               ov::hint::allow_auto_batching(true),
+                                                              ov::auto_batch_timeout(1000),
                                                               ov::force_tbb_terminate(false)};
 
-        void setAndUpdate(ov::AnyMap& config) {
+        void set_core_config(ov::AnyMap& config) {
             for (auto it = config.begin(); it != config.end();) {
                 auto item = default_core_supported_properties.find(it->first);
                 if (item == default_core_supported_properties.end()) {
@@ -283,7 +284,17 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             }
         }
 
-        ov::Any getCoreConfig(const std::string& name) const {
+        void update_config(const std::string& device_name, ov::AnyMap& config) const {
+            if (device_name.find("BATCH") != std::string::npos) {
+                if (config.find(ov::auto_batch_timeout.name()) == config.end()) {
+                    auto timeout = get_core_config(ov::auto_batch_timeout.name(), false);
+                    if (!timeout.empty())
+                        config.insert({ov::auto_batch_timeout.name(), timeout});
+                }
+            }
+        }
+
+        ov::Any get_core_config(const std::string& name, bool use_default_value = true) const {
             {
                 std::lock_guard<std::mutex> lock(_commonConfigMutex);
                 auto it = _commonConfig.find(name);
@@ -291,6 +302,9 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                     return it->second;
                 }
             }
+
+            if (!use_default_value)
+                return ov::Any();
 
             // Return default value if not set before.
             auto item = default_core_supported_properties.find(name);
@@ -787,7 +801,7 @@ public:
                     config.erase(batch_mode);
                 if (disabled)
                     return;
-            } else if (!coreConfig.getCoreConfig(ov::hint::allow_auto_batching.name()).as<bool>()) {
+            } else if (!coreConfig.get_core_config(ov::hint::allow_auto_batching.name()).as<bool>()) {
                 return;
             }
             // check whether if the Auto-Batching is applicable to the device
@@ -1039,7 +1053,7 @@ public:
                         "get_property is also possible for the individual devices before creating the BATCH on top.");
 
         if (device_name.empty()) {
-            return coreConfig.getCoreConfig(name);
+            return coreConfig.get_core_config(name);
         }
 
         auto parsed = parseDeviceNameIntoConfig(device_name, arguments);
@@ -1188,6 +1202,8 @@ public:
                     // Remove "CACHE_DIR" from config if it is not supported by plugin
                     desc.defaultConfig.erase(CONFIG_KEY(CACHE_DIR));
                 }
+                coreConfig.update_config(deviceName, desc.defaultConfig);
+
                 allowNotImplemented([&]() {
                     // Add device specific value to support device_name.device_id cases
                     std::vector<std::string> supportedConfigKeys =
@@ -1311,7 +1327,7 @@ public:
             created_plugins.reserve(plugins.size());
 
             if (deviceName.empty()) {
-                coreConfig.setAndUpdate(config);
+                coreConfig.set_core_config(config);
             } else {
                 auto cache_it = config.find(CONFIG_KEY(CACHE_DIR));
                 if (cache_it != config.end()) {
@@ -1361,6 +1377,8 @@ public:
                     // Remove "CACHE_DIR" from config if it is not supported by plugin
                     configCopy.erase(CONFIG_KEY(CACHE_DIR));
                 }
+                coreConfig.update_config(deviceName, configCopy);
+
                 // Add device specific value to support device_name.device_id cases
                 std::vector<std::string> supportedConfigKeys =
                     plugin.second.get_metric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {});
