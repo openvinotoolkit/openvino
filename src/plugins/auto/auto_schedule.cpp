@@ -390,7 +390,7 @@ void AutoSchedule::TryToLoadNetWork(AutoLoadContext& context, const std::string&
         std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
         context.deviceInfo = _autoSContext->_plugin->SelectDevice(deviceList,
                 context.networkPrecision, _autoSContext->_modelPriority);
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         return;
     }
     // if the select device is CPU, need to check the config of _loadContext[CPU]

@@ -20,6 +20,8 @@ struct batch_to_space_impl : typed_primitive_impl_ocl<batch_to_space> {
     using parent = typed_primitive_impl_ocl<batch_to_space>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<batch_to_space_impl>(*this);
     }
@@ -75,3 +77,5 @@ attach_batch_to_space_impl::attach_batch_to_space_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::batch_to_space_impl, cldnn::object_type::BATCH_TO_SPACE_IMPL)

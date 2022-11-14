@@ -298,8 +298,8 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, con
     if (!can_be_converted_to_FC) {
         // can with rank() > 2
         // Algorithm::EltwisePowerStatic is ignored
-        // Note: we can call get_output_shape() because before we checked for static input shapes
-        if (node->get_output_shape(0).size() > 2) {
+        const auto rank = node->get_output_partial_shape(0).rank();
+        if (rank.is_static() && rank.get_length() > 2) {
             if (ov::is_type<ov::op::v1::Add>(node) ||
                 ov::is_type<ov::op::v1::Multiply>(node) ||
                 ov::is_type<ov::op::v1::Subtract>(node) ||

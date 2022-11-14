@@ -20,12 +20,14 @@ struct convert_color_impl : typed_primitive_impl_ocl<convert_color> {
     using parent = typed_primitive_impl_ocl<convert_color>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<convert_color_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<convert_color>& instance, int32_t split) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<convert_color>& instance, int32_t split) const override {
         kernel_arguments_data args = parent::get_arguments(instance, split);
         return args;
     }
@@ -76,3 +78,5 @@ attach_convert_color_impl::attach_convert_color_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::convert_color_impl, cldnn::object_type::CONVERT_COLOR_IMPL)

@@ -40,6 +40,7 @@
 #include "deconvolution_inst.h"
 #include "detection_output_inst.h"
 #include "generate_proposals_inst.h"
+#include "experimental_detectron_generate_proposals_single_image_inst.hpp"
 #include "input_layout_inst.h"
 #include "shuffle_channels_inst.h"
 #include "arg_max_min_inst.h"
@@ -47,6 +48,7 @@
 #include "lstm_inst.h"
 #include "lstm_elt_inst.h"
 #include "lstm_gemm_inst.h"
+#include "multiclass_nms_inst.h"
 #include "mutable_data_inst.h"
 #include "pooling_inst.h"
 #include "border_inst.h"
@@ -107,14 +109,18 @@ program::program(engine& engine_ref,
       options(options),
       processing_order(),
       tuning_cache(nullptr),
-      is_body_program(is_body_program) {
+      is_body_program(is_body_program),
+      is_subgroup_local_block_io_supported(-1) {
     init_primitives();
     set_options();
+    query_local_block_io_supported();
+
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(topology);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
     program_node::reset_unique_id();
+
     if (no_optimizations) {
         init_graph();
     } else {
@@ -130,9 +136,12 @@ program::program(engine& engine_ref,
       _stream(_engine.create_stream()),
       options(options),
       processing_order(),
-      tuning_cache(nullptr) {
+      tuning_cache(nullptr),
+      is_subgroup_local_block_io_supported(-1) {
     init_primitives();
     set_options();
+    query_local_block_io_supported();
+
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
@@ -145,9 +154,10 @@ program::program(engine& engine)
       _stream(_engine.create_stream()),
       options(build_options()),
       processing_order(),
-      tuning_cache(nullptr) { }
-
+      tuning_cache(nullptr),
+      is_subgroup_local_block_io_supported(-1) { }
 program::~program() {
+    query_local_block_io_supported();
 }
 
 void program::init_primitives() {
@@ -462,6 +472,59 @@ void program::set_options() {
     }
 }
 
+bool program::is_local_block_io_supported() const {
+    if (is_subgroup_local_block_io_supported == -1)
+        throw std::invalid_argument("subgroup_local_block_io_supported has NOT been initialized!");
+
+    return  static_cast<bool>(is_subgroup_local_block_io_supported);
+}
+
+void program::query_local_block_io_supported() {
+    auto& device = _engine.get_device();
+    auto device_info = device->get_info();
+    if (device_info.supports_local_block_io == false)
+        is_subgroup_local_block_io_supported = static_cast<int8_t>(false);
+
+    if (is_subgroup_local_block_io_supported != -1)
+        return;
+
+    std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
+    std::string kernel_code =
+        "__attribute__((intel_reqd_sub_group_size(8)))"
+        "__attribute__((reqd_work_group_size(8, 1, 1)))"
+        "void kernel is_local_block_io_supported(global uchar* dst) {"
+        "    uint lid = get_sub_group_local_id();"
+        "    uchar val = (uchar)lid * 2;"
+        "    __local uchar tmp_slm[8];"
+        "    intel_sub_group_block_write_uc2(tmp_slm, (uchar2)(val));"
+        "    barrier(CLK_LOCAL_MEM_FENCE);"
+        "    uchar2 read = intel_sub_group_block_read_uc2(tmp_slm);"
+        "    dst[lid] = read.s0 + 1;"
+        "}";
+
+    kernel_string->str = kernel_code;
+    kernel_string->options = "-Dcl_intel_subgroup_local_block_io -DLOCAL_BLOCK_IO_SUPPORTED=1";
+    kernel_string->entry_point = "is_local_block_io_supported";
+    kernel_string->batch_compilation = true;
+
+    try {
+        auto _kernels_cache_device_query = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
+                                                                    kernel_selector::KernelBase::get_db().get_batch_header_str()));
+        auto id = _kernels_cache_device_query->set_kernel_source(kernel_string, false);
+        _kernels_cache_device_query->build_all();
+
+        auto kernel = _kernels_cache_device_query->get_kernel(id);
+        bool is_valid = _kernels_cache_device_query->validate_simple_kernel_execution(kernel);
+        is_subgroup_local_block_io_supported = static_cast<int8_t>(is_valid);
+
+        _kernels_cache_device_query->remove_kernel(id);
+        return;
+    } catch (...) {
+        is_subgroup_local_block_io_supported = static_cast<int8_t>(false);
+        return;
+    }
+}
+
 void program::build_program(bool is_internal) {
     init_graph();
     { pre_optimize_graph(is_internal); }
@@ -699,7 +762,9 @@ void program::cleanup() {
             }
         }
     }
-    _kernels_cache->reset();
+
+    if (_engine.configuration().kernels_cache_path.empty())
+        _kernels_cache->reset();
 }
 
 void program::add_split_outputs() {
@@ -1446,18 +1511,22 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::adaptive_pooling::type_id() &&
             prim.type() != cldnn::bucketize::type_id() &&
             prim.type() != cldnn::roll::type_id() &&
+            prim.type() != cldnn::multiclass_nms::type_id() &&
             prim.type() != cldnn::prior_box::type_id() &&
+            prim.type() != cldnn::roi_pooling::type_id() &&
             prim.type() != cldnn::resample::type_id() &&
             prim.type() != cldnn::eye::type_id() &&
             prim.type() != cldnn::generate_proposals::type_id() &&
             prim.type() != cldnn::reverse::type_id() &&
             prim.type() != cldnn::reorg_yolo::type_id() &&
+            prim.type() != cldnn::gemm::type_id() &&
             prim.type() != cldnn::tile::type_id() &&
             prim.type() != cldnn::scatter_elements_update::type_id() &&
             prim.type() != cldnn::gather_tree::type_id() &&
             prim.type() != cldnn::experimental_detectron_detection_output::type_id() &&
             prim.type() != cldnn::experimental_detectron_topk_rois::type_id() &&
-            prim.type() != cldnn::convert_color::type_id()) {
+            prim.type() != cldnn::convert_color::type_id() &&
+            prim.type() != cldnn::experimental_detectron_generate_proposals_single_image::type_id()) {
             can_use_fsv16 = false;
         }
 
@@ -1496,10 +1565,12 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::roll::type_id() &&
             prim.type() != cldnn::resample::type_id() &&
             prim.type() != cldnn::prior_box::type_id() &&
+            prim.type() != cldnn::roi_pooling::type_id() &&
             prim.type() != cldnn::eye::type_id() &&
             prim.type() != cldnn::generate_proposals::type_id() &&
             prim.type() != cldnn::reverse::type_id() &&
             prim.type() != cldnn::reorg_yolo::type_id() &&
+            prim.type() != cldnn::gemm::type_id() &&
             prim.type() != cldnn::tile::type_id() &&
             prim.type() != cldnn::scatter_elements_update::type_id() &&
             prim.type() != cldnn::gather_tree::type_id() &&
@@ -1507,7 +1578,10 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::deconvolution::type_id() &&
             prim.type() != cldnn::arg_max_min::type_id() &&
             prim.type() != cldnn::experimental_detectron_topk_rois::type_id() &&
-            prim.type() != cldnn::normalize::type_id()) {
+            prim.type() != cldnn::multiclass_nms::type_id() &&
+            prim.type() != cldnn::normalize::type_id() &&
+            prim.type() != cldnn::deconvolution::type_id() &&
+            prim.type() != cldnn::experimental_detectron_generate_proposals_single_image::type_id()) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
         }
     }
