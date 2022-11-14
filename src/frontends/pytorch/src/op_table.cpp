@@ -32,12 +32,14 @@ OP_CONVERTER(translate_embedding);
 OP_CONVERTER(translate_flatten);
 OP_CONVERTER(translate_floordiv);
 OP_CONVERTER(translate_gelu);
+OP_CONVERTER(translate_get_attr);
 OP_CONVERTER(translate_group_norm);
 OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_if);
 OP_CONVERTER(translate_int);
 OP_CONVERTER(translate_layer_norm);
 OP_CONVERTER(translate_linear);
+OP_CONVERTER(translate_list_construct);
 OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_max_pool2d);
 OP_CONVERTER(translate_mean);
@@ -83,6 +85,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::dim", op::translate_dim},
         {"aten::div", op::translate_div},
         {"aten::div_", op::inplace_op<op::translate_div>},
+        {"aten::dropout", op::skip_node},
+        {"aten::dropout_", op::skip_node},
         {"aten::elu", op::translate_elu},
         {"aten::embedding", op::translate_embedding},
         {"aten::eq", op::translate_1to1_match_2_inputs<opset8::Equal>},
@@ -143,8 +147,10 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::upsample_nearest2d", op::translate_upsample_nearest2d},
         {"aten::view", op::translate_view},
         {"prim::Constant", op::translate_constant},
+        {"prim::GetAttr", op::translate_get_attr},
         {"prim::If", op::translate_if},
         {"prim::is_cuda", op::return_false_scalar},
+        {"prim::ListConstruct", op::translate_list_construct},
         {"prim::Loop", op::translate_loop},
         {"prim::NumToTensor", op::skip_node},  // In openvino we already store number as tensor with shape []
         {"prim::requires_grad", op::return_false_scalar},

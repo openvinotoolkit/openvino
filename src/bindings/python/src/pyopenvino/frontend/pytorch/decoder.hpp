@@ -54,6 +54,10 @@ class PyDecoder : public ov::frontend::pytorch::Decoder {
         PYBIND11_OVERRIDE_PURE(bool, Decoder, input_is_none, index);
     }
 
+    ov::OutputVector try_decode_get_attr() override {
+        PYBIND11_OVERRIDE_PURE(ov::OutputVector, Decoder, try_decode_get_attr);
+    }
+
     ov::OutputVector as_constant() override {
         PYBIND11_OVERRIDE_PURE(ov::OutputVector, Decoder, as_constant);
     }

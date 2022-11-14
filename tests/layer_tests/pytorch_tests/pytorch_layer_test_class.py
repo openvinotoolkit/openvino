@@ -55,7 +55,7 @@ class PytorchLayerTest:
             fe_manager = FrontEndManager()
             fe = fe_manager.load_by_framework('pytorch')
 
-            decoder = TorchScriptPythonDecoder(graph)
+            decoder = TorchScriptPythonDecoder(model)
 
             im = fe.load(decoder)
             om = fe.convert(im)
