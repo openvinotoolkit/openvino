@@ -372,7 +372,7 @@ def print_detail_result(result_list):
         cpu_time = tmp_result[4]
         real_proportion = "%.2f"%(tmp_result[5]*100)
         if real_proportion == "0.00":
-            real_proportion = "-nan"
+            real_proportion = "N/A"
         execType = tmp_result[6]
         print(f"{node_name[:max_layer_name - 4] + '...' if (len(node_name) >= max_layer_name) else node_name:<30}"
             f"{str(layerStatus):<20}"

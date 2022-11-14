@@ -354,7 +354,7 @@ int main(int argc, char* argv[]) {
                            << slog::endl;
                 device_config.emplace(ov::enable_profiling(true));
             } else if (!FLAGS_pcsort.empty()) {
-                slog::warn << "Turn on sorted performance counters for " << device << " device since pcsort is"
+                slog::warn << "Turn on sorted performance counters for " << device << " device since pcsort value is "
                            << FLAGS_pcsort << "." << slog::endl;
                 device_config.emplace(ov::enable_profiling(true));
             } else {
