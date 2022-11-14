@@ -109,8 +109,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     REGISTER_PASS(manager, Validate, )
     REGISTER_PASS(manager, RemoveMultiSubGraphOpDanglingParams, )
     REGISTER_PASS(manager, FoldSubgraphEmptyInputs, )
-
-    manager.register_pass<ngraph::pass::DisableRandomUniformConstantFolding>();
+    REGISTER_PASS(manager, DisableRandomUniformConstantFolding, )
     REGISTER_PASS(manager, ConstantFolding, )
     REGISTER_PASS(manager, Validate, )
 
@@ -118,7 +117,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     // which can be affected by further transformations. So we have to
     // execute it at the beginning of the pipeline. Also, this pass resolves
     // dynamism, so we have to execute type/shape propagation after.
-    manager.register_pass<ngraph::pass::FuseFilteringBoxesBySize>();
+    REGISTER_PASS(manager, FuseFilteringBoxesBySize, _run_on_model)
     REGISTER_PASS(manager, Validate, _run_on_model)
 
     if (!m_use_shapes) {  // Approved Smart Reshape
@@ -166,6 +165,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     ADD_MATCHER(common_fusions, ClampFusion)
     ADD_MATCHER(common_fusions, PadFusion)
     ADD_MATCHER(common_fusions, SoftmaxFusion)
+    ADD_MATCHER(common_fusions, ReduceReshapeFusion)
     ADD_MATCHER(common_fusions, MVNFusion)
     ADD_MATCHER(common_fusions, DilatedConvolutionConverter)
     ADD_MATCHER(common_fusions, GeluFusion)
@@ -175,6 +175,16 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     if (m_use_shapes) {
         ADD_MATCHER(common_fusions, NearestNeighborUpsamplingFusion)
     }
+
+    ADD_MATCHER(common_fusions, DivideFusion)
+    ADD_MATCHER(common_fusions, SubtractFusion)
+    ADD_MATCHER(common_fusions, TransposeToReshape)
+    ADD_MATCHER(common_fusions, ReshapeSequenceFusion, m_use_shapes)
+    ADD_MATCHER(common_fusions, MatMulConstTransposesExtraction)
+    ADD_MATCHER(common_fusions, PReluFusion)
+    ADD_MATCHER(common_fusions, DepthToSpaceFusion)
+    ADD_MATCHER(common_fusions, ShuffleChannelsFusion, !m_use_shapes)
+    common_fusions->set_name("ov::pass::CommonFusions");
 
     REGISTER_PASS(manager, BinarizeWeights, )
     REGISTER_PASS(manager, ConvToBinaryConv, )
