@@ -141,25 +141,25 @@ def create_target_node(raw_text, text, target, highlight_language, lineno, docum
 
 
 def visit_scrollbox(self, node):
-    scrollboxbar = "<div class='scrollbox-bar' style='width:" + ''.join(c for c in str(node['bar']) if c.isdigit()) + "px;'></div>"
-    scrollboxcontent = "<div class='scrollbox-content' style='width:100%;'>"
+    tablesort_js_script = "<script>window.TABLE_SORT = true;</script>"
     attrs = {}
     if "height" in node:
         attrs["style"] = (
             "height:"
-            + "".join(c for c in str(node["height"]) if c.isdigit())
-            + "px;"
-            + "width:"
-            + "".join(c for c in str(node["width"]) if c.isdigit())
-            + ("px;" if node["width"].find("px") != -1 else "%;")
+            + "".join(c for c in str(node["height"]) if c.isdigit()) + "px; "
+            + (("width:" + "".join(c for c in str(node["width"]) if c.isdigit()) ) if "width" in node is not None else "")
+            + (("px; " if node["width"].find("px") != -1 else "%;") if "width" in node is not None else "")
+            + ( ("border-left:solid "+"".join(c for c in str(node["bar"]) if c.isdigit())+ "px "+"".join(str(node["bar-color"]))+"; ") if "bar" in node is not None else "")
+            + ( (" border-bottom:solid "+"".join(c for c in str(node["bar"]) if c.isdigit())+ "px "+"".join(str(node["bar-color"]))+"; ") if "bar-color" in node is not None else "")
+            + "overflow-y:scroll; "
         )
         attrs["class"] = "scrollbox"
     self.body.append(self.starttag(node, "div", **attrs))
-    self.body.append(scrollboxbar)
-    self.body.append(scrollboxcontent)
+    if "sortable" in node:
+        self.body.append((tablesort_js_script))
 
 def depart_scrollbox(self, node):
-    self.body.append("</div></div>\n")
+    self.body.append("</div>\n")
 
 class Nodescrollbox (nodes.container):
     def create_scrollbox_component(
@@ -286,11 +286,13 @@ class Scrollbox(Directive):
     optional_arguments = 1
     final_argument_whitespace = True
     option_spec = {
+        'name': directives.unchanged,
         'width': directives.length_or_percentage_or_unitless,
         'height': directives.length_or_percentage_or_unitless,
         'style': directives.unchanged,
-        'name': directives.unchanged,
         'bar': directives.length_or_percentage_or_unitless,
+        'bar-color': directives.unchanged,
+        'sortable': directives.unchanged
     }
 
     has_content = True
@@ -298,14 +300,16 @@ class Scrollbox(Directive):
     def run(self):
         classes = []
         node = Nodescrollbox("div", rawtext="\n".join(self.content), classes=classes)
-        if 'class' in self.options:
-            node['classes'] = self.options['class']
         if 'height' in self.options:
             node['height'] = self.options['height']
         if 'width' in self.options:
             node['width'] = self.options['width']
+        if 'sortable' in self.options:
+            node['sortable'] = self.options['sortable']
         if 'bar' in self.options:
             node['bar'] = self.options['bar']
+        if 'bar-color' in self.options:
+            node['bar-color'] = self.options['bar-color']
         self.add_name(node)
         if self.content:
             self.state.nested_parse(self.content, self.content_offset, node)
