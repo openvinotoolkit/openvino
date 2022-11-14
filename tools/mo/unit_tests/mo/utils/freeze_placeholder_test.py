@@ -167,19 +167,22 @@ class TestMoFreezePlaceholder(unittest.TestCase):
         *[
             (
                 "in1->[1.0 15.0 1.0]",
+                None,
                 True,
                 {"in2": np.array([2])},
                 np.array([2.0, 30.0, 2.0]),
                 np.float32,
             ),
             (
-                "in1->[7.0 11.0 -1.0],in2->3.0",
+                "in1->[7.0 11.0 -1.0]",
+                "in2->3.0",
                 True,
                 {},
                 np.array([21.0, 33.0, -3.0]),
                 np.float32,
             ),
             (
+                None,
                 None,
                 True,
                 {
@@ -190,7 +193,18 @@ class TestMoFreezePlaceholder(unittest.TestCase):
                 np.float32,
             ),
             (
+                    "in1",
+                    "in2->[-1.0]",
+                    True,
+                    {
+                        "in1": np.array([2.0, 2.0, 2.0]).reshape(1, 1, 3)
+                    },
+                    np.array([-2.0, -2.0, -2.0]),
+                    np.float32,
+            ),
+            (
                 "in1[3 1]{f32}->[7.0 11.0 -1.0],in2{f32}->3.0",
+                None,
                 True,
                 {},
                 np.array([21.0, 33.0, -3.0]).reshape(3, 1),
@@ -198,6 +212,7 @@ class TestMoFreezePlaceholder(unittest.TestCase):
             ),
             (
                 "in1[3 1]{f16}->[7.0 11.0 -1.0],in2{f16}->3.0",
+                None,
                 True,
                 {},
                 np.array([21.0, 33.0, -3.0]).reshape(3, 1),
@@ -205,6 +220,7 @@ class TestMoFreezePlaceholder(unittest.TestCase):
             ),
             (
                 "in1[3 1]{i32}->[7 11 -1],in2{i32}->3.0",
+                None,
                 True,
                 {},
                 np.array([21, 33, -3]).reshape(3, 1),
@@ -212,12 +228,14 @@ class TestMoFreezePlaceholder(unittest.TestCase):
             ),
         ],
     )
-    def test_freeze_placeholder_with_value_mul(self, input_freezing_value, use_new_fe, inputs, expected, dtype=None):
+    def test_freeze_placeholder_with_value_mul(self, input_freezing_value, freeze_placeholder_value,
+                                               use_new_fe, inputs, expected, dtype=None):
         with patch("openvino.tools.mo.convert_impl.get_default_frontends") as default_fe:
             default_fe.return_value = get_test_default_frontends()
             args = base_args_config(use_new_fe=use_new_fe)
             args.input_model = "test_model_2.onnx"
             args.input = input_freezing_value
+            args.freeze_placeholder_with_value = freeze_placeholder_value
 
             _, model = prepare_ir(args)
 

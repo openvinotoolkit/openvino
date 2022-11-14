@@ -2,16 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import re
-
-from openvino.tools.mo.front.extractor import raise_no_node, raise_node_name_collision
-from openvino.tools.mo.utils.error import Error
-from openvino._pyopenvino import Place, Type, PartialShape
-
-from openvino.frontend import InputModel  # pylint: disable=no-name-in-module,import-error
+from enum import Enum
 
 import numpy as np
+from openvino._pyopenvino import Place
 
-from enum import Enum
+from openvino.frontend import InputModel  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.mo.front.extractor import raise_no_node, raise_node_name_collision
+from openvino.tools.mo.utils.error import Error
 
 
 class IOType(Enum):
@@ -20,7 +18,7 @@ class IOType(Enum):
 
 
 def decode_name_with_port(
-    input_model: InputModel, node_name: str, framework="", io_type=IOType.Input
+        input_model: InputModel, node_name: str, framework="", io_type=IOType.Input
 ) -> Place or None:
     """
     Decode name with optional port specification w/o traversing all the nodes in the graph
@@ -144,11 +142,11 @@ def decode_name_with_port(
 
 
 def fe_input_user_data_repack(
-    input_model: InputModel,
-    input_user_shapes: [None, list, dict, np.ndarray],
-    freeze_placeholder: dict,
-    framework: str,
-    input_user_data_types=None,
+        input_model: InputModel,
+        input_user_shapes: [None, list, dict, np.ndarray],
+        freeze_placeholder: dict,
+        framework: str,
+        input_user_data_types=None,
 ):
     """
     Restructures user input cutting request. Splits ports out of node names.
@@ -188,6 +186,7 @@ def fe_input_user_data_repack(
     }
     """
     _input_shapes = []
+    input_names = []
     if isinstance(input_user_shapes, list) or isinstance(input_user_shapes, dict):
         for input_name in input_user_shapes:
             node = decode_name_with_port(
@@ -220,14 +219,28 @@ def fe_input_user_data_repack(
                         "input_name": input_name
                     }
                 )
+            input_names.append(input_name)
     elif isinstance(input_user_shapes, tuple):
         model_inputs = input_model.get_inputs()
         assert len(model_inputs) == 1
         _input_shapes.append({"node": model_inputs[0], "shape": input_user_shapes})
     else:
         assert input_user_shapes is None
-    
+
     if freeze_placeholder:
+        # in case freezing via freeze_placeholder_with_value option, _input_shapes can miss some frozen places
+        for input_name in freeze_placeholder:
+            if input_name in input_names:
+                continue
+            node = decode_name_with_port(
+                input_model, input_name, framework, IOType.Input
+            )
+            _input_shapes.append(
+                {
+                    "node": node,
+                    "input_name": input_name
+                }
+            )
         return _input_shapes, freeze_placeholder
     return _input_shapes, dict()
 
@@ -267,12 +280,12 @@ def fe_output_user_data_repack(input_model: InputModel, outputs: list, framework
 
 
 def fe_user_data_repack(
-    input_model: InputModel,
-    input_user_shapes: [None, list, dict, np.array],
-    input_user_data_types: dict,
-    outputs: list,
-    freeze_placeholder: dict,
-    framework: str,
+        input_model: InputModel,
+        input_user_shapes: [None, list, dict, np.array],
+        input_user_data_types: dict,
+        outputs: list,
+        freeze_placeholder: dict,
+        framework: str,
 ):
     """
     :param input_model: Input Model to operate on
