@@ -52,7 +52,7 @@ Visit the [Install OpenVINO Overview page](./install_guides/installing-openvino-
    
 OpenVINO provides a wide array of examples and documentation showing how to work with models, run inference, and deploy applications. Step through the sections below to learn the basics of OpenVINO and explore its advanced optimization features. Visit [OpenVINO’s documentation](./documentation.md) for further details on how to use its features and tools.
    
-OpenVINO users of all experience levels can try <a href="https://www.intel.com/content/www/us/en/developer/tools/devcloud/edge/overview.html">Intel Dev Cloud</a>, a free web-based service for developing, testing, and running OpenVINO applications for free on an online cluster of the latest Intel hardware.
+OpenVINO users of all experience levels can try [Intel Dev Cloud](https://www.intel.com/content/www/us/en/developer/tools/devcloud/edge/overview.html), a free web-based service for developing, testing, and running OpenVINO applications for free on an online cluster of the latest Intel hardware.
 
 
 ### <a name="openvino-basics"></a>OpenVINO Basics
