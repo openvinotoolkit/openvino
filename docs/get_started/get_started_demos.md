@@ -447,7 +447,7 @@ The following two examples show how to run the same sample using GPU or MYRIAD a
 
 ## Other Demos and Samples
 
-Visit the <a href="openvino_docs_OV_UG_Samples_Overview.html">Samples</a> page to see more sample applications. Each sample page explains how the application works and shows how to run it. Use the samples as a starting point that can be adapted for your own application.
+See the [Samples](../OV_Runtime_UG/Samples_Overview.md) page for more sample applications. Each sample page explains how the application works and shows how to run it. Use the samples as a starting point that can be adapted for your own application.
 
 OpenVINO also provides demo applications for using off-the-shelf models from <a href="model_zoo.html">Open Model Zoo</a>. These give even more examples of how to run model inference with the OpenVINO API. To build OpenVINO demos:
 
