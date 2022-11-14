@@ -126,51 +126,6 @@ else()
     set(GFLAGS_TARGET gflags)
 endif()
 
-if(NOT ANDROID)
-    find_package(PkgConfig QUIET)
-endif()
-
-if(NOT TARGET zlib::zlib)
-    if(PkgConfig_FOUND)
-        pkg_search_module(zlib QUIET
-                          IMPORTED_TARGET GLOBAL
-                          zlib)
-        if(zlib_FOUND)
-            add_library(zlib::zlib ALIAS PkgConfig::zlib)
-        endif()
-    endif()
-
-    if(zlib_FOUND)
-        message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
-    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib")
-        add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
-    endif()
-endif()
-
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy")
-    add_subdirectory(thirdparty/cnpy EXCLUDE_FROM_ALL)
-endif()
-
-if(NOT TARGET nlohmann_json::nlohmann_json)
-    find_package(nlohmann_json QUIET)
-    if(nlohmann_json_FOUND)
-        message(STATUS "nlohmann_json (${nlohmann_json_VERSION}) is found at ${nlohmann_json_DIR}")
-    elseif(PkgConfig_FOUND)
-        pkg_search_module(nlohmann_json QUIET
-                          IMPORTED_TARGET GLOBAL
-                          nlohmann_json)
-        if(nlohmann_json_FOUND)
-            add_library(nlohmann_json::nlohmann_json ALIAS PkgConfig::nlohmann_json)
-        endif()
-    endif()
-
-    if(NOT nlohmann_json_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nlohmann_json")
-        # suppress shadowing names warning
-        set(JSON_SystemInclude ON CACHE BOOL "" FORCE)
-        add_subdirectory(thirdparty/nlohmann_json EXCLUDE_FROM_ALL)
-    endif()
-endif()
-
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
     add_subdirectory(common/utils)
 endif()

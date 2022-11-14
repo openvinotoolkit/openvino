@@ -45,7 +45,6 @@ using namespace std;
 using namespace ov::intel_gna;
 using namespace GNAPluginNS;
 using namespace ov::intel_gna::frontend;
-using namespace ov::intel_gna::common;
 using namespace memory;
 
 static bool CheckIFLastComponentIsPrecededByConv2D(const GNAPluginNS::backend::DnnComponents::storage_type& components,
@@ -821,16 +820,16 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
         } else {
             IE_ASSERT(quantized != nullptr);
             if (!gnaFlags->input_low_precision) {
-                auto quantizedScale = float_to_int16(std::min(quantized->_weights_quant.GetScale() * power.scale,
+                auto quantizedScale = FLOAT_TO_INT16(std::min(quantized->_weights_quant.GetScale() * power.scale,
                     static_cast<float>(INT16_MAX)));
-                auto quantizedOffset = float_to_int32(std::min(quantized->_dst_quant.GetScale() * power.offset,
+                auto quantizedOffset = FLOAT_TO_INT32(std::min(quantized->_dst_quant.GetScale() * power.offset,
                     static_cast<float>(INT32_MAX)));
                 gnamem->getQueue(REGION_RO)->push_value<int16_t>(layer, ptr_weights, quantizedScale, num_rows_out, 64);
                 gnamem->getQueue(REGION_RO)->push_value<int32_t>(layer, ptr_biases, quantizedOffset, num_rows_out, 64);
             } else {
-                auto quantizedScale = float_to_int8(std::min(quantized->_weights_quant.GetScale() * power.scale,
+                auto quantizedScale = FLOAT_TO_INT8(std::min(quantized->_weights_quant.GetScale() * power.scale,
                     static_cast<float>(INT8_MAX)));
-                auto quantizedOffset = float_to_int8(std::min(quantized->_dst_quant.GetScale() * power.offset,
+                auto quantizedOffset = FLOAT_TO_INT8(std::min(quantized->_dst_quant.GetScale() * power.offset,
                     static_cast<float>(INT8_MAX)));
                 gnamem->getQueue(REGION_RO)->push_value<int8_t>(layer, ptr_weights, quantizedScale, num_rows_out, 64);
                 gnamem->getQueue(REGION_RO)->push_value<int8_t>(layer, ptr_biases, quantizedOffset, num_rows_out, 64);
@@ -1362,10 +1361,10 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
             auto scaledIdentity = -quantized->_weights_quant.GetScale();
 
             if (gnaFlags->input_low_precision == false) {
-                auto quantizedIdentity = float_to_int16(std::min(scaledIdentity, static_cast<float>(INT16_MAX)));
+                auto quantizedIdentity = FLOAT_TO_INT16(std::min(scaledIdentity, static_cast<float>(INT16_MAX)));
                 gnamem->getQueue(REGION_RO)->push_value<int16_t>(layer, ptr_weights, quantizedIdentity, num_rows_out, 64);
             } else {
-                auto quantizedIdentity = float_to_int8(std::min(scaledIdentity, static_cast<float>(INT8_MAX)));
+                auto quantizedIdentity = FLOAT_TO_INT8(std::min(scaledIdentity, static_cast<float>(INT8_MAX)));
 
                 gnamem->getQueue(REGION_RO)->push_value<int8_t>(layer, ptr_weights, quantizedIdentity, num_rows_out, 64);
             }
@@ -1379,11 +1378,11 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
             auto scaledIdentity = quantized->_weights_quant.GetScale();
 
             if (gnaFlags->input_low_precision == false) {
-                auto quantizedIdentity = float_to_int16(std::min(scaledIdentity, static_cast<float>(INT16_MAX)));
+                auto quantizedIdentity = FLOAT_TO_INT16(std::min(scaledIdentity, static_cast<float>(INT16_MAX)));
 
                 gnamem->getQueue(REGION_RO)->push_value<int16_t>(layer, ptr_weights, quantizedIdentity, num_rows_out, 64);
             } else {
-                auto quantizedIdentity = float_to_int8(std::min(scaledIdentity, static_cast<float>(INT8_MAX)));
+                auto quantizedIdentity = FLOAT_TO_INT8(std::min(scaledIdentity, static_cast<float>(INT8_MAX)));
 
                 gnamem->getQueue(REGION_RO)->push_value<int8_t>(layer, ptr_weights, quantizedIdentity, num_rows_out, 64);
             }

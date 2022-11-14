@@ -87,6 +87,7 @@ using non_max_suppression_node = typed_program_node<non_max_suppression>;
 template <>
 class typed_primitive_inst<non_max_suppression> : public typed_primitive_inst_base<non_max_suppression> {
     using parent = typed_primitive_inst_base<non_max_suppression>;
+    using parent::parent;
 
 public:
     typed_primitive_inst(network& network, non_max_suppression_node const& node)
