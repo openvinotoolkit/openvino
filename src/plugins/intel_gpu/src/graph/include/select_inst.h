@@ -26,6 +26,7 @@ using select_node = typed_program_node<select>;
 template <>
 class typed_primitive_inst<select> : public typed_primitive_inst_base<select> {
     using parent = typed_primitive_inst_base<select>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>

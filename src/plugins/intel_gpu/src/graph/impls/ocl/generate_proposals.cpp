@@ -18,12 +18,14 @@ struct generate_proposals_impl
     using parent = typed_primitive_impl_ocl<generate_proposals>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<generate_proposals_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<generate_proposals>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<generate_proposals>& instance, int32_t) const override {
         auto args = parent::get_arguments(instance, 0);
         args.inputs.push_back(instance.output_rois_scores_memory());
         args.inputs.push_back(instance.output_rois_nums_memory());
@@ -87,3 +89,5 @@ namespace detail {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::generate_proposals_impl, cldnn::object_type::GENERATE_PROPOSALS_IMPL)
