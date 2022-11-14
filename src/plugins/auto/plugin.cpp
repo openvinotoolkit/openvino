@@ -536,11 +536,11 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         if (!key_streamsNums.empty() && !key_threadsNums.empty()) {
             try {
                 std::string sStreamNums = exec_net->GetConfig(key_streamsNums).as<std::string>();
-                std::string sMaxThreadNums = exec_net->GetConfig(key_threadsNums).as<std::string>();
+                std::string sThreadNums = exec_net->GetConfig(key_threadsNums).as<std::string>();
                 LOG_INFO_TAG("deviceName:%s after load network, streamNums:%s, threadNums:%s",
                              deviceName.c_str(),
                              sStreamNums.c_str(),
-                             sMaxThreadNums.c_str());
+                             sThreadNums.c_str());
             } catch (...) {
                 LOG_DEBUG_TAG("deviceName:%s cannot get streamNums and threadNums from exec_net",
                               deviceName.c_str());
@@ -580,7 +580,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     // Finally load the CPU
     if (iterCPU != metaDevices.end()) {
         if (!executableNetworkPerDevice.empty() && iterCPU->config.find(ov::affinity.name()) == iterCPU->config.end()) {
-            LOG_DEBUG_TAG("set affinity to NUMA for CPU");
+            LOG_DEBUG_TAG("set affinity to NUMA and disable hyper thread for CPU");
             // If the other devices load successfully and no user set affinity then set NUMA to CPU
             iterCPU->config.insert({ov::affinity.name(), ov::affinity(ov::Affinity::NUMA).second.as<std::string>()});
             iterCPU->config.insert({CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD), CONFIG_VALUE_INTERNAL(NO)});
