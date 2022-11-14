@@ -35,10 +35,10 @@ class TestSelect(PytorchLayerTest):
 
         ref_net = None
 
-        return aten_select(), ref_net
+        return aten_select(), ref_net, "aten::select"
 
     @pytest.mark.nightly
     def test_pow(self, ie_device, precision, ir_version, input_dim, input_index):
         self.input_dim = input_dim
         self.input_index = input_index
-        self._test(*self.create_model(), 'CPU', precision, ir_version)
+        self._test(*self.create_model(), ie_device, precision, ir_version)
