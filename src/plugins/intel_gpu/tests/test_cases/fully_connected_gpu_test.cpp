@@ -2052,3 +2052,330 @@ TEST(fully_connected_gpu, dynamic_multi_inference_multiple_shapes) {
         }
     }
 }
+
+TEST(fully_connected_gpu, new_shape_inference_2d_1) {
+    auto& engine = get_test_engine();
+
+    const int32_t input_f = 3, input_b = 1, weight_b = 4;
+
+    cldnn::layout input_data_layout{ ov::PartialShape{ input_b, input_f }, data_types::f32,format::bfyx };
+    auto input_data = engine.allocate_memory(input_data_layout);
+    cldnn::layout weights_layout{ ov::PartialShape{ weight_b, input_f }, data_types::f32,format::bfyx };
+    auto weights_data = engine.allocate_memory(weights_layout);
+
+    set_values(input_data, { -0.5f, 2.0f, 0.5f });
+    set_values(weights_data, { 1.5f, 1.0f, 0.5f, -1.0f,
+                               0.0f, 0.5f, 0.5f, -0.5f,
+                               -2.0f, -0.5f, 1.0f, 1.5f });
+
+    cldnn::topology topology{
+        input_layout("input", input_data_layout),
+        data("weights", weights_data),
+        fully_connected("fc", "input", "weights", "", padding(), 2, true)
+    };
+
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
+    network network(engine, topology, options);
+    network.set_input_data("input", input_data);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc");
+
+    auto output_prim = outputs.begin()->second.get_memory();
+
+    auto out_l = output_prim->get_layout();
+    ASSERT_EQ(out_l.batch(), input_b);
+    ASSERT_EQ(out_l.feature(), weight_b);
+    ASSERT_EQ(out_l.spatial(0), 1);
+    ASSERT_EQ(out_l.spatial(1), 1);
+
+    cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+    const std::vector<float> expected = {-1.75f, 0.25f, 1.25f, 0.25f};
+    ASSERT_EQ(expected.size(), output_ptr.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(expected[i], output_ptr[i]) << i;
+    }
+
+}
+
+TEST(fully_connected_gpu, new_shape_inference_2d_2) {
+    auto& engine = get_test_engine();
+
+    const int32_t input_b = 2, input_f = 3, weight_b = 4;
+
+    cldnn::layout input_data_layout{ ov::PartialShape{ input_b, input_f }, data_types::f32,format::bfyx };
+    auto input_data = engine.allocate_memory(input_data_layout);
+    cldnn::layout weights_layout{ ov::PartialShape{ weight_b, input_f }, data_types::f32,format::bfyx };
+    auto weights_data = engine.allocate_memory(weights_layout);
+
+    set_values(input_data, { -0.5f, 2.0f, 0.5f,
+                             3.0f, 4.0f, 5.0f});
+    set_values(weights_data, { 1.5f, 1.0f, 0.5f, -1.0f,
+                               0.0f, 0.5f, 0.5f, -0.5f,
+                               -2.0f, -0.5f, 1.0f, 1.5f });
+
+    cldnn::topology topology{
+        input_layout("input", input_data_layout),
+        data("weights", weights_data),
+        fully_connected("fc", "input", "weights", "", padding(), 2, true)
+    };
+
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
+    network network(engine, topology, options);
+    network.set_input_data("input", input_data);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc");
+
+    auto output_prim = outputs.begin()->second.get_memory();
+
+    auto out_l = output_prim->get_layout();
+    ASSERT_EQ(out_l.batch(), input_b);
+    ASSERT_EQ(out_l.feature(), weight_b);
+    ASSERT_EQ(out_l.spatial(0), 1);
+    ASSERT_EQ(out_l.spatial(1), 1);
+
+    cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+    const std::vector<float> expected = {-1.75f, 0.25f, 1.25f, 0.25f,
+                                         -5.5f, 2.5f, 8.5f, 2.5f};
+    ASSERT_EQ(expected.size(), output_ptr.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(expected[i], output_ptr[i]) << i;
+    }
+}
+
+
+TEST(fully_connected_gpu, new_shape_inference_3d_1batch) {
+    auto& engine = get_test_engine();
+
+    const int32_t input_b = 1, input_f = 2, input_y = 4,  weight_b = 3;
+
+    cldnn::layout input_data_layout{ ov::PartialShape{ input_b, input_f, input_y }, data_types::f32,format::bfyx };
+    auto input_data = engine.allocate_memory(input_data_layout);
+    cldnn::layout weights_layout{ ov::PartialShape{ input_b, weight_b, input_y }, data_types::f32,format::bfyx };
+    auto weights_data = engine.allocate_memory(weights_layout);
+
+    set_values(input_data, { //b0
+                             -0.5f, 2.0f, 0.5f, 1.0f,
+                             3.0f, 4.0f, 5.0f, 2.0f,});
+    set_values(weights_data, { //b0
+                               1.5f, 1.0f, 0.5f,
+                               -1.0f, 0.0f, 0.5f,
+                               0.5f, -0.5f, -2.0f,
+                               -0.5f, 1.0f, 1.5f,});
+
+    cldnn::topology topology{
+        input_layout("input", input_data_layout),
+        data("weights", weights_data),
+        fully_connected("fc", "input", "weights", "", padding(), 2, true)
+    };
+
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
+    network network(engine, topology, options);
+    network.set_input_data("input", input_data);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc");
+
+    auto output_prim = outputs.begin()->second.get_memory();
+
+    auto out_l = output_prim->get_layout();
+    ASSERT_EQ(out_l.batch(), input_b);
+    ASSERT_EQ(out_l.feature(), input_f);
+    ASSERT_EQ(out_l.spatial(0), 1);
+    ASSERT_EQ(out_l.spatial(1), weight_b);
+
+    cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+    const std::vector<float> expected = {//b0
+                                         -3.0f, 0.25f, 1.25f,
+                                         2.0f, 2.5f, -3.5f};
+    ASSERT_EQ(expected.size(), output_ptr.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(expected[i], output_ptr[i]) << i;
+    }
+}
+
+TEST(fully_connected_gpu, new_shape_inference_3d_2batch) {
+    auto& engine = get_test_engine();
+
+    const int32_t input_b = 2, input_f = 2, input_y = 4,  weight_b = 3;
+
+    cldnn::layout input_data_layout{ ov::PartialShape{ input_b, input_f, input_y }, data_types::f32,format::bfyx };
+    auto input_data = engine.allocate_memory(input_data_layout);
+    cldnn::layout weights_layout{ ov::PartialShape{ input_b, weight_b, input_y }, data_types::f32,format::bfyx };
+    auto weights_data = engine.allocate_memory(weights_layout);
+
+    set_values(input_data, { //b0
+                             -0.5f, 2.0f, 0.5f, 1.0f,
+                             3.0f, 4.0f, 5.0f, 2.0f,
+                             //b1
+                             -1.5f, 3.0f, 1.5f, 2.0f,
+                             4.0f, 5.0f, 6.0f, 3.0f,
+                             });
+    set_values(weights_data, { //b0
+                               1.5f, 1.0f, 0.5f,
+                               -1.0f, 0.0f, 0.5f,
+                               0.5f, -0.5f, -2.0f,
+                               -0.5f, 1.0f, 1.5f,
+                               //b1
+                               0.5f, 0.0f, -0.5f,
+                               -2.0f, 1.0f, 1.5f,
+                               1.5f, -1.5f, -1.0f,
+                               -1.5f, 2.0f, 0.5f,
+                               });
+
+    cldnn::topology topology{
+        input_layout("input", input_data_layout),
+        data("weights", weights_data),
+        fully_connected("fc", "input", "weights", "", padding(), 2, true)
+    };
+
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
+    network network(engine, topology, options);
+    network.set_input_data("input", input_data);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc");
+
+    auto output_prim = outputs.begin()->second.get_memory();
+
+    auto out_l = output_prim->get_layout();
+    ASSERT_EQ(out_l.batch(), input_b);
+    ASSERT_EQ(out_l.feature(), input_f);
+    ASSERT_EQ(out_l.spatial(0), 1);
+    ASSERT_EQ(out_l.spatial(1), weight_b);
+
+    cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+    const std::vector<float> expected = {//b0
+                                         -3.0f, 0.25f, 1.25f,
+                                         2.0f, 2.5f, -3.5f,
+                                         //b1
+                                         -7.5f, 4.75f, 4.75f,
+                                         -3.5f, 2.0f, 1.0f};
+    ASSERT_EQ(expected.size(), output_ptr.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(expected[i], output_ptr[i]) << i;
+    }
+}
+
+TEST(fully_connected_gpu, new_shape_inference_4d) {
+    auto& engine = get_test_engine();
+
+    const int32_t input_b1 = 2, input_b2 = 3, input_f = 2, input_y = 4,  weight_b = 3;
+
+    cldnn::layout input_data_layout{ov::PartialShape{input_b1, input_b2, input_f, input_y }, data_types::f32, format::bfyx };
+    auto input_data = engine.allocate_memory(input_data_layout);
+    cldnn::layout weights_layout{ov::PartialShape{input_b1, input_b2, weight_b, input_y }, data_types::f32, format::bfyx };
+    auto weights_data = engine.allocate_memory(weights_layout);
+
+    set_values(input_data, { //b0b0
+                             -0.5f, 2.0f, 0.5f, 1.0f,
+                             3.0f, 4.0f, 5.0f, 2.0f,
+                             //b0b1
+                             -1.5f, 3.0f, 1.5f, 2.0f,
+                             4.0f, 5.0f, 6.0f, 3.0f,
+                             //b0b2
+                             -1.5f, 3.0f, 1.5f, 2.0f,
+                             4.0f, 5.0f, 6.0f, 3.0f,
+                             //b1b0
+                             -0.5f, 2.0f, 0.5f, 1.0f,
+                             3.0f, 4.0f, 5.0f, 2.0f,
+                             //b1b1
+                             -1.5f, 3.0f, 1.5f, 2.0f,
+                             4.0f, 5.0f, 6.0f, 3.0f,
+                             //b1b2
+                             -1.5f, 3.0f, 1.5f, 2.0f,
+                             4.0f, 5.0f, 6.0f, 3.0f,
+                             });
+    set_values(weights_data, { //b0b0
+                               1.5f, 1.0f, 0.5f,
+                               -1.0f, 0.0f, 0.5f,
+                               0.5f, -0.5f, -2.0f,
+                               -0.5f, 1.0f, 1.5f,
+                               //b0b1
+                               0.5f, 0.0f, -0.5f,
+                               -2.0f, 1.0f, 1.5f,
+                               1.5f, -1.5f, -1.0f,
+                               -1.5f, 2.0f, 0.5f,
+                               //b0b2
+                               0.5f, 0.0f, -0.5f,
+                               -2.0f, 1.0f, 1.5f,
+                               1.5f, -1.5f, -1.0f,
+                               -1.5f, 2.0f, 0.5f,
+                               //b1b0
+                               1.5f, 1.0f, 0.5f,
+                               -1.0f, 0.0f, 0.5f,
+                               0.5f, -0.5f, -2.0f,
+                               -0.5f, 1.0f, 1.5f,
+                               //b1b1
+                               0.5f, 0.0f, -0.5f,
+                               -2.0f, 1.0f, 1.5f,
+                               1.5f, -1.5f, -1.0f,
+                               -1.5f, 2.0f, 0.5f,
+                               //b1b2
+                               0.5f, 0.0f, -0.5f,
+                               -2.0f, 1.0f, 1.5f,
+                               1.5f, -1.5f, -1.0f,
+                               -1.5f, 2.0f, 0.5f,
+                               });
+
+    cldnn::topology topology{
+        input_layout("input", input_data_layout),
+        data("weights", weights_data),
+        fully_connected("fc", "input", "weights", "", padding(), 2, true)
+    };
+
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
+    network network(engine, topology, options);
+    network.set_input_data("input", input_data);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc");
+
+    auto output_prim = outputs.begin()->second.get_memory();
+
+    auto out_l = output_prim->get_layout();
+    ASSERT_EQ(out_l.batch(), input_b1);
+    ASSERT_EQ(out_l.feature(), input_b2);
+    ASSERT_EQ(out_l.spatial(0), weight_b);
+    ASSERT_EQ(out_l.spatial(1), input_f);
+
+    cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+    const std::vector<float> expected = {//b0b0
+                                         -3.0f, 0.25f, 1.25f,
+                                         2.0f, 2.5f, -3.5f,
+                                         //b0b1
+                                         -7.5f, 4.75f, 4.75f,
+                                         -3.5f, 2.0f, 1.0f,
+                                         //b0b2
+                                         -7.5f, 4.75f, 4.75f,
+                                         -3.5f, 2.0f, 1.0f,
+                                         //b1b0
+                                         -3.0f, 0.25f, 1.25f,
+                                         2.0f, 2.5f, -3.5f,
+                                         //b1b1
+                                         -7.5f, 4.75f, 4.75f,
+                                         -3.5f, 2.0f, 1.0f,
+                                         //b1b2
+                                         -7.5f, 4.75f, 4.75f,
+                                         -3.5f, 2.0f, 1.0f};
+    ASSERT_EQ(expected.size(), output_ptr.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(expected[i], output_ptr[i]) << i;
+    }
+}
