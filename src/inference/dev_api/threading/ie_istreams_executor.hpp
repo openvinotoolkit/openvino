@@ -85,6 +85,7 @@ public:
         static int GetDefaultNumStreams(
             const bool enable_hyper_thread = true);  // no network specifics considered (only CPU's caps);
         static int GetHybridNumStreams(std::map<std::string, std::string>& config, const int stream_mode);
+        static void UpdateHybridCustomThreads(Config& config);
 
         std::string _name;          //!< Used by `ITT` to name executor threads
         int _streams = 1;           //!< Number of streams.

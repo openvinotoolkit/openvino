@@ -17,6 +17,8 @@ struct random_uniform_impl : typed_primitive_impl_ocl<random_uniform> {
     using parent = typed_primitive_impl_ocl<random_uniform>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<random_uniform_impl>(*this);
     }
@@ -63,3 +65,5 @@ attach_random_uniform_impl::attach_random_uniform_impl() {
 
 } // namespace ocl
 } // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::random_uniform_impl, cldnn::object_type::RANDOM_UNIFORM_IMPL)
