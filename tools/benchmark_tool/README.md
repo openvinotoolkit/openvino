@@ -96,7 +96,7 @@ The application also collects per-layer Performance Measurement (PM) counters fo
 
 Depending on the type, the report is stored to benchmark_no_counters_report.csv, benchmark_average_counters_report.csv, or benchmark_detailed_counters_report.csv file located in the path specified in -report_folder. The application also saves executable graph information serialized to an XML file if you specify a path to it with the -exec_graph_path parameter.
 
-### All configuration options
+### <a name="all-configuration-options"></a> All configuration options
 Running the application with the `-h` or `--help` option yields the following usage message:
 
 ```
@@ -214,7 +214,7 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
    pip install openvino-dev
    ```
 
-2. Download the model using `omz_downloader`, specifying the model name and directory to download the model to:
+2. Download the model using omz_downloader, specifying the model name and directory to download the model to:
    ```sh
    omz_downloader --name asl-recognition-0004 --precisions FP16 --output_dir omz_models
    ```
@@ -223,66 +223,124 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
 
    * On CPU (latency mode):
    ```sh
-   benchmark_app -m omz_models/intel/asl-recognition-0004/FP16/asl-recognition-0004.xml -d CPU -hint latency -progress
+   benchmark_app -m omz_models/intel/asl-recognition-0004/FP16/asl-recognition-0004.xml -d CPU -hint latency
    ```
 
    * On GPU (throughput mode):
    ```sh
-   benchmark_app -m omz_models/intel/asl-recognition-0004/FP16/asl-recognition-0004.xml -d GPU -hint throughput -progress
+   benchmark_app -m omz_models/intel/asl-recognition-0004/FP16/asl-recognition-0004.xml -d GPU -hint throughput
    ```
 
 The application outputs the number of executed iterations, total duration of execution, latency, and throughput.
 Additionally, if you set the `-report_type` parameter, the application outputs a statistics report. If you set the `-pc` parameter, the application outputs performance counters. If you set `-exec_graph_path`, the application reports executable graph information serialized. All measurements including per-layer PM counters are reported in milliseconds.
 
-Below are fragments of sample output static and dynamic networks:
+An example of the information output when running benchmark_app on CPU in latency mode is shown below:
 
-* For static network:
+   ```sh
+   benchmark_app -m omz_models/intel/asl-recognition-0004/FP16/asl-recognition-0004.xml -d CPU -hint latency
    ```
-   [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests using 4 streams for CPU, limits: 60000 ms duration)
-   [ INFO ] BENCHMARK IS IN INFERENCE ONLY MODE.
-   [ INFO ] Input blobs will be filled once before performance measurements.
-   [ INFO ] First inference took 26.26 ms
-   Progress: [................... ]  99% done
 
+   ```sh
+   [Step 1/11] Parsing and validating input arguments
+   [ INFO ] Parsing input parameters
+   [ INFO ] Input command: /home/openvino/tools/benchmark_tool/benchmark_app.py -m omz_models/intel/intel/asl-recognition-0004/FP16/asl-recognition-0004.xml -d CPU -hint latency
+   [Step 2/11] Loading OpenVINO Runtime
+   [ INFO ] OpenVINO:
+   [ INFO ] Build ................................. 2022.3.0-7750-c1109a7317e-feature/py_cpp_align
+   [ INFO ]
+   [ INFO ] Device info:
+   [ INFO ] CPU
+   [ INFO ] Build ................................. 2022.3.0-7750-c1109a7317e-feature/py_cpp_align
+   [ INFO ]
+   [ INFO ]
+   [Step 3/11] Setting device configuration
+   [Step 4/11] Reading model files
+   [ INFO ] Loading model files
+   [ INFO ] Read model took 147.82 ms
+   [ INFO ] Original model I/O parameters:
+   [ INFO ] Model inputs:
+   [ INFO ]     input (node: input) : f32 / [N,C,D,H,W] / {1,3,16,224,224}
+   [ INFO ] Model outputs:
+   [ INFO ]     output (node: output) : f32 / [...] / {1,100}
+   [Step 5/11] Resizing model to match image sizes and given batch
+   [ INFO ] Model batch size: 1
+   [Step 6/11] Configuring input of the model
+   [ INFO ] Model inputs:
+   [ INFO ]     input (node: input) : f32 / [N,C,D,H,W] / {1,3,16,224,224}
+   [ INFO ] Model outputs:
+   [ INFO ]     output (node: output) : f32 / [...] / {1,100}
+   [Step 7/11] Loading the model to the device
+   [ INFO ] Compile model took 974.64 ms
+   [Step 8/11] Querying optimal runtime parameters
+   [ INFO ] Model:
+   [ INFO ]   NETWORK_NAME: torch-jit-export
+   [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 2
+   [ INFO ]   NUM_STREAMS: 2
+   [ INFO ]   AFFINITY: Affinity.CORE
+   [ INFO ]   INFERENCE_NUM_THREADS: 0
+   [ INFO ]   PERF_COUNT: False
+   [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+   [ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+   [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+   [Step 9/11] Creating infer requests and preparing input tensors
+   [ WARNING ] No input files were given for input 'input'!. This input will be filled with random values!
+   [ INFO ] Fill input 'input' with random values
+   [Step 10/11] Measuring performance (Start inference asynchronously, 2 inference requests, limits: 60000 ms duration)
+   [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+   [ INFO ] First inference took 38.41 ms
    [Step 11/11] Dumping statistics report
-   [ INFO ] Count:      6640 iterations
-   [ INFO ] Duration:   60039.70 ms
+   [ INFO ] Count:        5380 iterations
+   [ INFO ] Duration:     60036.78 ms
    [ INFO ] Latency:
-   [ INFO ]        Median:  35.36 ms
-   [ INFO ]        Avg:    36.12 ms
-   [ INFO ]        Min:    18.55 ms
-   [ INFO ]        Max:    88.96 ms
-   [ INFO ] Throughput: 110.59 FPS
+   [ INFO ]    Median:     22.04 ms
+   [ INFO ]    Average:    22.09 ms
+   [ INFO ]    Min:        20.78 ms
+   [ INFO ]    Max:        33.51 ms
+   [ INFO ] Throughput:   89.61 FPS
    ```
 
-* For dynamic network:
-   ```
-   [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests using 4 streams for CPU, limits: 60000 ms duration)
-   [ INFO ] BENCHMARK IS IN FULL MODE.
-   [ INFO ] Inputs setup stage will be included in performance measurements.
-   [ INFO ] First inference took 26.80 ms
-   Progress: [................... ]  99% done
+The Benchmark Tool can also be used with dynamically shaped networks to measure expected inference time for various input data shapes. See the -shape and -data_shape argument descriptions in the <a href="#all-configuration-options">All configuration options</a> section to learn more about using dynamic shapes. Here is a command example for using benchmark_app with dynamic networks and a portion of the resulting output:
 
+   ```sh
+   benchmark_app -m omz_models/intel/asl-recognition-0004/FP16/asl-recognition-0004.xml -d CPU -shape [-1,3,16,224,224] -data_shape [1,3,16,224,224][2,3,16,224,224][4,3,16,224,224] -pcseq
+   ```
+
+   ```sh
+   [Step 9/11] Creating infer requests and preparing input tensors
+  [ WARNING ] No input files were given for input 'input'!. This input will be filled with random values!
+  [ INFO ] Fill input 'input' with random values
+  [ INFO ] Defined 3 tensor groups:
+  [ INFO ]         input: {1, 3, 16, 224, 224}
+  [ INFO ]         input: {2, 3, 16, 224, 224}
+  [ INFO ]         input: {4, 3, 16, 224, 224}
+   [Step 10/11] Measuring performance (Start inference asynchronously, 11 inference requests, limits: 60000 ms duration)
+   [ INFO ] Benchmarking in full mode (inputs filling are included in measurement loop).
+   [ INFO ] First inference took 201.15 ms
    [Step 11/11] Dumping statistics report
-   [ INFO ] Count:      5199 iterations
-   [ INFO ] Duration:   60043.34 ms
+   [ INFO ] Count:        2811 iterations
+   [ INFO ] Duration:     60271.71 ms
    [ INFO ] Latency:
-   [ INFO ]        Median:  41.58 ms
-   [ INFO ]        Avg:    46.07 ms
-   [ INFO ]        Min:    8.44 ms
-   [ INFO ]        Max:    115.65 ms
+   [ INFO ]    Median:     207.70 ms
+   [ INFO ]    Average:    234.56 ms
+   [ INFO ]    Min:        85.73 ms
+   [ INFO ]    Max:        773.55 ms
    [ INFO ] Latency for each data shape group:
-   [ INFO ] 1. data : [1, 3, 224, 224]
-   [ INFO ]        Median:  38.37 ms
-   [ INFO ]        Avg:    30.29 ms
-   [ INFO ]        Min:    8.44 ms
-   [ INFO ]        Max:    61.30 ms
-   [ INFO ] 2. data : [1, 3, 448, 448]
-   [ INFO ]        Median:  68.21 ms
-   [ INFO ]        Avg:    61.85 ms
-   [ INFO ]        Min:    29.58 ms
-   [ INFO ]        Max:    115.65 ms
-   [ INFO ] Throughput: 86.59 FPS
+   [ INFO ] 1. input: {1, 3, 16, 224, 224}
+   [ INFO ]    Median:     118.08 ms
+   [ INFO ]    Average:    115.05 ms
+   [ INFO ]    Min:        85.73 ms
+   [ INFO ]    Max:        339.25 ms
+   [ INFO ] 2. input: {2, 3, 16, 224, 224}
+   [ INFO ]    Median:     207.25 ms
+   [ INFO ]    Average:    205.16 ms
+   [ INFO ]    Min:        166.98 ms
+   [ INFO ]    Max:        545.55 ms
+   [ INFO ] 3. input: {4, 3, 16, 224, 224}
+   [ INFO ]    Median:     384.16 ms
+   [ INFO ]    Average:    383.48 ms
+   [ INFO ]    Min:        305.51 ms
+   [ INFO ]    Max:        773.55 ms
+   [ INFO ] Throughput:   108.82 FPS
    ```
 
 ## See Also

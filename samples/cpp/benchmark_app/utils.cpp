@@ -480,6 +480,8 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
         }
     }
 
+    slog::info << "Model batch size: " << batch_size << slog::endl;
+
     reshape_required = false;
 
     std::map<std::string, int> currentFileCounters;
@@ -624,15 +626,15 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                 info.dataShape = info.partialShape.get_shape();
                 if (data_shapes_map.find(name) != data_shapes_map.end()) {
                     throw std::logic_error(
-                        "Network's input \"" + name +
+                        "Model's input \"" + name +
                         "\" is static. Use -shape argument for static inputs instead of -data_shape.");
                 }
             } else if (!data_shapes_map.empty()) {
-                throw std::logic_error("Can't find network input name \"" + name + "\" in \"-data_shape " +
+                throw std::logic_error("Can't find model input name \"" + name + "\" in \"-data_shape " +
                                        data_shapes_string + "\" command line parameter");
             } else {
                 throw std::logic_error("-i or -data_shape command line parameter should be set for all inputs in case "
-                                       "of network with dynamic shapes.");
+                                       "of model with dynamic shapes.");
             }
 
             // Update shape with batch if needed (only in static shape case)
