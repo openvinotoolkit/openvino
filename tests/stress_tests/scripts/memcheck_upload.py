@@ -191,7 +191,7 @@ def modify_data_for_push_to_new_db(records):
         record['ext'] = {}
         records_to_push.append({'data': [record]})
 
-    return new_records
+    return records_to_push
 
 
 def push_to_db_facade(records, db_api_handler):

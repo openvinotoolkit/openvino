@@ -80,8 +80,9 @@ def run_timetest(args: dict, log=None):
         tmp_stats_path = tempfile.NamedTemporaryFile().name
         retcode, msg = cmd_exec(cmd_common + ["-s", str(tmp_stats_path)], log=log)
 
-        with open(tmp_stats_path, "r") as file:
-            logs.append(file.read())
+        if os.path.exists(tmp_stats_path):
+            with open(tmp_stats_path, "r") as file:
+                logs.append(file.read())
 
         if retcode != 0:
             log.error(f"Run of executable '{args['executable']}' failed with return code '{retcode}'. Error: {msg}\n"
