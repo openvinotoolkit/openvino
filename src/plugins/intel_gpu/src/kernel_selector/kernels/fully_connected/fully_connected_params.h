@@ -5,6 +5,7 @@
 #pragma once
 
 #include "weight_bias_params.h"
+#include "openvino/core/partial_shape.hpp"
 
 namespace kernel_selector {
 
@@ -15,11 +16,19 @@ struct fully_connected_params : public weight_bias_params {
     fully_connected_params() : weight_bias_params(KernelType::FULLY_CONNECTED) {}
 
     QuantizationType quantization = QuantizationType::NONE;
+    bool new_shape_infer = false;
+    ov::PartialShape input_shape;
+    ov::PartialShape weights_shape;
+    ov::PartialShape output_shape;
 
     ParamsKey GetParamsKey() const override {
         ParamsKey k = weight_bias_params::GetParamsKey();
 
         k.EnableQuantization(quantization);
+
+        if (new_shape_infer) {
+            k.EnableNewShapeInfer();
+        }
 
         return k;
     }

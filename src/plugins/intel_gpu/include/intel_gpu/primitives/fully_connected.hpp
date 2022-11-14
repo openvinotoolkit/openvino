@@ -50,11 +50,13 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const primitive_id& weights,
                     const primitive_id& bias = "",
                     const padding& output_padding = padding(),
-                    const size_t input_size = 2)
+                    const size_t input_size = 2,
+                    const bool new_shape_infer = false)
         : primitive_base(id, {input}, output_padding),
           weights(weights),
           bias(bias),
-          input_size(input_size)
+          input_size(input_size),
+          new_shape_infer(new_shape_infer)
     {}
 
     /// @brief Constructs fully connected layer.
@@ -68,11 +70,13 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const primitive_id& bias,
                     const data_types data_type,
                     const padding& output_padding = padding(),
-                    const size_t input_size = 2)
+                    const size_t input_size = 2,
+                    const bool new_shape_infer = false)
         : primitive_base(id, { input }, output_padding, optional_data_type{data_type}),
           weights(weights),
           bias(bias),
-          input_size(input_size)
+          input_size(input_size),
+          new_shape_infer(new_shape_infer)
     {}
 
     /// @brief Primitive id containing weights data.
@@ -81,6 +85,8 @@ struct fully_connected : public primitive_base<fully_connected> {
     primitive_id bias;
     /// @brief Primitive dimension size.
     size_t input_size;
+    /// @brief use new shape inference
+    bool new_shape_infer{false};
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {

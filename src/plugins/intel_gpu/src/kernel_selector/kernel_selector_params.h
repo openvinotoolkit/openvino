@@ -127,6 +127,7 @@ public:
                         uint32_t deformable_mask_enabled : 1;
                     } conv;
                     struct fc_t {
+                        uint32_t new_shape_infer : 1;
                     } fc;
                     struct softmax_t {
                         uint32_t dimX : 1;
@@ -311,6 +312,7 @@ public:
     void EnableArgMaxMinAxis(ArgMaxMinAxis a);
     void EnableIndexSelectAxis(IndexSelectAxis a);
     void EnableFusedConvEltwiseRWOutOpt();
+    void EnableNewShapeInfer() { key.restrict.val.dedicated.fc.new_shape_infer = 1; }
     bool Support(const ParamsKey& k) const;
     bool TuningSupport() const {
         if (key.enableTuning == 1)

@@ -20,11 +20,13 @@
 #include "fully_connected_kernel_imad.h"
 #include "fully_connected_kernel_fs_byx_fsv32.h"
 #include "fully_connected_kernel_bf_tiled.h"
+#include "fully_connected_new_kernel_bfyx_ref.h"
 
 namespace kernel_selector {
 
 fully_connected_kernel_selector::fully_connected_kernel_selector() {
     Attach<FullyConnected_bfyx_Ref>();
+    Attach<FullyConnectedNew_bfyx_Ref>();
     Attach<FullyConnected_bf_io_GEMM>();
     Attach<FullyConnected_bs_f_bsv16_b1>();
     Attach<FullyConnected_bs_f_bsv16_af8>();
