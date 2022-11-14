@@ -17,12 +17,14 @@ struct experimental_detectron_generate_proposals_single_image_impl
     using parent = typed_primitive_impl_ocl<experimental_detectron_generate_proposals_single_image>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<experimental_detectron_generate_proposals_single_image_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<experimental_detectron_generate_proposals_single_image>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<experimental_detectron_generate_proposals_single_image>& instance, int32_t) const override {
         kernel_arguments_data args;
         const auto num_inputs = instance.inputs_memory_count();
         for (size_t i = 0; i < num_inputs; ++i) {
@@ -86,3 +88,6 @@ attach_experimental_detectron_generate_proposals_single_image_impl::attach_exper
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::experimental_detectron_generate_proposals_single_image_impl,
+                             cldnn::object_type::EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE_IMPL)

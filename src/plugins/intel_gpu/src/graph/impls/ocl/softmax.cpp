@@ -39,6 +39,8 @@ struct softmax_impl : typed_primitive_impl_ocl<softmax> {
     using parent = typed_primitive_impl_ocl<softmax>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<softmax_impl>(*this);
     }
@@ -83,3 +85,5 @@ attach_softmax_impl::attach_softmax_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::softmax_impl, cldnn::object_type::SOFTMAX_IMPL)

@@ -18,6 +18,8 @@ struct space_to_depth_impl : typed_primitive_impl_ocl<space_to_depth> {
     using parent = typed_primitive_impl_ocl<space_to_depth>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<space_to_depth_impl>(*this);
     }
@@ -75,3 +77,5 @@ attach_space_to_depth_impl::attach_space_to_depth_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::space_to_depth_impl, cldnn::object_type::SPACE_TO_DEPTH_IMPL)
