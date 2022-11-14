@@ -10,7 +10,36 @@ file (GLOB HDR ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 ie_add_sample(NAME ${TARGET_NAME}
               SOURCES ${SRC}
               HEADERS ${HDR}
-              DEPENDENCIES nlohmann_json::nlohmann_json format_reader ie_samples_utils)
+              DEPENDENCIES format_reader ie_samples_utils)
+
+# Required nlohmann_json dependency
+
+if(NOT ANDROID)
+    find_package(PkgConfig QUIET)
+endif()
+
+if(NOT TARGET nlohmann_json::nlohmann_json)
+    find_package(nlohmann_json QUIET)
+    if(nlohmann_json_FOUND)
+        message(STATUS "nlohmann_json (${nlohmann_json_VERSION}) is found at ${nlohmann_json_DIR}")
+    elseif(PkgConfig_FOUND)
+        pkg_search_module(nlohmann_json QUIET
+                          IMPORTED_TARGET GLOBAL
+                          nlohmann_json)
+        if(nlohmann_json_FOUND)
+            add_library(nlohmann_json::nlohmann_json ALIAS PkgConfig::nlohmann_json)
+        endif()
+    endif()
+
+    if(NOT nlohmann_json_FOUND AND EXISTS "${Samples_SOURCE_DIR}/thirdparty/nlohmann_json")
+        # suppress shadowing names warning
+        set(JSON_SystemInclude ON CACHE BOOL "" FORCE)
+        add_subdirectory("${Samples_SOURCE_DIR}/thirdparty/nlohmann_json"
+                         "${Samples_BINARY_DIR}/thirdparty/nlohmann_json" EXCLUDE_FROM_ALL)
+    endif()
+endif()
+
+target_link_libraries(${TARGET_NAME} PRIVATE nlohmann_json::nlohmann_json)
 
 # Optional OpenCL dependnency
 

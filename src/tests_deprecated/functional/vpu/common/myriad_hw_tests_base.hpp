@@ -10,7 +10,6 @@
 
 #include <blob_factory.hpp>
 #include <ie_memcpy.h>
-#include <format_reader_ptr.h>
 
 #include <myriad_layers_tests.hpp>
 #include <myriad_layers_reference_functions.hpp>
