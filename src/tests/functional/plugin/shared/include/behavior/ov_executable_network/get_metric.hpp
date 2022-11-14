@@ -348,6 +348,8 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK, GetMetricNoT
 
 TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_EXEC_DEVICES, GetMetricNoThrow) {
     ov::Core ie = createCoreWithTemplate();
+    std::vector<std::string> expectedTargets = {target_device};
+#ifdef ENABLE_INTEL_CPU
     auto layermap = ie.query_model(actualNetwork, heteroDeviceName);
     for (auto &iter : layermap) {
         if (iter.first.find("Concat") != std::string::npos)
@@ -357,11 +359,12 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_EXEC_DEVICES, GetMetricNoThro
         auto affinity = layermap[node->get_friendly_name()];
         node->get_rt_info()["affinity"] = affinity;
     }
+    expectedTargets = {target_device, CommonTestUtils::DEVICE_CPU};
+#endif
     auto compiled_model = ie.compile_model(actualNetwork, heteroDeviceName);
 
     std::vector<std::string> exeTargets;
     OV_ASSERT_NO_THROW(exeTargets = compiled_model.get_property(ov::execution_devices));
-    std::vector<std::string> expectedTargets = {target_device, CommonTestUtils::DEVICE_CPU};
 
     ASSERT_EQ(expectedTargets, exeTargets);
 }
