@@ -19,7 +19,8 @@ OutputVector translate_l2_loss_op(const NodeContext& node) {
     default_op_checks(node, 1, {"L2Loss"});
     auto input = node.get_input(0);
 
-    auto squared_input = make_shared<Multiply>(input, input);
+    auto const_two = make_shared<Constant>(input.get_element_type(), Shape{}, 2);
+    auto squared_input = make_shared<Power>(input, const_two);
 
     auto input_rank = compute_subgraph_scalar_rank(input, element::i32, true);
     auto const_zero = make_shared<Constant>(element::i32, Shape{}, 0);
@@ -27,7 +28,6 @@ OutputVector translate_l2_loss_op(const NodeContext& node) {
     auto reduction_axes = make_shared<Range>(const_zero, input_rank, const_one, element::i32);
     auto squared_input_sum = make_shared<ReduceSum>(squared_input, reduction_axes);
 
-    auto const_two = make_shared<Constant>(input.get_element_type(), Shape{1}, 2);
     auto l2_loss = make_shared<Divide>(squared_input_sum, const_two);
     set_node_name(node.get_name(), l2_loss);
     return {l2_loss};
