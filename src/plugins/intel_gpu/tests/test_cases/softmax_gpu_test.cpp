@@ -70,7 +70,7 @@ TEST_F(softmax_gpu_xb_f32_test_fixture, input_same_values) {
 
     set_values(input, in_b);
 
-    network network(engine, topology(input_layout("input", input->get_layout()), softmax("softmax", "input", 3)));
+    network network(engine, topology(input_layout("input", input->get_layout()), softmax("softmax", input_info("input"), 3)));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -99,7 +99,7 @@ TEST_F(softmax_gpu_xb_f32_test_fixture, input_same_values_batch_wise) {
     for(size_t i = 0; i < out_size; ++i)
         expected_buffer[i] = 0.1f;
 
-    network network(engine, topology(input_layout("input", input->get_layout()), softmax("softmax", "input", 3)));
+    network network(engine, topology(input_layout("input", input->get_layout()), softmax("softmax", input_info("input"), 3)));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -153,7 +153,7 @@ TEST_F(softmax_gpu_xb_f32_test_fixture, values_batch_wise) {
     for(size_t i = 0; i < out_size; ++i)
         out_buffer[i] = NAN;
 
-    network network(engine, topology(input_layout("input", input->get_layout()), softmax("softmax", "input", 3)));
+    network network(engine, topology(input_layout("input", input->get_layout()), softmax("softmax", input_info("input"), 3)));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -178,7 +178,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_y) {
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { batch_num, feature_num, x_size, y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(softmax("softmax", "input", 2));
+    topology.add(softmax("softmax", input_info("input"), 2));
 
     vector<float> input_vec = {
               //y0x0  y0x1   y1x0    y1x1
@@ -264,7 +264,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_f) {
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { batch_num, feature_num, x_size, y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(softmax("softmax", "input", 1));
+    topology.add(softmax("softmax", input_info("input"), 1));
 
     vector<float> input_vec = {
         //y0x0  y0x1   y1x0    y1x1
@@ -348,7 +348,7 @@ TEST(softmax_gpu_bfzyx_f32, normalize_z) {
     auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { batch_num, feature_num, x_size, y_size, z_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(softmax("softmax", "input", 2));
+    topology.add(softmax("softmax", input_info("input"), 2));
 
     vector<float> input_vec = {
         //    z0y0x0 z0y0x1 z0y1x0 z0y1x1 z1y0x0 z1y0x1 z1y1x0 z1y1x1
@@ -431,7 +431,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_b) {
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { batch_num, feature_num, x_size, y_size } });
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(softmax("softmax", "input", 0));
+    topology.add(softmax("softmax", input_info("input"), 0));
 
     vector<float> input_vec = {
         //      y0x0  y0x1   y1x0    y1x1
@@ -538,7 +538,7 @@ public:
     }
 
     static std::vector<std::shared_ptr<cldnn::primitive>> generate_specific_test_params() {
-        all_layer_params.emplace_back(new softmax("softmax", "input0", 1));
+        all_layer_params.emplace_back(new softmax("softmax", input_info("input0"), 1));
 
         //The test checks only valid combinations.
         //TODO: add more combinations.
@@ -914,9 +914,9 @@ public:
 
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
-        topology.add(reorder("reordered_input", "input", target_format, data_type));
-        topology.add(softmax("blocked_softmax", "reordered_input", params.axis));
-        topology.add(reorder("softmax", "blocked_softmax", plain_format, data_type));
+        topology.add(reorder("reordered_input", input_info("input"), target_format, data_type));
+        topology.add(softmax("blocked_softmax", input_info("reordered_input"), params.axis));
+        topology.add(reorder("softmax", input_info("blocked_softmax"), plain_format, data_type));
 
         set_values(input, params.input);
 

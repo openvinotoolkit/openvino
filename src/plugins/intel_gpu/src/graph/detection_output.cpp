@@ -183,9 +183,10 @@ void detection_output_inst::save(cldnn::BinaryOutputBuffer& ob) const {
 
     // argument (struct detection_output)
     ob << argument->id;
-    ob << argument->input[0];
-    ob << argument->input[1];
-    ob << argument->input[2];
+
+    ob << make_data(&argument->input[0], sizeof(argument->input[0]));
+    ob << make_data(&argument->input[1], sizeof(argument->input[1]));
+    ob << make_data(&argument->input[2], sizeof(argument->input[2]));
     ob << make_data(&argument->output_padding, sizeof(argument->output_padding));
     ob << argument->num_classes;
     ob << argument->keep_top_k;
@@ -211,9 +212,9 @@ void detection_output_inst::load(cldnn::BinaryInputBuffer& ib) {
     parent::load(ib);
 
     primitive_id id;
-    primitive_id input_location;
-    primitive_id input_confidence;
-    primitive_id input_prior_box;
+    input_info input_location;
+    input_info input_confidence;
+    input_info input_prior_box;
     uint32_t num_classes;
     uint32_t keep_top_k;
     bool share_location;
@@ -236,9 +237,9 @@ void detection_output_inst::load(cldnn::BinaryInputBuffer& ib) {
     padding output_padding;
 
     ib >> id;
-    ib >> input_location;
-    ib >> input_confidence;
-    ib >> input_prior_box;
+    ib >> make_data(&input_location, sizeof(input_location));
+    ib >> make_data(&input_confidence, sizeof(input_confidence));
+    ib >> make_data(&input_prior_box, sizeof(input_prior_box));
     ib >> make_data(&output_padding, sizeof(output_padding));
     ib >> num_classes;
     ib >> keep_top_k;

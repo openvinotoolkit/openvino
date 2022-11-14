@@ -83,11 +83,11 @@ void generic_fully_connected_test(cldnn::format test_input_fmt, cldnn::format te
         input_layout("input", input->get_layout()),
         data("weights", weights),
         data("bias", bias),
-        fully_connected(out_id, "input", "weights", "bias")
+        fully_connected(out_id, input_info("input"), "weights", "bias")
     );
     if (relu)
     {
-        topology.add(activation("out", out_id, activation_func::relu, { slope, 0.0f }));
+        topology.add(activation("out", input_info(out_id), activation_func::relu, { slope, 0.0f }));
         out_id = "out";
     }
     network network(engine, topology);
@@ -205,7 +205,7 @@ TEST(fully_connected_gpu, no_biases) {
 
     auto input = input_layout("input", input_prim->get_layout());
     auto w_data = data("weights", weights_prim);
-    auto fc = fully_connected("fc_prim", "input", "weights");
+    auto fc = fully_connected("fc_prim", input_info("input"), "weights");
     topology topology;
     topology.add(input);
     topology.add(w_data);
@@ -262,9 +262,9 @@ TEST(fully_connected_gpu, no_biases_int8) {
 
     auto input = input_layout("input", input_prim->get_layout());
     auto w_data = data("weights", weights_prim);
-    auto ri = reorder("reorder_to_int", "input", { data_types::i8, format::bfyx, { input_b, input_f, 1, 1 } });
-    auto fc = fully_connected("fc_prim", "reorder_to_int", "weights");
-    auto rf = reorder("reorder_to_float", "fc_prim", { data_types::f32, format::bfyx, { input_b, weight_b, 1, 1 } });
+    auto ri = reorder("reorder_to_int", input_info("input"), { data_types::i8, format::bfyx, { input_b, input_f, 1, 1 } });
+    auto fc = fully_connected("fc_prim", input_info("reorder_to_int"), "weights");
+    auto rf = reorder("reorder_to_float", input_info("fc_prim"), { data_types::f32, format::bfyx, { input_b, weight_b, 1, 1 } });
     topology topology;
     topology.add(input);
     topology.add(w_data);
@@ -327,7 +327,7 @@ TEST(fully_connected_gpu, xb_f32_batch_1) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        fully_connected("fc_prim", "input", "weights", "bias")
+        fully_connected("fc_prim", input_info("input"), "weights", "bias")
     );
 
     network network(engine, topology);
@@ -387,7 +387,7 @@ TEST(fully_connected_gpu, xb_f32_batch_2) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        fully_connected("fc_prim", "input", "weights", "bias")
+        fully_connected("fc_prim", input_info("input"), "weights", "bias")
     );
 
     network network(engine, topology);
@@ -449,7 +449,7 @@ TEST(fully_connected_gpu, x_f32) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        fully_connected("fc_prim", "input", "weights", "bias")
+        fully_connected("fc_prim", input_info("input"), "weights", "bias")
     );
 
     network network(engine, topology);
@@ -509,8 +509,8 @@ TEST(fully_connected_gpu, xb_f32_batch_1_relu) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        fully_connected("fc_prim", "input", "weights", "bias"),
-        activation("out", "fc_prim", activation_func::relu)
+        fully_connected("fc_prim", input_info("input"), "weights", "bias"),
+        activation("out", input_info("fc_prim"), activation_func::relu)
     );
 
     network network(engine, topology);
@@ -571,8 +571,8 @@ TEST(fully_connected_gpu, xb_f32_batch_2_relu) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        fully_connected("fc_prim", "input", "weights", "bias"),
-        activation("out", "fc_prim", activation_func::relu)
+        fully_connected("fc_prim", input_info("input"), "weights", "bias"),
+        activation("out", input_info("fc_prim"), activation_func::relu)
     );
 
     network network(engine, topology);
@@ -634,8 +634,8 @@ TEST(fully_connected_gpu, x_f32_relu) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        fully_connected("fc_prim", "input", "weights", "bias"),
-        activation("out", "fc_prim", activation_func::relu)
+        fully_connected("fc_prim", input_info("input"), "weights", "bias"),
+        activation("out", input_info("fc_prim"), activation_func::relu)
     );
 
     network network(engine, topology);
@@ -694,8 +694,8 @@ TEST(fully_connected_gpu, x_f32_relu_with_negative_slope) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        fully_connected("fc_prim", "input", "weights", "bias"),
-        activation("out", "fc_prim", activation_func::relu_negative_slope, { 0.1f })
+        fully_connected("fc_prim", input_info("input"), "weights", "bias"),
+        activation("out", input_info("fc_prim"), activation_func::relu_negative_slope, { 0.1f })
     );
 
     network network(engine, topology);
@@ -741,7 +741,7 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
 
     // Reorder
     topology.add(reorder("reorder_in",
-                         "input",
+                         input_info("input"),
                          layout(data_types::i8, format::b_fs_yx_fsv4, { in_B, in_F, in_X, in_Y })));
 
     // Weights
@@ -770,9 +770,9 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
 
     // Fully connected
     fully_connected fullc_gold(
-        "fullc_gold", "input", "weights_gold", "bias_gold");
+        "fullc_gold", input_info("input"), "weights_gold", "bias_gold");
     fully_connected fullc_imad(
-        "fullc_imad", "reorder_in", "weights_imad", "bias_imad");
+        "fullc_imad", input_info("reorder_in"), "weights_imad", "bias_imad");
     topology.add(fullc_gold, fullc_imad);
 
 
@@ -789,15 +789,15 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
         data("in_hi", input_high_mem),
         data("out_lo", output_low_mem),
         data("out_hi", output_high_mem),
-        quantize("quant_gold", "fullc_gold", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
-        quantize("quant_imad", "fullc_imad", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8)
+        quantize("quant_gold", input_info("fullc_gold"), input_info("in_lo"), input_info("in_hi"), input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        quantize("quant_imad", input_info("fullc_imad"), input_info("in_lo"), input_info("in_hi"), input_info("out_lo"), input_info("out_hi"), 255, data_types::i8)
     );
 
     // Output reorder
     auto reorder_gold =
-        reorder("reorder_gold", "quant_gold", layout(data_types::i8, format::bfyx, { in_B, W_B, 1, 1 }));
+        reorder("reorder_gold", input_info("quant_gold"), layout(data_types::i8, format::bfyx, { in_B, W_B, 1, 1 }));
     auto reorder_imad =
-        reorder("reorder_imad", "quant_imad", layout(data_types::i8, format::bfyx, { in_B, W_B, 1, 1 }));
+        reorder("reorder_imad", input_info("quant_imad"), layout(data_types::i8, format::bfyx, { in_B, W_B, 1, 1 }));
     topology.add(reorder_gold, reorder_imad);
 
     // Network build
@@ -864,9 +864,9 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b12) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        reorder("input_fsv", "input", { data_types::f16, format::fs_b_yx_fsv32, { batch_num, input_f, input_y, input_x } }),
-        fully_connected("fc_prim", "input_fsv", "weights", "bias"),
-        activation("out", "fc_prim", activation_func::relu)
+        reorder("input_fsv", input_info("input"), { data_types::f16, format::fs_b_yx_fsv32, { batch_num, input_f, input_y, input_x } }),
+        fully_connected("fc_prim", input_info("input_fsv"), "weights", "bias"),
+        activation("out", input_info("fc_prim"), activation_func::relu)
     );
 
     // Set data optimization to allow weights reordering to optimal format
@@ -940,9 +940,9 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b34)
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        reorder("input_fsv", "input", { data_types::f16, format::fs_b_yx_fsv32, { batch_num, input_f, input_y, input_x } }),
-        fully_connected("fc_prim", "input_fsv", "weights", "bias"),
-        activation("out", "fc_prim", activation_func::relu)
+        reorder("input_fsv", input_info("input"), { data_types::f16, format::fs_b_yx_fsv32, { batch_num, input_f, input_y, input_x } }),
+        fully_connected("fc_prim", input_info("input_fsv"), "weights", "bias"),
+        activation("out", input_info("fc_prim"), activation_func::relu)
     );
 
     // Set data optimization to allow weights reordering to optimal format
@@ -1375,7 +1375,7 @@ public:
         auto last_dim = std::find_if(input_sizes.rbegin(), input_sizes.rend(),
                                      [](tensor::value_type x) { return x != 1l; });
         size_t input_rank = std::distance(input_sizes.begin(), last_dim.base());
-        auto fc_prim = fully_connected("fc_prim", "input", "weights", "bias", cldnn::padding(), input_rank);
+        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "bias", cldnn::padding(), input_rank);
         fc_prim.output_data_type = type_to_data_type<OutputT>::value;
         topo.add(fc_prim);
 
@@ -1384,16 +1384,16 @@ public:
         topo.add(data("quant_output_low", quantization_output_low));
         topo.add(data("quant_output_high", quantization_output_high));
         topo.add(quantize("quantization_prim",
-            "fc_prim",
-            "quant_input_low",
-            "quant_input_high",
-            "quant_output_low",
-            "quant_output_high",
+            input_info("fc_prim"),
+            input_info("quant_input_low"),
+            input_info("quant_input_high"),
+            input_info("quant_output_low"),
+            input_info("quant_output_high"),
             _quantization.levels,
             output_data_type()
             ));
 
-        topo.add(reorder("output", "quantization_prim", format::bfyx, output_data_type()));
+        topo.add(reorder("output", input_info("quantization_prim"), format::bfyx, output_data_type()));
 
         build_options build_opts;
         build_opts.set_option(build_option::optimize_data(true));
@@ -1676,9 +1676,9 @@ TEST(fully_connected_onednn_gpu, no_biases_int8) {
 
     auto input = input_layout("input", input_prim->get_layout());
     auto w_data = data("weights", weights_prim);
-    auto ri = reorder("reorder_to_int", "input", { data_types::i8, format::bfyx, { input_b, input_f, 1, 1 } });
-    auto fc = fully_connected("fc_prim", "reorder_to_int", "weights");
-    auto rf = reorder("reorder_to_float", "fc_prim", { data_types::f32, format::bfyx, { input_b, 4, 1, 1 } });
+    auto ri = reorder("reorder_to_int", input_info("input"), { data_types::i8, format::bfyx, { input_b, input_f, 1, 1 } });
+    auto fc = fully_connected("fc_prim", input_info("reorder_to_int"), "weights");
+    auto rf = reorder("reorder_to_float", input_info("fc_prim"), { data_types::f32, format::bfyx, { input_b, 4, 1, 1 } });
     topology topology;
     topology.add(input);
     topology.add(w_data);
@@ -1728,9 +1728,9 @@ TEST(fully_connected_3d_onednn_gpu, no_biases_int8) {
 
     auto input = input_layout("input", input_prim->get_layout());
     auto w_data = data("weights", weights_prim);
-    auto ri = reorder("reorder_to_int", "input", { data_types::i8, format::bfyx, { input_b, input_f, 1, input_y } });
-    auto fc = fully_connected("fc_prim", "reorder_to_int", "weights", "", padding(), 3);
-    auto rf = reorder("reorder_to_float", "fc_prim", { data_types::f32, format::bfyx, { output_b, output_f, 1, 1 } });
+    auto ri = reorder("reorder_to_int", input_info("input"), { data_types::i8, format::bfyx, { input_b, input_f, 1, input_y } });
+    auto fc = fully_connected("fc_prim", input_info("reorder_to_int"), "weights", "", padding(), 3);
+    auto rf = reorder("reorder_to_float", input_info("fc_prim"), { data_types::f32, format::bfyx, { output_b, output_f, 1, 1 } });
     topology topology;
     topology.add(input);
     topology.add(w_data);
@@ -1777,7 +1777,7 @@ TEST(fully_connected_gpu, dynamic) {
     cldnn::topology topology{
         input_layout("input", input_dyn_layout),
         data("weights", weights_data),
-        fully_connected("fc", "input", "weights")
+        fully_connected("fc", input_info("input"), "weights")
     };
 
     build_options options;
@@ -1827,7 +1827,7 @@ TEST(fully_connected_gpu, dynamic_multi_inference_same_shape) {
     cldnn::topology topology{
         input_layout("input", input_dyn_layout),
         data("weights", weights_data),
-        fully_connected("fc", "input", "weights")
+        fully_connected("fc", input_info("input"), "weights")
     };
 
     build_options options;
@@ -1907,7 +1907,7 @@ TEST(fully_connected_gpu, dynamic_multi_inference_different_shape) {
     cldnn::topology topology{
         input_layout("input", input_dyn_layout),
         data("weights", weights_data),
-        fully_connected("fc", "input", "weights")
+        fully_connected("fc", input_info("input"), "weights")
     };
 
     build_options options;
@@ -1997,7 +1997,7 @@ TEST(fully_connected_gpu, dynamic_multi_inference_multiple_shapes) {
     cldnn::topology topology{
         input_layout("input", input_dyn_layout),
         data("weights", weights_data),
-        fully_connected("fc", "input", "weights")
+        fully_connected("fc", input_info("input"), "weights")
     };
 
     build_options options;

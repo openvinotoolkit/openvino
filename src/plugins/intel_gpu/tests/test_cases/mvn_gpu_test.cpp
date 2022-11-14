@@ -119,7 +119,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_outside_sqrt_bfyx) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", false, 1e-10f, false, true));
+    topology.add(mvn("mvn", input_info("input"), false, 1e-10f, false, true));
 
     network network(engine, topology);
 
@@ -146,7 +146,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_inside_sqrt_bfyx) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", false, 1e-10f, true, true));
+    topology.add(mvn("mvn", input_info("input"), false, 1e-10f, true, true));
 
     network network(engine, topology);
 
@@ -173,7 +173,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_bfyx_outside_sqrt_fp16) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", false, 1e-10f, false, true));
+    topology.add(mvn("mvn", input_info("input"), false, 1e-10f, false, true));
 
     network network(engine, topology);
 
@@ -200,7 +200,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_inside_sqrt_bfyx_fp16) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", false, 1e-10f, true, true));
+    topology.add(mvn("mvn", input_info("input"), false, 1e-10f, true, true));
 
     network network(engine, topology);
 
@@ -227,7 +227,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_outside_sqrt_bfyx_normalize_variance
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", true, 1e-10f, false, true));
+    topology.add(mvn("mvn", input_info("input"), true, 1e-10f, false, true));
 
     network network(engine, topology);
 
@@ -254,7 +254,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_inside_sqrt_bfyx_normalize_variance)
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", true, 1e-10f, true, true));
+    topology.add(mvn("mvn", input_info("input"), true, 1e-10f, true, true));
 
     network network(engine, topology);
 
@@ -281,7 +281,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_outside_sqrt_bfyx_normalize_variance
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", true, 1e-10f, false, true));
+    topology.add(mvn("mvn", input_info("input"), true, 1e-10f, false, true));
 
     network network(engine, topology);
 
@@ -308,7 +308,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_inside_sqrt_bfyx_normalize_variance_
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", true, 1e-10f, true, true));
+    topology.add(mvn("mvn", input_info("input"), true, 1e-10f, true, true));
 
     network network(engine, topology);
 
@@ -370,7 +370,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_outside_sqrt_bfyx) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", false, 1e-10f, false, false));
+    topology.add(mvn("mvn", input_info("input"), false, 1e-10f, false, false));
 
     network network(engine, topology);
 
@@ -397,7 +397,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_inside_sqrt__bfyx) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", false, 1e-10f, true, false));
+    topology.add(mvn("mvn", input_info("input"), false, 1e-10f, true, false));
 
     network network(engine, topology);
 
@@ -424,7 +424,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_outside_sqrt_bfyx_fp16) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", false, 1e-10f, false, false));
+    topology.add(mvn("mvn", input_info("input"), false, 1e-10f, false, false));
 
     network network(engine, topology);
 
@@ -451,7 +451,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_inside_sqrt_bfyx_fp16) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", false, 1e-10f, true, false));
+    topology.add(mvn("mvn", input_info("input"), false, 1e-10f, true, false));
 
     network network(engine, topology);
 
@@ -478,7 +478,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_outside_sqrt_bfyx_normalize_variance
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", true, 1e-10f, false, false));
+    topology.add(mvn("mvn", input_info("input"), true, 1e-10f, false, false));
 
     network network(engine, topology);
 
@@ -505,7 +505,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_inside_sqrt_bfyx_normalize_variance)
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", true, 1e-10f, true, false));
+    topology.add(mvn("mvn", input_info("input"), true, 1e-10f, true, false));
 
     network network(engine, topology);
 
@@ -532,7 +532,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_outside_sqrt_bfyx_normalize_variance
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", true, 1e-10f, false, false));
+    topology.add(mvn("mvn", input_info("input"), true, 1e-10f, false, false));
 
     network network(engine, topology);
 
@@ -559,7 +559,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_inside_sqrt_bfyx_normalize_variance_
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(mvn("mvn", "input", true, 1e-10f, true, false));
+    topology.add(mvn("mvn", input_info("input"), true, 1e-10f, true, false));
 
     network network(engine, topology);
 
@@ -658,7 +658,7 @@ struct mvn_random_test : ::testing::TestWithParam<mvn_basic_test_params> {
 
         topology topo;
         topo.add(input_layout("input", input->get_layout()));
-        auto prim = mvn("mvn", "input", params.normalize_variance, 1e-10f, false, params.across_channels);
+        auto prim = mvn("mvn", input_info("input"), params.normalize_variance, 1e-10f, false, params.across_channels);
         prim.output_padding = output_pad;
         topo.add(prim);
 
@@ -850,7 +850,7 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
 
         topology topo;
         topo.add(input_layout("input", input->get_layout()));
-        auto prim = mvn("mvn", "input", params.normalize_variance, 1e-10f, false, params.across_channels);
+        auto prim = mvn("mvn", input_info("input"), params.normalize_variance, 1e-10f, false, params.across_channels);
         prim.output_padding = output_pad;
         topo.add(prim);
         auto build_opts = build_options();
@@ -865,8 +865,8 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
 
         topology topo_opt;
         topo_opt.add(input_layout("input", input->get_layout()));
-        topo_opt.add(reorder("input_to_target_layout", "input", {params.input_type, params.input_format, size}));
-        auto prim_opt = mvn("mvn_opt", "input_to_target_layout", params.normalize_variance, 1e-10f, false, params.across_channels);
+        topo_opt.add(reorder("input_to_target_layout", input_info("input"), {params.input_type, params.input_format, size}));
+        auto prim_opt = mvn("mvn_opt", input_info("input_to_target_layout"), params.normalize_variance, 1e-10f, false, params.across_channels);
         prim_opt.output_padding = output_pad;
         topo_opt.add(prim_opt);
         auto build_opts_opt = build_options();
