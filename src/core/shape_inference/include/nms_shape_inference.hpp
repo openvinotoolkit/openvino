@@ -72,7 +72,8 @@ void shape_infer(const NonMaxSuppression* op,
             const auto num_boxes = num_boxes_boxes.get_length();
             const auto num_classes = scores_ps[1].get_length();
             std::vector<int64_t> max_output_boxes_per_class_as_vals;
-            if (get_data_as_int64<T>(2, op, max_output_boxes_per_class_as_vals, constant_data)) {
+            if ((op->get_input_size() > 2 || constant_data.count(2)) &&
+                get_data_as_int64<T>(2, op, max_output_boxes_per_class_as_vals, constant_data)) {
                 int64_t max_output_boxes_per_class = max_output_boxes_per_class_as_vals[0];
                 out_shape[0] = static_output ? std::min(num_boxes, max_output_boxes_per_class) * num_classes *
                                                    scores_ps[0].get_length()
