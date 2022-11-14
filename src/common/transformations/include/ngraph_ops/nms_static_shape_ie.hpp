@@ -10,7 +10,7 @@
 #include <transformations_visibility.hpp>
 #include <vector>
 
-#include "ngraph/op/op.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov {
 namespace op {
@@ -22,14 +22,21 @@ class MatrixNms;
 }  // namespace op
 }  // namespace ov
 
-namespace ngraph {
+namespace ov {
 namespace op {
 namespace internal {
 
 template <typename BaseNmsOp>
 class NmsStaticShapeIE : public BaseNmsOp {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    // TODO: it should be std::string("NmsStaticShapeIE_") + BaseNmsOp::get_type_info_static().name,
+    //       but currently it does not pass conversion to Legacy Opset correctly
+    OPENVINO_RTTI(BaseNmsOp::get_type_info_static().name,
+                  "ie_internal_opset",
+                  BaseNmsOp,
+                  BaseNmsOp::get_type_info_static().version);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     NmsStaticShapeIE() = default;
 
@@ -106,38 +113,14 @@ void NmsStaticShapeIE<BaseNmsOp>::validate_and_infer_types() {
     }
 }
 
-template <typename BaseNmsOp>
-const ::ngraph::Node::type_info_t& NmsStaticShapeIE<BaseNmsOp>::get_type_info() const {
-    return get_type_info_static();
-}
+}  // namespace internal
+}  // namespace op
+}  // namespace ov
 
-template <typename BaseNmsOp>
-const ::ngraph::Node::type_info_t& NmsStaticShapeIE<BaseNmsOp>::get_type_info_static() {
-    auto BaseNmsOpTypeInfoPtr = &BaseNmsOp::get_type_info_static();
-
-    // TODO: it should be static const std::string name = std::string("NmsStaticShapeIE_") + BaseNmsOpTypeInfoPtr->name;
-    //       but currently it will not pass conversion ot Legacy Opset correctly
-    static const std::string name = BaseNmsOpTypeInfoPtr->name;
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    static const ::ngraph::Node::type_info_t type_info_static{name.c_str(),
-                                                              BaseNmsOpTypeInfoPtr->version,
-                                                              "ie_internal_opset",
-                                                              BaseNmsOpTypeInfoPtr};
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    return type_info_static;
-}
-
-#ifndef OPENVINO_STATIC_LIBRARY
-template <typename BaseNmsOp>
-const ::ngraph::Node::type_info_t NmsStaticShapeIE<BaseNmsOp>::type_info =
-    NmsStaticShapeIE<BaseNmsOp>::get_type_info_static();
-#endif
-
-#ifdef __clang__
-extern template class TRANSFORMATIONS_API op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>;
-#endif  // __clang__
-
+namespace ngraph {
+namespace op {
+namespace internal {
+using ov::op::internal::NmsStaticShapeIE;
 }  // namespace internal
 }  // namespace op
 }  // namespace ngraph

@@ -17,12 +17,14 @@ struct experimental_detectron_generate_proposals_single_image_impl
     using parent = typed_primitive_impl_ocl<experimental_detectron_generate_proposals_single_image>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<experimental_detectron_generate_proposals_single_image_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<experimental_detectron_generate_proposals_single_image>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<experimental_detectron_generate_proposals_single_image>& instance, int32_t) const override {
         kernel_arguments_data args;
         const auto num_inputs = instance.inputs_memory_count();
         for (size_t i = 0; i < num_inputs; ++i) {
@@ -69,12 +71,23 @@ public:
 
 namespace detail {
 attach_experimental_detectron_generate_proposals_single_image_impl::attach_experimental_detectron_generate_proposals_single_image_impl() {
+    auto types = {data_types::f16, data_types::f32};
+    auto formats = {
+        format::bfyx,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv16_fsv32,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32
+    };
+
     implementation_map<experimental_detectron_generate_proposals_single_image>::add(impl_types::ocl,
-                                                                                    experimental_detectron_generate_proposals_single_image_impl::create, {
-                                                 std::make_tuple(data_types::f16, format::bfyx),
-                                                 std::make_tuple(data_types::f32, format::bfyx)
-                                         });
+        experimental_detectron_generate_proposals_single_image_impl::create, types, formats);
 }
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::experimental_detectron_generate_proposals_single_image_impl,
+                             cldnn::object_type::EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE_IMPL)

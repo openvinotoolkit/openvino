@@ -16,6 +16,8 @@ namespace ocl {
 struct range_impl : typed_primitive_impl_ocl<range> {
     using typed_primitive_impl_ocl::typed_primitive_impl_ocl;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<range_impl>(*this);
     }
@@ -58,3 +60,5 @@ attach_range_impl::attach_range_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::range_impl, cldnn::object_type::RANGE_IMPL)

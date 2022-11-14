@@ -16,6 +16,7 @@ using namespace cldnn;
 using namespace ::tests;
 using namespace testing;
 
+namespace {
 void verify_float(const float& output_value, const float& value) {
     EXPECT_FLOAT_EQ(output_value, value);
 }
@@ -127,6 +128,7 @@ void generic_reshape_test(format fmt, tensor const& input_size, tensor const& re
         }
     }
 }
+}  // namespace
 
 TEST(reshape_gpu_f32, basic_2dim_in_place) {
     generic_reshape_test<float>(

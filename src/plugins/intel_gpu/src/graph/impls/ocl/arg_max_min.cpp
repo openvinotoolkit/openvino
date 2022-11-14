@@ -40,12 +40,14 @@ struct arg_max_min_impl : typed_primitive_impl_ocl<arg_max_min> {
     using parent = typed_primitive_impl_ocl<arg_max_min>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<arg_max_min_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<arg_max_min>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<arg_max_min>& instance, int32_t) const override {
         kernel_arguments_data args = parent::get_arguments(instance, 0);
 
         if (instance.node->has_second_output()) {
@@ -112,19 +114,22 @@ public:
 
 namespace detail {
 attach_arg_max_min_impl::attach_arg_max_min_impl() {
-    implementation_map<arg_max_min>::add(impl_types::ocl, arg_max_min_impl::create,  {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f16, format::yxfb),
-        std::make_tuple(data_types::i8, format::yxfb),
-    });
+    auto types = {data_types::f16, data_types::f32, data_types::i8, data_types::i32};
+
+    auto formats = {format::bfyx,
+                    format::yxfb,
+                    format::b_fs_yx_fsv16,
+                    format::b_fs_yx_fsv32,
+                    format::bs_fs_yx_bsv16_fsv16,
+                    format::bs_fs_yx_bsv32_fsv16,
+                    format::bs_fs_yx_bsv32_fsv32,
+
+                    format::bfzyx};
+
+    implementation_map<arg_max_min>::add(impl_types::ocl, arg_max_min_impl::create, types, formats);
 }
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::arg_max_min_impl, cldnn::object_type::ARG_MAX_MIN_IMPL)

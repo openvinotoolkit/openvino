@@ -133,6 +133,7 @@ using quantize_node = typed_program_node<quantize>;
 template <>
 class typed_primitive_inst<quantize> : public typed_primitive_inst_base<quantize> {
     using parent = typed_primitive_inst_base<quantize>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>

@@ -14,6 +14,7 @@ using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
+namespace {
 kernel_selector::scatter_update_axis convert_axis(int64_t axis, const scatter_update_node& arg) {
     auto rank = arg.input(0).get_output_layout().get_rank();
     if (axis < 0) {
@@ -38,10 +39,13 @@ kernel_selector::scatter_update_axis convert_axis(int64_t axis, const scatter_up
     }
     return kernel_selector::scatter_update_axis::X;
 }
+}  // namespace
 
 struct scatter_update_impl : typed_primitive_impl_ocl<scatter_update> {
     using parent = typed_primitive_impl_ocl<scatter_update>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<scatter_update_impl>(*this);
@@ -99,3 +103,5 @@ attach_scatter_update_impl::attach_scatter_update_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::scatter_update_impl, cldnn::object_type::SCATTER_UPDATE_IMPL)

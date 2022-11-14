@@ -221,8 +221,8 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
                               "Failed to create broadcastable shapes in snippets canonicalization");
         const auto paramShape = m_body->get_parameters()[i]->get_shape();
         const auto paramType =  m_body->get_parameters()[i]->get_element_type();
-        if (paramShape.size() != inShape.size() || !equal(paramShape.begin(), paramShape.end(), inShape.begin()) || paramType != inType)
-                m_body->replace_parameter(i, std::make_shared<opset1::Parameter>(inType, inShape));
+        if (paramShape.size() != inShape.size() || !equal(paramShape.begin(), paramShape.end(), inShape.begin()))
+                m_body->replace_parameter(i, std::make_shared<opset1::Parameter>(paramType, inShape));
     }
 
     m_body->validate_nodes_and_infer_types();
@@ -269,43 +269,37 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
 
 void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outputShapes,
                                                  const BlockedShapeVector& inputShapes) {
+    // We should insert Convert before Results to set original output element type if needed
     const auto& body_results = m_body->get_results();
     for (size_t i = 0; i < outputShapes.size(); i++) {
         const auto needed_out_type = std::get<2>(outputShapes[i]);
-
-        // If there is real Convert from graph (ConvertTruncation) or after FQ decomp (ConvertSaturation) before Result
-        // we should check destination type and insert ConvertSaturation before that if needed.
-        // For example, to return original element type after Convert insertion on inputs
-        std::shared_ptr<ov::Node> first_convert = body_results[i];
-        while (ov::is_type<ngraph::op::v0::Convert>(first_convert->get_input_node_ptr(0))) {
-            first_convert = first_convert->get_input_node_shared_ptr(0);
-        }
-        if (auto existing_convert_t = ngraph::as_type_ptr<ngraph::op::v0::Convert>(first_convert)) {
-            const auto original_input_element_type = existing_convert_t->get_input_element_type(0);
-            if (original_input_element_type != execution_element_type) {
-                const auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
-                        existing_convert_t->get_input_node_shared_ptr(0), original_input_element_type);
-                existing_convert_t->set_argument(0, convert);
-            }
-        }
-
-        // We should insert Convert before Results to return original output element type
-        const auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
+        if (body_results[i]->get_input_element_type(0) != needed_out_type) {
+            const auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
                 body_results[i]->get_input_node_shared_ptr(0), needed_out_type);
-        body_results[i]->set_argument(0, convert);
+            body_results[i]->set_argument(0, convert);
+        }
     }
+
+    // We should change existing element type to original for Parameters if needed
+    const auto& body_parameters = m_body->get_parameters();
+    for (size_t i = 0; i < inputShapes.size(); ++i) {
+        const auto needed_in_type = std::get<2>(inputShapes[i]);
+        if (body_parameters[i]->get_element_type() != needed_in_type) {
+            body_parameters[i]->set_element_type(needed_in_type);
+            config.m_is_needed_to_align_precision = true;
+        }
+    }
+
     // We should align element type inside body using the corresponding pass:
     //  - Insert Convert before operations that doesn't support original element type for execution
     //  - Insert reverse Convert before operations that support original element type
     //    but have inputs that doesn't support it (because before them will be inserted Convert with exec_type - first point)
     // Then we should use ConstantFolding pass to convert element type of Scalars before inference.
-    // At the end eliminate redundant Convert that could be inserted
     ngraph::pass::Manager manager;
     if (config.m_is_needed_to_align_precision) {
         manager.register_pass<snippets::pass::AlignElementType>(execution_element_type);
+        manager.register_pass<ngraph::pass::ConstantFolding>();
     }
-    manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::EliminateConvert>();
     manager.run_passes(m_body);
 }
 

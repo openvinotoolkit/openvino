@@ -1,13 +1,9 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include "gna_limitations.hpp"
-
-#include "gna/gna_config.hpp"
-
 #include <cstdint>
 #include <unordered_set>
+
 #include <legacy/ie_layers.h>
 #include <legacy/graph_tools.hpp>
 #include <layers/gna_layer_type.hpp>
@@ -15,6 +11,11 @@
 #include "gna_graph_tools.hpp"
 #include "gna_lib_ver_selector.hpp"
 #include "common/gna_target.hpp"
+#include "log/log.hpp"
+#include "gna_limitations.hpp"
+#include "gna/gna_config.hpp"
+
+using namespace ov::intel_gna;
 
 namespace GNAPluginNS {
 namespace GNALimitations {
@@ -425,7 +426,7 @@ bool ValidateConvConcatAxis(const InferenceEngine::ConcatLayer* concat_layer) {
     return true;
 }
 
-bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage, bool userWarning) {
+bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage) {
     IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::InputsDataMap inputs = network.getInputsInfo();
     std::unordered_set<InferenceEngine::CNNLayer *> allLayers;
@@ -477,8 +478,8 @@ bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMe
                                                        check_result = false;
                                                    }
                                                } else if (info.isConcat()) {
-                                                   if (userWarning && !ValidateConcatAxis(layer, errMessage)) {
-                                                       std::cout << errMessage;
+                                                   if (!ValidateConcatAxis(layer, errMessage)) {
+                                                       log::warning() << errMessage;
                                                    }
                                                }
                                            }, false);

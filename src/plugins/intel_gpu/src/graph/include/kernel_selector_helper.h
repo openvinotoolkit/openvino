@@ -17,6 +17,7 @@
 #include "kernel_selector_common.h"
 #include "tensor_type.h"
 #include "fused_primitive_desc.h"
+#include "serialization/binary_buffer.hpp"
 
 #include <cstdint>
 #include <string>
@@ -115,6 +116,9 @@ struct kernel_impl_params {
     layout output_layout;
     std::vector<tensor> input_offsets;
     std::vector<cldnn::fused_primitive_desc> fused_desc;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    std::vector<cldnn::fused_primitive_desc_onednn> fused_desc_onednn;
+#endif // ENABLE_ONEDNN_FOR_GPU
     std::vector<activation_func> fused_act_funcs;
     std::vector<activation_additional_params> activation_params;
 
@@ -129,6 +133,8 @@ struct kernel_impl_params {
     size_t primary_input_idx = 0;
 
     memory::ptr reordered_weights = nullptr;
+
+    kernel_impl_params() {}
 
     kernel_impl_params(program& _prog,
                        std::shared_ptr<const primitive> _desc,
@@ -174,6 +180,9 @@ struct kernel_impl_params {
 
     template <class PType>
     std::shared_ptr<const PType> typed_desc() const { return std::static_pointer_cast<const PType>(desc); }
+
+    void save(BinaryOutputBuffer& ob) const;
+    void load(BinaryInputBuffer& ib);
 };
 
 template <typename T = std::uint32_t>

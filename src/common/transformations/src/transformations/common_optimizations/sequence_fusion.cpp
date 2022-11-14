@@ -163,12 +163,11 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
     const auto R_in = cp_to.make<Unsqueeze>(first_cell->input_value(idx_R), axis_0);
     const auto B_in = cp_to.make<Unsqueeze>(first_cell->input_value(idx_B), axis_0);
 
-    const auto& shape_node = cp_to.add(ngraph::op::util::make_try_fold<ShapeOf>(first_cell->input_value(0)));
+    const auto& shape_node = cp_to.add(ov::op::util::make_try_fold<ShapeOf>(first_cell->input_value(0)));
     const auto& zero = cp_to.make<Constant>(i64, ov::Shape{1}, 0);
-    const auto& batch_dimension = cp_to.add(ngraph::op::util::make_try_fold<Gather>(shape_node, zero, axis_0));
+    const auto& batch_dimension = cp_to.add(ov::op::util::make_try_fold<Gather>(shape_node, zero, axis_0));
     auto seq_lengths_scalar = cp_to.make<Constant>(i64, ov::Shape{}, cells_cnt);
-    auto sequence_lengths_in =
-        cp_to.add(ngraph::op::util::make_try_fold<Broadcast>(seq_lengths_scalar, batch_dimension));
+    auto sequence_lengths_in = cp_to.add(ov::op::util::make_try_fold<Broadcast>(seq_lengths_scalar, batch_dimension));
     shared_ptr<ov::Node> sequence;
     ov::OutputVector outputs(1);
     if (dynamic_pointer_cast<LSTMCell>(first_cell)) {
