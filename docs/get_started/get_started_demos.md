@@ -40,7 +40,7 @@ To install OpenVINO Development Tools, follow the <a href="openvino_docs_install
    pip install openvino-dev[caffe]
 ```
 
-### Build Samples and Demos
+### Build Samples
 
 If you have already built the demos and samples, you can skip this section. The build will take about 5-10 minutes, depending on your system.
 
