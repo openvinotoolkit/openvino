@@ -16,6 +16,7 @@ namespace op {
 
 OP_CONVERTER(translate_adaptive_max_pool2d);
 OP_CONVERTER(translate_add);
+OP_CONVERTER(translate_addcmul);
 OP_CONVERTER(translate_as_tensor);
 OP_CONVERTER(translate_avg_pool2d);
 OP_CONVERTER(translate_batch_norm);
@@ -50,6 +51,7 @@ OP_CONVERTER(translate_to);
 OP_CONVERTER(translate_transpose);
 OP_CONVERTER(translate_tuple_construct);
 OP_CONVERTER(translate_view);
+
 }  // namespace op
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
@@ -60,6 +62,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::adaptive_max_pool2d", op::translate_adaptive_max_pool2d},
         {"aten::add", op::translate_add},
         {"aten::add_", op::inplace_op<op::translate_add>},
+        {"aten::addcmul", op::translate_addcmul},
         {"aten::as_tensor", op::translate_as_tensor},
         {"aten::avg_pool2d", op::translate_avg_pool2d},
         {"aten::batch_norm", op::translate_batch_norm},
