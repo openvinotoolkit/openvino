@@ -784,10 +784,10 @@ TEST(eval, evaluate_relu_2Ffprop_f32) {
     auto result = make_shared<HostTensor>();
     ASSERT_TRUE(fun->evaluate(
         {result},
-        {make_host_tensor<element::Type_t::f32>(Shape{2, 5}, {1, 8, -8, 17, -0.5, 0.1, 8.5, -8, 17, -0.5})}));
+        {make_host_tensor<element::Type_t::f32>(Shape{2, 5}, {1, 8, -8, 17, -0.5f, 0.1f, 8.5f, -8, 17, -0.5f})}));
     EXPECT_EQ(result->get_element_type(), element::f32);
     auto result_val = read_vector<float>(result);
-    vector<float> expec{1, 8, 0, 17, 0, 0.1, 8.5, 0, 17, 0};
+    vector<float> expec{1, 8, 0, 17, 0, 0.1f, 8.5f, 0, 17, 0};
     ASSERT_EQ(result_val, expec);
 }
 
@@ -1809,7 +1809,7 @@ TEST(eval, evaluate_softsign_9) {
     EXPECT_EQ(result_tensor[0].get_element_type(), ov::element::f32);
     EXPECT_EQ(result_tensor[0].get_shape(), ov::Shape{4});
 
-    vector<float> out{0.5, -0.5, 0.714285, -0.777777};
+    vector<float> out{0.5f, -0.5f, 0.714285f, -0.777777f};
     auto result_data = result_tensor[0].data<float>();
     for (size_t i = 0; i < result_tensor[0].get_size(); ++i)
         EXPECT_NEAR(result_data[i], out[i], 1e-6F);
