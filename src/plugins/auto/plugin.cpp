@@ -330,8 +330,11 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     loadConfig.UpdateFromMap(config, GetName(), true);
     auto fullConfig = loadConfig._keyConfigMap;
     // Remove the performance hint if no setting to this property from user.
-    if (!loadConfig._isSetPerHint)
+    if (!loadConfig._isSetPerHint) {
         fullConfig.erase(PluginConfigParams::KEY_PERFORMANCE_HINT);
+        // set performance hint to 'THROUGHPUT' model for AutoExecutable Network.
+        loadConfig._perfHintsConfig.SetConfig(PluginConfigParams::KEY_PERFORMANCE_HINT, PluginConfigParams::THROUGHPUT);
+    }
     if (!loadConfig._isSetCacheDir)
         fullConfig.erase(CONFIG_KEY(CACHE_DIR));
     // collect the settings that are applicable to the devices we are loading the network to
