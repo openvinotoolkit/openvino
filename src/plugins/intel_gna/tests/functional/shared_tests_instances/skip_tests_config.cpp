@@ -93,5 +93,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CompileModelCacheTestBase.*(SingleConv|NestedSplitConvConcat).*)",
         R"(.*CompileModelCacheTestBase.*(Bias|ReadConcatSplitAssign).*)",
         R"(.*OVClassLoadNetworkTest.*LoadNetwork.*)",
+        // TODO: Issue: 95234
+        R"(.*smoke_CachingSupportCase_GNA.*)",
     };
 }

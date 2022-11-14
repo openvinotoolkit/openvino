@@ -17,7 +17,7 @@ namespace cldnn {
 namespace cpu {
 
 using namespace cldnn::cpu;
-
+namespace {
 struct result_indices {
     float score;
     int batch_index;
@@ -378,8 +378,12 @@ void run(non_max_suppression_inst& instance) {
     store_result(stream, instance.output_memory_ptr(), result);
 }
 
+}  // namespace
+
 struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
     using parent = typed_primitive_impl<non_max_suppression>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<non_max_suppression_impl>(*this);
@@ -419,3 +423,5 @@ attach_non_max_suppression_impl::attach_non_max_suppression_impl() {
 }  // namespace detail
 }  // namespace cpu
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::non_max_suppression_impl, cldnn::object_type::NON_MAX_SUPPRESSION_IMPL_CPU)

@@ -13,6 +13,7 @@
 
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 #define GTEST_COUT std::cout << "[          ] [ INFO ] "
 
@@ -175,8 +176,16 @@ void CompileModelCacheTestBase::run() {
         }
         init_input_shapes(static_shapes_to_test_representation(inShapes));
     }
+    if ((targetDevice.find("GPU") != std::string::npos)) {
+#if !defined(_WIN32) && !defined(_WIN64)
+        setenv("OV_GPU_CACHE_MODEL", "1", 1);
+#endif
+    }
     if ((targetDevice.find("AUTO") == std::string::npos) && !importExportSupported(*core)) {
         GTEST_FAIL() << "Plugin doesn't support import and export - skipping test" << std::endl;
+    }
+    if (importExportSupported(*core)) {
+        ASSERT_NO_THROW(core->get_property(targetDevice, ov::caching_properties));
     }
     configure_model();
     try {
@@ -204,6 +213,11 @@ void CompileModelCacheTestBase::run() {
         // cache is created and reused
         ASSERT_EQ(CommonTestUtils::listFilesWithExt(m_cacheFolderName, "blob").size(), 1);
         compare(originalOutputs, get_plugin_outputs());
+    }
+    if ((targetDevice.find("GPU") != std::string::npos)) {
+#if !defined(_WIN32) && !defined(_WIN64)
+        setenv("OV_GPU_CACHE_MODEL", "", 1);
+#endif
     }
 }
 

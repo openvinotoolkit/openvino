@@ -17,6 +17,8 @@ struct experimental_detectron_topk_rois_impl : typed_primitive_impl_ocl<experime
     using parent = typed_primitive_impl_ocl<experimental_detectron_topk_rois>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<experimental_detectron_topk_rois_impl>(*this);
     }
@@ -41,14 +43,23 @@ struct experimental_detectron_topk_rois_impl : typed_primitive_impl_ocl<experime
 namespace detail {
 
 attach_experimental_detectron_topk_rois_impl::attach_experimental_detectron_topk_rois_impl() {
+    auto types = {data_types::f16, data_types::f32};
+    auto formats = {format::bfyx,
+                    format::b_fs_yx_fsv16,
+                    format::b_fs_yx_fsv32,
+                    format::bs_fs_yx_bsv16_fsv16,
+                    format::bs_fs_yx_bsv32_fsv16,
+                    format::bs_fs_yx_bsv32_fsv32};
     implementation_map<experimental_detectron_topk_rois>::add(impl_types::ocl,
-                                                              experimental_detectron_topk_rois_impl::create, {
-                                                                      std::make_tuple(data_types::f16, format::bfyx),
-                                                                      std::make_tuple(data_types::f32, format::bfyx)
-                                                              });
+                                                              experimental_detectron_topk_rois_impl::create,
+                                                              types,
+                                                              formats);
 }
 
 }  // namespace detail
 
 } // namespace ocl
 } // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::experimental_detectron_topk_rois_impl,
+                             cldnn::object_type::EXPERIMENTAL_DETECTRON_TOPK_ROIS_IMPL)
