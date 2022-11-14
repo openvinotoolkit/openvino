@@ -19,7 +19,7 @@ def percentile(values, percent):
 
 def fill_tensor_random(tensor):
     dtype = get_dtype(tensor.element_type)
-    rand_min, rand_max = (0, 1) if dtype == np.bool else (np.iinfo(np.uint8).min, np.iinfo(np.uint8).max)
+    rand_min, rand_max = (0, 1) if dtype == bool else (np.iinfo(np.uint8).min, np.iinfo(np.uint8).max)
     # np.random.uniform excludes high: add 1 to have it generated
     if np.dtype(dtype).kind in ['i', 'u', 'b']:
         rand_max += 1
@@ -53,15 +53,10 @@ def main():
     # Warm up
     for ireq in ireqs:
         ireq.start_async()
-    for ireq in ireqs:
-        ireq.wait()
+    ireqs.wait_all()
     # Benchmark for seconds_to_run seconds and at least niter iterations
-    seconds_to_run = 15
-    init_niter = 12
-    niter = int((init_niter + len(ireqs) - 1) / len(ireqs)) * len(ireqs)
-    if init_niter != niter:
-        log.warning('Number of iterations was aligned by request number '
-                    f'from {init_niter} to {niter} using number of requests {len(ireqs)}')
+    seconds_to_run = 10
+    niter = 10
     latencies = []
     in_fly = set()
     start = perf_counter()
@@ -88,10 +83,7 @@ def main():
     log.info(f'Count:          {len(latencies)} iterations')
     log.info(f'Duration:       {duration * 1e3:.2f} ms')
     log.info('Latency:')
-    if percent == 50:
-        log.info(f'    Median:     {percentile_latency_ms:.2f} ms')
-    else:
-        log.info(f'({percent} percentile):     {percentile_latency_ms:.2f} ms')
+    log.info(f'    Median:     {percentile_latency_ms:.2f} ms')
     log.info(f'    AVG:        {avg_latency_ms:.2f} ms')
     log.info(f'    MIN:        {min_latency_ms:.2f} ms')
     log.info(f'    MAX:        {max_latency_ms:.2f} ms')

@@ -19,7 +19,7 @@ def percentile(values, percent):
 
 def fill_tensor_random(tensor):
     dtype = get_dtype(tensor.element_type)
-    rand_min, rand_max = (0, 1) if dtype == np.bool else (np.iinfo(np.uint8).min, np.iinfo(np.uint8).max)
+    rand_min, rand_max = (0, 1) if dtype == bool else (np.iinfo(np.uint8).min, np.iinfo(np.uint8).max)
     # np.random.uniform excludes high: add 1 to have it generated
     if np.dtype(dtype).kind in ['i', 'u', 'b']:
         rand_max += 1
@@ -40,7 +40,7 @@ def main():
     latency = {'PERFORMANCE_HINT': 'LATENCY'}
 
     # Create Core and use it to compile a model.
-    # Pick device by replacing CPU, for example AUTO:GPU,CPU.
+    # Pick a device by replacing CPU, for example AUTO:GPU,CPU.
     # Using MULTI device is pointless in sync scenario
     # because only one instance of openvino.runtime.InferRequest is used
     core = Core()
@@ -52,7 +52,7 @@ def main():
     # Warm up
     ireq.infer()
     # Benchmark for seconds_to_run seconds and at least niter iterations
-    seconds_to_run = 15
+    seconds_to_run = 10
     niter = 10
     latencies = []
     start = perf_counter()
@@ -76,10 +76,7 @@ def main():
     log.info(f'Count:          {len(latencies)} iterations')
     log.info(f'Duration:       {duration * 1e3:.2f} ms')
     log.info('Latency:')
-    if percent == 50:
-        log.info(f'    Median:     {percentile_latency_ms:.2f} ms')
-    else:
-        log.info(f'({percent} percentile):     {percentile_latency_ms:.2f} ms')
+    log.info(f'    Median:     {percentile_latency_ms:.2f} ms')
     log.info(f'    AVG:        {avg_latency_ms:.2f} ms')
     log.info(f'    MIN:        {min_latency_ms:.2f} ms')
     log.info(f'    MAX:        {max_latency_ms:.2f} ms')

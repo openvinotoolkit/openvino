@@ -28,7 +28,7 @@ int main(int argc, char* argv[]) {
         ov::AnyMap latency{{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::LATENCY}};
 
         // Create ov::Core and use it to compile a model.
-        // Pick device by replacing CPU, for example AUTO:GPU,CPU.
+        // Pick a device by replacing CPU, for example AUTO:GPU,CPU.
         // Using MULTI device is pointless in sync scenario
         // because only one instance of ov::InferRequest is used
         ov::Core core;
@@ -41,8 +41,8 @@ int main(int argc, char* argv[]) {
         // Warm up
         ireq.infer();
         // Benchmark for seconds_to_run seconds and at least niter iterations
-        std::chrono::seconds seconds_to_run{15};
-        size_t niter = 12;
+        std::chrono::seconds seconds_to_run{10};
+        size_t niter = 10;
         std::vector<double> latencies;
         latencies.reserve(niter);
         auto start = std::chrono::steady_clock::now();

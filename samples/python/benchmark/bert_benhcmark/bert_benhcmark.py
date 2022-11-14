@@ -55,10 +55,9 @@ def main():
     sst2_sentences = sst2['validation']['sentence']
     # Warm up
     encoded_warm_up = dict(tokenizer('Warm up sentence is here.', return_tensors='np'))
-    for _ in ireqs:
-        ireqs.start_async(encoded_warm_up)
     for ireq in ireqs:
-        ireq.wait()
+        ireq.start_async(encoded_warm_up)
+    ireqs.wait_all()
     # Benchmark
     start = perf_counter()
     for sentence in sst2_sentences:

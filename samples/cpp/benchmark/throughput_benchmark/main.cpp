@@ -29,7 +29,7 @@ int main(int argc, char* argv[]) {
         ov::AnyMap tput{{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT}};
 
         // Create ov::Core and use it to compile a model.
-        // Pick device by replacing CPU, for example MULTI:CPU(4),GPU(8).
+        // Pick a device by replacing CPU, for example MULTI:CPU(4),GPU(8).
         // It is possible to set CUMULATIVE_THROUGHPUT as ov::hint::PerformanceMode for AUTO device
         ov::Core core;
         ov::CompiledModel compiled_model = core.compile_model(argv[1], "CPU", tput);
@@ -53,13 +53,8 @@ int main(int argc, char* argv[]) {
             ireq.wait();
         }
         // Benchmark for seconds_to_run seconds and at least niter iterations
-        std::chrono::seconds seconds_to_run{15};
-        size_t init_niter = 12;
-        size_t niter = ((init_niter + nireq - 1) / nireq) * nireq;
-        if (init_niter != niter) {
-            slog::warn << "Number of iterations was aligned by request number from " << init_niter << " to " << niter
-                       << " using number of requests " << nireq << slog::endl;
-        }
+        std::chrono::seconds seconds_to_run{10};
+        size_t niter = 10;
         std::vector<double> latencies;
         std::mutex mutex;
         std::condition_variable cv;

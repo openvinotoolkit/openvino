@@ -1,8 +1,6 @@
 # Sync Benchmark Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_sync_benchmark_README}
 
-This sample demonstrates how to estimate performace of a model using Synchronous Inference Request API. it makes sence to use synchronous inference only in latency oriented scenarios. Models with static input shapes are supported. Unlike [demos](@ref omz_demos) this sample doesn't have other configurable command line arguments. Feel free to modify sample's source code to try out different options.
-
-The reported results may deviate from what [benchmark_app](../../../../tools/benchmark_tool/README.md) reports. One example is model input precision for computer vision tasks. benchmark_app sets uint8, while the sample uses default model precision which is usually float32.
+This sample demonstrates how to estimate performace of a model using Synchronous Inference Request API. It makes sence to use synchronous inference only in latency oriented scenarios. Models with static input shapes are supported. Unlike [demos](@ref omz_demos) this sample doesn't have other configurable command line arguments. Feel free to modify sample's source code to try out different options.
 
 The following Python\* API is used in the application:
 
