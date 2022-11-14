@@ -44,7 +44,7 @@ struct primitive_type_base : primitive_type {
     std::unique_ptr<primitive_impl> choose_impl(const cldnn::program_node& node, const kernel_impl_params& runtime_params) const override {
         OPENVINO_ASSERT(node.type() == this, "[GPU] primitive_type_base::choose_impl: primitive type mismatch");
         auto factory = implementation_map<PType>::get(runtime_params, node.get_preferred_impl_type());
-        return std::unique_ptr<primitive_impl>(factory(node, runtime_params));
+        return factory(node, runtime_params);
     }
 
     bool does_an_implementation_exist(const cldnn::program_node& node) const override {

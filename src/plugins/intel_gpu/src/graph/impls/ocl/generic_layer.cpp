@@ -119,11 +119,11 @@ struct generic_layer_cpu : typed_primitive_impl<generic_layer> {
     void init_kernels(const kernels_cache&) override {}
 };
 
-static primitive_impl* create(const generic_layer_node& arg, const kernel_impl_params&) {
+static std::unique_ptr<primitive_impl> create(const generic_layer_node& arg, const kernel_impl_params&) {
     if (arg.get_primitive()->generic_params.engine == kernel_selector::generic_kernel_params::Engine::GPU) {
-        return new generic_layer_impl(arg);
+        return make_unique<generic_layer_impl>(arg);
     } else {
-        return new generic_layer_cpu(arg);
+        return make_unique<generic_layer_cpu>(arg);
     }
 }
 

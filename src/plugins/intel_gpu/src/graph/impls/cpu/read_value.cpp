@@ -41,8 +41,8 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
     void init_kernels(const kernels_cache&) override {}
 
 public:
-    static primitive_impl* create(const read_value_node& arg, const kernel_impl_params& impl_param) {
-        return new read_value_impl{};
+    static std::unique_ptr<primitive_impl> create(const read_value_node& arg, const kernel_impl_params& impl_param) {
+        return make_unique<read_value_impl>();
     }
 };
 

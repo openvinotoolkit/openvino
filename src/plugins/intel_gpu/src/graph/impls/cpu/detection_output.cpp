@@ -855,7 +855,9 @@ public:
 
     void init_kernels(const kernels_cache&) override {}
 
-    static primitive_impl* create(const detection_output_node& arg, const kernel_impl_params&) { return new detection_output_impl(arg); }
+    static std::unique_ptr<primitive_impl> create(const detection_output_node& arg, const kernel_impl_params&) {
+        return make_unique<detection_output_impl>(arg);
+    }
 };
 
 namespace detail {

@@ -183,6 +183,10 @@ struct kernel_impl_params {
 
     void save(BinaryOutputBuffer& ob) const;
     void load(BinaryInputBuffer& ib);
+    const program& get_program() const {
+        OPENVINO_ASSERT(prog != nullptr, "[GPU] Program pointer in kernel_impl_params in not initialized");
+        return *prog;
+    }
 };
 
 template <typename T = std::uint32_t>

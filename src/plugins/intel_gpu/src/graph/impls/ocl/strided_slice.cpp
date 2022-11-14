@@ -48,6 +48,8 @@ namespace ocl {
 struct strided_slice_impl : typed_primitive_impl_ocl<strided_slice> {
     using parent = typed_primitive_impl_ocl<strided_slice>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::strided_slice_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::strided_slice_params, kernel_selector::strided_slice_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -56,10 +58,10 @@ struct strided_slice_impl : typed_primitive_impl_ocl<strided_slice> {
     }
 
 public:
-    static primitive_impl* create(const strided_slice_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const strided_slice_node& arg, const kernel_impl_params& impl_param) {
         const auto& prim = impl_param.typed_desc<strided_slice>();
         auto params = get_default_params<kernel_selector::strided_slice_params>(impl_param);
-        auto op_params = get_default_optional_params<kernel_selector::strided_slice_optional_params>(arg.get_program());
+        auto op_params = get_default_optional_params<kernel_selector::strided_slice_optional_params>(impl_param.get_program());
         const size_t dims_num = params.inputs[0].Dimentions();
 
         // Getting data from constant inputs. There are 3 args: Begin, End, Stride
@@ -133,16 +135,9 @@ public:
         }
 
         auto& kernel_selector = kernel_selector::strided_slice_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(params, op_params);
+        auto best_kernel = kernel_selector.get_best_kernel(params, op_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto strided_slice = new strided_slice_impl(arg, best_kernels[0]);
-
-        return strided_slice;
+        return make_unique<strided_slice_impl>(arg, best_kernel);
     }
 };
 

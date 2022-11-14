@@ -16,6 +16,8 @@ namespace ocl {
 struct shape_of_impl : typed_primitive_impl_ocl<shape_of> {
     using parent = typed_primitive_impl_ocl<shape_of>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::shape_of_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::shape_of_params, kernel_selector::shape_of_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -23,32 +25,22 @@ struct shape_of_impl : typed_primitive_impl_ocl<shape_of> {
         return make_unique<shape_of_impl>(*this);
     }
 
-    static primitive_impl* create(const shape_of_node& arg, const kernel_impl_params& impl_param) {
-        auto shape_of_params = get_default_params<kernel_selector::shape_of_params>(impl_param);
-        auto shape_of_optional_params =
-            get_default_optional_params<kernel_selector::shape_of_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        auto params = get_default_params<kernel_selector::shape_of_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::shape_of_optional_params>(impl_param.get_program());
 
-        auto input_layout = impl_param.input_layouts[0];
-        shape_of_params.input_rank = input_layout.get_rank();
-        shape_of_params.input_dims = input_layout.get_dims();
+        auto input_layout = impl_param.get_input_layout(0);
+        params.input_rank = input_layout.get_rank();
+        params.input_dims = input_layout.get_dims();
 
-        auto& kernel_selector = kernel_selector::shape_of_instance();
-        auto best_kernels = kernel_selector.GetBestKernels(shape_of_params, shape_of_optional_params);
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto shape_of = new shape_of_impl(arg, best_kernels[0]);
-
-        return shape_of;
+        return {params, optional_params};
     }
 };
 
 namespace detail {
 
 attach_shape_of_impl::attach_shape_of_impl() {
-    implementation_map<shape_of>::add(impl_types::ocl, shape_of_impl::create, {});
+    implementation_map<shape_of>::add(impl_types::ocl, typed_primitive_impl_ocl<shape_of>::create<shape_of_impl>, {});
 }
 
 }  // namespace detail

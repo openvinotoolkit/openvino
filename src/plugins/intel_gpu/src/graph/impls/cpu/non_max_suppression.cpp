@@ -405,8 +405,8 @@ struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
         return ev;
     }
 
-    static primitive_impl* create(const non_max_suppression_node&, const kernel_impl_params&) {
-        return new non_max_suppression_impl();
+    static std::unique_ptr<primitive_impl> create(const non_max_suppression_node&, const kernel_impl_params&) {
+        return make_unique<non_max_suppression_impl>();
     }
     void init_kernels(const kernels_cache&) override {}
 };

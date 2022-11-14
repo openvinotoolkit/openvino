@@ -16,6 +16,9 @@ struct experimental_detectron_generate_proposals_single_image_impl
         : public typed_primitive_impl_ocl<experimental_detectron_generate_proposals_single_image> {
     using parent = typed_primitive_impl_ocl<experimental_detectron_generate_proposals_single_image>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::experimental_detectron_generate_proposals_single_image_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::experimental_detectron_generate_proposals_single_image_params,
+                                      kernel_selector::experimental_detectron_generate_proposals_single_image_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -39,33 +42,22 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const experimental_detectron_generate_proposals_single_image_node& arg, const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<experimental_detectron_generate_proposals_single_image>();
         auto params = get_default_params<kernel_selector::experimental_detectron_generate_proposals_single_image_params>(impl_param);
-        auto optional_params = get_default_optional_params<
-                kernel_selector::experimental_detectron_generate_proposals_single_image_optional_params>(arg.get_program());
-
-        const auto& primitive = arg.get_primitive();
+        auto optional_params =
+            get_default_optional_params<kernel_selector::experimental_detectron_generate_proposals_single_image_optional_params>(impl_param.get_program());
 
         params.min_size = primitive->min_size;
         params.nms_threshold  = primitive->nms_threshold;
         params.pre_nms_count = primitive->pre_nms_count;
         params.post_nms_count = primitive->post_nms_count;
 
-        params.inputs.push_back(convert_data_tensor(arg.anchors().get_output_layout()));
-        params.inputs.push_back(convert_data_tensor(arg.deltas().get_output_layout()));
-        params.inputs.push_back(convert_data_tensor(arg.scores().get_output_layout()));
+        for (size_t i = 1; i < impl_param.input_layouts.size(); i++) {
+            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
+        }
 
-        params.inputs.push_back(convert_data_tensor(arg.output_roi_scores_node().get_output_layout()));
-
-        const auto& kernel_selector = kernel_selector::experimental_detectron_generate_proposals_single_image_kernel_selector::Instance();
-        const auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "best_kernels.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        return new experimental_detectron_generate_proposals_single_image_impl(arg, best_kernels[0]);
+        return {params, optional_params};
     }
 };
 
@@ -82,8 +74,10 @@ attach_experimental_detectron_generate_proposals_single_image_impl::attach_exper
         format::bs_fs_yx_bsv32_fsv32
     };
 
-    implementation_map<experimental_detectron_generate_proposals_single_image>::add(impl_types::ocl,
-        experimental_detectron_generate_proposals_single_image_impl::create, types, formats);
+    implementation_map<experimental_detectron_generate_proposals_single_image>::add(
+        impl_types::ocl,
+        typed_primitive_impl_ocl<experimental_detectron_generate_proposals_single_image>::create<experimental_detectron_generate_proposals_single_image_impl>,
+        types, formats);
 }
 }  // namespace detail
 }  // namespace ocl
