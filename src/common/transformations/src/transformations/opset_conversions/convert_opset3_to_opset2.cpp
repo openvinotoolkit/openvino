@@ -15,7 +15,7 @@
 #include "transformations/op_conversions/convert_topk3.hpp"
 #include "transformations/op_conversions/softplus_decomposition.hpp"
 
-bool ngraph::pass::ConvertOpSet3ToOpSet2::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+bool ov::pass::ConvertOpSet3ToOpSet2::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(ConvertOpSet3ToOpSet2);
     ngraph::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);

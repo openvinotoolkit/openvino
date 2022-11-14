@@ -20,7 +20,7 @@ OutputVector translate_depth_to_space_op(const NodeContext& node) {
 
     // retrieve attributes
     auto block_size = node.get_attribute<int64_t>("block_size");
-    auto data_format = node.get_attribute<std::string>("data_format");
+    auto data_format = node.get_attribute<string>("data_format", "NHWC");
 
     TENSORFLOW_OP_VALIDATION(node,
                              data_format == "NHWC" || data_format == "NCHW",

@@ -13,6 +13,8 @@ flake8-expression-complexity
 flake8-print
 flake8-pytest-style
 flake8-rst-docstrings
+# Force version of pygments from flake8-rst-docstrings
+pygments>=2.8.1
 flake8-string-format
 flake8-variables-names
 flake8_builtins

@@ -12,7 +12,9 @@
 #include <layers/gna_copy_layer.hpp>
 
 #include "dnn_components.hpp"
+#include "log/log.hpp"
 
+using namespace ov::intel_gna;
 using namespace GNAPluginNS;
 using namespace GNAPluginNS::backend;
 
@@ -21,9 +23,9 @@ intel_dnn_component_t & DnnComponents::addComponent(const std::string layerName,
     delayedOperations += isDelayed ? 1 : 0;
     components.emplace_back(DnnComponentExtra{layerName, {}, isDelayed});
     auto &currentComponent = components.back().dnnComponent;
-#ifdef PLOT
-    std::cout << "IR layer : " << std::left << std::setw(20) << layerName << " " << layerMetaType << "_" << components.size() - 1 << std::endl;
-#endif
+
+    log::trace() << "IR layer : " << std::left << std::setw(20) << layerName << " " << layerMetaType << "_" << components.size() - 1 << std::endl;
+
     currentComponent.original_layer_name = components.back().name.c_str();
     int execOrder = 0;
     if (!isDelayed) {
@@ -33,7 +35,7 @@ intel_dnn_component_t & DnnComponents::addComponent(const std::string layerName,
         execOrder = - static_cast<int>(delayedOperations);
     }
 
-    gnalog() << "IR layer : " << std::left << std::setw(20) << layerName << " " << layerMetaType << "_" << execOrder << std::endl;
+    log::debug() << "IR layer : " << std::left << std::setw(20) << layerName << " " << layerMetaType << "_" << execOrder << std::endl;
     return currentComponent;
 }
 

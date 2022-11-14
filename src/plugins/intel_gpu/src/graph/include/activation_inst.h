@@ -42,6 +42,7 @@ using activation_node = typed_program_node<activation>;
 template <>
 class typed_primitive_inst<activation> : public typed_primitive_inst_base<activation> {
     using parent = typed_primitive_inst_base<activation>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(activation_node const& node, kernel_impl_params const& impl_param);

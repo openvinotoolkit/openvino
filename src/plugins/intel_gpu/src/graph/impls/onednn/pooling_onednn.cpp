@@ -19,6 +19,8 @@ struct pooling_onednn : typed_primitive_onednn_impl<pooling, dnnl::pooling_forwa
     using parent = typed_primitive_onednn_impl<pooling, dnnl::pooling_forward::desc>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<pooling_onednn>(*this);
@@ -32,16 +34,11 @@ protected:
 
         dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
         dnnl::memory::dims kernel(prim->size.begin(), prim->size.end());
-        dnnl::memory::dims pad_l(prim->pad.begin(), prim->pad.end());
-        dnnl::memory::dims pad_r(prim->pad_end.begin(), prim->pad_end.end());
+        dnnl::memory::dims pad_l(prim->pads_begin.begin(), prim->pads_begin.end());
+        dnnl::memory::dims pad_r(prim->pads_end.begin(), prim->pads_end.end());
 
         auto input_md = onednn::layout_to_memory_desc(input_layout);
         auto output_md = onednn::layout_to_memory_desc(output_layout);
-
-        if (prim->global_pooling) {
-            for (size_t i = 0; i < kernel.size(); i++)
-                kernel[i] = input_md.dims()[2 + i];
-        }
 
         for (size_t i = 0; i < kernel.size(); i++) {
             pad_r[i] = (output_md.dims()[2 + i] - 1) * stride[i] - input_md.dims()[2 + i] + kernel[i] - pad_l[i];
@@ -67,13 +64,36 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const pooling_node& arg, const kernel_impl_params& impl_params) {
+    void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
+
+        ob << make_data(&_desc->data, sizeof(dnnl_pooling_desc_t));
+
+        std::vector<uint8_t> prim_cache;
+        prim_cache = _prim.get_cache_blob();
+        ob << prim_cache;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+
+        _desc = std::make_shared<dnnl::pooling_forward::desc>();
+        ib >> make_data(&_desc->data, sizeof(dnnl_pooling_desc_t));
+
+        std::vector<uint8_t> prim_cache;
+        ib >> prim_cache;
+
+        _pd = dnnl::primitive_desc(&_desc->data, _attrs.get(), ib.get_engine().get_onednn_engine(), nullptr);
+        _prim = dnnl::primitive(_pd, prim_cache);
+    }
+
+    static std::unique_ptr<primitive_impl> create(const pooling_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto desc = get_pooling_descriptor(impl_params);
         auto attr = arg.get_onednn_primitive_attributes();
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
 
-        return new pooling_onednn(engine, desc, attr, prim_desc);
+        return cldnn::make_unique<pooling_onednn>(engine, desc, attr, prim_desc);
     }
 };
 
@@ -108,3 +128,5 @@ attach_pooling_onednn::attach_pooling_onednn() {
 }  // namespace detail
 }  // namespace onednn
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::pooling_onednn, cldnn::object_type::POOLING_ONEDNN)

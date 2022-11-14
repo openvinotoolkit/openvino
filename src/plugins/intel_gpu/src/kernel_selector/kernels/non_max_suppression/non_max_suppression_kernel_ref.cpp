@@ -7,7 +7,53 @@
 #include <vector>
 
 namespace kernel_selector {
+namespace {
+static inline int GetPartitionStep(int localWorkItemNum) {
+    int step_size = 0;
+    for (int temp = localWorkItemNum; temp > 1; temp /= 2) {
+        step_size++;
+    }
+    return step_size;
+}
 
+static inline size_t GetOptimalLocalClassSize(std::vector<size_t> gws, const EngineInfo& info) {
+    const size_t optimal_values[] = {256, 227, 224, 192, 160, 128, 96, 64, 32, 16, 8, 7, 6, 5, 4, 2, 1};
+    const size_t splitNum = gws[2];
+    const size_t globalClassNum = gws[1];
+    const auto rest_lws = info.maxWorkGroupSize / splitNum;
+    size_t lws_idx = 0;
+    while (rest_lws < optimal_values[lws_idx])
+        lws_idx++;
+    while (globalClassNum % optimal_values[lws_idx])
+        lws_idx++;
+
+    return optimal_values[lws_idx];
+}
+
+NonMaxSuppressionKernelRef::DispatchData SetDefault(const non_max_suppression_params& params, int idx) {
+    NonMaxSuppressionKernelRef::DispatchData dispatchData;
+
+    const auto& input = params.inputs[1];
+    if (idx == 0) {
+        const size_t boxesGroupSize = std::min(params.inputs[0].Feature().v, params.engineInfo.maxWorkGroupSize);
+        dispatchData.gws = {input.Batch().v, input.Feature().v, boxesGroupSize};
+        dispatchData.lws = {1, 1, boxesGroupSize};
+    } else if (idx == 1) {
+        const size_t kSplitNum = 16;
+        dispatchData.gws = {input.Batch().v, input.Feature().v, kSplitNum};
+        const size_t kClassSize = GetOptimalLocalClassSize(dispatchData.gws, params.engineInfo);
+        dispatchData.lws = {1, kClassSize, kSplitNum};
+    } else if (idx == 2) {
+        dispatchData.gws = {input.Batch().v, input.Feature().v, 1};
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    } else {
+        dispatchData.gws = {1, 1, 1};
+        dispatchData.lws = {1, 1, 1};
+    }
+
+    return dispatchData;
+}
+}  // namespace
 Datatype NonMaxSuppressionKernelRef::GetAccumulatorType(const non_max_suppression_params& params) const {
     auto in_dt = params.inputs[0].GetDType();
     auto out_dt = params.outputs[0].GetDType();
@@ -123,52 +169,6 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
     }
 
     return jit;
-}
-
-static inline int GetPartitionStep(int localWorkItemNum) {
-    int step_size = 0;
-    for (int temp = localWorkItemNum; temp > 1; temp /= 2) {
-        step_size++;
-    }
-    return step_size;
-}
-
-static inline size_t GetOptimalLocalClassSize(std::vector<size_t> gws, const EngineInfo& info) {
-    const size_t optimal_values[] = {256, 227, 224, 192, 160, 128, 96, 64, 32, 16, 8, 7, 6, 5, 4, 2, 1};
-    const size_t splitNum = gws[2];
-    const size_t globalClassNum = gws[1];
-    const auto rest_lws = info.maxWorkGroupSize / splitNum;
-    size_t lws_idx = 0;
-    while (rest_lws < optimal_values[lws_idx])
-        lws_idx++;
-    while (globalClassNum % optimal_values[lws_idx])
-        lws_idx++;
-
-    return optimal_values[lws_idx];
-}
-
-NonMaxSuppressionKernelRef::DispatchData SetDefault(const non_max_suppression_params& params, int idx) {
-    NonMaxSuppressionKernelRef::DispatchData dispatchData;
-
-    const auto& input = params.inputs[1];
-    if (idx == 0) {
-        const size_t boxesGroupSize = std::min(params.inputs[0].Feature().v, params.engineInfo.maxWorkGroupSize);
-        dispatchData.gws = {input.Batch().v, input.Feature().v, boxesGroupSize};
-        dispatchData.lws = {1, 1, boxesGroupSize};
-    } else if (idx == 1) {
-        const size_t kSplitNum = 16;
-        dispatchData.gws = {input.Batch().v, input.Feature().v, kSplitNum};
-        const size_t kClassSize = GetOptimalLocalClassSize(dispatchData.gws, params.engineInfo);
-        dispatchData.lws = {1, kClassSize, kSplitNum};
-    } else if (idx == 2) {
-        dispatchData.gws = {input.Batch().v, input.Feature().v, 1};
-        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
-    } else {
-        dispatchData.gws = {1, 1, 1};
-        dispatchData.lws = {1, 1, 1};
-    }
-
-    return dispatchData;
 }
 
 bool NonMaxSuppressionKernelRef::Validate(const Params& p, const optional_params& o) const {
