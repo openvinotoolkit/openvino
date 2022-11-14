@@ -19,12 +19,12 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 
 #include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
-#include "serialization/set_serializer.hpp"
 #include "json_object.h"
 #include <string>
 #include <stack>

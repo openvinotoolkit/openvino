@@ -81,8 +81,12 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         return stream.enqueue_kernel(*_kernels.front(), cl_kernel.get()->params, args, events, instance.node->is_output());
     }
 
-    std::vector<std::string> get_kernel_ids() override {
+    std::vector<std::string> get_kernel_ids() const override {
         return {_kernel_id};
+    }
+
+    std::vector<kernel::ptr> get_kernels() const override {
+        return _kernels;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

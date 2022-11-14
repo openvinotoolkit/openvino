@@ -4,10 +4,10 @@
 
 #include "detection_output_inst.h"
 #include "primitive_type_base.h"
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
-#include "serialization/string_serializer.hpp"
 
 namespace cldnn {
 primitive_type_id detection_output::type_id() {

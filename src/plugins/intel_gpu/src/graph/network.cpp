@@ -18,6 +18,7 @@
 
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/graph/serialization/map_serializer.hpp"
 #include "assign_inst.h"
 #include "read_value_inst.h"
 #include "reshape_inst.h"
@@ -32,7 +33,6 @@
 #include "program_helpers.h"
 #include "runtime/cldnn_itt.hpp"
 #include "kernels_cache.hpp"
-#include "serialization/map_serializer.hpp"
 
 #include <algorithm>
 #include <string>
@@ -335,11 +335,7 @@ network::network(cldnn::BinaryInputBuffer& ib, stream::ptr stream, engine& engin
     , _reset_arguments(true) {
     net_id += 1;
 
-    uint32_t prog_id;
-    std::vector<std::string> batch_header_str;
-    ib >> prog_id;
-    ib >> batch_header_str;
-    kernels_cache kernels_cache(get_engine(), prog_id, batch_header_str);
+    kernels_cache kernels_cache(get_engine(), 0, {""});
     ib >> kernels_cache;
 
     int num_data_nodes;
@@ -429,7 +425,11 @@ network::~network() {
 }
 
 void network::save(cldnn::BinaryOutputBuffer& ob) {
-    ob << _program->get_kernels_cache();
+    kernels_cache kernels_cache(get_engine(), 0, {""});
+    for (const auto& p_inst : _exec_order) {
+        kernels_cache.add_kernels(p_inst->get_impl()->get_kernel_ids(), p_inst->get_impl()->get_kernels());
+    }
+    ob << kernels_cache;
 
     int num_data_nodes = 0;
     for (const auto& p_inst : _primitives) {

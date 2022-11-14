@@ -14,14 +14,14 @@
 #include "meta_utils.h"
 #include "program_node.h"
 #include "primitive_type.h"
-#include "serialization/binary_buffer.hpp"
-#include "serialization/helpers.hpp"
-#include "serialization/cl_kernel_data_serializer.hpp"
-#include "serialization/object_types.hpp"
-#include "serialization/polymorphic_serializer.hpp"
-#include "serialization/string_serializer.hpp"
-#include "serialization/layout_serializer.hpp"
-#include "serialization/vector_serializer.hpp"
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/graph/serialization/helpers.hpp"
+#include "intel_gpu/graph/serialization/cl_kernel_data_serializer.hpp"
+#include "intel_gpu/graph/serialization/object_types.hpp"
+#include "intel_gpu/graph/serialization/polymorphic_serializer.hpp"
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
+#include "intel_gpu/graph/serialization/layout_serializer.hpp"
+#include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "runtime/kernels_cache.hpp"
 
 #include <memory>
@@ -64,11 +64,12 @@ struct primitive_impl {
     virtual bool is_cpu() const { return true; }
     virtual void init_kernels(const kernels_cache&) = 0;
     virtual std::unique_ptr<primitive_impl> clone() const = 0;
-    virtual std::vector<std::string> get_kernel_ids() {
+    virtual std::vector<std::string> get_kernel_ids() const {
         return {};
     }
     virtual std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() { return {}; }
     virtual void set_kernels(std::vector<kernel::ptr>) {}
+    virtual std::vector<kernel::ptr> get_kernels() const { return {}; }
     virtual void set_kernel_ids(std::vector<kernel_id> kernel_ids) {}
     virtual void save(cldnn::BinaryOutputBuffer& ob) const {}
     virtual void load(cldnn::BinaryInputBuffer& ib) {}

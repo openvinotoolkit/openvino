@@ -8,7 +8,7 @@
 #include "input_layout_inst.h"
 #include "impls/implementation_map.hpp"
 #include "register.hpp"
-#include "serialization/binary_buffer.hpp"
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include <vector>
 
 namespace cldnn {
