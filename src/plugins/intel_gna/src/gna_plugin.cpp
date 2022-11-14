@@ -1140,6 +1140,29 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
                      importedElements,
                      importedElements);
 
+        {
+            auto subgraph_it = subgraph_cpu_map.find(input.first);
+            if (subgraph_it != subgraph_cpu_map.end()) {
+                std::shared_ptr<ov::Model> model = subgraph_it->second;
+                ov::TensorVector model_result(1);
+
+                const ngraph::Shape & model_input_shape = model->get_parameters()[0]->get_output_shape(0);
+                const ngraph::element::Type & model_input_type = model->get_parameters()[0]->get_element_type();
+
+                void * input_ptr = inputs_ptr_->at(input.first).ptrs[index];
+                ov::Tensor input_tensor(model_input_type, model_input_shape, input_ptr);
+
+                if (model->evaluate(model_result, ov::TensorVector{input_tensor})) {
+                    const size_t model_result_size = model_result[0].get_byte_size();
+                    ie_memcpy(input_ptr, model_result_size, model_result[0].data(), model_result_size);
+                } else {
+                    THROW_GNA_EXCEPTION << "Error evalutate ngraph::Function for output " << input.first;
+                }
+            } else {
+                std::cout << "input " << input.first << " model NOT found " << std::endl;
+            }
+        }
+
         auto transpose_info = transpose_inputs_info.find(input.first);
         if (transpose_info != std::end(transpose_inputs_info)) {
             size_t batchSize = (dims.size() > 1) ? dims[0] : 1;
@@ -1249,7 +1272,27 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
         auto elementsPerBatch =
             isScalar ? 1
                      : (is1D ? dims.front() : InferenceEngine::details::product(++std::begin(dims), std::end(dims)));
+        {
+            auto subgraph_it = subgraph_cpu_map.find(outputBlobIt.first);
+            if (subgraph_it != subgraph_cpu_map.end()) {
+                std::shared_ptr<ov::Model> model = subgraph_it->second;
+                ov::TensorVector model_result(1);
 
+                void * output_ptr = outputDesc.ptrs[request_idx];
+                const ngraph::Shape & model_input_shape = model->get_parameters()[0]->get_output_shape(0);
+                const ngraph::element::Type & model_input_type = model->get_parameters()[0]->get_element_type();
+                ov::Tensor input_tensor(model_input_type, model_input_shape, output_ptr);
+
+                if (model->evaluate(model_result, ov::TensorVector{input_tensor})) {
+                    const size_t model_result_size = model_result[0].get_byte_size();
+                    ie_memcpy(output_ptr, model_result_size, model_result[0].data(), model_result_size);
+                } else {
+                    THROW_GNA_EXCEPTION << "Error evalutate ngraph::Function for output " << outputBlobIt.first;
+                }
+            } else {
+                std::cout << "output " << outputBlobIt.first << " model NOT found " << std::endl;
+            }
+        }
         auto transpose_output_info = transpose_outputs_info.find(outputBlobIt.first);
         if (transpose_output_info != std::end(transpose_outputs_info) &&
             FoundPartToTranspose(transpose_output_info->second)) {
