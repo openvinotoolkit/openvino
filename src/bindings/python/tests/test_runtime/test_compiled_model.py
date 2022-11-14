@@ -6,9 +6,8 @@ import os
 import pytest
 import numpy as np
 
-# TODO: refactor into absolute paths
-from ..conftest import model_path
-from ..test_utils.test_utils import generate_image
+from tests.conftest import model_path
+from tests.test_utils.test_utils import generate_image
 from openvino.runtime import Model, ConstOutput, Shape
 
 from openvino.runtime import Core, Tensor

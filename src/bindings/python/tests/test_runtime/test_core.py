@@ -20,14 +20,14 @@ from openvino.runtime import (
     compile_model,
 )
 
-from ..conftest import (
+from tests.conftest import (
     model_path,
     model_onnx_path,
     plugins_path,
     get_model_with_template_extension,
 )
 
-from ..test_utils.test_utils import (
+from tests.test_utils.test_utils import (
     generate_image,
     generate_relu_model,
 )

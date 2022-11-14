@@ -8,7 +8,7 @@ import os
 
 from openvino.inference_engine import TensorDesc, Blob, IECore
 from tests_compatibility.conftest import model_path
-from ..test_utils.test_utils import generate_image  # TODO: reformat into an absolute path
+from tests_compatibility.test_utils.test_utils import generate_image
 
 
 def test_init_with_tensor_desc():
