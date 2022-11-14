@@ -40,6 +40,8 @@ public:
         } else {
             params.inputs[0] = convert_data_tensor(impl_param.get_input_layout(), impl_param.input_offsets[0]);
         }
+
+        params.layoutBased = true;
         return {params, optional_params};
     }
         void update_dispatch_data(const kernel_impl_params& impl_param) override {
