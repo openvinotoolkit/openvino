@@ -147,12 +147,10 @@ _install_user_mode_redhat()
 
     CMDS=("rpm -ivh https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/mesa-filesystem-21.1.5-1.el8.x86_64.rpm" \
           "dnf install --refresh -y \
-	   intel-opencl-22.28.23726.1-i419.el8.x86_64 intel-media intel-mediasdk libmfxgen1 libvpl2 \
-           level-zero intel-level-zero-gpu mesa-dri-drivers mesa-vulkan-drivers \
-           mesa-vdpau-drivers libdrm mesa-libEGL mesa-libgbm mesa-libGL \
-           mesa-libxatracker  libvpl-tools intel-metrics-discovery \
+           intel-opencl-22.28.23726.1-i419.el8.x86_64 intel-media intel-mediasdk libmfxgen1 libvpl2 \
+           level-zero intel-level-zero-gpu \
            intel-metrics-library intel-igc-core intel-igc-cm \
-           libva libva-utils  intel-gmmlib intel-cmemu libmetee intel-gsc" \
+           libva libva-utils  intel-gmmlib" \
           "rpm -ivh http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/ocl-icd-2.2.12-1.el8.x86_64.rpm" )	
 
     for cmd in "${CMDS[@]}"; do
