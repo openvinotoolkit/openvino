@@ -15,9 +15,10 @@ namespace op {
 
 OutputVector translate_addcmul(NodeContext& context) {
     const auto eltwise_mult = std::make_shared<opset8::Multiply>(context.get_input(1), context.get_input(2));
-    const auto const_value = context.get_input(3);
-    const auto scalar_mult = std::make_shared<opset8::Multiply>(eltwise_mult, const_value);
-    context.mark_nodes({eltwise_mult, scalar_mult});
+    const auto value = context.get_input(3);
+    const auto converted_value = std::make_shared<opset8::ConvertLike>(value, context.get_input(1));
+    const auto scalar_mult = std::make_shared<opset8::Multiply>(eltwise_mult, converted_value);
+    context.mark_nodes({eltwise_mult, converted_value, scalar_mult});
     return {context.mark_node(std::make_shared<opset8::Add>(context.get_input(0), scalar_mult))};
 };
 

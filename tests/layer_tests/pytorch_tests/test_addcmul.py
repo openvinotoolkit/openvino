@@ -33,6 +33,8 @@ class TestAddCMul(PytorchLayerTest):
 
     @pytest.mark.parametrize(("input_type", "value"), [
             [np.int32, None],
+            [np.float32, None],
+            [np.float64, None],
             [np.int32, 1],
             [np.int32, 2],
             [np.int32, 10],
@@ -40,6 +42,8 @@ class TestAddCMul(PytorchLayerTest):
             [np.float32, 2.0],
             [np.float32, 3.1],
             [np.float32, 4.5],
+            [np.float64, 41.5],
+            [np.float64, 24.5],
     ])
     @pytest.mark.nightly
     def test_addcmul(self, input_type, value, ie_device, precision, ir_version):
