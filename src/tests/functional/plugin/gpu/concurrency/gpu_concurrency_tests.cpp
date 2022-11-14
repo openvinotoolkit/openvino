@@ -109,7 +109,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensor, OVConcurrencyTest,
         ::testing::ValuesIn(num_requests)),
     OVConcurrencyTest::getTestCaseName);
 
-TEST(canSwapTensorsBetweenIRs, inputs) {
+TEST(canSwapTensorsBetweenInferRequests, inputs) {
     std::vector<std::vector<uint8_t>> ref;
     std::vector<ov::Tensor> input_tensors;
     auto fn = ngraph::builder::subgraph::makeSplitMultiConvConcat();
@@ -189,7 +189,7 @@ TEST(canSwapTensorsBetweenIRs, inputs) {
     }
 }
 
-TEST(canSwapTensorsBetweenIRs, outputs) {
+TEST(canSwapTensorsBetweenInferRequests, outputs) {
     std::vector<std::vector<uint8_t>> ref;
     std::vector<ov::Tensor> input_tensors;
     std::vector<ov::Tensor> output_tensors;

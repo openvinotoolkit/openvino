@@ -112,9 +112,11 @@ event::ptr gpu_buffer::copy_from(stream& stream, const void* host_ptr) {
 
 event::ptr gpu_buffer::copy_to(stream& stream, void* host_ptr) {
     auto& cl_stream = downcast<ocl_stream>(stream);
-    cl_stream.get_cl_queue().enqueueReadBuffer(_buffer, true, 0, size(), host_ptr, nullptr, nullptr);
+    auto ev = stream.create_base_event();
+    cl::Event ev_ocl = downcast<ocl_event>(ev.get())->get();
+    cl_stream.get_cl_queue().enqueueReadBuffer(_buffer, false, 0, size(), host_ptr, nullptr, &ev_ocl);
 
-    return stream.create_user_event(true);
+    return ev;
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU

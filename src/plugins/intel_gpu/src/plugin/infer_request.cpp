@@ -47,6 +47,39 @@ void convertAndCopy(const InferenceEngine::Blob* src, dst_t* dst) {
         dst[i] = srcPtr[i];
 }
 
+template<typename src_dt, typename dst_dt>
+void copy_result_to_output_blob(InferenceEngine::Blob::Ptr src, InferenceEngine::Blob::Ptr dst, const cldnn::layout& src_layout) {
+    auto locked_src = src->buffer();
+    auto src_ptr = locked_src.as<src_dt*>();
+    OPENVINO_ASSERT(src_ptr, "[GPU] Invalid source blob");
+
+    auto locked_dst = dst->buffer();
+    auto dst_ptr = locked_dst.as<dst_dt*>();
+    OPENVINO_ASSERT(dst_ptr, "[GPU] Invalid output blob");
+
+    if (src_layout.data_padding) {
+        auto size = src_layout.get_tensor();
+        for (int64_t b = 0; b < size.batch[0]; b++) {
+            for (int64_t f = 0; f < size.feature[0]; f++) {
+                for (int64_t w = 0; w < size.spatial[3]; w++) {
+                    for (int64_t z = 0; z < size.spatial[2]; z++) {
+                        for (int64_t y = 0; y < size.spatial[1]; y++) {
+                            for (int64_t x = 0; x < size.spatial[0]; x++) {
+                                *dst_ptr++ = src_ptr[src_layout.get_linear_offset(cldnn::tensor(b, f, x, y, z, w))];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        size_t n = dst->size();
+        for (size_t i = 0; i < n; i++) {
+            dst_ptr[i] = src_ptr[i];
+        }
+    }
+}
+
 inline void checkAlloc(const Blob::Ptr& blob, const std::string& err_str) {
     bool not_allocated = false;
     if (!blob->is<gpu::ClBlob>()) {
@@ -111,66 +144,6 @@ bool same_host_mem(cldnn::memory::ptr memPtr, uint8_t* hostPtr) {
 
 namespace ov {
 namespace intel_gpu {
-
-template<typename src_dt, typename dst_dt>
-void InferRequest::copyResultToOutputBlob(cldnn::memory::ptr src, InferenceEngine::Blob::Ptr dst, bool need_convert) {
-    auto& stream = m_graph->GetNetwork()->get_stream();
-
-    auto layout = src->get_layout();
-    auto size = layout.get_tensor();
-
-    auto locked_dst = dst->buffer();
-    auto dst_ptr = locked_dst.as<dst_dt*>();
-    OPENVINO_ASSERT(dst_ptr, "[GPU] Invalid output blob");
-
-    InferenceEngine::Blob::Ptr intermediate_blob = nullptr;
-
-    // Use copy_to() directly if: (1) convert not needed, and (2) data not padded
-    if (!need_convert && !layout.data_padding) {
-        src->copy_to(stream, dst_ptr);
-    } else {
-        auto desc = dst->getTensorDesc();
-        desc.setPrecision(PrecisionFromDataType(layout.data_type));
-
-        Blob::Ptr intermediate_blob = create_host_blob(desc, layout.is_dynamic());
-        src->copy_to(stream, intermediate_blob->buffer());
-
-        src_dt* src_ptr = static_cast<src_dt*>(intermediate_blob->buffer());
-
-        if (layout.data_padding) {
-            for (int64_t b = 0; b < size.batch[0]; b++) {
-                for (int64_t f = 0; f < size.feature[0]; f++) {
-                    for (int64_t w = 0; w < size.spatial[3]; w++) {
-                        for (int64_t z = 0; z < size.spatial[2]; z++) {
-                            for (int64_t y = 0; y < size.spatial[1]; y++) {
-                                for (int64_t x = 0; x < size.spatial[0]; x++) {
-                                    *dst_ptr++ = src_ptr[layout.get_linear_offset(cldnn::tensor(b, f, x, y, z, w))];
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            size_t n = dst->size();
-            for (size_t i = 0; i < n; i++) {
-                dst_ptr[i] = src_ptr[i];
-            }
-        }
-    }
-}
-
-template void InferRequest::copyResultToOutputBlob<float, double>(cldnn::memory::ptr, InferenceEngine::Blob::Ptr, bool);
-template void InferRequest::copyResultToOutputBlob<float, float>(cldnn::memory::ptr, InferenceEngine::Blob::Ptr, bool);
-template void InferRequest::copyResultToOutputBlob<uint16_t, uint16_t>(cldnn::memory::ptr, InferenceEngine::Blob::Ptr, bool);
-template void InferRequest::copyResultToOutputBlob<int64_t, int64_t>(cldnn::memory::ptr, InferenceEngine::Blob::Ptr, bool);
-template void InferRequest::copyResultToOutputBlob<int32_t, int32_t>(cldnn::memory::ptr, InferenceEngine::Blob::Ptr, bool);
-template void InferRequest::copyResultToOutputBlob<float, int16_t>(cldnn::memory::ptr, InferenceEngine::Blob::Ptr, bool);
-template void InferRequest::copyResultToOutputBlob<int8_t, int8_t>(cldnn::memory::ptr, InferenceEngine::Blob::Ptr, bool);
-template void InferRequest::copyResultToOutputBlob<float, uint16_t>(cldnn::memory::ptr, InferenceEngine::Blob::Ptr, bool);
-template void InferRequest::copyResultToOutputBlob<int32_t, uint32_t>(cldnn::memory::ptr, InferenceEngine::Blob::Ptr, bool);
-template void InferRequest::copyResultToOutputBlob<int32_t, uint64_t>(cldnn::memory::ptr, InferenceEngine::Blob::Ptr, bool);
-template void InferRequest::copyResultToOutputBlob<uint8_t, uint8_t>(cldnn::memory::ptr, InferenceEngine::Blob::Ptr, bool);
 
 // ----------------------------------------------------------------------------------------- //
 // ---------------------------- IE API impl ------------------------------------------------ //
@@ -646,20 +619,59 @@ Blob::Ptr InferRequest::create_shared_device_blob(const InferenceEngine::TensorD
 
 void InferRequest::copy_output_data(cldnn::memory::ptr src, Blob::Ptr dst) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::copy_output_data");
-    switch (dst->getTensorDesc().getPrecision()) {
-    case Precision::FP64: copyResultToOutputBlob<float, double>(src, dst, true); break;
-    case Precision::FP32: copyResultToOutputBlob<float, float>(src, dst); break;
-    case Precision::FP16: copyResultToOutputBlob<uint16_t, uint16_t>(src, dst); break;
-    case Precision::I64:  copyResultToOutputBlob<int64_t, int64_t>(src, dst); break;
-    case Precision::I32:  copyResultToOutputBlob<int32_t, int32_t>(src, dst); break;
-    case Precision::I16:  copyResultToOutputBlob<float, int16_t>(src, dst, true); break;
-    case Precision::I8:   copyResultToOutputBlob<int8_t, int8_t>(src, dst); break;
-    case Precision::U16:  copyResultToOutputBlob<float, uint16_t>(src, dst, true); break;
-    case Precision::U32:  copyResultToOutputBlob<int32_t, uint32_t>(src, dst, true); break;
-    case Precision::U64:  copyResultToOutputBlob<int32_t, uint64_t>(src, dst, true); break;
-    case Precision::U8:   copyResultToOutputBlob<uint8_t, uint8_t>(src, dst); break;
-    case Precision::BOOL: copyResultToOutputBlob<int8_t, int8_t>(src, dst); break;
-    default: IE_THROW(NotImplemented) << "The plugin does not support output " << dst->getTensorDesc().getPrecision() << " precision";
+    auto is_convert_needed = [](const Precision& prc) {
+        const std::vector<Precision> convert_needed = { Precision::I16, Precision::U16, Precision::FP64,
+                                                        Precision::U32, Precision::U64 };
+        const std::vector<Precision> convert_not_needed = { Precision::FP32, Precision::FP16, Precision::I64, Precision::I32,
+                                                            Precision::I8, Precision::U8, Precision::BOOL };
+
+        if (std::find(convert_needed.begin(), convert_needed.end(), prc) != convert_needed.end())
+            return true;
+        else if (std::find(convert_not_needed.begin(), convert_not_needed.end(), prc) != convert_not_needed.end())
+            return false;
+        else
+            OPENVINO_ASSERT(false, "[GPU] Plugin does not support output ", prc, " precision");
+    };
+
+    const auto convert_needed = is_convert_needed(dst->getTensorDesc().getPrecision());
+    const auto src_layout = src->get_layout();
+    auto& stream = m_graph->GetNetwork()->get_stream();
+
+    if (convert_needed || src_layout.data_padding) {
+        if (!intermediate_output_blob || intermediate_output_blob->byteSize() < src_layout.bytes_count()) {
+            auto desc = TensorDesc(Precision::U8,
+                                   SizeVector{src_layout.bytes_count()},
+                                   InferenceEngine::Layout::C);
+            intermediate_output_blob = create_host_blob(desc, src_layout.is_dynamic());
+        }
+
+        OPENVINO_ASSERT(intermediate_output_blob, "[GPU] Intermediate blob for outputs precessing is not allocated");
+
+        auto event = src->copy_to(stream, intermediate_output_blob->buffer());
+        event->wait();
+
+        switch (dst->getTensorDesc().getPrecision()) {
+        #define CASE(PRC, SRC_DT, DST_DT) \
+            case PRC: copy_result_to_output_blob<SRC_DT, DST_DT> (intermediate_output_blob, dst, src_layout); break;
+        CASE(Precision::FP64, float,    double)
+        CASE(Precision::FP32, float,    float)
+        CASE(Precision::FP16, uint16_t, uint16_t)
+        CASE(Precision::I64,  int64_t,  int64_t)
+        CASE(Precision::I32,  int32_t,  int32_t)
+        CASE(Precision::I16,  float,    int16_t)
+        CASE(Precision::I8,   int8_t,   int8_t)
+        CASE(Precision::U16,  float,    uint16_t)
+        CASE(Precision::U32,  int32_t,  uint32_t)
+        CASE(Precision::U64,  int32_t,  uint64_t)
+        CASE(Precision::U8,   uint8_t,  uint8_t)
+        CASE(Precision::BOOL, int8_t,   int8_t)
+        #undef CASE
+        default: break;
+        }
+    } else {
+        auto dst_ptr = dst->buffer().as<void*>();
+        auto event = src->copy_to(stream, dst_ptr);
+        event->wait();
     }
 }
 
