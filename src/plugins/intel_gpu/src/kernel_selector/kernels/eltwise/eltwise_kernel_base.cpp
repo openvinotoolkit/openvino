@@ -598,7 +598,26 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
     // TODO: can be potentially improved for GPUs with support of LWS > 256
     const size_t optimal_lws_values[] = { 256, 224, 192, 160, 128, 96, 64, 32, 16 };
 
-    if ((params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 ||
+    if (dispatchData.gws[2] % 16 == 0 &&
+        params.outputs[0].Batch().v % 16 == 0 &&
+        params.outputs[0].Feature().v % 16 == 0 &&
+        dispatchData.gws[1] % 16 == 0 &&
+        (params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 ||
+        params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
+        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv16 ||
+        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16 ||
+        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv32 ||
+        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv32)) {
+        dispatchData.lws[0] = 1;
+        //dispatchData.gws[1] = ???; calc it below
+        dispatchData.lws[2] = 16;
+        for (auto lws : optimal_lws_values) {
+            if (dispatchData.gws[1] % lws == 0 && lws * dispatchData.lws[2] <= params.engineInfo.maxWorkGroupSize) {
+                dispatchData.lws[1] = lws;
+                break;
+            }
+        }
+    } else if ((params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 ||
          params.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 ||
          params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 ||
          params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||

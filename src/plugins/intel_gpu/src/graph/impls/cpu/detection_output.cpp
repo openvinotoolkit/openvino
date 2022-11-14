@@ -4,7 +4,6 @@
 
 #include "detection_output_inst.h"
 #include "impls/implementation_map.hpp"
-#include "math_utils.h"
 #include "register.hpp"
 #include "cpu_impl_helpers.hpp"
 
@@ -12,6 +11,7 @@
 #include <stdexcept>
 #include <string>
 #include <type_traits>
+#include <immintrin.h>
 #include <xmmintrin.h>
 #include <vector>
 #include <utility>
@@ -43,12 +43,21 @@ bool comp_score_descend<std::pair<int, int>>(const std::pair<float, std::pair<in
 
 /************************ Detection Output CPU ************************/
 struct detection_output_impl : typed_primitive_impl<detection_output> {
+    using parent = typed_primitive_impl<detection_output>;
+    using parent::parent;
+
+public:
     enum NMSType {CAFFE, MXNET};
     NMSType nms_type;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<detection_output_impl>(*this);
     }
+
+    detection_output_impl() : parent() {}
+
     explicit detection_output_impl(const detection_output_node& outer) {
         set_node_params(outer);
     }
@@ -57,6 +66,14 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
         IE_ASSERT(arg.is_type<detection_output>());
         const auto& node = arg.as<detection_output>();
         nms_type = (node.get_primitive()->decrease_label_id ? NMSType::MXNET : NMSType::CAFFE);
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        ob << make_data(&nms_type, sizeof(NMSType));
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        ib >> make_data(&nms_type, sizeof(NMSType));
     }
 
     static inline void intersect_bbox(const bounding_box& bbox1,
@@ -854,3 +871,5 @@ attach_detection_output_impl::attach_detection_output_impl() {
 
 }  // namespace cpu
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::detection_output_impl, cldnn::object_type::DETECTION_OUTPUT_IMPL_CPU)

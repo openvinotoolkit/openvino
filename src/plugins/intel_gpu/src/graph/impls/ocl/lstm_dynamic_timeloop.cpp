@@ -19,12 +19,14 @@ struct lstm_dynamic_timeloop_impl : typed_primitive_impl_ocl<lstm_dynamic_timelo
     using parent = typed_primitive_impl_ocl<lstm_dynamic_timeloop>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<lstm_dynamic_timeloop_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<lstm_dynamic_timeloop>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<lstm_dynamic_timeloop>& instance, int32_t) const override {
         kernel_arguments_data args;
         args.inputs = {instance.input_memory_ptr(), instance.dyn_length_memory()};
         if (instance.last_hidden_output_term())
@@ -102,3 +104,5 @@ attach_lstm_dynamic_timeloop_impl::attach_lstm_dynamic_timeloop_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::lstm_dynamic_timeloop_impl, cldnn::object_type::LSTM_DYNAMIC_TIMELOOP_IMPL)

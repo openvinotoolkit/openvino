@@ -10,6 +10,7 @@
 #include "gna_plugin_config.hpp"
 #include "log/log.hpp"
 #include "common/gna_target.hpp"
+#include "common/numerical_utils.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "ie_common.h"
 #include <caseless.hpp>
@@ -19,6 +20,7 @@
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 using namespace ov::intel_gna;
+using namespace ov::intel_gna::common;
 
 namespace GNAPluginNS {
 const uint8_t Config::max_num_requests;
@@ -44,6 +46,7 @@ OPENVINO_SUPPRESS_DEPRECATED_END
 static const std::set<std::string> supportedTargets = {
     common::kGnaTarget2_0,
     common::kGnaTarget3_0,
+    common::kGnaTarget3_5,
     common::kGnaTargetUnspecified
 };
 
@@ -52,12 +55,8 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
         auto key = item.first;
         auto value = item.second;
 
-        auto fp32eq = [](float p1, float p2) -> bool {
-            return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
-        };
-
         auto check_scale_factor = [&] (float scale_factor) {
-            if (fp32eq(scale_factor, 0.0f) || std::isinf(scale_factor)) {
+            if (are_fp_eq(scale_factor, 0.0f) || std::isinf(scale_factor)) {
                 THROW_GNA_EXCEPTION << "input scale factor of 0.0f or +-inf not supported";
             }
         };
@@ -157,6 +156,8 @@ OPENVINO_SUPPRESS_DEPRECATED_END
                 target_str = common::kGnaTarget2_0;
             } else if (ov::intel_gna::HWGeneration::GNA_3_0 == target) {
                 target_str = common::kGnaTarget3_0;
+            } else if (ov::intel_gna::HWGeneration::GNA_3_5 == target) {
+                target_str = common::kGnaTarget3_5;
             }
             set_target(target_str);
         } else if (key == GNA_CONFIG_KEY(EXEC_TARGET)) {
@@ -359,10 +360,12 @@ Parameter Config::GetParameter(const std::string& name) const {
     } else if (name ==  ov::intel_gna::execution_target) {
         return ((gnaExecTarget == common::kGnaTarget2_0) ? ov::intel_gna::HWGeneration::GNA_2_0 :
                 (gnaExecTarget == common::kGnaTarget3_0) ? ov::intel_gna::HWGeneration::GNA_3_0 :
+                (gnaExecTarget == common::kGnaTarget3_5) ? ov::intel_gna::HWGeneration::GNA_3_5 :
                 ov::intel_gna::HWGeneration::UNDEFINED);
     } else if (name ==  ov::intel_gna::compile_target) {
         return ((gnaCompileTarget == common::kGnaTarget2_0) ? ov::intel_gna::HWGeneration::GNA_2_0 :
                 (gnaCompileTarget == common::kGnaTarget3_0) ? ov::intel_gna::HWGeneration::GNA_3_0 :
+                (gnaCompileTarget == common::kGnaTarget3_5) ? ov::intel_gna::HWGeneration::GNA_3_5 :
                 ov::intel_gna::HWGeneration::UNDEFINED);
     } else if (name == ov::hint::performance_mode) {
         return performance_mode;
