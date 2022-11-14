@@ -6,6 +6,7 @@
 import logging as log
 from math import ceil
 import sys
+import statistics
 from time import perf_counter
 
 import numpy as np
@@ -73,20 +74,14 @@ def main():
     for infer_request_id in in_fly:
         latencies.append(ireqs[infer_request_id].latency)
     # Report results
-    latencies.sort()
-    percent = 50
-    percentile_latency_ms = percentile(latencies, percent)
-    avg_latency_ms = sum(latencies) / len(latencies)
-    min_latency_ms = latencies[0]
-    max_latency_ms = latencies[-1]
     fps = len(latencies) / duration
     log.info(f'Count:          {len(latencies)} iterations')
     log.info(f'Duration:       {duration * 1e3:.2f} ms')
     log.info('Latency:')
-    log.info(f'    Median:     {percentile_latency_ms:.2f} ms')
-    log.info(f'    AVG:        {avg_latency_ms:.2f} ms')
-    log.info(f'    MIN:        {min_latency_ms:.2f} ms')
-    log.info(f'    MAX:        {max_latency_ms:.2f} ms')
+    log.info(f'    Median:     {statistics.median(latencies):.2f} ms')
+    log.info(f'    AVG:        {sum(latencies) / len(latencies):.2f} ms')
+    log.info(f'    MIN:        {min(latencies):.2f} ms')
+    log.info(f'    MAX:        {max(latencies):.2f} ms')
     log.info(f'Throughput: {fps:.2f} FPS')
 
 
