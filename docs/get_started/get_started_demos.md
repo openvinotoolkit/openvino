@@ -20,7 +20,7 @@ If you have not yet installed and configured OpenVINO Runtime, see the following
 @sphinxdirective
 .. tab:: Linux
 
-   See :doc:`Install OpenVINO Runtime on Linux from an Archive File <openvino_docs_install_guides_installing_openvino_from_archive_linux>`. Running these samples requires OpenCV, so be sure to install OpenCV when you get to the Install Additional Components step.
+   See :ref:`Install OpenVINO Runtime on Linux from an Archive File <openvino_docs_install_guides_installing_openvino_from_archive_linux>`. Running these samples requires OpenCV, so make sure that you install OpenCV in the Install Additional Components step.
 
 .. tab:: Windows
 
