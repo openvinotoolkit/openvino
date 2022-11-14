@@ -141,7 +141,6 @@ def create_target_node(raw_text, text, target, highlight_language, lineno, docum
 
 
 def visit_scrollbox(self, node):
-    tablesort_js_script = "<script>window.TABLE_SORT = true;</script>"
     attrs = {}
     if "height" in node:
         attrs["style"] = (
@@ -150,13 +149,11 @@ def visit_scrollbox(self, node):
             + (("width:" + "".join(c for c in str(node["width"]) if c.isdigit()) ) if "width" in node is not None else "")
             + (("px; " if node["width"].find("px") != -1 else "%;") if "width" in node is not None else "")
             + ( ("border-left:solid "+"".join(c for c in str(node["bar"]) if c.isdigit())+ "px "+"".join(str(node["bar-color"]))+"; ") if "bar" in node is not None else "")
-            + ( (" border-bottom:solid "+"".join(c for c in str(node["bar"]) if c.isdigit())+ "px "+"".join(str(node["bar-color"]))+"; ") if "bar-color" in node is not None else "")
             + "overflow-y:scroll; "
         )
-        attrs["class"] = "scrollbox"
+        attrs["class"] = ("scrollbox sortable-table" if "sortable" in node is not None else "scrollbox")
     self.body.append(self.starttag(node, "div", **attrs))
-    if "sortable" in node:
-        self.body.append((tablesort_js_script))
+
 
 def depart_scrollbox(self, node):
     self.body.append("</div>\n")
