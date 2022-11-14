@@ -14,7 +14,6 @@ namespace op {
 using namespace default_opset;
 
 NamedOutputs reverse(const NodeContext& node) {
-    PADDLE_OP_CHECK(node, node.get_input_size("X") == 1, "reverse: input num must be equal to 1 for now!");
     auto x = node.get_input("X");
     // axis is a vector
     auto axis = node.get_attribute<std::vector<int32_t>>("axis");
