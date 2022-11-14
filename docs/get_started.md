@@ -67,7 +67,7 @@ Start with interactive Python tutorials that show the basics of model inferencin
 * <a href="102-pytorch-onnx-to-openvino-with-output.html">Convert PyTorch Models to OpenVINO</a>
 
 #### <a href="openvino_docs_OV_UG_Samples_Overview.html"><ins>OpenVINO Code Samples</ins></a>
-View sample code for various C++ and Python applications that can be used as a starting point for your own application. For C++ developers, step through the <a href="openvino_docs_get_started_get_started_demos.html">Basic OpenVINO Workflow</a> to learn how to build and run an image classification program that uses OpenVINO’s C++ API.
+View sample code for various C++ and Python applications that can be used as a starting point for your own application. For C++ developers, step through the [Get Started with C++ Samples](./get_started/get_started_demos.md) to learn how to build and run an image classification program that uses OpenVINO’s C++ API.
       
 #### <a href="openvino_docs_OV_UG_Integrate_OV_with_your_application.html"><ins>Integrate OpenVINO With Your Application</ins></a>
 Learn how to use the OpenVINO API to implement an inference pipeline in your application.
