@@ -9,7 +9,7 @@ The diagram below shows the positions of Paddle Frontend and the main components
 
 OpenVINO Paddle Frontend uses [the common coding style rules](../../docs/dev/coding_style.md).
 
-## Key person
+## Key contacts
 
 People from the [openvino-ie-paddle-maintainers](https://github.com/orgs/openvinotoolkit/teams/openvino-ie-paddle-maintainers) allows to approve and merge PRs to the Paddle frontend component. These guys can help in case of any questions about the component.
 
