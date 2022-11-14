@@ -225,7 +225,7 @@
         {
             "type": "Concat",
             "attributes": {
-                "scales": "unified"
+                "unified_scales": "all"
             }
         },
         {"type": "Reshape"},

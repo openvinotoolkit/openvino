@@ -6,12 +6,12 @@
    :maxdepth: 1
    :hidden:
    
-   Quantizatiing Image Classification Model <pot_example_classification_README>
-   Quantizatiing Object Detection Model with Accuracy Control  <pot_example_object_detection_README>
-   Quantizatiing Cascaded Model <pot_example_face_detection_README>
-   Quantizatiing Semantic Segmentation Model <pot_example_segmentation_README>
-   Quantizatiing 3D Segmentation Model <pot_example_3d_segmentation_README>
-   Quantizatiing for GNA Device <pot_example_speech_README>
+   Quantizing Image Classification Model <pot_example_classification_README>
+   Quantizing Object Detection Model with Accuracy Control  <pot_example_object_detection_README>
+   Quantizing Cascaded Model <pot_example_face_detection_README>
+   Quantizing Semantic Segmentation Model <pot_example_segmentation_README>
+   Quantizing 3D Segmentation Model <pot_example_3d_segmentation_README>
+   Quantizing for GNA Device <pot_example_speech_README>
 
 @endsphinxdirective
 
@@ -56,7 +56,7 @@ The following examples demonstrate the implementation of `Engine`, `Metric`, and
 
 6. [Quantizing for GNA Device](./speech/README.md)
     - Uses models from Kaldi
-    - Implements `DataLoader` to data in .ark format
+    - Implements `DataLoader` to load data in .ark format
     - Uses DefaultQuantization algorithm for quantization model
    
 After execution of each example above the quantized model is placed into the folder `optimized`. The accuracy validation of the quantized model is performed right after the quantization. 

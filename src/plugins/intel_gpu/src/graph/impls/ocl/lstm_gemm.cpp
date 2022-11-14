@@ -19,12 +19,14 @@ struct lstm_gemm_impl : typed_primitive_impl_ocl<lstm_gemm> {
     using parent = typed_primitive_impl_ocl<lstm_gemm>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<lstm_gemm_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<lstm_gemm>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<lstm_gemm>& instance, int32_t) const override {
         kernel_arguments_data args = parent::get_arguments(instance, 0);
 
         args.outputs = { instance.output_memory_ptr() };
@@ -106,3 +108,5 @@ attach_lstm_gemm_impl::attach_lstm_gemm_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::lstm_gemm_impl, cldnn::object_type::LSTM_GEMM_IMPL)

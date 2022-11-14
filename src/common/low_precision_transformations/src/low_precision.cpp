@@ -56,6 +56,7 @@
 #include "low_precision/normalize_l2.hpp"
 #include "low_precision/pad.hpp"
 #include "low_precision/prelu.hpp"
+#include "low_precision/recurrent_cell.hpp"
 #include "low_precision/reduce_max.hpp"
 #include "low_precision/reduce_mean.hpp"
 #include "low_precision/reduce_min.hpp"
@@ -213,6 +214,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
                                                                             attributeParams);
 
     std::shared_ptr<ngraph::pass::GraphRewrite> common = manager.register_pass<ngraph::pass::GraphRewrite>();
+
     ADD_MATCHER(common, AddTransformation, params)
     ADD_MATCHER(common, AssignAndReadValueTransformation, f, params)
     ADD_MATCHER(common, AvgPoolTransformation, params)
@@ -232,6 +234,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
     ADD_MATCHER(common, NormalizeL2Transformation, params)
     ADD_MATCHER(common, PadTransformation, params)
     ADD_MATCHER(common, PReluTransformation, params)
+    ADD_MATCHER(common, RecurrentCellTransformation, params)
     ADD_MATCHER(common, ReduceMaxTransformation, params)
     ADD_MATCHER(common, ReduceMeanTransformation, params)
     ADD_MATCHER(common, ReduceMinTransformation, params)

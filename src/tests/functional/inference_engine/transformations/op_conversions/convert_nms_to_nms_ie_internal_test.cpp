@@ -11,6 +11,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp>
 #include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>

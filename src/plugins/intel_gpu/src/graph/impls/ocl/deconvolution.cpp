@@ -18,9 +18,13 @@ struct deconvolution_impl : typed_primitive_impl_ocl<deconvolution> {
     using parent = typed_primitive_impl_ocl<deconvolution>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<deconvolution_impl>(*this);
     }
+
+    deconvolution_impl() : parent() {}
 
     explicit deconvolution_impl(const deconvolution_impl& other) : parent(other),
         _split(other._split),
@@ -35,6 +39,18 @@ struct deconvolution_impl : typed_primitive_impl_ocl<deconvolution> {
         const auto& node = arg.as<deconvolution>();
         _split = node.get_split();
         _groups = node.get_groups();
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
+        ob << _split;
+        ob << _groups;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        ib >> _split;
+        ib >> _groups;
     }
 
 protected:
@@ -52,7 +68,7 @@ protected:
         return res;
     }
 
-    kernel_arguments_data get_arguments(typed_primitive_inst<deconvolution>& instance, int32_t split) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<deconvolution>& instance, int32_t split) const override {
         kernel_arguments_data args = parent::get_arguments(instance, split);
 
         args.weights = instance.weights_memory(split);
@@ -158,3 +174,5 @@ attach_deconvolution_impl::attach_deconvolution_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::deconvolution_impl, cldnn::object_type::DECONVOLUTION_IMPL)
