@@ -17,14 +17,18 @@ namespace ocl {
 
 struct dft_impl : typed_primitive_impl_ocl<dft> {
     using typed_primitive_impl_ocl::typed_primitive_impl_ocl;
+    using kernel_selector_t = kernel_selector::dft_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::dft_params, kernel_selector::dft_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<dft_impl>(*this);
     }
 
-    static primitive_impl* create(const dft_node& arg, const kernel_impl_params& impl_param) {
-        auto params = get_default_params<kernel_selector::dft_params>(impl_param);
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto primitive = impl_param.typed_desc<dft>();
+        auto params = get_default_params<kernel_selector::dft_params>(impl_param);
         params.axes = primitive->axes;
 
         if (primitive->signal_size.empty()) {
@@ -66,17 +70,8 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
             }
         }
 
-        auto optional_params = get_default_optional_params<kernel_selector::dft_optional_params>(arg.get_program());
-
-        auto& kernel_selector = kernel_selector::dft_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        return new dft_impl{arg, best_kernels.front()};
+        auto optional_params = get_default_optional_params<kernel_selector::dft_optional_params>(impl_param.get_program());
+        return {params, optional_params};
     }
 };
 
@@ -103,9 +98,11 @@ attach_dft_impl::attach_dft_impl() {
         // 6d
         format::bfwzyx,
     };
-    implementation_map<dft>::add(impl_types::ocl, dft_impl::create, types, formats);
+    implementation_map<dft>::add(impl_types::ocl, typed_primitive_impl_ocl<dft>::create<dft_impl>, types, formats);
 }
 
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::dft_impl, cldnn::object_type::DFT_IMPL)
