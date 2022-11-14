@@ -298,9 +298,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                 return item->second;
             }
 
-            IE_THROW() << "Exception: ov::core get_property with unsupported core property name: '" << item->first
-                       << "'";
-            return ov::Any();
+            IE_THROW() << "Exception: ov::core get_property with unsupported core property name: '" << name << "'";
         }
 
         void setCacheForDevice(const std::string& dir, const std::string& name) {
