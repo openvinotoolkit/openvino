@@ -43,16 +43,16 @@
 3. Go to your `~/Downloads` directory and download OpenVINO Runtime archive file for Debian from [OpenVINO package repository](https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.1/).
    ```sh
    cd ~/Downloads/
-   sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.1/l_openvino_toolkit_runtime_rhel8_p_2022.1.0.643.tgz -O openvino_2022.1.0.643.tgz
+   sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.1.1/l_openvino_toolkit_debian9_arm_2022.1.1.7030.39aba80957e.tgz -O openvino_2022.1.1.7030.tgz
    ```
 4. Extract the archive file and move it to the installation folder:
    ```sh
-   sudo tar -xf openvino_2022.1.0.643.tgz
-   sudo mv l_openvino_toolkit_runtime_rhel8_p_2022.1.0.643 /opt/intel/openvino_2022.1.0.643
+   sudo tar -xf openvino_2022.1.1.7030.tgz
+   sudo mv l_openvino_toolkit_debian9_arm_2022.1.1.7030.39aba80957e /opt/intel/openvino_2022.1.1.7030
    ```
 5. For simplicity, it is useful to create a symbolic link as below:
    ```sh
-   sudo ln -s openvino_2022.1.0.643 openvino_2022
+   sudo ln -s openvino_2022.1.1.7030 openvino_2022
    ```
    > **NOTE**: If you have already installed a previous release of OpenVINO 2022, a symbolic link to the `openvino_2022` folder may already exist. Unlink the previous link with `sudo unlink openvino_2022`, and then re-run the command above.
 
