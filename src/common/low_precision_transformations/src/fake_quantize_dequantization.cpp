@@ -159,10 +159,9 @@ bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::
             auto curDim = constShape[i];
             if (curDim == 1ul)
                 continue;
-            if (i == chDimIdx) {
-                if (curDim != channelsShapeVal)
-                    return false;
-            }
+            if (i == chDimIdx && curDim == channelsShapeVal)
+                continue;
+            return false;
         }
         return true;
     };
