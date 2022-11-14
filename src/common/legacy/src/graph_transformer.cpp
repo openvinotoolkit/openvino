@@ -233,6 +233,9 @@ const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::ve
     for (const auto& layer : sortedLayers) {
         // Layers with "Shape" and "Const" type are Const by definition
         if (layer->type == "Shape" || layer->type == "Const") {
+            if (layer->insData.size() == 0 && layer->type == "Const") {
+                continue;
+            }
             mapConstLayers[layer->name] = false;
         } else if (std::find(skipConstInfer.begin(), skipConstInfer.end(), layer->type) == skipConstInfer.end() &&
                    !isForLayers(*layer, {"FakeQuantize", "Quantize"})) {
