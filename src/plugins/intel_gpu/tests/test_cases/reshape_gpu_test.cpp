@@ -893,9 +893,9 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_with_const_optimized_out) {
     auto outputs = network.execute();
 
     EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "reshape");
+    EXPECT_EQ(outputs.begin()->first, "reorder");
 
-    auto output = outputs.at("reshape").get_memory();
+    auto output = outputs.at("reorder").get_memory();
 
     EXPECT_EQ(output->get_layout().data_type, input->get_layout().data_type);
     EXPECT_EQ(output->get_layout().format, format::bfyx);
