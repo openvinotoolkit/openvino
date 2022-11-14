@@ -66,11 +66,6 @@ public:
         return {params, optional_params};
     }
 
-protected:
-    bool optimized_out(crop_inst& instance) const override {
-        return parent::optimized_out(instance) || _can_be_optimized;
-    }
-
 private:
     bool _can_be_optimized;
 };
