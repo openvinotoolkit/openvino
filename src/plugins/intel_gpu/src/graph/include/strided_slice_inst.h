@@ -30,6 +30,7 @@ using strided_slice_node = typed_program_node<strided_slice>;
 template <>
 class typed_primitive_inst<strided_slice> : public typed_primitive_inst_base<strided_slice> {
     using parent = typed_primitive_inst_base<strided_slice>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>

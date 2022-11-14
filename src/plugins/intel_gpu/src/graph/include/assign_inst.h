@@ -36,6 +36,7 @@ public:
 
 public:
     typed_primitive_inst(network& network, const assign_node& desc);
+    typed_primitive_inst(network& network) : parent(network), memory_state::variable("") {}
 };
 
 using assign_inst = typed_primitive_inst<assign>;

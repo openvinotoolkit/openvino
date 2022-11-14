@@ -46,7 +46,7 @@ struct matrix_nms_impl : typed_primitive_impl_ocl<matrix_nms> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(matrix_nms_inst& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const matrix_nms_inst& instance, int32_t) const override {
         kernel_arguments_data args;
         args.inputs = {instance.input_boxes_mem(),
                        instance.input_scores_mem(),

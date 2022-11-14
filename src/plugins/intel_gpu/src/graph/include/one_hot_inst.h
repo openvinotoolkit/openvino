@@ -31,6 +31,7 @@ using one_hot_node = typed_program_node<one_hot>;
 template <>
 class typed_primitive_inst<one_hot> : public typed_primitive_inst_base<one_hot> {
     using parent = typed_primitive_inst_base<one_hot>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>

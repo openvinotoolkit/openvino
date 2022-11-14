@@ -32,6 +32,7 @@ using lstm_gemm_node = typed_program_node<lstm_gemm>;
 template <>
 class typed_primitive_inst<lstm_gemm> : public typed_primitive_inst_base<lstm_gemm> {
     using parent = typed_primitive_inst_base<lstm_gemm>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(lstm_gemm_node const& node, kernel_impl_params const& impl_param);

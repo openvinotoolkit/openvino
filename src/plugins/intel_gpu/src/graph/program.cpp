@@ -762,7 +762,9 @@ void program::cleanup() {
             }
         }
     }
-    _kernels_cache->reset();
+
+    if (_engine.configuration().kernels_cache_path.empty())
+        _kernels_cache->reset();
 }
 
 void program::add_split_outputs() {

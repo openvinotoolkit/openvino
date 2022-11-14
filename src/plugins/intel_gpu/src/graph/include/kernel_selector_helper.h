@@ -17,6 +17,7 @@
 #include "kernel_selector_common.h"
 #include "tensor_type.h"
 #include "fused_primitive_desc.h"
+#include "serialization/binary_buffer.hpp"
 
 #include <cstdint>
 #include <string>
@@ -133,6 +134,8 @@ struct kernel_impl_params {
 
     memory::ptr reordered_weights = nullptr;
 
+    kernel_impl_params() {}
+
     kernel_impl_params(program& _prog,
                        std::shared_ptr<const primitive> _desc,
                        size_t _uid,
@@ -177,6 +180,9 @@ struct kernel_impl_params {
 
     template <class PType>
     std::shared_ptr<const PType> typed_desc() const { return std::static_pointer_cast<const PType>(desc); }
+
+    void save(BinaryOutputBuffer& ob) const;
+    void load(BinaryInputBuffer& ib);
 };
 
 template <typename T = std::uint32_t>

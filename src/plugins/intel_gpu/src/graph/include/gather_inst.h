@@ -26,6 +26,7 @@ using gather_node = typed_program_node<gather>;
 template <>
 class typed_primitive_inst<gather> : public typed_primitive_inst_base<gather> {
     using parent = typed_primitive_inst_base<gather>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>

@@ -41,12 +41,14 @@ struct roi_align_impl : typed_primitive_impl_ocl<roi_align> {
     using parent = typed_primitive_impl_ocl<roi_align>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<roi_align_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<roi_align>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<roi_align>& instance, int32_t) const override {
         kernel_arguments_data args;
         args.inputs = {instance.input_memory_ptr(), instance.rois_memory(), instance.batches_memory()};
         args.outputs = {instance.output_memory_ptr()};
@@ -118,3 +120,5 @@ attach_roi_align_impl::attach_roi_align_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::roi_align_impl, cldnn::object_type::ROI_ALIGN_IMPL)

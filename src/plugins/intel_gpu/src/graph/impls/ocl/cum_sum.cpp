@@ -51,6 +51,8 @@ struct cum_sum_impl : typed_primitive_impl_ocl<cum_sum> {
     using parent = typed_primitive_impl_ocl<cum_sum>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<cum_sum_impl>(*this);
     }
@@ -104,3 +106,5 @@ attach_cum_sum_impl::attach_cum_sum_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::cum_sum_impl, cldnn::object_type::CUM_SUM_IMPL)

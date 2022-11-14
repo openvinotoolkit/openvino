@@ -141,7 +141,9 @@ std::string deconvolution_inst::to_string(deconvolution_node const& node) {
 }
 
 deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node const& node)
-    : parent(network, node) {
+    : parent(network, node),
+    _groups(node.get_groups()),
+    _split(node.get_split()) {
     auto stride = argument->stride;
     auto pad = argument->pad;
 
@@ -219,5 +221,19 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
                               input_layout.feature(),
                               "Weights/ifm mismatch");
     }
+}
+
+void deconvolution_inst::save(cldnn::BinaryOutputBuffer& ob) const {
+    parent::save(ob);
+
+    ob << _groups;
+    ob << _split;
+}
+
+void deconvolution_inst::load(cldnn::BinaryInputBuffer& ib) {
+    parent::load(ib);
+
+    ib >> _groups;
+    ib >> _split;
 }
 }  // namespace cldnn

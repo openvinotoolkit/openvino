@@ -14,6 +14,7 @@ using slice_node = typed_program_node<slice>;
 template <>
 class typed_primitive_inst<slice> : public typed_primitive_inst_base<slice> {
     using parent = typed_primitive_inst_base<slice>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(slice_node const& node, kernel_impl_params const& impl_param);

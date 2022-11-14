@@ -21,6 +21,8 @@ struct grn_impl : typed_primitive_impl_ocl<grn> {
     using parent = typed_primitive_impl_ocl<grn>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<grn_impl>(*this);
     }
@@ -59,3 +61,5 @@ attach_grn_impl::attach_grn_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::grn_impl, cldnn::object_type::GRN_IMPL)

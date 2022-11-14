@@ -37,6 +37,7 @@ using gather_elements_node = typed_program_node<gather_elements>;
 template <>
 class typed_primitive_inst<gather_elements> : public typed_primitive_inst_base<gather_elements> {
     using parent = typed_primitive_inst_base<gather_elements>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>

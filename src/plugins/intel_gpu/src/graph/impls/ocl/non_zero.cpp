@@ -21,6 +21,8 @@ struct count_nonzero_impl : typed_primitive_impl_ocl<count_nonzero> {
     using parent = typed_primitive_impl_ocl<count_nonzero>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<count_nonzero_impl>(*this);
     }
@@ -44,6 +46,8 @@ struct count_nonzero_impl : typed_primitive_impl_ocl<count_nonzero> {
 struct gather_nonzero_impl : typed_primitive_impl_ocl<gather_nonzero> {
     using parent = typed_primitive_impl_ocl<gather_nonzero>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<gather_nonzero_impl>(*this);
@@ -118,3 +122,6 @@ attach_gather_nonzero_impl::attach_gather_nonzero_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::count_nonzero_impl, cldnn::object_type::COUNT_NONZERO_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_nonzero_impl, cldnn::object_type::GATHER_NONZERO_IMPL)

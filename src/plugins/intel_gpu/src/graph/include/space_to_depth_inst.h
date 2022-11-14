@@ -17,6 +17,7 @@ using space_to_depth_node = typed_program_node<space_to_depth>;
 template <>
 class typed_primitive_inst<space_to_depth> : public typed_primitive_inst_base<space_to_depth> {
     using parent = typed_primitive_inst_base<space_to_depth>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(space_to_depth_node const& node, kernel_impl_params const& impl_param);

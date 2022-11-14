@@ -21,6 +21,8 @@ struct ctc_greedy_decoder_impl : typed_primitive_impl_ocl<ctc_greedy_decoder> {
     using parent = typed_primitive_impl_ocl<ctc_greedy_decoder>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<ctc_greedy_decoder_impl>(*this);
     }
@@ -71,3 +73,5 @@ attach_ctc_greedy_decoder_impl::attach_ctc_greedy_decoder_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::ctc_greedy_decoder_impl, cldnn::object_type::CTC_GREEDY_DECODER_IMPL)

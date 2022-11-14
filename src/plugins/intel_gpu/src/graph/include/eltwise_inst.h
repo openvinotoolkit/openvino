@@ -83,6 +83,7 @@ using eltwise_node = typed_program_node<eltwise>;
 template <>
 class typed_primitive_inst<eltwise> : public typed_primitive_inst_base<eltwise> {
     using parent = typed_primitive_inst_base<eltwise>;
+    using parent::parent;
     static void check_inputs_count(eltwise_node const& node);
 
 public:

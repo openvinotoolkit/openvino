@@ -17,12 +17,14 @@ struct adaptive_pooling_impl : public typed_primitive_impl_ocl<adaptive_pooling>
     using parent = typed_primitive_impl_ocl<adaptive_pooling>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<adaptive_pooling_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<adaptive_pooling>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<adaptive_pooling>& instance, int32_t) const override {
         kernel_arguments_data args;
         const auto num_inputs = instance.inputs_memory_count();
         for (size_t i = 0; i < num_inputs; ++i) {
@@ -96,3 +98,5 @@ attach_adaptive_pooling_impl::attach_adaptive_pooling_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::adaptive_pooling_impl, cldnn::object_type::ADAPTIVE_POOLING_IMPL)

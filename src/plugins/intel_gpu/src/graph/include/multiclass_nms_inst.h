@@ -57,6 +57,7 @@ using multiclass_nms_node = typed_program_node<multiclass_nms>;
 template <>
 class typed_primitive_inst<multiclass_nms> : public typed_primitive_inst_base<multiclass_nms> {
     using parent = typed_primitive_inst_base<multiclass_nms>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(const multiclass_nms_node& node, const kernel_impl_params& impl_param);

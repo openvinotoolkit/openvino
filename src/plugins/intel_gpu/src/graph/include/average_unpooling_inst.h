@@ -16,6 +16,7 @@ using average_unpooling_node = typed_program_node<average_unpooling>;
 template <>
 class typed_primitive_inst<average_unpooling> : public typed_primitive_inst_base<average_unpooling> {
     using parent = typed_primitive_inst_base<average_unpooling>;
+    using parent::parent;
 
 public:
     typed_primitive_inst(network& network, average_unpooling_node const& desc);

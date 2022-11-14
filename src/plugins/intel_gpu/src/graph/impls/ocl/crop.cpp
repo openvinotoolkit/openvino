@@ -17,9 +17,13 @@ struct crop_impl : typed_primitive_impl_ocl<crop> {
     using parent = typed_primitive_impl_ocl<crop>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<crop_impl>(*this);
     }
+
+    crop_impl() : parent() {}
 
     explicit crop_impl(const crop_impl& other) : parent(other),
         _can_be_optimized(other._can_be_optimized) {}
@@ -40,6 +44,16 @@ protected:
     }
 
 public:
+    void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
+        ob << _can_be_optimized;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        ib >> _can_be_optimized;
+    }
+
     static primitive_impl* create(const crop_node& arg, const kernel_impl_params& impl_param) {
         auto ew_params = get_default_params<kernel_selector::eltwise_params>(impl_param, 1);
         auto ew_optional_params = get_default_optional_params<kernel_selector::eltwise_optional_params>(arg.get_program());
@@ -151,3 +165,5 @@ attach_crop_impl::attach_crop_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::crop_impl, cldnn::object_type::CROP_IMPL)

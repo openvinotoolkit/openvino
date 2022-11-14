@@ -16,12 +16,14 @@ struct experimental_detectron_detection_output_impl
     using parent = typed_primitive_impl_ocl<experimental_detectron_detection_output>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<experimental_detectron_detection_output_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<experimental_detectron_detection_output>& instance,
+    kernel_arguments_data get_arguments(const typed_primitive_inst<experimental_detectron_detection_output>& instance,
                                         int32_t unused) const override {
         kernel_arguments_data args = parent::get_arguments(instance, unused);
         args.inputs.push_back(instance.output_classes_memory());
@@ -85,3 +87,6 @@ attach_experimental_detectron_detection_output_impl::attach_experimental_detectr
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::experimental_detectron_detection_output_impl,
+                             cldnn::object_type::ACTIVATION_IMPL)

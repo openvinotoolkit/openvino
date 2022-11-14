@@ -18,6 +18,8 @@ struct detection_output_impl : typed_primitive_impl_ocl<detection_output> {
     using parent = typed_primitive_impl_ocl<detection_output>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<detection_output_impl>(*this);
     }
@@ -101,3 +103,5 @@ attach_detection_output_impl::attach_detection_output_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::detection_output_impl, cldnn::object_type::DETECTION_OUTPUT_IMPL_OCL)

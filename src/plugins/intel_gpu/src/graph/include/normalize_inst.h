@@ -27,6 +27,7 @@ using normalize_node = typed_program_node<normalize>;
 template <>
 class typed_primitive_inst<normalize> : public typed_primitive_inst_base<normalize> {
     using parent = typed_primitive_inst_base<normalize>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(normalize_node const& node, kernel_impl_params const& impl_param);

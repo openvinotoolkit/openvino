@@ -19,12 +19,14 @@ struct lstm_elt_impl : typed_primitive_impl_ocl<lstm_elt> {
     using parent = typed_primitive_impl_ocl<lstm_elt>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<lstm_elt_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<lstm_elt>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<lstm_elt>& instance, int32_t) const override {
         kernel_arguments_data args = parent::get_arguments(instance, 0);
 
         args.cell = instance.cell_term() ? instance.cell_memory() : nullptr;
@@ -105,3 +107,5 @@ attach_lstm_elt_impl::attach_lstm_elt_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::lstm_elt_impl, cldnn::object_type::LSTM_ELT_IMPL)

@@ -16,6 +16,7 @@ using reduce_node = typed_program_node<reduce>;
 template <>
 class typed_primitive_inst<reduce> : public typed_primitive_inst_base<reduce> {
     using parent = typed_primitive_inst_base<reduce>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>

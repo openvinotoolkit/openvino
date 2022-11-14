@@ -27,6 +27,7 @@ using mvn_node = typed_program_node<mvn>;
 template <>
 class typed_primitive_inst<mvn> : public typed_primitive_inst_base<mvn> {
     using parent = typed_primitive_inst_base<mvn>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>

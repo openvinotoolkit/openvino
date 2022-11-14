@@ -47,6 +47,7 @@ using crop_node = typed_program_node<crop>;
 template <>
 class typed_primitive_inst<crop> : public typed_primitive_inst_base<crop> {
     using parent = typed_primitive_inst_base<crop>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>

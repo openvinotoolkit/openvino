@@ -76,6 +76,7 @@ using deformable_conv_node = typed_program_node<deformable_conv>;
 template <>
 class typed_primitive_inst<deformable_conv> : public typed_primitive_inst_base<deformable_conv> {
     using parent = typed_primitive_inst_base<deformable_conv>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(deformable_conv_node const& node, kernel_impl_params const& impl_param);
@@ -112,6 +113,7 @@ using deformable_conv_inst = typed_primitive_inst<deformable_conv>;
 template <>
 struct typed_program_node<deformable_interp> : public typed_program_node_base<deformable_interp> {
     using parent = typed_program_node_base<deformable_interp>;
+    using parent::parent;
 
 public:
     typed_program_node(std::shared_ptr<primitive> prim, program& prog)
@@ -156,6 +158,7 @@ using deformable_interp_node = typed_program_node<deformable_interp>;
 template <>
 class typed_primitive_inst<deformable_interp> : public typed_primitive_inst_base<deformable_interp> {
     using parent = typed_primitive_inst_base<deformable_interp>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(deformable_interp_node const& node, kernel_impl_params const& impl_param);

@@ -15,6 +15,8 @@ struct ctc_loss_impl : typed_primitive_impl_ocl<ctc_loss> {
     using parent = typed_primitive_impl_ocl<ctc_loss>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<ctc_loss_impl>(*this);
     }
@@ -62,3 +64,5 @@ attach_ctc_loss_impl::attach_ctc_loss_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::ctc_loss_impl, cldnn::object_type::CTC_LOSS_IMPL)

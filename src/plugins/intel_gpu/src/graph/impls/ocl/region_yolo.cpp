@@ -17,6 +17,8 @@ struct region_yolo_impl : typed_primitive_impl_ocl<region_yolo> {
     using parent = typed_primitive_impl_ocl<region_yolo>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<region_yolo_impl>(*this);
     }
@@ -65,3 +67,5 @@ attach_region_yolo_impl::attach_region_yolo_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::region_yolo_impl, cldnn::object_type::REGION_YOLO_IMPL)

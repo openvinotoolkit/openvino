@@ -12,6 +12,7 @@
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/lru_cache.hpp"
+#include "serialization/binary_buffer.hpp"
 
 #include <map>
 #include <vector>
@@ -79,8 +80,11 @@ public:
 
     network(program::ptr program, stream::ptr stream, uint16_t stream_id);
 
+    network(cldnn::BinaryInputBuffer& ifs, stream::ptr stream, engine& engine, uint16_t stream_id = 0);
+
     ~network();
 
+    void save(cldnn::BinaryOutputBuffer& ob);
 
     static ptr build_network(engine& engine,
                              const topology& topology,

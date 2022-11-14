@@ -51,12 +51,14 @@ struct multiclass_nms_impl : public typed_primitive_impl_ocl<multiclass_nms> {
     using parent = typed_primitive_impl_ocl<multiclass_nms>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<multiclass_nms_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<multiclass_nms>& instance, int32_t unused) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<multiclass_nms>& instance, int32_t unused) const override {
         kernel_arguments_data args = parent::get_arguments(instance, unused);
         args.inputs.push_back(instance.output_indices_memory());
         args.inputs.push_back(instance.output_num_memory());
@@ -122,3 +124,5 @@ attach_multiclass_nms_impl::attach_multiclass_nms_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::multiclass_nms_impl, cldnn::object_type::MULTICLASS_NMS_IMPL)

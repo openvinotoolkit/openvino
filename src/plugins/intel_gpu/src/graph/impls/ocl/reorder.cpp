@@ -17,9 +17,13 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
     using parent = typed_primitive_impl_ocl<reorder>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<reorder_impl>(*this);
     }
+
+    reorder_impl() : parent() {}
 
     explicit reorder_impl(const reorder_impl& other) : parent(other),
         _can_be_optimized(other._can_be_optimized),
@@ -36,12 +40,24 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
         _has_mean = node.has_mean();
     }
 
+    void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
+        ob << _can_be_optimized;
+        ob << _has_mean;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        ib >> _can_be_optimized;
+        ib >> _has_mean;
+    }
+
 protected:
     bool optimized_out(reorder_inst& instance) const override {
         return parent::optimized_out(instance) || _can_be_optimized;
     }
 
-    kernel_arguments_data get_arguments(reorder_inst& instance, int32_t split) const override {
+    kernel_arguments_data get_arguments(const reorder_inst& instance, int32_t split) const override {
         kernel_arguments_data args = parent::get_arguments(instance, split);
         auto input = &instance.input_memory();
         auto input_layout = input->get_layout();
@@ -142,3 +158,5 @@ attach_reorder_impl::attach_reorder_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reorder_impl, cldnn::object_type::REORDER_IMPL)

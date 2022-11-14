@@ -42,6 +42,7 @@ using reshape_node = typed_program_node<reshape>;
 template <>
 class typed_primitive_inst<reshape> : public typed_primitive_inst_base<reshape> {
     using parent = typed_primitive_inst_base<reshape>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>

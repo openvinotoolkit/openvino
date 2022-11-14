@@ -17,6 +17,7 @@ using space_to_batch_node = typed_program_node<space_to_batch>;
 template <>
 class typed_primitive_inst<space_to_batch> : public typed_primitive_inst_base<space_to_batch> {
     using parent = typed_primitive_inst_base<space_to_batch>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(space_to_batch_node const& node, kernel_impl_params const& impl_param);

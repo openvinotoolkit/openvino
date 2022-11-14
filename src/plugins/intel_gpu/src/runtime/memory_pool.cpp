@@ -24,8 +24,8 @@ memory_record::memory_record(memory_set users,
                              allocation_type type)
     : _users(users), _memory(memory), _network_id(net_id), _type(type) {}
 
-memory::ptr memory_pool::alloc_memory(const layout& layout, allocation_type type) {
-    return _engine->allocate_memory(layout, type);
+memory::ptr memory_pool::alloc_memory(const layout& layout, allocation_type type, bool reset) {
+    return _engine->allocate_memory(layout, type, reset);
 }
 
 memory_pool::~memory_pool() {}
@@ -218,8 +218,8 @@ memory::ptr memory_pool::get_from_across_networks_pool(const layout& layout,
     return mem;
 }
 
-memory::ptr memory_pool::get_memory(const layout& layout, allocation_type type) {
-    return alloc_memory(layout, type);
+memory::ptr memory_pool::get_memory(const layout& layout, allocation_type type, bool reset) {
+    return alloc_memory(layout, type, reset);
 }
 
 memory::ptr memory_pool::get_memory(const layout& layout,

@@ -43,6 +43,8 @@ struct grid_sample_impl : public typed_primitive_impl_ocl<grid_sample> {
     using parent = typed_primitive_impl_ocl<grid_sample>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<grid_sample_impl>(*this);
     }
@@ -90,3 +92,5 @@ attach_grid_sample_impl::attach_grid_sample_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::grid_sample_impl, cldnn::object_type::GRID_SAMPLE_IMPL)

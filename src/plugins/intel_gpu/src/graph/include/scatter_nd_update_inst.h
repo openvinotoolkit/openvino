@@ -15,6 +15,7 @@ using scatter_nd_update_node = typed_program_node<scatter_nd_update>;
 template <>
 class typed_primitive_inst<scatter_nd_update> : public typed_primitive_inst_base<scatter_nd_update> {
     using parent = typed_primitive_inst_base<scatter_nd_update>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(scatter_nd_update_node const& node, kernel_impl_params const& impl_param);
