@@ -534,9 +534,8 @@ int main(int argc, char* argv[]) {
                     // Create secondary property of -nthreads/-pin only for CPU if CPU device appears in the devices
                     // list specified by -d.
                     for (auto& device : hardware_devices) {
-                        if (device != "CPU")
-                            continue;
-                        setDeviceProperty(core, device, device_config, property);
+                        if (device == "CPU")
+                            setDeviceProperty(core, device, device_config, property);
                     }
                 }
             };
