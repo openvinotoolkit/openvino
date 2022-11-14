@@ -44,6 +44,7 @@ $(document).ready(function () {
     if (TABLE_SORT) {
         addTableSort();
     }
+    sortableTables();
     addLegalNotice();
     updateSearchForm();
     createSphinxTabSets();
