@@ -359,7 +359,8 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_EXEC_DEVICES, GetMetricNoThro
         auto affinity = layermap[node->get_friendly_name()];
         node->get_rt_info()["affinity"] = affinity;
     }
-    expectedTargets = {target_device, CommonTestUtils::DEVICE_CPU};
+    if (target_device.find(CommonTestUtils::DEVICE_CPU) == std::string::npos)
+        expectedTargets = {target_device, CommonTestUtils::DEVICE_CPU};
 #endif
     auto compiled_model = ie.compile_model(actualNetwork, heteroDeviceName);
 
