@@ -342,7 +342,7 @@ IInferRequestInternal::Ptr CompiledModel::CreateInferRequest() {
                                                _callbackExecutor);
 }
 
-bool CompiledModel::isSerializable() {
+bool CompiledModel::is_serializable() {
     // Model with multiple graphs is not yet supported.
     if (m_graphs.size() != 1)
         return false;
@@ -359,7 +359,7 @@ void CompiledModel::Export(std::ostream& networkModel) {
     if (m_graphs.empty())
         IE_THROW(NetworkNotLoaded);
 
-    if (!isSerializable())
+    if (!is_serializable())
         return;
 
     cldnn::BinaryOutputBuffer ob(networkModel);
