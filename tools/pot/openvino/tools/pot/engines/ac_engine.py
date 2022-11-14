@@ -125,7 +125,7 @@ class ACEngine(Engine):
         callback_layout, stat_names_aliases = {}, {}
         # add outputs for activation statistics collection
         if stats_layout is not None:
-            model_with_stat_op, nodes_names_map, output_to_node_names = self._statistic_graph_builder.\
+            model_with_stat_op, nodes_names_map, node_to_result_names = self._statistic_graph_builder.\
                 insert_statistic(copy.deepcopy(self._nx_model),
                                  stats_layout, stat_aliases)
             self.set_model(model_with_stat_op)
@@ -149,7 +149,7 @@ class ACEngine(Engine):
 
             align_stat_names_with_results(model_output_names,
                                           nodes_name,
-                                          output_to_node_names,
+                                          node_to_result_names,
                                           stats_layout,
                                           stat_aliases)
 
@@ -214,8 +214,8 @@ class ACEngine(Engine):
         self._per_sample_metrics.clear()
         self.dump_prediction_to_annotation = False
 
-        if stats_layout:
-            restore_original_node_names(output_to_node_names, accumulated_stats, stats_layout, stat_aliases)
+        if stats_layout and stat_aliases:
+            restore_original_node_names(node_to_result_names, accumulated_stats, stats_layout, stat_aliases)
 
         return metrics, accumulated_stats
 

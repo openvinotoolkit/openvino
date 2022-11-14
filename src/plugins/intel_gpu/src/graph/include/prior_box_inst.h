@@ -33,6 +33,7 @@ using prior_box_node = typed_program_node<prior_box>;
 template <>
 class typed_primitive_inst<prior_box> : public typed_primitive_inst_base<prior_box> {
     using parent = typed_primitive_inst_base<prior_box>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(prior_box_node const& node, kernel_impl_params const& impl_param);
