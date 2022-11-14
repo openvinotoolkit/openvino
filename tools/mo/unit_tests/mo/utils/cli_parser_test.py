@@ -523,6 +523,23 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
         for i in placeholder_values_ref.keys():
             assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
 
+    def test_get_shapes_several_inputs_several_shapes3_comma_sep(self):
+        # shapes and value for freezing specified using --input command line parameter
+        argv_input = "inp1[3 1]->[1.0 2.0 3.0],inp2[3 2 3],inp3[5]->[1.0, 1.0, 2.0, 3.0,5.0]"
+        input_list, result, _ = get_placeholder_shapes(argv_input, None)
+        exp_res = {'inp1': np.array([3, 1]), 'inp2': np.array([3, 2, 3]), 'inp3': np.array([5])}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+        placeholder_values_res, input_node_names_res = get_freeze_placeholder_values(argv_input, None)
+        placeholder_values_ref = {'inp1': np.array(['1.0', '2.0', '3.0']),
+                                  'inp3': np.array(['1.0', '1.0', '2.0', '3.0', '5.0'])}
+        input_node_names_ref = "inp1,inp2,inp3"
+        self.assertEqual(list(placeholder_values_res.keys()), list(placeholder_values_ref.keys()))
+        self.assertEqual(input_list, ["inp1","inp2","inp3"])
+        for i in placeholder_values_ref.keys():
+            assert np.array_equal(placeholder_values_res[i], placeholder_values_ref[i])
+
     def test_get_shapes_several_inputs_several_shapes4(self):
         # shapes specified using --input_shape and values for freezing using --input command line parameter
         argv_input = "inp1->[1.0 2.0 3.0],inp2,inp3->[1.0 1.0 2.0 3.0 5.0]"
@@ -623,6 +640,19 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
 
     def test_get_shapes_and_data_types_with_output_ports(self):
         argv_input = "inp1:1[3 1]->[1.0 2.0 3.0],inp2[3 2 3]{i32},inp3:4[5]{f32}->[1.0 1.0 2.0 3.0 5.0]"
+        input_list, result_shapes, result_data_types = get_placeholder_shapes(argv_input, "")
+        ref_result_shapes = {'inp1:1': np.array([3, 1]), 'inp2': np.array([3, 2, 3]), 'inp3:4': np.array([5])}
+        ref_result_data_types = {'inp2': np.int32, 'inp3:4': np.float32}
+        self.assertEqual(list(ref_result_shapes.keys()), list(result_shapes.keys()))
+        for i in ref_result_shapes.keys():
+            assert np.array_equal(result_shapes[i], ref_result_shapes[i])
+        self.assertEqual(list(ref_result_data_types.keys()), list(result_data_types.keys()))
+        self.assertEqual(input_list, ["inp1:1","inp2","inp3:4"])
+        for i in ref_result_data_types.keys():
+            np.testing.assert_equal(result_data_types[i], ref_result_data_types[i])
+
+    def test_get_shapes_and_data_types_with_output_ports_comma_sep(self):
+        argv_input = "inp1:1[3,1]->[1.0,2.0 ,3.0],inp2[3,2, 3]{i32},inp3:4[5]{f32}->[1.0, 1.0,2.0, 3.0,5.0]"
         input_list, result_shapes, result_data_types = get_placeholder_shapes(argv_input, "")
         ref_result_shapes = {'inp1:1': np.array([3, 1]), 'inp2': np.array([3, 2, 3]), 'inp3:4': np.array([5])}
         ref_result_data_types = {'inp2': np.int32, 'inp3:4': np.float32}

@@ -454,21 +454,21 @@ mo_convert_params = {
     'input': ParamDescription(
         '{}Quoted list of comma-separated input nodes names with shapes, data types, '
         'and values for freezing. The order of inputs in converted model is the same as '
-        'order of specified operation names. The shape and value are specified as space-separated '
+        'order of specified operation names. The shape and value are specified as comma-separated '
         'lists. The data type of input node is specified in braces and '
         'can have one of the values: f64 (float64), f32 (float32), f16 (float16), '
         'i64 (int64), i32 (int32), u8 (uint8), boolean (bool). Data type is optional. '
         'If it\'s not specified explicitly then there are two options: '
         'if input node is a parameter, data type is taken from the original node dtype, '
         'if input node is not a parameter, data type is set to f32. '
-        'Example, to set `input_1` with shape [1 100], and Parameter node `sequence_len` '
+        'Example, to set `input_1` with shape [1,100], and Parameter node `sequence_len` '
         'with scalar input with value `150`, and boolean input `is_training` with '
         '`False` value use the following format: '
-        '"input_1[1 10],sequence_len->150,is_training->False". '
+        '"input_1[1,100],sequence_len->150,is_training->False". '
         'Another example, use the following format to set input port 0 of the node '
-        '`node_name1` with the shape [3 4] as an input node and freeze output port 1 '
-        'of the node `node_name2` with the value [20 15] of the int32 type and shape [2]: '
-        '"0:node_name1[3 4],node_name2:1[2]{{i32}}->[20 15]".', '',
+        '`node_name1` with the shape [3,4] as an input node and freeze output port 1 '
+        'of the node `node_name2` with the value [20,15] of the int32 type and shape [2]: '
+        '"0:node_name1[3,4],node_name2:1[2]{{i32}}->[20,15]".', '',
         'Input can be set by passing a list of InputCutInfo objects or by a list of tuples. '
         'Each tuple should contain input name and optionally input type or input shape. '
         'Example: input=("op_name", PartialShape([-1, 3, 100, 100]), Type(np.float32)). '
@@ -1428,7 +1428,12 @@ def get_value_from_input_value(input_value: str):
         if value[0] == '[' and value[-1] != ']' or value[0] != '[' and value[-1] == ']':
             raise Error("Wrong syntax to specify value. Use --input \"node_name[shape]->value\"")
         if '[' in value.strip(' '):
-            value = value.replace('[', '').replace(']', '').split(' ')
+            value = value.replace('[', '').replace(']', '')
+            if ',' in value:
+                value = value.replace(' ', '')
+                value = value.split(',')
+            else:
+                value = value.split(' ')
         if not isinstance(value, list):
             value = ast.literal_eval(value)
     elif len(parts) > 2:
