@@ -209,7 +209,8 @@ ngraph::pass::UnsupportedNodesStridesPropagation::UnsupportedNodesStridesPropaga
 }
 
 ngraph::pass::StridesOptimization::StridesOptimization() {
-    ADD_MATCHER_FOR_THIS(ngraph::pass, ConvStridesPropagation);
-    ADD_MATCHER_FOR_THIS(ngraph::pass, SupportedNodesStridesPropagation);
-    ADD_MATCHER_FOR_THIS(ngraph::pass, UnsupportedNodesStridesPropagation);
+    using namespace ngraph::pass;
+    ADD_MATCHER_FOR_THIS(ConvStridesPropagation);
+    ADD_MATCHER_FOR_THIS(SupportedNodesStridesPropagation);
+    ADD_MATCHER_FOR_THIS(UnsupportedNodesStridesPropagation);
 }

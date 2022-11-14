@@ -130,7 +130,7 @@ ngraph::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
 }
 
 ngraph::pass::ConcatReduceFusion::ConcatReduceFusion() {
-    ADD_MATCHER_FOR_THIS_WITHOUT_NSPACE(ReplaceConcatReduceByMinOrMax)
-    ADD_MATCHER_FOR_THIS_WITHOUT_NSPACE(PullSqueezeThroughEltwise)
-    ADD_MATCHER_FOR_THIS_WITHOUT_NSPACE(EliminateSqueeze)
+    ADD_MATCHER_FOR_THIS(ReplaceConcatReduceByMinOrMax)
+    ADD_MATCHER_FOR_THIS(PullSqueezeThroughEltwise)
+    ADD_MATCHER_FOR_THIS(EliminateSqueeze)
 }

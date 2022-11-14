@@ -112,113 +112,115 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     ngraph::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
 
-    REGISTER_PASS(manager, ov::pass, DisableDecompressionConvertConstantFolding, )
+    using namespace ngraph::pass;
+    using namespace ov::pass;
+    REGISTER_PASS(manager, DisableDecompressionConvertConstantFolding, )
 
     // Disable low_precision_enabled as all plugins handle low-precision sub-graph manually
     // before CommonOptimization pipeline execution
-    REGISTER_PASS(manager, ngraph::pass, MOCTransformations, _run_on_function, true, false)
+    REGISTER_PASS(manager, MOCTransformations, _run_on_function, true, false)
 
     // Enabling conversion of FP16 IR to legacy representation, each plugin have to disable it
     // after support for FP16 IR is implemented
-    REGISTER_PASS(manager, ov::pass, ConvertCompressedOnlyToLegacy, _run_on_model)
-    REGISTER_PASS(manager, ov::pass, MarkPrecisionSensitiveDivides, _run_on_model)
-    REGISTER_PASS(manager, ngraph::pass, WeightsDequantizeToFakeQuantize, )
+    REGISTER_PASS(manager, ConvertCompressedOnlyToLegacy, _run_on_model)
+    REGISTER_PASS(manager, MarkPrecisionSensitiveDivides, _run_on_model)
+    REGISTER_PASS(manager, WeightsDequantizeToFakeQuantize, )
 
     auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
-    ADD_MATCHER(common_fusions, ngraph::pass, SpaceToBatchFusion)
-    ADD_MATCHER(common_fusions, ngraph::pass, BatchToSpaceFusion)
-    ADD_MATCHER(common_fusions, ngraph::pass, InterpolateSequenceFusion)
-    ADD_MATCHER(common_fusions, ngraph::pass, SkipGatherBeforeTransposeAndReshape)
-    ADD_MATCHER(common_fusions, ngraph::pass, ReduceMerge)
+    ADD_MATCHER(common_fusions, SpaceToBatchFusion)
+    ADD_MATCHER(common_fusions, BatchToSpaceFusion)
+    ADD_MATCHER(common_fusions, InterpolateSequenceFusion)
+    ADD_MATCHER(common_fusions, SkipGatherBeforeTransposeAndReshape)
+    ADD_MATCHER(common_fusions, ReduceMerge)
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
     manager.register_pass<ngraph::pass::ConcatReduceFusion>();
-    REGISTER_DISABLED_PASS(manager, ngraph::pass, ConvertPadToGroupConvolution)
-    REGISTER_DISABLED_PASS(manager, ngraph::pass, ConvertInterpolate1ToInterpolate4)
+    REGISTER_DISABLED_PASS(manager, ConvertPadToGroupConvolution)
+    REGISTER_DISABLED_PASS(manager, ConvertInterpolate1ToInterpolate4)
 
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
-    ADD_MATCHER(decomp, ngraph::pass, Gelu7Downgrade)
-    ADD_MATCHER(decomp, ngraph::pass, BidirectionalSequenceDecomposition)
-    ADD_MATCHER(decomp, ngraph::pass, ReduceL1Decomposition)
-    ADD_MATCHER(decomp, ngraph::pass, ReduceL2Decomposition)
-    ADD_MATCHER(decomp, ngraph::pass, HSwishDecomposition)
-    ADD_MATCHER(decomp, ngraph::pass, HSigmoidDecomposition)
-    ADD_MATCHER(decomp, ngraph::pass, LogSoftmaxDecomposition)
-    ADD_MATCHER(decomp, ngraph::pass, ConvertReduceToPooling)
-    ADD_MATCHER(decomp, ngraph::pass, ConvertBroadcastToTiles)
-    ADD_MATCHER(decomp, ngraph::pass, ConvertMod)
-    ADD_MATCHER(decomp, ngraph::pass, ConvertGELU)
-    ADD_MATCHER(decomp, ngraph::pass, ConvertMinimum)
-    ADD_MATCHER(decomp, ngraph::pass, ConvertSubtract)
-    ADD_MATCHER(decomp, ngraph::pass, ConvertDivide)
-    ADD_MATCHER(decomp, ngraph::pass, ConvertDepthToSpace)
-    ADD_MATCHER(decomp, ngraph::pass, ConvertSpaceToDepth)
-    ADD_MATCHER(decomp, ngraph::pass, ConvertConvertLike)
-    ADD_MATCHER(decomp, ngraph::pass, BatchNormDecomposition)
-    ADD_MATCHER(decomp, ngraph::pass, MVN6Decomposition)
+    ADD_MATCHER(decomp, Gelu7Downgrade)
+    ADD_MATCHER(decomp, BidirectionalSequenceDecomposition)
+    ADD_MATCHER(decomp, ReduceL1Decomposition)
+    ADD_MATCHER(decomp, ReduceL2Decomposition)
+    ADD_MATCHER(decomp, HSwishDecomposition)
+    ADD_MATCHER(decomp, HSigmoidDecomposition)
+    ADD_MATCHER(decomp, LogSoftmaxDecomposition)
+    ADD_MATCHER(decomp, ConvertReduceToPooling)
+    ADD_MATCHER(decomp, ConvertBroadcastToTiles)
+    ADD_MATCHER(decomp, ConvertMod)
+    ADD_MATCHER(decomp, ConvertGELU)
+    ADD_MATCHER(decomp, ConvertMinimum)
+    ADD_MATCHER(decomp, ConvertSubtract)
+    ADD_MATCHER(decomp, ConvertDivide)
+    ADD_MATCHER(decomp, ConvertDepthToSpace)
+    ADD_MATCHER(decomp, ConvertSpaceToDepth)
+    ADD_MATCHER(decomp, ConvertConvertLike)
+    ADD_MATCHER(decomp, BatchNormDecomposition)
+    ADD_MATCHER(decomp, MVN6Decomposition)
     decomp->add_matcher<ngraph::pass::NormalizeL2Decomposition, false>();
-    ADD_MATCHER(decomp, ngraph::pass, SimplifyCTCGreedyDecoderSeqLen)
-    ADD_MATCHER(decomp, ngraph::pass, EinsumDecomposition)
+    ADD_MATCHER(decomp, SimplifyCTCGreedyDecoderSeqLen)
+    ADD_MATCHER(decomp, EinsumDecomposition)
     decomp->add_matcher<ngraph::pass::SoftmaxDecomposition, false>();
-    ADD_MATCHER(decomp, ngraph::pass, SoftSignDecomposition)
-    ADD_MATCHER(decomp, ngraph::pass, GatherNegativeConstIndicesNormalize)
-    ADD_MATCHER(decomp, ngraph::pass, DropoutWithRandomUniformReplacer)
-    ADD_MATCHER(decomp, ngraph::pass, TransposeReshapeEliminationForMatmul)
-    ADD_MATCHER(decomp, ov::pass, EyeDecomposition)
-    ADD_MATCHER(decomp, ov::pass, UniqueDecomposition)
+    ADD_MATCHER(decomp, SoftSignDecomposition)
+    ADD_MATCHER(decomp, GatherNegativeConstIndicesNormalize)
+    ADD_MATCHER(decomp, DropoutWithRandomUniformReplacer)
+    ADD_MATCHER(decomp, TransposeReshapeEliminationForMatmul)
+    ADD_MATCHER(decomp, EyeDecomposition)
+    ADD_MATCHER(decomp, UniqueDecomposition)
     decomp->set_name("ngraph::pass::CommonDecompositions");
 
     // CF is required after all decompositions
-    REGISTER_PASS(manager, ngraph::pass, ConstantFolding, _run_on_model)
+    REGISTER_PASS(manager, ConstantFolding, _run_on_model)
 
     // LinOpSequenceFusion must be executed after all decompositions
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
-    REGISTER_PASS(manager, ngraph::pass, UnrollIf, _run_on_function)
+    REGISTER_PASS(manager, UnrollIf, _run_on_function)
 
     auto multiply_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
-    ADD_MATCHER(multiply_fusions, ngraph::pass, ConvolutionMultiplyFusion)
-    ADD_MATCHER(multiply_fusions, ngraph::pass, GroupConvolutionMultiplyFusion)
-    ADD_MATCHER(multiply_fusions, ngraph::pass, ConvolutionBackpropDataMultiplyFusion)
-    ADD_MATCHER(multiply_fusions, ngraph::pass, GroupConvolutionBackpropDataMultiplyFusion)
-    ADD_MATCHER(multiply_fusions, ngraph::pass, MultiplyConvolutionFusion)
-    ADD_MATCHER(multiply_fusions, ngraph::pass, MultiplyGroupConvolutionFusion)
-    ADD_MATCHER(multiply_fusions, ngraph::pass, MultiplyConvolutionBackpropDataFusion)
-    ADD_MATCHER(multiply_fusions, ngraph::pass, MultiplyGroupConvolutionBackpropDataFusion)
-    ADD_MATCHER(multiply_fusions, ngraph::pass, MatMulMultiplyFusion)
+    ADD_MATCHER(multiply_fusions, ConvolutionMultiplyFusion)
+    ADD_MATCHER(multiply_fusions, GroupConvolutionMultiplyFusion)
+    ADD_MATCHER(multiply_fusions, ConvolutionBackpropDataMultiplyFusion)
+    ADD_MATCHER(multiply_fusions, GroupConvolutionBackpropDataMultiplyFusion)
+    ADD_MATCHER(multiply_fusions, MultiplyConvolutionFusion)
+    ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionFusion)
+    ADD_MATCHER(multiply_fusions, MultiplyConvolutionBackpropDataFusion)
+    ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionBackpropDataFusion)
+    ADD_MATCHER(multiply_fusions, MatMulMultiplyFusion)
     multiply_fusions->set_name("ngraph::pass::MultiplyFusions");
 
-    REGISTER_PASS(manager, ngraph::pass, ConstantFolding, _run_on_model)
-    REGISTER_PASS(manager, ngraph::pass, ConvertGather8ToGather7, )  // not plugins implemented gather8
-    REGISTER_PASS(manager, ngraph::pass, ConvertGather7ToGather1, )  // not plugins implemented gather7
+    REGISTER_PASS(manager, ConstantFolding, _run_on_model)
+    REGISTER_PASS(manager, ConvertGather8ToGather7, )  // not plugins implemented gather8
+    REGISTER_PASS(manager, ConvertGather7ToGather1, )  // not plugins implemented gather7
 
-    REGISTER_DISABLED_PASS(manager, ngraph::pass, ConvertGather1ToGather7)
-    REGISTER_DISABLED_PASS(manager, ngraph::pass, ConvertGather7ToGather8)
-    REGISTER_PASS(manager, ngraph::pass, ConvertDeformableConv8To1, )
-    REGISTER_PASS(manager, ngraph::pass, ConvertSoftMax8ToSoftMax1, )
-    REGISTER_DISABLED_PASS(manager, ngraph::pass, ConvertSoftMax1ToSoftMax8)
-    REGISTER_PASS(manager, ngraph::pass, ConvertMaxPool8ToMaxPool1, )
-    REGISTER_DISABLED_PASS(manager, ngraph::pass, ConvertMaxPool1ToMaxPool8)
-    REGISTER_PASS(manager, ngraph::pass, ConvertPriorBox8To0, )
-    REGISTER_DISABLED_PASS(manager, ngraph::pass, ConvertDetectionOutput1ToDetectionOutput8)
-    REGISTER_PASS(manager, ngraph::pass, ConvertDetectionOutput8ToDetectionOutput1, )
-    REGISTER_DISABLED_PASS(manager, ngraph::pass, ConvertROIAlign3To9)
-    REGISTER_PASS(manager, ngraph::pass, ConvertROIAlign9To3, )
-    REGISTER_PASS(manager, ngraph::pass, ConvertMulticlassNms8ToMulticlassNms9, )
+    REGISTER_DISABLED_PASS(manager, ConvertGather1ToGather7)
+    REGISTER_DISABLED_PASS(manager, ConvertGather7ToGather8)
+    REGISTER_PASS(manager, ConvertDeformableConv8To1, )
+    REGISTER_PASS(manager, ConvertSoftMax8ToSoftMax1, )
+    REGISTER_DISABLED_PASS(manager, ConvertSoftMax1ToSoftMax8)
+    REGISTER_PASS(manager, ConvertMaxPool8ToMaxPool1, )
+    REGISTER_DISABLED_PASS(manager, ConvertMaxPool1ToMaxPool8)
+    REGISTER_PASS(manager, ConvertPriorBox8To0, )
+    REGISTER_DISABLED_PASS(manager, ConvertDetectionOutput1ToDetectionOutput8)
+    REGISTER_PASS(manager, ConvertDetectionOutput8ToDetectionOutput1, )
+    REGISTER_DISABLED_PASS(manager, ConvertROIAlign3To9)
+    REGISTER_PASS(manager, ConvertROIAlign9To3, )
+    REGISTER_PASS(manager, ConvertMulticlassNms8ToMulticlassNms9, )
 
     auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
-    ADD_MATCHER(fq_fusions, ngraph::pass, FakeQuantizeMulFusion)
-    ADD_MATCHER(fq_fusions, ngraph::pass, FakeQuantizeReshapeFusion)
-    ADD_MATCHER(fq_fusions, ngraph::pass, PullTransposeThroughFQUp)
-    ADD_MATCHER(fq_fusions, ngraph::pass, ReluFakeQuantizeFusion)
-    ADD_MATCHER(fq_fusions, ngraph::pass, AddFakeQuantizeFusion)
-    ADD_MATCHER(fq_fusions, ngraph::pass, MulFakeQuantizeFusion)
+    ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)
+    ADD_MATCHER(fq_fusions, FakeQuantizeReshapeFusion)
+    ADD_MATCHER(fq_fusions, PullTransposeThroughFQUp)
+    ADD_MATCHER(fq_fusions, ReluFakeQuantizeFusion)
+    ADD_MATCHER(fq_fusions, AddFakeQuantizeFusion)
+    ADD_MATCHER(fq_fusions, MulFakeQuantizeFusion)
     fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
 
     // StridesOptimization should be at the very end
     // because we cannot insert any MaxPools since they may prevent
     // other optimizations
     manager.register_pass<ngraph::pass::StridesOptimization>();
-    REGISTER_PASS(manager, ngraph::pass, Validate, _run_on_model)
+    REGISTER_PASS(manager, Validate, _run_on_model)
     manager.run_passes(f);
 
     // Returning value is false because pass::Manager always apply Validation pass

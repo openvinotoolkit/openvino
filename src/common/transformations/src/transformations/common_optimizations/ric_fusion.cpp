@@ -823,29 +823,41 @@ bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_pt
     NodeVector nodes_to_fuse;
     // First we need to initialize and propagate RIC attributes through entire graph
     auto ric_prop = m.register_pass<GraphRewrite>();
-    ADD_MATCHER(ric_prop, init, SplitConcat, nodes_to_fuse)
-    ADD_MATCHER(ric_prop, init, Gather, nodes_to_fuse)
-    ADD_MATCHER(ric_prop, prop, Convolution)
-    ADD_MATCHER(ric_prop, prop, GroupConvolution)
-    ADD_MATCHER(ric_prop, prop, Binary)
-    ADD_MATCHER(ric_prop, prop, ShapeOf)
-    ADD_MATCHER(ric_prop, prop, Transpose)
-    ADD_MATCHER(ric_prop, prop, PassThrough)
-    ADD_MATCHER(ric_prop, prop, Unsupported)
+    {
+        using namespace init;
+        ADD_MATCHER(ric_prop, SplitConcat, nodes_to_fuse)
+        ADD_MATCHER(ric_prop, Gather, nodes_to_fuse)
+    }
+
+    {
+        using namespace prop;
+        ADD_MATCHER(ric_prop, Convolution)
+        ADD_MATCHER(ric_prop, GroupConvolution)
+        ADD_MATCHER(ric_prop, Binary)
+        ADD_MATCHER(ric_prop, ShapeOf)
+        ADD_MATCHER(ric_prop, Transpose)
+        ADD_MATCHER(ric_prop, PassThrough)
+        ADD_MATCHER(ric_prop, Unsupported)
+    }
 
     // Handle quantized weights case (dequantize sub-graph is on the weights path)
     auto ric_back_prop = m.register_pass<ov::pass::BackwardGraphRewrite>();
-    ADD_MATCHER(ric_back_prop, back_prop, Binary)
-    ADD_MATCHER(ric_back_prop, back_prop, ConvertPassThrough)
-
-    REGISTER_PASS(m, back_prop, Constant, _run_on_function)
+    {
+        using namespace back_prop;
+        ADD_MATCHER(ric_back_prop, Binary)
+        ADD_MATCHER(ric_back_prop, ConvertPassThrough)
+        REGISTER_PASS(m, Constant, _run_on_function)
+    }
     // TODO: validate attributes by request
 
     // Second we fuse available RIC into nodes and remove original nodes related to fused RIC
     auto ric_fuse = m.register_pass<GraphRewrite>();
-    ADD_MATCHER(ric_fuse, fuse, InsertReverseInputChannel, nodes_to_fuse)
-    ADD_MATCHER(ric_fuse, fuse, EraseSplitConcat)
-    ADD_MATCHER(ric_fuse, fuse, EraseGather)
+    {
+        using namespace fuse;
+        ADD_MATCHER(ric_fuse, InsertReverseInputChannel, nodes_to_fuse)
+        ADD_MATCHER(ric_fuse, EraseSplitConcat)
+        ADD_MATCHER(ric_fuse, EraseGather)
+    }
 
     m.run_passes(model);
     return false;

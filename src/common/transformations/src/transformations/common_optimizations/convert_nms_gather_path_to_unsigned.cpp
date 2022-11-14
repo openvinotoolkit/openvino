@@ -103,7 +103,7 @@ public:
 }  // namespace ngraph
 
 ngraph::pass::ConvertNmsGatherPathToUnsigned::ConvertNmsGatherPathToUnsigned() {
-    ADD_MATCHER_FOR_THIS_WITHOUT_NSPACE(InitNMSPath)
-    ADD_MATCHER_FOR_THIS_WITHOUT_NSPACE(PropagateNMSPath)
-    ADD_MATCHER_FOR_THIS_WITHOUT_NSPACE(UpdateConvertGather)
+    ADD_MATCHER_FOR_THIS(InitNMSPath)
+    ADD_MATCHER_FOR_THIS(PropagateNMSPath)
+    ADD_MATCHER_FOR_THIS(UpdateConvertGather)
 }
