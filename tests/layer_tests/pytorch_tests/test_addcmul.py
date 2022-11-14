@@ -12,24 +12,27 @@ class TestAddCMul(PytorchLayerTest):
                 np.random.uniform(0, 50, 3).astype(self.input_type),
                 np.random.uniform(0, 50, 3).astype(self.input_type))
 
-    def create_model(self, value):
+    def create_model(self, value=None):
 
         import torch
 
         class aten_addcmul(torch.nn.Module):
-            def __init__(self, value):
+            def __init__(self, value=None):
                 super(aten_addcmul, self).__init__()
                 self.value = value 
 
 
             def forward(self, x, y, z):
-                return torch.addcmul(x, y, z, value=self.value)
+                if self.value is not None:
+                    return torch.addcmul(x, y, z, value=self.value)
+                return torch.addcmul(x, y, z)
 
         ref_net = None
 
         return aten_addcmul(value), ref_net, "aten::addcmul"
 
     @pytest.mark.parametrize(("input_type", "value"), [
+            [np.int32, None],
             [np.int32, 1],
             [np.int32, 2],
             [np.int32, 10],
@@ -42,4 +45,3 @@ class TestAddCMul(PytorchLayerTest):
     def test_addcmul(self, input_type, value, ie_device, precision, ir_version):
         self.input_type = input_type
         self._test(*self.create_model(value), ie_device, precision, ir_version)
-
