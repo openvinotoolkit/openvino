@@ -13,6 +13,8 @@ struct mutable_data_impl : public typed_primitive_impl_ocl<mutable_data> {
     using parent = typed_primitive_impl_ocl<mutable_data>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<mutable_data_impl>(*this);
     }
@@ -30,3 +32,5 @@ attach_mutable_data_impl::attach_mutable_data_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::mutable_data_impl, cldnn::object_type::MUTABLE_DATA_IMPL)

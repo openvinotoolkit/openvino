@@ -80,13 +80,13 @@ INSTANTIATE_TEST_SUITE_P(smoke, interpolate_test_two_inputs,
         {
             layout{ov::PartialShape{1, 2, 48, 80}, data_types::f32, format::bfyx},
             layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {-1, -1, -1, -1},
-            {0.5, 2.0}, {2, 3}, InterpolateAttrs{InterpolateOp::ShapeCalcMode::SCALES},
+            {1.0f, 1.0f, 0.5f, 2.0f}, {0, 1, 2, 3}, InterpolateAttrs{InterpolateOp::ShapeCalcMode::SCALES},
             layout{ov::PartialShape{1, 2, 24, 160}, data_types::f32, format::bfyx}
         },
         {
             layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
             layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {-1, -1, -1, -1},
-            {0.5, 2.0}, {2, 3}, InterpolateAttrs{InterpolateOp::ShapeCalcMode::SCALES},
+            {1.0f, 1.0f, 0.5f, 2.0f}, {0, 1, 2, 3}, InterpolateAttrs{InterpolateOp::ShapeCalcMode::SCALES},
             layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx}
         },
         {
@@ -133,13 +133,13 @@ INSTANTIATE_TEST_SUITE_P(smoke, interpolate_test_single_input,
         {
             layout{ov::PartialShape{1, 2, 48, 80}, data_types::f32, format::bfyx},
             layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {-1, -1, -1, -1},
-            {0.5, 2.0}, {2, 3}, InterpolateAttrs{InterpolateOp::ShapeCalcMode::SCALES},
+            {1.0f, 1.0f, 0.5f, 2.0f}, {0, 1, 2, 3}, InterpolateAttrs{InterpolateOp::ShapeCalcMode::SCALES},
             layout{ov::PartialShape{1, 2, 24, 160}, data_types::f32, format::bfyx}
         },
         {
             layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
             layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {-1, -1, -1, -1},
-            {0.5, 2.0}, {2, 3}, InterpolateAttrs{InterpolateOp::ShapeCalcMode::SCALES},
+            {1.0f, 1.0f, 0.5f, 2.0f}, {0, 1, 2, 3}, InterpolateAttrs{InterpolateOp::ShapeCalcMode::SCALES},
             layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx}
         },
         {

@@ -19,6 +19,8 @@ struct gemm_onednn : typed_primitive_onednn_impl<gemm, dnnl::matmul::desc> {
     using parent = typed_primitive_onednn_impl<gemm, dnnl::matmul::desc>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<gemm_onednn>(*this);
@@ -207,6 +209,29 @@ protected:
     }
 
 public:
+    void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
+
+        ob << make_data(&_desc->data, sizeof(dnnl_matmul_desc_t));
+
+        std::vector<uint8_t> prim_cache;
+        prim_cache = _prim.get_cache_blob();
+        ob << prim_cache;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+
+        _desc = std::make_shared<dnnl::matmul::desc>();
+        ib >> make_data(&_desc->data, sizeof(dnnl_matmul_desc_t));
+
+        std::vector<uint8_t> prim_cache;
+        ib >> prim_cache;
+
+        _pd = dnnl::primitive_desc(&_desc->data, _attrs.get(), ib.get_engine().get_onednn_engine(), nullptr);
+        _prim = dnnl::primitive(_pd, prim_cache);
+    }
+
     static primitive_impl* create(const gemm_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto desc = get_gemm_descriptor(impl_params);
@@ -237,3 +262,5 @@ attach_gemm_onednn::attach_gemm_onednn() {
 }  // namespace detail
 }  // namespace onednn
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::gemm_onednn, cldnn::object_type::GEMM_ONEDNN)
