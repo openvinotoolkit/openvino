@@ -459,7 +459,7 @@ OpenVINO also provides demo applications for using off-the-shelf models from [Op
 
 .. tab:: Windows
 
-   Go to :doc:`Open Model Zoo Demos page <omz_demos>` and see the "Build the Demo Applications on Microsoft Windows OS" section.
+   Go to :ref:`Open Model Zoo Demos page <omz_demos>` and see the "Build the Demo Applications on Microsoft Windows OS" section.
 
 .. tab:: macOS
 
