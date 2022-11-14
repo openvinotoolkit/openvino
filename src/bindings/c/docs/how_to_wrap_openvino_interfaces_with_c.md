@@ -75,7 +75,7 @@ https://github.com/openvinotoolkit/openvino/blob/d96c25844d6cfd5ad131539c8a09282
 The tensor create needs to specify the shape info, so C shape need to be converted to C++ class before C++ interface using. Vice versa, the object needs to convert to C rewriting object for C users convenience.
 
  ## See also
- * [Mapping Relationship of Objects](./docs/mapping_relationship_of_objects.md)
- * [Mapping Relationship of Interfaces](./docs/mapping_relationship_of_interfaces.md).
-
-
+ * [OpenVINO™ README](../../../../README.md)
+ * [C API developer guide](../README.md)
+ * [Mapping Relationship of Interfaces](./docs/mapping_relationship_of_interfaces.md)
+ * [C API Reference](https://docs.openvino.ai/latest/api/api_reference.html)

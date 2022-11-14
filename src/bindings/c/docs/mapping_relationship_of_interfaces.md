@@ -131,4 +131,6 @@ Here is the mapping relationship for core related,
 |`~Tensor()`|`ov_tensor_free(ov_tensor_t* tensor)`| C need to free the allocated tensor instance abviously, C++ not
 
 ## See also
+ * [OpenVINO™ README](../../../../README.md)
+ * [C API developer guide](../README.md)
  * [C API Reference](https://docs.openvino.ai/latest/api/api_reference.html)

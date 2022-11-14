@@ -12,17 +12,6 @@ Tips:
 2) For the objects which needs to be created, operated and read by users, rewrite the C++ `class` will be better.
 3) For some simple objects, C `struct` contains a instance of C++ `class` will be enough.
 
-In OpenVINO C++, most objects implemented with C++ `class` as following:
-
-```
-class ClassName {
-public:
-    ...
-private:
-    ...
-}
-```
-
 > **NOTE**: For more matching details can be found in [Mapping Relationship of Objects](./docs/mapping_relationship_of_objects.md).
 
  ## Wrap by C++ Shared Pointer
@@ -30,7 +19,7 @@ private:
 C construct a new `struct` represents the class, which contains a shared pointer to the `class` as following:
 
 ```
-struct ov_ClassName {
+struct ov_class_name {
     std::shared_ptr<ov::ClassName> object;
 };
 ```
@@ -72,7 +61,7 @@ C construct a new `struct` represents the class, which rewrites related info to 
 ```
 typedef struct {
     ov::ClassName object;
-} ov_ClassName_t;
+} ov_class_name_t;
 ```
 Here is an example (shape) for wrapping by shared pointer:
 https://github.com/openvinotoolkit/openvino/blob/d96c25844d6cfd5ad131539c8a0928266127b05a/src/core/include/openvino/core/shape.hpp#L21-L40
@@ -84,5 +73,7 @@ https://github.com/openvinotoolkit/openvino/blob/d96c25844d6cfd5ad131539c8a09282
 > **NOTE**: this implementation needs developer create the C++ `class` based on the C `struct` info in using this rewrite type.
 
  ## See also
+ * [OpenVINO™ README](../../../../README.md)
+ * [C API developer guide](../README.md)
  * [Mapping Relationship of Objects](./docs/mapping_relationship_of_objects.md)
- * [C API Reference](https://docs.openvino.ai/)
+ * [C API Reference](https://docs.openvino.ai/latest/api/api_reference.html)

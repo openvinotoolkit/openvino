@@ -10,4 +10,7 @@ As known, C API is a wrapping for C++ API, the main issues we had met can be cla
 
 > **NOTE**: The exception from C interface is not the same as C++ exception, do not use the C status value in C++ debuging.
 
-
+ ## See also
+ * [OpenVINO™ README](../../../../README.md)
+ * [C API developer guide](../README.md)
+ * [OpenVINO Debug Capabilities](../../../../docs/dev/debug_capabilities.md)
