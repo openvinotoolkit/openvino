@@ -68,16 +68,16 @@ const std::map<std::string, std::function<const ngraph::OpSet&()>>& ngraph::get_
 const std::map<std::string, std::function<const ov::OpSet&()>>& ov::get_available_opsets() {
 #define _OPENVINO_REG_OPSET(OPSET) \
     { #OPSET, ov::get_##OPSET }
-    static std::map<std::string, std::function<const ov::OpSet&()>> opset_map = {_OPENVINO_REG_OPSET(opset1),
-                                                                                 _OPENVINO_REG_OPSET(opset2),
-                                                                                 _OPENVINO_REG_OPSET(opset3),
-                                                                                 _OPENVINO_REG_OPSET(opset4),
-                                                                                 _OPENVINO_REG_OPSET(opset5),
-                                                                                 _OPENVINO_REG_OPSET(opset6),
-                                                                                 _OPENVINO_REG_OPSET(opset7),
-                                                                                 _OPENVINO_REG_OPSET(opset8),
-                                                                                 _OPENVINO_REG_OPSET(opset9),
-                                                                                 _OPENVINO_REG_OPSET(opset10)};
+    const static std::map<std::string, std::function<const ov::OpSet&()>> opset_map = {_OPENVINO_REG_OPSET(opset1),
+                                                                                       _OPENVINO_REG_OPSET(opset2),
+                                                                                       _OPENVINO_REG_OPSET(opset3),
+                                                                                       _OPENVINO_REG_OPSET(opset4),
+                                                                                       _OPENVINO_REG_OPSET(opset5),
+                                                                                       _OPENVINO_REG_OPSET(opset6),
+                                                                                       _OPENVINO_REG_OPSET(opset7),
+                                                                                       _OPENVINO_REG_OPSET(opset8),
+                                                                                       _OPENVINO_REG_OPSET(opset9),
+                                                                                       _OPENVINO_REG_OPSET(opset10)};
 #undef _OPENVINO_REG_OPSET
     return opset_map;
 }
