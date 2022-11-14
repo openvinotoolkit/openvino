@@ -152,7 +152,9 @@ void SoftMax::prepareParams() {
         softmax_forward::primitive_desc prim_desc;
         DnnlDesriptor desc(std::shared_ptr<softmax_forward::desc>(
             new softmax_forward::desc(prop_kind::forward_scoring, key.inp0->getDnnlDesc(), key.axis)));
-        primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine);
+        dnnl::primitive_attr attr;
+        attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
+        primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, attr);
 
         while (itpd) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
@@ -180,9 +182,12 @@ void SoftMax::prepareParams() {
 
     prim = result.first;
 
+    auto pd = (*prim).get_primitive_desc();
+    auto scratchpadMem = getScratchPadMem(pd);
+
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-    primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
+    primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}, {DNNL_ARG_SCRATCHPAD, scratchpadMem->GetPrimitive()}};
 }
 
 void SoftMax::executeDynamicImpl(dnnl::stream strm) {

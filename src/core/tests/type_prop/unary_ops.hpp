@@ -7,7 +7,6 @@
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 
-
 using namespace ngraph;
 
 template <class T>

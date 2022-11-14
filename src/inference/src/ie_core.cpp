@@ -182,13 +182,15 @@ void allowNotImplemented(F&& f) {
 
 ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& properties) {
     ov::AnyMap result = properties;
+    bool isVirtualDev = device.find("AUTO") != std::string::npos || device.find("MULTI") != std::string::npos ||
+                        device.find("HETERO") != std::string::npos;
     for (auto item = result.begin(); item != result.end();) {
         auto parsed = parseDeviceNameIntoConfig(item->first);
         if (!item->second.is<ov::AnyMap>()) {
             item++;
             continue;
         }
-        if (device.find(parsed._deviceName) != std::string::npos) {
+        if (device == parsed._deviceName) {
             // 1. flatten the scondary property for target device
             for (auto&& sub_property : item->second.as<ov::AnyMap>()) {
                 // 1.1 1st level property overides 2nd level property
@@ -197,12 +199,12 @@ ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& p
                 result[sub_property.first] = sub_property.second;
             }
             item = result.erase(item);
-        } else if (device != "AUTO" && device != "MULTI" && device != "HETERO") {
-            // 2. remove the secondary property setting for other hard ware device
-            item = result.erase(item);
-        } else {
-            // 3. keep the secondary property for the other virtual devices
+        } else if (isVirtualDev) {
+            // 2. keep the secondary property for the other virtual devices
             item++;
+        } else {
+            // 3. remove the secondary property setting for other hardware device
+            item = result.erase(item);
         }
     }
     return result;
@@ -488,32 +490,41 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                                                            const std::string& deviceFamily,
                                                            const std::map<std::string, std::string>& origConfig) const {
         std::map<std::string, Any> getMetricConfig;
-        auto compileConfig = origConfig;
+        std::map<std::string, std::string> compileConfig;
 
-        // 0. Remove TARGET_FALLBACK key, move it to getMetricConfig
-        auto targetFallbackIt = compileConfig.find("TARGET_FALLBACK");
-        if (targetFallbackIt == compileConfig.end()) {
-            targetFallbackIt = compileConfig.find(ov::device::priorities.name());
+        // 0. Move TARGET_FALLBACK key to getMetricConfig
+        auto targetFallbackIt = origConfig.find("TARGET_FALLBACK");
+        if (targetFallbackIt == origConfig.end()) {
+            targetFallbackIt = origConfig.find(ov::device::priorities.name());
         }
-        if (targetFallbackIt != compileConfig.end()) {
+        if (targetFallbackIt != origConfig.end()) {
             getMetricConfig[targetFallbackIt->first] = targetFallbackIt->second;
-            compileConfig.erase(targetFallbackIt);
         }
 
-        // 1. remove DEVICE_ID key
-        auto deviceIt = compileConfig.find(ov::device::id.name());
-        if (deviceIt != compileConfig.end()) {
+        // 1. Move DEVICE_ID key to getMetricConfig
+        auto deviceIt = origConfig.find(ov::device::id.name());
+        if (deviceIt != origConfig.end()) {
             getMetricConfig[deviceIt->first] = deviceIt->second;
-            compileConfig.erase(deviceIt);
         }
 
-        // 2. replace it with DEVICE_ARCHITECTURE value
+        // 2. Replace it with DEVICE_ARCHITECTURE value
         if (DeviceSupportsConfigKey(plugin, ov::device::architecture.name())) {
             compileConfig[ov::device::architecture.name()] =
                 plugin.get_property(ov::device::architecture, getMetricConfig);
         } else {
             // Take device name if device does not support DEVICE_ARCHITECTURE metric
             compileConfig[ov::device::architecture.name()] = deviceFamily;
+        }
+
+        // 3. Extract config keys which affect compile config
+        if (DeviceSupportsConfigKey(plugin, ov::caching_properties.name())) {
+            auto cachingProps = plugin.get_property(ov::caching_properties);
+            for (const auto& prop : cachingProps) {
+                // origConfig values have higher priority than plugin parameters
+                auto it = origConfig.find(prop);
+                compileConfig[prop] =
+                    it == origConfig.end() ? plugin.get_property(prop, {}).as<std::string>() : it->second;
+            }
         }
         return compileConfig;
     }

@@ -90,5 +90,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 95609
         R"(.*CachingSupportCase.*LoadNet.*(Bias|Split|Concat|KSO|SingleConv).*)",
         R"(.*CachingSupportCase.*LoadNet.*(ConvPoolRelu|TIwithLSTMcell1)_f32_batch2.*)",
+        // TODO: Issue: 95234
+        R"(.*smoke_CachingSupportCase_GNA.*)",
     };
 }
