@@ -118,8 +118,9 @@ The following layers are supported by the plugins:
 
 .. scrollbox::
    :bar: 5
-   :height: 200px
+   :height: 300px
    :width: 100%
+   :sortable:
 
 
    +--------------------------------+---------------+---------------+---------------+---------------+-----------------+
