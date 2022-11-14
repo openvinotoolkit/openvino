@@ -40,8 +40,8 @@ _get_node_factory_opset7 = partial(_get_node_factory, "opset7")
 
 @nameable_op
 def einsum(
-        inputs: List[Node],
-        equation: str,
+    inputs: List[Node],
+    equation: str,
 ) -> Node:
     """Return a node which performs Einsum operation.
 
@@ -58,9 +58,9 @@ def einsum(
 
 @nameable_op
 def gelu(
-        data: Node,
-        approximation_mode: str,
-        name: Optional[str] = None,
+    data: Node,
+    approximation_mode: str,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs Gelu activation function.
 
@@ -80,9 +80,9 @@ def gelu(
 
 @nameable_op
 def roll(
-        data: NodeInput,
-        shift: NodeInput,
-        axes: NodeInput,
+    data: NodeInput,
+    shift: NodeInput,
+    axes: NodeInput,
 ) -> Node:
     """Return a node which performs Roll operation.
 
@@ -98,10 +98,10 @@ def roll(
 
 @nameable_op
 def gather(
-        data: NodeInput,
-        indices: NodeInput,
-        axis: NodeInput,
-        batch_dims: Optional[int] = 0,
+    data: NodeInput,
+    indices: NodeInput,
+    axis: NodeInput,
+    batch_dims: Optional[int] = 0,
 ) -> Node:
     """Return a node which performs Gather.
 
@@ -119,9 +119,9 @@ def gather(
 
 
 def dft(
-        data: NodeInput,
-        axes: NodeInput,
-        signal_size: Optional[NodeInput] = None,
+    data: NodeInput,
+    axes: NodeInput,
+    signal_size: Optional[NodeInput] = None,
 ) -> Node:
     """Return a node which performs DFT operation.
 
@@ -140,9 +140,9 @@ def dft(
 
 @nameable_op
 def idft(
-        data: NodeInput,
-        axes: NodeInput,
-        signal_size: Optional[NodeInput] = None,
+    data: NodeInput,
+    axes: NodeInput,
+    signal_size: Optional[NodeInput] = None,
 ) -> Node:
     """Return a node which performs IDFT operation.
 

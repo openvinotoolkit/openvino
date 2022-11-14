@@ -37,12 +37,14 @@ struct roi_pooling_impl : typed_primitive_impl_ocl<roi_pooling> {
     using parent = typed_primitive_impl_ocl<roi_pooling>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<roi_pooling_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<roi_pooling>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<roi_pooling>& instance, int32_t) const override {
         kernel_arguments_data args;
 
         if (instance.argument->mode == pooling_mode::deformable_bilinear && !instance.argument->no_trans)
@@ -82,9 +84,7 @@ public:
         auto roi_optional_params =
             get_default_optional_params<kernel_selector::roi_pooling_optional_params>(arg.get_program());
 
-        const auto roi_bfyx = convert_data_tensor(rois_layout);
-        const auto roi_bf = roi_bfyx.FlattenFeatureAndSpatials();
-        roi_params.inputs.push_back(roi_bf);
+        roi_params.inputs.push_back(convert_data_tensor(rois_layout));
         if (primitive->mode == pooling_mode::deformable_bilinear && !primitive->no_trans)
             roi_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
         roi_params.mode = cldnn_2_pool_type(primitive->mode);
@@ -116,12 +116,20 @@ public:
 namespace detail {
 
 attach_roi_pooling_impl::attach_roi_pooling_impl() {
-    implementation_map<roi_pooling>::add(impl_types::ocl, roi_pooling_impl::create, {
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfyx),
-    });
+    auto formats = {format::bfyx,
+                    format::b_fs_yx_fsv16,
+                    format::b_fs_yx_fsv32,
+                    format::bs_fs_yx_bsv16_fsv16,
+                    format::bs_fs_yx_bsv32_fsv32,
+                    format::bs_fs_yx_bsv32_fsv16};
+
+    auto types = {data_types::f16, data_types::f32};
+
+    implementation_map<roi_pooling>::add(impl_types::ocl, roi_pooling_impl::create, types, formats);
 }
 
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::roi_pooling_impl, cldnn::object_type::ROI_POOLING_IMPL)

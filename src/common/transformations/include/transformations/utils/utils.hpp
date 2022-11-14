@@ -9,19 +9,17 @@
 #include <functional>
 #include <limits>
 #include <memory>
-#include <ngraph/op/constant.hpp>
 #include <ngraph/op/util/op_annotations.hpp>
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/opsets/opset4.hpp>
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset4.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <transformations/rt_info/attributes.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>
 
-namespace ngraph {
+namespace ov {
 namespace op {
 namespace util {
 
@@ -54,7 +52,7 @@ bool has_op_with_type(const std::shared_ptr<const ngraph::Function>& function) {
 
 inline bool has_decompression_converts(const std::shared_ptr<const ngraph::Function>& function) {
     for (const auto& op : function->get_ops()) {
-        if (std::dynamic_pointer_cast<ngraph::opset8::Convert>(op)) {
+        if (std::dynamic_pointer_cast<opset8::Convert>(op)) {
             if (ov::is_decompression(op))
                 return true;
         }
@@ -150,16 +148,16 @@ bool has_constant_value(const std::shared_ptr<Node>& node,
     return const_values == values;
 }
 
-TRANSFORMATIONS_API bool get_single_value(const std::shared_ptr<op::Constant>& const_node, float& value);
+TRANSFORMATIONS_API bool get_single_value(const std::shared_ptr<opset4::Constant>& const_node, float& value);
 
-TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> normalize_constant(const std::shared_ptr<op::Constant>& constant,
+TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> normalize_constant(const std::shared_ptr<opset4::Constant>& constant,
                                                                      const PartialShape& shape);
 
 TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> broadcastTo(const Output<Node>& input, const Shape& shape);
 
 TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> reshapeTo(const Output<Node>& input, const Shape& shape);
 
-TRANSFORMATIONS_API bool constantIsEqualTo(const std::shared_ptr<ngraph::op::Constant>& const_node,
+TRANSFORMATIONS_API bool constantIsEqualTo(const std::shared_ptr<opset4::Constant>& const_node,
                                            float value,
                                            float eps = 1e-5);
 
@@ -195,10 +193,10 @@ Output<Node> eltwise_fold(const Output<Node>& input0, const Output<Node>& input1
     auto eltwise = std::make_shared<T>(input0, input1);
     OutputVector output(eltwise->get_output_size());
     if (!eltwise->constant_fold(output, {input0, input1})) {
-        throw ngraph_error("Can not constant fold eltwise node");
+        throw ov::Exception("Can not constant fold eltwise node");
     }
     if (output.size() != 1) {
-        throw ngraph_error("Eltwise constant fold has unexpected number of outputs: " + std::to_string(output.size()));
+        throw ov::Exception("Eltwise constant fold has unexpected number of outputs: " + std::to_string(output.size()));
     }
     return output[0];
 }
@@ -218,6 +216,39 @@ TRANSFORMATIONS_API bool is_dequantization_subgraph(const Output<Node>& node);
 TRANSFORMATIONS_API bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
                                                     const Output<Node>& constant,
                                                     const Output<Node>& non_constant_input);
+}  // namespace util
+}  // namespace op
+}  // namespace ov
+
+namespace ngraph {
+namespace op {
+namespace util {
+using ov::op::util::activation;
+using ov::op::util::broadcastTo;
+using ov::op::util::can_eliminate_eltwise_node;
+using ov::op::util::check_for_broadcast;
+using ov::op::util::clone_try_fold;
+using ov::op::util::constantIsEqualTo;
+using ov::op::util::create_ie_output_name;
+using ov::op::util::eltwise_fold;
+using ov::op::util::get_ie_output_name;
+using ov::op::util::get_node_target_inputs;
+using ov::op::util::get_single_value;
+using ov::op::util::has_constant_value;
+using ov::op::util::has_decompression_converts;
+using ov::op::util::has_f16_constants;
+using ov::op::util::has_op_with_type;
+using ov::op::util::is_dequantization_subgraph;
+using ov::op::util::is_seq_len_provided;
+using ov::op::util::make_try_fold;
+using ov::op::util::node_to_get_shape_value_of_indices_from_shape_node;
+using ov::op::util::node_to_get_shape_value_of_indices_from_shape_source;
+using ov::op::util::normalize_constant;
+using ov::op::util::normalize_single_value;
+using ov::op::util::reshapeTo;
+using ov::op::util::shapes_equal_except_dynamic_expected_batch;
+using ov::op::util::try_fold_unary_output;
+using ov::op::util::visit_shape_path;
 }  // namespace util
 }  // namespace op
 }  // namespace ngraph
