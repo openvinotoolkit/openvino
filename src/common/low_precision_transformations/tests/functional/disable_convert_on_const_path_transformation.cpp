@@ -2,22 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
-
-#include <string>
-#include <sstream>
-#include <memory>
-
 #include <gtest/gtest.h>
 
+#include <low_precision/convolution.hpp>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <transformations/init_node_info.hpp>
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
 #include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <low_precision/convolution.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "simple_low_precision_transformer.hpp"
+#include "layer_transformation.hpp"
 #include "lpt_ngraph_functions/fake_quantize_and_convolution_function.hpp"
+#include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
 using namespace ngraph;
@@ -40,11 +38,12 @@ public:
     Values expected;
 };
 
-typedef std::tuple<
-    ngraph::Shape,
-    DisableConvertOnConstPathTransformationValues> DisableConvertOnConstPathTransformationParams;
+typedef std::tuple<ngraph::Shape, DisableConvertOnConstPathTransformationValues>
+    DisableConvertOnConstPathTransformationParams;
 
-class DisableConvertOnConstPathTransformation : public LayerTransformation, public testing::WithParamInterface<DisableConvertOnConstPathTransformationParams> {
+class DisableConvertOnConstPathTransformation
+    : public LayerTransformation,
+      public testing::WithParamInterface<DisableConvertOnConstPathTransformationParams> {
 public:
     void SetUp() override {
         const auto inputShape = std::get<0>(GetParam());
@@ -84,13 +83,11 @@ public:
         DisableConvertOnConstPathTransformationValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
-        result <<
-            inputShape << "_" <<
-            testValues.actual.precisionBeforeDequantization << "_" <<
-            testValues.actual.dequantizationOnActivations << "_" << "_weights_" <<
-            testValues.actual.weights.outPrecision << "_" << "{ " <<
-            testValues.actual.weights.values[0] << " }_" <<
-            testValues.actual.fakeQuantizeOnWeights << "_";
+        result << inputShape << "_" << testValues.actual.precisionBeforeDequantization << "_"
+               << testValues.actual.dequantizationOnActivations << "_"
+               << "_weights_" << testValues.actual.weights.outPrecision << "_"
+               << "{ " << testValues.actual.weights.values[0] << " }_" << testValues.actual.fakeQuantizeOnWeights
+               << "_";
         return result.str();
     }
 };
@@ -101,7 +98,7 @@ TEST_P(DisableConvertOnConstPathTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::Shape> shapes = { ngraph::Shape({ 1, 3, 72, 48 }) };
+const std::vector<ngraph::Shape> shapes = {ngraph::Shape({1, 3, 72, 48})};
 
 const std::vector<DisableConvertOnConstPathTransformationValues> testValues = {
     // Actual & Transformed:
@@ -121,52 +118,48 @@ const std::vector<DisableConvertOnConstPathTransformationValues> testValues = {
     //         \FP32           /FP32
     //          \             /
     //            Convolution
-    {
-        // ActualValues
-        {
-            ngraph::element::u8,
-            {
-                {ngraph::element::f32},
-                { {128.f}, element::f32, {}, false, 1ul, element::u8, true },
-                { {0.02f}, element::f32, {}, false }
-            },
-            {
-                { ngraph::element::f32, false },
-                { {127.f}, element::f32, {}, false, 1ul, element::i8, true },
-                { {0.03f}, element::f32, {}, false }
-            },
-            { std::vector<float>{ 1.f }, ngraph::element::f32},
-            { 255ul, Shape({ 1, 1, 1, 1 }), { -1.28f }, { 1.27f }, { -128.f }, { 127.f }, element::i8 },
-            ngraph::element::f32,
-            {}
-        },
-        // ExpectedValues
-        {
-            ngraph::element::u8,
-            {
-                {ngraph::element::f32},
-                { {128.f}, element::f32, {}, false, 1ul, element::u8, true, {},
-                  {{ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()} } },
-                { {0.02f}, element::f32, {}, false }
-            },
-            {
-                { ngraph::element::f32, false },
-                { {127.f}, element::f32, {}, false, 1ul, element::i8, true, {},
-                  {{ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()} } },
-                { {0.03f}, element::f32, {}, false }
-            },
-            { std::vector<float>{ 1.f }, ngraph::element::f32},
-            { 255ul, Shape({ 1, 1, 1, 1 }), { -1.28f }, { 1.27f }, { -128.f }, { 127.f }, element::i8 },
-            ngraph::element::f32,
-            {}
-        }
-    }
-};
+    {// ActualValues
+     {ngraph::element::u8,
+      {{ngraph::element::f32},
+       {{128.f}, element::f32, {}, false, 1ul, element::u8, true},
+       {{0.02f}, element::f32, {}, false}},
+      {{ngraph::element::f32, false},
+       {{127.f}, element::f32, {}, false, 1ul, element::i8, true},
+       {{0.03f}, element::f32, {}, false}},
+      {std::vector<float>{1.f}, ngraph::element::f32},
+      {255ul, Shape({1, 1, 1, 1}), {-1.28f}, {1.27f}, {-128.f}, {127.f}, element::i8},
+      ngraph::element::f32,
+      {}},
+     // ExpectedValues
+     {ngraph::element::u8,
+      {{ngraph::element::f32},
+       {{128.f},
+        element::f32,
+        {},
+        false,
+        1ul,
+        element::u8,
+        true,
+        {},
+        {{ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()}}},
+       {{0.02f}, element::f32, {}, false}},
+      {{ngraph::element::f32, false},
+       {{127.f},
+        element::f32,
+        {},
+        false,
+        1ul,
+        element::i8,
+        true,
+        {},
+        {{ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()}}},
+       {{0.03f}, element::f32, {}, false}},
+      {std::vector<float>{1.f}, ngraph::element::f32},
+      {255ul, Shape({1, 1, 1, 1}), {-1.28f}, {1.27f}, {-128.f}, {127.f}, element::i8},
+      ngraph::element::f32,
+      {}}}};
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    DisableConvertOnConstPathTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(testValues)),
-    DisableConvertOnConstPathTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         DisableConvertOnConstPathTransformation,
+                         ::testing::Combine(::testing::ValuesIn(shapes), ::testing::ValuesIn(testValues)),
+                         DisableConvertOnConstPathTransformation::getTestCaseName);

@@ -9,9 +9,9 @@
 #include <queue>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ov_ops/augru_cell.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/opsets/opset9.hpp"
+#include "ov_ops/augru_cell.hpp"
 
 using namespace std;
 using namespace testing;
