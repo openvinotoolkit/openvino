@@ -10,7 +10,9 @@
 
 using namespace ngraph;
 
-//! [op:ctor]
+op::v1::ConvertFP8::ConvertFP8() : Op(), m_destination_type("hp8_ext") {}
+
+    //! [op:ctor]
 op::v1::ConvertFP8::ConvertFP8(const ov::Output<ov::Node>& arg,
                                const ov::Output<ov::Node>& scale,
                                const std::string& destination_type)
@@ -114,8 +116,6 @@ namespace convert_fp8 {
                 /// 0x7f00 is 0 11111 1100000000
                 /// 0x7b00 is 0 11110 1100000000
                 unsigned short can_round = ((h.u & 0x7f00) < 0x7b00) ? 1 : 0;
-                /// denormalized numbers including zero, all exponent valuse equal to zero
-                unsigned short is_denorm = ((h.u & 0x7c00) == 0x0) ? 1 : 0;
                 /// s 11111 xxx xxxx xxxx - is nan (if some x is 1) or inf (if all x is 0)
                 unsigned short is_naninf = ((h.u & 0x7c00) == 0x7c00) ? 1 : 0;
                 /* nearest rounding masks */

@@ -19,7 +19,7 @@ namespace v1 {
     public:
         OPENVINO_OP("ConvertFP8", "opset1", op::Op, 1);
 
-        ConvertFP8() = default;
+        ConvertFP8();
         ConvertFP8(const ov::Output<ov::Node>& arg,
                    const ov::Output<ov::Node>& scale,
                    const std::string& destination_type);
