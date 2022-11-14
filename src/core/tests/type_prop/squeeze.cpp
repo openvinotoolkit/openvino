@@ -41,9 +41,12 @@ TEST(type_prop, squeeze_incorrect_negative_axes) {
                     HasSubstr("Parameter axis -10 out of the tensor rank range"));
 }
 
-using TypePropTestParam = std::tuple<PartialShape, std::vector<int64_t>, PartialShape>;
+using SqueezeTypePropTestParam = std::tuple<PartialShape,          // Input shape
+                                            std::vector<int64_t>,  // Squeeze axis
+                                            PartialShape           // Expected shape
+                                            >;
 
-class SqueezeTest : public WithParamInterface<TypePropTestParam>, public UnSqueezeFixture {
+class SqueezeTest : public WithParamInterface<SqueezeTypePropTestParam>, public UnSqueezeFixture {
 protected:
     void SetUp() override {
         std::tie(p_shape, axes, exp_shape) = GetParam();
@@ -261,7 +264,7 @@ TEST_P(SqueezeBoundTest, propagate_label_and_dynamic_value) {
     const auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(gather, axis_1);
     const auto squeeze = std::make_shared<op::v0::Squeeze>(unsqueeze, axis);
 
-    const auto bc = std::make_shared<op::v1::Broadcast>(param, squeeze);
+    const auto bc = std::make_shared<op::v3::Broadcast>(param, squeeze);
 
     EXPECT_EQ(bc->get_output_partial_shape(0), exp_shape);
     const auto labels = get_shape_labels(bc->get_output_partial_shape(0));

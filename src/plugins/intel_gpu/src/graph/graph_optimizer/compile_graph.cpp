@@ -34,9 +34,13 @@ void compile_graph::run(program& p) {
     for (size_t idx = 0; idx < proc_order.size(); idx++) {
         auto& node = *(std::next(proc_order.begin(), idx));
         if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty()) && !node->is_dynamic()) {
-            tasks.push_back([node, &exception] {
+            tasks.push_back([node, &p, &exception] {
                 try {
                     node->selected_impl = node->type()->choose_impl(*node);
+                    if (node->selected_impl) {
+                        auto kernel_ids = p.get_kernels_cache().add_kernels_source(node->selected_impl->get_kernels_source());
+                        node->selected_impl->set_kernel_ids(kernel_ids);
+                    }
                 } catch(...) {
                     exception = std::current_exception();
                 }
