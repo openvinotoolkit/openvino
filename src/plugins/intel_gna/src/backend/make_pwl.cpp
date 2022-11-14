@@ -19,7 +19,6 @@
 #include "log/log.hpp"
 
 using namespace ov::intel_gna;
-using namespace ov::intel_gna::common;
 
 // This function performs emulation of HW saturation of PWL segments in SW
 // by inserting additional segments when overflow would happen
@@ -51,7 +50,7 @@ static void insert_extra_pwl_segments(std::vector<gna_pwl_segment_t>& gna_pwl,
 
         if (y_value > static_cast<float>(INT16_MAX) || y_value < static_cast<float>(INT16_MIN)) {
             float x_value = ((static_cast<float>(y_max) - yBase) * scale) / slope + xBase;
-            extra_segment.xBase = float_to_int32(x_value) & XBASEMASK;
+            extra_segment.xBase = FLOAT_TO_INT32(x_value) & XBASEMASK;
             extra_segment.yBase = slope > 0 ? y_max : y_min;
             extra_segment.slope = 0;
             extra_segments[gna_pwl_size] = extra_segment;
@@ -126,20 +125,20 @@ void make_gna_pwl(const DnnActivation&  fun,
             int32_t y_lower = y_min;
             int16_t y_upper = y_max;
             if (fun.fqParams.set) {
-                x_lower = static_cast<int32_t>(std::max(float_to_int64(*fun.fqParams.input_low * 1.25 * in_scale), static_cast<int64_t>(x_lower)));
-                x_upper = static_cast<int32_t>(std::min(float_to_int64(*fun.fqParams.input_high * 1.25 * in_scale), static_cast<int64_t>(x_upper)));
+                x_lower = static_cast<int32_t>(std::max(FLOAT_TO_INT64(*fun.fqParams.input_low * 1.25 * in_scale), static_cast<int64_t>(x_lower)));
+                x_upper = static_cast<int32_t>(std::min(FLOAT_TO_INT64(*fun.fqParams.input_high * 1.25 * in_scale), static_cast<int64_t>(x_upper)));
                 // y_lower can be reduced with negative slope
                 y_lower = static_cast<int32_t>(*fun.fqParams.input_low * 1.25 * out_scale);
-                y_upper = static_cast<int16_t>(std::min(float_to_int32(*fun.fqParams.input_high * 1.25 * out_scale), static_cast<int32_t>(y_upper)));
+                y_upper = static_cast<int16_t>(std::min(FLOAT_TO_INT32(*fun.fqParams.input_high * 1.25 * out_scale), static_cast<int32_t>(y_upper)));
             } else {
-                if (x_lower < y_lower * in_scale / out_scale) x_lower = float_to_int32(y_lower * in_scale / out_scale);
-                if (y_lower < x_lower * out_scale / in_scale) y_lower = float_to_int16(x_lower * out_scale / in_scale);
+                if (x_lower < y_lower * in_scale / out_scale) x_lower = FLOAT_TO_INT32(y_lower * in_scale / out_scale);
+                if (y_lower < x_lower * out_scale / in_scale) y_lower = FLOAT_TO_INT16(x_lower * out_scale / in_scale);
             }
 
-            gna_pwl[0].yBase = std::max(float_to_int32(y_lower * fun.args.lrelu.negative_slope), static_cast<int32_t>(y_min));
+            gna_pwl[0].yBase = std::max(FLOAT_TO_INT32(y_lower * fun.args.lrelu.negative_slope), static_cast<int32_t>(y_min));
             s = gna_slope(fun.args.lrelu.negative_slope, in_scale, out_scale);
             gna_pwl[0].xBase = (x_lower & XBASEMASK) | s.slope_scale_index;  // zero out the 2 lsb
-            gna_pwl[0].slope = float_to_int16(s.slope * s.slope_scale);
+            gna_pwl[0].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
 
             print_segment((int32_t)(gna_pwl[0].xBase & XBASEMASK) / in_scale,
                           gna_pwl[0].yBase / out_scale,
@@ -148,7 +147,7 @@ void make_gna_pwl(const DnnActivation&  fun,
             gna_pwl[1].xBase = 0;
             gna_pwl[1].yBase = 0;
             s = gna_slope(1.0, in_scale, out_scale);
-            gna_pwl[1].slope = float_to_int16(s.slope * s.slope_scale);
+            gna_pwl[1].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
             gna_pwl[1].xBase = gna_pwl[1].xBase | s.slope_scale_index;
             print_segment(0.0, 0.0, (gna_pwl[1].slope * in_scale) / (out_scale*s.slope_scale));
 
@@ -206,18 +205,18 @@ void make_gna_pwl(const DnnActivation&  fun,
             if (fun == kActKaldiLstmClipping) {
                 if (x_lower < l_bound * in_scale) {
                     if (y_lower < l_bound * out_scale) {
-                        x_lower = float_to_int32(l_bound * in_scale);
-                        y_lower = float_to_int16(l_bound * out_scale);
+                        x_lower = FLOAT_TO_INT32(l_bound * in_scale);
+                        y_lower = FLOAT_TO_INT16(l_bound * out_scale);
                     } else {
-                        x_lower = float_to_int32(y_lower * in_scale / out_scale);
+                        x_lower = FLOAT_TO_INT32(y_lower * in_scale / out_scale);
                     }
                 }
                 if (x_upper > u_bound * in_scale) {
                     if (y_upper > u_bound * out_scale) {
-                        x_upper = float_to_int32(u_bound * in_scale);
-                        y_upper = float_to_int16(u_bound * out_scale);
+                        x_upper = FLOAT_TO_INT32(u_bound * in_scale);
+                        y_upper = FLOAT_TO_INT16(u_bound * out_scale);
                     } else {
-                        x_upper = float_to_int32(y_upper  * in_scale / out_scale);
+                        x_upper = FLOAT_TO_INT32(y_upper  * in_scale / out_scale);
                     }
                 }
             }
@@ -231,7 +230,7 @@ void make_gna_pwl(const DnnActivation&  fun,
             gna_pwl[1].xBase = x_lower & XBASEMASK;  // zero out the 2 lsb
             gna_pwl[1].yBase = y_lower;
             s = gna_slope(1.0, in_scale, out_scale);
-            gna_pwl[1].slope = float_to_int16(s.slope * s.slope_scale);
+            gna_pwl[1].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
             gna_pwl[1].xBase = gna_pwl[1].xBase | s.slope_scale_index;
             print_segment((int32_t)(gna_pwl[1].xBase & XBASEMASK) / in_scale, gna_pwl[1].yBase / out_scale, 1.0);
 
@@ -252,8 +251,8 @@ void make_gna_pwl(const DnnActivation&  fun,
 
             auto n_segments = 2;
 
-            if (y_upper > x_upper * out_scale / in_scale) y_upper = float_to_int16(x_upper * out_scale / in_scale);
-            if (x_upper > y_upper * in_scale / out_scale) x_upper = float_to_int32(y_upper * in_scale / out_scale);
+            if (y_upper > x_upper * out_scale / in_scale) y_upper = FLOAT_TO_INT16(x_upper * out_scale / in_scale);
+            if (x_upper > y_upper * in_scale / out_scale) x_upper = FLOAT_TO_INT32(y_upper * in_scale / out_scale);
 
             if (y_upper == y_max) {  // saturation at ends - need one more segment
                 n_segments += 1;
@@ -269,14 +268,14 @@ void make_gna_pwl(const DnnActivation&  fun,
             gna_pwl[i].xBase = (-x_upper) & XBASEMASK;  // zero out the 2 lsb
             gna_pwl[i].yBase = y_upper;
             s = gna_slope(-1.0, in_scale, out_scale);
-            gna_pwl[i].slope = float_to_int16(s.slope * s.slope_scale);
+            gna_pwl[i].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
             gna_pwl[i].xBase = gna_pwl[i].xBase | s.slope_scale_index;
             print_segment((int32_t)(gna_pwl[i].xBase & XBASEMASK) / in_scale, gna_pwl[i].yBase / out_scale, -1.0);
 
             gna_pwl[i + 1].xBase = 0;
             gna_pwl[i + 1].yBase = 0;
             s = gna_slope(1.0, in_scale, out_scale);
-            gna_pwl[i + 1].slope = float_to_int16(s.slope * s.slope_scale);
+            gna_pwl[i + 1].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
             gna_pwl[i + 1].xBase = gna_pwl[i + 1].xBase | s.slope_scale_index;
             print_segment((int32_t)(gna_pwl[i + 1].xBase & XBASEMASK) / in_scale, gna_pwl[i + 1].yBase / out_scale, 1.0);
             break;
@@ -301,7 +300,7 @@ static T cast_check_overflow(double v, bool round = true) {
         return std::numeric_limits<T>::min();
     }
 
-    return round ? float_to_int32(v) : static_cast<T>(v);
+    return round ? FLOAT_TO_INT32(v) : static_cast<T>(v);
 }
 
 /**

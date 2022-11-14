@@ -20,7 +20,6 @@
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 using namespace ov::intel_gna;
-using namespace ov::intel_gna::common;
 
 namespace GNAPluginNS {
 const uint8_t Config::max_num_requests;
@@ -56,7 +55,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
         auto value = item.second;
 
         auto check_scale_factor = [&] (float scale_factor) {
-            if (are_fp_eq(scale_factor, 0.0f) || std::isinf(scale_factor)) {
+            if (ov::intel_gna::common::fp32eq(scale_factor, 0.0f) || std::isinf(scale_factor)) {
                 THROW_GNA_EXCEPTION << "input scale factor of 0.0f or +-inf not supported";
             }
         };

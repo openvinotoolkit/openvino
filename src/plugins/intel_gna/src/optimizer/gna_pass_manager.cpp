@@ -48,7 +48,6 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 using namespace GNAPluginNS;
 using namespace ov::intel_gna::frontend;
-using namespace ov::intel_gna::common;
 
 #define pass_trace() log::debug() << "[" << getName() << "] "
 
@@ -468,18 +467,18 @@ void SubstituteSoftSignPass::run() {
         auto powerLayer = LayerInfo(addition).as<PowerLayer*>();
 
         // first layer after abs must have scale of 1, offset of 1 and power of either 1 or -1
-        if (!are_fp_eq(powerLayer->scale, 1.0f) || !are_fp_eq(powerLayer->offset, 1.0f) ||
-            !are_fp_eq(std::abs(powerLayer->power), 1.0f)) continue;
+        if (!common::fp32eq(powerLayer->scale, 1.0f) || !common::fp32eq(powerLayer->offset, 1.0f) ||
+            !common::fp32eq(std::abs(powerLayer->power), 1.0f)) continue;
         // power == -1, offset = 1, scale = 1
-        if (are_fp_eq(powerLayer->power, -1.0f)) {
+        if (common::fp32eq(powerLayer->power, -1.0f)) {
             std::swap(addition, power);
         } else { // power = 1, offset = 1, scale - 1
             power = getNthChild(addition, 0);
             if (!LayerInfo(power).isPower()) continue;
             auto powerLayer_1 = LayerInfo(power).as<PowerLayer*>();
             // layer after addition must have power of -1, offset of 0 and scale of 1
-            if (!are_fp_eq(powerLayer_1->power, -1.0f) || !are_fp_eq(powerLayer_1->offset, 0.0f) ||
-                !are_fp_eq(powerLayer_1->scale, 1.0f))
+            if (!common::fp32eq(powerLayer_1->power, -1.0f) || !common::fp32eq(powerLayer_1->offset, 0.0f) ||
+                !common::fp32eq(powerLayer_1->scale, 1.0f))
                 continue;
         }
 
@@ -2164,8 +2163,8 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
             THROW_GNA_LAYER_EXCEPTION(fqLayer) << " unsupported per-channel quantisation";
         }
 
-        if (!LayerInfo(prevLayer).isConst() && !are_fp_eq(inputRange.first.front(), outputRange.first.front()) &&
-            !are_fp_eq(inputRange.second.front(), outputRange.second.front())) {
+        if (!LayerInfo(prevLayer).isConst() && !common::fp32eq(inputRange.first.front(), outputRange.first.front()) &&
+            !common::fp32eq(inputRange.second.front(), outputRange.second.front())) {
             THROW_GNA_LAYER_EXCEPTION(fqLayer) << " unsupported data range conversion. Input: (" <<
                 inputRange.first.front() << "," << inputRange.second.front() << "), output: (" <<
                 outputRange.first.front() << "," << outputRange.second.front() << ")";
