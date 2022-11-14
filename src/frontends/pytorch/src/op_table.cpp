@@ -16,6 +16,7 @@ namespace op {
 
 OP_CONVERTER(translate_adaptive_max_pool2d);
 OP_CONVERTER(translate_add);
+OP_CONVERTER(translate_addcmul);
 OP_CONVERTER(translate_as_tensor);
 OP_CONVERTER(translate_avg_pool2d);
 OP_CONVERTER(translate_batch_norm);
@@ -50,7 +51,6 @@ OP_CONVERTER(translate_to);
 OP_CONVERTER(translate_transpose);
 OP_CONVERTER(translate_tuple_construct);
 OP_CONVERTER(translate_view);
-OP_CONVERTER(translate_addcmul);
 
 }  // namespace op
 
