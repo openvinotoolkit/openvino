@@ -31,7 +31,8 @@ def push_to_db_facade(data, db_api_handler):
     if response.ok:
         logging.info("Uploaded records by API url {}".format(db_api_handler))
     else:
-        raise ConnectionError("Failed to upload records by API url {}".format(db_api_handler))
+        raise ConnectionError("Failed to upload records by API url {} due to error {}".format(db_api_handler,
+                                                                                              str(response.json())))
 
 
 def modify_data_for_push_to_new_db(data):
