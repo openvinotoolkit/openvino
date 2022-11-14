@@ -37,6 +37,8 @@ def push_to_db_facade(data, db_api_handler):
 def modify_data_for_push_to_new_db(data):
     new_data = deepcopy(data)
 
+    if '_id' in new_data:
+        del new_data['_id']
     if 'run_id' in new_data:
         del new_data['run_id']
         new_data['build_url'] = data['run_id']
