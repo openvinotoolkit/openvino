@@ -509,6 +509,10 @@ private:
 #    pragma GCC diagnostic push
 #    pragma GCC diagnostic ignored "-Wsign-compare"
 #endif
+#ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wimplicit-const-int-float-conversion"
+#endif
 #if defined(_MSC_VER)
 #    pragma warning(push)
 #    pragma warning(disable : 4018)
@@ -521,6 +525,9 @@ private:
         }
 #if defined(_MSC_VER)
 #    pragma warning(pop)
+#endif
+#ifdef __clang__
+#    pragma GangC diagnostic pop
 #endif
 #ifdef __GNUC__
 #    pragma GCC diagnostic pop
