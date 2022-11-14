@@ -577,28 +577,28 @@ def main():
 
         try:
             exeDevice = compiled_model.get_property("EXECUTION_DEVICES")
-            print(f'ExecutionDevice: {exeDevice}')
+            print(f'Execution Devices:{exeDevice}')
         except:
             pass
-        print(f'Count:           {iteration} iterations')
-        print(f'Duration:        {get_duration_in_milliseconds(total_duration_sec):.2f} ms')
+        print(f'Count:            {iteration} iterations')
+        print(f'Duration:         {get_duration_in_milliseconds(total_duration_sec):.2f} ms')
         if MULTI_DEVICE_NAME not in device_name:
             print('Latency:')
             if args.latency_percentile == 50 and static_mode:
-                print(f'    Median:      {median_latency_ms:.2f} ms')
+                print(f'    Median:       {median_latency_ms:.2f} ms')
             elif args.latency_percentile != 50:
                 print(f'({args.latency_percentile} percentile):     {median_latency_ms:.2f} ms')
-            print(f'    AVG:         {avg_latency_ms:.2f} ms')
-            print(f'    MIN:         {min_latency_ms:.2f} ms')
-            print(f'    MAX:         {max_latency_ms:.2f} ms')
+            print(f'    AVG:          {avg_latency_ms:.2f} ms')
+            print(f'    MIN:          {min_latency_ms:.2f} ms')
+            print(f'    MAX:          {max_latency_ms:.2f} ms')
 
             if pcseq:
                 print("Latency for each data shape group: ")
                 for group in benchmark.latency_groups:
                     print(f"  {str(group)}")
-                    print(f'    AVG:         {group.avg:.2f} ms')
-                    print(f'    MIN:         {group.min:.2f} ms')
-                    print(f'    MAX:         {group.max:.2f} ms')
+                    print(f'    AVG:          {group.avg:.2f} ms')
+                    print(f'    MIN:          {group.min:.2f} ms')
+                    print(f'    MAX:          {group.max:.2f} ms')
 
         print(f'Throughput: {fps:.2f} FPS')
 

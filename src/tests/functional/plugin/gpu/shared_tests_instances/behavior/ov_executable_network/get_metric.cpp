@@ -90,7 +90,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassHeteroExecutableNetworlGetMetricTest,
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassHeteroExecutableNetworlGetMetricTest,
                          OVClassHeteroExecutableNetworkGetMetricTest_EXEC_DEVICES,
-                         ::testing::Values("GPU"));
+                         ::testing::Values("GPU.0"));
 
 } // namespace
 

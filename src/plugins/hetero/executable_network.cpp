@@ -959,16 +959,12 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string&
         return decltype(ov::optimal_number_of_infer_requests)::value_type{value};
     } else if (name == ov::execution_devices) {
         std::vector<std::string> exeDevices;
-        for (auto&& subnetwork : _networks)
-            exeDevices.push_back(subnetwork._device);
         std::set<std::string> s;
-        for (auto iter = exeDevices.begin(); iter != exeDevices.end();) {
-            if (s.count(*iter) == 0) {
-                s.insert(*iter);
-            } else {
-                exeDevices.erase(iter--);
-            }
-            iter++;
+        for (auto&& subnetwork : _networks) {
+            if (s.count(subnetwork._device) != 0)
+                continue;
+            s.insert(subnetwork._device);
+            exeDevices.push_back(subnetwork._device);
         }
         return decltype(ov::execution_devices)::value_type{exeDevices};
     } else {
