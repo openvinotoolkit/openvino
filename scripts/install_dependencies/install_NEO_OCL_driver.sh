@@ -273,7 +273,7 @@ _get_packages_ubuntu()
         curl -L -O https://github.com/intel/compute-runtime/releases/download/21.48.21782/intel-opencl-icd_21.48.21782_amd64.deb
         curl -L -O https://github.com/intel/compute-runtime/releases/download/21.48.21782/intel-level-zero-gpu_1.2.21782_amd64.deb
     ;;
-    "22.35.24055") \
+    "22.35.24055")
         apt-get install -y \
         intel-opencl-icd=22.35.24055+i815~u20.04 \
         intel-level-zero-gpu=1.3.24055+i815~u20.04 \
@@ -299,6 +299,9 @@ _verify_checksum_ubuntu()
     "21.48.21782")
         curl -L -O https://github.com/intel/compute-runtime/releases/download/21.48.21782/ww48.sum
         sha256sum -c ww48.sum
+    ;;
+    "22.35.24055")
+        echo "Verification by apt"
     ;;
         *)
         echo "ERROR: Unrecognized driver ${INSTALL_DRIVER_VERSION}."
