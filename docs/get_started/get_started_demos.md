@@ -463,6 +463,6 @@ OpenVINO also provides demo applications for using off-the-shelf models from [Op
 
 .. tab:: macOS
 
-   Go to :doc:`Open Model Zoo Demos page <omz_demos>` and see the "Build the Demo Applications on Linux*" section. You can use the requirements from "To build OpenVINO samples" above and adapt the Linux build steps for macOS.
+   Go to :ref:`Open Model Zoo Demos page <omz_demos>` and see the "Build the Demo Applications on Linux" section. You can use the requirements from "To build OpenVINO samples" above and adapt the Linux build steps for macOS.
 
 @endsphinxdirective
