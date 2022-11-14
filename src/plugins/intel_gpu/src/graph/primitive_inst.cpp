@@ -515,7 +515,7 @@ void primitive_inst::rebuild_deps(
 
     _deps.resize(_dep_ids.size());
     for (size_t i = 0; i < _dep_ids.size(); i++) {
-        OPENVINO_ASSERT((primitives.count(_dep_ids[i]) > 0), _dep_ids[i], "is not found in _primitives");
+        OPENVINO_ASSERT((primitives.count(_dep_ids[i]) > 0), _dep_ids[i], "is not found in primitives while rebuilding _deps");
         _deps[i] = primitives.at(_dep_ids[i]);
     }
 }
@@ -533,7 +533,7 @@ void primitive_inst::rebuild_exec_deps(
                 break;
             }
         }
-        OPENVINO_ASSERT(found, _exec_dep_ids[i], "not found in _exec_order");
+        OPENVINO_ASSERT(found, _exec_dep_ids[i], "not found in primitives while rebuilding _exec_deps");
     }
 }
 
@@ -1141,17 +1141,12 @@ void primitive_inst::convert_args(const kernel_arguments_data& args, kernel_argu
 }
 
 int32_t primitive_inst::get_index_in_deps(memory::cptr arg) const {
-    uint32_t idx = 0;
-
-    for (idx = 0; idx < _deps.size(); ++idx) {
+    for (uint32_t idx = 0; idx < _deps.size(); ++idx) {
         if (arg == _deps[idx]->_outputs[0])
-            break;
+            return idx;
     }
 
-    if (idx == _deps.size())
-        std::cout << "[get_index_in_deps]: not found" << std::endl;
-
-    return (idx == _deps.size()) ? -1 : idx;
+    IE_THROW() << "[get_index_in_deps]: not found in _deps";
 }
 
 void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
