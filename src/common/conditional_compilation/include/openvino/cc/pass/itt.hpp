@@ -27,7 +27,6 @@ OV_CC_DOMAINS(ov_pass);
 #    define ADD_MATCHER_WITHOUT_NSPACE(obj, region, ...)     obj->add_matcher<region>(__VA_ARGS__);
 #    define REGISTER_PASS(obj, nspace, region, flag, ...)    obj.register_pass<nspace::region>(__VA_ARGS__);
 #    define REGISTER_DISABLED_PASS(obj, nspace, region, ...) obj.register_pass<nspace::region, false>(__VA_ARGS__);
-#    define REGISTER_PASS_MODEL_IF(region)
 #elif defined(SELECTIVE_BUILD)
 
 #    define MATCHER_SCOPE_(scope, region)                              \
@@ -68,8 +67,6 @@ OV_CC_DOMAINS(ov_pass);
 #    define REGISTER_DISABLED_PASS(obj, nspace, region, ...)                                         \
         OV_PP_CAT(REGISTER_PASS_WITH_FALSE_, OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, region))) \
         (obj, nspace::region, __VA_ARGS__)
-#    define REGISTER_PASS_MODEL_IF(region) \
-        if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, OV_PP_CAT(region, _run_on_model))) == 1)
 #else
 
 #    define MATCHER_SCOPE(region) const std::string matcher_name(OV_PP_TOSTRING(region))
@@ -82,5 +79,4 @@ OV_CC_DOMAINS(ov_pass);
 #    define ADD_MATCHER_WITHOUT_NSPACE(obj, region, ...)     obj->add_matcher<region>(__VA_ARGS__);
 #    define REGISTER_PASS(obj, nspace, region, flag, ...)    obj.register_pass<nspace::region>(__VA_ARGS__);
 #    define REGISTER_DISABLED_PASS(obj, nspace, region, ...) obj.register_pass<nspace::region, false>(__VA_ARGS__);
-#    define REGISTER_PASS_MODEL_IF(region)
 #endif
