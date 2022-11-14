@@ -596,25 +596,22 @@ namespace convert_fp8 {
 bool op::v1::ConvertFP8::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     ov::TensorVector fp16;
 
-    //convert_fp8::print_tensor(inputs[0], "inputs");
-
+    outputs[0].set_shape(inputs[0].get_shape());
     fp16.emplace_back(ov::Tensor(ov::element::f16, inputs[0].get_shape()));
     int element_count = inputs[0].get_size();
 
-    runtime::reference::convert(fp16[0].data(ov::element::f16),
-                                inputs[0].data(inputs[0].get_element_type()),
-                                element_count);
-
-    //convert_fp8::print_tensor(fp16[0], "fp16");
+    ngraph::runtime::reference::convert(inputs[0].data(inputs[0].get_element_type()),
+                                        fp16[0].data(ov::element::f16),
+                                        element_count);
 
     if (outputs[0].get_element_type() == ov::element::f16)
         convert_fp8::evaluate<unsigned short>(fp16[0], outputs[0], m_destination_type);
     else if (outputs[0].get_element_type() == ov::element::f32) {
         convert_fp8::evaluate<unsigned short>(fp16[0], fp16[0], m_destination_type);
-        m_convert_fp32->evaluate(outputs, fp16);
+        ngraph::runtime::reference::convert(fp16[0].data(ov::element::f16),
+                                            outputs[0].data(outputs[0].get_element_type()),
+                                            element_count);
     }
-
-    //convert_fp8::print_tensor(outputs[0], "outputs");
 
     return true;
 }
