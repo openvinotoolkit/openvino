@@ -15,6 +15,8 @@ struct bucketize_impl : typed_primitive_impl_ocl<bucketize> {
     using parent = typed_primitive_impl_ocl<bucketize>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<bucketize_impl>(*this);
     }
@@ -74,3 +76,5 @@ attach_bucketize_impl::attach_bucketize_impl() {
 
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::bucketize_impl, cldnn::object_type::BUCKETIZE_IMPL)

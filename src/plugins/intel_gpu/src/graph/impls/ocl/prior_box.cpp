@@ -19,6 +19,8 @@ struct prior_box_impl : typed_primitive_impl_ocl<prior_box> {
     using parent = typed_primitive_impl_ocl<prior_box>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<prior_box_impl>(*this);
     }
@@ -100,3 +102,5 @@ attach_prior_box_impl::attach_prior_box_impl() {
 
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::prior_box_impl, cldnn::object_type::PRIOR_BOX_IMPL)

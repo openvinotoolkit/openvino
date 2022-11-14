@@ -22,7 +22,7 @@
 
 #include "openvino/core/runtime_attribute.hpp"
 
-namespace ngraph {
+namespace ov {
 
 /**
  * @ingroup ie_runtime_attr_api
@@ -89,4 +89,10 @@ NGRAPH_API std::string getFusedNames(const std::shared_ptr<ngraph::Node>& node);
  */
 NGRAPH_API std::vector<std::string> getFusedNamesVector(const std::shared_ptr<ngraph::Node>& node);
 
+}  // namespace ov
+
+namespace ngraph {
+using ov::FusedNames;
+using ov::getFusedNames;
+using ov::getFusedNamesVector;
 }  // namespace ngraph

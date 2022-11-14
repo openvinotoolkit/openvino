@@ -5,9 +5,9 @@
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -17,7 +17,7 @@
 #include "ngraph/validation_util.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 namespace {
 Output<ngraph::Node> align_indices(const Output<ngraph::Node>& indices,
@@ -37,12 +37,12 @@ Output<ngraph::Node> align_indices(const Output<ngraph::Node>& indices,
     // expected_output_shape: {3, 3, 1, 1}
 
     const auto default_indices =
-        ngraph::opset8::Constant::create(indices.get_element_type(), Shape{slice_indices_length}, {fill_in_value});
+        ov::opset8::Constant::create(indices.get_element_type(), Shape{slice_indices_length}, {fill_in_value});
     std::shared_ptr<ngraph::Node> adjusted_indices =
-        ngraph::op::util::make_try_fold<ngraph::opset8::ScatterUpdate>(default_indices,
-                                                                       slice_axes,
-                                                                       indices,  // updates
-                                                                       scatter_axis);
+        ov::op::util::make_try_fold<ov::opset8::ScatterUpdate>(default_indices,
+                                                               slice_axes,
+                                                               indices,  // updates
+                                                               scatter_axis);
 
     if (!ngraph::op::is_constant(adjusted_indices)) {
         new_ops.push_back(default_indices);
@@ -60,10 +60,10 @@ std::vector<int64_t> axes_to_mask(const std::vector<int64_t>& axes, size_t slice
 
 }  // namespace
 
-ngraph::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
+ov::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
     MATCHER_SCOPE(SliceToStridedSlice);
     auto slice = pattern::wrap_type<opset8::Slice>();
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto slice_node = std::dynamic_pointer_cast<opset8::Slice>(m.get_match_root());
         if (!slice_node)
             return false;

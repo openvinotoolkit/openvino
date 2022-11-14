@@ -32,6 +32,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/runtime_attribute.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "threading/ie_executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -379,28 +380,28 @@ std::unordered_set<std::string> GetSupportedNodes(
     for (auto&& node : model->get_ops()) {
         if (InferenceEngine::details::contains(supported, node->get_friendly_name())) {
             for (auto&& inputNodeOutput : node->input_values()) {
-                if (ngraph::op::is_constant(inputNodeOutput.get_node()) ||
-                    ngraph::op::is_parameter(inputNodeOutput.get_node())) {
+                if (ov::op::util::is_constant(inputNodeOutput.get_node()) ||
+                    ov::op::util::is_parameter(inputNodeOutput.get_node())) {
                     supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
                 }
             }
             for (auto&& outputs : node->outputs()) {
                 for (auto&& outputNodeInput : outputs.get_target_inputs()) {
-                    if (ngraph::op::is_output(outputNodeInput.get_node())) {
+                    if (ov::op::util::is_output(outputNodeInput.get_node())) {
                         supported.emplace(outputNodeInput.get_node()->get_friendly_name());
                     }
                 }
             }
         }
 
-        if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node)) {
+        if (ov::op::util::is_constant(node) || ov::op::util::is_parameter(node)) {
             if (node->output(0).get_target_inputs().size() &&
                 !InferenceEngine::details::contains(
                     supported,
                     node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
                 supported.erase(node->get_friendly_name());
             }
-        } else if (ngraph::op::is_output(node)) {
+        } else if (ov::op::util::is_output(node)) {
             if (!InferenceEngine::details::contains(supported,
                                                     node->input_values().begin()->get_node()->get_friendly_name())) {
                 supported.erase(node->get_friendly_name());

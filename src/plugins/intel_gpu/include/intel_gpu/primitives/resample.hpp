@@ -39,7 +39,7 @@ struct resample : public primitive_base<resample> {
         : primitive_base(id, {input}, output_padding),
           output_size(output_size),
           num_filter(num_filter),
-          output_pattern({}),
+          sizes({}),
           scales({}),
           axes({}),
           pads_begin({}),
@@ -57,43 +57,10 @@ struct resample : public primitive_base<resample> {
         }
     }
 
-    /// @brief resample with dynamic pattern
+    /// @brief resample with constant inputs
     resample(const primitive_id& id,
              const primitive_id& input,
-             const primitive_id& pattern_id,
-             const std::vector<float>& scales,
-             const std::vector<int64_t>& axes,
-             const std::vector<size_t>& pads_begin = {},
-             const std::vector<size_t>& pads_end = {},
-             int32_t antialias = 0,
-             float cube_coeff = -0.75f,
-             InterpolateOp::InterpolateMode operation_type = InterpolateOp::InterpolateMode::LINEAR,
-             InterpolateOp::ShapeCalcMode shape_calc_mode = InterpolateOp::ShapeCalcMode::SIZES,
-             InterpolateOp::CoordinateTransformMode ctm = InterpolateOp::CoordinateTransformMode::HALF_PIXEL,
-             InterpolateOp::NearestMode nm = InterpolateOp::NearestMode::ROUND_PREFER_FLOOR,
-             const padding& output_padding = padding())
-        : primitive_base(id, {input, pattern_id}, output_padding),
-          output_size(tensor()),
-          num_filter(0),
-          output_pattern({}),
-          scales(scales),
-          axes(axes),
-          pads_begin(pads_begin),
-          pads_end(pads_end),
-          operation_type(operation_type),
-          shape_calc_mode(shape_calc_mode),
-          antialias(antialias),
-          cube_coeff(cube_coeff),
-          coord_trans_mode(ctm),
-          round_mode(nm) {
-        if (scales.size() != axes.size())
-            throw std::runtime_error("Resample's scales/axes count does not match");
-    }
-
-    /// @brief reshape with static pattern
-    resample(const primitive_id& id,
-             const primitive_id& input,
-             const std::vector<int64_t>& output_pattern,
+             const std::vector<int64_t>& sizes,
              const std::vector<float>& scales,
              const std::vector<int64_t>& axes,
              const std::vector<size_t>& pads_begin = {},
@@ -108,7 +75,7 @@ struct resample : public primitive_base<resample> {
         : primitive_base(id, {input}, output_padding),
           output_size(tensor()),
           num_filter(0),
-          output_pattern(output_pattern),
+          sizes(sizes),
           scales(scales),
           axes(axes),
           pads_begin(pads_begin),
@@ -122,6 +89,69 @@ struct resample : public primitive_base<resample> {
         if (scales.size() != axes.size())
             throw std::runtime_error("Resample's scales/axes count does not match");
     }
+
+    /// @brief resample with non-constant sizes
+    resample(const primitive_id& id,
+             const primitive_id& input,
+             const primitive_id& sizes_id,
+             const std::vector<float>& scales,
+             const std::vector<int64_t>& axes,
+             const std::vector<size_t>& pads_begin = {},
+             const std::vector<size_t>& pads_end = {},
+             int32_t antialias = 0,
+             float cube_coeff = -0.75f,
+             InterpolateOp::InterpolateMode operation_type = InterpolateOp::InterpolateMode::LINEAR,
+             InterpolateOp::ShapeCalcMode shape_calc_mode = InterpolateOp::ShapeCalcMode::SIZES,
+             InterpolateOp::CoordinateTransformMode ctm = InterpolateOp::CoordinateTransformMode::HALF_PIXEL,
+             InterpolateOp::NearestMode nm = InterpolateOp::NearestMode::ROUND_PREFER_FLOOR,
+             const padding& output_padding = padding())
+        : primitive_base(id, {input, sizes_id}, output_padding),
+          output_size(tensor()),
+          num_filter(0),
+          sizes({}),
+          scales(scales),
+          axes(axes),
+          pads_begin(pads_begin),
+          pads_end(pads_end),
+          operation_type(operation_type),
+          shape_calc_mode(shape_calc_mode),
+          antialias(antialias),
+          cube_coeff(cube_coeff),
+          coord_trans_mode(ctm),
+          round_mode(nm) {
+        if (scales.size() != axes.size())
+            throw std::runtime_error("Resample's scales/axes count does not match");
+    }
+
+    /// @brief resample with non-constant scales
+    resample(const primitive_id& id,
+             const primitive_id& input,
+             const std::vector<int64_t>& sizes,
+             const primitive_id& scales_id,
+             const std::vector<int64_t>& axes,
+             const std::vector<size_t>& pads_begin = {},
+             const std::vector<size_t>& pads_end = {},
+             int32_t antialias = 0,
+             float cube_coeff = -0.75f,
+             InterpolateOp::InterpolateMode operation_type = InterpolateOp::InterpolateMode::LINEAR,
+             InterpolateOp::ShapeCalcMode shape_calc_mode = InterpolateOp::ShapeCalcMode::SCALES,
+             InterpolateOp::CoordinateTransformMode ctm = InterpolateOp::CoordinateTransformMode::HALF_PIXEL,
+             InterpolateOp::NearestMode nm = InterpolateOp::NearestMode::ROUND_PREFER_FLOOR,
+             const padding& output_padding = padding())
+        : primitive_base(id, {input, scales_id}, output_padding),
+          output_size(tensor()),
+          num_filter(0),
+          sizes({}),
+          scales({}),
+          axes(axes),
+          pads_begin(pads_begin),
+          pads_end(pads_end),
+          operation_type(operation_type),
+          shape_calc_mode(shape_calc_mode),
+          antialias(antialias),
+          cube_coeff(cube_coeff),
+          coord_trans_mode(ctm),
+          round_mode(nm) {}
 
     InterpolateOp::InterpolateAttrs get_attrs() const {
         return InterpolateOp::InterpolateAttrs(this->operation_type,
@@ -137,8 +167,8 @@ struct resample : public primitive_base<resample> {
     tensor output_size;
     /// @param num_filter Input filter. Only used by bilinear sample_type.
     uint32_t num_filter;
-    /// @param output_pattern Describing output shape for spatial axes.
-    std::vector<int64_t> output_pattern;
+    /// @param sizes Describing output shape for spatial axes.
+    std::vector<int64_t> sizes;
     /// @param scales Scales of spatial axes, i.e. output_shape / input_shape
     std::vector<float> scales;
     /// @param axes Interpolation axes.

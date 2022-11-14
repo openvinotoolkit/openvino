@@ -32,6 +32,7 @@ using broadcast_node = typed_program_node<broadcast>;
 template <>
 class typed_primitive_inst<broadcast> : public typed_primitive_inst_base<broadcast> {
     using parent = typed_primitive_inst_base<broadcast>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>
