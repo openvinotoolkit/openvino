@@ -42,7 +42,7 @@ const std::vector<ShapeRelatedParams> shapeRelatedParams = {
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
         ngraph::helpers::InputLayerType::CONSTANT,
-        //ngraph::helpers::InputLayerType::PARAMETER,
+        ngraph::helpers::InputLayerType::PARAMETER,
 };
 
 std::map<std::string, std::string> additional_config = {};

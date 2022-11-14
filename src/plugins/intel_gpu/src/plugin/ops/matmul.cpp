@@ -127,8 +127,6 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             inputName = transposeName;
         }
 
-        std::cout << "DEBUG FC\n";
-
         auto fcPrim = cldnn::fully_connected(layerName,
                                              inputName,
                                              weightsName,
