@@ -17,10 +17,10 @@
    border-top: solid 1px rgba(222, 226, 230, 1);
    border-bottom: solid 1px rgba(222, 226, 230, 1);
 }
-.scrollbox table::-webkit-scrollbar {
+.scrollbox.sortable-table::-webkit-scrollbar {
    width: 0;
    background: transparent;
 }
-.scrollbox table::-webkit-scrollbar-thumb {
+.scrollbox.sortable-table::-webkit-scrollbar-thumb {
    background: transparent;
 }
