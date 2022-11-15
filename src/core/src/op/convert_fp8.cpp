@@ -41,7 +41,7 @@ void op::v1::ConvertFP8::validate_and_infer_types() {
 std::shared_ptr<ov::Node> op::v1::ConvertFP8::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     OPENVINO_ASSERT(new_args.size() == 2, "Incorrect number of new arguments");
 
-    return std::make_shared<ConvertFP8>(new_args.at(0), new_args.at(1), m_destination_type);
+    return std::make_shared<ConvertFP8>(new_args.at(0), new_args.at(1), m_destination_type, m_apply_scale);
 }
 //! [op:copy]
 
