@@ -297,10 +297,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                         config[it.first] = it.second;
                     }
                 } else if (it.first == ov::cache_dir.name()) {
-                    auto cacheConfig = getCacheConfigForDevice(device_name);
-                    if (cacheConfig._cacheManager) {
-                        config[it.first] = cacheConfig._cacheDir;
-                    }
+                    // Do nothing
                 } else {
                     config[it.first] = it.second;
                 }
@@ -1210,7 +1207,12 @@ public:
 
             // configuring
             {
-                if (!DeviceSupportsCacheDir(plugin) && desc.defaultConfig.count(CONFIG_KEY(CACHE_DIR)) > 0) {
+                if (DeviceSupportsCacheDir(plugin)) {
+                    auto cacheConfig = coreConfig.getCacheConfigForDevice(deviceName);
+                    if (cacheConfig._cacheManager) {
+                        desc.defaultConfig[CONFIG_KEY(CACHE_DIR)] = cacheConfig._cacheDir;
+                    }
+                } else if (desc.defaultConfig.count(CONFIG_KEY(CACHE_DIR)) > 0) {
                     // Remove "CACHE_DIR" from config if it is not supported by plugin
                     desc.defaultConfig.erase(CONFIG_KEY(CACHE_DIR));
                 }
@@ -1380,7 +1382,12 @@ public:
             allowNotImplemented([&]() {
                 std::lock_guard<std::mutex> lock(get_mutex(plugin.first));
                 auto configCopy = config;
-                if (!DeviceSupportsCacheDir(plugin.second) && configCopy.count(CONFIG_KEY(CACHE_DIR)) > 0) {
+                if (DeviceSupportsCacheDir(plugin.second)) {
+                    auto cacheConfig = coreConfig.getCacheConfigForDevice(deviceName);
+                    if (cacheConfig._cacheManager) {
+                        configCopy[CONFIG_KEY(CACHE_DIR)] = cacheConfig._cacheDir;
+                    }
+                } else if (configCopy.count(CONFIG_KEY(CACHE_DIR)) > 0) {
                     // Remove "CACHE_DIR" from config if it is not supported by plugin
                     configCopy.erase(CONFIG_KEY(CACHE_DIR));
                 }
