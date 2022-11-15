@@ -15,14 +15,14 @@ Once you have installed OpenVINO, to work with GPU, you need to install the **In
 
 Do the following steps:
 
-1. If you installed OpenVINO Runtime from the archive file, you can find the `install_NEO_OCL_driver.sh` script in the following directory:
+1. If you installed OpenVINO Runtime from the installer, APT, YUM, or archive file (for 2022.1.1 only), you can find the `install_NEO_OCL_driver.sh` script in the following directory:
    ```sh
    cd <INSTALL_DIR>/install_dependencies/
    ```
    
    If you installed OpenVINO Runtime via PyPI, you can download the `install_NEO_OCL_driver.sh` script from the OpenVINO GitHub repository:
    ```sh
-   curl -L https://raw.githubusercontent.com/openvinotoolkit/openvino/releases/2022/2/scripts/install_dependencies/install_NEO_OCL_driver.sh --output install_NEO_OCL_driver.sh
+   curl -L https://raw.githubusercontent.com/openvinotoolkit/openvino/releases/2022/1/scripts/install_dependencies/install_NEO_OCL_driver.sh --output install_NEO_OCL_driver.sh
    ```
    
 2. Run the script:
