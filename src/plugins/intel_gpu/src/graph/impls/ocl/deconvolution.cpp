@@ -17,6 +17,8 @@ namespace ocl {
 struct deconvolution_impl : typed_primitive_impl_ocl<deconvolution> {
     using parent = typed_primitive_impl_ocl<deconvolution>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::deconvolution_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::deconvolution_params, kernel_selector::deconvolution_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -32,6 +34,7 @@ struct deconvolution_impl : typed_primitive_impl_ocl<deconvolution> {
 
     deconvolution_impl(const deconvolution_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
         set_node_params(arg);
+        this->can_reuse_memory = kd.can_reuse_memory;
     }
 
     void set_node_params(const program_node& arg) override {
@@ -82,26 +85,25 @@ protected:
     uint32_t get_groups() const override { return _groups; }
 
 public:
-    static primitive_impl* create(const deconvolution_node& arg, const kernel_impl_params& impl_param) {
-        const auto& primitive = arg.get_primitive();
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<deconvolution>();
         const auto& split = primitive->split();
         const auto& stride = primitive->stride;
-        const ov::Strides dilation(impl_param.output_layout.get_spatial_rank(), 1);
+        const ov::Strides dilation(impl_param.get_output_layout().get_spatial_rank(), 1);
         const auto actual_split = split;
 
         const auto& pad = primitive->pad;
         const auto& groups = primitive->groups;
 
-        auto deconv_params = get_weights_bias_default_params<kernel_selector::deconvolution_params>(
+        auto params = get_weights_bias_default_params<kernel_selector::deconvolution_params>(
             impl_param,
             (groups > 1) ? 1 : actual_split,
             1,
             primitive->grouped_weights_shape);
-        auto deconv_optional_params =
-            get_default_weights_bias_optional_params<kernel_selector::deconvolution_optional_params>(arg.get_program());
+        auto optional_params = get_default_weights_bias_optional_params<kernel_selector::deconvolution_optional_params>(impl_param.get_program());
 
-        deconv_params.split = split;
-        deconv_params.groups = groups;
+        params.split = split;
+        params.groups = groups;
 
         const auto weights_idx = 1 + 0;
         const auto& weights_layout = impl_param.input_layouts[weights_idx].convert_to_weights_layout(primitive->grouped_weights_shape);
@@ -109,34 +111,24 @@ public:
         uint32_t ky = weights_layout.spatial(1);
         uint32_t kz = weights_layout.spatial(2);
 
-        deconv_params.filterSize = { kx, ky, kz };
+        params.filterSize = { kx, ky, kz };
 
         uint32_t pad_z = std::max<std::ptrdiff_t>(pad.size() >= 3 ? pad[pad.size() - 3] : 0, 0);
         uint32_t pad_y = std::max<std::ptrdiff_t>(pad.size() >= 2 ? pad[pad.size() - 2] : 0, 0);
         uint32_t pad_x = std::max<std::ptrdiff_t>(pad.size() >= 1 ? pad[pad.size() - 1] : 0, 0);
-        deconv_params.padding = {pad_x, pad_y, pad_z};
+        params.padding = {pad_x, pad_y, pad_z};
 
         uint32_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
         uint32_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
         uint32_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
-        deconv_params.stride = {stride_x, stride_y, stride_z};
+        params.stride = {stride_x, stride_y, stride_z};
 
         uint32_t dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
         uint32_t dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
         uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
-        deconv_params.dilation = {dilation_x, dilation_y, dilation_z};
+        params.dilation = {dilation_x, dilation_y, dilation_z};
 
-        auto& kernel_selector = kernel_selector::deconvolution_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(deconv_params, deconv_optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with these arguments");
-        auto deconv = new deconvolution_impl(arg, best_kernels[0]);
-        deconv->can_reuse_memory = best_kernels[0].can_reuse_memory;
-
-        return deconv;
+        return {params, optional_params};
     }
 
 private:
@@ -168,7 +160,7 @@ attach_deconvolution_impl::attach_deconvolution_impl() {
         format::bs_fs_zyx_bsv32_fsv16,
     };
 
-    implementation_map<deconvolution>::add(impl_types::ocl, deconvolution_impl::create, types, formats);
+    implementation_map<deconvolution>::add(impl_types::ocl, typed_primitive_impl_ocl<deconvolution>::create<deconvolution_impl>, types, formats);
 }
 
 }  // namespace detail

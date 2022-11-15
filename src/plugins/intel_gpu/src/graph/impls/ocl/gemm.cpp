@@ -17,6 +17,8 @@ namespace ocl {
 struct gemm_impl : typed_primitive_impl_ocl<gemm> {
     using parent = typed_primitive_impl_ocl<gemm>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::gemm_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::gemm_params, kernel_selector::gemm_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -25,9 +27,9 @@ struct gemm_impl : typed_primitive_impl_ocl<gemm> {
     }
 
 public:
-    static primitive_impl* create(const gemm_node& arg, const kernel_impl_params& impl_param) {
-        auto desc = arg.get_primitive();
-        auto get_gemm_input_layouts = [desc](const std::vector<layout>& input_layouts, const layout& output_layout) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<gemm>();
+        auto get_gemm_input_layouts = [primitive](const std::vector<layout>& input_layouts, const layout& output_layout) {
             auto get_updated_input_shape = [&](const ov::Shape& input_shape, size_t input_rank, bool transpose, bool first_input) {
                 ov::Shape updated_input_shape;
 
@@ -54,8 +56,8 @@ public:
             auto input0_shape = input_layouts[0].get_shape();
             auto input1_shape = input_layouts[1].get_shape();
 
-            auto updated_input0_shape = get_updated_input_shape(input0_shape, desc->input_rank, desc->transpose_input0, true);
-            auto updated_input1_shape = get_updated_input_shape(input1_shape, desc->weight_rank, desc->transpose_input1, false);
+            auto updated_input0_shape = get_updated_input_shape(input0_shape, primitive->input_rank, primitive->transpose_input0, true);
+            auto updated_input1_shape = get_updated_input_shape(input1_shape, primitive->weight_rank, primitive->transpose_input1, false);
 
             std::vector<layout> layouts = input_layouts;
             layouts[0].set_partial_shape(updated_input0_shape);
@@ -63,22 +65,22 @@ public:
 
             if (input_layouts.size() == 3) {
                 auto bias_shape = input_layouts[2].get_shape();
-                auto updated_bias_shape = get_updated_input_shape(bias_shape, desc->weight_rank, desc->transpose_input1, false);
+                auto updated_bias_shape = get_updated_input_shape(bias_shape, primitive->weight_rank, primitive->transpose_input1, false);
                 layouts[2].set_partial_shape(updated_bias_shape);
             }
 
             return layouts;
         };
 
-        auto get_gemm_output_layout = [desc](const std::vector<layout>& input_layouts, const layout& output_layout) {
+        auto get_gemm_output_layout = [primitive](const std::vector<layout>& input_layouts, const layout& output_layout) {
             auto updated_output_layout = output_layout;
             auto output_rank = output_layout.get_shape().size();
             if (output_rank < 4) {
                 const auto& input0_layout = input_layouts[0];
                 const auto& input1_layout = input_layouts[1];
 
-                auto M = !desc->transpose_input0 ? input0_layout.spatial(1) : input0_layout.spatial(0);
-                auto N = !desc->transpose_input1 ? input1_layout.spatial(0) : input1_layout.spatial(1);
+                auto M = !primitive->transpose_input0 ? input0_layout.spatial(1) : input0_layout.spatial(0);
+                auto N = !primitive->transpose_input1 ? input1_layout.spatial(0) : input1_layout.spatial(1);
 
                 auto output_shape = input0_layout.get_shape();
                 for (const auto& input_layout : input_layouts) {
@@ -100,43 +102,33 @@ public:
             return updated_output_layout;
         };
 
-        const auto input_layouts = get_gemm_input_layouts(impl_param.input_layouts, impl_param.output_layout);
-        const auto output_layout = get_gemm_output_layout(input_layouts, impl_param.output_layout);
+        const auto input_layouts = get_gemm_input_layouts(impl_param.input_layouts, impl_param.output_layouts[0]);
+        const auto output_layout = get_gemm_output_layout(input_layouts, impl_param.output_layouts[0]);
 
-        auto gemm_params = get_default_params<kernel_selector::gemm_params>(impl_param, 1);
-        auto gemm_optional_params =
-            get_default_optional_params<kernel_selector::gemm_optional_params>(arg.get_program());
+        auto params = get_default_params<kernel_selector::gemm_params>(impl_param, 1);
+        auto optional_params = get_default_optional_params<kernel_selector::gemm_optional_params>(impl_param.get_program());
 
-        gemm_params.inputs.clear();
-        for (size_t i = 0; i < desc->input_size(); ++i) {
-            gemm_params.inputs.push_back(convert_data_tensor(input_layouts[i]));
+        params.inputs.clear();
+        for (size_t i = 0; i < primitive->input_size(); ++i) {
+            params.inputs.push_back(convert_data_tensor(input_layouts[i]));
         }
-        gemm_params.outputs[0] = convert_data_tensor(output_layout);
+        params.outputs[0] = convert_data_tensor(output_layout);
 
-        gemm_params.alpha = desc->alpha;
-        gemm_params.beta = desc->beta;
-        gemm_params.transpose_input0 = desc->transpose_input0;
-        gemm_params.transpose_input1 = desc->transpose_input1;
+        params.alpha = primitive->alpha;
+        params.beta = primitive->beta;
+        params.transpose_input0 = primitive->transpose_input0;
+        params.transpose_input1 = primitive->transpose_input1;
 
         bool is_quantized = true;
         for (auto& input : impl_param.input_layouts)
             is_quantized &= data_type_traits::is_quantized(input.data_type);
 
         if (is_quantized) {
-            gemm_params.quantization = kernel_selector::QuantizationType::SYMMETRIC;
+            params.quantization = kernel_selector::QuantizationType::SYMMETRIC;
         } else {
-            gemm_params.quantization = kernel_selector::QuantizationType::NONE;
+            params.quantization = kernel_selector::QuantizationType::NONE;
         }
-
-        auto& kernel_selector = kernel_selector::gemm_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(gemm_params, gemm_optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        return new gemm_impl(arg, best_kernels[0]);
+        return {params, optional_params};
     }
 };
 
@@ -166,7 +158,7 @@ attach_gemm_impl::attach_gemm_impl() {
         format::bfwzyx,
     };
 
-    implementation_map<gemm>::add(impl_types::ocl, gemm_impl::create, types, formats);
+    implementation_map<gemm>::add(impl_types::ocl, typed_primitive_impl_ocl<gemm>::create<gemm_impl>, types, formats);
 }
 
 }  // namespace detail
