@@ -8,7 +8,7 @@
 #include <memory>
 
 #include <ngraph/opsets/opset1.hpp>
-#include "ngraph_ops/type_relaxed.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"

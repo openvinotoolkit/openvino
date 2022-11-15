@@ -13,12 +13,12 @@
 #include "snippets_transformations/op/store_convert.hpp"
 
 #include <ngraph/ngraph.hpp>
-#include <ngraph_ops/augru_cell.hpp>
-#include <ngraph_ops/augru_sequence.hpp>
-#include <ngraph_ops/type_relaxed.hpp>
-#include <ngraph_ops/nms_ie_internal.hpp>
-#include <ngraph_ops/nms_static_shape_ie.hpp>
-#include <ngraph_ops/multiclass_nms_ie_internal.hpp>
+#include <ov_ops/augru_cell.hpp>
+#include <ov_ops/augru_sequence.hpp>
+#include <ov_ops/type_relaxed.hpp>
+#include <ov_ops/nms_ie_internal.hpp>
+#include <ov_ops/nms_static_shape_ie.hpp>
+#include <ov_ops/multiclass_nms_ie_internal.hpp>
 
 #include <mutex>
 

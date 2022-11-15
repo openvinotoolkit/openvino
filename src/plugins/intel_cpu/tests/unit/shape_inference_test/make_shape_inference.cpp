@@ -11,7 +11,7 @@
 #include "ngraph_functions/builders.hpp"
 #include <thread>
 #include <atomic>
-#include <ngraph_ops/type_relaxed.hpp>
+#include <ov_ops/type_relaxed.hpp>
 
 using namespace ov;
 using namespace ov::intel_cpu;

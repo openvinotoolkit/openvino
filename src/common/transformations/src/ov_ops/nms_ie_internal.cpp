@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_ops/nms_ie_internal.hpp"
+#include "ov_ops/nms_ie_internal.hpp"
 
 #include <memory>
 #include <openvino/opsets/opset5.hpp>

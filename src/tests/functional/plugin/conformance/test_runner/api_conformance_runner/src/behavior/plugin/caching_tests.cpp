@@ -3,7 +3,7 @@
 //
 
 #include "behavior/plugin/caching_tests.hpp"
-#include <ngraph_ops/nms_ie_internal.hpp>
+#include <ov_ops/nms_ie_internal.hpp>
 #include "api_conformance_helpers.hpp"
 
 namespace {

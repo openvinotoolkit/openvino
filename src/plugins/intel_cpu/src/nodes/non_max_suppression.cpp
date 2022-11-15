@@ -12,7 +12,7 @@
 #include "non_max_suppression.h"
 #include "ie_parallel.hpp"
 #include <ngraph/opsets/opset5.hpp>
-#include <ngraph_ops/nms_ie_internal.hpp>
+#include <ov_ops/nms_ie_internal.hpp>
 #include "utils/general_utils.h"
 
 #include "cpu/x64/jit_generator.hpp"

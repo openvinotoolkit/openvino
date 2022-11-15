@@ -13,7 +13,7 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pattern/matcher.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include "ngraph_ops/type_relaxed.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include <ngraph/rt_info.hpp>
 
 #include "rt_info/shared_value_attribute.hpp"

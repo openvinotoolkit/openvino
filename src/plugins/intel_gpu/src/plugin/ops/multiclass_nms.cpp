@@ -3,7 +3,7 @@
 //
 
 #include <intel_gpu/primitives/multiclass_nms.hpp>
-#include "ngraph_ops/multiclass_nms_ie_internal.hpp"
+#include "ov_ops/multiclass_nms_ie_internal.hpp"
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program.hpp"

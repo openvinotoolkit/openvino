@@ -7,8 +7,8 @@
 
 #include "ngraph_functions/builders.hpp"
 
-#include "ngraph_ops/augru_cell.hpp"
-#include "ngraph_ops/augru_sequence.hpp"
+#include "ov_ops/augru_cell.hpp"
+#include "ov_ops/augru_sequence.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -20,7 +20,7 @@ namespace builder {
  * or,
   * 0          1               2
  * X   init_hidden_state   attention
- * 
+ *
  */
 std::shared_ptr<ov::Node> makeAUGRU(const OutputVector& in,
                                       const std::vector<ov::Shape>& constants,

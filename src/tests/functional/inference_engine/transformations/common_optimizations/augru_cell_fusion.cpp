@@ -6,7 +6,7 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_ops/augru_cell.hpp"
+#include "ov_ops/augru_cell.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "transformations/common_optimizations/augru_cell_fusion.hpp"

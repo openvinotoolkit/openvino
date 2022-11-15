@@ -16,7 +16,7 @@
 #include <vector>
 
 #include "itt.hpp"
-#include "ngraph_ops/type_relaxed.hpp"
+#include "ov_ops/type_relaxed.hpp"
 
 using namespace ov;
 

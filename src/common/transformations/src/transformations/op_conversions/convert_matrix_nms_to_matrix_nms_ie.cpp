@@ -13,7 +13,7 @@
 #include <vector>
 
 #include "itt.hpp"
-#include "ngraph_ops/nms_static_shape_ie.hpp"
+#include "ov_ops/nms_static_shape_ie.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE(bool force_i32_output_type) {
