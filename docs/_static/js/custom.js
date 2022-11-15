@@ -134,7 +134,7 @@ function createVersions() {
 }
 function sortableTables() {
     
-    var tables = document.getElementsByClassName("sortable-table").getElementsByTagName("table")
+    var tables = $('.sortable-table').find('table');
     tables.each(function () {
         var table = $(this);
         var headings = table.find('th');
