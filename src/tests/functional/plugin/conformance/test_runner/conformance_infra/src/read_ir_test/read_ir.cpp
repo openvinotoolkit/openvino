@@ -23,6 +23,10 @@
 
 namespace ov {
 namespace test {
+namespace conformance {
+// It is used while files lookup
+std::list<std::string> dirList;
+}
 namespace subgraph {
 
 ShapeMode shapeMode = ShapeMode::BOTH;
