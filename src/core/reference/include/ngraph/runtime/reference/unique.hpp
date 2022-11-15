@@ -17,15 +17,13 @@ enum class DescriptorType { SINGLE_VALUE, SLICE };
 
 template <typename Index_t, typename Count_t>
 struct TensorSlice {
-    TensorSlice() = delete;
     TensorSlice(const Index_t idx_, const DescriptorType descriptor_type_)
         : idx{idx_},
           descriptor_type{descriptor_type_} {}
     TensorSlice(const Index_t idx_, const Index_t rev_idx_, const Count_t count_)
         : idx{idx_},
           rev_idx{rev_idx_},
-          count{count_},
-          descriptor_type{DescriptorType::SINGLE_VALUE} {}
+          count{count_} {}
     /// The index of the current element in the original input tensor. It never changes even if the elements get
     /// sorted. This value is used as a mapping between a unique element in the first output tensor and the position
     /// of this element in the original input tensor.
@@ -37,7 +35,7 @@ struct TensorSlice {
     /// duplicates found in the input tensor.
     Count_t count = 1;
     /// Indicates if this object points to a single value in the input tensor (rather than a slice of the tensor)
-    DescriptorType descriptor_type;
+    DescriptorType descriptor_type = DescriptorType::SINGLE_VALUE;
 };
 
 template <typename Index_t, typename Count_t>
@@ -94,9 +92,9 @@ inline Shape slice_shape_to_iterate(Shape data_shape, const int64_t axis) {
 }
 
 bool scalar_or_single_element(const Shape& s) {
-    return s.size() == 0 || std::all_of(std::begin(s), std::end(s), [](Shape::value_type d) {
-               return d == 1;
-           });
+    return std::all_of(std::begin(s), std::end(s), [](Shape::value_type d) {
+        return d == 1;
+    });
 }
 }  // namespace
 
@@ -183,7 +181,7 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
         ret.all_tensor_elements.emplace_back(0, 0, 1);
         ret.unique_tensor_elements.emplace_back(0, 0, 1);
         return ret;
-    } else if (!axis || (data_shape.size() == 1 && data_shape[0] > 1)) {  // 1D or N-D without any axis
+    } else if (!axis || (is_vector(data_shape) && data_shape[0] > 1)) {  // 1D or N-D without any axis
         const auto data_elems_count = shape_size(data_shape);
         ret.all_tensor_elements =
             generate_descriptors<Index_t, Count_t>(data_elems_count, DescriptorType::SINGLE_VALUE);

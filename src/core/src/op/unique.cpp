@@ -31,7 +31,7 @@ std::tuple<Shape, Shape, Shape> calculate_static_output_shapes(const Tensor& inp
     using Counts_t = int32_t;
 
     const auto maybe_extract_axis = [&op]() {
-        std::unique_ptr<int64_t> axis = nullptr;
+        std::unique_ptr<int64_t> axis;
         if (op.get_input_size() == 2 && ov::op::util::is_constant(op.input_value(1).get_node())) {
             const auto axis_constant =
                 std::dynamic_pointer_cast<op::v0::Constant>(op.input_value(1).get_node_shared_ptr());
@@ -173,11 +173,10 @@ void op::v10::Unique::validate_and_infer_types() {
                 if (dim_at_axis.is_dynamic()) {
                     if (dim_at_axis == Dimension::dynamic()) {
                         output_dim_at_axis = dim_at_axis;
-                        rev_idx_size = dim_at_axis;
                     } else {
                         output_dim_at_axis = Dimension{1, dim_at_axis.get_max_length()};
-                        rev_idx_size = dim_at_axis;
                     }
+                    rev_idx_size = dim_at_axis;
                 } else if (dim_at_axis.get_length() == 0) {
                     output_dim_at_axis = Dimension{0};
                     output_shapes[1] = PartialShape{{0}};

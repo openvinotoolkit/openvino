@@ -4206,7 +4206,7 @@ void execute_unique(const HostTensorVector& outputs,
                     const HostTensorVector& inputs,
                     const shared_ptr<op::v10::Unique>& op) {
     const auto maybe_extract_axis = [&op]() {
-        std::unique_ptr<int64_t> axis = nullptr;
+        std::unique_ptr<int64_t> axis;
         if (op->get_input_size() == 2 && ov::op::util::is_constant(op->input_value(1).get_node())) {
             const auto axis_constant =
                 std::dynamic_pointer_cast<op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
