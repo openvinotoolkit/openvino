@@ -3,6 +3,7 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+#include "ie_performance_hints.hpp"
 #include "auto_executable_network.hpp"
 
 // ------------------------------AutoExecutableNetwork----------------------------
@@ -50,11 +51,11 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
         auto value = _autoSContext->_performanceHint;
         if (!_autoSContext->_core->isNewAPI())
             return value;
-        if (value == "THROUGHPUT")
+        if (value == InferenceEngine::PluginConfigParams::THROUGHPUT)
             return ov::hint::PerformanceMode::THROUGHPUT;
-        else if (value == "LATENCY")
+        else if (value == InferenceEngine::PluginConfigParams::LATENCY)
             return ov::hint::PerformanceMode::LATENCY;
-        else if (value == "CUMULATIVE_THROUGHPUT")
+        else if (value == InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT)
             return ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT;
         else
             return ov::hint::PerformanceMode::UNDEFINED;

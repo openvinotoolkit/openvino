@@ -166,6 +166,9 @@ struct PluginConfig {
                 // AUTO and MULTI can accept secondary properites on calling both core::comile_model() and
                 // core::set_property().
                 _passThroughConfig.emplace(kvp.first, kvp.second);
+                // Not setting performance mode to 'THROUGHPUT' as default value if any secodnary properties
+                // appears in the configuration.
+                _isSetPerHint = true;
             } else if (kvp.first.find("AUTO_") == 0) {
                 _passThroughConfig.emplace(kvp.first, kvp.second);
             } else if (kvp.first == ov::cache_dir.name()) {
