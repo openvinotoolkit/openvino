@@ -74,6 +74,7 @@
 #include <transformations/smart_reshape/reshape_sinking.hpp>
 
 #include "itt.hpp"
+#include "transformations/common_optimizations/eliminate_duplicate_ti_inputs.hpp"
 #include "transformations/common_optimizations/sequence_fusion.hpp"
 #include "transformations/op_conversions/convert_ti_to_sequences.hpp"
 
@@ -173,6 +174,7 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     common_fusions->add_matcher<ngraph::pass::RandomUniformFusion>();
     common_fusions->add_matcher<ov::pass::GRUCellFusion>();
     common_fusions->add_matcher<ov::pass::SequenceFusion>();
+    common_fusions->add_matcher<ov::pass::EliminateDuplicateTIInputs>();
     common_fusions->add_matcher<ngraph::pass::ConvertTensorIteratorToSequence>();
     common_fusions->add_matcher<ngraph::pass::SplitConcatPairToInterpolateFusion>(m_use_shapes);
     if (m_use_shapes) {
