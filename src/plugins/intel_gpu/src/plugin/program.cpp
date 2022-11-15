@@ -318,7 +318,7 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
         options.set_option(cldnn::build_option::graph_dumps_dir(m_config.graph_dumps_dir));
     }
     for (const auto& op : ops) {
-        if (op->is_dynamic()) {
+        if (op->is_dynamic() || strncmp(op->get_type_name(), "MatMul", 6) == 0) {
             allow_new_shape_infer = true;
             break;
         }
