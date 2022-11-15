@@ -16,6 +16,8 @@ namespace ocl {
 struct average_unpooling_impl : typed_primitive_impl_ocl<average_unpooling> {
     using parent = typed_primitive_impl_ocl<average_unpooling>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::average_unpooling_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::average_unpooling_params, kernel_selector::average_unpooling_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -30,13 +32,10 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const average_unpooling_node& arg, const kernel_impl_params& impl_param) {
-        auto primitive = arg.get_primitive();
-        auto average_unpooling_params = get_default_params<kernel_selector::average_unpooling_params>(impl_param);
-        auto average_unpooling_optional_params =
-            get_default_optional_params<kernel_selector::average_unpooling_optional_params>(arg.get_program());
-        auto& params = average_unpooling_params;
-
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<average_unpooling>();
+        auto params = get_default_params<kernel_selector::average_unpooling_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::average_unpooling_optional_params>(impl_param.get_program());
         auto stride = primitive->stride;
 
         params.unpoolSize = {
@@ -46,24 +45,14 @@ public:
 
         params.unpoolStride = {(uint32_t)stride.spatial[0], (uint32_t)stride.spatial[1]};
 
-        auto& kernel_selector = kernel_selector::average_unpooling_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(average_unpooling_params, average_unpooling_optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto average_unpool = new average_unpooling_impl(arg, best_kernels[0]);
-
-        return average_unpool;
+        return {params, optional_params};
     }
 };
 
 namespace detail {
 
 attach_average_unpooling_impl::attach_average_unpooling_impl() {
-    implementation_map<average_unpooling>::add(impl_types::ocl, average_unpooling_impl::create, {
+    implementation_map<average_unpooling>::add(impl_types::ocl, typed_primitive_impl_ocl<average_unpooling>::create<average_unpooling_impl>, {
         std::make_tuple(data_types::f32, format::yxfb),
         std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::f32, format::bfyx),

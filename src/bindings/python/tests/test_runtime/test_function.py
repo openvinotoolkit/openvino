@@ -22,7 +22,7 @@ from openvino.runtime import (
     serialize,
 )
 
-from tests.test_utils.test_utils import generate_add_model, create_filename_for_test  # TODO: reformat into an absolute path
+from tests.test_utils.test_utils import generate_add_model, create_filename_for_test
 
 
 def test_test_descriptor_tensor():

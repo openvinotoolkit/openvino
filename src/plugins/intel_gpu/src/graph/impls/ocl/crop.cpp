@@ -16,6 +16,8 @@ namespace ocl {
 struct crop_impl : typed_primitive_impl_ocl<crop> {
     using parent = typed_primitive_impl_ocl<crop>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::eltwise_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::eltwise_params, kernel_selector::eltwise_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -54,25 +56,14 @@ public:
         ib >> _can_be_optimized;
     }
 
-    static primitive_impl* create(const crop_node& arg, const kernel_impl_params& impl_param) {
-        auto ew_params = get_default_params<kernel_selector::eltwise_params>(impl_param, 1);
-        auto ew_optional_params = get_default_optional_params<kernel_selector::eltwise_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<crop>();
+        auto params = get_default_params<kernel_selector::eltwise_params>(impl_param, 1);
+        auto optional_params = get_default_optional_params<kernel_selector::eltwise_optional_params>(impl_param.get_program());
 
-        ew_params.operations.push_back(
-            {{kernel_selector::eltwise_params::InputType::Buffer(0)}, kernel_selector::eltwise_mode::ASSIGN});
-        ew_params.inputs[0] = convert_data_tensor(impl_param.get_input_layout(), 1, impl_param.input_offsets[0]);
-
-        auto& kernel_selector = kernel_selector::eltwise_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(ew_params, ew_optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto crop = new crop_impl(arg, best_kernels[0]);
-
-        return crop;
+        params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0)}, kernel_selector::eltwise_mode::ASSIGN});
+        params.inputs[0] = convert_data_tensor(impl_param.get_input_layout(), 1, impl_param.input_offsets[0]);
+        return {params, optional_params};
     }
 
 private:
@@ -82,7 +73,7 @@ private:
 namespace detail {
 
 attach_crop_impl::attach_crop_impl() {
-    implementation_map<crop>::add(impl_types::ocl, crop_impl::create, {
+    implementation_map<crop>::add(impl_types::ocl, typed_primitive_impl_ocl<crop>::create<crop_impl>, {
         std::make_tuple(data_types::f32, format::yxfb),
         std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::i64, format::yxfb),

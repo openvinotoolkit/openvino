@@ -236,7 +236,7 @@ def get_binary_tensors(binary_paths, info, batch_sizes):
             blob_size = dtype.itemsize * int(np.prod(shape))
             if blob_size != binary_file_size:
                 raise Exception(
-                    f"File {binary_filename} contains {binary_file_size} bytes but network expects {blob_size}")
+                    f"File {binary_filename} contains {binary_file_size} bytes but model expects {blob_size}")
             binaries[b] = np.reshape(np.fromfile(binary_filename, dtype), shape)
 
             binary_index += 1

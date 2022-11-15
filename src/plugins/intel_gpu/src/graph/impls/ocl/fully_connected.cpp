@@ -25,6 +25,8 @@ namespace ocl {
 struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
     using parent = typed_primitive_impl_ocl<fully_connected>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::fully_connected_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::fully_connected_params, kernel_selector::fully_connected_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -43,8 +45,8 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const fully_connected_node& arg, const kernel_impl_params& impl_param) {
-        const auto primitive = arg.get_primitive();
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<fully_connected>();
 
         auto get_fc_input_layouts = [primitive](const std::vector<layout>& input_layouts) {
             auto reshape_to_2d = [](const ov::PartialShape& shape, int64_t feature) {
@@ -95,48 +97,35 @@ public:
         updated_impl_param.input_layouts[1] = input_layouts[1];
         updated_impl_param.weights_layout = input_layouts[1];
 
-        updated_impl_param.output_layout = get_fc_output_layout(input_layouts, impl_param.output_layout);
+        updated_impl_param.output_layouts[0] = get_fc_output_layout(input_layouts, impl_param.get_output_layout());
 
-        auto fc_params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(updated_impl_param);
-        auto fc_optional_params =
-            get_default_weights_bias_optional_params<kernel_selector::fully_connected_optional_params>(
-                arg.get_program());
-        fc_optional_params.allowInputReordering = true;
+        const auto& progam = impl_param.get_program();
+        auto params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(updated_impl_param);
+        auto optional_params = get_default_weights_bias_optional_params<kernel_selector::fully_connected_optional_params>(progam);
+        optional_params.allowInputReordering = true;
 
         if (primitive->input_size != 3)
-            fc_params.outputs = { fc_params.outputs[0].FlattenFeatureAndSpatials() };
+            params.outputs = { params.outputs[0].FlattenFeatureAndSpatials() };
 
         bool is_quantized = true;
         for (auto& input : impl_param.input_layouts)
             is_quantized &= data_type_traits::is_quantized(input.data_type);
 
         if (is_quantized) {
-            fc_params.quantization = kernel_selector::QuantizationType::SYMMETRIC;
+            params.quantization = kernel_selector::QuantizationType::SYMMETRIC;
         } else {
-            fc_params.quantization = kernel_selector::QuantizationType::NONE;
+            params.quantization = kernel_selector::QuantizationType::NONE;
         }
 
-        fc_optional_params.tuningParams.runner =
-            std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), arg.get_program().get_id(), true);
-
-        auto& kernel_selector = kernel_selector::fully_connected_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(fc_params, fc_optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto fc = new fully_connected_impl(arg, best_kernels[0]);
-
-        return fc;
+        optional_params.tuningParams.runner = std::make_shared<gpu::kernel_runner>(progam.get_engine(), progam.get_id(), true);
+        return {params, optional_params};
     }
 };
 
 namespace detail {
 
 attach_fully_connected_impl::attach_fully_connected_impl() {
-    implementation_map<fully_connected>::add(impl_types::ocl, fully_connected_impl::create, {
+    implementation_map<fully_connected>::add(impl_types::ocl, typed_primitive_impl_ocl<fully_connected>::create<fully_connected_impl>, {
         std::make_tuple(data_types::f32, format::yxfb),
         std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::f32, format::bfyx),

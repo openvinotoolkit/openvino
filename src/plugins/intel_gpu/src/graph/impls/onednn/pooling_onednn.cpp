@@ -30,7 +30,7 @@ protected:
         auto prim = impl_params.typed_desc<pooling>();
 
         auto input_layout = impl_params.get_input_layout(0);
-        auto output_layout = impl_params.output_layout;
+        auto output_layout = impl_params.get_output_layout();
 
         dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
         dnnl::memory::dims kernel(prim->size.begin(), prim->size.end());
@@ -87,13 +87,13 @@ public:
         _prim = dnnl::primitive(_pd, prim_cache);
     }
 
-    static primitive_impl* create(const pooling_node& arg, const kernel_impl_params& impl_params) {
+    static std::unique_ptr<primitive_impl> create(const pooling_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto desc = get_pooling_descriptor(impl_params);
         auto attr = arg.get_onednn_primitive_attributes();
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
 
-        return new pooling_onednn(engine, desc, attr, prim_desc);
+        return cldnn::make_unique<pooling_onednn>(engine, desc, attr, prim_desc);
     }
 };
 

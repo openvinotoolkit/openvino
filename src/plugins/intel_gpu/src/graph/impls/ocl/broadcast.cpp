@@ -17,6 +17,8 @@ namespace ocl {
 struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
     using parent = typed_primitive_impl_ocl<broadcast>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::broadcast_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::broadcast_params, kernel_selector::broadcast_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -24,13 +26,12 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
         return make_unique<broadcast_impl>(*this);
     }
 
-    static primitive_impl* create(const broadcast_node& arg, const kernel_impl_params& impl_param) {
-        const auto& primitive = arg.get_primitive();
-        auto bc_params = get_default_params<kernel_selector::broadcast_params>(impl_param, 1);
-        auto bc_optional_params =
-            get_default_optional_params<kernel_selector::broadcast_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<broadcast>();
+        auto params = get_default_params<kernel_selector::broadcast_params>(impl_param, 1);
+        auto optional_params = get_default_optional_params<kernel_selector::broadcast_optional_params>(impl_param.get_program());
 
-        const auto format = impl_param.output_layout.format;
+        const auto format = impl_param.get_output_layout().format;
         size_t max_axes_num = format.dimension();
 
         const auto& broadcast_axes = primitive->broadcast_axes;
@@ -40,30 +41,22 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
         // bfyx, bfzyx format
         for (size_t i = 0; i < max_axes_num; ++i) {
             if (std::find(broadcast_axes.begin(), broadcast_axes.end(), i) != broadcast_axes.end()) {
-                bc_params.input_order.push_back(index);
+                params.input_order.push_back(index);
                 ++index;
             } else {
-                bc_params.input_order.push_back(input_index);
+                params.input_order.push_back(input_index);
                 ++input_index;
             }
         }
 
-        auto& kernel_selector = kernel_selector::broadcast_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(bc_params, bc_optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        return new broadcast_impl(arg, best_kernels[0]);
+        return {params, optional_params};
     }
 };
 
 namespace detail {
 
 attach_broadcast_impl::attach_broadcast_impl() {
-    implementation_map<broadcast>::add(impl_types::ocl, broadcast_impl::create, {
+    implementation_map<broadcast>::add(impl_types::ocl, typed_primitive_impl_ocl<broadcast>::create<broadcast_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::i8, format::bfyx),

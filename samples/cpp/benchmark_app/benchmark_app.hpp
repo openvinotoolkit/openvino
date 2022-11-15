@@ -29,7 +29,7 @@ static const char help_message[] = "Print a usage message";
 /// @brief message for images argument
 static const char input_message[] =
     "Optional. Path to a folder with images and/or binaries or to specific image or binary file.\n"
-    "                              In case of dynamic shapes networks with several inputs provide the same number"
+    "                              In case of dynamic shapes models with several inputs provide the same number"
     " of files for each input (except cases with single file for any input):"
     "\"input1:1.jpg input2:1.bin\", \"input1:1.bin,2.bin input2:3.bin input3:4.bin,5.bin \"."
     " Also you can pass specific keys for inputs: \"random\" - for fillling input with random data,"
@@ -45,7 +45,7 @@ static const char model_message[] =
 
 /// @brief message for performance hint
 static const char hint_message[] =
-    "Optional. Performance hint allows the OpenVINO device to select the right network-specific settings.\n"
+    "Optional. Performance hint allows the OpenVINO device to select the right model-specific settings.\n"
     "                               'throughput' or 'tput': device performance mode will be set to THROUGHPUT.\n"
     "                               'cumulative_throughput' or 'ctput': device performance mode will be set to "
     "CUMULATIVE_THROUGHPUT.\n"
@@ -90,7 +90,7 @@ static const char infer_num_streams_message[] =
     "automatic selection "
     "usually provides a reasonable performance, it still may be non - optimal for some cases, "
     "especially for "
-    "very small networks. See sample's README for more details. "
+    "very small models. See sample's README for more details. "
     "Also, using nstreams>1 is inherently throughput-oriented option, "
     "while for the best-latency estimations the number of streams should be set to 1.";
 
@@ -138,7 +138,7 @@ static const char report_type_message[] =
     "Optional. Enable collecting statistics report. \"no_counters\" report contains "
     "configuration options specified, resulting FPS and latency. \"average_counters\" "
     "report extends \"no_counters\" report and additionally includes average PM "
-    "counters values for each layer from the network. \"detailed_counters\" report "
+    "counters values for each layer from the model. \"detailed_counters\" report "
     "extends \"average_counters\" report and additionally includes per-layer PM "
     "counters and latency for each executed infer request.";
 
@@ -188,22 +188,22 @@ static const char dump_config_message[] =
     "Optional. Path to JSON file to dump IE parameters, which were set by application.";
 
 static const char shape_message[] =
-    "Optional. Set shape for network input. For example, \"input1[1,3,224,224],input2[1,4]\" or \"[1,3,224,224]\""
+    "Optional. Set shape for model input. For example, \"input1[1,3,224,224],input2[1,4]\" or \"[1,3,224,224]\""
     " in case of one input size. This parameter affect model input shape and can be dynamic."
     " For dynamic dimensions use symbol `?` or '-1'. Ex. [?,3,?,?]."
     " For bounded dimensions specify range 'min..max'. Ex. [1..10,3,?,?].";
 
 static const char data_shape_message[] =
-    "Required for networks with dynamic shapes. Set shape for input blobs."
+    "Required for models with dynamic shapes. Set shape for input blobs."
     " In case of one input size: \"[1,3,224,224]\" or \"input1[1,3,224,224],input2[1,4]\"."
     " In case of several input sizes provide the same number for each input (except cases with single shape for any "
     "input):"
     " \"[1,3,128,128][3,3,128,128][1,3,320,320]\", \"input1[1,1,128,128][1,1,256,256],input2[80,1]\""
     " or \"input1[1,192][1,384],input2[1,192][1,384],input3[1,192][1,384],input4[1,192][1,384]\"."
-    " If network shapes are all static specifying the option will cause an exception.";
+    " If model shapes are all static specifying the option will cause an exception.";
 
 static const char layout_message[] =
-    "Optional. Prompts how network layouts should be treated by application. "
+    "Optional. Prompts how model layouts should be treated by application. "
     "For example, \"input1[NCHW],input2[NC]\" or \"[NCHW]\" in case of one input size.";
 
 // @brief message for enabling caching
@@ -211,16 +211,15 @@ static const char cache_dir_message[] = "Optional. Enables caching of loaded mod
                                         "List of devices which support caching is shown at the end of this message.";
 
 // @brief message for single load network
-static const char load_from_file_message[] = "Optional. Loads model from file directly without ReadNetwork."
+static const char load_from_file_message[] = "Optional. Loads model from file directly without read_model."
                                              " All CNNNetwork options (like re-shape) will be ignored";
 
 // @brief message for inference_precision
 static const char inference_precision_message[] = "Optional. Inference precision";
 
-static constexpr char inputs_precision_message[] = "Optional. Specifies precision for all input layers of the network.";
+static constexpr char inputs_precision_message[] = "Optional. Specifies precision for all input layers of the model.";
 
-static constexpr char outputs_precision_message[] =
-    "Optional. Specifies precision for all output layers of the network.";
+static constexpr char outputs_precision_message[] = "Optional. Specifies precision for all output layers of the model.";
 
 static constexpr char iop_message[] =
     "Optional. Specifies precision for input and output layers by name.\n"
