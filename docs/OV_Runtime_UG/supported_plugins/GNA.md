@@ -322,7 +322,7 @@ then set batch size:
 
 Increasing batch size only improves efficiency of `MatMul` layers.
 
-> **NOTE**: For models with `Convolution`, `LSTMCell`, or `ReadValue`/`Assign` operations, the only supported batch size is 1.
+> **NOTE**: For models with `Convolution`, `LSTMCell`, `GRUCell`, or `ReadValue`/`Assign` operations, the only supported batch size is 1.
 
 ### Compatibility with Heterogeneous mode
 
