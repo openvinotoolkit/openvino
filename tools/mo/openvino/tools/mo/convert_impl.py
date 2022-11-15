@@ -855,63 +855,63 @@ def _convert(**args):
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', get_simplified_mo_version())
 
-    model_framework = None
-    inp_model_is_object = input_model_is_object(args)
-    if inp_model_is_object:
-        model_framework = check_model_object(args)
-        if model_framework == "pytorch" and not os.environ.get('USE_PYTORCH_FRONTEND'):
-
-            opset_version = None
-            if 'onnx_opset_version' in args and args['onnx_opset_version'] is not None:
-                opset_version = args['onnx_opset_version']
-
-            example_inputs = None
-            if 'example_input' in args and args['example_input'] is not None:
-                example_inputs = args['example_input']
-
-            out_dir = args['output_dir'] if 'output_dir' in args else None
-
-            model_onnx = convert_pytorch_to_onnx(args['input_model'],
-                                                 parse_input_shapes(args),
-                                                 opset_version,
-                                                 example_inputs,
-                                                 out_dir)
-
-
-            args['input_model'] = model_onnx
-            if os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):
-                args['use_legacy_frontend'] = True
-            args['example_input'] = None
-            args['onnx_opset_version'] = None
-
-            try:
-                ov_model = _convert(**args)
-            except Exception as e:
-                remove_tmp_onnx_model(out_dir)
-                raise e
-
-            remove_tmp_onnx_model(out_dir)
-            return ov_model
-    args = params_to_string(**args)
-    argv = pack_params_to_args_namespace(**args)
-
-    if inp_model_is_object:
-        argv.model_name = "model"
-    if argv.model_name is None:
-        argv.model_name = get_model_name_from_args(argv)
-
-    if model_framework is not None:
-        if argv.framework is not None:
-            if argv.framework != model_framework:
-                raise Error("Provided model does not correspond to provided framework. The provided "
-                            "framework is {}, the model type is {} which is expected to be {} framework.".format(
-                                argv.framework,
-                                type(argv.input_model),
-                                model_framework))
-        else:
-            argv.framework = model_framework
-
     try:
+        model_framework = None
+        inp_model_is_object = input_model_is_object(args)
+        if inp_model_is_object:
+            model_framework = check_model_object(args)
+            if model_framework == "pytorch" and not os.environ.get('USE_PYTORCH_FRONTEND'):
+
+                opset_version = None
+                if 'onnx_opset_version' in args and args['onnx_opset_version'] is not None:
+                    opset_version = args['onnx_opset_version']
+
+                example_inputs = None
+                if 'example_input' in args and args['example_input'] is not None:
+                    example_inputs = args['example_input']
+
+                out_dir = args['output_dir'] if 'output_dir' in args else None
+
+                model_onnx = convert_pytorch_to_onnx(args['input_model'],
+                                                     parse_input_shapes(args),
+                                                     opset_version,
+                                                     example_inputs,
+                                                     out_dir)
+
+
+                args['input_model'] = model_onnx
+                if os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):
+                    args['use_legacy_frontend'] = True
+                args['example_input'] = None
+                args['onnx_opset_version'] = None
+
+                try:
+                    ov_model = _convert(**args)
+                except Exception as e:
+                    remove_tmp_onnx_model(out_dir)
+                    raise e
+
+                remove_tmp_onnx_model(out_dir)
+                return ov_model
+        args = params_to_string(**args)
+        argv = pack_params_to_args_namespace(**args)
+
+        if inp_model_is_object:
+            argv.model_name = "model"
+        if argv.model_name is None:
+            argv.model_name = get_model_name_from_args(argv)
+
+        if model_framework is not None:
+            if argv.framework is not None:
+                if argv.framework != model_framework:
+                    raise Error("Provided model does not correspond to provided framework. The provided "
+                                "framework is {}, the model type is {} which is expected to be {} framework.".format(
+                                    argv.framework,
+                                    type(argv.input_model),
+                                    model_framework))
+            else:
+                argv.framework = model_framework
+
         # Initialize logger with 'ERROR' as default level to be able to form nice messages
         # before arg parser deliver log_level requested by user
         init_logger('ERROR', False)
@@ -927,4 +927,4 @@ def _convert(**args):
         telemetry.send_event('mo', 'conversion_result', 'fail')
         telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)
-        raise e
+        raise e.with_traceback(None)
