@@ -36,5 +36,4 @@ class TestReshape(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     def test_reshape(self, shape, ie_device, precision, ir_version):
-    	if ie_device == "CPU":
-            self._test(*self.create_model(shape), ie_device, precision, ir_version)
+        self._test(*self.create_model(shape), ie_device, precision, ir_version)
