@@ -475,17 +475,19 @@ void ConstTransformer::fullTrim() {
     auto sortedLayers = details::CNNSubnetSortTopologically({inputs, outputs});
     auto constMapLayers = getConstLayers(sortedLayers);
 
-    for (auto& layer : sortedLayers) {
-        if (layer->type == "Const") {
-            for (auto& out : outputs) {
-                for (auto& out_const : layer->outData) {
-                    if (out_const == out) {
-                        constMapLayers.erase(layer->name);
-                        break;
+    for (const auto& layer : sortedLayers) {
+        [&] {
+            if (layer->type == "Const") {
+                for (const auto& out : outputs) {
+                    for (const auto& out_const : layer->outData) {
+                        if (out_const == out) {
+                            constMapLayers.erase(layer->name);
+                            return;
+                        }
                     }
                 }
             }
-        }
+        }();
     }
 
     auto constData = getConstData(constMapLayers, sortedLayers);
