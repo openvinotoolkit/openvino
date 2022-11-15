@@ -35,9 +35,9 @@ public:
              std::function<bool(const std::shared_ptr<ngraph::Node>)> is_node_supported,
              const std::unordered_set<std::string>& expected) {
         auto supported = InferenceEngine::GetSupportedNodes(m_function, transform, is_node_supported);
-        auto const is_in_expected = [&expected](const std::string& x){ return expected.find(x) !=expected.end(); };
-        ASSERT_TRUE((supported.size() == expected.size()) &&
-            std::all_of(supported.begin(), supported.end(), is_in_expected)) << "Expected list of supported nodes '" << expected
+        auto const is_in_expected = [&expected](const std::string& x){ return expected.find(x) != expected.end(); };
+        bool is_equal = (supported.size() == expected.size()) && std::all_of(supported.begin(), supported.end(), is_in_expected);
+        ASSERT_TRUE(is_equal) << "Expected list of supported nodes '" << expected
             << "' but actually received '" << supported << "'";
     }
 };
@@ -65,7 +65,7 @@ TEST_F(GetSupportedNodesTest, UnsupportedCompressedConstantCF) {
             m.run_passes(model);
         },
     [&](const std::shared_ptr<ngraph::Node>& op) {
-        return ngraph::op::is_parameter(op) || ngraph::op::is_constant(op) || ngraph::op::is_output(op);
+        return ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) || ov::op::util::is_output(op);
     }, {});
 }
 
@@ -99,7 +99,7 @@ TEST_F(GetSupportedNodesTest, ConstantSubgraphCF) {
             m.run_passes(model);
         },
     [&](const std::shared_ptr<ngraph::Node>& op) {
-        return ngraph::op::is_parameter(op) || ngraph::op::is_constant(op) || ngraph::op::is_output(op);
+        return ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) || ov::op::util::is_output(op);
     }, {"constant_compressed1", "constant1", "constant_compressed2", "constant2", "add", "const_reshape", "reshape", "result"});
 }
 
@@ -126,7 +126,7 @@ TEST_F(GetSupportedNodesTest, SupportedCompressedConstantNop) {
             m.run_passes(model);
         },
     [&](const std::shared_ptr<ngraph::Node>& op) {
-        return ngraph::op::is_parameter(op) || ngraph::op::is_constant(op) || ngraph::op::is_output(op) ||
+        return ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) || ov::op::util::is_output(op) ||
         (std::dynamic_pointer_cast<ov::opset9::Add>(op) != nullptr);
     }, {"input", "constant_compressed", "constant", "add", "result"});
 }
@@ -165,7 +165,7 @@ TEST_F(GetSupportedNodesTest, SupportedConstantInsertAdditionalOp) {
             }
         },
     [&](const std::shared_ptr<ngraph::Node>& op) {
-        return ngraph::op::is_parameter(op) || ngraph::op::is_constant(op) || ngraph::op::is_output(op) ||
+        return ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) || ov::op::util::is_output(op) ||
         (std::dynamic_pointer_cast<ov::opset9::Multiply>(op) != nullptr) ||
         (std::dynamic_pointer_cast<ov::opset9::Add>(op) != nullptr);
     }, {"input", "constant", "output_operation", "result"});
@@ -202,7 +202,7 @@ TEST_F(GetSupportedNodesTest, PartiallySupportedCompressedConstant) {
             m.run_passes(model);
         },
     [&](const std::shared_ptr<ngraph::Node>& op) {
-        return ngraph::op::is_parameter(op) || ngraph::op::is_constant(op) || ngraph::op::is_output(op) ||
+        return ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) || ov::op::util::is_output(op) ||
         (std::dynamic_pointer_cast<ov::opset9::Multiply>(op) != nullptr);
     }, {"input2", "constant_compressed", "constant", "mul", "result2"});
 }
@@ -244,7 +244,7 @@ TEST_F(GetSupportedNodesTest, ConstantSubgraphSupported) {
             m.run_passes(model);
         },
     [&](const std::shared_ptr<ngraph::Node>& op) {
-        return ngraph::op::is_parameter(op) || ngraph::op::is_constant(op) || ngraph::op::is_output(op) ||
+        return ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) || ov::op::util::is_output(op) ||
         (std::dynamic_pointer_cast<ov::opset9::MatMul>(op) != nullptr);
     }, {"input", "weights", "shapeof", "const1", "const2", "gather", "const3", "concat", "reshape", "matmul", "result"});
 }
@@ -303,7 +303,7 @@ TEST_F(GetSupportedNodesTest, WrongFusedNamesInOriginalModel) {
             return;
         },
     [&](const std::shared_ptr<ngraph::Node>& op) {
-        return ngraph::op::is_parameter(op) || ngraph::op::is_constant(op) || ngraph::op::is_output(op) ||
+        return ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) || ov::op::util::is_output(op) ||
                (std::dynamic_pointer_cast<ov::opset9::MatMul>(op) != nullptr);
     }, {"input", "weights", "matmul"});
 }
