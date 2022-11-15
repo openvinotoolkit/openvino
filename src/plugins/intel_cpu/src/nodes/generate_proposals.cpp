@@ -308,16 +308,16 @@ GenerateProposals::GenerateProposals
     }
 
     if (op->output(0).get_element_type() == ov::element::f32) {
-        jit_nms_conf nms_jcp {post_nms_topn_, nms_thresh_, coordinates_offset_};
+        jit_uni_nms_proposal_kernel::jit_nms_conf nms_jcp{post_nms_topn_, nms_thresh_, coordinates_offset_};
         if (mayiuse(x64::avx512_core)) {
-            nms_kernel_.reset(new jit_nms_kernel_fp32<x64::avx512_core>{nms_jcp});
+            nms_kernel_.reset(new jit_uni_nms_proposal_kernel_impl<x64::avx512_core>{nms_jcp});
         } else if (mayiuse(x64::avx2)) {
-            nms_kernel_.reset(new jit_nms_kernel_fp32<x64::avx2>{nms_jcp});
+            nms_kernel_.reset(new jit_uni_nms_proposal_kernel_impl<x64::avx2>{nms_jcp});
         } else if (mayiuse(x64::sse41)) {
-            nms_kernel_.reset(new jit_nms_kernel_fp32<x64::sse41>{nms_jcp});
+            nms_kernel_.reset(new jit_uni_nms_proposal_kernel_impl<x64::sse41>{nms_jcp});
         }
         if (nms_kernel_) {
-            nms_kernel_->create_kernel();
+            nms_kernel_->create_ker();
         }
     }
 }
@@ -512,8 +512,8 @@ void GenerateProposals::execute(dnnl::stream strm) {
 
             nms_kernel_.reset();
             if (nms_kernel_) {
-                int new_num_rois = num_rois;
-                (*nms_kernel_)(jit_nms_call_args {
+
+                jit_uni_nms_proposal_kernel::jit_nms_call_args args {
                     pre_nms_topn,
                     is_dead.data(),
                     unpacked_boxes.data(),
@@ -521,9 +521,9 @@ void GenerateProposals::execute(dnnl::stream strm) {
                     &unpacked_boxes[pre_nms_topn],
                     &unpacked_boxes[3 * pre_nms_topn],
                     roi_indices_.data(),
-                    &new_num_rois
-                });
-                num_rois = new_num_rois;
+                    &num_rois
+                };
+                nms_kernel_->operator()(&args);
             } else {
                 nms_cpu(pre_nms_topn,
                         &is_dead[0],

@@ -102,6 +102,7 @@ public:
     template <x64::cpu_isa_t isa>
     static Ptr create(std::initializer_list<Xbyak::Reg> regsToExclude);
 
+    static Ptr create(x64::cpu_isa_t isa);
     static Ptr create(x64::cpu_isa_t isa, std::initializer_list<Xbyak::Reg> regsToExclude);
 
     template<typename TReg>
@@ -290,6 +291,7 @@ private:
 template <x64::cpu_isa_t isa>
 class IsaRegistersPool : public RegistersPool {
 public:
+    IsaRegistersPool() : RegistersPool(x64::cpu_isa_traits<isa>::n_vregs) {}
     IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude) : RegistersPool(regsToExclude, x64::cpu_isa_traits<isa>::n_vregs) {}
 };
 

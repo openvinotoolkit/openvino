@@ -7,6 +7,7 @@
 #include <ie_common.h>
 #include <node.h>
 #include "kernels/jit_uni_nms_proposal_kernel.hpp"
+#include "nodes/kernels/generate_proposals/jit_refine_anchors_kernel.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -54,6 +55,10 @@ private:
     float coordinates_offset_ = 0.f;
 
     std::vector<int> roi_indices_;
+    std::vector<int32_t> refine_anchor_indices_;
+    std::vector<uint32_t> refine_anchor_masks_;
+
+    std::unique_ptr<jit_refine_anchors_kernel> refine_anchors_kernel_;
     std::unique_ptr<jit_uni_nms_proposal_kernel> nms_kernel_ {};
 };
 

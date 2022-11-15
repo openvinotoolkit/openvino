@@ -5,7 +5,9 @@
 #pragma once
 
 #include "cpu/x64/jit_generator.hpp"
+#include "emitters/jit_emitter.hpp"
 #include "registers_pool.hpp"
+#include "stack_allocator.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -17,6 +19,9 @@ namespace intel_cpu {
 class JitKernelBase: public dnnl::impl::cpu::x64::jit_generator {
 public:
     JitKernelBase(const char* name) : dnnl::impl::cpu::x64::jit_generator(name) {}
+
+    void generate() override;
+    virtual void generate_impl() = 0;
 
     void uni_vfmsub132ps(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc, const Xbyak::Operand& op);
 
@@ -61,6 +66,40 @@ public:
     void uni_vpbroadcastd(const Xbyak::Xmm &x, const Xbyak::Operand &op);
 
     void uni_vpbroadcastd(const Xbyak::Ymm &x, const Xbyak::Operand &op);
+
+    void uni_vaddps(const Xbyak::Xmm& x, const Xbyak::Xmm& op1, const Xbyak::Operand& op2);
+
+    void uni_vaddps(const Xbyak::Ymm& x, const Xbyak::Ymm& op1, const Xbyak::Operand& op2) {
+        vaddps(x, op1, op2);
+    }
+
+    void uni_vsubps(const Xbyak::Xmm& x, const Xbyak::Xmm& op1, const Xbyak::Operand& op2);
+
+    void uni_vsubps(const Xbyak::Ymm& x, const Xbyak::Ymm& op1, const Xbyak::Operand& op2) {
+        vsubps(x, op1, op2);
+    }
+
+    void uni_vcmpps(const Xbyak::Xmm& x, const Xbyak::Xmm& op1, const Xbyak::Operand& op2, const int cmp_predicate);
+
+    void uni_vcmpps(const Xbyak::Ymm& x1, const Xbyak::Ymm& x2, const Xbyak::Operand& op, const int cmp_predicate) {
+        vcmpps(x1, x2, op, cmp_predicate);
+    }
+
+    void emu_vgatherdps(const Xbyak::Xmm& xmm_val,
+                        const Xbyak::Reg64& reg_addr,
+                        const Xbyak::Xmm& xmm_index,
+                        const int& scale,
+                        const int& disp,
+                        const Xbyak::Reg& reg_mask,
+                        const bool is_mask_seq = true);
+
+    void emu_vscatterdps(const Xbyak::Reg64& reg_addr,
+                         const Xbyak::Xmm& xmm_index,
+                         const int scale,
+                         const int disp,
+                         const Xbyak::Xmm& xmm_val,
+                         const Xbyak::Reg& reg_mask,
+                         const bool is_mask_seq = true);
 
     void gatherdd(const Xbyak::Xmm&    vDst,
                   const Xbyak::Reg64&  rSrcPtr,
@@ -109,6 +148,12 @@ public:
                const Xbyak::Reg64&   rToStoreNum,
                const size_t          typeSize);
 
+    using x64::jit_generator::pop;
+    using x64::jit_generator::push;
+
+    void push(const Xbyak::Xmm& xmm);
+    void pop(const Xbyak::Xmm& xmm);
+
     // Makes gather from memory under the vReadMask and writes to the memory m128.
     void memMovDD(const Xbyak::Reg64& rDst,
                   const Xbyak::Reg64& rSrc,
@@ -127,12 +172,26 @@ public:
                   const bool useMask  = true,
                   const bool zeroFill = false);
 
+public:
+    static constexpr size_t xmm_len = 16;
+    static constexpr size_t ymm_len = 32;
+    static constexpr size_t zmm_len = 64;
+
+    static constexpr unsigned VCMPPS_LE = 0x02;
+    static constexpr unsigned VCMPPS_GT = 0x0e;
+
 protected:
+    virtual void createRegistersPool() {
+        registersPool = RegistersPool::create(dnnl::impl::cpu::x64::isa_all);
+    }
+
     inline bool isValidIsa(dnnl::impl::cpu::x64::cpu_isa_t isa) {
         return is_subset(isa, dnnl::impl::cpu::x64::isa_all) && dnnl::impl::cpu::x64::mayiuse(isa);
     }
 
     RegistersPool::Ptr registersPool;
+    std::unique_ptr<StackAllocator> stackAllocator;
+    std::unordered_map<std::string, std::shared_ptr<jit_emitter>> emittersMap;
 };
 
 } // namespace intel_cpu

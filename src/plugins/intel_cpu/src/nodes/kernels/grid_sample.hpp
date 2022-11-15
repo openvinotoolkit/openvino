@@ -96,7 +96,7 @@ public:
     explicit GridSampleKernel(const GridSampleKernelConfParams& jcp);
 
     void create_ker() override;
-    void generate() override;
+    void generate_impl() override;
 
     using Vmm   = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::avx512_core, Xbyak::Zmm,
                                                            isa == dnnl::impl::cpu::x64::sse41,       Xbyak::Xmm,
@@ -104,6 +104,9 @@ public:
     using Vmask = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::avx512_core, Xbyak::Opmask,
                                                            isa == dnnl::impl::cpu::x64::sse41,       Xbyak::Xmm,
                                                                                                      Xbyak::Ymm>::type;
+
+protected:
+    void createRegistersPool() override;
 
 private:
     uint8_t dataTypeShift = 0;

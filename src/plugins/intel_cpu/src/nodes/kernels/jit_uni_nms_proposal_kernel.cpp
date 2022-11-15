@@ -12,7 +12,7 @@ namespace node {
 
 template<cpu_isa_t isa>
 jit_uni_nms_proposal_kernel_impl<isa>::jit_uni_nms_proposal_kernel_impl(const jit_nms_conf &jcp) :
-    jit_uni_nms_proposal_kernel{jcp}, jit_generator{}, reg_is_dead_ptr{abi_not_param1}, reg_params{abi_param1} {
+    jit_uni_nms_proposal_kernel{jcp}, jit_generator{jit_name()}, reg_is_dead_ptr{abi_not_param1}, reg_params{abi_param1} {
 }
 
 template <cpu_isa_t isa>

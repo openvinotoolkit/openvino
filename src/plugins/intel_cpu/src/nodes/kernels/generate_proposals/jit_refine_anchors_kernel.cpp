@@ -22,47 +22,39 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
             float y0 = anchors[a_idx + 1 * a_idx_offset];
             float x1 = anchors[a_idx + 2 * a_idx_offset];
             float y1 = anchors[a_idx + 3 * a_idx_offset];
-
             const int d_idx = delta_idx(anchor, 0, h, w);
             const int d_idx_offset = delta_idx(anchor, 1, h, w) - delta_idx(anchor, 0, h, w);
             const float dx = deltas[d_idx + 0 * d_idx_offset];
             const float dy = deltas[d_idx + 1 * d_idx_offset];
             const float d_log_w = deltas[d_idx + 2 * d_idx_offset];
             const float d_log_h = deltas[d_idx + 3 * d_idx_offset];
-
             const float score = scores[score_idx(anchor, 0, h, w)];
-
             // width & height of box
             const float ww = x1 - x0 + coordinates_offset;
             const float hh = y1 - y0 + coordinates_offset;
             // center location of box
             const float ctr_x = x0 + 0.5f * ww;
             const float ctr_y = y0 + 0.5f * hh;
-
             // new center location according to deltas (dx, dy)
             const float pred_ctr_x = dx * ww + ctr_x;
             const float pred_ctr_y = dy * hh + ctr_y;
             // new width & height according to deltas d(log w), d(log h)
             const float pred_w = std::exp(std::min(d_log_w, max_delta_log_wh)) * ww;
             const float pred_h = std::exp(std::min(d_log_h, max_delta_log_wh)) * hh;
-
             // update upper-left corner location
             x0 = pred_ctr_x - 0.5f * pred_w;
             y0 = pred_ctr_y - 0.5f * pred_h;
             // update lower-right corner location
             x1 = pred_ctr_x + 0.5f * pred_w - coordinates_offset;
             y1 = pred_ctr_y + 0.5f * pred_h - coordinates_offset;
-
             // adjust new corner locations to be within the image region,
             x0 = std::max<float>(0.0f, std::min<float>(x0, img_w - coordinates_offset));
             y0 = std::max<float>(0.0f, std::min<float>(y0, img_h - coordinates_offset));
             x1 = std::max<float>(0.0f, std::min<float>(x1, img_w - coordinates_offset));
             y1 = std::max<float>(0.0f, std::min<float>(y1, img_h - coordinates_offset));
-
             // recompute new width & height
             const float box_w = x1 - x0 + coordinates_offset;
             const float box_h = y1 - y0 + coordinates_offset;
-
             int p_idx = proposal_idx(h, w, anchor, 0);
             proposals[p_idx + 0] = x0;
             proposals[p_idx + 1] = y0;
@@ -85,20 +77,20 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
     mov(reg_img_w.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, img_w)]);
     mov(reg_img_h.cvt32(), ptr[reg_params + offsetof(jit_refine_anchors_call_args, img_h)]);
 
-    RegistersPool::Reg<Vmm> vmm_x0 = RegistersPool::Reg<Vmm>{register_pool(), 0};
-    RegistersPool::Reg<Vmm> vmm_y0 = RegistersPool::Reg<Vmm>{register_pool(), 1};
-    RegistersPool::Reg<Vmm> vmm_x1 = RegistersPool::Reg<Vmm>{register_pool(), 2};
-    RegistersPool::Reg<Vmm> vmm_y1 = RegistersPool::Reg<Vmm>{register_pool(), 3};
-    RegistersPool::Reg<Vmm> vmm_dx = RegistersPool::Reg<Vmm>{register_pool(), 4};
-    RegistersPool::Reg<Vmm> vmm_dy = RegistersPool::Reg<Vmm>{register_pool(), 5};
-    RegistersPool::Reg<Vmm> vmm_d_log_w = RegistersPool::Reg<Vmm>{register_pool(), 6};
-    RegistersPool::Reg<Vmm> vmm_d_log_h = RegistersPool::Reg<Vmm>{register_pool(), 7};
+    RegistersPool::Reg<Vmm> vmm_x0 = RegistersPool::Reg<Vmm>{registersPool, 0};
+    RegistersPool::Reg<Vmm> vmm_y0 = RegistersPool::Reg<Vmm>{registersPool, 1};
+    RegistersPool::Reg<Vmm> vmm_x1 = RegistersPool::Reg<Vmm>{registersPool, 2};
+    RegistersPool::Reg<Vmm> vmm_y1 = RegistersPool::Reg<Vmm>{registersPool, 3};
+    RegistersPool::Reg<Vmm> vmm_dx = RegistersPool::Reg<Vmm>{registersPool, 4};
+    RegistersPool::Reg<Vmm> vmm_dy = RegistersPool::Reg<Vmm>{registersPool, 5};
+    RegistersPool::Reg<Vmm> vmm_d_log_w = RegistersPool::Reg<Vmm>{registersPool, 6};
+    RegistersPool::Reg<Vmm> vmm_d_log_h = RegistersPool::Reg<Vmm>{registersPool, 7};
 
     Xbyak::Label anchor_loop;
     Xbyak::Label loop_mask;
     Xbyak::Label l_mask;
     {
-        StackAllocator::Transaction transaction{stack_allocator()};
+        StackAllocator::Transaction transaction{*stackAllocator.get()};
         StackAllocator::RegAddress<Vmm> vmm_anchor_mask_addr{transaction};
         StackAllocator::RegAddress<Vmm> vmm_ww_addr{transaction};
         StackAllocator::RegAddress<Vmm> vmm_hh_addr{transaction};
@@ -139,9 +131,9 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
              */
 
             // Prepare indexes
-            RegistersPool::Reg<Vmm> vmm_anchor_idx{register_pool()};
-            RegistersPool::Reg<Vmm> vmm_anchor_anchor_offset{register_pool()};
-            RegistersPool::Reg<Vmm> vmm_anchor_idx_offset{register_pool()};
+            RegistersPool::Reg<Vmm> vmm_anchor_idx{registersPool};
+            RegistersPool::Reg<Vmm> vmm_anchor_anchor_offset{registersPool};
+            RegistersPool::Reg<Vmm> vmm_anchor_idx_offset{registersPool};
             uni_vbroadcastss(vmm_anchor_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchor_start_idx)]);
             uni_vbroadcastss(vmm_anchor_anchor_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchor_anchor_offset)]);
             uni_vbroadcastss(vmm_anchor_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, anchor_idx_offset)]);
@@ -150,7 +142,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
             uni_vpaddd(vmm_anchor_idx, vmm_anchor_idx, vmm_anchor_anchor_offset);
 
             // Prepare mask
-            RegistersPool::Reg<Vmm> vmm_anchor_mask{register_pool()};
+            RegistersPool::Reg<Vmm> vmm_anchor_mask{registersPool};
             mov(rax.cvt32(), this->SIMD_WIDTH);
             sub(rax, reg_anchors_chunk);
             add(rax, 16);
@@ -192,9 +184,9 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
              */
 
             // Prepare indexes
-            RegistersPool::Reg<Vmm> vmm_delta_idx{register_pool()};
-            RegistersPool::Reg<Vmm> vmm_delta_anchor_offset{register_pool()};
-            RegistersPool::Reg<Vmm> vmm_delta_idx_offset{register_pool()};
+            RegistersPool::Reg<Vmm> vmm_delta_idx{registersPool};
+            RegistersPool::Reg<Vmm> vmm_delta_anchor_offset{registersPool};
+            RegistersPool::Reg<Vmm> vmm_delta_idx_offset{registersPool};
             uni_vbroadcastss(vmm_delta_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_start_idx)]);
             uni_vbroadcastss(vmm_delta_anchor_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_anchor_offset)]);
             uni_vbroadcastss(vmm_delta_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, delta_idx_offset)]);
@@ -203,7 +195,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
             uni_vpaddd(vmm_delta_idx, vmm_delta_idx, vmm_delta_anchor_offset);
 
             // Prepare mask
-            RegistersPool::Reg<Vmm> vmm_delta_mask{register_pool()};
+            RegistersPool::Reg<Vmm> vmm_delta_mask{registersPool};
             uni_vmovdqu(vmm_delta_mask, vmm_anchor_mask_addr);
 
             {
@@ -227,7 +219,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
             vmm_delta_idx_offset.release();
             vmm_delta_mask.release();
 
-            RegistersPool::Reg<Vmm> vmm_temp{register_pool()};
+            RegistersPool::Reg<Vmm> vmm_temp{registersPool};
 
             /** @code
                 // width & height of box
@@ -390,9 +382,9 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
              */
 
             // Prepare indexes
-            RegistersPool::Reg<Vmm> vmm_proposals_idx{register_pool()};
-            RegistersPool::Reg<Vmm> vmm_proposals_anchor_offset{register_pool()};
-            RegistersPool::Reg<Vmm> vmm_proposals_idx_offset{register_pool()};
+            RegistersPool::Reg<Vmm> vmm_proposals_idx{registersPool};
+            RegistersPool::Reg<Vmm> vmm_proposals_anchor_offset{registersPool};
+            RegistersPool::Reg<Vmm> vmm_proposals_idx_offset{registersPool};
             uni_vbroadcastss(vmm_proposals_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposal_start_idx)]);
             uni_vbroadcastss(vmm_proposals_anchor_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposal_anchor_offset)]);
             uni_vbroadcastss(vmm_proposals_idx_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, proposal_idx_offset)]);
@@ -401,7 +393,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
             uni_vpaddd(vmm_proposals_idx, vmm_proposals_idx, vmm_proposals_anchor_offset);
 
             // Prepare mask
-            RegistersPool::Reg<Vmm> vmm_proposals_mask{register_pool()};
+            RegistersPool::Reg<Vmm> vmm_proposals_mask{registersPool};
             uni_vmovdqu(vmm_proposals_mask, vmm_anchor_mask_addr);
 
             {
@@ -425,11 +417,11 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
             /** @code
                 const float score = scores[score_idx(anchor, 0, h, w)];
              */
-            RegistersPool::Reg<Vmm> vmm_score{register_pool()};
+            RegistersPool::Reg<Vmm> vmm_score{registersPool};
 
             // Prepare indexes
-            RegistersPool::Reg<Vmm> vmm_score_idx{register_pool()};
-            RegistersPool::Reg<Vmm> vmm_score_anchor_offset{register_pool()};
+            RegistersPool::Reg<Vmm> vmm_score_idx{registersPool};
+            RegistersPool::Reg<Vmm> vmm_score_anchor_offset{registersPool};
             uni_vbroadcastss(vmm_score_idx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, score_start_idx)]);
             uni_vbroadcastss(vmm_score_anchor_offset, ptr[reg_params + offsetof(jit_refine_anchors_call_args, score_anchor_offset)]);
             mov(rbx, ptr[reg_params + offsetof(jit_refine_anchors_call_args, refine_anchor_indices)]);
@@ -437,7 +429,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
             uni_vpaddd(vmm_score_idx, vmm_score_idx, vmm_score_anchor_offset);
 
             // Prepare mask
-            RegistersPool::Reg<Vmm> vmm_score_mask{register_pool()};
+            RegistersPool::Reg<Vmm> vmm_score_mask{registersPool};
             uni_vmovdqu(vmm_score_mask, vmm_anchor_mask_addr);
 
             {
@@ -467,10 +459,10 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
                 const float box_w = x1 - x0 + coordinates_offset;
                 const float box_h = y1 - y0 + coordinates_offset;
              */
-            RegistersPool::Reg<Vmm> vmm_box_w{register_pool()};
-            RegistersPool::Reg<Vmm> vmm_box_h{register_pool()};
-            RegistersPool::Reg<Vmm> vmm_min_box_w{register_pool()};
-            RegistersPool::Reg<Vmm> vmm_min_box_h{register_pool()};
+            RegistersPool::Reg<Vmm> vmm_box_w{registersPool};
+            RegistersPool::Reg<Vmm> vmm_box_h{registersPool};
+            RegistersPool::Reg<Vmm> vmm_min_box_w{registersPool};
+            RegistersPool::Reg<Vmm> vmm_min_box_h{registersPool};
 
             // const float box_w = x1 - x0 + coordinates_offset;
             uni_vsubps(vmm_box_w, vmm_x1, vmm_x0);
@@ -486,7 +478,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
              */
             uni_vbroadcastss(vmm_min_box_w, ptr[reg_params + offsetof(jit_refine_anchors_call_args, min_box_w)]);
             uni_vbroadcastss(vmm_min_box_h, ptr[reg_params + offsetof(jit_refine_anchors_call_args, min_box_h)]);
-            if (is_valid_isa(avx512_core)) {
+            if (isValidIsa(avx512_core)) {
                 vcmpps(k1, vmm_min_box_w, vmm_box_w, VCMPPS_LE);
                 vpmovm2d(vmm_box_w, k1);
                 vcmpps(k1, vmm_min_box_h, vmm_box_h, VCMPPS_LE);
@@ -541,9 +533,9 @@ void jit_refine_anchors_kernel_fp32<isa>::update_input_output_ptrs() {
     add(reg_proposals_ptr, reg_num_proc_elem);
 }
 
-template struct jit_refine_anchors_kernel_fp32<x64::avx512_core>;
-template struct jit_refine_anchors_kernel_fp32<x64::avx2>;
-template struct jit_refine_anchors_kernel_fp32<x64::sse41>;
+template class jit_refine_anchors_kernel_fp32<x64::avx512_core>;
+template class jit_refine_anchors_kernel_fp32<x64::avx2>;
+template class jit_refine_anchors_kernel_fp32<x64::sse41>;
 
 } // namespace intel_cpu
 } // namespace ov

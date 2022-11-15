@@ -70,7 +70,7 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
     static constexpr unsigned SIMD_WIDTH = x64::cpu_isa_traits<isa>::vlen / sizeof(typename ov::element_type_traits<ov::element::Type_t::f32>::value_type);
 
     jit_refine_anchors_kernel_fp32(const jit_refine_anchors_conf &jqp)
-        : jit_refine_anchors_kernel(jit_name(), isa, jqp) {}
+        : jit_refine_anchors_kernel(jit_name(), jqp) {}
 
     void generate() override {
         jit_refine_anchors_kernel::generate();

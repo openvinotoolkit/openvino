@@ -9,6 +9,24 @@ using namespace intel_cpu;
 using namespace dnnl::impl::cpu;
 
 
+void JitKernelBase::generate() {
+    this->preamble();
+
+    createRegistersPool();
+    stackAllocator = std::unique_ptr<StackAllocator>(new StackAllocator{*this});
+
+    generate_impl();
+
+    registersPool.reset();
+    stackAllocator.reset();
+
+    this->postamble();
+
+    for (auto& record : emittersMap) {
+        record.second->emit_data();
+    }
+}
+
 void JitKernelBase::uni_vfmsub132ps(const Xbyak::Xmm& vDst,
                                     const Xbyak::Xmm& vSrc,
                                     const Xbyak::Operand& op) {
@@ -166,6 +184,158 @@ void JitKernelBase::uni_vandnps(const Xbyak::Xmm& vDst,
     }
 }
 
+void JitKernelBase::emu_vgatherdps(const Xbyak::Xmm& xmm_val,
+                                   const Xbyak::Reg64& reg_addr,
+                                   const Xbyak::Xmm& xmm_index,
+                                   const int& scale,
+                                   const int& disp,
+                                   const Xbyak::Reg& reg_mask,
+                                   const bool is_mask_seq/* = true*/) {
+    const size_t kDataTypeSize = sizeof(float);
+    Xbyak::Xmm xmm_mask{reg_mask.getIdx(), reg_mask.getKind(), static_cast<int>(reg_mask.getBit())};
+    std::vector<Xbyak::Xmm> not_available_xmm{xmm_index, xmm_val, xmm_mask};
+    if (isValidIsa(x64::avx512_core)) {
+        const Xbyak::Zmm zmm_zero_val = registersPool->getInplaceFree<Xbyak::Zmm>(not_available_xmm);
+        push(zmm_zero_val);
+        uni_vxorps(zmm_zero_val, zmm_zero_val, zmm_zero_val);
+        RegistersPool::Reg<Xbyak::Opmask> avx512_mask{registersPool, 1};
+        vpcmpud(avx512_mask, Xbyak::Zmm{reg_mask.getIdx()}, zmm_zero_val, VCMPPS_GT);
+        pop(zmm_zero_val);
+        vgatherdps(xmm_val | avx512_mask, ptr[reg_addr + xmm_index * scale + disp]);
+    } else if (isValidIsa(x64::avx2)) {
+        assert(reg_mask.isYMM());
+        Xbyak::Ymm ymm_mask{reg_mask.getIdx()};
+        vgatherdps(xmm_val, ptr[reg_addr + xmm_index * scale + disp], ymm_mask);
+    } else {
+        const size_t kSimdWidth = x64::cpu_isa_traits<x64::sse41>::vlen / kDataTypeSize;
+        assert(reg_mask.isXMM());
+        assert(xmm_val.getKind() == xmm_index.getKind());
+        assert(xmm_index.getKind() == xmm_mask.getKind());
+
+        std::vector<Xbyak::Reg> not_available_reg{reg_addr};
+        const Xbyak::Reg64 idx = registersPool->getInplaceFree<Xbyak::Reg64>(not_available_reg);
+        const Xbyak::Reg64 mask = registersPool->getInplaceFree<Xbyak::Reg64>(not_available_reg);
+
+        push(idx);
+        push(mask);
+        xor_(idx, idx);
+        xor_(mask, mask);
+
+        Xbyak::Label gather_fast_end;
+        for (int i = 0; i < static_cast<int>(kSimdWidth); i++) {
+            Xbyak::Label gather_end;
+            uni_vpextrd(mask.cvt32(), xmm_mask, i);
+            cmp(mask.cvt32(), 0xFFFFFFFF);
+            if (is_mask_seq) {
+                jne(gather_fast_end, T_SHORT);
+            } else {
+                jne(gather_end, T_SHORT);
+            }
+            uni_vpextrd(idx.cvt32(), xmm_index, i);
+            Xbyak::Address addr = ptr[reg_addr + idx * scale + disp];
+            uni_vpinsrd(xmm_val, xmm_val, addr, i);
+            if (!is_mask_seq) {
+                L(gather_end);
+            }
+        }
+        if (is_mask_seq) {
+            L(gather_fast_end);
+        }
+
+        pop(mask);
+        pop(idx);
+    }
+}
+
+void JitKernelBase::emu_vscatterdps(const Xbyak::Reg64& reg_addr,
+                                    const Xbyak::Xmm& xmm_index,
+                                    const int scale,
+                                    const int disp,
+                                    const Xbyak::Xmm& xmm_val,
+                                    const Xbyak::Reg& reg_mask,
+                                    const bool is_mask_seq /* = true*/) {
+    const size_t kDataTypeSize = sizeof(float);
+    Xbyak::Xmm xmm_mask{reg_mask.getIdx(), reg_mask.getKind(), static_cast<int>(reg_mask.getBit())};
+    std::vector<Xbyak::Xmm> not_available_xmm{xmm_index, xmm_val, xmm_mask};
+    if (isValidIsa(x64::avx512_core)) {
+        const Xbyak::Zmm zmm_zero_val = registersPool->getInplaceFree<Xbyak::Zmm>(not_available_xmm);
+        push(zmm_zero_val);
+        uni_vxorps(zmm_zero_val, zmm_zero_val, zmm_zero_val);
+        RegistersPool::Reg<Xbyak::Opmask> avx512_mask{registersPool, 1};
+        vpcmpud(avx512_mask, Xbyak::Zmm{reg_mask.getIdx()}, zmm_zero_val, VCMPPS_GT);
+        pop(zmm_zero_val);
+        vscatterdps(ptr[reg_addr + xmm_index * scale + disp], xmm_val | avx512_mask);
+    } else {
+        assert(reg_mask.isXMM() || reg_mask.isYMM());
+        const size_t kXmmSimdWidth = x64::cpu_isa_traits<x64::sse41>::vlen / kDataTypeSize;
+        const size_t kYmmSimdWidth = x64::cpu_isa_traits<x64::avx2>::vlen / kDataTypeSize;
+        assert(xmm_val.getKind() == xmm_index.getKind());
+        assert(xmm_index.getKind() == xmm_mask.getKind());
+
+        std::vector<Xbyak::Reg> not_available_reg{reg_addr};
+        const Xbyak::Reg64 idx = registersPool->getInplaceFree<Xbyak::Reg64>(not_available_reg);
+        const Xbyak::Reg64 mask = registersPool->getInplaceFree<Xbyak::Reg64>(not_available_reg);
+        const Xbyak::Reg64 val = registersPool->getInplaceFree<Xbyak::Reg64>(not_available_reg);
+        const Xbyak::Xmm xmm_mask_temp = registersPool->getInplaceFree<Xbyak::Xmm>(not_available_xmm);
+        const Xbyak::Xmm xmm_index_temp = registersPool->getInplaceFree<Xbyak::Xmm>(not_available_xmm);
+        const Xbyak::Xmm xmm_val_temp = registersPool->getInplaceFree<Xbyak::Xmm>(not_available_xmm);
+
+        push(idx);
+        push(mask);
+        push(val);
+        if (isValidIsa(x64::avx2)) {
+            push(Xbyak::Ymm{xmm_mask_temp.getIdx()});
+            push(Xbyak::Ymm{xmm_index_temp.getIdx()});
+            push(Xbyak::Ymm{xmm_val_temp.getIdx()});
+        }
+        xor_(idx, idx);
+        xor_(mask, mask);
+        xor_(val, val);
+
+        Xbyak::Label scatter_fast_end;
+        auto store_xmm = [&](const Xbyak::Xmm& xmm_mask, const Xbyak::Xmm& xmm_index, const Xbyak::Xmm& xmm_val) {
+            for (int i = 0; i < static_cast<int>(kXmmSimdWidth); i++) {
+                Xbyak::Label scatter_end;
+                uni_vpextrd(mask.cvt32(), xmm_mask, i);
+                cmp(mask.cvt32(), 0xFFFFFFFF);
+                if (is_mask_seq) {
+                    jne(scatter_fast_end, T_NEAR);
+                } else {
+                    jne(scatter_end, T_NEAR);
+                }
+                uni_vpextrd(idx.cvt32(), xmm_index, i);
+                Xbyak::Address addr = ptr[reg_addr + idx * scale];
+                uni_vpextrd(val.cvt32(), xmm_val, i);
+                mov(addr, val.cvt32());
+                if (!is_mask_seq) {
+                    L(scatter_end);
+                }
+            }
+        };
+
+        if (isValidIsa(x64::avx2)) {
+            for (int i = 0; i < static_cast<int>(kYmmSimdWidth / kXmmSimdWidth); i++) {
+                vextracti128(xmm_mask_temp, Xbyak::Ymm{xmm_mask.getIdx()}, i);
+                vextracti128(xmm_index_temp, Xbyak::Ymm{xmm_index.getIdx()}, i);
+                vextracti128(xmm_val_temp, Xbyak::Ymm{xmm_val.getIdx()}, i);
+                store_xmm(xmm_mask_temp, xmm_index_temp, xmm_val_temp);
+            }
+        } else {
+            store_xmm(xmm_mask, xmm_index, xmm_val);
+        }
+        L(scatter_fast_end);
+
+        if (isValidIsa(x64::avx2)) {
+            pop(Xbyak::Ymm{xmm_val_temp.getIdx()});
+            pop(Xbyak::Ymm{xmm_index_temp.getIdx()});
+            pop(Xbyak::Ymm{xmm_mask_temp.getIdx()});
+        }
+        pop(val);
+        pop(mask);
+        pop(idx);
+    }
+}
+
 void JitKernelBase::gatherdd(const Xbyak::Xmm&    vDst,
                              const Xbyak::Reg64&  rSrcPtr,
                              const Xbyak::Xmm&    vSrcShift,
@@ -281,6 +451,60 @@ void JitKernelBase::uni_vpbroadcastd(const Xbyak::Ymm &x, const Xbyak::Operand &
             }
             vinsertf128(x, x, t, 1);
             vshufps(x, x, x, 0);
+        }
+    }
+}
+
+void JitKernelBase::uni_vaddps(const Xbyak::Xmm& x, const Xbyak::Xmm& op1, const Xbyak::Operand& op2) {
+    if (isValidIsa(x64::avx)) {
+        vaddps(x, op1, op2);
+    } else {
+        if (x.getIdx() == op1.getIdx()) {
+            addps(x, op2);
+        } else if (x.isEqualIfNotInherited(op2)) {
+            addps(x, op1);
+        } else {
+            movups(x, op1);
+            addps(x, op2);
+        }
+    }
+}
+
+void JitKernelBase::uni_vsubps(const Xbyak::Xmm& x, const Xbyak::Xmm& op1, const Xbyak::Operand& op2) {
+    if (isValidIsa(x64::avx)) {
+        vsubps(x, op1, op2);
+    } else {
+        if (x.getIdx() == op1.getIdx()) {
+            subps(x, op2);
+        } else if (x.isEqualIfNotInherited(op2)) {
+            push(op1);
+            subps(op1, op2);
+            movups(x, op1);
+            pop(op1);
+        } else {
+            movups(x, op1);
+            subps(x, op2);
+        }
+    }
+}
+
+void JitKernelBase::uni_vcmpps(const Xbyak::Xmm& x,
+                               const Xbyak::Xmm& op1,
+                               const Xbyak::Operand& op2,
+                               const int cmp_predicate) {
+    if (isValidIsa(x64::avx)) {
+        vcmpps(x, op1, op2, cmp_predicate);
+    } else {
+        if (x.getIdx() == op1.getIdx()) {
+            cmpps(x, op2, cmp_predicate);
+        } else if (x.isEqualIfNotInherited(op2)) {
+            push(op1);
+            cmpps(op1, op2, cmp_predicate);
+            movups(x, op1);
+            pop(op1);
+        } else {
+            movups(x, op1);
+            cmpps(x, op2, cmp_predicate);
         }
     }
 }
@@ -443,6 +667,34 @@ void JitKernelBase::store(const Xbyak::Address& dstAddr,
     }
     L(lEnd);
 }
+
+
+void JitKernelBase::push(const Xbyak::Xmm& xmm) {
+    if (xmm.isXMM()) {
+        sub(rsp, xmm_len);
+        uni_vmovdqu(ptr[rsp], xmm);
+    } else if (xmm.isYMM()) {
+        sub(rsp, ymm_len);
+        uni_vmovdqu(ptr[rsp], Xbyak::Ymm{xmm.getIdx()});
+    } else if (xmm.isZMM()) {
+        sub(rsp, zmm_len);
+        uni_vmovdqu(ptr[rsp], Xbyak::Zmm{xmm.getIdx()});
+    }
+}
+
+void JitKernelBase::pop(const Xbyak::Xmm& xmm) {
+    if (xmm.isXMM()) {
+        uni_vmovdqu(xmm, ptr[rsp]);
+        add(rsp, xmm_len);
+    } else if (xmm.isYMM()) {
+        uni_vmovdqu(Xbyak::Ymm{xmm.getIdx()}, ptr[rsp]);
+        add(rsp, ymm_len);
+    } else if (xmm.isZMM()) {
+        uni_vmovdqu(Xbyak::Zmm{xmm.getIdx()}, ptr[rsp]);
+        add(rsp, zmm_len);
+    }
+}
+
 
 void JitKernelBase::memMovDD(const Xbyak::Reg64& rDst,
                              const Xbyak::Reg64& rSrc,

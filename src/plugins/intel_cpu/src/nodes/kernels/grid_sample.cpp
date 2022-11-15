@@ -34,10 +34,7 @@ void GridSampleKernel<isa>::create_ker() {
 }
 
 template <x64::cpu_isa_t isa>
-void GridSampleKernel<isa>::generate() {
-    this->preamble();
-    registersPool = RegistersPool::create(isa, {rax, rcx, rsp, rdi, k0});
-
+void GridSampleKernel<isa>::generate_impl() {
     regSrc  = getReg64();
     regGrid = getReg64();
     regDst  = getReg64();
@@ -52,9 +49,11 @@ void GridSampleKernel<isa>::generate() {
 
     initVectors();
     process();
+}
 
-    registersPool.reset();
-    this->postamble();
+template <x64::cpu_isa_t isa>
+void GridSampleKernel<isa>::createRegistersPool() {
+    registersPool = RegistersPool::create(isa, {rax, rcx, rsp, rdi, k0});
 }
 
 template <>
