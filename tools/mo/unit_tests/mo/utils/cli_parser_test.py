@@ -707,11 +707,6 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
         input_shapes = "(1,22,333,123), (-1,45,7,1), (-1,456,7,1)"
         self.assertRaises(Error, get_placeholder_shapes, argv_input, input_shapes)
 
-    def test_get_shapes_several_shapes_no_input(self):
-        argv_input = ""
-        input_shapes = "(1,22,333,123), (-1,45,7,1), (-1,456,7,1)"
-        self.assertRaises(Error, get_placeholder_shapes, argv_input, input_shapes)
-
     def test_get_shapes_one_input_one_shape(self):
         argv_input = "inp1"
         input_shapes = "(1,22,333,123)"
@@ -743,10 +738,6 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
         exp_res = np.array([12, 4, 1])
         assert np.array_equal(result, exp_res)
 
-    def test_get_shapes_no_input_two_shapes(self):
-        argv_input = ""
-        input_shapes = "(12,4,1),(5,4,3)"
-        self.assertRaises(Error, get_placeholder_shapes, argv_input, input_shapes)
 
     def test_get_shapes_one_input_no_shape(self):
         argv_input = "inp1"

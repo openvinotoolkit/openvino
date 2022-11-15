@@ -85,12 +85,12 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         inputs_equal, outputs_equal))
 
     def create_target_input_shapes(new_input_places):
-        if isinstance(new_input_places, dict):
-            new_input_place_names = [x.get_names()[0] for x in new_input_places]
-            shapes = [shape for shape in argv.placeholder_shapes.values()]
-            return dict(zip(new_input_place_names, shapes))
-        else:
+        if isinstance(new_input_places, list) and len(new_input_places) > 1 \
+                and isinstance(new_input_places[0], tuple):
             return new_input_places
+        new_input_place_names = [x.get_names()[0] for x in new_input_places]
+        shapes = [shape for shape in argv.placeholder_shapes.values()]
+        return dict(zip(new_input_place_names, shapes))
 
     if not inputs_equal and not outputs_equal:
         log.debug('Using extract subgraph')
