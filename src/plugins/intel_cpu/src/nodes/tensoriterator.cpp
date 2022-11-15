@@ -540,13 +540,14 @@ void TensorIterator::executeDynamicImpl(dnnl::stream strm) {
     const auto &eng = getEngine();
     sub_graph.ResetInferCount();
 
+    bool continue_cond = initial_cond_check->getStatus();
     const auto max_num_iter = trip_count_check->getStatus();
 
     for (auto &mapper : first_mappers)
         mapper->execute(strm);
 
     // use  "lastUsedTripCount != max_num_iter" only to allow "-1" works like infinite loop
-    for (; lastUsedTripCount != max_num_iter; ++lastUsedTripCount) {
+    for (; lastUsedTripCount != max_num_iter && continue_cond; ++lastUsedTripCount) {
         // copy data to subgraph iteration
         for (auto& mapper : before_mappers)
             mapper->execute(strm, lastUsedTripCount);
@@ -555,15 +556,13 @@ void TensorIterator::executeDynamicImpl(dnnl::stream strm) {
 
         sub_graph.Infer();
 
-        if (!continue_cond_check->getStatus()) {
-            break;
-        }
+        continue_cond = continue_cond_check->getStatus();
 
         for (auto& buffer : buffers)
             buffer->execute(eng, lastUsedTripCount);
 
         // on the last iteration we shouldn't reshape body inputs and init back edges
-        if ((lastUsedTripCount + 1) != max_num_iter)
+        if ((lastUsedTripCount + 1) != max_num_iter && continue_cond)
             prepareDynamicBackEdges();
     }
 
