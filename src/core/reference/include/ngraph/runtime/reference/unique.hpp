@@ -227,7 +227,7 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
         ret.all_tensor_elements[0].rev_idx = 0;
         ret.unique_tensor_elements.push_back(ret.all_tensor_elements[0]);
 
-        for (int64_t i = 1; i < data_shape[*axis]; ++i) {
+        for (size_t i = 1; i < data_shape[*axis]; ++i) {
             auto& tensor_element = ret.all_tensor_elements[i];
             auto existing_unique = end(ret.unique_tensor_elements);
             if (sorted) {
@@ -259,7 +259,7 @@ std::tuple<Shape, Shape, Shape> make_tensor_shapes(const UniqueElements<Index_t,
                                                    const Shape& data_shape,
                                                    std::unique_ptr<int64_t> axis) {
     if (axis) {
-        // if the axis was specified we need to return a data shape with a modified dimention-at-axis
+        // if the axis was specified we need to return a data shape with a modified dimension-at-axis
         // this is where we need to insert the number of detected unique elements
         // all other dimensions stay the same as in the original data_shape
         auto output0 = data_shape;

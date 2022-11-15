@@ -110,7 +110,7 @@ std::vector<T> flatten(std::initializer_list<std::vector<T>> test_cases) {
 
 template <typename Data_t, typename Index_t>
 std::vector<UniqueParams> params_unique_int() {
-    static_assert(std::numeric_limits<Data_t>::is_integer);
+    static_assert(std::numeric_limits<Data_t>::is_integer, "Integer type expected");
     std::vector<UniqueParams> scalar_and_1D{UniqueParams{Shape{},
                                                          std::vector<Data_t>{1},
                                                          std::vector<Data_t>{1},
@@ -272,7 +272,7 @@ std::vector<UniqueParams> params_unique_int() {
 
 template <typename Data_t, typename Index_t>
 std::vector<UniqueParams> params_unique_float() {
-    static_assert(!std::numeric_limits<Data_t>::is_integer);
+    static_assert(!std::numeric_limits<Data_t>::is_integer, "Floating point type expected");
     // just some fancy numbers to be used in the input tensors
     const auto sq2 = Data_t{1.4142135};
     const auto sq3 = Data_t{1.7320508075};
