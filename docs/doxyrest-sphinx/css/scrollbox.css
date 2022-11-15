@@ -24,3 +24,7 @@
 .scrollbox.sortable-table::-webkit-scrollbar-thumb {
    background: transparent;
 }
+.scrollbox.sortable-table {
+   scrollbar-width: none;
+   -ms-overflow-style: none;
+}
