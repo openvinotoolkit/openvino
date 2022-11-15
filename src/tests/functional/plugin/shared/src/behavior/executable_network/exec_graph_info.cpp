@@ -241,6 +241,76 @@ const char expected_serialized_model[] = R"V0G0N(
 </net>
 )V0G0N";
 
+const char expected_serialized_model_cpu[] = R"V0G0N(
+<?xml version="1.0"?>
+<net name="addmul_abc" version="10">
+	<layers>
+		<layer id="0" name="C" type="Input">
+			<data shape="1" element_type="f32" execOrder="2" execTimeMcs="not_executed" originalLayersNames="C" outputLayouts="a" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="B" type="Input">
+			<data shape="1" element_type="f32" execOrder="1" execTimeMcs="not_executed" originalLayersNames="B" outputLayouts="a" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="A" type="Input">
+			<data shape="1" element_type="f32" execOrder="0" execTimeMcs="not_executed" originalLayersNames="A" outputLayouts="a" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="Y" type="Subgraph">
+			<data execOrder="3" execTimeMcs="not_executed" originalLayersNames="add_node1,add_node2,add_node3,add_node4,Y" outputLayouts="a" outputPrecisions="FP32" primitiveType="jit_avx512_FP32" runtimePrecision="FP32" />
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+				</port>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+				</port>
+				<port id="2" precision="FP32">
+					<dim>1</dim>
+				</port>
+				<port id="3" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="4" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="4" name="Y/sink_port_0" type="Output">
+			<data execOrder="4" execTimeMcs="not_executed" originalLayersNames="Y/sink_port_0" outputLayouts="undef" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32" />
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="3" to-port="2" />
+		<edge from-layer="0" from-port="0" to-layer="3" to-port="3" />
+		<edge from-layer="1" from-port="0" to-layer="3" to-port="1" />
+		<edge from-layer="2" from-port="0" to-layer="3" to-port="0" />
+		<edge from-layer="3" from-port="4" to-layer="4" to-port="0" />
+	</edges>
+	<rt_info />
+</net>
+)V0G0N";
+
 
 std::string ExecGraphSerializationTest::getTestCaseName(testing::TestParamInfo<std::string> obj) {
     std::ostringstream result;
@@ -354,7 +424,7 @@ TEST_P(ExecGraphSerializationTest, ExecutionGraph) {
 
     pugi::xml_document expected;
     pugi::xml_document result;
-    ASSERT_TRUE(expected.load_string(expected_serialized_model));
+    ASSERT_TRUE(expected.load_string(target_device == "CPU" ? expected_serialized_model_cpu : expected_serialized_model));
     ASSERT_TRUE(result.load_file(m_out_xml_path.c_str()));
 
     bool status;
