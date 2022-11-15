@@ -4,6 +4,7 @@
 
 #include "ocl_command_queues_builder.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include <string>
 
 namespace cldnn {
@@ -69,8 +70,21 @@ std::vector<cl_queue_properties> command_queues_builder::get_properties(const cl
                                                  CL_QUEUE_INDEX_INTEL, stream_id % num_queues});
     }
 
+    bool out_of_order = _out_of_order;
+    if (_out_of_order) {
+        auto queue_properties = device.getInfo<CL_DEVICE_QUEUE_PROPERTIES>();
+        using cmp_t = std::common_type<decltype(queue_properties), typename std::underlying_type<cl::QueueProperties>::type>::type;
+        if (!(static_cast<cmp_t>(queue_properties) & static_cast<cmp_t>(cl::QueueProperties::OutOfOrder))) {
+            out_of_order = false;
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                GPU_DEBUG_COUT << "Requested out-of-order queue is not supported by current device. Use in-order instead";
+            }
+        }
+    }
+
     cl_command_queue_properties cl_queue_properties =
-        ((_profiling ? CL_QUEUE_PROFILING_ENABLE : 0) | (_out_of_order ? CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE : 0));
+        ((_profiling ? CL_QUEUE_PROFILING_ENABLE : 0) | (out_of_order ? CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE : 0));
 
     properties.insert(properties.end(), {CL_QUEUE_PROPERTIES, cl_queue_properties, 0});
 
