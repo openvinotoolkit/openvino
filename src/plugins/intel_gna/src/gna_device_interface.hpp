@@ -67,6 +67,11 @@ public:
      * @return maximum layers count
      **/
     virtual uint32_t maxLayersCount() const = 0;
+
+    /**
+     * @brief close the device.
+     **/
+    virtual void close() {}
 };
 
 }  // namespace GNAPluginNS
