@@ -932,6 +932,7 @@ bool primitive_inst::is_valid_fusion() const {
 
 void primitive_inst::add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, int64_t time) {
     instrumentation::perf_counter_key key {
+            _network.get_input_layouts(),
             _impl_params->input_layouts,
             _impl_params->output_layouts,
             get_implementation_name(),
