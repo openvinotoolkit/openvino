@@ -116,13 +116,13 @@ public:
         _prim = dnnl::primitive(_pd, prim_cache);
     }
 
-    static primitive_impl* create(const reduce_node& arg, const kernel_impl_params& impl_params) {
+    static std::unique_ptr<primitive_impl> create(const reduce_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto desc = get_reduction_descriptor(impl_params);
         auto attr = arg.get_onednn_primitive_attributes();
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
 
-        return new reduction_onednn(engine, desc, attr, prim_desc);
+        return cldnn::make_unique<reduction_onednn>(engine, desc, attr, prim_desc);
     }
 };
 

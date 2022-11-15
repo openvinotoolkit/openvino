@@ -45,11 +45,13 @@ kernel_selector::Datatype get_indices_output_type(const data_types indices_outpu
     }
     return kernel_selector::Datatype::INT32;
 }
-};  // namespace
+}  // namespace
 
 struct multiclass_nms_impl : public typed_primitive_impl_ocl<multiclass_nms> {
     using parent = typed_primitive_impl_ocl<multiclass_nms>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::multiclass_nms_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::multiclass_nms_params, kernel_selector::multiclass_nms_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -66,12 +68,12 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const multiclass_nms_node& arg, const kernel_impl_params& impl_param) {
+   static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<multiclass_nms>();
         auto params = get_default_params<kernel_selector::multiclass_nms_params>(impl_param);
-        auto optional_params =
-            get_default_optional_params<kernel_selector::multiclass_nms_optional_params>(arg.get_program());
+        auto optional_params = get_default_optional_params<kernel_selector::multiclass_nms_optional_params>(impl_param.get_program());
 
-        const auto& attrs = arg.get_primitive()->attrs;
+        const auto& attrs = primitive->attrs;
 
         params.sort_result_type = get_sort_result_type(attrs.sort_result);
         params.sort_result_across_batch = attrs.sort_result_across_batch;
@@ -83,26 +85,15 @@ public:
         params.background_class = attrs.background_class;
         params.normalized = attrs.normalized;
         params.nms_eta = attrs.nms_eta;
-        params.has_roisnum = arg.has_roisnum();
+        params.has_roisnum = primitive->has_roisnum;
 
-        params.inputs.push_back(convert_data_tensor(arg.scores().get_output_layout()));
+        size_t extra_inputs_num = primitive->has_roisnum ? 4 : 3;
 
-        if (arg.has_roisnum()) {
-            params.inputs.push_back(convert_data_tensor(arg.roisnum().get_output_layout()));
+        for (size_t i = 0; i < extra_inputs_num; i++) {
+            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1 + i)));
         }
 
-        params.inputs.push_back(convert_data_tensor(arg.output_selected_indices().get_output_layout()));
-        params.inputs.push_back(convert_data_tensor(arg.output_selected_num().get_output_layout()));
-
-        const auto& kernel_selector = kernel_selector::multiclass_nms_kernel_selector::Instance();
-        const auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "best_kernels.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        return new multiclass_nms_impl(arg, best_kernels[0]);
+        return {params, optional_params};
     }
 };
 
@@ -119,7 +110,7 @@ attach_multiclass_nms_impl::attach_multiclass_nms_impl() {
         format::bs_fs_yx_bsv32_fsv32,
     };
 
-    implementation_map<multiclass_nms>::add(impl_types::ocl, multiclass_nms_impl::create, types, formats);
+    implementation_map<multiclass_nms>::add(impl_types::ocl, typed_primitive_impl_ocl<multiclass_nms>::create<multiclass_nms_impl>, types, formats);
 }
 }  // namespace detail
 }  // namespace ocl

@@ -7,7 +7,7 @@
 
 #include "ngraph/op/non_max_suppression.hpp"
 #include <ngraph/opsets/opset3.hpp>
-#include <ngraph_ops/nms_ie_internal.hpp>
+#include <ov_ops/nms_ie_internal.hpp>
 
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
