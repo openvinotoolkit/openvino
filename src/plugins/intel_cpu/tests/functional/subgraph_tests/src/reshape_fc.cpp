@@ -90,14 +90,6 @@ protected:
 
         function = makeNgraphFunction(prc, params, matMul, "ReshapeFcModel");
     }
-
-    bool primTypeCheck(std::string primType) const override {
-        // FullyConnected may use brgconv 1x1 kernel
-        if (primType == "brgconv_avx512_1x1_FP32")
-            return true;
-
-        return selectedType == primType;
-    }
 };
 
 TEST_P(ReshapeFcCPUTest, CompareWithRefs) {

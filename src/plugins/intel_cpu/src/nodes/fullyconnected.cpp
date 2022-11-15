@@ -831,6 +831,22 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
             retVal = true;
     }
 
+    if (retVal) {
+        const auto srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
+        const auto srcDims = srcMemPtr->getStaticDims();
+        const auto weightMemPtr = getParentEdgesAtPort(1)[0]->getMemoryPtr();
+        const auto weightDims = weightMemPtr->getStaticDims();
+        Dim M, N, K;
+        M = srcDims[inRank - 2];
+        K = srcDims[inRank - 1];
+        N = weightDims[0];
+
+        if (!(M >= 49 && M <= 3136 &&
+              K >= 96 && K <= 4096 &&
+              N >= 96 && N <= K * 4))
+            retVal = false;
+    }
+
     return retVal;
 }
 
