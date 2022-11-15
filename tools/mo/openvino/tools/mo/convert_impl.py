@@ -685,10 +685,12 @@ def convert_pytorch_to_onnx(model, input_shape, opset_version, example_inputs, o
         model_onnx = io.BytesIO()
     else:
         model_onnx = get_onnx_temp_filename(output_dir)
+    if opset_version is not None:
+        additional_params.update({'opset_version': opset_version})
+
     torch.onnx.export(model,
                       inputs,
                       model_onnx,
-                      opset_version=opset_version,
                       **additional_params)
     return model_onnx
 
@@ -871,8 +873,7 @@ def _convert(**args):
         model_framework = check_model_object(args)
         if model_framework == "pytorch" and not os.environ.get('USE_PYTORCH_FRONTEND'):
 
-            # Currently supported opset by ONNX frontend
-            opset_version = 16
+            opset_version = None
             if 'onnx_opset_version' in args and args['onnx_opset_version'] is not None:
                 opset_version = args['onnx_opset_version']
 
