@@ -846,7 +846,7 @@ bool ov::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_ptr<ov
         using namespace back_prop;
         ADD_MATCHER(ric_back_prop, Binary)
         ADD_MATCHER(ric_back_prop, ConvertPassThrough)
-        REGISTER_PASS(m, Constant, _run_on_function)
+        REGISTER_PASS(m, Constant)
     }
     // TODO: validate attributes by request
 

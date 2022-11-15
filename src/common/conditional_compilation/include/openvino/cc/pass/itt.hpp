@@ -23,7 +23,7 @@ OV_CC_DOMAINS(ov_pass);
 
 #    define ADD_MATCHER_FOR_THIS(region, ...)        add_matcher<region>(__VA_ARGS__);
 #    define ADD_MATCHER(obj, region, ...)            obj->add_matcher<region>(__VA_ARGS__);
-#    define REGISTER_PASS(obj, region, flag, ...)    obj.register_pass<region>(__VA_ARGS__);
+#    define REGISTER_PASS(obj, region, ...)          obj.register_pass<region>(__VA_ARGS__);
 #    define REGISTER_DISABLED_PASS(obj, region, ...) obj.register_pass<region, false>(__VA_ARGS__);
 #elif defined(SELECTIVE_BUILD)
 
@@ -52,9 +52,24 @@ OV_CC_DOMAINS(ov_pass);
 
 #    define REGISTER_PASS_1(obj, region, ...) obj.register_pass<region>(__VA_ARGS__);
 #    define REGISTER_PASS_0(obj, region, ...)
-#    define REGISTER_PASS(obj, region, flag, ...)                                                          \
-        OV_PP_CAT(REGISTER_PASS_, OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, OV_PP_CAT(region, flag)))) \
+#    define PASS_DEFAULT(region)      OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, region))
+#    define PASS_RUN_ON_MODEL(region) OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, OV_PP_CAT(region, _run_on_model)))
+#    define PASS_RUN_ON_FUNCTION(region) \
+        OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, OV_PP_CAT(region, _run_on_function)))
+#    define OR_000                         0
+#    define OR_001                         1
+#    define OR_010                         1
+#    define OR_011                         1
+#    define OR_100                         1
+#    define OR_101                         1
+#    define OR_110                         1
+#    define OR_111                         1
+#    define CAT_3_CONDITION(OP1, OP2, OP3) OV_PP_CAT(OR_, OV_PP_CAT3(OP1, OP2, OP3))
+#    define REGISTER_PASS(obj, region, ...)                                                                       \
+        OV_PP_CAT(REGISTER_PASS_,                                                                                 \
+                  CAT_3_CONDITION(PASS_DEFAULT(region), PASS_RUN_ON_MODEL(region), PASS_RUN_ON_FUNCTION(region))) \
         (obj, region, __VA_ARGS__)
+
 #    define REGISTER_PASS_WITH_FALSE_1(obj, ...) obj.register_pass<region, false>(__VA_ARGS__);
 #    define REGISTER_PASS_WITH_FALSE_0(obj, ...)
 #    define REGISTER_DISABLED_PASS(obj, region, ...)                                                 \
@@ -68,6 +83,6 @@ OV_CC_DOMAINS(ov_pass);
 
 #    define ADD_MATCHER_FOR_THIS(region, ...)        add_matcher<region>(__VA_ARGS__);
 #    define ADD_MATCHER(obj, region, ...)            obj->add_matcher<region>(__VA_ARGS__);
-#    define REGISTER_PASS(obj, region, flag, ...)    obj.register_pass<region>(__VA_ARGS__);
+#    define REGISTER_PASS(obj, region, ...)          obj.register_pass<region>(__VA_ARGS__);
 #    define REGISTER_DISABLED_PASS(obj, region, ...) obj.register_pass<region, false>(__VA_ARGS__);
 #endif

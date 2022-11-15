@@ -261,8 +261,8 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
                 params,
                 PrecisionsRestriction::getPrecisionsByOperationType<opset1::GroupConvolution>(precisionRestrictions))
 
-    REGISTER_PASS(manager, FoldFakeQuantizeTransformation, , params)
-    REGISTER_PASS(manager, ConstantFolding, )
+    REGISTER_PASS(manager, FoldFakeQuantizeTransformation, params)
+    REGISTER_PASS(manager, ConstantFolding)
 
     manager.run_passes(f);
     return false;

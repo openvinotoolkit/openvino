@@ -260,7 +260,7 @@ bool ov::pass::StridedSliceOptimization::run_on_model(const std::shared_ptr<ngra
 
     ov::pass::Manager manager(get_pass_config());
     using namespace ngraph::pass;
-    REGISTER_PASS(manager, SliceToStridedSlice, , m_use_shapes)
+    REGISTER_PASS(manager, SliceToStridedSlice, m_use_shapes)
     manager.run_passes(f);
 
     bool rewritten = false;

@@ -327,18 +327,18 @@ bool ov::pass::SimplifyShapeOfSubGraph::run_on_model(const std::shared_ptr<ngrap
     manager.set_per_pass_validation(false);
 
     using namespace ov::pass;
-    REGISTER_PASS(manager, EliminateGatherUnsqueeze, )
-    REGISTER_PASS(manager, SharedShapeOf, _run_on_function)
-    REGISTER_PASS(manager, GroupedGatherElimination, )
+    REGISTER_PASS(manager, EliminateGatherUnsqueeze)
+    REGISTER_PASS(manager, SharedShapeOf)
+    REGISTER_PASS(manager, GroupedGatherElimination)
     // GatherNopElimination depends on shape, so it requires shape propagation
     // if previous transformations has resolved some dynamic shapes.
-    REGISTER_PASS(manager, Validate, _run_on_model)
-    REGISTER_PASS(manager, GatherNopElimination, )
-    REGISTER_PASS(manager, SimplifyGatherShapeOf, )
-    REGISTER_PASS(manager, SimplifySecondInputOfReshape, )
+    REGISTER_PASS(manager, Validate)
+    REGISTER_PASS(manager, GatherNopElimination)
+    REGISTER_PASS(manager, SimplifyGatherShapeOf)
+    REGISTER_PASS(manager, SimplifySecondInputOfReshape)
 
     // TODO: potentially this Validate is not needed but it requires additional validation
-    REGISTER_PASS(manager, Validate, _run_on_model)
+    REGISTER_PASS(manager, Validate)
 
     manager.run_passes(f);
     return false;

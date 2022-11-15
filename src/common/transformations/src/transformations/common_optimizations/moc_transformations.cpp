@@ -90,7 +90,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
 
     ov::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
-    REGISTER_PASS(manager, InitNodeInfo, _run_on_model)
+    REGISTER_PASS(manager, InitNodeInfo)
     if (m_low_precision_enabled) {
         manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
             element::TypeVector{ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4});
@@ -105,38 +105,38 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     // In particular, if zero dim tensor is consumed in body of MultiSubGraphOp
     // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParams should be called together.
     using namespace ov::pass;
-    REGISTER_PASS(manager, RemoveConcatZeroDimInput, )
-    REGISTER_PASS(manager, Validate, )
-    REGISTER_PASS(manager, RemoveMultiSubGraphOpDanglingParams, )
-    REGISTER_PASS(manager, FoldSubgraphEmptyInputs, )
-    REGISTER_PASS(manager, DisableRandomUniformConstantFolding, )
-    REGISTER_PASS(manager, ConstantFolding, )
-    REGISTER_PASS(manager, Validate, )
+    REGISTER_PASS(manager, RemoveConcatZeroDimInput)
+    REGISTER_PASS(manager, Validate)
+    REGISTER_PASS(manager, RemoveMultiSubGraphOpDanglingParams)
+    REGISTER_PASS(manager, FoldSubgraphEmptyInputs)
+    REGISTER_PASS(manager, DisableRandomUniformConstantFolding)
+    REGISTER_PASS(manager, ConstantFolding)
+    REGISTER_PASS(manager, Validate)
 
     // FusedFilteringBoxesBySize transformation has the complex pattern
     // which can be affected by further transformations. So we have to
     // execute it at the beginning of the pipeline. Also, this pass resolves
     // dynamism, so we have to execute type/shape propagation after.
-    REGISTER_PASS(manager, FuseFilteringBoxesBySize, _run_on_model)
-    REGISTER_PASS(manager, Validate, _run_on_model)
+    REGISTER_PASS(manager, FuseFilteringBoxesBySize)
+    REGISTER_PASS(manager, Validate)
 
     if (!m_use_shapes) {  // Approved Smart Reshape
-        REGISTER_PASS(manager, LSTMStatesBroadcast, _run_on_function)
-        REGISTER_PASS(manager, Validate, _run_on_model)
-        REGISTER_PASS(manager, ReshapeSinkingMatMul, )
-        REGISTER_PASS(manager, Validate, _run_on_model)
+        REGISTER_PASS(manager, LSTMStatesBroadcast)
+        REGISTER_PASS(manager, Validate)
+        REGISTER_PASS(manager, ReshapeSinkingMatMul)
+        REGISTER_PASS(manager, Validate)
     }
-    REGISTER_PASS(manager, ConvertQuantizeDequantize, )
-    REGISTER_PASS(manager, SimplifyShapeOfSubGraph, _run_on_function)
+    REGISTER_PASS(manager, ConvertQuantizeDequantize)
+    REGISTER_PASS(manager, SimplifyShapeOfSubGraph)
 
     if (!m_use_shapes) {
         manager.register_pass<ov::pass::DisableShapeOfConstantFolding>();
     }
     // workaround until dynamism in NMS is not supported
-    REGISTER_PASS(manager, ConvertNmsGatherPathToUnsigned, _run_on_model)
-    REGISTER_PASS(manager, StridedSliceOptimization, _run_on_function, m_use_shapes)
-    REGISTER_PASS(manager, BroadcastElementwiseFusion, )
-    REGISTER_PASS(manager, PullThroughReduce, )
+    REGISTER_PASS(manager, ConvertNmsGatherPathToUnsigned)
+    REGISTER_PASS(manager, StridedSliceOptimization, m_use_shapes)
+    REGISTER_PASS(manager, BroadcastElementwiseFusion)
+    REGISTER_PASS(manager, PullThroughReduce)
 
     auto transpose_sinking = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(transpose_sinking, TransposeSinking)
@@ -186,8 +186,8 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     ADD_MATCHER(common_fusions, ShuffleChannelsFusion, !m_use_shapes)
     common_fusions->set_name("ov::pass::CommonFusions");
 
-    REGISTER_PASS(manager, BinarizeWeights, )
-    REGISTER_PASS(manager, ConvToBinaryConv, )
+    REGISTER_PASS(manager, BinarizeWeights)
+    REGISTER_PASS(manager, ConvToBinaryConv)
 
     auto decomp = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(decomp, BatchNormDecomposition)
@@ -207,7 +207,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionBackpropDataFusion)
     ADD_MATCHER(multiply_fusions, MatMulMultiplyFusion)
     multiply_fusions->set_name("ov::pass::MultiplyFusions");
-    REGISTER_PASS(manager, ConstantFolding, )
+    REGISTER_PASS(manager, ConstantFolding)
 
     auto fq_fusions = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)
@@ -217,9 +217,9 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     ADD_MATCHER(fq_fusions, AddFakeQuantizeFusion)
     ADD_MATCHER(fq_fusions, MulFakeQuantizeFusion)
     fq_fusions->set_name("ov::pass::FakeQuantizeFusions");
-    REGISTER_PASS(manager, ReverseInputChannelsFusion, _run_on_model)
-    REGISTER_PASS(manager, AlignEltwiseInputRanks, _run_on_model)
-    REGISTER_PASS(manager, ConstantFolding, _run_on_model)
+    REGISTER_PASS(manager, ReverseInputChannelsFusion)
+    REGISTER_PASS(manager, AlignEltwiseInputRanks)
+    REGISTER_PASS(manager, ConstantFolding)
 
     manager.run_passes(f);
 

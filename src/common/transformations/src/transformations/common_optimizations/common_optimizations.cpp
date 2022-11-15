@@ -114,17 +114,17 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngraph::F
 
     using namespace ngraph::pass;
     using namespace ov::pass;
-    REGISTER_PASS(manager, DisableDecompressionConvertConstantFolding, )
+    REGISTER_PASS(manager, DisableDecompressionConvertConstantFolding)
 
     // Disable low_precision_enabled as all plugins handle low-precision sub-graph manually
     // before CommonOptimization pipeline execution
-    REGISTER_PASS(manager, MOCTransformations, _run_on_function, true, false)
+    REGISTER_PASS(manager, MOCTransformations, true, false)
 
     // Enabling conversion of FP16 IR to legacy representation, each plugin have to disable it
     // after support for FP16 IR is implemented
-    REGISTER_PASS(manager, ConvertCompressedOnlyToLegacy, _run_on_model)
-    REGISTER_PASS(manager, MarkPrecisionSensitiveDivides, _run_on_model)
-    REGISTER_PASS(manager, WeightsDequantizeToFakeQuantize, )
+    REGISTER_PASS(manager, ConvertCompressedOnlyToLegacy)
+    REGISTER_PASS(manager, MarkPrecisionSensitiveDivides)
+    REGISTER_PASS(manager, WeightsDequantizeToFakeQuantize)
 
     auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     ADD_MATCHER(common_fusions, SpaceToBatchFusion)
@@ -171,11 +171,11 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngraph::F
     decomp->set_name("ngraph::pass::CommonDecompositions");
 
     // CF is required after all decompositions
-    REGISTER_PASS(manager, ConstantFolding, _run_on_model)
+    REGISTER_PASS(manager, ConstantFolding)
 
     // LinOpSequenceFusion must be executed after all decompositions
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
-    REGISTER_PASS(manager, UnrollIf, _run_on_function)
+    REGISTER_PASS(manager, UnrollIf)
 
     auto multiply_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     ADD_MATCHER(multiply_fusions, ConvolutionMultiplyFusion)
@@ -189,23 +189,23 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngraph::F
     ADD_MATCHER(multiply_fusions, MatMulMultiplyFusion)
     multiply_fusions->set_name("ngraph::pass::MultiplyFusions");
 
-    REGISTER_PASS(manager, ConstantFolding, _run_on_model)
-    REGISTER_PASS(manager, ConvertGather8ToGather7, )  // not plugins implemented gather8
-    REGISTER_PASS(manager, ConvertGather7ToGather1, )  // not plugins implemented gather7
+    REGISTER_PASS(manager, ConstantFolding)
+    REGISTER_PASS(manager, ConvertGather8ToGather7)  // not plugins implemented gather8
+    REGISTER_PASS(manager, ConvertGather7ToGather1)  // not plugins implemented gather7
 
     REGISTER_DISABLED_PASS(manager, ConvertGather1ToGather7)
     REGISTER_DISABLED_PASS(manager, ConvertGather7ToGather8)
-    REGISTER_PASS(manager, ConvertDeformableConv8To1, )
-    REGISTER_PASS(manager, ConvertSoftMax8ToSoftMax1, )
+    REGISTER_PASS(manager, ConvertDeformableConv8To1)
+    REGISTER_PASS(manager, ConvertSoftMax8ToSoftMax1)
     REGISTER_DISABLED_PASS(manager, ConvertSoftMax1ToSoftMax8)
-    REGISTER_PASS(manager, ConvertMaxPool8ToMaxPool1, )
+    REGISTER_PASS(manager, ConvertMaxPool8ToMaxPool1)
     REGISTER_DISABLED_PASS(manager, ConvertMaxPool1ToMaxPool8)
-    REGISTER_PASS(manager, ConvertPriorBox8To0, )
+    REGISTER_PASS(manager, ConvertPriorBox8To0)
     REGISTER_DISABLED_PASS(manager, ConvertDetectionOutput1ToDetectionOutput8)
-    REGISTER_PASS(manager, ConvertDetectionOutput8ToDetectionOutput1, )
+    REGISTER_PASS(manager, ConvertDetectionOutput8ToDetectionOutput1)
     REGISTER_DISABLED_PASS(manager, ConvertROIAlign3To9)
-    REGISTER_PASS(manager, ConvertROIAlign9To3, )
-    REGISTER_PASS(manager, ConvertMulticlassNms8ToMulticlassNms9, )
+    REGISTER_PASS(manager, ConvertROIAlign9To3)
+    REGISTER_PASS(manager, ConvertMulticlassNms8ToMulticlassNms9)
 
     auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)
@@ -220,7 +220,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngraph::F
     // because we cannot insert any MaxPools since they may prevent
     // other optimizations
     manager.register_pass<ngraph::pass::StridesOptimization>();
-    REGISTER_PASS(manager, Validate, _run_on_model)
+    REGISTER_PASS(manager, Validate)
     manager.run_passes(f);
 
     // Returning value is false because pass::Manager always apply Validation pass
