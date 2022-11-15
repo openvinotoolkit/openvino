@@ -549,14 +549,9 @@ public:
     CoreImpl(bool _newAPI) : newAPI(_newAPI) {
         add_mutex("");  // Register global mutex
         executorManagerPtr = executorManager();
-        opsetNames.insert("opset1");
-        opsetNames.insert("opset2");
-        opsetNames.insert("opset3");
-        opsetNames.insert("opset4");
-        opsetNames.insert("opset5");
-        opsetNames.insert("opset6");
-        opsetNames.insert("opset7");
-        opsetNames.insert("opset8");
+        for (const auto& it : ov::get_available_opsets()) {
+            opsetNames.insert(it.first);
+        }
     }
 
     ~CoreImpl() override = default;

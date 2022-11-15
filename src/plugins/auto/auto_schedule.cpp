@@ -183,7 +183,6 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                                           [=](const DeviceInformation& d) -> bool { return d.deviceName.find("CPU") != std::string::npos; });
         // if have CPU Device,  enable _loadContext[CPU]
         if (CPUIter != _autoSContext->_devicePriorities.end()) {
-            _autoSContext->_exeDevices = "(CPU)";
             _loadContext[CPU].isEnabled = true;
             _loadContext[CPU].deviceInfo = *CPUIter;
             _loadContext[CPU].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
@@ -314,7 +313,6 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                     _loadContext[CPU].executableNetwork._ptr.reset();
                     _loadContext[CPU].executableNetwork._so.reset();
                     LOG_INFO_TAG("helper released!!");
-                    _autoSContext->_exeDevices = _loadContext[ACTUALDEVICE].deviceInfo.deviceName;
                     break;
                 }
             }
@@ -433,10 +431,6 @@ void AutoSchedule::WaitFirstNetworkReady() {
     // check if there is any device that have loaded network successfully
     for (int i = CONTEXTNUM - 1; i >= 0; i--) {
         if (_loadContext[i].isEnabled && _loadContext[i].isAlready) {
-            if ( i != 0 ) {
-                std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
-                _autoSContext->_exeDevices = _loadContext[i].deviceInfo.deviceName.substr(_loadContext[i].deviceInfo.deviceName.find(":") + 1);
-            }
             return;
         }
     }
@@ -446,8 +440,6 @@ void AutoSchedule::WaitFirstNetworkReady() {
             _loadContext[i].future.wait();
             // check if loading is successful
             if (_loadContext[i].isAlready) {
-                std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
-                _autoSContext->_exeDevices = _loadContext[i].deviceInfo.deviceName.substr(_loadContext[i].deviceInfo.deviceName.find(":") + 1);
                 return;
             }
         }

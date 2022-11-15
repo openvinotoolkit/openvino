@@ -365,12 +365,23 @@ void run(non_max_suppression_inst& instance) {
                           soft_nms_sigma,
                           prim->sort_result_descending);
 
+    // Legacy APIs using mutable inputs for multiple outputs
     if (instance.has_third_output()) {
         store_third_output(stream, instance.third_output_mem(), result);
     }
 
     if (instance.has_second_output()) {
         store_second_output(stream, instance.second_output_mem(), result);
+        store_first_output(stream, instance.output_memory_ptr(), result);
+        return;
+    }
+
+    // New API for mutiple outputs support
+    if (instance.outputs_memory_count() == 3)
+        store_third_output(stream, instance.output_memory_ptr(2), result);
+
+    if (instance.outputs_memory_count() >= 2) {
+        store_second_output(stream, instance.output_memory_ptr(1), result);
         store_first_output(stream, instance.output_memory_ptr(), result);
         return;
     }
@@ -405,8 +416,8 @@ struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
         return ev;
     }
 
-    static primitive_impl* create(const non_max_suppression_node&, const kernel_impl_params&) {
-        return new non_max_suppression_impl();
+    static std::unique_ptr<primitive_impl> create(const non_max_suppression_node&, const kernel_impl_params&) {
+        return make_unique<non_max_suppression_impl>();
     }
     void init_kernels(const kernels_cache&) override {}
 };

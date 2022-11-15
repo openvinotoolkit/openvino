@@ -248,10 +248,9 @@ void broadcast_base_shape_infer(
         if (is_target_shape_defined) {
             set_result_shape_bidirectional(op, data_input_shape, target_as_shape, result_shape);
         } else if (data_input_shape.rank().is_static() && is_target_input_shape_static) {
-            // TODO: Preserve dim != 1 info from the input_0
-            auto output_rank =
-                std::max(data_input_shape.size(), static_cast<size_t>(target_input_shape[0].get_length()));
-            result_shape = PartialShape::dynamic(output_rank);
+            result_shape = PartialShape::dynamic(target_input_shape[0].get_length());
+            // The logic of BroadcastType::BIDIRECTIONAL matches broadcast_merge_into with AutoBroadcastType::NUMPY
+            T::broadcast_merge_into(result_shape, data_input_shape, op::AutoBroadcastType::NUMPY);
         } else {
             result_shape = PartialShape::dynamic();
         }

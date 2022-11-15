@@ -20,6 +20,8 @@ namespace ocl {
 struct binary_convolution_impl : typed_primitive_impl_ocl<binary_convolution> {
     using parent = typed_primitive_impl_ocl<binary_convolution>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::binary_convolution_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::binary_convolution_params, kernel_selector::binary_convolution_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -85,8 +87,8 @@ public:
         ib >> _split;
     }
 
-    static primitive_impl* create(const binary_convolution_node& arg, const kernel_impl_params& impl_param) {
-        const auto& primitive = arg.get_primitive();
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<binary_convolution>();
         const auto& weights_layout = (*impl_param.weights_layout).convert_to_weights_layout(false);
         const auto& weights_size = weights_layout.get_tensor();
 
@@ -96,21 +98,15 @@ public:
         const auto& dilation = primitive->dilation;
         const auto& pad = primitive->pad;
 
-        const auto depthwise_separable_opt = arg.get_depthwise_sep_opt();
-        const auto actual_split = depthwise_separable_opt ? (decltype(split))1 : split;
+        auto params = get_weights_bias_default_params<kernel_selector::binary_convolution_params>(impl_param, split);
+        auto optional_params = get_default_weights_bias_optional_params<kernel_selector::binary_convolution_optional_params>(impl_param.get_program());
 
-        assert(impl_param.output_layout.feature() / primitive->split() == weights_layout.batch());
-
-        auto conv_params = get_weights_bias_default_params<kernel_selector::binary_convolution_params>(impl_param, actual_split);
-        auto conv_optional_params = get_default_weights_bias_optional_params<kernel_selector::binary_convolution_optional_params>(
-                arg.get_program());
-
-        conv_params.pad_value = primitive->pad_value;
-        conv_params.out_dt = to_data_type(*primitive->output_data_type);
-        conv_params.depthwise_separable_opt = depthwise_separable_opt;
-        conv_params.split = static_cast<uint32_t>(split);
-        conv_params.groups = static_cast<uint32_t>(groups);
-        conv_params.filterSize = {
+        params.pad_value = primitive->pad_value;
+        params.out_dt = to_data_type(*primitive->output_data_type);
+        params.depthwise_separable_opt = false;
+        params.split = static_cast<uint32_t>(split);
+        params.groups = static_cast<uint32_t>(groups);
+        params.filterSize = {
             (uint32_t)weights_size.spatial[0],
             (uint32_t)weights_size.spatial[1],
             (uint32_t)weights_size.spatial[2],
@@ -119,38 +115,27 @@ public:
         uint32_t pad_z = std::max<std::ptrdiff_t>(pad.size() >= 3 ? pad[pad.size() - 3] : 0, 0);
         uint32_t pad_y = std::max<std::ptrdiff_t>(pad.size() >= 2 ? pad[pad.size() - 2] : 0, 0);
         uint32_t pad_x = std::max<std::ptrdiff_t>(pad.size() >= 1 ? pad[pad.size() - 1] : 0, 0);
-        conv_params.padding = {pad_x, pad_y, pad_z};
+        params.padding = {pad_x, pad_y, pad_z};
 
         uint32_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
         uint32_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
         uint32_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
-        conv_params.stride = {stride_x, stride_y, stride_z};
+        params.stride = {stride_x, stride_y, stride_z};
 
         uint32_t dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
         uint32_t dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
         uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
-        conv_params.dilation = {dilation_x, dilation_y, dilation_z};
+        params.dilation = {dilation_x, dilation_y, dilation_z};
 
-        auto& kernel_selector = kernel_selector::binary_convolution_kernel_selector::Instance();
-
-        const auto& tuning_config = arg.get_program().get_options().get<build_option_type::tuning_config>();
+        const auto& tuning_config = impl_param.get_program().get_options().get<build_option_type::tuning_config>();
 
         if (tuning_config->config.mode == tuning_mode::tuning_tune_and_cache ||
             tuning_config->config.mode == tuning_mode::tuning_retune_and_cache) {
-            conv_optional_params.tuningParams.runner =
-                std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), arg.get_program().get_id(), true);
+            optional_params.tuningParams.runner =
+                std::make_shared<gpu::kernel_runner>(impl_param.get_program().get_engine(), impl_param.get_program().get_id(), true);
         }
 
-        kernel_selector::KernelsData best_kernels = kernel_selector.GetBestKernels(conv_params, conv_optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto conv = new binary_convolution_impl(arg, best_kernels[0]);
-
-        return conv;
+        return {params, optional_params};
     }
 
 private:
@@ -160,7 +145,7 @@ private:
 namespace detail {
 
 attach_binary_convolution_impl::attach_binary_convolution_impl() {
-    implementation_map<binary_convolution>::add(impl_types::ocl, binary_convolution_impl::create, {
+    implementation_map<binary_convolution>::add(impl_types::ocl, typed_primitive_impl_ocl<binary_convolution>::create<binary_convolution_impl>, {
         std::make_tuple(data_types::bin, format::b_fs_yx_32fp),
     });
 }
