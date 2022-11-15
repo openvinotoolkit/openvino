@@ -7,6 +7,8 @@
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/convolution_params.hpp"
 #include "test_utils/fusing_test_utils.hpp"
+#include <gtest/gtest-spi.h>
+#include <mutex>
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -202,6 +204,25 @@ protected:
     }
 };
 
+using ExpectFailedGroupConvolutionLayerCPUTest = GroupConvolutionLayerCPUTest;
+
+TEST_P(ExpectFailedGroupConvolutionLayerCPUTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    if (isBias) {
+        checkBiasFusing(compiledModel);
+    }
+    static std::mutex gtest_mutex;
+    static ExpectFailedGroupConvolutionLayerCPUTest* curInstance = nullptr;
+    static ov::CompiledModel curCopyCompiledModel;
+    const std::lock_guard<std::mutex> lock(gtest_mutex);
+    curInstance = this;
+    curCopyCompiledModel = compiledModel;
+    EXPECT_FATAL_FAILURE(
+        curInstance->CheckPluginRelatedResults(curCopyCompiledModel, "Convolution"),
+        "primType is unexpected");
+}
+
 TEST_P(GroupConvolutionLayerCPUTest, CompareWithRefs) {
     run();
     if (isBias) {
@@ -217,6 +238,7 @@ std::vector<groupConvLayerCPUTestParamsSet> filterParamsSetForDevice(std::vector
     std::vector<groupConvLayerCPUTestParamsSet> resParamsSet;
     const int cpuParamsIndex = 1;
     const int selectedTypeIndex = 3;
+    const int configIndex = 3;
 
     for (auto param : paramsSet) {
         auto cpuParams = std::get<cpuParamsIndex>(param);
@@ -232,8 +254,15 @@ std::vector<groupConvLayerCPUTestParamsSet> filterParamsSetForDevice(std::vector
             continue;
         if (selectedTypeStr.find("amx") != std::string::npos && !with_cpu_x86_avx512_core_amx())
             continue;
-
-        resParamsSet.push_back(param);
+        auto additionalConfig = std::get<configIndex>(param);
+        if (additionalConfig.count(PluginConfigParams::KEY_ENFORCE_BF16) && !with_cpu_x86_bfloat16())
+            continue;
+        if (additionalConfig.count(PluginConfigParams::KEY_ENFORCE_BF16) &&
+            PluginConfigParams::YES == additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] &&
+            !with_cpu_x86_bfloat16()) {
+            continue;
+        }
+         resParamsSet.push_back(param);
     }
 
     return resParamsSet;
@@ -1279,6 +1308,7 @@ std::vector<groupConvLayerCPUTestParamsSet> generateSingleGroupConvCPUTestCases(
 const VecConfigRelatedParams vecPrcConnectParamsFP32 = {ConfigRelatedParams{cpuEmptyPluginConfig, fusingParamsSet}};
 const VecConfigRelatedParams vecPrcConnectParams = {ConfigRelatedParams{cpuEmptyPluginConfig, fusingParamsSet},
                                                    ConfigRelatedParams{cpuBF16PluginConfig, fusingParamsSetBF16}};
+const VecConfigRelatedParams vecPrcConnectParamsBF16 = {ConfigRelatedParams{cpuBF16PluginConfig, fusingParamsSetBF16}};
 
 const VecConfigRelatedParams vecPrcConnectParamsFP32Default = {ConfigRelatedParams{cpuEmptyPluginConfig, VecFusingParams{emptyFusingSpec}}};
 const VecConfigRelatedParams vecPrcConnectParamsDefault = {ConfigRelatedParams{cpuEmptyPluginConfig, VecFusingParams{emptyFusingSpec}},
@@ -1563,6 +1593,31 @@ INSTANTIATE_TEST_SUITE_P(smoke_JIT_AVX512_DW_GroupConv, GroupConvolutionLayerCPU
 /* ============= JIT AVX2 PLANAR Convolution (not supported with groups) ============= */
 /* ============= JIT AVX5122 PLANAR Convolution (not supported with groups) ============= */
 /* ============================================= */
+
+/* ============= expect failed brgemm GroupConvolution  ============= */
+const std::vector<CPUSpecificParams> CPUParams_Failed_Brgemm_2D = {
+        conv_avx512_2D_nspc_brgconv,
+        conv_avx512_2D_nspc_brgconv_amx
+};
+const std::vector<CPUSpecificParams> CPUParams_Failed_Brgemm_1D_Small_Shape = {
+        conv_avx512_1D_nspc_brgconv_amx
+};
+const std::vector<groupConvLayerCPUTestParamsSet> BRGEMM_EXPECT_FAILED_GroupConvTestCases = generateSingleGroupConvCPUTestCases(
+        // kerenl size = 1
+        makeSingleGroupConvCPUTestCases({1, 1}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::EXPLICIT,
+                                        2, 1, {5, 5}, 32, 32, CPUParams_Failed_Brgemm_2D, vecPrcConnectParams),
+        // channel <= 16
+        makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::EXPLICIT,
+                                        4, 1, {5, 5}, 16, 16, CPUParams_Failed_Brgemm_2D, vecPrcConnectParams),
+        //small shape
+        makeSingleGroupConvCPUTestCases({3}, {1}, {1}, {0}, {0}, ngraph::op::PadType::EXPLICIT,
+                                        4, 1, {3}, 32, 32, CPUParams_Failed_Brgemm_1D_Small_Shape, vecPrcConnectParamsBF16)
+);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BRGEMM_EXPECT_FAILED_GroupConv, ExpectFailedGroupConvolutionLayerCPUTest, ::testing::ValuesIn(filterParamsSetForDevice
+(BRGEMM_EXPECT_FAILED_GroupConvTestCases)), ExpectFailedGroupConvolutionLayerCPUTest::getTestCaseName);
+
+/* ============= expect faild GroupConvolution end============= */
 
 } // namespace
 
