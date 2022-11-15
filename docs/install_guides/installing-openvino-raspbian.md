@@ -40,7 +40,7 @@
    ```
    > **NOTE**: The `/opt/intel` path is the recommended folder path for administrators or root users. If you prefer to install OpenVINO in regular userspace, the recommended path is `/home/<USER>/intel`. You may use a different path if desired.
 
-3. Go to your `~/Downloads` directory and download OpenVINO Runtime archive file for Debian from [OpenVINO package repository](https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.1/).
+3. Go to your `~/Downloads` directory and download OpenVINO Runtime archive file for Debian from [OpenVINO package repository](https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.1.1/).
    ```sh
    cd ~/Downloads/
    sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.1.1/l_openvino_toolkit_debian9_arm_2022.1.1.7030.39aba80957e.tgz -O openvino_2022.1.1.7030.tgz
