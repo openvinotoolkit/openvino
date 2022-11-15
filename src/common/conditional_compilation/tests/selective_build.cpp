@@ -5,11 +5,11 @@
 #include <gtest/gtest.h>
 
 #ifdef SELECTIVE_BUILD_ANALYZER
-# define SELECTIVE_BUILD_ANALYZER_ON
-# undef SELECTIVE_BUILD_ANALYZER
+#    define SELECTIVE_BUILD_ANALYZER_ON
+#    undef SELECTIVE_BUILD_ANALYZER
 #elif defined(SELECTIVE_BUILD)
-# define SELECTIVE_BUILD_ON
-# undef SELECTIVE_BUILD
+#    define SELECTIVE_BUILD_ON
+#    undef SELECTIVE_BUILD
 #endif
 
 #define SELECTIVE_BUILD
@@ -19,46 +19,43 @@
 namespace {
 OV_CC_DOMAINS(CCTests);
 
-template<typename T>
+template <typename T>
 struct TestTemplateClass;
 
-template<>
+template <>
 struct TestTemplateClass<int> {
-    void operator()(int &v) {
+    void operator()(int& v) {
         v = 42;
     }
 };
 
-template<>
+template <>
 struct TestTemplateClass<bool> {
-    void operator()(int &v) {
+    void operator()(int& v) {
         v = 43;
     }
 };
 
-template<>
+template <>
 struct TestTemplateClass<float> {
-    void operator()(int &v) {
+    void operator()(int& v) {
         v = 44;
     }
 };
 
 struct TestNodeBase {
-    TestNodeBase(int k, int v)
-        : key(k)
-        , value(v) {}
+    TestNodeBase(int k, int v) : key(k), value(v) {}
     virtual ~TestNodeBase() = default;
     int key;
     int value;
 };
 
-template<int N>
+template <int N>
 struct TestNode : public TestNodeBase {
-    TestNode(int value)
-        : TestNodeBase(N, value) {}
+    TestNode(int value) : TestNodeBase(N, value) {}
 };
 
-}   // namespace
+}  // namespace
 
 TEST(ConditionalCompilationTests, SimpleScope) {
 #define CCTests_Scope0 1
@@ -79,27 +76,18 @@ TEST(ConditionalCompilationTests, SimpleScope) {
 
 TEST(ConditionalCompilationTests, SwitchCase) {
     // Cases 0 and 2 are enabled
-#define CCTests_TestTemplateClass 1
+#define CCTests_TestTemplateClass       1
 #define CCTests_TestTemplateClass_cases OV_CASE(0, int), OV_CASE(2, float)
 
     int n = 0;
 
-    OV_SWITCH(CCTests, TestTemplateClass, n, 0,
-    OV_CASE(0, int),
-    OV_CASE(1, bool),
-    OV_CASE(2, float));
+    OV_SWITCH(CCTests, TestTemplateClass, n, 0, OV_CASE(0, int), OV_CASE(1, bool), OV_CASE(2, float));
     EXPECT_EQ(n, 42);
 
-    OV_SWITCH(CCTests, TestTemplateClass, n, 1,
-    OV_CASE(0, int),
-    OV_CASE(1, bool),
-    OV_CASE(2, float));
+    OV_SWITCH(CCTests, TestTemplateClass, n, 1, OV_CASE(0, int), OV_CASE(1, bool), OV_CASE(2, float));
     EXPECT_EQ(n, 42);
 
-    OV_SWITCH(CCTests, TestTemplateClass, n, 2,
-    OV_CASE(0, int),
-    OV_CASE(1, bool),
-    OV_CASE(2, float));
+    OV_SWITCH(CCTests, TestTemplateClass, n, 2, OV_CASE(0, int), OV_CASE(1, bool), OV_CASE(2, float));
     EXPECT_EQ(n, 44);
 
 #undef CCTests_TestTemplateClass
@@ -116,9 +104,9 @@ TEST(ConditionalCompilationTests, Factory) {
     testFactory.registerNodeIfRequired(CCTests, TestNode1, 1, TestNode<1>);
     testFactory.registerNodeIfRequired(CCTests, TestNode2, 2, TestNode<2>);
 
-    TestNodeBase *node0 = testFactory.createNodeIfRegistered(CCTests, 0, 42);
-    TestNodeBase *node1 = testFactory.createNodeIfRegistered(CCTests, 1, 43);
-    TestNodeBase *node2 = testFactory.createNodeIfRegistered(CCTests, 2, 44);
+    TestNodeBase* node0 = testFactory.createNodeIfRegistered(CCTests, 0, 42);
+    TestNodeBase* node1 = testFactory.createNodeIfRegistered(CCTests, 1, 43);
+    TestNodeBase* node2 = testFactory.createNodeIfRegistered(CCTests, 2, 44);
 
     EXPECT_TRUE(node0 && node0->key == 0 && node0->value == 42);
     EXPECT_TRUE(!node1);
@@ -136,7 +124,7 @@ TEST(ConditionalCompilationTests, Factory) {
 #undef SELECTIVE_BUILD
 
 #ifdef SELECTIVE_BUILD_ANALYZER_ON
-# define SELECTIVE_BUILD_ANALYZER
+#    define SELECTIVE_BUILD_ANALYZER
 #elif defined(SELECTIVE_BUILD_ON)
-# define SELECTIVE_BUILD
+#    define SELECTIVE_BUILD
 #endif
