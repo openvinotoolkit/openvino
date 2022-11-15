@@ -65,6 +65,7 @@ public:
         return m_axis;
     }
     void set_axis(const int64_t axis);
+    void set_axis(const Rank& input_rank, const int64_t axis);
     Mode get_mode() const {
         return m_mode;
     }
@@ -112,7 +113,6 @@ protected:
     Shape compute_output_shape(const std::string& node_description,
                                const PartialShape input_partial_shape,
                                const int64_t k) const;
-    void set_axis(const Rank input_rank, const int64_t axis);
 };
 }  // namespace v1
 

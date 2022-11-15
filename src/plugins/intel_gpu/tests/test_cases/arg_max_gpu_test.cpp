@@ -528,7 +528,11 @@ TEST(top_k_layer_tests, multiple_outputs) {
 
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    build_options bo;
+    bo.set_option(build_option::optimize_data(true));
+    bo.set_option(build_option::allow_new_shape_infer(true));
+
+    network network(engine, topology, bo);
 
     network.set_input_data("input", input);
     auto outputs = network.execute();

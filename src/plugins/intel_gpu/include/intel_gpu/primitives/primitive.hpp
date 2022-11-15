@@ -93,20 +93,14 @@ public:
         return result;
     }
 
-    std::vector<std::reference_wrapper<input_info>> dependencies_new() {
-        std::vector<std::reference_wrapper<input_info>> result;
-        auto&& deps = get_dependencies_new();
-        result.reserve(input_new.size() + deps.size());
-        for (auto& i : input_new) result.push_back(std::ref(i));
-        for (auto& dep : deps) result.push_back({std::ref(const_cast<input_info&>(dep.get()))});
-
-        return result;
-    }
-
     std::vector<input_info> dependencies_new() const {
-        auto result = input_new;
+        std::vector<input_info> result;
         auto deps = get_dependencies_new();
-        result.insert(result.end(), deps.begin(), deps.end());
+        if (!input_new.empty()) {
+            result.reserve(input_new.size() + deps.size());
+            for (auto& i : input_new) result.push_back(i);
+            for (auto& dep : deps) result.push_back({dep.first.get(), dep.second});
+        }
         return result;
     }
 
@@ -151,7 +145,7 @@ public:
 
 protected:
     virtual std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const { return {}; }
-    virtual std::vector<std::reference_wrapper<const input_info>> get_dependencies_new() const { return {}; }
+    virtual std::vector<std::pair<std::reference_wrapper<const primitive_id>, int>> get_dependencies_new() const { return {}; }
     class condition;
     friend struct primitive_info;
 };

@@ -70,7 +70,7 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
         bool is_parameterized = !primitive->additional_params_input.empty();
         if (is_parameterized) {
             const auto& slope_layout = impl_param.input_layouts[1];
-            const auto& output_layout = impl_param.output_layout;
+            const auto& output_layout = impl_param.get_output_layout();
 
             const auto params_num = kernel_selector::GetActivationAdditionalParamsNumber(params.activations[0].function);
 

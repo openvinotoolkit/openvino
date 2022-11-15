@@ -74,7 +74,7 @@ struct prior_box_impl : typed_primitive_impl_ocl<prior_box> {
         }
         params.widths = primitive->widths;
         params.heights = primitive->heights;
-        const auto output_shape = impl_param.output_layout.get_shape();
+        const auto output_shape = impl_param.get_output_layout().get_shape();
         params.num_priors_4 = output_shape[1] / (params.width * params.height);
 
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));

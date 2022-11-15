@@ -234,7 +234,7 @@ void op::v1::TopK::set_axis(const int64_t axis) {
     m_axis = axis;
 }
 
-void op::v1::TopK::set_axis(const Rank input_rank, const int64_t axis) {
+void op::v1::TopK::set_axis(const Rank& input_rank, const int64_t axis) {
     if (input_rank.is_static()) {
         m_normalized_axis = ngraph::normalize_axis(this, axis, input_rank);
     } else {

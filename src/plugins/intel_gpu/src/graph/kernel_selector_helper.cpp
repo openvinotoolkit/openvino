@@ -1047,7 +1047,7 @@ void kernel_impl_params::save(BinaryOutputBuffer& ob) const {
     ob << has_runtime_layouts;
     ob << unique_id;
     ob << input_layouts;
-    ob << output_layout;
+    ob << output_layouts;
     ob << input_offsets.size();
     for (size_t i = 0; i < input_offsets.size(); i++) {
         ob << input_offsets[i].sizes();
@@ -1103,7 +1103,7 @@ void kernel_impl_params::load(BinaryInputBuffer& ib) {
     ib >> has_runtime_layouts;
     ib >> unique_id;
     ib >> input_layouts;
-    ib >> output_layout;
+    ib >> output_layouts;
     {
         size_t num_input_offsets;
         ib >> num_input_offsets;

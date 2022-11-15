@@ -63,11 +63,24 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
     Precision precision = outputData->getPrecision();
     std::string outputID = inputs[0];
 
-    auto reorder_primitive = cldnn::reorder(outLayerName,
-                                            outputID,
-                                            FormatFromLayout(outputlayout),
-                                            DataTypeFromPrecision(precision));
-    p.add_primitive(*op, reorder_primitive, {originalOutName});
+    if (p.use_new_shape_infer()) {
+        auto reorder_primitive = cldnn::reorder(outLayerName,
+                                                outputID,
+                                                FormatFromLayout(outputlayout),
+                                                DataTypeFromPrecision(precision),
+                                                {},
+                                                cldnn::reorder_mean_mode::subtract,
+                                                cldnn::padding(),
+                                                {cldnn::input_info(outputID, op->get_input_source_output(0).get_index())});
+        p.add_primitive(*op, reorder_primitive, {originalOutName});
+
+    } else {
+        auto reorder_primitive = cldnn::reorder(outLayerName,
+                                                outputID,
+                                                FormatFromLayout(outputlayout),
+                                                DataTypeFromPrecision(precision));
+        p.add_primitive(*op, reorder_primitive, {originalOutName});
+    }
     p.outputDims[originalOutName] = outputDesc.getDims();
     p.prevPrimitiveIDs[outLayerName] = {originalOutName};
 }

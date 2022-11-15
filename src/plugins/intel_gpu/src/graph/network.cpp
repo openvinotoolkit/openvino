@@ -905,7 +905,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                             debug_config->is_dumped_layer(layer_name)) {
                 for (size_t i = 0; i < get_primitive(inst->id())->dependencies().size(); i++) {
                     log_memory_to_file(get_primitive(inst->id())->dep_memory_ptr(i), get_stream(),
-                                    layer_name + "_src_" + std::to_string(i));
+                                       layer_name + "_src_" + std::to_string(i));
                 }
             }
         }
@@ -916,7 +916,10 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             get_stream().finish();
             const std::string layer_name = inst->id();
             GPU_DEBUG_IF(debug_config->is_dumped_layer(layer_name, inst->is_output())) {
-                log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(), get_stream(), layer_name + "_dst_0");
+                for (size_t i = 0; i < get_primitive(inst->id())->outputs_memory_count(); i++) {
+                    log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(i), get_stream(),
+                                       layer_name + "_dst_" + std::to_string(i));
+                }
             }
         }
     }

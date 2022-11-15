@@ -35,6 +35,8 @@ class typed_primitive_inst<arg_max_min> : public typed_primitive_inst_base<arg_m
     using parent::parent;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(arg_max_min_node const& /*node*/, const kernel_impl_params& impl_param);
     static layout calc_output_layout(arg_max_min_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(arg_max_min_node const& node);
 

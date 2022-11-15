@@ -74,8 +74,9 @@ struct reorder : public primitive_base<reorder> {
             data_types output_data_type,
             const std::vector<float>& values_to_subtract = {},
             const reorder_mean_mode mode = reorder_mean_mode::subtract,
-            const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding, optional_data_type{output_data_type}),
+            const padding& output_padding = padding(),
+            const std::vector<input_info>& inputs = {})
+        : primitive_base(id, {input}, output_padding, optional_data_type{output_data_type}, inputs),
           output_format(output_format),
           mean(""),
           subtract_per_feature(values_to_subtract),
@@ -148,6 +149,12 @@ protected:
         if (mean.empty())
             return {};
         return {mean};
+    }
+
+    std::vector<std::pair<std::reference_wrapper<const primitive_id>, int>> get_dependencies_new() const override {
+        if (mean.empty())
+            return {};
+        return {{mean, 0}};
     }
 };
 

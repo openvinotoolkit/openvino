@@ -215,7 +215,7 @@ static std::string get_jit_constant(const custom_gpu_primitive_node& outer, cons
         add_layout_to_jit(mem_consts, "INPUT" + std::to_string(i), impl_param.get_input_layout(i));
     }
 
-    add_layout_to_jit(mem_consts, "OUTPUT0", impl_param.output_layout);
+    add_layout_to_jit(mem_consts, "OUTPUT0", impl_param.get_output_layout());
 
     std::ostringstream oss;
     oss << "// Custom Layer Built-ins\n\n";

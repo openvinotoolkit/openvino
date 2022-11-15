@@ -135,7 +135,7 @@ protected:
         };
 
         auto gemm_with_bias = prim->dependencies().size() == 3;
-        auto out_l = impl_params.output_layout;
+        auto out_l = impl_params.get_output_layout();
 
         std::vector<layout> in_layouts { impl_params.get_input_layout(0), impl_params.get_input_layout(1) };
         if (gemm_with_bias) {

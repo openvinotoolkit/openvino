@@ -61,10 +61,10 @@ void input_layout_inst::set_data(memory::ptr mem) {
 void input_layout_inst::update_shape() {
     OPENVINO_ASSERT(!_outputs.empty() && _outputs[0] != nullptr, "[GPU] input memory is not set");
     auto mem_layout = _outputs[0]->get_layout();
-    if (_impl_params->output_layout != mem_layout) {
+    if (_impl_params->get_output_layout() != mem_layout) {
         set_shape_change();
     }
-    _impl_params->output_layout = mem_layout;
+    _impl_params->output_layouts[0] = mem_layout;
 }
 
 std::string input_layout_inst::to_string(input_layout_node const& node) {

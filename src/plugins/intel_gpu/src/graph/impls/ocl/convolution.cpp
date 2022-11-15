@@ -166,7 +166,7 @@ public:
             conv_params.quantization = kernel_selector::QuantizationType::NONE;
         }
 
-        auto format = impl_param.output_layout.format;
+        auto format = impl_param.get_output_layout().format;
         if (format == format::b_fs_zyx_fsv16 ||
             format == format::bs_fs_zyx_bsv16_fsv16 ||
             format == format::bs_fs_yx_bsv16_fsv16 ||

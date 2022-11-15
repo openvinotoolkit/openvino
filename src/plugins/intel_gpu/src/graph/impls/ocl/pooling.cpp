@@ -86,8 +86,8 @@ public:
             params.poolAxis = primitive->axis;
         }
 
-        const auto& input_layout = impl_param.input_layouts[0];
-        const auto& output_layout = impl_param.output_layout;
+        const auto& input_layout = impl_param.get_input_layout();
+        const auto& output_layout = impl_param.get_output_layout();
 
         auto kernel = primitive->size;
         auto stride = primitive->stride;

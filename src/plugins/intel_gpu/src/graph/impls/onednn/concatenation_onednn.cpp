@@ -54,7 +54,7 @@ protected:
         for (size_t i = 0; i < impl_params.input_layouts.size(); i++) {
             input_mds.push_back(onednn::layout_to_memory_desc(impl_params.get_input_layout(i)));
         }
-        auto output_md = onednn::layout_to_memory_desc(impl_params.output_layout);
+        auto output_md = onednn::layout_to_memory_desc(impl_params.get_output_layout());
         return std::make_shared<dnnl::concat::primitive_desc>(
             output_md,
             axis,

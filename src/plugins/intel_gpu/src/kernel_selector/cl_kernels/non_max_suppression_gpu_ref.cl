@@ -504,6 +504,10 @@ KERNEL (non_max_suppression_ref_stage_3)(
     #ifdef THIRD_OUTPUT_TYPE
     , __global THIRD_OUTPUT_TYPE *valid_outputs
     #endif
+    #ifdef MULTIPLE_OUTPUTS
+    , __global OUTPUT1_TYPE *selected_scores
+    , __global OUTPUT2_TYPE *valid_outputs
+    #endif
     )
 {
     int outputIdx = 0;
@@ -553,9 +557,26 @@ KERNEL (non_max_suppression_ref_stage_3)(
         selected_scores[SECOND_OUTPUT_GET_INDEX(i, 2, 0, 0)] = -1;
     }
 #endif
+#ifdef MULTIPLE_OUTPUTS
+    unroll_for (int i = 0; i < outputIdx; i++) {
+        selected_scores[OUTPUT1_GET_INDEX(i, 0, 0, 0)] = TO_OUTPUT1_TYPE(sortedBoxList[i].batchId);
+        selected_scores[OUTPUT1_GET_INDEX(i, 1, 0, 0)] = TO_OUTPUT1_TYPE(sortedBoxList[i].classId);
+        selected_scores[OUTPUT1_GET_INDEX(i, 2, 0, 0)] = TO_OUTPUT1_TYPE(sortedBoxList[i].score);
+    }
+
+    // Padding
+    unroll_for (int i = outputIdx; i < OUTPUT_NUM; i++) {
+        selected_scores[OUTPUT1_GET_INDEX(i, 0, 0, 0)] = -1;
+        selected_scores[OUTPUT1_GET_INDEX(i, 1, 0, 0)] = -1;
+        selected_scores[OUTPUT1_GET_INDEX(i, 2, 0, 0)] = -1;
+    }
+#endif
 
 #ifdef THIRD_OUTPUT_TYPE
     valid_outputs[THIRD_OUTPUT_GET_INDEX(0, 0, 0, 0)] = TO_THIRD_OUTPUT_TYPE(outputIdx);
+#endif
+#ifdef MULTIPLE_OUTPUTS
+    valid_outputs[OUTPUT2_GET_INDEX(0, 0, 0, 0)] = TO_OUTPUT2_TYPE(outputIdx);
 #endif
 }
 #endif  /* NMS_STAGE_3 */

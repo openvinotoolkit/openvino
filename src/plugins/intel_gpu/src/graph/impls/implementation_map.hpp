@@ -156,7 +156,8 @@ public:
 
     // check if there exists a kernel implementation of a primitive with output set it primitive's output layout
     static bool check_io_eq(const kernel_impl_params& impl_params, impl_types target_impl_type) {
-        auto key = key_builder()(impl_params.output_layout);
+        auto output_layout = !impl_params.output_layouts.empty() ? impl_params.get_output_layout() : layout{ov::PartialShape{}, data_types::f32, format::any};
+        auto key = key_builder()(output_layout);
         return check_key(target_impl_type, key);
     }
 

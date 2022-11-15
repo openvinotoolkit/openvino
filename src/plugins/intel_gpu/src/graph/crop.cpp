@@ -264,7 +264,7 @@ void crop_inst::update_output_memory() {
     if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
 
-    _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), _impl_params->output_layout);
+    _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout());
     _mem_allocated = false;
 }
 

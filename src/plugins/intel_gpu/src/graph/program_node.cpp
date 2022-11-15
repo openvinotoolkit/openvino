@@ -33,8 +33,13 @@ thread_local size_t program_node::cur_id = 0;
 program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
     : desc(prim), myprog(prog), preferred_input_fmts({}), preferred_output_fmts({}), org_id(prim ? (prim->id) : 0) {
     if (prim) {
-        output_layout.data_padding = prim->output_padding;
         num_outputs = prim->num_outputs;
+        for (size_t i = 0 ; i < num_outputs; ++i) {
+            layout output_layout = layout{ov::PartialShape{}, data_types::f32, format::bfyx};
+            output_layout.data_padding = prim->output_padding;
+            output_layouts.push_back(output_layout);
+            valid_output_layouts.push_back(false);
+        }
     }
 }
 
@@ -53,11 +58,19 @@ void program_node::replace_dependency(size_t idx, program_node& new_dep, bool re
     if (it != dependencies[idx]->users.end()) {
         dependencies[idx]->users.erase(it);
     }
+    if (!dependencies_new.empty()) {
+        it = std::find(dependencies_new[idx].first->users.begin(), dependencies_new[idx].first->users.end(), this);
+        if (it != dependencies_new[idx].first->users.end()) {
+            dependencies_new[idx].first->users.erase(it);
+        }
+    }
 
     if (remove_if_dangling)
         myprog.remove_if_dangling(*dependencies[idx]);
 
     dependencies[idx] = &new_dep;
+    if (!dependencies_new.empty())
+        dependencies_new[idx].first = &new_dep;
     new_dep.users.push_back(this);
 }
 
@@ -95,12 +108,12 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     node_info->add("ptr", "node_" + std::to_string(reinterpret_cast<uintptr_t>(this)));
     node_info->add("id", id());
     node_info->add("type", desc->type_string());
-    node_info->add("valid output layout", bool_to_str(valid_output_layout));
+    node_info->add("valid output layout", bool_to_str(valid_output_layouts[0]));
     std::stringstream s;
     s << get_preferred_impl_type();
     node_info->add("preferred impl", s.str());
 
-    node_info->add("output layout", output_layout.to_string());
+    node_info->add("output layout", output_layouts[0].to_string());
 
     node_info->add("constant", bool_to_str(constant));
     node_info->add("in data flow", bool_to_str(data_flow));
@@ -120,8 +133,8 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
         fused_node_info.add("dep start_idx", fused_desc.dep_start_idx);
         json_composite info;
         info.add("data type", dt_to_str(fused_desc.output_layout.data_type));
-        info.add("format", fmt_to_str(output_layout.format));
-        info.add("size", output_layout.to_short_string());
+        info.add("format", fmt_to_str(output_layouts[0].format));
+        info.add("size", output_layouts[0].to_short_string());
         fused_node_info.add("output layout", info);
         fused_nodes_info.add("fused primitive idx " + std::to_string(index++), fused_node_info);
     }
@@ -262,46 +275,88 @@ layout program_node::calc_output_layout() const {
 }
 
 std::vector<layout> program_node::calc_output_layouts() const {
-    return type()->calc_output_layouts(*this, *get_kernel_impl_params());
+    bool allow_new_shape_infer =
+        get_program().get_options().get<build_option_type::allow_new_shape_infer>()->enabled();
+    if (allow_new_shape_infer) {
+        auto out_layouts = type()->calc_output_layouts(*this, *get_kernel_impl_params());
+        if (!out_layouts.empty())
+            return out_layouts;
+    }
+
+    return {type()->calc_output_layout(*this, *get_kernel_impl_params())};
 }
 
-layout program_node::get_output_layout(bool invalidate_users_if_changed) {
-    if (valid_output_layout)
-        return output_layout;
+layout program_node::get_output_layout(bool invalidate_users_if_changed, size_t idx) {
+    if (valid_output_layouts[idx])
+        return output_layouts[idx];
 
     auto new_layout = calc_output_layout();
-    set_output_layout(new_layout, invalidate_users_if_changed);
-    return output_layout;
+    set_output_layout(new_layout, invalidate_users_if_changed, idx);
+    return output_layouts[idx];
 }
 
-layout program_node::get_output_layout() const {
-    if (!valid_output_layout)
+layout program_node::get_output_layout(size_t idx) const {
+    if (!valid_output_layouts[idx])
         throw std::runtime_error("Output layout not calculated for " + id() + " node");
 
-    return output_layout;
+    return output_layouts[idx];
 }
 
-layout program_node::get_non_padded_output_layout(bool invalidate_users_if_changed) {
-    auto out_layout = get_output_layout(invalidate_users_if_changed);
+std::vector<layout> program_node::get_output_layouts(bool invalidate_users_if_changed) {
+    if (is_all_valid_output_layouts())
+        return output_layouts;
+
+    auto new_layouts = calc_output_layouts();
+    set_output_layouts(new_layouts, invalidate_users_if_changed);
+    return output_layouts;
+}
+
+std::vector<layout> program_node::get_output_layouts() const {
+    if (!is_all_valid_output_layouts()) {
+        throw std::runtime_error("Output layouts not calculated for " + id() + " node");
+    }
+
+    return output_layouts;
+}
+
+layout program_node::get_non_padded_output_layout(bool invalidate_users_if_changed, size_t idx) {
+    auto out_layout = get_output_layout(invalidate_users_if_changed, idx);
     auto result = layout({out_layout.data_type, out_layout.format, out_layout.get_tensor()});
     return result;
 }
 
-bool program_node::set_output_layout(layout& new_layout, bool invalidate_users_if_changed) {
-    merge_output_padding(new_layout.data_padding);
-    new_layout.data_padding = output_layout.data_padding;
-    bool changed = (new_layout != output_layout);
+bool program_node::set_output_layout(layout& new_layout, bool invalidate_users_if_changed, size_t idx) {
+    merge_output_padding(new_layout.data_padding, idx);
+    new_layout.data_padding = output_layouts[idx].data_padding;
+    bool changed = (new_layout != output_layouts[idx]);
     if (changed && invalidate_users_if_changed)  // output_layout has changed! invalidate users
         invalidate_users();
 
-    output_layout = new_layout;
-    valid_output_layout = true;
+    output_layouts[idx] = new_layout;
+    valid_output_layouts[idx] = true;
+    return changed;
+}
+
+bool program_node::set_output_layouts(std::vector<layout>& new_layouts, bool invalidate_users_if_changed) {
+    bool changed = false;
+    for (size_t i = 0; i < new_layouts.size(); ++i) {
+        auto new_layout = new_layouts[i];
+        changed |= set_output_layout(new_layout, invalidate_users_if_changed, i);
+    }
+    for (auto v : valid_output_layouts) {
+        v = true;
+    }
     return changed;
 }
 
 bool program_node::recalc_output_layout(bool invalidate_users_if_changed) {
     auto new_layout = calc_output_layout();
     return set_output_layout(new_layout, invalidate_users_if_changed);
+}
+
+bool program_node::recalc_output_layouts(bool invalidate_users_if_changed) {
+    auto new_layouts = calc_output_layouts();
+    return set_output_layouts(new_layouts, invalidate_users_if_changed);
 }
 
 bool program_node::is_dynamic() const {
@@ -372,11 +427,13 @@ std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
 
 void program_node::invalidate_users() const {
     for (auto& user : users) {
-        if (user->valid_output_layout) {
-            if (user->get_preferred_output_fmt() != format::any)
-                continue;
-            user->valid_output_layout = false;
-            user->invalidate_users();
+        for (size_t i = 0; i < user->valid_output_layouts.size(); ++i) {
+            if (user->valid_output_layouts[i]) {
+                if (user->get_preferred_output_fmt() != format::any)
+                    continue;
+                user->valid_output_layouts[i] = false;
+                user->invalidate_users();
+            }
         }
     }
 }
@@ -389,7 +446,7 @@ bool program_node::is_padding_supported(int axis, int padding) const {
     if (!support_padding(axis))
         return false;
 
-    auto fmt = output_layout.format;
+    auto fmt = output_layouts[0].format;
 
     // WA for known cases of padding not supported in implementations
     if (fmt == format::b_fs_yx_fsv16) {

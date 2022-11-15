@@ -195,7 +195,7 @@ public:
 
     void allocate_internal_buffers();
     static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node,
-                                       const kernel_impl_params& impl_params, uint32_t net_id, bool is_internal);
+                                       const kernel_impl_params& impl_params, uint32_t net_id, bool is_internal, size_t idx = 0);
 
     std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
 
@@ -212,7 +212,7 @@ public:
     const std::unordered_map<size_t, instrumentation::perf_counter_key>& get_profiling_info() const { return _profiling_info; }
 
     layout get_input_layout(size_t idx = 0) const { return _impl_params->get_input_layout(idx); }
-    layout get_output_layout() const { return _impl_params->output_layout; }
+    layout get_output_layout(size_t idx = 0) const { return _impl_params->get_output_layout(idx); }
     layout get_node_output_layout() const { return _node_output_layout; }
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::vector<cldnn::fused_primitive_desc_onednn>& get_fused_primitives_onednn() const { return _impl_params->fused_desc_onednn; }

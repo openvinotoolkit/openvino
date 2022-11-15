@@ -12,7 +12,7 @@ static std::shared_ptr<dnnl::deconvolution_forward::desc> get_deconvolution_desc
 
     auto input_layout = impl_params.get_input_layout(0);
     auto weights_layout = impl_params.get_input_layout(1);
-    auto output_layout = impl_params.output_layout;
+    auto output_layout = impl_params.get_output_layout();
 
     dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
     dnnl::memory::dims dilation(input_layout.get_spatial_rank(), 1);

@@ -89,7 +89,7 @@ public:
         const auto& primitive = impl_param.typed_desc<deconvolution>();
         const auto& split = primitive->split();
         const auto& stride = primitive->stride;
-        const ov::Strides dilation(impl_param.output_layout.get_spatial_rank(), 1);
+        const ov::Strides dilation(impl_param.get_output_layout().get_spatial_rank(), 1);
         const auto actual_split = split;
 
         const auto& pad = primitive->pad;

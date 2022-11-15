@@ -10,6 +10,8 @@
 #include <string>
 #include <limits>
 
+#include "topk_shape_inference.hpp"
+
 namespace cldnn {
 primitive_type_id arg_max_min::type_id() {
     static primitive_type_base<arg_max_min> instance;
@@ -67,6 +69,41 @@ layout arg_max_min_inst::calc_output_layout(arg_max_min_node const& node, kernel
     sizes[desc->axis] = desc->top_k;
     return layout{output_data_type, format, tensor(format::get_default_format(input_layout.get_rank()), sizes)};
 }
+
+template<typename ShapeType>
+std::vector<layout> arg_max_min_inst::calc_output_layouts(arg_max_min_node const& /*node*/, const kernel_impl_params& impl_param) {
+    std::vector<layout> layouts;
+
+    auto desc = impl_param.typed_desc<arg_max_min>();
+    auto input_layout = impl_param.get_input_layout();
+    auto dt = desc->output_data_type.value_or(input_layout.data_type);
+
+    ov::op::v1::TopK op;
+    op.set_axis(input_layout.get<ShapeType>().rank(), desc->axis);
+    op.set_mode(desc->mode);
+    op.set_sort_type(desc->sort);
+
+    std::vector<ShapeType> output_shapes = { ShapeType{}, ShapeType{} };
+    std::vector<ShapeType> input_shapes = {
+        input_layout.get<ShapeType>(),
+        ShapeType{}
+    };
+
+    int64_t top_k = desc->top_k;
+
+    auto top_k_tensor = std::make_shared<ngraph::runtime::HostTensor>(ov::element::i64, ov::Shape{1}, static_cast<void*>(&top_k));
+    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> const_data = {
+        {1, top_k_tensor}
+    };
+    ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);
+
+    for (size_t i = 0; i < desc->num_outputs; ++i) {
+        layouts.push_back({output_shapes[i], dt, format::get_default_format(output_shapes[i].size())});
+    }
+    return layouts;
+}
+
+template std::vector<layout> arg_max_min_inst::calc_output_layouts<ov::PartialShape>(arg_max_min_node const& node, const kernel_impl_params& impl_param);
 
 std::string arg_max_min_inst::to_string(arg_max_min_node const& node) {
     auto desc = node.get_primitive();

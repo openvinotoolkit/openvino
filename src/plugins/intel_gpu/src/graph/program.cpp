@@ -585,7 +585,7 @@ void program::pre_optimize_graph(bool is_internal) {
     bool output_size_handling_enabled = analyze_output_size_handling_need();
     for (auto& node : processing_order) {
         if (!node->is_type<data>())
-            node->get_output_layout();
+            node->get_output_layouts();
     }
 
     if (options.get<build_option_type::optimize_data>()->enabled()) {
@@ -992,8 +992,8 @@ void program::replace(program_node& old_node, program_node& new_node) {
             "Replacement node shouldn't be marked as an output since it's impossible to rename such node.");
 
     auto id = old_node.id();
-    new_node.output_layout = old_node.get_output_layout();
-    new_node.valid_output_layout = old_node.valid_output_layout;
+    new_node.output_layouts = old_node.get_output_layouts();
+    new_node.valid_output_layouts = old_node.valid_output_layouts;
 
     // copy old's dependencies
     while (!old_node.dependencies.empty()) {
@@ -1101,6 +1101,7 @@ bool program::extract(program_node& node) {
     }
     input.users.remove(&node);
     node.dependencies.clear();
+    node.dependencies_new.clear();
 
     if (!node.is_endpoint())
         replace_all_usages(node, input, false);
