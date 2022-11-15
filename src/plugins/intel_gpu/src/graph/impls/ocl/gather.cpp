@@ -211,4 +211,4 @@ attach_gather_impl::attach_gather_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_impl, cldnn::object_type::GATHER_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_impl)

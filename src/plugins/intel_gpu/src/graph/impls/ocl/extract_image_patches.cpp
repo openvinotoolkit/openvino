@@ -57,4 +57,4 @@ attach_extract_image_patches_impl::attach_extract_image_patches_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::extract_image_patches_impl, cldnn::object_type::EXTRACT_IMAGE_PATCHES_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::extract_image_patches_impl)

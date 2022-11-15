@@ -78,4 +78,4 @@ namespace detail {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::generate_proposals_impl, cldnn::object_type::GENERATE_PROPOSALS_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::generate_proposals_impl)

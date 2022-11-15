@@ -105,4 +105,4 @@ attach_dft_impl::attach_dft_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::dft_impl, cldnn::object_type::DFT_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::dft_impl)

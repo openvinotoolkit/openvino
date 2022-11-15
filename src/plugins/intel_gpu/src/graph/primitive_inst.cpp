@@ -1037,8 +1037,8 @@ std::string primitive_inst::get_implementation_name() const {
 void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
     if (type() == cldnn::data::type_id() ||
        (type() == cldnn::mutable_data::type_id() && _impl == nullptr)) {
-        object_type _object_type = object_type::DATA_INST;
-        ob << cldnn::make_data(&_object_type, sizeof(object_type));
+        std::string _object_type = "DATA_INST";
+        ob << _object_type;
         ob << _node->get_primitive()->type_string();
         _impl_params->save(ob);
         ob << _outputs[0]->get_layout();
@@ -1056,8 +1056,8 @@ void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
             ob << cldnn::make_data(lock.data(), data_size);
         }
     } else {
-        object_type _object_type = object_type::EXECUTABLE_INST;
-        ob << cldnn::make_data(&_object_type, sizeof(object_type));
+        std::string _object_type = "EXECUTABLE_INST";
+        ob << _object_type;
 
         kernel_arguments_data args = _impl->get_arguments(*this);
         kernel_arguments_data_idx args_idx;
@@ -1150,10 +1150,10 @@ int32_t primitive_inst::get_index_in_deps(memory::cptr arg) const {
 }
 
 void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
-    object_type _object_type;
-    ib >> make_data(&_object_type, sizeof(object_type));
+    std::string _object_type;
+    ib >> _object_type;
 
-    if (_object_type == object_type::DATA_INST) {
+    if (_object_type.compare("DATA_INST") == 0) {
         std::string type_str;
         ib >> type_str;
         _type = get_type_id(type_str);
@@ -1180,7 +1180,7 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
             ib >> cldnn::make_data(_buf.data(), data_size);
             _outputs[0]->copy_from(get_network().get_stream(), _buf.data());
         }
-    } else if (_object_type == object_type::EXECUTABLE_INST) {
+    } else if (_object_type.compare("EXECUTABLE_INST") == 0) {
         _impl_params.release();
         _impl_params = make_unique<kernel_impl_params>();
         _impl_params->load(ib);

@@ -17,7 +17,6 @@
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/helpers.hpp"
 #include "intel_gpu/graph/serialization/cl_kernel_data_serializer.hpp"
-#include "intel_gpu/graph/serialization/object_types.hpp"
 #include "intel_gpu/graph/serialization/polymorphic_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
@@ -51,7 +50,7 @@ struct primitive_impl {
 
     virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
     virtual void set_node_params(const program_node&) {}
-    virtual object_type get_type() const { return object_type::NONE; }
+    virtual std::string get_type() const { return ""; }
     virtual void set_arguments(primitive_inst& instance) = 0;
     virtual void set_arguments(kernel_arguments_data_idx& args_idx) = 0;
     virtual kernel_arguments_data get_arguments(const primitive_inst& instance) const = 0;

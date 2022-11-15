@@ -435,4 +435,4 @@ attach_non_max_suppression_impl::attach_non_max_suppression_impl() {
 }  // namespace cpu
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::non_max_suppression_impl, cldnn::object_type::NON_MAX_SUPPRESSION_IMPL_CPU)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::non_max_suppression_impl)

@@ -83,9 +83,9 @@ public:
 
 }  // namespace cldnn
 
-#define BIND_BINARY_BUFFER_WITH_TYPE(cls_name, obj_type) \
+#define BIND_BINARY_BUFFER_WITH_TYPE(cls_name) \
             namespace cldnn {                            \
-            const object_type cls_name::type = obj_type; \
+            const std::string cls_name::type = #cls_name; \
             BIND_TO_BUFFER(BinaryOutputBuffer, cls_name) \
             BIND_TO_BUFFER(BinaryInputBuffer, cls_name)  \
             }

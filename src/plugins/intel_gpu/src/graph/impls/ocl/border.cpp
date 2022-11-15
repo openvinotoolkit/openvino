@@ -166,4 +166,4 @@ attach_border_impl::attach_border_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::border_impl, cldnn::object_type::BORDER_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::border_impl)

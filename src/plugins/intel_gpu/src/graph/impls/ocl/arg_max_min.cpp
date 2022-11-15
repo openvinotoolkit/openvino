@@ -126,4 +126,4 @@ attach_arg_max_min_impl::attach_arg_max_min_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::arg_max_min_impl, cldnn::object_type::ARG_MAX_MIN_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::arg_max_min_impl)
