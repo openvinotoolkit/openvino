@@ -57,7 +57,7 @@ def create_hash(in_dir_path: Path):
         
         ports_info = ET.parse(meta_path).getroot().find("ports_info")
         str_to_hash += ET.tostring(ports_info).decode('utf8').replace('\t', '')
-        
+
         old_name = model_path
         new_name = model_path.name[:model_path.name.find('_') + 1] + str(sha256(str_to_hash.encode('utf-8')).hexdigest())
 
