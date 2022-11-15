@@ -215,7 +215,7 @@ static std::string get_jit_constant(const custom_gpu_primitive_node& outer, cons
         add_layout_to_jit(mem_consts, "INPUT" + std::to_string(i), impl_param.get_input_layout(i));
     }
 
-    add_layout_to_jit(mem_consts, "OUTPUT0", impl_param.output_layout);
+    add_layout_to_jit(mem_consts, "OUTPUT0", impl_param.get_output_layout());
 
     std::ostringstream oss;
     oss << "// Custom Layer Built-ins\n\n";
@@ -226,7 +226,7 @@ static std::string get_jit_constant(const custom_gpu_primitive_node& outer, cons
     return oss.str();
 }
 
-static primitive_impl* create(const custom_gpu_primitive_node& arg, const kernel_impl_params& impl_param) {
+static std::unique_ptr<primitive_impl> create(const custom_gpu_primitive_node& arg, const kernel_impl_params& impl_param) {
     const auto primitive = arg.get_primitive().get();
 
     auto cl_kernel = std::make_shared<kernel_selector::cl_kernel_data>();
@@ -245,7 +245,7 @@ static primitive_impl* create(const custom_gpu_primitive_node& arg, const kernel
         cl_kernel->params.arguments.push_back(get_arg(p));
     }
 
-    return new custom_gpu_primitive_impl(arg, cl_kernel);
+    return cldnn::make_unique<custom_gpu_primitive_impl>(arg, cl_kernel);
 }
 
 namespace detail {

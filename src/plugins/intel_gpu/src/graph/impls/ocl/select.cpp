@@ -16,6 +16,8 @@ namespace ocl {
 struct select_impl : typed_primitive_impl_ocl<select> {
     using parent = typed_primitive_impl_ocl<select>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::select_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::select_params, kernel_selector::select_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -23,14 +25,13 @@ struct select_impl : typed_primitive_impl_ocl<select> {
         return make_unique<select_impl>(*this);
     }
 
-public:
-    static primitive_impl* create(const select_node& arg, const kernel_impl_params& impl_param) {
-        auto select_params = get_default_params<kernel_selector::select_params>(impl_param);
-        auto select_optional_params =
-            get_default_optional_params<kernel_selector::select_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<select>();
+        auto params = get_default_params<kernel_selector::select_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::select_optional_params>(impl_param.get_program());
 
         std::vector<layout> layouts = impl_param.input_layouts;
-        auto o_layout = impl_param.output_layout;
+        auto o_layout = impl_param.get_output_layout();
 
         auto broadcastable = [&](layout a, layout b) {
             auto dims_a = a.get_dims();
@@ -56,28 +57,17 @@ public:
             }
         }
 
-        for (size_t i = 1; i < arg.inputs_count(); i++) {
-            select_params.inputs.push_back(convert_data_tensor(layouts[i]));
+        for (size_t i = 1; i < layouts.size(); i++) {
+            params.inputs.push_back(convert_data_tensor(layouts[i]));
         }
-
-        auto& kernel_selector = kernel_selector::select_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(select_params, select_optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto select = new select_impl(arg, best_kernels[0]);
-
-        return select;
+        return {params, optional_params};
     }
 };
 
 namespace detail {
 
 attach_select_impl::attach_select_impl() {
-    implementation_map<select>::add(impl_types::ocl, select_impl::create, {
+    implementation_map<select>::add(impl_types::ocl, typed_primitive_impl_ocl<select>::create<select_impl>, {
         std::make_tuple(data_types::f32, format::yxfb),
         std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::i8, format::yxfb),

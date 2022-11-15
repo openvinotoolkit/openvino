@@ -1038,6 +1038,41 @@ TEST(type_prop, broadcast_v3_labels_same_dynamic_mixed_dims_broadcast_bidirectio
     EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
 }
 
+TEST(type_prop, broadcast_v3_in0_interval_in1_param_rank_bigger_bidirectional) {
+    PartialShape pshape_a{{4, 8}, 1};
+    auto data = make_shared<op::Parameter>(element::i32, pshape_a);
+    auto target_shape_param = make_shared<op::Parameter>(element::i32, Shape{3});
+    auto broadcast = make_shared<op::v3::Broadcast>(data, target_shape_param, op::BroadcastType::BIDIRECTIONAL);
+
+    EXPECT_EQ(broadcast->get_output_partial_shape(0), (PartialShape{-1, {4, 8}, -1}));
+}
+
+TEST(type_prop, broadcast_v3_in0_interval_in1_param_rank_smaller_bidirectional) {
+    PartialShape pshape_a{-1, 2, {1, 10}, {4, 8}, 1};
+    auto data = make_shared<op::Parameter>(element::i32, pshape_a);
+    auto target_shape_param = make_shared<op::Parameter>(element::i32, Shape{3});
+    auto broadcast = make_shared<op::v3::Broadcast>(data, target_shape_param, op::BroadcastType::BIDIRECTIONAL);
+
+    EXPECT_EQ(broadcast->get_output_partial_shape(0), (PartialShape{-1, 2, -1, {4, 8}, -1}));
+}
+
+TEST(type_prop, broadcast_v3_labels_in0_dims_in1_param_bidirectional) {
+    PartialShape pshape_a{-1, 2, 1, {4, 8}, {1, 10}};
+
+    PartialShape expected_shape{-1, 2, -1, {4, 8}, -1};
+    std::vector<size_t> expected_labels{10, 11, 12, 13, 14};
+    set_shape_labels(pshape_a, expected_labels);
+
+    auto data = std::make_shared<op::Parameter>(element::f32, pshape_a);
+    auto target_shape_param = std::make_shared<op::Parameter>(element::i32, Shape{5});
+    auto broadcast = make_shared<op::v3::Broadcast>(data, target_shape_param, op::BroadcastType::BIDIRECTIONAL);
+
+    const auto& out_shape = broadcast->get_output_partial_shape(0);
+
+    EXPECT_EQ(out_shape, expected_shape);
+    EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+}
+
 TEST(type_prop, broadcast_v3_non_broadcastable_dims_numpy) {
     // Numpy mode for v3::Broadcast mode is one directional
     PartialShape pshape_a{{4, 8}, {2, 4}};

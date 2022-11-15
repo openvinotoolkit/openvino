@@ -1379,13 +1379,17 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             preferred_impl = impl_types::ocl;
         } else {
             auto& nms_node = node.as<non_max_suppression>();
-            auto scoresTensor = convert_data_tensor(nms_node.input_scores().get_output_layout());
-            const size_t kBatchNum = scoresTensor.Batch().v;
-            const size_t kClassNum = scoresTensor.Feature().v;
-            const size_t kNStreams =
-                static_cast<size_t>(node.get_program().get_engine().configuration().throughput_streams);
-            const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
-            preferred_impl = (kKeyValue > 64) ? impl_types::ocl : impl_types::cpu;
+            auto scores_layout = nms_node.input_scores().get_output_layout();
+            if (scores_layout.is_dynamic()) {
+                preferred_impl = impl_types::ocl;
+            } else {
+                const size_t kBatchNum = scores_layout.batch();
+                const size_t kClassNum = scores_layout.feature();
+                const size_t kNStreams =
+                    static_cast<size_t>(node.get_program().get_engine().configuration().throughput_streams);
+                const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
+                preferred_impl = (kKeyValue > 64) ? impl_types::ocl : impl_types::cpu;
+            }
         }
     } else if (node.is_type<reorder>()) {
         if (!_optimization_attributes.use_onednn_impls)
