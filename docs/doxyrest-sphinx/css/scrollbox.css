@@ -1,6 +1,7 @@
 .scrollbox table {
    border-collapse: separate;
    border-spacing: 0;
+   height:inherit;
 }
 .scrollbox table thead {
    position: -webkit-sticky!important;
@@ -14,4 +15,11 @@
    top: 0!important;
    border-top: solid 1px rgba(222, 226, 230, 1);
    border-bottom: solid 1px rgba(222, 226, 230, 1);
+}
+.scrollbox table::-webkit-scrollbar {
+   width: 0;
+   background: transparent;
+}
+.scrollbox table::-webkit-scrollbar-thumb {
+   background: transparent;
 }
