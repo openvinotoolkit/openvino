@@ -4,7 +4,7 @@
 
 // clang-format off
 #include "ngraph/ops.hpp"
-#include "ngraph_ops/nms_static_shape_ie.hpp"
+#include "ov_ops/nms_static_shape_ie.hpp"
 // clang-format on
 
 #include <memory>

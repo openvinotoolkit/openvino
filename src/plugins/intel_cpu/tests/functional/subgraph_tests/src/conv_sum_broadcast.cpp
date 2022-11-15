@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph_ops/type_relaxed.hpp>
+#include <ov_ops/type_relaxed.hpp>
 #include "test_utils/fusing_test_utils.hpp"
 #include "test_utils/convolution_params.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
