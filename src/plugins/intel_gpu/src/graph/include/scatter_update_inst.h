@@ -16,6 +16,7 @@ using scatter_update_node = typed_program_node<scatter_update>;
 template <>
 class typed_primitive_inst<scatter_update> : public typed_primitive_inst_base<scatter_update> {
     using parent = typed_primitive_inst_base<scatter_update>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>
