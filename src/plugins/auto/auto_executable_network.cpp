@@ -145,7 +145,19 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
         }
         return decltype(ov::optimal_number_of_infer_requests)::value_type {real};
     } else if (name == ov::execution_devices) {
-        return decltype(ov::execution_devices)::value_type {_autoSContext->_exeDevices};
+        std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
+        std::vector<std::string> exeDevices = {};
+        for (int i = 0; i < CONTEXTNUM; i++) {
+            if (_autoSchedule->_loadContext[i].isEnabled && _autoSchedule->_loadContext[i].isAlready) {
+                if (i == 0 && !_autoSchedule->_loadContext[CPU].executableNetwork._ptr) {
+                    continue;
+                } else {
+                    exeDevices.push_back(_autoSchedule->_loadContext[i].workName.substr(_autoSchedule->_loadContext[i].workName.find(":") + 1));
+                    break;
+                }
+            }
+        }
+        return decltype(ov::available_devices)::value_type {exeDevices};
     }
     if (_autoSchedule->_loadContext[ACTUALDEVICE].isAlready) {
         return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetMetric(

@@ -570,20 +570,22 @@ def main():
                                       ])
             statistics.dump()
 
-        if devices.count("AUTO"):
-            logger.info(f'ExecutionDevice: {compiled_model.get_property("EXECUTION_DEVICES")}')
-
-        logger.info(f'Count:        {iteration} iterations')
-        logger.info(f'Duration:     {get_duration_in_milliseconds(total_duration_sec):.2f} ms')
+        try:
+            exeDevice = compiled_model.get_property("EXECUTION_DEVICES")
+            logger.info(f'Execution Devices:{exeDevice}')
+        except:
+            pass
+        logger.info(f'Count:            {iteration} iterations')
+        logger.info(f'Duration:         {get_duration_in_milliseconds(total_duration_sec):.2f} ms')
         if MULTI_DEVICE_NAME not in device_name:
             logger.info('Latency:')
             if args.latency_percentile == 50:
-                logger.info(f'   Median:     {median_latency_ms:.2f} ms')
+                logger.info(f'   Median:        {median_latency_ms:.2f} ms')
             elif args.latency_percentile != 50:
                 logger.info(f'   {args.latency_percentile} percentile:     {median_latency_ms:.2f} ms')
-            logger.info(f'   Average:    {avg_latency_ms:.2f} ms')
-            logger.info(f'   Min:        {min_latency_ms:.2f} ms')
-            logger.info(f'   Max:        {max_latency_ms:.2f} ms')
+            logger.info(f'   Average:       {avg_latency_ms:.2f} ms')
+            logger.info(f'   Min:           {min_latency_ms:.2f} ms')
+            logger.info(f'   Max:           {max_latency_ms:.2f} ms')
 
             if pcseq:
                 logger.info("Latency for each data shape group:")
