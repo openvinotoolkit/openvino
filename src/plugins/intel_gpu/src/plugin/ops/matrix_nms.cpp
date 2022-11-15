@@ -4,17 +4,17 @@
 #include "intel_gpu/primitives/matrix_nms.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset8.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
-#include "ngraph_ops/nms_static_shape_ie.hpp"
+#include "ov_ops/nms_static_shape_ie.hpp"
 
 namespace ngraph {
 namespace op {
 namespace internal {
-using NmsStaticShapeIE8 = ngraph::op::internal::NmsStaticShapeIE<ngraph::opset8::MatrixNms>;
+using NmsStaticShapeIE8 = ov::op::internal::NmsStaticShapeIE<ov::opset8::MatrixNms>;
 }
 }  // namespace op
 }  // namespace ngraph
