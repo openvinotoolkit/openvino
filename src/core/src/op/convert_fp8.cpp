@@ -10,22 +10,26 @@
 
 using namespace ngraph;
 
-op::v1::ConvertFP8::ConvertFP8() : Op(), m_destination_type("hp8_ext") {}
+BWDCMP_RTTI_DEFINITION(op::v1::ConvertFP8);
+
+op::v1::ConvertFP8::ConvertFP8() : Op(), m_destination_type("hf8_ext") {}
 
     //! [op:ctor]
 op::v1::ConvertFP8::ConvertFP8(const ov::Output<ov::Node>& arg,
                                const ov::Output<ov::Node>& scale,
-                               const std::string& destination_type)
+                               const std::string& destination_type,
+                               bool apply_scale)
     :
     Op({ arg, scale }),
-    m_destination_type(destination_type)
+    m_destination_type(destination_type),
+    m_apply_scale(apply_scale) 
 {
     validate();
     constructor_validate_and_infer_types();
 }
 //! [op:ctor]
 
-const std::vector<std::string> op::v1::ConvertFP8::m_valid_types({"hf8", "hf8_ext", "bf8"});
+const std::vector<std::string> op::v1::ConvertFP8::m_valid_types({"hf8", "hf8_ext", "bf8", "hf8_libxsmm"});
 
 //! [op:validate]
 void op::v1::ConvertFP8::validate_and_infer_types() {
@@ -35,7 +39,7 @@ void op::v1::ConvertFP8::validate_and_infer_types() {
 
 //! [op:copy]
 std::shared_ptr<ov::Node> op::v1::ConvertFP8::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    OPENVINO_ASSERT(new_args.size() == 1, "Incorrect number of new arguments");
+    OPENVINO_ASSERT(new_args.size() == 2, "Incorrect number of new arguments");
 
     return std::make_shared<ConvertFP8>(new_args.at(0), new_args.at(1), m_destination_type);
 }
@@ -444,7 +448,7 @@ namespace convert_fp8 {
                 convertfp16_hf8(inPtr, outPtr, element_count);
             } else if (destination_type == "hf8_ext") {
                 convertfp16_hf8_ext(inPtr, outPtr, element_count);
-            } else if (destination_type == "hf8_eb_7") {
+            } else if (destination_type == "hf8_libxsmm") {
                 convertfp16_hf8_libxsmm(inPtr, outPtr, element_count);
             } else {
                 std::cout << "Bad destination_type: " << destination_type << std::endl;

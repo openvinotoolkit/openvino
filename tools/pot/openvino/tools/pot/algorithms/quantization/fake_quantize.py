@@ -93,13 +93,11 @@ def fill_fake_quantize_node(fq, min_level, max_level, output_low=None, output_hi
     min_level_mean = np.mean(min_level)
     max_level_mean = np.mean(max_level)
     th = max(abs(min_level_mean), abs(max_level_mean))
-    print('Th Value: ', th)
+    print(fq.name, ' th value: ', th)
     if th > 15:
         fq.destination_type = 'bf8'
     else:
-        fq.destination_type = 'hf8'
-    if '_weights_' in fq.name:
-        fq.is_weight = True
+        fq.destination_type = 'hf8_ext'
 
     def _update_node_val(port_idx, value):
         _node = get_node_input(fq, port_idx)
