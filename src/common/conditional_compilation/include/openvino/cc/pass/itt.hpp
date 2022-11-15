@@ -22,7 +22,6 @@ OV_CC_DOMAINS(ov_pass);
 #    define RUN_ON_MODEL_SCOPE(region)    OV_SCOPE(ov_pass, OV_PP_CAT(region, _run_on_model))
 
 #    define ADD_MATCHER(obj, region, ...)            obj->add_matcher<region>(__VA_ARGS__);
-#    define ADD_MATCHER_FOR_THIS(region, ...)        ADD_MATCHER(this, region, __VA_ARGS__)
 #    define REGISTER_PASS(obj, region, ...)          obj.register_pass<region>(__VA_ARGS__);
 #    define REGISTER_DISABLED_PASS(obj, region, ...) obj.register_pass<region, false>(__VA_ARGS__);
 #elif defined(SELECTIVE_BUILD)
