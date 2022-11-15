@@ -245,17 +245,17 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             std::shared_ptr<ie::ICacheManager> _cacheManager;
         };
 
-        // Core default supported properties and values, which are core global properties.
-        // They don't require a specified device.
-        const ov::AnyMap default_core_supported_properties = {ov::cache_dir(""),
-                                                              ov::hint::allow_auto_batching(true),
-                                                              ov::auto_batch_timeout(1000),
-                                                              ov::force_tbb_terminate(false)};
+        // Core default global properties and values, which will not set to any plugins.
+        const ov::AnyMap default_global_properties = {ov::hint::allow_auto_batching(true),
+                                                      ov::force_tbb_terminate(false)};
+        // Core default plugins properties and values, which will set to one or multiple plugins.
+        const ov::AnyMap default_plugins_properties = {ov::cache_dir(""), ov::auto_batch_timeout(1000)};
 
         void set_core_config(ov::AnyMap& config) {
             for (auto it = config.begin(); it != config.end();) {
-                auto item = default_core_supported_properties.find(it->first);
-                if (item == default_core_supported_properties.end()) {
+                auto item = default_plugins_properties.find(it->first);
+                auto item2 = default_global_properties.find(it->first);
+                if (item == default_plugins_properties.end() && item2 == default_global_properties.end()) {
                     it++;
                     continue;
                 }
@@ -272,29 +272,42 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                 }
 
                 {
+                    // Update or insert config
                     std::lock_guard<std::mutex> lock(_commonConfigMutex);
-                    auto temp = _commonConfig.find(it->first);
-                    if (temp != _commonConfig.end()) {
-                        _commonConfig[it->first] = it->second;
-                    } else {
-                        _commonConfig.insert(*it);
-                    }
+                    _commonConfig[it->first] = it->second;
                 }
                 it = config.erase(it);
             }
         }
 
         void update_config(const std::string& device_name, ov::AnyMap& config) const {
-            if (device_name.find("BATCH") != std::string::npos) {
-                if (config.find(ov::auto_batch_timeout.name()) == config.end()) {
-                    auto timeout = get_core_config(ov::auto_batch_timeout.name(), false);
-                    if (!timeout.empty())
-                        config.insert({ov::auto_batch_timeout.name(), timeout});
+            for (auto& it : _commonConfig) {
+                auto item = default_plugins_properties.find(it.first);
+                if (item == default_plugins_properties.end())
+                    continue;
+
+                // If config has contained this property, it will not be overwritten.
+                auto temp = config.find(it.first);
+                if (temp != config.end())
+                    continue;
+
+                // Only insert property if it is set in core before.
+                if (it.first == ov::auto_batch_timeout.name()) {
+                    if (device_name.find("BATCH") != std::string::npos) {
+                        config[it.first] = it.second;
+                    }
+                } else if (it.first == ov::cache_dir.name()) {
+                    auto cacheConfig = getCacheConfigForDevice(device_name);
+                    if (cacheConfig._cacheManager) {
+                        config[it.first] = cacheConfig._cacheDir;
+                    }
+                } else {
+                    config[it.first] = it.second;
                 }
             }
         }
 
-        ov::Any get_core_config(const std::string& name, bool use_default_value = true) const {
+        ov::Any get_core_config(const std::string& name) const {
             {
                 std::lock_guard<std::mutex> lock(_commonConfigMutex);
                 auto it = _commonConfig.find(name);
@@ -303,15 +316,19 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                 }
             }
 
-            if (!use_default_value)
-                return ov::Any();
-
-            // Return default value if not set before.
-            auto item = default_core_supported_properties.find(name);
-            if (item != default_core_supported_properties.end()) {
+            // Return default value if global propery is not set before.
+            auto item = default_global_properties.find(name);
+            if (item != default_global_properties.end()) {
                 return item->second;
             }
 
+            // Return empty value, if plugins properties is not set.
+            auto it = default_plugins_properties.find(name);
+            if (it != default_plugins_properties.end()) {
+                return ov::Any();
+            }
+
+            // Other property will report exception.
             IE_THROW() << "Exception: ov::core get_property with unsupported core property name: '" << name << "'";
         }
 
@@ -1193,12 +1210,7 @@ public:
 
             // configuring
             {
-                if (DeviceSupportsCacheDir(plugin)) {
-                    auto cacheConfig = coreConfig.getCacheConfigForDevice(deviceName);
-                    if (cacheConfig._cacheManager) {
-                        desc.defaultConfig[CONFIG_KEY(CACHE_DIR)] = cacheConfig._cacheDir;
-                    }
-                } else if (desc.defaultConfig.count(CONFIG_KEY(CACHE_DIR)) > 0) {
+                if (!DeviceSupportsCacheDir(plugin) && desc.defaultConfig.count(CONFIG_KEY(CACHE_DIR)) > 0) {
                     // Remove "CACHE_DIR" from config if it is not supported by plugin
                     desc.defaultConfig.erase(CONFIG_KEY(CACHE_DIR));
                 }
@@ -1368,12 +1380,7 @@ public:
             allowNotImplemented([&]() {
                 std::lock_guard<std::mutex> lock(get_mutex(plugin.first));
                 auto configCopy = config;
-                if (DeviceSupportsCacheDir(plugin.second)) {
-                    auto cacheConfig = coreConfig.getCacheConfigForDevice(deviceName);
-                    if (cacheConfig._cacheManager) {
-                        configCopy[CONFIG_KEY(CACHE_DIR)] = cacheConfig._cacheDir;
-                    }
-                } else if (configCopy.count(CONFIG_KEY(CACHE_DIR)) > 0) {
+                if (!DeviceSupportsCacheDir(plugin.second) && configCopy.count(CONFIG_KEY(CACHE_DIR)) > 0) {
                     // Remove "CACHE_DIR" from config if it is not supported by plugin
                     configCopy.erase(CONFIG_KEY(CACHE_DIR));
                 }
