@@ -18,7 +18,8 @@ namespace intel_cpu {
 
 class JitKernelBase: public dnnl::impl::cpu::x64::jit_generator {
 public:
-    JitKernelBase(const char* name) : dnnl::impl::cpu::x64::jit_generator(name) {}
+    JitKernelBase(const char* name, x64::cpu_isa_t max_cpu_isa) :
+        dnnl::impl::cpu::x64::jit_generator(name), maxCpuIsa(max_cpu_isa) {}
 
     void generate() override;
     virtual void generate_impl() = 0;
@@ -181,14 +182,14 @@ public:
     static constexpr unsigned VCMPPS_GT = 0x0e;
 
 protected:
-    virtual void createRegistersPool() {
-        registersPool = RegistersPool::create(dnnl::impl::cpu::x64::isa_all);
-    }
+    virtual void createRegistersPool();
+    virtual void createStackAllocator();
 
     inline bool isValidIsa(dnnl::impl::cpu::x64::cpu_isa_t isa) {
         return is_subset(isa, dnnl::impl::cpu::x64::isa_all) && dnnl::impl::cpu::x64::mayiuse(isa);
     }
 
+    x64::cpu_isa_t maxCpuIsa;
     RegistersPool::Ptr registersPool;
     std::unique_ptr<StackAllocator> stackAllocator;
     std::unordered_map<std::string, std::shared_ptr<jit_emitter>> emittersMap;

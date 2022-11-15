@@ -70,7 +70,7 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
     static constexpr unsigned SIMD_WIDTH = x64::cpu_isa_traits<isa>::vlen / sizeof(typename ov::element_type_traits<ov::element::Type_t::f32>::value_type);
 
     jit_refine_anchors_kernel_fp32(const jit_refine_anchors_conf &jqp)
-        : jit_refine_anchors_kernel(jit_name(), jqp) {}
+        : jit_refine_anchors_kernel(jit_name(), isa, jqp) {}
 
     void generate() override {
         jit_refine_anchors_kernel::generate();
@@ -78,6 +78,11 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
     }
 
     void generate_impl() override;
+
+ protected:
+    void createStackAllocator() override {
+        stackAllocator = std::unique_ptr<StackAllocator>(new StackAllocator{*this, 0x40});
+    }
 
  private:
     void update_input_output_ptrs();
@@ -92,7 +97,7 @@ class jit_refine_anchors_kernel_fp32 : public jit_refine_anchors_kernel {
 
     Xbyak::Reg64 reg_params = abi_param1;
 
-    Xbyak::Reg64 reg_anchors_loop = rcx;
+    Xbyak::Reg64 reg_anchors_loop = abi_not_param1;
 
     // Stable variables
     Xbyak::Reg64 reg_anchors_ptr = r8;

@@ -7,13 +7,14 @@
 using namespace ov;
 using namespace intel_cpu;
 using namespace dnnl::impl::cpu;
+using namespace dnnl::impl::cpu::x64;
 
 
 void JitKernelBase::generate() {
     this->preamble();
 
     createRegistersPool();
-    stackAllocator = std::unique_ptr<StackAllocator>(new StackAllocator{*this});
+    createStackAllocator();
 
     generate_impl();
 
@@ -772,4 +773,12 @@ void JitKernelBase::memMovDD(const Xbyak::Reg64& rDst,
         }
     }
     L(lEnd);
+}
+
+void JitKernelBase::createRegistersPool() {
+    registersPool = RegistersPool::create(maxCpuIsa, {abi_param1});
+}
+
+void JitKernelBase::createStackAllocator() {
+    stackAllocator = std::unique_ptr<StackAllocator>(new StackAllocator{*this});
 }
