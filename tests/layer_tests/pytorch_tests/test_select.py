@@ -7,17 +7,14 @@ import numpy as np
 import torch
 
 
-@pytest.mark.parametrize('input_dim', list(range(4)))
-@pytest.mark.parametrize('input_index', list(range(4)))
+@pytest.mark.parametrize('input_dim', list(range(-3, 4)))
+@pytest.mark.parametrize('input_index', list(range(-3, 4)))
 class TestSelect(PytorchLayerTest):
 
     def _prepare_input(self):
         return (np.random.randn(4, 4, 5, 5).astype(np.float32),)
 
-    def create_model(self):
-
-        input_dim = self.input_dim
-        input_index = self.input_index
+    def create_model(self, input_dim, input_index):
 
         class aten_select(torch.nn.Module):
 
@@ -39,6 +36,5 @@ class TestSelect(PytorchLayerTest):
 
     @pytest.mark.nightly
     def test_pow(self, ie_device, precision, ir_version, input_dim, input_index):
-        self.input_dim = input_dim
-        self.input_index = input_index
-        self._test(*self.create_model(), ie_device, precision, ir_version)
+        self._test(*self.create_model(input_dim, input_index),
+                   ie_device, precision, ir_version)
