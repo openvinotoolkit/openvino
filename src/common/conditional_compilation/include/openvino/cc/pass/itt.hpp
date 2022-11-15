@@ -43,7 +43,6 @@ OV_CC_DOMAINS(ov_pass);
 #    define ADD_MATCHER(obj, region, ...)                                                   \
         OV_PP_CAT(ADD_MATCHER_OBJ_, OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, region))) \
         (obj, region, __VA_ARGS__)
-#    define ADD_MATCHER_FOR_THIS(region, ...) ADD_MATCHER(this, region, __VA_ARGS__)
 
 #    define REGISTER_PASS_1(obj, region, ...) obj.register_pass<region>(__VA_ARGS__);
 #    define REGISTER_PASS_0(obj, region, ...)
