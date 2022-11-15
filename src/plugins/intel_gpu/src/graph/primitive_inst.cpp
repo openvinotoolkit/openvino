@@ -1175,10 +1175,10 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
         if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
             ib >> cldnn::make_data(_outputs[0]->buffer_ptr(), data_size);
         } else {
-            char *_buf = new char[data_size];
-            ib >> cldnn::make_data(_buf, data_size);
-            _outputs[0]->copy_from(get_network().get_stream(), _buf);
-            delete[] _buf;
+            std::vector<uint8_t> _buf;
+            _buf.resize(data_size);
+            ib >> cldnn::make_data(_buf.data(), data_size);
+            _outputs[0]->copy_from(get_network().get_stream(), _buf.data());
         }
     } else if (_object_type == object_type::EXECUTABLE_INST) {
         _impl_params.release();
