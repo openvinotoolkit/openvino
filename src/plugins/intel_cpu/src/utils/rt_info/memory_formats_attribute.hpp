@@ -27,7 +27,7 @@ public:
     explicit MemoryFormats(const std::string &_memory_format) : memory_format(_memory_format) {}
     std::string getMemoryFormats() const { return memory_format; }
     bool is_copyable(const std::shared_ptr<ov::Node>& to) const override {
-        return (!ngraph::op::is_constant(to));
+        return (!ov::op::util::is_constant(to));
     }
 
     ov::Any merge(const ngraph::NodeVector & nodes) const override {
