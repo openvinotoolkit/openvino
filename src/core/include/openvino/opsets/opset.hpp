@@ -185,4 +185,10 @@ const OPENVINO_API OpSet& get_opset9();
  * @ingroup ov_opset_cpp_api
  */
 const OPENVINO_API OpSet& get_opset10();
+
+/**
+ * @brief Returns map of available opsets
+ * @ingroup ov_opset_cpp_api
+ */
+const OPENVINO_API std::map<std::string, std::function<const ov::OpSet&()>>& get_available_opsets();
 }  // namespace ov
