@@ -106,7 +106,7 @@ ov::OutputVector list_with_constants(const ov::OutputVector& to) {
     for (auto& node : to) {
         for (auto& input : node.get_node()->inputs()) {
             auto source_node = input.get_source_output();
-            if (ngraph::op::is_constant(source_node.get_node_shared_ptr()) && (0 == source_node.get_rt_info().size())) {
+            if (ov::op::util::is_constant(source_node.get_node_shared_ptr()) && (0 == source_node.get_rt_info().size())) {
                 if (std::find(ops.begin(), ops.end(), source_node) == ops.end()) {
                     ops.push_back(source_node);
                 }
