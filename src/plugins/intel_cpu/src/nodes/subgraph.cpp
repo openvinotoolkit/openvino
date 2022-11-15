@@ -85,7 +85,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
     }
 
     const size_t ndims = outputShapes[0].getRank();
-    const bool isChannelsFirstApplicable = dnnl::impl::utils::one_of(ndims, 1, 2, 4, 5) && dimRanksAreEqual;
+    const bool isChannelsFirstApplicable = dnnl::impl::utils::one_of(ndims, 1, 2, 3, 4, 5) && dimRanksAreEqual;
     // Todo: Snippets currently don't support per-channel broadcasting of Blocked descriptors because
     //  canonicalization can't distinguish between <N, C, H, W, c> and <N, C, D, H, W> cases.
     //  See snippets::op::Subgraph::canonicalize for details.
