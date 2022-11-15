@@ -2,6 +2,7 @@
    border-collapse: separate;
    border-spacing: 0;
    height:inherit;
+   overflow-y: scroll;
 }
 .scrollbox table thead {
    position: -webkit-sticky!important;
