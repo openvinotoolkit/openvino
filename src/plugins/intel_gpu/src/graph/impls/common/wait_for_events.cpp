@@ -45,15 +45,17 @@ public:
 
     bool validate(const primitive_inst&) const override { return true; }
 
-    static primitive_impl* create_data(const data_node& data, const kernel_impl_params&) { return new wait_for_events_impl(data); }
-
-    static primitive_impl* create_input_layout(const input_layout_node& input, const kernel_impl_params&) {
-        return new wait_for_events_impl(input);
+    static std::unique_ptr<primitive_impl> create_data(const data_node& data, const kernel_impl_params&) {
+        return make_unique<wait_for_events_impl>(data);
     }
 
-    static primitive_impl* create_prior_box(const prior_box_node& prior_box, const kernel_impl_params&) {
+    static std::unique_ptr<primitive_impl> create_input_layout(const input_layout_node& input, const kernel_impl_params&) {
+        return make_unique<wait_for_events_impl>(input);
+    }
+
+    static std::unique_ptr<primitive_impl> create_prior_box(const prior_box_node& prior_box, const kernel_impl_params&) {
         // This primitive is being executed on CPU during network compilation.
-        return new wait_for_events_impl(prior_box);
+        return make_unique<wait_for_events_impl>(prior_box);
     }
 };
 

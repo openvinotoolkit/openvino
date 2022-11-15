@@ -4,7 +4,7 @@
 
 #include "intel_gpu/plugin/program.hpp"
 #include "ngraph/ops.hpp"
-#include "ngraph_ops/nms_ie_internal.hpp"
+#include "ov_ops/nms_ie_internal.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "intel_gpu/plugin/itt.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"

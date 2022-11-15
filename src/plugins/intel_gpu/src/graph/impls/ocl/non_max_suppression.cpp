@@ -15,6 +15,8 @@ namespace ocl {
 struct non_max_suppression_impl : typed_primitive_impl_ocl<non_max_suppression> {
     using parent = typed_primitive_impl_ocl<non_max_suppression>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::non_max_suppression_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::non_max_suppression_params, kernel_selector::non_max_suppression_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -55,11 +57,11 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const non_max_suppression_node& arg, const kernel_impl_params& impl_param) {
-        const auto& primitive = arg.get_primitive();
+    static std::unique_ptr<primitive_impl> create(const non_max_suppression_node& arg, const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<non_max_suppression>();
         auto params = get_default_params<kernel_selector::non_max_suppression_params>(impl_param);
         auto optional_params =
-            get_default_optional_params<kernel_selector::non_max_suppression_optional_params>(arg.get_program());
+            get_default_optional_params<kernel_selector::non_max_suppression_optional_params>(impl_param.get_program());
 
         const auto input_scores_idx = 1;
         params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[input_scores_idx]));
@@ -133,16 +135,9 @@ public:
         params.box_encoding = primitive->center_point_box ? kernel_selector::BoxEncodingType::BOX_ENCODING_CENTER
                                                           : kernel_selector::BoxEncodingType::BOX_ENCODING_CORNER;
         auto& kernel_selector = kernel_selector::non_max_suppression_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto non_max_suppression_node = new non_max_suppression_impl(arg, best_kernels[0]);
-
-        return non_max_suppression_node;
+        return make_unique<non_max_suppression_impl>(arg, best_kernel);
     }
 
 private:

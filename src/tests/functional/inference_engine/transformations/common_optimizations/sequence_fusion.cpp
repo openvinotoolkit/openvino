@@ -9,8 +9,8 @@
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "transformations/common_optimizations/sequence_fusion.hpp"
-#include "ngraph_ops/augru_sequence.hpp"
-#include "ngraph_ops/augru_cell.hpp"
+#include "ov_ops/augru_sequence.hpp"
+#include "ov_ops/augru_cell.hpp"
 
 using namespace ov;
 using namespace std;
