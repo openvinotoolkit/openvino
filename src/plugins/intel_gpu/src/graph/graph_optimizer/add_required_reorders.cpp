@@ -51,6 +51,35 @@ void add_required_reorders::run(program& p) {
             continue;  // only nodes with dependencies
         if (usr->is_type<data>())
             continue;
+
+        auto fused_ops = usr->get_fused_primitives();
+        for (auto& fused_op : fused_ops) {
+            // Some kernels use blocked aligned subgroup reads for a vector of elements from dependency tensor
+            // In that case jitter checks that layout of input tensor from fused op is same as output layout or broadcast is possible
+            // The code below is intended to insert additional reorder node for const eltwise dependency to ensure jitter can process such fusion
+            if (!fused_op.is_type<eltwise>())
+                continue;
+
+            auto dep_id = fused_op.dep_start_idx;
+            auto& dep = usr->get_dependency(dep_id);
+            if (!dep.is_type<data>())
+                continue;
+
+            auto dep_layout = dep.get_output_layout();
+            auto out_layout = usr->get_output_layout();
+
+            bool valid_broadcast_case = out_layout.is_static() && dep_layout.is_static() &&
+                                        (static_cast<size_t>(out_layout.feature()) == dep_layout.count() || dep_layout.count() == 1);
+
+            bool requires_reorder = out_layout.format != dep_layout.format && !valid_broadcast_case;
+            if (requires_reorder) {
+                auto new_reorder = std::make_shared<reorder>(dep.id() + "_reorder_" + usr->id(), dep.id(), out_layout.format, dep_layout.data_type);
+                auto& new_reorder_node = p.get_or_create(new_reorder);
+                p.add_intermediate(new_reorder_node, *usr, dep);
+                new_reorder_node.recalc_output_layout(false);
+            }
+        }
+
         if (usr->type()->does_an_implementation_exist(*usr)) {
             if (usr->get_preferred_impl_type() != impl_types::onednn) {
                 continue;
