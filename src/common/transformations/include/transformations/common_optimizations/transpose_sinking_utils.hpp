@@ -4,17 +4,17 @@
 
 #pragma once
 
+#include <openvino/pass/pattern/op/or.hpp>
+#include <transformations/utils/utils.hpp>
 #include <utility>
 
 #include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset9.hpp"
-#include <openvino/pass/pattern/op/or.hpp>
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
-#include <transformations/utils/utils.hpp>
 
 namespace transpose_sinking {
 
@@ -43,7 +43,8 @@ ov::NodeVector InsertOutputTransposes(std::shared_ptr<ov::Node> main_node, Trans
 }  // namespace sink_forward
 
 namespace sink_backward {
-ov::NodeVector InsertTransposeBeforeNode(std::shared_ptr<ov::Node> main_node, std::shared_ptr<ov::opset9::Constant> transpose_const);
+ov::NodeVector InsertTransposeBeforeNode(std::shared_ptr<ov::Node> main_node,
+                                         std::shared_ptr<ov::opset9::Constant> transpose_const);
 }  // namespace sink_backward
 
 }  // namespace transpose_sinking
