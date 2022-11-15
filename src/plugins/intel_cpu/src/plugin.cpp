@@ -830,6 +830,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
 InferenceEngine::IExecutableNetworkInternal::Ptr
 Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Engine::LoadExeNetworkImpl");
+    CREATE_DEBUG_TIMER(debugLoadTimer);
 
     // verification of supported input
     for (const auto &ii : network.getInputsInfo()) {
@@ -878,6 +879,9 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
             || engConfig.enableDynamicBatch;
     const bool enableSnippets = !(enableModelCache || enableDynamicBatch);
     auto nGraphFunc = clonedNetwork.getFunction();
+
+    DEBUG_LOG(PrintableModel(*nGraphFunc, "org_"));
+
     TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT, enableBF16, enableSnippets, isLegacyAPI());
 
     // need to check that all outputs have static shapes
@@ -893,6 +897,8 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     ApplyPerformanceHints(config, nGraphFunc);
 
     ConvertToCPUSpecificOpset(nGraphFunc);
+
+    DEBUG_LOG(PrintableModel(*nGraphFunc, "cpu_"));
 
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?

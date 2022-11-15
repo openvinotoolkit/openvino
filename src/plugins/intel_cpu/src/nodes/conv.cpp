@@ -583,10 +583,17 @@ void Convolution::getSupportedDescriptors() {
     }
 }
 
-void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool useLegacyPostOps, bool initWeights) {
+void Convolution::setPostOps(dnnl::primitive_attr& attr,
+                             const VectorDims& dims,
+                             bool useLegacyPostOps,
+                             bool initWeights) {
     dnnl::post_ops ops;
+    auto& args = convPostOpsArgs[useLegacyPostOps];
+    bool isINT8 = canBeExecutedInInt8();
 
-    auto getBinPostOpShape = [&](){
+    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, args, dims, 1, isINT8);
+
+    auto getBinPostOpShape = [&]() {
         const auto outShapeRank = dims.size();
         const auto chIdx = getFusingAxis();
         std::vector<size_t> binaryShape(outShapeRank, 1);
@@ -594,30 +601,39 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
         return binaryShape;
     };
 
-    for (int i = 0; i < fusedWith.size(); i++) {
+    DEBUG_LOG(getName(), " useLegacyPostOps=", useLegacyPostOps, " initWeights=", initWeights);
+
+    for (int i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
+        bool isLastPostOp = (i == (fusedWith.size() - 1));
+
         if (node->getType() == Type::Split || node->getType() == Type::Concatenation)
             continue;
 
-        if (auto* eltwiseNode = dynamic_cast<Eltwise *>(node.get())) {
+        if (auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get())) {
             if (eltwiseNode->isSpecialConvolutionAddFusing()) {
                 if (withSumBroadcast) {
                     break;
                 }
                 ops.append_sum(1.0, DnnlExtensionUtils::IEPrecisionToDataType(eltwisePrecision));
             } else {
-                if (useLegacyPostOps || eltwiseNode->getOneDnnAlgorithm() != dnnl::algorithm::undef) {
-                    eltwiseNode->appendPostOps(ops, dims, convPostOpsArgs[useLegacyPostOps]);
+                if (useLegacyPostOps) {
+                    // try mapping with optimization w/o using binary postOps
+                    if (eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, false)) {
+                        continue;
+                    }
+                    eltwiseNode->appendPostOps(ops, dims, args);
                 } else {
-                    eltwiseNode->appendBinPostOps(ops, getBinPostOpShape(), convPostOpsArgs[useLegacyPostOps]);
+                    eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType);
                 }
             }
             continue;
         }
 
-        if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get())) {
-            const Dim OC = dims[1];
-            auto scale = fakeQuantizeNode->simplifyToScale(outputDataType, OC);
+        if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get())) {
+            // drop rounding one special residual pattern
+            // TODO: validate this unsafe optimization
+            bool do_rounding = true;
             if (i == 0) {
                 bool hasSubsequentSum = false;
                 bool hasSubsequentFQ = false;
@@ -634,71 +650,46 @@ void Convolution::setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims,
                         hasSubsequentFQ = true;
                     }
                 }
-
-                if (fakeQuantizeNode->getAlgorithm() == Algorithm::FQCommon &&
-                    hasSubsequentSum &&
-                    hasSubsequentFQ) {
-                    std::vector<float> fqScale = fakeQuantizeNode->getFQScales();
-                    if (!fqScale.empty()) {
-                        size_t size = fqScale.size();
-                        if (size == 1) {
-                            fqScale.resize(OC);
-                            for (size_t k = 0; k < OC; k++)
-                                fqScale[k] = fqScale[0];
-                        }
-
-                        attr.set_output_scales(1 << 1, fqScale);
-
-                        continue;
-                    }
-                }
-
-                if (node == fusedWith[fusedWith.size() - 1] && !scale.empty()) {
-                    attr.set_output_scales(1 << 1, scale);
-                    continue;
-                }
-            }
-
-            if (node == fusedWith[fusedWith.size() - 1] && !scale.empty()) {
-                if (ops.len() == 1 && ops.kind(0) == primitive::kind::sum &&
-                    outputDataType == memory::data_type::u8 &&
-                    std::all_of(scale.cbegin(), scale.cend(), [&](float val) { return val == scale[0]; })) {
-                    std::vector<float> outScales;
-                    int mask = 1 << 1;
-                    attr.get_output_scales(mask, outScales);
-                    for (int j = 0; j < outScales.size(); j++) {
-                        outScales[j] *= scale[0];
-                    }
-                    attr.set_output_scales(mask, outScales);
-                    ops.get()->entry_[0].sum.scale = scale[0];
-                    continue;
+                if (hasSubsequentSum && hasSubsequentFQ) {
+                    do_rounding = false;
                 }
             }
 
             if (useLegacyPostOps) {
-                fakeQuantizeNode->appendPostOps(ops, dims, convPostOpsArgs[useLegacyPostOps]);
+                // can we implement it without binary postOps?
+                if (fakeQuantizeNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, false, do_rounding)) {
+                    continue;
+                }
+                // fallback to legacy
+                fakeQuantizeNode->appendPostOps(ops, dims, args);
             } else {
-                fakeQuantizeNode->appendBinPostOpsOptimized(ops, getBinPostOpShape(), convPostOpsArgs[useLegacyPostOps],
-                        node == fusedWith[fusedWith.size() - 1], outputDataType);
+                fakeQuantizeNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, true, do_rounding);
             }
-
             continue;
         }
 
-        auto* convolutionNode = dynamic_cast<Convolution *>(node.get());
+        auto* convolutionNode = dynamic_cast<Convolution*>(node.get());
         if (convolutionNode) {
             if (initWeights) {
-                convPostOpsArgs[useLegacyPostOps].push_back(getParentEdgeAt(getOriginalInputsNumber() + 0)->getMemoryPtr());
-                convPostOpsArgs[useLegacyPostOps].push_back(getParentEdgeAt(getOriginalInputsNumber() + 1)->getMemoryPtr());
+                args[DNNL_ARG_ATTR_POST_OP_DW | DNNL_ARG_WEIGHTS] = getParentEdgeAt(getOriginalInputsNumber() + 0)->getMemoryPtr();
+                args[DNNL_ARG_ATTR_POST_OP_DW | DNNL_ARG_BIAS] = getParentEdgeAt(getOriginalInputsNumber() + 1)->getMemoryPtr();
 
                 // todo: rewrite onto append_dw_k3s2p1
-                ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
-                                   dw_conv_strides[Y_AXIS], dw_conv_strides[X_AXIS],
+                ops.append_dw_conv(dw_conv_ih,
+                                   dw_conv_iw,
+                                   dw_conv_kernel[Y_AXIS],
+                                   dw_conv_kernel[X_AXIS],
+                                   dw_conv_strides[Y_AXIS],
+                                   dw_conv_strides[X_AXIS],
                                    dnnl::memory::convert_to_c(dw_conv_in_dt));
             } else {
                 // todo: rewrite onto append_dw_k3s2p1
-                ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
-                                   dw_conv_strides[Y_AXIS], dw_conv_strides[X_AXIS],
+                ops.append_dw_conv(dw_conv_ih,
+                                   dw_conv_iw,
+                                   dw_conv_kernel[Y_AXIS],
+                                   dw_conv_kernel[X_AXIS],
+                                   dw_conv_strides[Y_AXIS],
+                                   dw_conv_strides[X_AXIS],
                                    dnnl::memory::convert_to_c(dw_conv_in_dt));
             }
             continue;
