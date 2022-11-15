@@ -321,7 +321,7 @@ TEST_P(ov_infer_request, infer_async) {
     }
 }
 
-TEST_P(ov_infer_request, infer_async_wait_for) {
+TEST_P(ov_infer_request, DISABLED_infer_async_wait_for) {
     OV_EXPECT_OK(ov_infer_request_set_input_tensor_by_index(infer_request, 0, input_tensor));
 
     OV_ASSERT_OK(ov_infer_request_start_async(infer_request));
