@@ -7,7 +7,9 @@
 #include "core/tensor.hpp"
 #include "default_opset.hpp"
 #include "ngraph/op/constant.hpp"
+#include "onnx_import/core/null_node.hpp"
 #include "op/constant.hpp"
+#include "utils/common.hpp"
 #include "utils/reshape.hpp"
 
 namespace ngraph {
@@ -23,7 +25,12 @@ OutputVector constant_of_shape(const onnx_import::Node& node) {
     } else {
         constant_value = default_opset::Constant::create(element::f32, {}, {0});
     }
-    return {std::make_shared<default_opset::Broadcast>(constant_value, node.get_ng_inputs().at(0))};
+    const auto& inputs = node.get_ng_inputs();
+    if (inputs.size() == 0 || common::is_failsafe_node(inputs[0].get_node_shared_ptr()) ||
+        ngraph::op::is_null(inputs[0])) {
+        return {constant_value};
+    }
+    return {std::make_shared<default_opset::Broadcast>(constant_value, inputs[0])};
 }
 
 }  // namespace set_1
