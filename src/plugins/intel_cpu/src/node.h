@@ -37,6 +37,8 @@
 #include <utils/shape_inference/shape_inference.hpp>
 #include "utils/debug_capabilities.h"
 
+#include "dnnl_postops_composer.h"
+
 namespace ov {
 namespace intel_cpu {
 
@@ -187,7 +189,7 @@ public:
 
     static void appendPostOpArgs(const dnnl::primitive_attr& attr,
                                  std::unordered_map<int, dnnl::memory>& primArgs,
-                                 const std::vector<MemoryPtr>& postOpsArgs);
+                                 const std::unordered_map<int, MemoryPtr>& postOpsArgs);
 
     bool isFusedWith(Type type) const;
 
@@ -566,10 +568,8 @@ public:
      * Seed node should call this routine and pass its post operations list as parameter.
      * @param ops List of fused post operations
      */
-    virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<MemoryPtr>& postOpsMem, const int channelAxis = 1);
+    virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem, const int channelAxis = 1);
     virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1);
-
-    virtual void appendBinPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem);
 
     void setRuntimeCache(MultiCachePtr cache) {
         rtParamsCache = cache;
@@ -639,7 +639,7 @@ protected:
     std::vector<MemoryPtr> internalBlobMemory;
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
     std::unordered_map<int, dnnl::memory> primArgs;
-    std::vector<MemoryPtr> postOpsArgs;
+    std::unordered_map<int, MemoryPtr> postOpsArgs;
     Primitive prim;
     std::vector<DnnlDesriptor> descs;
 
