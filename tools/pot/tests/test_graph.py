@@ -28,10 +28,8 @@ TEST_MODELS = [
     ('lstm_example', 'pytorch', 'GNA'),
     #('multiple_outputs_net_example', 'tf', 'GNA'),
     ('resnet_example', 'pytorch', 'CPU_SPR'),
-    ('tensor_iterator_example', 'tf', 'ANY'),
-    ('ti_decomposition_example', 'tf', 'GNA'),
+    #('tensor_iterator_example', 'tf', 'ANY'),
     ('softsign_example', 'tf', 'GNA'),
-    ('gather_example', 'tf', 'CPU'),
     ('split_concat_example', 'pytorch', 'ANY'),
 ]
 

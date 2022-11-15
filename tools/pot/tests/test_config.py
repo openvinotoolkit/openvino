@@ -16,7 +16,6 @@ from openvino.tools.pot.algorithms.quantization.fake_quantize_configuration impo
 from .utils.config import provide_dataset_path
 from .utils.path import HARDWARE_CONFIG_PATH, HARDWARE_CONFIG_REFERENCE_PATH, \
     TOOL_CONFIG_PATH, INTERMEDIATE_CONFIG_PATH
-from .utils.data_helper import load_json
 
 
 def check_hardware_config(config, config_name):
@@ -25,7 +24,8 @@ def check_hardware_config(config, config_name):
         with open(path_to_ref_json.as_posix(), 'w') as f:
             json.dump(config, f)
 
-    ref_config = load_json(path_to_ref_json.as_posix())
+    with open(path_to_ref_json.as_posix(), 'r') as f:
+        ref_config = json.load(f)
 
     assert config == ref_config
 
@@ -86,7 +86,8 @@ def test_load_tool_config(config_name, tmp_path, models):
 def test_configurations_by_preset(preset):
     def _load_config(name):
         path_to_conf = INTERMEDIATE_CONFIG_PATH.joinpath(name).as_posix()
-        return load_json(path_to_conf)
+        with open(path_to_conf, 'r') as f:
+            return json.load(f)
 
     config = Dict({
         'preset': preset,

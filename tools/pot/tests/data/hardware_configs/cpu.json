@@ -48,13 +48,6 @@
             }
         },
         {
-            "type": "ConvolutionBackpropData",
-            "quantization": {
-                "activations": "q8_a",
-                "weights": ["q8_w_sym", "q8_w_asym"]
-            }
-        },
-        {
             "type": "MatMul",
             "quantization": {
                 "activations": "q8_a",
@@ -181,6 +174,13 @@
             }
         },
         {
+            "type": "LSTMCell",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": ["q8_w_sym", "q8_w_asym"]
+            }
+        },
+        {
             "type": "Power",
             "quantization": {
                 "activations": "q8_a"
@@ -224,7 +224,7 @@
         },
         {
             "type": "Concat",
-            "attributes": {
+                    "attributes": {
                 "scales": "unified"
             }
         },
@@ -241,7 +241,6 @@
         {"type": "ShuffleChannels"},
         {"type": "Broadcast"},
         {"type": "Pad"},
-        {"type": "ConvertLike"},  
-        {"type": "DepthToSpace"}
+        {"type": "ConvertLike"}
     ]
 }

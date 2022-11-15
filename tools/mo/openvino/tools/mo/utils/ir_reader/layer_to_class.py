@@ -27,7 +27,6 @@ from openvino.tools.mo.ops.pooling import Pooling
 from openvino.tools.mo.ops.psroipooling import DeformablePSROIPoolingOp
 from openvino.tools.mo.ops.scatter import Scatter
 from openvino.tools.mo.ops.scatternd import ScatterNDBase
-from openvino.tools.mo.ops.slice import OvSlice
 from openvino.tools.mo.ops.split import Split, VariadicSplit
 from openvino.tools.mo.utils.class_registration import update_registration
 from openvino.tools.mo.utils.import_extensions import import_by_path
@@ -48,7 +47,6 @@ custom_ops = {
     'MaxPool': Pooling,
     'Multiply': Mul,
     'Power': Pow,
-    'Slice': OvSlice,
     'Split': Split,
     'Subtract': Sub,
     'VariadicSplit': VariadicSplit,

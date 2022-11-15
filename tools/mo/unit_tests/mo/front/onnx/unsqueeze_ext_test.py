@@ -17,19 +17,12 @@ from unit_tests.utils.extractors import PB
 class TestUnsqueezeONNXExt(unittest.TestCase):
     @staticmethod
     def _create_unsqueeze_node(axes):
-        if axes is None:
-            pb = onnx.helper.make_node(
-                'Unsqueeze',
-                inputs=['x'],
-                outputs=['y'],
-            )
-        else:
-            pb = onnx.helper.make_node(
-                'Unsqueeze',
-                inputs=['x'],
-                outputs=['y'],
-                axes=axes,
-            )
+        pb = onnx.helper.make_node(
+            'Unsqueeze',
+            inputs=['x'],
+            outputs=['y'],
+            axes=axes,
+        )
 
         node = PB({'pb': pb})
         return node
@@ -38,7 +31,7 @@ class TestUnsqueezeONNXExt(unittest.TestCase):
     def setUpClass(cls):
         Op.registered_ops['Unsqueeze'] = Unsqueeze
 
-    @generate(*[[0, 1, 2, 3], [1], []])
+    @generate(*[[0, 1, 2, 3], [1]])
     def test_unsqueeze_ext(self, axes):
         node = self._create_unsqueeze_node(axes)
         UnsqueezeFrontExtractor.extract(node)

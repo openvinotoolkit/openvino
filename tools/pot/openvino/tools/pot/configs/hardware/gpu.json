@@ -1,5 +1,5 @@
 {
-    "target_device": "CPU",
+    "target_device": "GPU",
     "config": {
         "quantization": {
             "q8_a": {
@@ -44,13 +44,6 @@
             "type": "DepthWiseConvolution",
             "quantization": {
                 "activations": "q8_a_ch",
-                "weights": ["q8_w_sym", "q8_w_asym"]
-            }
-        },
-        {
-            "type": "ConvolutionBackpropData",
-            "quantization": {
-                "activations": "q8_a",
                 "weights": ["q8_w_sym", "q8_w_asym"]
             }
         },
@@ -222,13 +215,8 @@
                 "activations": "q8_a"
             }
         },
-        {
-            "type": "Concat",
-            "attributes": {
-                "unified_scales": "all"
-            }
-        },
         {"type": "Reshape"},
+        {"type": "Concat"},
         {"type": "Flatten"},
         {"type": "Squeeze"},
         {"type": "Unsqueeze"},
@@ -241,8 +229,7 @@
         {"type": "ShuffleChannels"},
         {"type": "Broadcast"},
         {"type": "Pad"},
-        {"type": "ConvertLike"},
-        {"type": "Gather"},
+        {"type": "ConvertLike"}, 
         {"type": "DepthToSpace"}
     ]
 }

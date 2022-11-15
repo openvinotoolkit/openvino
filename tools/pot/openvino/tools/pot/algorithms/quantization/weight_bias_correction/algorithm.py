@@ -32,7 +32,7 @@ class WeightBiasCorrection(Algorithm):
         """
         nodes_with_bias = mu.get_nodes_by_type(model, [op['type'] for op in OPERATIONS_WITH_BIAS])
         quantized_weights_layout = {}
-        for fq in mu.get_nodes_by_type(model, ['FakeQuantize']):
+        for fq in mu.get_nodes_by_type(model, ['ConvertFP8']):
             node_input = nu.get_node_input(fq, 0)
             if node_input.type == 'Const':
                 quantized_weights_layout[fq.fullname] = {'tensor': lambda tensor: tensor}

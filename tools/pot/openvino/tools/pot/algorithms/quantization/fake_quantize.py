@@ -90,19 +90,25 @@ def fill_fake_quantize_node(fq, min_level, max_level, output_low=None, output_hi
     :param min_level: low border of quantization range
     :param max_level: high border of quantization range
     """
-    if output_low is None:
-        output_low = min_level
-    if output_high is None:
-        output_high = max_level
+    min_level_mean = np.mean(min_level)
+    max_level_mean = np.mean(max_level)
+    th = max(abs(min_level_mean), abs(max_level_mean))
+    print('Th Value: ', th)
+    if th > 15:
+        fq.destination_type = 'bf8'
+    else:
+        fq.destination_type = 'hf8'
+    if '_weights_' in fq.name:
+        fq.is_weight = True
 
     def _update_node_val(port_idx, value):
         _node = get_node_input(fq, port_idx)
         set_node_value(_node, value)
 
     _update_node_val(1, min_level)
-    _update_node_val(2, max_level)
-    _update_node_val(3, output_low)
-    _update_node_val(4, output_high)
+#    _update_node_val(2, max_level)
+#    _update_node_val(3, output_low)
+#    _update_node_val(4, output_high)
 
 
 def compute_stats_layouts(config, model, qscheme=None):
@@ -126,12 +132,12 @@ def compute_stats_layouts(config, model, qscheme=None):
     change_configurations_by_model_type(model, config, fq_configuration, hardware_config)
 
     # get all fake quantize nodes
-    fq_nodes = get_nodes_by_type(model, ['FakeQuantize'])
+    fq_nodes = get_nodes_by_type(model, ['ConvertFP8'])
 
     fake_quantize_config = {}
     for fq in fq_nodes:
         is_weights = fq['fq_group'] == 'weights'
-        fq_config = copy(fq_configuration[fq.fullname][fq['fq_group']])
+        fq_config = copy(fq_configuration[fq.name][fq['fq_group']])
         fake_quantize_config[fq.fullname] = fq_config
         if fq.fullname in config.layerwise_configs[0]:
             fq_config = Dict(merge_nested_dicts(fq_config, config.layerwise_configs[0][fq.fullname]))
@@ -141,7 +147,7 @@ def compute_stats_layouts(config, model, qscheme=None):
             fq_config['signed'] = True
 
         fake_quantize_config[fq.fullname] = fq_config
-        fq.levels = compute_levels(fq_config, is_weights)
+        #fq.levels = compute_levels(fq_config, is_weights)
 
     return fake_quantize_config
 
@@ -248,8 +254,8 @@ def symmetric_range(node, fq, weights_stats,
         min_level = batch_inputs_stats[name]['min']
         max_level = fix_zero_filters_symmetric(max_level)
         signed = fake_quantize_config[fq.fullname]['signed']
-        min_level = np.zeros(max_level.shape) if np.all(min_level >= 0) and not signed else \
-            -max_level * fq.levels / (fq.levels - 2)
+        min_level = -max_level #np.zeros(max_level.shape) if np.all(min_level >= 0) and not signed else \
+            #-max_level * fq.levels / (fq.levels - 2)
     else:
         raise Exception(
             'WARNING: Fake quantize node {} is missed'.format(fq.fullname))
@@ -303,7 +309,7 @@ def get_quantized_model(model, create_stats_collector, activations_statistics,
     :param fill_fq_range: functor to generate min and max range for fake quantize node
     :param config: dictionary with params algo section from toolkit config
      """
-    # FakeQuantize nodes insertion
+    # ConvertFP8 nodes insertion
     insert_fake_quantize_nodes(config, model, qscheme=qscheme)
 
     fake_quantize_config = compute_stats_layouts(config, model, qscheme=qscheme)
@@ -331,8 +337,8 @@ def compute_weights_stats(model, stats_layout):
     weights_stats = {}
     for fq_name, stats in stats_layout.items():
         fq_node = get_node_by_name(model, fq_name)
-        if fq_node.type != 'FakeQuantize':
-            raise Exception('FakeQuantize node for weights is missed')
+        if fq_node.type != 'ConvertFP8':
+            raise Exception('ConvertFP8 node for weights is missed')
         node = get_fake_quantize_first_output(fq_node)
         weights_node = get_node_input(fq_node, 0)
         weights_value = get_input_data_value(fq_node, 0)

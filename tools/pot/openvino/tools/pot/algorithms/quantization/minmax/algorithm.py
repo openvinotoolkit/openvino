@@ -44,7 +44,7 @@ class MinMaxQuantization(Algorithm):
     def run(self, model):
         """ this function applies quantization algorithm
          :param model: model to apply algo
-         :return model with inserted and filled FakeQuantize nodes
+         :return model with inserted and filled ConvertFP8 nodes
          """
         activation_statistics = self._stats_collector.get_statistics_for_algorithm(self.name)
         model = fqut.get_quantized_model(model,
@@ -90,7 +90,7 @@ class MinMaxQuantization(Algorithm):
          key and dictionary with statistics {stats_name: stats_fn} as values
         """
 
-        fq_nodes = mu.get_nodes_by_type(model, ['FakeQuantize'])
+        fq_nodes = mu.get_nodes_by_type(model, ['ConvertFP8'])
 
         statistics_layout = {}
         for fq in fq_nodes:
@@ -121,7 +121,7 @@ class MinMaxQuantization(Algorithm):
 
         batch_inputs_stats = dict()
         batch_weights_stats = dict()
-        fake_quantizations = mu.get_nodes_by_type(model, ['FakeQuantize'])
+        fake_quantizations = mu.get_nodes_by_type(model, ['ConvertFP8'])
 
         for fq in fake_quantizations:
             fq_input = fqut.get_fake_quantize_input(fq)
@@ -150,7 +150,7 @@ class MinMaxQuantization(Algorithm):
                             stat_config_keys[stat_type]]
 
         for fq_ in fake_quantizations:
-            # get first input because this is FakeQuantize node input
+            # get first input because this is ConvertFP8 node input
             _node_input = fqut.get_fake_quantize_input(fq_)
             if fq_.fullname not in fake_quantize_config:
                 continue

@@ -220,7 +220,7 @@ class ActivationChannelAlignment(Algorithm):
     def get_producer_weights(node_in):
         # get producer convolution weights
         w_in = nu.get_weights_for_node(node_in)
-        if w_in.type == 'FakeQuantize':
+        if w_in.type == 'ConvertFP8':
             w_in = nu.get_node_input(w_in, 0)
         if w_in.type != 'Const':
             w_in = None
@@ -239,7 +239,7 @@ class ActivationChannelAlignment(Algorithm):
     def get_consumer_weights(node_out):
         # get consumer convolution weights
         w_out = nu.get_weights_for_node(node_out)
-        if w_out.type == 'FakeQuantize':
+        if w_out.type == 'ConvertFP8':
             w_out = nu.get_node_input(w_out, 0)
         if w_out.type != 'Const':
             w_out = None

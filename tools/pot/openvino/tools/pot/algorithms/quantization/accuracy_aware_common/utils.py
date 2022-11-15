@@ -175,13 +175,10 @@ def sort_by_logit_distance(u, v, reverse=False, distance='cosine'):
                                                    scipy.special.softmax(v))
     mse_distance = lambda u, v: np.mean((u - v) ** 2)
 
-    nmse_distance = lambda u, v: np.dot(u - v, u - v) / np.dot(u, u)
-
     distance_function = {
         'cosine': scipy.spatial.distance.cosine,
         'kd': kd_distance,
         'mse': mse_distance,
-        'nmse': nmse_distance,
     }
 
     distance_between_samples = np.array([distance_function[distance](ui.flatten(), vi.flatten())
@@ -243,7 +240,7 @@ def get_mixed_preset_config(config: Dict):
 def get_num_of_quantized_ops(model, quantizable_operations):
     quantized_ops = set()
     nodes_to_see = []
-    for fq_node in get_nodes_by_type(model, ['FakeQuantize']):
+    for fq_node in get_nodes_by_type(model, ['ConvertFP8']):
         nodes_to_see.extend(get_all_node_outputs(fq_node))
         while nodes_to_see:
             child = nodes_to_see.pop()

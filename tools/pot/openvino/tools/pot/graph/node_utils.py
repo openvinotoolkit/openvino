@@ -211,7 +211,7 @@ def node_with_quantized_weights(node):
     :return: True if node has quantized weights and False instead
     """
     weights_input = get_node_input(node, 1)
-    if weights_input.type == 'FakeQuantize' and get_node_input(weights_input, 0).type == 'Const':
+    if weights_input.type == 'ConvertFP8' and get_node_input(weights_input, 0).type == 'Const':
         return True
 
     return False
@@ -225,7 +225,7 @@ def node_with_quantized_input_and_bias(node):
     """
     input_node = get_node_input(node, 0)
     bias_node = get_node_input(node, 1)
-    if input_node is not None and input_node.type == 'FakeQuantize' and bias_node is not None and bias_node.type == 'FakeQuantize':
+    if input_node is not None and input_node.type == 'ConvertFP8' and bias_node is not None and bias_node.type == 'ConvertFP8':
         return True
 
     return False
@@ -254,7 +254,7 @@ def get_first_convolutions(parameter_nodes):
 
 def check_const_input(node):
     w_out = get_weights_for_node(node)
-    if w_out.type == 'FakeQuantize':
+    if w_out.type == 'ConvertFP8':
         w_out = get_node_input(w_out, 0)
     if w_out.type != 'Const':
         return False
@@ -288,8 +288,7 @@ def create_node_name(input_node, mode=tuple):
 
 
 def get_node_data_type(node, port_id=0):
-    if node.type != 'Const' and port_id in node.in_ports() \
-            and node.in_port(port_id).get_source() is not None \
+    if node.type != 'Const' and node.in_port(port_id).get_source() is not None \
             and node.in_port(port_id).get_source().is_data_type_defined():
         return node.in_port(port_id).get_source().get_data_type()
     return None
