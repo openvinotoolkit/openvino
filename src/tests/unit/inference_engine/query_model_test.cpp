@@ -5,7 +5,7 @@
 #include <iostream>
 
 #include <openvino/pass/manager.hpp>
-#include <ngraph/opsets/opset9.hpp>
+#include <openvino/opsets/opset9.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/init_node_info.hpp>
