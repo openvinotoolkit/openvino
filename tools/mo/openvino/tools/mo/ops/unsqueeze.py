@@ -48,9 +48,7 @@ class Unsqueeze(Op):
         # make dimensions positive to correctly translate from NHWC to NCHW layout
         unsqueeze_dims = int64_array([dim + len(node.in_port(0).data.get_shape()) + 1 if dim < 0 else dim
                                       for dim in unsqueeze_dims])
-        if node.in_port(1).get_source().node.op == 'Const':
-            node.in_port(1).data.set_value(unsqueeze_dims)
-
+        
         output_shape = input_shape.copy()
         for dim in unsqueeze_dims:
             output_shape = shape_insert(output_shape, dim, 1)

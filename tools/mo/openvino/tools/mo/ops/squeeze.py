@@ -41,7 +41,8 @@ class Squeeze(Op):
         output_shape = input_shape.copy()
         assert len(node.in_nodes()) == 2, 'The Squeeze node {} must have 2 inputs'.format(node_name)
 
-        squeeze_dims = node.in_port(1).data.get_value().copy()
+        # TODO remove the following 'if' statement when IE start support 0D tensors
+        squeeze_dims = node.in_port(1).data.get_value()
         if squeeze_dims.ndim == 0:
             squeeze_dims = squeeze_dims.reshape([1])
 
