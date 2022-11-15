@@ -18,7 +18,7 @@
 #include <transformations/convert_precision.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <ngraph_ops/type_relaxed.hpp>
+#include <ov_ops/type_relaxed.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 

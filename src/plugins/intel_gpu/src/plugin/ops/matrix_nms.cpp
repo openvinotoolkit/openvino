@@ -9,7 +9,7 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
-#include "ngraph_ops/nms_static_shape_ie.hpp"
+#include "ov_ops/nms_static_shape_ie.hpp"
 
 namespace ngraph {
 namespace op {

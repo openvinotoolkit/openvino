@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_ops/type_relaxed.hpp"
+#include "ov_ops/type_relaxed.hpp"
 
 #include <algorithm>
 #include <memory>

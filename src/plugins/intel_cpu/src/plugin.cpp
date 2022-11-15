@@ -107,11 +107,11 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset6.hpp>
-#include "ngraph_ops/augru_cell.hpp"
-#include "ngraph_ops/augru_sequence.hpp"
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/graph_util.hpp>
+#include <ov_ops/augru_cell.hpp>
+#include <ov_ops/augru_sequence.hpp>
 
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
 #include <low_precision/common/quantization_granularity_restriction.hpp>

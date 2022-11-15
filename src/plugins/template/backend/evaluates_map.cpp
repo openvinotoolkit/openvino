@@ -92,8 +92,8 @@
 #include "backend.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/runtime/reference/convert_color_nv12.hpp"
-#include "ngraph_ops/augru_cell.hpp"
-#include "ngraph_ops/augru_sequence.hpp"
+#include "ov_ops/augru_cell.hpp"
+#include "ov_ops/augru_sequence.hpp"
 
 using namespace ngraph;
 using namespace std;

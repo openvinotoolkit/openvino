@@ -91,9 +91,9 @@ public:
             argm_params.has_second_output = true;
             if (arg.use_multiple_outputs()) {
                 argm_params.use_multiple_outputs = true;
-                argm_params.outputs.push_back(convert_data_tensor(impl_param.output_layout));
+                argm_params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout()));
             } else {
-                argm_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
+                argm_params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
             }
         }
 
