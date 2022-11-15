@@ -165,7 +165,7 @@ std::vector<std::string> disabledTestPatterns() {
         // passed local test and cpu has specific test cases with nms9 to cover
         R"(smoke_NmsLayerTest.*)",
         // Issue: 95590
-        R"(.*CachingSupportCase.*CompileModelCacheTestBase.*(TIwithLSTMcell1|MatMulBias)_(u|i).*)",
+        R"(.*CachingSupportCase.*CompileModelCacheTestBase.*(TIwithLSTMcell1|MatMulBias|2InputSubtract)_(u|i).*)",
         // Issue: 95607
         R"(.*OVClass.*QueryNetwork.*QueryNetwork.*)",
         R"(.*OVClass.*LoadNetwork*(HETERO|MULTI).*)",
