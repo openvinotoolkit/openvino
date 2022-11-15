@@ -9,7 +9,7 @@ OpenVINO Paddle Frontend uses [the common coding style rules](../../docs/dev/cod
 
 ## Key contacts
 
-People from the [openvino-ie-paddle-maintainers](https://github.com/orgs/openvinotoolkit/teams/openvino-ie-paddle-maintainers) allows to approve and merge PRs to the Paddle frontend component. These guys can help in case of any questions about the component.
+People from the [openvino-ie-paddle-maintainers](https://github.com/orgs/openvinotoolkit/teams/openvino-ie-paddle-maintainers) have the rights to approve and merge PRs to the Paddle frontend component. They can assist with any questions about the component.
 
 ## Components
 
