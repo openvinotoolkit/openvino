@@ -83,6 +83,7 @@ using condition_node = typed_program_node<condition>;
 template <>
 class typed_primitive_inst<condition> : public typed_primitive_inst_base<condition> {
     using parent = typed_primitive_inst_base<condition>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(condition_node const& node, kernel_impl_params const& impl_param);

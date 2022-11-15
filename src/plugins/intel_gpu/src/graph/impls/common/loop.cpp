@@ -185,7 +185,9 @@ struct loop_impl : typed_primitive_impl<loop> {
         return ev;
     }
 
-    static primitive_impl* create(const loop_node& arg, const kernel_impl_params&) { return new loop_impl(arg); }
+    static std::unique_ptr<primitive_impl> create(const loop_node& arg, const kernel_impl_params&) {
+        return make_unique<loop_impl>(arg);
+    }
 
 private:
     primitive_id _node_id;
