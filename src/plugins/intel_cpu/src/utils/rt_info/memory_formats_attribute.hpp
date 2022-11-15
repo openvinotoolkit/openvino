@@ -9,7 +9,7 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
-#include "ngraph/op/util/op_types.hpp"
+#include "openvino/op/util/op_types.hpp"
 
 namespace ov {
 namespace intel_cpu {
