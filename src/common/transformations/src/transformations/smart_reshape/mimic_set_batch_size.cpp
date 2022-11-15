@@ -9,6 +9,8 @@
 
 #include "itt.hpp"
 
+using namespace ngraph;
+
 bool ngraph::pass::MimicSetBatchSize::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(MimicSetBatchSize);
     // extracting ratio of out to in 0-index dimension value from the folded function

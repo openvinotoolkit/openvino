@@ -33,6 +33,7 @@ using concatenation_node = typed_program_node<concatenation>;
 template <>
 class typed_primitive_inst<concatenation> : public typed_primitive_inst_base<concatenation> {
     using parent = typed_primitive_inst_base<concatenation>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>
