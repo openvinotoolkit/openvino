@@ -80,4 +80,4 @@ OV_CC_DOMAINS(ov_pass);
 #    define REGISTER_DISABLED_PASS(obj, region, ...) obj.register_pass<region, false>(__VA_ARGS__);
 #endif
 
-#define ADD_MATCHER_FOR_THIS(region, ...)            ADD_MATCHER(this, region, __VA_ARGS__)
+#define ADD_MATCHER_FOR_THIS(region, ...) ADD_MATCHER(this, region, __VA_ARGS__)
