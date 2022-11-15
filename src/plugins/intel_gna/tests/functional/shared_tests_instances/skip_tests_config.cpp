@@ -91,6 +91,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CachingSupportCase.*LoadNet.*(Bias|Split|Concat|KSO|SingleConv).*)",
         R"(.*CachingSupportCase.*LoadNet.*(ConvPoolRelu|TIwithLSTMcell1)_f32_batch2.*)",
         // TODO: Issue: 95234
-        R"(.*smoke_CachingSupportCase_GNA.*)",
+        R"(.*CachingSupportCase_GNA.*)",
+        R"(.*IEClassLoadNetworkTest.*LoadNetwork(HETERO|MULTI|WithDeviceIDNoThrow|WithInvalidDeviceIDThrows).*)",
     };
 }
