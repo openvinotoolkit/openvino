@@ -137,7 +137,6 @@ public:
     std::string                 _performanceHint;
     std::mutex                  _confMutex;
     MultiDeviceInferencePlugin* _plugin;
-    std::string                 _exeDevices;
     virtual ~AutoScheduleContext() = default;
 };
 
