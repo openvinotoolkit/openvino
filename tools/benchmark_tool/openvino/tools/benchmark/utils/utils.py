@@ -27,14 +27,14 @@ def static_vars(**kwargs):
 def next_step(additional_info='', step_id=0):
     step_names = {
         1: "Parsing and validating input arguments",
-        2: "Loading OpenVINO",
+        2: "Loading OpenVINO Runtime",
         3: "Setting device configuration",
-        4: "Reading network files",
-        5: "Resizing network to match image sizes and given batch",
+        4: "Reading model files",
+        5: "Resizing model to match image sizes and given batch",
         6: "Configuring input of the model",
         7: "Loading the model to the device",
         8: "Querying optimal runtime parameters",
-        9: "Creating infer requests and preparing input data",
+        9: "Creating infer requests and preparing input tensors",
         10: "Measuring performance",
         11: "Dumping statistics report",
     }
@@ -143,18 +143,30 @@ def parse_input_output_precision(arg_map: str):
 
 
 def print_inputs_and_outputs_info(model: Model):
+
     inputs = model.inputs
-    input_names = get_input_output_names(inputs)
-    for i in range(len(inputs)):
-        logger.info(f"Model input '{input_names[i]}' precision {inputs[i].element_type.get_type_name()}, "
-                                                    f"dimensions ({str(inputs[i].node.layout)}): "
-                                                    f"{' '.join(str(x) for x in inputs[i].partial_shape)}")
+    logger.info("Model inputs:")
+    for input in inputs:
+        in_name = " , ".join(input.get_names())
+        node_name = input.node.get_friendly_name()
+
+        if in_name=="": in_name = "***NO_NAME***"
+        if node_name=="": node_name = "***NO_NAME***"
+
+        logger.info(f"    {in_name} (node: {node_name}) : {input.element_type.get_type_name()} / "
+                    f"{str(input.node.layout)} / {'{'}{','.join(str(x) for x in input.partial_shape)}{'}'}")
+
     outputs = model.outputs
-    output_names = get_input_output_names(outputs)
-    for i in range(len(outputs)):
-        logger.info(f"Model output '{output_names[i]}' precision {outputs[i].element_type.get_type_name()}, "
-                                        f"dimensions ({str(outputs[i].node.layout)}): "
-                                        f"{' '.join(str(x) for x in  outputs[i].partial_shape)}")
+    logger.info("Model outputs:")
+    for output in outputs:
+        out_name = " , ".join(output.get_names())
+        node_name = output.get_node().input(0).get_source_output().get_node().get_friendly_name()
+
+        if out_name=="": out_name = "***NO_NAME***"
+        if node_name=="": node_name = "***NO_NAME***"
+
+        logger.info(f"    {out_name} (node: {node_name}) : {output.element_type.get_type_name()} / "
+                    f"{str(output.node.layout)} / {'{'}{','.join(str(x) for x in output.partial_shape)}{'}'}")
 
 
 def get_number_iterations(number_iterations: int, nireq: int, num_shapes: int, api_type: str):
@@ -190,12 +202,13 @@ class LatencyGroup:
         self.input_names = input_names
         self.input_shapes = input_shapes
         self.times = list()
+        self.median = 0.
         self.avg = 0.
         self.min = 0.
         self.max = 0.
 
     def __str__(self):
-        return str().join(f"{name}: {str(shape)} " for name, shape in zip(self.input_names, self.input_shapes))
+        return str().join(f" {name}: {str(shape)}" for name, shape in zip(self.input_names, self.input_shapes))
 
 
 def get_latency_groups(app_input_info):
@@ -291,17 +304,14 @@ def process_help_inference_string(benchmark_app, device_number_streams):
         if device_ss:
             output_string += ' using ' + device_ss
 
-    output_string += f', inference only: {benchmark_app.inference_only}'
-
-    limits = ''
-
-    if benchmark_app.niter and not benchmark_app.duration_seconds:
-        limits += f'{benchmark_app.niter} iterations'
+    output_string += ', limits: '
 
     if benchmark_app.duration_seconds:
-        limits += f'{get_duration_in_milliseconds(benchmark_app.duration_seconds)} ms duration'
-    if limits:
-        output_string += ', limits: ' + limits
+        output_string += f'{get_duration_in_milliseconds(benchmark_app.duration_seconds)} ms duration'
+    if benchmark_app.niter:
+        if benchmark_app.duration_seconds > 0:
+            output_string += ', '
+        output_string += f'{benchmark_app.niter} iterations'
 
     return output_string
 
@@ -362,7 +372,7 @@ def print_detail_result(result_list):
         cpu_time = tmp_result[4]
         real_proportion = "%.2f"%(tmp_result[5]*100)
         if real_proportion == "0.00":
-            real_proportion = "-nan"
+            real_proportion = "N/A"
         execType = tmp_result[6]
         print(f"{node_name[:max_layer_name - 4] + '...' if (len(node_name) >= max_layer_name) else node_name:<30}"
             f"{str(layerStatus):<20}"
@@ -633,7 +643,9 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
                     reshape = True
                     batch_found = True
                 elif batch_index == -1 and not batch_found and i == len(inputs) - 1:
-                    raise Exception(f"Batch dimension is not specified for this model!")
+                    raise RuntimeError("-b option is provided in command line, but there's no inputs with batch(B) " \
+                            "dimension in input layout, so batch cannot be set. " \
+                            "You may specify layout explicitly using -layout option.")
 
         # Data shape
         if (info.name in data_shape_map or info.node_name in data_shape_map) and info.is_dynamic:
@@ -651,7 +663,7 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
 
         input_info.append(info)
 
-    # Update scale, mean
+    # Update scale and mean
     scale_map = parse_scale_or_mean(scale_string, input_info)
     mean_map = parse_scale_or_mean(mean_string, input_info)
 

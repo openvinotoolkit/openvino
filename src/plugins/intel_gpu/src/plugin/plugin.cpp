@@ -440,7 +440,7 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     });
 
     for (auto&& layerName : supported) {
-        res.supportedLayersMap.emplace(layerName, GetName());
+        res.supportedLayersMap.emplace(layerName, GetName() + "." + conf.device_id);
     }
 
     return res;

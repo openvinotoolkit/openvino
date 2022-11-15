@@ -30,7 +30,9 @@ endforeach()
 message(" ")
 
 # for samples in 3rd party projects
-set_and_check(gflags_DIR "@gflags_BINARY_DIR@")
+if(ENABLE_SAMPLES)
+    set_and_check(gflags_DIR "@gflags_BINARY_DIR@")
+endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # Disable warning as error for private components
