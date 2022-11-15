@@ -35,7 +35,9 @@ public:
              std::function<bool(const std::shared_ptr<ngraph::Node>)> is_node_supported,
              const std::unordered_set<std::string>& expected) {
         auto supported = InferenceEngine::GetSupportedNodes(m_function, transform, is_node_supported);
-        ASSERT_TRUE(supported == expected) << "Expected list of supported nodes '" << expected
+        auto const is_in_expected = [&expected](const std::string& x){ return expected.find(x) !=expected.end(); };
+        ASSERT_TRUE((supported.size() == expected.size()) &&
+            std::all_of(supported.begin(), supported.end(), is_in_expected)) << "Expected list of supported nodes '" << expected
             << "' but actually received '" << supported << "'";
     }
 };
