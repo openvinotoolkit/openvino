@@ -159,7 +159,6 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
             deviceName += device.deviceName;
             deviceName += ((device.deviceName == validDevices.back().deviceName) ? "" : ",");
         }
-
         _loadContext[ACTUALDEVICE].deviceInfo.deviceName = deviceName;
         _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
             InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT;
@@ -175,7 +174,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     }
     LOG_INFO_TAG("select device:%s", _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
     bool isActualDevCPU =
-        _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") !=std::string::npos;
+        _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") !=std::string::npos && !isCumulative;
     // if Actual device is CPU, disabled _loadContext[CPU], only use _loadContext[ACTUALDEVICE]
     if (isActualDevCPU || isCumulative) {
         _loadContext[CPU].isEnabled = false;
@@ -391,7 +390,7 @@ void AutoSchedule::TryToLoadNetWork(AutoLoadContext& context, const std::string&
         std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
         context.deviceInfo = _autoSContext->_plugin->SelectDevice(deviceList,
                 context.networkPrecision, _autoSContext->_modelPriority);
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         return;
     }
     // if the select device is CPU, need to check the config of _loadContext[CPU]

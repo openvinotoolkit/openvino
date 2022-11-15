@@ -56,7 +56,7 @@ std::vector<layout> range_inst::calc_output_layouts(range_node const& /*node*/, 
         shape_infer(&op, input_shapes, output_shapes, const_data);
     }
 
-    return {layout({output_shapes[0], output_data_type, impl_param.output_layout.format})};
+    return {layout({output_shapes[0], output_data_type, impl_param.get_output_layout().format})};
 }
 
 template std::vector<layout> range_inst::calc_output_layouts<ov::PartialShape>(range_node const& node, const kernel_impl_params& impl_param);
