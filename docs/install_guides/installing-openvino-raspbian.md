@@ -26,8 +26,7 @@
 .. tab:: Software Requirements
 
   * CMake 3.7.2 or higher
-  * Python 3.6 - 3.9, 32-bit
-     * Note that OpenVINO will stop the support for Python 3.6 shortly. Python 3.7 - 3.9 are recommended. 
+  * Python 3.7 - 3.10, 32-bit
 
 @endsphinxdirective
 
