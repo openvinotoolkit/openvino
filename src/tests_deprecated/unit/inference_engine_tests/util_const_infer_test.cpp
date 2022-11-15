@@ -663,6 +663,28 @@ TEST_F(RemoveLayerTests, canFullTrim) {
     ASSERT_EQ(layer6->insData[0].lock(), getData("data10"));
 }
 
+TEST_F(RemoveLayerTests, canFullTrimAndSaveNeededData) {
+    IE::BlobMap refBlobs = initConstLayers({"input1", "input2", "input3", "layer3"});
+    auto layer6 = getLayer("layer6");
+    {
+        getLayer("layer1")->type = "Mul";
+        getLayer("layer2")->type = "Shape";
+        getLayer("layer3")->type = "Const"; // this is the Const layer we need to keep
+        getLayer("layer4")->type = "Mul";
+        getLayer("layer5")->type = "Mul";
+        layer6->type = "Reshape";
+    }
+    net.get()->addOutput("data8");
+    IE::ConstTransformer transformator(net.get());
+    transformator.fullTrim();
+
+    IE::CNNNetwork cnnNetwork(net);
+    std::string newName = "layer5__data9__Const";
+    ASSERT_THROW(CommonTestUtils::getLayerByName(cnnNetwork, newName.c_str()), IE::NotFound);
+    ASSERT_EQ(net->allLayers().size(), 3);
+    ASSERT_NE(net->allLayers().find("layer3")->second, nullptr);
+}
+
 TEST_F(AdvancedShapeInferTests, canFullTrimConstToReshape) {
     //
     //      I2-d2

@@ -474,6 +474,22 @@ void ConstTransformer::fullTrim() {
     std::lock_guard<std::mutex> lock(lockFullTrim);
     auto sortedLayers = details::CNNSubnetSortTopologically({inputs, outputs});
     auto constMapLayers = getConstLayers(sortedLayers);
+
+    for (const auto& layer : sortedLayers) {
+        [&] {
+            if (layer->type == "Const") {
+                for (const auto& out : outputs) {
+                    for (const auto& out_const : layer->outData) {
+                        if (out_const == out) {
+                            constMapLayers.erase(layer->name);
+                            return;
+                        }
+                    }
+                }
+            }
+        }();
+    }
+
     auto constData = getConstData(constMapLayers, sortedLayers);
     auto constLayers = foldConstSubgraphsInternal(constMapLayers, constData, sortedLayers);
     trimShapeInputs(constLayers, sortedLayers);
