@@ -1,12 +1,10 @@
-div.scrollbox {
-   overflow-y: scroll;
-}
 .scrollbox table {
    border-collapse: separate;
    border-spacing: 0;
 }
 .scrollbox table th {
    background: white;
+   position: -webkit-sticky;
    position: sticky;
    inset-block-start: 0;
    top: 0;
