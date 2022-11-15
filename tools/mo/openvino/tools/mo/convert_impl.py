@@ -160,6 +160,9 @@ def arguments_post_parsing(argv: argparse.Namespace):
                         'Please use --framework with one from the list: {}.',
                         '--input_model', argv.input_model, frameworks)
         elif argv.framework not in frameworks:
+            if argv.framework == 'ir':
+                raise Error('OpenVINO IR is passed as input_model in convert_model/mo, the IR doesn\'t need '
+                            'conversion, please use it in runtime for inference with read_model/compile_model.')
             raise Error('Framework {} is not a valid target. Please use --framework with one from the list: {}. ' +
                         refer_to_faq_msg(15), argv.framework, frameworks)
 
