@@ -168,6 +168,10 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
         jit.AddConstant(MakeJitConstant("THIRD_OUTPUT_GET_INDEX", GetToInputIndexStr(params.GetIndexThirdOutput())));
     }
 
+    if (params.use_multiple_outputs) {
+        jit.AddConstant(MakeJitConstant("MULTIPLE_OUTPUTS", 1));
+    }
+
     return jit;
 }
 
@@ -235,6 +239,10 @@ void NonMaxSuppressionKernelRef::SetKernelArguments(const non_max_suppression_pa
             kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexSecondOutput() });
         if (params.has_third_output)
             kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexThirdOutput() });
+        if (params.use_multiple_outputs) {
+            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 1 });
+            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 2 });
+        }
         break;
 
     default:
