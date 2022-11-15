@@ -4,29 +4,23 @@
 
 #pragma once
 
-#include <openvino/opsets/opset9.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-#include <transformations/utils/utils.hpp>
 #include <utility>
 
 #include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset9.hpp"
+#include <openvino/pass/pattern/op/or.hpp>
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
+#include <transformations/utils/utils.hpp>
 
 namespace transpose_sinking {
 
-using namespace ov;
-using namespace ov::opset9;
-
-using NodePtr = std::shared_ptr<Node>;
-
 struct TransposeInputsInfo {
-    std::shared_ptr<Transpose> transpose;
-    std::shared_ptr<Constant> transpose_const;
+    std::shared_ptr<ov::opset9::Transpose> transpose;
+    std::shared_ptr<ov::opset9::Constant> transpose_const;
     size_t input_idx;
 
     bool isEmpty() const {
@@ -34,22 +28,22 @@ struct TransposeInputsInfo {
     }
 };
 
-TransposeInputsInfo GetFirstTransposeInput(NodePtr node);
-bool IfNodeHasTransposeInputs(const Output<Node>& output);
-AxisVector ReverseTransposeOrder(const AxisVector& axis_order);
-void SwapOutputNames(Output<Node> output1, Output<Node> output2);
-void SwapFriendlyNames(NodePtr node1, NodePtr node2);
-void SwapNames(NodePtr node1, NodePtr node2);
+TransposeInputsInfo GetFirstTransposeInput(std::shared_ptr<ov::Node> node);
+bool IfNodeHasTransposeInputs(const ov::Output<ov::Node>& output);
+ov::AxisVector ReverseTransposeOrder(const ov::AxisVector& axis_order);
+void SwapOutputNames(ov::Output<ov::Node> output1, ov::Output<ov::Node> output2);
+void SwapFriendlyNames(std::shared_ptr<ov::Node> node1, std::shared_ptr<ov::Node> node2);
+void SwapNames(std::shared_ptr<ov::Node> node1, std::shared_ptr<ov::Node> node2);
 
 namespace sink_forward {
 // insert input reversed transposes, remove first input tranpose
-void UpdateInputTransposes(NodePtr main_node, TransposeInputsInfo& transpose_input_info);
-void RemoveZeroInputNode(NodePtr main_node);
-NodeVector InsertOutputTransposes(NodePtr main_node, TransposeInputsInfo& transpose_input_info);
+void UpdateInputTransposes(std::shared_ptr<ov::Node> main_node, TransposeInputsInfo& transpose_input_info);
+void RemoveZeroInputNode(std::shared_ptr<ov::Node> main_node);
+ov::NodeVector InsertOutputTransposes(std::shared_ptr<ov::Node> main_node, TransposeInputsInfo& transpose_input_info);
 }  // namespace sink_forward
 
 namespace sink_backward {
-NodeVector InsertTransposeBeforeNode(NodePtr main_node, std::shared_ptr<Constant> transpose_const);
+ov::NodeVector InsertTransposeBeforeNode(std::shared_ptr<ov::Node> main_node, std::shared_ptr<ov::opset9::Constant> transpose_const);
 }  // namespace sink_backward
 
 }  // namespace transpose_sinking

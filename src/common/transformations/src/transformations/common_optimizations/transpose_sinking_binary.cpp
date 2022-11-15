@@ -1,18 +1,18 @@
 #include "transformations/common_optimizations/transpose_sinking_binary.hpp"
 
-#include <openvino/opsets/opset9.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-#include <transformations/utils/utils.hpp>
+
 #include <utility>
 
 #include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset9.hpp"
+#include <openvino/pass/pattern/op/or.hpp>
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/common_optimizations/transpose_sinking_utils.hpp"
+#include <transformations/utils/utils.hpp>
 
 using namespace ov::pass::pattern;
 using namespace ov;

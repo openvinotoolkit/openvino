@@ -1,17 +1,16 @@
 #include "transformations/common_optimizations/transpose_sinking_utils.hpp"
 
-#include <openvino/opsets/opset9.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-#include <transformations/utils/utils.hpp>
 #include <utility>
 
 #include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset9.hpp"
+#include <openvino/pass/pattern/op/or.hpp>
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
+#include <transformations/utils/utils.hpp>
 
 namespace transpose_sinking {
 
@@ -75,6 +74,8 @@ namespace sink_forward {
 
 // insert input reversed transposes, remove first input tranpose
 void UpdateInputTransposes(NodePtr main_node, TransposeInputsInfo& transpose_input_info) {
+    if (transpose_input_info.isEmpty())
+        return;
     const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
     const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
     const size_t tranpose_input_index = transpose_input_info.input_idx;
@@ -100,11 +101,15 @@ void UpdateInputTransposes(NodePtr main_node, TransposeInputsInfo& transpose_inp
 
 void RemoveZeroInputNode(NodePtr main_node) {
     auto input_node = main_node->input_value(0);
+    if (input_node.get_node()->get_input_size() < 1)
+        return;
     auto parent_node = input_node.get_node()->input_value(0);
     main_node->input(0).replace_source_output(parent_node);
 }
 
 NodeVector InsertOutputTransposes(NodePtr main_node, TransposeInputsInfo& transpose_input_info) {
+    if (transpose_input_info.isEmpty())
+        return {};
     const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
     const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
     const auto transpose_element_type = transpose_input_info.transpose_const->get_element_type();
