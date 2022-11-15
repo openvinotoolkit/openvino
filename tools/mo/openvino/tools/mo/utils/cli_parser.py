@@ -1897,10 +1897,9 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
 
     # check number of shapes with no input provided
     if argv_input_shape and not argv_input:
-        if len(shapes) > 1:
-            raise Error('Please provide input layer names for input layer shapes. ' + refer_to_faq_msg(58))
-        else:
-            placeholder_shapes = tuple(map(parse_dimension, shapes[0].split(',')))
+        placeholder_shapes = [tuple(map(parse_dimension, shape.split(','))) for shape in shapes]
+        if len(placeholder_shapes) == 1:
+            placeholder_shapes = placeholder_shapes[0]
     # check if number of shapes does not match number of passed inputs
     elif argv_input and (len(shapes) == len(inputs) or len(shapes) == 0):
         # clean inputs from values for freezing

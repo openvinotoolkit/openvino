@@ -489,7 +489,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
     return func
 
 
-def get_static_shape(shape: [PartialShape, list, tuple], dynamic_dims_error_message: str, set_none: bool = False):
+def get_static_shape(shape: [PartialShape, list, tuple], dynamic_value=None):
     # Current function returns list with static dimensions with following logic.
     # For dynamic dimensions return lower boundaries if they are set, otherwise
     # return upper boundaries if they are set. If dimension is fully dynamic then raise error.
@@ -497,19 +497,13 @@ def get_static_shape(shape: [PartialShape, list, tuple], dynamic_dims_error_mess
     for idx, dim in enumerate(shape):
         if isinstance(dim, int):
             if dim == -1:
-                if set_none:
-                    shape_list.append(None)
-                    continue
-                else:
-                    raise Error(dynamic_dims_error_message)
+                shape_list.append(dynamic_value)
+                continue
             shape_list.append(dim)
         elif isinstance(dim, np.int64):
             if dim == np.int64(-1):
-                if set_none:
-                    shape_list.append(None)
-                    continue
-                else:
-                    raise Error(dynamic_dims_error_message)
+                shape_list.append(dynamic_value)
+                continue
             shape_list.append(dim)
         elif isinstance(dim, tuple):
             # tuple where (min_length, max_length), the format which uses MO cli parser
@@ -519,22 +513,16 @@ def get_static_shape(shape: [PartialShape, list, tuple], dynamic_dims_error_mess
             elif dim[1] < np.iinfo(np.int64).max:
                 shape_list.append(dim[1])
             else:
-                if set_none:
-                    shape_list.append(None)
-                    continue
-                else:
-                    raise Error(dynamic_dims_error_message)
+                shape_list.append(dynamic_value)
+                continue
         elif isinstance(dim, Dimension):
             if dim.is_static or dim.get_min_length() > 0:
                 shape_list.append(dim.get_min_length())
             elif dim.get_max_length() != -1:
                 shape_list.append(dim.get_max_length())
             else:
-                if set_none:
-                    shape_list.append(None)
-                    continue
-                else:
-                    raise Error(dynamic_dims_error_message)
+                shape_list.append(dynamic_value)
+                continue
         else:
             raise Error("Unknown dimension type {}".format(dim))
 
@@ -588,7 +576,7 @@ def check_model_object(argv):
             assert len(argv['input_shape']) > 0, "Please provide non-empty input shape."
             inputs = []
             for shape_idx, shape in enumerate(parse_input_shapes(argv)):
-                inp_shape = get_static_shape(shape, '', set_none=True)
+                inp_shape = get_static_shape(shape)
                 batch_size = None
                 if len(inp_shape) > 1:
                     batch_size = inp_shape[0]
@@ -659,10 +647,7 @@ def convert_pytorch_to_onnx(model, input_shape, opset_version, example_inputs, o
     elif input_shape is not None:
         inputs = []
         for shape_idx, shape in enumerate(input_shape):
-            static_shape = get_static_shape(shape,
-                                            "For converting PyTorch model with dynamic dimensions please provide "
-                                            "sample input using example_input parameter or provide input shapes "
-                                            "with boundaries.")
+            static_shape = get_static_shape(shape, dynamic_value=1)
             inputs.append(torch.zeros(static_shape))
         inputs = tuple(inputs)
     else:
@@ -893,7 +878,6 @@ def _convert(**args):
             args['input_model'] = model_onnx
             if os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):
                 args['use_legacy_frontend'] = True
-            args['input_shape'] = None
             args['example_input'] = None
             args['onnx_opset_version'] = None
 

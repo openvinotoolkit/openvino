@@ -59,9 +59,13 @@ def make_ref_pt_model_one_input(shape, dtype=np.float32):
 
 
 def make_ref_pt_model_two_inputs(shape, dtype=np.float32):
-    shape = PartialShape(shape)
-    param1 = ov.opset8.parameter(shape, name="input_0", dtype=dtype)
-    param2 = ov.opset8.parameter(shape, name="input_1", dtype=dtype)
+    if len(shape) == 2:
+        param1 = ov.opset8.parameter(PartialShape(shape[0]), name="input_0", dtype=dtype)
+        param2 = ov.opset8.parameter(PartialShape(shape[1]), name="input_1", dtype=dtype)
+    else:
+        shape = PartialShape(shape)
+        param1 = ov.opset8.parameter(shape, name="input_0", dtype=dtype)
+        param2 = ov.opset8.parameter(shape, name="input_1", dtype=dtype)
     add = ov.opset8.add(param1, param2)
     relu = ov.opset8.relu(add)
     sigm = ov.opset8.sigmoid(relu)
@@ -118,18 +122,20 @@ def create_pytorch_nn_module_case4(tmp_dir):
 
 def create_pytorch_nn_module_case5(tmp_dir):
     pt_model = make_pt_model_one_input()
-    ref_model = make_ref_pt_model_one_input([-1, 3, 10, 10])
+    inp_shape = PartialShape([-1, 3, Dimension(2, -1), Dimension(-1, 10)])
+    ref_model = make_ref_pt_model_one_input(inp_shape)
 
     sample_input = torch.zeros(3, 3, 10, 10)
     return pt_model, ref_model, {'example_input': sample_input,
-                                 'input_shape': PartialShape([-1, 3, Dimension(2, -1), Dimension(-1, 10)])}
+                                 'input_shape': inp_shape}
 
 
 def create_pytorch_nn_module_case6(tmp_dir):
     pt_model = make_pt_model_one_input()
-    ref_model = make_ref_pt_model_one_input([1, 3, 2, 10])
+    shape = PartialShape([1, 3, Dimension(2, -1), Dimension(-1, 10)])
+    ref_model = make_ref_pt_model_one_input(shape)
 
-    return pt_model, ref_model, {'input_shape': PartialShape([1, 3, Dimension(2, -1), Dimension(-1, 10)])}
+    return pt_model, ref_model, {'input_shape': shape}
 
 
 def create_pytorch_nn_module_torch_size(tmp_dir):
@@ -141,24 +147,26 @@ def create_pytorch_nn_module_torch_size(tmp_dir):
 
 def create_pytorch_nn_module_sample_input_int32(tmp_dir):
     pt_model = make_pt_model_one_input()
+    shape = PartialShape([-1, 3, Dimension(2, -1), Dimension(-1, 10)])
 
     sample_input = torch.zeros(1, 3, 10, 10, dtype=torch.int32)
 
-    ref_model = make_ref_pt_model_one_input([-1, 3, 10, 10], dtype=numpy.int32)
+    ref_model = make_ref_pt_model_one_input(shape, dtype=numpy.int32)
 
     return pt_model, ref_model, {'example_input': sample_input,
-                                 'input_shape': PartialShape([-1, 3, Dimension(2, -1), Dimension(-1, 10)])}
+                                 'input_shape': shape}
 
 
 def create_pytorch_nn_module_sample_input_int32_two_inputs(tmp_dir):
     pt_model = make_pt_model_two_inputs()
+    inp_shapes = ["[?,3,?,?]", PartialShape([-1, 3, -1, -1])]
 
     sample_input1 = torch.zeros(1, 3, 10, 10, dtype=torch.int32)
     sample_input2 = torch.zeros(1, 3, 10, 10, dtype=torch.int32)
     sample_input = sample_input1, sample_input2
-    ref_model = make_ref_pt_model_two_inputs([-1, 3, -1, -1], dtype=np.int32)
+    ref_model = make_ref_pt_model_two_inputs([PartialShape([-1, 3, -1, -1]), inp_shapes[1]], dtype=np.int32)
 
-    return pt_model, ref_model, {'input_shape': ["[?,3,?,?]", PartialShape([-1, 3, -1, -1])],
+    return pt_model, ref_model, {'input_shape': inp_shapes,
                                  'example_input': sample_input, 'onnx_opset_version': 11}
 
 
@@ -269,8 +277,8 @@ def create_pytorch_jit_script_function(tmp_dir):
     def scripted_fn(x: torch.Tensor, y: torch.Tensor):
         return torch.sigmoid(torch.relu(x + y))
 
-    ref_model = make_ref_pt_model_two_inputs([1, 5, 10])
     inp_shape = PartialShape([Dimension(1, -1), Dimension(-1, 5), 10])
+    ref_model = make_ref_pt_model_two_inputs(inp_shape)
     return scripted_fn, ref_model, {'input_shape': [inp_shape, inp_shape]}
 
 
@@ -321,7 +329,6 @@ def create_pytorch_nn_module_sample_list_of_tensors(tmp_dir):
     pt_model = make_pt_model_one_input()
 
     example_inputs = [torch.zeros(3, 10, 10, dtype=torch.float32)]
-
 
     onnx_model_path = os.path.join(tmp_dir, 'export.onnx')
     torch.onnx.export(pt_model, torch.unsqueeze(example_inputs[0], 0), onnx_model_path, opset_version=16)
@@ -376,7 +383,8 @@ def create_pytorch_nn_module_layout_list(tmp_dir):
     ref_model.inputs[0].node.layout = Layout('nchw')
     ref_model.inputs[1].node.layout = Layout('nhwc')
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'layout': ['nchw', Layout('nhwc')], 'onnx_opset_version': 11}
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'layout': ['nchw', Layout('nhwc')],
+                                 'onnx_opset_version': 11}
 
 
 def create_pytorch_nn_module_layout_list_case2(tmp_dir):
@@ -389,7 +397,8 @@ def create_pytorch_nn_module_layout_list_case2(tmp_dir):
     ref_model.inputs[0].node.layout = Layout('nchw')
     ref_model.inputs[1].node.layout = Layout('nhwc')
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'layout': ('nchw', Layout('nhwc')), 'onnx_opset_version': 11}
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'layout': ('nchw', Layout('nhwc')),
+                                 'onnx_opset_version': 11}
 
 
 def create_pytorch_nn_module_mean_list(tmp_dir):
@@ -410,7 +419,8 @@ def create_pytorch_nn_module_mean_list(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]], 'onnx_opset_version': 11}
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]],
+                                 'onnx_opset_version': 11}
 
 
 def create_pytorch_nn_module_scale_list(tmp_dir):
@@ -431,7 +441,44 @@ def create_pytorch_nn_module_scale_list(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]], 'onnx_opset_version': 11}
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]],
+                                 'onnx_opset_version': 11}
+
+
+def create_pytorch_nn_module_shapes_list_static(tmp_dir):
+    pt_model = make_pt_model_two_inputs()
+    ref_model = make_ref_pt_model_two_inputs([1, 3, 20, 20])
+
+    return pt_model, ref_model, {'input_shape': [[1, 3, 20, 20], [1, 3, 20, 20]], 'onnx_opset_version': 11}
+
+
+def create_pytorch_nn_module_shapes_list_dynamic(tmp_dir):
+    pt_model = make_pt_model_two_inputs()
+    inp_shapes = [[Dimension(-1), 3, 20, Dimension(20, -1)], [-1, 3, 20, Dimension(-1, 20)]]
+
+    param1 = ov.opset8.parameter(PartialShape(inp_shapes[0]), name="input_0", dtype=np.float32)
+    param2 = ov.opset8.parameter(PartialShape(inp_shapes[1]), name="input_1", dtype=np.float32)
+    add = ov.opset8.add(param1, param2)
+    relu = ov.opset8.relu(add)
+    sigm = ov.opset8.sigmoid(relu)
+
+    parameter_list = [param1, param2]
+    ref_model = Model([sigm], parameter_list, "test")
+    return pt_model, ref_model, {'input_shape': inp_shapes, 'onnx_opset_version': 11}
+
+
+def create_pytorch_nn_module_shapes_list_dynamic_single_input(tmp_dir):
+    pt_model = make_pt_model_one_input()
+    inp_shapes = [[Dimension(-1), 3, 20, Dimension(20, -1)]]
+    ref_model = make_ref_pt_model_one_input(inp_shapes[0])
+    return pt_model, ref_model, {'input_shape': inp_shapes, 'onnx_opset_version': 11}
+
+
+def create_pytorch_nn_module_shapes_list_static_single_input(tmp_dir):
+    pt_model = make_pt_model_one_input()
+    inp_shapes = [[1, 3, 20, 20]]
+    ref_model = make_ref_pt_model_one_input(inp_shapes[0])
+    return pt_model, ref_model, {'input_shape': inp_shapes, 'onnx_opset_version': 11}
 
 
 class TestMoConvertPyTorch(CommonMOConvertTest):
@@ -461,7 +508,11 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_nn_module_layout_list,
         create_pytorch_nn_module_layout_list_case2,
         create_pytorch_nn_module_mean_list,
-        create_pytorch_nn_module_scale_list
+        create_pytorch_nn_module_scale_list,
+        create_pytorch_nn_module_shapes_list_static,
+        create_pytorch_nn_module_shapes_list_dynamic,
+        create_pytorch_nn_module_shapes_list_dynamic_single_input,
+        create_pytorch_nn_module_shapes_list_static_single_input
     ]
 
     @pytest.mark.parametrize("create_model", test_data)
