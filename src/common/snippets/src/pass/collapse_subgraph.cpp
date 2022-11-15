@@ -174,7 +174,7 @@ auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> &sub
 } // namespace
 
 bool AppropriateForSubgraph(const std::shared_ptr<const Node> &node) {
-    return is_supported_op(node) && has_supported_in_out(node);
+    return is_supported_op(node) && has_supported_in_out(node) && node->get_control_dependencies().empty();
 }
 
 void SetSnippetsNodeType(const std::shared_ptr<Node> &node, SnippetsNodeType nodeType) {

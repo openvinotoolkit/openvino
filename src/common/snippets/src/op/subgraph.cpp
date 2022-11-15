@@ -134,9 +134,6 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
         throw ngraph::ngraph_error("original node outputs size and extracted subgraph node outputs size doesn't much");
     }
 
-    // Clear the node dependencies so graph::topological_sort will not find any extra ops in get_ordered_ops()
-    //  This is needed so the model body will be created correctly
-    body_node->clear_control_dependencies();
     ngraph::ResultVector body_results;
     for (auto output : node->outputs()) {
         body_results.push_back(std::make_shared<ngraph::opset1::Result>(body_node->output(output.get_index())));
