@@ -15,7 +15,7 @@ People from the [openvino-ie-paddle-maintainers](https://github.com/orgs/openvin
 
 OpenVINO Paddle Frontend has the next structure:
  * [docs](./docs) contains developer documentation pages for the component.
- * [include](./include) contains module API. Detailed information about provided API can be found.
+ * [include](./include) contains module API and detailed information about the provided API.
  * [src](./src) folder contains sources of the component.
  * [tests](./tests) contains tests for the component [here](docs/tests.md).
 
