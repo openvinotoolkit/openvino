@@ -110,7 +110,7 @@ public:
             params.inputs[i] = convert_data_tensor(input_layout);
         }
 
-        params.axis = convert_axis(axis, impl_param.output_layout.get_rank());
+        params.axis = convert_axis(axis, impl_param.get_output_layout().get_rank());
         optional_params.kernelPerInput = true;
 
         return {params, optional_params};
