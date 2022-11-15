@@ -18,10 +18,8 @@ class TestSelect(PytorchLayerTest):
 
         class aten_select(torch.nn.Module):
 
-            def __init__(self) -> None:
+            def __init__(self, input_dim, input_index) -> None:
                 super().__init__()
-                nonlocal input_dim
-                nonlocal input_index
                 self.dim = torch.from_numpy(
                     np.array([input_dim], dtype=np.int32))
                 self.index = torch.from_numpy(
@@ -32,7 +30,7 @@ class TestSelect(PytorchLayerTest):
 
         ref_net = None
 
-        return aten_select(), ref_net, "aten::select"
+        return aten_select(input_dim, input_index), ref_net, "aten::select"
 
     @pytest.mark.nightly
     def test_pow(self, ie_device, precision, ir_version, input_dim, input_index):
