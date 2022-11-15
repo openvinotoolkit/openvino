@@ -272,8 +272,9 @@ void primitive_inst::realloc_if_needed() {
                            <<  " Current buffer_size=" << max_output_layout_size
                            <<  " Requested buffer_size=" << actual_layout.count() << std::endl;
         }
-        _outputs = allocate_outputs();
-        max_output_layout_size = _outputs[0]->get_layout().count();
+        _outputs = allocate_outputs(&updated_params);
+        // TODO : need to handle multiple outputs
+        max_output_layout_size = updated_params.output_layouts[0].count();
     }
     // intermediate memory allocation is required for primitives consisting of multiple kernels in dynamic case
     allocate_internal_buffers();
@@ -777,11 +778,12 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     }
 }
 
-std::vector<memory::ptr> primitive_inst::allocate_outputs() {
+std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* updated_params) {
     std::vector<memory::ptr> outputs;
     for (size_t i = 0; i < get_node().get_outputs_count() ; ++i) {
-        outputs.push_back(allocate_output(get_network().get_engine(), _network.get_memory_pool(), *_node, *_impl_params,
-                          get_network_id(), _network.is_internal(), i));
+        outputs.push_back(allocate_output(get_network().get_engine(), _network.get_memory_pool(),
+                         *_node, (updated_params != nullptr) ? *updated_params : *_impl_params,
+                         get_network_id(), _network.is_internal(), i));
     }
     return outputs;
 }

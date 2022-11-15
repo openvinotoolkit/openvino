@@ -280,7 +280,7 @@ protected:
 
     size_t max_output_layout_size = 0;
 
-    std::vector<memory::ptr> allocate_outputs();
+    std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr);
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
         std::vector<std::shared_ptr<primitive_inst>> const& mem_deps);
     void convert_args(const kernel_arguments_data& args, kernel_arguments_data_idx& args_idx) const;
