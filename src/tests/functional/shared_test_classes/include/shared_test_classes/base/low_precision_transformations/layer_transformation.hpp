@@ -12,7 +12,7 @@
 #include <vector>
 
 #include <ngraph/ngraph.hpp>
-#include <ngraph_ops/type_relaxed.hpp>
+#include <ov_ops/type_relaxed.hpp>
 
 #include "low_precision/layer_transformation.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
