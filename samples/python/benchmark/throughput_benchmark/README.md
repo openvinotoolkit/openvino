@@ -38,9 +38,8 @@ To build the sample, please use instructions available at [Build the Sample Appl
 python throughput_benchmark.py <path_to_model>
 ```
 
-To run the sample, you need specify a model:
-
-- you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
+To run the sample, you need to specify a model:
+- You can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
 
 > **NOTES**:
 >
@@ -80,15 +79,15 @@ The application outputs performance results.
 
 ```
 [ INFO ] OpenVINO:
-         API version............. <version>
-[ INFO ] Count:          1637 iterations
-[ INFO ] Duration:       15037.63 ms
+[ INFO ] Build ................................. <version>
+[ INFO ] Count:          2817 iterations
+[ INFO ] Duration:       10012.65 ms
 [ INFO ] Latency:
-[ INFO ]     Median:     36.47 ms
-[ INFO ]     AVG:        36.62 ms
-[ INFO ]     MIN:        26.23 ms
-[ INFO ]     MAX:        60.18 ms
-[ INFO ] Throughput: 108.86 FPS
+[ INFO ]     Median:     13.80 ms
+[ INFO ]     Average:    14.10 ms
+[ INFO ]     Min:        8.35 ms
+[ INFO ]     Max:        28.38 ms
+[ INFO ] Throughput: 281.34 FPS
 ```
 
 ## See Also

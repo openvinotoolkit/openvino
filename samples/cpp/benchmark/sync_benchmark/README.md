@@ -37,9 +37,8 @@ To build the sample, please use instructions available at [Build the Sample Appl
 sync_benchmark <path_to_model>
 ```
 
-To run the sample, you need specify a model:
-
-- you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
+To run the sample, you need to specify a model:
+- You can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
 
 > **NOTES**:
 >
@@ -78,9 +77,8 @@ sync_benchmark googlenet-v1.xml
 The application outputs performance results.
 
 ```
-[ INFO ] OpenVINO Runtime version ......... <version>
-[ INFO ] Build ........... <build>
-[ INFO ]
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. <version>
 [ INFO ] Count:      992 iterations
 [ INFO ] Duration:   15009.8 ms
 [ INFO ] Latency:

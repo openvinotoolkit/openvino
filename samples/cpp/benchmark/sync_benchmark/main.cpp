@@ -18,7 +18,8 @@ using Ms = std::chrono::duration<double, std::ratio<1, 1000>>;
 
 int main(int argc, char* argv[]) {
     try {
-        slog::info << ov::get_openvino_version() << slog::endl;
+        slog::info << "OpenVINO:" << slog::endl;
+        slog::info << ov::get_openvino_version();
         if (argc != 2) {
             slog::info << "Usage : " << argv[0] << " <path_to_model>" << slog::endl;
             return EXIT_FAILURE;

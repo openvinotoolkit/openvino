@@ -36,9 +36,8 @@ To build the sample, please use instructions available at [Build the Sample Appl
 python sync_benchmark.py <path_to_model>
 ```
 
-To run the sample, you need specify a model:
-
-- you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
+To run the sample, you need to specify a model:
+- You can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
 
 > **NOTES**:
 >
@@ -78,15 +77,15 @@ The application outputs performance results.
 
 ```
 [ INFO ] OpenVINO:
-         API version............. <version>
-[ INFO ] Count:          1413 iterations
-[ INFO ] Duration:       15008.32 ms
+[ INFO ] Build ................................. <version>
+[ INFO ] Count:          2333 iterations
+[ INFO ] Duration:       10003.59 ms
 [ INFO ] Latency:
-[ INFO ]     Median:     10.45 ms
-[ INFO ]     AVG:        10.62 ms
-[ INFO ]     MIN:        8.79 ms
-[ INFO ]     MAX:        16.95 ms
-[ INFO ] Throughput: 94.15 FPS
+[ INFO ]     Median:     3.90 ms
+[ INFO ]     Average:    4.29 ms
+[ INFO ]     Min:        3.30 ms
+[ INFO ]     Max:        10.11 ms
+[ INFO ] Throughput: 233.22 FPS
 ```
 
 ## See Also

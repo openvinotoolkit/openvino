@@ -33,9 +33,9 @@ each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/integrate_wi
 python hello_reshape_ssd.py <path_to_model> <path_to_image> <device_name>
 ```
 
-To run the sample, you need specify a model and image:
-- you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
-- you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
+To run the sample, you need to specify a model and image:
+- You can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
+- You can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
 > **NOTES**:
 >

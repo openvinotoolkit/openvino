@@ -32,7 +32,8 @@ def fill_tensor_random(tensor):
 
 def main():
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
-    log.info(f"OpenVINO:\n{'': <9}{'API version':.<24} {get_version()}")
+    log.info('OpenVINO:')
+    log.info(f"{'Build ':.<39} {get_version()}")
     if len(sys.argv) != 2:
         log.info(f'Usage: {sys.argv[0]} <path_to_model>')
         return 1
@@ -52,8 +53,8 @@ def main():
         for model_input in compiled_model.inputs:
             fill_tensor_random(ireq.get_tensor(model_input))
     # Warm up
-    for ireq in ireqs:
-        ireq.start_async()
+    for _ in ireqs:
+        ireqs.start_async()
     ireqs.wait_all()
     # Benchmark for seconds_to_run seconds and at least niter iterations
     seconds_to_run = 10
@@ -79,9 +80,9 @@ def main():
     log.info(f'Duration:       {duration * 1e3:.2f} ms')
     log.info('Latency:')
     log.info(f'    Median:     {statistics.median(latencies):.2f} ms')
-    log.info(f'    AVG:        {sum(latencies) / len(latencies):.2f} ms')
-    log.info(f'    MIN:        {min(latencies):.2f} ms')
-    log.info(f'    MAX:        {max(latencies):.2f} ms')
+    log.info(f'    Average:    {sum(latencies) / len(latencies):.2f} ms')
+    log.info(f'    Min:        {min(latencies):.2f} ms')
+    log.info(f'    Max:        {max(latencies):.2f} ms')
     log.info(f'Throughput: {fps:.2f} FPS')
 
 

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <condition_variable>
 #include <string>
 #include <vector>
@@ -19,7 +20,8 @@ using Ms = std::chrono::duration<double, std::ratio<1, 1000>>;
 
 int main(int argc, char* argv[]) {
     try {
-        slog::info << ov::get_openvino_version() << slog::endl;
+        slog::info << "OpenVINO:" << slog::endl;
+        slog::info << ov::get_openvino_version();
         if (argc != 2) {
             slog::info << "Usage : " << argv[0] << " <path_to_model>" << slog::endl;
             return EXIT_FAILURE;
@@ -35,10 +37,10 @@ int main(int argc, char* argv[]) {
         ov::CompiledModel compiled_model = core.compile_model(argv[1], "CPU", tput);
         // Create optimal number of ov::InferRequest instances
         uint32_t nireq = compiled_model.get_property(ov::optimal_number_of_infer_requests);
-        std::vector<ov::InferRequest> ireqs;
-        for (uint32_t i = 0; i < nireq; ++i) {
-            ireqs.push_back(compiled_model.create_infer_request());
-        }
+        std::vector<ov::InferRequest> ireqs(nireq);
+        std::generate(ireqs.begin(), ireqs.end(), [&] {
+            return compiled_model.create_infer_request();
+        });
         // Fill input data for ireqs
         for (ov::InferRequest& ireq : ireqs) {
             for (const ov::Output<const ov::Node>& model_input : compiled_model.inputs()) {
