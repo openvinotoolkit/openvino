@@ -5,8 +5,6 @@ The component is responsible for:
  * Paddle Reader - reads PaddlePaddle protobuf model and parses it to the frontend InputModel [paddle frontend architecture](./docs/paddle_frontend_architecture.md).
  * Paddle Converter - decodes the PaddlePaddle model and operators and maps them semantically to the OpenVINO opset [operator mapping flow](./docs/operation_mapping_flow.md).
 
-The diagram below shows the positions of Paddle Frontend and the main components.![](./docs/img/PaddleFrontendPositioning.PNG)
-
 OpenVINO Paddle Frontend uses [the common coding style rules](../../docs/dev/coding_style.md).
 
 ## Key contacts
