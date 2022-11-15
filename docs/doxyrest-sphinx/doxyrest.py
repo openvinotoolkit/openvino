@@ -146,8 +146,6 @@ def visit_scrollbox(self, node):
         attrs["style"] = (
             "height: "
             + "".join(c for c in str(node["height"]) if c.isdigit()) + "px; "
-            "max-height: "
-            + "".join(c for c in str(node["height"]) if c.isdigit()) + "px; "
             + (("width: " + "".join(c for c in str(node["width"]) if c.isdigit()) ) if "width" in node is not None else "")
             + (("px; " if node["width"].find("px") != -1 else "%;") if "width" in node is not None else "")
             + ( ("border-left:solid "+"".join(c for c in str(node["bar"]) if c.isdigit())+ "px " + (("".join(str(node["bar-color"]))) if "bar-color" in node is not None else "#dee2e6") +"; ") if "bar" in node is not None else "")
