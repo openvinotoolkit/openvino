@@ -43,7 +43,7 @@ std::string get_console_command(int argc, char* argv[]) {
     std::string relative_path(argv[0]);
     std::vector<char> buffer;
 
-    uint32_t len = 1024;
+    uint32_t len = 1;
     do {
         buffer.resize(len);
         len = GetFullPathNameA(relative_path.data(), len, buffer.data(), nullptr);
@@ -117,8 +117,8 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
     bool isNetworkCompiled = fileExt(FLAGS_m) == "blob";
     bool isPrecisionSet = !(FLAGS_ip.empty() && FLAGS_op.empty() && FLAGS_iop.empty());
     if (isNetworkCompiled && isPrecisionSet) {
-        std::string err = std::string("Cannot set precision for a compiled network. ") +
-                          std::string("Please re-compile your network with required precision "
+        std::string err = std::string("Cannot set precision for a compiled model. ") +
+                          std::string("Please re-compile your model with required precision "
                                       "using compile_tool");
 
         throw std::logic_error(err);
@@ -128,18 +128,17 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
 
 static void next_step(const std::string additional_info = "") {
     static size_t step_id = 0;
-    static const std::map<size_t, std::string> step_names = {
-        {1, "Parsing and validating input arguments"},
-        {2, "Loading OpenVINO Runtime"},
-        {3, "Setting device configuration"},
-        {4, "Reading network files"},
-        {5, "Resizing network to match image sizes and given batch"},
-        {6, "Configuring input of the model"},
-        {7, "Loading the model to the device"},
-        {8, "Setting optimal runtime parameters"},
-        {9, "Creating infer requests and preparing input blobs with data"},
-        {10, "Measuring performance"},
-        {11, "Dumping statistics report"}};
+    static const std::map<size_t, std::string> step_names = {{1, "Parsing and validating input arguments"},
+                                                             {2, "Loading OpenVINO Runtime"},
+                                                             {3, "Setting device configuration"},
+                                                             {4, "Reading model files"},
+                                                             {5, "Resizing model to match image sizes and given batch"},
+                                                             {6, "Configuring input of the model"},
+                                                             {7, "Loading the model to the device"},
+                                                             {8, "Querying optimal runtime parameters"},
+                                                             {9, "Creating infer requests and preparing input tensors"},
+                                                             {10, "Measuring performance"},
+                                                             {11, "Dumping statistics report"}};
 
     step_id++;
 
@@ -174,7 +173,7 @@ ov::hint::PerformanceMode get_performance_hint(const std::string& device, const 
             }
         } else {
             ov_perf_hint =
-                FLAGS_api == "sync" ? ov::hint::PerformanceMode::LATENCY : ov::hint::PerformanceMode::THROUGHPUT;
+                FLAGS_api == "async" ? ov::hint::PerformanceMode::THROUGHPUT : ov::hint::PerformanceMode::LATENCY;
 
             slog::warn << "Performance hint was not explicitly specified in command line. "
                           "Device("
@@ -213,7 +212,7 @@ int main(int argc, char* argv[]) {
 
         bool isNetworkCompiled = fileExt(FLAGS_m) == "blob";
         if (isNetworkCompiled) {
-            slog::info << "Network is compiled" << slog::endl;
+            slog::info << "Model is compiled" << slog::endl;
         }
 
         std::vector<gflags::CommandLineFlagInfo> flags;
@@ -284,8 +283,9 @@ int main(int argc, char* argv[]) {
             slog::info << "GPU extensions are loaded: " << ext << slog::endl;
         }
 
-        slog::info << "OpenVINO: " << ov::get_openvino_version() << slog::endl;
-        slog::info << "Device info: " << slog::endl;
+        slog::info << "OpenVINO:" << slog::endl;
+        slog::info << ov::get_openvino_version() << slog::endl;
+        slog::info << "Device info:" << slog::endl;
         slog::info << core.get_versions(device_name) << slog::endl;
 
         // ----------------- 3. Setting device configuration
@@ -354,7 +354,7 @@ int main(int argc, char* argv[]) {
                            << slog::endl;
                 device_config.emplace(ov::enable_profiling(true));
             } else if (!FLAGS_pcsort.empty()) {
-                slog::warn << "Turn on sorted performance counters for " << device << " device since pcsort is"
+                slog::warn << "Turn on sorted performance counters for " << device << " device since pcsort value is "
                            << FLAGS_pcsort << "." << slog::endl;
                 device_config.emplace(ov::enable_profiling(true));
             } else {
@@ -419,7 +419,7 @@ int main(int argc, char* argv[]) {
                                   "but it still may be non-optimal for some cases, for more "
                                   "information look at README."
                                << slog::endl;
-                    if (std::string::npos == device.find("MYRIAD")) {  // MYRIAD sets the default number of
+                    if (device.find("MYRIAD") == std::string::npos) {  // MYRIAD sets the default number of
                                                                        // streams implicitly (without _AUTO)
                         if (supported(key)) {
                             device_config[key] = std::string(getDeviceTypeFromName(device) + "_THROUGHPUT_AUTO");
@@ -546,22 +546,22 @@ int main(int argc, char* argv[]) {
 
         if (FLAGS_load_from_file && !isNetworkCompiled) {
             next_step();
-            slog::info << "Skipping the step for loading network from file" << slog::endl;
+            slog::info << "Skipping the step for loading model from file" << slog::endl;
             next_step();
-            slog::info << "Skipping the step for loading network from file" << slog::endl;
+            slog::info << "Skipping the step for loading model from file" << slog::endl;
             next_step();
-            slog::info << "Skipping the step for loading network from file" << slog::endl;
+            slog::info << "Skipping the step for loading model from file" << slog::endl;
             auto startTime = Time::now();
             compiledModel = core.compile_model(FLAGS_m, device_name);
             auto duration_ms = get_duration_ms_till_now(startTime);
-            slog::info << "Load network took " << double_to_string(duration_ms) << " ms" << slog::endl;
-            slog::info << "Original network I/O parameters:" << slog::endl;
+            slog::info << "Compile model took " << double_to_string(duration_ms) << " ms" << slog::endl;
+            slog::info << "Original model I/O parameters:" << slog::endl;
             printInputAndOutputsInfoShort(compiledModel);
 
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
-                    {StatisticsVariant("load network time (ms)", "load_network_time", duration_ms)});
+                    {StatisticsVariant("сompile model time (ms)", "load_model_time", duration_ms)});
 
             convert_io_names_in_map(inputFiles, compiledModel.inputs());
             app_inputs_info = get_inputs_info(FLAGS_shape,
@@ -581,19 +581,18 @@ int main(int argc, char* argv[]) {
             // ----------------------------------------
             next_step();
 
-            slog::info << "Loading network files" << slog::endl;
+            slog::info << "Loading model files" << slog::endl;
 
             auto startTime = Time::now();
             auto model = core.read_model(FLAGS_m);
             auto duration_ms = get_duration_ms_till_now(startTime);
-            slog::info << "Read network took " << double_to_string(duration_ms) << " ms" << slog::endl;
-            slog::info << "Original network I/O parameters:" << slog::endl;
+            slog::info << "Read model took " << double_to_string(duration_ms) << " ms" << slog::endl;
+            slog::info << "Original model I/O parameters:" << slog::endl;
             printInputAndOutputsInfoShort(*model);
 
             if (statistics)
-                statistics->add_parameters(
-                    StatisticsReport::Category::EXECUTION_RESULTS,
-                    {StatisticsVariant("read network time (ms)", "read_network_time", duration_ms)});
+                statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                           {StatisticsVariant("read model time (ms)", "read_model_time", duration_ms)});
 
             const auto& inputInfo = std::const_pointer_cast<const ov::Model>(model)->inputs();
             if (inputInfo.empty()) {
@@ -625,15 +624,15 @@ int main(int argc, char* argv[]) {
                 benchmark_app::PartialShapes shapes = {};
                 for (auto& item : app_inputs_info[0])
                     shapes[item.first] = item.second.partialShape;
-                slog::info << "Reshaping network: " << get_shapes_string(shapes) << slog::endl;
+                slog::info << "Reshaping model: " << get_shapes_string(shapes) << slog::endl;
                 startTime = Time::now();
                 model->reshape(shapes);
                 duration_ms = get_duration_ms_till_now(startTime);
-                slog::info << "Reshape network took " << double_to_string(duration_ms) << " ms" << slog::endl;
+                slog::info << "Reshape model took " << double_to_string(duration_ms) << " ms" << slog::endl;
                 if (statistics)
                     statistics->add_parameters(
                         StatisticsReport::Category::EXECUTION_RESULTS,
-                        {StatisticsVariant("reshape network time (ms)", "reshape_network_time", duration_ms)});
+                        {StatisticsVariant("reshape model time (ms)", "reshape_model_time", duration_ms)});
             }
 
             // ----------------- 6. Configuring inputs and outputs
@@ -725,7 +724,7 @@ int main(int argc, char* argv[]) {
             if (!isDynamicNetwork && app_inputs_info.size()) {
                 batchSize = get_batch_size(app_inputs_info.front());
 
-                slog::info << "Network batch size: " << batchSize << slog::endl;
+                slog::info << "Model batch size: " << batchSize << slog::endl;
             } else if (batchSize == 0) {
                 batchSize = 1;
             }
@@ -737,18 +736,18 @@ int main(int argc, char* argv[]) {
             startTime = Time::now();
             compiledModel = core.compile_model(model, device_name);
             duration_ms = get_duration_ms_till_now(startTime);
-            slog::info << "Load network took " << double_to_string(duration_ms) << " ms" << slog::endl;
+            slog::info << "Compile model took " << double_to_string(duration_ms) << " ms" << slog::endl;
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
-                    {StatisticsVariant("load network time (ms)", "load_network_time", duration_ms)});
+                    {StatisticsVariant("compile model time (ms)", "load_model_time", duration_ms)});
         } else {
             next_step();
-            slog::info << "Skipping the step for compiled network" << slog::endl;
+            slog::info << "Skipping the step for compiled model" << slog::endl;
             next_step();
-            slog::info << "Skipping the step for compiled network" << slog::endl;
+            slog::info << "Skipping the step for compiled model" << slog::endl;
             next_step();
-            slog::info << "Skipping the step for compiled network" << slog::endl;
+            slog::info << "Skipping the step for compiled model" << slog::endl;
             // ----------------- 7. Loading the model to the device
             // --------------------------------------------------------
             next_step();
@@ -762,14 +761,14 @@ int main(int argc, char* argv[]) {
             modelStream.close();
 
             auto duration_ms = get_duration_ms_till_now(startTime);
-            slog::info << "Import network took " << double_to_string(duration_ms) << " ms" << slog::endl;
-            slog::info << "Original network I/O paramteters:" << slog::endl;
+            slog::info << "Import model took " << double_to_string(duration_ms) << " ms" << slog::endl;
+            slog::info << "Original model I/O paramteters:" << slog::endl;
             printInputAndOutputsInfoShort(compiledModel);
 
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
-                    {StatisticsVariant("import network time (ms)", "import_network_time", duration_ms)});
+                    {StatisticsVariant("import model time (ms)", "import_model_time", duration_ms)});
 
             convert_io_names_in_map(inputFiles, compiledModel.inputs());
             app_inputs_info = get_inputs_info(FLAGS_shape,
@@ -786,7 +785,7 @@ int main(int argc, char* argv[]) {
         }
 
         if (isDynamicNetwork && FLAGS_api == "sync") {
-            throw std::logic_error("Benchmarking of the model with dynamic shapes is available for async API only."
+            throw std::logic_error("Benchmarking of the model with dynamic shapes is available for async API only. "
                                    "Please use -api async -nstreams 1 -nireq 1 to emulate sync behavior");
         }
 
@@ -804,20 +803,15 @@ int main(int argc, char* argv[]) {
         // ----------------- 8. Querying optimal runtime parameters
         // -----------------------------------------------------
         next_step();
-        // output of the actual settings that the device selected
-        for (const auto& device : devices) {
-            auto supported_properties = compiledModel.get_property(ov::supported_properties);
-            slog::info << "Device: " << device << slog::endl;
-            for (const auto& cfg : supported_properties) {
-                try {
-                    if (cfg == ov::supported_properties)
-                        continue;
 
-                    auto prop = compiledModel.get_property(cfg);
-                    slog::info << "  { " << cfg << " , " << prop.as<std::string>() << " }" << slog::endl;
-                } catch (const ov::Exception&) {
-                }
-            }
+        // output of the actual settings that the device selected
+        auto supported_properties = compiledModel.get_property(ov::supported_properties);
+        slog::info << "Model:" << slog::endl;
+        for (const auto& cfg : supported_properties) {
+            if (cfg == ov::supported_properties)
+                continue;
+            auto prop = compiledModel.get_property(cfg);
+            slog::info << "  " << cfg << ": " << prop.as<std::string>() << slog::endl;
         }
 
         // Update number of streams
@@ -994,11 +988,10 @@ int main(int argc, char* argv[]) {
         next_step(ss.str());
 
         if (inferenceOnly) {
-            slog::info << "BENCHMARK IS IN INFERENCE ONLY MODE." << slog::endl;
-            slog::info << "Input blobs will be filled once before performance measurements." << slog::endl;
+            slog::info << "Benchmarking in inference only mode (inputs filling are not included in measurement loop)."
+                       << slog::endl;
         } else {
-            slog::info << "BENCHMARK IS IN FULL MODE." << slog::endl;
-            slog::info << "Inputs setup stage will be included in performance measurements." << slog::endl;
+            slog::info << "Benchmarking in full mode (inputs filling are included in measurement loop)." << slog::endl;
         }
 
         // copy prepared data straight into inferRequest->getTensor()
@@ -1253,10 +1246,15 @@ int main(int argc, char* argv[]) {
             statistics->dump();
 
         // Performance metrics report
-        if (device_name.find("AUTO") != std::string::npos)
-            slog::info << "ExecutionDevice:   " << compiledModel.get_property(ov::execution_devices) << slog::endl;
+        try {
+            auto exeDevice = compiledModel.get_property(ov::execution_devices);
+            slog::info << "Execution Devices: " << exeDevice << slog::endl;
+        } catch (const ov::Exception&) {
+        }
+
         slog::info << "Count:             " << iteration << " iterations" << slog::endl;
         slog::info << "Duration:          " << double_to_string(totalDuration) << " ms" << slog::endl;
+
         if (device_name.find("MULTI") == std::string::npos) {
             slog::info << "Latency:" << slog::endl;
             generalLatency.write_to_slog();
@@ -1270,7 +1268,7 @@ int main(int argc, char* argv[]) {
                         auto shape = item.second.dataShape;
                         std::copy(shape.begin(), shape.end() - 1, std::ostream_iterator<size_t>(input_shape, ","));
                         input_shape << shape.back();
-                        slog::info << " " << item.first << " : " << get_shape_string(item.second.dataShape);
+                        slog::info << " " << item.first << ": " << get_shape_string(item.second.dataShape);
                     }
                     slog::info << slog::endl;
 
@@ -1278,7 +1276,8 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-        slog::info << "Throughput: " << double_to_string(fps) << " FPS" << slog::endl;
+
+        slog::info << "Throughput:   " << double_to_string(fps) << " FPS" << slog::endl;
 
     } catch (const std::exception& ex) {
         slog::err << ex.what() << slog::endl;

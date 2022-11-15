@@ -39,6 +39,8 @@ static inline kernel_selector::argm_axis GetArgMaxMinAxis(int64_t axis, size_t r
 struct arg_max_min_impl : typed_primitive_impl_ocl<arg_max_min> {
     using parent = typed_primitive_impl_ocl<arg_max_min>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::arg_max_min_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::arg_max_min_params, kernel_selector::arg_max_min_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -58,8 +60,8 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const arg_max_min_node& arg, const kernel_impl_params& impl_param) {
-        const auto& primitive = arg.get_primitive();
+    static std::unique_ptr<primitive_impl> create(const arg_max_min_node& arg, const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<arg_max_min>();
         const auto& axis = primitive->axis;
         const auto& top_k = primitive->top_k;
         const auto& mode = primitive->mode;
@@ -69,7 +71,7 @@ public:
 
         auto argm_params = get_default_params<kernel_selector::arg_max_min_params>(impl_param);
         auto argm_optional_params =
-            get_default_optional_params<kernel_selector::arg_max_min_optional_params>(arg.get_program());
+            get_default_optional_params<kernel_selector::arg_max_min_optional_params>(impl_param.get_program());
 
         argm_params.outputs_num = outputs_num;
         argm_params.topK = top_k;
@@ -89,26 +91,18 @@ public:
             argm_params.has_second_output = true;
             if (arg.use_multiple_outputs()) {
                 argm_params.use_multiple_outputs = true;
-                argm_params.outputs.push_back(convert_data_tensor(impl_param.output_layout));
+                argm_params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout()));
             } else {
-                argm_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
+                argm_params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
             }
         }
 
         argm_params.values_first = values_first;
 
         auto& kernel_selector = kernel_selector::arg_max_min_kernel_selector::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(argm_params, argm_optional_params);
 
-        kernel_selector::KernelsData best_kernels = kernel_selector.GetBestKernels(argm_params, argm_optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto conv = new arg_max_min_impl(arg, best_kernels[0]);
-
-        return conv;
+        return make_unique<arg_max_min_impl>(arg, best_kernel);
     }
 };
 

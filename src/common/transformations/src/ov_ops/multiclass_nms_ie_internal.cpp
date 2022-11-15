@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_ops/multiclass_nms_ie_internal.hpp"
+#include "ov_ops/multiclass_nms_ie_internal.hpp"
 
 #include "../../core/shape_inference/include/multiclass_nms_shape_inference.hpp"
 #include "itt.hpp"
