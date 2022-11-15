@@ -28,13 +28,11 @@ In the example below, inference is applied to the results of the video decoding.
 
 Below are example-codes for the regular and async-based approaches to compare:
 
--	Normally, the frame is captured with OpenCV and then immediately processed:<br>
+- Normally, the frame is captured with OpenCV and then immediately processed:<br>
+  @snippet snippets/dldt_optimization_guide8.cpp part8
 
-@snippet snippets/dldt_optimization_guide8.cpp part8
-
--	In the "true" async mode, the `NEXT` request is populated in the main (application) thread, while the `CURRENT` request is processed:<br>
-
-@snippet snippets/dldt_optimization_guide9.cpp part9
+- In the "true" async mode, the `NEXT` request is populated in the main (application) thread, while the `CURRENT` request is processed:<br>
+  @snippet snippets/dldt_optimization_guide9.cpp part9
 
 
 The technique can be generalized to any available parallel slack. For example, you can do inference and simultaneously encode the resulting or previous frames or run further inference, like emotion detection on top of the face detection results.
