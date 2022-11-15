@@ -147,7 +147,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             std::vector<int64_t> reshape_shape_values = { -1ll, static_cast<int64_t>(K.get_length()) };
             auto reshape_shape = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 }, reshape_shape_values);
             fc_input_b = ngraph::op::util::make_try_fold<ngraph::opset1::Reshape>(fc_input_b, reshape_shape, false);
-            if (!ngraph::is_type<ngraph::opset1::Constant>(fc_input_b.get_node_shared_ptr())) {
+            if (!std::dynamic_pointer_cast<ngraph::opset1::Constant>(fc_input_b.get_node_shared_ptr())) {
                 new_ops.push_back(reshape_shape);
             }
             new_ops.push_back(fc_input_b.get_node_shared_ptr());
