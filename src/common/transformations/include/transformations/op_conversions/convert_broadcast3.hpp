@@ -5,20 +5,26 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertBroadcast3;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ConvertBroadcast3 : public ngraph::pass::MatcherPass {
+class ov::pass::ConvertBroadcast3 : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertBroadcast3", "0");
     ConvertBroadcast3();
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::ConvertBroadcast3;
+}  // namespace pass
+}  // namespace ngraph

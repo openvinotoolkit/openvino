@@ -36,14 +36,18 @@ public:
 
 private:
     size_t axis = 0;
+    size_t reorderedAxis = 0;
     bool canBeInPlace = false;
     bool canOptimizeNspc = false;
-
+    void execRef();
     size_t inverseOrder(const InferenceEngine::SizeVector& order, size_t axis);
     void execNspcSpecCase();
-
+    std::vector<VectorDims> inputStrides;
+    std::vector<size_t> nelemToCopy; // byte moved in each iter
+    std::vector<size_t> dstOffset; // dst offset for each input
     InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
+    bool canExecRef = false;
 };
 
 }   // namespace node
