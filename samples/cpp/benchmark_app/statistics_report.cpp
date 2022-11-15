@@ -336,7 +336,7 @@ const nlohmann::json StatisticsReportJSON::sort_perf_counters_to_json(
     return js;
 }
 
-static const nlohmann::json to_json(const LatencyMetrics& latenct_metrics) {
+static nlohmann::json to_json(const LatencyMetrics& latenct_metrics) {
     nlohmann::json stat;
     stat["data_shape"] = latenct_metrics.data_shape;
     stat["latency_median"] = latenct_metrics.median_or_percentile;
