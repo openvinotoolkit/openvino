@@ -886,6 +886,12 @@ public:
     ie::SoExecutableNetworkInternal ImportNetwork(std::istream& networkModel,
                                                   const std::string& deviceName,
                                                   const std::map<std::string, std::string>& config) override {
+        ie::CompiledBlobHeader header;
+        networkModel >> header;
+        if (header.getIeVersion() != ie::GetInferenceEngineVersion()->buildNumber) {
+            // Build number mismatch, the cached file can't be used
+            throw ie::NetworkNotRead("Version does not match");
+        }
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto exec = GetCPPPluginByName(parsed._deviceName).import_model(networkModel, parsed._config);
 
