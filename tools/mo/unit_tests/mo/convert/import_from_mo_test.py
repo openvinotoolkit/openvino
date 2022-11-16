@@ -4,6 +4,7 @@
 import os
 import tempfile
 
+import numpy as np
 from generator import generator, generate
 from openvino.runtime import serialize
 
@@ -95,7 +96,6 @@ class ConvertImportMOTest(UnitTestWithMockedTelemetry):
 
         from openvino.tools.mo import convert_model
         with tempfile.TemporaryDirectory(dir=self.test_directory) as tmpdir:
-
             model = create_onnx_model()
             model_path = save_to_onnx(model, tmpdir)
             out_xml = os.path.join(tmpdir, "model.xml")
@@ -106,3 +106,68 @@ class ConvertImportMOTest(UnitTestWithMockedTelemetry):
             ir = IREngine(out_xml, out_xml.replace('.xml', '.bin'))
             flag, resp = ir.compare(ref_graph)
             assert flag, '\n'.join(resp)
+
+    def test_model_import_from_memory_tf(self):
+        import tensorflow as tf
+        import openvino.runtime as ov
+        from openvino.runtime import PartialShape, Model
+        from openvino.tools.mo import convert_model
+        from openvino.test_utils import compare_functions
+
+        # Create Keras net
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+        input_names = ["Input"]
+        input_shape = [2, 3]
+        x = tf.keras.Input(shape=input_shape, name=input_names[0], batch_size=1)
+        y = tf.nn.sigmoid(tf.nn.relu(x))
+        keras_net = tf.keras.Model(inputs=[x], outputs=[y])
+        tf.keras.backend.clear_session()
+
+        # Create ref net
+        shape = PartialShape([1, 2, 3])
+        param = ov.opset8.parameter(shape, dtype=np.float32)
+        relu = ov.opset8.relu(param)
+        sigm = ov.opset8.sigmoid(relu)
+        parameter_list = [param]
+        model_ref = Model([sigm], parameter_list, "test")
+
+        ov_model = convert_model(keras_net)
+
+        flag, msg = compare_functions(model_ref, ov_model, compare_tensor_names=False)
+        assert flag, msg
+
+    def test_model_import_from_memory_pytorch(self):
+        import openvino.runtime as ov
+        from openvino.runtime import PartialShape, Model
+        from openvino.tools.mo import convert_model
+        from openvino.test_utils import compare_functions
+
+        # Create PyTorch net
+        from torch import nn
+        class NeuralNetwork(nn.Module):
+            def __init__(self):
+                super(NeuralNetwork, self).__init__()
+                self.linear_relu_stack = nn.Sequential(
+                    nn.ReLU(),
+                    nn.Sigmoid(),
+                )
+
+            def forward(self, x):
+                logits = self.linear_relu_stack(x)
+                return logits
+
+        pytorch_model = NeuralNetwork()
+
+        # Create ref net
+        shape = PartialShape([1, 2, 3])
+        param = ov.opset8.parameter(shape, dtype=np.float32)
+        relu = ov.opset8.relu(param)
+        sigm = ov.opset8.sigmoid(relu)
+        parameter_list = [param]
+        model_ref = Model([sigm], parameter_list, "test")
+
+        ov_model = convert_model(pytorch_model, input_shape=[1, 2, 3])
+
+        flag, msg = compare_functions(model_ref, ov_model, compare_tensor_names=False)
+        assert flag, msg
