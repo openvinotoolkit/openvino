@@ -453,10 +453,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                              config.first.c_str(),
                              config.second.c_str());
             }
-            if (clonedModelPath.empty() || iter->deviceName.find("CPU") == std::string::npos) {
-                insertPropToConfig(CONFIG_KEY(ALLOW_AUTO_BATCHING), iter->deviceName, configs);
-                insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), iter->deviceName, configs);
-            }
+            insertPropToConfig(CONFIG_KEY(ALLOW_AUTO_BATCHING), iter->deviceName, configs);
+            insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), iter->deviceName, configs);
             insertPropToConfig(CONFIG_KEY(CACHE_DIR), iter->deviceName, configs);
             strDevices += iter->deviceName;
             strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
@@ -500,15 +498,13 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     std::once_flag readNetworkFlag;
     for (auto& p : metaDevices) {
         loads.push_back([&]() {
-            if (modelPath.empty() || p.deviceName.find("CPU") == std::string::npos) {
-                auto tmpiter = fullConfig.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
-                if (tmpiter != fullConfig.end()) {
-                    if (tmpiter->second == PluginConfigParams::NO)
-                        multiSContext->_batchingDisabled = true;
-                    p.config.insert({tmpiter->first, tmpiter->second});
-                }
-                insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), p.deviceName, p.config);
+            auto tmpiter = fullConfig.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
+            if (tmpiter != fullConfig.end()) {
+                if (tmpiter->second == PluginConfigParams::NO)
+                    multiSContext->_batchingDisabled = true;
+                p.config.insert({tmpiter->first, tmpiter->second});
             }
+            insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), p.deviceName, p.config);
             insertPropToConfig(CONFIG_KEY(CACHE_DIR), p.deviceName, p.config);
             const auto& deviceName = p.deviceName;
             const auto& deviceConfig = p.config;
