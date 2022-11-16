@@ -124,10 +124,26 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             p.add_primitive(*op, broadcastPrim);
         };
         auto create_unsqueeze = [&](const std::string& unsqueezeName, const std::string& unsqueezeInputName, const PartialShape& target_shape) {
-            auto unsqueezePrim = cldnn::reshape(unsqueezeName, unsqueezeInputName, false, std::vector<int64_t>{}, target_shape,
+            auto unsqueezePrim = cldnn::reshape(unsqueezeName, unsqueezeInputName, true, std::vector<int64_t>{}, target_shape,
                                                 cldnn::reshape::reshape_mode::unsqueeze);
             p.add_primitive(*op, unsqueezePrim);
         };
+
+        // Weights normalization
+        if (op->get_transpose_b()) {
+            auto transposeName = op->get_friendly_name() + "/transpose_b";
+            create_transpose(transposeName, weightsName, rank_b);
+            std::swap(*(shape_b_aligned.end() - 1), *(shape_b_aligned.end() - 2));
+            weightsName = transposeName;
+        }
+
+        // Input normalization
+        if (op->get_transpose_a()) {
+            auto transposeName = op->get_friendly_name() + "/transpose_a";
+            create_transpose(transposeName, inputName, rank_a);
+            std::swap(*(shape_a_aligned.end() - 1), *(shape_a_aligned.end() - 2));
+            inputName = transposeName;
+        }
 
         if (rank_a < rank_b) { // Input unsqueeze
             auto unsqueezeName = op->get_friendly_name() + "/unsqueeze_a";
@@ -152,20 +168,6 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             auto broadcastName = op->get_friendly_name() + "/broadcast_a";
             create_broadcast(broadcastName, inputName, shape_a_aligned.to_shape());
             inputName = broadcastName;
-        }
-
-        // Weights normalization
-        if (op->get_transpose_b()) {
-            auto transposeName = op->get_friendly_name() + "/transpose_b";
-            create_transpose(transposeName, weightsName, rank_b);
-            weightsName = transposeName;
-        }
-
-        // Input normalization
-        if (op->get_transpose_a()) {
-            auto transposeName = op->get_friendly_name() + "/transpose_a";
-            create_transpose(transposeName, inputName, rank_a);
-            inputName = transposeName;
         }
 
         auto fcPrim = cldnn::fully_connected(layerName,
