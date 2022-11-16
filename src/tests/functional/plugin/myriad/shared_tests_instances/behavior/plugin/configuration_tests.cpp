@@ -767,39 +767,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigTests,
 
 const std::vector<std::map<std::string, std::string>>& getIncorrectMultiConfigs() {
     static const std::vector<std::map<std::string, std::string>> incorrectMultiConfigs = {
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {KEY_LOG_LEVEL, "INCORRECT_LOG_LEVEL"},
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {InferenceEngine::MYRIAD_PROTOCOL, "BLUETOOTH"}
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, "ON"}
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, "ON"}
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {KEY_PERF_COUNT, "ON"}
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "ONE"}
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {KEY_EXCLUSIVE_ASYNC_REQUESTS, "ON"}
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {InferenceEngine::MYRIAD_DDR_TYPE, "1GB"}
-        },
-    };
+        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
+         {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, "DOESN'T EXIST"}},
+        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
+         {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
+         {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "-1"}},
+        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
+         {InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, "ON"}}};
     return incorrectMultiConfigs;
 }
 

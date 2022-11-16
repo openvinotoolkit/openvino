@@ -47,7 +47,9 @@ struct condition_impl : typed_primitive_impl<condition> {
         return ev;
     }
 
-    static primitive_impl* create(const condition_node& arg, const kernel_impl_params&) { return new condition_impl(arg); }
+    static std::unique_ptr<primitive_impl> create(const condition_node& arg, const kernel_impl_params&) {
+        return make_unique<condition_impl>(arg);
+    }
 
     void init_kernels(const kernels_cache&) override {}
 
@@ -87,8 +89,8 @@ private:
         auto input_layout = instance.input_memory().get_layout();
         auto input_ptr = lock_input.begin();
 
-        auto function = instance.argument.function;
-        auto& offset = instance.argument.offset;
+        auto function = instance.argument->function;
+        auto& offset = instance.argument->offset;
 
         for (auto b = 0; b < compare_layout.batch(); b++) {
             for (auto f = 0; f < compare_layout.feature(); f++) {

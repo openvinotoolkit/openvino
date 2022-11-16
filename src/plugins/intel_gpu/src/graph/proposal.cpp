@@ -109,13 +109,13 @@ std::string proposal_inst::to_string(proposal_node const& node) {
 }
 
 proposal_inst::typed_primitive_inst(network& network, proposal_node const& node) : parent(network, node) {
-    generate_anchors(argument.base_bbox_size,
-                     argument.ratios,
-                     argument.scales,
+    generate_anchors(argument->base_bbox_size,
+                     argument->ratios,
+                     argument->scales,
                      _anchors,
-                     argument.coordinates_offset,
-                     argument.shift_anchors,
-                     argument.round_ratios);
+                     argument->coordinates_offset,
+                     argument->shift_anchors,
+                     argument->round_ratios);
 }
 
 static void generate_anchors(unsigned int base_size,

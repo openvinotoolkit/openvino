@@ -11,21 +11,12 @@
 
 namespace cldnn {
 
-template <>
-struct typed_program_node<custom_gpu_primitive> : public typed_program_node_base<custom_gpu_primitive> {
-    using parent = typed_program_node_base<custom_gpu_primitive>;
-
-public:
-    using parent::parent;
-
-    program_node& input(size_t idx = 0) const { return get_dependency(idx); }
-};
-
 using custom_gpu_primitive_node = typed_program_node<custom_gpu_primitive>;
 
 template <>
 class typed_primitive_inst<custom_gpu_primitive> : public typed_primitive_inst_base<custom_gpu_primitive> {
     using parent = typed_primitive_inst_base<custom_gpu_primitive>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(custom_gpu_primitive_node const& node, kernel_impl_params const& impl_param) {

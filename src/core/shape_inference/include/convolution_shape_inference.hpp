@@ -30,25 +30,25 @@ int64_t calculate_num_spatial(const ConvType* op,
 
         if (const auto& size = op->m_dilations.size()) {
             NODE_VALIDATION_CHECK(op,
-                                  num_spatial == -1 || num_spatial == size,
+                                  num_spatial == -1 || num_spatial == static_cast<int64_t>(size),
                                   "Dilations should be defined for all and only spatial dimensions.");
             num_spatial = static_cast<int64_t>(size);
         }
         if (const auto& size = op->m_strides.size()) {
             NODE_VALIDATION_CHECK(op,
-                                  num_spatial == -1 || num_spatial == size,
+                                  num_spatial == -1 || num_spatial == static_cast<int64_t>(size),
                                   "Strides should be defined for all and only spatial dimensions.");
             num_spatial = static_cast<int64_t>(size);
         }
         if (const auto& size = op->m_pads_begin.size()) {
             NODE_VALIDATION_CHECK(op,
-                                  num_spatial == -1 || num_spatial == size,
+                                  num_spatial == -1 || num_spatial == static_cast<int64_t>(size),
                                   "Pads begin should be defined for all and only spatial dimensions.");
             num_spatial = static_cast<int64_t>(size);
         }
         if (const auto& size = op->m_pads_end.size()) {
             NODE_VALIDATION_CHECK(op,
-                                  num_spatial == -1 || num_spatial == size,
+                                  num_spatial == -1 || num_spatial == static_cast<int64_t>(size),
                                   "Pads end should be defined for all and only spatial dimensions.");
             num_spatial = static_cast<int64_t>(size);
         }
@@ -207,8 +207,8 @@ void divide_ceil(const DimType& dividend, const typename DimType::value_type& di
     if (dividend.get_max_length() == -1) {
         quotient = -1;
     } else {
-        auto lb = ceil(1. * dividend.get_min_length() / divisor);
-        auto ub = ceil(1. * dividend.get_max_length() / divisor);
+        auto lb = static_cast<int64_t>(ceil(1. * dividend.get_min_length() / divisor));
+        auto ub = static_cast<int64_t>(ceil(1. * dividend.get_max_length() / divisor));
         quotient = DimType(lb, ub);
     }
 }
@@ -219,8 +219,8 @@ void divide_floor(const DimType& dividend, const typename DimType::value_type& d
     if (dividend.get_max_length() == -1) {
         quotient = -1;
     } else {
-        auto lb = floor(1. * dividend.get_min_length() / divisor);
-        auto ub = floor(1. * dividend.get_max_length() / divisor);
+        auto lb = static_cast<size_t>(floor(1. * dividend.get_min_length() / divisor));
+        auto ub = static_cast<size_t>(floor(1. * dividend.get_max_length() / divisor));
         quotient = DimType(lb, ub);
     }
 }
@@ -299,8 +299,9 @@ void shape_infer(const Convolution* op,
 
     NODE_VALIDATION_CHECK(
         op,
-        (static_cast<int64_t>(input_shape.size()) == (num_spatial + num_non_spatial_data_dims)) &&
-            (static_cast<int64_t>(filters_shape.size()) == (num_spatial + num_non_spatial_filter_dims)),
+        (static_cast<int64_t>(input_shape.size()) == static_cast<int64_t>(num_spatial + num_non_spatial_data_dims)) &&
+            (static_cast<int64_t>(filters_shape.size()) ==
+             static_cast<int64_t>(num_spatial + num_non_spatial_filter_dims)),
         "Data batch and filters rank do not match (data batch shape: ",
         input_shape,
         ", filters shape: ",
@@ -362,8 +363,9 @@ void shape_infer(const GroupConvolution* op,
 
     NODE_VALIDATION_CHECK(
         op,
-        (static_cast<int64_t>(input_shape.size()) == (num_spatial + num_non_spatial_data_dims)) &&
-            (static_cast<int64_t>(filters_shape.size()) == (num_spatial + num_non_spatial_filter_dims)),
+        (static_cast<int64_t>(input_shape.size()) == static_cast<int64_t>((num_spatial + num_non_spatial_data_dims))) &&
+            (static_cast<int64_t>(filters_shape.size()) ==
+             static_cast<int64_t>((num_spatial + num_non_spatial_filter_dims))),
         "Data batch and filters rank do not match (data batch shape: ",
         input_shape,
         ", filters shape: ",

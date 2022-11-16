@@ -15,6 +15,7 @@
 #include "ie_core.hpp"
 #include "ngraph/function.hpp"
 #include "ie_metric_helpers.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/op/logical_not.hpp"
 
 #include "openvino/util/file_util.hpp"
@@ -33,6 +34,8 @@
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
 #include "cpp/ie_plugin.hpp"
+
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 using namespace InferenceEngine;
 using namespace ::testing;
@@ -120,10 +123,11 @@ public:
 
 class MockExecutableNetwork : public IExecutableNetworkInternal {
     std::mutex m_pluginMutex;
-    std::shared_ptr<const ov::Model> m_model = nullptr;
+    std::shared_ptr<ov::Model> m_model = nullptr;
 
 public:
     MockExecutableNetwork() {}
+
     MOCK_METHOD1(Export, void(std::ostream& networkModel));
     MOCK_METHOD0(CreateInferRequest, IInferRequestInternal::Ptr());
     MOCK_CONST_METHOD0(GetInputsInfo, ConstInputsDataMap());
@@ -140,8 +144,8 @@ public:
     //     IExecutableNetworkInternal::Export(networkModel);
     // }
 
-    void set_model(const std::shared_ptr<const ov::Model>& model) { m_model = model; }
-    const std::shared_ptr<const ov::Model>& get_model() const { return m_model; }
+    void set_model(const std::shared_ptr<const ov::Model>& model) { m_model = model->clone(); }
+    const std::shared_ptr<ov::Model>& get_model() const { return m_model; }
 
     void SetPointerToPlugin(const IInferencePlugin::Ptr& plugin) override {
         std::lock_guard<std::mutex> guard(m_pluginMutex);
@@ -650,10 +654,26 @@ TEST_P(CachingTest, TestChangeLoadConfig) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).Times(AnyNumber());
+    ON_CALL(*mockPlugin, GetMetric(ov::supported_properties.name(), _)).
+                WillByDefault(Invoke([&](const std::string &, const std::map<std::string, Parameter> &) {
+            return std::vector<ov::PropertyName>{
+                ov::supported_properties.name(),
+                METRIC_KEY(IMPORT_EXPORT_SUPPORT),
+                ov::device::capabilities.name(),
+                ov::device::architecture.name(),
+                ov::caching_properties.name()};
+    }));
+    ON_CALL(*mockPlugin, GetMetric(ov::caching_properties.name(), _)).
+            WillByDefault(Invoke([&](const std::string &, const std::map<std::string, Parameter> &) {
+        std::vector<ov::PropertyName> res;
+        res.push_back(ov::PropertyName(CUSTOM_KEY, ov::PropertyMutability::RO));
+        return decltype(ov::caching_properties)::value_type(res);
+    }));
     ON_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _)).
             WillByDefault(Invoke([&](const std::string &, const std::map<std::string, Parameter> &) {
         std::vector<std::string> res;
-        res.push_back(CUSTOM_KEY);
+        res.push_back(ov::caching_properties.name());
         return res;
     }));
     {
@@ -1984,6 +2004,61 @@ TEST_P(CachingTest, LoadAUTO_OneDevice) {
     }
     std::cout << "Caching LoadAuto Test completed. Tried " << index << " times" << std::endl;
 }
+//AUTO-DEVICE test
+//load network with config
+TEST_P(CachingTest, LoadAUTOWithConfig) {
+    const auto TEST_COUNT = 2;
+    EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
+    if (m_remoteContext) {
+        return; // skip the remote Context test for Auto plugin
+    }
+    int index = 0;
+    m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
+        EXPECT_CALL(net, Export(_)).Times(1);
+    });
+    std::string cacheDir = m_cacheDir;
+    MkDirGuard guard(cacheDir);
+    for (index; index < TEST_COUNT; index++) {
+        deviceToLoad = CommonTestUtils::DEVICE_AUTO;
+        deviceToLoad += ":mock.0";
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(TEST_COUNT - index - 1);
+        EXPECT_CALL(*mockPlugin, ImportNetwork(_, _)).Times(index);
+        ASSERT_NO_THROW(testLoad([&](Core &ie) {
+            m_testFunctionWithCfg(ie, {{CONFIG_KEY(CACHE_DIR), cacheDir}});
+        }));
+    }
+    std::cout << "Caching LoadAuto Test completed. Tried " << index << " times" << std::endl;
+}
+
+//BATCH-DEVICE test
+//load network with config
+TEST_P(CachingTest, LoadBATCHWithConfig) {
+    const auto TEST_COUNT = 2;
+    EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
+    if (m_remoteContext) {
+        return; // skip the remote Context test for Auto plugin
+    }
+    int index = 0;
+    m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
+        EXPECT_CALL(net, Export(_)).Times(1);
+    });
+    std::string cacheDir = m_cacheDir;
+    MkDirGuard guard(cacheDir);
+    for (index; index < TEST_COUNT; index++) {
+        deviceToLoad = CommonTestUtils::DEVICE_BATCH;
+        deviceToLoad += ":mock.0";
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(TEST_COUNT - index - 1);
+        EXPECT_CALL(*mockPlugin, ImportNetwork(_, _)).Times(index);
+        ASSERT_NO_THROW(testLoad([&](Core &ie) {
+            m_testFunctionWithCfg(ie, {{CONFIG_KEY(CACHE_DIR), cacheDir}});
+        }));
+    }
+    std::cout << "Caching LoadAuto Test completed. Tried " << index << " times" << std::endl;
+}
 //Single device not support import/export
 TEST_P(CachingTest, LoadAUTO_OneDeviceNoImportExport) {
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
@@ -2051,6 +2126,45 @@ TEST_P(CachingTest, LoadMulti_race) {
         testLoad([&](Core &ie) {
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), cacheDir}});
             ASSERT_NO_THROW(m_testFunction(ie));
+        });
+        index++;
+    } while (duration_cast<milliseconds>(high_resolution_clock::now() - start).count() < TEST_DURATION_MS);
+    std::cout << "Caching LoadMulti Test completed. Tried " << index << " times" << std::endl;
+}
+
+// MULTI-DEVICE test
+// Test that it is safe to load multiple devices through loadNetwork
+// In case of sporadic failures - increase 'TEST_DURATION_MS' 100x times for better reproducibility
+TEST_P(CachingTest, LoadMultiWithConfig_race) {
+    const auto TEST_DURATION_MS = 2000;
+    const auto TEST_DEVICE_MAX_COUNT = 10;
+    EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
+    if (m_remoteContext) {
+        return; // skip the remote Context test for Multi plugin
+    }
+    int index = 0;
+    auto start = high_resolution_clock::now();
+    m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
+        EXPECT_CALL(net, Export(_)).Times(1);
+    });
+    do {
+        std::string cacheDir = m_cacheDir + std::to_string(index);
+        MkDirGuard guard(cacheDir);
+        int devCount = 1 + index % (TEST_DEVICE_MAX_COUNT - 1); // try dynamic number of devices from 1 to max
+        deviceToLoad = CommonTestUtils::DEVICE_MULTI;
+        deviceToLoad += ":mock.0";
+        for (int i = 1; i < devCount; i++) {
+            deviceToLoad += ",mock." + std::to_string(i);
+        }
+
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(1);
+        EXPECT_CALL(*mockPlugin, ImportNetwork(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, ImportNetwork(_, _)).Times(devCount - 1);
+        testLoad([&](Core &ie) {
+            ASSERT_NO_THROW(m_testFunctionWithCfg(ie, {{CONFIG_KEY(CACHE_DIR), cacheDir}}));
         });
         index++;
     } while (duration_cast<milliseconds>(high_resolution_clock::now() - start).count() < TEST_DURATION_MS);

@@ -59,8 +59,7 @@ edge attributes if needed. Meanwhile, most manipulations with nodes connections 
 is strongly not recommended.
 
 Further details and examples related to a model representation in memory are provided in the sections below, in a context
-for a better explanation. Also, for more information on how to use ports and connections, refer to the [Graph Traversal and Modification Using `Port`s and
-`Connection`s](#graph-ports-and-conneсtions) section.
+for a better explanation. Also, for more information on how to use ports and connections, refer to the [Graph Traversal and Modification Using Ports and Connections](@ref graph-ports-and-conneсtions) section.
 
 ## Model Conversion Pipeline <a name="model-conversion-pipeline"></a>
 A model conversion pipeline can be represented with the following diagram:
@@ -138,7 +137,7 @@ During the front phase, Model Optimizer knows shape of the model inputs and cons
 transformation. For example, the transformation `extensions/front/TopKNormalize.py` removes an attribute `k`  from a
 `TopK` node and adds an input constant with the value `k`. The transformation is needed to convert a `TopK` operation.
 It comes from frameworks, where a number of output elements is defined as an attribute of the operation to the
-OpenVINO&trade; [TopK](../../../ops/sort/TopK_3.md) operation semantic, which requires this value to be a separate input.
+OpenVINO [TopK](../../../ops/sort/TopK_3.md) operation semantic, which requires this value to be a separate input.
 
 It is important to mention that sometimes it seems like transformation cannot be implemented during the front phase
 because the actual values of inputs or shapes are needed. In fact, manipulations of shapes or values can be implemented
@@ -231,7 +230,7 @@ available in the `mo/ops/reshape.py` file):
 ```
 
 Methods `in_port()` and `output_port()` of the `Node` class are used to get and set data node attributes. For more information on
-how to use them, refer to the [Graph Traversal and Modification Using Ports and Connections](#graph-ports-and-conneсtions) section.
+how to use them, refer to the [Graph Traversal and Modification Using Ports and Connections](@ref graph-ports-and-conneсtions) section.
 
 > **NOTE**: A shape inference function should perform output shape calculation in the original model layout. For
 > example, OpenVINO&trade; supports Convolution operations in NCHW layout only but TensorFlow supports NHWC layout as
@@ -246,8 +245,7 @@ how to use them, refer to the [Graph Traversal and Modification Using Ports and 
 The middle phase starts after partial inference. At this phase, a graph contains data nodes and output shapes of all
 operations in the graph have been calculated. Any transformation implemented at this stage must update the `shape`
 attribute for all newly added operations. It is highly recommended to use API described in the
-[Graph Traversal and Modification Using Ports and Connections](#graph-ports-and-conneсtions) because modification of
-a graph using this API causes automatic re-inference of affected nodes as well as necessary data nodes creation.
+[Graph Traversal and Modification Using Ports and Connections](@ref graph-ports-and-conneсtions) because modification of a graph using this API causes automatic re-inference of affected nodes as well as necessary data nodes creation.
 
 More information on how to develop middle transformations and dedicated API description is provided in the
 [Middle Phase Transformations](#middle-phase-transformations).
@@ -272,9 +270,12 @@ calculation in order to perform shape calculation in a correct layout.
 3. Model Optimizer inserts [Transpose](../../../ops/movement/Transpose_1.md) operations for some operations with
 specific conditions, identified during a model conversion, to produce correct inference results.
 
-The list of main transformations responsible for a layout change are: `extensions/middle/ApplyPermutations.py`,
-`extensions/middle/InsertLayoutPropagationTransposes.py`, `extensions/middle/MarkSubgraphsWithCorrectLayout.py`,
-`extensions/middle/ApplyNHWCtoNCHWpermutation.py` and `extensions/middle/LayoutChangeForConstantShapePaths.py`.
+The main transformations responsible for a layout change are: 
+* `extensions/middle/ApplyPermutations.py`
+* `extensions/middle/InsertLayoutPropagationTransposes.py`
+* `extensions/middle/MarkSubgraphsWithCorrectLayout.py`
+* `extensions/middle/ApplyNHWCtoNCHWpermutation.py`
+* `extensions/middle/LayoutChangeForConstantShapePaths.py`
 
 ### Back Phase <a name="back-phase"></a>
 The back phase starts after the layout change to NCHW. This phase contains mostly the following transformations:
@@ -311,7 +312,9 @@ with the `backend_attrs()` or `supported_attrs()` of the `Op` class used for a g
 information on how the operation attributes are saved to XML, refer to the function `prepare_emit_ir()` in
 the `mo/pipeline/common.py` file and [Model Optimizer Operation](#extension-operation) section.
 
-## Graph Traversal and Modification Using Ports and Connections <a name="graph-ports-and-conneсtions"></a>
+## Graph Traversal and Modification Using Ports and Connections <a name="ports-conneсtions"></a>
+@anchor graph-ports-and-conneсtions
+
 There are three APIs for a graph traversal and transformation used in the Model Optimizer:
 1. The API provided with the `networkx` Python library for the `networkx.MultiDiGraph` class, which is the base class for
 the `mo.graph.graph.Graph` object. For more details, refer to the [Model Representation in Memory](#model-representation-in-memory) section. 
@@ -410,8 +413,7 @@ op3.out_port(0).connect(op4.in_port(1))
 
 ![Ports example 2](../../../img/MO_ports_example_2.png)
 
-> **NOTE**: For a full list of available methods, refer to the `Node` class implementation in the `mo/graph/graph.py` and `Port` class implementation in the
-`mo/graph/port.py` files.
+> **NOTE**: For a full list of available methods, refer to the `Node` class implementation in the `mo/graph/graph.py` and `Port` class implementation in the `mo/graph/port.py` files.
 
 ### Connections <a name="intro-conneсtions"></a>
 Connection is a concept introduced to easily and reliably perform graph modifications. Connection corresponds to a

@@ -8,16 +8,6 @@
 
 namespace cldnn {
 
-template <>
-struct typed_program_node<roll> : typed_program_node_base<roll> {
-    using parent = typed_program_node_base<roll>;
-    using parent::parent;
-
-    program_node& input() const {
-        return get_dependency(0);
-    }
-};
-
 using roll_node = typed_program_node<roll>;
 
 template <>

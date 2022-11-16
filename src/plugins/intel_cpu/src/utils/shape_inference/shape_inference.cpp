@@ -1,8 +1,6 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "shape_inference.hpp"
-
 #include <ngraph/runtime/host_tensor.hpp>
 #include <openvino/core/node.hpp>
 #include <openvino/opsets/opset1.hpp>
@@ -13,10 +11,16 @@
 #include <openvino/opsets/opset7.hpp>
 #include <openvino/opsets/opset8.hpp>
 
+#include "ov_ops/augru_cell.hpp"
+#include "ov_ops/augru_sequence.hpp"
+
 #include "assign_shape_inference.hpp"
+#include "augru_cell_shape_inference.hpp"
+#include "augru_sequence_shape_inference.hpp"
 #include "batch_to_space_shape_inference.hpp"
 #include "broadcast_shape_inference.hpp"
 #include "bucketize_shape_inference.hpp"
+#include "concat_shape_inference.hpp"
 #include "convolution_shape_inference.hpp"
 #include "ctc_greedy_decoder_seq_len_shape_inference.hpp"
 #include "ctc_greedy_decoder_shape_inference.hpp"
@@ -38,7 +42,9 @@
 #include "gather_elements_shape_inference.hpp"
 #include "gather_shape_inference.hpp"
 #include "gather_tree_shape_inference.hpp"
+#include "grid_sample_shape_inference.hpp"
 #include "gru_sequence_shape_inference.hpp"
+#include "gru_cell_shape_inference.hpp"
 #include "interpolate_shape_inference.hpp"
 #include "lstm_cell_shape_inference.hpp"
 #include "matmul_shape_inference.hpp"
@@ -56,16 +62,19 @@
 #include "scatter_elements_update_shape_inference.hpp"
 #include "scatter_nd_base_shape_inference.hpp"
 #include "select_shape_inference.hpp"
+#include "shape_inference.hpp"
 #include "shape_nodes.hpp"
 #include "shuffle_channels_shape_inference.hpp"
 #include "space_to_batch_shape_inference.hpp"
 #include "space_to_depth_shape_inference.hpp"
 #include "split_shape_inference.hpp"
+#include "squeeze_shape_inference.hpp"
 #include "static_shape.hpp"
 #include "strided_slice_shape_inference.hpp"
 #include "tile_shape_inference.hpp"
 #include "topk_shape_inference.hpp"
 #include "transpose_shape_inference.hpp"
+#include "unsqueeze_shape_inference.hpp"
 #include "utils.hpp"
 #include "variadic_split_shape_inference.hpp"
 
@@ -490,7 +499,15 @@ std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::
         return make_shared_entryIOC(node);
     } else if (auto node = ov::as_type_ptr<ov::opset1::GatherTree>(op)) {
         return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset9::GridSample>(op)) {
+        return make_shared_entryIO(node);
     } else if (auto node = ov::as_type_ptr<ov::opset5::GRUSequence>(op)) {
+        return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::op::internal::AUGRUSequence>(op)) {
+        return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset3::GRUCell>(op)) {
+        return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::op::internal::AUGRUCell>(op)) {
         return make_shared_entryIO(node);
     } else if (auto node = ov::as_type_ptr<ov::opset1::OneHot>(op)) {
         return make_shared_entryIOC(node);
@@ -554,6 +571,8 @@ std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::
         return std::make_shared<entryFallbackWithPadding<ov::op::v8::DeformableConvolution>>(node);
     } else if (auto node = ov::as_type_ptr<ov::opset8::Transpose>(op)) {
         return make_shared_entryIOC(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset1::Concat>(op)) {
+        return make_shared_entryIO(node);
     } else {
         return std::make_shared<entryFallback>(op);
     }

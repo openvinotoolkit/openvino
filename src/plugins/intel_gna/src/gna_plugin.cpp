@@ -30,6 +30,7 @@
 #include "preprocessing.hpp"
 #include "frontend/weights_converter.hpp"
 #include "frontend/model_quantizer.hpp"
+#include "frontend/scale_factor_calc.hpp"
 #include "gna_fused_iterator.hpp"
 #include "backend/am_intel_dnn.hpp"
 #include "memory/gna_memory_state.hpp"
@@ -45,6 +46,7 @@
 #include "request/model_wrapper_factory.hpp"
 #include "request/worker_pool_impl.hpp"
 #include "request/worker_factory.hpp"
+#include "log/log.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
@@ -93,6 +95,7 @@
 #include "transformations/insert_copy_layer.hpp"
 #include "transformations/split_eltwise.hpp"
 #include "transformations/markup_fusable_transpose.hpp"
+#include "transformations/insert_identity_layer.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -118,11 +121,11 @@ inline uint32_t ToByteSize(const Gna2DataType type) {
     }
 }
 
-using namespace InferenceEngine;
 using namespace std;
+using namespace InferenceEngine;
+using namespace InferenceEngine::details;
 using namespace GNAPluginNS;
 using namespace GNAPluginNS::memory;
-using namespace InferenceEngine::details;
 
 namespace InferenceEngine {
     template<>
@@ -146,9 +149,9 @@ void GNAPlugin::copyInputData(T *dst,
             for (uint32_t j = 0; j < num_vector_elements; j++) {
                 if (!std::is_same<T, U>::value) {
                     if (!gnaFlags->input_low_precision) {
-                        dst[j * num_group + i] = GNAPluginNS::ConvertFloatToInt16(src[i * num_vector_elements + j] * scaleFactor);
+                        dst[j * num_group + i] = ConvertFloatToInt16(src[i * num_vector_elements + j] * scaleFactor);
                     } else {
-                        dst[j * num_group + i] = GNAPluginNS::ConvertFloatToInt8(src[i * num_vector_elements + j] * scaleFactor);
+                        dst[j * num_group + i] = ConvertFloatToInt8(src[i * num_vector_elements + j] * scaleFactor);
                     }
                 } else {
                     dst[j * num_group + i] = src[i * num_vector_elements + j];
@@ -173,15 +176,14 @@ void GNAPlugin::copyInputData(T *dst,
                 std::memset(ptr_dst_vec, 0, num_vector_stride * sizeof(T));
                 if (!gnaFlags->input_low_precision) {
                     for (uint32_t j = 0; j < num_vector_elements; j++) {
-                        ptr_dst_vec[j] = GNAPluginNS::ConvertFloatToInt16(ptr_src_vec[j] * scaleFactor);
+                        ptr_dst_vec[j] = ConvertFloatToInt16(ptr_src_vec[j] * scaleFactor);
                     }
                 } else {
                     for (uint32_t j = 0; j < num_vector_elements; j++) {
-                        ptr_dst_vec[j] = GNAPluginNS::ConvertFloatToInt8(ptr_src_vec[j] * scaleFactor);
+                        ptr_dst_vec[j] = ConvertFloatToInt8(ptr_src_vec[j] * scaleFactor);
                     }
                 }
             }
-
         } else {
             for (uint32_t i = 0; i < num_frames; i++) {
                 void *ptr_dst_vec = reinterpret_cast<uint8_t *>(dst) + i * num_vector_stride * sizeof(T);
@@ -352,6 +354,7 @@ GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) {
     Init();
     SetConfig(configMap);
     InitGNADevice();
+    GnaLog(gnaFlags->log_level);
 }
 
 void GNAPlugin::Init() {
@@ -416,13 +419,13 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network
             // GNA input is always quantized to int16, so number of levels can't be greater than max uint16
             // todo: should be solved in POT (issue 63330)
             size_t levels = std::min(fqLayer.getLevels(), static_cast<size_t>(std::numeric_limits<uint16_t>::max() + 1));
-            auto scaleInput = frontend::CalculateScaleFactorFromStats(levels, inputRange.first[0], inputRange.second[0]);
+            auto scaleInput = ov::intel_gna::frontend::CalculateScaleFactorFromStats(levels, inputRange.first[0], inputRange.second[0]);
 
             if (!config.inputScaleFactorsPerInput.empty() || !config.inputScaleFactors.empty()) {
-                gnawarn() << "WARNING: Scale factor calculated during model quantization (" << scaleInput
+                log::warning() << "Scale factor calculated during model quantization (" << scaleInput
                     << ") will be used instead of user input (" << (*inputs_ptr_)[input.first].scale_factor << ").\n";
                 if ((*inputs_ptr_)[input.first].scale_factor < scaleInput) {
-                    gnawarn() << "WARNING: Scale factor calculated based on input values (" << (*inputs_ptr_)[input.first].scale_factor
+                    log::warning() << "Scale factor calculated based on input values (" << (*inputs_ptr_)[input.first].scale_factor
                         << ") is smaller than scale factor used to quantize model (" << scaleInput << "). "
                         << "Input values will be clamped.\n";
                 }
@@ -509,7 +512,7 @@ void GNAPlugin::UpdateInputsAndOutputsInfoFromModel(std::shared_ptr<const ov::Mo
 bool GNAPlugin::TryToInitOutput(const std::string &portName, InferenceEngine::CNNLayerPtr layer) {
     auto initOutput = [this, portName, layer]
             (intel_dnn_orientation_t orientation, size_t numBytesPerElem, size_t numElem, void* outputPtr) {
-        auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+        auto quantized = InferenceEngine::getInjectedData<ov::intel_gna::frontend::QuantizedLayerParams>(layer);
 
         outputs_.at(portName).ptrs.resize(gnaFlags->num_requests);
         outputs_.at(portName).orientation = orientation;
@@ -563,7 +566,7 @@ void GNAPlugin::FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNN
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "FillInputsAndOutputsTranspositionInfo");
     auto printTranspositionInfo = [](const std::vector<TranspositionInfo> &transpositionInfo) {
         for (const auto &transpositionInfoPart : transpositionInfo) {
-            gnalog() << "transpose=" << transpositionInfoPart.transpose << " rows_num=" << transpositionInfoPart.num_transpose_rows
+            log::debug() << "transpose=" << transpositionInfoPart.transpose << " rows_num=" << transpositionInfoPart.num_transpose_rows
                      << " columns_num=" << transpositionInfoPart.num_transpose_columns << "\n";
         }
     };
@@ -576,7 +579,7 @@ void GNAPlugin::FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNN
         if (transpositionInfo.empty()) continue;
 
         transpose_inputs_info.insert({inputLayer->name, transpositionInfo});
-        gnalog() << "Input " << inputLayer->name << " transposition info: \n";
+        log::debug() << "Input " << inputLayer->name << " transposition info: \n";
         printTranspositionInfo(transpositionInfo);
     }
 
@@ -595,7 +598,7 @@ void GNAPlugin::FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNN
             }
         }
         transpose_outputs_info.insert({outLayer->name, transpositionInfo});
-        gnalog() << "Output " << outLayer->name << " transposition info: \n";
+        log::debug() << "Output " << outLayer->name << " transposition info: \n";
         printTranspositionInfo(transpositionInfo);
     }
 }
@@ -740,6 +743,16 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
             input is doing
         */
         manager.register_pass<ov::intel_gna::pass::SplitEltwise>();
+        /* The following transformations perform insertion of Identity layer in 3 steps:
+           1. Mark inputs with rt_info attribute where precision change from i32 to i16/i8 is happened
+           2. Insert Identity after operation which have consumers marked with precision change
+           3. Cleanup appropriate attribute from rt_info
+        */
+        manager.register_pass<ov::intel_gna::pass::MarkIdentityCandidates>(config.gnaFlags.input_low_precision);
+        manager.register_pass<ov::intel_gna::pass::InsertIdentity>();
+        manager.register_pass<ov::intel_gna::pass::IdentityCandidatesCleanup>();
+        // Breaks fusing of layers before result
+        manager.register_pass<ov::intel_gna::pass::BreakFusingOfOutputLayers>();
         if (!config.gnaFlags.sw_fp32 && !config.gnaFlags.uniformPwlDesign) {
             manager.register_pass<ov::intel_gna::pass::PWLApproximationWithFq>(config.gnaFlags.pwlMaxErrorPercent);
             manager.register_pass<ov::intel_gna::pass::PWLApproximation>(config.gnaFlags.pwlMaxErrorPercent);
@@ -782,9 +795,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
 
     //  Check the network
     std::string error;
-    if (!GNAPluginNS::GNALimitations::AreLayersSupported(network,
-                                                         error,
-                                                         gnaFlags->log_level == ov::log::Level::WARNING)) {
+    if (!GNAPluginNS::GNALimitations::AreLayersSupported(network, error)) {
         THROW_GNA_EXCEPTION << error.c_str();
     }
 
@@ -843,6 +854,8 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         passes->registerPass<InsertConcatAligningFilterPass>();
         passes->registerPass<ReorderConcatInputsPass>();
         passes->registerPass<RemovePermutationsNHWCToNCHWPass>();
+        // Keep legacy inserting of Identity layer here
+        // because concat and split aliging passes are not moved to ngraph yet
         passes->registerPass<InsertIdentityLayerPass>();
         passes->registerPass<BreakFusingOfOutputLayersPass>();
         passes->registerPass<InsertDiagonalLayerPass>();
@@ -856,34 +869,16 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
 
     if (gnaFlags->sw_fp32) {
         auto visitor = [&](InferenceEngine::CNNLayerPtr lp) {
-            transformLayer(lp, WeightsConverter());
+            ov::intel_gna::frontend::convert_blobs_precision(*lp);
             return lp;
         };
         newNet = InferenceEngine::CNNNetCopy(network, visitor);
         // to run all passes need to have two calls to pass manager
         run_passes(newNet, true, gnaFlags->input_low_precision);
         run_passes(newNet, false, gnaFlags->input_low_precision);
-    } else if (fake_quantized) {
-        ModelQuantizer<FakeQuant> modelQuantizer;
-        newNet = modelQuantizer.quantize(network, run_passes, *inputs_ptr_);
     } else {
-        switch (config.gnaPrecision) {
-        case Precision::I16:
-            ModelQuantizer<QuantI16> q16;
-            newNet = q16.quantize(network, run_passes, *inputs_ptr_);
-            break;
-        case Precision::I8:
-            if (gnaFlags->input_low_precision == false) {
-                ModelQuantizer<QuantI8> q8;
-                newNet = q8.quantize(network, run_passes, *inputs_ptr_);
-            } else {
-                ModelQuantizer<QuantI8_I8> q8_8;
-                newNet = q8_8.quantize(network, run_passes, *inputs_ptr_);
-            }
-            break;
-        default:
-            THROW_GNA_EXCEPTION << "unsupported GNA precision for quantisation: " << config.gnaPrecision;
-        }
+        ov::intel_gna::frontend::ModelQuantizer modelQuantizer(config, fake_quantized);
+        newNet = modelQuantizer.quantize(network, run_passes, *inputs_ptr_);
     }
 
     auto inputLayers = CNNNetGetAllInputLayers(newNet);
@@ -948,7 +943,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     // keep inputs information and create input primitives
     inputs_data_map_ = newNet.getInputsInfo();
     if (inputs_data_map_.empty()) {
-        gnawarn() << "No inputs for the topology\n";
+        log::warning() << "No inputs for the topology\n";
     }
 
     // keep output dims
@@ -974,7 +969,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     }
 
     if (graphCompiler.dnnComponents.components.empty()) {
-        gnawarn() << "No GNA primitives created based on topology. This might indicate trivial topology\n";
+        log::warning() << "No GNA primitives created based on topology. This might indicate trivial topology\n";
         trivialTopology = true;
     }
 
@@ -998,13 +993,13 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
 
         // searching for outData represented in GNA blob
         // using ufs - upper first search
-        gnalog() << "[UFS] searching for : " << outPort.first << " representation in GNA\n";
+        log::debug() << "[UFS] searching for : " << outPort.first << " representation in GNA\n";
         bool stopSearching = false;
 
         CNNNetDFS(
             outLayer,
             [this, &outPort, &stopSearching](CNNLayerPtr layer) {
-                gnalog() << "[UFS] from : " << outPort.first << " reached: " << layer->name << "\n";
+                log::debug() << "[UFS] from : " << outPort.first << " reached: " << layer->name << "\n";
                 stopSearching = TryToInitOutput(outPort.first, layer);
             },
             true,
@@ -1017,7 +1012,6 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         }
         portId++;
     }
-
     // TODO: how active list will work in multioutput case
     // make room for active list
     gnamem->getQueue(REGION_OUTPUTS)
@@ -1639,7 +1633,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
         IE_ASSERT(config.inputScaleFactorsPerInput.size() <= inputs_ptr_->size());
         for (auto&& sf : config.inputScaleFactorsPerInput) {
             if (sf.second != GNAPluginNS::kScaleFactorDefault) {
-                gnalog() << "[Import Network] Using input scale factor defined in configuration for input " << sf.first
+                log::debug() << "[Import Network] Using input scale factor defined in configuration for input " << sf.first
                          << std::endl;
                 (*inputs_ptr_)[sf.first].scale_factor = sf.second;
             }
@@ -1648,7 +1642,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
         IE_ASSERT(config.inputScaleFactors.size() <= inputs_ptr_->size());
         for (size_t id = 0; id < config.inputScaleFactors.size(); ++id) {
             if (id < inputs_ptr_->size() && config.inputScaleFactors[id] != GNAPluginNS::kScaleFactorDefault) {
-                gnalog() << "[Import Network] Using input scale factor defined in configuration for input " << id
+                log::debug() << "[Import Network] Using input scale factor defined in configuration for input " << id
                          << std::endl;
                 inputs_ptr_->Get().at(id).scale_factor = config.inputScaleFactors[id];
             }
@@ -1712,7 +1706,7 @@ void GNAPlugin::Export(std::ostream &outStream) {
 
     for (auto && memoryConnection : graphCompiler.memory_connection) {
         auto state = std::make_shared<memory::GNAVariableState>(memoryConnection.first, std::make_shared <GNAMemoryLayer>(memoryConnection.second));
-        gnalog() << "Scale factor Memory layer " << state->GetScaleFactor() << std::endl;
+        log::debug() << "Scale factor Memory layer " << state->GetScaleFactor() << std::endl;
         serial.AddState(memoryConnection.second.gna_ptr, memoryConnection.second.reserved_size, memoryConnection.first, state->GetScaleFactor());
     }
 
@@ -1815,3 +1809,7 @@ InferenceEngine::QueryNetworkResult GNAPlugin::QueryNetwork(const InferenceEngin
     return res;
 }
 
+GNAPlugin::~GNAPlugin() {
+    if (gnadevice)
+        gnadevice->close();
+}

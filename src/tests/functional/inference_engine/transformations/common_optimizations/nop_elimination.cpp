@@ -12,6 +12,7 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset9.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
@@ -889,6 +890,35 @@ struct ShapeParams {
     bool can_fuse;
 };
 
+enum class OpType {
+    ADD,
+    SUBTRACT,
+    SUBTRACT_WITH_CONVERT,
+    MULTIPLY,
+    DIVIDE,
+};
+
+static std::ostream& operator<<(std::ostream& os, OpType kind) {
+    switch (kind) {
+        case OpType::ADD:
+            os << "add";
+            break;
+        case OpType::SUBTRACT:
+            os << "subtract";
+            break;
+        case OpType::SUBTRACT_WITH_CONVERT:
+            os << "subtract_with_convert";
+            break;
+        case OpType::MULTIPLY:
+            os << "multiply";
+            break;
+        case OpType::DIVIDE:
+            os << "divide";
+            break;
+    }
+    return os;
+}
+
 enum class ConstantKind {
     ZERO,
     ONE,
@@ -911,7 +941,7 @@ static std::ostream& operator<<(std::ostream& os, ConstantKind kind) {
 }
 
 struct TypeParams {
-    EltwiseTypes op_type;
+    OpType op_type;
     ConstantKind constant_kind;
     bool can_fuse;
 };
@@ -935,6 +965,14 @@ class EliminateEltwiseTests: public testing::WithParamInterface<EliminateEltwise
         }
 };
 
+std::vector<element::Type> types{
+    element::f32, element::f64,
+    element::i32, element::u32,
+    element::i64, element::u64,
+    element::i8, element::u8,
+    element::i16, element::u16,
+};
+
 TEST_P(EliminateEltwiseTests, eliminate_eltwise) {
     auto params = GetParam();
     const auto& shape_params = std::get<0>(params);
@@ -946,45 +984,60 @@ TEST_P(EliminateEltwiseTests, eliminate_eltwise) {
     bool can_fuse = shape_params.can_fuse && type_params.can_fuse;
 
     auto parameter = make_shared<op::Parameter>(type, shape1);
+
+    auto constant_type = type;
+    if (type_params.op_type == OpType::SUBTRACT_WITH_CONVERT) {
+        if (type == types[0])
+            constant_type = types[1];
+        else
+            constant_type = types[0];
+    }
+
     std::shared_ptr<Node> constant;
     switch (type_params.constant_kind) {
         case ConstantKind::ZERO:
-            constant = op::Constant::create(type, shape2, {0});
+            constant = op::Constant::create(constant_type, shape2, {0});
             break;
         case ConstantKind::ONE:
-            constant = op::Constant::create(type, shape2, {1});
+            constant = op::Constant::create(constant_type, shape2, {1});
             break;
         case ConstantKind::RANDOM:
-            constant = builder::makeConstant(type, shape2, {}, true, 20 /* upTo */, 2 /* startFrom */);
+            constant = builder::makeConstant(constant_type, shape2, {}, true, 20 /* upTo */, 2 /* startFrom */);
             break;
+    }
+
+    if (type_params.op_type == OpType::SUBTRACT_WITH_CONVERT) {
+        constant = std::make_shared<opset8::Convert>(constant, type);
     }
 
     shared_ptr<Node> A = parameter;
     shared_ptr<Node> B = constant;
     if (swap_inputs) {
         std::swap(A, B);
-        if (type_params.op_type == EltwiseTypes::SUBTRACT ||
-            type_params.op_type == EltwiseTypes::DIVIDE) {
+        if (type_params.op_type == OpType::SUBTRACT ||
+            type_params.op_type == OpType::SUBTRACT_WITH_CONVERT ||
+            type_params.op_type == OpType::DIVIDE) {
             can_fuse = false;
         }
     }
 
     shared_ptr<Node> node;
     switch (type_params.op_type) {
-        case EltwiseTypes::ADD:
+        case OpType::ADD:
             node = make_shared<opset8::Add>(A, B);
             break;
-        case EltwiseTypes::SUBTRACT:
+        case OpType::SUBTRACT:
+        case OpType::SUBTRACT_WITH_CONVERT:
             node = make_shared<opset8::Subtract>(A, B);
             break;
-        case EltwiseTypes::MULTIPLY:
+        case OpType::MULTIPLY:
             node = make_shared<opset8::Multiply>(A, B);
             break;
-        case EltwiseTypes::DIVIDE:
+        case OpType::DIVIDE:
             node = make_shared<opset8::Divide>(A, B);
             break;
         default:
-            ASSERT_FALSE(true) << "Invalid EltwiseType";
+            ASSERT_FALSE(true) << "Invalid OpType";
     }
     auto abs = make_shared<opset8::Abs>(node);
     function = make_shared<Function>(abs, ParameterVector{parameter});
@@ -1044,22 +1097,16 @@ std::vector<ShapeParams> shape_params = {
 
 std::vector<TypeParams> type_params = {
     // op type, constant value, can fuse
-    { EltwiseTypes::ADD, ConstantKind::ZERO, true },
-    { EltwiseTypes::ADD, ConstantKind::RANDOM, false },
-    { EltwiseTypes::SUBTRACT, ConstantKind::ZERO, true },
-    { EltwiseTypes::SUBTRACT, ConstantKind::RANDOM, false },
-    { EltwiseTypes::MULTIPLY, ConstantKind::ONE, true },
-    { EltwiseTypes::MULTIPLY, ConstantKind::RANDOM, false },
-    { EltwiseTypes::DIVIDE, ConstantKind::ONE, true },
-    { EltwiseTypes::DIVIDE, ConstantKind::RANDOM, false },
-};
-
-std::vector<element::Type> types{
-    element::f32, element::f64,
-    element::i32, element::u32,
-    element::i64, element::u64,
-    element::i8, element::u8,
-    element::i16, element::u16,
+    { OpType::ADD, ConstantKind::ZERO, true },
+    { OpType::ADD, ConstantKind::RANDOM, false },
+    { OpType::SUBTRACT, ConstantKind::ZERO, true },
+    { OpType::SUBTRACT, ConstantKind::RANDOM, false },
+    { OpType::SUBTRACT_WITH_CONVERT, ConstantKind::ZERO, true },
+    { OpType::SUBTRACT_WITH_CONVERT, ConstantKind::RANDOM, false },
+    { OpType::MULTIPLY, ConstantKind::ONE, true },
+    { OpType::MULTIPLY, ConstantKind::RANDOM, false },
+    { OpType::DIVIDE, ConstantKind::ONE, true },
+    { OpType::DIVIDE, ConstantKind::RANDOM, false },
 };
 
 INSTANTIATE_TEST_SUITE_P(EliminateEltwise, EliminateEltwiseTests,
@@ -1089,4 +1136,169 @@ TEST_F(TransformationTestsF, eliminate_eltwise_dequantization_subgraph) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+enum class SplitType {
+    Split,
+    VariadicSplit
+};
+
+enum class RNNType : size_t {
+    NONE = 0,
+    RNN = 1,
+    GRU = 3,
+    LSTM = 4,
+};
+
+struct SplitConcatEliminationParams {
+    SplitType split_type;
+    RNNType rnn_type;
+    size_t seq_len; // must be divisible by split_len
+    size_t split_len;
+    int64_t split_axis;
+    int64_t concat_axis;
+};
+
+class SplitConcatElimination
+    : public testing::WithParamInterface<SplitConcatEliminationParams>,
+    public CommonTestUtils::TestsCommon {
+};
+
+TEST_P(SplitConcatElimination, eliminate_split_concat_subgraph) {
+    const auto& p = GetParam();
+    size_t batch = 2;
+    size_t input_size = 4;
+    size_t hidden_size = 2;
+    size_t seq_len = p.seq_len;
+    size_t num_dir = 1;
+
+    EXPECT_TRUE(seq_len % p.split_len == 0) << "Seq_len must be divisible by split_len.";
+
+    ParameterVector params;
+    auto param = make_shared<ov::opset9::Parameter>(element::f32, Shape{batch, seq_len, input_size});
+
+    shared_ptr<Node> data = param;
+    shared_ptr<Node> sequence;
+    auto gate = static_cast<size_t>(p.rnn_type);
+    auto axis_const = make_shared<ov::opset9::Constant>(element::i64, Shape{}, p.split_axis);
+    auto H = make_shared<ov::opset9::Parameter>(element::f32, Shape{batch, num_dir, hidden_size});
+    auto C = make_shared<ov::opset9::Parameter>(element::f32, Shape{batch, num_dir, hidden_size});
+    auto seq_lengths = make_shared<ov::opset9::Parameter>(element::i64, Shape{batch});
+    auto W = make_shared<ov::opset9::Parameter>(element::f32, Shape{num_dir, gate * hidden_size, input_size});
+    auto R = make_shared<ov::opset9::Parameter>(element::f32, Shape{num_dir, gate * hidden_size, hidden_size});
+    auto B = make_shared<ov::opset9::Parameter>(element::f32, Shape{num_dir, gate * hidden_size});
+    auto direction = op::RecurrentSequenceDirection::FORWARD;
+    if (p.rnn_type == RNNType::RNN) {
+        sequence = make_shared<ov::opset9::RNNSequence>(data, H, seq_lengths, W, R, B, hidden_size, direction);
+        data = make_shared<ov::opset9::Squeeze>(sequence->output(0), axis_const);
+        params = {H, seq_lengths, W, R, B};
+    } else if (p.rnn_type == RNNType::GRU) {
+        sequence = make_shared<ov::opset9::GRUSequence>(data, H, seq_lengths, W, R, B, hidden_size, direction);
+        data = make_shared<ov::opset9::Squeeze>(sequence->output(0), axis_const);
+        params = {H, seq_lengths, W, R, B};
+    } else if (p.rnn_type == RNNType::LSTM) {
+        sequence = make_shared<ov::opset9::LSTMSequence>(data, H, C, seq_lengths, W, R, B, hidden_size, direction);
+        data = make_shared<ov::opset9::Squeeze>(sequence->output(0), axis_const);
+        params = {H, C, seq_lengths, W, R, B};
+    }
+    params.push_back(param);
+
+    shared_ptr<ov::Node> split;
+    if (p.split_type == SplitType::Split) {
+        split = make_shared<ov::opset9::Split>(data->output(0), axis_const, p.seq_len/p.split_len);
+    } else if (p.split_type == SplitType::VariadicSplit) {
+        auto split_lengths = make_shared<ov::opset9::Constant>(element::i64, Shape{seq_len/p.split_len}, std::vector<size_t>(seq_len/p.split_len, p.split_len));
+        split = make_shared<ov::opset9::VariadicSplit>(data->output(0), axis_const, split_lengths);
+    }
+
+    auto outputs_to_concat = split->outputs();
+    if (sequence) {
+        outputs_to_concat[outputs_to_concat.size() - 1] = sequence->output(1);
+    }
+    auto concat = make_shared<ov::opset9::Concat>(outputs_to_concat, p.concat_axis);
+    auto sigmoid = make_shared<ov::opset9::Sigmoid>(concat);
+    auto res = make_shared<ov::opset9::Result>(sigmoid);
+    auto model = make_shared<ov::Model>(ResultVector{res}, ParameterVector{params});
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::Validate>();
+    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.run_passes(model);
+
+    // the transformation won't be applied if split_len is not equal to 1
+    size_t expect_concat = p.split_len == 1 ? 0 : 1;
+    size_t expect_split = p.split_len == 1 ? 0 : 1;
+    EXPECT_EQ(count_ops_of_type<ov::opset9::Concat>(model), expect_concat) << "SplitConcatElimination transformation has failed. "
+                                                              "The number of Concat ops is not " + to_string(expect_concat);
+    EXPECT_EQ(count_ops_of_type<ov::opset9::Split>(model) + count_ops_of_type<ov::opset9::VariadicSplit>(model), expect_split)
+        << "SplitConcatElimination transformation has failed. "
+           "The number of Split/VariadicSplit ops is not " + to_string(expect_split);
+}
+
+static const vector<SplitConcatEliminationParams> params = {
+        SplitConcatEliminationParams{SplitType::Split, RNNType::NONE, 10, 1, 1, 1},
+        SplitConcatEliminationParams{SplitType::Split, RNNType::RNN, 10, 1, 1, 1},
+        SplitConcatEliminationParams{SplitType::Split, RNNType::LSTM, 10, 1, 1, 1},
+        SplitConcatEliminationParams{SplitType::Split, RNNType::GRU, 10, 1, 1, 1},
+        SplitConcatEliminationParams{SplitType::Split, RNNType::GRU, 10, 2, 1, 1},
+        SplitConcatEliminationParams{SplitType::Split, RNNType::NONE, 10, 1, -2, 1},
+        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::NONE, 10, 1, 1, 1},
+        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::RNN, 10, 1, 1, 1},
+        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::LSTM, 10, 1, 1, 1},
+        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::GRU, 10, 1, 1, 1},
+        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::GRU, 10, 2, 1, 1},
+        SplitConcatEliminationParams{SplitType::VariadicSplit, RNNType::NONE, 10, 1, 1, -2}};
+
+INSTANTIATE_TEST_SUITE_P(SplitConcatElimination, SplitConcatElimination, testing::ValuesIn(params));
+
+TEST(SplitConcatElimination, split_inputs_not_in_order) {
+    int64_t axis = 1;
+    auto axis_const = make_shared<ov::opset9::Constant>(element::i64, Shape{}, axis);
+
+    auto param = make_shared<ov::opset9::Parameter>(element::f32, Shape{2, 10});
+    auto split = make_shared<ov::opset9::Split>(param->output(0), axis_const, 10);
+    OutputVector outputs_to_concat = split->outputs();
+
+    // change order of inputs to Concat, in this case the transformation won't be applied
+    std::reverse(outputs_to_concat.begin(), outputs_to_concat.end());
+    auto concat = make_shared<ov::opset9::Concat>(outputs_to_concat, axis);
+    auto sigmoid = make_shared<ov::opset9::Sigmoid>(concat);
+    auto res = make_shared<ov::opset9::Result>(sigmoid);
+    auto model = make_shared<ov::Model>(ResultVector{res}, ParameterVector{param});
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::Validate>();
+    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.run_passes(model);
+    // the transformation shouldn't be applied
+    EXPECT_EQ(count_ops_of_type<ov::opset9::Concat>(model), 1) << "SplitConcatElimination transformation has failed. "
+                                                                  "The number of Concat ops is not 1";
+    EXPECT_EQ(count_ops_of_type<ov::opset9::Split>(model), 1) << "SplitConcatElimination transformation has failed. "
+                                                                 "The number of Split ops is not 1";
+}
+
+TEST(SplitConcatElimination, no_sequence_found) {
+    int64_t axis = 1;
+    auto axis_const = make_shared<ov::opset9::Constant>(element::i64, Shape{}, axis);
+
+    auto param = make_shared<ov::opset9::Parameter>(element::f32, Shape{2, 10});
+    auto param_2 = make_shared<ov::opset9::Parameter>(element::f32, Shape{2, 1});
+    auto split = make_shared<ov::opset9::Split>(param->output(0), axis_const, 10);
+    OutputVector outputs_to_concat = split->outputs();
+
+    outputs_to_concat[outputs_to_concat.size() - 1] = param_2;
+    auto concat = make_shared<ov::opset9::Concat>(outputs_to_concat, axis);
+    auto sigmoid = make_shared<ov::opset9::Sigmoid>(concat);
+    auto res = make_shared<ov::opset9::Result>(sigmoid);
+    auto model = make_shared<ov::Model>(ResultVector{res}, ParameterVector{param, param_2});
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::Validate>();
+    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.run_passes(model);
+    // the transformation shouldn't be applied
+    EXPECT_EQ(count_ops_of_type<ov::opset9::Concat>(model), 1) << "SplitConcatElimination transformation has failed. "
+                                                                  "The number of Concat ops is not 1";
+    EXPECT_EQ(count_ops_of_type<ov::opset9::Split>(model), 1) << "SplitConcatElimination transformation has failed. "
+                                                                 "The number of Split ops is not 1";
 }

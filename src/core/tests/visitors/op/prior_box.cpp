@@ -37,7 +37,7 @@ TEST(attributes, prior_box_op) {
     attrs.scale_all_sizes = true;
 
     auto prior_box = make_shared<opset1::PriorBox>(layer_shape, image_shape, attrs);
-    NodeBuilder builder(prior_box);
+    NodeBuilder builder(prior_box, {layer_shape, image_shape});
     auto g_prior_box = ov::as_type_ptr<opset1::PriorBox>(builder.create());
 
     const auto prior_box_attrs = prior_box->get_attrs();
@@ -57,6 +57,50 @@ TEST(attributes, prior_box_op) {
     EXPECT_EQ(g_prior_box_attrs.offset, prior_box_attrs.offset);
     EXPECT_EQ(g_prior_box_attrs.variance, prior_box_attrs.variance);
     EXPECT_EQ(g_prior_box_attrs.scale_all_sizes, prior_box_attrs.scale_all_sizes);
+    EXPECT_EQ(g_prior_box->has_evaluate(), prior_box->has_evaluate());
+}
+
+TEST(attributes, prior_box_op2) {
+    NodeBuilder::get_ops().register_factory<opset1::PriorBox>();
+    const auto layer_shape = make_shared<op::Parameter>(element::i64, Shape{2});
+    const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{2});
+
+    op::v0::PriorBox::Attributes attrs;
+    attrs.min_size = vector<float>{0.1f, 0.141421f};
+    attrs.max_size = vector<float>{};
+    attrs.aspect_ratio = vector<float>{2.0f, 0.5f};
+    attrs.density = vector<float>{};
+    attrs.fixed_ratio = vector<float>{};
+    attrs.fixed_size = vector<float>{};
+    attrs.clip = false;
+    attrs.flip = false;
+    attrs.step = 0.03333333f;
+    attrs.offset = 0.5f;
+    attrs.variance = vector<float>{0.1f, 0.1f, 0.2f, 0.2f};
+    attrs.scale_all_sizes = false;
+
+    auto prior_box = make_shared<opset1::PriorBox>(layer_shape, image_shape, attrs);
+    NodeBuilder builder(prior_box, {layer_shape, image_shape});
+    auto g_prior_box = ov::as_type_ptr<opset1::PriorBox>(builder.create());
+
+    const auto prior_box_attrs = prior_box->get_attrs();
+    const auto g_prior_box_attrs = g_prior_box->get_attrs();
+
+    const auto expected_attr_count = 12;
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
+    EXPECT_EQ(g_prior_box_attrs.min_size, prior_box_attrs.min_size);
+    EXPECT_EQ(g_prior_box_attrs.max_size, prior_box_attrs.max_size);
+    EXPECT_EQ(g_prior_box_attrs.aspect_ratio, prior_box_attrs.aspect_ratio);
+    EXPECT_EQ(g_prior_box_attrs.density, prior_box_attrs.density);
+    EXPECT_EQ(g_prior_box_attrs.fixed_ratio, prior_box_attrs.fixed_ratio);
+    EXPECT_EQ(g_prior_box_attrs.fixed_size, prior_box_attrs.fixed_size);
+    EXPECT_EQ(g_prior_box_attrs.clip, prior_box_attrs.clip);
+    EXPECT_EQ(g_prior_box_attrs.flip, prior_box_attrs.flip);
+    EXPECT_EQ(g_prior_box_attrs.step, prior_box_attrs.step);
+    EXPECT_EQ(g_prior_box_attrs.offset, prior_box_attrs.offset);
+    EXPECT_EQ(g_prior_box_attrs.variance, prior_box_attrs.variance);
+    EXPECT_EQ(g_prior_box_attrs.scale_all_sizes, prior_box_attrs.scale_all_sizes);
+    EXPECT_EQ(g_prior_box->has_evaluate(), prior_box->has_evaluate());
 }
 
 TEST(attributes, prior_box_v8_op) {
@@ -80,7 +124,7 @@ TEST(attributes, prior_box_v8_op) {
     attrs.min_max_aspect_ratios_order = false;
 
     auto prior_box = make_shared<opset8::PriorBox>(layer_shape, image_shape, attrs);
-    NodeBuilder builder(prior_box);
+    NodeBuilder builder(prior_box, {layer_shape, image_shape});
     auto g_prior_box = ov::as_type_ptr<opset8::PriorBox>(builder.create());
 
     const auto prior_box_attrs = prior_box->get_attrs();
@@ -101,4 +145,5 @@ TEST(attributes, prior_box_v8_op) {
     EXPECT_EQ(g_prior_box_attrs.variance, prior_box_attrs.variance);
     EXPECT_EQ(g_prior_box_attrs.scale_all_sizes, prior_box_attrs.scale_all_sizes);
     EXPECT_EQ(g_prior_box_attrs.min_max_aspect_ratios_order, prior_box_attrs.min_max_aspect_ratios_order);
+    EXPECT_EQ(g_prior_box->has_evaluate(), prior_box->has_evaluate());
 }

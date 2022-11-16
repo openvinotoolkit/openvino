@@ -112,8 +112,8 @@ struct RectLimitByChannels {
 };
 
 struct RectLimitByChannelsAndPrecision {
-    RectLimitByChannels lowPrecision;
-    RectLimitByChannels defaultPrecision;
+    RectLimitByChannels limit_for_int8;
+    RectLimitByChannels limit_for_int16;
     RectLimitByChannels GetByPrecision(const OvGnaType precision) const;
     bool isValid(const uint32_t h, const uint32_t w, const OvGnaType precision, const uint32_t channels) const;
     std::string GetErrorOrEmpty(const uint32_t h, const uint32_t w,
@@ -201,7 +201,7 @@ public:
 };
 } // namespace Cnn2D
 
-bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage, bool userWarning);
+bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage);
 
 inline size_t GetMinBatchToFitInBuffer(InferenceEngine::DataPtr input) {
     auto total_size = InferenceEngine::details::product(std::begin(input->getDims()), std::end(input->getDims()));

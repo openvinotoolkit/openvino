@@ -53,7 +53,7 @@ Caffe-specific parameters:
    ```
 * Launching Model Optimizer for [bvlc_alexnet.caffemodel](https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet) with a specified `CustomLayersMapping` file.
    This is the legacy method of quickly enabling model conversion if your model has custom layers. This requires the Caffe system on the computer.
-The optional parameters without default values and not specified by the user in the `.prototxt` file are removed from the Intermediate Representation, and nested parameters are flattened:
+Example of `CustomLayersMapping.xml` can be found in `<OPENVINO_INSTALLATION_DIR>/mo/front/caffe/CustomLayersMapping.xml.example`. The optional parameters without default values and not specified by the user in the `.prototxt` file are removed from the Intermediate Representation, and nested parameters are flattened:
    ```sh
    mo --input_model bvlc_alexnet.caffemodel -k CustomLayersMapping.xml --disable_omitting_optional --enable_flattening_nested_params
    ```
@@ -86,11 +86,11 @@ The optional parameters without default values and not specified by the user in 
 Internally, when you run Model Optimizer, it loads the model, goes through the topology, and tries to find each layer type in a list of known layers. Custom layers are layers that are not included in the list. If your topology contains such kind of layers, Model Optimizer classifies them as custom.
 
 ## Supported Caffe Layers
-For the list of supported standard layers, refer to the [Supported Framework Layers](../Supported_Frameworks_Layers.md) page.
+For the list of supported standard layers, refer to the [Supported Framework Layers](@ref openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers) page.
 
 ## Frequently Asked Questions (FAQ)
 
-Model Optimizer provides explanatory messages when it is unable to complete conversions due to typographical errors, incorrectly used options, or other issues. A message describes the potential cause of the problem and gives a link to [Model Optimizer FAQ](../Model_Optimizer_FAQ.md) which provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections to help you understand what went wrong.
+Model Optimizer provides explanatory messages when it is unable to complete conversions due to typographical errors, incorrectly used options, or other issues. A message describes the potential cause of the problem and gives a link to [Model Optimizer FAQ](@ref openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ) which provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections to help you understand what went wrong.
 
 ## Summary
 
@@ -100,5 +100,5 @@ In this document, you learned:
 * Which Caffe models are supported.
 * How to convert a trained Caffe model by using Model Optimizer with both framework-agnostic and Caffe-specific command-line options.
 
-## See Also
-[Model Conversion Tutorials](Convert_Model_Tutorials.md)
+## Additional Resources
+See the [Model Conversion Tutorials](@ref openvino_docs_MO_DG_prepare_model_convert_model_tutorials) page for a set of tutorials providing step-by-step instructions for converting specific Caffe models.

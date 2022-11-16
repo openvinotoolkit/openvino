@@ -82,12 +82,6 @@ if(ARM AND NOT CMAKE_CROSSCOMPILING)
     add_compile_options(-march=armv7-a)
 endif()
 
-if(NOT COMMAND find_host_package)
-    macro(find_host_package)
-        find_package(${ARGN})
-    endmacro()
-endif()
-
 set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
@@ -104,63 +98,32 @@ endif()
 ####################################
 
 if(NOT TARGET gflags)
-    if(NOT APPLE AND NOT DEFINED ENV{CONDA_PREFIX})
-        # - conda-forge contains only dynamic libraries
-        # - on Apple only dynamic libraries are available
-        #   also, we can easily mix arm64 and x86_64 binaries when cross-compile for Intel CPU
+    if(APPLE OR DEFINED ENV{CONDA_PREFIX} OR DEFINED ENV{HOMEBREW_PREFIX})
+        # conda-forge and brew contains only shared version of gflags
+        find_package(gflags QUIET COMPONENTS nothreads_shared)
+    else()
         find_package(gflags QUIET COMPONENTS nothreads_static)
     endif()
 
     if(gflags_FOUND)
+        if(NOT TARGET ${GFLAGS_TARGET})
+            if(TARGET gflags_nothreads-static)
+                # arm cross-compilation
+                set(GFLAGS_TARGET gflags_nothreads-static)
+            elseif(TARGET gflags_nothreads-shared)
+                # centos/rhel8
+                set(GFLAGS_TARGET gflags_nothreads-shared)    
+            else()
+                message(FATAL_ERROR "Failed to set GFLAGS_TARGET target")
+            endif()
+        endif()
         message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR}")
     elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
         add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
+        set(GFLAGS_TARGET gflags_nothreads_static)
     endif()
-endif()
-
-if(NOT ANDROID)
-    find_package(PkgConfig QUIET)
-endif()
-
-if(NOT TARGET zlib::zlib)
-    if(PkgConfig_FOUND)
-        pkg_search_module(zlib QUIET
-                          IMPORTED_TARGET GLOBAL
-                          zlib)
-        if(zlib_FOUND)
-            add_library(zlib::zlib ALIAS PkgConfig::zlib)
-        endif()
-    endif()
-
-    if(zlib_FOUND)
-        message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
-    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib")
-        add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
-    endif()
-endif()
-
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy")
-    add_subdirectory(thirdparty/cnpy EXCLUDE_FROM_ALL)
-endif()
-
-if(NOT TARGET nlohmann_json::nlohmann_json)
-    find_package(nlohmann_json QUIET)
-    if(nlohmann_json_FOUND)
-        message(STATUS "nlohmann_json (${nlohmann_json_VERSION}) is found at ${nlohmann_json_DIR}")
-    elseif(PkgConfig_FOUND)
-        pkg_search_module(nlohmann_json QUIET
-                          IMPORTED_TARGET GLOBAL
-                          nlohmann_json)
-        if(nlohmann_json_FOUND)
-            add_library(nlohmann_json::nlohmann_json ALIAS PkgConfig::nlohmann_json)
-        endif()
-    endif()
-
-    if(NOT nlohmann_json_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nlohmann_json")
-        # suppress shadowing names warning
-        set(JSON_SystemInclude ON CACHE BOOL "" FORCE)
-        add_subdirectory(thirdparty/nlohmann_json EXCLUDE_FROM_ALL)
-    endif()
+else()
+    set(GFLAGS_TARGET gflags)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
@@ -255,7 +218,7 @@ macro(ie_add_sample)
 
     target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${ov_link_libraries} Threads::Threads ${IE_SAMPLE_DEPENDENCIES})
     if(NOT c_sample)
-        target_link_libraries(${IE_SAMPLE_NAME} PRIVATE gflags)
+        target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${GFLAGS_TARGET})
     endif()
 
     install(TARGETS ${IE_SAMPLE_NAME}

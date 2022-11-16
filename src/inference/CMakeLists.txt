@@ -124,6 +124,10 @@ add_library(${TARGET_NAME}_obj OBJECT
             ${LIBRARY_HEADERS}
             ${PUBLIC_HEADERS})
 
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
+endif()
+
 ie_faster_build(${TARGET_NAME}_obj
     UNITY PCH PRIVATE "src/precomp.hpp"
 )
@@ -198,7 +202,7 @@ if(WIN32)
 endif()
 
 target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ngraph
-    frontend_common::static openvino_gapi_preproc_s inference_engine_transformations openvino::pugixml)
+    frontend_common::static inference_engine_transformations openvino::pugixml)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 

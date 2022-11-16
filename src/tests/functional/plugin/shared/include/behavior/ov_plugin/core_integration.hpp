@@ -114,6 +114,7 @@ using OVClassSpecificDeviceTestGetConfig = OVClassBaseTestP;
 using OVClassLoadNetworkWithCorrectPropertiesTest = OVClassSetDevicePriorityConfigTest;
 using OVClassLoadNetworkWithDefaultPropertiesTest = OVClassSetDevicePriorityConfigTest;
 using OVClassLoadNetworkWithDefaultIncorrectPropertiesTest = OVClassSetDevicePriorityConfigTest;
+using OVClassLoadNetworkAndCheckSecondaryPropertiesTest = OVClassSetDevicePriorityConfigTest;
 
 class OVClassSeveralDevicesTest : public OVPluginTestBase,
                                   public OVClassNetworkTest,
@@ -355,6 +356,38 @@ TEST(OVClassBasicTest, smoke_SetConfigAutoNoThrows) {
     OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::HIGH)));
     OV_ASSERT_NO_THROW(value = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority));
     EXPECT_EQ(value, ov::hint::Priority::HIGH);
+}
+
+TEST(OVClassBasicTest, smoke_SetConfigWithNoChangeToHWPluginThroughMetaPluginNoThrows) {
+    ov::Core ie = createCoreWithTemplate();
+    int32_t preValue = -1, curValue = -1;
+
+    ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_CPU, {ov::num_streams(20)}));
+    ASSERT_NO_THROW(curValue = ie.get_property(CommonTestUtils::DEVICE_CPU, ov::num_streams));
+    EXPECT_EQ(curValue, 20);
+    std::vector<std::string> metaDevices = {CommonTestUtils::DEVICE_AUTO,
+                                            CommonTestUtils::DEVICE_MULTI,
+                                            CommonTestUtils::DEVICE_HETERO};
+
+    for (auto&& metaDevice : metaDevices) {
+        ASSERT_NO_THROW(preValue = ie.get_property(CommonTestUtils::DEVICE_CPU, ov::num_streams));
+        ASSERT_NO_THROW(
+            ie.set_property(metaDevice, {ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::num_streams(20))}));
+        ASSERT_NO_THROW(curValue = ie.get_property(CommonTestUtils::DEVICE_CPU, ov::num_streams));
+        EXPECT_EQ(curValue, preValue);
+    }
+    ASSERT_THROW(ie.set_property(CommonTestUtils::DEVICE_CPU,
+                                 {ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::num_streams(20))}),
+                 ov::Exception);
+    ASSERT_THROW(ie.set_property(CommonTestUtils::DEVICE_GPU,
+                                 {ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::num_streams(20))}),
+                 ov::Exception);
+    ASSERT_THROW(ie.set_property(CommonTestUtils::DEVICE_GPU,
+                                 {ov::device::properties("GPU.0", ov::num_streams(20))}),
+                 ov::Exception);
+    ASSERT_THROW(ie.set_property("GPU.0",
+                                 {ov::device::properties("GPU.0", ov::num_streams(20))}),
+                 ov::Exception);
 }
 
 TEST_P(OVClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
@@ -1094,6 +1127,18 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkWithBigDeviceIDThrows) {
 TEST_P(OVClassLoadNetworkWithCorrectPropertiesTest, LoadNetworkWithCorrectPropertiesTest) {
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, target_device, configuration));
+}
+
+TEST_P(OVClassLoadNetworkAndCheckSecondaryPropertiesTest, LoadNetworkAndCheckSecondaryPropertiesTest) {
+    ov::Core ie = createCoreWithTemplate();
+    ov::CompiledModel model;
+    OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork, target_device, configuration));
+    auto property = configuration.begin()->second.as<ov::AnyMap>();
+    auto actual = property.begin()->second.as<int32_t>();
+    ov::Any value;
+    OV_ASSERT_NO_THROW(value = model.get_property(ov::num_streams.name()));
+    int32_t expect = value.as<int32_t>();
+    ASSERT_EQ(actual, expect);
 }
 
 TEST_P(OVClassLoadNetworkWithDefaultPropertiesTest, LoadNetworkWithDefaultPropertiesTest) {

@@ -38,7 +38,7 @@ TEST(attributes, detectron_detection_output) {
 
     auto detection = std::make_shared<ExperimentalDetection>(rois, deltas, scores, im_info, attrs);
 
-    NodeBuilder builder(detection);
+    NodeBuilder builder(detection, {rois, deltas, scores, im_info});
 
     auto g_detection = ov::as_type_ptr<ExperimentalDetection>(builder.create());
 

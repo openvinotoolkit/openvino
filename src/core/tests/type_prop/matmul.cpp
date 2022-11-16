@@ -495,7 +495,7 @@ TEST(type_prop, matmul_propagate_labels) {
     ASSERT_THAT(labels,
                 ElementsAre(a_labels[0],  // use a label, b is not set
                             b_labels[1],  // use b label, a is not set
-                            0,            // not set label. a,b has different labels
+                            b_labels[2],  // use b label, equal dimension
                             a_labels[3],  // use label from a, b is lost
                             b_labels[4]   // use label from b, a is lost
                             ));

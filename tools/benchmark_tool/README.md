@@ -96,19 +96,19 @@ The application also collects per-layer Performance Measurement (PM) counters fo
 
 Depending on the type, the report is stored to benchmark_no_counters_report.csv, benchmark_average_counters_report.csv, or benchmark_detailed_counters_report.csv file located in the path specified in -report_folder. The application also saves executable graph information serialized to an XML file if you specify a path to it with the -exec_graph_path parameter.
 
-### All configuration options
+### <a name="all-configuration-options"></a> All configuration options
 Running the application with the `-h` or `--help` option yields the following usage message:
 
 ```
 benchmark_app -h
 [Step 1/11] Parsing and validating input arguments
-usage: benchmark_app [-h [HELP]] [-i PATHS_TO_INPUT [PATHS_TO_INPUT ...]] -m PATH_TO_MODEL [-d TARGET_DEVICE] [-l PATH_TO_EXTENSION] [-c PATH_TO_CLDNN_CONFIG] [-hint {throughput,latency,none}]
+usage: benchmark_app [-h [HELP]] [-i PATHS_TO_INPUT [PATHS_TO_INPUT ...]] -m PATH_TO_MODEL [-d TARGET_DEVICE] [-extensions PATH_TO_EXTENSIONS] [-c PATH_TO_CLDNN_CONFIG] [-hint {throughput,latency,none}]
                      [-api {sync,async}] [-niter NUMBER_ITERATIONS] [-nireq NUMBER_INFER_REQUESTS] [-b BATCH_SIZE] [-stream_output [STREAM_OUTPUT]] [-t TIME] [-progress [PROGRESS]] [-shape SHAPE]
                      [-data_shape DATA_SHAPE] [-layout LAYOUT] [-nstreams NUMBER_STREAMS]
                      [--latency_percentile {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100}]
-                     [-enforcebf16 [{True,False}]] [-nthreads NUMBER_THREADS] [-pin {YES,NO,NUMA,HYBRID_AWARE}] [-exec_graph_path EXEC_GRAPH_PATH] [-pc [PERF_COUNTS]] [-pcseq [PCSEQ]]
+                     [-nthreads NUMBER_THREADS] [-pin {YES,NO,NUMA,HYBRID_AWARE}] [-exec_graph_path EXEC_GRAPH_PATH] [-pc [PERF_COUNTS]] [-pcseq [PCSEQ]]
                      [-inference_only [INFERENCE_ONLY]] [-report_type {no_counters,average_counters,detailed_counters}] [-report_folder REPORT_FOLDER] [-dump_config DUMP_CONFIG]
-                     [-load_config LOAD_CONFIG] [-qb {8,16}] [-ip {u8,U8,f16,FP16,f32,FP32}] [-op {u8,U8,f16,FP16,f32,FP32}] [-iop INPUT_OUTPUT_PRECISION] [-cdir CACHE_DIR] [-lfile [LOAD_FROM_FILE]]
+                     [-load_config LOAD_CONFIG] [-infer_precision INFER_PRECISION] [-ip {u8,U8,f16,FP16,f32,FP32}] [-op {u8,U8,f16,FP16,f32,FP32}] [-iop INPUT_OUTPUT_PRECISION] [-cdir CACHE_DIR] [-lfile [LOAD_FROM_FILE]]
                      [-iscale INPUT_SCALE] [-imean INPUT_MEAN]
 
 Options:
@@ -122,8 +122,8 @@ Options:
   -d TARGET_DEVICE, --target_device TARGET_DEVICE
                         Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU. Use '-d HETERO:<comma separated devices list>' format to
                         specify HETERO plugin. Use '-d MULTI:<comma separated devices list>' format to specify MULTI plugin. The application looks for a suitable plugin for the specified device.
-  -l PATH_TO_EXTENSION, --path_to_extension PATH_TO_EXTENSION
-                        Optional. Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.
+  -extensions PATH_TO_EXTENSIONS, --extensions PATH_TO_EXTENSIONS
+                        Optional. Path or a comma-separated list of paths to libraries (.so or .dll) with extensions.
   -c PATH_TO_CLDNN_CONFIG, --path_to_cldnn_config PATH_TO_CLDNN_CONFIG
                         Optional. Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
   -hint {throughput,latency,none}, --perf_hint {throughput,latency,none}
@@ -155,9 +155,6 @@ Options:
                         number of streams should be set to 1. See samples README for more details.
   --latency_percentile {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100}
                         Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).
-  -enforcebf16 [{True,False}], --enforce_bfloat16 [{True,False}]
-                        Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform. 'True' - enable bfloat16 regardless of platform support.
-                        'False' - disable bfloat16 regardless of platform support.
   -nthreads NUMBER_THREADS, --number_threads NUMBER_THREADS
                         Number of threads to use for inference on the CPU, GNA (including HETERO and MULTI cases).
   -pin {YES,NO,NUMA,HYBRID_AWARE}, --infer_threads_pinning {YES,NO,NUMA,HYBRID_AWARE}
@@ -181,8 +178,8 @@ Options:
                         Optional. Path to JSON file to dump OpenVINO parameters, which were set by application.
   -load_config LOAD_CONFIG
                         Optional. Path to JSON file to load custom OpenVINO parameters. Please note, command line parameters have higher priority then parameters from configuration file.
-  -qb {8,16}, --quantization_bits {8,16}
-                        Optional. Weight bits for quantization: 8 (I8) or 16 (I16)
+  -infer_precision INFER_PRECISION
+                        Optional. Hint to specifies inference precision. Example: -infer_precision CPU:bf16,GPU:f32'.
   -ip {u8,U8,f16,FP16,f32,FP32}, --input_precision {u8,U8,f16,FP16,f32,FP32}
                         Optional. Specifies precision for all input layers of the network.
   -op {u8,U8,f16,FP16,f32,FP32}, --output_precision {u8,U8,f16,FP16,f32,FP32}
@@ -217,7 +214,7 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
    pip install openvino-dev
    ```
 
-2. Download the model using `omz_downloader`, specifying the model name and directory to download the model to:
+2. Download the model using omz_downloader, specifying the model name and directory to download the model to:
    ```sh
    omz_downloader --name asl-recognition-0004 --precisions FP16 --output_dir omz_models
    ```
@@ -226,66 +223,124 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
 
    * On CPU (latency mode):
    ```sh
-   benchmark_app -m omz_models/intel/asl-recognition-0004/FP16/asl-recognition-0004.xml -d CPU -hint latency -progress
+   benchmark_app -m omz_models/intel/asl-recognition-0004/FP16/asl-recognition-0004.xml -d CPU -hint latency
    ```
 
    * On GPU (throughput mode):
    ```sh
-   benchmark_app -m omz_models/intel/asl-recognition-0004/FP16/asl-recognition-0004.xml -d GPU -hint throughput -progress
+   benchmark_app -m omz_models/intel/asl-recognition-0004/FP16/asl-recognition-0004.xml -d GPU -hint throughput
    ```
 
 The application outputs the number of executed iterations, total duration of execution, latency, and throughput.
 Additionally, if you set the `-report_type` parameter, the application outputs a statistics report. If you set the `-pc` parameter, the application outputs performance counters. If you set `-exec_graph_path`, the application reports executable graph information serialized. All measurements including per-layer PM counters are reported in milliseconds.
 
-Below are fragments of sample output static and dynamic networks:
+An example of the information output when running benchmark_app on CPU in latency mode is shown below:
 
-* For static network:
+   ```sh
+   benchmark_app -m omz_models/intel/asl-recognition-0004/FP16/asl-recognition-0004.xml -d CPU -hint latency
    ```
-   [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests using 4 streams for CPU, limits: 60000 ms duration)
-   [ INFO ] BENCHMARK IS IN INFERENCE ONLY MODE.
-   [ INFO ] Input blobs will be filled once before performance measurements.
-   [ INFO ] First inference took 26.26 ms
-   Progress: [................... ]  99% done
 
+   ```sh
+   [Step 1/11] Parsing and validating input arguments
+   [ INFO ] Parsing input parameters
+   [ INFO ] Input command: /home/openvino/tools/benchmark_tool/benchmark_app.py -m omz_models/intel/intel/asl-recognition-0004/FP16/asl-recognition-0004.xml -d CPU -hint latency
+   [Step 2/11] Loading OpenVINO Runtime
+   [ INFO ] OpenVINO:
+   [ INFO ] Build ................................. 2022.3.0-7750-c1109a7317e-feature/py_cpp_align
+   [ INFO ]
+   [ INFO ] Device info:
+   [ INFO ] CPU
+   [ INFO ] Build ................................. 2022.3.0-7750-c1109a7317e-feature/py_cpp_align
+   [ INFO ]
+   [ INFO ]
+   [Step 3/11] Setting device configuration
+   [Step 4/11] Reading model files
+   [ INFO ] Loading model files
+   [ INFO ] Read model took 147.82 ms
+   [ INFO ] Original model I/O parameters:
+   [ INFO ] Model inputs:
+   [ INFO ]     input (node: input) : f32 / [N,C,D,H,W] / {1,3,16,224,224}
+   [ INFO ] Model outputs:
+   [ INFO ]     output (node: output) : f32 / [...] / {1,100}
+   [Step 5/11] Resizing model to match image sizes and given batch
+   [ INFO ] Model batch size: 1
+   [Step 6/11] Configuring input of the model
+   [ INFO ] Model inputs:
+   [ INFO ]     input (node: input) : f32 / [N,C,D,H,W] / {1,3,16,224,224}
+   [ INFO ] Model outputs:
+   [ INFO ]     output (node: output) : f32 / [...] / {1,100}
+   [Step 7/11] Loading the model to the device
+   [ INFO ] Compile model took 974.64 ms
+   [Step 8/11] Querying optimal runtime parameters
+   [ INFO ] Model:
+   [ INFO ]   NETWORK_NAME: torch-jit-export
+   [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 2
+   [ INFO ]   NUM_STREAMS: 2
+   [ INFO ]   AFFINITY: Affinity.CORE
+   [ INFO ]   INFERENCE_NUM_THREADS: 0
+   [ INFO ]   PERF_COUNT: False
+   [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+   [ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+   [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+   [Step 9/11] Creating infer requests and preparing input tensors
+   [ WARNING ] No input files were given for input 'input'!. This input will be filled with random values!
+   [ INFO ] Fill input 'input' with random values
+   [Step 10/11] Measuring performance (Start inference asynchronously, 2 inference requests, limits: 60000 ms duration)
+   [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+   [ INFO ] First inference took 38.41 ms
    [Step 11/11] Dumping statistics report
-   [ INFO ] Count:      6640 iterations
-   [ INFO ] Duration:   60039.70 ms
+   [ INFO ] Count:        5380 iterations
+   [ INFO ] Duration:     60036.78 ms
    [ INFO ] Latency:
-   [ INFO ]        Median:  35.36 ms
-   [ INFO ]        Avg:    36.12 ms
-   [ INFO ]        Min:    18.55 ms
-   [ INFO ]        Max:    88.96 ms
-   [ INFO ] Throughput: 110.59 FPS
+   [ INFO ]    Median:     22.04 ms
+   [ INFO ]    Average:    22.09 ms
+   [ INFO ]    Min:        20.78 ms
+   [ INFO ]    Max:        33.51 ms
+   [ INFO ] Throughput:   89.61 FPS
    ```
 
-* For dynamic network:
-   ```
-   [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests using 4 streams for CPU, limits: 60000 ms duration)
-   [ INFO ] BENCHMARK IS IN FULL MODE.
-   [ INFO ] Inputs setup stage will be included in performance measurements.
-   [ INFO ] First inference took 26.80 ms
-   Progress: [................... ]  99% done
+The Benchmark Tool can also be used with dynamically shaped networks to measure expected inference time for various input data shapes. See the -shape and -data_shape argument descriptions in the <a href="#all-configuration-options">All configuration options</a> section to learn more about using dynamic shapes. Here is a command example for using benchmark_app with dynamic networks and a portion of the resulting output:
 
+   ```sh
+   benchmark_app -m omz_models/intel/asl-recognition-0004/FP16/asl-recognition-0004.xml -d CPU -shape [-1,3,16,224,224] -data_shape [1,3,16,224,224][2,3,16,224,224][4,3,16,224,224] -pcseq
+   ```
+
+   ```sh
+   [Step 9/11] Creating infer requests and preparing input tensors
+  [ WARNING ] No input files were given for input 'input'!. This input will be filled with random values!
+  [ INFO ] Fill input 'input' with random values
+  [ INFO ] Defined 3 tensor groups:
+  [ INFO ]         input: {1, 3, 16, 224, 224}
+  [ INFO ]         input: {2, 3, 16, 224, 224}
+  [ INFO ]         input: {4, 3, 16, 224, 224}
+   [Step 10/11] Measuring performance (Start inference asynchronously, 11 inference requests, limits: 60000 ms duration)
+   [ INFO ] Benchmarking in full mode (inputs filling are included in measurement loop).
+   [ INFO ] First inference took 201.15 ms
    [Step 11/11] Dumping statistics report
-   [ INFO ] Count:      5199 iterations
-   [ INFO ] Duration:   60043.34 ms
+   [ INFO ] Count:        2811 iterations
+   [ INFO ] Duration:     60271.71 ms
    [ INFO ] Latency:
-   [ INFO ]        Median:  41.58 ms
-   [ INFO ]        Avg:    46.07 ms
-   [ INFO ]        Min:    8.44 ms
-   [ INFO ]        Max:    115.65 ms
+   [ INFO ]    Median:     207.70 ms
+   [ INFO ]    Average:    234.56 ms
+   [ INFO ]    Min:        85.73 ms
+   [ INFO ]    Max:        773.55 ms
    [ INFO ] Latency for each data shape group:
-   [ INFO ] 1. data : [1, 3, 224, 224]
-   [ INFO ]        Median:  38.37 ms
-   [ INFO ]        Avg:    30.29 ms
-   [ INFO ]        Min:    8.44 ms
-   [ INFO ]        Max:    61.30 ms
-   [ INFO ] 2. data : [1, 3, 448, 448]
-   [ INFO ]        Median:  68.21 ms
-   [ INFO ]        Avg:    61.85 ms
-   [ INFO ]        Min:    29.58 ms
-   [ INFO ]        Max:    115.65 ms
-   [ INFO ] Throughput: 86.59 FPS
+   [ INFO ] 1. input: {1, 3, 16, 224, 224}
+   [ INFO ]    Median:     118.08 ms
+   [ INFO ]    Average:    115.05 ms
+   [ INFO ]    Min:        85.73 ms
+   [ INFO ]    Max:        339.25 ms
+   [ INFO ] 2. input: {2, 3, 16, 224, 224}
+   [ INFO ]    Median:     207.25 ms
+   [ INFO ]    Average:    205.16 ms
+   [ INFO ]    Min:        166.98 ms
+   [ INFO ]    Max:        545.55 ms
+   [ INFO ] 3. input: {4, 3, 16, 224, 224}
+   [ INFO ]    Median:     384.16 ms
+   [ INFO ]    Average:    383.48 ms
+   [ INFO ]    Min:        305.51 ms
+   [ INFO ]    Max:        773.55 ms
+   [ INFO ] Throughput:   108.82 FPS
    ```
 
 ## See Also

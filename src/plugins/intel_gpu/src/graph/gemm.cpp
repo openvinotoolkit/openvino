@@ -24,21 +24,55 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
 
     auto input0_layout = impl_param.get_input_layout(0);
     auto input1_layout = impl_param.get_input_layout(1);
+
+    auto input0_shape = input0_layout.get_shape();
+    auto input1_shape = input1_layout.get_shape();
+
     bool transpose_input0 = prim->transpose_input0;
     bool transpose_input1 = prim->transpose_input1;
 
-    auto M = !transpose_input0 ? input0_layout.spatial(1) : input0_layout.spatial(0);
-    auto N = !transpose_input1 ? input1_layout.spatial(0) : input1_layout.spatial(1);
+    bool reordered = prim->input_rank > 4 || prim->weight_rank > 4;
+    size_t output_rank = std::max(prim->input_rank, prim->weight_rank);
+    size_t input_rank = reordered ? output_rank : prim->input_rank;
+    size_t weight_rank = reordered ? output_rank : prim->weight_rank;
 
-    auto output_size = input0_layout.get_tensor();
+    auto update_input_shape = [&output_rank](const ov::Shape& input_shape, size_t rank, bool transpose, bool first_input) {
+        auto input_shape_update = ov::Shape(input_shape.begin(), input_shape.begin() + std::min(rank, input_shape.size()));
+        if (input_shape_update.size() == 1) {
+            first_input ? input_shape_update.insert(input_shape_update.begin(), 1)
+                        : input_shape_update.insert(input_shape_update.end(), 1);
+            if (transpose) {
+                std::swap(input_shape_update[0], input_shape_update[1]);
+            }
+            output_rank = std::max(output_rank, rank + 1);
+        }
+        input_shape_update.insert(input_shape_update.begin(), output_rank - input_shape_update.size(), 1);
+        return input_shape_update;
+    };
 
-    for (size_t i = 1; i < prim->input_size(); ++i) {
-        auto input_layout = impl_param.get_input_layout(i);
-        output_size = tensor::max(output_size, input_layout.get_tensor());
+    auto input0_shape_update = update_input_shape(input0_shape, input_rank, transpose_input0, true);
+    auto input1_shape_update = update_input_shape(input1_shape, weight_rank, transpose_input1, false);
+
+    ov::Shape bias_shape(output_rank);
+    if (prim->input_size() == 3) {
+        bias_shape = impl_param.get_input_layout(2).get_shape();
+        bias_shape = update_input_shape(bias_shape, weight_rank, transpose_input1, false);
     }
 
-    output_size.spatial[0] = N;
-    output_size.spatial[1] = M;
+    auto output_shape = input0_shape_update;
+    for (size_t i = 0; i < output_rank; ++i) {
+        output_shape[i] = std::max(std::max(input0_shape_update[i], input1_shape_update[i]), bias_shape[i]);
+    }
+
+    size_t M = !transpose_input0 ? *(input0_shape_update.end() - 2) : input0_shape_update.back();
+    size_t N = !transpose_input1 ? input1_shape_update.back() : *(input1_shape_update.end() - 2);
+
+    output_shape[output_rank - 2] = M;
+    output_shape[output_rank - 1] = N;
+
+    size_t ones_to_add = 4 - std::min(output_shape.size(), static_cast<size_t>(4));
+    output_shape.insert(output_shape.begin(), ones_to_add, 1);
+
     auto output_type = input0_layout.data_type;
     if ((output_type == data_types::u8 || output_type == data_types::i8) && prim->output_data_type)
         output_type = *prim->output_data_type;
@@ -49,7 +83,7 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
 
     auto output_format = input0_layout.format;
 
-    return layout(output_type, output_format, output_size, prim->output_padding);
+    return layout(output_shape, output_type, output_format, prim->output_padding);
 }
 
 template<typename ShapeType>
@@ -105,51 +139,5 @@ std::string gemm_inst::to_string(gemm_node const& node) {
     return primitive_description.str();
 }
 
-gemm_inst::typed_primitive_inst(network& network, gemm_node const& node) : parent(network, node) {
-    if (is_dynamic())
-        return;
-
-    auto input0_layout = node.input(0).get_output_layout();
-    auto input1_layout = node.input(1).get_output_layout();
-    bool transpose_input0 = node.get_primitive()->transpose_input0;
-    bool transpose_input1 = node.get_primitive()->transpose_input1;
-
-    auto transposed_x0 = input0_layout.spatial(0);
-    auto transposed_y0 = input0_layout.spatial(1);
-
-    if (transpose_input0) {
-        std::swap(transposed_x0, transposed_y0);
-    }
-
-    auto transposed_x1 = input1_layout.spatial(0);
-    auto transposed_y1 = input1_layout.spatial(1);
-
-    if (transpose_input1) {
-        std::swap(transposed_x1, transposed_y1);
-    }
-
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
-                          "Input 0 internal dimension size",
-                          transposed_x0,
-                          "Input 1 internal dimension size",
-                          transposed_y1,
-                          "");
-
-    if (node.inputs_count() == 3) {
-        auto input2_layout = node.input(2).get_output_layout();
-
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "Input 0 external dimension size",
-                              transposed_y0,
-                              "Input 2 rows number",
-                              input2_layout.spatial(1),
-                              "");
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "Input 1 external dimension size",
-                              transposed_x1,
-                              "Input 2 columns number",
-                              input2_layout.spatial(0),
-                              "");
-    }
-}
+gemm_inst::typed_primitive_inst(network& network, gemm_node const& node) : parent(network, node) {}
 }  // namespace cldnn

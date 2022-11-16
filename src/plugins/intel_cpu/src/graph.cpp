@@ -79,8 +79,10 @@ void Graph::CreateGraph(NET &net, const ExtensionManager::Ptr& extMgr,
 
     rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
     sharedMutex = mutex;
+    rtScratchPad = std::make_shared<DnnlScratchPad>(getEngine());
 
     Replicate(net, extMgr);
+
     InitGraph();
 
     status = Ready;
@@ -98,6 +100,7 @@ void Graph::CreateGraph(const std::vector<NodePtr> &graphNodes,
     weightsCache = config.streamExecutorConfig._streams != 1 ? w_cache : nullptr;
 
     rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
+    rtScratchPad = std::make_shared<DnnlScratchPad>(getEngine());
 
     this->_name = std::move(name);
     this->reuse_io_tensors = false;
@@ -158,6 +161,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph, const Ex
 
         node->setRuntimeCache(rtParamsCache);
         node->setSharedMutex(sharedMutex);
+        node->setRuntimeScratchPad(rtScratchPad);
 
         graphNodes.push_back(node);
 
@@ -272,6 +276,7 @@ void Graph::Replicate(const CNNNetwork &network, const ExtensionManager::Ptr& ex
 
         node->setRuntimeCache(rtParamsCache);
         node->setSharedMutex(sharedMutex);
+        node->setRuntimeScratchPad(rtScratchPad);
 
         graphNodes.push_back(node);
 
@@ -1357,6 +1362,7 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
         node->setQuantizedGraphFlag(true);
     }
     node->setRuntimeCache(rtParamsCache);
+    node->setRuntimeScratchPad(rtScratchPad);
 
     if (initNode) {
         node->getSupportedDescriptors();
