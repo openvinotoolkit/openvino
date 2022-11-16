@@ -33,6 +33,7 @@ OP_CONVERTER(elementwise_max);
 OP_CONVERTER(elementwise_min);
 OP_CONVERTER(elementwise_mod);
 OP_CONVERTER(elementwise_mul);
+OP_CONVERTER(elementwise_not_equal);
 OP_CONVERTER(elementwise_pow);
 OP_CONVERTER(elementwise_sub);
 OP_CONVERTER(embedding);
@@ -177,6 +178,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"multiclass_nms3", op::multiclass_nms},
             {"nearest_interp_v2", op::nearest_interp_v2},
             {"nearest_interp", op::nearest_interp_v2},
+            {"not_equal", op::elementwise_not_equal},
             {"p_norm", op::p_norm},
             {"pad3d", op::pad3d},
             {"pow", op::pow},
