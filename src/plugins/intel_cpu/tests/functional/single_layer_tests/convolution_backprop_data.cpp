@@ -577,7 +577,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_NSPC_INT8_AMX, DeconvolutionLayerCPUTes
         convParams_ExplicitPadding_AMX_2D,
         ::testing::ValuesIn(Blocked_2D_inputs_smoke),
         ::testing::Values(ElementType::i8),
-        ::testing::ValuesIn({emptyFusingSpec, fusingRelu}),
+        ::testing::ValuesIn({emptyFusingSpec, fusingMultiEltwise}),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_nspc_amx})),
         ::testing::Values(cpuEmptyPluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
@@ -703,7 +703,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_NSPC_INT8_AMX, DeconvolutionLayerCPUTes
         convParams_ExplicitPadding_AMX_3D,
         ::testing::ValuesIn(Blocked_3D_inputs_smoke),
         ::testing::Values(ElementType::i8),
-        ::testing::ValuesIn({emptyFusingSpec, fusingClamp}),
+        ::testing::ValuesIn({emptyFusingSpec, fusingMultiEltwise}),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D_nspc_amx})),
         ::testing::Values(cpuEmptyPluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
