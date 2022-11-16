@@ -56,7 +56,6 @@ autosummary_imported_members = True
 
 html_logo = '_static/logo.svg'
 html_copy_source = False
-collapse_navigation = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -64,8 +63,7 @@ templates_path = ['_templates']
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', 'Thumbs.db',
-                    '.DS_Store', 'openvino/src']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 
 panels_add_bootstrap_css = False
@@ -80,7 +78,7 @@ html_theme = "openvino_sphinx_theme"
 html_theme_path = ['_themes']
 
 html_theme_options = {
-    "navigation_depth": 2,
+    "navigation_depth": 5,
     "use_edit_page_button": True,
     "github_url": "https://github.com/openvinotoolkit/openvino",
     "footer_items": ["footer_info"],
