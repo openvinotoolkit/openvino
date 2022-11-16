@@ -36,10 +36,30 @@ KernelsData PermuteKernelBase::GetKernelsData(const Params& params, const option
     auto dispatchData = SetDefault(newParams);
     auto cldnn_jit = GetJitConstants(newParams, dispatchData);
 
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kernel_data) {
+        const auto& prim_params = static_cast<const permute_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kernel_data.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kernel_data.kernels[0].params.workGroups.global = dispatchData.gws;
+        kernel_data.kernels[0].params.workGroups.local = dispatchData.lws;
+    };
+
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     std::pair<std::string, std::string> jit = CreateJit(kernelName, cldnn_jit, entry_point);
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 1, GetFusedPrimitiveInputsCount(params));
+    FillCLKernelData(kernel,
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     "",
+                     false,
+                     false,
+                     1,
+                     GetFusedPrimitiveInputsCount(params),
+                     1,
+                     newParams.outputs[0].is_dynamic());
 
     return {kd};
 }
