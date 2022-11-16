@@ -16,7 +16,7 @@ Jinja2==2.11.3
 lxml>=4.6.5
 MarkupSafe==1.1.1
 mistune==2.0.0a6
-packaging==20.9
+packaging==21.0
 pluggy==0.13.1
 py==1.10.0
 pydata-sphinx-theme==0.7.2
