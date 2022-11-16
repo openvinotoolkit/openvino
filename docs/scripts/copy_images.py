@@ -29,4 +29,5 @@ def main():
 
 
 if __name__ == '__main__':
+    print('copy_images')
     cProfile.run('main()')

@@ -66,4 +66,5 @@ def main():
 
 
 if __name__ == '__main__':
+    print('Prepare_xml')
     cProfile.run('main()')
