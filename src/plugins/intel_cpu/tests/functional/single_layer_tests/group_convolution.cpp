@@ -255,8 +255,6 @@ std::vector<groupConvLayerCPUTestParamsSet> filterParamsSetForDevice(std::vector
         if (selectedTypeStr.find("amx") != std::string::npos && !with_cpu_x86_avx512_core_amx())
             continue;
         auto additionalConfig = std::get<configIndex>(param);
-        if (additionalConfig.count(PluginConfigParams::KEY_ENFORCE_BF16) && !with_cpu_x86_bfloat16())
-            continue;
         if (additionalConfig.count(PluginConfigParams::KEY_ENFORCE_BF16) &&
             PluginConfigParams::YES == additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] &&
             !with_cpu_x86_bfloat16()) {
