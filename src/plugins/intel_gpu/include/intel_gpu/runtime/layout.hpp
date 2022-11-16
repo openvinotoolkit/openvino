@@ -501,6 +501,8 @@ struct layout {
     // for smaller buffer which, currently, should always be performed
     bool identical(const layout& other) const;
 
+    ov::PartialShape transform(cldnn::format new_fmt) const;
+
 private:
     /// The size of the @ref memory (excluding padding)
     ov::PartialShape size;

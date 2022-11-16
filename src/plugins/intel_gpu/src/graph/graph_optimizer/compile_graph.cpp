@@ -33,7 +33,10 @@ void compile_graph::run(program& p) {
     std::exception_ptr exception;
     for (size_t idx = 0; idx < proc_order.size(); idx++) {
         auto& node = *(std::next(proc_order.begin(), idx));
-        if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty()) && !node->is_dynamic()) {
+        bool can_select_impl = !node->is_type<data>() &&
+                               !(node->is_type<mutable_data>() && node->get_dependencies().empty()) &&
+                               (!node->is_dynamic() || node->type()->does_dynamic_implementation_exist(*node));
+        if (can_select_impl) {
             tasks.push_back([node, &p, &exception] {
                 try {
                     node->selected_impl = node->type()->choose_impl(*node);

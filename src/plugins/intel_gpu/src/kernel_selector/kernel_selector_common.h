@@ -107,6 +107,8 @@ struct KernelData {
     WeightsReorderParams weightsReorderParams;
     std::string kernelName;
 
+    std::function<void(const Params&, KernelData&)> update_dispatch_data_func = nullptr;
+
     int autoTuneIndex = -1;
 
     bool can_reuse_memory = true;

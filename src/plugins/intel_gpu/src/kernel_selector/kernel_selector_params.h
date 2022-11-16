@@ -76,6 +76,7 @@ public:
                 uint32_t sym_quantization : 1;
                 uint32_t asym_w_quantization : 1;
                 uint32_t asym_d_quantization : 1;
+                uint32_t dynamic_shapes : 1;
 
                 union dedicated_t {
                     struct argm_t {
@@ -242,6 +243,7 @@ public:
     void EnableFP16Emulation() { key.restrict.val.FP16Emulation = 1; }
     void EnableDifferentTypes() { key.restrict.val.different_types = 1; }
     void EnableDifferentInputWeightsTypes() { key.restrict.val.different_input_weights_types = 1; }
+    void EnableDynamicShapesSupport() { key.restrict.val.dynamic_shapes = 1; }
     void EnableInputLayout(DataLayout l) { key.inputLayout.set(static_cast<size_t>(l)); }
     void EnableAllInputLayout() { key.inputLayout.set(); }
     void EnableOutputLayout(DataLayout l) { key.outputLayout.set(static_cast<size_t>(l)); }
