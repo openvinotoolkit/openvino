@@ -1879,10 +1879,6 @@ const std::vector<CPUSpecificParams> CPUParams_Failed_Brgemm_1D_Small_Shape = {
         conv_avx512_1D_nspc_brgconv_amx
 };
 const std::vector<groupConvLayerCPUTestParamsSet> BRGEMM_EXPECT_FAILED_GroupConvTestCases = generateSingleGroupConvCPUTestCases(
-        // kerenl size = 1
-        // https://github.com/openvinotoolkit/oneDNN/blob/6df930dab5ab0a7dfaea6100acd03b479e2fa0a8/src/cpu/x64/jit_brgemm_conv_utils.cpp#L1833
-        makeSingleGroupConvCPUTestCases({1, 1}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::EXPLICIT,
-                                        2, 1, {5, 5}, 32, 32, CPUParams_Failed_Brgemm_2D, vecPrcConnectParams),
         // channel <= 16
         // https://github.com/openvinotoolkit/oneDNN/blob/6df930dab5ab0a7dfaea6100acd03b479e2fa0a8/src/cpu/x64/jit_brgemm_conv_utils.cpp#L1712
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::EXPLICIT,
