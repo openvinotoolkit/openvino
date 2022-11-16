@@ -15,6 +15,7 @@
 #include "deconvolution_inst.h"
 #include "shape_of_inst.h"
 #include "strided_slice_inst.h"
+#include "gemm_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 
@@ -291,7 +292,10 @@ void primitive_inst::update_impl() {
             return ps.to_shape();
         }
         if (ps.size() < 4) {
-            ps.insert(ps.end(), 4 - ps.size(), ov::Dimension(1));
+            if (_node->is_type<gemm>())
+                ps.insert(ps.begin(), 4 - ps.size(), ov::Dimension(1));
+            else
+                ps.insert(ps.end(), 4 - ps.size(), ov::Dimension(1));
         }
         layout l(ps, data_types::i32, format::get_default_format(ps.size()));
         return l.transform(format::bfwzyx).to_shape();
