@@ -615,8 +615,8 @@ std::vector<MatMulParams> generateParamsForMatMulWithSameBatchSize() {
     const auto input1_shapes = Shape{3, 2, 2, 1};
     std::vector<T> input0_data(shape_size(input0_shapes));
     std::vector<T> input1_data(shape_size(input1_shapes));
-    std::iota(input0_data.begin(), input0_data.end(), 1);
-    std::iota(input1_data.begin(), input1_data.end(), 0);
+    std::iota(input0_data.begin(), input0_data.end(), static_cast<T>(1));
+    std::iota(input1_data.begin(), input1_data.end(), static_cast<T>(0));
 
     return std::vector<MatMulParams>{
         MatMulParams(input0_shapes,
