@@ -359,11 +359,14 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_2) {
     net.set_input_data("extra_input", extra_input_memory);
 
     auto output = net.execute();
+    auto out_l = net.get_output_layout("reorder");
     auto out_mem = output.at("reorder").get_memory();
 
     ASSERT_NE(out_mem, nullptr);
 
-    ASSERT_EQ(out_mem->count(),16);
+    ASSERT_EQ(out_l.batch(), 4);
+    ASSERT_EQ(out_l.feature(), 4);
+    ASSERT_EQ(out_mem->count(), 16);
     ASSERT_EQ(out_mem->size(), 16 * sizeof(float));
 
     mem_lock<float> lock(out_mem, net.get_stream());

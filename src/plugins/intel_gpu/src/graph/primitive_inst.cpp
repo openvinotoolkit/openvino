@@ -272,8 +272,9 @@ void primitive_inst::realloc_if_needed() {
                            <<  " Current buffer_size=" << max_output_layout_size
                            <<  " Requested buffer_size=" << actual_layout.count() << std::endl;
         }
-        _outputs = allocate_outputs();
-        max_output_layout_size = _outputs[0]->get_layout().count();
+        _outputs = allocate_outputs(&updated_params);
+        // TODO : need to handle multiple outputs
+        max_output_layout_size = updated_params.output_layouts[0].count();
     }
     // intermediate memory allocation is required for primitives consisting of multiple kernels in dynamic case
     allocate_internal_buffers();
@@ -388,11 +389,22 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
 
             for (auto& d : _deps) {
                 if (!d->get_node().is_type<data>()) {
-                    subgraph->set_input_data(d->id(), d->output_memory_ptr());
+                    auto allocated_mem = d->output_memory_ptr();
+                    auto actual_input_layout = d->get_output_layout();
+                    auto& engine = _network.get_engine();
+                    // Need to use actual layout, not the fake aligned memory layout
+                    auto actual_mem = engine.reinterpret_buffer(*allocated_mem, actual_input_layout);
+                    subgraph->set_input_data(d->id(), actual_mem);
                 }
+            }
+            GPU_DEBUG_IF(debug_config->verbose >= 4) {
+                GPU_DEBUG_COUT << "[Start] Executing unfused subgraph of " << id() << std::endl;
             }
 
             auto outputs = subgraph->execute(events);
+            GPU_DEBUG_IF(debug_config->verbose >= 4) {
+                GPU_DEBUG_COUT << "[End] Finished executing unfused subgraph of " << id() << std::endl;
+            }
 
             auto last_fd = _impl_params->fused_desc.back();
             auto last_prim_id = last_fd.desc->id;
@@ -401,7 +413,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
 
             _outputs[0] = outputs.at(last_prim_id).get_memory();
 
-            _impl_params->output_layouts[0] = _outputs[0]->get_layout();
+            _impl_params->output_layouts[0] = subgraph->get_output_layout(last_prim_id);
             return outputs.at(last_prim_id).get_event();
         }
 
@@ -837,11 +849,12 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     }
 }
 
-std::vector<memory::ptr> primitive_inst::allocate_outputs() {
+std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* updated_params) {
     std::vector<memory::ptr> outputs;
     for (size_t i = 0; i < get_node().get_outputs_count() ; ++i) {
-        outputs.push_back(allocate_output(get_network().get_engine(), _network.get_memory_pool(), *_node, *_impl_params,
-                          get_network_id(), _network.is_internal(), i));
+        outputs.push_back(allocate_output(get_network().get_engine(), _network.get_memory_pool(),
+                         *_node, (updated_params != nullptr) ? *updated_params : *_impl_params,
+                         get_network_id(), _network.is_internal(), i));
     }
     return outputs;
 }
