@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_ops/augru_sequence.hpp"
+#include "ov_ops/augru_sequence.hpp"
 
 #include <gtest/gtest.h>
 

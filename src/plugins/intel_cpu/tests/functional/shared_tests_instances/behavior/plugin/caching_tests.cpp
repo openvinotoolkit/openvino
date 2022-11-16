@@ -3,9 +3,9 @@
 //
 
 #include "behavior/plugin/caching_tests.hpp"
-#include <ngraph_ops/nms_ie_internal.hpp>
-#include <ngraph_ops/nms_static_shape_ie.hpp>
-#include <ngraph_ops/multiclass_nms_ie_internal.hpp>
+#include <ov_ops/nms_ie_internal.hpp>
+#include <ov_ops/nms_static_shape_ie.hpp>
+#include <ov_ops/multiclass_nms_ie_internal.hpp>
 
 using namespace LayerTestsDefinitions;
 using namespace ngraph;

@@ -13,7 +13,7 @@
 #include "gna_slope_scale.h"
 #include "dnn_types.h"
 #include "backend/gna_types.h"
-#include "round_float_define.hpp"
+#include "common/numerical_utils.hpp"
 #include "pwl_input_params.hpp"
 #include "pwl_segments_creator_factory.hpp"
 #include "log/log.hpp"

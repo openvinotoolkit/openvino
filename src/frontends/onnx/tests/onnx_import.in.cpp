@@ -5971,7 +5971,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_trilu_dynamic_shapes) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_is_finite) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/is_finite.onnx"));
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/is_finite.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -5995,8 +5996,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_is_inf_default) {
     auto test_case = test::TestCase(function, s_device);
 
     // clang-format off
-
-    test_case.add_input<float>(Shape{1, 2, 3}, {std::nanf(""), std::numeric_limits<float>::infinity(), -0.6000f, -1.0000f, std::nanf(""), -1.0000f});
 
     test_case.add_input<float>(
         Shape{2, 2, 2},
@@ -6091,7 +6090,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_is_inf_detect_none) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_is_nan) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/is_nan.onnx"));
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/is_nan.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -6099,7 +6099,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_is_nan) {
 
     test_case.add_input<float>(Shape{1, 2, 3}, {std::nanf(""), std::nanf(""), -0.6000f, -1.0000f, std::nanf(""), -1.0000f});
 
-    test_case.add_expected_output<float>(
+    test_case.add_expected_output<bool>(
         Shape{1, 2, 3},
         {true, true, false, false, true, false});
 
@@ -6262,4 +6262,22 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_layer_norm_dynamic_4d_axis_minus1) {
     test_case.add_expected_output<float>(Shape{2, 2, 3, 4}, output);
 
     test_case.run_with_tolerance_as_fp(1e-5);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_of_shape_empty_init) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/constant_of_shape_empty_init.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_expected_output<int32_t>(Shape{}, {1});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_of_shape_null_node) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/constant_of_shape_null_node.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_expected_output<int32_t>(Shape{}, {1});
+    test_case.run();
 }

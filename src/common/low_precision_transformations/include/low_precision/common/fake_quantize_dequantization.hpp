@@ -35,7 +35,7 @@ public:
     bool isLowPrecision() const;
     std::shared_ptr<Node> copyWithNewInput(const std::shared_ptr<Node>& input) const;
 
-    static bool checkElementwise(const std::shared_ptr<ngraph::Node>& elementwise);
+    bool checkElementwise(const std::shared_ptr<ngraph::Node>& elementwise) const;
 
     static bool checkShape(const std::shared_ptr<ngraph::Node>& elementwise);
 
@@ -48,6 +48,7 @@ public:
         const std::shared_ptr<ngraph::Node>& elementwise,
         std::shared_ptr<ngraph::opset1::Constant>& constant);
 
+    size_t channelDimIndex;
     Output<Node> data;
     std::shared_ptr<opset1::Convert> convert;
     std::shared_ptr<opset1::Subtract> subtract;
