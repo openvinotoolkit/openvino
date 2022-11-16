@@ -69,7 +69,7 @@ void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<p
         return s.str();
     };
 
-    const std::string perf_raw_csv_header = "prim_id,prim_type,stage,in_shapes,out_shapes,impl,iters,time_usec\n";
+    const std::string perf_raw_csv_header = "prim_id,prim_type,stage,net_in_shapes,in_shapes,out_shapes,impl,iters,time_usec\n";
     std::ofstream of(dump_path);
     if (of.is_open()) {
         of << perf_raw_csv_header;
@@ -110,11 +110,13 @@ void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<p
                 auto& time = std::get<0>(entry);
                 auto& num_iters = std::get<1>(entry);
                 int64_t time_avg = time / num_iters;
+                std::string net_in_l_str = layouts_to_str(key.network_input_layouts);
                 std::string in_l_str = layouts_to_str(key.input_layouts);
                 std::string out_l_str = layouts_to_str(key.output_layouts);
                 of << prim_id << ","
                 << inst->desc()->type_string() << ","
                 << key.stage << (key.cache_hit ? " (cache_hit)" : "") << ","
+                << net_in_l_str << ","
                 << in_l_str << ","
                 << out_l_str << ","
                 << (key.stage == instrumentation::pipeline_stage::inference ? key.impl_name : "undef") << ","
@@ -716,6 +718,10 @@ memory::ptr network::get_output_memory(const primitive_id& output_id) {
     return get_primitive(output_id)->output_memory_ptr();
 }
 
+layout network::get_output_layout(const primitive_id& output_id) const {
+    return get_primitive(output_id)->get_output_layout();
+}
+
 layout network::get_node_output_layout(const primitive_id& output_id) const {
     auto res = std::find_if(_outputs.begin(), _outputs.end(), [&](const std::shared_ptr<primitive_inst>& v) {
         return v->id() == output_id;
@@ -905,7 +911,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                             debug_config->is_dumped_layer(layer_name)) {
                 for (size_t i = 0; i < get_primitive(inst->id())->dependencies().size(); i++) {
                     log_memory_to_file(get_primitive(inst->id())->dep_memory_ptr(i), get_stream(),
-                                    layer_name + "_src_" + std::to_string(i));
+                                       layer_name + "_src_" + std::to_string(i));
                 }
             }
         }
@@ -916,7 +922,10 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             get_stream().finish();
             const std::string layer_name = inst->id();
             GPU_DEBUG_IF(debug_config->is_dumped_layer(layer_name, inst->is_output())) {
-                log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(), get_stream(), layer_name + "_dst_0");
+                for (size_t i = 0; i < get_primitive(inst->id())->outputs_memory_count(); i++) {
+                    log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(i), get_stream(),
+                                       layer_name + "_dst_" + std::to_string(i));
+                }
             }
         }
     }
@@ -972,6 +981,13 @@ std::vector<primitive_id> network::get_input_ids() const {
     std::vector<primitive_id> ret;
     ret.reserve(_inputs.size());
     for (auto const& input : _inputs) ret.push_back(input->id());
+    return ret;
+}
+
+std::vector<layout> network::get_input_layouts() const {
+    std::vector<layout> ret;
+    ret.reserve(_inputs.size());
+    for (auto const& input : _inputs) ret.push_back(input->output_memory_ptr()->get_layout());
     return ret;
 }
 
@@ -1114,7 +1130,7 @@ void network::allocate_primitive_instance(program_node const& node) {
     }
 
     _primitives[node.id()] = inst;
-    if (node.is_input()) {
+    if (node.is_type<input_layout>()) {
         if (inst->output_memory_ptr())
             _in_out_shared_mem_types.push_back(inst->output_memory_ptr()->get_internal_params().mem_type);
         _inputs.push_back(inst);

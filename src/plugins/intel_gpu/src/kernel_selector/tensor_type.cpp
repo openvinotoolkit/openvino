@@ -338,7 +338,7 @@ NDims DataTensor::GetSimpleDims(const std::vector<size_t>& d, DataLayout l) {
 
     for (size_t i = 0; i < newDims.size(); i++) {
         Pad p = {0, newDims[i] - d[i]};
-        ret[i] = {d[i], pitch, p};
+        ret[i] = {d[i], pitch, p, d[i] == 0};
         pitch *= newDims[i];
     }
 

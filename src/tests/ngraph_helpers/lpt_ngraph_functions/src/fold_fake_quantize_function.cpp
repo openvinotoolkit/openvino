@@ -5,7 +5,7 @@
 #include "lpt_ngraph_functions/fold_fake_quantize_function.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
-#include "ngraph_ops/type_relaxed.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 
 namespace ngraph {
