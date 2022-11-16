@@ -20,6 +20,8 @@ namespace ocl {
 struct convolution_impl : typed_primitive_impl_ocl<convolution> {
     using parent = typed_primitive_impl_ocl<convolution>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::convolution_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::convolution_params, kernel_selector::convolution_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -94,8 +96,8 @@ public:
         ib >> _depthwise_sep_opt;
     }
 
-    static primitive_impl* create(const convolution_node& arg, const kernel_impl_params& impl_param) {
-        const auto& primitive = arg.get_primitive();
+    static std::unique_ptr<primitive_impl> create(const convolution_node& arg, const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<convolution>();
 
         const auto &split = primitive->split();
         auto stride = primitive->stride;
@@ -108,7 +110,7 @@ public:
         auto conv_params = get_weight_bias_zero_point_default_params<kernel_selector::convolution_params>(
             impl_param, split, 1, primitive->grouped_weights_shape);
         auto conv_optional_params =
-            get_default_weights_bias_optional_params<kernel_selector::convolution_optional_params>(arg.get_program());
+            get_default_weights_bias_optional_params<kernel_selector::convolution_optional_params>(impl_param.get_program());
 
         if (primitive->deformable_mode) {
             conv_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
@@ -164,7 +166,7 @@ public:
             conv_params.quantization = kernel_selector::QuantizationType::NONE;
         }
 
-        auto format = impl_param.output_layout.format;
+        auto format = impl_param.get_output_layout().format;
         if (format == format::b_fs_zyx_fsv16 ||
             format == format::bs_fs_zyx_bsv16_fsv16 ||
             format == format::bs_fs_yx_bsv16_fsv16 ||
@@ -181,15 +183,9 @@ public:
                 std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), arg.get_program().get_id(), true, true);
         }
 
-        kernel_selector::KernelsData best_kernels = kernel_selector.GetBestKernels(conv_params, conv_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(conv_params, conv_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with these arguments");
-        auto conv = new convolution_impl(arg, best_kernels[0]);
-
-        return conv;
+        return make_unique<convolution_impl>(arg, best_kernel);
     }
 
 private:

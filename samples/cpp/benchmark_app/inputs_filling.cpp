@@ -166,7 +166,7 @@ ov::Tensor create_tensor_from_binary(const std::vector<std::string>& files,
                         files[inputIndex],
                         " contains ",
                         fileSize,
-                        " bytes, but the network expects ",
+                        " bytes, but the model expects ",
                         inputSize);
 
         if (inputInfo.layout != "CN") {
@@ -380,11 +380,11 @@ std::map<std::string, ov::TensorVector> get_tensors(std::map<std::string, std::v
     std::ios::fmtflags fmt(std::cout.flags());
     std::map<std::string, ov::TensorVector> tensors;
     if (app_inputs_info.empty()) {
-        throw std::logic_error("Inputs Info for network is empty!");
+        throw std::logic_error("Inputs Info for model is empty!");
     }
 
     if (!inputFiles.empty() && inputFiles.size() != app_inputs_info[0].size()) {
-        throw std::logic_error("Number of inputs specified in -i must be equal to number of network inputs!");
+        throw std::logic_error("Number of inputs specified in -i must be equal to number of model inputs!");
     }
 
     // count image type inputs of network
@@ -400,7 +400,7 @@ std::map<std::string, ov::TensorVector> get_tensors(std::map<std::string, std::v
     for (auto& files : inputFiles) {
         if (!files.first.empty() && app_inputs_info[0].find(files.first) == app_inputs_info[0].end()) {
             throw std::logic_error("Input name \"" + files.first +
-                                   "\" used in -i parameter doesn't match any network's input");
+                                   "\" used in -i parameter doesn't match any model's input");
         }
 
         std::string input_name = files.first.empty() ? app_inputs_info[0].begin()->first : files.first;

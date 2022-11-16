@@ -76,7 +76,7 @@ std::vector<ReductionParams> generateReductionParams(const bool keep_dims) {
                             std::vector<T>{1 + 10 + 19 + 4 + 13 + 22 + 7 + 16 + 25 + 2 + 11 + 20 + 5 + 14 + 23 + 8 +
                                            17 + 26 + 3 + 12 + 21 + 6 + 15 + 24 + 9 + 18 + 27})),
         ReductionParams(ReductionType::Sum, keep_dims, std::vector<int64_t>{0, 1, 2, 3, 4},
-                        reference_tests::Tensor({3, 3, 3, 3, 3}, element::Type(IN_ET), std::vector<T>(std::pow(3, 5), 1)),
+                        reference_tests::Tensor({3, 3, 3, 3, 3}, element::Type(IN_ET), std::vector<T>(static_cast<uint64_t>(std::pow(3, 5)), 1)),
                         reference_tests::Tensor(ngraph::reduce(Shape{3, 3, 3, 3, 3}, AxisSet{0, 1, 2, 3, 4}, keep_dims), element::Type(IN_ET), std::vector<T>{243}))
     };
     return params;
@@ -84,7 +84,7 @@ std::vector<ReductionParams> generateReductionParams(const bool keep_dims) {
 
 std::vector<ReductionParams> generateReductionParamsFloat(const bool keep_dims) {
     std::vector<float> in = generateRandomVector(1000000);
-    float res = std::accumulate(std::begin(in), std::end(in), 0);
+    float res = static_cast<float>(std::accumulate(std::begin(in), std::end(in), 0.f));
     std::vector<ReductionParams> params = {
         ReductionParams(ReductionType::Sum, keep_dims, std::vector<int64_t>{0},
                         reference_tests::Tensor({1000000}, element::f32, in),
