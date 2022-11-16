@@ -14,24 +14,24 @@
 
 namespace ov {
 /// \brief Strides for a tensor.
-class Strides : public std::vector<size_t> {
+class OPENVINO_API Strides : public std::vector<size_t> {
 public:
-    OPENVINO_API Strides();
+    Strides();
 
-    OPENVINO_API Strides(const std::initializer_list<size_t>& axis_strides);
+    Strides(const std::initializer_list<size_t>& axis_strides);
 
-    OPENVINO_API Strides(const std::vector<size_t>& axis_strides);
+    Strides(const std::vector<size_t>& axis_strides);
 
-    OPENVINO_API Strides(const Strides& axis_strides);
+    Strides(const Strides& axis_strides);
 
-    OPENVINO_API explicit Strides(size_t n, size_t initial_value = 0);
+    explicit Strides(size_t n, size_t initial_value = 0);
 
     template <class InputIterator>
     Strides(InputIterator first, InputIterator last) : std::vector<size_t>(first, last) {}
 
-    OPENVINO_API Strides& operator=(const Strides& v);
+    Strides& operator=(const Strides& v);
 
-    OPENVINO_API Strides& operator=(Strides&& v) noexcept;
+    Strides& operator=(Strides&& v) noexcept;
 };
 
 OPENVINO_API

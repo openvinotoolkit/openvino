@@ -13,27 +13,27 @@
 
 namespace ov {
 /// \brief Coordinates for a tensor element
-class Coordinate : public std::vector<size_t> {
+class OPENVINO_API Coordinate : public std::vector<size_t> {
 public:
-    OPENVINO_API Coordinate();
-    OPENVINO_API Coordinate(const std::initializer_list<size_t>& axes);
+    Coordinate();
+    Coordinate(const std::initializer_list<size_t>& axes);
 
-    OPENVINO_API Coordinate(const Shape& shape);
+    Coordinate(const Shape& shape);
 
-    OPENVINO_API Coordinate(const std::vector<size_t>& axes);
+    Coordinate(const std::vector<size_t>& axes);
 
-    OPENVINO_API Coordinate(const Coordinate& axes);
+    Coordinate(const Coordinate& axes);
 
-    OPENVINO_API Coordinate(size_t n, size_t initial_value = 0);
+    Coordinate(size_t n, size_t initial_value = 0);
 
-    OPENVINO_API ~Coordinate();
+    ~Coordinate();
 
     template <class InputIterator>
     Coordinate(InputIterator first, InputIterator last) : std::vector<size_t>(first, last) {}
 
-    OPENVINO_API Coordinate& operator=(const Coordinate& v);
+    Coordinate& operator=(const Coordinate& v);
 
-    OPENVINO_API Coordinate& operator=(Coordinate&& v) noexcept;
+    Coordinate& operator=(Coordinate&& v) noexcept;
 };
 
 OPENVINO_API

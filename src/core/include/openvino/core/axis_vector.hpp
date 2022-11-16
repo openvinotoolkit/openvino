@@ -14,26 +14,26 @@
 
 namespace ov {
 /// \brief A vector of axes.
-class AxisVector : public std::vector<size_t> {
+class OPENVINO_API AxisVector : public std::vector<size_t> {
 public:
-    OPENVINO_API AxisVector(const std::initializer_list<size_t>& axes);
+    AxisVector(const std::initializer_list<size_t>& axes);
 
-    OPENVINO_API AxisVector(const std::vector<size_t>& axes);
+    AxisVector(const std::vector<size_t>& axes);
 
-    OPENVINO_API AxisVector(const AxisVector& axes);
+    AxisVector(const AxisVector& axes);
 
-    OPENVINO_API explicit AxisVector(size_t n);
+    explicit AxisVector(size_t n);
 
     template <class InputIterator>
     AxisVector(InputIterator first, InputIterator last) : std::vector<size_t>(first, last) {}
 
-    OPENVINO_API AxisVector();
+    AxisVector();
 
-    OPENVINO_API ~AxisVector();
+    ~AxisVector();
 
-    OPENVINO_API AxisVector& operator=(const AxisVector& v);
+    AxisVector& operator=(const AxisVector& v);
 
-    OPENVINO_API AxisVector& operator=(AxisVector&& v) noexcept;
+    AxisVector& operator=(AxisVector&& v) noexcept;
 };
 
 OPENVINO_API

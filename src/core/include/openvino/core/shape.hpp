@@ -18,25 +18,25 @@ namespace ov {
  * @brief Shape for a tensor.
  * @ingroup ov_model_cpp_api
  */
-class Shape : public std::vector<size_t> {
+class OPENVINO_API Shape : public std::vector<size_t> {
 public:
-    OPENVINO_API Shape();
+    Shape();
 
-    OPENVINO_API Shape(const std::initializer_list<size_t>& axis_lengths);
+    Shape(const std::initializer_list<size_t>& axis_lengths);
 
-    OPENVINO_API Shape(const std::vector<size_t>& axis_lengths);
+    Shape(const std::vector<size_t>& axis_lengths);
 
-    OPENVINO_API Shape(const Shape& axis_lengths);
+    Shape(const Shape& axis_lengths);
 
-    OPENVINO_API explicit Shape(size_t n, size_t initial_value = 0);
+    explicit Shape(size_t n, size_t initial_value = 0);
 
-    OPENVINO_API ~Shape();
+    ~Shape();
 
     template <class InputIterator>
     Shape(InputIterator first, InputIterator last) : std::vector<size_t>(first, last) {}
 
-    OPENVINO_API Shape& operator=(const Shape& v);
-    OPENVINO_API Shape& operator=(Shape&& v) noexcept;
+    Shape& operator=(const Shape& v);
+    Shape& operator=(Shape&& v) noexcept;
 };
 
 /**
