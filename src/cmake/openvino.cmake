@@ -225,10 +225,6 @@ if(ENABLE_PKGCONFIG_GEN)
     endif()
 
     if(ENABLE_SYSTEM_PUGIXML)
-        pkg_check_modules(PKGCONFIG_pugixml QUIET
-                          NO_CMAKE_PATH
-                          NO_CMAKE_ENVIRONMENT_PATH
-                          pugixml)
         if(PKGCONFIG_OpenVINO_PRIVATE_DEPS)
             set(PKGCONFIG_OpenVINO_PRIVATE_DEPS "${PKGCONFIG_OpenVINO_PRIVATE_DEPS} -lpugixml")
         else()
