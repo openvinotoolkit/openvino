@@ -16,6 +16,13 @@ jobs:
           submodules: recursive
           lfs: true
 
+      - name: Cache doxygen make
+        id: cache_doxygen_make
+        uses: actions/cache@v3
+        with:
+          path: doxygen/build
+          key: ${{ runner.os }}-doxygen-cache
+
       - name: Install dependencies
         run: |
           set -e
@@ -34,36 +41,29 @@ jobs:
           # install doxygen
           mkdir doxygen
           cd doxygen
-          git clone https://github.com/doxygen/doxygen.git
-          cd doxygen
-          git checkout Release_1_9_2
-          mkdir build
-          cd build
-          cmake ..
-          cmake --build . -j`nproc`
-          sudo make install
+          git clone --depth 1 https://github.com/doxygen/doxygen.git -b Release_1_9_2
+          cmake -S doxygen -B build
+          cmake --build build -j`nproc`
+          sudo cmake --build build --target install
+
+      - name: Cache documentation
+        id: cache_sphinx_docs
+        uses: actions/cache@v3
+        with:
+          path: build/.doctrees
+          key: ${{ runner.os }}-cache
 
       - name: CMake doc
         run: |
-          mkdir build
-          cd build
-          cmake -DENABLE_DOCS=ON -DENABLE_PYTHON=ON -DCMAKE_BUILD_TYPE=Release ..
+          cmake -DENABLE_DOCS=ON -DENABLE_PYTHON=ON -DCMAKE_BUILD_TYPE=Release -B build
       
-      
-      - name: Pre Build doc
-        run: |
-          cmake --build . --target preprocess_docs -j`nproc`
-        working-directory: build
-
       - name: Build doc
         run: |
-          cmake --build . --target doxygen_xml -j`nproc`
-        working-directory: build
-
-      - name: Post Build doc
+          cmake --build build --target sphinx_docs -j`nproc`
+      
+      - name: ls all
         run: |
-          cmake --build . --target sphinx_docs -j`nproc`
-        working-directory: build
+          ls -laR build
       
       - name: Archive HTML
         run: |
