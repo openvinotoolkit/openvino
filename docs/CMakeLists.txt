@@ -173,7 +173,7 @@ function(build_docs)
 
     add_custom_target(sphinx_docs
                       DEPENDS doxygen_xml
-                      COMMAND sphinx-build -q -j auto -w ${DOCS_BUILD_DIR}/sphinx.log -b html ${RST_OUTPUT} ${SPHINX_OUTPUT}
+                      COMMAND sphinx-build -j auto -w ${DOCS_BUILD_DIR}/sphinx.log -b html ${RST_OUTPUT} ${SPHINX_OUTPUT}
                       WORKING_DIRECTORY ${RST_OUTPUT}
                       VERBATIM)
 
