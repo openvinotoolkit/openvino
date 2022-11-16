@@ -20,7 +20,7 @@ jobs:
         id: cache_doxygen_make
         uses: actions/cache@v3
         with:
-          path: doxygen/build
+          path: doxygen-build
           key: build-doxygen-cache
 
       - name: Install dependencies
@@ -42,9 +42,13 @@ jobs:
           mkdir doxygen
           cd doxygen
           git clone --depth 1 https://github.com/doxygen/doxygen.git -b Release_1_9_2
-          cmake -S doxygen -B build
-          cmake --build build -j`nproc`
-          sudo cmake --build build --target install
+          cmake -S doxygen -B ../doxygen-build
+          cmake --build ../doxygen-build -j`nproc`
+          sudo cmake --build ../doxygen-build --target install
+
+      - name: CMake doc
+        run: |
+          cmake -DENABLE_DOCS=ON -DENABLE_PYTHON=ON -DCMAKE_BUILD_TYPE=Release -B build
 
       - name: Cache documentation
         id: cache_sphinx_docs
@@ -52,10 +56,6 @@ jobs:
         with:
           path: build/docs/_build/.doctrees
           key: sphinx-docs-cache
-
-      - name: CMake doc
-        run: |
-          cmake -DENABLE_DOCS=ON -DENABLE_PYTHON=ON -DCMAKE_BUILD_TYPE=Release -B build
       
       - name: Build doc
         run: |
