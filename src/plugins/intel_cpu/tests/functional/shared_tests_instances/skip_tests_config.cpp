@@ -164,6 +164,10 @@ std::vector<std::string> disabledTestPatterns() {
         // is shared across plugins
         // passed local test and cpu has specific test cases with nms9 to cover
         R"(smoke_NmsLayerTest.*)",
+        R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*(TIwithLSTMcell1|MatMulBias|2InputSubtract)_(i|u).*)",
+        R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*ReadConcatSplitAssign.*)",
+        R"(.*IEClassQueryNetworkTest.*QueryNetwork.*)",
+        R"(.*IEClassLoadNetworkTest.*(Load|Query)Network.*)",
         // Issue: 95239
         // HETERO plugin lacks caching_properties definition
         R"(smoke_Hetero_CachingSupportCase.*)",
@@ -172,7 +176,7 @@ std::vector<std::string> disabledTestPatterns() {
         // Reorder->GridSample->Reorder also does not work here. Potential fix is to use nearest conversion instead of truncation.
         R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*(i32|i8).*)",
         // 94989. BF16 Reference produces different results.
-        R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*gridPrc=bf16.*)"
+        R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*gridPrc=bf16.*)",
     };
 
 #define FIX_62820 0
@@ -184,6 +188,11 @@ std::vector<std::string> disabledTestPatterns() {
     // TODO: Issue 55717
     // retVector.emplace_back(R"(.*smoke_LPT.*ReduceMinTransformation.*f32.*)");
 #endif
+
+#if defined(_WIN32) || defined(_WIN64)
+    retVector.emplace_back(R"(.*LoadNetworkCompiledKernelsCacheTest.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)");
+#endif
+
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {
         // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
         // tests are useless on such platforms

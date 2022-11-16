@@ -690,7 +690,7 @@ inline std::shared_ptr<ngraph::Function> makeReadConcatSplitAssign(std::vector<s
                                                                    ngraph::element::Type type = ngraph::element::Type_t::f32) {
     auto parameter =  ngraph::builder::makeParams(type, {inputShape});
     parameter[0]->set_friendly_name("parameter");
-    auto init_const = ngraph::op::Constant::create(element::f32, Shape{1, 1, 2, 2}, {0, 0, 0, 0});
+    auto init_const = ngraph::op::Constant::create(type, inputShape, {0});
     auto read = std::make_shared<ngraph::opset5::ReadValue>(init_const, "v0");
     read->set_friendly_name("read");
     std::vector<std::shared_ptr<ngraph::Node>> args = {parameter[0], read};
@@ -700,11 +700,10 @@ inline std::shared_ptr<ngraph::Function> makeReadConcatSplitAssign(std::vector<s
     res->set_friendly_name("result");
     const auto axis = ngraph::op::Constant::create(element::i64, Shape{}, {3});
     axis->set_friendly_name("axis");
-    auto crop = std::make_shared<ngraph::op::v1::Split>(conc, axis, 3);
-    crop->set_friendly_name("crop");
+    auto crop = std::make_shared<ngraph::op::v1::Split>(conc, axis, 2);
+    crop->set_friendly_name("split");
     auto assign = std::make_shared<ngraph::opset5::Assign>(crop, "v0");
     assign->set_friendly_name("assign");
-
     std::shared_ptr<ngraph::Function> fn_ptr = std::make_shared<ngraph::Function>(ngraph::ResultVector({res}),
                                                                                   ngraph::SinkVector({assign}),
                                                                                   ngraph::ParameterVector{parameter});

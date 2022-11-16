@@ -64,9 +64,10 @@ protected:
     std::vector<std::string> m_extList;
 
     void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         std::pair<std::map<std::string, std::string>, std::string> userConfig;
         std::tie(targetDevice, userConfig) = GetParam();
-        target_device  = targetDevice;
+        target_device = targetDevice;
         APIBaseTest::SetUp();
         function = ngraph::builder::subgraph::makeConvPoolRelu();
         configuration = userConfig.first;
