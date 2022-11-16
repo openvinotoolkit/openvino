@@ -20,10 +20,8 @@ class TestSelect(PytorchLayerTest):
 
             def __init__(self, input_dim, input_index) -> None:
                 super().__init__()
-                self.dim = torch.from_numpy(
-                    np.array([input_dim], dtype=np.int32))
-                self.index = torch.from_numpy(
-                    np.array([input_index], dtype=np.int32))
+                self.dim = input_dim
+                self.index = input_index
 
             def forward(self, input_tensor):
                 return torch.select(input_tensor, int(self.dim), int(self.index))
