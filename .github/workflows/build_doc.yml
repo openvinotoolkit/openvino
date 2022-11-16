@@ -16,8 +16,8 @@ jobs:
           submodules: recursive
           lfs: true
 
-      - name: Setup ccache
-        uses: Chocobo1/setup-ccache-action@v1
+      - name: Install ccache
+        uses: hendrikmuhs/ccache-action@v1.2
 
       - name: Cache doxygen make
         id: cache_doxygen_make
@@ -56,13 +56,24 @@ jobs:
           mkdir doxygen
           cd doxygen
           git clone --depth 1 https://github.com/doxygen/doxygen.git -b Release_1_9_2
-          cmake -S doxygen -B ../doxygen-build
+          cmake \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -S doxygen \
+            -B ../doxygen-build
           cmake --build ../doxygen-build -j`nproc`
           sudo cmake --build ../doxygen-build --target install
 
       - name: CMake doc
         run: |
-          cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -DENABLE_DOCS=ON -DENABLE_PYTHON=ON -DCMAKE_BUILD_TYPE=Release -B build
+          cmake \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DENABLE_INTEL_MYRIAD_COMMON=OFF \
+            -DENABLE_DOCS=ON \
+            -DENABLE_PYTHON=ON \
+            -DCMAKE_BUILD_TYPE=Release \
+            -B build
 
       - name: Cache documentation
         id: cache_sphinx_docs
