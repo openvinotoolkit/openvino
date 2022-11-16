@@ -11,6 +11,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/fake_quantize.hpp"
 
+#include "intel_gpu/primitives/broadcast.hpp"
 #include "intel_gpu/primitives/gemm.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
@@ -45,12 +46,14 @@ static std::tuple<bool, PartialShape, PartialShape> get_aligned_shapes(const Par
         shape_b_aligned.insert(shape_b_aligned.begin(), 1);
     }
 
+/*
     if (matmul->get_transpose_a()) {
         std::swap(*(shape_a_aligned.end() - 1), *(shape_a_aligned.end() - 2));
     }
     if (matmul->get_transpose_b()) {
         std::swap(*(shape_b_aligned.end() - 1), *(shape_b_aligned.end() - 2));
     }
+*/
 
     for (size_t i = 0; i < max_size - 2; ++i) {
         auto a_dim = shape_a_aligned[i], b_dim = shape_b_aligned[i];
@@ -89,13 +92,13 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 
     PartialShape shape_a_aligned, shape_b_aligned;
     bool aligned = false;
-    if (shape_b.is_static()) {
+    if (shape_b.is_static()) { //??? can be relaxed?
         std::tie(aligned, shape_a_aligned, shape_b_aligned) = get_aligned_shapes(shape_a, shape_b, op);
     }
     is_fc &= aligned;
 
     if (is_fc) {
-        if (shape_a_aligned.size() < 2 || shape_b_aligned.size() < 2) {
+        if (shape_a_aligned.size() < 2 || shape_b_aligned.size() < 2) { //??? can be relaxed?
             IE_THROW() << "MatMul " << op->get_friendly_name() << " shapes are inconsistent.";
         }
 
@@ -112,9 +115,31 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
                                               transpose_order);
             p.add_primitive(*op, permutePrim);
         };
+        auto create_broadcast = [&](const std::string& broadcastName, const std::string& inputName, const ngraph::Shape& target_shape) {
+            const auto out_shape = op->get_output_partial_shape(0).to_shape();
+            std::vector<size_t> broadcast_axes(out_shape.size());
+            std::iota(broadcast_axes.begin(), broadcast_axes.end(), 0);
+            ngraph::AxisSet axisSet{broadcast_axes};
+            auto broadcastPrim = cldnn::broadcast(broadcastName, inputName, target_shape, axisSet);
+            p.add_primitive(*op, broadcastPrim);
+        };
+        // Weights broadcast
+        if (shape_b_aligned != shape_b) {
+            //broadcast
+            auto broadcastName = op->get_friendly_name() + "/broadcast_b";
+            create_broadcast(broadcastName, weightsName, shape_b_aligned.to_shape());
+            weightsName = broadcastName;
+        }
+        // Input broadcast
+        if (shape_a_aligned != shape_a) {
+            //broadcast
+            auto broadcastName = op->get_friendly_name() + "/broadcast_a";
+            create_broadcast(broadcastName, inputName, shape_a_aligned.to_shape());
+            inputName = broadcastName;
+        }
 
         // Weights normalization
-        if (!op->get_transpose_b()) {
+        if (op->get_transpose_b()) {
             auto transposeName = op->get_friendly_name() + "/transpose_b";
             create_transpose(transposeName, weightsName, rank_b);
             weightsName = transposeName;

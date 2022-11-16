@@ -37,6 +37,7 @@
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
+#include "transformations/common_optimizations/matmul_const_transposes_extraction.hpp"
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
@@ -172,6 +173,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ngraph::pass::ConvertGather0D>();
         manager.register_pass<ngraph::pass::ConvertPriorBox8To0, false>();
         manager.register_pass<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
+        manager.register_pass<ngraph::pass::MatMulConstTransposesExtraction, false>();
 
         precisions_array convert_precision_list {
                 {ngraph::element::f64, ngraph::element::f32},

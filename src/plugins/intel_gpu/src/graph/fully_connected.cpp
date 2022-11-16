@@ -146,7 +146,6 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
     }
 
     ov::op::v0::MatMul op;
-    op.set_transpose_b(true);
     std::vector<ShapeType> output_shapes = {ShapeType()};
     std::vector<ShapeType> input_shapes = {
         input_layout.get<ShapeType>(),
