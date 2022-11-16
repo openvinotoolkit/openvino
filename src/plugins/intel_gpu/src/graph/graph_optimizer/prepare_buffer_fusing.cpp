@@ -322,7 +322,8 @@ void prepare_buffer_fusing::run(program& p) {
         bool is_planar = node->get_output_layout().format == format::bfyx ||
                          node->get_output_layout().format == format::bfzyx ||
                          node->get_output_layout().format == format::bfwzyx;
-        if (node->is_type<reshape>() && is_dynamic && is_planar)
+        bool no_pad = !node->get_output_layout().data_padding && !node->get_input_layouts().empty() && !node->get_input_layouts()[0].data_padding;
+        if (node->is_type<reshape>() && is_dynamic && is_planar && no_pad)
             return true;
 
         if (is_dynamic || node->is_output() || (!node->get_fused_activations_funcs().empty())) {
