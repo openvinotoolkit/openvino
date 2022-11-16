@@ -44,8 +44,6 @@ class StridedSlice(Op):
 
     @staticmethod
     def infer(node: Node):
-        StridedSlice.align_mask_with_slice_rank(node, node.in_port(1).data.get_shape()[0])
-
         data_shape = node.in_port(0).data.get_shape()
         data_value = node.in_port(0).data.get_value()
         slices = StridedSlice.get_slices(node, data_shape)
@@ -77,9 +75,9 @@ class StridedSlice(Op):
         slices = [[]] * slice_rank
         in_idx = 0  # index along input tensor shapes, note that input_rank not necessary is equal to slice_rank
         for i in range(slice_rank):
-            if node.new_axis_mask[i]:
+            if i < len(node.new_axis_mask) and node.new_axis_mask[i]:
                 slices[i] = np.newaxis
-            elif node.shrink_axis_mask[i]:
+            elif i < len(node.shrink_axis_mask) and node.shrink_axis_mask[i]:
                 if begin is not None and begin[i] is not dynamic_dimension:
                     slices[i] = int(begin[i])
                     # the normalization is needed for the ConvertGroupedStridedSlice transformation
@@ -87,20 +85,20 @@ class StridedSlice(Op):
                         slices[i] += int(data_shape[in_idx])
                 else:
                     slices[i] = dynamic_dimension_value
-            elif node.ellipsis_mask[i]:
+            elif i < len(node.ellipsis_mask) and node.ellipsis_mask[i]:
                 slices[i] = ...
                 in_idx += input_rank - slice_rank + np.count_nonzero(node.new_axis_mask)
             else:
                 if begin is not None and end is not None and strides is not None:
                     start, stop = begin[i], end[i]
-                    if not node.begin_mask[i]:  # if begin, and end are not specified take the whole range
+                    if i < len(node.begin_mask) and not node.begin_mask[i]:  # if begin, and end are not specified take the whole range
                         start = None
-                    if not node.end_mask[i]:
+                    if i < len(node.end_mask) and not node.end_mask[i]:
                         stop = None
                     slices[i] = slice(start, stop, strides[i])
                 else:
                     slices[i] = dynamic_dimension_value
-            in_idx += 1 if not node.new_axis_mask[i] else 0
+            in_idx += 1 if i < len(node.new_axis_mask) and not node.new_axis_mask[i] else 0
         return slices
 
     @staticmethod
