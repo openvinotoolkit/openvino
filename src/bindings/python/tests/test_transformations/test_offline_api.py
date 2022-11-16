@@ -104,6 +104,15 @@ def test_moc_transformations():
     assert len(model.get_ops()) == 3
 
 
+def test_moc_with_smart_reshape():
+    model = get_test_model()
+
+    apply_moc_transformations(model, cf=False, smart_reshape=True)
+
+    assert model is not None
+    assert len(model.get_ops()) == 3
+
+
 def test_pot_transformations():
     model = get_test_model()
 
