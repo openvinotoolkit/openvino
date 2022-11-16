@@ -36,7 +36,7 @@ struct one_hot_impl : typed_primitive_impl_ocl<one_hot> {
         params.on_value = primitive->on_value;
         params.off_value = primitive->off_value;
 
-        auto output_sizes = impl_param.output_layout.get_dims();
+        auto output_sizes = impl_param.get_output_layout().get_dims();
 
         params.one_hot_limit = output_sizes[params.one_hot_axis];
         return {params, optional_params};
