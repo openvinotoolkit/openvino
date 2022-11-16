@@ -16,6 +16,9 @@
 #include <set>
 
 #include <threading/ie_cpu_streams_executor.hpp>
+#include "kernels_factory.hpp"
+#include "ocl/ocl_engine.hpp"
+#include "serialization/binary_buffer.hpp"
 
 namespace cldnn {
 class kernels_cache {
@@ -106,6 +109,8 @@ public:
     }
     std::vector<kernel_id> add_kernels_source(std::vector<std::shared_ptr<kernel_string>> kernel_sources, bool dump_custom_program = false);
     void compile();
+    void save(BinaryOutputBuffer& ob) const;
+    void load(BinaryInputBuffer& ib);
 };
 
 }  // namespace cldnn

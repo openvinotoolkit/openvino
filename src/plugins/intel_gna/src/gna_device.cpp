@@ -549,15 +549,22 @@ void GNADeviceHelper::open() {
 }
 
 void GNADeviceHelper::close() {
+    if (!deviceOpened)
+        return;
+
+    acrossPluginsSync.lock();
     auto requestsToClose = unwaitedRequestIds;
-    for (auto requestId : requestsToClose) {
+    acrossPluginsSync.unlock();
+
+    for (auto requestId : requestsToClose)
         try {
-            waitForRequest(requestId);
+            if (waitForRequest(requestId) == GNAPluginNS::RequestStatus::kPending)
+                log::warning() << "Request with Id " << requestId << " is still pending";
         } catch (...) {
             log::warning() << "Request with Id " << requestId << " was not awaited successfully";
         }
-    }
-    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
+
+    std::unique_lock<std::mutex> lockGnaCalls{acrossPluginsSync};
     const auto status = Gna2DeviceClose(nGnaDeviceIndex);
     const auto message = checkGna2Status(status, "Gna2DeviceClose", true);
     if (!message.empty()) {

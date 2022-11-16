@@ -82,6 +82,7 @@ void Graph::CreateGraph(NET &net, const ExtensionManager::Ptr& extMgr,
     rtScratchPad = std::make_shared<DnnlScratchPad>(getEngine());
 
     Replicate(net, extMgr);
+
     InitGraph();
 
     status = Ready;
