@@ -42,11 +42,12 @@
 #include "gna_tensor_tools.hpp"
 #include "gna_itt.hpp"
 #include "backend/gna_limitations.hpp"
+#include "common/numerical_utils.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 using namespace GNAPluginNS;
-using namespace ov::intel_gna;
+using namespace ov::intel_gna::frontend;
 
 #define pass_trace() log::debug() << "[" << getName() << "] "
 
@@ -69,9 +70,6 @@ static Blob::Ptr convertToRWBlob(const Blob::Ptr& readOnlyBlob, const std::strin
     return blob;
 }
 
-static bool fp32eq(float p1, float p2) {
-    return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
-}
 // indexes stored in pass manager
 static const char identityLayersCounterName[] = "identityLayerCounter";
 static const char diagonalLayersCounterName[] = "diagonalLayerCounter";
@@ -111,8 +109,7 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
     CopyVectorToBlob(diagLayer->_weights, weightsValues);
     auto dataPtr = std::make_shared<Data>(diagName, nextLayer->outData[0]->getTensorDesc());
 
-    auto diagonalWithQuant = quantized ?
-                             InferenceEngine::injectData<QuantizedLayerParams>(diagLayer) : diagLayer;
+    auto diagonalWithQuant = quantized ? InferenceEngine::injectData<QuantizedLayerParams>(diagLayer) : diagLayer;
     getCreatorLayer(dataPtr) = diagonalWithQuant;
     diagonalWithQuant->outData.push_back(dataPtr);
     // actual insertion
@@ -134,8 +131,7 @@ static CNNLayerPtr InsertCopyLayer(CNNLayerPtr prevLayer, CNNLayerPtr nextLayer,
 
     auto inputData = nextLayer->insData[beforeIdx].lock();
     auto dataPtr = std::make_shared<Data>(copyName, inputData->getTensorDesc());
-    auto copyWithQuant = quantized ?
-                         InferenceEngine::injectData<QuantizedLayerParams>(copyLayer) :
+    auto copyWithQuant = quantized ? InferenceEngine::injectData<QuantizedLayerParams>(copyLayer) :
                          copyLayer;
     getCreatorLayer(dataPtr) = copyWithQuant;
     copyWithQuant->outData.push_back(dataPtr);
@@ -435,9 +431,6 @@ void SubstituteSoftSignPass::run() {
     // power |                  power |
     //  \   /                    \   /
     //    mul                      mul
-    auto fp32eq = [](float p1, float p2) {
-        return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
-    };
 
     auto hasNChildren = [](CNNLayerPtr l, int N){
         if (l->outData.size() != 1) return false;
@@ -474,16 +467,19 @@ void SubstituteSoftSignPass::run() {
         auto powerLayer = LayerInfo(addition).as<PowerLayer*>();
 
         // first layer after abs must have scale of 1, offset of 1 and power of either 1 or -1
-        if (!fp32eq(powerLayer->scale, 1.0f) || !fp32eq(powerLayer->offset, 1.0f) || !fp32eq(std::abs(powerLayer->power), 1.0f)) continue;
+        if (!common::fp32eq(powerLayer->scale, 1.0f) || !common::fp32eq(powerLayer->offset, 1.0f) ||
+            !common::fp32eq(std::abs(powerLayer->power), 1.0f)) continue;
         // power == -1, offset = 1, scale = 1
-        if (fp32eq(powerLayer->power, -1.0f)) {
+        if (common::fp32eq(powerLayer->power, -1.0f)) {
             std::swap(addition, power);
         } else { // power = 1, offset = 1, scale - 1
             power = getNthChild(addition, 0);
             if (!LayerInfo(power).isPower()) continue;
             auto powerLayer_1 = LayerInfo(power).as<PowerLayer*>();
             // layer after addition must have power of -1, offset of 0 and scale of 1
-            if (!fp32eq(powerLayer_1->power, -1.0f) || !fp32eq(powerLayer_1->offset, 0.0f) || !fp32eq(powerLayer_1->scale, 1.0f)) continue;
+            if (!common::fp32eq(powerLayer_1->power, -1.0f) || !common::fp32eq(powerLayer_1->offset, 0.0f) ||
+                !common::fp32eq(powerLayer_1->scale, 1.0f))
+                continue;
         }
 
         if (!hasNChildren(power, 1)) continue;
@@ -2167,9 +2163,8 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
             THROW_GNA_LAYER_EXCEPTION(fqLayer) << " unsupported per-channel quantisation";
         }
 
-        if (!LayerInfo(prevLayer).isConst() &&
-            !fp32eq(inputRange.first.front(), outputRange.first.front()) &&
-            !fp32eq(inputRange.second.front(), outputRange.second.front())) {
+        if (!LayerInfo(prevLayer).isConst() && !common::fp32eq(inputRange.first.front(), outputRange.first.front()) &&
+            !common::fp32eq(inputRange.second.front(), outputRange.second.front())) {
             THROW_GNA_LAYER_EXCEPTION(fqLayer) << " unsupported data range conversion. Input: (" <<
                 inputRange.first.front() << "," << inputRange.second.front() << "), output: (" <<
                 outputRange.first.front() << "," << outputRange.second.front() << ")";

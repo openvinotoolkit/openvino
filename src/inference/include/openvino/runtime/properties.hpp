@@ -889,5 +889,5 @@ static constexpr Property<Affinity> affinity{"AFFINITY"};
  * @brief The devices that the inference task been executed.
  * @ingroup ov_runtime_cpp_prop_api
  */
-static constexpr Property<std::string> execution_devices{"EXECUTION_DEVICES"};
+static constexpr Property<std::vector<std::string>, PropertyMutability::RO> execution_devices{"EXECUTION_DEVICES"};
 }  // namespace ov

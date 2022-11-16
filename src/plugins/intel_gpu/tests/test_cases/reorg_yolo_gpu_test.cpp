@@ -297,7 +297,7 @@ public:
         std::tie(params, target_format, should_fail) = this->GetParam();
 
         if (should_fail) {
-            ASSERT_THROW(run_test(params, target_format), std::invalid_argument);
+            ASSERT_ANY_THROW(run_test(params, target_format));
         } else {
             ASSERT_NO_FATAL_FAILURE(run_test(params, target_format));
         }
