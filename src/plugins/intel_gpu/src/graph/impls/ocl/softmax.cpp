@@ -38,6 +38,8 @@ static inline kernel_selector::softmax_dim get_softmax_dim(int64_t axis, size_t 
 struct softmax_impl : typed_primitive_impl_ocl<softmax> {
     using parent = typed_primitive_impl_ocl<softmax>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::softmax_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::softmax_params, kernel_selector::softmax_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -45,26 +47,15 @@ struct softmax_impl : typed_primitive_impl_ocl<softmax> {
         return make_unique<softmax_impl>(*this);
     }
 
-    static primitive_impl* create(const softmax_node& arg, const kernel_impl_params& impl_param) {
-        const auto primitive = arg.get_primitive();
-        auto sm_params = get_default_params<kernel_selector::softmax_params>(impl_param);
-        auto sm_optional_params =
-            get_default_optional_params<kernel_selector::softmax_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<softmax>();
+        auto params = get_default_params<kernel_selector::softmax_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::softmax_optional_params>(impl_param.get_program());
 
-        size_t rank = arg.get_output_layout().get_rank();
-        sm_params.dim = get_softmax_dim(primitive->dimension, rank);
+        size_t rank = impl_param.get_output_layout().get_rank();
+        params.dim = get_softmax_dim(primitive->dimension, rank);
 
-        auto& kernel_selector = kernel_selector::softmax_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(sm_params, sm_optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto softmax_node = new softmax_impl(arg, best_kernels[0]);
-
-        return softmax_node;
+        return {params, optional_params};
     }
 };
 
@@ -79,7 +70,7 @@ attach_softmax_impl::attach_softmax_impl() {
             format::bfzyx
     };
 
-    implementation_map<softmax>::add(impl_types::ocl, softmax_impl::create, types, formats);
+    implementation_map<softmax>::add(impl_types::ocl, typed_primitive_impl_ocl<softmax>::create<softmax_impl>, types, formats);
 }
 
 }  // namespace detail

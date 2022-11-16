@@ -4,7 +4,7 @@
 
 #include "intel_gpu/plugin/program.hpp"
 #include "ngraph/ops.hpp"
-#include "ngraph_ops/nms_ie_internal.hpp"
+#include "ov_ops/nms_ie_internal.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "intel_gpu/plugin/itt.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
@@ -419,7 +419,7 @@ std::vector<cldnn::primitive_id> Program::GetInputPrimitiveIDs(const std::shared
     for (size_t i = 0; i < op->get_input_size(); i++) {
         auto prevOp = op->get_input_node_ptr(i);
         std::string prevName = layer_type_name_ID(prevOp);
-        if (prevOp->get_output_size() > 1) {
+        if (prevOp->get_output_size() > 1 && !allow_new_shape_infer) {
             prevName += ".out" + std::to_string(op->get_input_source_output(i).get_index());
         }
 

@@ -219,8 +219,8 @@ void divide_floor(const DimType& dividend, const typename DimType::value_type& d
     if (dividend.get_max_length() == -1) {
         quotient = -1;
     } else {
-        auto lb = floor(1. * dividend.get_min_length() / divisor);
-        auto ub = floor(1. * dividend.get_max_length() / divisor);
+        auto lb = static_cast<size_t>(floor(1. * dividend.get_min_length() / divisor));
+        auto ub = static_cast<size_t>(floor(1. * dividend.get_max_length() / divisor));
         quotient = DimType(lb, ub);
     }
 }
