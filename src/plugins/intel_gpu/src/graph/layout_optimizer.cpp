@@ -241,13 +241,36 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     if (next.is_type<reorder>())
         return true;
 
+    auto is_input_reorder = [](program_node& prev, program_node& next) {
+        auto found_reorder = std::find_if(next.get_dependencies().begin(), next.get_dependencies().end(), [](cldnn::program_node* node){
+            return node->is_type<reorder>();
+        });
+        // if there is no reorder between prev and next, it returns true.
+        // This case is needed for can_fuse_reorder in reorder_inputs pass.
+        if (found_reorder == std::end(next.get_dependencies())) {
+            return true;
+        }
+        for (auto& next_dep : next.get_dependencies()) {
+            if (!next_dep->is_type<reorder>())
+                continue;
+            for (auto& prev_usr : prev.get_users()) {
+                if (!prev_usr->is_type<reorder>())
+                    continue;
+                if (next_dep == prev_usr && next.get_dependency_index(*next_dep) == 0) {
+                    return true;
+                }
+            }
+        }
+         return false;
+    };
+
     // Errata for onednn layout selection
-    if (next.is_type<convolution>() && next.get_dependencies().size() == 1 &&
+    if (next.is_type<convolution>() &&
         next.get_preferred_impl_type() == impl_types::onednn &&
         ((fmt_prev == format::byxf && fmt_next == format::byxf) ||
-         (fmt_prev == format::bfyx && fmt_next == format::byxf))) {
+         (fmt_prev == format::bfyx && fmt_next == format::byxf)) &&
+        is_input_reorder(prev, next))
         return true;
-    }
 
     // Do not remove reorder if it is necessary to fulfill required_input
     auto& reorder_node = next.get_dependency(0);
