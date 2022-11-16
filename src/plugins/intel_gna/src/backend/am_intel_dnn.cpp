@@ -751,11 +751,9 @@ void GNAPluginNS::backend::AMIntelDNN::PrintOffset(std::ofstream& out, const std
         typeOfRegion = GNAPluginNS::memory::rRegionToStr(queue->regionType());
         offset = queue->getOffset(ptr).second;
     }
-    std::ios_base::fmtflags out_flags(out.flags());
     out << "<memory_region_type> " << typeOfRegion << "\n";
     out << "<" << type << "_address> "
         << "0x" << std::setfill('0') << std::setw(8) << std::hex << offset << "\n";
-    out.flags(out_flags);
 }
 
 void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_dnn_number_type_t logging_precision) {
