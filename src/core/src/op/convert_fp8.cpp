@@ -416,16 +416,8 @@ namespace convert_fp8 {
         /// <param name="count"></param>
         template <typename T>
         void convertfp16_hf8_libxsmm(const T* arg, T* out, size_t count, bool use_clamp = true) {
-            typedef union half_t {
-                unsigned short u;
-                T f;
-            } __half_t;
-
-            __half_t h;
             for (size_t i = 0; i < count; ++i) {
-                h.f = arg[i];
-                h.u = convert_fp16_hf8_fp16_libxsmm(h.u);
-                out[i] = h.f;
+                out[i] = convert_fp16_hf8_fp16_libxsmm(ov::float16::from_bits(arg[i]));
             }
         }
 
