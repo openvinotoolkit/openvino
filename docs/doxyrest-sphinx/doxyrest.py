@@ -474,7 +474,7 @@ def on_builder_inited(app):
         this_dir + '/css/doxyrest-pygments.css',
         this_dir + '/css/scrollbox.css',
         this_dir + '/js/target-highlight.js',
-        this_dir + 'scrollbox-sortable-tables.js',
+        this_dir + '/js/scrollbox-sortable-tables.js',
     ]
 
     add_css_file(app, 'doxyrest-pygments.css')
