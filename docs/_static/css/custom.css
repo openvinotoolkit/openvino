@@ -36,27 +36,6 @@ main img {
 [aria-labelledby="version-selector"]  .dropdown-item { 
     padding: 0.25rem 0.5rem!important;
 }
-/* Scrollable container divs */
-.scrollable {
-    height:fit-content;
-}
-
-.scrollable table {
-    border-collapse: separate;
-    border-spacing: 0;
-    overflow-y: scroll;
- }
- div#supported-layers-table table th {
-    background: white;
-    position: sticky!important;
-    top: 0!important;
-    border-top: solid 1px #dee2e6;
-    border-bottom: solid 1px #dee2e6;
- }
-
-div#supported-layers-table table {
-    max-height: 300px;
-}
 
 /* Content in two columns */
 
