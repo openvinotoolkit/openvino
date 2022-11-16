@@ -25,7 +25,7 @@ const std::vector<ShapeRelatedParams> shapeRelatedParams = {
         { { {1, 5}, false }, { {1, 5}, true } },
         { { {2, 1, 1, 5, 6}, false }, { {1, 1, 4, 6}, true } },
         { { {2, 1, 2, 3, 5, 6}, false }, { {1, 1, 4, 6}, true } },
-        { { {4, 5, 6}, false }, { {3, 6}, true } },
+        { { {4, 5, 6}, false }, { {6, 3}, false } },
         { { {5, 1}, true }, { {1, 5}, true } },
         { { {65, 100}, false }, { {73, 100}, true } },
         { { {9, 9, 9}, false }, { {9, 9}, true } }
