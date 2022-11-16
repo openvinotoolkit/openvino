@@ -12,7 +12,7 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_select(NodeContext& context) {
-    auto const_1 =  context.mark_node(opset8::Constant::create(element::i32, Shape{1}, {1}));
+    auto const_1 = context.mark_node(opset8::Constant::create(element::i32, Shape{1}, {1}));
     auto const_minus_1 = context.mark_node(opset8::Constant::create(element::i32, Shape{1}, {-1}));
     auto const_0 = context.mark_node(opset8::Constant::create(element::i32, Shape{1}, {0}));
     auto input_tensor = context.get_input(0);
@@ -23,7 +23,8 @@ OutputVector translate_select(NodeContext& context) {
     auto const_1_signed = context.mark_node(std::make_shared<opset8::Select>(less, const_minus_1, const_1));
     auto stop = context.mark_node(std::make_shared<opset8::Add>(start, const_1_signed));
 
-    auto slice_node = context.mark_node(std::make_shared<opset8::Slice>(input_tensor, start, stop, const_1_signed, dim));
+    auto slice_node =
+        context.mark_node(std::make_shared<opset8::Slice>(input_tensor, start, stop, const_1_signed, dim));
 
     return {context.mark_node(std::make_shared<opset8::Squeeze>(slice_node, dim))};
 };
