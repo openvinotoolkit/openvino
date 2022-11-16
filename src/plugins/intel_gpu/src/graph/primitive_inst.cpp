@@ -1053,7 +1053,7 @@ void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
             ob << cldnn::make_data(_outputs[0]->buffer_ptr(), data_size);
         } else {
             mem_lock<char, mem_lock_type::read> lock{_outputs[0], get_node().get_program().get_stream()};
-            ob << cldnn::make_data(lock.begin(), data_size);
+            ob << cldnn::make_data(lock.data(), data_size);
         }
     } else {
         object_type _object_type = object_type::EXECUTABLE_INST;
