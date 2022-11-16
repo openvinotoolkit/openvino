@@ -101,6 +101,7 @@ inline std::ostream& operator<<(std::ostream& os, const pipeline_stage& stage) {
 }
 
 struct perf_counter_key {
+    std::vector<layout> network_input_layouts;
     std::vector<layout> input_layouts;
     std::vector<layout> output_layouts;
     std::string impl_name;
@@ -113,6 +114,11 @@ struct perf_counter_hash {
         size_t seed = 0;
         seed = hash_combine(seed, static_cast<std::underlying_type<instrumentation::pipeline_stage>::type>(k.stage));
         seed = hash_combine(seed, static_cast<int>(k.cache_hit));
+        for (auto& layout : k.network_input_layouts) {
+            for (auto& d : layout.get_shape()) {
+                seed = hash_combine(seed, d);
+            }
+        }
         for (auto& layout : k.input_layouts) {
             for (auto& d : layout.get_shape()) {
                 seed = hash_combine(seed, d);

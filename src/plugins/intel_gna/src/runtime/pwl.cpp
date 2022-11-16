@@ -33,7 +33,6 @@
 #include "ops/reference/pwl.hpp"
 
 using namespace ov::intel_gna;
-using namespace ov::intel_gna::common;
 
 double relu(const double x) { if (x < 0) { return(0.0); } else { return(x); } }
 double leaky_relu(const double x) { if (x < 0.0) { return(LEAKYRELU_SLOPE*x); } else { return(x); } }
@@ -165,11 +164,11 @@ void PwlDesign(const DnnActivation& activation_type,
                                 break;
                         }
                         slope_scale = static_cast<uint64_t>(1) << (8 * (1 + slope_scale_index));
-                        ptr_segment[i].slope = float_to_int16(slope * slope_scale);
+                        ptr_segment[i].slope = FLOAT_TO_INT16(slope * slope_scale);
 
                         ptr_segment[i].xBase = ptr_segment[i].xBase | slope_scale_index;
                     }
-                    ptr_segment[i].yBase = float_to_int16(floatval * scale_out);
+                    ptr_segment[i].yBase = FLOAT_TO_INT16(floatval * scale_out);
                     log::debug() << (static_cast<int32_t>((ptr_segment[i].xBase & XBASEMASK))/scale_out)
                              << " "
                              << (static_cast<float>((ptr_segment[i].yBase))/scale_out)
@@ -213,10 +212,10 @@ void PwlDesign(const DnnActivation& activation_type,
                                 break;
                         }
                         slope_scale = static_cast<uint64_t>(1) << (8 * (1 + slope_scale_index));
-                        ptr_segment[i].slope = float_to_int16(slope * slope_scale);
+                        ptr_segment[i].slope = FLOAT_TO_INT16(slope * slope_scale);
                         ptr_segment[i].xBase = ptr_segment[i].xBase | slope_scale_index;
                     }
-                    ptr_segment[i].yBase = float_to_int16(floatval * scale_out);
+                    ptr_segment[i].yBase = FLOAT_TO_INT16(floatval * scale_out);
                     log::debug() << (static_cast<int32_t>((ptr_segment[i].xBase & XBASEMASK))/scale_out)
                              << " "
                              << (static_cast<float>((ptr_segment[i].yBase))/scale_out)
@@ -260,10 +259,10 @@ void PwlDesign(const DnnActivation& activation_type,
                                 break;
                         }
                         slope_scale = static_cast<uint64_t>(1) << (8 * (1 + slope_scale_index));
-                        ptr_segment[i].slope = float_to_int16(slope * slope_scale);
+                        ptr_segment[i].slope = FLOAT_TO_INT16(slope * slope_scale);
                         ptr_segment[i].xBase = ptr_segment[i].xBase | slope_scale_index;
                     }
-                    ptr_segment[i].yBase = float_to_int16(floatval * scale_out);
+                    ptr_segment[i].yBase = FLOAT_TO_INT16(floatval * scale_out);
                     log::debug() << (static_cast<int32_t>((ptr_segment[i].xBase & XBASEMASK)) / scale_out)
                         << " "
                         << (static_cast<float>((ptr_segment[i].yBase)) / scale_out)
@@ -322,7 +321,7 @@ void PwlDesign(const DnnActivation& activation_type,
                             break;
                     }
                     slope_scale = static_cast<uint64_t>(1) << (8 * (1 + slope_scale_index));
-                    ptr_segment[1].slope = float_to_int16(slope * slope_scale);
+                    ptr_segment[1].slope = FLOAT_TO_INT16(slope * slope_scale);
                     ptr_segment[1].xBase = ptr_segment[1].xBase | slope_scale_index;
                 }
                 ptr_segment[2].xBase = static_cast<int32_t>(x_upper_limit & XBASEMASK);
@@ -341,7 +340,7 @@ void PwlDesign(const DnnActivation& activation_type,
 
                 auto input_min_value = static_cast<double>(std::numeric_limits<int32_t>::min());
                 auto input_max_value = static_cast<double>(std::numeric_limits<int32_t>::max());
-                double x_min = are_fp_eq(fmod(activation_type.args.pow.exponent, 1.0), 0.0)? input_min_value / scale_in: 0.0;
+                double x_min = ov::intel_gna::common::fp32eq(fmod(activation_type.args.pow.exponent, 1.0), 0.0f)? input_min_value / scale_in: 0.0;
                 x_min = std::max(x_min, -POW_DOMAIN);
 
                 double x_max = input_max_value / scale_in;
@@ -372,10 +371,10 @@ void PwlDesign(const DnnActivation& activation_type,
                     double slope = (valnext - val) / (static_cast<double>(xbasenext - xbase) / scale_in);
                     auto s = gna_slope(slope, scale_in, scale_out);
 
-                    ptr_segment[i].slope = float_to_int16(s.slope * s.slope_scale);
+                    ptr_segment[i].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
                     ptr_segment[i].xBase = ptr_segment[i].xBase | s.slope_scale_index;
 
-                    ptr_segment[i].yBase = float_to_int16(val * scale_out);
+                    ptr_segment[i].yBase = FLOAT_TO_INT16(val * scale_out);
                     log::debug() << (static_cast<int32_t>((ptr_segment[i].xBase & XBASEMASK)) / scale_out)
                         << " "
                         << (static_cast<float>((ptr_segment[i].yBase)) / scale_out)
