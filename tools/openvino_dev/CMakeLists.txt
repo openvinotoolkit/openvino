@@ -2,6 +2,35 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+cmake_minimum_required (VERSION 3.13)
+
+project(OpenVINODevPython DESCRIPTION "OpenVINO Python Development tools")
+
+#
+# Packages & settings
+#
+
+if(NOT DEFINED OpenVINO_SOURCE_DIR)
+    get_filename_component(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.." REALPATH)
+endif()
+
+find_package(IEDevScripts REQUIRED
+             PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
+             NO_CMAKE_FIND_ROOT_PATH
+             NO_DEFAULT_PATH)
+
+# define version (syncronize with src/bindings/python/wheel/CMakeLists.txt)
+
+if(DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT "$ENV{CI_BUILD_DEV_TAG}" STREQUAL "")
+    set(WHEEL_VERSION "${OpenVINO_VERSION}.$ENV{CI_BUILD_DEV_TAG}" CACHE STRING "Version of this release" FORCE)
+    set(wheel_pre_release ON)
+else()
+    set(WHEEL_VERSION ${OpenVINO_VERSION} CACHE STRING "Version of this release" FORCE)
+endif()
+set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
+
+# openvino_dev build
+
 set(SETUP_PY "${CMAKE_CURRENT_SOURCE_DIR}/setup.py")
 
 set(openvino_wheel_name "openvino_dev-${WHEEL_VERSION}-${WHEEL_BUILD}-py3-none-any.whl")
@@ -17,12 +46,15 @@ add_custom_command(OUTPUT ${openvino_wheel_path}
             --quiet
     COMMAND ${CMAKE_COMMAND} -E env OPENVINO_VERSION=${WHEEL_VERSION}
         ${PYTHON_EXECUTABLE} ${SETUP_PY} clean
-    DEPENDS ie_wheel
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Building Python wheel ${openvino_wheel_name}"
     VERBATIM)
 
 add_custom_target(openvino_dev_wheel ALL DEPENDS ${openvino_wheel_path})
+
+if(TARGET ie_wheel)
+    add_dependencies(openvino_dev_wheel ie_wheel)
+endif()
 
 # install
 

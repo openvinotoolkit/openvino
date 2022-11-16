@@ -16,14 +16,6 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
     set(OpenVINO_BINARY_DIR "${OpenVINODeveloperPackage_DIR}")
 endif()
 
-if(DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT "$ENV{CI_BUILD_DEV_TAG}" STREQUAL "")
-    set(WHEEL_VERSION "${OpenVINO_VERSION}.$ENV{CI_BUILD_DEV_TAG}" CACHE STRING "Version of this release" FORCE)
-    set(wheel_pre_release ON)
-else()
-    set(WHEEL_VERSION ${OpenVINO_VERSION} CACHE STRING "Version of this release" FORCE)
-endif()
-set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
-
 #
 # Check python requirements
 #
@@ -146,6 +138,11 @@ if(LINUX)
         set(ENABLE_WHEEL_DEFAULT OFF)
         message(${message_mode} "patchelf is not found. It is required to build OpenVINO Runtime wheel. Install via apt-get install patchelf")
     endif()
+endif()
+
+if(CMAKE_VERSION VERSION_LESS 3.15)
+    message(${message_mode} "Cmake version 3.15 and higher is required. Provided version ${CMAKE_VERSION}")
+    set(ENABLE_WHEEL_DEFAULT OFF)
 endif()
 
 # this option should not be a part of OpenVINODeveloperPackage
