@@ -12,12 +12,26 @@ namespace {
 
 const std::vector<InferenceEngine::Precision> inputPrecisions = {
         InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16
+//        InferenceEngine::Precision::FP16
 };
 
 const std::vector<ShapeRelatedParams> shapeRelatedParams = {
-        { { {2, 1, 1, 5, 6}, false }, { {1, 1, 6, 4}, false } },
         { { {2, 2, 16, 4}, false }, { {1, 1, 4, 1}, false } },
+
+        { { {2, 2, 4, 16}, true }, { {1, 1, 1, 4}, true } },
+        { { {100, 65}, true }, { {73, 100}, true } },
+        { { {1, 16, 128}, false }, { {1, 64, 128}, true } },
+        { { {1, 2, 3}, false }, { {1, 1, 2, 3}, true } },
+        { { {1, 5}, false }, { {1, 5}, true } },
+        { { {2, 1, 1, 5, 6}, false }, { {1, 1, 4, 6}, true } },
+        { { {2, 1, 2, 3, 5, 6}, false }, { {1, 1, 4, 6}, true } },
+        { { {4, 5, 6}, false }, { {3, 6}, true } },
+        { { {5, 1}, true }, { {1, 5}, true } },
+        { { {65, 100}, false }, { {73, 100}, true } },
+        { { {9, 9, 9}, false }, { {9, 9}, true } }
+/*
+
+        { { {2, 1, 1, 5, 6}, false }, { {1, 1, 6, 4}, false } },
         //{ { {2, 2, 4, 16}, true }, { {1, 1, 1, 4}, true } },
         { { {2, 1, 2, 3, 5, 6}, false }, { {1, 1, 6, 4}, false } },
         { { {1, 4, 5, 6}, false }, { {1, 4, 6, 4}, false } },
@@ -44,11 +58,12 @@ const std::vector<ShapeRelatedParams> shapeRelatedParams = {
         { { {5}, false }, { {5, 1}, false } },
         { { {5}, false }, { {5}, false } },
         { { {5}, true }, { {5}, true } }
+*/
 };
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
         ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER,
+//        ngraph::helpers::InputLayerType::PARAMETER,
 };
 
 std::map<std::string, std::string> additional_config = {};
