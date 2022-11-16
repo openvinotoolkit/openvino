@@ -7,7 +7,6 @@ import argparse
 from lxml import etree
 from pathlib import Path
 from xml.sax import saxutils
-import cProfile
 
 
 def prepare_xml(xml_dir: Path):
@@ -66,5 +65,4 @@ def main():
 
 
 if __name__ == '__main__':
-    print('Prepare_xml')
-    cProfile.run('main()')
+    main()

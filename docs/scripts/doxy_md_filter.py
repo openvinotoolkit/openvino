@@ -7,7 +7,6 @@ import argparse
 from pathlib import Path
 import shutil
 import logging
-import cProfile
 
 INLINE_LINKS_PATTERN = r'!?\[.*?\]\(([\w\/\-\.]+\.md)\)'
 REFERENCE_LINKS_PATTERN = r'\[.+\]\:\s*?([\w\/\-\.]+\.md)'
@@ -196,5 +195,4 @@ def main():
 
 
 if __name__ == '__main__':
-    print('doxy_md_filter')
-    cProfile.run('main()')
+    main()

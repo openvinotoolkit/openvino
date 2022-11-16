@@ -6,7 +6,6 @@ import json
 import logging
 from lxml import etree
 from pathlib import Path
-import cProfile
 
 REPOSITORIES = [
     'openvino',
@@ -88,5 +87,4 @@ def main():
 
 
 if __name__ == '__main__':
-    print('create_mapping')
-    cProfile.run('main()')
+    main()
