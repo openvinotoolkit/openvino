@@ -832,20 +832,27 @@ void Graph::AllocateWithReuse() {
         MemorySolver::normalizeBoxes(undefinedBoxes);
 
         std::vector<std::vector<MemorySolver::Box>> groups; //groups of nonoverlapping boxes
-        groups.push_back({undefinedBoxes.front()});
-        for (size_t i = 1; i < undefinedBoxes.size(); ++i) {
-            const auto& box = undefinedBoxes[i];
-            bool groupFound = false;
-            for (auto& group : groups) {
-                const auto& lastBox = group.back();
-                if (lastBox.start > box.finish || lastBox.finish < box.start) {
-                    group.push_back(box);
-                    groupFound = true;
-                    break;
+        constexpr bool enableMemReuse = true; // set false to disable mem reuse for debug purposes
+        if (enableMemReuse) {
+            groups.push_back({undefinedBoxes.front()});
+            for (size_t i = 1; i < undefinedBoxes.size(); ++i) {
+                const auto& box = undefinedBoxes[i];
+                bool groupFound = false;
+                for (auto& group : groups) {
+                    const auto& lastBox = group.back();
+                    if (lastBox.start > box.finish || lastBox.finish < box.start) {
+                        group.push_back(box);
+                        groupFound = true;
+                        break;
+                    }
+                }
+
+                if (!groupFound) {
+                    groups.push_back({box});
                 }
             }
-
-            if (!groupFound) {
+        } else {
+            for (auto& box : undefinedBoxes) {
                 groups.push_back({box});
             }
         }
@@ -1063,9 +1070,6 @@ void Graph::InferStatic(InferRequestBase* request) {
 void Graph::InferDynamic(InferRequestBase* request) {
     dnnl::stream stream(eng);
 
-    size_t prepareCounter = 0;
-    size_t inferCounter = 0;
-
     std::set<size_t> syncIndsWorkSet;
     for (const auto& nodeIndx : syncNodesInds) {
         syncIndsWorkSet.insert(nodeIndx.second);
@@ -1078,14 +1082,20 @@ void Graph::InferDynamic(InferRequestBase* request) {
     std::function<void(size_t)> updateNodes;
 
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-    std::vector<tbb::atomic<uint8_t>> waveFrontCount(executableGraphNodes.size(), 2);
-    waveFrontCount.front() = 1;
+    std::atomic<size_t> prepareCounter(0);
+    std::vector<std::atomic<uint8_t>> waveFrontCount(executableGraphNodes.size());
+    waveFrontCount.front().store(1);
+    for (size_t i = 1; i < waveFrontCount.size(); ++i) {
+        waveFrontCount[i].store(2);
+    }
+
     tbb::task_group tg;
     std::function<void(size_t, size_t)> updateShapes;
     std::function<void(size_t, size_t)> updateDynParams;
+
     updateShapes = [&](size_t node_indx, size_t stop_indx) {
         const auto& node = executableGraphNodes[node_indx];
-        prepareCounter = node_indx;
+        prepareCounter.store(node_indx);
         if (node_indx >= stop_indx) {
             return;
         }
@@ -1097,10 +1107,11 @@ void Graph::InferDynamic(InferRequestBase* request) {
         }
         updateShapes(node_indx + 1, stop_indx);
     };
+
     updateDynParams = [&](size_t node_indx, size_t stop_indx) {
         const auto& node = executableGraphNodes[node_indx];
         if (node_indx >= stop_indx) {
-            prepareCounter = node_indx;
+            prepareCounter.store(node_indx);
             return;
         }
         if (node->isDynamicNode()) {
@@ -1110,11 +1121,14 @@ void Graph::InferDynamic(InferRequestBase* request) {
             tg.run([=, &updateDynParams](){ updateDynParams(node_indx + 1, stop_indx); });
         }
     };
+
     updateNodes = [&](size_t stopIndx) {
-        tg.run([=, &updateShapes](){ updateShapes(prepareCounter, stopIndx); });
+        auto startCounter = prepareCounter.load();
+        tg.run([=, &updateShapes](){ updateShapes(startCounter, stopIndx); });
         tg.wait();
     };
 #else
+    size_t prepareCounter = 0;
     updateNodes = [&](size_t stopIndx) {
         for (; prepareCounter < stopIndx; ++prepareCounter) {
             const auto& node = executableGraphNodes[prepareCounter];
@@ -1125,6 +1139,7 @@ void Graph::InferDynamic(InferRequestBase* request) {
         }
     };
 #endif
+    size_t inferCounter = 0;
 
     for (auto stopIndx : syncIndsWorkSet) {
         updateNodes(stopIndx);
