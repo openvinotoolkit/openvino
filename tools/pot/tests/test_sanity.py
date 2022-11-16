@@ -216,6 +216,7 @@ def launch_simplified_mode(_simplified_params, tmp_path, models, engine_config):
 def _simplified_params(request):
     return request.param
 
+@pytest.mark.skip(reason="unstable metrics")
 def test_simplified_mode(_simplified_params, tmp_path, models):
     with open(PATHS2DATASETS_CONFIG.as_posix()) as f:
         data_source = Dict(json.load(f))['ImageNet2012'].pop('source_dir')

@@ -33,6 +33,7 @@ using mutable_data_node = typed_program_node<mutable_data>;
 template <>
 class typed_primitive_inst<mutable_data> : public typed_primitive_inst_base<mutable_data> {
     using parent = typed_primitive_inst_base<mutable_data>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(mutable_data_node const& node, kernel_impl_params const& impl_param) {
@@ -43,6 +44,9 @@ public:
 
     typed_primitive_inst(network& network, mutable_data_node const& node);
     void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
+
+    void save(cldnn::BinaryOutputBuffer& ob) const override;
+    void load(cldnn::BinaryInputBuffer& ib) override;
 };
 
 using mutable_data_inst = typed_primitive_inst<mutable_data>;
