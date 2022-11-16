@@ -49,11 +49,14 @@ public:
         const auto& primitive = impl_param.typed_desc<fully_connected>();
 
         auto get_fc_input_layouts = [primitive](const std::vector<layout>& input_layouts) {
-            auto reshape_to_2d = [](const ov::PartialShape& shape, int64_t feature) {
+            auto reshape_to_2d = [](const ov::PartialShape& shape, const ov::Dimension& feature) {
+                if (shape.is_static() && feature.is_static()) {
                     auto staticShape = shape.to_shape();
                     size_t total = std::accumulate(staticShape.begin(), staticShape.end(), 1, std::multiplies<size_t>());
-                    std::vector<int64_t> reshapeSize = { static_cast<int64_t>(total) / feature, feature };
-                    return reshapeSize;
+                    return ov::PartialShape{ static_cast<int64_t>(total) / feature.get_length(), feature.get_length() };
+                } else {
+                    return ov::PartialShape{ ov::Dimension::dynamic(), feature };
+                }
             };
 
             auto input0_layout = input_layouts[0];
@@ -62,7 +65,7 @@ public:
             auto input0_pshape = input0_layout.get_partial_shape();
             auto input1_pshape = input1_layout.get_partial_shape();
 
-            int64_t feature = input0_pshape[std::min(primitive->input_size, static_cast<size_t>(4)) - 1ul].get_length();
+            ov::Dimension feature = input0_pshape[std::min(primitive->input_size, static_cast<size_t>(4)) - 1ul];
 
             if (primitive->input_size > 3) {
                 input0_layout.set_partial_shape(reshape_to_2d(input0_pshape, feature));
@@ -78,12 +81,12 @@ public:
         auto get_fc_output_layout = [primitive](const std::vector<layout>& input_layouts, const layout& output_layout) {
             auto updated_out_layout = output_layout;
 
-            ov::PartialShape updated_out_pshape { input_layouts[0].get_partial_shape().begin()->get_length(),
-                                                  input_layouts[1].get_partial_shape().begin()->get_length() };
+            auto input0_pshape = input_layouts[0].get_partial_shape();
+            auto input1_pshape = input_layouts[1].get_partial_shape();
+            ov::PartialShape updated_out_pshape {input0_pshape[0], input1_pshape[0]};
+
             if (primitive->input_size == 3) {
-                updated_out_pshape = { input_layouts[0].get_partial_shape().begin()->get_length(),
-                                       (input_layouts[0].get_partial_shape().begin() + 1)->get_length(),
-                                       input_layouts[1].get_partial_shape().begin()->get_length() };
+                updated_out_pshape = { input0_pshape[0], input0_pshape[1], input1_pshape[0] };
             }
             updated_out_layout.set_partial_shape(updated_out_pshape);
 
@@ -120,12 +123,27 @@ public:
         optional_params.tuningParams.runner = std::make_shared<gpu::kernel_runner>(progam.get_engine(), progam.get_id(), true);
         return {params, optional_params};
     }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto kernel_params = get_kernel_params(impl_param);
+        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+    }
 };
 
 namespace detail {
 
 attach_fully_connected_impl::attach_fully_connected_impl() {
-    implementation_map<fully_connected>::add(impl_types::ocl, typed_primitive_impl_ocl<fully_connected>::create<fully_connected_impl>, {
+    implementation_map<fully_connected>::add(impl_types::ocl,
+                                             shape_types::dynamic_shape,
+                                             typed_primitive_impl_ocl<fully_connected>::create<fully_connected_impl>, {
+        std::make_tuple(data_types::f32, format::bfyx),
+        std::make_tuple(data_types::f16, format::bfyx),
+        std::make_tuple(data_types::u8, format::bfyx),
+        std::make_tuple(data_types::i8, format::bfyx),
+    });
+    implementation_map<fully_connected>::add(impl_types::ocl,
+                                             shape_types::static_shape,
+                                             typed_primitive_impl_ocl<fully_connected>::create<fully_connected_impl>, {
         std::make_tuple(data_types::f32, format::yxfb),
         std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::f32, format::bfyx),
