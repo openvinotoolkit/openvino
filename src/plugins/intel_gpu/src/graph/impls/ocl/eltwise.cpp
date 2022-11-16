@@ -63,21 +63,22 @@ public:
         if (impl_param.get_program().get_node(primitive->id).is_dynamic()) {
             params.broadcast = true;
         } else {
-        for (size_t i = 0; i < params.inputs.size(); i++) {
-            if (!params.inputs[i].SameDims(params.outputs[0])) {
-                std::vector<int32_t> input_size = impl_param.input_layouts[i].get_tensor().raw.vector();
-                std::vector<int32_t> output_size = impl_param.get_output_layout().get_tensor().raw.vector();
-                bool broadcast = false;
-                for (size_t d = 0; d < output_size.size(); d++) {
-                    if (output_size[d] != 1 && input_size[d] == 1)
-                        broadcast = true;
-                }
-                if (broadcast) {
-                    params.broadcast = true;
-                    break;
-                } else {
-                    params.layoutBased = true;
-                    break;
+            for (size_t i = 0; i < params.inputs.size(); i++) {
+                if (!params.inputs[i].SameDims(params.outputs[0])) {
+                    std::vector<int32_t> input_size = impl_param.input_layouts[i].get_tensor().raw.vector();
+                    std::vector<int32_t> output_size = impl_param.get_output_layout().get_tensor().raw.vector();
+                    bool broadcast = false;
+                    for (size_t d = 0; d < output_size.size(); d++) {
+                        if (output_size[d] != 1 && input_size[d] == 1)
+                            broadcast = true;
+                    }
+                    if (broadcast) {
+                        params.broadcast = true;
+                        break;
+                    } else {
+                        params.layoutBased = true;
+                        break;
+                    }
                 }
             }
         }
