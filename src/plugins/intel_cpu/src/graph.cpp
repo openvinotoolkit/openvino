@@ -414,7 +414,7 @@ void Graph::InitGraph() {
         const auto& node = graphNodes[i];
         if (node->isDynamicNode()) {
             haveDynNodes = true;
-            if (node->outputShapeDataDependency()) {
+            if (node->isInPlace() || node->outputShapeDataDependency()) {
                 syncNodesInds.insert({node.get(), i});
             }
         }
