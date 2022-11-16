@@ -19,6 +19,10 @@ from docutils.transforms import Transform
 from sphinx import __version__ as sphinx_version_string, roles, addnodes, config
 from sphinx.directives.other import Include
 from sphinx.domains import Domain
+from os import path
+from sphinx.application import Sphinx
+from sphinx.config import Config
+from typing import List, Optional, Sequence
 
 #...............................................................................
 #
@@ -136,6 +140,39 @@ def create_target_node(raw_text, text, target, highlight_language, lineno, docum
     return node
 
 
+def visit_scrollbox(self, node):
+    attrs = {}
+    if "height" in node:
+        attrs["style"] = (
+            "height: "
+            + "".join(c for c in str(node["height"]) if c.isdigit()) + "px; "
+            + (("width: " + "".join(c for c in str(node["width"]) if c.isdigit()) ) if "width" in node is not None else "")
+            + (("px; " if node["width"].find("px") != -1 else "%;") if "width" in node is not None else "")
+            + ( ("border-left:solid "+"".join(c for c in str(node["bar"]) if c.isdigit())+ "px " + (("".join(str(node["bar-color"]))) if "bar-color" in node is not None else "#dee2e6") +"; ") if "bar" in node is not None else "")
+            + "overflow-y: scroll; "
+        )
+        attrs["class"] = ("scrollbox sortable-table" if "sortable" in node is not None else "scrollbox")
+    self.body.append(self.starttag(node, "div", **attrs))
+
+
+def depart_scrollbox(self, node):
+    self.body.append("</div>\n")
+
+class Nodescrollbox (nodes.container):
+    def create_scrollbox_component(
+        name: str,
+        classes: Sequence[str] = (),
+        *,
+        rawtext: str = "",
+        children: Sequence[nodes.Node] = (),
+        **attributes,
+    ) -> nodes.container:
+        node = nodes.container(
+            rawtext, is_div=True, design_component=name, classes=classes, **attributes
+        )
+        node.extend(children)
+        return node
+
 #...............................................................................
 #
 #  Sphinx directives
@@ -238,6 +275,43 @@ class RefCodeBlock(Directive):
 
         self.add_name(node)
         return [node]
+
+
+class Scrollbox(Directive):
+    has_content = True
+    required_arguments = 0
+    optional_arguments = 1
+    final_argument_whitespace = True
+    option_spec = {
+        'name': directives.unchanged,
+        'width': directives.length_or_percentage_or_unitless,
+        'height': directives.length_or_percentage_or_unitless,
+        'style': directives.unchanged,
+        'bar': directives.length_or_percentage_or_unitless,
+        'bar-color': directives.unchanged,
+        'sortable': directives.unchanged
+    }
+
+    has_content = True
+
+    def run(self):
+        classes = []
+        node = Nodescrollbox("div", rawtext="\n".join(self.content), classes=classes)
+        if 'height' in self.options:
+            node['height'] = self.options['height']
+        if 'width' in self.options:
+            node['width'] = self.options['width']
+        if 'sortable' in self.options:
+            node['sortable'] = self.options['sortable']
+        if 'bar' in self.options:
+            node['bar'] = self.options['bar']
+        if 'bar-color' in self.options:
+            node['bar-color'] = self.options['bar-color']
+        self.add_name(node)
+        if self.content:
+            self.state.nested_parse(self.content, self.content_offset, node)
+        return [node]
+
 
 #...............................................................................
 #
@@ -398,10 +472,12 @@ if not is_sphinx_tab_aware:
 def on_builder_inited(app):
     app.config.html_static_path += [
         this_dir + '/css/doxyrest-pygments.css',
+        this_dir + '/css/scrollbox.css',
         this_dir + '/js/target-highlight.js'
     ]
 
     add_css_file(app, 'doxyrest-pygments.css')
+    add_css_file(app, 'scrollbox.css')
     add_js_file(app, 'target-highlight.js')
 
     supported_themes = {
@@ -473,12 +549,20 @@ def setup(app):
         html=(visit_doxyrest_literalblock_node, depart_doxyrest_literalblock_node),
         latex=(visit_doxyrest_literalblock_node, depart_doxyrest_literalblock_node)
     )
+    app.add_node(
+        Nodescrollbox,
+        html=(visit_scrollbox, depart_scrollbox),
+        latex=(visit_scrollbox, depart_scrollbox)
+    )
+
+
 
     app.add_role('cref', cref_role)
     app.add_role('target', target_role)
     app.add_config_value('doxyrest_cref_file', default=None, rebuild=True)
     app.add_config_value('doxyrest_tab_width', default=4, rebuild=True)
     directives.register_directive('ref-code-block', RefCodeBlock)
+    directives.register_directive('scrollbox', Scrollbox)
     app.add_transform(RefTransform)
     app.connect('builder-inited', on_builder_inited)
     app.connect('config-inited', on_config_inited)

@@ -175,8 +175,10 @@ Supported Layers
 The following layers are supported by the plugins:
 
 
-.. container:: scrollable
-   :name: supported-layers-table
+.. scrollbox::
+   :height: 300px
+   :bar: 1px
+   :sortable:
 
    +--------------------------------+---------------+---------------+---------------+---------------+-----------------+
    | Layers                         | GPU           | CPU           | VPU           | GNA           | Arm® CPU        |

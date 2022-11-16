@@ -1,0 +1,17 @@
+.scrollbox table {
+   border-collapse: separate;
+   border-spacing: 0;
+}
+.scrollbox table thead {
+   position: -webkit-sticky!important;
+   position: sticky!important;
+   top: 0!important;
+}
+.scrollbox table th {
+   background: white;
+   position: -webkit-sticky!important;
+   position: sticky!important;
+   top: 0!important;
+   border-top: solid 1px #dee2e6!important;
+   border-bottom: solid 1px #dee2e6!important;
+}
