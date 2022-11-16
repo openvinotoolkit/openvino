@@ -355,7 +355,8 @@ def layout_param_to_str(value):
                 raise Exception("Incorrect operation name type. Expected string, got {}".format(type(op_name)))
             values_str.append(op_name + "(" + layoutmap_to_str(layout) + ")")
         return ",".join(values_str)
-
+    if isinstance(value, openvino.tools.mo.LayoutMap):
+        return layoutmap_to_str(value)
     if isinstance(value, list) or isinstance(value, tuple):
         values_str = []
         for layout in value:
