@@ -247,6 +247,7 @@ void CompiledKernelsCacheTest::SetUp() {
     std::tie(targetDevice, userConfig) = GetParam();
     target_device = targetDevice;
     APIBaseTest::SetUp();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     configuration = userConfig.first;
     std::string ext = userConfig.second;
     std::string::size_type pos = 0;

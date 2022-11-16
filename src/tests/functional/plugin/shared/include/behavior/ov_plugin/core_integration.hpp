@@ -70,8 +70,8 @@ protected:
 public:
     void SetUp() override {
         std::tie(target_device, deviceID) = GetParam();
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
     }
 };
 
