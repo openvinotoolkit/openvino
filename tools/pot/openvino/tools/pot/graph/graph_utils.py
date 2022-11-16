@@ -24,7 +24,7 @@ def load_graph(model_config, target_device='ANY'):
     """ Loads model from specified path
     :return NetworkX model
      """
-    special_transform_devices = ['GNA']
+    special_transform_devices = ['GNA', 'GNA3.5']
     serialized_bin_path = os.path.join(tempfile.gettempdir(), 'serialized_ir.bin')
     serialized_xml_path = os.path.join(tempfile.gettempdir(), 'serialized_ir.xml')
     bin_path = model_config.weights
