@@ -34,10 +34,7 @@ struct jit_move_scale_kernel : public jit_uni_move_scale_kernel, public jit_gene
         runtime_prc = jcp_.src_prc == Precision::BF16 ? Precision::BF16 : Precision::FP32;
         if (jcp_.dst_prc == Precision::I8 || jcp_.dst_prc == Precision::U8)
             runtime_prc = Precision::FP32;
-        if (runtime_prc == Precision::BF16)
-            vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / sizeof(uint16_t);
-        else
-            vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / sizeof(float);
+        vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / runtime_prc.size();
     }
     virtual ~jit_move_scale_kernel() {}
 
