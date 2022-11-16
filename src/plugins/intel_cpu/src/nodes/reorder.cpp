@@ -427,39 +427,41 @@ void Reorder::reorderData(const Memory &input, const Memory &output, MultiCacheP
         auto copySize = output.GetSize();
         cpu_memcpy(dstPtr, srcPtr, copySize);
     } else {
-        std::shared_ptr<dnnl::reorder> pReorder;
-        dnnl::memory srcMemory;
-        std::vector<uint8_t> tmpBuff;
-
-        try {
-            srcMemory = input.GetPrimitive();
+        auto getReorder = [] (MultiCachePtr cache, const dnnl::reorder::primitive_desc& pd)
+            -> std::shared_ptr<dnnl::reorder> {
+            std::shared_ptr<dnnl::reorder> reorder;
             if (!cache) {
-                pReorder = std::make_shared<dnnl::reorder>(input.GetPrimitive(), output.GetPrimitive());
+                reorder = std::make_shared<dnnl::reorder>(pd);
             } else {
-                auto engine = output.getEngine();
-                auto builder = [&engine](const ReorderKey& key) -> std::shared_ptr<dnnl::reorder> {
-                    dnnl::primitive_attr attr;
+                auto builder = [&pd](const ReorderKey& key) -> std::shared_ptr<dnnl::reorder> {
                     DEBUG_LOG(key.src, "->", key.dest);
-                    reorder::primitive_desc pd = dnnl::reorder::primitive_desc(engine, key.src, engine, key.dest, attr, true);
-
-                    if (!pd)
-                        return nullptr;
                     return std::make_shared<dnnl::reorder>(pd);
                 };
 
-                auto src_desc = input.GetPrimitive().get_desc();
-                auto dst_desc = output.GetPrimitive().get_desc();
+                auto src_desc = pd.src_desc();
+                auto dst_desc = pd.dst_desc();
                 ReorderKey key = {src_desc, dst_desc};
                 auto result = cache->getOrCreate(key, builder);
-                if (!result.first) {
-                    IE_THROW() << "Cannot create reorder primitive: unsupported reorder case";
-                }
-                pReorder = result.first;
+                reorder = std::move(result.first);
             }
+            return reorder;
+        };
+
+        std::shared_ptr<dnnl::reorder> pReorder;
+        std::vector<uint8_t> tmpBuff;
+
+        auto srcMemory = input.GetPrimitive();
+        auto dstMemory = output.GetPrimitive();
+        auto engine = output.getEngine();
+        dnnl::reorder::primitive_desc pd(srcMemory, dstMemory, dnnl::primitive_attr(), true);
+        // try directly reorder
+        if (pd) {
+            pReorder = getReorder(cache, pd);
         }
-        catch (const dnnl::error& err) {
-            if (dnnl_unimplemented == err.status && output.GetDataType() != input.GetDataType() && Convert::isSupportedDesc(input.getDesc()) &&
-                    Convert::isSupportedDesc(output.getDesc())) {
+        if (!pReorder) {
+            // try precision conversion then do the reorder
+            if (output.GetDataType() != input.GetDataType() && Convert::isSupportedDesc(input.getDesc()) &&
+                Convert::isSupportedDesc(output.getDesc())) {
                 //we probably could not make the reorder because there is no one supporting this precision conversion
                 //lets try to convert data first using cpu_convert
                 auto data = static_cast<const uint8_t *>(input.GetPtr());
@@ -469,19 +471,23 @@ void Reorder::reorderData(const Memory &input, const Memory &output, MultiCacheP
                 cpu_convert(data, tmpBuff.data(), DnnlExtensionUtils::DataTypeToIEPrecision(input.GetDataType()),
                             outPrc, input.GetSize() / input.getDesc().getPrecision().size());
 
-                Memory tmpMem(output.getEngine());
+                Memory tmpMem(engine);
                 auto tmpDesc = input.getDesc().cloneWithNewPrecision(outPrc);
                 tmpMem.Create(std::move(tmpDesc), tmpBuff.data());
 
-                pReorder = std::unique_ptr<dnnl::reorder>(new dnnl::reorder(tmpMem.GetPrimitive(), output.GetPrimitive()));
                 srcMemory = tmpMem.GetPrimitive();
-            } else {
-                throw;
+                dnnl::reorder::primitive_desc pd(srcMemory, dstMemory, dnnl::primitive_attr(), true);
+                if (pd) {
+                    pReorder = getReorder(cache, pd);
+                }
+            }
+            if (!pReorder) {
+                IE_THROW() << "Not supported reorder conversion, in type: " <<
+                    input.getDesc().getPrecision() << ", out type: " << output.getDesc().getPrecision();
             }
         }
         if (pReorder) {
-            dnnl::stream loc_stream(output.getEngine(), dnnl::stream::flags::in_order);
-            auto dstMemory = output.GetPrimitive();
+            dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
             pReorder->execute(loc_stream, srcMemory, dstMemory);
         } else {
             IE_THROW() << "Could not make onednn reorder.";

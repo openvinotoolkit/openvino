@@ -87,7 +87,7 @@ private:
     // different shapes. Weights will be cached in privateWeightCache.
     // When weightCache is enabled, it holds weight ptr reference since weightCache does not hold the
     // reference
-    std::map<std::string, MemoryPtr> privateWeightCache;
+    std::unordered_map<std::string, MemoryPtr> privateWeightCache;
 
     class ExecutorInnerProduct : public DnnlExecutor {
         public:
