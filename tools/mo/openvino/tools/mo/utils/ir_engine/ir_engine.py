@@ -404,7 +404,7 @@ class IREngine(object):
 
         return inputs
 
-    def compare(self, ref_net):
+    def compare(self, ref_net, check_attrs=True):
         if not isinstance(ref_net, IREngine):
             ir_input = self.__find_input(self.graph)[0]
             ref_input = self.__find_input(ref_net)[0]
@@ -415,7 +415,7 @@ class IREngine(object):
             ref_graph = ref_net.graph
         # TODO check that ir_input[0].id and ref_input[0].id are the same
         result, stderr = compare_graphs(graph=self.graph, graph_ref=ref_graph, last_node=ir_input.id,
-                                        last_node_ref=ref_input.id, check_op_attrs=True)
+                                        last_node_ref=ref_input.id, check_op_attrs=check_attrs)
         return result, stderr
 
     def generate_bin_hashes_file(self, path_for_file=None):
