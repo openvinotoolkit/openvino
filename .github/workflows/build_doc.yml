@@ -34,10 +34,11 @@ jobs:
           key: doc-python-requirements
 
       - name: Install apt-get tools
+        uses: awalsh128/cache-apt-pkgs-action@latest
         # install doc dependencies
-        uses: tecolicom/actions-use-apt-tools@v1
         with:
-          tools: graphviz texlive liblua5.2-0
+          packages: graphviz texlive liblua5.2-0
+          version: 3.0
 
       - name: Install dependencies
         run: |
