@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -291,6 +291,25 @@ TEST_F(TypePropEinsumTest, all_dynamic_rank_multi_matmul) {
     auto input_shapes = PartialShapes(3, PartialShape::dynamic());
     const auto inputs = make_inputs(et, input_shapes);
     const auto o = make_op(inputs, equation);
+
+    EXPECT_EQ(o->get_equation(), equation);
+    EXPECT_EQ(o->get_element_type(), et);
+    EXPECT_EQ(o->get_output_size(), exp_einsum_outputs_count);
+    EXPECT_EQ(o->get_output_partial_shape(0), PartialShape({-1, -1}));
+    EXPECT_THAT(get_shape_labels(o->get_output_partial_shape(0)), Each(ov::no_label));
+}
+
+TEST_F(TypePropEinsumTest, default_ctor) {
+    const std::string equation = "ab,bcd,bc->ca";
+    constexpr auto et = element::i32;
+
+    auto input_shapes = PartialShapes(3, PartialShape::dynamic());
+    const auto inputs = make_inputs(et, input_shapes);
+    auto o = make_op();
+
+    o->set_arguments(inputs);
+    o->set_equation(equation);
+    o->validate_and_infer_types();
 
     EXPECT_EQ(o->get_equation(), equation);
     EXPECT_EQ(o->get_element_type(), et);

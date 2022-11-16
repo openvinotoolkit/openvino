@@ -6,24 +6,15 @@
 
 #include <algorithm>
 #include <cctype>
-#include <ngraph/validation_util.hpp>
 #include <string>
 #include <unordered_map>
 
 #include "einsum_shape_inference.hpp"
 #include "itt.hpp"
+#include "ngraph/validation_util.hpp"
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v7::Einsum);
-
-op::v7::Einsum::Einsum(const OutputVector& inputs, const std::string& equation) : Op(inputs), m_equation(equation) {
-    // normalize input equation by removing extra white-spaces from the equation
-    m_equation.erase(std::remove_if(m_equation.begin(), m_equation.end(), ::isspace), m_equation.end());
-
-    constructor_validate_and_infer_types();
-}
 
 namespace {
 
@@ -79,7 +70,27 @@ bool is_label_elsewhere(const std::vector<std::string>& input_subscripts,
     return false;
 }
 
+/// \brief Remove all whitespaces from given string
+///
+/// \param[in,out] s  String to process.
+///
+void remove_whitespaces(std::string& s) {
+    s.erase(std::remove_if(s.begin(),
+                           s.end(),
+                           [](unsigned char c) {
+                               return std::isspace(c);
+                           }),
+            s.end());
+}
+
 }  // namespace
+
+BWDCMP_RTTI_DEFINITION(op::v7::Einsum);
+
+op::v7::Einsum::Einsum(const OutputVector& inputs, const std::string& equation) : Op(inputs), m_equation(equation) {
+    remove_whitespaces(m_equation);
+    constructor_validate_and_infer_types();
+}
 
 void op::v7::Einsum::parse_equation(const std::string& equation,
                                     std::vector<std::string>& input_subscripts,
@@ -199,4 +210,9 @@ shared_ptr<Node> op::v7::Einsum::clone_with_new_inputs(const OutputVector& new_a
     OV_OP_SCOPE(v7_Einsum_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v7::Einsum>(new_args, m_equation);
+}
+
+void op::v7::Einsum::set_equation(std::string equation) {
+    remove_whitespaces(equation);
+    m_equation = std::move(equation);
 }
