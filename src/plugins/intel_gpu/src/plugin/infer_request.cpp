@@ -974,15 +974,14 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
 
 void InferRequest::prepare_output(const cldnn::primitive_id& outputName, Blob::Ptr& outputBlob) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::prepare_output");
-    const auto node = findOutputByNodeName(outputName);
-    const bool is_static = node && node->get_output_partial_shape(0).is_static();
+    const auto output_id = outputsMap.at(outputName);
+    const auto output_layout = m_graph->GetNetwork()->get_node_output_layout(output_id);
+    const bool is_static = output_layout.is_static();
     const bool can_use_usm = m_graph->GetEngine()->use_unified_shared_memory();
     auto remote_ptr = outputBlob->as<gpu::ClBlob>();
     const bool is_dev_input = remote_ptr != nullptr;
 
     if (is_static && can_use_usm && !is_dev_input) {
-        const auto output_id = outputsMap.at(outputName);
-        const auto output_layout = m_graph->GetNetwork()->get_node_output_layout(output_id);
         allocate_dev_mem_if_needed(_deviceOutputs, outputBlob, outputName, output_layout);
     }
 
