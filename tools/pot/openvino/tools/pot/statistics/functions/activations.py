@@ -73,6 +73,8 @@ def mean_per_channel(acts, **_):
 @compute_act_stats_fn_per_channel.register('mean_axis')
 def mean_per_channel_axis(acts, layer_key=None, **kwargs):
     axis = kwargs.get('channel', {}).get(layer_key, 1)
+    if axis >= 0:
+        axis += kwargs.get('graph_depth', 0)
     return calculate_per_channel_stats(acts, np.mean, axis=axis)
 
 

@@ -71,7 +71,7 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
             return false;
         }
 
-        if ((dequantization.multiply != nullptr) && !FakeQuantizeDequantization::checkElementwise(dequantization.multiply)) {
+        if ((dequantization.multiply != nullptr) && !dequantization.checkElementwise(dequantization.multiply)) {
             return false;
         }
 
