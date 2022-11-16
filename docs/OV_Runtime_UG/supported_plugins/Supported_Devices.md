@@ -117,7 +117,7 @@ The following layers are supported by the plugins:
 @sphinxdirective
 
 .. scrollbox::
-   :bar: 1
+   :bar: 1px
    :height: 300px
    :width: 100%
    :sortable:
