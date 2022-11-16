@@ -2,7 +2,7 @@
 
 To enable operations not supported by OpenVINO™ out of the box, you need a custom extension for Model Optimizer, a custom nGraph operation set, and a custom kernel for the device you will target. This page describes custom kernel support for one the VPU, the Intel® Neural Compute Stick 2 device, which uses the MYRIAD device plugin.
 
-> **NOTE:** 
+> **NOTE**: 
 > * OpenCL custom layer support is available in the preview mode.
 > * This section assumes you are familiar with developing kernels using OpenCL.
 To customize your topology with an OpenCL layer, carry out the tasks described on this page:
@@ -540,7 +540,7 @@ __kernel void grn_NCHW(
 }
 ```
 
-> **NOTE:** The `get_local_size` and `get_local_id` usage inside the kernel. 21x speedup is expected for a kernel on enet-curbs setup since it is completely limited by memory usage.
+> **NOTE**: The `get_local_size` and `get_local_id` usage inside the kernel. 21x speedup is expected for a kernel on enet-curbs setup since it is completely limited by memory usage.
 
 An alternative method to using DMA is to use work item copy extension. Those functions are executed inside a kernel and require work groups equal to single work item.
 
