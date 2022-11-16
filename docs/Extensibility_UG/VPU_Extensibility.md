@@ -2,7 +2,7 @@
 
 To enable operations not supported by OpenVINO™ out of the box, you need a custom extension for Model Optimizer, a custom nGraph operation set, and a custom kernel for the device you will target. This page describes custom kernel support for one the VPU, the Intel® Neural Compute Stick 2 device, which uses the MYRIAD device plugin.
 
-> **NOTE**: 
+> **NOTE:**
 > * OpenCL custom layer support is available in the preview mode.
 > * This section assumes you are familiar with developing kernels using OpenCL.
 
