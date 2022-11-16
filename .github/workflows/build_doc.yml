@@ -16,6 +16,9 @@ jobs:
           submodules: recursive
           lfs: true
 
+      - name: Setup ccache
+        uses: Chocobo1/setup-ccache-action@v1
+
       - name: Cache doxygen make
         id: cache_doxygen_make
         uses: actions/cache@v3
