@@ -1,6 +1,8 @@
 .scrollbox table {
    border-collapse: separate;
    border-spacing: 0;
+   height:inherit;
+   overflow-y:scroll;
 }
 .scrollbox table thead {
    position: -webkit-sticky!important;
@@ -15,3 +17,13 @@
    border-top: solid 1px #dee2e6!important;
    border-bottom: solid 1px #dee2e6!important;
 }
+.scrollbox > table.table {
+
+   -ms-overflow-style: none;
+   scrollbar-width: none;
+   overflow-y: scroll;
+
+}
+.scrollbox > table.table::-webkit-scrollbar {
+   display: none;
+ }
