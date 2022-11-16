@@ -26,12 +26,19 @@ jobs:
           path: doxygen-build
           key: build-doxygen-cache
 
+      - name: Cache python requirements
+        id: cache_python_requirements
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: doc-python-requirements
+
       - name: Install dependencies
         run: |
           set -e
           # install doc dependencies
           sudo apt update
-          sudo apt --assume-yes install libusb-1.0-0-dev graphviz texlive liblua5.2-0 doxygen
+          sudo apt --assume-yes install graphviz texlive liblua5.2-0
           cd docs
           python3 -m pip install -r requirements.txt --user
           cd openvino_sphinx_theme
@@ -51,7 +58,7 @@ jobs:
 
       - name: CMake doc
         run: |
-          cmake -DENABLE_DOCS=ON -DENABLE_PYTHON=ON -DCMAKE_BUILD_TYPE=Release -B build
+          cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -DENABLE_DOCS=ON -DENABLE_PYTHON=ON -DCMAKE_BUILD_TYPE=Release -B build
 
       - name: Cache documentation
         id: cache_sphinx_docs
