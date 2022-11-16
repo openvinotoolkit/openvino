@@ -83,9 +83,9 @@ function(build_docs)
 
     if(GRAPH_CSV_DIR)
         set(GRAPH_CSV_DIR_OUT "${RST_OUTPUT}/csv")
-    list(APPEND commands
-        COMMAND ${CMAKE_COMMAND} -E copy_directory "${GRAPH_CSV_DIR}" "${GRAPH_CSV_DIR_OUT}"
-    )
+        list(APPEND commands
+            COMMAND ${CMAKE_COMMAND} -E copy_directory "${GRAPH_CSV_DIR}" "${GRAPH_CSV_DIR_OUT}"
+        )
     endif()
 
     list(APPEND commands
@@ -93,9 +93,9 @@ function(build_docs)
     )
 
     if(ENABLE_PYTHON)
-    list(APPEND commands
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${API_DOCS_IN}/ie_python_api ${API_DOCS_OUT}/ie_python_api
-        )
+        list(APPEND commands
+            COMMAND ${CMAKE_COMMAND} -E copy_directory ${API_DOCS_IN}/ie_python_api ${API_DOCS_OUT}/ie_python_api
+            )
     endif()
 
     # omz doc files
