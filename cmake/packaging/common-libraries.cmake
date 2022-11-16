@@ -24,8 +24,6 @@ macro(ov_cpack_settings)
            NOT item MATCHES "^tbb(_dev)?$" AND
            # the same for pugixml
            NOT item STREQUAL "pugixml" AND
-           # TF component is not released
-           NOT item STREQUAL "tensorflow" AND
            # we have `license_file` field in conda meta.yml
            NOT item STREQUAL OV_CPACK_COMP_LICENSING AND
            # compile_tool is not needed

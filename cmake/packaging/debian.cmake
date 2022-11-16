@@ -57,8 +57,6 @@ macro(ov_cpack_settings)
            NOT item MATCHES "^tbb(_dev)?$" AND
            # the same for pugixml
            NOT item STREQUAL "pugixml" AND
-           # TF component is not released
-           NOT item STREQUAL "tensorflow" AND
            # we have copyright file for debian package
            NOT item STREQUAL OV_CPACK_COMP_LICENSING AND
            # compile_tool is not needed
@@ -247,7 +245,7 @@ macro(ov_cpack_settings)
         set(onnx_copyright "onnx")
     endif()
 
-    if(ENABLE_OV_TF_FRONTEND AND "tensorflow" IN_LIST CPACK_COMPONENTS_ALL)
+    if(ENABLE_OV_TF_FRONTEND)
         set(CPACK_COMPONENT_TENSORFLOW_DESCRIPTION "OpenVINO TensorFlow Frontend")
         set(CPACK_COMPONENT_TENSORFLOW_DEPENDS "${OV_CPACK_COMP_CORE}")
         set(CPACK_DEBIAN_TENSORFLOW_PACKAGE_NAME "libopenvino-tensorflow-frontend-${cpack_name_ver}")
