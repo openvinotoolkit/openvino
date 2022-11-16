@@ -49,7 +49,7 @@ def compress_model(func: object):
     compress_model_transformation(func)
 
 def apply_fused_names_cleanup(func: object):
-    from openvino.offline_transformations import apply_fused_names_cleanup  # pylint: disable=import-error,no-name-in-module
+    from openvino._offline_transformations import apply_fused_names_cleanup  # pylint: disable=import-error,no-name-in-module
     apply_fused_names_cleanup(func)
 
 
