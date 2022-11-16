@@ -473,12 +473,14 @@ def on_builder_inited(app):
     app.config.html_static_path += [
         this_dir + '/css/doxyrest-pygments.css',
         this_dir + '/css/scrollbox.css',
-        this_dir + '/js/target-highlight.js'
+        this_dir + '/js/target-highlight.js',
+        this_dir + 'scrollbox-sortable-tables.js',
     ]
 
     add_css_file(app, 'doxyrest-pygments.css')
     add_css_file(app, 'scrollbox.css')
     add_js_file(app, 'target-highlight.js')
+    add_js_file(app, 'scrollbox-sortable-tables.js')
 
     supported_themes = {
         'sphinx_rtd_theme',
