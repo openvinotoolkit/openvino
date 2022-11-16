@@ -161,20 +161,22 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
         auto convert_hosttensors_2_tensors = [](const HostTensorVector& host_tensors,
                                                 bool copy_data) -> ov::TensorVector {
             ov::TensorVector ret_value;
+            ov::Tensor tensor;
             for (const auto& hosttensor : host_tensors) {
+                std::cout << hosttensor->get_partial_shape().is_static() << std::endl;
                 if (hosttensor->get_element_type().is_dynamic()) {
-                    ret_value.emplace_back(ov::Tensor());
+                    tensor = ov::Tensor();
                 } else if (hosttensor->get_partial_shape().is_dynamic()) {
-                    ret_value.emplace_back(ov::Tensor(hosttensor->get_element_type(), {0}));
+                    tensor = ov::Tensor(hosttensor->get_element_type(), {0});
                 } else {
-                    auto tensor = ov::Tensor(hosttensor->get_element_type(), hosttensor->get_shape());
+                    tensor = ov::Tensor(hosttensor->get_element_type(), hosttensor->get_shape());
                     if (copy_data) {
                         std::copy_n(hosttensor->get_data_ptr<uint8_t>(),
                                     hosttensor->get_size_in_bytes(),
                                     static_cast<uint8_t*>(tensor.data()));
                     }
-                    ret_value.emplace_back(tensor);
                 }
+                ret_value.emplace_back(tensor);
             }
             return ret_value;
         };
