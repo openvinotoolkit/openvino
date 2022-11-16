@@ -118,7 +118,9 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*VirtualPlugin.*BehaviorTests.*OVHoldersTestWithConfig.*LoadedTensor.*target_device=MULTI.*)",
             // Issue: 95618
             R"(.*OVClassLoadNetworkTest.*OVClassLoadNetworkTest.*QueryNetworkMULTIWithHETERONoThrow_V10.*)",
+#if defined(_WIN32) || defined(_WIN64)
             R"(.*Auto_KernelCachingSupportCase.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)",
+#endif
             R"(.*CachingSupportCase.*GPU.*CompileModelCacheTestBase.*CompareWithRefImpl.*)",
             // Currently 1D convolution has an issue
             R"(.*smoke_GroupConvolution1D_ExplicitPadding_Disabled.*)",
