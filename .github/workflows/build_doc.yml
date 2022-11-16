@@ -13,7 +13,7 @@ jobs:
       - name: Clone OpenVINO
         uses: actions/checkout@v2
         with:
-          submodules: true
+          submodules: recursive
           lfs: true
 
       - name: Setup ccache
