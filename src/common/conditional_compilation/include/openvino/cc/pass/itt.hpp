@@ -50,18 +50,16 @@ OV_CC_DOMAINS(ov_pass);
 #    define PASS_RUN_ON_MODEL(region) OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, OV_PP_CAT(region, _run_on_model)))
 #    define PASS_RUN_ON_FUNCTION(region) \
         OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, OV_PP_CAT(region, _run_on_function)))
-#    define OR_000                         0
-#    define OR_001                         1
-#    define OR_010                         1
-#    define OR_011                         1
-#    define OR_100                         1
-#    define OR_101                         1
-#    define OR_110                         1
-#    define OR_111                         1
-#    define CAT_3_CONDITION(OP1, OP2, OP3) OV_PP_CAT(OR_, OV_PP_CAT3(OP1, OP2, OP3))
-#    define REGISTER_PASS(obj, region, ...)                                                                       \
-        OV_PP_CAT(REGISTER_PASS_,                                                                                 \
-                  CAT_3_CONDITION(PASS_DEFAULT(region), PASS_RUN_ON_MODEL(region), PASS_RUN_ON_FUNCTION(region))) \
+
+#    define OV_OR_ARG_PLACEHOLDER_1 1,
+#    define OV_OR_ARG_PLACEHOLDER_0
+#    define OV_FIRST_ARG_GET(val, ...)         val
+#    define OV_OR_(arg1_or_junk, arg2_or_junk) OV_FIRST_ARG_GET(arg1_or_junk arg2_or_junk 0)
+#    define OV_OR_2(x, y)                      OV_OR_(OV_PP_CAT(OV_OR_ARG_PLACEHOLDER_, x), OV_PP_CAT(OV_OR_ARG_PLACEHOLDER_, y))
+#    define OV_OR_3(x, y, z)                   OV_OR_2(OV_OR_2(x, y), z)
+#    define REGISTER_PASS(obj, region, ...)                                                               \
+        OV_PP_CAT(REGISTER_PASS_,                                                                         \
+                  OV_OR_3(PASS_DEFAULT(region), PASS_RUN_ON_MODEL(region), PASS_RUN_ON_FUNCTION(region))) \
         (obj, region, __VA_ARGS__)
 
 #    define REGISTER_PASS_WITH_FALSE_1(obj, ...) obj.register_pass<region, false>(__VA_ARGS__);
