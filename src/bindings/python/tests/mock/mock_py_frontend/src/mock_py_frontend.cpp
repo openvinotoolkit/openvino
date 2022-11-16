@@ -427,6 +427,9 @@ void FrontEndMockPy::clear_stat() {
 }  // namespace frontend
 }  // namespace ov
 
+MOCK_C_API ov::frontend::FrontEndVersion GetAPIVersion();
+MOCK_C_API void* GetFrontEndData();
+
 MOCK_C_API ov::frontend::FrontEndVersion GetAPIVersion() {
     return OV_FRONTEND_API_VERSION;
 }

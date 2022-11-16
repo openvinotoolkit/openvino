@@ -51,7 +51,7 @@ op::v1::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
 }
 
 std::shared_ptr<Node> op::v1::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_NonMaxSuppression_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_NonMaxSuppression_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this, new_args.size() >= 2 && new_args.size() <= 5, "Number of inputs must be 2, 3, 4 or 5");
 
@@ -72,14 +72,14 @@ std::shared_ptr<Node> op::v1::NonMaxSuppression::clone_with_new_inputs(const Out
 }
 
 bool ngraph::op::v1::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_NonMaxSuppression_visit_attributes);
+    OV_OP_SCOPE(v1_NonMaxSuppression_visit_attributes);
     visitor.on_attribute("box_encoding", m_box_encoding);
     visitor.on_attribute("sort_result_descending", m_sort_result_descending);
     return true;
 }
 
 void op::v1::NonMaxSuppression::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_NonMaxSuppression_validate_and_infer_types);
+    OV_OP_SCOPE(v1_NonMaxSuppression_validate_and_infer_types);
     const auto boxes_ps = get_input_partial_shape(0);
     const auto scores_ps = get_input_partial_shape(1);
 
@@ -230,7 +230,7 @@ op::v3::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
 }
 
 std::shared_ptr<Node> op::v3::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v3_NonMaxSuppression_clone_with_new_inputs);
+    OV_OP_SCOPE(v3_NonMaxSuppression_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this, new_args.size() >= 2 && new_args.size() <= 5, "Number of inputs must be 2, 3, 4 or 5");
 
@@ -252,7 +252,7 @@ std::shared_ptr<Node> op::v3::NonMaxSuppression::clone_with_new_inputs(const Out
 }
 
 bool ngraph::op::v3::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v3_NonMaxSuppression_visit_attributes);
+    OV_OP_SCOPE(v3_NonMaxSuppression_visit_attributes);
     visitor.on_attribute("box_encoding", m_box_encoding);
     visitor.on_attribute("sort_result_descending", m_sort_result_descending);
     visitor.on_attribute("output_type", m_output_type);
@@ -331,7 +331,7 @@ void op::v3::NonMaxSuppression::validate() {
 }
 
 void op::v3::NonMaxSuppression::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v3_NonMaxSuppression_validate_and_infer_types);
+    OV_OP_SCOPE(v3_NonMaxSuppression_validate_and_infer_types);
     const auto boxes_ps = get_input_partial_shape(0);
     const auto scores_ps = get_input_partial_shape(1);
 
@@ -423,7 +423,7 @@ op::v4::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
 }
 
 std::shared_ptr<Node> op::v4::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v4_NonMaxSuppression_clone_with_new_inputs);
+    OV_OP_SCOPE(v4_NonMaxSuppression_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this, new_args.size() >= 2 && new_args.size() <= 5, "Number of inputs must be 2, 3, 4 or 5");
 
@@ -445,7 +445,7 @@ std::shared_ptr<Node> op::v4::NonMaxSuppression::clone_with_new_inputs(const Out
 }
 
 void op::v4::NonMaxSuppression::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v4_NonMaxSuppression_validate_and_infer_types);
+    OV_OP_SCOPE(v4_NonMaxSuppression_validate_and_infer_types);
     const auto boxes_ps = get_input_partial_shape(0);
     const auto scores_ps = get_input_partial_shape(1);
 
@@ -545,7 +545,7 @@ op::v5::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
 }
 
 std::shared_ptr<Node> op::v5::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v5_NonMaxSuppression_clone_with_new_inputs);
+    OV_OP_SCOPE(v5_NonMaxSuppression_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this,
                           new_args.size() >= 2 && new_args.size() <= 6,
@@ -784,7 +784,7 @@ bool op::v5::NonMaxSuppression::is_soft_nms_sigma_constant_and_default() const {
 }
 
 bool ngraph::op::v5::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v5_NonMaxSuppression_visit_attributes);
+    OV_OP_SCOPE(v5_NonMaxSuppression_visit_attributes);
     visitor.on_attribute("box_encoding", m_box_encoding);
     visitor.on_attribute("sort_result_descending", m_sort_result_descending);
     visitor.on_attribute("output_type", m_output_type);
@@ -792,7 +792,7 @@ bool ngraph::op::v5::NonMaxSuppression::visit_attributes(AttributeVisitor& visit
 }
 
 void op::v5::NonMaxSuppression::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v5_NonMaxSuppression_validate_and_infer_types);
+    OV_OP_SCOPE(v5_NonMaxSuppression_validate_and_infer_types);
     const auto boxes_ps = get_input_partial_shape(0);
     const auto scores_ps = get_input_partial_shape(1);
 
@@ -913,7 +913,7 @@ op::v9::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
 }
 
 std::shared_ptr<Node> op::v9::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v9_NonMaxSuppression_clone_with_new_inputs);
+    OV_OP_SCOPE(v9_NonMaxSuppression_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this,
                           new_args.size() >= 2 && new_args.size() <= 6,
@@ -1097,7 +1097,7 @@ bool op::v9::NonMaxSuppression::is_soft_nms_sigma_constant_and_default() const {
 }
 
 bool ngraph::op::v9::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v9_NonMaxSuppression_visit_attributes);
+    OV_OP_SCOPE(v9_NonMaxSuppression_visit_attributes);
     visitor.on_attribute("box_encoding", m_box_encoding);
     visitor.on_attribute("sort_result_descending", m_sort_result_descending);
     visitor.on_attribute("output_type", m_output_type);
@@ -1105,7 +1105,7 @@ bool ngraph::op::v9::NonMaxSuppression::visit_attributes(AttributeVisitor& visit
 }
 
 void op::v9::NonMaxSuppression::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v9_NonMaxSuppression_validate_and_infer_types);
+    OV_OP_SCOPE(v9_NonMaxSuppression_validate_and_infer_types);
     const auto boxes_ps = get_input_partial_shape(0);
     const auto scores_ps = get_input_partial_shape(1);
 

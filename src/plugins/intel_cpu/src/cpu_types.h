@@ -72,6 +72,7 @@ enum class Type {
     Gather,
     GatherElements,
     GatherND,
+    GridSample,
     OneHot,
     RegionYolo,
     Select,
@@ -108,6 +109,7 @@ enum class Type {
     Subgraph,
     PriorBox,
     PriorBoxClustered,
+    Interaction,
     MHA
 };
 

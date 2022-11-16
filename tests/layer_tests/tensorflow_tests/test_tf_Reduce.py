@@ -37,7 +37,7 @@ class TestReduceOps(CommonTFLayerTest):
     for operation in ['sum', 'max', 'prod', 'min', 'mean']:
         test_data.extend([
             dict(shape=[2, 3], operation=operation, axis=1),
-            dict(shape=[2, 3, 5], operation=operation, axis=-2),
+            pytest.param(dict(shape=[2, 3, 5], operation=operation, axis=-2), marks=pytest.mark.precommit_tf_fe),
             dict(shape=[2, 3, 5, 7], operation=operation, axis=2),
             dict(shape=[2, 3, 5, 7, 9], operation=operation, axis=[2, -1]),
         ])

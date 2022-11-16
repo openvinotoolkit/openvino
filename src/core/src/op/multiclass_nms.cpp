@@ -21,7 +21,7 @@ op::v8::MulticlassNms::MulticlassNms(const Output<Node>& boxes, const Output<Nod
 }
 
 std::shared_ptr<Node> op::v8::MulticlassNms::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(MulticlassNms_v8_clone_with_new_inputs);
+    OV_OP_SCOPE(MulticlassNms_v8_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this, new_args.size() >= 2, "Number of inputs must be 2 at least");
 
@@ -29,7 +29,7 @@ std::shared_ptr<Node> op::v8::MulticlassNms::clone_with_new_inputs(const OutputV
 }
 
 void op::v8::MulticlassNms::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(MulticlassNms_v9_validate_and_infer_types);
+    OV_OP_SCOPE(MulticlassNms_v9_validate_and_infer_types);
     const auto output_type = get_attrs().output_type;
 
     validate();
@@ -62,7 +62,7 @@ op::v9::MulticlassNms::MulticlassNms(const Output<Node>& boxes,
 }
 
 std::shared_ptr<Node> op::v9::MulticlassNms::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(MulticlassNms_v9_clone_with_new_inputs);
+    OV_OP_SCOPE(MulticlassNms_v9_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this, new_args.size() == 2 || new_args.size() == 3, "Number of inputs must be 2 or 3");
 
@@ -75,7 +75,7 @@ std::shared_ptr<Node> op::v9::MulticlassNms::clone_with_new_inputs(const OutputV
 }
 
 void op::v9::MulticlassNms::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(MulticlassNms_v9_validate_and_infer_types);
+    OV_OP_SCOPE(MulticlassNms_v9_validate_and_infer_types);
     const auto output_type = get_attrs().output_type;
 
     validate();

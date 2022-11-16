@@ -14,7 +14,7 @@ ov::op::util::FrameworkNode::FrameworkNode(const OutputVector& inputs, size_t ou
 }
 
 std::shared_ptr<ov::Node> ov::op::util::FrameworkNode::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(FrameworkNode_clone_with_new_inputs);
+    OV_OP_SCOPE(FrameworkNode_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     auto node = std::make_shared<op::util::FrameworkNode>(new_args);
     for (size_t i = 0; i < get_output_size(); ++i) {
@@ -33,7 +33,7 @@ void ov::op::util::FrameworkNode::cache_output_descriptor() {
 }
 
 void ov::op::util::FrameworkNode::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(FrameworkNode_validate_and_infer_types);
+    OV_OP_SCOPE(FrameworkNode_validate_and_infer_types);
     // Save initial inputs descriptors
     bool initialize_input_desc = m_inputs_desc.empty();
     bool reset_output_shape_to_dynamic = false;

@@ -18,11 +18,6 @@ class TestResamplePattern(CommonTFLayerTest):
         """
             The sub-graph in TF that could be expressed as a single Resample operation.
         """
-
-        #
-        #   Create Tensorflow model
-        #
-
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
@@ -72,13 +67,12 @@ class TestResamplePattern(CommonTFLayerTest):
 
         return tf_net, ref_net
 
-    test_data = [dict(shape=[1, 1, 100, 200], factor=2),
+    test_data = [pytest.param(dict(shape=[1, 1, 100, 200], factor=2), marks=pytest.mark.precommit_tf_fe),
                  dict(shape=[1, 1, 200, 300], factor=3)]
 
     # TODO mark as precommit (after successfully passing in nightly)
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    @pytest.mark.xfail(reason="*-22273")
     def test_resample(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
                       use_old_api):
         self._test(*self.create_resample_net(params['shape'], params['factor'], use_new_frontend),

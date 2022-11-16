@@ -10,6 +10,7 @@
 #include <memory>
 
 #include "default_opset.hpp"
+#include "exceptions.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -20,6 +21,13 @@ OutputVector scatter_nd(const Node& node) {
     auto data = ng_inputs.at(0);
     auto indices = ng_inputs.at(1);
     auto updates = ng_inputs.at(2);
+    if (node.has_attribute("reduction")) {
+        const auto reduction = node.get_attribute_value<std::string>("reduction", "none");
+        CHECK_VALID_NODE(node,
+                         reduction == "none",
+                         "Unsupported value of attribute: `reduction`. Only `none` is supported, got:",
+                         reduction);
+    }
 
     return {std::make_shared<default_opset::ScatterNDUpdate>(data, indices, updates)};
 }

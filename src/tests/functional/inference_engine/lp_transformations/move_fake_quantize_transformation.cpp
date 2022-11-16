@@ -155,7 +155,7 @@ public:
             oneInputWithSplit);
 
         auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
-                ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::AvgPool>({{0, testValues.params.precisionsOnActivations}})
+                ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::AvgPool>({{{0}, testValues.params.precisionsOnActivations}})
             });
 
         auto quantizationRestrictions = testValues.multiChannels ?
@@ -296,7 +296,7 @@ const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
             {},
         }
     },
-    // negative test
+    // concat by batch
     {
         LayerTransformation::createParamsU8I8(),
         false,
@@ -313,11 +313,11 @@ const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
         },
         {
             2,
-            {},
+            {{ 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
             {},
             {},
             "",
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+            {},
             {},
             {}
         }

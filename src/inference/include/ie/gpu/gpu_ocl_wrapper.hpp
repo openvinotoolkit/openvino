@@ -39,7 +39,11 @@
 #    pragma GCC system_header
 #endif
 
-#include <CL/cl2.hpp>
+#ifdef OV_GPU_USE_OPENCL_HPP
+#    include <CL/opencl.hpp>
+#else
+#    include <CL/cl2.hpp>
+#endif
 
 #ifdef __GNUC__
 #    pragma GCC diagnostic pop

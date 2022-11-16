@@ -22,11 +22,11 @@ TensorExternalData::TensorExternalData(const ONNX_NAMESPACE::TensorProto& tensor
             m_data_location = file_util::sanitize_path(entry.value());
             NGRAPH_SUPPRESS_DEPRECATED_END
         } else if (entry.key() == "offset") {
-            m_offset = std::stoi(entry.value());
+            m_offset = std::stoull(entry.value());
         } else if (entry.key() == "length") {
-            m_data_length = std::stoi(entry.value());
+            m_data_length = std::stoull(entry.value());
         } else if (entry.key() == "checksum") {
-            m_sha1_digest = std::stoi(entry.value());
+            m_sha1_digest = entry.value();
         }
     }
 }
@@ -47,22 +47,20 @@ std::string TensorExternalData::load_external_data(const std::string& model_dir)
     if (external_data_stream.fail())
         throw error::invalid_external_data{*this};
 
-    std::streamsize read_data_length;
-    if (m_data_length == 0)  // read entire file
-        read_data_length = external_data_stream.tellg();
-    else
-        read_data_length = m_data_length;
-
-    const auto page_size = 4096;
-    if (m_offset != 0 && m_offset % page_size != 0) {
-        NGRAPH_WARN << "offset should be multiples 4096 (page size) to enable mmap "
-                       "support, current value is "
-                    << m_offset;
+    auto filesize = external_data_stream.tellg();
+    if (filesize == -1) {
+        throw error::invalid_external_data{*this};
     }
+    if (m_offset + m_data_length > filesize) {
+        throw error::invalid_external_data{*this};
+    }
+
+    uint64_t read_data_length = m_data_length > 0 ? m_data_length : static_cast<uint64_t>(filesize) - m_offset;
+
     // default value of m_offset is 0
     external_data_stream.seekg(m_offset, std::ios::beg);
 
-    if (m_sha1_digest != 0) {
+    if (m_sha1_digest.size() > 0) {
         NGRAPH_WARN << "SHA1 checksum is not supported";
     }
 
@@ -80,7 +78,11 @@ std::string TensorExternalData::to_string() const {
     s << "data_full_path: " << m_data_location;
     s << ", offset: " << m_offset;
     s << ", data_length: " << m_data_length;
-    s << ", sha1_digest: " << m_sha1_digest << ")";
+    if (m_sha1_digest.size() > 0) {
+        s << ", sha1_digest: " << m_sha1_digest << ")";
+    } else {
+        s << ")";
+    }
     return s.str();
 }
 }  // namespace detail

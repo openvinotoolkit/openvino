@@ -21,10 +21,6 @@ class TestLogSoftmax(CommonTFLayerTest):
 
         """
 
-        #
-        #   Create Tensorflow model
-        #
-
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
@@ -131,7 +127,7 @@ class TestLogSoftmax(CommonTFLayerTest):
 
     test_data = [dict(shape=[1], reduction_axis=-1),
                  dict(shape=[2, 5], reduction_axis=-1),
-                 dict(shape=[5, 3, 7, 4], reduction_axis=-1),
+                 pytest.param(dict(shape=[5, 3, 7, 4], reduction_axis=-1), marks=pytest.mark.precommit_tf_fe),
                  dict(shape=[3, 2, 3, 7, 6], reduction_axis=-1)]
 
     @pytest.mark.parametrize("params", test_data)

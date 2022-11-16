@@ -20,8 +20,16 @@ if(ENABLE_ONEDNN_FOR_GPU)
         set(ONEDNN_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_build/")
         set(ONEDNN_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_install/")
         set(ONEDNN_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_root")
+        execute_process(COMMAND git apply --verbose ../onednn_gpu.patch
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu")
         if(CMAKE_COMPILER_IS_GNUCXX)
-            ie_add_compiler_flags(-Wno-undef -Wno-suggest-override)
+            ie_add_compiler_flags(-Wno-undef -Wno-missing-declarations)
+            if(SUGGEST_OVERRIDE_SUPPORTED)
+                set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+            endif()
+            if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12)
+                ie_add_compiler_flags(-Wno-error=array-bounds -Wno-error=stringop-overflow= -Wno-error=unused-result)
+            endif()
         endif()
         ExternalProject_Add(onednn_gpu_build
             SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu"

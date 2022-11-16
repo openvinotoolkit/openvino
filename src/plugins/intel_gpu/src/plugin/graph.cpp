@@ -11,6 +11,11 @@
 #include <cldnn/cldnn_config.hpp>
 #include "intel_gpu/plugin/infer_request.hpp"
 #include "intel_gpu/plugin/itt.hpp"
+#include "serialization/binary_buffer.hpp"
+#include "serialization/map_serializer.hpp"
+#include "serialization/layout_serializer.hpp"
+#include "serialization/string_serializer.hpp"
+#include "serialization/vector_serializer.hpp"
 
 #include <description_buffer.hpp>
 #include <threading/ie_executor_manager.hpp>
@@ -51,6 +56,22 @@ Graph::Graph(InferenceEngine::CNNNetwork& network, gpu::ClContext::Ptr context, 
     if (m_program->m_max_batch > 1)
         m_config.max_dynamic_batch = m_program->m_max_batch;
     Build();
+}
+
+Graph::Graph(cldnn::BinaryInputBuffer &ib, gpu::ClContext::Ptr context, Config config, uint16_t stream_id)
+    : m_context(context)
+    , m_config(config)
+    , m_stream_id(stream_id)
+    , m_state(0) {
+    m_program = std::make_shared<Program>(GetEngine(), m_config);
+    if (m_program->m_max_batch > 1)
+        m_config.max_dynamic_batch = m_program->m_max_batch;
+
+    ib >> m_program->inputLayouts;
+    ib >> primitiveIDs;
+    ib >> outputDims;
+
+    m_networks.emplace_back(std::make_shared<cldnn::network>(ib, GetEngine()->create_stream(), *GetEngine(), m_stream_id));
 }
 
 Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
@@ -135,6 +156,7 @@ std::shared_ptr<cldnn::network> Graph::BuildNetwork(std::shared_ptr<cldnn::progr
 Graph::variable_states_map Graph::AllocateVariablesMemories() {
     Graph::variable_states_map states {};
     const auto& memStatesInfo = m_program->GetVariablesStatesInfo();
+    OPENVINO_ASSERT(memStatesInfo.empty() || !GetNetwork()->is_dynamic(), "[GPU] Dynamic shapes are not supported yet for stateful models");
     for (const auto& memStateInfo : memStatesInfo) {
         std::vector<cldnn::layout> orderedLayouts {memStateInfo.second.begin(), memStateInfo.second.end()};
         std::sort(orderedLayouts.begin(), orderedLayouts.end(), [](cldnn::layout& first, cldnn::layout& second) {
@@ -444,6 +466,16 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
     }
 
     return std::make_shared<ngraph::Function>(results, params, "runtime_gpu_graph");
+}
+
+void Graph::Export(cldnn::BinaryOutputBuffer &ob) {
+    ob << m_program->inputLayouts;
+    ob << primitiveIDs;
+    ob << outputDims;
+
+    auto m_network = m_networks.back();
+
+    m_network->save(ob);
 }
 
 std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfo() {

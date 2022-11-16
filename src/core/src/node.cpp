@@ -812,7 +812,7 @@ bool ov::Node::evaluate_label(TensorLabelVector& output_labels) const {
 }
 
 bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Node::constant_fold");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Node::constant_fold");
 
     if (is_const_fold_disabled()) {
         return false;

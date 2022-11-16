@@ -20,7 +20,7 @@ op::v5::GatherND::GatherND(const Output<Node>& data, const Output<Node>& indices
 }
 
 void op::v5::GatherND::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v5_GatherND_validate_and_infer_types);
+    OV_OP_SCOPE(v5_GatherND_validate_and_infer_types);
     validate_inputs_and_infer_shape();
 
     // If we have m_batch_dims > 1 we need to fuse batch dimensions of output
@@ -56,7 +56,7 @@ void op::v5::GatherND::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v5::GatherND::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v5_GatherND_clone_with_new_inputs);
+    OV_OP_SCOPE(v5_GatherND_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v5::GatherND>(new_args.at(0), new_args.at(1), m_batch_dims);
 }
@@ -70,12 +70,12 @@ op::v8::GatherND::GatherND(const Output<Node>& data, const Output<Node>& indices
 }
 
 void op::v8::GatherND::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v8_GatherND_validate_and_infer_types);
+    OV_OP_SCOPE(v8_GatherND_validate_and_infer_types);
     validate_inputs_and_infer_shape();
 }
 
 shared_ptr<Node> op::v8::GatherND::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v8_GatherND_clone_with_new_inputs);
+    OV_OP_SCOPE(v8_GatherND_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v8::GatherND>(new_args.at(0), new_args.at(1), m_batch_dims);
 }

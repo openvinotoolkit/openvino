@@ -13,15 +13,11 @@ class TestAdd(CommonTFLayerTest):
         """
             Tensorflow net                  IR net
 
-            Placeholder->Add       =>       Placeholder->Eltwise or Power or ScaleShift
+            Placeholder->Add       =>       Placeholder->Add
                          /                               /
             Const-------/                   Const-------/
 
         """
-
-        #
-        #   Create Tensorflow model
-        #
 
         import tensorflow as tf
 
@@ -61,9 +57,7 @@ class TestAdd(CommonTFLayerTest):
     # TODO: implement tests for 2 Consts + Add
 
     test_data_1D = [
-        # Power
         dict(x_shape=[1], y_shape=[1]),
-        # Eltwise
         pytest.param(dict(x_shape=[3], y_shape=[3]), marks=pytest.mark.xfail(reason="*-19180"))
     ]
 
@@ -77,14 +71,10 @@ class TestAdd(CommonTFLayerTest):
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_2D = [
-        # Power
         dict(x_shape=[1, 1], y_shape=[1, 1]),
-        # ScaleShift
         dict(x_shape=[1, 3], y_shape=[1, 3]),
-        # Eltwise
         pytest.param(dict(x_shape=[3, 1], y_shape=[3, 1]),
                      marks=pytest.mark.xfail(reason="*-19180")),
-        # Eltwise
         dict(x_shape=[2, 3], y_shape=[2, 3])
     ]
 
@@ -98,16 +88,12 @@ class TestAdd(CommonTFLayerTest):
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_3D = [
-        # Power
         dict(x_shape=[1, 1, 1], y_shape=[1, 1, 1]),
-        # ScaleShift
         pytest.param(dict(x_shape=[1, 3, 1], y_shape=[1, 3, 1]),
                      marks=pytest.mark.xfail(reason="*-19053")),
-        # Eltwise
         pytest.param(dict(x_shape=[1, 1, 3], y_shape=[1, 1, 3]),
                      marks=[pytest.mark.xfail(reason="*-19053"),
                             pytest.mark.xfail(reason="*-18830")]),
-        # Eltwise
         pytest.param(dict(x_shape=[1, 3, 224], y_shape=[1, 3, 224]),
                      marks=pytest.mark.xfail(reason="*-19053"))
     ]
@@ -122,14 +108,10 @@ class TestAdd(CommonTFLayerTest):
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_4D = [
-        # Power
         dict(x_shape=[1, 1, 1, 1], y_shape=[1, 1, 1, 1]),
-        # ScaleShift
         dict(x_shape=[1, 3, 1, 1], y_shape=[1, 3, 1, 1]),
-        # Eltwise
         pytest.param(dict(x_shape=[1, 1, 1, 3], y_shape=[1, 1, 1, 3]),
                      marks=pytest.mark.xfail(reason="*-19180")),
-        # Eltwise
         dict(x_shape=[1, 3, 222, 224], y_shape=[1, 3, 222, 224])
     ]
 
@@ -144,14 +126,10 @@ class TestAdd(CommonTFLayerTest):
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_5D = [
-        # Power
         dict(x_shape=[1, 1, 1, 1, 1], y_shape=[1, 1, 1, 1, 1]),
-        # ScaleShift
         dict(x_shape=[1, 3, 1, 1, 1], y_shape=[1, 3, 1, 1, 1]),
-        # Eltwise
         pytest.param(dict(x_shape=[1, 1, 1, 1, 3], y_shape=[1, 1, 1, 1, 3]),
                      marks=pytest.mark.xfail(reason="*-19180")),
-        # Eltwise
         dict(x_shape=[1, 3, 50, 100, 224], y_shape=[1, 3, 50, 100, 224])
     ]
 
@@ -172,7 +150,6 @@ class TestAdd(CommonTFLayerTest):
     ###############################################################################################
 
     test_data_broadcast_1D = [
-        # Power
         dict(x_shape=[3], y_shape=[1])
     ]
 
@@ -186,15 +163,10 @@ class TestAdd(CommonTFLayerTest):
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_broadcast_2D = [
-        # Power
         dict(x_shape=[1, 1], y_shape=[1]),
-        # Power
         dict(x_shape=[1, 3], y_shape=[1]),
-        # ScaleShift
         dict(x_shape=[1, 3], y_shape=[3]),
-        # Eltwise
         dict(x_shape=[3, 1], y_shape=[3]),
-        # Eltwise
         pytest.param(dict(x_shape=[3, 1], y_shape=[1, 3, 1, 1]),
                      marks=pytest.mark.xfail(reason="*-19051"))
     ]
@@ -209,24 +181,17 @@ class TestAdd(CommonTFLayerTest):
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_broadcast_3D = [
-        # Power
         dict(x_shape=[1, 1, 1], y_shape=[1]),
-        # Power
         pytest.param(dict(x_shape=[1, 3, 1], y_shape=[1]),
                      marks=pytest.mark.xfail(reason="*-19053")),
-        # ScaleShift
         pytest.param(dict(x_shape=[1, 3, 1], y_shape=[3]),
                      marks=pytest.mark.xfail(reason="*-19053")),
-        # Eltwise
         pytest.param(dict(x_shape=[1, 3, 1], y_shape=[3, 1]),
                      marks=pytest.mark.xfail(reason="*-19053")),
-        # Eltwise
         pytest.param(dict(x_shape=[1, 1, 1], y_shape=[3, 1]),
                      marks=pytest.mark.xfail(reason="*-19053")),
-        # Eltwise
         pytest.param(dict(x_shape=[3, 1, 224], y_shape=[1, 3, 224]),
                      marks=pytest.mark.xfail(reason="*-19053")),
-        # Eltwise
         pytest.param(dict(x_shape=[2, 3, 1], y_shape=[1, 3, 2]),
                      marks=pytest.mark.xfail(reason="*-19053")),
     ]
@@ -241,25 +206,15 @@ class TestAdd(CommonTFLayerTest):
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_broadcast_4D = [
-        # Power
         dict(x_shape=[1, 1, 1, 1], y_shape=[1]),
-        # Power
         dict(x_shape=[1, 3, 1, 1], y_shape=[1]),
-        # ScaleShift
         dict(x_shape=[1, 3, 1, 1], y_shape=[3]),
-        # ScaleShift
         dict(x_shape=[1, 3, 100, 224], y_shape=[3]),
-        # Eltwise
         dict(x_shape=[1, 1, 1, 3], y_shape=[3]),
-        # Eltwise
-        dict(x_shape=[1, 3, 1, 1], y_shape=[3, 1]),
-        # Eltwise
+        pytest.param(dict(x_shape=[1, 3, 1, 1], y_shape=[3, 1]), marks=pytest.mark.precommit_tf_fe),
         dict(x_shape=[1, 2, 1, 3], y_shape=[3, 1, 2]),
-        # Eltwise
         dict(x_shape=[1, 2, 1, 3], y_shape=[1, 3, 2]),
-        # Eltwise
         dict(x_shape=[1, 3, 100, 224], y_shape=[1, 1, 1, 224]),
-        # Eltwise
         dict(x_shape=[2, 3, 1, 2], y_shape=[1, 3, 2, 1])
     ]
 
@@ -274,23 +229,14 @@ class TestAdd(CommonTFLayerTest):
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_broadcast_5D = [
-        # Power
         dict(x_shape=[1, 1, 1, 1, 1], y_shape=[1]),
-        # Power
         dict(x_shape=[1, 3, 1, 1, 1], y_shape=[1, 1]),
-        # ScaleShift
         dict(x_shape=[1, 3, 1, 1, 1], y_shape=[3]),
-        # Eltwise
         dict(x_shape=[1, 1, 1, 1, 3], y_shape=[3]),
-        # Eltwise
         dict(x_shape=[1, 3, 1, 1, 1], y_shape=[3, 1]),
-        # Eltwise
         dict(x_shape=[1, 2, 1, 1, 3], y_shape=[1, 3, 2]),
-        # Eltwise
         dict(x_shape=[1, 3, 5, 1, 2], y_shape=[5, 3, 2, 1]),
-        # Eltwise
         dict(x_shape=[1, 3, 50, 100, 224], y_shape=[1, 1, 1, 1, 224]),
-        # Eltwise
         dict(x_shape=[2, 3, 1, 2, 1], y_shape=[1, 3, 2, 1, 1])
     ]
 

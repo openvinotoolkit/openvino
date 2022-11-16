@@ -89,7 +89,7 @@ public:
             fakeQuantizeOnData.addNotPrecisionPreservedOperation);
 
         auto supportedPrecisions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
-           ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::AvgPool>({{0, params.precisionsOnActivations}})
+           ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::AvgPool>({{{0}, params.precisionsOnActivations}})
         });
 
         SimpleLowPrecisionTransformer transform(supportedPrecisions, {}, { ngraph::element::f32, defaultPrecisions });

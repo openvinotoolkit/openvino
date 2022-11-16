@@ -32,7 +32,7 @@ OutputVector translate_fused_batch_norm_op(const NodeContext& node) {
     OPENVINO_DEBUG << "data_format: " << data_format;
 
     // TODO: where does 0.0001 come from?
-    auto tf_epsilon = node.get_attribute<float>("epsilon", 0.0001);
+    auto tf_epsilon = node.get_attribute<float>("epsilon", 0.0001f);
 
     OPENVINO_DEBUG << "epsilon: " << tf_epsilon;
 

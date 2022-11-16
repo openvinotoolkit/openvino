@@ -23,7 +23,7 @@ op::v3::Asinh::Asinh(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) 
 }
 
 shared_ptr<Node> op::v3::Asinh::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v3_Asinh_clone_with_new_inputs);
+    OV_OP_SCOPE(v3_Asinh_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Asinh>(new_args.at(0));
 }
@@ -58,12 +58,12 @@ bool evaluate_asinh(const HostTensorPtr& arg0, const HostTensorPtr& out) {
 }  // namespace asinhop
 
 bool op::v3::Asinh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v3_Asinh_evaluate);
+    OV_OP_SCOPE(v3_Asinh_evaluate);
     return asinhop::evaluate_asinh(inputs[0], outputs[0]);
 }
 
 bool op::v3::Asinh::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v3_Asinh_has_evaluate);
+    OV_OP_SCOPE(v3_Asinh_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:

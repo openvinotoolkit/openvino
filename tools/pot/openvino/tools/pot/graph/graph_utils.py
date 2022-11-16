@@ -5,6 +5,7 @@ import os
 import tempfile
 from copy import deepcopy
 from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
 from openvino.tools.mo.utils.logger import init_logger
 from openvino.runtime import Core  # pylint: disable=E0401,E0611
@@ -57,7 +58,7 @@ def load_graph(model_config, target_device='ANY'):
     meta_data['quantization_parameters'] = model_config.quantization_info
     graph_from_ir.meta_data = meta_data
     graph_from_ir.graph['cmd_params'] = orig_graph_from_ir.graph['cmd_params']
-    remove_converts(graph_from_ir)
+    for_graph_and_each_sub_graph_recursively(graph_from_ir, remove_converts)
     model_preprocessing(graph_from_ir)
     if os.path.exists(serialized_xml_path):
         os.remove(serialized_xml_path)

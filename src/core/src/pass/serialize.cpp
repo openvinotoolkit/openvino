@@ -13,11 +13,13 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "meta_data.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "openvino/util/file_util.hpp"
 #include "pugixml.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
@@ -554,9 +556,9 @@ const std::vector<Edge> create_edge_mapping(const std::unordered_map<ngraph::Nod
 
             Edge e{};
             e.from_layer = layer_ids.find(source_node)->second;
-            e.from_port = source_node->get_input_size() + source_output.get_index();
+            e.from_port = static_cast<int>(source_node->get_input_size() + source_output.get_index());
             e.to_layer = layer_ids.find(current_node)->second;
-            e.to_port = i.get_index();
+            e.to_port = static_cast<int>(i.get_index());
             edges.push_back(e);
         }
     }
@@ -724,12 +726,12 @@ void auto_pad_resolving(ov::Node* node) {
     if (auto op = as_type<opset1::Convolution>(node)) {
         if (pad_agnostic_types.count(op->get_auto_pad())) {
             op->set_pads_begin(CoordinateDiff(op->get_pads_begin().size(), 0));
-            op->set_adding_above(CoordinateDiff(op->get_pads_end().size(), 0));
+            op->set_pads_end(CoordinateDiff(op->get_pads_end().size(), 0));
         }
     } else if (auto op = as_type<opset1::GroupConvolution>(node)) {
         if (pad_agnostic_types.count(op->get_auto_pad())) {
             op->set_pads_begin(CoordinateDiff(op->get_pads_begin().size(), 0));
-            op->set_adding_above(CoordinateDiff(op->get_pads_end().size(), 0));
+            op->set_pads_end(CoordinateDiff(op->get_pads_end().size(), 0));
         }
     } else if (auto op = as_type<opset1::ConvolutionBackpropData>(node)) {
         if (pad_agnostic_types.count(op->get_auto_pad())) {
@@ -761,6 +763,25 @@ void auto_pad_resolving(ov::Node* node) {
             op->set_pads_begin(Shape(op->get_pads_begin().size(), 0));
             op->set_adding_above(Shape(op->get_pads_end().size(), 0));
         }
+    }
+}
+
+void serialize_rt_info(pugi::xml_node& root, const std::string& name, const ov::Any& data) {
+    auto child = root.append_child(name.c_str());
+    if (data.is<std::shared_ptr<ov::Meta>>()) {
+        std::shared_ptr<ov::Meta> meta = data.as<std::shared_ptr<ov::Meta>>();
+        ov::AnyMap& map = *meta;
+        for (const auto& it : map) {
+            serialize_rt_info(child, it.first, it.second);
+        }
+    } else if (data.is<ov::AnyMap>()) {
+        const ov::AnyMap& any_map = data.as<ov::AnyMap>();
+        for (const auto& it : any_map) {
+            serialize_rt_info(child, it.first, it.second);
+        }
+    } else {
+        std::string value = data.as<std::string>();
+        child.append_attribute("value").set_value(value.c_str());
     }
 }
 
@@ -954,6 +975,15 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         edge.append_attribute("to-layer").set_value(e.to_layer);
         edge.append_attribute("to-port").set_value(e.to_port);
     }
+
+    // Serialize rt info
+    pugi::xml_node rt_info_node = netXml.append_child("rt_info");
+    for (const auto& it : f.get_rt_info()) {
+        // Skip IR version
+        if (it.first == "version")
+            continue;
+        serialize_rt_info(rt_info_node, it.first, it.second);
+    }
 }
 
 std::string valid_xml_path(const std::string& path) {
@@ -1022,6 +1052,10 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ngraph::Function>& f_or
     if (m_xmlFile && m_binFile) {
         serializeFunc(*m_xmlFile, *m_binFile, f, m_version, m_custom_opsets);
     } else {
+        auto xmlDir = ov::util::get_directory(m_xmlPath);
+        if (xmlDir != m_xmlPath)
+            ov::util::create_directory_recursive(xmlDir);
+
         std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
         NGRAPH_CHECK(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
 

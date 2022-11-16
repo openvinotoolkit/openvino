@@ -5,8 +5,8 @@ import numpy as np
 import pytest
 from common.tf_layer_test_class import CommonTFLayerTest
 from common.utils.tf_utils import permute_nchw_to_nhwc
-
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+
 from unit_tests.utils.graph import build_graph
 
 
@@ -184,7 +184,7 @@ class TestNormalizeL2(CommonTFLayerTest):
         dict(shape=[5, 6], axes=[1], output_axes=[1]),
         dict(shape=[2, 3, 5], axes=[1], output_axes=[1]),
         dict(shape=[2, 3, 5], axes=[-2], output_axes=[1]),
-        dict(shape=[2, 3, 5], axes=[1, -1], output_axes=[1, 2]),
+        pytest.param(dict(shape=[2, 3, 5], axes=[1, -1], output_axes=[1, 2]), marks=pytest.mark.precommit_tf_fe),
         dict(shape=[2, 3, 5, 7], axes=[-1], output_axes=[1]),
         dict(shape=[2, 3, 5, 7], axes=[1, 2, 3], output_axes=[2, 3, 1]),
     ]

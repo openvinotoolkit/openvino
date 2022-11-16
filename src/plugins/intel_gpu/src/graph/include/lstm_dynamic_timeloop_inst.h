@@ -60,6 +60,7 @@ using lstm_dynamic_timeloop_node = typed_program_node<lstm_dynamic_timeloop>;
 template <>
 class typed_primitive_inst<lstm_dynamic_timeloop> : public typed_primitive_inst_base<lstm_dynamic_timeloop> {
     using parent = typed_primitive_inst_base<lstm_dynamic_timeloop>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(lstm_dynamic_timeloop_node const& node, kernel_impl_params const& impl_param);
@@ -75,14 +76,14 @@ public:
     memory::ptr initial_hidden_memory() const { return get_dependency_memory("initial_hidden"); }
     memory::ptr initial_cell_memory() const { return get_dependency_memory("initial_cell"); }
 
-    bool dyn_length_term() const { return node.dyn_length_term(); }
-    bool initial_hidden_term() const { return node.initial_hidden_term(); }
-    bool initial_cell_term() const { return node.initial_cell_term(); }
-    bool last_hidden_output_term() const { return node.last_hidden_output_term(); }
-    bool last_cell_output_term() const { return node.last_cell_output_term(); }
+    bool dyn_length_term() const { return node->dyn_length_term(); }
+    bool initial_hidden_term() const { return node->initial_hidden_term(); }
+    bool initial_cell_term() const { return node->initial_cell_term(); }
+    bool last_hidden_output_term() const { return node->last_hidden_output_term(); }
+    bool last_cell_output_term() const { return node->last_cell_output_term(); }
 
 private:
-    memory::ptr get_dependency_memory(std::string val) const { return dep_memory_ptr(node.get_dependency_idx(val)); }
+    memory::ptr get_dependency_memory(std::string val) const { return dep_memory_ptr(node->get_dependency_idx(val)); }
 };
 
 using lstm_dynamic_timeloop_inst = typed_primitive_inst<lstm_dynamic_timeloop>;

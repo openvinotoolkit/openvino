@@ -25,7 +25,7 @@ op::v3::Assign::Assign(const Output<Node>& new_value, const std::string& variabl
 }
 
 void op::v3::Assign::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v3_Assign_validate_and_infer_types);
+    OV_OP_SCOPE(v3_Assign_validate_and_infer_types);
     auto value = input_value(0);
     auto arg_t = get_input_element_type(0);
     const auto& input_shape = get_input_partial_shape(0);
@@ -50,13 +50,13 @@ void op::v3::Assign::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v3::Assign::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v3_Assign_clone_with_new_inputs);
+    OV_OP_SCOPE(v3_Assign_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v3::Assign>(new_args.at(0), m_variable_id);
 }
 
 bool op::v3::Assign::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v3_Assign_visit_attributes);
+    OV_OP_SCOPE(v3_Assign_visit_attributes);
     visitor.on_attribute("variable_id", m_variable_id);
     return true;
 }
@@ -68,7 +68,7 @@ op::v6::Assign::Assign(const Output<Node>& new_value, const std::shared_ptr<Vari
 }
 
 void op::v6::Assign::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v6_Assign_validate_and_infer_types);
+    OV_OP_SCOPE(v6_Assign_validate_and_infer_types);
     m_variable->update({get_input_partial_shape(0), get_input_element_type(0), m_variable->get_info().variable_id});
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
     std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0)};
@@ -77,13 +77,13 @@ void op::v6::Assign::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v6::Assign::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v6_Assign_clone_with_new_inputs);
+    OV_OP_SCOPE(v6_Assign_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<op::v6::Assign>(new_args.at(0), m_variable);
 }
 
 bool op::v6::Assign::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v6_Assign_visit_attributes);
+    OV_OP_SCOPE(v6_Assign_visit_attributes);
     visitor.on_attribute("variable_id", m_variable);
     return true;
 }
@@ -91,7 +91,7 @@ bool op::v6::Assign::visit_attributes(AttributeVisitor& visitor) {
 bool op::v6::Assign::evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs,
                               const EvaluationContext& evaluation_context) const {
-    NGRAPH_OP_SCOPE(v6_Assign_evaluate);
+    OV_OP_SCOPE(v6_Assign_evaluate);
     const auto& found_context = evaluation_context.find("VariableContext");
     NODE_VALIDATION_CHECK(this, found_context != evaluation_context.end(), "VariableContext not found.");
 
@@ -120,7 +120,7 @@ bool op::v6::Assign::evaluate(const HostTensorVector& outputs,
 }
 
 bool op::v6::Assign::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_Assign_has_evaluate);
+    OV_OP_SCOPE(v1_Assign_has_evaluate);
     return true;
 }
 

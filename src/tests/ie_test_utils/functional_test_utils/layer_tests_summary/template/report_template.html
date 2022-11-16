@@ -107,7 +107,7 @@
             <tr>
                 <th class="table-primary" scope="row">Trusted op (passrate=100%):</th>
                 {% for d in devices -%}
-                <td class="table-primary  {{ d }} trusted-ops">{{trusted_ops[d]}} %</td>
+                <td class="table-primary  {{ d }} trusted-ops">{{trusted_ops[d]}}  {% if trusted_ops[d] != "NOT RUN" -%}%{% endif -%}</td>
                 {% endfor %}
             </tr>
             <tr>
@@ -119,13 +119,13 @@
             <tr>
                 <th class="table-primary" scope="row">AVG passrate per op (=sum_pass_rates/covered_ops_num):</th>
                 {% for d in devices -%}
-                <td class="table-primary  {{ d }} avg_pass_rate">{{pass_rate_avg[d]}} %</td>
+                <td class="table-primary  {{ d }} avg_pass_rate">{{pass_rate_avg[d]}} {% if pass_rate_avg[d] != "NOT RUN" -%}%{% endif -%}</td>
                 {% endfor %}
             </tr>
             <tr>
                 <th class="table-primary" scope="row">General passrate (=passed_tests/all_tests):</th>
                 {% for d in devices -%}
-                <td class="table-primary  {{ d }} general_pass_rate">{{general_pass_rate[d]}} %</td>
+                <td class="table-primary  {{ d }} general_pass_rate">{{general_pass_rate[d]}} {% if general_pass_rate[d] != "NOT RUN" -%}%{% endif -%}</td>
                 {% endfor %}
             </tr>
         </tbody>
@@ -136,36 +136,40 @@
 
                 {% for d in devices -%}
                 {% if op in results[d] -%}
-                <td class="value {{ d }} {% if results[d][op].implemented == 'true' -%} impl {% else -%} not_impl {% endif -%}"
-                    passed="{{ results[d][op].passed }}" failed="{{ results[d][op].failed }}"
-                    skipped="{{ results[d][op].skipped }}" crashed="{{ results[d][op].crashed }}"
-                    hanged="{{ results[d][op].hanged }}"
-                    value="{% if (results[d][op].passed != '0' or results[d][op].failed != '0' or results[d][op].crashed != '0' or results[d][op].skipped) != '0' -%}{{ results[d][op].passrate }}{% else -%}---{% endif -%}"
-                    title="{% if results[d][op].implemented == 'true' -%}
-                            {{op}} is implemented in {{d}} plugin
-                        {% else -%}
-                            {{op}} is not implemented in {{d}} plugin
-                        {% endif -%}">
-                    <span class="{% if results[d][op].implemented == 'true' -%} checkmark {% else -%} check {% endif -%}"></span>
-                    {% if (results[d][op].passed != '0' or results[d][op].failed != '0' or results[d][op].crashed != '0' or results[d][op].skipped != '0' or results[d][op].hanged != '0') -%}
-                        {{ results[d][op].passrate }} % <br />
+                    {% if results[d][op] == "NOT RUN" -%}
+                        <td class="nr_value {{ d }} not_run" title="{{op}} is not run for {{d}} plugin"> NOT RUN</td>
                     {% else -%}
-                        ---<br />
-                    {% endif -%}
-                    <div class="flex">
-                        <div>
+                        <td class="value {{ d }} {% if results[d][op].implemented == 'true' -%} impl {% else -%} not_impl {% endif -%}"
+                            passed="{{ results[d][op].passed }}" failed="{{ results[d][op].failed }}"
+                            skipped="{{ results[d][op].skipped }}" crashed="{{ results[d][op].crashed }}"
+                            hanged="{{ results[d][op].hanged }}"
+                            value="{% if (results[d][op].passed != '0' or results[d][op].failed != '0' or results[d][op].crashed != '0' or results[d][op].skipped) != '0' -%}{{ results[d][op].passrate }}{% else -%}---{% endif -%}"
+                            title="{% if results[d][op].implemented == 'true' -%}
+                                    {{op}} is implemented in {{d}} plugin
+                                {% else -%}
+                                    {{op}} is not implemented in {{d}} plugin
+                                {% endif -%}">
+                            <span class="{% if results[d][op].implemented == 'true' -%} checkmark {% else -%} check {% endif -%}"></span>
                             {% if (results[d][op].passed != '0' or results[d][op].failed != '0' or results[d][op].crashed != '0' or results[d][op].skipped != '0' or results[d][op].hanged != '0') -%}
-                                <span class="green" title="Passed">P:{{ results[d][op].passed }}</span>
-                                <span class="red" title="Failed">F:{{ results[d][op].failed }}</span>
-                                <span class="grey" title="Skipped">S:{{ results[d][op].skipped }}</span>
-                                <span class="dark" title="Crashed">C:{{ results[d][op].crashed }}</span>
-                                <span class="grey-red" title="Hanged">H:{{ results[d][op].hanged }}</span>
+                                {{ results[d][op].passrate }} % <br />
                             {% else -%}
+                                ---<br />
                             {% endif -%}
-                        </div>
-                    </div>
+                            <div class="flex">
+                                <div>
+                                    {% if (results[d][op].passed != '0' or results[d][op].failed != '0' or results[d][op].crashed != '0' or results[d][op].skipped != '0' or results[d][op].hanged != '0') -%}
+                                        <span class="green" title="Passed">P:{{ results[d][op].passed }}</span>
+                                        <span class="red" title="Failed">F:{{ results[d][op].failed }}</span>
+                                        <span class="grey" title="Skipped">S:{{ results[d][op].skipped }}</span>
+                                        <span class="dark" title="Crashed">C:{{ results[d][op].crashed }}</span>
+                                        <span class="grey-red" title="Hanged">H:{{ results[d][op].hanged }}</span>
+                                    {% else -%}
+                                    {% endif -%}
+                                </div>
+                            </div>
 
-                </td>
+                        </td>
+                    {% endif -%}
                 {% else -%}
                     <td class="table-secondary {{ d }}">N/A</td>
                 {% endif -%}

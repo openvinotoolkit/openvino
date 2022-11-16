@@ -4,13 +4,11 @@
 import os
 from datetime import datetime
 from math import ceil
-from typing import Union
 from openvino.runtime import Core, get_version, AsyncInferQueue
 
-from .utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, GPU_DEVICE_NAME, XML_EXTENSION, BIN_EXTENSION
+from .utils.constants import GPU_DEVICE_NAME, XML_EXTENSION, BIN_EXTENSION
 from .utils.logging import logger
 from .utils.utils import get_duration_seconds
-from .utils.statistics_report import StatisticsReport
 
 def percentile(values, percent):
     return values[ceil(len(values) * percent / 100) - 1]
@@ -30,23 +28,29 @@ class Benchmark:
     def __del__(self):
         del self.core
 
-    def add_extension(self, path_to_extension: str=None, path_to_cldnn_config: str=None):
+    def add_extension(self, path_to_extensions: str=None, path_to_cldnn_config: str=None):
         if path_to_cldnn_config:
             self.core.set_property(GPU_DEVICE_NAME, {'CONFIG_FILE': path_to_cldnn_config})
             logger.info(f'GPU extensions is loaded {path_to_cldnn_config}')
 
-        if path_to_extension:
-            self.core.add_extension(extension_path=path_to_extension)
-            logger.info(f'CPU extensions is loaded {path_to_extension}')
+        if path_to_extensions:
+            for extension in path_to_extensions.split(","):
+                logger.info(f"Loading extension {extension}")
+                self.core.add_extension(extension)
 
-    def get_version_info(self) -> str:
-        logger.info(f"OpenVINO:\n{'': <9}{'API version':.<24} {get_version()}")
-        version_string = 'Device info\n'
+    def print_version_info(self) -> None:
+        version = get_version()
+        logger.info("OpenVINO:")
+        logger.info(f"{'Build ':.<39} {version}")
+        logger.info("")
+
+        logger.info("Device info:")
         for device, version in self.core.get_versions(self.device).items():
-            version_string += f"{'': <9}{device}\n"
-            version_string += f"{'': <9}{version.description:.<24}{' version'} {version.major}.{version.minor}\n"
-            version_string += f"{'': <9}{'Build':.<24} {version.build_number}\n"
-        return version_string
+            logger.info(f"{device}")
+            logger.info(f"{'Build ':.<39} {version.build_number}")
+
+        logger.info("")
+        logger.info("")
 
     def set_config(self, config = {}):
         for device in config.keys():
@@ -54,6 +58,9 @@ class Benchmark:
 
     def set_cache_dir(self, cache_dir: str):
         self.core.set_property({'CACHE_DIR': cache_dir})
+
+    def set_allow_auto_batching(self, flag: bool):
+        self.core.set_property({'ALLOW_AUTO_BATCHING': flag})
 
     def read_model(self, path_to_model: str):
         model_filename = os.path.abspath(path_to_model)
@@ -125,7 +132,7 @@ class Benchmark:
               (self.duration_seconds and exec_time < self.duration_seconds) or \
               (iteration % self.nireq):
             idle_id = infer_queue.get_idle_request_id()
-            if idle_id in in_fly:
+            if idle_id in in_fly:       # Is this check neccessary?
                 times.append(infer_queue[idle_id].latency)
             else:
                 in_fly.add(idle_id)
@@ -150,8 +157,8 @@ class Benchmark:
         iteration = 0
         times = []
         num_groups = len(self.latency_groups)
-        in_fly = set()
         start_time = datetime.utcnow()
+        in_fly = set()
         while (self.niter and iteration < self.niter) or \
               (self.duration_seconds and exec_time < self.duration_seconds) or \
               (iteration % num_groups):
@@ -175,8 +182,12 @@ class Benchmark:
 
         infer_queue.wait_all()
         total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
+        
         for infer_request_id in in_fly:
             times.append(infer_queue[infer_request_id].latency)
+            if pcseq:
+                self.latency_groups[infer_queue.userdata[infer_request_id]].times.append(infer_queue[infer_request_id].latency)
+        
         return sorted(times), total_duration_sec, processed_frames, iteration
 
     def main_loop(self, requests, data_queue, batch_size, latency_percentile, progress_bar, pcseq):
@@ -201,6 +212,7 @@ class Benchmark:
             for group in self.latency_groups:
                 if group.times:
                     group.times.sort()
+                    group.median = percentile(group.times, latency_percentile)
                     group.avg = sum(group.times) / len(group.times)
                     group.min = group.times[0]
                     group.max = group.times[-1]

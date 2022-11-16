@@ -63,9 +63,9 @@ template <>
 NGRAPH_API EnumNames<ngraph::op::BroadcastType>& EnumNames<ngraph::op::BroadcastType>::get() {
     static auto enum_names =
         EnumNames<ngraph::op::BroadcastType>("ngraph::op::BroadcastType",
-                                             {{"none", ngraph::op::BroadcastType::NONE},
+                                             {{"explicit", ngraph::op::BroadcastType::EXPLICIT},
+                                              {"none", ngraph::op::BroadcastType::NONE},
                                               {"numpy", ngraph::op::BroadcastType::NUMPY},
-                                              {"explicit", ngraph::op::BroadcastType::EXPLICIT},
                                               {"pdpd", ngraph::op::BroadcastType::PDPD},
                                               {"bidirectional", ngraph::op::BroadcastType::BIDIRECTIONAL}});
     return enum_names;

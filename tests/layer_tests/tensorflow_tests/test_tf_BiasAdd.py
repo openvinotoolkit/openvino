@@ -12,15 +12,11 @@ class TestBiasAdd(CommonTFLayerTest):
         """
             Tensorflow net                      IR net
 
-            Placeholder->BiasAdd       =>       Placeholder->Power or ScaleShift
+            Placeholder->BiasAdd       =>       Placeholder->Add
                          /                                   /
             Const-------/                       Const-------/
 
         """
-
-        #
-        #   Create Tensorflow model
-        #
 
         import tensorflow as tf
         import numpy as np
@@ -159,7 +155,7 @@ class TestBiasAdd(CommonTFLayerTest):
 
     test_data_4D = [
         dict(shape=[1, 1, 100, 224]),
-        dict(shape=[1, 3, 100, 224])
+        pytest.param(dict(shape=[1, 3, 100, 224]), marks=pytest.mark.precommit_tf_fe)
     ]
 
     @pytest.mark.parametrize("params", test_data_4D)

@@ -4,14 +4,19 @@
 
 #include "extension/json_config.hpp"
 
+#include "openvino/core/deprecated.hpp"
+
+OPENVINO_SUPPRESS_DEPRECATED_START
 #include "nlohmann/json-schema.hpp"
-#include "openvino/frontend/extension/decoder_transformation.hpp"
+OPENVINO_SUPPRESS_DEPRECATED_END
+
 #include "extension/json_transformation.hpp"
+#include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "so_extension.hpp"
 
 namespace {
 static const nlohmann::json validation_schema =
-R"(
+    R"(
 {
         "definitions": {},
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -139,7 +144,7 @@ R"(
         }
 }
 )"_json;
-} //  namespace
+}  //  namespace
 
 using namespace ov;
 using namespace ov::frontend;

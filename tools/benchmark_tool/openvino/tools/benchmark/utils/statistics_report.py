@@ -5,7 +5,7 @@ from datetime import timedelta
 import os
 import sys
 from enum import Enum
-
+import csv
 from .logging import logger
 
 ## statistics reports types
@@ -64,12 +64,37 @@ class StatisticsReport:
         total_cpu = timedelta()
         f.write(self.csv_separator.join(['layerName', 'execStatus', 'layerType', 'execType', 'realTime (ms)', 'cpuTime (ms)\n']))
         for pi in prof_info:
-            f.write(self.csv_separator.join([pi.node_name, str(pi.status), pi.node_type, pi.exec_type, str(pi.real_time/1000.0), str(pi.cpu_time/1000.0)]))
+            f.write(self.csv_separator.join([pi.node_name, str(pi.status), pi.node_type, pi.exec_type, 
+                str((pi.real_time // timedelta(microseconds=1))/1000.0), 
+                str((pi.cpu_time // timedelta(microseconds=1))/1000.0)]))
             f.write('\n')
             total += pi.real_time
             total_cpu += pi.cpu_time
-        f.write(self.csv_separator.join(['Total','','','',str(total/1000.0),str(total_cpu/1000.0)]))
+        f.write(self.csv_separator.join(['Total','','','',
+            str((total // timedelta(microseconds=1))/1000.0),
+            str((total_cpu // timedelta(microseconds=1))/1000.0)]))
         f.write('\n\n')
+
+    def dump_performance_counters_sorted(self,prof_sorted_info):
+        """Save sorted performance counters into csv file.
+        """
+        filename = os.path.join(self.config.report_folder, f'benchmark_sorted_report.csv')
+        total = 0
+        total_cpu = 0
+        with open(filename, 'w') as f:
+            writer = csv.writer(f)
+            writer.writerow(['LayerName', 'ExecStatus', 'LayerType', 'ExecType', 'RealTime (ms)', 'CPUTime (ms)' , 'Proportion(%) \n'])
+            for tmp_prof in prof_sorted_info:
+                writer.writerow([tmp_prof[0], str(tmp_prof[1]), 
+                                    tmp_prof[2], tmp_prof[6], 
+                                    str(tmp_prof[3]), str(tmp_prof[4]),
+                                    str("%.2f"%(tmp_prof[5]*100))+"%"])
+                total += tmp_prof[3]
+                total_cpu += tmp_prof[4]
+            f.write('\n') 
+            writer.writerow(["Total time cost: RealTime %.2fms , CPUTime %.2fms"%(total,total_cpu)])
+            f.write('\n\n')            
+        logger.info(f'Sorted performance counters report is stored to {filename}')
 
     def dump_performance_counters(self, prof_info_list):
         if self.config.report_type == '' or self.config.report_type == noCntReport:

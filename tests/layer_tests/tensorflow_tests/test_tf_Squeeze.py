@@ -16,10 +16,6 @@ class TestSqueeze(CommonTFLayerTest):
 
         """
 
-        #
-        #   Create Tensorflow model
-        #
-
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
@@ -62,9 +58,9 @@ class TestSqueeze(CommonTFLayerTest):
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_2D = [
-        pytest.param(dict(shape=[1, 1], axis=[]), marks=pytest.mark.xfail(reason="*-18807")),
+        dict(shape=[1, 1], axis=[]),
         dict(shape=[1, 1], axis=[0]),
-        dict(shape=[1, 1], axis=[-1])
+        pytest.param(dict(shape=[1, 1], axis=[-1]), marks=pytest.mark.precommit_tf_fe)
     ]
 
     @pytest.mark.parametrize("params", test_data_2D)
@@ -77,11 +73,9 @@ class TestSqueeze(CommonTFLayerTest):
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_3D = [
-        pytest.param(dict(shape=[1, 1, 3], axis=[]),
-                     marks=[pytest.mark.xfail(reason="*-18807"),
-                            pytest.mark.xfail(reason="*-19053")]),
-        pytest.param(dict(shape=[1, 1, 3], axis=[0]), marks=pytest.mark.xfail(reason="*-19053")),
-        pytest.param(dict(shape=[1, 1, 3], axis=[-1]), marks=pytest.mark.xfail(reason="*-19053"))
+        dict(shape=[1, 1, 3], axis=[]),
+        dict(shape=[1, 1, 3], axis=[0]),
+        dict(shape=[1, 1, 3], axis=[-1])
     ]
 
     # TODO mark as precommit (after successfully passing in nightly)
@@ -95,8 +89,7 @@ class TestSqueeze(CommonTFLayerTest):
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_4D = [
-        pytest.param(dict(shape=[1, 1, 50, 100], axis=[]),
-                     marks=pytest.mark.xfail(reason="*-18807")),
+        dict(shape=[1, 1, 50, 100], axis=[]),
         dict(shape=[1, 1, 50, 100], axis=[0]),
         dict(shape=[1, 1, 50, 100], axis=[-1]),
         dict(shape=[1, 100, 50, 1], axis=[0, 2])
@@ -113,12 +106,9 @@ class TestSqueeze(CommonTFLayerTest):
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_5D = [
-        pytest.param(dict(shape=[1, 1, 50, 100, 224], axis=[]),
-                     marks=pytest.mark.xfail(reason="*-18807")),
-        pytest.param(dict(shape=[1, 1, 50, 100, 224], axis=[0]),
-                     marks=pytest.mark.xfail(reason="*-18879")),
-        pytest.param(dict(shape=[1, 1, 50, 100, 224], axis=[-1]),
-                     marks=pytest.mark.xfail(reason="*-18879")),
+        dict(shape=[1, 1, 50, 100, 224], axis=[]),
+        dict(shape=[1, 1, 50, 100, 224], axis=[0]),
+        dict(shape=[1, 1, 50, 100, 224], axis=[-1]),
         dict(shape=[1, 224, 1, 100, 1], axis=[0, 3]),
         dict(shape=[1, 224, 1, 100, 1], axis=[0, 1, 3]),
         dict(shape=[1, 224, 1, 1, 100], axis=[0, 1, 2]),

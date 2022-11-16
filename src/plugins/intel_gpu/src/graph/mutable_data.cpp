@@ -57,15 +57,15 @@ std::string mutable_data_inst::to_string(mutable_data_node const& node) {
     return primitive_description.str();
 }
 
-void mutable_data_inst::set_output_memory(memory::ptr mem_new, bool check) {
+void mutable_data_inst::set_output_memory(memory::ptr mem_new, bool check, size_t idx) {
     auto& eng = _network.get_engine();
-    auto& mem_node = const_cast<program_node&>(_node).as<mutable_data>();
+    auto& mem_node = const_cast<program_node *>(_node)->as<mutable_data>();
     auto& mem_attached = mem_node.get_attached_memory();
-    const auto& mem_orig = *_output;
+    const auto& mem_orig = *_outputs[idx];
 
     if (!eng.is_the_same_buffer(*mem_new, mem_attached)) {
-        if (_node.is_input()) {
-            mem_new->copy_from(_network.get_stream(), *_output);
+        if (_node->is_input()) {
+            mem_new->copy_from(_network.get_stream(), *_outputs[idx]);
         }
 
         // re-attach mutable_data internal memory if necessary
@@ -79,4 +79,33 @@ void mutable_data_inst::set_output_memory(memory::ptr mem_new, bool check) {
 mutable_data_inst::typed_primitive_inst(network& network, mutable_data_node const& node)
     : parent(network, node, attach_or_copy_data(network, node.get_attached_memory_ptr(), network.is_primary_stream())) {}
 
+void mutable_data_inst::save(cldnn::BinaryOutputBuffer& ob) const {
+    parent::save(ob);
+
+    if (!_mem_allocated) {
+        for (size_t dep_idx = 0; dep_idx < _deps.size(); ++dep_idx) {
+            for (size_t m_idx = 0; m_idx < _deps[dep_idx]->_deps.size(); ++m_idx) {
+                if (get_network().get_engine().is_the_same_buffer(*_outputs[0], *_deps[dep_idx]->_deps[m_idx]->_outputs[0])) {
+                    ob << true << dep_idx << m_idx;
+                    return;
+                }
+            }
+        }
+    }
+    ob << false;
+}
+
+void mutable_data_inst::load(cldnn::BinaryInputBuffer& ib) {
+    parent::load(ib);
+
+    bool from_dep;
+    ib >> from_dep;
+    if (from_dep && !_mem_allocated) {
+        size_t dep_idx, m_idx;
+        ib >> dep_idx >> m_idx;
+
+        auto prev_node = get_network().get_primitive(_dep_ids[dep_idx]);
+        _outputs[0] = get_network().get_primitive(prev_node->_dep_ids[m_idx])->output_memory_ptr();
+    }
+}
 }  // namespace cldnn

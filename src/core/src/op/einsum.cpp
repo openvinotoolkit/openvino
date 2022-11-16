@@ -84,7 +84,7 @@ bool is_label_elsewhere(const std::vector<std::string>& input_subscripts,
 void op::v7::Einsum::parse_equation(const std::string& equation,
                                     std::vector<std::string>& input_subscripts,
                                     std::string& output_subscript) {
-    NGRAPH_OP_SCOPE(v7_Einsum_parse_equation);
+    OV_OP_SCOPE(v7_Einsum_parse_equation);
     constexpr char ellipsis[] = "...";
 
     // split equation to input subscripts and an output subscript
@@ -142,7 +142,7 @@ void op::v7::Einsum::parse_equation(const std::string& equation,
 }
 
 std::vector<std::string> op::v7::Einsum::extract_labels(const std::string& subscript) {
-    NGRAPH_OP_SCOPE(v7_Einsum_extract_labels);
+    OV_OP_SCOPE(v7_Einsum_extract_labels);
 
     std::vector<std::string> labels;
     labels.clear();
@@ -163,7 +163,7 @@ std::vector<std::string> op::v7::Einsum::extract_labels(const std::string& subsc
 }
 
 void op::v7::Einsum::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v7_Einsum_validate_and_infer_types);
+    OV_OP_SCOPE(v7_Einsum_validate_and_infer_types);
 
     // check that Einsum operation has at least one input
     auto num_inputs = get_input_size();
@@ -193,13 +193,13 @@ void op::v7::Einsum::validate_and_infer_types() {
 }
 
 bool op::v7::Einsum::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v7_Einsum_visit_attributes);
+    OV_OP_SCOPE(v7_Einsum_visit_attributes);
     visitor.on_attribute("equation", m_equation);
     return true;
 }
 
 shared_ptr<Node> op::v7::Einsum::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v7_Einsum_clone_with_new_inputs);
+    OV_OP_SCOPE(v7_Einsum_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v7::Einsum>(new_args, m_equation);
 }

@@ -42,7 +42,7 @@ std::pair<bool, AxisSet> get_broadcast_axes_bidirectional(const ov::Shape& arg_s
     const auto start_axis = static_cast<int64_t>(result_shape.size()) - static_cast<int64_t>(arg_shape.size());
     NGRAPH_CHECK(start_axis >= 0);
     for (size_t i = 0; i < result_shape.size(); i++) {
-        if (i < start_axis || result_shape[i] != arg_shape[i - start_axis]) {
+        if (i < static_cast<size_t>(start_axis) || result_shape[i] != arg_shape[i - start_axis]) {
             broadcast_axes.insert(i);
         }
     }
@@ -131,7 +131,7 @@ bool op::v3::Broadcast::broadcast_evaluate(const HostTensorVector& outputs, cons
 }
 
 void op::v3::Broadcast::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v3_Broadcast_validate_and_infer_types);
+    OV_OP_SCOPE(v3_Broadcast_validate_and_infer_types);
     if (m_mode.m_type == BroadcastType::NONE) {
         NODE_VALIDATION_CHECK(this,
                               get_input_size() == 3,
@@ -178,7 +178,7 @@ void op::v3::Broadcast::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v3::Broadcast::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v3_Broadcast_clone_with_new_inputs);
+    OV_OP_SCOPE(v3_Broadcast_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 2) {
         return make_shared<v3::Broadcast>(new_args.at(0), new_args.at(1), m_mode);
@@ -190,18 +190,18 @@ shared_ptr<Node> op::v3::Broadcast::clone_with_new_inputs(const OutputVector& ne
 }
 
 bool op::v3::Broadcast::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v3_Broadcast_visit_attributes);
+    OV_OP_SCOPE(v3_Broadcast_visit_attributes);
     visitor.on_attribute("mode", m_mode);
     return true;
 }
 
 bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v3_Broadcast_evaluate);
+    OV_OP_SCOPE(v3_Broadcast_evaluate);
     return broadcast_evaluate(outputs, inputs);
 }
 
 bool op::v3::Broadcast::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v3_Broadcast_has_evaluate);
+    OV_OP_SCOPE(v3_Broadcast_has_evaluate);
     return m_mode.m_type == BroadcastType::NONE || m_mode.m_type == BroadcastType::PDPD ||
            m_mode.m_type == BroadcastType::NUMPY || m_mode.m_type == BroadcastType::BIDIRECTIONAL;
 }
@@ -249,7 +249,7 @@ op::v1::Broadcast::Broadcast(const Output<Node>& arg,
 }
 
 void op::v1::Broadcast::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_Broadcast_validate_and_infer_types);
+    OV_OP_SCOPE(v1_Broadcast_validate_and_infer_types);
     // m_type is deduced and not always explicitly stated, for cases where broadcast
     // has 2 inputs its always NUMPY mode
     if (m_broadcast_spec.m_type == AutoBroadcastType::NONE && get_input_size() < 3) {
@@ -297,24 +297,24 @@ void op::v1::Broadcast::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v1::Broadcast::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_Broadcast_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_Broadcast_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::Broadcast>(new_args.at(0), new_args.at(1), new_args.at(2), m_broadcast_spec);
 }
 
 bool op::v1::Broadcast::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_Broadcast_visit_attributes);
+    OV_OP_SCOPE(v1_Broadcast_visit_attributes);
     visitor.on_attribute("mode", m_broadcast_spec);
     return true;
 }
 
 bool op::v1::Broadcast::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_Broadcast_evaluate);
+    OV_OP_SCOPE(v1_Broadcast_evaluate);
     return op::util::BroadcastBase::evaluate(outputs, inputs);
 }
 
 bool op::v1::Broadcast::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_Broadcast_has_evaluate);
+    OV_OP_SCOPE(v1_Broadcast_has_evaluate);
     return m_mode.m_type == BroadcastType::NONE || m_mode.m_type == BroadcastType::PDPD ||
            m_mode.m_type == BroadcastType::NUMPY;
 }

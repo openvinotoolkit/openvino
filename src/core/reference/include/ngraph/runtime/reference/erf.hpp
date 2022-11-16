@@ -17,14 +17,14 @@ namespace reference {
 template <typename T, typename std::enable_if<!std::is_integral<T>::value, bool>::type = true>
 void erf(const T* arg, T* out, size_t count) {
     for (size_t i = 0; i < count; i++) {
-        out[i] = std::erf(arg[i]);
+        out[i] = static_cast<T>(std::erf(arg[i]));
     }
 }
 
 template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
 void erf(const T* arg, T* out, size_t count) {
     for (size_t i = 0; i < count; i++) {
-        out[i] = std::round(std::erf(arg[i]));
+        out[i] = static_cast<T>(std::round(std::erf(arg[i])));
     }
 }
 }  // namespace reference

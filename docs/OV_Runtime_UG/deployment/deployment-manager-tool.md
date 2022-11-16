@@ -14,8 +14,7 @@ To use the Deployment Manager tool, the following requirements need to be met:
    * **For VPU**, see [Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](../../install_guides/configurations-for-ivad-vpu.md).
    * **For GNA**, see [Intel® Gaussian & Neural Accelerator (GNA)](../../install_guides/configurations-for-intel-gna.md)
 
-
-> **IMPORTANT**: The target operating system must be the same as the development system on which you are creating the package. For example, if the target system is Ubuntu 18.04, the deployment package must be created from the OpenVINO™ toolkit installed on Ubuntu 18.04.
+> **IMPORTANT**: The operating system on the target system must be the same as the development system on which you are creating the package. For example, if the target system is Ubuntu 18.04, the deployment package must be created from the OpenVINO™ toolkit installed on Ubuntu 18.04.
 
 > **TIP**: If your application requires additional dependencies, including the Microsoft Visual C++ Redistributable, use the ['--user_data' option](https://docs.openvino.ai/latest/openvino_docs_install_guides_deployment_manager_tool.html#run-standard-cli-mode) to add them to the deployment archive. Install these dependencies on the target host before running inference.
 
@@ -166,64 +165,63 @@ To deploy the OpenVINO Runtime components from the development machine to the ta
 
 .. tab:: Linux
 
-    .. code-block:: sh
+   .. code-block:: sh
 
-        tar xf openvino_deployment_package.tar.gz -C <destination_dir>
+      tar xf openvino_deployment_package.tar.gz -C <destination_dir>
 
 .. tab:: Windows
 
-    .. code-block:: bat
+   .. code-block:: bat
 
-        Use the archiver of your choice to unzip the file.
+      Use the archiver of your choice to unzip the file.
 
 .. tab:: macOS
 
-    .. code-block:: sh
+   .. code-block:: sh
 
-        tar xf openvino_deployment_package.tar.gz -C <destination_dir>
+      tar xf openvino_deployment_package.tar.gz -C <destination_dir>
 
 @endsphinxdirective
 
 
-Now, the package is extracted to the destination directory. The following files and subdirectories are created:
-
-   * `setupvars.sh` — a copy of `setupvars.sh`.
-   * `runtime` — contains the OpenVINO runtime binary files.
-   * `install_dependencies` — a snapshot of the `install_dependencies` directory from the OpenVINO installation directory.
-   * `<user_data>` — the directory with the user data (OpenVINO IR, model, dataset, etc.) specified while configuring the package.
+   Now, the package is extracted to the destination directory. The following files and subdirectories are created:
+   
+      * `setupvars.sh` — a copy of `setupvars.sh`.
+      * `runtime` — contains the OpenVINO runtime binary files.
+      * `install_dependencies` — a snapshot of the `install_dependencies` directory from the OpenVINO installation directory.
+      * `<user_data>` — the directory with the user data (OpenVINO IR, model, dataset, etc.) specified while configuring the package.
 
 3. On a target Linux system, to run inference on a target Intel® GPU, Intel® Movidius™ VPU, or Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, install additional dependencies by running the `install_openvino_dependencies.sh` script:
-
-```sh
-cd <destination_dir>/openvino/install_dependencies
-sudo -E ./install_openvino_dependencies.sh
-```
+   ```sh
+   cd <destination_dir>/openvino/install_dependencies
+   sudo -E ./install_openvino_dependencies.sh
+   ```
 
 4. Set up the environment variables:
-  
-@sphinxdirective  
-      
-.. tab:: Linux  
-      
+@sphinxdirective
+
+.. tab:: Linux
+
    .. code-block:: sh
-         
+
       cd <destination_dir>/openvino/
       source ./setupvars.sh
-      
-.. tab:: Windows  
-      
-   .. code-block:: bat  
-      
+
+.. tab:: Windows
+
+   .. code-block:: bat
+
       cd <destination_dir>\openvino\
       .\setupvars.bat
-      
-.. tab:: macOS  
-      
+
+.. tab:: macOS
+
    .. code-block:: sh
-         
+
       cd <destination_dir>/openvino/
       source ./setupvars.sh
-      
+
 @endsphinxdirective
+
 
 Now, you have finished the deployment of the OpenVINO Runtime components to the target system.

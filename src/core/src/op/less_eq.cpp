@@ -23,7 +23,7 @@ op::v1::LessEqual::LessEqual(const Output<Node>& arg0,
 }
 
 shared_ptr<Node> op::v1::LessEqual::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_LessEqual_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_LessEqual_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::LessEqual>(new_args.at(0), new_args.at(1), this->get_autob());
 }
@@ -68,12 +68,12 @@ bool evaluate_less_equal(const HostTensorPtr& arg0,
 }  // namespace less_equalop
 
 bool op::v1::LessEqual::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_LessEqual_evaluate);
+    OV_OP_SCOPE(v1_LessEqual_evaluate);
     return less_equalop::evaluate_less_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
 bool op::v1::LessEqual::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_LessEqual_has_evaluate);
+    OV_OP_SCOPE(v1_LessEqual_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::boolean:
     case ngraph::element::i32:

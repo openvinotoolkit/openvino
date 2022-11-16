@@ -20,7 +20,7 @@ void cos(const T* arg, T* out, size_t count) {
 template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
 void cos(const T* arg, T* out, size_t count) {
     for (size_t i = 0; i < count; i++) {
-        out[i] = std::roundl(std::cos(arg[i]));
+        out[i] = static_cast<T>(std::roundl(std::cos(arg[i])));
     }
 }
 }  // namespace reference

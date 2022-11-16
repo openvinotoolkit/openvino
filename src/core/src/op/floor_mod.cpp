@@ -19,7 +19,7 @@ op::v1::FloorMod::FloorMod(const Output<Node>& arg0, const Output<Node>& arg1, c
 }
 
 shared_ptr<Node> op::v1::FloorMod::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_FloorMod_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_FloorMod_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<FloorMod>(new_args.at(0), new_args.at(1), this->get_autob());
 }
@@ -66,12 +66,12 @@ bool evaluate_floor_mod(const HostTensorPtr& arg0,
 }  // namespace floor_mod
 
 bool op::v1::FloorMod::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_FloorMod_evaluate);
+    OV_OP_SCOPE(v1_FloorMod_evaluate);
     return floor_mod::evaluate_floor_mod(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
 bool op::v1::FloorMod::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_FloorMod_has_evaluate);
+    OV_OP_SCOPE(v1_FloorMod_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i8:
     case ngraph::element::i32:
@@ -90,7 +90,7 @@ bool op::v1::FloorMod::has_evaluate() const {
 }
 
 bool op::v1::FloorMod::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_FloorMod_visit_attributes);
+    OV_OP_SCOPE(v1_FloorMod_visit_attributes);
     BinaryElementwiseArithmetic::visit_attributes(visitor);
     return true;
 }

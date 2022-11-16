@@ -33,6 +33,26 @@ struct deconv_test_params {
     format default_format;
     size_t expected_fused_primitives;
     size_t expected_not_fused_primitives;
+    bool operator<(const deconv_test_params& o)const {
+        auto to_tuple = [](const deconv_test_params& p) {
+            return make_tuple(p.in_shape,
+                              p.out_shape,
+                              p.kernel,
+                              p.stride,
+                              p.pad,
+                              p.dilation,
+                              p.groups,
+                              static_cast<size_t>(p.data_type),
+                              p.input_format,
+                              static_cast<size_t>(p.weights_type),
+                              p.weights_format,
+                              static_cast<size_t>(p.default_type),
+                              p.default_format,
+                              p.expected_fused_primitives,
+                              p.expected_not_fused_primitives);
+        };
+        return to_tuple(*this)<to_tuple(o);
+    }
 };
 
 struct deconv_eltw_test_params {
@@ -447,6 +467,17 @@ TEST_P(deconv_actv_eltw_actv, basic) {
         reorder("out", "act2", p.default_format, data_types::f32)
     );
 
+    // Waiting MFDNN-8947
+    std::set<deconv_test_params> onednn_skip = {
+        deconv_test_params{CASE_DECONV_U8S8_6, 2, 5},
+        deconv_test_params{CASE_DECONV_U8S8_7, 2, 5},
+        deconv_test_params{CASE_DECONV_S8S8_6, 2, 5},
+        deconv_test_params{CASE_DECONV_S8S8_7, 2, 5},
+    };
+    if (engine.get_device_info().supports_immad && onednn_skip.count(p)) {
+        std::cout << "SKIP" << std::endl;
+        return;
+    }
     // Need much higher tolerance because of deconvolution -> convolution optimization
     tolerance = 1.f;
     execute(p);
@@ -660,6 +691,19 @@ TEST_P(deconv_scale_actv_quant_u8_eltw_scale_actv_quant_i8, basic) {
         reorder("out", "quant2", p.default_format, data_types::f32)
     );
 
+    // Waiting MFDNN-8947
+    std::set<deconv_test_params> onednn_skip = {
+        deconv_test_params{CASE_DECONV_FP16_2, 2, 9},
+        deconv_test_params{CASE_DECONV_FP16_3, 2, 9},
+        deconv_test_params{CASE_DECONV_FP16_6, 2, 9},
+        deconv_test_params{CASE_DECONV_FP16_7, 2, 9},
+        deconv_test_params{CASE_DECONV_S8S8_6, 2, 9},
+        deconv_test_params{CASE_DECONV_S8S8_7, 2, 9},
+    };
+    if (engine.get_device_info().supports_immad && onednn_skip.count(p)) {
+        std::cout << "SKIP" << std::endl;
+        return;
+    }
     tolerance = 2.1f;
     execute(p);
 }

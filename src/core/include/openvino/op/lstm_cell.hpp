@@ -23,6 +23,8 @@ enum class LSTMWeightsFormat {
     IOFC,  // ONNX
 };
 
+ov::op::util::LSTMWeightsFormat convert_lstm_weights_enums(LSTMWeightsFormat format);
+
 namespace v0 {
 ///
 /// \brief      Class for single lstm cell node.

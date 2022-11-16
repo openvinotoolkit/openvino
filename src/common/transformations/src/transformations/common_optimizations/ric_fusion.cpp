@@ -7,20 +7,20 @@
 #include <memory>
 #include <ngraph/log.hpp>
 #include <ngraph/op/util/binary_elementwise_arithmetic.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <openvino/core/validation_util.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <utility>
 #include <vector>
 
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace ric_attr {
 
@@ -65,7 +65,7 @@ public:
     }
 
     // Apply callback to materialize RIC inside graph
-    void materialize(Input<Node> input) const {
+    void materialize(Input<Node> input, const ov::NodeVector& nodes) const {
         if (get_axis() >= input.get_partial_shape().size()) {
             NGRAPH_DEBUG << "Axis calculated to materialize RIC on input: " << input << " is out of range";
             return;
@@ -84,7 +84,7 @@ public:
         }
         auto gather = std::make_shared<opset8::Gather>(output, create_1d_const(order), create_1d_const({get_axis()}));
         input.replace_source_output(gather);
-        // TODO: copy runtime info from RIC sub-graph (ticket 88597)
+        ov::copy_runtime_info(nodes, gather);
     }
 
     bool can_be_fused() const {
@@ -178,7 +178,7 @@ Attribute get(const T& port) {
     if (res != attrs.end()) {
         return res->second.template as<Attribute>();
     }
-    throw ngraph_error("reverse_input_channel_index is missing in given port");
+    throw Exception("reverse_input_channel_index is missing in given port");
 }
 
 template <typename T, typename = is_port<T>>
@@ -190,14 +190,26 @@ void erase(T port) {
 }  // namespace ric_attr
 
 namespace init {
-class SplitConcat : public ngraph::pass::MatcherPass {
+
+namespace {
+
+void add_node_with_inputs_to_vector(const std::shared_ptr<ov::Node>& node, NodeVector& vector) {
+    vector.push_back(node);
+    const auto& inputs = node->inputs();
+    for (const auto& input : inputs) {
+        vector.push_back(input.get_source_output().get_node_shared_ptr());
+    }
+}
+
+}  // namespace
+class SplitConcat : public ov::pass::MatcherPass {
 public:
-    SplitConcat() {
+    SplitConcat(NodeVector& nodes_to_fuse) {
         MATCHER_SCOPE(SplitConcat);
         auto split_p = pattern::wrap_type<opset8::Split>();
         auto pattern_root = pattern::wrap_type<opset8::Concat>({split_p, split_p, split_p});
 
-        auto callback = [=](pattern::Matcher& m) {
+        auto callback = [=, &nodes_to_fuse](pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             auto concat = ov::as_type_ptr<opset8::Concat>(pattern_map.at(pattern_root).get_node_shared_ptr());
             auto split = ov::as_type_ptr<opset8::Split>(pattern_map.at(split_p).get_node_shared_ptr());
@@ -235,6 +247,9 @@ public:
 
             // Mark-up RIC output
             ric_attr::init(concat, order, concat->get_axis());
+
+            nodes_to_fuse.push_back(concat);
+            add_node_with_inputs_to_vector(split, nodes_to_fuse);
             return true;
         };
 
@@ -243,16 +258,16 @@ public:
     }
 };
 
-class Gather : public ngraph::pass::MatcherPass {
+class Gather : public ov::pass::MatcherPass {
 public:
-    Gather() {
+    Gather(NodeVector& nodes_to_fuse) {
         MATCHER_SCOPE(Gather);
         auto input_p = pattern::any_input(pattern::has_static_rank());
         auto indices_p = pattern::any_input();
         auto axis_p = pattern::wrap_type<opset8::Constant>();
         auto pattern_root = pattern::wrap_type<opset8::Gather>({input_p, indices_p, axis_p});
 
-        auto callback = [=](pattern::Matcher& m) {
+        auto callback = [=, &nodes_to_fuse](pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& output = pattern_map.at(pattern_root);
 
@@ -261,9 +276,10 @@ public:
                 return false;
 
             const auto axis_value = axis->cast_vector<int64_t>().at(0);
-
-            if (ov::is_preprocesing_node(output.get_node_shared_ptr())) {
+            auto gather = output.get_node_shared_ptr();
+            if (ov::is_preprocesing_node(gather)) {
                 ric_attr::init(output, {}, axis_value);
+                add_node_with_inputs_to_vector(gather, nodes_to_fuse);
                 return true;
             }
 
@@ -291,6 +307,7 @@ public:
                 return false;
             }
             ric_attr::init(output, order_values, axis_value);
+            add_node_with_inputs_to_vector(gather, nodes_to_fuse);
             return true;
         };
 
@@ -302,7 +319,7 @@ public:
 
 namespace prop {
 
-class Binary : public ngraph::pass::MatcherPass {
+class Binary : public ov::pass::MatcherPass {
 public:
     Binary() {
         MATCHER_SCOPE(Binary);
@@ -387,7 +404,7 @@ public:
     }
 };
 
-class Convolution : public ngraph::pass::MatcherPass {
+class Convolution : public ov::pass::MatcherPass {
 public:
     Convolution() {
         MATCHER_SCOPE(Convolution);
@@ -409,7 +426,7 @@ public:
     }
 };
 
-class GroupConvolution : public ngraph::pass::MatcherPass {
+class GroupConvolution : public ov::pass::MatcherPass {
 public:
     GroupConvolution() {
         MATCHER_SCOPE(GroupConvolution);
@@ -465,7 +482,7 @@ public:
     }
 };
 
-class ShapeOf : public ngraph::pass::MatcherPass {
+class ShapeOf : public ov::pass::MatcherPass {
 public:
     ShapeOf() {
         MATCHER_SCOPE(ShapeOf);
@@ -481,7 +498,7 @@ public:
     }
 };
 
-class PassThrough : public ngraph::pass::MatcherPass {
+class PassThrough : public ov::pass::MatcherPass {
 public:
     PassThrough() {
         MATCHER_SCOPE(PassThrough);
@@ -501,7 +518,7 @@ public:
     }
 };
 
-class Transpose : public ngraph::pass::MatcherPass {
+class Transpose : public ov::pass::MatcherPass {
 public:
     Transpose() {
         MATCHER_SCOPE(Transpose);
@@ -530,7 +547,7 @@ public:
     }
 };
 
-class Unsupported : public ngraph::pass::MatcherPass {
+class Unsupported : public ov::pass::MatcherPass {
 public:
     Unsupported() {
         MATCHER_SCOPE(Unsupported);
@@ -565,19 +582,19 @@ bool need_to_erase_ric(const Output<Node>& output) {
 }
 }  // namespace
 
-class InsertReverseInputChannel : public ngraph::pass::MatcherPass {
+class InsertReverseInputChannel : public ov::pass::MatcherPass {
 public:
-    InsertReverseInputChannel() {
+    InsertReverseInputChannel(NodeVector& fused_nodes) {
         MATCHER_SCOPE(InsertReverseInputChannel);
         auto pattern_root = pattern::any_input();
-        auto callback = [](pattern::Matcher& m) {
+        auto callback = [&fused_nodes](pattern::Matcher& m) {
             const auto& node = m.get_match_root();
             for (const auto& input : node->inputs()) {
                 if (!ric_attr::has(input))
                     continue;
                 const auto& ric = ric_attr::get(input);
                 if (ric.can_be_fused() && ric.is_final()) {
-                    ric.materialize(input);
+                    ric.materialize(input, fused_nodes);
                 }
             }
             return false;
@@ -588,7 +605,7 @@ public:
     }
 };
 
-class EraseSplitConcat : public ngraph::pass::MatcherPass {
+class EraseSplitConcat : public ov::pass::MatcherPass {
 public:
     EraseSplitConcat() {
         MATCHER_SCOPE(EraseSplitConcat);
@@ -609,7 +626,7 @@ public:
     }
 };
 
-class EraseGather : public ngraph::pass::MatcherPass {
+class EraseGather : public ov::pass::MatcherPass {
 public:
     EraseGather() {
         MATCHER_SCOPE(EraseGather);
@@ -631,7 +648,7 @@ public:
 }  // namespace fuse
 
 namespace back_prop {
-class Binary : public ngraph::pass::MatcherPass {
+class Binary : public ov::pass::MatcherPass {
 public:
     Binary() {
         MATCHER_SCOPE(Binary);
@@ -714,7 +731,7 @@ public:
     }
 };
 
-class ConvertPassThrough : public ngraph::pass::MatcherPass {
+class ConvertPassThrough : public ov::pass::MatcherPass {
 public:
     ConvertPassThrough() {
         MATCHER_SCOPE(ConvertPassThrough);
@@ -798,15 +815,16 @@ public:
 
 }  // namespace back_prop
 
-bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
+bool ov::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(ReverseInputChannelsFusion);
     Manager m;
     m.set_per_pass_validation(false);
 
+    NodeVector nodes_to_fuse;
     // First we need to initialize and propagate RIC attributes through entire graph
     auto ric_prop = m.register_pass<GraphRewrite>();
-    ric_prop->add_matcher<init::SplitConcat>();
-    ric_prop->add_matcher<init::Gather>();
+    ric_prop->add_matcher<init::SplitConcat>(nodes_to_fuse);
+    ric_prop->add_matcher<init::Gather>(nodes_to_fuse);
     ric_prop->add_matcher<prop::Convolution>();
     ric_prop->add_matcher<prop::GroupConvolution>();
     ric_prop->add_matcher<prop::Binary>();
@@ -824,7 +842,7 @@ bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_pt
 
     // Second we fuse available RIC into nodes and remove original nodes related to fused RIC
     auto ric_fuse = m.register_pass<GraphRewrite>();
-    ric_fuse->add_matcher<fuse::InsertReverseInputChannel>();
+    ric_fuse->add_matcher<fuse::InsertReverseInputChannel>(nodes_to_fuse);
     ric_fuse->add_matcher<fuse::EraseSplitConcat>();
     ric_fuse->add_matcher<fuse::EraseGather>();
 
@@ -832,4 +850,4 @@ bool ngraph::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_pt
     return false;
 }
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov

@@ -20,25 +20,25 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
-    auto inputShape = op->get_input_shape(0);
-    auto outputShape = op->get_output_shape(0);
-    auto inputRank = inputShape.size();
-    auto outputRank = outputShape.size();
+    auto input_pshape = op->get_input_partial_shape(0);
+    auto output_pshape = op->get_output_partial_shape(0);
+    auto input_rank = input_pshape.size();
+    auto output_rank = output_pshape.size();
 
     auto inputPrimitive = inputPrimitives[0];
 
-    if (inputRank != outputRank) {
+    if (input_rank != output_rank && input_pshape.is_static() && output_pshape.is_static() && !p.use_new_shape_infer()) {
+        auto inputShape = op->get_input_shape(0);
+        auto outputShape = op->get_output_shape(0);
         // Add reorder if changing number of dimensions requires changing format
-        auto targetFormat = cldnn::format::get_default_format(outputRank);
-        if (targetFormat.value != cldnn::format::get_default_format(inputRank).value) {
+        auto targetFormat = cldnn::format::get_default_format(output_rank);
+        if (targetFormat.value != cldnn::format::get_default_format(input_rank).value) {
             auto reorderName = layerName + "_cldnn_in_reorder";
             auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(0));
             auto reorderPrim = cldnn::reorder(reorderName,
                                               inputPrimitive,
                                               targetFormat,
-                                              targetDatatype,
-                                              std::vector<float>(),
-                                              cldnn::reorder_mean_mode::subtract);
+                                              targetDatatype);
             p.add_primitive(*op, reorderPrim);
 
             inputPrimitive = reorderName;
@@ -49,7 +49,7 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
         // Extend input dimensions with ones
         if (axis_mapping.empty()) {
             // If axis_mapping is not specified, then we prepend shape with neccesary count of 1-s
-            inputShape.insert(inputShape.begin(), outputRank - inputRank, 1ul);
+            inputShape.insert(inputShape.begin(), output_rank - input_rank, 1ul);
         } else {
             // If axis_mapping is specified, then ones are inserted according to it.
             ngraph::Shape tmp_shape;
@@ -92,13 +92,22 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
         throw ov::Exception("[GPU] Can't cast Broadcast operation to any supported version");
     }
 
-    auto broadcastPrim = cldnn::broadcast(layerName,
-                                          inputPrimitive,
-                                          outputShape,
-                                          axis_mapping,
-                                          mode);
+    std::shared_ptr<cldnn::broadcast> broadcast_prim = nullptr;
+    if (output_pshape.is_static()) {
+        broadcast_prim = std::make_shared<cldnn::broadcast>(layerName,
+                                                            inputPrimitive,
+                                                            output_pshape.to_shape(),
+                                                            axis_mapping,
+                                                            mode);
+    } else {
+        broadcast_prim = std::make_shared<cldnn::broadcast>(layerName,
+                                                            inputPrimitive,
+                                                            inputPrimitives[1],
+                                                            axis_mapping,
+                                                            mode);
+    }
 
-    p.add_primitive(*op, broadcastPrim);
+    p.add_primitive(*op, broadcast_prim);
 }
 
 static void CreateBroadcastOp(Program& p, const std::shared_ptr<ngraph::op::v1::Broadcast>& op) {

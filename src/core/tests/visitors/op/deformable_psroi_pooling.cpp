@@ -24,7 +24,7 @@ TEST(attributes, deformable_psroi_pooling_op) {
     string mode = "bilinear_deformable";
     const int spatial_bins_x = 2;
     const int spatial_bins_y = 3;
-    const float trans_std = 0.1;
+    const float trans_std = 0.1f;
     const int part_size = 3;
 
     auto op = make_shared<opset1::DeformablePSROIPooling>(input,
@@ -37,7 +37,7 @@ TEST(attributes, deformable_psroi_pooling_op) {
                                                           spatial_bins_y,
                                                           trans_std,
                                                           part_size);
-    NodeBuilder builder(op);
+    NodeBuilder builder(op, {input, coords});
     auto g_op = ov::as_type_ptr<opset1::DeformablePSROIPooling>(builder.create());
 
     EXPECT_EQ(g_op->get_output_dim(), op->get_output_dim());
