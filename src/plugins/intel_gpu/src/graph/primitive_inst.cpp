@@ -342,11 +342,22 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
 
             for (auto& d : _deps) {
                 if (!d->get_node().is_type<data>()) {
-                    subgraph->set_input_data(d->id(), d->output_memory_ptr());
+                    auto allocated_mem = d->output_memory_ptr();
+                    auto actual_input_layout = d->get_output_layout();
+                    auto& engine = _network.get_engine();
+                    // Need to use actual layout, not the fake aligned memory layout
+                    auto actual_mem = engine.reinterpret_buffer(*allocated_mem, actual_input_layout);
+                    subgraph->set_input_data(d->id(), actual_mem);
                 }
+            }
+            GPU_DEBUG_IF(debug_config->verbose >= 4) {
+                GPU_DEBUG_COUT << "[Start] Executing unfused subgraph of " << id() << std::endl;
             }
 
             auto outputs = subgraph->execute(events);
+            GPU_DEBUG_IF(debug_config->verbose >= 4) {
+                GPU_DEBUG_COUT << "[End] Finished executing unfused subgraph of " << id() << std::endl;
+            }
 
             auto last_fd = _impl_params->fused_desc.back();
             auto last_prim_id = last_fd.desc->id;
@@ -355,7 +366,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
 
             _outputs[0] = outputs.at(last_prim_id).get_memory();
 
-            _impl_params->output_layouts[0] = _outputs[0]->get_layout();
+            _impl_params->output_layouts[0] = subgraph->get_output_layout(last_prim_id);
             return outputs.at(last_prim_id).get_event();
         }
 
