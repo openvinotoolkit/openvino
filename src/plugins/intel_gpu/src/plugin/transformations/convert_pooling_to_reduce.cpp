@@ -46,7 +46,7 @@ ov::intel_gpu::ConvertAvgPoolingToReduce::ConvertAvgPoolingToReduce() {
             ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape{axes_shape.size()}, axes_shape),
             true);
 
-        reduce->set_friendly_name(pool->get_friendly_name() + "/Reduce");
+        reduce->set_friendly_name(pool->get_friendly_name());
         copy_runtime_info(pool, reduce);
         replace_node(pool, reduce);
 

@@ -512,6 +512,26 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
                 && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 2) {
                     if (compare_strides(order, {0, 1, 3, 4, 2}))        return cldnn::format::g_os_yx_is_osv8_isv4;
                     else if (compare_strides(order, {0, 1, 3, 2, 4}))   return cldnn::format::g_os_y_is_x_osv8_isv4;
+            } else if (desc.data.ndims == 6 && blk.inner_nblks == 2
+                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 2
+                && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 2) {
+                    if (compare_strides(order, {0, 1, 3, 4, 5, 2}))       return cldnn::format::g_os_zyx_is_osv8_isv2;
+                    else if (compare_strides(order, {0, 1, 3, 4, 2, 5}))  return cldnn::format::g_os_zy_is_x_osv8_isv2;
+            } else if (desc.data.ndims == 6 && blk.inner_nblks == 2
+                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 4
+                && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 2) {
+                    if (compare_strides(order, {0, 1, 3, 4, 5, 2}))       return cldnn::format::g_os_zyx_is_osv8_isv4;
+                    else if (compare_strides(order, {0, 1, 3, 4, 2, 5}))  return cldnn::format::g_os_zy_is_x_osv8_isv4;
+            } else if (desc.data.ndims == 6 && blk.inner_nblks == 3
+                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 2
+                && blk.inner_idxs[0] == 2 && blk.inner_idxs[1] == 1 && blk.inner_idxs[2] == 2
+                && compare_strides(order, {0, 1, 2, 3, 4, 5})) {
+                return cldnn::format::g_os_is_zyx_isa8_osv8_isv2;
+            } else if (desc.data.ndims == 6 && blk.inner_nblks == 3
+                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 4
+                && blk.inner_idxs[0] == 2 && blk.inner_idxs[1] == 1 && blk.inner_idxs[2] == 2
+                && compare_strides(order, {0, 1, 2, 3, 4, 5})) {
+                return cldnn::format::g_os_is_zyx_isa8_osv8_isv4;
             }
         } else {
             if (desc.data.ndims == 4 && blk.inner_nblks == 4
