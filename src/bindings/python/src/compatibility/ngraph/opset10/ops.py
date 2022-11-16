@@ -141,7 +141,7 @@ def unique(
     axis: Optional[NodeInput] = None,
     sorted: Optional[bool] = True,
     index_element_type: Optional[str] = "i64",
-    name: Optional[str] = None
+    name: Optional[str] = None,
 ) -> Node:
     """Operator which selects and returns unique elements or unique slices of the input tensor.
 
@@ -164,6 +164,6 @@ def unique(
 
     attributes = {
         "sorted": sorted,
-        "index_element_type": index_element_type
+        "index_element_type": index_element_type,
     }
     return _get_node_factory_opset10().create("Unique", inputs, attributes)

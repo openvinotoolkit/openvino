@@ -4,9 +4,9 @@
 
 """Factory functions for all openvino ops."""
 from functools import partial
-from typing import List, Optional, Union
+from typing import List, Optional
 
-from openvino.runtime import Node, Type
+from openvino.runtime import Node
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import nameable_op
 from openvino.runtime.utils.types import (
@@ -142,7 +142,7 @@ def unique(
     axis: Optional[NodeInput] = None,
     sorted: Optional[bool] = True,
     index_element_type: Optional[str] = "i64",
-    name: Optional[str] = None
+    name: Optional[str] = None,
 ) -> Node:
     """Operator which selects and returns unique elements or unique slices of the input tensor.
 
@@ -165,6 +165,6 @@ def unique(
 
     attributes = {
         "sorted": sorted,
-        "index_element_type": index_element_type
+        "index_element_type": index_element_type,
     }
     return _get_node_factory_opset10().create("Unique", inputs, attributes)
