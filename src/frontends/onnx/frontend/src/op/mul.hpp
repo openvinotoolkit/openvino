@@ -7,10 +7,7 @@
 #include <memory>
 
 #include "default_opset.hpp"
-#include "ngraph/builder/autobroadcast.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/op/broadcast.hpp"
-#include "ngraph/op/multiply.hpp"
+#include "exceptions.hpp"
 #include "onnx_import/core/node.hpp"
 
 namespace ngraph {
@@ -25,7 +22,12 @@ inline OutputVector mul(const Node& node) {
 
 namespace set_7 {
 inline OutputVector mul(const Node& node) {
-    return {std::make_shared<default_opset::Multiply>(node.get_ng_inputs().at(0), node.get_ng_inputs().at(1))};
+    const auto& inputs = node.get_ng_inputs();
+    CHECK_VALID_NODE(node, inputs.size() == 2, "Expected number of inputs: 2. Got: ", inputs.size());
+    if (inputs[0].get_element_type() == element::boolean && inputs[1].get_element_type() == element::boolean) {
+        return {std::make_shared<default_opset::LogicalAnd>(inputs[0], inputs[1])};
+    }
+    return {std::make_shared<default_opset::Multiply>(inputs[0], inputs[1])};
 }
 
 }  // namespace set_7
