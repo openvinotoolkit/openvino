@@ -17,16 +17,15 @@ function(_ov_detect_dynamic_tbbbind_2_5 var)
     # try to select proper library directory
     _ov_get_tbb_location(TBB::tbb _tbb_lib_location)
     get_filename_component(_tbb_libs_dir "${_tbb_lib_location}" DIRECTORY)
-
     # unset for cases if user specified different TBB_DIR / TBBROOT
     unset(_ov_tbbbind_2_5 CACHE)
 
-    find_library(_ov_tbbbind_2_5
-                 NAMES tbbbind_2_5
-                 HINTS "${_tbb_libs_dir}"
-                 "Path to TBBBind 2.5+ library"
-                 NO_DEFAULT_PATH
-                 NO_CMAKE_FIND_ROOT_PATH)
+    find_file(_ov_tbbbind_2_5
+              NAMES "${CMAKE_SHARED_LIBRARY_PREFIX}tbbbind_2_5${CMAKE_SHARED_LIBRARY_SUFFIX}"
+              HINTS "${_tbb_libs_dir}"
+              "Path to TBBBind 2.5+ library"
+              NO_DEFAULT_PATH
+              NO_CMAKE_FIND_ROOT_PATH)
 
     if(_ov_tbbbind_2_5)
         set(${var} ON PARENT_SCOPE)
@@ -131,7 +130,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         set(IE_TBBROOT_INSTALL "runtime/3rdparty/tbb")
 
         # TBBROOT is not defined if ENV{TBBROOT} is not found
-        # so, we have to deduce this value outselves
+        # so, we have to deduce this value ourselves
         if(NOT DEFINED TBBROOT AND DEFINED ENV{TBBROOT})
             file(TO_CMAKE_PATH $ENV{TBBROOT} TBBROOT)
         endif()
@@ -162,9 +161,9 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         file(RELATIVE_PATH tbb_libs_dir "${TBBROOT}" "${_tbb_libs_dir}")
 
         # install only meaningful directories
-        foreach(dir include ${tbb_libs_dir} cmake lib/cmake lib/pkgconfig)
+        foreach(dir include ${tbb_libs_dir} cmake lib/cmake lib/pkgconfig lib/intel64/vc14)
             if(EXISTS "${TBBROOT}/${dir}")
-                if(dir STREQUAL "include" OR dir MATCHES ".*(cmake|pkgconfig)$")
+                if(dir STREQUAL "include" OR dir MATCHES ".*(cmake|pkgconfig)$" OR dir STREQUAL "lib/intel64/vc14")
                     set(tbb_component tbb_dev)
                     set(core_dev_components tbb_dev)
                     unset(exclude_pattern)
