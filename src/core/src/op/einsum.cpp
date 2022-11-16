@@ -166,7 +166,7 @@ void op::v7::Einsum::validate_and_infer_types() {
     OV_OP_SCOPE(v7_Einsum_validate_and_infer_types);
 
     // check that Einsum operation has at least one input
-    auto num_inputs = get_input_size();
+    const auto num_inputs = get_input_size();
     NODE_VALIDATION_CHECK(this, num_inputs > 0, "Einsum must have at least one input.");
 
     // check that all inputs have the same type and the type is numeric
@@ -181,11 +181,8 @@ void op::v7::Einsum::validate_and_infer_types() {
                               "Inputs to Einsum operation must have the same type.");
     }
 
-    std::vector<ov::PartialShape> input_shapes;
+    const auto input_shapes = get_node_input_partial_shapes(*this);
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
-    for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
-        input_shapes.push_back(get_input_partial_shape(input_idx));
-    }
 
     shape_infer(this, input_shapes, output_shapes);
 
