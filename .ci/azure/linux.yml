@@ -399,6 +399,10 @@ jobs:
     displayName: 'OV Core UT'
     continueOnError: false
 
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_conditional_complilation_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ConditionalCompilation.xml
+    displayName: 'Conditional Compilation Tests'
+    continueOnError: false
+
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-IRFrontend.xml
     displayName: 'IR Frontend Tests'
     continueOnError: false
@@ -411,10 +415,7 @@ jobs:
     displayName: 'Paddle Frontend UT'
     continueOnError: false
 
-  - script: |
-      # tensorflow frontend is not distributed to end users, we have to find it manually
-      export OV_FRONTEND_PATH=$(INSTALL_TEST_DIR)
-      $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
     displayName: 'TensorFlow Frontend Unit Tests'
     continueOnError: false
 
@@ -512,7 +513,6 @@ jobs:
       . $(PY_VENV)/bin/activate
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR):$PYTHONPATH
-      export OV_FRONTEND_PATH=$(INSTALL_DIR)/runtime/lib/intel64
       export TEST_DEVICE=CPU
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_fe.xmlTEST
     displayName: 'TensorFlow 1 Layer Tests - TF FE'
@@ -522,7 +522,6 @@ jobs:
       . $(PY_VENV)/bin/activate
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR):$PYTHONPATH
-      export OV_FRONTEND_PATH=$(INSTALL_DIR)/runtime/lib/intel64
       export TEST_DEVICE=CPU
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=$(INSTALL_TEST_DIR)/TEST-tf2_fe.xmlTEST
     displayName: 'TensorFlow 2 Layer Tests - TF FE'
