@@ -132,6 +132,7 @@ function createVersions() {
 
 }
 
+
 function addTableSort() {
     var tables = $('table.table');
     tables.each(function () {
