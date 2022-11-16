@@ -115,14 +115,30 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
                                               transpose_order);
             p.add_primitive(*op, permutePrim);
         };
-        auto create_broadcast = [&](const std::string& broadcastName, const std::string& inputName, const ngraph::Shape& target_shape) {
+        auto create_broadcast = [&](const std::string& broadcastName, const std::string& broadcastInputName, const ngraph::Shape& target_shape) {
             const auto out_shape = op->get_output_partial_shape(0).to_shape();
             std::vector<size_t> broadcast_axes(out_shape.size());
             std::iota(broadcast_axes.begin(), broadcast_axes.end(), 0);
             ngraph::AxisSet axisSet{broadcast_axes};
-            auto broadcastPrim = cldnn::broadcast(broadcastName, inputName, target_shape, axisSet);
+            auto broadcastPrim = cldnn::broadcast(broadcastName, broadcastInputName, target_shape, axisSet);
             p.add_primitive(*op, broadcastPrim);
         };
+        auto create_unsqueeze = [&](const std::string& unsqueezeName, const std::string& unsqueezeInputName, const PartialShape& target_shape) {
+            auto unsqueezePrim = cldnn::reshape(unsqueezeName, unsqueezeInputName, false, std::vector<int64_t>{}, target_shape,
+                                                cldnn::reshape::reshape_mode::unsqueeze);
+            p.add_primitive(*op, unsqueezePrim);
+        };
+
+        if (rank_a < rank_b) { // Input unsqueeze
+            auto unsqueezeName = op->get_friendly_name() + "/unsqueeze_a";
+            create_unsqueeze(unsqueezeName, inputName, shape_a_aligned);
+            inputName = unsqueezeName;
+        } else if (rank_b < rank_a) { // Weights unsqueeze
+            auto unsqueezeName = op->get_friendly_name() + "/unsqueeze_b";
+            create_unsqueeze(unsqueezeName, weightsName, shape_b_aligned);
+            weightsName = unsqueezeName;
+        }
+
         // Weights broadcast
         if (shape_b_aligned != shape_b) {
             //broadcast
