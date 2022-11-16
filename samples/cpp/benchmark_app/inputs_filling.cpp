@@ -16,6 +16,7 @@
 #include "format_reader_ptr.h"
 #include "shared_tensor_allocator.hpp"
 #include "utils.hpp"
+#include "samples/slog.hpp"
 
 template <typename T>
 using uniformDistribution = typename std::conditional<
