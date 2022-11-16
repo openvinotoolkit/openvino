@@ -56,6 +56,7 @@ autosummary_imported_members = True
 
 html_logo = '_static/logo.svg'
 html_copy_source = False
+collapse_navigation = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -79,7 +80,7 @@ html_theme = "openvino_sphinx_theme"
 html_theme_path = ['_themes']
 
 html_theme_options = {
-    "navigation_depth": 5,
+    "navigation_depth": 2,
     "use_edit_page_button": True,
     "github_url": "https://github.com/openvinotoolkit/openvino",
     "footer_items": ["footer_info"],
