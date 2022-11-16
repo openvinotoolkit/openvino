@@ -5,6 +5,7 @@ To enable operations not supported by OpenVINO™ out of the box, you need a cus
 > **NOTE**: 
 > * OpenCL custom layer support is available in the preview mode.
 > * This section assumes you are familiar with developing kernels using OpenCL.
+
 To customize your topology with an OpenCL layer, carry out the tasks described on this page:
 
 1. Write and compile your OpenCL code with the standalone offline OpenCL compiler (`clc`).
