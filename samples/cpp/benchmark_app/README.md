@@ -110,9 +110,10 @@ Options:
 
     -h, --help                Print a usage message
     -m "<path>"               Required. Path to an .xml/.onnx file with a trained model or to a .blob files with a trained compiled model.
-    -i "<path>"               Optional. Path to a folder with images and/or binaries or to specific image or binary file.
+    -i "<path>"               Optional. Path to a folder with images, binaries or numpy arrays or to specific image, binary or numpy array file.
                               In case of dynamic shapes networks with several inputs provide the same number of files for each input (except cases with single file for any input):"input1:1.jpg input2:1.bin", "input1:1.bin,2.bin input2:3.bin input3:4.bin,5.bin ". Also you can pass specific keys for inputs: "random" - for fillling input with random data, "image_info" - for filling input with image size.
                               You should specify either one files set to be used for all inputs (without providing input names) or separate files sets for every input of model (providing inputs names).
+                              Currently supported data types: bmp, dib, jpeg, jpg, jpe, jp2, png, pbm, pgm, ppm, sr, ras, tiff, tif, bin, npy.
     -d "<device>"             Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU. Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin. Use "-d MULTI:<comma-separated_devices_list>" format to specify MULTI plugin. The application looks for a suitable plugin for the specified device.
     -l "<absolute_path>"      Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.
           Or
@@ -185,7 +186,7 @@ Example: -imean data[255,255,255],info[255,255,255]
 Running the application with the empty list of options yields the usage message given above and an error message.
 
 ### More information on inputs
-The benchmark tool supports topologies with one or more inputs. If a topology is not data sensitive, you can skip the input parameter, and the inputs will be filled with random values. If a model has only image input(s), provide a folder with images or a path to an image as input. If a model has some specific input(s) (besides images), please prepare a binary file(s) that is filled with data of appropriate precision and provide a path to it as input. If a model has mixed input types, the input folder should contain all required files. Image inputs are filled with image files one by one. Binary inputs are filled with binary inputs one by one.
+The benchmark tool supports topologies with one or more inputs. If a topology is not data sensitive, you can skip the input parameter, and the inputs will be filled with random values. If a model has only image input(s), provide a folder with images or a path to an image as input. If a model has some specific input(s) (besides images), please prepare a binary file(s) or numpy array(s) that is filled with data of appropriate precision and provide a path to it as input. If a model has mixed input types, the input folder should contain all required files. Image inputs are filled with image files one by one. Binary inputs are filled with binary inputs one by one.
 
 ## Examples of Running the Tool
 This section provides step-by-step instructions on how to run the Benchmark Tool with the `asl-recognition` model from the Open Model Zoo on CPU or GPU devices. It uses random data as the input.

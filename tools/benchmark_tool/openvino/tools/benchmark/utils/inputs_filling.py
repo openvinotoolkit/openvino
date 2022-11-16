@@ -229,15 +229,30 @@ def get_binary_tensors(binary_paths, info, batch_sizes):
         current_batch_size = batch_sizes[shape_id]
         for b in range(current_batch_size):
             binary_index %= num_binaries
-            binary_filename = binary_paths[binary_index]
-            logger.info("Prepare binary file " + binary_filename)
-
-            binary_file_size = os.path.getsize(binary_filename)
-            blob_size = dtype.itemsize * int(np.prod(shape))
-            if blob_size != binary_file_size:
+            binary_filename:str = binary_paths[binary_index]
+            
+            extension = binary_filename.lower().split('.')[-1]
+            if extension == "npy":
+                logger.info("Prepare numpy file " + binary_filename)
+                numpy_arr:np.ndarray = np.load(binary_filename)
+                if numpy_arr.shape() != shape:
+                    raise Exception(
+                        f"Numpy array shape mismatch. File {binary_filename} has shape: {numpy_arr.shape}, expected: {shape}")
+                if numpy_arr.dtype != dtype:
+                    raise Exception(
+                        f"Numpy array is of {numpy_arr.dtype} format, which does not match input type. File {binary_filename}")
+                binaries[b] = np.reshape(numpy_arr, shape)
+            elif extension == "bin":
+                logger.info("Prepare binary file " + binary_filename)
+                binary_file_size = os.path.getsize(binary_filename)
+                blob_size = dtype.itemsize * int(np.prod(shape))
+                if blob_size != binary_file_size:
+                    raise Exception(
+                        f"File {binary_filename} contains {binary_file_size} bytes but model expects {blob_size}")
+                binaries[b] = np.reshape(np.fromfile(binary_filename, dtype), shape)
+            else:
                 raise Exception(
-                    f"File {binary_filename} contains {binary_file_size} bytes but model expects {blob_size}")
-            binaries[b] = np.reshape(np.fromfile(binary_filename, dtype), shape)
+                    f"Unsupported binary file type: {extension}")
 
             binary_index += 1
         processed_frames += current_batch_size
@@ -365,12 +380,12 @@ def parse_path(path, app_input_info):
                 elif input_path.is_file:
                     files = [input_path]
                 for file in files:
-                        if file.suffix.lower() in IMAGE_EXTENSIONS:
-                            images_mapping[input_name].append(str(file))
-                        elif file.suffix.lower() in BINARY_EXTENSIONS:
-                            binary_mapping[input_name].append(str(file))
-                        else:
-                            unsupported_files.append(str(file))
+                    if file.suffix.lower() in IMAGE_EXTENSIONS:
+                        images_mapping[input_name].append(str(file))
+                    elif file.suffix.lower() in BINARY_EXTENSIONS:
+                        binary_mapping[input_name].append(str(file))
+                    else:
+                        unsupported_files.append(str(file))
             else:
                 raise Exception(f"Path for input '{input_name}' doesn't exist \n {str(input_path)}")
     if unsupported_files:

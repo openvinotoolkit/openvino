@@ -161,8 +161,10 @@ ov::Tensor create_tensor_from_binary(const std::vector<std::string>& files,
 
         std::string extension = get_extension(files[inputIndex]);
         if (extension == "npy") {
+            slog::info("Prepare numpy file " + files[inputIndex]);
             processNumpyFile<T>(binaryFile, files[inputIndex], inputInfo.dataShape, inputSize);
         } else if (extension == "bin") {
+            slog::info("Prepare binary file " + files[inputIndex]);
             processBinaryFile(binaryFile, files[inputIndex], inputSize);
         } else {
             throw ov::Exception("Unsupported binary file type: " + extension);

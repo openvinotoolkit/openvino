@@ -36,7 +36,8 @@ static const char input_message[] =
     " \"image_info\" - for filling input with image size.\n"
     "                              You should specify either one files set to be used for all inputs (without "
     "providing "
-    "input names) or separate files sets for every input of model (providing inputs names).";
+    "input names) or separate files sets for every input of model (providing inputs names).\n"
+    "Currently supported data types: bmp, dib, jpeg, jpg, jpe, jp2, png, pbm, pgm, ppm, sr, ras, tiff, tif, bin, npy.";
 
 /// @brief message for model argument
 static const char model_message[] =

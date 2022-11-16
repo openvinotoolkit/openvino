@@ -115,8 +115,9 @@ Options:
   -h [HELP], --help [HELP]
                         Show this help message and exit.
   -i PATHS_TO_INPUT [PATHS_TO_INPUT ...], --paths_to_input PATHS_TO_INPUT [PATHS_TO_INPUT ...]
-                        Optional. Path to a folder with images and/or binaries or to specific image or binary file.It is also allowed to map files to network inputs:
+                        Optional. Path to a folder with images, binaries or numpy arrays or to specific image, binary or numpy array file.It is also allowed to map files to network inputs:
                         input_1:file_1/dir1,file_2/dir2,input_4:file_4/dir4 input_2:file_3/dir3
+                        Currently supported data types: bmp, dib, jpeg, jpg, jpe, jp2, png, pbm, pgm, ppm, sr, ras, tiff, tif, bin, npy
   -m PATH_TO_MODEL, --path_to_model PATH_TO_MODEL
                         Required. Path to an .xml/.onnx file with a trained model or to a .blob file with a trained compiled model.
   -d TARGET_DEVICE, --target_device TARGET_DEVICE
@@ -202,7 +203,7 @@ Options:
 Running the application with the empty list of options yields the usage message given above and an error message.
 
 ### More information on inputs
-The benchmark tool supports topologies with one or more inputs. If a topology is not data sensitive, you can skip the input parameter, and the inputs will be filled with random values. If a model has only image input(s), provide a folder with images or a path to an image as input. If a model has some specific input(s) (besides images), please prepare a binary file(s) that is filled with data of appropriate precision and provide a path to it as input. If a model has mixed input types, the input folder should contain all required files. Image inputs are filled with image files one by one. Binary inputs are filled with binary inputs one by one.
+The benchmark tool supports topologies with one or more inputs. If a topology is not data sensitive, you can skip the input parameter, and the inputs will be filled with random values. If a model has only image input(s), provide a folder with images or a path to an image as input. If a model has some specific input(s) (besides images), please prepare a binary file(s) or numpy array(s) that is filled with data of appropriate precision and provide a path to it as input. If a model has mixed input types, the input folder should contain all required files. Image inputs are filled with image files one by one. Binary inputs are filled with binary inputs one by one.
 
 ## Examples of Running the Tool
 This section provides step-by-step instructions on how to run the Benchmark Tool with the `asl-recognition` Intel model on CPU or GPU devices. It uses random data as the input.

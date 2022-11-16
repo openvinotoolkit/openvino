@@ -15,8 +15,8 @@ XML_EXTENSION = '.xml'
 BIN_EXTENSION = '.bin'
 BLOB_EXTENSION = '.blob'
 
-IMAGE_EXTENSIONS = ['.jpeg', '.jpg', '.png', '.bmp']
-BINARY_EXTENSIONS = ['.bin']
+IMAGE_EXTENSIONS = [".bmp", ".dib", ".jpeg", ".jpg", ".jpe", ".jp2", ".png", ".pbm", ".pgm", ".ppm", ".sr", ".ras", ".tiff", ".tif"]
+BINARY_EXTENSIONS = [".bin", ".npy"]
 
 DEVICE_DURATION_IN_SECS = {
     CPU_DEVICE_NAME: 60,
