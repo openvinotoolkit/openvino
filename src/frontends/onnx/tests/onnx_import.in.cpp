@@ -3988,6 +3988,17 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mul_v7) {
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mul_bool_v7) {
+    const auto model = onnx_import::import_onnx_model(
+        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/mul_bool_v7.onnx"));
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<bool>({1, 0, 0, 1});
+    test_case.add_input<bool>({1, 0, 1, 0});
+    test_case.add_expected_output<bool>(Shape{4}, {1, 0, 0, 0});
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mul_v7_broadcast) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/mul_v7_broadcast.onnx"));
