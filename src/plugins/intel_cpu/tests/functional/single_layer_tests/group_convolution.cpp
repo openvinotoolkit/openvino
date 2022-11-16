@@ -262,7 +262,7 @@ std::vector<groupConvLayerCPUTestParamsSet> filterParamsSetForDevice(std::vector
             !with_cpu_x86_bfloat16()) {
             continue;
         }
-         resParamsSet.push_back(param);
+        resParamsSet.push_back(param);
     }
 
     return resParamsSet;
