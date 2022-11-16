@@ -272,8 +272,9 @@ void primitive_inst::realloc_if_needed() {
                            <<  " Current buffer_size=" << max_output_layout_size
                            <<  " Requested buffer_size=" << actual_layout.count() << std::endl;
         }
-        _outputs = allocate_outputs();
-        max_output_layout_size = _outputs[0]->get_layout().count();
+        _outputs = allocate_outputs(&updated_params);
+        // TODO : need to handle multiple outputs
+        max_output_layout_size = updated_params.output_layouts[0].count();
     }
     // intermediate memory allocation is required for primitives consisting of multiple kernels in dynamic case
     allocate_internal_buffers();
@@ -281,41 +282,87 @@ void primitive_inst::realloc_if_needed() {
 
 void primitive_inst::update_impl() {
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::update_implementation);
+    GPU_DEBUG_GET_INSTANCE(debug_config);
     auto prev_impl_str =  _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
+    auto extend_to_6d = [this](ov::PartialShape ps) -> std::vector<size_t> {
+        // For shape_of we extend shape with 1-s to 6d rank to make kernel simpler
+        if (_node->is_type<shape_of>()) {
+            ps.insert(ps.end(), 6 - ps.size(), ov::Dimension(1));
+            return ps.to_shape();
+        }
+        if (ps.size() < 4) {
+            ps.insert(ps.end(), 4 - ps.size(), ov::Dimension(1));
+        }
+        layout l(ps, data_types::i32, format::get_default_format(ps.size()));
+        return l.transform(format::bfwzyx).to_shape();
+    };
+
+    auto get_layout_key = [&](const kernel_impl_params& params) -> size_t {
+        size_t seed = 0;
+        auto& id = params.desc->id;
+        for (size_t i = 0; i < id.size(); i++) {
+            seed = hash_combine(seed, id[i]);
+        }
+        seed = hash_combine(seed, _node->get_unique_id());
+        for (auto& layout : params.input_layouts) {
+            for (auto& d : layout.get_shape()) {
+                seed = hash_combine(seed, d);
+            }
+        }
+        for (auto& d : params.get_output_layout().get_shape()) {
+            seed = hash_combine(seed, d);
+        }
+        return seed;
+    };
+
+    auto update_shape_info = [this, extend_to_6d, debug_config, prev_impl_str](const kernel_impl_params& params) {
+        mem_lock<int32_t> lock(_shape_info_memory, _network.get_stream());
+        size_t offset = 0;
+        for (size_t i = 0; i < _node->get_dependencies().size(); i++) {
+            if (_node->get_dependency(i).get_output_layout().is_dynamic()) {
+                auto input_shape = extend_to_6d(params.get_input_layout(i).get_partial_shape());
+                for (size_t j = 0; j < input_shape.size(); j++)
+                    lock[offset++] = static_cast<int32_t>(input_shape[j]);
+            }
+        }
+
+        if (_node->get_output_layout().is_dynamic()) {
+            auto output_shape = extend_to_6d(params.get_output_layout().get_partial_shape());
+            for (size_t j = 0; j < output_shape.size(); j++)
+                lock[offset++] = static_cast<int32_t>(output_shape[j]);
+        }
+        GPU_DEBUG_IF(debug_config->verbose >= 4) {
+            std::stringstream s;
+            s << "shapes: ";
+            for (size_t i = 0; i < offset; i++)
+                s << lock[i] << " ";
+            GPU_DEBUG_COUT << id() << ": update dynamic impl " << prev_impl_str << " to new shape: " << s.str() << std::endl;
+        }
+    };
+
     if (!_node->is_type<data>() && !(_node->is_type<mutable_data>() && _node->get_dependencies().empty())) {
         // Update param if fake_alignment is available
         auto updated_params = _node->type()->get_fake_aligned_params(*_impl_params);
-        auto get_layout_key = [&]() -> size_t {
-            size_t seed = 0;
-            auto& id = updated_params.desc->id;
-            for (size_t i = 0; i < id.size(); i++) {
-                seed = hash_combine(seed, id[i]);
-            }
-            seed = hash_combine(seed, _node->get_unique_id());
-            for (auto& layout : updated_params.input_layouts) {
-                for (auto& d : layout.get_shape()) {
-                    seed = hash_combine(seed, d);
-                }
-            }
-            for (auto& d : updated_params.get_output_layout().get_shape()) {
-                seed = hash_combine(seed, d);
-            }
-            return seed;
-        };
-        auto layout_key = get_layout_key();
+        auto layout_key = get_layout_key(updated_params);
         auto& cache = get_network().get_implementations_cache();
         if (cache.has(layout_key)) {
             _impl = cache.get(layout_key)->clone();
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
         } else {
-            _impl = _node->type()->choose_impl(*_node, updated_params);
-            auto& kernels_cache = get_network().get_kernels_cache();
-            auto kernel_ids = kernels_cache.add_kernels_source(_impl->get_kernels_source());
-            _impl->set_kernel_ids(kernel_ids);
-            kernels_cache.compile();
-            _impl->init_kernels(kernels_cache);
-            cache.add(layout_key, _impl->clone());
-            kernels_cache.reset();
+            if (_dynamic_impl) {
+                _impl = _dynamic_impl->clone();
+                _impl->update_dispatch_data(updated_params);
+                update_shape_info(updated_params);
+            } else {
+                _impl = _node->type()->choose_impl(*_node, updated_params);
+                auto& kernels_cache = get_network().get_kernels_cache();
+                auto kernel_ids = kernels_cache.add_kernels_source(_impl->get_kernels_source());
+                _impl->set_kernel_ids(kernel_ids);
+                kernels_cache.compile();
+                _impl->init_kernels(kernels_cache);
+                cache.add(layout_key, _impl->clone());
+                kernels_cache.reset();
+            }
         }
 
         reset_shape_change();
@@ -335,17 +382,29 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
 
     std::vector<event::ptr> dependencies;
     if (is_dynamic()) {
+        OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
         if (!is_valid_fusion()) {
             auto subgraph = get_unfused_subgraph();
 
             for (auto& d : _deps) {
                 if (!d->get_node().is_type<data>()) {
-                    subgraph->set_input_data(d->id(), d->output_memory_ptr());
+                    auto allocated_mem = d->output_memory_ptr();
+                    auto actual_input_layout = d->get_output_layout();
+                    auto& engine = _network.get_engine();
+                    // Need to use actual layout, not the fake aligned memory layout
+                    auto actual_mem = engine.reinterpret_buffer(*allocated_mem, actual_input_layout);
+                    subgraph->set_input_data(d->id(), actual_mem);
                 }
+            }
+            GPU_DEBUG_IF(debug_config->verbose >= 4) {
+                GPU_DEBUG_COUT << "[Start] Executing unfused subgraph of " << id() << std::endl;
             }
 
             auto outputs = subgraph->execute(events);
+            GPU_DEBUG_IF(debug_config->verbose >= 4) {
+                GPU_DEBUG_COUT << "[End] Finished executing unfused subgraph of " << id() << std::endl;
+            }
 
             auto last_fd = _impl_params->fused_desc.back();
             auto last_prim_id = last_fd.desc->id;
@@ -354,7 +413,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
 
             _outputs[0] = outputs.at(last_prim_id).get_memory();
 
-            _impl_params->output_layouts[0] = _outputs[0]->get_layout();
+            _impl_params->output_layouts[0] = subgraph->get_output_layout(last_prim_id);
             return outputs.at(last_prim_id).get_event();
         }
 
@@ -483,6 +542,7 @@ primitive_inst::primitive_inst(network& network)
     , _node(nullptr)
     , _impl_params(nullptr)
     , _impl(nullptr)
+    , _dynamic_impl(nullptr)
     , _outputs({memory::ptr()})
     , _output_changed(false)
     , _mem_allocated(false) {}
@@ -493,6 +553,7 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     , _node_output_layout(node.get_output_layout())
     , _impl_params(node.get_kernel_impl_params())
     , _impl(node.get_selected_impl() ? node.get_selected_impl()->clone() : nullptr)
+    , _dynamic_impl(nullptr)
     , _outputs({memory::ptr()})
     , _output_changed(false)
     , _mem_allocated(allocate_memory)
@@ -534,8 +595,19 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
             _outputs = allocate_outputs();
         }
     }
-    if (_impl)
+    if (_impl) {
         _impl->set_node_params(node);
+        if (_impl->is_dynamic()) {
+            _dynamic_impl = _impl->clone();
+            // Actual shape info layout is the following:
+            // input_0 -> input_1, ..., fused_dep_0, fused_dep1, ..., output_0, output_1, ...
+            // For each tensor we save 6 dimensions if [bfwzyx] order
+            const int64_t buffers_count = _node->get_dependencies().size() + _node->get_outputs_count();
+            const size_t tensor_dims_count = 6;
+            const int64_t shape_elements = buffers_count * tensor_dims_count;
+            _shape_info_memory = _network.get_engine().allocate_memory(layout{{shape_elements}, data_types::i32, format::bfyx});
+        }
+    }
 
     if (_outputs[0])
         max_output_layout_size = _outputs[0]->get_layout().count();
@@ -777,11 +849,12 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     }
 }
 
-std::vector<memory::ptr> primitive_inst::allocate_outputs() {
+std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* updated_params) {
     std::vector<memory::ptr> outputs;
     for (size_t i = 0; i < get_node().get_outputs_count() ; ++i) {
-        outputs.push_back(allocate_output(get_network().get_engine(), _network.get_memory_pool(), *_node, *_impl_params,
-                          get_network_id(), _network.is_internal(), i));
+        outputs.push_back(allocate_output(get_network().get_engine(), _network.get_memory_pool(),
+                         *_node, (updated_params != nullptr) ? *updated_params : *_impl_params,
+                         get_network_id(), _network.is_internal(), i));
     }
     return outputs;
 }
@@ -932,6 +1005,7 @@ bool primitive_inst::is_valid_fusion() const {
 
 void primitive_inst::add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, int64_t time) {
     instrumentation::perf_counter_key key {
+            _network.get_input_layouts(),
             _impl_params->input_layouts,
             _impl_params->output_layouts,
             get_implementation_name(),
@@ -979,7 +1053,7 @@ void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
             ob << cldnn::make_data(_outputs[0]->buffer_ptr(), data_size);
         } else {
             mem_lock<char, mem_lock_type::read> lock{_outputs[0], get_node().get_program().get_stream()};
-            ob << cldnn::make_data(lock.begin(), data_size);
+            ob << cldnn::make_data(lock.data(), data_size);
         }
     } else {
         object_type _object_type = object_type::EXECUTABLE_INST;
