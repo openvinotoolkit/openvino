@@ -41,9 +41,12 @@ TEST(type_prop, squeeze_incorrect_negative_axes) {
                     HasSubstr("Parameter axis -10 out of the tensor rank range"));
 }
 
-using SplitTypePropTestParam = std::tuple<PartialShape, std::vector<int64_t>, PartialShape>;
+using SqueezeTypePropTestParam = std::tuple<PartialShape,          // Input shape
+                                            std::vector<int64_t>,  // Squeeze axis
+                                            PartialShape           // Expected shape
+                                            >;
 
-class SqueezeTest : public WithParamInterface<SplitTypePropTestParam>, public UnSqueezeFixture {
+class SqueezeTest : public WithParamInterface<SqueezeTypePropTestParam>, public UnSqueezeFixture {
 protected:
     void SetUp() override {
         std::tie(p_shape, axes, exp_shape) = GetParam();

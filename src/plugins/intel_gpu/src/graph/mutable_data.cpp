@@ -79,4 +79,33 @@ void mutable_data_inst::set_output_memory(memory::ptr mem_new, bool check, size_
 mutable_data_inst::typed_primitive_inst(network& network, mutable_data_node const& node)
     : parent(network, node, attach_or_copy_data(network, node.get_attached_memory_ptr(), network.is_primary_stream())) {}
 
+void mutable_data_inst::save(cldnn::BinaryOutputBuffer& ob) const {
+    parent::save(ob);
+
+    if (!_mem_allocated) {
+        for (size_t dep_idx = 0; dep_idx < _deps.size(); ++dep_idx) {
+            for (size_t m_idx = 0; m_idx < _deps[dep_idx]->_deps.size(); ++m_idx) {
+                if (get_network().get_engine().is_the_same_buffer(*_outputs[0], *_deps[dep_idx]->_deps[m_idx]->_outputs[0])) {
+                    ob << true << dep_idx << m_idx;
+                    return;
+                }
+            }
+        }
+    }
+    ob << false;
+}
+
+void mutable_data_inst::load(cldnn::BinaryInputBuffer& ib) {
+    parent::load(ib);
+
+    bool from_dep;
+    ib >> from_dep;
+    if (from_dep && !_mem_allocated) {
+        size_t dep_idx, m_idx;
+        ib >> dep_idx >> m_idx;
+
+        auto prev_node = get_network().get_primitive(_dep_ids[dep_idx]);
+        _outputs[0] = get_network().get_primitive(prev_node->_dep_ids[m_idx])->output_memory_ptr();
+    }
+}
 }  // namespace cldnn
