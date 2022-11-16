@@ -211,7 +211,6 @@ void setDeviceProperty(ov::Core& core,
     } else {
         auto& properties = device_config[device].as<ov::AnyMap>();
         properties.emplace(device_property);
-        device_config.insert(ov::device::properties(device, properties));
     }
 }
 
@@ -429,7 +428,6 @@ int main(int argc, char* argv[]) {
                                 else {
                                     auto& property = device_config[it.first].as<ov::AnyMap>();
                                     property.emplace(ov::num_streams(std::stoi(it.second)));
-                                    device_config.insert(ov::device::properties(it.first, property));
                                 }
                             }
                         }
@@ -500,7 +498,6 @@ int main(int argc, char* argv[]) {
                                 else {
                                     auto& property = device_config[it.first].as<ov::AnyMap>();
                                     property.emplace(ov::hint::inference_precision(it.second));
-                                    device_config.insert(ov::device::properties(it.first, property));
                                 }
                             }
                         }
