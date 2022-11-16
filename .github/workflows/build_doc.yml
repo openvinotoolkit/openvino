@@ -21,7 +21,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: doxygen/build
-          key: ${{ runner.os }}-doxygen-cache
+          key: build-doxygen-cache
 
       - name: Install dependencies
         run: |
@@ -50,8 +50,8 @@ jobs:
         id: cache_sphinx_docs
         uses: actions/cache@v3
         with:
-          path: build/.doctrees
-          key: ${{ runner.os }}-cache
+          path: build/docs/_build/.doctrees
+          key: sphinx-docs-cache
 
       - name: CMake doc
         run: |
