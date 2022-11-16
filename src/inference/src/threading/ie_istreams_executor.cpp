@@ -427,7 +427,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
     const auto hwCores =
         !bLatencyCase && numaNodesNum == 1
             // throughput case on a single-NUMA node machine uses all available cores
-            ? (!streamExecutorConfig._enable_hyper_thread ? num_cores_default : parallel_get_max_threads())
+            ? (streamExecutorConfig._enable_hyper_thread ? parallel_get_max_threads() : num_cores_default)
             // in the rest of cases:
             //    multi-node machine
             //    or

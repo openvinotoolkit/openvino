@@ -523,30 +523,28 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
             exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
         }
 
-        std::string key_streamsNums = "";
-        std::string key_threadsNums = "";
-        if (deviceName.find("CPU") != std::string::npos) {
-            key_streamsNums = PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS;
-            key_threadsNums = PluginConfigParams::KEY_CPU_THREADS_NUM;
-        } else if (deviceName.find("GPU") != std::string::npos) {
-            key_streamsNums = PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS;
-            key_threadsNums = GPUConfigParams::KEY_GPU_MAX_NUM_THREADS;
-        }
-        // print CPU or GPU streams num and threads num
-        if (!key_streamsNums.empty() && !key_threadsNums.empty()) {
-            try {
-                std::string sStreamNums = exec_net->GetConfig(key_streamsNums).as<std::string>();
-                std::string sThreadNums = exec_net->GetConfig(key_threadsNums).as<std::string>();
-                LOG_INFO_TAG("deviceName:%s after load network, streamNums:%s, threadNums:%s",
+        try {
+            std::string sStreamNums = "";
+            std::string sThreadNums = "";
+            if (deviceName.find("CPU") != std::string::npos) {
+                sStreamNums = exec_net->GetMetric(ov::num_streams.name()).as<std::string>();
+                sThreadNums = exec_net->GetMetric(ov::inference_num_threads.name()).as<std::string>();
+            } else if (deviceName.find("GPU") != std::string::npos) {
+                sStreamNums = exec_net->GetConfig(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS).as<std::string>();
+                sThreadNums = exec_net->GetConfig(GPUConfigParams::KEY_GPU_MAX_NUM_THREADS).as<std::string>();
+            }
+
+            // print CPU or GPU streams num and threads num
+            if (!sStreamNums.empty() && !sThreadNums.empty()) {
+                LOG_INFO_TAG("after load network, %s streamNums:%s, %s threadNums:%s",
                              deviceName.c_str(),
                              sStreamNums.c_str(),
+                             deviceName.c_str(),
                              sThreadNums.c_str());
-            } catch (...) {
-                LOG_DEBUG_TAG("deviceName:%s cannot get streamNums and threadNums from exec_net",
-                              deviceName.c_str());
             }
+        } catch (...) {
+            LOG_DEBUG_TAG("deviceName:%s cannot get streamNums and threadNums from exec_net", deviceName.c_str());
         }
-
         std::unique_lock<std::mutex> lock{load_mutex};
         executableNetworkPerDevice.insert({deviceName, exec_net});
         multiNetworkConfig.insert(deviceConfig.begin(), deviceConfig.end());
