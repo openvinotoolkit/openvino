@@ -5,11 +5,15 @@
 #pragma once
 
 #include <chrono>
+#include <fstream>
 #include <iomanip>
+#include <iterator>
 #include <map>
 #include <openvino/openvino.hpp>
 #include <samples/slog.hpp>
+#include <sstream>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 typedef std::chrono::high_resolution_clock Time;
@@ -129,6 +133,7 @@ void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>&
 extern const std::vector<std::string> supported_image_extensions;
 extern const std::vector<std::string> supported_binary_extensions;
 
+std::string get_extension(const std::string& name);
 bool is_binary_file(const std::string& filePath);
 bool is_image_file(const std::string& filePath);
 bool contains_binaries(const std::vector<std::string>& filePaths);
@@ -151,4 +156,137 @@ void convert_io_names_in_map(
             std::move(item.second);
     }
     map = new_map;
+}
+
+void processBinaryFile(std::ifstream& binaryFile, const std::string& fileName, const unsigned long inputSize);
+template <typename T>
+void processNumpyFile(std::ifstream& binaryFile,
+                      const std::string& fileName,
+                      const ov::Shape& inputShape,
+                      const unsigned long inputSize) {
+    auto fullFileSize = static_cast<std::size_t>(binaryFile.tellg());
+    binaryFile.seekg(0, std::ios_base::beg);
+    OPENVINO_ASSERT(binaryFile.good(), "Can not read ", fileName);
+
+    std::string magic_string(6, ' ');
+    binaryFile.read(&magic_string[0], magic_string.size());
+    OPENVINO_ASSERT(magic_string == "\x93NUMPY",
+                    "Numpy file has incorrect magic string. File ",
+                    fileName,
+                    " might be corrupted");
+
+    binaryFile.ignore(2);  // Skip major and minor version bytes
+    unsigned short headerSize;
+    binaryFile.read((char*)&headerSize, sizeof(headerSize));
+
+    std::string header(headerSize, ' ');
+    binaryFile.read(&header[0], header.size());
+
+    auto testFortranIsFalse = [fileName](const std::string& header) {
+        const std::string fortranKey = "'fortran_order':";
+        int idx = header.find(fortranKey);
+        OPENVINO_ASSERT(idx != -1, "Numpy file is missing fortran_order key. File ", fileName, " might be corrupted");
+        int from = header.find_last_of(' ', idx + fortranKey.size()) + 1;
+        int to = header.find(',', from);
+        auto fortranValue = header.substr(from, to - from);
+        OPENVINO_ASSERT(fortranValue == "False",
+                        "File ",
+                        fileName,
+                        " was saved in Fortran order, which is not supported");
+    };
+
+    auto testShapesMatch = [fileName, inputShape](const std::string& header) {
+        const std::string shapeKey = "'shape':";
+        int idx = header.find(shapeKey);
+        OPENVINO_ASSERT(idx != -1, "Numpy file is missing shape key. File ", fileName, " might be corrupted");
+
+        int from = header.find('(', idx + shapeKey.size()) + 1;
+        int to = header.find(')', from);
+
+        std::string shapeStr = header.substr(from, to - from);
+        std::vector<size_t> numpyShape;
+
+        if (!shapeStr.empty()) {
+            shapeStr.erase(std::remove(shapeStr.begin(), shapeStr.end(), ','), shapeStr.end());
+
+            std::istringstream ss(shapeStr);
+            size_t value;
+            while (ss >> value) {
+                numpyShape.push_back(value);
+            }
+        }
+
+        auto vectorToStr = [](std::vector<size_t> vec) {
+            std::stringstream str;
+            std::copy(vec.begin(), vec.end(), std::ostream_iterator<size_t>(str, ","));
+            return str.str();
+        };
+
+        OPENVINO_ASSERT(numpyShape.size() == inputShape.size() &&
+                            std::equal(numpyShape.begin(), numpyShape.end(), inputShape.begin()),
+                        "Numpy array shape mismatch. File ",
+                        fileName,
+                        " has shape: (",
+                        vectorToStr(numpyShape),
+                        "), expected: (",
+                        vectorToStr(inputShape),
+                        ")");
+    };
+
+    auto testDataTypesMatch = [fileName](const std::string& header) {
+        std::string dataTypeKey = "'descr':";
+        int idx = header.find(dataTypeKey);
+        OPENVINO_ASSERT(idx != -1, "Numpy file is missing descr key. File ", fileName, " might be corrupted");
+
+        int from = header.find('\'', idx + dataTypeKey.size()) + 1;
+        int to = header.find('\'', from);
+        std::string dataTypeStr = header.substr(from, to - from);
+
+        if (dataTypeStr.find("<f4") != std::string::npos) {
+            auto test = std::is_same<T, float>::value;
+            OPENVINO_ASSERT(test,
+                            "Numpy array is of 32-bit float format, which does not match input type. File ",
+                            fileName);
+        } else if (dataTypeStr.find("<f8") != std::string::npos) {
+            auto test = std::is_same<T, double>::value;
+            OPENVINO_ASSERT(test,
+                            "Numpy array is of 64-bit float/double format, which does not match input type. File ",
+                            fileName);
+        } else if (dataTypeStr.find("<f2") != std::string::npos) {
+            auto test = std::is_same<T, short>::value;
+            OPENVINO_ASSERT(test,
+                            "Numpy array is of 16-bit float/short format, which does not match input type. File ",
+                            fileName);
+        } else if (dataTypeStr.find("<i4") != std::string::npos) {
+            auto test = std::is_same<T, int32_t>::value;
+            OPENVINO_ASSERT(test,
+                            "Numpy array is of 32-bit int format, which does not match input type. File ",
+                            fileName);
+        } else if (dataTypeStr.find("<i8") != std::string::npos) {
+            auto test = std::is_same<T, int64_t>::value;
+            OPENVINO_ASSERT(test,
+                            "Numpy array is of 64-bit int format, which does not match input type. File ",
+                            fileName);
+        } else if (dataTypeStr.find("|u1") != std::string::npos) {
+            auto test = std::is_same<T, uint8_t>::value;
+            OPENVINO_ASSERT(test,
+                            "Numpy array is of 16-bit uint format, which does not match input type. File ",
+                            fileName);
+        } else {
+            throw ov::Exception("Following numpy format is not supported: " + dataTypeStr + ", file: " + fileName);
+        }
+    };
+
+    testFortranIsFalse(header);
+    testShapesMatch(header);
+    testDataTypesMatch(header);
+
+    auto fileSize = fullFileSize - static_cast<std::size_t>(binaryFile.tellg());
+    OPENVINO_ASSERT(fileSize == inputSize,
+                    "File ",
+                    fileName,
+                    " contains ",
+                    fileSize,
+                    " bytes, but the model expects ",
+                    inputSize);
 }

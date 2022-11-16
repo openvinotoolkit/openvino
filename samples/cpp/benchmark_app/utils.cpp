@@ -9,6 +9,7 @@
 #include <nlohmann/json.hpp>
 #include <regex>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -815,7 +816,7 @@ const std::vector<std::string> supported_image_extensions =
 #else
 const std::vector<std::string> supported_image_extensions = {"bmp"};
 #endif
-const std::vector<std::string> supported_binary_extensions = {"bin"};
+const std::vector<std::string> supported_binary_extensions = {"bin", "npy"};
 
 std::string get_extension(const std::string& name) {
     auto extensionPosition = name.rfind('.', name.size());
@@ -848,6 +849,7 @@ bool contains_binaries(const std::vector<std::string>& filePaths) {
     }
     return false;
 }
+
 std::vector<std::string> filter_files_by_extensions(const std::vector<std::string>& filePaths,
                                                     const std::vector<std::string>& extensions) {
     std::vector<std::string> filtered;
@@ -894,4 +896,18 @@ std::string parameter_name_to_tensor_name(const std::string& name,
     }
     throw std::runtime_error("Provided I/O name \"" + name +
                              "\" is not found neither in tensor names nor in nodes names.");
+}
+
+void processBinaryFile(std::ifstream& binaryFile, const std::string& fileName, const unsigned long inputSize) {
+    auto fileSize = static_cast<std::size_t>(binaryFile.tellg());
+    binaryFile.seekg(0, std::ios_base::beg);
+    OPENVINO_ASSERT(binaryFile.good(), "Can not read ", fileName);
+
+    OPENVINO_ASSERT(fileSize == inputSize,
+                    "File ",
+                    fileName,
+                    " contains ",
+                    fileSize,
+                    " bytes, but the model expects ",
+                    inputSize);
 }

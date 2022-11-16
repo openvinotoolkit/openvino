@@ -157,17 +157,16 @@ ov::Tensor create_tensor_from_binary(const std::vector<std::string>& files,
         std::ifstream binaryFile(files[inputIndex], std::ios_base::binary | std::ios_base::ate);
         OPENVINO_ASSERT(binaryFile, "Cannot open ", files[inputIndex]);
 
-        auto fileSize = static_cast<std::size_t>(binaryFile.tellg());
-        binaryFile.seekg(0, std::ios_base::beg);
-        OPENVINO_ASSERT(binaryFile.good(), "Can not read ", files[inputIndex]);
         auto inputSize = tensor_size * sizeof(T) / binaryBatchSize;
-        OPENVINO_ASSERT(fileSize == inputSize,
-                        "File ",
-                        files[inputIndex],
-                        " contains ",
-                        fileSize,
-                        " bytes, but the model expects ",
-                        inputSize);
+
+        std::string extension = get_extension(files[inputIndex]);
+        if (extension == "npy") {
+            processNumpyFile<T>(binaryFile, files[inputIndex], inputInfo.dataShape, inputSize);
+        } else if (extension == "bin") {
+            processBinaryFile(binaryFile, files[inputIndex], inputSize);
+        } else {
+            throw ov::Exception("Unsupported binary file type: " + extension);
+        }
 
         if (inputInfo.layout != "CN") {
             binaryFile.read(&data[b * inputSize], inputSize);
