@@ -334,6 +334,34 @@ Parameter IStreamsExecutor::Config::GetConfig(const std::string& key) const {
     return {};
 }
 
+void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config) {
+    const auto num_cores = parallel_get_max_threads();
+    const auto num_cores_phys = getNumberOfCPUCores();
+    const auto num_big_cores_phys = getNumberOfCPUCores(true);
+    const auto num_big_cores = num_cores > num_cores_phys ? num_big_cores_phys * 2 : num_big_cores_phys;
+    const auto num_small_cores_phys = num_cores_phys - num_big_cores_phys;
+    const auto threads = config._threads ? config._threads : num_cores;
+    const auto streams = config._streams > 0 ? config._streams : 1;
+
+    config._small_core_offset = num_big_cores;
+    const int threads_per_stream = std::max(1, threads / streams);
+    const int threads_per_stream_big = std::min(num_big_cores_phys, threads_per_stream);
+    const int threads_per_stream_small = std::min(num_small_cores_phys, threads_per_stream);
+    const int base_big_streams = num_cores > num_cores_phys
+                                     ? (num_big_cores_phys + threads_per_stream_big - 1) / threads_per_stream_big * 2
+                                     : (num_big_cores_phys + threads_per_stream_big - 1) / threads_per_stream_big;
+    const int base_small_streams = num_small_cores_phys > 0 ? num_small_cores_phys / threads_per_stream_small : 0;
+    const int base_streams = base_big_streams + base_small_streams;
+    // big_streams = all_streams * base_big_streams / base_streams
+    config._big_core_streams = (streams * base_big_streams + base_streams - 1) / base_streams;
+    config._small_core_streams = config._streams - config._big_core_streams;
+    // _big_core_streams > 2, num_big_cores_phys must be divisible by threads_per_stream_big
+    config._threads_per_stream_big = (config._big_core_streams > 2 && num_big_cores_phys % threads_per_stream_big != 0)
+                                         ? std::min(num_big_cores_phys, num_big_cores / base_big_streams)
+                                         : threads_per_stream_big;
+    config._threads_per_stream_small = config._small_core_streams > 0 ? threads_per_stream_small : 0;
+}
+
 IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(const IStreamsExecutor::Config& initial,
                                                                             const bool fp_intesive) {
     const auto envThreads = parallel_get_env_threads();
@@ -368,6 +396,10 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
             const auto num_big_cores =
                 custom::info::default_concurrency(custom::task_arena::constraints{}.set_core_type(core_types.back()));
             num_cores_default = (num_big_cores_phys <= hyper_threading_threshold) ? num_big_cores : num_big_cores_phys;
+        }
+        // if nstreams or nthreads are set, need to calculate the Hybrid aware parameters here
+        if (streamExecutorConfig._big_core_streams == 0 || streamExecutorConfig._threads) {
+            UpdateHybridCustomThreads(streamExecutorConfig);
         }
         OPENVINO_DEBUG << "[ p_e_core_info ] streams (threads): " << streamExecutorConfig._streams << "("
                        << streamExecutorConfig._threads_per_stream_big * streamExecutorConfig._big_core_streams +
