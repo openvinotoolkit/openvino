@@ -14,6 +14,11 @@ from openvino.tools.mo.utils.error import Error, InternalError, FrameworkError
 from openvino.tools.mo.utils.logger import progress_bar
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
+try:
+    import openvino_telemetry as tm
+except ImportError:
+    import openvino.tools.mo.utils.telemetry_stub as tm
+
 _registered_classes_dict = {}
 
 
@@ -291,6 +296,8 @@ def apply_transform(graph: Graph, replacer_cls, **kwargs):
             for_graph_and_each_sub_graph_recursively(graph, lambda _: graph.check_shapes_consistency())
 
     except Error as err:
+        t = tm.Telemetry()
+        t.send_event('mo', 'error_info', "stage:{},transformation:{}".format(graph.stage, replacer_cls.__name__))
         raise Error('Exception occurred during running replacer "{}" ({}): {}'.format(
             replacement_id,
             replacer_cls,

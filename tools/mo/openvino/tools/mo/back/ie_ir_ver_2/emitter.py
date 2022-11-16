@@ -22,6 +22,11 @@ Element = ET_defused.Element
 SubElement = ET_defused.SubElement
 tostring = ET_defused.tostring
 
+try:
+    import openvino_telemetry as tm
+except ImportError:
+    import openvino.tools.mo.utils.telemetry_stub as tm
+
 
 def serialize_constants(graph: Graph, bin_file_name: str, data_type=np.float32):
     """
@@ -615,6 +620,15 @@ def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_o
     xml_doc = parseString(xml_string)
     pretty_xml_as_string = xml_doc.toprettyxml()
     if len(unsupported.unsupported):
+
+        ops_list = []
+        for op_name in unsupported.unsupported.keys():
+            ops_list.append(op_name)
+        ops_list_str = ",".join(ops_list)
+
+        t = tm.Telemetry()
+        t.send_event('mo', 'error_info', "unsupported_ops:{}".format(ops_list_str))
+
         log.debug('Partially correct IR XML:\n{}'.format(pretty_xml_as_string))
         unsupported.report(log.error, "List of operations that cannot be converted to Inference Engine IR:")
         raise Error('Part of the nodes was not converted to IR. Stopped. ' +
