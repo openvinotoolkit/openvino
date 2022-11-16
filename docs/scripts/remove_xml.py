@@ -3,7 +3,7 @@
 
 import os
 import shutil
-
+import cProfile
 
 def remove_xml_dir(path):
     """
@@ -22,4 +22,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    cProfile.run('main()')

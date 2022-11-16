@@ -30,9 +30,6 @@ function(build_docs)
 
     # Preprocessing scripts
     set(DOXY_MD_FILTER "${SCRIPTS_DIR}/doxy_md_filter.py")
-    set(PYNGRAPH_REF_SCRIPT "${SCRIPTS_DIR}/pyngraph_ref.py")
-    set(DOXY_LOG_SCRIPT "${SCRIPTS_DIR}/log.py")
-    set(PYX_FILTER "${SCRIPTS_DIR}/pyx_filter.py")
     set(PREPARE_XML_SCRIPT "${SCRIPTS_DIR}/prepare_xml.py")
     set(REMOVE_XML_SCRIPT "${SCRIPTS_DIR}/remove_xml.py")
     set(COPY_IMAGES_SCRIPT "${SCRIPTS_DIR}/copy_images.py")

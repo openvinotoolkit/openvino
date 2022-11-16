@@ -4,6 +4,7 @@
 import argparse
 import shutil
 from pathlib import Path
+import cProfile
 
 
 def copy_images(input_dir: Path, output_dir: Path):
@@ -28,4 +29,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    cProfile.run('main()')
