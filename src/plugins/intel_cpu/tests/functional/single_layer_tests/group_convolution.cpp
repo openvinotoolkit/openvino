@@ -525,8 +525,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_3D_Gemm_BF16, GroupConvolutionLayerCPUT
                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= GroupConvolution params (brgemm_1D) ============= */
-// disable kerenl size = 1
-// https://github.com/openvinotoolkit/oneDNN/blob/6df930dab5ab0a7dfaea6100acd03b479e2fa0a8/src/cpu/x64/jit_brgemm_conv_utils.cpp#L1833
 const std::vector<SizeVector> kernels_brgemm_1d = {{3}};
 const std::vector<SizeVector> strides_brgemm_1d = { {1}, {2} };
 const std::vector<std::vector<ptrdiff_t>> padBegins_brgemm_1d = { {0}, {1} };
@@ -548,8 +546,6 @@ const std::vector<std::vector<ptrdiff_t>> padEnds_brgemm_3d = {{0, 0, 0}};
 const std::vector<SizeVector> dilations_brgemm_3d = {{1, 1, 1}, {2, 2, 2}};
 /* ============= */
 
-// disable small channel <= 16
-// https://github.com/openvinotoolkit/oneDNN/blob/6df930dab5ab0a7dfaea6100acd03b479e2fa0a8/src/cpu/x64/jit_brgemm_conv_utils.cpp#L1712
 const SizeVector numGroups_brgemm_Blocked = {2};
 
 /* ============= GroupConvolution (brgemm 1D) ============= */
@@ -564,8 +560,6 @@ const auto groupConvParams_ExplicitPadding_brgemm_1D = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 
-// disable small shape on amx
-//  https://github.com/openvinotoolkit/oneDNN/blob/6df930dab5ab0a7dfaea6100acd03b479e2fa0a8/src/cpu/x64/jit_brgemm_conv_utils.cpp#L1719
 const std::vector<CPUSpecificParams> CPUParams_brgemm_1D_BF16 = {
         conv_avx512_1D_nspc_brgconv
 };
@@ -1604,12 +1598,15 @@ const std::vector<CPUSpecificParams> CPUParams_Failed_Brgemm_1D_Small_Shape = {
 };
 const std::vector<groupConvLayerCPUTestParamsSet> BRGEMM_EXPECT_FAILED_GroupConvTestCases = generateSingleGroupConvCPUTestCases(
         // kerenl size = 1
+        // https://github.com/openvinotoolkit/oneDNN/blob/6df930dab5ab0a7dfaea6100acd03b479e2fa0a8/src/cpu/x64/jit_brgemm_conv_utils.cpp#L1833
         makeSingleGroupConvCPUTestCases({1, 1}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::EXPLICIT,
                                         2, 1, {5, 5}, 32, 32, CPUParams_Failed_Brgemm_2D, vecPrcConnectParams),
         // channel <= 16
+        // https://github.com/openvinotoolkit/oneDNN/blob/6df930dab5ab0a7dfaea6100acd03b479e2fa0a8/src/cpu/x64/jit_brgemm_conv_utils.cpp#L1712
         makeSingleGroupConvCPUTestCases({3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, ngraph::op::PadType::EXPLICIT,
                                         4, 1, {5, 5}, 16, 16, CPUParams_Failed_Brgemm_2D, vecPrcConnectParams),
-        //small shape
+        // small shape on amx
+        //  https://github.com/openvinotoolkit/oneDNN/blob/6df930dab5ab0a7dfaea6100acd03b479e2fa0a8/src/cpu/x64/jit_brgemm_conv_utils.cpp#L1719
         makeSingleGroupConvCPUTestCases({3}, {1}, {1}, {0}, {0}, ngraph::op::PadType::EXPLICIT,
                                         4, 1, {3}, 32, 32, CPUParams_Failed_Brgemm_1D_Small_Shape, vecPrcConnectParamsBF16)
 );
