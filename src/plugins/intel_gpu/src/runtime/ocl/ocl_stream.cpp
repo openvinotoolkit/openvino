@@ -247,6 +247,19 @@ void set_arguments_impl(ocl_kernel_type& kernel,
                         status = kernel.setArg(i, dynamic_cast<const ocl::gpu_buffer&>(*data.cell).get_buffer());
                 }
                 break;
+            case args_t::SHAPE_INFO:
+                if (args[i].index == 0 && data.shape_info) {
+                    const auto& shape_info_mem = data.shape_info;
+                    if (shape_info_mem) {
+                        if (shape_info_mem->get_layout().format.is_image_2d())
+                            status = kernel.setArg(i, std::dynamic_pointer_cast<const ocl::gpu_image2d>(shape_info_mem)->get_buffer());
+                        else if (memory_capabilities::is_usm_type(shape_info_mem->get_allocation_type()))
+                            status = kernel.setArgUsm(i, std::dynamic_pointer_cast<const ocl::gpu_usm>(shape_info_mem)->get_buffer());
+                        else
+                            status = kernel.setArg(i, std::dynamic_pointer_cast<const ocl::gpu_buffer>(shape_info_mem)->get_buffer());
+                    }
+                }
+                break;
             default:
                 break;
         }
