@@ -172,9 +172,9 @@ bool ngraph::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph
     common_fusions->add_matcher<ngraph::pass::GeluFusion>();
     common_fusions->add_matcher<ngraph::pass::LeakyReluFusion>();
     common_fusions->add_matcher<ngraph::pass::RandomUniformFusion>();
+    common_fusions->add_matcher<ov::pass::EliminateDuplicateTIInputs>();
     common_fusions->add_matcher<ov::pass::GRUCellFusion>();
     common_fusions->add_matcher<ov::pass::SequenceFusion>();
-    common_fusions->add_matcher<ov::pass::EliminateDuplicateTIInputs>();
     common_fusions->add_matcher<ngraph::pass::ConvertTensorIteratorToSequence>();
     common_fusions->add_matcher<ngraph::pass::SplitConcatPairToInterpolateFusion>(m_use_shapes);
     if (m_use_shapes) {
