@@ -27,6 +27,7 @@ OP_CONVERTER(translate_dim);
 OP_CONVERTER(translate_div);
 OP_CONVERTER(translate_elu);
 OP_CONVERTER(translate_embedding);
+OP_CONVERTER(translate_exp);
 OP_CONVERTER(translate_flatten);
 OP_CONVERTER(translate_floordiv);
 OP_CONVERTER(translate_gelu);
@@ -77,6 +78,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::elu", op::translate_elu},
         {"aten::embedding", op::translate_embedding},
         {"aten::eq", op::translate_1to1_match_2_inputs<opset8::Equal>},
+        {"aten::exp", op::translate_exp},
         {"aten::flatten", op::translate_flatten},
         {"aten::floordiv", op::translate_floordiv},
         {"aten::gelu", op::translate_gelu},
