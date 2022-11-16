@@ -345,15 +345,13 @@ void LatencyMetrics::write_to_stream(std::ostream& stream) const {
 
 void LatencyMetrics::write_to_slog() const {
     std::string percentileStr = (percentile_boundary == 50)
-                                    ? "\tMedian:     "
-                                    : "\t" + std::to_string(percentile_boundary) + " percentile:    ";
-    if (!data_shape.empty()) {
-        slog::info << "\tData shape: " << data_shape << slog::endl;
-    }
+                                    ? "   Median:     "
+                                    : "   " + std::to_string(percentile_boundary) + " percentile:     ";
+
     slog::info << percentileStr << double_to_string(median_or_percentile) << " ms" << slog::endl;
-    slog::info << "\tAverage:    " << double_to_string(avg) << " ms" << slog::endl;
-    slog::info << "\tMin:        " << double_to_string(min) << " ms" << slog::endl;
-    slog::info << "\tMax:        " << double_to_string(max) << " ms" << slog::endl;
+    slog::info << "   Average:    " << double_to_string(avg) << " ms" << slog::endl;
+    slog::info << "   Min:        " << double_to_string(min) << " ms" << slog::endl;
+    slog::info << "   Max:        " << double_to_string(max) << " ms" << slog::endl;
 }
 
 const nlohmann::json LatencyMetrics::to_json() const {

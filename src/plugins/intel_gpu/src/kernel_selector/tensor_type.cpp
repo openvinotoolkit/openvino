@@ -103,6 +103,8 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::g_os_is_yx_osa2_isa8_osv8_isv2,              {  0,  1, -1,   2,   3,  4 } },
     { WeightsLayout::g_os_is_yx_osa4_isa8_osv8_isv4,              {  0,  1, -1,   2,   3,  4 } },
     { WeightsLayout::g_os_is_zyx_osa4_isa8_osv8_isv4,             {  0,  1,  2,   3,   4,  5 } },
+    { WeightsLayout::g_os_is_zyx_isa8_osv8_isv2,                  {  0,  1,  2,   3,   4,  5 } },
+    { WeightsLayout::g_os_is_zyx_isa8_osv8_isv4,                  {  0,  1,  2,   3,   4,  5 } },
     { WeightsLayout::os_is_yx_osa4_isa8_osv8_isv2,                {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_is_zyx_osa4_isa8_osv8_isv2,               {  0,  1,  2,   3,   4, -1 } },
     { WeightsLayout::os_is_zyx_osa4_isa8_osv8_isv4,               {  0,  1,  2,   3,   4, -1 } },
@@ -179,6 +181,10 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::g_os_is_zyx_isv8_osv16_isv2,                 {  0,  1,  2,   3,   4,  5 } },
     { WeightsLayout::g_os_is_yx_isv8_osv16_isv2,                  {  0,  1, -1,   2,   3,  4 } },
     { WeightsLayout::g_os_is_zyx_isv16_osv16,                     {  0,  1,  2,   3,   4,  5 } },
+    { WeightsLayout::g_os_zy_is_x_osv8_isv2,                      {  0,  2,  3,   1,   4,  5 } },
+    { WeightsLayout::g_os_zy_is_x_osv8_isv4,                      {  0,  2,  3,   1,   4,  5 } },
+    { WeightsLayout::g_os_zyx_is_osv8_isv2,                       {  1,  2,  3,   0,   4,  5 } },
+    { WeightsLayout::g_os_zyx_is_osv8_isv4,                       {  1,  2,  3,   0,   4,  5 } },
     { WeightsLayout::giy_xs_os_xsv2_osv16__ao32,                  {  1,  2, -1,   3,   0,  4 } },
     { WeightsLayout::giy_xs_os_xsv2_osv8__ao32,                   {  1,  2, -1,   3,   0,  4 } },
     { WeightsLayout::g_os_is_yx_isv16_osv16,                      {  0,  1, -1,   2,   3,  4 } },
@@ -338,7 +344,7 @@ NDims DataTensor::GetSimpleDims(const std::vector<size_t>& d, DataLayout l) {
 
     for (size_t i = 0; i < newDims.size(); i++) {
         Pad p = {0, newDims[i] - d[i]};
-        ret[i] = {d[i], pitch, p};
+        ret[i] = {d[i], pitch, p, d[i] == 0};
         pitch *= newDims[i];
     }
 

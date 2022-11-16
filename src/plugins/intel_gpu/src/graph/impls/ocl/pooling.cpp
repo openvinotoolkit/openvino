@@ -16,16 +16,6 @@ namespace cldnn {
 namespace ocl {
 
 namespace {
-void validate_args(const pooling_node& arg) {
-    auto input_rank = arg.input().get_output_layout().get_spatial_rank();
-    auto output_rank = arg.get_output_layout().get_spatial_rank();
-    auto stride_rank = std::max(arg.get_primitive()->stride.size(), static_cast<size_t>(2));
-    auto window_rank = std::max(arg.get_primitive()->size.size(), static_cast<size_t>(2));
-
-    CLDNN_ERROR_NOT_EQUAL(arg.id(), "input dimensions", input_rank, "output dimensions", output_rank, "");
-    CLDNN_ERROR_NOT_EQUAL(arg.id(), "stride dimensions", stride_rank, "output dimensions", output_rank, "");
-    CLDNN_ERROR_NOT_EQUAL(arg.id(), "window dimensions", window_rank, "output dimensions", output_rank, "");
-}
 
 kernel_selector::pool_type cldnn_2_pool_type(pooling_mode mode) {
     switch (mode) {
@@ -58,6 +48,8 @@ kernel_selector::kernel_divider_mode cldnn_2_kernel_divider_mode(pooling_mode mo
 struct pooling_impl : typed_primitive_impl_ocl<pooling> {
     using parent = typed_primitive_impl_ocl<pooling>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::pooling_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::pooling_params, kernel_selector::pooling_optional_params>;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -72,32 +64,30 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const pooling_node& arg, const kernel_impl_params& impl_param) {
-        validate_args(arg);
-        const auto primitive = arg.get_primitive();
-        auto pool_params = get_default_params<kernel_selector::pooling_params>(impl_param);
-        auto pool_optional_params =
-            get_default_optional_params<kernel_selector::pooling_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<pooling>();
+        auto params = get_default_params<kernel_selector::pooling_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::pooling_optional_params>(impl_param.get_program());
 
-        pool_params.maxPoolOpset8Features = primitive->maxPoolOpset8Features;
-        if (pool_params.maxPoolOpset8Features) {
+        params.maxPoolOpset8Features = primitive->maxPoolOpset8Features;
+        if (params.maxPoolOpset8Features) {
             switch (primitive->index_element_type) {
                 case cldnn::data_types::i32: {
-                    pool_params.poolIndexElementType = kernel_selector::Datatype::INT32;
+                    params.poolIndexElementType = kernel_selector::Datatype::INT32;
                     break;
                 }
                 case cldnn::data_types::i64: {
-                    pool_params.poolIndexElementType = kernel_selector::Datatype::INT64;
+                    params.poolIndexElementType = kernel_selector::Datatype::INT64;
                     break;
                 }
                 default:
                     throw std::runtime_error{"Not supported index element type"};
             }
-            pool_params.poolAxis = primitive->axis;
+            params.poolAxis = primitive->axis;
         }
 
-        const auto& input_layout = impl_param.input_layouts[0];
-        const auto& output_layout = impl_param.output_layout;
+        const auto& input_layout = impl_param.get_input_layout();
+        const auto& output_layout = impl_param.get_output_layout();
 
         auto kernel = primitive->size;
         auto stride = primitive->stride;
@@ -132,7 +122,7 @@ public:
         pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
         pads_end.resize(std::max<size_t>(2, pads_end.size()), 0);
 
-        auto& pp = pool_params;
+        auto& pp = params;
 
         pp.poolType = cldnn_2_pool_type(primitive->mode);
         pp.remainderAction = primitive->rounding_type == ov::op::RoundingType::CEIL ? kernel_selector::pool_remainder::CEIL
@@ -171,17 +161,7 @@ public:
         uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
         pp.poolDilation = {dilation_x, dilation_y, dilation_z};
 
-        auto& kernel_selector = kernel_selector::pooling_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(pool_params, pool_optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto pool = new pooling_impl(arg, best_kernels[0]);
-
-        return pool;
+        return {params, optional_params};
     }
 };
 
@@ -219,7 +199,7 @@ attach_pooling_impl::attach_pooling_impl() {
     keys.emplace(data_types::f16, format::fs_b_yx_fsv32);
     keys.emplace(data_types::f32, format::fs_b_yx_fsv32);
 
-    implementation_map<pooling>::add(impl_types::ocl, pooling_impl::create, keys);
+    implementation_map<pooling>::add(impl_types::ocl, typed_primitive_impl_ocl<pooling>::create<pooling_impl>, keys);
 }
 
 }  // namespace detail

@@ -44,7 +44,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     }
 
     typed_primitive_impl_ocl(const typed_primitive_impl_ocl<PType>& other)
-    : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name)
+    : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name, other._is_dynamic)
     , _node_id(other._node_id)
     , _kernel_data(other._kernel_data)
     , _kernel_ids(other._kernel_ids)
@@ -83,6 +83,18 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         ib >> _kernel_args;
     }
 
+    template<typename ImplType>
+    static std::unique_ptr<primitive_impl> create(const typed_program_node<PType>& arg, const kernel_impl_params& impl_param) {
+        if (arg.can_be_optimized()) {
+            return make_unique<ImplType>(arg, kernel_selector::kernel_data{});
+        }
+        auto kernel_params = ImplType::get_kernel_params(impl_param);
+        auto& kernel_selector = ImplType::kernel_selector_t::Instance();
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
+
+        return make_unique<ImplType>(arg, best_kernel);
+    }
+
 protected:
     virtual bool optimized_out(typed_primitive_inst<PType>&) const { return false; }
 
@@ -103,6 +115,8 @@ protected:
         for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
             args.outputs.push_back(instance.output_memory_ptr(i));
         }
+
+        args.shape_info = instance.shape_info_memory_ptr();
 
         return args;
     }

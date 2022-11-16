@@ -128,8 +128,6 @@ class TestPRelu(OnnxRuntimeLayerTest):
     @pytest.mark.precommit
     def test_prelu_shared_channels_precommit(self, params, ie_device, precision, ir_version,
                                              temp_dir, use_old_api):
-        if ie_device == 'GPU':
-            pytest.xfail("To be checked in scope of CVS-95606")
         self._test(*self.create_net(**params, precision=precision, ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 

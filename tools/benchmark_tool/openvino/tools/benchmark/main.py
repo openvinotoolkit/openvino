@@ -9,8 +9,9 @@ from openvino.runtime import Dimension
 
 from openvino.tools.benchmark.benchmark import Benchmark
 from openvino.tools.benchmark.parameters import parse_args
-from openvino.tools.benchmark.utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, \
-    GPU_DEVICE_NAME, MYRIAD_DEVICE_NAME, GNA_DEVICE_NAME, BLOB_EXTENSION
+from openvino.tools.benchmark.utils.constants import MULTI_DEVICE_NAME, \
+    HETERO_DEVICE_NAME, CPU_DEVICE_NAME, GPU_DEVICE_NAME, MYRIAD_DEVICE_NAME, \
+    GNA_DEVICE_NAME, BLOB_EXTENSION
 from openvino.tools.benchmark.utils.inputs_filling import get_input_data
 from openvino.tools.benchmark.utils.logging import logger
 from openvino.tools.benchmark.utils.progress_bar import ProgressBar
@@ -25,7 +26,11 @@ def parse_and_check_command_line():
     def arg_not_empty(arg_value,empty_value):
         return not arg_value is None and not arg_value == empty_value
 
-    args = parse_args()
+    args, parser = parse_args()
+
+    if args.latency_percentile < 1 or args.latency_percentile > 100:
+        parser.print_help()
+        raise RuntimeError("The percentile value is incorrect. The applicable values range is [1, 100].")
 
     if not args.perf_hint == "none" and (arg_not_empty(args.number_streams, "") or arg_not_empty(args.number_threads, 0) or arg_not_empty(args.infer_threads_pinning, "")):
         raise Exception("-nstreams, -nthreads and -pin options are fine tune options. To use them you " \
@@ -40,8 +45,8 @@ def parse_and_check_command_line():
     is_precisiton_set = not (args.input_precision == "" and args.output_precision == "" and args.input_output_precision == "")
 
     if is_network_compiled and is_precisiton_set:
-        raise Exception("Cannot set precision for a compiled network. " \
-                        "Please re-compile your network with required precision " \
+        raise Exception("Cannot set precision for a compiled model. " \
+                        "Please re-compile your model with required precision " \
                         "using compile_tool")
     
     return args, is_network_compiled
@@ -55,14 +60,9 @@ def main():
             args_string += f"{sys.argv[i]} "
 
         next_step()
+        logger.info("Parsing input parameters")
         args, is_network_compiled = parse_and_check_command_line()
-
         logger.info(f"Input command: {args_string}")
-
-        if args.number_streams is None:
-                logger.warning(" -nstreams default value is determined automatically for a device. "
-                               "Although the automatic selection usually provides a reasonable performance, "
-                               "but it still may be non-optimal for some cases, for more information look at README. ")
 
         command_line_arguments = get_command_line_arguments(sys.argv)
         if args.report_type:
@@ -83,9 +83,9 @@ def main():
             load_config(args.load_config, config)
 
         if is_network_compiled:
-            print("Model is compiled")
+            logger.info("Model is compiled")
 
-        # ------------------------------ 2. Loading OpenVINO ---------------------------------------------------
+        # ------------------------------ 2. Loading OpenVINO Runtime -------------------------------------------
         next_step(step_id=2)
 
         benchmark = Benchmark(args.target_device, args.number_infer_requests,
@@ -104,6 +104,11 @@ def main():
             cldnn_config = config[GPU_DEVICE_NAME]['CONFIG_FILE']
             benchmark.add_extension(path_to_cldnn_config=cldnn_config)
 
+        benchmark.print_version_info()
+
+        # --------------------- 3. Setting device configuration --------------------------------------------------------
+        next_step()
+
         for device in devices:
             supported_properties = benchmark.core.get_property(device, 'SUPPORTED_PROPERTIES')
             if 'PERFORMANCE_HINT' in supported_properties:
@@ -113,18 +118,12 @@ def main():
                         args.perf_hint = ''
                 else:
                     args.perf_hint = "THROUGHPUT" if benchmark.api_type == "async" else "LATENCY"
-                    logger.warning(f"PerformanceMode was not explicitly specified in command line. " +
-                    f"Device {device} performance hint will be set to " + args.perf_hint + ".")
+                    logger.warning(f"Performance hint was not explicitly specified in command line. " +
+                    f"Device({device}) performance hint will be set to " + args.perf_hint + ".")
             else:
                 logger.warning(f"Device {device} does not support performance hint property(-hint).")
 
-        version = benchmark.get_version_info()
-
-        logger.info(version)
-
-        # --------------------- 3. Setting device configuration --------------------------------------------------------
-        next_step()
-        def get_device_type_from_name(name):
+        def get_device_type_from_name(name) :
             new_name = str(name)
             new_name = new_name.split(".", 1)[0]
             new_name = new_name.split("(", 1)[0]
@@ -146,6 +145,7 @@ def main():
             supported_properties = benchmark.core.get_property(device, 'SUPPORTED_PROPERTIES')
             if device not in config.keys():
                 config[device] = {}
+
             ## Set performance counter
             if is_flag_set_in_command_line('pc'):
                 ## set to user defined value
@@ -163,6 +163,8 @@ def main():
                 config[device]['PERF_COUNT'] = 'YES'
             elif is_flag_set_in_command_line('pcsort'):
                 ## set to default value
+                logger.warning(f"Turn on performance counters for {device} device " +
+                               f"since pcsort value is {args.perf_counts_sort}.")
                 config[device]['PERF_COUNT'] = 'YES' if args.perf_counts_sort else 'NO'
             else:
                 ## set to default value
@@ -273,7 +275,7 @@ def main():
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
-                                              ('load network time (ms)', duration_ms)
+                                              ('compile model time (ms)', duration_ms)
                                           ])
             app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, compiled_model.inputs)
             batch_size = get_network_batch_size(app_inputs_info)
@@ -281,21 +283,31 @@ def main():
             # --------------------- 4. Read the Intermediate Representation of the network -----------------------------
             next_step()
 
+            logger.info("Loading model files")
+
             start_time = datetime.utcnow()
             model = benchmark.read_model(args.path_to_model)
             topology_name = model.get_name()
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
             logger.info(f"Read model took {duration_ms} ms")
+            logger.info("Original model I/O parameters:")
+            print_inputs_and_outputs_info(model)
+
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
-                                              ('read network time (ms)', duration_ms)
+                                              ('read model time (ms)', duration_ms)
                                           ])
 
             # --------------------- 5. Resizing network to match image sizes and given batch ---------------------------
             next_step()
 
             app_inputs_info, reshape = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, model.inputs)
+
+            # use batch size according to provided layout and shapes
+            batch_size = get_network_batch_size(app_inputs_info)
+            logger.info(f'Model batch size: {batch_size}')
+
             if reshape:
                 start_time = datetime.utcnow()
                 shapes = { info.name : info.partial_shape for info in app_inputs_info }
@@ -307,12 +319,8 @@ def main():
                 if statistics:
                     statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                               [
-                                                  ('reshape network time (ms)', duration_ms)
+                                                  ('reshape model time (ms)', duration_ms)
                                               ])
-
-            # use batch size according to provided layout and shapes
-            batch_size = get_network_batch_size(app_inputs_info)
-            logger.info(f'Network batch size: {batch_size}')
 
             # --------------------- 6. Configuring inputs and outputs of the model --------------------------------------------------
             next_step()
@@ -330,15 +338,15 @@ def main():
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
-                                              ('load network time (ms)', duration_ms)
+                                              ('compile model time (ms)', duration_ms)
                                           ])
         else:
             next_step()
-            print("Skipping the step for compiled network")
+            print("Skipping the step for compiled model")
             next_step()
-            print("Skipping the step for compiled network")
+            print("Skipping the step for compiled model")
             next_step()
-            print("Skipping the step for compiled network")
+            print("Skipping the step for compiled model")
 
             # --------------------- 7. Loading the model to the device -------------------------------------------------
             next_step()
@@ -350,24 +358,20 @@ def main():
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
-                                              ('import network time (ms)', duration_ms)
+                                              ('import model time (ms)', duration_ms)
                                           ])
             app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, compiled_model.inputs)
             batch_size = get_network_batch_size(app_inputs_info)
 
         # --------------------- 8. Querying optimal runtime parameters --------------------------------------------------
         next_step()
-        ## actual device-deduced settings
-        for device in devices:
-            keys = benchmark.core.get_property(device, 'SUPPORTED_PROPERTIES')
-            logger.info(f'DEVICE: {device}')
-            for k in keys:
-                if k not in ('SUPPORTED_METRICS', 'SUPPORTED_CONFIG_KEYS', 'SUPPORTED_PROPERTIES'):
-                    try:
-                        logger.info(f'  {k}  , {benchmark.core.get_property(device, k)}')
-                    except:
-                        pass
 
+        ## actual device-deduced settings
+        keys = compiled_model.get_property('SUPPORTED_PROPERTIES')
+        logger.info("Model:")
+        for k in keys:
+            if k not in ('SUPPORTED_METRICS', 'SUPPORTED_CONFIG_KEYS', 'SUPPORTED_PROPERTIES'):
+                logger.info(f'  {k}: {compiled_model.get_property(k)}')
 
         # Update number of streams
         for device in device_number_streams.keys():
@@ -382,15 +386,7 @@ def main():
         next_step()
 
         # Create infer requests
-        start_time = datetime.utcnow()
         requests = benchmark.create_infer_requests(compiled_model)
-        duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
-        logger.info(f"Create {benchmark.nireq} infer requests took {duration_ms} ms")
-        if statistics:
-                statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
-                                          [
-                                              ('create infer requests time (ms)', duration_ms)
-                                          ])
 
         # Prepare input data
         paths_to_input = list()
@@ -426,7 +422,7 @@ def main():
         if len(benchmark.latency_groups) > 1:
             logger.info(f"Defined {len(benchmark.latency_groups)} tensor groups:")
             for group in benchmark.latency_groups:
-                print(f"\t{str(group)}")
+                logger.info(f"\t{str(group)}")
 
         # Iteration limit
         benchmark.niter = get_number_iterations(benchmark.niter, benchmark.nireq, max(len(info.shapes) for info in app_inputs_info), benchmark.api_type)
@@ -529,8 +525,7 @@ def main():
                                       ])
             if MULTI_DEVICE_NAME not in device_name:
                 latency_prefix = None
-                if args.latency_percentile == 50 and static_mode:
-                    #latency_prefix = 'median latency (ms)'
+                if args.latency_percentile == 50:
                     latency_prefix = 'latency (ms)'
                 elif args.latency_percentile != 50:
                     latency_prefix = 'latency (' + str(args.latency_percentile) + ' percentile) (ms)'
@@ -575,29 +570,36 @@ def main():
                                       ])
             statistics.dump()
 
-        if devices.count("AUTO"):
-            print(f'ExecutionDevice: {compiled_model.get_property("EXECUTION_DEVICES")}')
-        print(f'Count:           {iteration} iterations')
-        print(f'Duration:        {get_duration_in_milliseconds(total_duration_sec):.2f} ms')
+        try:
+            exeDevice = compiled_model.get_property("EXECUTION_DEVICES")
+            logger.info(f'Execution Devices:{exeDevice}')
+        except:
+            pass
+        logger.info(f'Count:            {iteration} iterations')
+        logger.info(f'Duration:         {get_duration_in_milliseconds(total_duration_sec):.2f} ms')
         if MULTI_DEVICE_NAME not in device_name:
-            print('Latency:')
-            if args.latency_percentile == 50 and static_mode:
-                print(f'    Median:      {median_latency_ms:.2f} ms')
+            logger.info('Latency:')
+            if args.latency_percentile == 50:
+                logger.info(f'   Median:        {median_latency_ms:.2f} ms')
             elif args.latency_percentile != 50:
-                print(f'({args.latency_percentile} percentile):     {median_latency_ms:.2f} ms')
-            print(f'    AVG:         {avg_latency_ms:.2f} ms')
-            print(f'    MIN:         {min_latency_ms:.2f} ms')
-            print(f'    MAX:         {max_latency_ms:.2f} ms')
+                logger.info(f'   {args.latency_percentile} percentile:     {median_latency_ms:.2f} ms')
+            logger.info(f'   Average:       {avg_latency_ms:.2f} ms')
+            logger.info(f'   Min:           {min_latency_ms:.2f} ms')
+            logger.info(f'   Max:           {max_latency_ms:.2f} ms')
 
             if pcseq:
-                print("Latency for each data shape group: ")
-                for group in benchmark.latency_groups:
-                    print(f"  {str(group)}")
-                    print(f'    AVG:         {group.avg:.2f} ms')
-                    print(f'    MIN:         {group.min:.2f} ms')
-                    print(f'    MAX:         {group.max:.2f} ms')
+                logger.info("Latency for each data shape group:")
+                for idx,group in enumerate(benchmark.latency_groups):
+                    logger.info(f"{idx+1}.{str(group)}")
+                    if args.latency_percentile == 50:
+                        logger.info(f'   Median:     {group.median:.2f} ms')
+                    elif args.latency_percentile != 50:
+                        logger.info(f'   {args.latency_percentile} percentile:     {group.median:.2f} ms')
+                    logger.info(f'   Average:    {group.avg:.2f} ms')
+                    logger.info(f'   Min:        {group.min:.2f} ms')
+                    logger.info(f'   Max:        {group.max:.2f} ms')
 
-        print(f'Throughput: {fps:.2f} FPS')
+        logger.info(f'Throughput:   {fps:.2f} FPS')
 
         del compiled_model
 
@@ -606,9 +608,9 @@ def main():
         logger.exception(e)
 
         if statistics:
-            statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
-                                      [
-                                          ('error', str(e)),
-                                      ])
+            statistics.add_parameters(
+                StatisticsReport.Category.EXECUTION_RESULTS,
+                [('error', str(e))]
+            )
             statistics.dump()
         sys.exit(1)

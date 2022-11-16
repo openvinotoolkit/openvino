@@ -165,7 +165,7 @@ std::string OVCompileModelGetExecutionDeviceTests::getTestCaseName(testing::Test
     if (!compileModelProperties.empty()) {
         result << "_compileModelProp=" << util::join(util::split(util::to_string(compileModelProperties), ' '), "_");
     }
-     result << "_expectedDevice=" << userConfig.second;
+    result << "_expectedDevice=" << userConfig.second;
     return result.str();
 }
 
@@ -200,7 +200,7 @@ TEST_P(OVCompileModelGetExecutionDeviceTests, CanGetExecutionDeviceInfo) {
     ov::Any property;
     OV_ASSERT_NO_THROW(property = exeNetWork.get_property(ov::execution_devices));
     if (expectedDeviceName.find("undefined") == std::string::npos)
-        ASSERT_EQ(property, updatedExpectDevices);
+        ASSERT_EQ(util::join(property.as<std::vector<std::string>>(), ","), updatedExpectDevices);
     else
         ASSERT_FALSE(property.empty());
 }
