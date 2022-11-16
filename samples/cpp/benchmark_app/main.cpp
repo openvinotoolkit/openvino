@@ -191,6 +191,7 @@ void setDeviceProperty(ov::Core& core,
                        std::string& device,
                        ov::AnyMap& device_config,
                        const std::pair<std::string, ov::Any>& property,
+                       std::map<std::string, bool>& isDevSetProperty,
                        const std::pair<std::string, ov::Any>& config = {}) {
     auto supported_properties = core.get_property(device, ov::supported_properties);
     auto supported = [&](const std::string& key) {
@@ -206,7 +207,10 @@ void setDeviceProperty(ov::Core& core,
 
     if (device_property.first.empty())
         return;
-    if (device_config.find(device) == device_config.end()) {
+
+    if (device_config.find(device) == device_config.end() || (!FLAGS_load_config.empty() && isDevSetProperty[device])) {
+        isDevSetProperty[device] = false;
+        device_config.erase(device);
         device_config.insert(ov::device::properties(device, device_property));
     } else {
         auto& properties = device_config[device].as<ov::AnyMap>();
@@ -271,6 +275,10 @@ int main(int argc, char* argv[]) {
         // Parse devices
         auto devices = parse_devices(device_name);
 
+        std::map<std::string, bool> isDevSetProperty = {};
+        // initialize flags to ensure ov::device::properties should only be set once per device.
+        for (auto& dev : devices)
+            isDevSetProperty[dev] = true;
         // Parse nstreams per device
         std::map<std::string, std::string> device_nstreams = parse_value_per_device(devices, FLAGS_nstreams);
         std::map<std::string, std::string> device_infer_precision =
@@ -278,8 +286,10 @@ int main(int argc, char* argv[]) {
 
         // Load device config file if specified
         std::map<std::string, ov::AnyMap> config;
+        bool isLoadConfig = false;
         if (!FLAGS_load_config.empty()) {
             load_config(FLAGS_load_config, config);
+            isLoadConfig = true;
         }
 
         /** This vector stores paths to the processed images with input names**/
@@ -422,10 +432,17 @@ int main(int argc, char* argv[]) {
                             std::map<std::string, std::string> devices_property;
                             ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
                             for (auto it : devices_property) {
-                                if (device_config.find(it.first) == device_config.end())
+                                if (device_config.find(it.first) == device_config.end() ||
+                                    (isLoadConfig && isDevSetProperty[it.first])) {
+                                    // Create ov::device::properties with ov::num_stream. and
+                                    // 1. Insert this ov::device::properties into device config if this
+                                    // ov::device::properties isn't existed. Otherwise,
+                                    // 2. Replace the existed ov::device::properties within device config.
+                                    isDevSetProperty[it.first] = false;
+                                    device_config.erase(it.first);
                                     device_config.insert(
                                         ov::device::properties(it.first, ov::num_streams(std::stoi(it.second))));
-                                else {
+                                } else {
                                     auto& property = device_config[it.first].as<ov::AnyMap>();
                                     property.emplace(ov::num_streams(std::stoi(it.second)));
                                 }
@@ -464,6 +481,7 @@ int main(int argc, char* argv[]) {
                                                   hwdevice,
                                                   device_config,
                                                   ov::num_streams(ov::streams::AUTO),
+                                                  isDevSetProperty,
                                                   std::make_pair(key, value));
                             }
                         }
@@ -492,10 +510,13 @@ int main(int argc, char* argv[]) {
                             std::map<std::string, std::string> devices_property;
                             ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
                             for (auto it : devices_property) {
-                                if (device_config.find(it.first) == device_config.end())
+                                if (device_config.find(it.first) == device_config.end() ||
+                                    (isLoadConfig && isDevSetProperty[it.first])) {
+                                    isDevSetProperty[it.first] = false;
+                                    device_config.erase(it.first);
                                     device_config.insert(
-                                        ov::device::properties(it.first, ov::hint::inference_precision(it.second)));
-                                else {
+                                        ov::device::properties(it.first, ov::num_streams(std::stoi(it.second))));
+                                } else {
                                     auto& property = device_config[it.first].as<ov::AnyMap>();
                                     property.emplace(ov::hint::inference_precision(it.second));
                                 }
@@ -532,7 +553,7 @@ int main(int argc, char* argv[]) {
                     // list specified by -d.
                     for (auto& device : hardware_devices) {
                         if (device == "CPU")
-                            setDeviceProperty(core, device, device_config, property);
+                            setDeviceProperty(core, device, device_config, property, isDevSetProperty);
                     }
                 }
             };

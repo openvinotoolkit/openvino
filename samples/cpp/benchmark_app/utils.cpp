@@ -729,10 +729,10 @@ void dump_config(const std::string& filename, const std::map<std::string, ov::An
         fs << plugin_to_opencv_format(device_it->first) << "{:";
         std::stringstream strm;
         for (auto param_it = device_it->second.begin(); param_it != device_it->second.end(); ++param_it) {
-            strm << param_it->first;
             param_it->second.print(strm);
+            fs << param_it->first << strm.str();
+            strm.str("");
         }
-        fs << strm.str();
         fs << "}";
     }
     fs.release();
@@ -759,7 +759,19 @@ void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>&
         }
         for (auto iit = device.begin(); iit != device.end(); ++iit) {
             auto item = *iit;
-            config[opencv_to_plugin_format(device.name())][item.name()] = item.string();
+            if (item.string().find(" ") == std::string::npos) {
+                config[opencv_to_plugin_format(device.name())][item.name()] = item.string();
+                continue;
+            }
+            std::stringstream strm(item.string());
+            std::map<std::string, std::string> properties;
+            std::map<std::string, ov::Any> devices_property;
+            ov::util::Read<std::map<std::string, std::string>>{}(strm, properties);
+            // convert to ov::AnyMap from std::map
+            for (auto &item : properties) {
+                devices_property[item.first] = item.second;
+            }
+            config[opencv_to_plugin_format(device.name())][item.name()] = devices_property;
         }
     }
 }
