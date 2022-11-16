@@ -41,7 +41,7 @@ class PytorchLayerTest:
             graph = model.inlined_graph
             print(graph)
 
-            assert self._check_kind_exist(
+            assert kind is None or self._check_kind_exist(
                 graph, kind), "Operation type doesn't exist in provided graph"
 
             fe_manager = FrontEndManager()
@@ -95,9 +95,9 @@ class PytorchLayerTest:
         fw_eps = custom_eps if precision == 'FP32' else 5e-2
         is_ok = True
         for i in range(len(infer_res)):
-            cur_fw_res = fw_res[i].numpy()
+            cur_fw_res = fw_res[i].to(memory_format = torch.contiguous_format).numpy()
             cur_ov_res = infer_res[compiled.output(i)]
-            print(f"fw_re: {cur_fw_res}; ov_res: {cur_ov_res}")
+            print(f"fw_re: {cur_fw_res};\n ov_res: {cur_ov_res}")
             if not np.allclose(cur_ov_res, cur_fw_res,
                                atol=fw_eps,
                                rtol=fw_eps):

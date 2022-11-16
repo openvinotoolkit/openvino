@@ -325,14 +325,10 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
             }
             auto ov_output = tensor_map[id];
             auto order = pytorch_model->get_output_transpose_order(i);
-            if (order.size() > 0 && !std::is_sorted(order.begin(), order.end())) {
-                throw "Output strides have wrong order.";
-            }
+            FRONT_END_GENERAL_CHECK(order.size() == 0 || std::is_sorted(order.begin(), order.end()),
+                                    "Output strides have wrong order.");
             FRONT_END_GENERAL_CHECK(ov_output.get_names().size() > 0,
                                     "Tensor doesn't have name, while it should have name: ",
-                                    id);
-            FRONT_END_GENERAL_CHECK(ov_output.get_any_name().find(std::to_string(id)) != std::string::npos,
-                                    "any_name of tensor doesn't contain actual name: ",
                                     id);
             auto result = std::make_shared<opset8::Result>(ov_output);
             results.push_back(result);
