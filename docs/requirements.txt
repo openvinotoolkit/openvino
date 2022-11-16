@@ -16,7 +16,7 @@ Jinja2==2.11.3
 lxml>=4.6.5
 MarkupSafe==1.1.1
 mistune==2.0.0a6
-packaging==21.0
+packaging==20.9
 pluggy==0.13.1
 py==1.10.0
 pydata-sphinx-theme==0.7.2
@@ -31,7 +31,7 @@ requests==2.25.1
 six==1.15.0
 snowballstemmer==2.1.0
 soupsieve==2.2.1
-sphinx==5.3.0
+Sphinx==3.2.1
 sphinx-copybutton==0.3.3
 sphinx-inline-tabs==2021.8.17b10
 sphinx-panels==0.6.0
