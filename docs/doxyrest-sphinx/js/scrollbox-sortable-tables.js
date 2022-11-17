@@ -1,9 +1,14 @@
 $(document).ready(function () {
     sortableTables();
+    scrollableTables();
 });
 
+function scrollableTables() {
+    $('table.table').parents('div.scrollbox').addClass("scrollable");
+}
+
 function sortableTables() {
-    
+
     var tables = $('.sortable-table').find('table');
     tables.each(function () {
         var table = $(this);
