@@ -27,7 +27,8 @@ public:
         PRECISIONS = 1 << 4,
         ATTRIBUTES = 1 << 5,
         TENSOR_NAMES = 1 << 6,
-        ACCURACY = 1 << 7
+        ACCURACY = 1 << 7,
+        SUBGRAPH_DESCRIPTORS = 1 << 8
     };
 
     struct Result {
@@ -50,6 +51,7 @@ public:
         fc.enable(NODES);
         fc.enable(PRECISIONS);
         fc.enable(TENSOR_NAMES);
+        fc.enable(SUBGRAPH_DESCRIPTORS);
         return fc;
     }
 
