@@ -474,6 +474,8 @@ ParamsKey base_params::GetParamsKey() const {
     // TODO : multiple output support
     bool bFP16Used = (outputs[0].GetDType() == Datatype::F16);
 
+    bool dynamic_shapes = false;
+
     for (const auto& i : inputs) {
         k.EnableInputDataType(i.GetDType());
         k.EnableInputLayout(i.GetLayout());
@@ -483,10 +485,13 @@ ParamsKey base_params::GetParamsKey() const {
         bOffests |= (i.GetFirstElementOffset() != 0);
         bDifferentTypes |= (i.GetDType() != outputs[0].GetDType());
         bFP16Used |= (i.GetDType() == Datatype::F16);
+        dynamic_shapes |= i.is_dynamic();
     }
 
     k.EnableOutputDataType(outputs[0].GetDType());
     k.EnableOutputLayout(outputs[0].GetLayout());
+
+    dynamic_shapes |= outputs[0].is_dynamic();
 
     if (bBatching) {
         k.EnableBatching();
@@ -502,6 +507,10 @@ ParamsKey base_params::GetParamsKey() const {
 
     if (bOffests || outputs[0].GetFirstElementOffset() != 0) {
         k.EnableTensorOffset();
+    }
+
+    if (dynamic_shapes) {
+        k.EnableDynamicShapesSupport();
     }
 
     if (!engineInfo.bFP16Support && bFP16Used) {

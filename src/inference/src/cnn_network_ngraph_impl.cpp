@@ -38,7 +38,7 @@
 #include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
 #include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
 #include <transformations/disable_decompression_convert_constant_folding.hpp>
-#include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
+#include <transformations/low_precision/mark_dequantization_subgraph.hpp>
 #include <transformations/op_conversions/convert_gp9_to_gp_ie_internal.hpp>
 #include <transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp>
 #include <transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp>
@@ -466,10 +466,11 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
                 REGISTER_PASS(manager, ConvertMatrixNmsToMatrixNmsIE, false)
                 REGISTER_PASS(manager, ConvertNMS9ToNMSIEInternal)
                 REGISTER_PASS(manager, ConvertGP9ToGPIEInternal)
-                REGISTER_PASS(manager, DisableConvertConstantFoldingOnConstPath)
                 using namespace ov::pass;
+                REGISTER_PASS(manager, MarkDequantizationSubgraph)
                 REGISTER_PASS(manager, DisableDecompressionConvertConstantFolding)
                 REGISTER_PASS(manager, ConstantFolding)
+
                 // OneHotToLegacy changes output precision
                 manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(
                     specialized_ngraph_function);

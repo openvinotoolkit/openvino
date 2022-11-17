@@ -133,7 +133,7 @@ private:
     std::vector<ptrdiff_t> paddingR;
     InferenceEngine::SizeVector weightDims;
     InferenceEngine::SizeVector biasesDims;
-    std::vector<MemoryPtr> convPostOpsArgs[2];
+    std::unordered_map<int, MemoryPtr> convPostOpsArgs[2];
 
     size_t dw_conv_oc;
     size_t dw_conv_ih;
