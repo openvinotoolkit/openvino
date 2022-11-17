@@ -1332,8 +1332,8 @@ int main(int argc, char* argv[]) {
         } catch (const ov::Exception&) {
         }
 
-        slog::info << "Count:             " << iteration << " iterations" << slog::endl;
-        slog::info << "Duration:          " << double_to_string(totalDuration) << " ms" << slog::endl;
+        slog::info << "Count:               " << iteration << " iterations" << slog::endl;
+        slog::info << "Duration:            " << double_to_string(totalDuration) << " ms" << slog::endl;
 
         if (device_name.find("MULTI") == std::string::npos) {
             slog::info << "Latency:" << slog::endl;
@@ -1357,7 +1357,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        slog::info << "Throughput:   " << double_to_string(fps) << " FPS" << slog::endl;
+        slog::info << "Throughput:          " << double_to_string(fps) << " FPS" << slog::endl;
 
     } catch (const std::exception& ex) {
         slog::err << ex.what() << slog::endl;
