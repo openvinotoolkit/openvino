@@ -2,7 +2,14 @@
 
 This sample demonstrates how to execute an inference of image classification networks like AlexNet with images in NV12 color format using Synchronous Inference Request API.
 
-Hello NV12 Input Classification C Sample demonstrates how to use the NV12 automatic input pre-processing API in your applications.
+Hello NV12 Input Classification C Sample demonstrates how to use the NV12 automatic input pre-processing API in your applications:
+
+| Feature | API | Description |
+| :--- | :--- | :--- |
+| Node Operations | `ov_port_get_any_name` | Get a layer name |
+| Infer Request Operations | `ov_infer_request_set_tensor`, `ov_infer_request_get_output_tensor_by_index` | Operate with tensors |
+| Preprocessing | `ov_preprocess_input_tensor_info_set_color_format`, `ov_preprocess_preprocess_steps_convert_element_type`, `ov_preprocess_preprocess_steps_convert_color` | Change the color format of the input data |
+
 Basic Inference Engine API is covered by [Hello Classification C sample](../hello_classification/README.md).
 
 | Options  | Values |

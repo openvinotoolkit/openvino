@@ -4,6 +4,15 @@ This sample demonstrates how to execute an inference of image classification net
 
 Hello Classification C sample application demonstrates how to use the C API from OpenVINO in applications.
 
+| Feature | API | Description |
+| :--- | :--- | :--- |
+| OpenVINO Runtime Version | `ov_get_openvino_version` | Get Openvino API version |
+| Basic Infer Flow | `ov_core_create`, `ov_core_read_model`, `ov_core_compile_model`, `ov_compiled_model_create_infer_request`, `ov_infer_request_set_input_tensor_by_index`, `ov_infer_request_get_output_tensor_by_index`  | Common API to do inference: read and compile a model, create an infer request, configure input and output tensors |
+| Synchronous Infer | `ov_infer_request_infer` | Do synchronous inference |
+| Model Operations | `ov_model_const_input`, `ov_model_const_output` | Get inputs and outputs of a model |
+| Tensor Operations | `ov_tensor_create_from_host_ptr` | Create a tensor shape |
+| Preprocessing | `ov_preprocess_prepostprocessor_create`, `ov_preprocess_prepostprocessor_get_input_info_by_index`, `ov_preprocess_input_info_get_tensor_info`, `ov_preprocess_input_tensor_info_set_from`, `ov_preprocess_input_tensor_info_set_layout`, `ov_preprocess_input_info_get_preprocess_steps`, `ov_preprocess_preprocess_steps_resize`, `ov_preprocess_input_model_info_set_layout`, `ov_preprocess_output_set_element_type`, `ov_preprocess_prepostprocessor_build` | Set image of the original size as input for a model with other input size. Resize and layout conversions are performed automatically by the corresponding plugin just before inference. |
+
 | Options  | Values |
 |:---                              |:---
 | Validated Models                 | [alexnet](@ref omz_models_model_alexnet), [googlenet-v1](@ref omz_models_model_googlenet_v1)
