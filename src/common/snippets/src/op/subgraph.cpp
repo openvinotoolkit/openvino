@@ -64,6 +64,7 @@ snippets::op::Subgraph::Subgraph(const OutputVector& args, std::shared_ptr<ov::M
     for (int i = 0; i < outputs; ++i) {
         m_output_descriptions[0].push_back(std::make_shared<BodyOutputDescription>(i, i));
     }
+    m_transformations_allowed = false;
 }
 
 snippets::op::Subgraph::Subgraph(const NodeVector& args, std::shared_ptr<ov::Model> body)
