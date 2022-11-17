@@ -426,6 +426,11 @@ network::~network() {
     }
 }
 
+// Cache blob format:
+//     [ cldnn::kernels_cache ]
+//     [ non executable primitive_inst ]
+//     [ executable primitive_inst ]
+//     [ memory reuse information ]
 void network::save(cldnn::BinaryOutputBuffer& ob) {
     kernels_cache kernels_cache(get_engine(), 0, {""});
     for (const auto& p_inst : _exec_order) {

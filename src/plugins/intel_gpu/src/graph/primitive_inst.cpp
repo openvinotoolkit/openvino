@@ -1033,6 +1033,22 @@ std::string primitive_inst::get_implementation_name() const {
     return "undef";
 }
 
+// Cache blob format:
+//     [ primitive type ]
+//  for DATA_INST
+//     [ primtive_type_string ]
+//     [ kernel_impl_params ]
+//     [ output memory information ]
+//     [ data stored in memory ]
+//  for EXECUTABLE_INST
+//     [ kernel_arguments ]
+//     [ kernel_impl_params ]
+//     [ primitive_impl ]
+//     [ member variables of primitive_inst ]
+//     [ output memory information ]
+//     [ memory dependency information ]
+//     [ execution dependency information ]
+//     [ intermediate memory information ]
 void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
     if (type() == cldnn::data::type_id() ||
        (type() == cldnn::mutable_data::type_id() && _impl == nullptr)) {

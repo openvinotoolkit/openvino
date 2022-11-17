@@ -67,6 +67,10 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
 
     bool is_cpu() const override { return false; }
 
+    // Cache blob format:
+    //     [ kernel_selector::kernel_data ]
+    //     [ kernel_id ]
+    //     [ kernel_arguments ]
     void save(BinaryOutputBuffer& ob) const override {
         ob << make_data(&_kernel_data.internalBufferDataType, sizeof(kernel_selector::Datatype));
         ob << _kernel_data.internalBufferSizes;

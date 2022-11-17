@@ -468,6 +468,11 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
     return std::make_shared<ngraph::Function>(results, params, "runtime_gpu_graph");
 }
 
+// Cache blob format:
+//     [ ov::intel_gpu::Program::inputLayouts ]
+//     [ ov::intel_gpu::Graph::primitiveIDs ]
+//     [ ov::intel_gpu::Graph::outputDims ]
+//     [ cldnn::network ]
 void Graph::Export(cldnn::BinaryOutputBuffer &ob) {
     ob << m_program->inputLayouts;
     ob << primitiveIDs;

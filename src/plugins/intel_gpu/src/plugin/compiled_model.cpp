@@ -354,6 +354,10 @@ bool CompiledModel::is_serializable() {
     return true;
 }
 
+// Cache blob format:
+//     [ ConstInputsDataMap / ConstOutputsDataMap ]
+//     [ ov::Node::Input/ ov::Node::Output ]
+//     [ ov::intel_gpu::Graph ]
 void CompiledModel::Export(std::ostream& networkModel) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::Export");
     if (m_graphs.empty())

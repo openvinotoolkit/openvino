@@ -213,7 +213,7 @@ struct primitive_info {
     CLDNN_DEFINE_TYPE_ID(PType)              \
     CLDNN_DEFINE_TYPE_STRING(PType)
 
-#define GPU_DEFINE_PRIMITIVE_TYPE_ID(PType)           \
+#define GPU_DEFINE_PRIMITIVE_TYPE_ID(PType)             \
     primitive_type_id PType::type_id() {                \
         static primitive_type_base<PType> instance;     \
         return &instance;                               \

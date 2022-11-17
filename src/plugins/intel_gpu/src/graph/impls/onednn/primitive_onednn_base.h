@@ -67,6 +67,10 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
 
     bool is_cpu() const override { return false; }
 
+    // Cache blob format:
+    //     [ dnnl::primitive_attr ]
+    //     [ dnnl::primitive_desc ]
+    //     [ dnnl::cache_blob ]
     void save(BinaryOutputBuffer& ob) const override {
         if (_attrs.get() == nullptr) {
             ob << false;
