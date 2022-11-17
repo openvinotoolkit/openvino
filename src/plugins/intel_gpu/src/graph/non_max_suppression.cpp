@@ -11,10 +11,7 @@
 #include "nms_shape_inference.hpp"
 
 namespace cldnn {
-primitive_type_id non_max_suppression::type_id() {
-    static primitive_type_base<non_max_suppression> instance;
-    return &instance;
-}
+CLDNN_DEFINE_PRIMITIVE_TYPE_ID(non_max_suppression)
 
 layout non_max_suppression_inst::calc_output_layout(non_max_suppression_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<non_max_suppression>();

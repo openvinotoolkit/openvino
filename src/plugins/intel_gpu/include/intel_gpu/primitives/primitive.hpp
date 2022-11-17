@@ -213,6 +213,30 @@ struct primitive_info {
     CLDNN_DEFINE_TYPE_ID(PType)              \
     CLDNN_DEFINE_TYPE_STRING(PType)
 
+#define CLDNN_DEFINE_PRIMITIVE_TYPE_ID(PType)           \
+    primitive_type_id PType::type_id() {                \
+        static primitive_type_base<PType> instance;     \
+        return &instance;                               \
+    }                                                   \
+    bool _##PType##_added_ = prim_map_storage::instance().set_type_id(#PType, PType::type_id());
+
+struct prim_map_storage {
+    static prim_map_storage& instance() {
+        static prim_map_storage instance;
+        return instance;
+    }
+
+    const cldnn::primitive_type_id get_type_id(const std::string& type_string) const {
+        return map.at(type_string);
+    }
+
+    bool set_type_id(const std::string& type_string, const cldnn::primitive_type_id type_id) {
+        return map.insert({type_string, type_id}).second;
+    }
+
+private:
+    std::unordered_map<std::string, cldnn::primitive_type_id> map;
+};
 /// @}
 /// @}
 }  // namespace cldnn

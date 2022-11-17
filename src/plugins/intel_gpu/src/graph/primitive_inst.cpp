@@ -1156,7 +1156,7 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
     if (_object_type.compare("DATA_INST") == 0) {
         std::string type_str;
         ib >> type_str;
-        _type = get_type_id(type_str);
+        _type = cldnn::prim_map_storage::instance().get_type_id(type_str);
 
         _impl_params.release();
         _impl_params = make_unique<kernel_impl_params>();
@@ -1194,7 +1194,7 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
         ib >> _is_dynamic;
         std::string type_str;
         ib >> type_str;
-        _type = get_type_id(type_str);
+        _type = cldnn::prim_map_storage::instance().get_type_id(type_str);
         ib >> _id;
         ib >> _org_id;
         ib >> _is_input;

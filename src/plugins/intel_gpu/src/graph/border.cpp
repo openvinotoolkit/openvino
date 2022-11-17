@@ -12,10 +12,7 @@
 #include <algorithm>
 
 namespace cldnn {
-primitive_type_id border::type_id() {
-    static primitive_type_base<border> instance;
-    return &instance;
-}
+CLDNN_DEFINE_PRIMITIVE_TYPE_ID(border)
 
 layout border_inst::calc_output_layout(border_node const& node, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&

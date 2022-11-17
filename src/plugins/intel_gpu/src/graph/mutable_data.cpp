@@ -14,10 +14,7 @@
 #include <algorithm>
 
 namespace cldnn {
-primitive_type_id mutable_data::type_id() {
-    static primitive_type_base<mutable_data> instance;
-    return &instance;
-}
+CLDNN_DEFINE_PRIMITIVE_TYPE_ID(mutable_data)
 
 namespace {
 memory::ptr attach_or_copy_data(network& network, memory::ptr mem, bool reuse) {

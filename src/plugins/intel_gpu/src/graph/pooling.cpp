@@ -16,10 +16,7 @@
 using namespace ov::intel_gpu;
 
 namespace cldnn {
-primitive_type_id pooling::type_id() {
-    static primitive_type_base<pooling> instance;
-    return &instance;
-}
+CLDNN_DEFINE_PRIMITIVE_TYPE_ID(pooling)
 
 layout pooling_inst::calc_output_layout(parent::typed_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<pooling>();

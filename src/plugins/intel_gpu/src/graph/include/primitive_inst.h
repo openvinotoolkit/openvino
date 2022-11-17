@@ -32,8 +32,6 @@ namespace cldnn {
 // checks if any user in a list is a cpu primitive
 bool is_any_user_cpu(const std::list<const program_node*>& users);
 
-primitive_type_id get_type_id(std::string type_str);
-
 class primitive_inst;
 
 template <class PType>

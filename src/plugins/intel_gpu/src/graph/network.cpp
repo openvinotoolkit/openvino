@@ -347,7 +347,7 @@ network::network(cldnn::BinaryInputBuffer& ib, stream::ptr stream, engine& engin
         std::string type;
         std::string _primitive_id;
         ib >> type >> _primitive_id;
-        std::shared_ptr<cldnn::primitive_inst> new_primitive_inst = cldnn::get_type_id(type)->create_instance(*this);
+        std::shared_ptr<cldnn::primitive_inst> new_primitive_inst = prim_map_storage::instance().get_type_id(type)->create_instance(*this);
         ib >> *new_primitive_inst;
         _primitives[_primitive_id] = new_primitive_inst;
     }
@@ -361,7 +361,7 @@ network::network(cldnn::BinaryInputBuffer& ib, stream::ptr stream, engine& engin
 
     for (auto& type : _exec_order_types) {
         ib >> type;
-        std::shared_ptr<cldnn::primitive_inst> new_primitive_inst = cldnn::get_type_id(type)->create_instance(*this);
+        std::shared_ptr<cldnn::primitive_inst> new_primitive_inst = prim_map_storage::instance().get_type_id(type)->create_instance(*this);
         _exec_order.emplace_back(new_primitive_inst);
     }
 

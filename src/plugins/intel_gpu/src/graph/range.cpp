@@ -18,10 +18,7 @@ std::string lexical_cast(const json_base& j, int offset = 1) {
 }
 }  // namespace
 
-primitive_type_id range::type_id() {
-    static primitive_type_base<range> instance;
-    return &instance;
-}
+CLDNN_DEFINE_PRIMITIVE_TYPE_ID(range)
 
 layout range_inst::calc_output_layout(range_node const& node, kernel_impl_params const& impl_param) {
     return impl_param.typed_desc<range>()->output_layout;
