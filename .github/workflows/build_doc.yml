@@ -16,6 +16,7 @@ jobs:
           submodules: true
           lfs: true
 
+      # cache from ccache
       - name: Cache ccache
         id: cache_restore
         uses: actions/cache@v3
@@ -29,6 +30,7 @@ jobs:
           key: doc-ccache-cache
           save: false
 
+      # cache from doxygen build
       - name: Cache doxygen make
         id: cache_doxygen_make
         uses: actions/cache@v3
@@ -36,6 +38,7 @@ jobs:
           path: doxygen-build
           key: build-doxygen-cache
 
+      # cache from python packages
       - name: Cache python requirements
         id: cache_python_requirements
         uses: actions/cache@v3
