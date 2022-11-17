@@ -11,7 +11,7 @@
 #include "primitive_type_base.h"
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(matrix_nms)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(matrix_nms)
 
 layout matrix_nms_inst::calc_output_layout(const matrix_nms_node& node, const kernel_impl_params& impl_param) {
     const auto primitive = impl_param.typed_desc<matrix_nms>();

@@ -10,7 +10,7 @@
 #include <string>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(condition)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(condition)
 
 /*
     Calc_output_layout method is called only when output layout is invalidated.

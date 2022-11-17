@@ -9,7 +9,7 @@
 #include <data_inst.h>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(random_uniform)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(random_uniform)
 
 random_uniform_inst::typed_primitive_inst(network& network, random_uniform_node const &node)
 : parent(network, node) {

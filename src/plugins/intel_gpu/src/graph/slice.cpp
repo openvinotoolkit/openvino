@@ -8,7 +8,7 @@
 #include <json_object.h>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(slice)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(slice)
 
 slice_inst::typed_primitive_inst(network& network, slice_node const& node)
     : parent(network, node) {}

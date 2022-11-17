@@ -11,7 +11,7 @@
 #include <string>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(lstm_dynamic_input)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(lstm_dynamic_input)
 // input_tensor:   [b: batch, f: max_sequence_length, x: input_size, y: direction]
 // weights_tensor: [b: 1, f: direction, x: input_size, y: 4 * hidden_size]
 // output_tensor:  [b: batch, f: max_sequence_length, x: 4 * hidden_size, y: direction]

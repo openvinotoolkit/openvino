@@ -13,7 +13,7 @@
 #include "topk_shape_inference.hpp"
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(arg_max_min)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(arg_max_min)
 
 layout arg_max_min_inst::calc_output_layout(arg_max_min_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<arg_max_min>();

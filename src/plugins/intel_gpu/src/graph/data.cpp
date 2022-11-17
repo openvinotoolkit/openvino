@@ -13,7 +13,7 @@
 #include <algorithm>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(data)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(data)
 
 namespace {
 memory::ptr attach_or_copy_data(network& network, memory::ptr mem) {

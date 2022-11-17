@@ -8,7 +8,7 @@
 #include <string>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(softmax)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(softmax)
 
 layout softmax_inst::calc_output_layout(softmax_node const& node, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&

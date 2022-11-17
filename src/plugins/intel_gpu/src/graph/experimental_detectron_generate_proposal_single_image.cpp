@@ -9,7 +9,7 @@
 #include <string>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(experimental_detectron_generate_proposals_single_image)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(experimental_detectron_generate_proposals_single_image)
 
 layout experimental_detectron_generate_proposals_single_image_inst::calc_output_layout(
         const experimental_detectron_generate_proposals_single_image_node& node, kernel_impl_params const& impl_param) {

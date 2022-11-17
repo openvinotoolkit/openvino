@@ -8,7 +8,7 @@
 #include <string>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(ctc_greedy_decoder)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(ctc_greedy_decoder)
 
 layout ctc_greedy_decoder_inst::calc_output_layout(ctc_greedy_decoder_node const& node, kernel_impl_params const& impl_param) {
     auto input_node_layout = impl_param.get_input_layout();

@@ -10,7 +10,7 @@
 #include <string>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(deformable_conv)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(deformable_conv)
 
 layout deformable_conv_inst::calc_output_layout(deformable_conv_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<deformable_conv>();
@@ -53,7 +53,7 @@ std::string deformable_conv_inst::to_string(deformable_conv_node const& node) {
 deformable_conv_inst::typed_primitive_inst(network& network, deformable_conv_node const& node) : parent(network, node) {
 }
 
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(deformable_interp)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(deformable_interp)
 
 layout deformable_interp_inst::calc_output_layout(deformable_interp_node const& node, kernel_impl_params const& impl_param) {
     auto desc = node.get_primitive();

@@ -8,7 +8,7 @@
 #include "json_object.h"
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(dft)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(dft)
 
 layout dft_inst::calc_output_layout(const dft_node& node, const kernel_impl_params& impl_param) {
     const auto primitive = impl_param.typed_desc<dft>();

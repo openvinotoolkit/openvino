@@ -11,7 +11,7 @@
 #include <vector>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(shape_of)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(shape_of)
 
 layout shape_of_inst::calc_output_layout(shape_of_node const& node, kernel_impl_params const& impl_param) {
     auto prim = impl_param.typed_desc<shape_of>();

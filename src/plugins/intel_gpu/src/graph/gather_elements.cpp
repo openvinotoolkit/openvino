@@ -11,7 +11,7 @@
 #include <string>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(gather_elements)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(gather_elements)
 
 layout gather_elements_inst::calc_output_layout(gather_elements_node const& node, kernel_impl_params const& impl_param) {
     auto op = impl_param.typed_desc<gather_elements>();

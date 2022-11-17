@@ -10,7 +10,7 @@
 #include <string>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(embedding_bag)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(embedding_bag)
 
 layout embedding_bag_inst::calc_output_layout(embedding_bag_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<embedding_bag>();

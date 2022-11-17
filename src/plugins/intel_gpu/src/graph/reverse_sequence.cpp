@@ -10,7 +10,7 @@
 #include <string>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(reverse_sequence)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(reverse_sequence)
 
 layout reverse_sequence_inst::calc_output_layout(reverse_sequence_node const& node, kernel_impl_params const& impl_param) {
     auto input_layout = impl_param.get_input_layout();

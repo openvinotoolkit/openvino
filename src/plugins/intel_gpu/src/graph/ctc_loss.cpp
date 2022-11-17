@@ -11,7 +11,7 @@
 #include "to_string_utils.h"
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(ctc_loss)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(ctc_loss)
 
 layout ctc_loss_inst::calc_output_layout(const ctc_loss_node& node, const kernel_impl_params& impl_param) {
     auto input_layout = impl_param.get_input_layout();

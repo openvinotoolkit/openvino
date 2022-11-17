@@ -12,7 +12,7 @@
 #include <string>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(binary_convolution)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(binary_convolution)
 
 layout binary_convolution_inst::calc_output_layout(binary_convolution_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<binary_convolution>();

@@ -10,7 +10,7 @@
 #include <string>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(depth_to_space)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(depth_to_space)
 
 layout depth_to_space_inst::calc_output_layout(depth_to_space_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<depth_to_space>();

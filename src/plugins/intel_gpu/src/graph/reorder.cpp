@@ -14,7 +14,7 @@
 #include <string>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(reorder)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(reorder)
 
 layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_params const& impl_param) {
     auto input_layout = impl_param.get_input_layout();

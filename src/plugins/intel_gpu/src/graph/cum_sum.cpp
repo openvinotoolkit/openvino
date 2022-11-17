@@ -10,7 +10,7 @@
 #include <string>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(cum_sum)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(cum_sum)
 
 layout cum_sum_inst::calc_output_layout(cum_sum_node const& node, kernel_impl_params const& impl_param) {
     return impl_param.get_input_layout();

@@ -8,7 +8,7 @@
 #include "json_object.h"
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(experimental_detectron_prior_grid_generator)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(experimental_detectron_prior_grid_generator)
 
 layout experimental_detectron_prior_grid_generator_inst::calc_output_layout(
     const experimental_detectron_prior_grid_generator_node& node, kernel_impl_params const& impl_param) {

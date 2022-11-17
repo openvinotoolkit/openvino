@@ -9,7 +9,7 @@
 #include "roll_inst.hpp"
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(roll)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(roll)
 
 layout roll_inst::calc_output_layout(const roll_node& node, kernel_impl_params const& impl_param) {
     return impl_param.get_input_layout();

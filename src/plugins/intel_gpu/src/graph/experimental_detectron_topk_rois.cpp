@@ -9,7 +9,7 @@
 #include <data_inst.h>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(experimental_detectron_topk_rois)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(experimental_detectron_topk_rois)
 
 experimental_detectron_topk_rois_inst::typed_primitive_inst(network& network, experimental_detectron_topk_rois_node const &node)
 : parent(network, node) {

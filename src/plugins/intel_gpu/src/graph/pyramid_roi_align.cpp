@@ -10,7 +10,7 @@
 #include <string>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(pyramid_roi_align)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(pyramid_roi_align)
 
 layout pyramid_roi_align_inst::calc_output_layout(pyramid_roi_align_node const& node, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&

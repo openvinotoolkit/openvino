@@ -10,7 +10,7 @@
 #include <string>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(shuffle_channels)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(shuffle_channels)
 
 layout shuffle_channels_inst::calc_output_layout(shuffle_channels_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<shuffle_channels>();

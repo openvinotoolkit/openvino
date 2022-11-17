@@ -14,7 +14,7 @@
 #include "matmul_shape_inference.hpp"
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(gemm)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(gemm)
 
 layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params const& impl_param) {
     auto prim = impl_param.typed_desc<gemm>();

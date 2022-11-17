@@ -9,7 +9,7 @@
 #include <string>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(generate_proposals)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(generate_proposals)
 
 layout generate_proposals_inst::calc_output_layout(const generate_proposals_node& node, kernel_impl_params const& impl_param) {
     const layout data_layout = impl_param.get_input_layout();

@@ -9,7 +9,7 @@
 #include "openvino/core/enum_names.hpp"
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(roi_align)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(roi_align)
 
 roi_align_inst::typed_primitive_inst(network& network, roi_align_node const& node)
     : parent(network, node) {}

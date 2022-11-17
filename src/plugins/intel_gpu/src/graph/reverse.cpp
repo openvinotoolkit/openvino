@@ -9,7 +9,7 @@
 #include "reverse_inst.h"
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(reverse)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(reverse)
 
 layout reverse_inst::calc_output_layout(reverse_node const& node, kernel_impl_params const& impl_param) {
     return impl_param.get_input_layout();

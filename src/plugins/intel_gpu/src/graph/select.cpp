@@ -12,7 +12,7 @@
 #include "select_shape_inference.hpp"
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(select)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(select)
 
 layout select_inst::calc_output_layout(select_node const& node, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&

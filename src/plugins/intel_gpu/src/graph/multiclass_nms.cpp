@@ -10,7 +10,7 @@
 #include "primitive_type_base.h"
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(multiclass_nms)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(multiclass_nms)
 
 layout multiclass_nms_inst::calc_output_layout(const multiclass_nms_node& node, const kernel_impl_params& impl_param) {
     const auto input_layout = impl_param.get_input_layout();

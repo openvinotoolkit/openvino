@@ -12,7 +12,7 @@
 #include <string>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(quantize)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(quantize)
 
 layout quantize_inst::calc_output_layout(quantize_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<quantize>();

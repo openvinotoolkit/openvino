@@ -25,7 +25,7 @@ bool has_optimized_users(input_layout_node const& node) {
 }  // namespace
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(input_layout)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(input_layout)
 
 input_layout_node::typed_program_node(const std::shared_ptr<input_layout> dprim, program& prog)
     : parent(dprim, prog) {

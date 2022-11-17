@@ -10,7 +10,7 @@
 #include "primitive_type_base.h"
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(experimental_detectron_detection_output)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(experimental_detectron_detection_output)
 
 layout experimental_detectron_detection_output_inst::calc_output_layout(
     const experimental_detectron_detection_output_node& node, kernel_impl_params const& impl_param) {

@@ -9,7 +9,7 @@
 #include <data_inst.h>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(read_value)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(read_value)
 
 read_value_inst::typed_primitive_inst(network& network, const read_value_node& node) :
     parent(network, node, false),

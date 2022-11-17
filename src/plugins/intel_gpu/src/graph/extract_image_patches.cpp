@@ -10,7 +10,7 @@
 #include <string>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(extract_image_patches)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(extract_image_patches)
 
 layout extract_image_patches_inst::calc_output_layout(extract_image_patches_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<extract_image_patches>();

@@ -20,7 +20,7 @@ static void generate_anchors(unsigned base_size,
                              bool shift_anchors,
                              bool round_ratios);
 
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(proposal)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(proposal)
 
 layout proposal_inst::calc_output_layout(proposal_node const& node, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&

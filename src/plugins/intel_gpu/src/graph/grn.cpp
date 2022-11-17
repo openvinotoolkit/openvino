@@ -8,7 +8,7 @@
 #include <string>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(grn)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(grn)
 
 layout grn_inst::calc_output_layout(grn_node const& node, kernel_impl_params const& impl_param) {
     auto input_node_layout = impl_param.get_non_padded_input_layout();

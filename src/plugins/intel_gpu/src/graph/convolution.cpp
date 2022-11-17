@@ -15,7 +15,7 @@
 using namespace ov::intel_gpu;
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(convolution)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(convolution)
 
 layout convolution_inst::calc_output_layout(convolution_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<convolution>();

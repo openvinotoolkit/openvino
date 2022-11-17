@@ -9,7 +9,7 @@
 #include <string>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(experimental_detectron_roi_feature_extractor)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(experimental_detectron_roi_feature_extractor)
 
 size_t experimental_detectron_roi_feature_extractor_inst::inputs_memory_count() const {
     return parent::inputs_memory_count() - 1;

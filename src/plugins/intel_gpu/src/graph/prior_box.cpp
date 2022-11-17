@@ -14,7 +14,7 @@
 #include <algorithm>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(prior_box)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(prior_box)
 
 namespace {
 template <typename dtype>

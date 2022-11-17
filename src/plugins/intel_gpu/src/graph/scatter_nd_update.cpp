@@ -10,7 +10,7 @@
 #include <string>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(scatter_nd_update)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(scatter_nd_update)
 
 layout scatter_nd_update_inst::calc_output_layout(scatter_nd_update_node const& node, kernel_impl_params const& impl_param) {
     auto input_layout = impl_param.get_input_layout();
