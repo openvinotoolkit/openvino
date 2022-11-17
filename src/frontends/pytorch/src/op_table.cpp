@@ -115,6 +115,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::softmax", op::translate_softmax},
         {"aten::sqrt", op::translate_1to1_match_1_inputs<opset8::Sqrt>},
         {"aten::square", op::translate_square},
+        {"aten::squeeze", op::translate_1to1_match_1_or_2_inputs}
         {"aten::sub", op::translate_sub},
         {"aten::tanh", op::translate_1to1_match_1_inputs<opset8::Tanh>},
         {"aten::to", op::translate_to},

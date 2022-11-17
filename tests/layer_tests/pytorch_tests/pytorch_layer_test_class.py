@@ -29,7 +29,7 @@ class PytorchLayerTest:
                     return True
         return False
 
-    def _test(self, model, ref_net, kind, ie_device, precision, ir_version, infer_timeout=60, **kwargs):
+    def _test(self, model, ref_net, kind, ie_device, precision, ir_version, infer_timeout=60, dynamic_shapes=True, **kwargs):
         """
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
                                                        Example: "transform_1,transform_2"
@@ -63,8 +63,8 @@ class PytorchLayerTest:
             inp = inputs[i]
             assert inp.dtype.name in self._type_map, f"Unknown type {inp.dtype}."
             params[i].set_element_type(self._type_map[inp.dtype.name])
-            dyn_shape = [-1] * len(inp.shape)
-            params[i].set_partial_shape(PartialShape(dyn_shape))
+            shape = [-1] * len(inp.shape) if dynamic_shapes else inp.shape
+            params[i].set_partial_shape(PartialShape(shape))
         om.validate_nodes_and_infer_types()
 
         # OV infer:
