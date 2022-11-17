@@ -25,7 +25,7 @@ void add_onednn_optimization_attributes::run(program& p) {
                 if (fc_prim->input_size == 3) {
                     for (auto& fused_prim : node->get_fused_primitives()) {
                         if (fused_prim.is_type<eltwise>()) {
-                            auto& dependency = node->get_dependency(fused_prim.dep_start_idx);
+                            auto& dependency = *node->get_dependency(fused_prim.dep_start_idx).first;
                             auto original_layout = dependency.get_output_layout();
                             onednn::combine_bf_with_first_spatial_dim(original_layout);
                             dependency.set_output_layout(original_layout, false);

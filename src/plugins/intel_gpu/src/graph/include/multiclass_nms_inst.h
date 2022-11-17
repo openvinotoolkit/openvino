@@ -22,11 +22,11 @@ public:
     }
 
     const program_node& boxes() const {
-        return get_dependency(0);
+        return *get_dependency(0).first;
     }
 
     const program_node& scores() const {
-        return get_dependency(1);
+        return *get_dependency(1).first;
     }
 
     bool has_roisnum() const {
@@ -36,14 +36,14 @@ public:
     const program_node& roisnum() const {
         if (!get_primitive()->has_roisnum)
             throw std::runtime_error("there is no roisnum input");
-        return get_dependency(2);
+        return *get_dependency(2).first;
     }
 
     const program_node& output_selected_indices() const {
-        return get_dependency(input_count());
+        return *get_dependency(input_count()).first;
     }
     const program_node& output_selected_num() const {
-        return get_dependency(input_count() + 1);
+        return *get_dependency(input_count() + 1).first;
     }
 
 private:

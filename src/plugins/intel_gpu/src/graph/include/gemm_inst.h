@@ -17,7 +17,7 @@ struct typed_program_node<gemm> : public typed_program_node_base<gemm> {
 public:
     using parent::parent;
 
-    program_node& input(size_t idx = 0) const { return get_dependency(idx); }
+    program_node& input(size_t idx = 0) const { return *get_dependency(idx).first; }
     size_t inputs_count() const { return this->get_primitive()->input_size(); }
     std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 };

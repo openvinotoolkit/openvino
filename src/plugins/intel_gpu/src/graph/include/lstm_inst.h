@@ -18,16 +18,16 @@ struct typed_program_node<lstm> : public typed_program_node_base<lstm> {
 public:
     using parent::parent;
 
-    program_node& input() const { return get_dependency(0); }
-    program_node& weights() const { return get_dependency(1); }
-    program_node& recurrent() const { return get_dependency(2); }
-    program_node& bias() const { return get_dependency(3); }
-    program_node& inital_hidden() const { return get_dependency(bias_term() ? 4 : 3); }
+    program_node& input() const { return *get_dependency(0).first; }
+    program_node& weights() const { return *get_dependency(1).first; }
+    program_node& recurrent() const { return *get_dependency(2).first; }
+    program_node& bias() const { return *get_dependency(3).first; }
+    program_node& inital_hidden() const { return *get_dependency(bias_term() ? 4 : 3).first; }
     program_node& inital_cell() const {
         // This doesn't scale. We should use a map to get the dependencies index at primitive level
-        return get_dependency(bias_term() ? (initial_hidden_term() ? 5 : 4) : (initial_hidden_term() ? 4 : 2));
+        return *get_dependency(bias_term() ? (initial_hidden_term() ? 5 : 4) : (initial_hidden_term() ? 4 : 2)).first;
     }
-    program_node& peepholes() const { return get_dependency(6); }
+    program_node& peepholes() const { return *get_dependency(6).first; }
     bool bias_term() const { return !get_primitive()->bias.empty(); }
     bool peepholes_term() const { return !get_primitive()->peepholes.empty(); }
     bool initial_hidden_term() const { return !get_primitive()->initial_hidden.empty(); }

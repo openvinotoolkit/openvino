@@ -75,7 +75,7 @@ bool concat_noop_optimization::match(concatenation_node& node) {
 }
 
 bool concat_noop_optimization::optimize(concatenation_node& node) {
-    auto& dep = node.get_dependency(0);
+    auto& dep = *node.get_dependency(0).first;
     auto outputPadding = node.get_output_layout().data_padding;
     dep.merge_output_padding(outputPadding);
     prog.extract_and_remove(node);
@@ -94,9 +94,9 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
     bool is_onednn_impl = false;
 
     for (auto& input : node.get_dependencies()) {
-        if (input->get_preferred_impl_type() == impl_types::onednn) {
-            for (auto& fused_op : input->get_fused_primitives()) {
-                auto add_type = onednn_add_fusing_helpers::get_add_fusing_type(*input, fused_op);
+        if (input.first->get_preferred_impl_type() == impl_types::onednn) {
+            for (auto& fused_op : input.first->get_fused_primitives()) {
+                auto add_type = onednn_add_fusing_helpers::get_add_fusing_type(*input.first, fused_op);
                 if (add_type == add_fusing_type::sum)
                     return false;
                 else
@@ -144,11 +144,11 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
 
     size_t idx = 0;
     for (auto& input : node.get_dependencies()) {
-        if (input->is_type<reshape>())
+        if (input.first->is_type<reshape>())
             // reshapes should be optimized out.
             return false;
 
-        layout l = input->get_output_layout();
+        layout l = input.first->get_output_layout();
 
         if (output_format != l.format || output_datatype != l.data_type)
             return false;
@@ -176,7 +176,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
 
     auto lower_padd_in_axis = node.get_output_layout().data_padding.lower_size().sizes(def_fmt)[concat_axis];
     lower_padd_in_axis = std::max(lower_padd_in_axis,
-                                  node.get_dependency(0).get_output_layout().data_padding.lower_size().sizes(def_fmt)[concat_axis]);
+                                  node.get_dependency(0).first->get_output_layout().data_padding.lower_size().sizes(def_fmt)[concat_axis]);
 
     // check if concatenation in place can be applied for inputs set
     idx = 0;
@@ -184,34 +184,34 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         // reverted condition - if any of this node's inputs is used by more than one primitive
         // and is not optimized concatenation then do not fuse buffers
         // todo: we need add padding support for all optimized kernels to remove this condition
-        if (!input->is_type<pooling>() && !input->is_type<convolution>() && !input->is_type<quantize>() &&
-            !input->is_type<activation>() && !input->is_type<deconvolution>() &&
-            !input->is_type<concatenation>() && !input->is_type<crop>() && !input->is_type<eltwise>() &&
-            !input->is_type<resample>())
+        if (!input.first->is_type<pooling>() && !input.first->is_type<convolution>() && !input.first->is_type<quantize>() &&
+            !input.first->is_type<activation>() && !input.first->is_type<deconvolution>() &&
+            !input.first->is_type<concatenation>() && !input.first->is_type<crop>() && !input.first->is_type<eltwise>() &&
+            !input.first->is_type<resample>())
             return false;
 
         // if an input is marked as network output, prevent optimizations
         // which would affect a form of its output (unless debug flag is set),
         // we also need to restrict input types to those which support padding on all axis
-        if ((input->is_output() && !get_program().is_debug_build()) ||
-            !input->is_padding_supported(concat_axis, lower_padd_in_axis))
+        if ((input.first->is_output() && !get_program().is_debug_build()) ||
+            !input.first->is_padding_supported(concat_axis, lower_padd_in_axis))
             return false;
 
         // TODO: Investigate if this condition is needed
-        if (input->get_users().size() > 2)
+        if (input.first->get_users().size() > 2)
             return false;
 
         // Check that input isn't optimized out concatenation along different axis.
-        if (input->is_type<concatenation>() && input->can_be_optimized() &&
-            input->as<concatenation>().get_primitive()->axis != concat_axis)
+        if (input.first->is_type<concatenation>() && input.first->can_be_optimized() &&
+            input.first->as<concatenation>().get_primitive()->axis != concat_axis)
             return false;
 
         // Check that input isn't optimized out non-concatenation.
-        if (!input->is_type<concatenation>() && input->can_be_optimized())
+        if (!input.first->is_type<concatenation>() && input.first->can_be_optimized())
             return false;
 
         size_t concat_users = 0;
-        for (auto& user : input->get_users())
+        for (auto& user : input.first->get_users())
             if (user->is_type<concatenation>())
                 concat_users += 1;
 
@@ -219,7 +219,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         if (concat_users != 1)
             return false;
 
-        auto input_padd = input->get_output_layout().data_padding;
+        auto input_padd = input.first->get_output_layout().data_padding;
 
         // Check that there isn't already some padding between inputs in concat axis.
         // If node has already been optimized we skip this check - this is just cascade adjustment.
@@ -230,7 +230,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
                 return false;
         }
 
-        lower_padd_in_axis += input->get_output_layout().get_tensor().sizes(def_fmt)[concat_axis];
+        lower_padd_in_axis += input.first->get_output_layout().get_tensor().sizes(def_fmt)[concat_axis];
         idx += 1;
     }
 
@@ -254,7 +254,7 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
     // Select output padding by propagating all required input paddings.
     auto padd = out_layout.data_padding;
     for (auto input : node.get_dependencies()) {
-        auto inputPadding = input->get_output_layout().data_padding;
+        auto inputPadding = input.first->get_output_layout().data_padding;
         padd = padding::max(padd, inputPadding);
     }
 
@@ -273,10 +273,10 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
 
     // apply concatenation in place optimization
     for (auto input : node.get_dependencies()) {
-        auto input_length = input->get_output_layout().get_dims()[concat_axis];
+        auto input_length = input.first->get_output_layout().get_dims()[concat_axis];
 
-        if (input->is_type<concatenation>() && input->can_be_optimized())
-            need_reoptimization.push_back(&input->as<concatenation>());
+        if (input.first->is_type<concatenation>() && input.first->can_be_optimized())
+            need_reoptimization.push_back(&input.first->as<concatenation>());
 
         // shrink upper pad so it points at the end of the input's buffer
         //
@@ -285,7 +285,7 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
         upper_padd[concat_axis_legacy] -= input_length;
 
         // set new padding for input
-        input->set_output_padding(padding(lower_padd, upper_padd));
+        input.first->set_output_padding(padding(lower_padd, upper_padd));
 
         // move lower padd further
         //
@@ -370,7 +370,7 @@ void prepare_buffer_fusing::run(program& p) {
             }
 
             if (node.get_dependencies().size() == 1 && node.get_users().size() > 0) {
-                if (p.is_loop_body() && node.get_dependency(0).is_type<lstm_elt>()) {
+                if (p.is_loop_body() && node.get_dependency(0).first->is_type<lstm_elt>()) {
                     return;
                 }
                 // optimization is available for cropping across depth(features) only
@@ -379,7 +379,7 @@ void prepare_buffer_fusing::run(program& p) {
                 const auto& crop_layout = node.get_output_layout();
                 auto format = crop_layout.format;
                 auto crop_prim = node.get_primitive();
-                auto input_layout = node.get_dependency(0).get_output_layout();
+                auto input_layout = node.get_dependency(0).first->get_output_layout();
                 const auto& crop_size = crop_layout.get_tensor();
                 const auto& out_padd = crop_layout.data_padding;
                 const auto opt_lower_pad = crop_prim->offsets.feature[0];

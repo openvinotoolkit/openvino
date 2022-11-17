@@ -43,7 +43,7 @@ layout matrix_nms_inst::calc_output_layout(const matrix_nms_node& node, const ke
 std::string matrix_nms_inst::to_string(const matrix_nms_node& node) {
     json_composite matrix_nms_info;
     matrix_nms_info.add("boxes id", node.input().id());
-    matrix_nms_info.add("scores id", node.get_dependency(1).id());
+    matrix_nms_info.add("scores id", node.get_dependency(1).first->id());
     matrix_nms_info.add("sort_result_type", ov::as_string(node.get_primitive()->attribs.sort_type));
     matrix_nms_info.add("decay_function", ov::as_string(node.get_primitive()->attribs.decay));
     matrix_nms_info.add("sort_result_across_batch", node.get_primitive()->attribs.sort_result_across_batch);

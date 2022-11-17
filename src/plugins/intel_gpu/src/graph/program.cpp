@@ -406,7 +406,7 @@ void program::add_node_dependencies(program_node* node) {
     for (auto& dep : deps) {
         try {
             auto dep_node = nodes_map.at(dep.pid);
-            node->dependencies_new.push_back({dep_node.get(), dep.idx});
+            node->dependencies.push_back({dep_node.get(), dep.idx});
             dep_node->users.push_back(node);
         } catch (...) {
             throw std::runtime_error("Program doesn't contain primitive: " + dep.pid +
@@ -427,15 +427,15 @@ void program::copy_node_dependencies(program_node* dest_node, program_node* src_
     // add pointers to node's dependencies
     for (auto& src_dep : src_deps) {
         // do not copy dependencies to nodes which does not belong to the new (subgraph) topology
-        if (nodes_map.find(src_dep->get_primitive()->id) == nodes_map.end())
+        if (nodes_map.find(src_dep.first->get_primitive()->id) == nodes_map.end())
             continue;
 
         try {
-            auto dest_dep = nodes_map.at(src_dep->get_primitive()->id);
-            dest_node->dependencies.push_back(dest_dep.get());
+            auto dest_dep = nodes_map.at(src_dep.first->get_primitive()->id);
+            dest_node->dependencies.push_back({dest_dep.get(), src_dep.second});
             dest_dep->users.push_back(dest_node);
         } catch (...) {
-            throw std::runtime_error("Program doesn't contain primitive: " + src_dep->get_primitive()->id +
+            throw std::runtime_error("Program doesn't contain primitive: " + src_dep.first->get_primitive()->id +
                                      " that is input to: " + src_node->get_primitive()->id);
         }
     }
@@ -674,7 +674,7 @@ void program::mark_if_constant(program_node& node) {
     }
     node.constant = true;
     for (auto& dep : node.get_dependencies()) {
-        if (!dep->is_constant()) {
+        if (!dep.first->is_constant()) {
             node.constant = false;
             return;
         }
@@ -691,7 +691,7 @@ void program::mark_if_data_flow(program_node& node) {
         if (node.is_type<detection_output>() || node.is_type<proposal>())
             inputs_count = 2;  // ignore third input as it is related to prior boxes (i.e. concat of prior-boxes)
         for (size_t idx = 0; idx < inputs_count; idx++) {
-            if (node.get_dependency(idx).is_in_data_flow()) {
+            if (node.get_dependency(idx).first->is_in_data_flow()) {
                 node.data_flow = true;
                 return;
             }
@@ -854,7 +854,7 @@ void program::add_intermediate(program_node& node,
         throw std::invalid_argument(
             "Node which is about to be added in between two other nodes should not have any existing dependencies");
 
-    auto& prev = next.get_dependency(prev_idx);
+    auto& prev = *next.get_dependency(prev_idx).first;
     // firstly add connection, later replace dependency, so 'prev' won't become dangling and therefore removed
     if (connect_int_node_with_old_dep) {
         add_connection(prev, node);
@@ -898,7 +898,7 @@ void program::add_intermediate(program_node& node,
     bool node_found = false;
     size_t idx = 0;
     for (size_t i = 0; i < next.get_dependencies().size(); i++) {
-        auto& input = next.get_dependency(i);
+        auto& input = *next.get_dependency(i).first;
         if (input.id() == prev.id()) {
             idx = i;
             node_found = true;
@@ -914,23 +914,27 @@ void program::add_intermediate(program_node& node,
 
 void program::add_connection(program_node& prev, program_node& next) {
     prev.users.push_back(&next);
-    next.dependencies.push_back(&prev);
+    next.dependencies.push_back({&prev, 0});
 }
 
 void program::remove_connection(program_node& prev, program_node& next) {
     prev.users.remove(&next);
-    next.dependencies.erase(std::remove(next.dependencies.begin(), next.dependencies.end(), &prev),
-                            next.dependencies.end());
+    next.dependencies.erase(std::remove_if(next.dependencies.begin(), next.dependencies.end(),
+    [&](const std::pair<program_node*, int32_t>& dep) {
+        return &prev == dep.first;
+    }), next.dependencies.end());
 }
 
 void program::remove_all_connections(program_node& node) {
     // since the graph is not topological sorted, we need to remove the node from both dependencies and users
     for (auto& e : node.users) {
-        e->dependencies.erase(std::remove(e->dependencies.begin(), e->dependencies.end(), &node),
-                              e->dependencies.end());
+        e->dependencies.erase(std::remove_if(e->dependencies.begin(), e->dependencies.end(),
+        [&](const std::pair<program_node*, int32_t>& dep) {
+            return &node == dep.first;
+        }), e->dependencies.end());
     }
     for (auto& e : node.dependencies) {
-        e->users.remove(&node);
+        e.first->users.remove(&node);
     }
     node.dependencies.clear();
     node.users.clear();
@@ -986,7 +990,7 @@ void program::replace(program_node& old_node, program_node& new_node) {
 
     // copy old's dependencies
     while (!old_node.dependencies.empty()) {
-        auto& dep = old_node.dependencies.front();
+        auto& dep = old_node.dependencies.front().first;
         add_connection(*dep, new_node);
         remove_connection(*dep, old_node);
     }
@@ -995,8 +999,8 @@ void program::replace(program_node& old_node, program_node& new_node) {
     for (auto& user : old_node.users) {
         new_node.users.push_back(user);
         for (auto& users_dep : user->dependencies) {
-            if (users_dep == &old_node) {
-                users_dep = &new_node;
+            if (users_dep.first == &old_node) {
+                users_dep.first = &new_node;
                 break;
             }
         }
@@ -1058,7 +1062,7 @@ bool program::extract(program_node& node) {
         return false;
 
     if (node.is_output() && !is_debug_build()) {
-        auto& prev = node.get_dependency(0);
+        auto& prev = *node.get_dependency(0).first;
         auto node_id = node.id();
 
         node.set_output(false);
@@ -1071,7 +1075,7 @@ bool program::extract(program_node& node) {
         outputs.push_back(&prev);
     }
 
-    auto& input = node.get_dependency(0);
+    auto& input = *node.get_dependency(0).first;
 
     // update primitive_map of loop primitive,
     // if extracted node is input of loop
@@ -1082,15 +1086,14 @@ bool program::extract(program_node& node) {
         }
 
         for (auto& dep : node.dependencies) {
-            if (dep->is_type<loop>()) {
-                loop_node& loop = *dep;
+            if (dep.first->is_type<loop>()) {
+                loop_node& loop = *dep.first;
                 loop.update_primitive_map(node.id(), user->id());
             }
         }
     }
     input.users.remove(&node);
     node.dependencies.clear();
-    node.dependencies_new.clear();
 
     if (!node.is_endpoint())
         replace_all_usages(node, input, false);
@@ -1128,7 +1131,7 @@ void program::fuse_nodes(program_node &fused_node,
     local_desc.f_param = get_node_ptr(peer_node.id())->get_fuse_params();
     local_desc.dep_start_idx = fused_node.get_dependencies().size();
     local_desc.total_num_deps = peer_node.get_dependencies().size();
-    local_desc.input_layout = peer_node.get_dependency(0).get_output_layout();
+    local_desc.input_layout = peer_node.get_dependency(0).first->get_output_layout();
     local_desc.output_layout = peer_layout;
     local_desc.activation = activation_func::none;
     if (!peer_node.get_fused_activations_funcs().empty()) {
@@ -1153,7 +1156,7 @@ void program::fuse_nodes(program_node &fused_node,
     // Add new dependencies to the fused_node
     size_t deps_idx = 0;
     for (size_t i = 0; i < peer_node.get_dependencies().size(); i++) {
-        auto& dep = peer_node.get_dependency(i);
+        auto& dep = *peer_node.get_dependency(i).first;
         if (dep.id() == fused_node.id()) {
             deps_idx++;
             continue;
@@ -1182,7 +1185,7 @@ void program::fuse_nodes(program_node &fused_node,
                     continue;
             }
         }
-        fused_node.dependencies.push_back(&dep);
+        fused_node.dependencies.push_back({&dep, 0});
         local_desc.deps.emplace_back(dep.id(), deps_idx++);
         dep.users.push_back(&fused_node);
     }
@@ -1198,7 +1201,7 @@ void program::fuse_nodes(program_node &fused_node,
     for (auto& user : peer_node.users) {
         size_t dep_idx = 0;
         for (auto& dep : user->dependencies) {
-            if (dep->id() == peer_node.id())
+            if (dep.first->id() == peer_node.id())
                 break;
             dep_idx++;
         }
@@ -1207,7 +1210,7 @@ void program::fuse_nodes(program_node &fused_node,
 
     // Remove all edges connected with peer node
     while (peer_node.get_dependencies().size() > 0) {
-        auto& dep = peer_node.get_dependency(peer_node.get_dependencies().size() - 1);
+        auto& dep = *peer_node.get_dependency(peer_node.get_dependencies().size() - 1).first;
         remove_connection(dep, peer_node);
     }
     replace_all_usages(peer_node, fused_node);
@@ -1224,12 +1227,14 @@ void program::remove_nodes(std::vector<program_node*>& to_remove) {
             get_inputs().remove(node);
         } else {
             for (auto& dep : node->dependencies) {
-                dep->users.remove(node);
+                dep.first->users.remove(node);
             }
         }
         for (auto& user : node->users) {
-            user->dependencies.erase(std::remove(user->dependencies.begin(), user->dependencies.end(), node),
-                                     user->dependencies.end());
+            user->dependencies.erase(std::remove_if(user->dependencies.begin(), user->dependencies.end(),
+            [&](const std::pair<program_node*, int32_t>& dep) {
+                return node == dep.first;
+            }), user->dependencies.end());
         }
         get_processing_order().erase(node);
         optimized_out.push_back(node->id());
@@ -1266,8 +1271,8 @@ data_types program::get_inference_precision(const program_node& node) const {
     }
     std::vector<data_types> input_dts;
     for (auto& dep : node.get_dependencies()) {
-        if (dep->is_valid_output_layout())
-            input_dts.push_back(dep->get_output_layout().data_type);
+        if (dep.first->is_valid_output_layout())
+            input_dts.push_back(dep.first->get_output_layout().data_type);
     }
 
     // Return f32 data_type as default inference precision if any layout is invalid
@@ -1327,7 +1332,7 @@ program::primitives_info program::get_current_stage_info() const {
         }
         std::vector<primitive_id> dependencies;
         for (auto& a : p->dependencies) {
-            dependencies.push_back(a->id());
+            dependencies.push_back(a.first->id());
         }
 
         std::vector<primitive_id> fused;
@@ -1424,7 +1429,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
             if (!conv.is_dynamic()) {
                 // In dynamic shape, conv is fixed as a predefined format b_fs_yx_fsv16
-                auto input_size = node->get_dependency(0).get_output_layout().get_tensor();
+                auto input_size = node->get_dependency(0).first->get_output_layout().get_tensor();
                 auto ifm = static_cast<uint32_t>(input_size.feature[0]);
                 if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16)
                     total_dw_conv_layers++;
@@ -1687,7 +1692,7 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
         if (node->is_type<data>() && node->get_users().size() == 1 && node->have_user_with_type<generic_layer>())  {
             continue;
         }
-        if (node->is_type<data>() || (node->is_type<generic_layer>() && node->get_dependency(0).is_type<data>())) {
+        if (node->is_type<data>() || (node->is_type<generic_layer>() && node->get_dependency(0).first->is_type<data>())) {
             const_sum += out_size;
         } else if (node->have_user_with_type<concatenation>() && node->get_users().size() == 1 && node->get_users().front()->can_be_optimized()) {
             continue;

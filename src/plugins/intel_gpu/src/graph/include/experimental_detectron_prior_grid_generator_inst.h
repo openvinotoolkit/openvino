@@ -15,7 +15,7 @@ struct typed_program_node<experimental_detectron_prior_grid_generator>
     using typed_program_node_base::typed_program_node_base;
 
     program_node& input(std::size_t i = 0) const {
-        return get_dependency(i);
+        return *get_dependency(i).first;
     }
 };
 using experimental_detectron_prior_grid_generator_node =

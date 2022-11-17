@@ -41,11 +41,11 @@ void prepare_primitive_fusing_through::run(program& p) {
                 return false;
 
             if (node->is_type<reorder>() &&
-                node->get_output_layout().data_type != node->get_dependency(0).get_output_layout().data_type)
+                node->get_output_layout().data_type != node->get_dependency(0).first->get_output_layout().data_type)
                 return false;
 
             // Not to fuse reshape after Reduce changing the order of un-reduced axes. It is expected to be optimized out.
-            if (node->is_type<reshape>() && node->get_dependencies().front()->is_type<reduce>())
+            if (node->is_type<reshape>() && node->get_dependencies().front().first->is_type<reduce>())
                 return false;
 
             return true;
@@ -57,7 +57,7 @@ void prepare_primitive_fusing_through::run(program& p) {
 
         bool can_raise_up = can_raise_up_through(fuse_through);
         while (can_raise_up) {
-            fuse_through = &fuse_through->get_dependency(0);
+            fuse_through = fuse_through->get_dependency(0).first;
             can_raise_up = can_raise_up_through(fuse_through);
             pass_through.push_back(fuse_through);
         }
@@ -77,7 +77,7 @@ void prepare_primitive_fusing_through::run(program& p) {
             if (node->get_dependencies().size() > 1)
                 continue;
 
-            input_node = &node->get_dependency(0);
+            input_node = node->get_dependency(0).first;
         } else if (node->is_type<quantize>()) {
             auto& quantize_node = node->as<quantize>();
             bool per_tensor_values = quantize_node.get_scale_shift_opt() &&
@@ -91,7 +91,7 @@ void prepare_primitive_fusing_through::run(program& p) {
             if (!per_tensor_values)
                 continue;
 
-            input_node = &node->get_dependency(0);
+            input_node = node->get_dependency(0).first;
         } else if (node->is_type<eltwise>()) {
             if (node->get_dependencies().size() !=2)
                 continue;
@@ -99,7 +99,7 @@ void prepare_primitive_fusing_through::run(program& p) {
             size_t second_input_idx = 0;
             bool has_constant_input = false;
             for (size_t i = 0; i < node->get_dependencies().size(); i++) {
-                auto& dep = node->get_dependency(i);
+                auto& dep = *node->get_dependency(i).first;
                 if (dep.is_constant() && dep.get_output_layout().get_tensor() == cldnn::tensor(1)) {
                     second_input_idx = i ^ 1;
                     has_constant_input = true;
@@ -110,7 +110,7 @@ void prepare_primitive_fusing_through::run(program& p) {
             if (!has_constant_input)
                 continue;
 
-            input_node = &node->get_dependency(second_input_idx);
+            input_node = node->get_dependency(second_input_idx).first;
         } else {
             continue;
         }
@@ -134,10 +134,10 @@ void prepare_primitive_fusing_through::run(program& p) {
             continue;
 
         std::vector<cldnn::program_node*> dependencies;
-        for (auto dep : node->get_dependencies()) {
-            if (dep == input_node)
+        for (auto& dep : node->get_dependencies()) {
+            if (dep.first == input_node)
                 continue;
-            dependencies.push_back(dep);
+            dependencies.push_back(dep.first);
         }
 
         for (auto dep : dependencies)

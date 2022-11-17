@@ -19,7 +19,7 @@ struct typed_program_node<depth_to_space> : public typed_program_node_base<depth
 public:
     using parent::parent;
 
-    program_node& input(size_t index = 0) const { return get_dependency(index); }
+    program_node& input(size_t index = 0) const { return *get_dependency(index).first; }
     std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const override {
         return std::make_shared<kernel_selector::depth_to_space_fuse_params>();
     }

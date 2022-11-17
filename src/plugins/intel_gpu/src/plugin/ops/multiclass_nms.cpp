@@ -64,11 +64,11 @@ static void CreateMulticlassNmsIEInternalOp(Program& p, const std::shared_ptr<ng
     p.add_primitive(*op, prim);
 
     const auto mutable_id_r1 = layer_type_name + ".out1";
-    const cldnn::mutable_data mutable_prim_r1{mutable_id_r1, {layer_name}, shared_memory1};
+    const cldnn::mutable_data mutable_prim_r1{mutable_id_r1, {cldnn::input_info(layer_name)}, shared_memory1};
     p.add_primitive(*op, mutable_prim_r1);
 
     const auto mutable_id_r2 = layer_type_name + ".out2";
-    const cldnn::mutable_data mutable_prim_r2{mutable_id_r2, {layer_name}, shared_memory2};
+    const cldnn::mutable_data mutable_prim_r2{mutable_id_r2, {cldnn::input_info(layer_name)}, shared_memory2};
     p.add_primitive(*op, mutable_prim_r2);
 }
 

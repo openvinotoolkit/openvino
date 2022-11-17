@@ -17,14 +17,14 @@ struct typed_program_node<adaptive_pooling> : public typed_program_node_base<ada
 public:
     using parent::parent;
 
-    program_node& input() const { return get_dependency(0); }
-    program_node& output_shape() const { return get_dependency(1); }
+    program_node& input() const { return *get_dependency(0).first; }
+    program_node& output_shape() const { return *get_dependency(1).first; }
     program_node& output_indices() const {
         CLDNN_ERROR_BOOL(id(),
                          "poolingMode != max",
                          get_primitive()->mode != adaptive_pooling_mode::max,
                          "output indices are relevant only for AdaptiveMaxPooling");
-        return get_dependency(2);
+        return *get_dependency(2).first;
     }
 };
 

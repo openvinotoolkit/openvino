@@ -24,7 +24,7 @@ struct typed_program_node<quantize> : public typed_program_node_base<quantize> {
 public:
     using parent::parent;
 
-    program_node& input(size_t index = 0) const { return get_dependency(index); }
+    program_node& input(size_t index = 0) const { return *get_dependency(index).first; }
     size_t inputs_count() const { return get_dependencies().size(); }
     int get_levels() const { return get_primitive()->levels; }
     bool get_packed_binary_output() const { return get_output_layout().data_type == data_types::bin; }

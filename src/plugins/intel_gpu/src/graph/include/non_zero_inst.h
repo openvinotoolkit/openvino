@@ -24,7 +24,7 @@ public:
 
     program_node& input() const {
         OPENVINO_ASSERT(dependencies.size() == 1, "[GPU] Primitive ", id(), " has invalid number of depndencies");
-        return get_dependency(0);
+        return *get_dependency(0).first;
     }
 };
 
@@ -63,7 +63,7 @@ public:
 
     program_node& input(size_t index = 0) const {
         OPENVINO_ASSERT(dependencies.size() == 2, "[GPU] Primitive ", id(), " has invalid number of depndencies");
-        return get_dependency(index);
+        return *get_dependency(index).first;
     }
     std::vector<size_t> get_shape_infer_dependencies() const override { return {1}; }
 };

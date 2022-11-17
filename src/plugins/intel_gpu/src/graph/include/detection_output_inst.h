@@ -22,10 +22,10 @@ class typed_program_node<detection_output> : public typed_program_node_base<dete
 public:
     using parent::parent;
 
-    program_node& input() const { return get_dependency(0); }
-    program_node& location() const { return get_dependency(0); }
-    program_node& confidence() const { return get_dependency(1); }
-    program_node& prior_box() const { return get_dependency(2); }
+    program_node& input() const { return *get_dependency(0).first; }
+    program_node& location() const { return *get_dependency(0).first; }
+    program_node& confidence() const { return *get_dependency(1).first; }
+    program_node& prior_box() const { return *get_dependency(2).first; }
 };
 
 using detection_output_node = typed_program_node<detection_output>;

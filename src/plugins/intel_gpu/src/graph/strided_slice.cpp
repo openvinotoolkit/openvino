@@ -90,9 +90,9 @@ std::string strided_slice_inst::to_string(strided_slice_node const& node) {
 
     json_composite strided_slice_info;
     strided_slice_info.add("input id", input.id());
-    strided_slice_info.add("begin_param id", node.get_dependency(1).id());
-    strided_slice_info.add("end_param id", node.get_dependency(2).id());
-    strided_slice_info.add("stride_param id", node.get_dependency(3).id());
+    strided_slice_info.add("begin_param id", node.get_dependency(1).first->id());
+    strided_slice_info.add("end_param id", node.get_dependency(2).first->id());
+    strided_slice_info.add("stride_param id", node.get_dependency(3).first->id());
     strided_slice_info.add("begin mask", node.get_primitive()->begin_mask);
     strided_slice_info.add("end mask", node.get_primitive()->end_mask);
     strided_slice_info.add("new axis mask", node.get_primitive()->new_axis_mask);

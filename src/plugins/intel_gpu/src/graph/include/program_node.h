@@ -97,7 +97,7 @@ public:
 
         auto deps = get_dependencies();
         for (size_t i = 0; i < deps.size(); i++) {
-            if (!deps[i]->is_constant()) {
+            if (!deps[i].first->is_constant()) {
                 params->primary_input_idx = i;
                 break;
             }
@@ -125,21 +125,13 @@ public:
     void set_preferred_impl_type(impl_types impl) { impl_type = impl; }
     impl_types get_preferred_impl_type() const { return impl_type; }
 
-    std::vector<program_node*> const& get_dependencies() const { return dependencies; }
-    std::vector<std::pair<program_node*, int>> const& get_dependencies_new() const { return dependencies_new; }
-    program_node& get_dependency(size_t idx) const { return *dependencies.at(idx); }
-    std::pair<program_node*, int32_t> get_dependency_new(size_t idx) const { return dependencies_new.at(idx); }
+    std::vector<std::pair<program_node*, int32_t>> const& get_dependencies() const { return dependencies; }
+    std::pair<program_node*, int32_t> get_dependency(size_t idx) const { return dependencies.at(idx); }
 
     std::vector<layout> const get_input_layouts() const {
         std::vector<layout> layouts;
-        if (!dependencies_new.empty()) {
-            for (const auto& i : dependencies_new) {
-                layouts.push_back(i.first->get_output_layout(true, i.second));
-            }
-            return layouts;
-        }
         for (const auto& i : dependencies) {
-            layouts.push_back(i->get_output_layout());
+            layouts.push_back(i.first->get_output_layout(true, i.second));
         }
         return layouts;
     }
@@ -421,8 +413,7 @@ protected:
     std::vector<format::type> preferred_input_fmts;
     std::vector<format::type> preferred_output_fmts;
 
-    std::vector<program_node*> dependencies;
-    std::vector<std::pair<program_node*, int>> dependencies_new;
+    std::vector<std::pair<program_node*, int32_t>> dependencies;
     std::list<program_node*> users;
 
     // list of primitives that can reuse same memory buffers due to execution order conflicts
@@ -517,7 +508,7 @@ template <class PType>
 struct typed_program_node : public typed_program_node_base<PType> {
     using typed_program_node_base<PType>::typed_program_node_base;
 
-    program_node& input(size_t index = 0) const { return program_node::get_dependency(index); }
+    program_node& input(size_t index = 0) const { return *program_node::get_dependency(index).first; }
 };
 
 }  // namespace cldnn

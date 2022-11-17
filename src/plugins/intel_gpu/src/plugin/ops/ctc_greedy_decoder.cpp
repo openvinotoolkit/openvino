@@ -106,7 +106,7 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
     if (num_output == 2) {
         cldnn::primitive_id ctc_gd_mutable_id_r = layer_type_name_ID(op) + ".out1";
         auto ctc_gd_mutable_prim_r = cldnn::mutable_data(ctc_gd_mutable_id_r,
-                                                         { CTCGreedyDecoderLayerName },
+                                                         { cldnn::input_info(CTCGreedyDecoderLayerName) },
                                                          shared_memory[0]);
         p.add_primitive(*op, ctc_gd_mutable_prim_r);
     }

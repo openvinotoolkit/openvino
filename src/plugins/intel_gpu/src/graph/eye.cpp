@@ -22,11 +22,11 @@ layout eye_inst::calc_output_layout(eye_node const& node, const kernel_impl_para
 std::string eye_inst::to_string(eye_node const& node) {
     auto node_info = node.desc_to_json();
     json_composite eye_info;
-    eye_info.add("rows id", node.get_dependency(0).id());
-    eye_info.add("cols id", node.get_dependency(1).id());
-    eye_info.add("diagInd id", node.get_dependency(2).id());
+    eye_info.add("rows id", node.get_dependency(0).first->id());
+    eye_info.add("cols id", node.get_dependency(1).first->id());
+    eye_info.add("diagInd id", node.get_dependency(2).first->id());
     if (node.get_dependencies().size() == 4)
-        eye_info.add("batchShape id", node.get_dependency(3).id());
+        eye_info.add("batchShape id", node.get_dependency(3).first->id());
     node_info->add("slice info", eye_info);
     std::stringstream primitive_description;
     node_info->dump(primitive_description);

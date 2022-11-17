@@ -22,7 +22,7 @@ struct typed_program_node<shape_of> : public typed_program_node_base<shape_of> {
 public:
     using parent::parent;
 
-    program_node& input() const { return get_dependency(0); }
+    program_node& input() const { return *get_dependency(0).first; }
 };
 
 using shape_of_node = typed_program_node<shape_of>;

@@ -66,12 +66,12 @@ void CreateNmsStaticShapeIE8Op(Program& p, const std::shared_ptr<ngraph::op::int
 
     cldnn::primitive_id matrix_nms_id_r_first = layer_type_name_ID(op) + ".out1";
     auto matrix_nms_mutable_prim_r_first =
-        cldnn::mutable_data(matrix_nms_id_r_first, { matrixNmsLayerName }, shared_memory.front());
+        cldnn::mutable_data(matrix_nms_id_r_first, { cldnn::input_info(matrixNmsLayerName) }, shared_memory.front());
     p.add_primitive(*op, matrix_nms_mutable_prim_r_first);
 
     cldnn::primitive_id matrix_nms_id_r_second = layer_type_name_ID(op) + ".out2";
     auto matrix_nms_mutable_prim_r_second =
-        cldnn::mutable_data(matrix_nms_id_r_second, { matrixNmsLayerName }, shared_memory.back());
+        cldnn::mutable_data(matrix_nms_id_r_second, { cldnn::input_info(matrixNmsLayerName) }, shared_memory.back());
     p.add_primitive(*op, matrix_nms_mutable_prim_r_second);
 }
 

@@ -415,6 +415,8 @@ std::vector<cldnn::input_info> Program::GetInputInfo(const std::shared_ptr<ngrap
         return {};
     }
 
+    // Currently multiple outputs are supported only in the dynamic shape case,
+    // So the output index of the dependency is not processed
     std::vector<cldnn::input_info> inputInfo;
     for (size_t i = 0; i < op->get_input_size(); i++) {
         auto prevOp = op->get_input_node_ptr(i);
@@ -431,9 +433,9 @@ std::vector<cldnn::input_info> Program::GetInputInfo(const std::shared_ptr<ngrap
             if (primitive_ids.find(prevName) == primitive_ids.end()) {
                 IE_THROW() << "Input " << prevName << " hasn't been found in primitive_ids map";
             }
-            inputInfo.push_back(cldnn::input_info(primitive_ids.at(prevName), op->get_input_source_output(i).get_index()));
+            inputInfo.push_back(cldnn::input_info(primitive_ids.at(prevName), allow_new_shape_infer ? op->get_input_source_output(i).get_index() : 0));
         } else {
-            inputInfo.push_back(cldnn::input_info(prevName, op->get_input_source_output(i).get_index()));
+            inputInfo.push_back(cldnn::input_info(prevName, allow_new_shape_infer ? op->get_input_source_output(i).get_index() : 0));
         }
     }
     return inputInfo;

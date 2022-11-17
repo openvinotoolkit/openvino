@@ -68,7 +68,7 @@ void handle_reshape::run(program& p) {
 
     for (const auto& node : p.get_processing_order()) {
         if (node->is_type<reshape>()) {
-            auto& input_node = node->get_dependency(0);
+            auto& input_node = *node->get_dependency(0).first;
 
             if (input_node.is_type<reorder>())
                 continue;

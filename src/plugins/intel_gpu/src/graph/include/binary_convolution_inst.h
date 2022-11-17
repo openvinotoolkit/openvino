@@ -27,13 +27,13 @@ public:
     void set_depthwise_sep_opt(bool node_depthwise_sep_opt) { depthwise_sep_opt = node_depthwise_sep_opt; }
     bool get_depthwise_sep_opt() const { return depthwise_sep_opt; }
 
-    program_node& input() const { return get_dependency(0); }
+    program_node& input() const { return *get_dependency(0).first; }
 
     program_node& weights(size_t idx = 0) const {
         if (static_cast<int32_t>(idx) >= this->get_split())
             throw std::range_error("weights offset too big");
 
-        return get_dependency(1 + idx);
+        return *get_dependency(1 + idx).first;
     }
 
     // Define bias functions to be able to reuse get_weights_bias_default_params<T> function

@@ -23,8 +23,8 @@ struct typed_program_node<activation> : public typed_program_node_base<activatio
 public:
     using parent::parent;
 
-    program_node& input() const { return get_dependency(0); }
-    program_node& slope_input() const { return get_dependency(1); }
+    program_node& input() const { return *get_dependency(0).first; }
+    program_node& slope_input() const { return *get_dependency(1).first; }
 
     bool is_parameterized() const { return !typed_desc()->additional_params_input.empty(); }
 

@@ -143,7 +143,7 @@ void concat_input_order::run(program& p) {
         std::vector<tensor::value_type> feature_sizes;
         feature_sizes.reserve(inputs_count);
         for (size_t input_idx = 0; input_idx < inputs_count; ++input_idx) {
-            auto& dep = concat_node.get_dependency(input_idx);
+            auto& dep = *concat_node.get_dependency(input_idx).first;
             auto dep_layout = dep.get_output_layout();
             single_format &= dep_layout.format == out_format;
             feature_sizes.push_back(dep_layout.feature());
@@ -190,14 +190,14 @@ void concat_input_order::run(program& p) {
             shuffled_ranges.push_back(original_ranges[ord]);
         }
         // Change input order
-        std::vector<program_node*> new_dependencies = {};
+        std::vector<std::pair<program_node*, int32_t>> new_dependencies = {};
         new_dependencies.reserve(inputs_count);
         for (auto& ord : new_order) {
-            new_dependencies.push_back(&concat_node.get_dependency(ord));
+            new_dependencies.push_back({concat_node.get_dependency(ord).first, concat_node.get_dependency(ord).second});
         }
         // Update in place with const cast instead of replacing
         auto& dependencies = concat_node.get_dependencies();
-        auto& mutable_dependencies = const_cast<std::vector<program_node*>&>(dependencies);
+        auto& mutable_dependencies = const_cast<std::vector<std::pair<program_node*, int32_t>>&>(dependencies);
         for (size_t i = 0; i < new_dependencies.size(); ++i) {
             mutable_dependencies[i] = new_dependencies[i];
         }

@@ -52,16 +52,16 @@ gather_tree_inst::typed_primitive_inst(network& network, gather_tree_node const&
 
     // check input dims
     CLDNN_ERROR_NOT_EQUAL(node.id(),
-        "input0 size", dependencies.at(0)->get_output_layout().get_tensor(), "output size", input_layout.get_tensor(),
+        "input0 size", dependencies.at(0).first->get_output_layout().get_tensor(), "output size", input_layout.get_tensor(),
         "mismatch");
     CLDNN_ERROR_NOT_EQUAL(node.id(),
-        "input1 size", dependencies.at(1)->get_output_layout().get_tensor(), "output size", input_layout.get_tensor(),
+        "input1 size", dependencies.at(1).first->get_output_layout().get_tensor(), "output size", input_layout.get_tensor(),
         "mismatch");
     CLDNN_ERROR_NOT_EQUAL(node.id(),
-        "input2 size", dependencies.at(2)->get_output_layout().count(), "node's feature size", input_layout.feature(),
+        "input2 size", dependencies.at(2).first->get_output_layout().count(), "node's feature size", input_layout.feature(),
         "There can't be more than one end_token");
     CLDNN_ERROR_NOT_EQUAL(node.id(),
-        "input3 size", dependencies.at(3)->get_output_layout().count(), "one", 1,
+        "input3 size", dependencies.at(3).first->get_output_layout().count(), "one", 1,
         "There can't be more than one end_token");
 }
 }  // namespace cldnn

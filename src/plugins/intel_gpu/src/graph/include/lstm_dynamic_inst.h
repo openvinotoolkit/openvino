@@ -17,7 +17,7 @@ struct typed_program_node<lstm_dynamic> : public typed_program_node_base<lstm_dy
 
     typed_program_node(std::shared_ptr<primitive> prim, program& prog) : parent(prim, prog) {}
 
-    program_node& input() const { return get_dependency(0); }
+    program_node& input() const { return *get_dependency(0).first; }
     float clip() const { return get_primitive()->clip; }
     bool input_forget() const { return get_primitive()->input_forget; }
     primitive_id bias_id() const { return get_primitive()->bias; }

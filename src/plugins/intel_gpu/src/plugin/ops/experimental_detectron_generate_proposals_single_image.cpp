@@ -47,7 +47,7 @@ static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
     p.add_primitive(*op, prim);
 
     const auto mutable_id_r = layer_type_name + ".out1";
-    const cldnn::mutable_data mutable_prim_r{mutable_id_r, {layer_name}, shared_memory};
+    const cldnn::mutable_data mutable_prim_r{mutable_id_r, {cldnn::input_info(layer_name)}, shared_memory};
     p.add_primitive(*op, mutable_prim_r);
 }
 

@@ -3225,7 +3225,7 @@ TEST(pooling_forward_gpu_onednn, basic_max_pooling_int8) {
         // 1. input layout primitive.
         input,
         // 2. reorder primitive with id "reorder_input"
-        reorder("reorder_input", input, byte_layout),
+        reorder("reorder_input", input_info(input), byte_layout),
         pooling("pool1", input_info("reorder_input"), pooling_mode::max, { 3, 3 }, {1, 1, 1, 1}),
         reorder("reorder2", input_info("pool1"), out_layout)
     );

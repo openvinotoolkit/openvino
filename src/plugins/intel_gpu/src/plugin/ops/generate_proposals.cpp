@@ -65,11 +65,11 @@ static void CreateGenerateProposalsIEInternalOp(
     p.add_primitive(*op, prim);
 
     const auto mutable_id_r_1 = layer_type_name + ".out1";
-    const cldnn::mutable_data mutable_prim_r_1{mutable_id_r_1, {layer_name}, shared_memory_1};
+    const cldnn::mutable_data mutable_prim_r_1{mutable_id_r_1, {cldnn::input_info(layer_name)}, shared_memory_1};
     p.add_primitive(*op, mutable_prim_r_1);
 
     const auto mutable_id_r_2 = layer_type_name + ".out2";
-    const cldnn::mutable_data mutable_prim_r_2{mutable_id_r_2, {layer_name}, shared_memory_2};
+    const cldnn::mutable_data mutable_prim_r_2{mutable_id_r_2, {cldnn::input_info(layer_name)}, shared_memory_2};
     p.add_primitive(*op, mutable_prim_r_2);
 }
 

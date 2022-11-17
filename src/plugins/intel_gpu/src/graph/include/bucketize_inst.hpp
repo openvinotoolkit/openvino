@@ -14,10 +14,10 @@ struct typed_program_node<bucketize> : typed_program_node_base<bucketize> {
     using parent::parent;
 
     program_node& input() const {
-        return get_dependency(0);
+        return *get_dependency(0).first;
     }
     program_node& buckets() const {
-        return get_dependency(1);
+        return *get_dependency(1).first;
     }
 };
 

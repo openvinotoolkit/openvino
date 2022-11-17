@@ -42,7 +42,7 @@ static void CreateExperimentalDetectronROIFeatureExtractorOp(Program& p, const s
 
     cldnn::primitive_id experimental_detectron_mutable_id_r = layer_type_name_ID(op) + ".out1";
     cldnn::mutable_data experimental_detectron_mutable_prim_r(experimental_detectron_mutable_id_r,
-                                                              {layerName},
+                                                              {cldnn::input_info(layerName)},
                                                               shared_memory);
     p.add_primitive(*op, experimental_detectron_mutable_prim_r);
 }

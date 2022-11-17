@@ -17,12 +17,12 @@ struct typed_program_node<pyramid_roi_align> : public typed_program_node_base<py
 public:
     typed_program_node(std::shared_ptr<primitive> prim, program& prog) : parent(prim, prog) {}
 
-    program_node& input() const { return get_dependency(0); }
+    program_node& input() const { return *get_dependency(0).first; }
     // program_node& boxes() const { return get_dependency(0); }
-    program_node& P2() const { return get_dependency(1); }
-    program_node& P3() const { return get_dependency(2); }
-    program_node& P4() const { return get_dependency(3); }
-    program_node& P5() const { return get_dependency(4); }
+    program_node& P2() const { return *get_dependency(1).first; }
+    program_node& P3() const { return *get_dependency(2).first; }
+    program_node& P4() const { return *get_dependency(3).first; }
+    program_node& P5() const { return *get_dependency(4).first; }
 };
 
 using pyramid_roi_align_node = typed_program_node<pyramid_roi_align>;

@@ -17,7 +17,7 @@ private:
 
 public:
     using parent::parent;
-    program_node& input(std::size_t i = 0) const { return get_dependency(i); }
+    program_node& input(std::size_t i = 0) const { return *get_dependency(i).first; }
 
     std::vector<size_t> get_shape_infer_dependencies() const override { return {0, 1, 2}; }
 };

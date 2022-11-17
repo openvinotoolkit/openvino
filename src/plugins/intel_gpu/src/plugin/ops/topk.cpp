@@ -75,7 +75,7 @@ static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>
 
             cldnn::primitive_id argmax_mutable_id_r = layerName + ".out1";
             auto argmax_mutable_prim_r = cldnn::mutable_data(argmax_mutable_id_r,
-                                                             { ArgMaxLayerName },
+                                                             { cldnn::input_info(ArgMaxLayerName) },
                                                              shared_memory);
             p.add_primitive(*op, argmax_mutable_prim_r);
         } else if (op->get_output_size() == 1) {

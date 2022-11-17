@@ -14,7 +14,7 @@ struct typed_program_node<ctc_loss> : typed_program_node_base<ctc_loss> {
     using parent::parent;
 
     program_node& input(size_t index) const {
-        return get_dependency(index);
+        return *get_dependency(index).first;
     }
 };
 

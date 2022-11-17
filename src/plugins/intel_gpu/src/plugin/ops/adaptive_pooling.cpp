@@ -54,7 +54,7 @@ static void CreateAdaptiveMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op
     p.add_primitive(*op, poolPrim);
 
     const cldnn::primitive_id indices_id_r = layer_type_name + ".out1";
-    const cldnn::mutable_data indices_mutable_prim_r{indices_id_r, {layer_name}, indices_memory};
+    const cldnn::mutable_data indices_mutable_prim_r{indices_id_r, {cldnn::input_info(layer_name)}, indices_memory};
     p.add_primitive(*op, indices_mutable_prim_r);
 }
 

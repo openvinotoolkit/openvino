@@ -14,7 +14,7 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(lstm_dynamic_timeloop)
 
 program_node& lstm_dynamic_timeloop_node::get_dependency_by_name(std::string val) const {
-    return get_dependency(get_dependency_idx(val));
+    return *get_dependency(get_dependency_idx(val)).first;
 }
 
 void lstm_dynamic_timeloop_node::init_params_list() {
@@ -34,10 +34,13 @@ void lstm_dynamic_timeloop_node::init_params_list() {
 void lstm_dynamic_timeloop_node::reverse_optional_outputs_connections() {
     auto reverse_connections = [&](program_node& mutable_data_node, const std::string& dependency_tag) {
         auto index_to_insert = get_param_list_index(dependency_tag);
-        mutable_data_node.dependencies.erase(std::remove(mutable_data_node.dependencies.begin(), mutable_data_node.dependencies.end(), this));
+        mutable_data_node.dependencies.erase(std::remove_if(mutable_data_node.dependencies.begin(), mutable_data_node.dependencies.end(),
+        [&](const std::pair<program_node*, int>& dep) {
+            return this == dep.first;
+        }));
         mutable_data_node.users.push_back(this);
         users.remove(&mutable_data_node);
-        dependencies.insert(dependencies.begin() + index_to_insert, &mutable_data_node);
+        dependencies.insert(dependencies.begin() + index_to_insert, {&mutable_data_node, 0});
         // fix inputs/outputs
         if (mutable_data_node.get_dependencies().empty()) {
             myprog.get_inputs().push_back(&mutable_data_node);

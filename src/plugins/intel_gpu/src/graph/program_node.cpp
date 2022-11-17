@@ -46,43 +46,35 @@ program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
 void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling) {
     if (idx >= dependencies.size())
         return;
-    if (dependencies[idx] == &new_dep)
+    if (dependencies[idx].first == &new_dep)
         return;
 
     if (is_type<loop>()) {
         loop_node& loop = *this;
-        loop.update_primitive_map(dependencies[idx]->id(), new_dep.id(), true);
+        loop.update_primitive_map(dependencies[idx].first->id(), new_dep.id(), true);
     }
 
-    auto it = std::find(dependencies[idx]->users.begin(), dependencies[idx]->users.end(), this);
-    if (it != dependencies[idx]->users.end()) {
-        dependencies[idx]->users.erase(it);
-    }
-    if (!dependencies_new.empty()) {
-        it = std::find(dependencies_new[idx].first->users.begin(), dependencies_new[idx].first->users.end(), this);
-        if (it != dependencies_new[idx].first->users.end()) {
-            dependencies_new[idx].first->users.erase(it);
-        }
+    auto it = std::find(dependencies[idx].first->users.begin(), dependencies[idx].first->users.end(), this);
+    if (it != dependencies[idx].first->users.end()) {
+        dependencies[idx].first->users.erase(it);
     }
 
     if (remove_if_dangling)
-        myprog.remove_if_dangling(*dependencies[idx]);
+        myprog.remove_if_dangling(*dependencies[idx].first);
 
-    dependencies[idx] = &new_dep;
-    if (!dependencies_new.empty())
-        dependencies_new[idx].first = &new_dep;
+    dependencies[idx].first = &new_dep;
     new_dep.users.push_back(this);
 }
 
 void program_node::replace_dependency(program_node const& old_dep, program_node& new_dep, bool remove_if_dangling) {
     for (size_t i = 0; i < dependencies.size(); ++i)
-        if (dependencies[i] == &old_dep)
+        if (dependencies[i].first == &old_dep)
             return replace_dependency(i, new_dep, remove_if_dangling);
 }
 
 std::vector<primitive_id> program_node::get_dependencies_ids() const {
     std::vector<primitive_id> dep_ids;
-    for (auto& dependency : dependencies) dep_ids.push_back(dependency->get_primitive()->id);
+    for (auto& dependency : dependencies) dep_ids.push_back(dependency.first->get_primitive()->id);
     return dep_ids;
 }
 
@@ -90,8 +82,8 @@ void program_node::remove_dependency(size_t idx) {
     if (idx >= dependencies.size())
         return;
 
-    dependencies[idx]->users.remove(this);
-    myprog.remove_if_dangling(*dependencies[idx]);
+    dependencies[idx].first->users.remove(this);
+    myprog.remove_if_dangling(*dependencies[idx].first);
     dependencies.erase(dependencies.begin() + idx);
 }
 
@@ -178,7 +170,8 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
             if (empty) {
                 empty = false;
             }
-            deps_ptrs.push_back(std::to_string(reinterpret_cast<uintptr_t>(*itr++)));
+            deps_ptrs.push_back(std::to_string(reinterpret_cast<uintptr_t>(itr->first)));
+            itr++;
         }
         if (deps_ptrs.empty()) {
             deps_ptrs.push_back("null");
@@ -220,7 +213,7 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 
 void program_node::remove_dependency(program_node& node) {
     for (size_t i = 0; i < dependencies.size(); ++i)
-        if (dependencies[i] == &node)
+        if (dependencies[i].first == &node)
             remove_dependency(i);
 }
 
@@ -238,7 +231,7 @@ size_t program_node::get_user_index(program_node& node) const {
 
 size_t program_node::get_dependency_index(program_node& node) const {
     for (size_t i = 0; i < dependencies.size(); ++i)
-        if (dependencies[i] == &node)
+        if (dependencies[i].first == &node)
             return i;
 
     OPENVINO_ASSERT(false, "Search invalid dependency node" + node.id() + " node");
@@ -366,12 +359,12 @@ bool program_node::is_dynamic() const {
     // TODO: Remove once strided slice impl support runtime tensors for begin/end/stride
     if (is_type<strided_slice>()) {
         for (size_t i = 1; i < get_dependencies().size(); i++) {
-            if (!get_dependency(i).is_type<data>())
+            if (!get_dependency(i).first->is_type<data>())
                 return true;
         }
     }
-    for (const auto* input : get_dependencies()) {
-        if (input->is_dynamic_output_layout())
+    for (const auto& input : get_dependencies()) {
+        if (input.first->is_dynamic_output_layout())
             return true;
     }
 
@@ -389,13 +382,13 @@ bool program_node::is_dynamic() {
     // TODO: Remove once strided slice impl support runtime tensors for begin/end/stride
     if (is_type<strided_slice>()) {
         for (size_t i = 1; i < get_dependencies().size(); i++) {
-            if (!get_dependency(i).is_type<data>())
+            if (!get_dependency(i).first->is_type<data>())
                 return true;
         }
     }
 
     for (auto& input : get_dependencies()) {
-        if (input->is_dynamic_output_layout())
+        if (input.first->is_dynamic_output_layout())
             return true;
     }
 
@@ -415,14 +408,14 @@ bool program_node::is_dynamic_output_layout(size_t idx) {
 }
 
 bool program_node::has_padded_dependency() {
-    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](program_node* node) {
-        return node->is_padded();
+    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](const std::pair<program_node*, int32_t>& dep) {
+        return dep.first->is_padded();
     });
 }
 
 bool program_node::has_padded_dependency() const {
-    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](const program_node* node) {
-        return node->is_padded();
+    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](const std::pair<program_node*, int32_t>& dep) {
+        return dep.first->is_padded();
     });
 }
 
@@ -433,9 +426,9 @@ std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
         if (i >= get_dependencies().size())
             continue;
 
-        auto& dep = get_dependency(i);
-        if (dep.is_type<data>()) {
-            mem_deps.insert({i, dep.as<data>().get_attached_memory_ptr()});
+        auto dep = get_dependency(i);
+        if (dep.first->is_type<data>()) {
+            mem_deps.insert({i, dep.first->as<data>().get_attached_memory_ptr()});
         }
     }
     return mem_deps;
@@ -828,7 +821,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
                 dnnl::memory::desc desc;
                 float scale, alpha, beta;
 
-                cldnn::program_node& cur_node = get_dependency(cur_post_ops[cur_post_op_idx].mem_dep);
+                cldnn::program_node& cur_node = *get_dependency(cur_post_ops[cur_post_op_idx].mem_dep).first;
 
                 p_ops.get_params_binary(cur_idx, alg, desc);
                 p_ops.get_params_eltwise(prev_idx, scale, alg, alpha, beta);
@@ -870,7 +863,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
                 dnnl::memory::desc desc;
                 float scale, alpha, beta;
 
-                cldnn::program_node& prev_node = get_dependency(cur_post_ops[prev_post_op_idx].mem_dep);
+                cldnn::program_node& prev_node = *get_dependency(cur_post_ops[prev_post_op_idx].mem_dep).first;
 
                 p_ops.get_params_eltwise(cur_idx, scale, alg, alpha, beta);
                 p_ops.get_params_binary(prev_idx, alg, desc);
@@ -965,7 +958,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
                 dnnl::algorithm alg;
                 float eltw_scale, alpha, beta;
 
-                cldnn::program_node& prev_node = get_dependency(cur_post_ops[prev_post_op_idx].mem_dep);
+                cldnn::program_node& prev_node = *get_dependency(cur_post_ops[prev_post_op_idx].mem_dep).first;
 
                 p_ops.get_params_eltwise(cur_idx, eltw_scale, alg, alpha, beta);
 
@@ -1083,7 +1076,7 @@ void program_node::init_onednn_primitive_attributes() {
             }
         } else if (desc.is_type<eltwise>()) {
             auto dep_idx = desc.dep_start_idx;
-            auto in = get_dependency(dep_idx).get_output_layout();
+            auto in = get_dependency(dep_idx).first->get_output_layout();
 
             if (desc.typed_desc<eltwise>()->mode == eltwise_mode::sum) {
                 auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*this, cldnn_post_ops[idx]);
@@ -1101,7 +1094,7 @@ void program_node::init_onednn_primitive_attributes() {
                     update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx);
                 }
             } else {
-                auto input_datatype = get_dependency(0).get_output_layout().data_type;
+                auto input_datatype = get_dependency(0).first->get_output_layout().data_type;
                 // convolution using post-op output scales can only be used when i8/u8 input (which use integer accumulator)
                 bool cant_use_output_scales =
                     idx != 0 ||
@@ -1136,10 +1129,10 @@ void program_node::init_onednn_primitive_attributes() {
                             post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_param->in_scale, 0.0f);
                             update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                         } else {
-                            auto in_scale = get_dependency(dep_idx++).get_output_layout();
+                            auto in_scale = get_dependency(dep_idx++).first->get_output_layout();
                             if (idx == 0 && !has_out_scales(attrs) && in_scale.data_type == data_types::f32 &&
                                 is_type<convolution>() &&
-                                !data_type_traits::is_floating_point(get_dependency(0).get_output_layout().data_type)) {
+                                !data_type_traits::is_floating_point(get_dependency(0).first->get_output_layout().data_type)) {
                                 int mask = in_scale.count() > 1 ? 2 : 0;
                                 attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
                                 update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx - 1);
@@ -1155,7 +1148,7 @@ void program_node::init_onednn_primitive_attributes() {
                                 post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, q_param->in_shift);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
-                                auto in_shift = get_dependency(dep_idx++).get_output_layout();
+                                auto in_shift = get_dependency(dep_idx++).first->get_output_layout();
                                 dnnl::memory::desc in_shift_desc = onednn::layout_to_memory_desc(in_shift, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_add, in_shift_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1);
@@ -1186,7 +1179,7 @@ void program_node::init_onednn_primitive_attributes() {
                                 post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_param->out_scale, 0.0f);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
-                                auto out_scale = get_dependency(dep_idx++).get_output_layout();
+                                auto out_scale = get_dependency(dep_idx++).first->get_output_layout();
                                 dnnl::memory::desc out_scale_desc = onednn::layout_to_memory_desc(out_scale, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_mul, out_scale_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1);
@@ -1198,7 +1191,7 @@ void program_node::init_onednn_primitive_attributes() {
                                 post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, q_param->out_shift);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
-                                auto out_shift = get_dependency(dep_idx++).get_output_layout();
+                                auto out_shift = get_dependency(dep_idx++).first->get_output_layout();
                                 dnnl::memory::desc out_shift_desc = onednn::layout_to_memory_desc(out_shift, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_add, out_shift_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1);
@@ -1221,8 +1214,8 @@ void program_node::init_onednn_primitive_attributes() {
                 // 1. clamp
                 {
                     if (q_param->has_clamp) {
-                        auto in_lo = get_dependency(dep_idx++).get_output_layout();
-                        auto in_hi = get_dependency(dep_idx++).get_output_layout();
+                        auto in_lo = get_dependency(dep_idx++).first->get_output_layout();
+                        auto in_hi = get_dependency(dep_idx++).first->get_output_layout();
                         dnnl::algorithm clamp_max = dnnl::algorithm::binary_max;
                         dnnl::algorithm clamp_min = dnnl::algorithm::binary_min;
                         dnnl::memory::desc in_lo_desc = onednn::layout_to_memory_desc(in_lo, dnnl::memory::format_tag::ab, true);
@@ -1245,10 +1238,10 @@ void program_node::init_onednn_primitive_attributes() {
                             post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_param->in_scale, 0.0f);
                             update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                         } else {
-                            auto in_scale = get_dependency(dep_idx++).get_output_layout();
+                            auto in_scale = get_dependency(dep_idx++).first->get_output_layout();
                             if (idx == 0 && !q_param->has_clamp && !has_out_scales(attrs) && in_scale.data_type == data_types::f32 &&
                                 is_type<convolution>() &&
-                                !data_type_traits::is_floating_point(get_dependency(0).get_output_layout().data_type)) {
+                                !data_type_traits::is_floating_point(get_dependency(0).first->get_output_layout().data_type)) {
                                 int mask = in_scale.count() > 1 ? 2 : 0;
                                 attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
                                 update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx - 1);
@@ -1264,7 +1257,7 @@ void program_node::init_onednn_primitive_attributes() {
                                 post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, q_param->in_shift);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
-                                auto in_shift = get_dependency(dep_idx++).get_output_layout();
+                                auto in_shift = get_dependency(dep_idx++).first->get_output_layout();
                                 dnnl::memory::desc in_shift_desc = onednn::layout_to_memory_desc(in_shift, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_add, in_shift_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1);
@@ -1291,7 +1284,7 @@ void program_node::init_onednn_primitive_attributes() {
                                 post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_param->out_scale, 0.0f);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
-                                auto out_scale = get_dependency(dep_idx++).get_output_layout();
+                                auto out_scale = get_dependency(dep_idx++).first->get_output_layout();
                                 dnnl::memory::desc out_scale_desc = onednn::layout_to_memory_desc(out_scale, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_mul, out_scale_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1);
@@ -1303,7 +1296,7 @@ void program_node::init_onednn_primitive_attributes() {
                                 post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, q_param->out_shift);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
-                                auto out_shift = get_dependency(dep_idx++).get_output_layout();
+                                auto out_shift = get_dependency(dep_idx++).first->get_output_layout();
                                 dnnl::memory::desc out_shift_desc = onednn::layout_to_memory_desc(out_shift, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_add, out_shift_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1);

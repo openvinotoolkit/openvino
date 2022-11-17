@@ -68,7 +68,7 @@ public:
         support_padding_all(true);
     }
 
-    program_node& input(size_t idx = 0) const { return get_dependency(idx); }
+    program_node& input(size_t idx = 0) const { return *get_dependency(idx).first; }
     size_t inputs_count() const { return get_primitive()->input.size(); }
 
     std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const override {

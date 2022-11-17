@@ -36,20 +36,20 @@ public:
     void set_groups(uint32_t node_groups) { groups = node_groups; }
     uint32_t get_groups() const { return groups; }
 
-    program_node& input() const { return get_dependency(0); }
+    program_node& input() const { return *get_dependency(0).first; }
 
     program_node& weights(size_t idx = 0) const {
         if (static_cast<int32_t>(idx) >= get_split())
             throw std::range_error("weights offset too big");
 
-        return get_dependency(1 + idx);
+        return *get_dependency(1 + idx).first;
     }
 
     program_node& bias(size_t idx = 0) const {
         if (static_cast<int32_t>(idx) >= get_split())
             throw std::range_error("bias offset too big");
 
-        return get_dependency(1 + this->get_split() + idx);
+        return *get_dependency(1 + this->get_split() + idx).first;
     }
 
     bool bias_term() const {
@@ -65,7 +65,7 @@ public:
 
         size_t d_idx = 1 + this->get_split() + idx;
         d_idx += bias_term() ? this->get_split() : 0;
-        return get_dependency(d_idx);
+        return *get_dependency(d_idx).first;
     }
 
     bool has_fused_sum() const {

@@ -28,7 +28,7 @@ void strided_slice_optimize::run(program& p) {
 
             auto& deps = node->get_dependencies();
             for (size_t i = deps.size(); i--;)
-                if (deps[i]->is_type<data>())
+                if (deps[i].first->is_type<data>())
                     node->remove_dependency(i);
 
             auto node_layout = strided_slice_node.get_output_layout();
@@ -60,7 +60,7 @@ void strided_slice_optimize::run(program& p) {
 
             auto reshape_prim = std::make_shared<reshape>(
                 "reshape_" + node->id(),
-                node->get_dependency(0).get_primitive()->id,
+                node->get_dependency(0).first->get_primitive()->id,
                 tensor(output_dims_sizes[0], output_dims_sizes[1], output_dims_sizes[3], output_dims_sizes[2]));
 
             auto& reshape_prim_node = p.get_or_create(reshape_prim);

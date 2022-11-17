@@ -17,7 +17,7 @@ struct typed_program_node<select> : public typed_program_node_base<select> {
 public:
     using parent::parent;
 
-    program_node& input(size_t idx = 0) const { return get_dependency(idx); }
+    program_node& input(size_t idx = 0) const { return *get_dependency(idx).first; }
     size_t inputs_count() const { return get_dependencies().size(); }
 };
 

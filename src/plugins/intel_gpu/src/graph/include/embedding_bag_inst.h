@@ -17,7 +17,7 @@ struct typed_program_node<embedding_bag> : public typed_program_node_base<embedd
 public:
     using parent::parent;
 
-    program_node& input(size_t index = 0) const { return get_dependency(index); }
+    program_node& input(size_t index = 0) const { return *get_dependency(index).first; }
     size_t inputs_count() const { return get_dependencies().size(); }
 };
 

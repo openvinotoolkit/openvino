@@ -52,57 +52,57 @@ public:
         return offset;
     }
 
-    program_node& input() const { return get_dependency(0); }
+    program_node& input() const { return *get_dependency(0).first; }
 
     program_node& weights(size_t idx = 0) const {
         if (static_cast<int32_t>(idx) >= this->get_split())
             throw std::range_error("weights offset too big");
 
-        return get_dependency(1 + idx + get_deform_conv_dep_offset());
+        return *get_dependency(1 + idx + get_deform_conv_dep_offset()).first;
     }
 
     program_node& bias(size_t idx = 0) const {
         if (static_cast<int32_t>(idx) >= this->get_split())
             throw std::range_error("bias offset too big");
 
-        return get_dependency(1 + this->get_split() + idx + get_deform_conv_dep_offset());
+        return *get_dependency(1 + this->get_split() + idx + get_deform_conv_dep_offset()).first;
     }
 
     program_node& weights_zero_points(size_t idx = 0) const {
         if (static_cast<int32_t>(idx) >= this->get_split())
             throw std::range_error("weights zero points offset too big");
 
-        return get_dependency(1 + (1 + 1 * bias_term()) * this->get_split() + idx + get_deform_conv_dep_offset());
+        return *get_dependency(1 + (1 + 1 * bias_term()) * this->get_split() + idx + get_deform_conv_dep_offset()).first;
     }
 
     program_node& activations_zero_points(size_t idx = 0) const {
         if (static_cast<int32_t>(idx) >= this->get_split())
             throw std::range_error("activations zero points offset too big");
 
-        return get_dependency(1 + (1 + 1 * bias_term() + 1 * weights_zero_points_term()) * this->get_split() + idx +
-                              get_deform_conv_dep_offset());
+        return *get_dependency(1 + (1 + 1 * bias_term() + 1 * weights_zero_points_term()) * this->get_split() + idx +
+                               get_deform_conv_dep_offset()).first;
     }
 
     program_node& compensation(size_t idx = 0) const {
         if (static_cast<int32_t>(idx) >= this->get_split())
             throw std::range_error("activations zero points offset too big");
 
-        return get_dependency(1 + (1 + 1 * bias_term() + 1 * weights_zero_points_term() + 1*activations_zero_points_term()) * this->get_split()
-                              + idx + get_deform_conv_dep_offset());
+        return *get_dependency(1 + (1 + 1 * bias_term() + 1 * weights_zero_points_term() + 1*activations_zero_points_term()) * this->get_split()
+                               + idx + get_deform_conv_dep_offset()).first;
     }
 
     program_node& trans() const {
         if (!deformable_mode)
             throw std::range_error("trans input exists only in deformable mode");
 
-        return get_dependency(1);
+        return *get_dependency(1).first;
     }
 
     program_node& mask() const {
         if (!deformable_mode)
             throw std::range_error("Mask input exists only in deformable mode");
 
-        return get_dependency(2);
+        return *get_dependency(2).first;
     }
 
     bool bilinear_interpolation_pad() const {

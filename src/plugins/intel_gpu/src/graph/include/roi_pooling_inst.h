@@ -17,9 +17,9 @@ struct typed_program_node<roi_pooling> : public typed_program_node_base<roi_pool
 public:
     using parent::parent;
 
-    program_node& input() const { return get_dependency(0); }
-    program_node& rois() const { return get_dependency(1); }
-    program_node& trans() const { return get_dependency(2); }
+    program_node& input() const { return *get_dependency(0).first; }
+    program_node& rois() const { return *get_dependency(1).first; }
+    program_node& trans() const { return *get_dependency(2).first; }
 };
 
 using roi_pooling_node = typed_program_node<roi_pooling>;
