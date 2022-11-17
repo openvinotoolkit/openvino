@@ -28,24 +28,27 @@ namespace intel_gpu {
 *  for example: [2, 32, 64] [3, 64, 64] it will raise an exception.
 */
 
-static std::tuple<bool, PartialShape, PartialShape> get_aligned_shapes(const PartialShape& shape_a,
-                                                                       const PartialShape& shape_b,
-                                                                       const std::shared_ptr<ngraph::op::v0::MatMul>& matmul) {
-    PartialShape shape_a_aligned(shape_a), shape_b_aligned(shape_b);
+static std::tuple<bool, PartialShape, PartialShape, PartialShape, PartialShape>
+get_aligned_shapes(const PartialShape& shape_a,
+                   const PartialShape& shape_b,
+                   const std::shared_ptr<ngraph::op::v0::MatMul>& matmul) {
+    PartialShape shape_a_aligned(shape_a), shape_b_aligned(shape_b),
+                 shape_a_unsqueeze(shape_a), shape_b_unsqueeze(shape_b);
     auto rank_a = shape_a_aligned.rank().get_length();
     auto rank_b = shape_b_aligned.rank().get_length();
     size_t max_size = std::max(rank_a, rank_b);
     if (max_size == 1) {
-        return std::make_tuple(false, shape_a_aligned, shape_b_aligned);
+        return std::make_tuple(false, shape_a_aligned, shape_b_aligned, shape_a_unsqueeze, shape_b_unsqueeze);
     }
 
     for (size_t i = 0, cnt = max_size - rank_a; i < cnt; ++i) {
-        shape_a_aligned.insert(shape_a_aligned.begin(), 1);
+        shape_a_unsqueeze.insert(shape_a_unsqueeze.begin(), 1);
     }
     for (size_t i = 0, cnt = max_size - rank_b; i < cnt; ++i) {
-        shape_b_aligned.insert(shape_b_aligned.begin(), 1);
+        shape_b_unsqueeze.insert(shape_b_unsqueeze.begin(), 1);
     }
-
+    shape_a_aligned = shape_a_unsqueeze;
+    shape_b_aligned = shape_b_unsqueeze;
 /*
     if (matmul->get_transpose_a()) {
         std::swap(*(shape_a_aligned.end() - 1), *(shape_a_aligned.end() - 2));
@@ -61,7 +64,7 @@ static std::tuple<bool, PartialShape, PartialShape> get_aligned_shapes(const Par
             if (b_dim == 1) {
                 shape_a_aligned[i] = shape_b_aligned[i] = a_dim;
             } else {
-                return std::make_tuple(false, shape_a_aligned, shape_b_aligned);
+                return std::make_tuple(false, shape_a_aligned, shape_b_aligned, shape_a_unsqueeze, shape_b_unsqueeze);
             }
         } else {
             if (a_dim != b_dim && a_dim.get_length() > 1 && b_dim.get_length() > 1) {
@@ -71,7 +74,7 @@ static std::tuple<bool, PartialShape, PartialShape> get_aligned_shapes(const Par
             shape_a_aligned[i] = shape_b_aligned[i] = max_value;
         }
     }
-    return {true, shape_a_aligned, shape_b_aligned};
+    return {true, shape_a_aligned, shape_b_aligned, shape_a_unsqueeze, shape_b_unsqueeze};
 }
 
 static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& op) {
@@ -90,10 +93,10 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
     // TODO: This conditions can be relaxed with proper handling in FC path
     is_fc &= rank_a > 1 && rank_b > 1;
 
-    PartialShape shape_a_aligned, shape_b_aligned;
+    PartialShape shape_a_aligned, shape_b_aligned, shape_a_unsqueeze, shape_b_unsqueeze;
     bool aligned = false;
     if (shape_b.is_static()) { //??? can be relaxed?
-        std::tie(aligned, shape_a_aligned, shape_b_aligned) = get_aligned_shapes(shape_a, shape_b, op);
+        std::tie(aligned, shape_a_aligned, shape_b_aligned, shape_a_unsqueeze, shape_b_unsqueeze) = get_aligned_shapes(shape_a, shape_b, op);
     }
     is_fc &= aligned;
 
@@ -115,14 +118,15 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
                                               transpose_order);
             p.add_primitive(*op, permutePrim);
         };
+
         auto create_broadcast = [&](const std::string& broadcastName, const std::string& broadcastInputName, const ngraph::Shape& target_shape) {
-            const auto out_shape = op->get_output_partial_shape(0).to_shape();
-            std::vector<size_t> broadcast_axes(out_shape.size());
+            std::vector<size_t> broadcast_axes(target_shape.size());
             std::iota(broadcast_axes.begin(), broadcast_axes.end(), 0);
             ngraph::AxisSet axisSet{broadcast_axes};
             auto broadcastPrim = cldnn::broadcast(broadcastName, broadcastInputName, target_shape, axisSet);
             p.add_primitive(*op, broadcastPrim);
         };
+
         auto create_unsqueeze = [&](const std::string& unsqueezeName, const std::string& unsqueezeInputName, const PartialShape& target_shape) {
             auto unsqueezePrim = cldnn::reshape(unsqueezeName, unsqueezeInputName, true, std::vector<int64_t>{}, target_shape,
                                                 cldnn::reshape::reshape_mode::unsqueeze);
@@ -134,6 +138,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             auto transposeName = op->get_friendly_name() + "/transpose_b";
             create_transpose(transposeName, weightsName, rank_b);
             std::swap(*(shape_b_aligned.end() - 1), *(shape_b_aligned.end() - 2));
+            std::swap(*(shape_b_unsqueeze.end() - 1), *(shape_b_unsqueeze.end() - 2));
             weightsName = transposeName;
         }
 
@@ -142,16 +147,17 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             auto transposeName = op->get_friendly_name() + "/transpose_a";
             create_transpose(transposeName, inputName, rank_a);
             std::swap(*(shape_a_aligned.end() - 1), *(shape_a_aligned.end() - 2));
+            std::swap(*(shape_a_unsqueeze.end() - 1), *(shape_a_unsqueeze.end() - 2));
             inputName = transposeName;
         }
 
         if (rank_a < rank_b) { // Input unsqueeze
             auto unsqueezeName = op->get_friendly_name() + "/unsqueeze_a";
-            create_unsqueeze(unsqueezeName, inputName, shape_a_aligned);
+            create_unsqueeze(unsqueezeName, inputName, shape_a_unsqueeze);
             inputName = unsqueezeName;
         } else if (rank_b < rank_a) { // Weights unsqueeze
             auto unsqueezeName = op->get_friendly_name() + "/unsqueeze_b";
-            create_unsqueeze(unsqueezeName, weightsName, shape_b_aligned);
+            create_unsqueeze(unsqueezeName, weightsName, shape_b_unsqueeze);
             weightsName = unsqueezeName;
         }
 
@@ -176,7 +182,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
                                              "",
                                              cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                              cldnn::padding(),
-                                             shape_a.size(),
+                                             shape_a_aligned.size(),
                                              p.use_new_shape_infer());
 
         p.add_primitive(*op, fcPrim);
