@@ -2289,9 +2289,10 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer,
                 auto &nextMemoryLayer = nextMemoryLayerIt->second;
                 // memory layer not yet initialized
                 if (nextMemoryLayer.reserved_size == 0) {
-                    nextMemoryLayer.reserved_size = ALIGN64(nextMemoryLayer.getSize());
-                    gnamem->getQueue(REGION_STATES)->reserve_ptr(nullptr, &nextMemoryLayer.gna_ptr, nextMemoryLayer.reserved_size, 64);
+                    auto memorySize = InferenceEngine::details::product(nextMemoryLayer.getDims()) * nextMemoryLayer.elementSizeBytes();
+                    gnamem->getQueue(REGION_STATES)->reserve_ptr(nullptr, &nextMemoryLayer.gna_ptr, ALIGN64(memorySize), 64);
                     gnamem->getQueue(REGION_AUTO)->bind_ptr(nullptr, ptr, &nextMemoryLayer.gna_ptr, getOffsetForBinding(layer));
+                    nextMemoryLayer.reserved_size = ALIGN64(memorySize);
                 } else {
                     // We may need to extend memory buffer if connected input size is bigger, for example for concat connection
                     gnamem->getQueue(REGION_AUTO)->bind_ptr(nullptr, ptr, &nextMemoryLayer.gna_ptr, getOffsetForBinding(layer), ALIGN64(num_data_bytes_out));
@@ -2582,23 +2583,27 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
         // TODO: this is duplicate with connect output
         auto& memoryLayer = prevMemoryLayer->second;
         if (memoryLayer.reserved_size == 0) {
-            memoryLayer.reserved_size = ALIGN64(memoryLayer.getSize());
+            auto memorySize = InferenceEngine::details::product(memoryLayer.getDims()) * memoryLayer.elementSizeBytes();
+
             // connectTo used for  indicate that memory layer should be bound to given buffer
             if (connectTo) {
-                memoryLayer.reserved_size = ALIGN64(std::max(memoryLayer.reserved_size, num_data_bytes_in));
-                gnamem->getQueue(REGION_STATES)->reserve_ptr(nullptr, &memoryLayer.gna_ptr, memoryLayer.reserved_size, 64);
+                memorySize = std::max(memorySize, num_data_bytes_in);
+                gnamem->getQueue(REGION_STATES)->reserve_ptr(nullptr, &memoryLayer.gna_ptr, ALIGN64(memorySize), 64);
                 gnamem->getQueue(REGION_AUTO)->bind_ptr(nullptr, ptr, &memoryLayer.gna_ptr, offset);
             } else {
-                if (num_data_bytes_in < memoryLayer.reserved_size + offset) {
+                if (num_data_bytes_in < memorySize + offset) {
                     THROW_GNA_LAYER_EXCEPTION(layer) <<" invalid allocation request of "
-                                                     << num_data_bytes_in << " is more then state tensor size of: " << memoryLayer.reserved_size + offset;
+                                                     << num_data_bytes_in << " is more then state tensor size of: " << memorySize + offset;
                 }
                 gnamem->getQueue(REGION_AUTO)->bind_ptr(nullptr, &memoryLayer.gna_ptr, ptr, offset, ALIGN64(num_data_bytes_in));
             }
+
+            memoryLayer.reserved_size = ALIGN64(memorySize);
         } else {
             // We may need to extend memory buffer if connected input size is bigger, for example for concat connection
             gnamem->getQueue(REGION_AUTO)->bind_ptr(nullptr, ptr, &memoryLayer.gna_ptr, offset, ALIGN64(num_data_bytes_in));
         }
+
         return prevLayer;
     }
 
