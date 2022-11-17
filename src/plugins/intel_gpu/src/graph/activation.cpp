@@ -10,7 +10,7 @@
 #include <vector>
 
 namespace cldnn {
-CLDNN_DEFINE_PRIMITIVE_TYPE_ID(activation)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(activation)
 
 layout activation_inst::calc_output_layout(activation_node const& node, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&

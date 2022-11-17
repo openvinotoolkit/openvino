@@ -448,7 +448,7 @@ std::vector<kernel_id> kernels_cache::add_kernels_source(std::vector<std::shared
 }
 
 void kernels_cache::add_kernels(const std::vector<std::string>& kernel_ids, const std::vector<kernel::ptr>& kernels) {
-    OPENVINO_ASSERT(kernel_ids.size() == kernels.size(), "The sizes of kernel_ids and kernels are different.");
+    OPENVINO_ASSERT(kernel_ids.size() == kernels.size(), "[GPU] The sizes of kernel_ids and kernels are different.");
 
     for (size_t i = 0; i < kernel_ids.size(); i++) {
         const auto& kmap = std::make_pair(kernel_ids[i], kernels[i]);
@@ -486,7 +486,7 @@ void kernels_cache::compile() {
 #endif
 }
 void kernels_cache::save(BinaryOutputBuffer& ob) const {
-    OPENVINO_ASSERT(_engine.type() == engine_types::ocl, "Not supported engine type");
+    OPENVINO_ASSERT(_engine.type() == engine_types::ocl, "[GPU] Not supported engine type");
 
     std::map<std::string, std::string> entry_point_to_id;
     for (auto iter = _kernels.begin(); iter != _kernels.end(); iter++) {
@@ -540,7 +540,7 @@ void kernels_cache::save(BinaryOutputBuffer& ob) const {
 }
 
 void kernels_cache::load(BinaryInputBuffer& ib) {
-    OPENVINO_ASSERT(_engine.type() == engine_types::ocl, "Not supported engine type");
+    OPENVINO_ASSERT(_engine.type() == engine_types::ocl, "[GPU] Not supported engine type");
 
     std::unique_ptr<ocl::ocl_engine> build_engine =
         cldnn::make_unique<ocl::ocl_engine>(_engine.get_device(), runtime_types::ocl, _engine.configuration(), _engine.get_task_executor());
