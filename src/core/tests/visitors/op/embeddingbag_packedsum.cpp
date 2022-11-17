@@ -26,3 +26,16 @@ TEST(visitor_without_attribute, embedding_bag_packed_sum_op) {
     const auto expected_attr_count = 0;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 }
+
+TEST(visitor_without_attribute, embedding_bag_packed_sum_op2) {
+    NodeBuilder::get_ops().register_factory<opset3::EmbeddingBagOffsetsSum>();
+    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
+    auto indices = make_shared<op::Parameter>(element::i64, Shape{3, 4});
+
+    auto ebps = make_shared<opset3::EmbeddingBagPackedSum>(emb_table, indices);
+    NodeBuilder builder(ebps, {emb_table, indices});
+    EXPECT_NO_THROW(auto g_ebps = ov::as_type_ptr<opset3::EmbeddingBagPackedSum>(builder.create()));
+
+    const auto expected_attr_count = 0;
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
+}

@@ -1302,3 +1302,88 @@ TEST_F(IRFrontendTests, name_with_comma) {
     auto it = names.find(tensor_name);
     EXPECT_NE(it, names.end());
 }
+
+TEST_F(IRFrontendTests, DetectionOutput) {
+    std::string testModel = R"V0G0N(
+<net name="DetectionOutput" version="11">
+	<layers>
+		<layer id="2" name="Parameter_186617" type="Parameter" version="opset1">
+			<data shape="1,60" element_type="f32" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>60</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="Parameter_186618" type="Parameter" version="opset1">
+			<data shape="1,165" element_type="f32" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>165</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="0" name="Parameter_186619" type="Parameter" version="opset1">
+			<data shape="1,1,60" element_type="f32" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>60</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="DetectionOutput_186620" type="DetectionOutput" version="opset1">
+			<data num_classes="11" background_label_id="0" top_k="75" variance_encoded_in_target="true" keep_top_k="50" code_type="caffe.PriorBoxParameter.CORNER" share_location="true" nms_threshold="0.5" confidence_threshold="0.30000001192092896" clip_after_nms="true" clip_before_nms="true" decrease_label_id="true" normalized="true" input_height="1" input_width="1" objectness_score="0.40000000596046448" />
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>60</dim>
+				</port>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>165</dim>
+				</port>
+				<port id="2" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>60</dim>
+				</port>
+			</input>
+			<output>
+				<port id="3" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>50</dim>
+					<dim>7</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="4" name="Result_186621" type="Result" version="opset1">
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>50</dim>
+					<dim>7</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="3" to-port="2" />
+		<edge from-layer="1" from-port="0" to-layer="3" to-port="1" />
+		<edge from-layer="2" from-port="0" to-layer="3" to-port="0" />
+		<edge from-layer="3" from-port="3" to-layer="4" to-port="0" />
+	</edges>
+	<rt_info />
+</net>
+)V0G0N";
+
+    std::shared_ptr<ov::Model> model;
+
+    ASSERT_NO_THROW(model = getWithIRFrontend(testModel));
+    ASSERT_TRUE(!!model);
+}
