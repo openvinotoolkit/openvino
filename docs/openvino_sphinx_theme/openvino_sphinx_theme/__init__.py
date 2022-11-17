@@ -138,7 +138,7 @@ def add_toctree_functions(app, pagename, templatename, context, doctree):
 
         toctree_checkbox_count = 0
 
-        for li in soup.find_all("li", recursive=(kind == "sidebar")):
+        for li in soup.find_all("li"):
             # pair "current" with "active" since that's what we use w/ bootstrap
             if "current" in li["class"]:
                 li["class"].append("active")
@@ -148,6 +148,7 @@ def add_toctree_functions(app, pagename, templatename, context, doctree):
                 href = li.find("a")["href"]
                 if "#" in href and href != "#":
                     li.decompose()
+                    continue
 
             if kind == "navbar":
                 li["class"].append("nav-item")
