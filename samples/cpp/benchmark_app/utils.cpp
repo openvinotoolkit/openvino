@@ -768,7 +768,7 @@ void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>&
             std::map<std::string, ov::Any> devices_property;
             ov::util::Read<std::map<std::string, std::string>>{}(strm, properties);
             // convert to ov::AnyMap from std::map
-            for (auto &item : properties) {
+            for (auto& item : properties) {
                 devices_property[item.first] = item.second;
             }
             config[opencv_to_plugin_format(device.name())][item.name()] = devices_property;
