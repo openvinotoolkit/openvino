@@ -17,7 +17,7 @@ OutputVector translate_sum(NodeContext& context) {
     FRONT_END_OP_CONVERSION_CHECK(context.get_input_size() >= 1, "Operation has no inputs.");
     FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0), "Input should not be None.");
     auto data = context.get_input(0);
-    if (context.get_input_size() == 1 || context.input_is_none(1)) {
+    if (context.input_is_none(1)) {
         auto start = std::make_shared<opset8::Constant>(element::i32, Shape{}, 0);
         auto step = std::make_shared<opset8::Constant>(element::i32, Shape{}, 1);
         auto shape = context.mark_node(std::make_shared<opset8::ShapeOf>(data, element::i32));
