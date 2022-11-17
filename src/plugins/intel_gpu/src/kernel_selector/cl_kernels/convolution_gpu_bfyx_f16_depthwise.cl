@@ -123,6 +123,7 @@ KERNEL(convolution_depthwise)(
     INPUT_TYPE src_tail_20 = INPUT_BLOCK_READ(input, input_offset + (input_y + 2) * input_y_pitch + (input_x + 8) * input_x_pitch);
     INPUT_TYPE src_tail_21 = INPUT_BLOCK_READ(input, input_offset + (input_y + 2) * input_y_pitch + (input_x + 9) * input_x_pitch);
 
+#if X_BLOCK_SIZE == 8
     for (uint i = 0; i < X_BLOCK_SIZE - 2; i++)
     {
         dst[i] = mad(src_block_0[i + 0], wei_00, dst[i]);
@@ -163,6 +164,19 @@ KERNEL(convolution_depthwise)(
         dst[7] = mad(src_tail_20,    wei_21, dst[7]);
         dst[7] = mad(src_tail_21,    wei_22, dst[7]);
     }
+#else // X_BLOCK_SIZE == 1
+        dst[0] = mad(src_block_0[0], wei_00, dst[0]);
+        dst[0] = mad(src_block_0[1], wei_01, dst[0]);
+        dst[0] = mad(src_block_0[2], wei_02, dst[0]);
+
+        dst[0] = mad(src_block_1[0], wei_10, dst[0]);
+        dst[0] = mad(src_block_1[1], wei_11, dst[0]);
+        dst[0] = mad(src_block_1[2], wei_12, dst[0]);
+
+        dst[0] = mad(src_block_2[0], wei_20, dst[0]);
+        dst[0] = mad(src_block_2[1], wei_21, dst[0]);
+        dst[0] = mad(src_block_2[2], wei_22, dst[0]);
+#endif
 
 #else // ((FILTER_SIZE_X == 3) && (FILTER_SIZE_Y == 3) && (STRIDE_SIZE_X == 1))
 
