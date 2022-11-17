@@ -420,6 +420,10 @@ void Graph::InitGraph() {
         }
     }
 
+    if (haveDynNodes) {
+        this->reuse_io_tensors = false;
+    }
+
     Allocate();
 
     CreatePrimitives();
