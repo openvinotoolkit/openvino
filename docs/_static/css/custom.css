@@ -93,6 +93,12 @@ code {
     background-image: url('media/union-up.svg');
 }
 
+/* Table Sort Button - display override*/
+
+.sort-btn {
+    display: block!important;
+}
+
 div.highlight {
     margin-bottom: 1.15rem;
 }
