@@ -142,7 +142,6 @@ inline bool is_gna_non_functional_node(const std::shared_ptr<ngraph::Node>& node
     return std::dynamic_pointer_cast<ngraph::opset8::Reshape>(node) ||
             std::dynamic_pointer_cast<ngraph::opset8::Squeeze>(node) ||
             std::dynamic_pointer_cast<ngraph::opset8::Unsqueeze>(node) ||
-            std::dynamic_pointer_cast<ngraph::opset8::FakeQuantize>(node) ||
             is_trivial_transpose(node);
 }
 
