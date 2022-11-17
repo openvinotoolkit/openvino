@@ -126,6 +126,7 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 using namespace GNAPluginNS;
 using namespace GNAPluginNS::memory;
+using namespace ov::intel_gna::frontend;
 
 namespace InferenceEngine {
     template<>
@@ -898,6 +899,8 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     if (sortedNet.empty()) {
         THROW_GNA_EXCEPTION << "Sorted network is empty";
     }
+    // put Assign (sortedNet) layers at the end to properly update states variables (Read)
+    std::stable_partition(sortedNet.begin(), sortedNet.end(), [&](CNNLayerPtr layer){return !LayerInfo(layer).isAssign();});
 
     std::vector<CNNLayerPtr> sortedNoMem;
     std::unordered_map<std::string, std::vector<InferenceEngine::CNNLayerPtr>> memoryPairs;
