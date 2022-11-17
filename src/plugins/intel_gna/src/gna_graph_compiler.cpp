@@ -2589,7 +2589,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
                 gnamem->getQueue(REGION_STATES)->reserve_ptr(nullptr, &memoryLayer.gna_ptr, memoryLayer.reserved_size, 64);
                 gnamem->getQueue(REGION_AUTO)->bind_ptr(nullptr, ptr, &memoryLayer.gna_ptr, offset);
             } else {
-                if (num_data_bytes_in < memoryLayer.reserved_size + offset) {
+                if (ALIGN64(num_data_bytes_in) < ALIGN64(memoryLayer.reserved_size + offset)) {
                     THROW_GNA_LAYER_EXCEPTION(layer) <<" invalid allocation request of "
                                                      << num_data_bytes_in << " is more then state tensor size of: " << memoryLayer.reserved_size + offset;
                 }
