@@ -3,6 +3,8 @@
 Model Optimizer can convert all floating-point weights to `FP16` data type. The resulting IR is called
 compressed `FP16` model.
 
+Starting from 2022.3 release, option --data_type is deprecated, instead use --compress_to_fp16 in the following way:
+
 To compress the model, use the `--compress_to_fp16` option:
 
 ```
