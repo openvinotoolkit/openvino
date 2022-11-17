@@ -245,11 +245,13 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             std::shared_ptr<ie::ICacheManager> _cacheManager;
         };
 
-        // Core default global properties and values, which will not set to any plugins.
-        const ov::AnyMap default_global_properties = {ov::hint::allow_auto_batching(true),
-                                                      ov::force_tbb_terminate(false)};
-        // Core default plugins properties and values, which will set to one or multiple plugins.
-        const ov::AnyMap default_plugins_properties = {ov::cache_dir(""), ov::auto_batch_timeout(1000)};
+        // Core default global properties, which will not set to any plugins.
+        const ov::AnyMap default_global_properties = {ov::force_tbb_terminate(false)};
+
+        // Core default plugins properties, which will set to specified or all plugins.
+        const ov::AnyMap default_plugins_properties = {ov::cache_dir(""),
+                                                       ov::hint::allow_auto_batching(true),
+                                                       ov::auto_batch_timeout(1000)};
 
         void set_core_config(ov::AnyMap& config) {
             for (auto it = config.begin(); it != config.end();) {
@@ -282,6 +284,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
         void update_config(const std::string& device_name, ov::AnyMap& config) const {
             for (auto& it : _commonConfig) {
+                // Exclude non default_plugins_properties
                 auto item = default_plugins_properties.find(it.first);
                 if (item == default_plugins_properties.end())
                     continue;
@@ -294,6 +297,10 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                 // Only insert property if it is set in core before.
                 if (it.first == ov::auto_batch_timeout.name()) {
                     if (device_name.find("BATCH") != std::string::npos) {
+                        config[it.first] = it.second;
+                    }
+                } else if (it.first == ov::hint::allow_auto_batching.name()) {
+                    if (device_name.find("AUTO") != std::string::npos) {
                         config[it.first] = it.second;
                     }
                 } else if (it.first == ov::cache_dir.name()) {
@@ -319,10 +326,10 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                 return item->second;
             }
 
-            // Return empty value, if plugins properties is not set.
+            // Return default value, if plugins properties is not set.
             auto it = default_plugins_properties.find(name);
             if (it != default_plugins_properties.end()) {
-                return ov::Any();
+                return it->second;
             }
 
             // Other property will report exception.
