@@ -29,11 +29,51 @@ def setup_edit_url(app, pagename, templatename, context, doctree):
         doc_context = dict()
         doc_context.update(**context)
 
+        # Make sure that doc_path has a path separator only if it exists (to avoid //)
+        doc_path = doc_context.get("doc_path", "")
+        if doc_path and not doc_path.endswith("/"):
+            doc_path = f"{doc_path}/"
 
         # ensure custom URL is checked first, if given
         url_template = doc_context.get("edit_page_url_template")
-        return jinja2.Template(url_template).render(**doc_context)
 
+        if url_template is not None:
+            if "file_name" not in url_template:
+                raise ExtensionError(
+                    "Missing required value for `use_edit_page_button`. "
+                    "Ensure `file_name` appears in `edit_page_url_template`: "
+                    f"{url_template}"
+                )
+            return jinja2.Template(url_template).render(**doc_context)
+
+        url_template = '{{ github_url }}/{{ github_user }}/{{ github_repo }}' \
+                       '/edit/{{ github_version }}/{{ doc_path }}{{ file_name }}'
+
+        doxygen_mapping_file = app.config.html_context.get('doxygen_mapping_file')
+        rst_name = pagename.rsplit('-')[0]
+        file_name = doxygen_mapping_file[rst_name]
+        parent_folder = Path(os.path.dirname(file_name)).parts[0]
+        file_name = Path(*Path(file_name).parts[1:]).as_posix()
+
+        doc_context.update(doc_path=doc_path, file_name=file_name)
+        try:
+            repositories = app.config.repositories
+        except AttributeError:
+            raise ExtensionError("Missing required value for `use_edit_page_button`. "
+                                 "Ensure `repositories` is set in conf.py.")
+
+        required = ['github_user', 'github_repo', 'github_version', 'host_url']
+        for repo, config in repositories.items():
+            for key, val in config.items():
+                if key not in required or not val:
+                    raise ExtensionError(f'Missing required value for `{repo}` entry in `repositories`'
+                                         f'Ensure {required} all set.')
+            if parent_folder == repo:
+                doc_context.update(github_user=config['github_user'])
+                doc_context.update(github_repo=config['github_repo'])
+                doc_context.update(github_version=config['github_version'])
+                doc_context.update(github_url=config['host_url'])
+                return jinja2.Template(url_template).render(**doc_context)
 
     context["get_edit_url"] = get_edit_url
     context['has_github_page'] = has_github_page()
@@ -96,30 +136,6 @@ def add_toctree_functions(app, pagename, templatename, context, doctree):
 
     # override pydata_sphinx_theme
     def generate_sidebar_nav(kind, startdepth=None, **kwargs):
-        """
-        Return the navigation link structure in HTML. Arguments are passed
-        to Sphinx "toctree" function (context["toctree"] below).
-
-        We use beautifulsoup to add the right CSS classes / structure for bootstrap.
-
-        See https://www.sphinx-doc.org/en/master/templating.html#toctree.
-
-        Parameters
-        ----------
-        kind : ["navbar", "sidebar", "raw"]
-            The kind of UI element this toctree is generated for.
-        startdepth : int
-            The level of the toctree at which to start. By default, for
-            the navbar uses the normal toctree (`startdepth=0`), and for
-            the sidebar starts from the second level (`startdepth=1`).
-        kwargs: passed to the Sphinx `toctree` template function.
-
-        Returns
-        -------
-        HTML string (if kind in ["navbar", "sidebar"])
-        or BeautifulSoup object (if kind == "raw")
-        """
-
         return []
 
     context["generate_sidebar_nav"] = generate_sidebar_nav
