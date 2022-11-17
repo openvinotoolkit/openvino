@@ -19,8 +19,12 @@ OutputVector translate_div(NodeContext& context) {
         auto rounding_mode = context.const_input<std::string>(2);
         if (rounding_mode == "floor") {
             res = context.mark_node(std::make_shared<opset8::Floor>(res));
-        } else if (rounding_mode == "trunc") {
-            FRONT_END_OP_CONVERSION_CHECK(false, "Openvino Pytorch Frontend doesn't support mode trunc for aten::div");
+        } else {
+            // TODO: support mode "trunc", need to extend openvino opset for that 
+            FRONT_END_OP_CONVERSION_CHECK(false,
+                                          "Openvino Pytorch Frontend doesn't support rounding mode ",
+                                          rounding_mode,
+                                          " for aten::div");
         }
     }
     return {res};
