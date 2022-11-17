@@ -625,7 +625,10 @@ void program::pre_optimize_graph(bool is_internal) {
 
     apply_opt_pass<strided_slice_optimize>();
 
-    apply_opt_pass<handle_reshape>();
+    // When new shape inference is enabled, we need Reshape (unsqueeze) if Fully_connected inputs have different ranks
+    if (!options.get<build_option_type::allow_new_shape_infer>()->enabled()) {
+        apply_opt_pass<handle_reshape>();
+    }
 
     apply_opt_pass<prepare_padding>(output_size_handling_enabled);
 
