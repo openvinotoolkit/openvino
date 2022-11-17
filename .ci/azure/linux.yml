@@ -38,6 +38,9 @@ resources:
     name: openvinotoolkit/testdata
     ref: master
 
+variables:
+  - group: github
+
 jobs:
 - job: Lin
   strategy:
@@ -96,8 +99,21 @@ jobs:
     INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
     PY_VENV: $(WORK_DIR)/.venv
     PYTHON_VERSION: 3.10.7
+    LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/3.10.7/x64/lib:$LD_LIBRARY_PATH
 
   steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.10.7'
+      addToPath: false
+      architecture: 'x64'
+      githubToken: $(auth_token)
+    displayName: Setup Python 3.10
+    name: setupPython
+
+  - script: $(setupPython.pythonLocation)/bin/python3.10 --version
+    displayName: 'Check Python 3.10'
+
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
@@ -164,7 +180,7 @@ jobs:
       make python
       sudo make install
       export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
-      /usr/local/bin/python3.10 -m venv $(PY_VENV)
+      $(setupPython.pythonLocation)/bin/python3.10 -m venv $(PY_VENV)
       . $(PY_VENV)/bin/activate
       echo Python3 info ; which python3 ; python3 --version
       python3 --version

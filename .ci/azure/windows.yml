@@ -38,6 +38,9 @@ resources:
     name: openvinotoolkit/testdata
     ref: master
 
+variables:
+  - group: github
+
 jobs:
 - job: Win
   strategy:
@@ -81,6 +84,18 @@ jobs:
 
 
   steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.10.7'
+      addToPath: false
+      architecture: 'x64'
+      githubToken: $(auth)
+    displayName: Setup Python 3.10
+    name: setupPython
+
+  - script: $(setupPython.pythonLocation)\python.exe --version
+    displayName: 'Check Python 3.10'
+
   - script: |
       rd /Q /S $(WORK_DIR) & mkdir $(WORK_DIR)
       rd /Q /S $(BUILD_DIR) & mkdir $(BUILD_DIR)
@@ -89,24 +104,6 @@ jobs:
       rd /Q /S $(BUILD_SAMPLES_DIR) & mkdir $(BUILD_SAMPLES_DIR)
       rd /Q /S $(BUILD_SAMPLES_TESTS_DIR) & mkdir $(BUILD_SAMPLES_TESTS_DIR)
     displayName: 'Make dir'
-    
-  - script: curl -O https://www.python.org/ftp/python/3.10.7/python-3.10.7-amd64.exe
-    displayName: 'Download Python'
-    workingDirectory: $(WORK_DIR)
-    continueOnError: false
-  
-  - script: |
-      python-3.10.7-amd64.exe /passive InstallAllUsers=0 Include_launcher=0 TargetDir=C:\hostedtoolcache\windows\Python\3.10.7\x64
-      cp C:\hostedtoolcache\windows\Python\3.8.2\x64.complete C:\hostedtoolcache\windows\Python\3.10.7\x64.complete
-    displayName: 'Install Python'
-    workingDirectory: $(WORK_DIR)
-    continueOnError: false
-  
-  - task: UsePythonVersion@0
-    displayName: 'Use Python'
-    inputs:
-      versionSpec: '3.10.7'
-      disableDownloadFromRegistry: true
     
   - script: |
       powershell -command "Invoke-RestMethod -Headers @{\"Metadata\"=\"true\"} -Method GET -Uri http://169.254.169.254/metadata/instance/compute?api-version=2019-06-01 | format-custom"
