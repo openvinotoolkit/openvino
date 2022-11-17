@@ -20,7 +20,7 @@ jobs:
         id: cache_restore
         uses: actions/cache@v3
         with:
-          path: doxygen-build
+          path: .ccache
           key: doc-ccache-cache
 
       - name: Install ccache
