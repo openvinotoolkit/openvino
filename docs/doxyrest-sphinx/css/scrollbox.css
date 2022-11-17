@@ -1,7 +1,7 @@
 .scrollbox table {
    border-collapse: separate;
    border-spacing: 0;
-   display: table;
+   display: table!important;
    margin: 0px;
    width: 100%;
    height:inherit;
