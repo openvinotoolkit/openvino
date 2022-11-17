@@ -59,7 +59,7 @@ A single cell in the sequence is implemented in the same way as in <a href="#LST
 
 * **3**: `initial_cell_state` - 3D tensor of type *T1* `[batch_size, num_directions, hidden_size]`, input cell state data. **Required.**
 
-* **4**: `sequence_lengths` - 1D tensor of type *T2* `[batch_size]`, specifies real sequence lengths for each batch element. **Required.**
+* **4**: `sequence_lengths` - 1D tensor of type *T2* `[batch_size]`, specifies real sequence lengths for each batch element. In case of negative values in this input, the operation behavior is undefined. **Required.**
 
 * **5**: `W` - 3D tensor of type *T1* `[num_directions, 4 * hidden_size, input_size]`, the weights for matrix multiplication, gate order: fico. **Required.**
 

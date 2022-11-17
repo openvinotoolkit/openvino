@@ -20,6 +20,7 @@
 #include <transformations/common_optimizations/disable_random_uniform_constant_folding.hpp>
 #include <transformations/common_optimizations/disable_shapeof_constant_folding.hpp>
 #include <transformations/common_optimizations/divide_fusion.hpp>
+#include <transformations/common_optimizations/eliminate_duplicate_ti_inputs.hpp>
 #include <transformations/common_optimizations/eliminate_unsqueeze_gather.hpp>
 #include <transformations/common_optimizations/fold_subgraph_empty_inputs.hpp>
 #include <transformations/common_optimizations/fq_mul_fusion.hpp>
@@ -52,6 +53,7 @@
 #include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
 #include <transformations/common_optimizations/reshape_sequence_fusion.hpp>
 #include <transformations/common_optimizations/ric_fusion.hpp>
+#include <transformations/common_optimizations/sequence_fusion.hpp>
 #include <transformations/common_optimizations/shuffle_channels_fusion.hpp>
 #include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
 #include <transformations/common_optimizations/softmax_fusion.hpp>
@@ -70,6 +72,7 @@
 #include <transformations/op_conversions/convert_divide.hpp>
 #include <transformations/op_conversions/convert_negative.hpp>
 #include <transformations/op_conversions/convert_scatter_elements_to_scatter.hpp>
+#include <transformations/op_conversions/convert_ti_to_sequences.hpp>
 #include <transformations/smart_reshape/lstm_states_broadcast.hpp>
 #include <transformations/smart_reshape/reshape_sinking.hpp>
 
@@ -169,7 +172,11 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     common_fusions->add_matcher<ov::pass::GeluFusion>();
     common_fusions->add_matcher<ov::pass::LeakyReluFusion>();
     common_fusions->add_matcher<ov::pass::RandomUniformFusion>();
-    common_fusions->add_matcher<ov::pass::SplitConcatPairToInterpolateFusion>(m_use_shapes);
+    common_fusions->add_matcher<ov::pass::EliminateDuplicateTIInputs>();
+    common_fusions->add_matcher<ov::pass::GRUCellFusion>();
+    common_fusions->add_matcher<ov::pass::SequenceFusion>();
+    common_fusions->add_matcher<ngraph::pass::ConvertTensorIteratorToSequence>();
+    common_fusions->add_matcher<ngraph::pass::SplitConcatPairToInterpolateFusion>(m_use_shapes);
     if (m_use_shapes) {
         common_fusions->add_matcher<ov::pass::NearestNeighborUpsamplingFusion>();
     }

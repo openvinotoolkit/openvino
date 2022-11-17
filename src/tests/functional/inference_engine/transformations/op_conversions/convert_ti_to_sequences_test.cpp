@@ -21,6 +21,24 @@
 using namespace testing;
 using namespace ngraph;
 
+namespace {
+
+std::shared_ptr<ov::Node> create_seq_len(const std::shared_ptr<ov::Node>& X) {
+    auto shape_of = std::make_shared<opset5::ShapeOf>(X);
+    auto batch_dimension = std::make_shared<ngraph::opset5::Gather>(
+            shape_of,
+            ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {0}),
+            ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}));
+    auto seq_len_dim = std::make_shared<ngraph::opset5::Gather>(
+            shape_of,
+            ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {1}),
+            ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}));
+    auto seq_lengths = std::make_shared<opset5::Broadcast>(seq_len_dim, batch_dimension);
+    return seq_lengths;
+}
+
+} // namespace
+
 TEST(TransformationTests, ConvertTensorIteratorToLSTMSequence) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
@@ -95,7 +113,7 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequence) {
         auto in_1 = std::make_shared<ngraph::opset5::Unsqueeze>(Y, axis_1);
         auto in_2 = std::make_shared<ngraph::opset5::Unsqueeze>(Z, axis_1);
 
-        auto seq_lengths = ngraph::opset5::Constant::create(element::i32, Shape{1}, {2});
+        auto seq_lengths = create_seq_len(X);
         auto lstm_seq = std::make_shared<opset5::LSTMSequence>(X, in_1, in_2, seq_lengths, W, R, B, 128, op::RecurrentSequenceDirection::FORWARD);
         auto axis_out = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto out_0 = std::make_shared<ngraph::opset5::Squeeze>(lstm_seq->output(0), axis_out);
@@ -176,12 +194,8 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequenceDynamicReshapeCase)
         auto in_1 = std::make_shared<ngraph::opset5::Unsqueeze>(Y, axis_1);
         auto in_2 = std::make_shared<ngraph::opset5::Unsqueeze>(Z, axis_1);
 
-        auto shape_of = std::make_shared<opset5::ShapeOf>(X);
-        auto batch_dimension = ngraph::op::util::make_try_fold<ngraph::opset7::Gather>(
-            shape_of,
-            ngraph::opset5::Constant::create(ngraph::element::i64, { 1 }, { 0 }),
-            ngraph::opset5::Constant::create(ngraph::element::i64, {}, { 0 }));
-        auto seq_lengths = std::make_shared<opset5::Broadcast>(ngraph::opset5::Constant::create(element::i32, Shape{}, { 2 }), batch_dimension);
+
+        auto seq_lengths = create_seq_len(X);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
@@ -263,14 +277,7 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequenceDynamicSqueezeCase)
         auto in_1 = std::make_shared<ngraph::opset5::Unsqueeze>(Y, axis_1);
         auto in_2 = std::make_shared<ngraph::opset5::Unsqueeze>(Z, axis_1);
 
-        auto shape_of = std::make_shared<opset5::ShapeOf>(X);
-        auto batch_dimension = ngraph::op::util::make_try_fold<ngraph::opset7::Gather>(
-            shape_of,
-            ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {0}),
-            ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}));
-        auto seq_lengths =
-            std::make_shared<opset5::Broadcast>(ngraph::opset5::Constant::create(element::i32, Shape{}, {2}),
-                                                batch_dimension);
+        auto seq_lengths = create_seq_len(X);
 
         auto w_val = std::vector<float>(512 * 16, 0);
         auto r_val = std::vector<float>(512 * 128, 0);
@@ -361,7 +368,7 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequence) {
         auto axis_1 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto in_1 = std::make_shared<ngraph::opset5::Unsqueeze>(Y, axis_1);
 
-        auto seq_lengths = ngraph::opset5::Constant::create(element::i32, Shape{1}, {2});
+        auto seq_lengths = create_seq_len(X);
         auto rnn_sequence = std::make_shared<opset5::RNNSequence>(X, in_1, seq_lengths, W, R, B, 128, op::RecurrentSequenceDirection::FORWARD);
         auto axis_out = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto out_0 = std::make_shared<ngraph::opset5::Squeeze>(rnn_sequence->output(0), axis_out);
@@ -434,12 +441,7 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequenceDynamicReshapeCase) 
         auto axis_1 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
         auto in_1 = std::make_shared<ngraph::opset5::Unsqueeze>(Y, axis_1);
 
-        auto shape_of = std::make_shared<opset5::ShapeOf>(X);
-        auto batch_dimension = ngraph::op::util::make_try_fold<ngraph::opset7::Gather>(
-            shape_of,
-            ngraph::opset5::Constant::create(ngraph::element::i64, { 1 }, { 0 }),
-            ngraph::opset5::Constant::create(ngraph::element::i64, {}, { 0 }));
-        auto seq_lengths = std::make_shared<opset5::Broadcast>(ngraph::opset5::Constant::create(element::i32, Shape{}, { 2 }), batch_dimension);
+        auto seq_lengths = create_seq_len(X);
 
         auto rnn_sequence = std::make_shared<opset5::RNNSequence>(X, in_1, seq_lengths, W, R, B, 128, op::RecurrentSequenceDirection::FORWARD);
         auto axis_out = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
@@ -513,15 +515,7 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequenceDynamicSqueezeCase) 
         auto axis_1 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto in_1 = std::make_shared<ngraph::opset5::Unsqueeze>(Y, axis_1);
 
-        auto shape_of = std::make_shared<opset5::ShapeOf>(X);
-        auto batch_dimension = ngraph::op::util::make_try_fold<ngraph::opset7::Gather>(
-            shape_of,
-            ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {0}),
-            ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}));
-        auto seq_lengths =
-            std::make_shared<opset5::Broadcast>(ngraph::opset5::Constant::create(element::i32, Shape{}, {2}),
-                                                batch_dimension);
-
+        auto seq_lengths = create_seq_len(X);
         auto rnn_sequence = std::make_shared<opset5::RNNSequence>(X,
                                                                   in_1,
                                                                   seq_lengths,
@@ -601,7 +595,7 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequence) {
         auto R = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 384, 128 }, r_val);
         auto B = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 384 }, b_val);
 
-        auto seq_lengths = ngraph::opset5::Constant::create(element::i32, Shape{1}, {2});
+        auto seq_lengths = create_seq_len(X);
         auto gru_sequence = std::make_shared<opset5::GRUSequence>(X, in_1, seq_lengths, W, R, B, 128, op::RecurrentSequenceDirection::FORWARD);
         auto axis_out = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto out_0 = std::make_shared<ngraph::opset5::Squeeze>(gru_sequence->output(0), axis_out);
@@ -674,12 +668,7 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequenceDynamicReshapeCase) 
         auto R = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 384, 128 }, r_val);
         auto B = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 384 }, b_val);
 
-        auto shape_of = std::make_shared<opset5::ShapeOf>(X);
-        auto batch_dimension = ngraph::op::util::make_try_fold<ngraph::opset7::Gather>(
-            shape_of,
-            ngraph::opset5::Constant::create(ngraph::element::i64, { 1 }, { 0 }),
-            ngraph::opset5::Constant::create(ngraph::element::i64, {}, { 0 }));
-        auto seq_lengths = std::make_shared<opset5::Broadcast>(ngraph::opset5::Constant::create(element::i32, Shape{}, { 2 }), batch_dimension);
+        auto seq_lengths = create_seq_len(X);
 
         auto gru_sequence = std::make_shared<opset5::GRUSequence>(X, in_1, seq_lengths, W, R, B, 128, op::RecurrentSequenceDirection::FORWARD);
         auto axis_out = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
@@ -753,14 +742,7 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequenceDynamicSqueezeCase) 
         auto R = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{1, 384, 128}, r_val);
         auto B = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{1, 384}, b_val);
 
-        auto shape_of = std::make_shared<opset5::ShapeOf>(X);
-        auto batch_dimension = ngraph::op::util::make_try_fold<ngraph::opset7::Gather>(
-            shape_of,
-            ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {0}),
-            ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}));
-        auto seq_lengths =
-            std::make_shared<opset5::Broadcast>(ngraph::opset5::Constant::create(element::i32, Shape{}, {2}),
-                                                batch_dimension);
+        auto seq_lengths = create_seq_len(X);
 
         auto gru_sequence = std::make_shared<opset5::GRUSequence>(X,
                                                                   in_1,
