@@ -45,8 +45,8 @@ class typed_primitive_inst;
 */
 struct primitive_impl {
     primitive_impl() = default;
-    explicit primitive_impl(const kernel_selector::weights_reorder_params& params, std::string kernel_name = "")
-        : _weights_reorder_params(params), _kernel_name(kernel_name) {}
+    explicit primitive_impl(const kernel_selector::weights_reorder_params& params, std::string kernel_name = "", bool is_dynamic = false)
+        : _weights_reorder_params(params), _kernel_name(kernel_name), _is_dynamic(is_dynamic) {}
     virtual ~primitive_impl() = default;
 
     virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
@@ -76,8 +76,17 @@ struct primitive_impl {
     // If this flag is set as false, the memory allocated for this primitive is not allowed to be reused
     bool can_reuse_memory = true;
 
+    void set_dynamic(bool val) { _is_dynamic = val; }
+    bool is_dynamic() const { return _is_dynamic; }
+
+    virtual void update_dispatch_data(const kernel_impl_params& impl_params) {
+        OPENVINO_ASSERT(_is_dynamic, "[GPU] update_dispatch_data is called for static shape implementation ", _kernel_name);
+        OPENVINO_ASSERT(false, "[GPU] update_dispatch_data is not implemented for dynamic implemenation ", _kernel_name);
+    }
+
 protected:
     std::string _kernel_name;
+    bool _is_dynamic = false;
 };
 
 /*
@@ -154,6 +163,8 @@ public:
         return dep_memory_ptr(index);
     }
 
+    memory::ptr shape_info_memory_ptr() const { return _shape_info_memory; }
+
     event::ptr execute(const std::vector<event::ptr>& events);
     void init_kernels(const kernels_cache& kernels_cache) {
         _impl->init_kernels(kernels_cache);
@@ -229,6 +240,7 @@ protected:
 
     std::unique_ptr<kernel_impl_params> _impl_params;
     std::unique_ptr<primitive_impl> _impl;
+    std::unique_ptr<primitive_impl> _dynamic_impl = nullptr;
 
     // this is a set of dependencies in terms of memory, if execution of this primitive requires data from another one,
     // it should be added to this set
@@ -258,6 +270,9 @@ protected:
 
     std::vector<memory::cptr> _intermediates_memory;
 
+    // Buffer to store actual shapes of dynamic tensor which is automatically asigned as 1st argument to shape agnostic kernels
+    memory::ptr _shape_info_memory = nullptr;
+
     bool _output_changed;  // todo: implement output reuse if neither of inputs has changed
     bool _shape_changed = false;
     bool _has_valid_input =
@@ -280,7 +295,7 @@ protected:
 
     size_t max_output_layout_size = 0;
 
-    std::vector<memory::ptr> allocate_outputs();
+    std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr);
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
         std::vector<std::shared_ptr<primitive_inst>> const& mem_deps);
     void convert_args(const kernel_arguments_data& args, kernel_arguments_data_idx& args_idx) const;

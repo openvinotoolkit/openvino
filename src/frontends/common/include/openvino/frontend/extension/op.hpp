@@ -21,26 +21,11 @@ namespace frontend {
 /// operations from provided opset by name.
 /// \param opset_name Opset name (opsetN) to initialize OpSet class.
 inline const ov::OpSet& get_opset_by_name(const std::string& opset_name) {
-    if (opset_name == "opset1") {
-        return ov::get_opset1();
-    } else if (opset_name == "opset2") {
-        return ov::get_opset2();
-    } else if (opset_name == "opset3") {
-        return ov::get_opset3();
-    } else if (opset_name == "opset4") {
-        return ov::get_opset4();
-    } else if (opset_name == "opset5") {
-        return ov::get_opset5();
-    } else if (opset_name == "opset6") {
-        return ov::get_opset6();
-    } else if (opset_name == "opset7") {
-        return ov::get_opset7();
-    } else if (opset_name == "opset8") {
-        return ov::get_opset8();
-    } else if (opset_name == "opset9") {
-        return ov::get_opset9();
-    } else if (opset_name.empty() || opset_name == "latest") {
-        return ov::get_opset9();
+    const auto& opsets = ov::get_available_opsets();
+    if (opsets.find(opset_name) != opsets.end())
+        return opsets.at(opset_name)();
+    if (opset_name.empty() || opset_name == "latest") {
+        return ov::get_opset10();
     } else {
         FRONT_END_GENERAL_CHECK(false, "Unsupported opset name: ", opset_name);
     }
