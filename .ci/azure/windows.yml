@@ -76,7 +76,6 @@ jobs:
     SETUPVARS: $(INSTALL_DIR)\setupvars.bat
     IB_DIR: C:\Program Files (x86)\IncrediBuild
     IB_TESTCONSOLE: $(IB_DIR)\IBTestConsole.exe
-    PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.10.7\x64
     CMAKE_VERSION: 3.24.0
     CMAKE_CMD: $(WORK_DIR)\cmake-$(CMAKE_VERSION)-windows-x86_64\cmake-$(CMAKE_VERSION)-windows-x86_64\bin\cmake.exe
     OV_CMAKE_TOOLCHAIN_FILE: $(REPO_DIR)\cmake\toolchains\mt.runtime.win32.toolchain.cmake
@@ -86,7 +85,7 @@ jobs:
   steps:
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: '3.10.7'
+      versionSpec: '3.10'
       addToPath: false
       architecture: 'x64'
       githubToken: $(auth_token)
