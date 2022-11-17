@@ -497,11 +497,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_cpu",
     ),
     (
-        xfail_issue_91152,
-        "OnnxBackendNodeModelTest.test_quantizelinear_cpu",
-        "OnnxBackendNodeModelTest.test_dequantizelinear_cpu",
-    ),
-    (
         xfail_unsupported_by_legacy_api,
         "OnnxBackendNodeModelTest.test_blackmanwindow_expanded_cpu",
         "OnnxBackendNodeModelTest.test_blackmanwindow_symmetric_expanded_cpu",
