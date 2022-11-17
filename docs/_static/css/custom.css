@@ -60,6 +60,29 @@ code {
     height: 500px;
     padding:0;
 }
+/* Table properties - override */
+
+@media (max-width: 1024px) {
+    table.table tbody p {
+        font-size:0.8rem!important;
+    }
+ }
+ 
+ table.table {
+    table-layout: fixed!important;
+ }
+
+
+/* Table Sort Button - override */
+
+.sort-btn {
+    display: block!important;
+    top:-0.2rem!important;
+}
+
+th.sort-header {
+    padding-bottom: 0px!important;
+ }
 
 /* Table Sort Button */
 
@@ -91,12 +114,6 @@ code {
 
 .sort-btn.sort-active {
     background-image: url('media/union-up.svg');
-}
-
-/* Table Sort Button - display override*/
-
-.sort-btn {
-    display: block!important;
 }
 
 div.highlight {
