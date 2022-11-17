@@ -12,7 +12,7 @@ namespace {
 template <typename T>
 typename std::enable_if<std::is_floating_point<T>::value, testing::AssertionResult>::type
 compare_values(const ov::Tensor& expected, const ov::Tensor& result, const size_t tolerance_bits) {
-    return ngraph::test::all_close_f(expected, result, tolerance_bits);
+    return ngraph::test::all_close_f(expected, result, static_cast<int>(tolerance_bits));
 }
 
 testing::AssertionResult compare_with_fp_tolerance(const ov::Tensor& expected_tensor,
@@ -62,7 +62,7 @@ compare_values(const ov::Tensor& expected_tensor, const ov::Tensor& result_tenso
         result_double[i] = static_cast<double>(result[i]);
     }
 
-    return ngraph::test::all_close_f(expected_double, result_double, tolerance_bits);
+    return ngraph::test::all_close_f(expected_double, result_double, static_cast<int>(tolerance_bits));
 }
 };  // namespace
 

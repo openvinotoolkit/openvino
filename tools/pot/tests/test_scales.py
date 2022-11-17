@@ -4,32 +4,22 @@
 import json
 import os
 
-from copy import deepcopy
 import numpy as np
 import pytest
 from addict import Dict
 
+from openvino.tools.pot import DataLoader
 from openvino.tools.pot.algorithms.algorithm_selector import COMPRESSION_ALGORITHMS
 from openvino.tools.pot.engines.ac_engine import ACEngine
+from openvino.tools.pot.engines.simplified_engine import SimplifiedEngine
 from openvino.tools.pot.graph import load_model
 from openvino.tools.pot.graph.node_utils import get_node_inputs, get_node_input, get_node_value
 from openvino.tools.pot.graph import model_utils as mu
 from openvino.tools.pot.statistics.collector import StatisticsCollector
+from .utils.data_helper import dump_intermediate_data, load_json
 
 
 EPS = 1e-6
-
-class NumpyEncoder(json.JSONEncoder):
-    """ Special json encoder for numpy types """
-    # pylint: disable=W0221, E0202
-    def default(self, o):
-        if isinstance(o, np.integer):
-            return int(o)
-        if isinstance(o, np.floating):
-            return float(o)
-        if isinstance(o, np.ndarray):
-            return o.tolist()
-        return json.JSONEncoder.default(self, o)
 
 
 def get_fq_nodes_stats_algo(model, preset, bits, is_weights, clipping_value=None):
@@ -87,11 +77,6 @@ def get_fq_nodes_stats_algo(model, preset, bits, is_weights, clipping_value=None
     return out
 
 
-def get_ref_stats(stats_path):
-    with open(stats_path) as json_file:
-        return json.load(json_file)
-
-
 CONFIGURATIONS = [('performance', 8,
                    os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                 './data/reference_scale/mobilenet-v2-pytorch_performance_activations.json'), None),
@@ -125,11 +110,11 @@ def test_activation_scales(tmp_path, models, preset, bits, stats_path, clipping_
 
     model = models.get('mobilenet-v2-pytorch', 'pytorch', tmp_path)
 
-    ref_nodes = get_ref_stats(stats_path)
+    ref_nodes = load_json(stats_path)
     nodes = normalize(get_fq_nodes_stats_algo(model, preset, bits, False,
                                               clipping_value=clipping_value))
     local_path = os.path.join(tmp_path, '{}.json'.format(stats_path.split("_")[-2]))
-    dump_intermediate_scales(local_path, nodes)
+    dump_intermediate_data(local_path, nodes)
 
     assert len(ref_nodes) == len(nodes)
     processed_nodes = []
@@ -152,10 +137,10 @@ def test_weights_scales(tmp_path, models):
                                    './data/reference_scale/mobilenet-v2-pytorch_weights.json')
 
     model = models.get('mobilenet-v2-pytorch', 'pytorch', tmp_path)
-    ref_weights = get_ref_stats(path_to_weights)
+    ref_weights = load_json(path_to_weights)
     weights = get_fq_nodes_stats_algo(model, False, 8, True)
     local_path = os.path.join(tmp_path, '{}.json'.format('mv2_weights'))
-    dump_intermediate_scales(local_path, weights)
+    dump_intermediate_data(local_path, weights)
 
     for fq_name in weights:
         item_min, item_max = weights[fq_name]['low_level'], weights[fq_name]['high_level']
@@ -176,9 +161,55 @@ def test_weights_scales(tmp_path, models):
         assert assert_flag
 
 
-def load_refs(path_to_refs):
-    with open(path_to_refs) as json_file:
-        return json.load(json_file)
+def make_list(x):
+    if isinstance(x, np.ndarray):
+        x = x.tolist()
+    if isinstance(x, list):
+        return x
+    return [x]
+
+
+def calculate_statistics(model, compression_config, engine):
+    algo = COMPRESSION_ALGORITHMS.get('MinMaxQuantization')(compression_config, engine)
+    stats_collector = StatisticsCollector(engine)
+    algo.register_statistics(model, stats_collector)
+    stats_collector.compute_statistics(model)
+    return algo.run(model)
+
+
+def aggregate_fq_statistics(fq_list):
+    model_values = {}
+    for fq in sorted(fq_list, key=lambda item: item.name):
+        min_levels, max_levels = tuple([get_node_value(node)
+                                        for node in get_node_inputs(fq)[1:3]])
+        fq_name = fq.fullname
+        if get_node_input(fq, 0).type == 'Const':
+            min_levels = min_levels.reshape(min_levels.shape[0])
+            max_levels = max_levels.reshape(max_levels.shape[0])
+        else:
+            if not min_levels.shape and not max_levels.shape:
+                pass
+            else:
+                min_levels = min_levels.reshape(min_levels.shape[1])
+                max_levels = max_levels.reshape(max_levels.shape[1])
+
+        min_levels = make_list(min_levels)
+        max_levels = make_list(max_levels)
+        model_values[fq_name] = {'max': max_levels, 'min': min_levels}
+    return model_values
+
+
+def compare_min_max_values(model_values, refs):
+    for ref_name in refs:
+        refs_min_levels = make_list(refs[ref_name]['min'])
+        refs_max_levels = make_list(refs[ref_name]['max'])
+        min_levels = model_values[ref_name]['min']
+        max_levels = model_values[ref_name]['max']
+
+        for min_level, max_level, ref_min, ref_max in zip(
+                min_levels, max_levels, refs_min_levels, refs_max_levels):
+            assert abs(min_level - ref_min) < EPS
+            assert abs(max_level - ref_max) < EPS
 
 
 CONFIGURATIONS = [
@@ -233,69 +264,92 @@ def test_fake_quantize_configurations(tmp_path, models, model_name, model_framew
         }
     })
 
-    def _make_list(x):
-        if isinstance(x, np.ndarray):
-            x = x.tolist()
-        if isinstance(x, list):
-            return x
-        return [x]
-
     engine = ACEngine(config)
     compression_config.subset_indices = [0]
-    algo = COMPRESSION_ALGORITHMS.get('MinMaxQuantization')(compression_config, engine)
     model = models.get(model_name, model_framework, tmp_path)
     model = load_model(model.model_params)
 
-    stats_collector = StatisticsCollector(engine)
-    algo.register_statistics(model, stats_collector)
-    stats_collector.compute_statistics(model)
-
-    model = algo.run(model)
+    model_with_stats = calculate_statistics(model, compression_config, engine)
+    fq_list = mu.get_nodes_by_type(model_with_stats, ['FakeQuantize'])
+    model_values = aggregate_fq_statistics(fq_list)
 
     refs_path = os.path.join(REFERENCES_DIR, '{}_{}.json'.format(model_name, algo_mode))
     local_path = os.path.join(tmp_path, '{}.json'.format(model_name))
-
     ref_exists = os.path.isfile(refs_path)
-
-    refs = load_refs(refs_path) if ref_exists else {}
-    ref_file = None if ref_exists else open(refs_path, 'w')
+    refs = load_json(refs_path) if ref_exists else {}
     local_file = open(local_path, 'w')
-    model_values = {}
-
-    fq_list = mu.get_nodes_by_type(model, ['FakeQuantize'])
-    for fq in sorted(fq_list, key=lambda item: item.name):
-        min_levels, max_levels = tuple([get_node_value(node)
-                                        for node in get_node_inputs(fq)[1:3]])
-        fq_name = fq.name
-        if get_node_input(fq, 0).type == 'Const':
-            min_levels = min_levels.reshape(min_levels.shape[0])
-            max_levels = max_levels.reshape(max_levels.shape[0])
-        else:
-            if not min_levels.shape and not max_levels.shape:
-                pass
-            else:
-                min_levels = min_levels.reshape(min_levels.shape[1])
-                max_levels = max_levels.reshape(max_levels.shape[1])
-
-        min_levels = _make_list(min_levels)
-        max_levels = _make_list(max_levels)
-        model_values[fq_name] = {'max': max_levels, 'min': min_levels}
 
     if not ref_exists:
+        ref_file = open(refs_path, 'w')
         json.dump(model_values, ref_file)
         return
     json.dump(model_values, local_file)
 
-    for ref_name in refs:
-        refs_min_levels = _make_list(refs[ref_name]['min'])
-        refs_max_levels = _make_list(refs[ref_name]['max'])
-        min_levels = model_values[ref_name]['min']
-        max_levels = model_values[ref_name]['max']
+    compare_min_max_values(model_values, refs)
 
-        for min_level, max_level, ref_min, ref_max in zip(
-                min_levels, max_levels, refs_min_levels, refs_max_levels):
-            assert abs(min_level - ref_min) < EPS
-            assert abs(max_level - ref_max) < EPS
+
+MATMUL_MODELS = [
+    ('matmul_3_in_slice', 'pytorch',
+     {'onnx::Concat_0': [5, 10], 'onnx::Concat_1': [5, 2], 'onnx::Concat_2': [5, 10]}),
+    ('matmul_3_in_cat', 'pytorch',
+     {'onnx::Concat_0': [5, 10], 'onnx::Concat_1': [5, 2], 'onnx::Concat_2': [5, 10]}),
+    ('matmul_3_in_agnostic', 'pytorch',
+     {'onnx::Concat_0': [5, 10], 'onnx::Concat_1': [5, 2], 'onnx::Transpose_2': [5, 10]}),
+    ('matmul_1_in_split', 'pytorch',
+     {'onnx::Squeeze_0': [1, 3, 224, 224]}),
+]
+
+
+class RandomDataLoader(DataLoader):
+    """ Generate random float32 data """
+    def __init__(self, shapes, seed=0):
+        self.rng = np.random.default_rng(seed)
+        data = {}
+        for i, (name, shape) in enumerate(shapes.items()):
+            data[name] = self.rng.uniform(-1 + 5 * i, 1 + 5 * i, shape)
+        self._data = [data]
+
+    def __len__(self):
+        return 1
+
+    def __getitem__(self, index):
+        return self._data[index]
+
+
+@pytest.mark.parametrize(
+    'model_name, model_framework, input_shapes', MATMUL_MODELS,
+    ids=['{}_{}'.format(m[0], m[1]) for m in MATMUL_MODELS]
+)
+def test_matmul_scale_unification(tmp_path, models, model_name, model_framework, input_shapes):
+    model = models.get(model_name, model_framework, tmp_path)
+    model = load_model(model.model_params)
+
+    compression_config = Dict({
+        'name': 'DefaultQuantization',
+        'stat_subset_size': 1,
+        'target_device': 'CPU',
+    })
+
+    data_loader = RandomDataLoader(input_shapes)
+    engine = SimplifiedEngine({"device": "CPU"}, data_loader=data_loader)
+    model_with_stats = calculate_statistics(model, compression_config, engine)
+
+    fq_list = mu.get_nodes_by_type(model_with_stats, ['FakeQuantize'])
+    model_values = aggregate_fq_statistics(fq_list)
+
+    refs_path = os.path.join(REFERENCES_DIR, f'{model_name}.json')
+    local_path = os.path.join(tmp_path, f'{model_name}.json')
+    ref_exists = os.path.isfile(refs_path)
+    refs = load_json(refs_path) if ref_exists else {}
+    local_file = open(local_path, 'w')
+
+    if not ref_exists:
+        ref_file = open(refs_path, 'w')
+        json.dump(model_values, ref_file)
+        return
+    json.dump(model_values, local_file)
+
+    compare_min_max_values(model_values, refs)
 
 
 def _get_pytorch_accuracy_checker_config(path_to_dataset):
@@ -359,9 +413,3 @@ def _get_tf_accuracy_checker_config(path_to_dataset):
                             }]
                 }
             ]}]})
-
-
-def dump_intermediate_scales(local_path, data):
-    data = json.dumps(deepcopy(data), cls=NumpyEncoder)
-    local_file = open(local_path, 'w')
-    json.dump(data, local_file)

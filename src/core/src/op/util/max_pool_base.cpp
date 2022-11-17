@@ -29,7 +29,7 @@ ov::op::util::MaxPoolBase::MaxPoolBase(const Output<Node>& arg,
 }
 
 void ov::op::util::MaxPoolBase::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(util_MaxPoolBase_validate_and_infer_types);
+    OV_OP_SCOPE(util_MaxPoolBase_validate_and_infer_types);
 
     if (0 == m_strides.size()) {
         m_strides = Strides(m_kernel.size(), 1);
@@ -73,7 +73,7 @@ void ov::op::util::MaxPoolBase::validate_and_infer_types() {
 }
 
 ov::PartialShape ov::op::util::MaxPoolBase::infer_output_shape(const Strides& dilations) {
-    NGRAPH_OP_SCOPE(util_MaxPoolBase_infer_output_shape);
+    OV_OP_SCOPE(util_MaxPoolBase_infer_output_shape);
 
     const auto& arg_shape = get_input_partial_shape(0);
 

@@ -13,7 +13,7 @@ namespace reference {
 template <typename T>
 void exp(const T* arg, T* out, size_t count) {
     for (size_t i = 0; i < count; i++) {
-        out[i] = std::exp(arg[i]);
+        out[i] = static_cast<T>(std::exp(arg[i]));
     }
 }
 }  // namespace reference

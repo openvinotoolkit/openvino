@@ -177,7 +177,10 @@ Check if `myd_ion` kernel module is installed by running the following command:
 ```sh
 lsmod | grep myd_ion
 ```
-If you do not see any output from the command, reinstall the `myd_ion` module.
+If you do not see any output from the command, you can use the following command to reinstall the `myd_ion` module:
+```sh
+sudo modprobe myd_ion
+```
 
 ---
 ### Constantly getting "\_name\_mapping open failed err=2,No such file or directory" in hddldaemon log
@@ -186,7 +189,10 @@ Check if myd_vsc kernel module is installed by running the following command:
 ```sh
 lsmod | grep myd_vsc
 ```
-If you do not see any output from the command reinstall the `myd_vsc` module.
+If you do not see any output from the command, you can use the following command to reinstall the `myd_vsc` module:
+```sh
+sudo modprobe myd_vsc
+``` 
 
 ---
 ### "Required key not available" appears when trying to install the myd_ion or myd_vsc modules

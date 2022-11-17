@@ -33,7 +33,7 @@ else()
     find_package(PkgConfig QUIET)
     if(PkgConfig_FOUND AND NOT ANDROID)
         pkg_search_module(libusb REQUIRED
-                          IMPORTED_TARGET GLOBAL
+                          IMPORTED_TARGET
                           libusb-1.0)
         if(libusb_FOUND)
             set(LIBUSB_LIBRARY "PkgConfig::libusb" CACHE STRING "libusb-1.0 imported target")

@@ -144,7 +144,9 @@ void SubgraphBaseTest::query_model() {
     for (auto&& res : queryNetworkResult) {
         actual.insert(res.first);
     }
-    ASSERT_EQ(expected, actual);
+    if (expected != actual) {
+        IE_THROW() << "Expected and actual are different";
+    }
 }
 
 void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
@@ -164,6 +166,7 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
                 }
             }
             auto it = compareMap.find(inputNode->get_type_info());
+            ASSERT_NE(it, compareMap.end());
             it->second(inputNode, i, expected[j], actual[j], abs_threshold, rel_threshold);
         }
     }
@@ -200,9 +203,11 @@ void SubgraphBaseTest::compile_model() {
     }
 
     // Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
-    if (targetDevice == CommonTestUtils::DEVICE_CPU && !configuration.count(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16)) {
-        configuration.insert({InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
-    }
+    #if !(defined(__arm__) || defined(_M_ARM) || defined(__aarch64__) || defined(_M_ARM64))
+        if (targetDevice == CommonTestUtils::DEVICE_CPU && !configuration.count(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16)) {
+                configuration.insert({InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
+        }
+    #endif
 
     compiledModel = core->compile_model(function, targetDevice, configuration);
 }
@@ -228,6 +233,7 @@ void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInput
                     }
                 }
                 auto it = inputMap.find(nodePtr->get_type_info());
+                ASSERT_NE(it, inputMap.end());
                 for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
                     if (nodePtr->get_input_node_ptr(port)->shared_from_this() == inputNode->shared_from_this()) {
                         inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), *itTargetShape++)});

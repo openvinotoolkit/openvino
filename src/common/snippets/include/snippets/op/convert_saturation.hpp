@@ -24,6 +24,7 @@ namespace op {
 class ConvertSaturation : public ov::op::v0::Convert {
 public:
     OPENVINO_OP("ConvertSaturation", "SnippetsOpset", ov::op::v0::Convert);
+    BWDCMP_RTTI_DECLARATION;
 
     ConvertSaturation(const Output<Node>& x, const ov::element::Type& destination_type);
     ConvertSaturation() = default;

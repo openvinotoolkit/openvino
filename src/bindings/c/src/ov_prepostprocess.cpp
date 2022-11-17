@@ -151,6 +151,77 @@ ov_status_e ov_preprocess_preprocess_steps_resize(ov_preprocess_preprocess_steps
     return ov_status_e::OK;
 }
 
+ov_status_e ov_preprocess_preprocess_steps_scale(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+                                                 float value) {
+    if (!preprocess_input_process_steps) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        preprocess_input_process_steps->object->scale(value);
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_preprocess_preprocess_steps_mean(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+                                                float value) {
+    if (!preprocess_input_process_steps) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        preprocess_input_process_steps->object->mean(value);
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_preprocess_preprocess_steps_crop(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+                                                int32_t* begin,
+                                                int32_t begin_size,
+                                                int32_t* end,
+                                                int32_t end_size) {
+    if (!preprocess_input_process_steps) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        std::vector<int32_t> vec_begin(begin, begin + begin_size);
+        std::vector<int32_t> vec_end(end, end + end_size);
+        preprocess_input_process_steps->object->crop(vec_begin, vec_end);
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_preprocess_preprocess_steps_convert_layout(
+    ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+    ov_layout_t* layout) {
+    if (!preprocess_input_process_steps || !layout) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        preprocess_input_process_steps->object->convert_layout(layout->object);
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_preprocess_preprocess_steps_reverse_channels(
+    ov_preprocess_preprocess_steps_t* preprocess_input_process_steps) {
+    if (!preprocess_input_process_steps) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        preprocess_input_process_steps->object->reverse_channels();
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
 ov_status_e ov_preprocess_input_tensor_info_set_element_type(
     ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
     const ov_element_type_e element_type) {
@@ -303,7 +374,7 @@ void ov_preprocess_output_info_free(ov_preprocess_output_info_t* preprocess_outp
 }
 
 ov_status_e ov_preprocess_output_info_get_tensor_info(
-    ov_preprocess_output_info_t* preprocess_output_info,
+    const ov_preprocess_output_info_t* preprocess_output_info,
     ov_preprocess_output_tensor_info_t** preprocess_output_tensor_info) {
     if (!preprocess_output_info || !preprocess_output_tensor_info) {
         return ov_status_e::INVALID_C_PARAM;
@@ -337,7 +408,7 @@ ov_status_e ov_preprocess_output_set_element_type(ov_preprocess_output_tensor_in
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_input_info_get_model_info(ov_preprocess_input_info_t* preprocess_input_info,
+ov_status_e ov_preprocess_input_info_get_model_info(const ov_preprocess_input_info_t* preprocess_input_info,
                                                     ov_preprocess_input_model_info_t** preprocess_input_model_info) {
     if (!preprocess_input_info || !preprocess_input_model_info) {
         return ov_status_e::INVALID_C_PARAM;

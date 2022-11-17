@@ -97,27 +97,31 @@ cldnn::device_info Plugin::GetDeviceInfo(const std::map<std::string, std::string
     return device_info;
 }
 
+void Plugin::TransformNetwork(std::shared_ptr<ov::Model>& model, const Config& config) const {
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::TransformNetwork");
+    auto deviceInfo = GetDeviceInfo(config.key_config_map);
+    TransformationsPipeline transformations(config, deviceInfo);
+    transformations.apply(model);
+}
+
 InferenceEngine::CNNNetwork Plugin::CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,
                                                              const Config& config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::CloneAndTransformNetwork");
     CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
 
-    if (clonedNetwork.getFunction()) {
-        auto nGraphFunc = clonedNetwork.getFunction();
-        auto deviceInfo = GetDeviceInfo(config.key_config_map);
-        TransformationsPipeline transformations(config, deviceInfo);
-        transformations.apply(nGraphFunc);
+    auto nGraphFunc = clonedNetwork.getFunction();
+    if (nGraphFunc) {
+        TransformNetwork(nGraphFunc, config);
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
+            auto path_base = debug_config->dump_graphs + "/" + network.getName() + "_" +  "transformed_func";
+            ov::pass::Serialize(path_base + ".xml", path_base + ".bin").run_on_model(nGraphFunc);
     }
-
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
-        auto path_base = debug_config->dump_graphs + "/" + network.getName() + "_" +  "transformed_func";
-        ov::pass::Serialize(path_base + ".xml", path_base + ".bin").run_on_model(clonedNetwork.getFunction());
     }
     return clonedNetwork;
 }
 
-Plugin::Plugin() : m_defaultContext(nullptr) {
+Plugin::Plugin() : m_defaultContexts({}) {
     _pluginName = "GPU";
     _impl = std::make_shared<impl>();
     RegisterPrimitives();
@@ -157,6 +161,12 @@ Plugin::Plugin() : m_defaultContext(nullptr) {
     config_path += "/cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml";
     for (auto& config : _impl->m_configs) {
         CustomLayer::LoadFromFile(config_path, config.second.customLayers, true);
+    }
+
+    if (const char* env_p = std::getenv("OV_GPU_CACHE_MODEL")) {
+        if (env_p[0] == '1') {
+            isModelCachingEnabled = true;
+        }
     }
 }
 
@@ -244,7 +254,7 @@ std::map<std::string, std::string> Plugin::ConvertPerfHintsToConfig(
 }
 
 IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
-                                                                const std::map<std::string, std::string> &orig_config) {
+                                                           const std::map<std::string, std::string> &orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::LoadExeNetworkImpl");
     // verification of supported input
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
@@ -260,37 +270,20 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     RemoteCLContext::Ptr context;
 
     auto canReuseDefaultContext = [&]() -> bool {
-        if (m_defaultContext == nullptr)
+        if (m_defaultContexts.find(conf.device_id) == m_defaultContexts.end())
             return false;
 
-        const Config& context_config = m_defaultContext->GetConfig();
-        const Config& current_config = conf;
-
-        return context_config.throughput_streams == current_config.throughput_streams &&
-               context_config.useProfiling == current_config.useProfiling &&
-               context_config.dumpCustomKernels == current_config.dumpCustomKernels &&
-               context_config.memory_pool_on == current_config.memory_pool_on &&
-               context_config.queueThrottle == current_config.queueThrottle &&
-               context_config.queuePriority == current_config.queuePriority &&
-               context_config.sources_dumps_dir == current_config.sources_dumps_dir &&
-               context_config.tuningConfig.mode == current_config.tuningConfig.mode &&
-               context_config.tuningConfig.cache_file_path == current_config.tuningConfig.cache_file_path &&
-               context_config.kernels_cache_dir == current_config.kernels_cache_dir &&
-               context_config.device_id == current_config.device_id &&
-               context_config.task_exec_config._streams == current_config.task_exec_config._streams &&
-               context_config.task_exec_config._threadPreferredCoreType == current_config.task_exec_config._threadPreferredCoreType &&
-               context_config.enable_loop_unrolling == current_config.enable_loop_unrolling;
+        return m_defaultContexts.at(conf.device_id)->GetConfig().CanShareContextWith(conf);
     };
 
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::LoadExeNetworkImpl::CreateContext");
         std::lock_guard<std::mutex> lock(engine_mutex);
-        if (!canReuseDefaultContext()) {
-            m_defaultContext.reset(new RemoteCLContext(shared_from_this(), AnyMap(), conf));
-        }
+        if (!canReuseDefaultContext())
+            m_defaultContexts[conf.device_id] = std::make_shared<RemoteCLContext>(shared_from_this(), AnyMap(), conf);
     }
 
-    context = m_defaultContext;
+    context = m_defaultContexts[conf.device_id];
 
     auto transformedNetwork = CloneAndTransformNetwork(network, conf);
     {
@@ -338,10 +331,22 @@ InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const AnyMap& params) 
 }
 
 InferenceEngine::RemoteContext::Ptr Plugin::GetDefaultContext(const AnyMap& params) {
-    if (nullptr == m_defaultContext) {
-        m_defaultContext.reset(new RemoteCLContext(shared_from_this(), params, _impl->m_configs.GetDefaultDeviceConfig()));
+    RemoteCLContext::Ptr ctx;
+    std::string device_id = "";
+
+    if (params.find(CONFIG_KEY(DEVICE_ID)) != params.end())
+        device_id = params.at(CONFIG_KEY(DEVICE_ID)).as<std::string>();
+
+    const Config conf = _impl->m_configs.GetConfig(device_id);
+
+    if (m_defaultContexts.find(conf.device_id) != m_defaultContexts.end() &&
+        m_defaultContexts.at(conf.device_id)->GetConfig().CanShareContextWith(conf)) {
+        ctx = m_defaultContexts.at(conf.device_id);
+    } else {
+        ctx = std::make_shared<RemoteCLContext>(shared_from_this(), AnyMap(), conf);
     }
-    return m_defaultContext;
+
+    return ctx;
 }
 
 void Plugin::SetConfig(const std::map<std::string, std::string> &config) {
@@ -377,191 +382,106 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
 
     UpdateConfig(conf, network, config);
 
-    if (m_defaultContext == nullptr) {
-        m_defaultContext.reset(new RemoteCLContext(
+    RemoteCLContext::Ptr ctx;
+    if (m_defaultContexts.find(conf.device_id) != m_defaultContexts.end() &&
+        m_defaultContexts.at(conf.device_id)->GetConfig().CanShareContextWith(conf)) {
+        ctx = m_defaultContexts.at(conf.device_id);
+    } else {
+        ctx = std::make_shared<RemoteCLContext>(
             std::const_pointer_cast<InferenceEngine::IInferencePlugin>(shared_from_this()),
-            AnyMap(), conf));
+            AnyMap(), conf);
+        m_defaultContexts[conf.device_id] = ctx;
     }
-    Program prog(m_defaultContext->getImpl()->GetEngine(), conf);
-    auto function = network.getFunction();
-    if (function == nullptr) {
-        IE_THROW() << "CNNetworkImpl representation is not supported anymore";
-    }
+    Program prog(ctx->getImpl()->GetEngine(), conf);
+    bool dyn_shape_batch_found = false;
 
-    std::unordered_set<std::string> originalOpNames;
-    auto originalOps = function->get_ops();
-    for (auto&& node : originalOps) {
-        originalOpNames.emplace(node->get_friendly_name());
+    auto model = network.getFunction();
+    if (model == nullptr) {
+        IE_THROW() << "Only ngraph-based models are supported!";
     }
 
-    auto clonedNetwork = CloneAndTransformNetwork(network, conf);
-    auto func = clonedNetwork.getFunction();
-    auto ops = func->get_ordered_ops();
+    auto supported = GetSupportedNodes(model,
+    [&](std::shared_ptr<ov::Model>& model) {
+        std::map<std::string, ngraph::PartialShape> shapes;
+        std::map<std::string, std::pair<int64_t, int64_t>> batch_dim;
+        dyn_shape_batch_found = prog.IsDynBatchModel(model, shapes, batch_dim);
+        TransformNetwork(model, conf);
+    },
+    [&](std::shared_ptr<ngraph::Node> node) {
+            if (node->is_dynamic()) {
+                if (!dyn_shape_batch_found)
+                    return false;
 
-    //Mark removed nodes as supported
-    std::unordered_set<std::string> supported = GetRemovedNodes(function, func);
-    std::unordered_set<std::string> unsupported;
+                auto pshape = node->get_output_partial_shape(0);
+                if (pshape.rank().is_dynamic())
+                    return false;
 
-    std::unordered_set<std::string> supportedNotOriginal;
-    std::unordered_set<std::string> unsupportedNotOriginal;
-
-    std::vector<std::shared_ptr<ngraph::Node>> constants;
-
-    std::map<std::string, ngraph::PartialShape> shapes;
-    std::map<std::string, std::pair<int64_t, int64_t>> batch_dim;
-    bool dyn_shape_batch_found = prog.IsDynBatchModel(func, shapes, batch_dim);
-    auto layerIsSupported = [&](std::shared_ptr<ngraph::Node> node) {
-        if (node->is_dynamic()) {
-            if (!dyn_shape_batch_found)
-                return false;
-
-            auto pshape = node->get_output_partial_shape(0);
-            if (pshape.rank().is_dynamic())
-                return false;
-
-            int dynCount = 0;
-            int64_t batch_idx = -1;
-            for (size_t i = 0; i < pshape.size(); i++) {
-                if (pshape[i].is_dynamic()) {
-                    dynCount++;
-                    if (batch_idx < 0) {
-                        batch_idx = i;
+                int dynCount = 0;
+                int64_t batch_idx = -1;
+                for (size_t i = 0; i < pshape.size(); i++) {
+                    if (pshape[i].is_dynamic()) {
+                        dynCount++;
+                        if (batch_idx < 0) {
+                            batch_idx = i;
+                        }
                     }
                 }
+
+                if (dynCount != 1)
+                    return false;  // more than one dimension is dynamic
+
+                int64_t max_batch = pshape[batch_idx].get_max_length();
+                if (max_batch <= 1)
+                    return false;
+
+                return true;
             }
-
-            if (dynCount != 1)
-                return false;  // more than one dimension is dynamic
-
-            int64_t max_batch = pshape[batch_idx].get_max_length();
-            if (max_batch <= 1)
-                return false;
-
-            return true;
-        }
-        if (ngraph::is_type<const ngraph::op::v0::PriorBox>(node) ||
-            ngraph::is_type<const ngraph::op::v0::PriorBoxClustered>(node) ||
-            ngraph::is_type<const ngraph::op::v0::Proposal>(node)) {
-            return false;
-        }
-        if (ngraph::is_type<const ngraph::op::v0::Constant>(node)) {
-            constants.push_back(node);
-            return false;
-        }
-        return prog.IsOpSupported(network, node) ||
-               ngraph::op::is_parameter(node) ||
-               ngraph::op::is_output(node);
-    };
-
-    // Get ops after transformations and check if it's supported
-    // Transformations might lead to the situation when single node is merged to multiple operations,
-    // so we mark original op as supported only if all nodes that it was merged into are supported
-    for (auto&& op : ops) {
-        bool isSupported = layerIsSupported(op);
-        if (InferenceEngine::details::contains(originalOpNames, op->get_friendly_name())) {
-            if (isSupported) {
-                supported.emplace(op->get_friendly_name());
-            } else {
-                unsupported.emplace(op->get_friendly_name());
-            }
-        } else {
-            if (isSupported) {
-                supportedNotOriginal.emplace(op->get_friendly_name());
-            } else {
-                unsupportedNotOriginal.emplace(op->get_friendly_name());
-            }
-        }
-
-        for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
-            if (InferenceEngine::details::contains(originalOpNames, fusedLayerName)) {
-                if (isSupported) {
-                    supported.emplace(fusedLayerName);
-                } else {
-                    unsupported.emplace(fusedLayerName);
-                }
-            } else {
-                if (isSupported) {
-                    supportedNotOriginal.emplace(fusedLayerName);
-                } else {
-                    unsupportedNotOriginal.emplace(fusedLayerName);
-                }
-            }
-        }
-    }
-
-    for (auto&& layerName : unsupported) {
-        if (InferenceEngine::details::contains(supported, layerName)) {
-            supported.erase(layerName);
-        }
-    }
-    unsupported.clear();
-
-    for (auto&& layerName : unsupportedNotOriginal) {
-        if (InferenceEngine::details::contains(supportedNotOriginal, layerName)) {
-            supportedNotOriginal.erase(layerName);
-        }
-    }
-    unsupportedNotOriginal.clear();
-
-    // 1. Constants are marked as supported when all outputs can be offloaded to GPU
-    for (const auto& op : constants) {
-        bool is_supported = true;
-
-        for (size_t i = 0; i < op->get_output_size(); i++) {
-            auto outTensors = op->get_output_target_inputs(i);
-            for (auto& t : outTensors) {
-                auto output = t.get_node();
-                const auto& name = output->get_friendly_name();
-                if (!InferenceEngine::details::contains(supported, name) &&
-                    !InferenceEngine::details::contains(supportedNotOriginal, name)) {
-                    is_supported = false;
-                    break;
-                }
-            }
-        }
-        if (is_supported) {
-            if (InferenceEngine::details::contains(originalOpNames, op->get_friendly_name()))
-                supported.emplace(op->get_friendly_name());
-            for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op))
-                if (InferenceEngine::details::contains(originalOpNames, fusedLayerName))
-                    supported.emplace(fusedLayerName);
-        }
-    }
-
-    // Mark original constants/parameters/results ops as supported for each supported operation
-    // since rt_info doesn't contain names of constant that are removed during constant folding
-    for (auto&& node : originalOps) {
-        if (InferenceEngine::details::contains(supported, node->get_friendly_name())) {
-            for (auto&& inputNodeOutput : node->input_values()) {
-                if (ngraph::op::is_constant(inputNodeOutput.get_node()) || ngraph::op::is_parameter(inputNodeOutput.get_node())) {
-                    supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
-                }
-            }
-            for (auto&& outputs : node->outputs()) {
-                for (auto&& outputNodeInput : outputs.get_target_inputs()) {
-                    if (ngraph::op::is_output(outputNodeInput.get_node())) {
-                        supported.emplace(outputNodeInput.get_node()->get_friendly_name());
-                    }
-                }
-            }
-        }
-
-        if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node)) {
-            if (!InferenceEngine::details::contains(supported, node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
-                supported.erase(node->get_friendly_name());
-            }
-        } else if (ngraph::op::is_output(node)) {
-            if (!InferenceEngine::details::contains(supported, node->input_values().begin()->get_node()->get_friendly_name())) {
-                supported.erase(node->get_friendly_name());
-            }
-        }
-    }
+            return prog.IsOpSupported(network, node);
+    });
 
     for (auto&& layerName : supported) {
-        res.supportedLayersMap.emplace(layerName, GetName());
+        res.supportedLayersMap.emplace(layerName, GetName() + "." + conf.device_id);
     }
 
     return res;
+}
+
+InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istream& networkModel,
+                                            const std::map<std::string, std::string>& orig_config) {
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork");
+    Configs confs = _impl->m_configs;
+    std::string device_id = GetDeviceIDFromConfig(orig_config);
+    Config conf = confs.GetConfig(device_id);
+
+    auto config = ConvertPerfHintsToConfig(orig_config, conf);
+
+    RemoteCLContext::Ptr context;
+
+    auto canReuseDefaultContext = [&]() -> bool {
+        if (m_defaultContexts.find(conf.device_id) == m_defaultContexts.end())
+            return false;
+
+        return m_defaultContexts.at(conf.device_id)->GetConfig().CanShareContextWith(conf);
+    };
+
+    {
+        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork::CreateContext");
+        std::lock_guard<std::mutex> lock(engine_mutex);
+        if (!canReuseDefaultContext()) {
+            context = std::make_shared<RemoteCLContext>(shared_from_this(), AnyMap(), conf);
+            m_defaultContexts[conf.device_id] = context;
+        }
+    }
+
+    context = m_defaultContexts[conf.device_id];
+
+    {
+        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork::CreateExeNetwork");
+        CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(networkModel, context, conf);
+        exeNetwork->SetPointerToPlugin(shared_from_this());
+        UpdateStatistics(context);
+        return exeNetwork;
+    }
 }
 
 Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {
@@ -636,65 +556,17 @@ auto StringRightTrim = [](std::string string, std::string substring, bool case_s
     return ret_str;
 };
 
-static float GetGOPS(cldnn::device_info info, cldnn::data_types dt) {
-    auto freqGHz = info.gpu_frequency / 1000.f;
-    auto numEUs = info.execution_units_count;
-    auto opsPerComputeBlock = 0;
-    auto computeBlockIPC = 1.0f;
-    switch (dt) {
-    case cldnn::data_types::u8:
-    case cldnn::data_types::i8: {
-        if (info.supports_immad) {
-            if (info.gfx_ver.major == 12) {
-                if (info.gfx_ver.minor == 5)
-                    opsPerComputeBlock = 512;
-                else if (info.gfx_ver.minor == 7)
-                    opsPerComputeBlock = 256;
-            }
-        } else if (info.supports_imad) {
-            // fma * simd size
-            opsPerComputeBlock = 2 * 32;
-        } else {
-            // separate mul + add instructions for int8 data type
-            opsPerComputeBlock = 2 * 16;
-            // mul/add instructions can't be executed in parallel, so we need 2 clocks to execute compute block
-            computeBlockIPC = 0.5f;
-        }
-        break;
-    }
-    case cldnn::data_types::f16: {
-        if (info.supports_immad) {
-            if (info.gfx_ver.major == 12) {
-                if (info.gfx_ver.minor == 5)
-                    opsPerComputeBlock = 256;
-                else if (info.gfx_ver.minor == 7)
-                    opsPerComputeBlock = 128;
-            }
-        } else {
-            // fma * simd size
-            opsPerComputeBlock = 2 * 16;
-        }
-        break;
-    }
-    case cldnn::data_types::f32: {
-        // fma * simd size
-        opsPerComputeBlock = 2 * 8;
-        break;
-    }
-
-    default: throw std::runtime_error("GetGOPS: Unsupported precision");
-    }
-
-    return freqGHz * opsPerComputeBlock * computeBlockIPC * numEUs;
-}
-
 Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::GetMetric");
     GPU_DEBUG_GET_INSTANCE(debug_config);
     std::string device_id = GetConfig(ov::device::id.name(), options);
 
-    auto iter = device_map.find(device_id);
-    auto device = iter != device_map.end() ? iter->second : device_map.begin()->second;
+    auto iter = device_map.find(std::to_string(cldnn::device_query::device_id));
+    if (iter == device_map.end())
+        iter = device_map.find(device_id);
+    if (iter == device_map.end())
+        iter = device_map.begin();
+    auto device = iter->second;
     auto device_info = device->get_info();
     bool is_new_api = IsNewAPI();
 
@@ -707,6 +579,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             ov::PropertyName{ov::range_for_streams.name(), PropertyMutability::RO},
             ov::PropertyName{ov::optimal_batch_size.name(), PropertyMutability::RO},
             ov::PropertyName{ov::max_batch_size.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::caching_properties.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::full_name.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::uuid.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::type.name(), PropertyMutability::RO},
@@ -745,6 +618,8 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         metrics.push_back(METRIC_KEY(DEVICE_GOPS));
         metrics.push_back(METRIC_KEY(OPTIMAL_BATCH_SIZE));
         metrics.push_back(METRIC_KEY(MAX_BATCH_SIZE));
+        if (isModelCachingEnabled)
+            metrics.push_back(METRIC_KEY(IMPORT_EXPORT_SUPPORT));
         metrics.push_back(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
         metrics.push_back(GPU_METRIC_KEY(UARCH_VERSION));
         metrics.push_back(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
@@ -768,17 +643,17 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
     } else if (name == ov::device::gops) {
         if (is_new_api) {
             std::map<element::Type, float> gops;
-            gops[element::i8] = GetGOPS(device_info, cldnn::data_types::i8);
-            gops[element::u8] = GetGOPS(device_info, cldnn::data_types::u8);
-            gops[element::f16] = GetGOPS(device_info, cldnn::data_types::f16);
-            gops[element::f32] = GetGOPS(device_info, cldnn::data_types::f32);
+            gops[element::i8] = device->get_gops(cldnn::data_types::i8);
+            gops[element::u8] = device->get_gops(cldnn::data_types::u8);
+            gops[element::f16] = device->get_gops(cldnn::data_types::f16);
+            gops[element::f32] = device->get_gops(cldnn::data_types::f32);
             return decltype(ov::device::gops)::value_type {gops};
         } else {
             std::map<InferenceEngine::Precision, float> gops;
-            gops[InferenceEngine::Precision::I8] = GetGOPS(device_info, cldnn::data_types::i8);
-            gops[InferenceEngine::Precision::U8] = GetGOPS(device_info, cldnn::data_types::u8);
-            gops[InferenceEngine::Precision::FP16] = GetGOPS(device_info, cldnn::data_types::f16);
-            gops[InferenceEngine::Precision::FP32] = GetGOPS(device_info, cldnn::data_types::f32);
+            gops[InferenceEngine::Precision::I8] = device->get_gops(cldnn::data_types::i8);
+            gops[InferenceEngine::Precision::U8] = device->get_gops(cldnn::data_types::u8);
+            gops[InferenceEngine::Precision::FP16] = device->get_gops(cldnn::data_types::f16);
+            gops[InferenceEngine::Precision::FP32] = device->get_gops(cldnn::data_types::f32);
             IE_SET_METRIC_RETURN(DEVICE_GOPS, gops);
         }
     } else if (name == ov::intel_gpu::execution_units_count) {
@@ -894,7 +769,8 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             capabilities.push_back(ov::device::capability::INT8);
         if (device_info.supports_immad)
             capabilities.push_back(ov::intel_gpu::capability::HW_MATMUL);
-
+        if (isModelCachingEnabled)
+            capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
         return decltype(ov::device::capabilities)::value_type {capabilities};
     } else if (name == ov::range_for_async_infer_requests) {
         std::tuple<unsigned int, unsigned int, unsigned int> range = std::make_tuple(1, 2, 1);
@@ -1087,6 +963,11 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             }
         }
         return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
+    } else if (isModelCachingEnabled && name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
+        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
+    } else if (name == ov::caching_properties) {
+        std::vector<ov::PropertyName> cachingProperties;
+        return decltype(ov::caching_properties)::value_type(cachingProperties);
     } else {
         IE_THROW() << "Unsupported metric key " << name;
     }

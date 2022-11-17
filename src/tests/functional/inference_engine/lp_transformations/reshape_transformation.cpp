@@ -250,6 +250,31 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
             }
         }
     },
+    // U8: no subtract 3D -> 4D: channels are not affected:
+    // per-channel subtraction with Convert from u8 to fp32 and identical values
+    {
+        { 1, 4, 10, 10 },
+        { 1, 2, 2, 10, 10},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{128.f}, element::undefined, {1, 4, 1, 1}, false, 1ul, element::u8, true},
+                {3.f}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{128.f}, element::undefined, {}, false, 1ul, element::u8, true},
+                {3.f}
+            }
+        }
+    },
     // U8: with subtract 3D -> 4D: channels are not affected, dynamic batch
     {
         { -1, 3, 20 },

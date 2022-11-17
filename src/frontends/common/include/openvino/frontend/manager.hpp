@@ -14,7 +14,7 @@
 
 namespace ov {
 // Forward declaration
-FRONTEND_API void shutdown();
+void FRONTEND_API shutdown();
 namespace frontend {
 // -------------- FrontEndManager -----------------
 using FrontEndFactory = std::function<FrontEnd::Ptr()>;

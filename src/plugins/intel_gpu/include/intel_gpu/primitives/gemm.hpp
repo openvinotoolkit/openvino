@@ -46,12 +46,16 @@ struct gemm : public primitive_base<gemm> {
          const bool transpose_input1 = false,
          const float alpha = 1.0f,
          const float beta = 0.0f,
+         const size_t input_rank = 4,
+         const size_t weight_rank = 4,
          const padding& output_padding = padding())
         : primitive_base(id, inputs, output_padding, optional_data_type{ data_type }),
           transpose_input0(transpose_input0),
           transpose_input1(transpose_input1),
           alpha(alpha),
-          beta(beta) {
+          beta(beta),
+          input_rank(input_rank),
+          weight_rank(weight_rank) {
         if (inputs.size() != 2 && inputs.size() != 3) {
             throw std::invalid_argument("Invalid inputs count - gemm expects either two or three inputs");
         }
@@ -65,6 +69,10 @@ struct gemm : public primitive_base<gemm> {
     float alpha;
     /// @brief Variable containing BETA parameter
     float beta;
+    /// @brief First matrix rank
+    size_t input_rank;
+     /// @brief Second matrix rank
+    size_t weight_rank;
 };
 
 }  // namespace cldnn

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -88,10 +88,12 @@ def allclose(cur_array, ref_array, atol, rtol):
     return ((abs_diff < atol) | (abs_diff < rtol * max_val)).all()
 
 
-def rename_ov_lib(files_to_rename: list, lib_dir: Path):
-    for pair in files_to_rename:
-        current_lib_path = os.path.join(lib_dir, pair[0])
-        new_lib_path = os.path.join(lib_dir, pair[1])
-        if os.path.exists(current_lib_path):
-            logging.info('Renaming library from {} to {}'.format(current_lib_path, new_lib_path))
-            os.replace(current_lib_path, new_lib_path)
+def copy_files_by_pattern(directory: Path, pattern_to_find: str, pattern_to_copy: str):
+    for file in directory.glob("{}*".format(pattern_to_find)):
+        file_extension = ''.join(file.suffixes)
+        copied_file = file.parent / (pattern_to_copy + file_extension)
+        if not copied_file.exists() and file.exists():
+            logging.info('Copying file from {} to {}'.format(file, copied_file))
+            shutil.copy(str(file), str(copied_file))
+        else:
+            logging.info('File {} already exist or file {} does not exist'.format(copied_file, file))

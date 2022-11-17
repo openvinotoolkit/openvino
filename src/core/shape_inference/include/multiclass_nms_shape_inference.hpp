@@ -4,10 +4,9 @@
 
 #pragma once
 
-#include <vector>
-
 #include <openvino/op/multiclass_nms.hpp>
 #include <openvino/op/util/multiclass_nms_base.hpp>
+#include <vector>
 
 namespace ov {
 namespace op {
@@ -19,8 +18,7 @@ void shape_infer(const ov::op::util::MulticlassNmsBase* op,
                  std::vector<T>& output_shapes,
                  bool static_output = false,
                  bool ignore_bg_class = false) {
-    NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2 || input_shapes.size() == 3)
-                    && output_shapes.size() == 3);
+    NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2 || input_shapes.size() == 3) && output_shapes.size() == 3);
 
     const auto& boxes_ps = input_shapes[0];
     const auto& scores_ps = input_shapes[1];
@@ -54,11 +52,10 @@ void shape_infer(const ov::op::util::MulticlassNmsBase* op,
                           boxes_ps[2]);
 
     if (ov::is_type<ov::op::v8::MulticlassNms>(op)) {
-        NODE_VALIDATION_CHECK(
-            op,
-            scores_ps.rank().is_static() && scores_ps.rank().get_length() == 3,
-            "Expected a 3D tensor for the 'scores' input. Got: ",
-            scores_ps);
+        NODE_VALIDATION_CHECK(op,
+                              scores_ps.rank().is_static() && scores_ps.rank().get_length() == 3,
+                              "Expected a 3D tensor for the 'scores' input. Got: ",
+                              scores_ps);
     } else {
         NODE_VALIDATION_CHECK(
             op,

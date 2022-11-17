@@ -53,7 +53,7 @@ void deformable_psroi_pooling(const T* data_input,
         const T* roi = rois_input + roi_idx * roi_attrs_count;
 
         // Index of the corresponding input batch
-        int64_t roi_batch_id = roi[0];
+        int64_t roi_batch_id = static_cast<int64_t>(roi[0]);
         if (roi_batch_id < 0)
             continue;
 
@@ -104,12 +104,12 @@ void deformable_psroi_pooling(const T* data_input,
                         T x_offset_value = offsets_input[x_offset_idx];
                         T y_offset_value = offsets_input[y_offset_idx];
 
-                        x_offset_value *= trans_std;
-                        y_offset_value *= trans_std;
+                        x_offset_value *= static_cast<T>(trans_std);
+                        y_offset_value *= static_cast<T>(trans_std);
 
                         // Move bin position by normalized offset values
-                        bin_x1_idx += (x_offset_value * roi_width);
-                        bin_y1_idx += (y_offset_value * roi_height);
+                        bin_x1_idx += static_cast<float>(x_offset_value) * roi_width;
+                        bin_y1_idx += static_cast<float>(y_offset_value) * roi_height;
                     }
 
                     // Each bin is divided into sub-bins
@@ -150,11 +150,13 @@ void deformable_psroi_pooling(const T* data_input,
                             const float delta_left_x = std::fabs(sub_bin_x1_idx - left_x);
                             const float delta_top_y = std::fabs(sub_bin_y1_idx - top_y);
 
-                            const T top_interp = top_left_sample + (top_right_sample - top_left_sample) * delta_left_x;
-                            const T bottom_interp =
-                                bottom_left_sample + (bottom_right_sample - bottom_left_sample) * delta_left_x;
+                            const T top_interp =
+                                top_left_sample + (top_right_sample - top_left_sample) * static_cast<T>(delta_left_x);
+                            const T bottom_interp = bottom_left_sample + (bottom_right_sample - bottom_left_sample) *
+                                                                             static_cast<T>(delta_left_x);
 
-                            const T sub_bin_value = top_interp + (bottom_interp - top_interp) * delta_top_y;
+                            const T sub_bin_value =
+                                top_interp + (bottom_interp - top_interp) * static_cast<T>(delta_top_y);
 
                             legit_sub_bin_count++;
                             sub_bins_val_sum += sub_bin_value;
@@ -162,7 +164,7 @@ void deformable_psroi_pooling(const T* data_input,
                     }
                     // Calculate average of sub_bin values for single ROI bin
                     if (legit_sub_bin_count != 0) {
-                        output[out_value_idx] = sub_bins_val_sum / legit_sub_bin_count;
+                        output[out_value_idx] = sub_bins_val_sum / static_cast<T>(legit_sub_bin_count);
                     }
                 }
             }

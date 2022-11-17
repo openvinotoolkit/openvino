@@ -51,7 +51,7 @@ op::v3::ROIAlign::ROIAlign(const Output<Node>& input,
 }
 
 void op::v3::ROIAlign::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v3_ROIAlign_validate_and_infer_types);
+    OV_OP_SCOPE(v3_ROIAlign_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(0).is_real() && get_input_element_type(1).is_real(),
                           "The data type for input and ROIs is expected to be a floating point type. Got: ",
@@ -96,7 +96,7 @@ void op::v3::ROIAlign::validate_and_infer_types() {
 }
 
 bool op::v3::ROIAlign::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v3_ROIAlign_visit_attributes);
+    OV_OP_SCOPE(v3_ROIAlign_visit_attributes);
     visitor.on_attribute("pooled_h", m_pooled_h);
     visitor.on_attribute("pooled_w", m_pooled_w);
     visitor.on_attribute("sampling_ratio", m_sampling_ratio);
@@ -107,7 +107,7 @@ bool op::v3::ROIAlign::visit_attributes(AttributeVisitor& visitor) {
 }
 
 shared_ptr<Node> op::v3::ROIAlign::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v3_ROIAlign_clone_with_new_inputs);
+    OV_OP_SCOPE(v3_ROIAlign_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<ROIAlign>(new_args.at(0),
                                  new_args.at(1),
@@ -141,7 +141,7 @@ op::v9::ROIAlign::ROIAlign(const Output<Node>& input,
 }
 
 void op::v9::ROIAlign::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v9_ROIAlign_validate_and_infer_types);
+    OV_OP_SCOPE(v9_ROIAlign_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(0).is_real() && get_input_element_type(1).is_real(),
                           "The data type for input and ROIs is expected to be a floating point type. Got: ",
@@ -186,7 +186,7 @@ void op::v9::ROIAlign::validate_and_infer_types() {
 }
 
 bool op::v9::ROIAlign::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v9_ROIAlign_visit_attributes);
+    OV_OP_SCOPE(v9_ROIAlign_visit_attributes);
     visitor.on_attribute("pooled_h", m_pooled_h);
     visitor.on_attribute("pooled_w", m_pooled_w);
     visitor.on_attribute("sampling_ratio", m_sampling_ratio);
@@ -198,7 +198,7 @@ bool op::v9::ROIAlign::visit_attributes(AttributeVisitor& visitor) {
 }
 
 shared_ptr<Node> op::v9::ROIAlign::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v9_ROIAlign_clone_with_new_inputs);
+    OV_OP_SCOPE(v9_ROIAlign_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<ROIAlign>(new_args.at(0),
                                  new_args.at(1),
@@ -351,7 +351,7 @@ bool evaluate_roi_align(const HostTensorVector& args,
 }  // namespace roi_alinop
 
 bool op::v3::ROIAlign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v3_ROIAlign_evaluate);
+    OV_OP_SCOPE(v3_ROIAlign_evaluate);
     return roi_alinop::evaluate_roi_align(inputs,
                                           outputs[0],
                                           m_pooled_h,
@@ -362,7 +362,7 @@ bool op::v3::ROIAlign::evaluate(const HostTensorVector& outputs, const HostTenso
 }
 
 bool op::v3::ROIAlign::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v3_ROIAlign_has_evaluate);
+    OV_OP_SCOPE(v3_ROIAlign_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::bf16:
     case ngraph::element::f16:

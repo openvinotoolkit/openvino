@@ -154,11 +154,11 @@ std::string get_dir_path(build_options opts) {
 }
 
 /// Returns given name for serialization process.
-std::string get_serialization_network_name(build_options opts) {
+inline std::string get_serialization_network_name(build_options opts) {
     return opts.get<build_option_type::serialize_network>()->serialization_network_name;
 }
 
-std::string get_load_program_name(build_options opts) {
+inline std::string get_load_program_name(build_options opts) {
     return opts.get<build_option_type::load_program>()->load_program_name;
 }
 
@@ -193,7 +193,7 @@ void dump_graph_init(std::ofstream& graph,
         }
 
         auto out_layout = ptr->get_output_layout();
-        auto tensor_str = out_layout.get_tensor().to_string();
+        auto tensor_str = out_layout.to_string();
         auto padding = out_layout.data_padding;
         out += tensor_str;
         if (!padding) {

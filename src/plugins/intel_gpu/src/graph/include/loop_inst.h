@@ -361,6 +361,7 @@ using loop_node = typed_program_node<loop>;
 template <>
 class typed_primitive_inst<loop> : public typed_primitive_inst_base<loop> {
     using parent = typed_primitive_inst_base<loop>;
+    using parent::parent;
 
 public:
     struct backedge_memory_mapping {
@@ -564,10 +565,10 @@ public:
     void preprocess_output_memory();
     void preprocess_backedge_memory();
     void update_mapped_memory();
-    void set_output_memory(memory::ptr mem, bool check = true) override;
+    void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
     const backedge_memory_mapping& get_current_iteration_backedge_mapping() const {
-        if (!node.is_current_iteration_used()) {
-            CLDNN_ERROR_MESSAGE(node.id(), "no backedge mapping for current_iteration");
+        if (!node->is_current_iteration_used()) {
+            CLDNN_ERROR_MESSAGE(node->id(), "no backedge mapping for current_iteration");
         }
         return backedge_memory_mappings.at(current_iteratoin_backedge_mapping_idx);
     }

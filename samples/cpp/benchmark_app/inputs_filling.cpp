@@ -166,7 +166,7 @@ ov::Tensor create_tensor_from_binary(const std::vector<std::string>& files,
                         files[inputIndex],
                         " contains ",
                         fileSize,
-                        " bytes, but the network expects ",
+                        " bytes, but the model expects ",
                         inputSize);
 
         if (inputInfo.layout != "CN") {
@@ -225,6 +225,13 @@ ov::Tensor get_image_tensor(const std::vector<std::string>& files,
                                                inputInfo.second,
                                                inputInfo.first,
                                                filenames_used);
+    } else if (type == ov::element::f64) {
+        return create_tensor_from_image<double>(files,
+                                                inputId,
+                                                batchSize,
+                                                inputInfo.second,
+                                                inputInfo.first,
+                                                filenames_used);
     } else if (type == ov::element::i32) {
         return create_tensor_from_image<int32_t>(files,
                                                  inputId,
@@ -257,6 +264,8 @@ ov::Tensor get_im_info_tensor(const std::pair<size_t, size_t>& image_size,
     auto type = inputInfo.second.type;
     if (type == ov::element::f32) {
         return create_tensor_im_info<float>(image_size, batchSize, inputInfo.second, inputInfo.first);
+    } else if (type == ov::element::f64) {
+        return create_tensor_im_info<double>(image_size, batchSize, inputInfo.second, inputInfo.first);
     } else if (type == ov::element::f16) {
         return create_tensor_im_info<short>(image_size, batchSize, inputInfo.second, inputInfo.first);
     } else if (type == ov::element::i32) {
@@ -281,6 +290,13 @@ ov::Tensor get_binary_tensor(const std::vector<std::string>& files,
                                                 inputInfo.second,
                                                 inputInfo.first,
                                                 filenames_used);
+    } else if (type == ov::element::f64) {
+        return create_tensor_from_binary<double>(files,
+                                                 inputId,
+                                                 batchSize,
+                                                 inputInfo.second,
+                                                 inputInfo.first,
+                                                 filenames_used);
     } else if (type == ov::element::f16) {
         return create_tensor_from_binary<short>(files,
                                                 inputId,
@@ -318,6 +334,8 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
     auto type = inputInfo.second.type;
     if (type == ov::element::f32) {
         return create_tensor_random<float, float>(inputInfo.second);
+    } else if (type == ov::element::f64) {
+        return create_tensor_random<double, double>(inputInfo.second);
     } else if (type == ov::element::f16) {
         return create_tensor_random<short, short>(inputInfo.second);
     } else if (type == ov::element::i32) {
@@ -331,7 +349,9 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
     } else if (type == ov::element::i8) {
         // uniform_int_distribution<int8_t> is not allowed in the C++17 standard
         // and vs2017/19
-        return create_tensor_random<int8_t, int32_t>(inputInfo.second);
+        return create_tensor_random<int8_t, int32_t>(inputInfo.second,
+                                                     std::numeric_limits<int8_t>::min(),
+                                                     std::numeric_limits<int8_t>::max());
     } else if (type == ov::element::u16) {
         return create_tensor_random<uint16_t, uint16_t>(inputInfo.second);
     } else if (type == ov::element::i16) {
@@ -360,11 +380,11 @@ std::map<std::string, ov::TensorVector> get_tensors(std::map<std::string, std::v
     std::ios::fmtflags fmt(std::cout.flags());
     std::map<std::string, ov::TensorVector> tensors;
     if (app_inputs_info.empty()) {
-        throw std::logic_error("Inputs Info for network is empty!");
+        throw std::logic_error("Inputs Info for model is empty!");
     }
 
     if (!inputFiles.empty() && inputFiles.size() != app_inputs_info[0].size()) {
-        throw std::logic_error("Number of inputs specified in -i must be equal to number of network inputs!");
+        throw std::logic_error("Number of inputs specified in -i must be equal to number of model inputs!");
     }
 
     // count image type inputs of network
@@ -380,7 +400,7 @@ std::map<std::string, ov::TensorVector> get_tensors(std::map<std::string, std::v
     for (auto& files : inputFiles) {
         if (!files.first.empty() && app_inputs_info[0].find(files.first) == app_inputs_info[0].end()) {
             throw std::logic_error("Input name \"" + files.first +
-                                   "\" used in -i parameter doesn't match any network's input");
+                                   "\" used in -i parameter doesn't match any model's input");
         }
 
         std::string input_name = files.first.empty() ? app_inputs_info[0].begin()->first : files.first;

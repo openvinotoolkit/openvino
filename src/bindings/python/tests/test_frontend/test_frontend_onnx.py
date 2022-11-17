@@ -75,15 +75,15 @@ def create_onnx_model_with_custom_attributes():
                                 attribute_i32=np.int32(10),
                                 attribute_i64=np.int64(10),
                                 attribute_str="string",
-                                attribute_f32=np.float(10),
+                                attribute_f32=float(10),
                                 attribute_f64=np.float64(10),
-                                attribute_bool=np.bool(True),
+                                attribute_bool=True,
                                 attribute_type=onnx.TensorProto.INT32,
 
                                 attribute_list_i32=np.array([1, 2, 3], dtype=np.int32),
                                 attribute_list_i64=np.array([1, 2, 3], dtype=np.int64),
-                                attribute_list_str=np.array(["a", "b", "c"], dtype=np.str),
-                                attribute_list_f32=np.array([1, 2, 3], dtype=np.float),
+                                attribute_list_str=np.array(["a", "b", "c"], dtype=str),
+                                attribute_list_f32=np.array([1, 2, 3], dtype=float),
                                 attribute_list_f64=np.array([1, 2, 3], dtype=np.float64),
                                 attribute_list_bool=[True, False, True],
                                 attribute_list_type=np.array([onnx.TensorProto.INT32,
@@ -340,15 +340,15 @@ def test_onnx_conversion_extension_attribute_with_default_value():
         check_attribute(node, "attribute_str", "abc")
         check_attribute(node, "attribute_f32", np.float32(5))
         check_attribute(node, "attribute_f64", np.float64(5))
-        check_attribute(node, "attribute_bool", np.bool(False))
+        check_attribute(node, "attribute_bool", False)
         check_attribute(node, "attribute_type", onnx.TensorProto.FLOAT)
 
         check_attribute(node, "attribute_list_i32", np.array([4, 5, 6], dtype=np.int32))
         check_attribute(node, "attribute_list_i64", np.array([4, 5, 6], dtype=np.int64))
-        check_attribute(node, "attribute_list_str", np.array(["d", "e", "f"], dtype=np.str))
-        check_attribute(node, "attribute_list_f32", np.array([4, 5, 6], dtype=np.float))
+        check_attribute(node, "attribute_list_str", np.array(["d", "e", "f"], dtype=str))
+        check_attribute(node, "attribute_list_f32", np.array([4, 5, 6], dtype=float))
         check_attribute(node, "attribute_list_f64", np.array([4, 5, 6], dtype=np.float64))
-        check_attribute(node, "attribute_list_bool", np.array([True, False, True], dtype=np.bool))
+        check_attribute(node, "attribute_list_bool", np.array([True, False, True], dtype=bool))
         check_attribute(node, "attribute_list_type", np.array([onnx.TensorProto.INT32,
                                                                onnx.TensorProto.FLOAT]))
 
@@ -395,7 +395,7 @@ def test_onnx_conversion_extension_cast_attributes():
 
         check_attribute(node, "attribute_i32", 10, float)
         check_attribute(node, "attribute_i64", 10, float)
-        check_attribute(node, "attribute_str", "string", np.str)
+        check_attribute(node, "attribute_str", "string", str)
         check_attribute(node, "attribute_f32", 10, int)
         check_attribute(node, "attribute_f64", 10, int)
         check_attribute(node, "attribute_bool", True, bool)
@@ -403,7 +403,7 @@ def test_onnx_conversion_extension_cast_attributes():
 
         check_attribute(node, "attribute_list_i32", [1., 2., 3.], float)
         check_attribute(node, "attribute_list_i64", [1., 2., 3.], float)
-        check_attribute(node, "attribute_list_str", ["a", "b", "c"], np.str)
+        check_attribute(node, "attribute_list_str", ["a", "b", "c"], str)
         check_attribute(node, "attribute_list_f32", [1, 2, 3], int)
         check_attribute(node, "attribute_list_f64", [1, 2, 3], int)
         check_attribute(node, "attribute_list_bool", [True, False, True], bool)

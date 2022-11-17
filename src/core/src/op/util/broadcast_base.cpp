@@ -149,7 +149,7 @@ void ov::op::util::BroadcastBase::validate_target_shape_none(const PartialShape&
 }
 
 void ov::op::util::BroadcastBase::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(util_BroadcastBase_validate_and_infer_types);
+    OV_OP_SCOPE(util_BroadcastBase_validate_and_infer_types);
     // shape node should have integer data type. For now we only allow i64
     auto shape_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
@@ -264,7 +264,7 @@ std::pair<bool, ov::AxisSet> ov::op::util::BroadcastBase::get_broadcast_axes_num
                              : static_cast<int64_t>(result_shape.size()) - static_cast<int64_t>(arg_shape.size());
     NGRAPH_CHECK(start_axis >= 0);
     for (size_t i = 0; i < result_shape.size(); i++) {
-        if (i < start_axis || result_shape[i] != arg_shape[i - start_axis]) {
+        if (i < static_cast<size_t>(start_axis) || result_shape[i] != arg_shape[i - start_axis]) {
             broadcast_axes.insert(i);
         }
     }
@@ -316,7 +316,7 @@ std::pair<bool, ov::AxisSet> ov::op::util::BroadcastBase::get_broadcast_axes() c
 bool ov::op::util::BroadcastBase::evaluate_broadcast(const HostTensorPtr& arg0,
                                                      const HostTensorPtr& out,
                                                      const AxisSet& broadcast_axes) const {
-    NGRAPH_OP_SCOPE(util_BroadcastBase_evaluate_axes);
+    OV_OP_SCOPE(util_BroadcastBase_evaluate_axes);
     auto arg0_shape = arg0->get_shape();
     if (arg0_shape.size() == 0) {
         arg0_shape = Shape{1};
@@ -443,7 +443,7 @@ ov::Shape ov::op::util::BroadcastBase::get_target_shape(const HostTensorPtr& inp
 }
 
 bool ov::op::util::BroadcastBase::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(util_BroadcastBase_evaluate);
+    OV_OP_SCOPE(util_BroadcastBase_evaluate);
     NGRAPH_CHECK(ngraph::validate_host_tensor_vector(inputs, 2) || ngraph::validate_host_tensor_vector(inputs, 3));
     NGRAPH_CHECK(ngraph::validate_host_tensor_vector(outputs, 1));
 

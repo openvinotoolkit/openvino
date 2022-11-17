@@ -139,7 +139,7 @@ void CumSum::cumSum(const dataType *input, dataType *output, const VectorDims &s
             continue;
         iterationRange[j++] = shape[i];
     }
-    size_t work_amount_dst = std::accumulate(iterationRange.begin(), iterationRange.end(), 1, std::multiplies<size_t>());
+    size_t work_amount_dst = std::accumulate(iterationRange.begin(), iterationRange.end(), size_t(1), std::multiplies<size_t>());
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
         SizeVector counters(numOfDims - 1, 0);

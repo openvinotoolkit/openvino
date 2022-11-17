@@ -247,24 +247,24 @@ class TestGather(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_gather(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_gather(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_gather(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_gather(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_gather_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_gather_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net_const(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     test_data_negative_indices = [
         dict(shape=[10, 12], axis=0, indices=[3, -1, -4], output_shape=[3, 12]),
@@ -278,6 +278,6 @@ class TestGather(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("params", test_data_negative_indices)
     @pytest.mark.nightly
     def test_gather_nightly_negative_indices(self, params, ie_device, precision, ir_version,
-                                             temp_dir, api_2):
+                                             temp_dir, use_old_api):
         self._test(*self.create_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)

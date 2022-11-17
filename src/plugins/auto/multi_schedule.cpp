@@ -237,7 +237,7 @@ MultiSchedule::~MultiSchedule() {
                 reqAllStartTimes.splice(reqAllStartTimes.end(), request._startTimes);
                 reqAllEndTimes.splice(reqAllEndTimes.end(), request._endTimes);
             }
-            unsigned int count = reqAllStartTimes.size();
+            size_t count = reqAllStartTimes.size();
             IE_ASSERT(count == reqAllEndTimes.size());
             reqAllStartTimes.sort(std::less<Time>());
             reqAllEndTimes.sort(std::less<Time>());
@@ -320,6 +320,12 @@ IInferPtr MultiSchedule::CreateInferRequest() {
                 so = _passthroughExeNet._so;
             syncRequestImpl->setPointerToSo(so);
         }
+    } else if (_multiSContext->_bindBuffer) {
+        auto sharedRequest = std::static_pointer_cast<MultiDeviceInferRequest>(syncRequestImpl)->GetSharedRequest();
+        if (sharedRequest._ptr->getPointerToSo())
+             syncRequestImpl->setPointerToSo(sharedRequest._ptr->getPointerToSo());
+        else
+            syncRequestImpl->setPointerToSo(sharedRequest._so);
     }
     return std::make_shared<AsyncInferRequest>(shared_from_this(),
                                                syncRequestImpl,

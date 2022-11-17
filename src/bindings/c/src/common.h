@@ -35,8 +35,14 @@
     CATCH_OV_EXCEPTION(NETWORK_NOT_READ, NetworkNotRead)      \
     CATCH_OV_EXCEPTION(INFER_CANCELLED, InferCancelled)       \
     catch (...) {                                             \
-        return ov_status_e::UNEXPECTED;                       \
+        return ov_status_e::UNKNOW_EXCEPTION;                 \
     }
+
+#define GET_PROPERTY_FROM_ARGS_LIST                     \
+    std::string property_key = va_arg(args_ptr, char*); \
+    std::string _value = va_arg(args_ptr, char*);       \
+    ov::Any value = _value;                             \
+    property[property_key] = value;
 
 /**
  * @struct ov_core
@@ -55,18 +61,18 @@ struct ov_model {
 };
 
 /**
- * @struct ov_output_const_node
+ * @struct ov_output_const_port
  * @brief This is an interface of ov::Output<const ov::Node>
  */
-struct ov_output_const_node {
+struct ov_output_const_port {
     std::shared_ptr<ov::Output<const ov::Node>> object;
 };
 
 /**
- * @struct ov_output_node
+ * @struct ov_output_port
  * @brief This is an interface of ov::Output<ov::Node>
  */
-struct ov_output_node {
+struct ov_output_port {
     std::shared_ptr<ov::Output<ov::Node>> object;
 };
 
@@ -167,7 +173,7 @@ struct mem_stringbuf : std::streambuf {
         char* bptr(const_cast<char*>(buffer));
         setg(bptr, bptr, bptr + sz);
     }
-
+    
     pos_type seekoff(off_type off,
                      std::ios_base::seekdir dir,
                      std::ios_base::openmode which = std::ios_base::in) override {
@@ -203,5 +209,4 @@ struct mem_istream : virtual mem_stringbuf, std::istream {
 };
 
 char* str_to_char_array(const std::string& str);
-ov_element_type_e find_ov_element_type_e(ov::element::Type type);
 ov::element::Type get_element_type(ov_element_type_e type);

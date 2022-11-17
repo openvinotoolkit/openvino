@@ -68,6 +68,6 @@ TEST(type_prop_layers, reorg_yolo) {
 TEST(type_prop_layers, roi_pooling) {
     auto inputs = make_shared<op::Parameter>(element::f32, Shape{2, 3, 4, 5});
     auto coords = make_shared<op::Parameter>(element::f32, Shape{150, 5});
-    auto op = make_shared<op::ROIPooling>(inputs, coords, Shape{6, 6}, 0.0625, "max");
+    auto op = make_shared<op::ROIPooling>(inputs, coords, Shape{6, 6}, 0.0625f, "max");
     ASSERT_EQ(op->get_shape(), (Shape{150, 3, 6, 6}));
 }

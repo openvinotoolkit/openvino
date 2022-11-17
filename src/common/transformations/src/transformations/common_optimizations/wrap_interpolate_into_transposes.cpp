@@ -51,10 +51,10 @@ std::vector<int64_t> build_new_axes(size_t num_of_axes, size_t rank) {
 }
 }  // namespace
 
-ngraph::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
+ov::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
     MATCHER_SCOPE(WrapInterpolateIntoTransposes);
     auto interpolate_pattern = ov::pass::pattern::wrap_type<ov::opset8::Interpolate>();
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto interpolate = std::dynamic_pointer_cast<ov::opset8::Interpolate>(m.get_match_root());
         if (!interpolate || interpolate->get_input_partial_shape(0).rank().is_dynamic() ||
             interpolate->inputs().size() != 4)
@@ -104,6 +104,6 @@ ngraph::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(interpolate_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(interpolate_pattern, matcher_name);
     register_matcher(m, callback);
 }

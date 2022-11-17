@@ -8,6 +8,16 @@ set(TARGET_NAME openvino)
 # Add openvino library
 #
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /ignore:4098")
+    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /ignore:4098")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ignore:4098")
+
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /ignore:4286")
+    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /ignore:4286")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ignore:4286")
+endif()
+
 add_library(${TARGET_NAME}
     $<TARGET_OBJECTS:ngraph_obj>
     $<TARGET_OBJECTS:frontend_common_obj>
@@ -137,6 +147,7 @@ install(EXPORT OpenVINOTargets
 
 set(PUBLIC_HEADERS_DIR "${OpenVINO_SOURCE_DIR}/src/inference/include")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}/ie")
+set(IE_TBB_DIR "${TBB_DIR}")
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/InferenceEngineConfig.cmake"
@@ -183,18 +194,7 @@ install(FILES "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
 
 # Generate and install openvino.pc pkg-config file
 
-# TODO: fix apple later
-if(LINUX)
-    find_package(PkgConfig QUIET)
-    if(PkgConfig_FOUND)
-        set(generate_pkgconfig ON)
-    endif()
-
-    # temporary skip generator of pkg-config file for static libraries
-    if(NOT BUILD_SHARED_LIBS)
-        set(generate_pkgconfig OFF)
-    endif()
-
+if(ENABLE_PKGCONFIG_GEN)
     # fill in PKGCONFIG_OpenVINO_FRONTENDS
     get_target_property(PKGCONFIG_OpenVINO_FRONTENDS_LIST ov_frontends MANUALLY_ADDED_DEPENDENCIES)
     if(ENABLE_OV_IR_FRONTEND)
@@ -224,56 +224,46 @@ if(LINUX)
         set(PKGCONFIG_OpenVINO_PRIVATE_DEPS "-L\${prefix}/${pkg_config_tbb_lib_dir} -ltbb")
     endif()
 
-    if(ENABLE_SYSTEM_PUGIXML AND PkgConfig_FOUND)
+    if(ENABLE_SYSTEM_PUGIXML)
         pkg_check_modules(PKGCONFIG_pugixml QUIET
                           NO_CMAKE_PATH
                           NO_CMAKE_ENVIRONMENT_PATH
                           pugixml)
         set(pugixml_dep "pugixml = ${PKGCONFIG_pugixml_VERSION}")
 
-        if(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE)
-            set(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE "${PKGCONFIG_OpenVINO_REQUIRES_PRIVATE}, ${pugixml_dep}")
-        else()
-            set(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE "${pugixml_dep}")
-        endif()
-    endif()
-
-    # detect <multiarch-triplet>
-    if(CPACK_GENERATOR STREQUAL "DEB" AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-        # TODO: find a better way to detect <multiarch-triplet>
-        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-            # note: clang provides different output like 'x86_64-pc-linux-gnu', so it's not used
-            execute_process(COMMAND "${CMAKE_C_COMPILER}" -dumpmachine
-                OUTPUT_VARIABLE PKGCONFIG_OpenVINO_TRIPLET
-                ERROR_VARIABLE error_message
-                RESULT_VARIABLE exit_code
-                OUTPUT_STRIP_TRAILING_WHITESPACE)
-            if(NOT exit_code EQUAL 0)
-                message(WARNING "Internal error: failed to detect library <multiarch-triplet> ${error_message}")
-                set(generate_pkgconfig OFF)
+        if(pugixml_buggy_pkgconfig)
+            if(PKGCONFIG_OpenVINO_PRIVATE_DEPS)
+                set(PKGCONFIG_OpenVINO_PRIVATE_DEPS "${PKGCONFIG_OpenVINO_PRIVATE_DEPS} -lpugixml")
+            else()
+                set(PKGCONFIG_OpenVINO_PRIVATE_DEPS "-lpugixml")
             endif()
         else()
-            # cannot detect <multiarch-triplet>
-            set(generate_pkgconfig OFF)
+            if(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE)
+                set(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE "${PKGCONFIG_OpenVINO_REQUIRES_PRIVATE}, ${pugixml_dep}")
+            else()
+                set(PKGCONFIG_OpenVINO_REQUIRES_PRIVATE "${pugixml_dep}")
+            endif()
         endif()
     endif()
 
     # define relative paths
     file(RELATIVE_PATH PKGCONFIG_OpenVINO_PREFIX "/${OV_CPACK_RUNTIMEDIR}/pkgconfig" "/")
 
-    if(generate_pkgconfig)
-        set(pkgconfig_in "${OpenVINO_SOURCE_DIR}/cmake/templates/openvino.pc.in")
-        set(pkgconfig_out "${OpenVINO_BINARY_DIR}/share/openvino.pc")
-        configure_file("${pkgconfig_in}" "${pkgconfig_out}" @ONLY)
+    set(pkgconfig_in "${OpenVINO_SOURCE_DIR}/cmake/templates/openvino.pc.in")
+    set(pkgconfig_out "${OpenVINO_BINARY_DIR}/share/openvino.pc")
+    configure_file("${pkgconfig_in}" "${pkgconfig_out}" @ONLY)
 
-        install(FILES "${pkgconfig_out}"
-                DESTINATION "${OV_CPACK_RUNTIMEDIR}/pkgconfig"
-                COMPONENT ${OV_CPACK_COMP_CORE_DEV})
+    install(FILES "${pkgconfig_out}"
+            DESTINATION "${OV_CPACK_RUNTIMEDIR}/pkgconfig"
+            COMPONENT ${OV_CPACK_COMP_CORE_DEV})
 
-        add_custom_command(TARGET openvino PRE_BUILD
-            COMMAND "${PKG_CONFIG_EXECUTABLE}" --validate "${pkgconfig_out}"
-            COMMAND cat "${pkgconfig_out}"
-            COMMENT "[pkg-config] validating openvino.pc"
-            VERBATIM)
+    if (PKG_CONFIG_VERSION_STRING VERSION_LESS 0.29)
+        set(pkgconfig_option "--exists")
+    else()
+        set(pkgconfig_option "--validate")
     endif()
+    add_custom_command(TARGET openvino PRE_BUILD
+        COMMAND "${PKG_CONFIG_EXECUTABLE}" "${pkgconfig_option}" "${pkgconfig_out}"
+        COMMENT "[pkg-config] validating openvino.pc"
+        VERBATIM)
 endif()

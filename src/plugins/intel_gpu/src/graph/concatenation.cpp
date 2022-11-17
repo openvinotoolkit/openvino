@@ -43,6 +43,36 @@ layout concatenation_inst::calc_output_layout(concatenation_node const& node, ke
     return layout {output_dt, output_format, tensor(def_fmt, result_sizes)};
 }
 
+template<typename ShapeType>
+std::vector<layout> concatenation_inst::calc_output_layouts(const concatenation_node& /* node */, const kernel_impl_params& impl_param) {
+    auto desc = impl_param.typed_desc<concatenation>();
+
+    auto input_layout = impl_param.get_input_layout();
+
+    auto output_dt = desc->output_data_type.value_or(input_layout.data_type);
+    auto output_format = input_layout.format;
+    for (size_t i = 0; i < desc->input.size(); ++i) {
+        if (impl_param.get_input_layout(i).format == format::b_fs_yx_fsv16)
+            output_format = format::b_fs_yx_fsv16;
+    }
+
+    auto axis_index = desc->axis;
+
+    auto output_shape = input_layout.get<ShapeType>();
+    output_shape[axis_index] = 0;
+    for (size_t i = 0; i < desc->input.size(); ++i) {
+        auto input_shape = impl_param.get_input_layout(i).get<ShapeType>();
+        if (input_shape.is_dynamic()) {
+            return { layout {ov::PartialShape::dynamic(input_shape.size()), output_dt, output_format} };
+        }
+        output_shape[axis_index] += input_shape[axis_index];
+    }
+
+    return { layout {output_shape, output_dt, output_format} };
+}
+
+template std::vector<layout> concatenation_inst::calc_output_layouts<ov::PartialShape>(concatenation_node const& node, const kernel_impl_params& impl_param);
+
 std::string concatenation_inst::to_string(concatenation_node const& node) {
     auto node_info = node.desc_to_json();
     auto desc = node.get_primitive();
@@ -52,7 +82,10 @@ std::string concatenation_inst::to_string(concatenation_node const& node) {
 
     for (size_t i = 0; i < node.inputs_count(); ++i) {
         ss_inputs << node.input(i).id();
-        ss_inputs << ", count: " << node.input(i).get_output_layout().count();
+        if (node.input(i).get_output_layout().is_static())
+            ss_inputs << ", count: " << node.input(i).get_output_layout().count();
+        else
+            ss_inputs << ", count: " << "?";
         i != (node.inputs_count() - 1) ? ss_inputs << ", " : ss_inputs << "";
     }
 
@@ -69,7 +102,9 @@ std::string concatenation_inst::to_string(concatenation_node const& node) {
 
 concatenation_inst::typed_primitive_inst(network& network, concatenation_node const& node)
     : parent(network, node) {
+    if (node.is_dynamic()) return;
     auto input_layout = node.input().get_output_layout();
+
     auto output_layout = node.get_output_layout();
 
     tensor::value_type concat_count = 0;
@@ -118,7 +153,7 @@ concatenation_inst::typed_primitive_inst(network& network, concatenation_node co
             stack.pop_front();
 
             for (auto processed_node : *nodes_list) {
-                processed_node->_output = _output;
+                processed_node->_outputs = _outputs;
                 if (processed_node->type() == concatenation::type_id() && processed_node->can_be_optimized()) {
                     if (!processed_node->_deps.empty())
                         stack.push_back(&processed_node->_deps);

@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "itt.hpp"
-#include "node_registry.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/util/gather_nd_base.hpp"
 #include "openvino/op/util/op_types.hpp"

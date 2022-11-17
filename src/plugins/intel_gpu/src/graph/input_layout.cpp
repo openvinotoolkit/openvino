@@ -41,15 +41,16 @@ input_layout_inst::typed_primitive_inst(network& network, input_layout_node cons
 }
 
 void input_layout_inst::set_data(memory::ptr mem) {
-    auto ol = node.get_output_layout();
+    auto ol = get_node_output_layout();
 
     check_memory_to_set(*mem, ol);
 
     if (mem->is_allocated_by(get_network().get_engine())) {
-        _output = mem;
+        OPENVINO_ASSERT(!_outputs.empty(), "[GPU] Can't set data for empty input memory");
+        _outputs[0] = mem;
     } else {
         mem_lock<char, mem_lock_type::read> src(mem, get_network().get_stream());
-        mem_lock<char, mem_lock_type::write> dst(_output, get_network().get_stream());
+        mem_lock<char, mem_lock_type::write> dst(_outputs[0], get_network().get_stream());
         std::copy(src.begin(), src.end(), dst.begin());
     }
 
@@ -58,12 +59,12 @@ void input_layout_inst::set_data(memory::ptr mem) {
 }
 
 void input_layout_inst::update_shape() {
-    OPENVINO_ASSERT(_output != nullptr, "[GPU] input memory is not set");
-    auto mem_layout = _output->get_layout();
-    if (_impl_params->output_layout != mem_layout) {
+    OPENVINO_ASSERT(!_outputs.empty() && _outputs[0] != nullptr, "[GPU] input memory is not set");
+    auto mem_layout = _outputs[0]->get_layout();
+    if (_impl_params->get_output_layout() != mem_layout) {
         set_shape_change();
     }
-    _impl_params->output_layout = mem_layout;
+    _impl_params->output_layouts[0] = mem_layout;
 }
 
 std::string input_layout_inst::to_string(input_layout_node const& node) {

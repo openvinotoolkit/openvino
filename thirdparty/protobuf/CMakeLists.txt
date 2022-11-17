@@ -26,9 +26,8 @@ set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests" FORCE)
 set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libs" FORCE)
 set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support" FORCE)
 
-if(CMAKE_CROSSCOMPILING OR
-    (CMAKE_OSX_ARCHITECTURES STREQUAL "x86_64" AND AARCH64) OR
-    (CMAKE_OSX_ARCHITECTURES STREQUAL "arm64" AND X86_64))
+# note: HOST_AARCH64 AND X86_64 are not handled for Apple explicitly, becuase it can work via Rosetta
+if(CMAKE_CROSSCOMPILING OR (APPLE AND (HOST_X86_64 AND AARCH64)) )
     set(protobuf_BUILD_PROTOC_BINARIES OFF CACHE BOOL "Build protoc binaries" FORCE)
 else()
     set(protobuf_BUILD_PROTOC_BINARIES ON CACHE BOOL "Build protoc binaries" FORCE)
@@ -77,7 +76,7 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
     set(HOST_PROTOC_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/host_protoc_install")
     set(HOST_PROTOC_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/host_protoc_root")
 
-    if(DEFINED ENV{OECORE_NATIVE_SYSROOT})
+    if(YOCTO_AARCH64)
         # need to unset several variables which can set env to cross-environment
         foreach(var SDKTARGETSYSROOT CONFIG_SITE OECORE_NATIVE_SYSROOT OECORE_TARGET_SYSROOT
                     OECORE_ACLOCAL_OPTS OECORE_BASELIB OECORE_TARGET_ARCH OECORE_TARGET_OS CC CXX
@@ -85,7 +84,9 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
                     CONFIGURE_FLAGS CFLAGS CXXFLAGS LDFLAGS CPPFLAGS KCFLAGS OECORE_DISTRO_VERSION
                     OECORE_SDK_VERSION ARCH CROSS_COMPILE OE_CMAKE_TOOLCHAIN_FILE OPENSSL_CONF
                     OE_CMAKE_FIND_LIBRARY_CUSTOM_LIB_SUFFIX PKG_CONFIG_SYSROOT_DIR PKG_CONFIG_PATH)
-            list(APPEND cmake_env --unset=${var})
+            if(DEFINED ENV{${var}})
+                list(APPEND cmake_env --unset=${var})
+            endif()
         endforeach()
 
         # filter out PATH from yocto locations
@@ -104,6 +105,11 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
             NO_DEFAULT_PATH)
     else()
         set(HOST_CMAKE_COMMAND "${CMAKE_COMMAND}")
+    endif()
+
+    # if env has CMAKE_TOOLCHAIN_FILE, we need to skip it
+    if(DEFINED ENV{CMAKE_TOOLCHAIN_FILE})
+        list(APPEND cmake_env --unset=CMAKE_TOOLCHAIN_FILE)
     endif()
 
     # compile flags

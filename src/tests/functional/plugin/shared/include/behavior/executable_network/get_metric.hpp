@@ -124,7 +124,6 @@ using IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS = I
 using IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported = IEClassGetMetricP;
 using IEClassExecutableNetworkGetConfigTest = IEClassGetMetricP;
 using IEClassExecutableNetworkSetConfigTest = IEClassGetMetricP;
-using IEClassExecutableNetworkGetConfigTest = IEClassGetMetricP;
 
 //
 // ExecutableNetwork GetMetric / GetConfig

@@ -18,7 +18,9 @@ __HARDWARE_CONFIG_DIR = Path(__file__).parent.parent.parent.absolute() / 'config
 __HARDWARE_CONFIGS_MAP = {'ANY': 'cpu.json',
                           'CPU': 'cpu.json',
                           'GNA': 'gna.json',
-                          'GPU': 'cpu.json',
+                          'GNA3': 'gna3.json',
+                          'GNA3.5': 'gna3.json',
+                          'GPU': 'gpu.json',  # Same as cpu.json but without LSTM/GRUSequence quantization
                           'VPU': 'vpu.json',
                           'CPU_SPR': 'cpu.json'}
 

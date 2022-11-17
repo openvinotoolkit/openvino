@@ -78,6 +78,17 @@ public:
 
         auto input_prim = p.data_type == data_types::u8 ? get_mem(get_input_layout(p), 0, 10) : get_mem(get_input_layout(p));
 
+        auto impl_forcing_bo = bo_fused.get<build_option_type::force_implementations>();
+        const auto& impl_forcing = impl_forcing_bo->forcing;
+
+        auto forcing_format = p.input_format;
+        for (auto& forcing : impl_forcing)
+            if (forcing.first == "fc_prim")
+                forcing_format = forcing.second.output_format;
+
+        implementation_desc conv_impl = { forcing_format, "", impl_types::onednn };
+        bo_fused.set_option(build_option::force_implementations({ { "fc_prim", conv_impl } }));
+
         network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
         network network_fused(this->engine, this->topology_fused, bo_fused);
         network_fused.set_input_data("input", input_prim);
@@ -103,7 +114,8 @@ public:
     }
 
     layout get_bias_layout(fully_connected_test_params& p) {
-        return get_per_channel_layout(p);
+        auto bias_shape = p.out_shape.size() == 3 ? ov::PartialShape{1, 1, p.out_shape[2]} : ov::PartialShape{1, p.out_shape[1]};
+        return layout{ bias_shape, p.default_type, p.default_format };
     }
 
     layout get_output_layout(fully_connected_test_params& p) {
@@ -298,7 +310,7 @@ TEST_P(fc_int8_inputs_fused_fp32_sum, basic) {
         reorder("reorder_bfyx", "crop", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = 1.f;
     execute(p);
 }
 

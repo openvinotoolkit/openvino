@@ -7,7 +7,7 @@
    :hidden:
 
    openvino_docs_performance_benchmarks_openvino
-   openvino_docs_performance_benchmarks_ovms
+
 
 
 @endsphinxdirective
@@ -19,6 +19,6 @@ The benchmark results below demonstrate high performance gains on several public
 The following benchmarks are available:
 
 * [Intel® Distribution of OpenVINO™ toolkit Benchmark Results](performance_benchmarks_openvino.md).
-* [OpenVINO™ Model Server Benchmark Results](performance_benchmarks_ovms.md).
+
 
 Performance of a particular application can also be evaluated virtually using [Intel® DevCloud for the Edge](https://devcloud.intel.com/edge/). It is a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit. To learn more about it, visit [the website](https://www.intel.com/content/www/us/en/developer/tools/devcloud/edge/overview.html) or [create an account](https://www.intel.com/content/www/us/en/forms/idz/devcloud-registration.html?tgt=https://www.intel.com/content/www/us/en/secure/forms/devcloud-enrollment/account-provisioning.html).

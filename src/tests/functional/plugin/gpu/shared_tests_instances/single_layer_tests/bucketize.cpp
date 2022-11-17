@@ -13,6 +13,7 @@ namespace {
 const std::vector<std::vector<size_t>> data_shapes = {
     // No reason to test other ranks as logic is the same
     {40, 22, 13, 9},     // 4D
+    {6, 7, 3, 2, 8}, // 5D
     {6, 7, 3, 2, 8, 5},  // 6D
 };
 

@@ -24,7 +24,7 @@ void ov_layout_free(ov_layout_t* layout) {
         delete layout;
 }
 
-const char* ov_layout_to_string(ov_layout_t* layout) {
+const char* ov_layout_to_string(const ov_layout_t* layout) {
     if (!layout) {
         return str_to_char_array("Error: null layout!");
     }

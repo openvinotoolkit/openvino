@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph_ops/type_relaxed.hpp>
+#include <ov_ops/type_relaxed.hpp>
 #include "test_utils/fusing_test_utils.hpp"
 #include "test_utils/convolution_params.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -321,7 +321,8 @@ InputShape convInpShape = {
         }
 };
 
-InputShape secondInp = {
+const std::vector<InputShape> secondInp = {
+    {
         //dynamic shapes
         {-1, -1, -1, -1},
         { //target static shapes
@@ -331,12 +332,19 @@ InputShape secondInp = {
             {1, 64, 8, 8},
             {1, 64, 8, 1}
         }
+    },
+    {
+        {1, 64, 8, 8},
+        {
+            {1, 64, 8, 8}
+        }
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_FP32, ConcatConvSumInPlaceTest,
                          ::testing::Combine(
                                  ::testing::Values(convInpShape),
-                                 ::testing::Values(secondInp),
+                                 ::testing::ValuesIn(secondInp),
                                  ::testing::Values(true, false),
                                  ::testing::ValuesIn(fusingParamsSet),
                                  ::testing::Values(cpuEmptyPluginConfig)),
@@ -345,7 +353,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_FP32, ConcatConvSumInPlaceTest
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_BF16, ConcatConvSumInPlaceTest,
                          ::testing::Combine(
                                  ::testing::Values(convInpShape),
-                                 ::testing::Values(secondInp),
+                                 ::testing::ValuesIn(secondInp),
                                  ::testing::Values(true, false),
                                  ::testing::ValuesIn(fusingParamsSetBF16),
                                  ::testing::Values(cpuBF16PluginConfig)),
@@ -354,7 +362,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_BF16, ConcatConvSumInPlaceTest
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_INT8, ConcatConvSumInPlaceTestInt8,
                          ::testing::Combine(
                                  ::testing::Values(convInpShape),
-                                 ::testing::Values(secondInp),
+                                 ::testing::ValuesIn(secondInp),
                                  ::testing::Values(true, false),
                                  ::testing::ValuesIn(fusingParamsSet),
                                  ::testing::Values(cpuEmptyPluginConfig)),

@@ -32,6 +32,26 @@ using primitive_id = std::string;
 
 struct primitive_info;
 
+struct input_info {
+    input_info() : pid(""), idx(0) {}
+    input_info(primitive_id pid) : pid(pid), idx(0) {}
+    input_info(primitive_id pid, int idx) : pid(pid), idx(idx) {}
+
+    primitive_id pid;
+    int32_t idx;
+    struct cmp {
+        bool operator() (const input_info a, const input_info b) {
+            if (a.pid < b.pid) {
+                return true;
+            } else if (a.pid == b.pid) {
+                return a.idx < b.idx;
+            } else {
+                return false;
+            }
+        }
+    };
+};
+
 /// @brief Base class of network primitive description.
 struct primitive {
 public:
@@ -40,12 +60,16 @@ public:
               const primitive_id& id,
               const std::vector<primitive_id>& input,
               const padding& output_padding = padding(),
-              const optional_data_type output_data_type = optional_data_type())
+              const optional_data_type output_data_type = optional_data_type(),
+              const std::vector<input_info>& input_new = {},
+              const size_t num_outputs = 1)
         : type(type),
           id(id),
           output_padding(output_padding),
           output_data_type(output_data_type),
-          input(input) {}
+          input(input),
+          input_new(input_new),
+          num_outputs(num_outputs) {}
 
     virtual ~primitive() = default;
 
@@ -66,6 +90,17 @@ public:
         auto result = input;
         auto deps = get_dependencies();
         result.insert(result.end(), deps.begin(), deps.end());
+        return result;
+    }
+
+    std::vector<input_info> dependencies_new() const {
+        std::vector<input_info> result;
+        auto deps = get_dependencies_new();
+        if (!input_new.empty()) {
+            result.reserve(input_new.size() + deps.size());
+            for (auto& i : input_new) result.push_back(i);
+            for (auto& dep : deps) result.push_back({dep.first.get(), dep.second});
+        }
         return result;
     }
 
@@ -94,13 +129,23 @@ public:
 
     size_t input_size() const { return input.size(); }
 
+    size_t output_size() const { return num_outputs; }
+
     using primitive_id_arr = std::vector<primitive_id>;
 
     /// @brief List of ids of input primitives.
     primitive_id_arr input;
 
+    using input_info_arr = std::vector<input_info>;
+
+    /// @brief List of input info containing id and output index of input primitive.
+    input_info_arr input_new;
+
+    size_t num_outputs;
+
 protected:
     virtual std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const { return {}; }
+    virtual std::vector<std::pair<std::reference_wrapper<const primitive_id>, int>> get_dependencies_new() const { return {}; }
     class condition;
     friend struct primitive_info;
 };
@@ -112,8 +157,10 @@ protected:
     explicit primitive_base(const primitive_id& id,
                             const std::vector<primitive_id>& input,
                             const padding& output_padding = padding(),
-                            optional_data_type output_data_type = optional_data_type())
-        : primitive(PType::type_id(), id, input, output_padding, output_data_type) {}
+                            optional_data_type output_data_type = optional_data_type(),
+                            const std::vector<input_info>& input_new = {},
+                            const size_t num_outputs = 1)
+        : primitive(PType::type_id(), id, input, output_padding, output_data_type, input_new, num_outputs) {}
 };
 
 struct primitive_info {

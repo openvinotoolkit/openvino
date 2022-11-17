@@ -30,7 +30,7 @@ shared_ptr<Node> op::v4::ReduceL2::get_default_value() const {
 NGRAPH_SUPPRESS_DEPRECATED_END
 
 shared_ptr<Node> op::v4::ReduceL2::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v4_ReduceL2_clone_with_new_inputs);
+    OV_OP_SCOPE(v4_ReduceL2_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v4::ReduceL2>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
@@ -60,7 +60,7 @@ bool evaluate_reduce_l2(const HostTensorPtr& arg, const HostTensorPtr& out, cons
 }  // namespace reduce_l2
 
 bool op::v4::ReduceL2::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v4_ReduceL2_evaluate);
+    OV_OP_SCOPE(v4_ReduceL2_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
 
@@ -71,7 +71,7 @@ bool op::v4::ReduceL2::evaluate(const HostTensorVector& outputs, const HostTenso
 }
 
 bool op::v4::ReduceL2::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v4_ReduceL2_has_evaluate);
+    OV_OP_SCOPE(v4_ReduceL2_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::bf16:
     case ngraph::element::f16:

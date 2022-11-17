@@ -10,21 +10,13 @@
 #include <string>
 
 namespace cldnn {
-template <>
-struct typed_program_node<reverse_sequence> : public typed_program_node_base<reverse_sequence> {
-    using parent = typed_program_node_base<reverse_sequence>;
-
-public:
-    using parent::parent;
-
-    program_node& input(size_t index = 0) const { return get_dependency(index); }
-};
 
 using reverse_sequence_node = typed_program_node<reverse_sequence>;
 
 template <>
 class typed_primitive_inst<reverse_sequence> : public typed_primitive_inst_base<reverse_sequence> {
     using parent = typed_primitive_inst_base<reverse_sequence>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(reverse_sequence_node const& node, kernel_impl_params const& impl_param);

@@ -64,7 +64,7 @@ template<> inline uint8_t saturate_cast(uint16_t x) {
 }
 template<> inline uint8_t saturate_cast(float x)    { return saturate_cast<uint8_t>(static_cast<int>(std::rint(x))); }
 
-template<> inline float saturate_cast(double x)     { return x; }
+template<> inline float saturate_cast(double x)     { return static_cast<float>(x); }
 //------------------------------------------------------------------------------
 
 constexpr static const int ONE = 1 << 15;

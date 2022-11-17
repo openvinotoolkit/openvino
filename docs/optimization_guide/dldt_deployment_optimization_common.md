@@ -24,19 +24,16 @@ The key advantage of the Async approach is that when a device is busy with the i
 
 In the example below, inference is applied to the results of the video decoding. It is possible to keep two parallel infer requests, and while the current one is processed, the input frame for the next one is being captured. This essentially hides the latency of capturing, so that the overall frame rate is rather determined only by the slowest part of the pipeline (decoding vs inference) and not by the sum of the stages.
 
+![Intel&reg; VTune&trade; screenshot](../img/synch-vs-asynch.svg)
+
 Below are example-codes for the regular and async-based approaches to compare:
 
--	Normally, the frame is captured with OpenCV and then immediately processed:<br>
+- Normally, the frame is captured with OpenCV and then immediately processed:<br>
+  @snippet snippets/dldt_optimization_guide8.cpp part8
 
-@snippet snippets/dldt_optimization_guide8.cpp part8
+- In the "true" async mode, the `NEXT` request is populated in the main (application) thread, while the `CURRENT` request is processed:<br>
+  @snippet snippets/dldt_optimization_guide9.cpp part9
 
-![Intel&reg; VTune&trade; screenshot](../img/vtune_regular.png)
-
--	In the "true" async mode, the `NEXT` request is populated in the main (application) thread, while the `CURRENT` request is processed:<br>
-
-@snippet snippets/dldt_optimization_guide9.cpp part9
-
-![Intel&reg; VTune&trade; screenshot](../img/vtune_async.png)
 
 The technique can be generalized to any available parallel slack. For example, you can do inference and simultaneously encode the resulting or previous frames or run further inference, like emotion detection on top of the face detection results.
 Refer to the [Object Detection С++ Demo](@ref omz_demos_object_detection_demo_cpp), [Object Detection Python Demo](@ref omz_demos_object_detection_demo_python)(latency-oriented Async API showcase) and [Benchmark App Sample](../../samples/cpp/benchmark_app/README.md) for complete examples of the Async API in action.
