@@ -408,11 +408,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_castlike_BFLOAT16_to_FLOAT_cpu",
         "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_cpu",
     ),
-    (
-        xfail_issue_91152,
-        "OnnxBackendNodeModelTest.test_quantizelinear_cpu",
-        "OnnxBackendNodeModelTest.test_dequantizelinear_cpu",
-    ),
 ]
 
 for test_group in tests_expected_to_fail:
