@@ -129,7 +129,6 @@ def add_toctree_functions(app, pagename, templatename, context, doctree):
             toc_sphinx = index_toctree(app, pagename, startdepth, **kwargs)
 
         soup = BeautifulSoup(toc_sphinx, "html.parser")
-        out = ''
 
         if kind == "sidebar":
             # Add bootstrap classes for first `ul` items
@@ -155,7 +154,6 @@ def add_toctree_functions(app, pagename, templatename, context, doctree):
                 li.find("a")["class"].append("nav-link")
                 # only select li items (not eg captions)
                 # out = "\n".join([ii.prettify() for ii in soup.find_all("li")])
-                out += li.prettify() + "\n"
             elif kind == "sidebar":
                 if li is None:
                     continue
@@ -196,13 +194,7 @@ def add_toctree_functions(app, pagename, templatename, context, doctree):
                     checkbox.attrs["checked"] = ""
                 li.insert(1, checkbox)
 
-
-        if kind == "sidebar":
-            out = soup.prettify()
-        elif kind == "raw":
-            out = soup
-
-        return out
+        return soup
 
     context["generate_sidebar_nav"] = generate_sidebar_nav
 
