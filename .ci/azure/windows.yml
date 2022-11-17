@@ -89,7 +89,7 @@ jobs:
       versionSpec: '3.10.7'
       addToPath: false
       architecture: 'x64'
-      githubToken: $(auth)
+      githubToken: $(auth_token)
     displayName: Setup Python 3.10
     name: setupPython
 
