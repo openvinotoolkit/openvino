@@ -187,6 +187,10 @@ void add_required_reorders::run(program& p) {
                 };
             }
 
+            if (original_layout.is_dynamic() && usr->type()->does_dynamic_implementation_exist(*usr)) {
+                correct_layout_selected = true;
+            }
+
             if (usr->get_preferred_impl_type() == impl_types::onednn) {
                 usr->set_preferred_impl_type(impl_types::ocl);
                 usr->set_output_layout(original_layout, false);
