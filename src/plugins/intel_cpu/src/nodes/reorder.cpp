@@ -201,26 +201,26 @@ void Reorder::prepareParams() {
             if (getSelectedPrimitiveDescriptor() == nullptr)
                 IE_THROW() << "Preferable primitive descriptor is not set.";
 
-            createReorderPrimitive(srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), srcMemPtr->GetData(),
-                                   dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), dstMemPtr->GetData());
+            createReorderPrimitive(srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), srcMemPtr->getDnnlMemoryMngr(),
+                                   dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), dstMemPtr->getDnnlMemoryMngr());
         }
     }
 }
 
 void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
-                                               void* srcPtr,
-                                               const dnnl::memory::desc& dstDesc,
-                                               void* dstPtr) {
+                                     DnnlMemoryMngrPtr srcMemMngr,
+                                     const dnnl::memory::desc& dstDesc,
+                                     DnnlMemoryMngrPtr dstMemMngr) {
     auto selectedPD = getSelectedPrimitiveDescriptor();
     if (!selectedPD)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
     const auto engine = getEngine();
     src_blocked = std::make_shared<Memory>(engine);
-    src_blocked->Create(DnnlExtensionUtils::makeDescriptor(srcDesc), srcPtr, false);
+    src_blocked->Create(DnnlExtensionUtils::makeDescriptor(srcDesc), srcMemMngr);
 
     dst_blocked = std::make_shared<Memory>(engine);
-    dst_blocked->Create(DnnlExtensionUtils::makeDescriptor(dstDesc), dstPtr, false);
+    dst_blocked->Create(DnnlExtensionUtils::makeDescriptor(dstDesc), dstMemMngr);
 
     auto src_desc = src_blocked->GetPrimitive().get_desc();
     if (!src_permutation.empty()) {
@@ -270,7 +270,7 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
         auto newDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(newDims),
                                             src_blocked->GetDataType(),
                                             newFormat);
-        src_blocked->Create(DnnlExtensionUtils::makeDescriptor(newDesc), srcPtr, false);
+        src_blocked->Create(DnnlExtensionUtils::makeDescriptor(newDesc), srcMemMngr);
 
         key.src = src_blocked->GetPrimitive().get_desc();
         result = cache->getOrCreate(key, builder);
@@ -388,8 +388,8 @@ void Reorder::setDynamicBatchLim(int lim) {
         auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
         memory::desc src_d = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
         memory::desc dst_d = dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-        void *src_data_hdl = srcMemPtr->GetData();
-        void *dst_data_hdl = dstMemPtr->GetData();
+        auto src_data_mgr = srcMemPtr->getDnnlMemoryMngr();
+        auto dst_data_mgr = dstMemPtr->getDnnlMemoryMngr();
 
         src_d.data.dims[0] = batchToProcess();
         src_d.data.padded_dims[0] = batchToProcess();
@@ -397,7 +397,7 @@ void Reorder::setDynamicBatchLim(int lim) {
         dst_d.data.dims[0] = batchToProcess();
         dst_d.data.padded_dims[0] = batchToProcess();
 
-        createReorderPrimitive(src_d, src_data_hdl, dst_d, dst_data_hdl);
+        createReorderPrimitive(src_d, src_data_mgr, dst_d, dst_data_mgr);
     }
 }
 
