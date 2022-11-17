@@ -156,6 +156,8 @@ def add_toctree_functions(app, pagename, templatename, context, doctree):
                 # out = "\n".join([ii.prettify() for ii in soup.find_all("li")])
                 out += li.prettify() + "\n"
             elif kind == "sidebar":
+                if li is None:
+                    continue
                 # We check all "li" elements, to add a "current-page" to the correct li.
                 classes = li.get("class", [])
 
