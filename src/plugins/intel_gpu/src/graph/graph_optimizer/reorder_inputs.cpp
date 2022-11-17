@@ -138,6 +138,42 @@ struct travel_direction_wrapper<direction_e::backwards> {
     static T& second(T& current, T& /*next*/) { return current; }
 };
 
+static format get_target_output_format(layout_optimizer& lo, const std::map<program_node*, format::type>& fmt_map, program_node *node, size_t user_idx = 0) {
+    // 1. Check selected preferred_output_format
+    if (lo.get_optimization_attributes().use_onednn_impls) {
+        // If onednn is not used, need to ignore get_preferred_output_fmt result as it is from onednn
+        auto ret = node->get_preferred_output_fmt(user_idx);
+
+        if (ret != format::any)
+            return ret;
+    }
+
+    // 2. Check fmt
+    if (fmt_map.count(node) > 0)
+        return fmt_map.at(node);
+
+    // 3. Use output_layout
+    return node->get_output_layout().format;
+}
+
+static format get_target_input_format(layout_optimizer& lo, const std::map<program_node*, format::type>& fmt_map, program_node *node, size_t dep_idx = 0) {
+    // 1. Check selected preferred_input_format
+    if (lo.get_optimization_attributes().use_onednn_impls) {
+        // If onednn is not used, need to ignore get_preferred_input_fmt result as it is from onednn
+        auto ret = node->get_preferred_input_fmt(dep_idx);
+        if (ret != format::any)
+            return ret;
+    }
+
+    // 2. Check fmt
+    if (fmt_map.count(node) > 0)
+        return fmt_map.at(node);
+
+    // 3. Use output_layout
+    return node->get_output_layout().format;
+}
+
+
 template <direction_e dir>
 bool can_propagate_formats_rec(
     const std::map<program_node*, format::type>& fmt_map,
@@ -197,18 +233,43 @@ void propagate_formats_rec(std::map<program_node*, format::type>& fmt_map,
     if (sel_fmt == fmt)
         return;
 
+    #if 0
     auto first_node = travel_direction_wrapper<dir>::first(prev, node);
     auto second_node = travel_direction_wrapper<dir>::second(prev, node);
     auto first_fmt = travel_direction_wrapper<dir>::first(fmt, sel_fmt);
     auto second_fmt = travel_direction_wrapper<dir>::second(fmt, sel_fmt);
+    #endif
 
-    if (lo.can_fuse_reorder(*first_node,
-                            *second_node,
+    auto predecessor = travel_direction_wrapper<dir>::first(prev, node);
+    auto successor = travel_direction_wrapper<dir>::second(prev, node);
+    auto index_to_pred = successor->get_dependency_index(*predecessor);
+    auto index_to_succ = predecessor->get_user_index(*successor);
+    auto first_fmt = get_target_output_format(lo, fmt_map, predecessor, index_to_succ);
+    auto second_fmt = get_target_input_format(lo, fmt_map, successor, index_to_pred);
+#if 0
+        auto predecessor = travel_direction_wrapper<dir>::first(node, next);
+        auto successor = travel_direction_wrapper<dir>::second(node, next);
+        auto in_layout = predecessor->get_output_layout();
+        auto out_layout = in_layout;
+        auto index_to_pred = successor->get_dependency_index(*predecessor);
+        auto index_to_succ = predecessor->get_user_index(*successor);
+
+        in_layout.format = get_target_output_format(lo, fmt_map, predecessor, index_to_succ);
+        out_layout.format = get_target_input_format(lo, fmt_map, successor, index_to_pred);
+#endif
+
+    if (lo.can_fuse_reorder(*predecessor,
+                            *successor,
                             first_fmt,
                             second_fmt))
         return;
 
+    fmt = travel_direction_wrapper<dir>::first(first_fmt, second_fmt);
     fmt_map.at(node) = fmt;
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->verbose >= 2) {
+        GPU_DEBUG_COUT << "[clDNN][reorder_inputs] propagate_formats_rec: " << node->id() << " - " << fmt_to_str(fmt) << std::endl;
+    }
 
     for (auto next : travel_direction_wrapper<dir>::next_nodes(node)) {
         if (!next->is_in_data_flow())
@@ -290,123 +351,89 @@ reorder_cnt count_reorders(const std::map<program_node*, format::type>& fmt_map,
     return { fwd.number + bwd.number, fwd.total_sizes + bwd.total_sizes };
 }
 
-void minimize_local_reorders(program& p, std::map<program_node*, format::type>& fmt_map, layout_optimizer& lo) {
-    for (auto node : p.get_processing_order()) {
-        if (!node->is_in_data_flow())
-            continue;
+// void minimize_local_reorders(program& p, std::map<program_node*, format::type>& fmt_map, layout_optimizer& lo) {
+//     for (auto node : p.get_processing_order()) {
+//         if (!node->is_in_data_flow())
+//             continue;
 
-        auto preferred_format = lo.get_preferred_format(*node);
+//         auto preferred_format = lo.get_preferred_format(*node);
 
-        if (preferred_format != format::any) {
-            if (preferred_format == format::b_fs_yx_fsv4 &&
-                (node->get_output_layout().data_type == data_types::i8 || node->get_output_layout().data_type == data_types::u8)) {
-                std::set<format::type> io_formats;
-                for (auto user : node->get_users()) {
-                    io_formats.insert(fmt_map.at(user));
-                }
-                for (auto dep : node->get_dependencies()) {
-                    if (!dep->is_in_data_flow())
-                        continue;
-                    io_formats.insert(fmt_map.at(dep));
-                }
-                if (!(io_formats.size() == 1 && io_formats.count(preferred_format) == 0))
-                    continue;
-            } else {
-                continue;
-            }
-        }
+//         if (preferred_format != format::any) {
+//             if (preferred_format == format::b_fs_yx_fsv4 &&
+//                 (node->get_output_layout().data_type == data_types::i8 || node->get_output_layout().data_type == data_types::u8)) {
+//                 std::set<format::type> io_formats;
+//                 for (auto user : node->get_users()) {
+//                     io_formats.insert(fmt_map.at(user));
+//                 }
+//                 for (auto dep : node->get_dependencies()) {
+//                     if (!dep->is_in_data_flow())
+//                         continue;
+//                     io_formats.insert(fmt_map.at(dep));
+//                 }
+//                 if (!(io_formats.size() == 1 && io_formats.count(preferred_format) == 0))
+//                     continue;
+//             } else {
+//                 continue;
+//             }
+//         }
 
-        if (fmt_map.at(node) == format::any) {
-            auto out_fmt = node->get_output_layout().format;
-            if (lo.is_format_supported(*node, out_fmt)) {
-                fmt_map.at(node) = out_fmt;
-            }
-        }
+//         if (fmt_map.at(node) == format::any) {
+//             auto out_fmt = node->get_output_layout().format;
+//             if (lo.is_format_supported(*node, out_fmt)) {
+//                 fmt_map.at(node) = out_fmt;
+//             }
+//         }
 
-        auto sel_fmt = fmt_map.at(node);
-        auto best_reorder_cnt = count_reorders(fmt_map, lo, node);
-        auto best_format = sel_fmt;
+//         auto sel_fmt = fmt_map.at(node);
+//         auto best_reorder_cnt = count_reorders(fmt_map, lo, node);
+//         auto best_format = sel_fmt;
 
-        if (best_reorder_cnt.number == 0)
-            continue;
+//         if (best_reorder_cnt.number == 0)
+//             continue;
 
-        std::set<format::type> local_formats;
+//         std::set<format::type> local_formats;
 
-        for (auto user : node->get_users()) {
-            auto user_fmt = fmt_map.at(user);
+//         for (auto user : node->get_users()) {
+//             auto user_fmt = fmt_map.at(user);
 
-            if (user_fmt != format::any &&
-                lo.is_format_supported(*node, user_fmt)) {
-                local_formats.insert(user_fmt);
-            }
-        }
+//             if (user_fmt != format::any &&
+//                 lo.is_format_supported(*node, user_fmt)) {
+//                 local_formats.insert(user_fmt);
+//             }
+//         }
 
-        for (auto dep : node->get_dependencies()) {
-            if (!dep->is_in_data_flow())
-                continue;
+//         for (auto dep : node->get_dependencies()) {
+//             if (!dep->is_in_data_flow())
+//                 continue;
 
-            auto dep_fmt = fmt_map.at(dep);
+//             auto dep_fmt = fmt_map.at(dep);
 
-            if (dep_fmt != format::any &&
-                lo.is_format_supported(*node, dep_fmt)) {
-                local_formats.insert(dep_fmt);
-            }
-        }
+//             if (dep_fmt != format::any &&
+//                 lo.is_format_supported(*node, dep_fmt)) {
+//                 local_formats.insert(dep_fmt);
+//             }
+//         }
 
-        if (local_formats.empty())
-            continue;
+//         if (local_formats.empty())
+//             continue;
 
-        for (auto new_fmt : local_formats) {
-            fmt_map.at(node) = new_fmt;
+//         for (auto new_fmt : local_formats) {
+//             fmt_map.at(node) = new_fmt;
 
-            auto reorders_cnt = count_reorders(fmt_map, lo, node);
+//             auto reorders_cnt = count_reorders(fmt_map, lo, node);
 
-            if (reorders_cnt.number < best_reorder_cnt.number ||
-                (reorders_cnt.number == best_reorder_cnt.number && reorders_cnt.total_sizes < best_reorder_cnt.total_sizes
-                                                                && !node->get_output_layout().is_dynamic())) {
-                best_reorder_cnt = reorders_cnt;
-                best_format = new_fmt;
-            }
-        }
+//             if (reorders_cnt.number < best_reorder_cnt.number ||
+//                 (reorders_cnt.number == best_reorder_cnt.number && reorders_cnt.total_sizes < best_reorder_cnt.total_sizes
+//                                                                 && !node->get_output_layout().is_dynamic())) {
+//                 best_reorder_cnt = reorders_cnt;
+//                 best_format = new_fmt;
+//             }
+//         }
 
-        fmt_map.at(node) = best_format;
-    }
-}
+//         fmt_map.at(node) = best_format;
+//     }
+// }
 
-static format get_target_output_format(layout_optimizer& lo, const std::map<program_node*, format::type>& fmt_map, program_node *node, size_t user_idx = 0) {
-    // 1. Check selected preferred_output_format
-    if (lo.get_optimization_attributes().use_onednn_impls) {
-        // If onednn is not used, need to ignore get_preferred_output_fmt result as it is from onednn
-        auto ret = node->get_preferred_output_fmt(user_idx);
-
-        if (ret != format::any)
-            return ret;
-    }
-
-    // 2. Check fmt
-    if (fmt_map.count(node) > 0)
-        return fmt_map.at(node);
-
-    // 3. Use output_layout
-    return node->get_output_layout().format;
-}
-
-static format get_target_input_format(layout_optimizer& lo, const std::map<program_node*, format::type>& fmt_map, program_node *node, size_t dep_idx = 0) {
-    // 1. Check selected preferred_input_format
-    if (lo.get_optimization_attributes().use_onednn_impls) {
-        // If onednn is not used, need to ignore get_preferred_input_fmt result as it is from onednn
-        auto ret = node->get_preferred_input_fmt(dep_idx);
-        if (ret != format::any)
-            return ret;
-    }
-
-    // 2. Check fmt
-    if (fmt_map.count(node) > 0)
-        return fmt_map.at(node);
-
-    // 3. Use output_layout
-    return node->get_output_layout().format;
-}
 
 const char *dir_msg(direction_e dir) {
     if (dir == direction_e::forwards)
@@ -518,7 +545,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
     }
 
     propagate_formats(p, fmt_map, lo);
-    minimize_local_reorders(p, fmt_map, lo);
+    // minimize_local_reorders(p, fmt_map, lo);
 
     GPU_DEBUG_IF(debug_config->verbose >= 2) {
         GPU_DEBUG_COUT << "[clDNN][reorder_inputs] Selected formats:" << std::endl;
