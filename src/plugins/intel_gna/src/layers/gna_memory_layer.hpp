@@ -29,7 +29,7 @@ public:
     /**
      * @brief Get size requred for the gna memory buffer
      */
-    int getSize() const {
+    size_t getByteSize() const {
         return InferenceEngine::details::product(getDims()) * elementSizeBytes();
     }
     /**
