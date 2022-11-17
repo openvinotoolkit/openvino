@@ -13,6 +13,8 @@ namespace op {
 
 OutputVector translate_squeeze(NodeContext& context) {
     auto inputs = context.inputs();
+    FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= 1, "Operation has no inputs.");
+    FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0), "Input should not be None.");
     if (inputs.size() == 1 || context.input_is_none(1)) {
         return {context.mark_node(std::make_shared<opset8::Squeeze>(inputs[0]))};
     }
