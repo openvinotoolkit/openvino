@@ -6,7 +6,7 @@ from sphinx.errors import ExtensionError
 import jinja2
 from docutils.parsers import rst
 from pathlib import Path
-from bs4 import BeautifulSoup as bs
+from bs4 import BeautifulSoup
 from sphinx.util import logging
 from pydata_sphinx_theme import index_toctree
 from .directives.code import DoxygenSnippet
@@ -87,56 +87,119 @@ def get_theme_path():
     return theme_path
 
 
-# override pydata_sphinx_theme
-def _add_collapse_checkboxes(soup, open_first=False):
-    # based on https://github.com/pradyunsg/furo
-
-    toctree_checkbox_count = 0
-
-    for element in soup.find_all("li", recursive=True):
-        # We check all "li" elements, to add a "current-page" to the correct li.
-        classes = element.get("class", [])
-
-        # Nothing more to do, unless this has "children"
-        if not element.find("ul"):
-            continue
-
-        # Add a class to indicate that this has children.
-        element["class"] = classes + ["has-children"]
-
-        # We're gonna add a checkbox.
-        toctree_checkbox_count += 1
-        checkbox_name = f"toctree-checkbox-{toctree_checkbox_count}"
-
-        # Add the "label" for the checkbox which will get filled.
-        if soup.new_tag is None:
-            continue
-        label = soup.new_tag("label", attrs={"for": checkbox_name})
-        label.append(soup.new_tag("i", attrs={"class": "fas fa-chevron-down"}))
-        element.insert(1, label)
-
-        # Add the checkbox that's used to store expanded/collapsed state.
-        checkbox = soup.new_tag(
-            "input",
-            attrs={
-                "type": "checkbox",
-                "class": ["toctree-checkbox"],
-                "id": checkbox_name,
-                "name": checkbox_name,
-            },
-        )
-        # if this has a "current" class, be expanded by default
-        # (by checking the checkbox)
-        if "current" in classes or (open_first and toctree_checkbox_count == 1):
-            checkbox.attrs["checked"] = ""
-        element.insert(1, checkbox)
-
-
 def add_toctree_functions(app, pagename, templatename, context, doctree):
 
     # override pydata_sphinx_theme
     def generate_sidebar_nav(kind, startdepth=None, **kwargs):
-        return []
+        """
+        Return the navigation link structure in HTML. Arguments are passed
+        to Sphinx "toctree" function (context["toctree"] below).
+
+        We use beautifulsoup to add the right CSS classes / structure for bootstrap.
+
+        See https://www.sphinx-doc.org/en/master/templating.html#toctree.
+
+        Parameters
+        ----------
+        kind : ["navbar", "sidebar", "raw"]
+            The kind of UI element this toctree is generated for.
+        startdepth : int
+            The level of the toctree at which to start. By default, for
+            the navbar uses the normal toctree (`startdepth=0`), and for
+            the sidebar starts from the second level (`startdepth=1`).
+        kwargs: passed to the Sphinx `toctree` template function.
+
+        Returns
+        -------
+        HTML string (if kind in ["navbar", "sidebar"])
+        or BeautifulSoup object (if kind == "raw")
+        """
+
+        open_first = False
+        if 'open_first' in kwargs:
+            open_first = kwargs.pop('open_first')
+
+        if startdepth is None:
+            startdepth = 1 if kind == "sidebar" else 0
+
+        if startdepth == 0:
+            toc_sphinx = context["toctree"](**kwargs)
+        else:
+            # select the "active" subset of the navigation tree for the sidebar
+            toc_sphinx = index_toctree(app, pagename, startdepth, **kwargs)
+
+        soup = BeautifulSoup(toc_sphinx, "html.parser")
+        out = ''
+
+        if kind == "sidebar":
+            # Add bootstrap classes for first `ul` items
+            for ul in soup("ul", recursive=False):
+                ul.attrs["class"] = ul.attrs.get("class", []) + ["nav", "bd-sidenav"]
+
+        toctree_checkbox_count = 0
+
+        for li in soup.find_all("li", recursive=(kind == "sidebar")):
+            # pair "current" with "active" since that's what we use w/ bootstrap
+            if "current" in li["class"]:
+                li["class"].append("active")
+
+            # Remove navbar/sidebar links to sub-headers on the page
+            if li.find("a"):
+                href = li.find("a")["href"]
+                if "#" in href and href != "#":
+                    li.decompose()
+
+            if kind == "navbar":
+                li["class"].append("nav-item")
+                li.find("a")["class"].append("nav-link")
+                # only select li items (not eg captions)
+                # out = "\n".join([ii.prettify() for ii in soup.find_all("li")])
+                out += li.prettify() + "\n"
+            elif kind == "sidebar":
+                # We check all "li" elements, to add a "current-page" to the correct li.
+                classes = li.get("class", [])
+
+                # Nothing more to do, unless this has "children"
+                if not li.find("ul"):
+                    continue
+
+                # Add a class to indicate that this has children.
+                li["class"] = classes + ["has-children"]
+
+                # We're gonna add a checkbox.
+                toctree_checkbox_count += 1
+                checkbox_name = f"toctree-checkbox-{toctree_checkbox_count}"
+
+                # Add the "label" for the checkbox which will get filled.
+                if soup.new_tag is None:
+                    continue
+                label = soup.new_tag("label", attrs={"for": checkbox_name})
+                label.append(soup.new_tag("i", attrs={"class": "fas fa-chevron-down"}))
+                li.insert(1, label)
+
+                # Add the checkbox that's used to store expanded/collapsed state.
+                checkbox = soup.new_tag(
+                    "input",
+                    attrs={
+                        "type": "checkbox",
+                        "class": ["toctree-checkbox"],
+                        "id": checkbox_name,
+                        "name": checkbox_name,
+                    },
+                )
+                # if this has a "current" class, be expanded by default
+                # (by checking the checkbox)
+                if "current" in classes or (open_first and toctree_checkbox_count == 1):
+                    checkbox.attrs["checked"] = ""
+                li.insert(1, checkbox)
+
+
+        if kind == "sidebar":
+            out = soup.prettify()
+        elif kind == "raw":
+            out = soup
+
+        return out
 
     context["generate_sidebar_nav"] = generate_sidebar_nav
 
