@@ -2289,7 +2289,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer,
                 auto &nextMemoryLayer = nextMemoryLayerIt->second;
                 // memory layer not yet initialized
                 if (nextMemoryLayer.reserved_size == 0) {
-                    nextMemoryLayer.reserved_size = ALIGN64(nextMemoryLayer.getSize());
+                    nextMemoryLayer.reserved_size = ALIGN64(nextMemoryLayer.getByteSize());
                     gnamem->getQueue(REGION_STATES)->reserve_ptr(nullptr, &nextMemoryLayer.gna_ptr, nextMemoryLayer.reserved_size, 64);
                     gnamem->getQueue(REGION_AUTO)->bind_ptr(nullptr, ptr, &nextMemoryLayer.gna_ptr, getOffsetForBinding(layer));
                 } else {
@@ -2582,7 +2582,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
         // TODO: this is duplicate with connect output
         auto& memoryLayer = prevMemoryLayer->second;
         if (memoryLayer.reserved_size == 0) {
-            memoryLayer.reserved_size = ALIGN64(memoryLayer.getSize());
+            memoryLayer.reserved_size = ALIGN64(memoryLayer.getByteSize());
             // connectTo used for  indicate that memory layer should be bound to given buffer
             if (connectTo) {
                 memoryLayer.reserved_size = ALIGN64(std::max(memoryLayer.reserved_size, num_data_bytes_in));
