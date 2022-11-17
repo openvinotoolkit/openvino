@@ -346,7 +346,7 @@ void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config) {
     config._small_core_offset = num_big_cores;
     int threads_per_stream = std::max(1, threads / streams);
 
-    if (num_big_cores_phys / threads_per_stream >= streams) {
+    if ((num_big_cores_phys / threads_per_stream >= streams) & (1 < threads_per_stream)) {
         config._big_core_streams = streams;
         config._threads_per_stream_big = threads_per_stream;
         config._small_core_streams = 0;
