@@ -22,17 +22,3 @@
    border-top: solid 1px #dee2e6!important;
    border-bottom: solid 1px #dee2e6!important;
 }
-
-.scrollable {
-   -ms-overflow-style: none;
-   scrollbar-width: none;
-   overflow-y: scroll;
-}
-
-.scrollable::-webkit-scrollbar {
-   display: none;
- }
-
-.scrollbox {
-overflow-x: hidden;
-}

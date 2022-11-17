@@ -1,11 +1,6 @@
 $(document).ready(function () {
     sortableTables();
-    scrollableTables();
 });
-
-function scrollableTables() {
-    $('table.table').parents('div.scrollbox').addClass("scrollable");
-}
 
 function sortableTables() {
 
