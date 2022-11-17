@@ -187,6 +187,33 @@ ov::hint::PerformanceMode get_performance_hint(const std::string& device, const 
     return ov_perf_hint;
 }
 
+void setDeviceProperty(ov::Core& core,
+                       std::string& device,
+                       ov::AnyMap& device_config,
+                       const std::pair<std::string, ov::Any>& property,
+                       const std::pair<std::string, ov::Any>& config = {}) {
+    auto supported_properties = core.get_property(device, ov::supported_properties);
+    auto supported = [&](const std::string& key) {
+        return std::find(std::begin(supported_properties), std::end(supported_properties), key) !=
+               std::end(supported_properties);
+    };
+    // check if the HW device supported this property
+    std::pair<std::string, ov::Any> device_property;
+    if (!config.first.empty() && supported(config.first)) {
+        device_property = config;
+    } else if (supported(property.first))
+        device_property = property;
+
+    if (device_property.first.empty())
+        return;
+    if (device_config.find(device) == device_config.end()) {
+        device_config.insert(ov::device::properties(device, device_property));
+    } else {
+        auto& properties = device_config[device].as<ov::AnyMap>();
+        properties.emplace(device_property);
+    }
+}
+
 /**
  * @brief The entry point of the benchmark application
  */
@@ -319,13 +346,15 @@ int main(int argc, char* argv[]) {
         // Remove the hardware devices if AUTO/MULTI appears in the devices list.
         if (if_auto || if_multi) {
             devices.clear();
-            std::string virtual_device = if_auto ? "AUTO" : "MULTI";
+            // Parse out the currect virtual device as the target device.
+            std::string virtual_device = split(device_name, ':').at(0);
             auto iter_virtual = std::find(hardware_devices.begin(), hardware_devices.end(), virtual_device);
             hardware_devices.erase(iter_virtual);
             devices.push_back(virtual_device);
             parse_value_for_virtual_device(virtual_device, device_nstreams);
             parse_value_for_virtual_device(virtual_device, device_infer_precision);
         }
+
         // Update config per device according to command line parameters
         for (auto& device : devices) {
             auto& device_config = config[device];
@@ -399,7 +428,6 @@ int main(int argc, char* argv[]) {
                                 else {
                                     auto& property = device_config[it.first].as<ov::AnyMap>();
                                     property.emplace(ov::num_streams(std::stoi(it.second)));
-                                    device_config.insert(ov::device::properties(it.first, property));
                                 }
                             }
                         }
@@ -427,6 +455,17 @@ int main(int argc, char* argv[]) {
                             // Use API 2.0 key for streams
                             key = ov::num_streams.name();
                             device_config[key] = ov::streams::AUTO;
+                        } else if (device == "MULTI" || device == "AUTO") {
+                            // Set nstreams to default value auto if no nstreams specified from cmd line.
+                            std::string key = std::string(getDeviceTypeFromName(device) + "_THROUGHPUT_STREAMS");
+                            for (auto& hwdevice : hardware_devices) {
+                                auto value = std::string(getDeviceTypeFromName(hwdevice) + "_THROUGHPUT_AUTO");
+                                setDeviceProperty(core,
+                                                  hwdevice,
+                                                  device_config,
+                                                  ov::num_streams(ov::streams::AUTO),
+                                                  std::make_pair(key, value));
+                            }
                         }
                     }
                 }
@@ -439,14 +478,36 @@ int main(int argc, char* argv[]) {
                 auto it_device_infer_precision = device_infer_precision.find(device);
                 if (it_device_infer_precision != device_infer_precision.end()) {
                     // set to user defined value
-                    if (!supported(ov::hint::inference_precision.name())) {
+                    if (supported(ov::hint::inference_precision.name())) {
+                        device_config.emplace(ov::hint::inference_precision(it_device_infer_precision->second));
+                    } else if (device == "MULTI" || device == "AUTO") {
+                        // check if the element contains the hardware device property
+                        auto value_vec = split(it_device_infer_precision->second, ' ');
+                        if (value_vec.size() == 1) {
+                            auto key = ov::hint::inference_precision.name();
+                            device_config[key] = it_device_infer_precision->second;
+                        } else {
+                            // set device inference_precison properties in the AUTO/MULTI plugin
+                            std::stringstream strm(it_device_infer_precision->second);
+                            std::map<std::string, std::string> devices_property;
+                            ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
+                            for (auto it : devices_property) {
+                                if (device_config.find(it.first) == device_config.end())
+                                    device_config.insert(
+                                        ov::device::properties(it.first, ov::hint::inference_precision(it.second)));
+                                else {
+                                    auto& property = device_config[it.first].as<ov::AnyMap>();
+                                    property.emplace(ov::hint::inference_precision(it.second));
+                                }
+                            }
+                        }
+                    } else {
                         throw std::logic_error("Device " + device + " doesn't support config key '" +
                                                ov::hint::inference_precision.name() + "'! " +
                                                "Please specify -infer_precision for correct devices in format  "
                                                "<dev1>:<infer_precision1>,<dev2>:<infer_precision2>" +
                                                " or via configuration file.");
                     }
-                    device_config.emplace(ov::hint::inference_precision(it_device_infer_precision->second));
                 }
             };
 
@@ -463,17 +524,15 @@ int main(int argc, char* argv[]) {
                 auto property_name = str == "nthreads" ? ov::inference_num_threads.name() : ov::affinity.name();
                 auto property = str == "nthreads" ? ov::inference_num_threads(FLAGS_nthreads)
                                                   : ov::affinity(fix_pin_option(FLAGS_pin));
-                if (supported(property_name) || if_multi) {
+                if (supported(property_name) || device_name == "AUTO") {
+                    // create nthreads/pin primary property for HW device or AUTO if -d is AUTO directly.
                     device_config.emplace(property);
-                } else if (if_auto) {
+                } else if (if_auto || if_multi) {
+                    // Create secondary property of -nthreads/-pin only for CPU if CPU device appears in the devices
+                    // list specified by -d.
                     for (auto& device : hardware_devices) {
-                        if (device_config.find(device) == device_config.end()) {
-                            device_config.insert(ov::device::properties(device, property));
-                        } else {
-                            auto& properties = device_config[device].as<ov::AnyMap>();
-                            properties.emplace(property);
-                            device_config.insert(ov::device::properties(device, properties));
-                        }
+                        if (device == "CPU")
+                            setDeviceProperty(core, device, device_config, property);
                     }
                 }
             };

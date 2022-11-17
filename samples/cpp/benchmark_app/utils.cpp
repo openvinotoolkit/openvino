@@ -117,8 +117,6 @@ std::vector<std::string> parse_devices(const std::string& device_string) {
         auto bracket = comma_separated_devices.find("(");  // e.g. in BATCH:GPU(4)
         comma_separated_devices = comma_separated_devices.substr(colon + 1, bracket - colon - 1);
     }
-    if ((comma_separated_devices == "MULTI") || (comma_separated_devices == "HETERO"))
-        return std::vector<std::string>();
 
     auto devices = split(comma_separated_devices, ',');
     result.insert(result.end(), devices.begin(), devices.end());
@@ -130,7 +128,7 @@ void parse_value_for_virtual_device(const std::string& device, std::map<std::str
     if (item_virtual != values_string.end() && values_string.size() > 1) {
         if (device == "MULTI") {
             // Remove the element that the key is virtual device MULTI
-            // e.g. MULTI:xxx,xxx -nstreams 2 will set nstreams 2 to CPU.
+            // e.g. MULTI:xxx -nstreams 2 will set nstreams 2 to xxx.
             values_string.erase(item_virtual);
         } else if (device == "AUTO") {
             // Just keep the element that the key is virtual device AUTO
@@ -153,13 +151,7 @@ void parse_value_for_virtual_device(const std::string& device, std::map<std::str
     if (values_string.find(device) != values_string.end()) {
         auto& nstreams = values_string[device];
         // Remove the space at the tail.
-        nstreams.erase(std::find_if(nstreams.rbegin(),
-                                    nstreams.rend(),
-                                    [](unsigned char ch) {
-                                        return !std::isspace(ch);
-                                    })
-                           .base(),
-                       nstreams.end());
+        nstreams.pop_back();
     }
     return;
 }
@@ -173,13 +165,17 @@ std::map<std::string, std::string> parse_value_per_device(const std::vector<std:
         auto device_value_vec = split(device_value_string, ':');
         if (device_value_vec.size() == 2) {
             auto device_name = device_value_vec.at(0);
-            auto nstreams = device_value_vec.at(1);
+            auto value = device_value_vec.at(1);
             auto it = std::find(devices.begin(), devices.end(), device_name);
             if (it != devices.end()) {
-                result[device_name] = nstreams;
+                result[device_name] = value;
             } else {
-                throw std::logic_error("Can't set nstreams value " + std::string(nstreams) + " for device '" +
-                                       device_name + "'! Incorrect device name!");
+                std::string devices_list = "";
+                for (auto& device : devices)
+                    devices_list += device + " ";
+                devices_list.pop_back();
+                throw std::logic_error("Failed to set property to '" + device_name +
+                                       "' which is not found whthin the target devices list '" + devices_list + "'!");
             }
         } else if (device_value_vec.size() == 1) {
             auto value = device_value_vec.at(0);
