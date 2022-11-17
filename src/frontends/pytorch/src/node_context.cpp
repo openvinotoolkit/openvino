@@ -18,19 +18,8 @@ namespace pytorch {
 
 std::shared_ptr<opset8::Constant> NodeContext::get_constant_at_input(size_t index) const {
     OV_FRONTEND_REQUIRE(!input_is_none(index));
-    auto input_node = get_input(index).get_node_shared_ptr();
+    auto input_node = get_input_from_visible_context(index).get_node_shared_ptr();
     auto input = std::dynamic_pointer_cast<opset8::Constant>(input_node);
-    auto param = std::dynamic_pointer_cast<opset8::Parameter>(input_node);
-    if (!input && param) {
-        // We need to look into external context for inputs that would be feed into this parameter
-        auto name = param->get_output_tensor(0).get_any_name();
-        size_t tensor_idx = (size_t)std::stoll(name);
-        if (m_ext_tensor_map.count(tensor_idx)) {
-            auto tensor = m_ext_tensor_map.at(tensor_idx);
-            input_node = tensor.get_node_shared_ptr();
-            input = std::dynamic_pointer_cast<opset8::Constant>(input_node);
-        }
-    }
     FRONT_END_GENERAL_CHECK(input, "Input with index ", index, " cannot be interpreted as Constant: ", input_node);
     return input;
 }
@@ -68,8 +57,9 @@ std::vector<int64_t> NodeContext::const_input<std::vector<int64_t>>(size_t index
 template <>
 std::string NodeContext::const_input<std::string>(size_t index) const {
     OV_FRONTEND_REQUIRE(!input_is_none(index));
-    auto input_node = get_input(index).get_node_shared_ptr();
+    auto input_node = get_input_from_visible_context(index).get_node_shared_ptr();
     auto input = std::dynamic_pointer_cast<PtFrameworkNode>(input_node);
+    FRONT_END_GENERAL_CHECK(input, "Input node with index ", index, " cannot be interpreted as FrameworkNode with string constant: ", input_node);
     return input->get_decoder()->as_string();
 }
 
