@@ -77,6 +77,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::elu", op::translate_elu},
         {"aten::embedding", op::translate_embedding},
         {"aten::eq", op::translate_1to1_match_2_inputs<opset8::Equal>},
+        {"aten::exp", op::translate_1to1_match_1_inputs<opset8::Exp>}},
         {"aten::flatten", op::translate_flatten},
         {"aten::floordiv", op::translate_floordiv},
         {"aten::gelu", op::translate_gelu},
