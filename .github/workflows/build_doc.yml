@@ -16,10 +16,18 @@ jobs:
           submodules: true
           lfs: true
 
+      - name: Cache ccache
+        id: cache_restore
+        uses: actions/cache@v3
+        with:
+          path: doxygen-build
+          key: doc-ccache-cache
+
       - name: Install ccache
         uses: hendrikmuhs/ccache-action@v1.2
         with:
           key: doc-ccache-cache
+          save: false
 
       - name: Cache doxygen make
         id: cache_doxygen_make
