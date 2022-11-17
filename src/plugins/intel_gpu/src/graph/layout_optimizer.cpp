@@ -268,7 +268,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     if (next.is_type<convolution>() &&
         next.get_preferred_impl_type() == impl_types::onednn &&
         ((fmt_prev == format::byxf && fmt_next == format::byxf) ||
-         (fmt_prev == format::bfyx && fmt_next == format::byxf)) &&
+         (fmt_prev == format::bfyx && fmt_next == format::byxf && prev_dt != data_types::i8 && prev_dt != data_types::f16)) &&
         is_input_reorder(prev, next))
         return true;
 
