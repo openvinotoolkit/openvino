@@ -31,12 +31,15 @@ def push_to_db_facade(data, db_api_handler):
     if response.ok:
         logging.info("Uploaded records by API url {}".format(db_api_handler))
     else:
-        raise ConnectionError("Failed to upload records by API url {}".format(db_api_handler))
+        raise ConnectionError("Failed to upload records by API url {} due to error {}".format(db_api_handler,
+                                                                                              str(response.json())))
 
 
 def modify_data_for_push_to_new_db(data):
     new_data = deepcopy(data)
 
+    if '_id' in new_data:
+        del new_data['_id']
     if 'run_id' in new_data:
         del new_data['run_id']
         new_data['build_url'] = data['run_id']
@@ -65,6 +68,8 @@ def modify_data_for_push_to_new_db(data):
         del new_data['raw_results']
         for raw_result_name, raw_result in data['raw_results'].items():
             new_data['results'][raw_result_name]['raw_results'] = raw_result
+    new_data['ext'] = {}
+    new_data = {'data': [new_data]}
     return new_data
 
 
