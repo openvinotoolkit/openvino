@@ -283,15 +283,13 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
         }
         _small_core_offset = val_i;
     } else if (key == CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD)) {
-        int val_i;
-        if (value == CONFIG_VALUE_INTERNAL(YES)) {
-            val_i = true;
-        } else if (value == CONFIG_VALUE_INTERNAL(NO)) {
-            val_i = false;
+        if (value == CONFIG_VALUE(YES)) {
+            _enable_hyper_thread = true;
+        } else if (value == CONFIG_VALUE(NO)) {
+            _enable_hyper_thread = false;
         } else {
             OPENVINO_UNREACHABLE("Unsupported enable hyper thread type");
         }
-        _enable_hyper_thread = val_i;
     } else {
         IE_THROW() << "Wrong value for property key " << key;
     }
@@ -341,7 +339,7 @@ Parameter IStreamsExecutor::Config::GetConfig(const std::string& key) const {
     } else if (key == CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)) {
         return {std::to_string(_small_core_offset)};
     } else if (key == CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD)) {
-        return {_enable_hyper_thread ? CONFIG_VALUE_INTERNAL(YES) : CONFIG_VALUE_INTERNAL(NO)};
+        return {_enable_hyper_thread ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO)};
     } else {
         IE_THROW() << "Wrong value for property key " << key;
     }

@@ -108,13 +108,6 @@ DECLARE_CONFIG_KEY(CONFIG_DEVICE_ID);
  * @brief enable hyper thread
  */
 DECLARE_CONFIG_KEY(ENABLE_HYPER_THREAD);
-
-/**
- * @brief generic boolean values
- */
-DECLARE_CONFIG_VALUE(YES);
-DECLARE_CONFIG_VALUE(NO);
-
 }  // namespace PluginConfigInternalParams
 
 }  // namespace InferenceEngine

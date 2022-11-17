@@ -581,7 +581,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
             LOG_DEBUG_TAG("set affinity to NUMA and disable hyper thread for CPU");
             // If the other devices load successfully and no user set affinity then set NUMA to CPU
             iterCPU->config.insert({ov::affinity.name(), ov::affinity(ov::Affinity::NUMA).second.as<std::string>()});
-            iterCPU->config.insert({CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD), CONFIG_VALUE_INTERNAL(NO)});
+            iterCPU->config.insert({CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD), CONFIG_VALUE(NO)});
         }
         loads.push_back([&]() {
             loadInferEngTask(*iterCPU);
