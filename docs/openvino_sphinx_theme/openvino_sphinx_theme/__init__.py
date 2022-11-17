@@ -131,12 +131,12 @@ def add_toctree_functions(app, pagename, templatename, context, doctree):
         soup = BeautifulSoup(toc_sphinx, "html.parser")
         out = ''
 
-        if kind == "sidebar":
-            # Add bootstrap classes for first `ul` items
-            for ul in soup("ul", recursive=False):
-                ul.attrs["class"] = ul.attrs.get("class", []) + ["nav", "bd-sidenav"]
-
-        toctree_checkbox_count = 0
+        #  if kind == "sidebar":
+        #      # Add bootstrap classes for first `ul` items
+        #      for ul in soup("ul", recursive=False):
+        #          ul.attrs["class"] = ul.attrs.get("class", []) + ["nav", "bd-sidenav"]
+        #  
+        #  toctree_checkbox_count = 0
 
         for li in soup.find_all("li"):
             # pair "current" with "active" since that's what we use w/ bootstrap
@@ -156,50 +156,48 @@ def add_toctree_functions(app, pagename, templatename, context, doctree):
                 # only select li items (not eg captions)
                 # out = "\n".join([ii.prettify() for ii in soup.find_all("li")])
                 out += li.prettify() + "\n"
-            elif kind == "sidebar":
-                if li is None:
-                    continue
-                # We check all "li" elements, to add a "current-page" to the correct li.
-                classes = li.get("class", [])
-
-                # Nothing more to do, unless this has "children"
-                if not li.find("ul"):
-                    continue
-
-                # Add a class to indicate that this has children.
-                li["class"] = classes + ["has-children"]
-
-                # We're gonna add a checkbox.
-                toctree_checkbox_count += 1
-                checkbox_name = f"toctree-checkbox-{toctree_checkbox_count}"
-
-                # Add the "label" for the checkbox which will get filled.
-                if soup.new_tag is None:
-                    continue
-                label = soup.new_tag("label", attrs={"for": checkbox_name})
-                label.append(soup.new_tag("i", attrs={"class": "fas fa-chevron-down"}))
-                li.insert(1, label)
-
-                # Add the checkbox that's used to store expanded/collapsed state.
-                checkbox = soup.new_tag(
-                    "input",
-                    attrs={
-                        "type": "checkbox",
-                        "class": ["toctree-checkbox"],
-                        "id": checkbox_name,
-                        "name": checkbox_name,
-                    },
-                )
-                # if this has a "current" class, be expanded by default
-                # (by checking the checkbox)
-                if "current" in classes or (open_first and toctree_checkbox_count == 1):
-                    checkbox.attrs["checked"] = ""
-                li.insert(1, checkbox)
+            #  elif kind == "sidebar":
+            #      # We check all "li" elements, to add a "current-page" to the correct li.
+            #      classes = li.get("class", [])
+            #  
+            #      # Nothing more to do, unless this has "children"
+            #      if not li.find("ul"):
+            #          continue
+            #  
+            #      # Add a class to indicate that this has children.
+            #      li["class"] = classes + ["has-children"]
+            #  
+            #      # We're gonna add a checkbox.
+            #      toctree_checkbox_count += 1
+            #      checkbox_name = f"toctree-checkbox-{toctree_checkbox_count}"
+            #  
+            #      # Add the "label" for the checkbox which will get filled.
+            #      if soup.new_tag is None:
+            #          continue
+            #      label = soup.new_tag("label", attrs={"for": checkbox_name})
+            #      label.append(soup.new_tag("i", attrs={"class": "fas fa-chevron-down"}))
+            #      li.insert(1, label)
+            #  
+            #      # Add the checkbox that's used to store expanded/collapsed state.
+            #      checkbox = soup.new_tag(
+            #          "input",
+            #          attrs={
+            #              "type": "checkbox",
+            #              "class": ["toctree-checkbox"],
+            #              "id": checkbox_name,
+            #              "name": checkbox_name,
+            #          },
+            #      )
+            #      # if this has a "current" class, be expanded by default
+            #      # (by checking the checkbox)
+            #      if "current" in classes or (open_first and toctree_checkbox_count == 1):
+            #          checkbox.attrs["checked"] = ""
+            #      li.insert(1, checkbox)
 
 
-        if kind == "sidebar":
-            out = soup.prettify()
-        elif kind == "raw":
+        #  if kind == "sidebar":
+        #      out = soup.prettify()
+        if kind == "raw":
             out = soup
 
         return out
