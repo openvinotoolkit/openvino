@@ -43,7 +43,7 @@ def resolve_convolution_with_group(node: Node, group: int, ir_version: str):
                                                    {'override_output_shape': True})
     elif ir_version == 'V10':
         # Concat([Constant([group, node.output // group, -1]), *weights_shape[2:]], axis=1)
-        wshape = Shape(node.graph, {'name': node_name + '/WeightsShape'}).create_node()
+        wshape = Shape(node.graph, {'name': node_name + '/WeightsShape', 'allow_fold': True}).create_node()
         weights_node = node.in_port(1).get_source().node
         weights_node.out_port(0).connect(wshape.in_port(0))
 
