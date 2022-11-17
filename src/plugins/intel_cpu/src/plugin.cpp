@@ -824,6 +824,12 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
     } else if (perf_hint_name == CONFIG_VALUE(THROUGHPUT)) {
         config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = tput_hints.first;
         config[ov::num_streams.name()] = tput_hints.first;
+    } else {
+        config[CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)] = std::to_string(0);
+        config[CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)] = std::to_string(0);
+        config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)] = std::to_string(0);
+        config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)] = std::to_string(0);
+        config[CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)] = std::to_string(0);
     }
 }
 
