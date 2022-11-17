@@ -86,6 +86,18 @@ function(ov_download_tbb)
         set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
     endif()
 
+    if (NOT DEFINED ENV{TBBROOT} AND (DEFINED ENV{TBB_DIR} OR DEFINED TBB_DIR))
+        if (DEFINED ENV{TBB_DIR})
+            set(TEMP_ROOT $ENV{TBB_DIR})
+        elseif (DEFINED TBB_DIR)
+            set(TEMP_ROOT ${TBB_DIR})
+        endif()
+        while(NOT EXISTS "${TEMP_ROOT}/include")
+            get_filename_component(TEMP_ROOT ${TEMP_ROOT} PATH)
+        endwhile()
+        set(TBBROOT ${TEMP_ROOT})
+    endif()
+
     if(WIN32 AND X86_64)
         # TODO: add target_path to be platform specific as well, to avoid following if
         RESOLVE_DEPENDENCY(TBB

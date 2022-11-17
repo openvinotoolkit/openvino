@@ -113,7 +113,7 @@
 #include <ov_ops/augru_cell.hpp>
 #include <ov_ops/augru_sequence.hpp>
 
-#include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
+#include <transformations/low_precision/mark_dequantization_subgraph.hpp>
 #include <low_precision/common/quantization_granularity_restriction.hpp>
 #include <low_precision/common/precisions_restriction.hpp>
 #include <low_precision/convert_subtract_constant.hpp>
@@ -280,7 +280,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         if (hasINT16orINT32Levels) {
             defaultPrecisions = ngraph::pass::low_precision::precision_set::int8_int16_int32_support;
         }
-        manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(defaultPrecisions);
+        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(defaultPrecisions);
     }
     auto get_convert_precisions = []() {
         precisions_array array = {
@@ -527,10 +527,6 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 
         pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([&defaultPrecisions](const_node_ptr &node) -> bool {
             return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node, defaultPrecisions);
-        });
-
-        pass_config->set_callback<ngraph::pass::ConvertSubtract>([&defaultPrecisions](const_node_ptr &node) -> bool {
-            return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(node, defaultPrecisions);
         });
     }
 
