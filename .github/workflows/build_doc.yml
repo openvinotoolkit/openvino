@@ -71,7 +71,6 @@ jobs:
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DENABLE_INTEL_MYRIAD_COMMON=OFF \
             -DENABLE_DOCS=ON \
-            -DENABLE_PYTHON=ON \
             -DCMAKE_BUILD_TYPE=Release \
             -B build
 

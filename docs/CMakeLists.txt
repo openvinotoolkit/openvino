@@ -90,13 +90,8 @@ function(build_docs)
 
     list(APPEND commands
         COMMAND ${CMAKE_COMMAND} -E copy ${API_DOCS_IN}/api_reference.rst ${API_DOCS_OUT}/api_reference.rst
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${API_DOCS_IN}/ie_python_api ${API_DOCS_OUT}/ie_python_api
     )
-
-    if(ENABLE_PYTHON)
-        list(APPEND commands
-            COMMAND ${CMAKE_COMMAND} -E copy_directory ${API_DOCS_IN}/ie_python_api ${API_DOCS_OUT}/ie_python_api
-            )
-    endif()
 
     # omz doc files
     if(EXISTS "${OMZ_DOCS_DIR}")
