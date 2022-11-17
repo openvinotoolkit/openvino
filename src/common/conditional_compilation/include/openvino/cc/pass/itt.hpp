@@ -51,10 +51,13 @@ OV_CC_DOMAINS(ov_pass);
 #    define PASS_RUN_ON_FUNCTION(region) \
         OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, OV_PP_CAT(region, _run_on_function)))
 
+#    define OV_PP_FIRST_ARG(...)          OV_PP_EXPAND(OV_PP_FIRST_ARG_(__VA_ARGS__, 0))
+#    define OV_PP_FIRST_ARG_(...)         OV_PP_EXPAND(OV_PP_FIRST_ARG_GET(__VA_ARGS__))
+#    define OV_PP_FIRST_ARG_GET(val, ...) val
+
 #    define OV_OR_ARG_PLACEHOLDER_1 1,
 #    define OV_OR_ARG_PLACEHOLDER_0
-#    define OV_FIRST_ARG_GET(val, ...)         val
-#    define OV_OR_(arg1_or_junk, arg2_or_junk) OV_FIRST_ARG_GET(arg1_or_junk arg2_or_junk 0)
+#    define OV_OR_(arg1_or_junk, arg2_or_junk) OV_PP_FIRST_ARG(arg1_or_junk arg2_or_junk 0)
 #    define OV_OR_2(x, y)                      OV_OR_(OV_PP_CAT(OV_OR_ARG_PLACEHOLDER_, x), OV_PP_CAT(OV_OR_ARG_PLACEHOLDER_, y))
 #    define OV_OR_3(x, y, z)                   OV_OR_2(OV_OR_2(x, y), z)
 #    define REGISTER_PASS(obj, region, ...)                                                               \
