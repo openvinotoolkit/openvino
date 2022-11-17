@@ -1326,11 +1326,14 @@ int main(int argc, char* argv[]) {
             statistics->dump();
 
         // Performance metrics report
-        if (device_name.find("AUTO") != std::string::npos)
-            slog::info << "ExecutionDevice:   " << compiledModel.get_property(ov::execution_devices) << slog::endl;
+        try {
+            auto exeDevice = compiledModel.get_property(ov::execution_devices);
+            slog::info << "Execution Devices: " << exeDevice << slog::endl;
+        } catch (const ov::Exception&) {
+        }
 
-        slog::info << "Count:        " << iteration << " iterations" << slog::endl;
-        slog::info << "Duration:     " << double_to_string(totalDuration) << " ms" << slog::endl;
+        slog::info << "Count:             " << iteration << " iterations" << slog::endl;
+        slog::info << "Duration:          " << double_to_string(totalDuration) << " ms" << slog::endl;
 
         if (device_name.find("MULTI") == std::string::npos) {
             slog::info << "Latency:" << slog::endl;
