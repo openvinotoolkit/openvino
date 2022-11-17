@@ -341,8 +341,6 @@ network::network(cldnn::BinaryInputBuffer& ib, stream::ptr stream, engine& engin
     int num_data_nodes;
     ib >> num_data_nodes;
 
-    _memory_pool->clear_pool_for_network(net_id);
-
     for (int i = 0; i < num_data_nodes; ++i) {
         std::string type;
         std::string _primitive_id;
