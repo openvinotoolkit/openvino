@@ -108,3 +108,166 @@ INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensor, OVConcurrencyTest,
     ::testing::Combine(::testing::ValuesIn(num_streams),
         ::testing::ValuesIn(num_requests)),
     OVConcurrencyTest::getTestCaseName);
+
+TEST(canSwapTensorsBetweenInferRequests, inputs) {
+    std::vector<std::vector<uint8_t>> ref;
+    std::vector<ov::Tensor> input_tensors;
+    auto fn = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+
+    auto ie = ov::Core();
+    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU);
+
+    const int infer_requests_num = 2;
+    ov::InferRequest infer_request1 = compiled_model.create_infer_request();
+    ov::InferRequest infer_request2 = compiled_model.create_infer_request();
+
+    input_tensors.push_back(infer_request1.get_input_tensor());
+    input_tensors.push_back(infer_request2.get_input_tensor());
+
+    auto calc_ref_results = [&](const ov::Tensor& tensor){
+        const auto tensor_size = tensor.get_byte_size();
+        const auto in_blob_buf = static_cast<uint8_t*>(tensor.data());
+        std::vector<uint8_t> inData(in_blob_buf, in_blob_buf + tensor_size);
+        auto ref_out_data = ngraph::helpers::interpreterFunction(fn, {inData}).front().second;
+        ref.push_back(ref_out_data);
+    };
+
+    auto compare_results = [&](ov::Tensor& result, const uint8_t* refResult) {
+        auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
+        ASSERT_EQ(ov::shape_size(fn->get_output_shape(0)), result.get_size());
+        FuncTestUtils::compareRawBuffers(result.data<float>(),
+                                        reinterpret_cast<const float *>(refResult), ov::shape_size(fn->get_output_shape(0)),
+                                        ov::shape_size(fn->get_output_shape(0)),
+                                        thr);
+    };
+
+    for (size_t i = 0; i < infer_requests_num; i++) {
+        FuncTestUtils::fill_tensor(input_tensors[i], 10, -5, 1, i);
+        calc_ref_results(input_tensors[i]);
+    }
+
+    // Swap tensors between IRs
+    infer_request1.set_input_tensor(input_tensors[1]);
+    infer_request2.set_input_tensor(input_tensors[0]);
+
+    const int niter_limit = 10;
+    int iter1 = 0, iter2 = 0;
+    infer_request1.set_callback([&](std::exception_ptr exception_ptr) mutable {
+        if (exception_ptr) {
+            std::rethrow_exception(exception_ptr);
+        } else {
+            iter1++;
+            ov::Tensor output_tensor = infer_request1.get_output_tensor();
+            compare_results(output_tensor, ref[iter1 % 2].data());
+            if (iter1 < niter_limit) {
+                infer_request1.set_input_tensor(input_tensors[(iter1 + 1) % 2]);
+                infer_request1.start_async();
+            }
+        }
+    });
+
+    infer_request2.set_callback([&](std::exception_ptr exception_ptr) mutable {
+        if (exception_ptr) {
+            std::rethrow_exception(exception_ptr);
+        } else {
+            iter2++;
+            ov::Tensor output_tensor = infer_request2.get_output_tensor();
+            compare_results(output_tensor, ref[(iter2 + 1) % 2].data());
+            if (iter2 < niter_limit) {
+                infer_request2.set_input_tensor(input_tensors[iter2 % 2]);
+                infer_request2.start_async();
+            }
+        }
+    });
+
+    infer_request1.start_async();
+    infer_request2.start_async();
+
+    for (size_t i = 0; i < niter_limit; i++) {
+        infer_request1.wait();
+        infer_request2.wait();
+    }
+}
+
+TEST(canSwapTensorsBetweenInferRequests, outputs) {
+    std::vector<std::vector<uint8_t>> ref;
+    std::vector<ov::Tensor> input_tensors;
+    std::vector<ov::Tensor> output_tensors;
+    auto fn = ngraph::builder::subgraph::makeSplitMultiConvConcat();
+
+    auto ie = ov::Core();
+    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU);
+
+    const int infer_requests_num = 2;
+    ov::InferRequest infer_request1 = compiled_model.create_infer_request();
+    ov::InferRequest infer_request2 = compiled_model.create_infer_request();
+
+    input_tensors.push_back(infer_request1.get_input_tensor());
+    input_tensors.push_back(infer_request2.get_input_tensor());
+    output_tensors.push_back(infer_request1.get_output_tensor());
+    output_tensors.push_back(infer_request2.get_output_tensor());
+
+    auto calc_ref_results = [&](const ov::Tensor& tensor){
+        const auto tensor_size = tensor.get_byte_size();
+        const auto in_blob_buf = static_cast<uint8_t*>(tensor.data());
+        std::vector<uint8_t> inData(in_blob_buf, in_blob_buf + tensor_size);
+        auto ref_out_data = ngraph::helpers::interpreterFunction(fn, {inData}).front().second;
+        ref.push_back(ref_out_data);
+    };
+
+    auto compare_results = [&](ov::Tensor& result, const uint8_t* refResult) {
+        auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
+        ASSERT_EQ(ov::shape_size(fn->get_output_shape(0)), result.get_size());
+        FuncTestUtils::compareRawBuffers(result.data<float>(),
+                                        reinterpret_cast<const float *>(refResult), ov::shape_size(fn->get_output_shape(0)),
+                                        ov::shape_size(fn->get_output_shape(0)),
+                                        thr);
+    };
+
+    for (size_t i = 0; i < infer_requests_num; i++) {
+        FuncTestUtils::fill_tensor(input_tensors[i], 10, -5, 1, i);
+        calc_ref_results(input_tensors[i]);
+    }
+
+    // Swap tensors between IRs
+    infer_request1.set_output_tensor(output_tensors[1]);
+    infer_request2.set_output_tensor(output_tensors[0]);
+
+    const int niter_limit = 10;
+    int iter1 = 0, iter2 = 0;
+    infer_request1.set_callback([&](std::exception_ptr exception_ptr) mutable {
+        if (exception_ptr) {
+            std::rethrow_exception(exception_ptr);
+        } else {
+            iter1++;
+            ov::Tensor output_tensor = infer_request1.get_output_tensor();
+            compare_results(output_tensor, ref[iter1 % 2].data());
+            if (iter1 < niter_limit) {
+                infer_request1.set_output_tensor(output_tensors[(iter1 + 1) % 2]);
+                infer_request1.start_async();
+            }
+        }
+    });
+
+    infer_request2.set_callback([&](std::exception_ptr exception_ptr) mutable {
+        if (exception_ptr) {
+            std::rethrow_exception(exception_ptr);
+        } else {
+            iter2++;
+            ov::Tensor output_tensor = infer_request2.get_output_tensor();
+            compare_results(output_tensor, ref[(iter2 + 1) % 2].data());
+            if (iter2 < niter_limit) {
+                infer_request2.set_output_tensor(output_tensors[iter2 % 2]);
+                infer_request2.start_async();
+            }
+        }
+    });
+
+    infer_request1.start_async();
+    infer_request2.start_async();
+
+    for (size_t i = 0; i < niter_limit; i++) {
+        infer_request1.wait();
+        infer_request2.wait();
+    }
+}
