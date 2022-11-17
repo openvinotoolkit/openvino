@@ -84,21 +84,6 @@ OutputVector translate_1to1_match_2_inputs(NodeContext& context) {
     return {context.mark_node(std::make_shared<T>(inputs[0], inputs[1]))};
 }
 
-template <typename T>
-OutputVector translate_1to1_match_1_or_2_inputs(NodeContext& context) {
-    auto inputs = context.inputs();
-    FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= 1, "Operation has no inputs.");
-    for (int i = 2; i < inputs.size(); i++) {
-        FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(i), "Got more inputs than expected.");
-    }
-    FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0), "Input 1 should not be None.");
-    if (context.input_is_none(1)){
-    return {context.mark_node(std::make_shared<T>(inputs[0]))};
-    }
-    return {context.mark_node(std::make_shared<T>(inputs[0], inputs[1]))};
-
-}
-
 inline OutputVector return_false_scalar(NodeContext& context) {
     return {context.mark_node(opset8::Constant::create(element::boolean, Shape{}, {false}))};
 }

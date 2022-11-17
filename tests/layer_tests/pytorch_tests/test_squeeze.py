@@ -28,7 +28,7 @@ class TestSqueeze(PytorchLayerTest):
 
         return aten_squeeze(dim), ref_net, "aten::squeeze"
 
-    @pytest.mark.parametrize("dim", [-2, 0, None])
+    @pytest.mark.parametrize("dim,dynamic_shapes", [(-2, True), (0, True), (None, False)])
     @pytest.mark.nightly
-    def test_squeeze(self, dim, ie_device, precision, ir_version):
-        self._test(*self.create_model(dim), ie_device, precision, ir_version, dynamic_shapes=False)
+    def test_squeeze(self, dim, ie_device, precision, ir_version, dynamic_shapes):
+        self._test(*self.create_model(dim), ie_device, precision, ir_version, dynamic_shapes=dynamic_shapes)
