@@ -900,7 +900,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         THROW_GNA_EXCEPTION << "Sorted network is empty";
     }
     // put Assign (sortedNet) layers at the end to properly update states variables (Read)
-    std::stable_partition(sortedNet.begin(), sortedNet.end(), [&](CNNLayerPtr layer){return !LayerInfo(layer).isAssign();});
+    std::stable_partition(sortedNet.begin(), sortedNet.end(), [&](CNNLayerPtr layer){return !LayerInfo(layer).isCopyToMemory();});
 
     std::vector<CNNLayerPtr> sortedNoMem;
     std::unordered_map<std::string, std::vector<InferenceEngine::CNNLayerPtr>> memoryPairs;

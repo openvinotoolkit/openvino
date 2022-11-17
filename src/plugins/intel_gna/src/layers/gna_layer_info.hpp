@@ -339,7 +339,7 @@ class LayerInfo {
         return isOfType("memory");
     }
     // @brief verify that it is Assign layer (Copy -> Memory)
-    bool isAssign() const {
+    bool isCopyToMemory() const {
         return isCopy() && LayerInfo(getInputTo(layer->outData[0]).begin()->second).isMemory();
     }
     bool isCrop() const noexcept {
