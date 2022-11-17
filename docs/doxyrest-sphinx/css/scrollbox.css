@@ -1,6 +1,11 @@
 .scrollbox table {
    border-collapse: separate;
    border-spacing: 0;
+   display: table!important;
+   margin: 0px;
+   width: 100%;
+   height:inherit;
+   overflow-y:scroll;
 }
 .scrollbox table thead {
    position: -webkit-sticky!important;
