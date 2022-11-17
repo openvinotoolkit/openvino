@@ -198,7 +198,7 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
             const auto& curr_op_type = current_operation_decoder->get_op_type();
 
             // break the cycle
-            // otherwise, the operations nodes in the cycle will be added to ops_to_do infinitely 
+            // otherwise, the operations nodes in the cycle will be added to ops_to_do infinitely
             if (curr_op_type == "NextIteration") {
                 topologically_sorted_ops.push_back(current_operation_place);
                 ops_to_do.pop();
