@@ -269,6 +269,11 @@ void wait_for_the_turn() {}
 #endif
 }  // namespace
 
+uint32_t network::get_new_net_id() {
+    static std::atomic<uint32_t> id_gen{0};
+    return ++id_gen;
+}
+
 /*
 Network will always have net_id = 0 when it will be cldnn internal micronetwork (created i.e by propagate_constants
 opt pass).
@@ -281,9 +286,8 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     , _internal(is_internal)
     , _is_primary_stream(is_primary_stream)
     , _reset_arguments(true) {
-    static std::atomic<uint32_t> id_gen{0};
     if (!_internal) {
-        net_id = ++id_gen;
+        net_id = get_new_net_id();
     }
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -333,7 +337,7 @@ network::network(cldnn::BinaryInputBuffer& ib, stream::ptr stream, engine& engin
     , _internal(false)
     , _is_primary_stream(false)
     , _reset_arguments(true) {
-    net_id += 1;
+    net_id = get_new_net_id();
 
     kernels_cache kernels_cache(get_engine(), 0, {""});
     ib >> kernels_cache;

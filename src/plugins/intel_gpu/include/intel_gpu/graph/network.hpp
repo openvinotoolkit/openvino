@@ -256,6 +256,7 @@ private:
     std::unordered_map<primitive_id, event::ptr> _events;
     output_chains_map _output_chains;
 
+    uint32_t get_new_net_id();
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);
     void transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node);
