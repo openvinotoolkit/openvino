@@ -92,6 +92,8 @@ bool evaluate_unsqueeze(const Node* node,
         NGRAPH_TYPE_CASE(evaluate_unsqueeze, u64, arg0, out);
         NGRAPH_TYPE_CASE(evaluate_unsqueeze, f16, arg0, out);
         NGRAPH_TYPE_CASE(evaluate_unsqueeze, f32, arg0, out);
+        NGRAPH_TYPE_CASE(evaluate_unsqueeze, f64, arg0, out);
+        NGRAPH_TYPE_CASE(evaluate_unsqueeze, bf16, arg0, out);
     default:
         rc = false;
         break;
