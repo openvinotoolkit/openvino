@@ -34,6 +34,9 @@ resources:
     name: openvinotoolkit/openvino_contrib
     ref: master
 
+variables:
+  - group: github
+
 jobs:
 - job: linux_arm64
   # About 150% of total time
@@ -46,7 +49,7 @@ jobs:
     system.debug: true
     VSTS_HTTP_RETRY: 5
     VSTS_HTTP_TIMEOUT: 200
-    PYTHON_ARM_VERSION: "3.10.6"
+    PYTHON_ARM_VERSION: "3.10.7"
     PYTHON_EXEC: "python3.10"
     OPENVINO_ARCH: 'aarch64'
     NUM_PROC: 1
@@ -76,13 +79,23 @@ jobs:
     ONETBB_CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_arm64_onetbb
 
   steps:
+  
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.10.7'
+      addToPath: true
+      architecture: 'x64'
+      githubToken: $(auth_token)
+    displayName: Setup Python 3.10
+    name: setupPython
+
   - script: |
+      echo tree $(setupPython.pythonLocation)
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
       uname -a
-      echo ls /usr/bin/python3.10
-      rm -rf /usr/bin/python3
-      sudo ln -s /usr/bin/python3.10 /usr/bin/python3      echo Python3 info ; which python3 ; python3 --version
+      echo ls 
+      echo Python3 info ; which python3 ; python3 --version
       echo Python info ; which python ; python --version
       echo Java info ; which java ; java -version
       echo gcc info ; which gcc ; gcc --version

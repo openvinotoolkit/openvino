@@ -26,6 +26,9 @@ pr:
     - /**/layer_tests_summary/**
     - src/tests/functional/plugin/conformance/**
 
+variables:
+  - group: github
+
 jobs:
 - job: onnxruntime
   timeoutInMinutes: 90
@@ -51,6 +54,18 @@ jobs:
     PYTHON_VERSION: 3.10.7
 
   steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.10.7'
+      addToPath: true
+      architecture: 'x64'
+      githubToken: $(auth_token)
+    displayName: Setup Python 3.10
+    name: setupPython
+
+  - script: $(setupPython.pythonLocation)\python.exe --version
+    displayName: 'Check Python 3.10'
+
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
@@ -93,19 +108,8 @@ jobs:
   - script: |
       set -e
       $(REPO_DIR)/install_build_dependencies.sh
-      wget https://www.python.org/ftp/python/"$PYTHON_VERSION"/Python-"$PYTHON_VERSION".tgz
-      tar -xzf Python-"$PYTHON_VERSION".tgz
-      cd Python-"$PYTHON_VERSION" || exit
-      ./configure --enable-optimizations --prefix=/usr/local --enable-shared LDFLAGS="-Wl,-rpath /usr/local/lib"
-      make python
-      sudo make install
-      export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
-      /usr/local/bin/python3.10 -m venv $(PY_VENV)
+      $(setupPython.pythonLocation)\python.exe -m venv $(PY_VENV)
       . $(PY_VENV)/bin/activate
-      echo Python3 info ; which python3 ; python3 --version
-      python3 --version
-      python3.10 --version
-      curl https://bootstrap.pypa.io/get-pip.py | python3
       python3 -m pip install --upgrade pip
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
       # For running Python API tests

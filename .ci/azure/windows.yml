@@ -85,8 +85,8 @@ jobs:
   steps:
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: '3.10'
-      addToPath: false
+      versionSpec: '3.10.7'
+      addToPath: true
       architecture: 'x64'
       githubToken: $(auth_token)
     displayName: Setup Python 3.10
