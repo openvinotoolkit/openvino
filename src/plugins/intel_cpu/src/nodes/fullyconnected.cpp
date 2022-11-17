@@ -361,7 +361,7 @@ void FullyConnected::prepareParams() {
         // changed shapes may also cause the kernel type changed
         selected_pd->setImplementationType(execPtr->getImplementationType());
         // maybe expected 1x1 conv is not created, update the flag depends on the real type
-        useConv1x1 = (execPtr->getImplementationType() & brgconv_avx512_1x1) == brgconv_avx512_1x1;
+        useConv1x1 = execPtr->getImplementationType() == brgconv_avx512_1x1;
 
         if (withBiases) {
             primArgs[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
@@ -377,23 +377,6 @@ void FullyConnected::prepareParams() {
             DEBUG_LOG("verbose##", getName(), "##", pd->info(), "\n");
         }
 #endif
-        if (!useConv1x1) {
-            auto reshapeMemory = [this](int argType) {
-                auto param = primArgs.find(argType);
-                if (param != primArgs.end()) {
-                    auto oldMem = param->second;
-                    auto dims = oldMem.get_desc().dims();
-                    if (dims.size() == 3) {
-                        std::vector<dnnl::memory::dim> normalizedDims({dims[0] * dims[1], dims[2]});
-                        dnnl::memory::desc newMemDesc(oldMem.get_desc().reshape(normalizedDims));
-                        dnnl::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
-                        primArgs.at(argType) = newMem;
-                    }
-                }
-            };
-            reshapeMemory(DNNL_ARG_SRC);
-            reshapeMemory(DNNL_ARG_DST);
-        }
     } else {
         IE_THROW() << "Executor is not created for node " << getName() << ".";
     }

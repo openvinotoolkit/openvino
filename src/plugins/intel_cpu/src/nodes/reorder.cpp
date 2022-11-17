@@ -427,20 +427,26 @@ void Reorder::reorderData(const Memory &input, const Memory &output, MultiCacheP
         auto copySize = output.GetSize();
         cpu_memcpy(dstPtr, srcPtr, copySize);
     } else {
-        auto getReorder = [] (MultiCachePtr cache, const dnnl::reorder::primitive_desc& pd)
+        auto getReorder = [] (MultiCachePtr& cache, const dnnl::memory& srcMemory, const dnnl::memory& dstMemory)
             -> std::shared_ptr<dnnl::reorder> {
-            std::shared_ptr<dnnl::reorder> reorder;
-            if (!cache) {
-                reorder = std::make_shared<dnnl::reorder>(pd);
-            } else {
-                auto builder = [&pd](const ReorderKey& key) -> std::shared_ptr<dnnl::reorder> {
-                    DEBUG_LOG(key.src, "->", key.dest);
-                    return std::make_shared<dnnl::reorder>(pd);
-                };
+            const auto& engine = dstMemory.get_engine();
 
-                auto src_desc = pd.src_desc();
-                auto dst_desc = pd.dst_desc();
-                ReorderKey key = {src_desc, dst_desc};
+            auto builder = [&engine](const ReorderKey& key) -> std::shared_ptr<dnnl::reorder> {
+                dnnl::primitive_attr attr;
+                reorder::primitive_desc pd = dnnl::reorder::primitive_desc(engine, key.src, engine, key.dest, attr, true);
+                DEBUG_LOG(key.src, "->", key.dest);
+                if (!pd)
+                    return nullptr;
+                return std::make_shared<dnnl::reorder>(pd);
+            };
+
+            std::shared_ptr<dnnl::reorder> reorder;
+            auto src_desc = srcMemory.get_desc();
+            auto dst_desc = dstMemory.get_desc();
+            ReorderKey key = {src_desc, dst_desc};
+            if (!cache) {
+                reorder = builder(key);
+            } else {
                 auto result = cache->getOrCreate(key, builder);
                 reorder = std::move(result.first);
             }
@@ -453,11 +459,8 @@ void Reorder::reorderData(const Memory &input, const Memory &output, MultiCacheP
         auto srcMemory = input.GetPrimitive();
         auto dstMemory = output.GetPrimitive();
         auto engine = output.getEngine();
-        dnnl::reorder::primitive_desc pd(srcMemory, dstMemory, dnnl::primitive_attr(), true);
         // try directly reorder
-        if (pd) {
-            pReorder = getReorder(cache, pd);
-        }
+        pReorder = getReorder(cache, srcMemory, dstMemory);
         if (!pReorder) {
             // try precision conversion then do the reorder
             if (output.GetDataType() != input.GetDataType() && Convert::isSupportedDesc(input.getDesc()) &&
@@ -476,10 +479,7 @@ void Reorder::reorderData(const Memory &input, const Memory &output, MultiCacheP
                 tmpMem.Create(std::move(tmpDesc), tmpBuff.data());
 
                 srcMemory = tmpMem.GetPrimitive();
-                dnnl::reorder::primitive_desc pd(srcMemory, dstMemory, dnnl::primitive_attr(), true);
-                if (pd) {
-                    pReorder = getReorder(cache, pd);
-                }
+                pReorder = getReorder(cache, srcMemory, dstMemory);
             }
             if (!pReorder) {
                 IE_THROW() << "Not supported reorder conversion, in type: " <<
