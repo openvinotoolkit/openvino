@@ -53,9 +53,8 @@ jobs:
       - name: Install dependencies
         run: |
           set -e
-          cd docs
-          python3 -m pip install -r requirements.txt --user
-          cd openvino_sphinx_theme
+          python3 -m pip install -r docs/requirements.txt --user
+          cd docs/openvino_sphinx_theme
           python3 setup.py install --user
           cd ../..
           # install doxyrest
