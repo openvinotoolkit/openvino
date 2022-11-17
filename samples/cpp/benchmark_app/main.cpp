@@ -191,10 +191,7 @@ void setDeviceProperty(ov::Core& core,
                        std::string& device,
                        ov::AnyMap& device_config,
                        const std::pair<std::string, ov::Any>& property,
-<<<<<<< HEAD
                        std::map<std::string, bool>& isDevSetProperty,
-=======
->>>>>>> 678b90a66156b027041efd440e46871da572b259
                        const std::pair<std::string, ov::Any>& config = {}) {
     auto supported_properties = core.get_property(device, ov::supported_properties);
     auto supported = [&](const std::string& key) {
@@ -210,14 +207,10 @@ void setDeviceProperty(ov::Core& core,
 
     if (device_property.first.empty())
         return;
-<<<<<<< HEAD
 
     if (device_config.find(device) == device_config.end() || (!FLAGS_load_config.empty() && isDevSetProperty[device])) {
         isDevSetProperty[device] = false;
         device_config.erase(device);
-=======
-    if (device_config.find(device) == device_config.end()) {
->>>>>>> 678b90a66156b027041efd440e46871da572b259
         device_config.insert(ov::device::properties(device, device_property));
     } else {
         auto& properties = device_config[device].as<ov::AnyMap>();
@@ -488,10 +481,7 @@ int main(int argc, char* argv[]) {
                                                   hwdevice,
                                                   device_config,
                                                   ov::num_streams(ov::streams::AUTO),
-<<<<<<< HEAD
                                                   isDevSetProperty,
-=======
->>>>>>> 678b90a66156b027041efd440e46871da572b259
                                                   std::make_pair(key, value));
                             }
                         }
@@ -520,7 +510,6 @@ int main(int argc, char* argv[]) {
                             std::map<std::string, std::string> devices_property;
                             ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
                             for (auto it : devices_property) {
-<<<<<<< HEAD
                                 if (device_config.find(it.first) == device_config.end() ||
                                     (isLoadConfig && isDevSetProperty[it.first])) {
                                     isDevSetProperty[it.first] = false;
@@ -528,12 +517,6 @@ int main(int argc, char* argv[]) {
                                     device_config.insert(
                                         ov::device::properties(it.first, ov::num_streams(std::stoi(it.second))));
                                 } else {
-=======
-                                if (device_config.find(it.first) == device_config.end())
-                                    device_config.insert(
-                                        ov::device::properties(it.first, ov::hint::inference_precision(it.second)));
-                                else {
->>>>>>> 678b90a66156b027041efd440e46871da572b259
                                     auto& property = device_config[it.first].as<ov::AnyMap>();
                                     property.emplace(ov::hint::inference_precision(it.second));
                                 }
@@ -570,11 +553,7 @@ int main(int argc, char* argv[]) {
                     // list specified by -d.
                     for (auto& device : hardware_devices) {
                         if (device == "CPU")
-<<<<<<< HEAD
                             setDeviceProperty(core, device, device_config, property, isDevSetProperty);
-=======
-                            setDeviceProperty(core, device, device_config, property);
->>>>>>> 678b90a66156b027041efd440e46871da572b259
                     }
                 }
             };
