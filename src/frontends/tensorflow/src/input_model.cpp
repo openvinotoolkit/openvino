@@ -195,6 +195,16 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
         if (ops_done.count(current_operation_place) == 0) {
             bool can_add = true;
             auto input_count = current_operation_decoder->get_input_size();
+            const auto& curr_op_type = current_operation_decoder->get_op_type();
+
+            // break the cycle
+            // otherwise, the operations nodes in the cycle will be added to ops_to_do infinitely 
+            if (curr_op_type == "NextIteration") {
+                topologically_sorted_ops.push_back(current_operation_place);
+                ops_to_do.pop();
+                ops_done.insert(current_operation_place);
+                continue;
+            }
             for (size_t input_port_idx = 0; input_port_idx < input_count; ++input_port_idx) {
                 std::string producer_name;
                 size_t producer_output_port_idx;
