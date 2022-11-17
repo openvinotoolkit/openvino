@@ -18,6 +18,8 @@ jobs:
 
       - name: Install ccache
         uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: doc-ccache-cache
 
       - name: Cache doxygen make
         id: cache_doxygen_make
