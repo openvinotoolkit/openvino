@@ -20,6 +20,7 @@
 #include <transformations/common_optimizations/disable_random_uniform_constant_folding.hpp>
 #include <transformations/common_optimizations/disable_shapeof_constant_folding.hpp>
 #include <transformations/common_optimizations/divide_fusion.hpp>
+#include <transformations/common_optimizations/eliminate_duplicate_ti_inputs.hpp>
 #include <transformations/common_optimizations/eliminate_unsqueeze_gather.hpp>
 #include <transformations/common_optimizations/fold_subgraph_empty_inputs.hpp>
 #include <transformations/common_optimizations/fq_mul_fusion.hpp>
@@ -52,6 +53,7 @@
 #include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
 #include <transformations/common_optimizations/reshape_sequence_fusion.hpp>
 #include <transformations/common_optimizations/ric_fusion.hpp>
+#include <transformations/common_optimizations/sequence_fusion.hpp>
 #include <transformations/common_optimizations/shuffle_channels_fusion.hpp>
 #include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
 #include <transformations/common_optimizations/softmax_fusion.hpp>
@@ -70,6 +72,7 @@
 #include <transformations/op_conversions/convert_divide.hpp>
 #include <transformations/op_conversions/convert_negative.hpp>
 #include <transformations/op_conversions/convert_scatter_elements_to_scatter.hpp>
+#include <transformations/op_conversions/convert_ti_to_sequences.hpp>
 #include <transformations/smart_reshape/lstm_states_broadcast.hpp>
 #include <transformations/smart_reshape/reshape_sinking.hpp>
 
@@ -90,6 +93,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
 
     ov::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
+    using namespace ngraph::pass;
     REGISTER_PASS(manager, InitNodeInfo)
     if (m_low_precision_enabled) {
         manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
@@ -154,7 +158,6 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     manager.register_pass<ov::pass::ConstantFolding>();
 
     auto common_fusions = manager.register_pass<ov::pass::GraphRewrite>();
-    using namespace ngraph::pass;
     ADD_MATCHER(common_fusions, ConvertScatterElementsToScatter)
     ADD_MATCHER(common_fusions, SoftPlusFusion)
     ADD_MATCHER(common_fusions, SoftPlusToMishFusion)
@@ -171,6 +174,10 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     ADD_MATCHER(common_fusions, GeluFusion)
     ADD_MATCHER(common_fusions, LeakyReluFusion)
     ADD_MATCHER(common_fusions, RandomUniformFusion)
+    ADD_MATCHER(common_fusions, EliminateDuplicateTIInputs)
+    ADD_MATCHER(common_fusions, GRUCellFusion)
+    ADD_MATCHER(common_fusions, SequenceFusion)
+    ADD_MATCHER(common_fusions, ConvertTensorIteratorToSequence)
     ADD_MATCHER(common_fusions, SplitConcatPairToInterpolateFusion, m_use_shapes)
     if (m_use_shapes) {
         ADD_MATCHER(common_fusions, NearestNeighborUpsamplingFusion)
