@@ -185,8 +185,6 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
                                 "Custom specified output is incorrect: " + output_place_name);
         auto output_operation_place = m_op_places_map.at(operation_name);
         ops_to_do.push(output_operation_place);
-        FRONT_END_GENERAL_CHECK(output_operation_place->get_names().size() > 0,
-                                "TensorPlace must have at least one name.");
         ops_set_to_do.insert(output_operation_place);
     }
 
