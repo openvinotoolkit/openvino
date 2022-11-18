@@ -249,7 +249,7 @@ Create an `<ir_dir>` directory to contain the model's Intermediate Representatio
 
 @endsphinxdirective
 
-To save disk space for your IR file you can apply [weights compression to FP16](../MO_DG/prepare_model/FP16_Compression.md). To generate an IR with FP16 weights, run the Model Optimizer with the `--compress_to_fp16` option.
+To save disk space for your IR file, you can apply [weights compression to FP16](../MO_DG/prepare_model/FP16_Compression.md). To generate an IR with FP16 weights, run the Model Optimizer with the `--compress_to_fp16` option.
 
 Generic Model Optimizer script:
 
