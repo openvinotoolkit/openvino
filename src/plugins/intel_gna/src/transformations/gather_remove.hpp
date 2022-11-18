@@ -12,24 +12,10 @@ namespace ov {
 namespace intel_gna {
 namespace pass {
 
-/**
- * @brief TODO
- */
-
-class GatherResultRemove : public ngraph::pass::MatcherPass {
+class GatherIESubstitute : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    GatherResultRemove(GNAPluginNS::SubgraphCPUMap * subgraph_cpu_map = nullptr);
-private:
-    GNAPluginNS::SubgraphCPUMap * m_subgraph_cpu_map;
-};
-
-class GatherParamsRemove : public ngraph::pass::MatcherPass {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    GatherParamsRemove(GNAPluginNS::SubgraphCPUMap * subgraph_cpu_map = nullptr);
-private:
-    GNAPluginNS::SubgraphCPUMap * m_subgraph_cpu_map;
+    GatherIESubstitute();
 };
 
 class GatherRemove : public ngraph::pass::FunctionPass {

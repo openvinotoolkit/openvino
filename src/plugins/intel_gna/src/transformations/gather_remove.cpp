@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022 Intel CorporationNodePtr
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,23 +8,67 @@
 
 #include "transformations/utils/transformation_helper.hpp"
 
+#include <legacy/ngraph_ops/gather_ie.hpp>
 #include "ngraph/validation_util.hpp"
-#include <ngraph/opsets/opset8.hpp>
+#include <ngraph/opsets/opset9.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <ngraph/pattern/op/or.hpp>
 
+using namespace ov;
 using namespace ov::intel_gna::pass;
 using namespace GNAPluginNS;
 
-using Node = std::shared_ptr<ngraph::Node>;
+using NodePtr = std::shared_ptr<ngraph::Node>;
 using Function = std::shared_ptr<ngraph::Function>;
+
+namespace {
+
+void SwapOutputNames(Output<Node> output1, Output<Node> output2) {
+    const auto node2_output_names = output2.get_names();
+    output2.set_names(output1.get_names());
+    output1.set_names(node2_output_names);
+}
+
+template <typename NodePtr1, typename NodePtr2>
+void SwapFriendlyNames(NodePtr1 node1, NodePtr2 node2) {
+    const std::string node2_name = node2->get_friendly_name();
+    node2->set_friendly_name(node1->get_friendly_name());
+    node1->set_friendly_name(node2_name);
+}
+
+template <typename NodePtr1, typename NodePtr2>
+void SwapNames(NodePtr1 node1, NodePtr2 node2) {
+    SwapFriendlyNames(node1, node2);
+    SwapOutputNames(node1->output(0), node2->output(0));
+}
+
+class GatherResultRemove : public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    GatherResultRemove(GNAPluginNS::SubgraphCPUMap * subgraph_cpu_map = nullptr);
+private:
+    GNAPluginNS::SubgraphCPUMap * m_subgraph_cpu_map;
+};
+
+class GatherParamsRemove : public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    GatherParamsRemove(GNAPluginNS::SubgraphCPUMap * subgraph_cpu_map = nullptr);
+private:
+    GNAPluginNS::SubgraphCPUMap * m_subgraph_cpu_map;
+};
+
+} // namespace
 
 NGRAPH_RTTI_DEFINITION(GatherResultRemove, "GatherResultRemove", 0);
 NGRAPH_RTTI_DEFINITION(GatherParamsRemove, "GatherParamsRemove", 0);
+NGRAPH_RTTI_DEFINITION(GatherIESubstitute, "GatherIESubstitute", 0);
 NGRAPH_RTTI_DEFINITION(GatherRemove, "GatherRemove", 0);
 
 namespace {
+
 /*
   works only if we have one date input and one output
  */
@@ -32,12 +76,12 @@ void RemoveSingleInputNodeFromFunction(std::shared_ptr<ngraph::Node> node) {
     const ngraph::Shape input_node_shape = node->get_input_shape(0);
     const ngraph::Shape output_node_shape = node->get_output_shape(0);
 
-    Node node_parent = node->get_input_node_shared_ptr(0);
+    NodePtr node_parent = node->get_input_node_shared_ptr(0);
     if (!std::equal(input_node_shape.begin(), input_node_shape.end(), output_node_shape.begin())) {
-        auto reshape_const_node = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
+        auto reshape_const_node = std::make_shared<ngraph::opset9::Constant>(ngraph::element::Type_t::i64,
                                                                              ngraph::Shape{output_node_shape.size()},
                                                                              output_node_shape);
-        node_parent = std::make_shared<ngraph::opset8::Reshape>(node_parent, reshape_const_node, false);
+        node_parent = std::make_shared<ngraph::opset9::Reshape>(node_parent, reshape_const_node, false);
     }
 
     node->output(0).replace(node_parent->output(0));
@@ -46,45 +90,21 @@ void RemoveSingleInputNodeFromFunction(std::shared_ptr<ngraph::Node> node) {
 /*
   Support only one data node as 0 input
  */
-Function CopySingleInputNodeFromFunction(Node node) {
+Function CopySingleInputNodeFromFunction(NodePtr node) {
     const ngraph::Shape & input_shape = node->get_input_shape(0);
     const ngraph::element::Type& input_elem_type = node->get_input_element_type(0);
 
-    auto input_params = std::make_shared<ngraph::opset8::Parameter>(input_elem_type, input_shape);
+    auto input_params = std::make_shared<ngraph::opset9::Parameter>(input_elem_type, input_shape);
     auto input_nodes = node->input_values();
     input_nodes[0] = input_params;
     auto node_copy = node->clone_with_new_inputs(input_nodes);
-    auto result = std::make_shared<ngraph::opset8::Result>(node_copy);
+    auto result = std::make_shared<ngraph::opset9::Result>(node_copy);
 
     return std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                            ngraph::ParameterVector{input_params});
 }
 
 } // namespace
-
-namespace GatherParamsRemoveNS {
-    void DoTransformation(Node param_node, Node gather_node, SubgraphCPUMap * subgraph_cpu_map);
-
-    void DoTransformation(Node param_node, Node gather_node, SubgraphCPUMap * subgraph_cpu_map /* may be nullptr */) {
-        if (subgraph_cpu_map)
-            subgraph_cpu_map->emplace(param_node->get_friendly_name(), CopySingleInputNodeFromFunction(gather_node));
-
-        RemoveSingleInputNodeFromFunction(gather_node);
-    }
- } // namespace GatherParamsRemoveNS
-
-namespace GatherResultRemoveNS {
-    void DoTransformation(Node gather_node, Node result_node, SubgraphCPUMap * subgraph_cpu_map);
-
-    void DoTransformation(Node gather_node, Node result_node, SubgraphCPUMap * subgraph_cpu_map /* may be nullptr */) {
-        if (subgraph_cpu_map) {
-            const std::string & parent_name = gather_node->get_input_node_shared_ptr(0)->get_friendly_name();
-            subgraph_cpu_map->emplace(parent_name, CopySingleInputNodeFromFunction(gather_node));
-        }
-
-        RemoveSingleInputNodeFromFunction(gather_node);
-    }
-} // namespace GatherResultRemoveNS
 
 // ----------------------------------------------------------------------------
 
@@ -93,21 +113,57 @@ GatherResultRemove::GatherResultRemove(SubgraphCPUMap * subgraph_cpu_map)
 
     MATCHER_SCOPE(GatherResultRemove);
 
-    auto gather = ngraph::pattern::wrap_type<ngraph::opset8::Gather>({ngraph::pattern::any_input(),
+    auto gather = ngraph::pattern::wrap_type<ngraph::opset9::Gather, ngraph::op::GatherIE>({ngraph::pattern::any_input(),
                                                                       ngraph::pattern::any_input(),
-                                                                      ngraph::pattern::any_input()});
-    auto result = ngraph::pattern::wrap_type<ngraph::opset8::Result>({gather});
+                                                                      ngraph::pattern::any_input()}); // FIXME: add consumers(1) constraint
+    auto result = ngraph::pattern::wrap_type<ngraph::opset9::Result>({gather});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto result_node = pattern_map.at(result).get_node_shared_ptr();
         const auto gather_node = pattern_map.at(gather).get_node_shared_ptr();
 
-        GatherResultRemoveNS::DoTransformation(gather_node, result_node, m_subgraph_cpu_map);
+        NodePtr parent_node = gather_node->get_input_node_shared_ptr(0);
+
+        if (m_subgraph_cpu_map) {
+            const std::string & parent_name = parent_node->get_friendly_name();
+            m_subgraph_cpu_map->emplace(parent_name, CopySingleInputNodeFromFunction(gather_node));
+        }
+        RemoveSingleInputNodeFromFunction(gather_node);
+
+        SwapNames(gather_node, parent_node);
+
         return true;
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(result, matcher_name);
+    this->register_matcher(m, callback);
+}
+
+GatherIESubstitute::GatherIESubstitute() {
+    MATCHER_SCOPE(GatherIESubstitute);
+
+    auto gather = ngraph::pattern::wrap_type<ngraph::op::GatherIE>();
+
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto gather_node = ov::as_type_ptr<ngraph::op::GatherIE>(pattern_map.at(gather).get_node_shared_ptr());
+
+        auto node_parent = gather_node->get_input_node_shared_ptr(0);
+
+        const int64_t gather_axis = gather_node->get_axis();
+        auto gather_indexes_node = gather_node->get_input_node_shared_ptr(1);
+
+        auto gather_axis_node = ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape{}, {gather_axis});
+        auto new_gather_node = std::make_shared<ngraph::opset9::Gather>(node_parent,
+                                                                        gather_indexes_node,
+                                                                        gather_axis_node);
+        ov::replace_node(gather_node, new_gather_node);
+
+        return true;
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(gather, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -116,17 +172,23 @@ GatherParamsRemove::GatherParamsRemove(SubgraphCPUMap * subgraph_cpu_map)
 
     MATCHER_SCOPE(GatherParamsRemove);
 
-    auto param = ngraph::pattern::wrap_type<ngraph::opset8::Parameter>();
-    auto gather = ngraph::pattern::wrap_type<ngraph::opset8::Gather>({param,
+    auto param = ngraph::pattern::wrap_type<ngraph::opset9::Parameter>();
+    auto gather = ngraph::pattern::wrap_type<ngraph::opset9::Gather>({param,
                                                                       ngraph::pattern::any_input(),
-                                                                      ngraph::pattern::any_input()});
-
+                                                                      ngraph::pattern::any_input()}); // FIXME: add consumers(1) constraint
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto param_node = pattern_map.at(param).get_node_shared_ptr();
         const auto gather_node = pattern_map.at(gather).get_node_shared_ptr();
 
-        GatherParamsRemoveNS::DoTransformation(param_node, gather_node, m_subgraph_cpu_map);
+        Node * child_node = gather_node->output(0).get_target_inputs().begin()->get_node();
+
+        if (m_subgraph_cpu_map)
+            m_subgraph_cpu_map->emplace(param_node->get_friendly_name(), CopySingleInputNodeFromFunction(gather_node));
+        RemoveSingleInputNodeFromFunction(gather_node);
+
+        SwapNames(child_node, gather_node);
+
         return true;
     };
 
