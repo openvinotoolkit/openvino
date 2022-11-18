@@ -11,8 +11,21 @@ from .parsers import TransformersTokenizerPipelineParser
 
 
 def convert_tokenizer(tokenizer_object: Any) -> TokenizerPipeline:
-    """Converts a tokenizer object
+    """Converts a tokenizer object to an OpenVINO tokenizer.
 
+    Supported frameworks:
+    - Transformers
+
+    Example:
+    >>> from openvino.preprocess import convert_tokenizer
+    >>> from transformers import AutoTokenizer
+    >>> hf_tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+    >>> ov_tokenizer = convert_tokenizer(hf_tokenizer)
+
+    :param tokenizer_object: tokenizer object from supported framework
+    :type tokenizer_object: Any
+    :return: Tokenizer pipeline config [todo: OpenVINO tokenizer object]
+    :rtype: TokenizerPipeline
     """
     if "transformers" in sys.modules:
         from transformers import PreTrainedTokenizerBase
