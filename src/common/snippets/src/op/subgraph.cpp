@@ -56,14 +56,10 @@ snippets::op::Subgraph::Subgraph(const OutputVector& args, std::shared_ptr<ov::M
     }
 
     constructor_validate_and_infer_types();
-    auto body_params = body->get_parameters();
-    for (int i = 0; i < body_params.size(); ++i) {
-        m_input_descriptions[0].push_back(std::make_shared<ngraph::op::TensorIterator::InvariantInputDescription>(i, i));
-    }
-    auto outputs = body->get_output_size();
-    for (int i = 0; i < outputs; ++i) {
+    for (size_t i = 0; i < body->get_parameters().size(); ++i)
+        m_input_descriptions[0].push_back(std::make_shared<InvariantInputDescription>(i, i));
+    for (size_t i = 0; i < body->get_output_size(); ++i)
         m_output_descriptions[0].push_back(std::make_shared<BodyOutputDescription>(i, i));
-    }
     m_transformations_allowed = false;
 }
 

@@ -461,12 +461,12 @@ public:
         not_valid_input_output = lhs_it_no;
 
         if (compare_in_outs) {
-            const auto result_for_inputs = compare_inputs(sub_lhs, sub_rhs);
+            const auto& result_for_inputs = compare_inputs(sub_lhs, sub_rhs);
             if (!result_for_inputs.valid) {
                 return result_for_inputs;
             }
 
-            const auto result_for_outputs = compare_outputs(sub_lhs, sub_rhs);
+            const auto& result_for_outputs = compare_outputs(sub_lhs, sub_rhs);
             if (!result_for_outputs.valid) {
                 return result_for_outputs;
             }

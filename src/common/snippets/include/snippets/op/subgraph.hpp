@@ -84,6 +84,8 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
+    // we introduce this method instead of using SubGraphOp::get_function()
+    // to align naming with other methods
     const std::shared_ptr<ov::Model> & body_ptr() const {
         return m_bodies[0];
     }

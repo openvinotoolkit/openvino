@@ -58,10 +58,10 @@ void Snippet::copy_snippet() {
         if (!sharedMutex) {
             IE_THROW() << "Subgraph doesn't have shared mutex";
         }
-        std::lock_guard<std::mutex> lock(*sharedMutex.get());
-        new_body = ov::clone_model(*original_snippet->body_ptr().get());
+        std::lock_guard<std::mutex> lock(*sharedMutex);
+        new_body = ov::clone_model(*original_snippet->body_ptr());
     } else {
-        new_body = ov::clone_model(*original_snippet->body_ptr().get());
+        new_body = ov::clone_model(*original_snippet->body_ptr());
     }
     snippet = std::make_shared<ngraph::snippets::op::Subgraph>(subgraph_node_inputs, new_body);
     ngraph::copy_runtime_info(original_snippet, snippet);
