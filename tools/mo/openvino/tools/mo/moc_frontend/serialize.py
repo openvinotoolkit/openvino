@@ -6,10 +6,8 @@ import os
 
 from openvino.runtime import Model  # pylint: disable=no-name-in-module,import-error
 
-from openvino.tools.mo.back.ie_ir_ver_2.emitter import append_ir_info
 from openvino.tools.mo.back.preprocessing import apply_preprocessing
-from openvino.tools.mo.pipeline.common import get_ir_version
-from openvino.tools.mo.utils.cli_parser import get_meta_info, parse_transform
+from openvino.tools.mo.utils.cli_parser import parse_transform
 
 
 def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
