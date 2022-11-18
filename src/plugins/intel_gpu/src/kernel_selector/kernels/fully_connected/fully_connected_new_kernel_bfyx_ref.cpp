@@ -30,6 +30,7 @@ ParamsKey FullyConnectedNew_bfyx_Ref::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bf);
     k.EnableOutputLayout(DataLayout::fb);
     k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableBiasPerOutput();
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
@@ -64,7 +65,7 @@ FullyConnectedNew_bfyx_Ref::DispatchData FullyConnectedNew_bfyx_Ref::SetDefault(
             break;
         }
         case 5: {
-            global = { output.Batch().v, output.Feature().v, output.Z().v };
+            global = { output.Batch().v * output.Feature().v, output.Z().v * output.Y().v, output.X().v };
             break;
         }
         case 6: {
@@ -102,12 +103,15 @@ JitConstants FullyConnectedNew_bfyx_Ref::GetJitConstants(const fully_connected_p
 KernelsData FullyConnectedNew_bfyx_Ref::GetKernelsData(const Params& params, const optional_params& options) const {
     auto& fc_params = static_cast<const fully_connected_params&>(params);
     KernelsData res = {};
+    const auto input_layout = fc_params.inputs[0].GetLayout();
+    const auto weights_layout = fc_params.weights_shape.rank().get_length() < 5
+                                    ? WeightsLayout::oiyx : WeightsLayout::oizyx;
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd = GetTunedKernelsDataByIndex(
             params,
             options,
-            fc_params.inputs[0].GetLayout(),
-            WeightsLayout::oiyx,
+            input_layout,
+            weights_layout,
             static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);

@@ -30,7 +30,8 @@ const std::vector<ShapeRelatedParams> shapeRelatedParams = {
         { { {65, 100}, false }, { {73, 100}, true } },
         { { {9, 9, 9}, false }, { {9, 9}, true } }
 */
-        // MatMul >4D { { {2, 1, 1, 5, 6}, false }, { {1, 1, 6, 4}, false } },
+        { { {2, 1, 1, 5, 6}, false }, { {1, 1, 6, 4}, false } },
+
         { { {2, 2, 4, 16}, true }, { {1, 1, 1, 4}, true } },
         // MatMul >4D { { {2, 1, 2, 3, 5, 6}, false }, { {1, 1, 6, 4}, false } },
         { { {1, 4, 5, 6}, false }, { {1, 4, 6, 4}, false } },

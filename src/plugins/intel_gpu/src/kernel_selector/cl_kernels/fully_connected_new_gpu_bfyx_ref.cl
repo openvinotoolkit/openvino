@@ -76,7 +76,34 @@ KERNEL(fc)(
     output[output_idx] = TO_OUTPUT_TYPE(dotProd);
 
 #elif RANK == 5
-    // Do we really need this?
+    #define WEIGHT_COL_NUMBER OUTPUT_SIZE_X
+    #define INPUT_COL_NUMBER INPUT0_SIZE_X
+
+    #define WEIGHT_BATCH3_SIZE (FILTER_SIZE_Y * FILTER_SIZE_X)
+    #define WEIGHT_BATCH2_SIZE (WEIGHT_BATCH3_SIZE * FILTER_SIZE_Z)
+    #define WEIGHT_BATCH1_SIZE (WEIGHT_BATCH2_SIZE * FILTER_IFM_NUM)
+    const uint batch = get_global_id(0);
+    const uint out_batch1 = batch / INPUT0_FEATURE_NUM;
+    const uint out_batch2 = batch % INPUT0_FEATURE_NUM;
+    const uint batch_y = get_global_id(1);
+    const uint out_batch3 = batch_y / INPUT0_SIZE_Y;
+    const uint out_y = batch_y % INPUT0_SIZE_Y;
+    const uint out_x = get_global_id(2);
+
+    ACCUMULATOR_TYPE dotProd = ACCUMULATOR_VAL_ZERO;
+
+    for (uint in_x = 0; in_x < INPUT_COL_NUMBER; ++in_x) {
+        uint input_idx = INPUT0_GET_INDEX(out_batch1, out_batch2, out_batch3, out_y, in_x);
+        uint weights_idx = (out_batch1 * WEIGHT_BATCH1_SIZE) +
+                           (out_batch2 * WEIGHT_BATCH2_SIZE) +
+                           (out_batch3 * WEIGHT_BATCH3_SIZE) +
+                           WEIGHT_COL_NUMBER * in_x + out_x;
+        dotProd += input[input_idx] * weights[weights_idx];
+    }
+
+    uint output_idx = OUTPUT_GET_INDEX(out_batch1, out_batch2, out_batch3, out_y, out_x);
+    output[output_idx] = TO_OUTPUT_TYPE(dotProd);
+
 #elif RANK == 6
     // Do we really need this?
 #else
