@@ -12,6 +12,9 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_convolution(NodeContext& context) {
+    // Shchema: aten::_convolution(Tensor input, Tensor weight, Tensor? bias, int[] stride, int[] padding, int[]
+    // dilation, bool transposed, int[] output_padding, int groups, bool benchmark, bool deterministic, bool
+    // cudnn_enabled, bool allow_tf32) -> Tensor
     bool transposed = context.const_input<bool>(6);
     // TODO: Handle this temporary limitation
     OV_FRONTEND_REQUIRE(!transposed);

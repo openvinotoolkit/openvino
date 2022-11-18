@@ -132,7 +132,7 @@ public:
         (*m_tensor_map)[index] = ov_output;
     }
 
-    Output<Node> get_tensor_from_model(size_t index) {
+    Output<Node> get_tensor_from_model(size_t index) const {
         if (m_tensor_map->find(index) != m_tensor_map->end()) {
             return m_tensor_map->at(index);
         } else {
@@ -154,7 +154,7 @@ public:
         }
     }
 
-    Output<Node> get_input_from_visible_context(size_t index) {
+    Output<Node> get_input_from_visible_context(size_t index) const {
         OV_FRONTEND_REQUIRE(index < get_input_size());
         auto input_tensor = get_input(index);
         auto input_node = input_tensor.get_node_shared_ptr();

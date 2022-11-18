@@ -14,17 +14,20 @@ namespace op {
 OutputVector translate_div(NodeContext& context) {
     auto x = context.get_input(0);
     auto y = context.get_input(1);
-    auto pythondiv = false;
+    auto res = context.mark_node(std::make_shared<opset8::Divide>(x, y, true));
     if (!context.input_is_none(2)) {
         auto rounding_mode = context.const_input<std::string>(2);
         if (rounding_mode == "floor") {
-            pythondiv = true;
-        } else if (rounding_mode == "trunc") {
-            pythondiv = true;
-            // break;
+            res = context.mark_node(std::make_shared<opset8::Floor>(res));
+        } else {
+            // TODO: support mode "trunc", need to extend openvino opset for that 
+            FRONT_END_OP_CONVERSION_CHECK(false,
+                                          "Openvino Pytorch Frontend doesn't support rounding mode ",
+                                          rounding_mode,
+                                          " for aten::div");
         }
     }
-    return {context.mark_node(std::make_shared<opset8::Divide>(x, y, pythondiv))};
+    return {res};
 };
 
 }  // namespace op

@@ -43,10 +43,12 @@ OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_relu6);
 OP_CONVERTER(translate_reshape);
 OP_CONVERTER(translate_rsub);
+OP_CONVERTER(translate_select);
 OP_CONVERTER(translate_size);
 OP_CONVERTER(translate_slice);
 OP_CONVERTER(translate_softmax);
 OP_CONVERTER(translate_square);
+OP_CONVERTER(translate_squeeze);
 OP_CONVERTER(translate_sub);
 OP_CONVERTER(translate_to);
 OP_CONVERTER(translate_transpose);
@@ -77,6 +79,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::elu", op::translate_elu},
         {"aten::embedding", op::translate_embedding},
         {"aten::eq", op::translate_1to1_match_2_inputs<opset8::Equal>},
+        {"aten::exp", op::translate_1to1_match_1_inputs<opset8::Exp>},
         {"aten::flatten", op::translate_flatten},
         {"aten::floordiv", op::translate_floordiv},
         {"aten::gelu", op::translate_gelu},
@@ -107,6 +110,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::relu6", op::translate_relu6},
         {"aten::reshape", op::translate_reshape},
         {"aten::rsub", op::translate_rsub},
+        {"aten::select", op::translate_select},
         {"aten::sigmoid", op::translate_1to1_match_1_inputs<opset8::Sigmoid>},
         {"aten::silu", op::translate_1to1_match_1_inputs<opset8::Swish>},
         {"aten::silu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset8::Swish>>},
@@ -115,6 +119,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::softmax", op::translate_softmax},
         {"aten::sqrt", op::translate_1to1_match_1_inputs<opset8::Sqrt>},
         {"aten::square", op::translate_square},
+        {"aten::squeeze", op::translate_squeeze},
         {"aten::sub", op::translate_sub},
         {"aten::tanh", op::translate_1to1_match_1_inputs<opset8::Tanh>},
         {"aten::to", op::translate_to},

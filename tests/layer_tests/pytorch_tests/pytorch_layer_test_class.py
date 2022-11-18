@@ -29,7 +29,7 @@ class PytorchLayerTest:
                     return True
         return False
 
-    def _test(self, model, ref_net, kind, ie_device, precision, ir_version, infer_timeout=60, **kwargs):
+    def _test(self, model, ref_net, kind, ie_device, precision, ir_version, infer_timeout=60, dynamic_shapes=True, **kwargs):
         """
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
                                                        Example: "transform_1,transform_2"
@@ -41,7 +41,7 @@ class PytorchLayerTest:
             graph = model.inlined_graph
             print(graph)
 
-            assert self._check_kind_exist(
+            assert kind is None or self._check_kind_exist(
                 graph, kind), "Operation type doesn't exist in provided graph"
 
             fe_manager = FrontEndManager()
@@ -63,8 +63,8 @@ class PytorchLayerTest:
             inp = inputs[i]
             assert inp.dtype.name in self._type_map, f"Unknown type {inp.dtype}."
             params[i].set_element_type(self._type_map[inp.dtype.name])
-            dyn_shape = [-1] * len(inp.shape)
-            params[i].set_partial_shape(PartialShape(dyn_shape))
+            shape = [-1] * len(inp.shape) if dynamic_shapes else inp.shape
+            params[i].set_partial_shape(PartialShape(shape))
         om.validate_nodes_and_infer_types()
 
         # OV infer:
@@ -95,9 +95,9 @@ class PytorchLayerTest:
         fw_eps = custom_eps if precision == 'FP32' else 5e-2
         is_ok = True
         for i in range(len(infer_res)):
-            cur_fw_res = fw_res[i].numpy()
+            cur_fw_res = fw_res[i].to(memory_format = torch.contiguous_format).numpy()
             cur_ov_res = infer_res[compiled.output(i)]
-            print(f"fw_re: {cur_fw_res}; ov_res: {cur_ov_res}")
+            print(f"fw_re: {cur_fw_res};\n ov_res: {cur_ov_res}")
             if not np.allclose(cur_ov_res, cur_fw_res,
                                atol=fw_eps,
                                rtol=fw_eps):
