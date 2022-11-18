@@ -5,7 +5,7 @@ compressed `FP16` model. The resulting model will occupy about twice as less spa
 but it may have some accuracy drop. For most models, the accuracy drop is negligible.
 
 To compress the model, use the `--compress_to_fp16` option:
-> **NOTE**: Starting from 2022.3 release, option --data_type is deprecated.
+> **NOTE**: Starting from the 2022.3 release, option --data_type is deprecated.
 > Instead of --data_type FP16 please use --compress_to_fp16.
 > Using `--data_type FP32` will give no result and will not force `FP32` precision in 
 > the model. If the model has `FP16` constants, such constants will have `FP16` precision in IR as well.
