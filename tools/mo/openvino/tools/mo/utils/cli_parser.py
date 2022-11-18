@@ -100,32 +100,6 @@ def str_list_to_str(values):
         raise Error("Incorrect argument. {} expected to string or list of strings, got type {}.".format(values, type(values)))
 
 
-def dimension_to_str(dim: Dimension):
-    # TODO: replace this code with Dimension to string conversion method from openvino.runtime when 69092 is done
-    if dim.is_static:
-        return str(dim.get_length())
-    if dim.get_min_length() > 0:
-        dim_str = str(dim.get_min_length()) + ".."
-        if dim.get_max_length() != -1:
-            dim_str += str(dim.get_max_length())
-        return dim_str
-    elif dim.get_max_length() != -1:
-        return ".." + str(dim.get_max_length())
-    else:
-        return "?"
-
-
-def partial_shape_to_str(shape: PartialShape, separator: str):
-    # TODO: replace this code with PartialShape to string conversion method from openvino.runtime when 69092 is done
-    if shape.rank.is_dynamic:
-        return "[...]"
-    dims = []
-    for i in range(shape.rank.get_length()):
-        dims.append(dimension_to_str(shape.get_dimension(i)))
-
-    return "[" + separator.join(dims) + "]"
-
-
 def is_shape_type(value):
     if isinstance(value, PartialShape):
         return True
@@ -143,14 +117,14 @@ def shape_to_str(shape, separator):
     if isinstance(shape, str):
         return shape
     if isinstance(shape, PartialShape):
-        return partial_shape_to_str(shape, separator)
+        return shape.to_string()
     if isinstance(shape, Shape):
-        return partial_shape_to_str(PartialShape(shape), separator)
+        return PartialShape(shape).to_string()
     if isinstance(shape, list) or isinstance(shape, tuple):
         dims = []
         for dim in shape:
             if isinstance(dim, Dimension):
-                dims.append(dimension_to_str(dim))
+                dims.append(dim.to_string())
             elif isinstance(dim, int):
                 dims.append(str(dim))
             else:
@@ -480,21 +454,21 @@ mo_convert_params = {
     'input': ParamDescription(
         '{}Quoted list of comma-separated input nodes names with shapes, data types, '
         'and values for freezing. The order of inputs in converted model is the same as '
-        'order of specified operation names. The shape and value are specified as space-separated '
+        'order of specified operation names. The shape and value are specified as comma-separated '
         'lists. The data type of input node is specified in braces and '
         'can have one of the values: f64 (float64), f32 (float32), f16 (float16), '
         'i64 (int64), i32 (int32), u8 (uint8), boolean (bool). Data type is optional. '
         'If it\'s not specified explicitly then there are two options: '
         'if input node is a parameter, data type is taken from the original node dtype, '
         'if input node is not a parameter, data type is set to f32. '
-        'Example, to set `input_1` with shape [1 100], and Parameter node `sequence_len` '
+        'Example, to set `input_1` with shape [1,100], and Parameter node `sequence_len` '
         'with scalar input with value `150`, and boolean input `is_training` with '
         '`False` value use the following format: '
-        '"input_1[1 10],sequence_len->150,is_training->False". '
+        '"input_1[1,100],sequence_len->150,is_training->False". '
         'Another example, use the following format to set input port 0 of the node '
-        '`node_name1` with the shape [3 4] as an input node and freeze output port 1 '
-        'of the node `node_name2` with the value [20 15] of the int32 type and shape [2]: '
-        '"0:node_name1[3 4],node_name2:1[2]{{i32}}->[20 15]".', '',
+        '`node_name1` with the shape [3,4] as an input node and freeze output port 1 '
+        'of the node `node_name2` with the value [20,15] of the int32 type and shape [2]: '
+        '"0:node_name1[3,4],node_name2:1[2]{{i32}}->[20,15]".', '',
         'Input can be set by passing a list of InputCutInfo objects or by a list of tuples. '
         'Each tuple should contain input name and optionally input type or input shape. '
         'Example: input=("op_name", PartialShape([-1, 3, 100, 100]), Type(np.float32)). '
@@ -1404,12 +1378,12 @@ def remove_shape_from_input_value(input_value: str):
     :return: string without shape specification
     """
     assert '->' not in input_value, 'The function should not be called for input_value with constant value specified'
-    return re.sub(r'[(\[]([0-9\.?  -]*)[)\]]', '', input_value)
+    return re.sub(r'[(\[]([0-9\.?,  -]*)[)\]]', '', input_value)
 
 
 def get_shape_from_input_value(input_value: str):
     """
-    Returns the list of tuples corresponding to the shape specified in the input value string
+    Returns PartialShape corresponding to the shape specified in the input value string
     :param input_value: string passed as input to the --input command line parameter
     :return: the corresponding shape and None if the shape is not specified in the input value
     """
@@ -1417,13 +1391,15 @@ def get_shape_from_input_value(input_value: str):
     input_value = input_value.split('->')[0]
 
     # parse shape
-    shape = re.findall(r'[(\[]([0-9\.\?  -]*)[)\]]', input_value)
+    shape = re.findall(r'[(\[]([0-9\.\?,  -]*)[)\]]', input_value)
     if len(shape) == 0:
         shape = None
     elif len(shape) == 1 and shape[0] in ['', ' ']:
         shape = ()
     elif len(shape) == 1:
-        shape = tuple(map(parse_dimension, shape[0].split(' ')))
+        dims = re.split(r', *| +', shape[0])
+        dims = list(filter(None, dims))
+        shape = PartialShape([Dimension(dim) for dim in dims])
     else:
         raise Error("Wrong syntax to specify shape. Use --input "
                     "\"node_name[shape]->value\"")
@@ -1452,12 +1428,27 @@ def get_value_from_input_value(input_value: str):
         if value[0] == '[' and value[-1] != ']' or value[0] != '[' and value[-1] == ']':
             raise Error("Wrong syntax to specify value. Use --input \"node_name[shape]->value\"")
         if '[' in value.strip(' '):
-            value = value.replace('[', '').replace(']', '').split(' ')
+            value = value.replace('[', '').replace(']', '')
+            if ',' in value:
+                value = value.replace(' ', '')
+                value = value.split(',')
+            else:
+                value = value.split(' ')
         if not isinstance(value, list):
             value = ast.literal_eval(value)
     elif len(parts) > 2:
         raise Error("Wrong syntax to specify value. Use --input \"node_name[shape]->value\"")
     return value
+
+
+def partial_shape_prod(shape: [PartialShape, tuple]):
+    assert not (isinstance(shape, PartialShape) and shape.is_dynamic), \
+        "Unable to calculate prod for dynamic shape {}.".format(shape)
+
+    prod = 1
+    for dim in shape:
+        prod *= dim.get_min_length()
+    return prod
 
 
 def parse_input_value(input_value: str):
@@ -1484,10 +1475,10 @@ def parse_input_value(input_value: str):
 
     if value is not None and shape is not None:
         for dim in shape:
-            if isinstance(dim, tuple) or dim == -1:
+            if isinstance(dim, Dimension) and dim.is_dynamic:
                 raise Error("Cannot freeze input with dynamic shape: {}".format(shape))
 
-    if shape is not None and value is not None and np.prod(shape) != value_size:
+    if shape is not None and value is not None and partial_shape_prod(shape) != value_size:
         raise Error("The shape '{}' of the input node '{}' does not correspond to the number of elements '{}' in the "
                     "value: {}".format(shape, node_name, value_size, value))
     return node_name, shape, value, data_type
@@ -1678,7 +1669,7 @@ def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_
     if argv_input is not None:
         input_node_names = ''
         # walkthrough all input values and save values for freezing
-        for input_value in argv_input.split(','):
+        for input_value in split_inputs(argv_input):
             node_name, _, value, _ = parse_input_value(input_value)
             input_node_names = input_node_names + ',' + node_name  if input_node_names != '' else node_name
             if value is None: # no value is specified for freezing
@@ -1691,31 +1682,30 @@ def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_
     return placeholder_values, input_node_names
 
 
-def parse_dimension(dim: str):
-    if '..' in dim:
-        numbers_reg = r'^[0-9]+$'
-        dims = dim.split('..')
-        match_res0 = re.match(numbers_reg, dims[0])
-        match_res1 = re.match(numbers_reg, dims[1])
-        if len(dims[0].strip()) > 0 and match_res0 is None:
-            Error("Incorrect min value of dimension '{}'".format(dims[0]))
-        if len(dims[1].strip()) > 0 and match_res1 is None:
-            Error("Incorrect max value of dimension '{}'".format(dims[1]))
+def split_inputs(input_str):
+    brakets_count = 0
+    inputs = []
+    while input_str:
+        idx = 0
+        for c in input_str:
+            if c == '[':
+                brakets_count += 1
+            if c == ']':
+                brakets_count -= 1
+            if c == ',':
+                if brakets_count != 0:
+                    idx += 1
+                    continue
+                else:
+                    break
+            idx += 1
+        if idx >= len(input_str)-1:
+            inputs.append(input_str)
+            break
+        inputs.append(input_str[:idx])
+        input_str = input_str[idx+1:]
+    return inputs
 
-        min_val = np.int64(dims[0]) if match_res0 else np.int64(0)
-        max_val = np.int64(dims[1]) if match_res1 else np.iinfo(np.int64).max
-        assert min_val >= 0, "Incorrect min value of the dimension {}".format(dim)
-
-        if min_val == np.int64(0) and max_val == np.iinfo(np.int64).max:
-            return np.int64(-1)
-
-        assert min_val < max_val, "Min value should be less than max value. Got min value: {}, " \
-                                  "max value: {}".format(min_val, max_val)
-
-        return min_val, max_val
-    if '?' in dim:
-        return np.int64(-1)
-    return np.int64(dim)
 
 
 def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=None):
@@ -1754,17 +1744,7 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
     are_shapes_specified_through_input = False
     inputs_list = list()
     if argv_input:
-        range_reg = r'([0-9]*\.\.[0-9]*)'
-        first_digit_reg = r'([0-9]+|-1|\?|{})'.format(range_reg)
-        next_digits_reg = r'(,{})+'.format(first_digit_reg)
-        brackets_reg = r'(.*\[{}{}\].*)'.format(first_digit_reg, next_digits_reg,
-                                                      first_digit_reg, next_digits_reg)
-        if re.match(brackets_reg, argv_input):
-            raise Error('Error in input {}. Shape with comma separator is not supported in --input param. '
-                        'Please use shape syntax with whitespace separator. Example --input="data[1 3 100 100]".'.format(
-                argv_input))
-
-        for input_value in argv_input.split(','):
+        for input_value in split_inputs(argv_input):
             node_name, shape, _, data_type = parse_input_value(input_value)
             placeholder_shapes[node_name] = shape
             inputs_list.append(node_name)
@@ -1801,7 +1781,7 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
         shapes = re.findall(r'[(\[]([0-9,\.\? -]+)[)\]]', argv_input_shape)
 
     if argv_input:
-        inputs = argv_input.split(',')
+        inputs = split_inputs(argv_input)
     inputs = [remove_data_type_from_input_value(inp) for inp in inputs]
 
     # check number of shapes with no input provided
@@ -1809,14 +1789,13 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
         if len(shapes) > 1:
             raise Error('Please provide input layer names for input layer shapes. ' + refer_to_faq_msg(58))
         else:
-            placeholder_shapes = tuple(map(parse_dimension, shapes[0].split(',')))
+            placeholder_shapes = PartialShape(shapes[0])
     # check if number of shapes does not match number of passed inputs
     elif argv_input and (len(shapes) == len(inputs) or len(shapes) == 0):
         # clean inputs from values for freezing
         inputs_without_value = list(map(lambda x: x.split('->')[0], inputs))
         placeholder_shapes = dict(zip_longest(inputs_without_value,
-                                              map(lambda x: tuple(map(parse_dimension, x.split(','))) if x else None,
-                                                  shapes)))
+                                              map(lambda x: PartialShape(x) if x else None, shapes)))
         for inp in inputs:
             if '->' not in inp:
                 inputs_list.append(inp)
@@ -1827,7 +1806,7 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
             if shape is None:
                 continue
             for dim in shape:
-                if isinstance(dim, tuple) or dim == -1:
+                if isinstance(dim, Dimension) and not dim.is_static:
                     raise Error("Cannot freeze input with dynamic shape: {}".format(shape))
 
     elif argv_input:
@@ -2225,6 +2204,13 @@ def depersonalize(value: str, key: str):
     dir_keys = [
         'output_dir', 'extensions', 'saved_model_dir', 'tensorboard_logdir', 'caffe_parser_path'
     ]
+
+    if isinstance(value, list):
+        updated_value = []
+        for elem in value:
+            updated_value.append(depersonalize(elem, key))
+        return updated_value
+
     if not isinstance(value, str):
         return value
     res = []
@@ -2236,30 +2222,6 @@ def depersonalize(value: str, key: str):
         else:
             res.append(path)
     return ','.join(res)
-
-
-def get_meta_info(argv: [argparse.Namespace, dict]):
-    meta_data = {'unset': []}
-    dict_items = None
-    if isinstance(argv, argparse.Namespace):
-        dict_items = argv.__dict__.items()
-    elif isinstance(argv, dict):
-        dict_items = argv.items()
-    else:
-        raise Error('Incorrect type of argv. Expected dict or argparse.Namespace, got {}'.format(type(dict_items)))
-
-    for key, value in dict_items:
-        if value is not None:
-            value = depersonalize(value, key)
-            meta_data[key] = value
-        else:
-            meta_data['unset'].append(key)
-    # The attribute 'k' is treated separately because it points to not existing file by default
-    for key in ['k']:
-        if key in meta_data:
-            meta_data[key] = ','.join([os.path.join('DIR', os.path.split(i)[1]) for i in meta_data[key].split(',')])
-    return meta_data
-
 
 def get_available_front_ends(fem=None):
     # Use this function as workaround to avoid IR frontend usage by MO
