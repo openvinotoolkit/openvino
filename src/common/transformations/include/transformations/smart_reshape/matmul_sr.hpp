@@ -8,7 +8,7 @@
 #include <memory>
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class NGRAPH_API ReshapeAMatMul;
@@ -16,7 +16,7 @@ class NGRAPH_API ReshapeBMatMul;
 class NGRAPH_API TransposeMatMul;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -26,18 +26,26 @@ class NGRAPH_API TransposeMatMul;
  *  - MatMul(any_input, Reshape(any_input, any_input))
  */
 
-class ngraph::pass::ReshapeAMatMul : public ngraph::pass::MatcherPass {
+class ov::pass::ReshapeAMatMul : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ReshapeAMatMul", "0");
     ReshapeAMatMul();
 };
-class ngraph::pass::ReshapeBMatMul : public ngraph::pass::MatcherPass {
+class ov::pass::ReshapeBMatMul : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ReshapeBMatMul", "0");
     ReshapeBMatMul();
 };
-class ngraph::pass::TransposeMatMul : public ngraph::pass::MatcherPass {
+class ov::pass::TransposeMatMul : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("TransposeMatMul", "0");
     TransposeMatMul();
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::ReshapeAMatMul;
+using ov::pass::ReshapeBMatMul;
+using ov::pass::TransposeMatMul;
+}  // namespace pass
+}  // namespace ngraph
