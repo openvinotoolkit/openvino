@@ -89,6 +89,11 @@ const cl::UsmHelper& ocl_engine::get_usm_helper() const {
     return *_usm_helper;
 }
 
+allocation_type ocl_engine::detect_usm_allocation_type(const void* memory) const {
+    return use_unified_shared_memory() ? ocl::gpu_usm::detect_allocation_type(this, memory)
+                                       : allocation_type::unknown;
+}
+
 memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type type, bool reset) {
     OPENVINO_ASSERT(!layout.is_dynamic(), "[GPU] Can't allocate memory for dynamic layout");
 

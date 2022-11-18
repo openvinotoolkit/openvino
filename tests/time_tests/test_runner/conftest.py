@@ -423,5 +423,5 @@ def pytest_runtest_makereport(item, call):
         db_api_handler = item.config.getoption("db_api_handler")
         if db_api_handler and call.when == "call":
             new_format_records = modify_data_for_push_to_new_db(data)
-            new_format_records["log"] = item._request.test_info["logs"]
+            new_format_records['data'][0]["log"] = item._request.test_info["logs"]
             push_to_db_facade(new_format_records, db_api_handler)

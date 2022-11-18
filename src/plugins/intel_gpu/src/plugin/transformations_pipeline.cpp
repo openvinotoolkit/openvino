@@ -152,7 +152,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
 
-        manager.register_pass<ngraph::pass::ConvertTensorIteratorToSequence>();
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
         manager.register_pass<ngraph::pass::GRUCellDecomposition>();
         manager.register_pass<ngraph::pass::RNNCellDecomposition>();
@@ -331,19 +330,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     return isSequencePrimitiveSupported(node);
                 });
 
-        pass_config->set_callback<ngraph::pass::ConvertTensorIteratorToRNNSequence,
-                                  ngraph::pass::ConvertTensorIteratorToLSTMSequence,
-                                  ngraph::pass::ConvertTensorIteratorToGRUSequence>(
-            [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
-                if (const auto& ti_op = std::dynamic_pointer_cast<const ngraph::op::TensorIterator>(node)) {
-                    size_t count_rnn = 0;
-                    for (const auto &op : ti_op->get_body()->get_ops())
-                        count_rnn += isCellPrimitiveSupported(op);
-                    return count_rnn != 1;
-                }
-                return true;
-            });
-
         pass_config->set_callback<ngraph::pass::MVN6Decomposition>(
             [](const_node_ptr &node) -> bool {
                 const auto mvn = std::dynamic_pointer_cast<const ngraph::op::v6::MVN>(node);
@@ -420,10 +406,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
         pass_config->disable<ngraph::pass::ConvertSoftMax8ToSoftMax1>();
         pass_config->enable<ngraph::pass::ConvertGather8ToGather7>();
-
-        if (!config.enable_loop_unrolling) {
-            pass_config->disable<ngraph::pass::ConvertTensorIteratorToSequence>();
-        }
 
         pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 
