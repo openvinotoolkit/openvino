@@ -76,8 +76,5 @@ TEST(TransformationTests, EliminateDuplicateTIInputs) {
     EXPECT_NE(ti_after_transformation, nullptr);
     EXPECT_EQ(ti_after_transformation->get_body()->get_parameters().size(), 3);
     EXPECT_EQ(ti_after_transformation->inputs().size(), 3);
-<<<<<<< HEAD
     EXPECT_EQ(ti_after_transformation->get_input_descriptions().size(), 3);
-=======
->>>>>>> upstream/master
 }
