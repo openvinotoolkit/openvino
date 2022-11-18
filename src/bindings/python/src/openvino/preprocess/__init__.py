@@ -28,3 +28,4 @@ from openvino._pyopenvino.preprocess import PreProcessSteps
 from openvino._pyopenvino.preprocess import PostProcessSteps
 from openvino._pyopenvino.preprocess import ColorFormat
 from openvino._pyopenvino.preprocess import ResizeAlgorithm
+from .tokenization import convert_tokenizer
