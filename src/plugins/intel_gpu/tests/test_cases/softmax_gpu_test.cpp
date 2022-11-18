@@ -1046,9 +1046,6 @@ TEST(softmax_gpu_bfyx_f32, normalize_f_dynamic) {
     float temp_max = 0;
     float expected_sum = 1.0f;
     int max_value_buffer_index = 0;
-    for (size_t i = 0; i < output->count(); i++) {
-        std::cerr << "i = " << i << " v = " << output_ptr[i] << std::endl;
-    }
     for (uint32_t i = 0; i < b; i++) { //this for loops will sum results in a batch per feature, we expect that: sum = 1.0f
         for (uint32_t j = 0; j < y; j++) {
             for (uint32_t k = 0; k < x; k++) {
@@ -1063,11 +1060,11 @@ TEST(softmax_gpu_bfyx_f32, normalize_f_dynamic) {
                     }
                     sum += out_buffer[index];
                 }
-                EXPECT_EQ(true, are_equal(temp_max, expected_max_values[max_value_buffer_index]));
+                EXPECT_TRUE(are_equal(temp_max, expected_max_values[max_value_buffer_index]));
                 temp_max = 0;
                 max_value_buffer_index++;
 
-                EXPECT_EQ(true, are_equal(sum, expected_sum));
+                EXPECT_TRUE(are_equal(sum, expected_sum));
                 sum = 0.0f;
             }
         }

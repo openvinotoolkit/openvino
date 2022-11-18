@@ -340,6 +340,9 @@ void prepare_buffer_fusing::run(program& p) {
     auto node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
         auto& node = (*node_itr++);
+        if (!node->is_valid_output_layout())
+            continue;
+
         if (!can_optimize(node))
             continue;
         // zero copy
@@ -433,6 +436,9 @@ void prepare_buffer_fusing::run(program& p) {
     node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
         auto& node = (*node_itr++);
+        if (!node->is_valid_output_layout())
+            continue;
+
         if (!can_optimize(node))
             continue;
 

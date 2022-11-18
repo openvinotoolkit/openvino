@@ -704,14 +704,7 @@ KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params, const 
 
     kernel.params.workGroups.global = dispatchData.gws;
     kernel.params.workGroups.local = dispatchData.lws;
-    // is dynamic is check using input tensors as output may be static though the input is dynamic
-    bool is_dynamic = false;
-    for (auto& in : newParams.inputs) {
-        if (in.is_dynamic()) {
-            is_dynamic = true;
-            break;
-        }
-    }
+    bool is_dynamic = newParams.has_dynamic_tensors();
     kernel.params.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
                                    false,
                                    false,

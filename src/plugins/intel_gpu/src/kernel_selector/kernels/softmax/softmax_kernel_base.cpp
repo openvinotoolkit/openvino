@@ -67,7 +67,7 @@ KernelsData SoftmaxKernelBase::GetCommonKernelsData(const Params& params, const 
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
         kd.internalBufferSizes.clear();
         kd.internalBufferSizes.push_back(prim_params.inputs[0].PhysicalSizeInBytes());
-        kd.internalBufferDataType = Datatype::F32;
+        kd.internalBufferDataType = prim_params.inputs[0].GetDType();
     };
 
     auto dispatchData = SetDefault(orgParams);
@@ -98,7 +98,7 @@ KernelsData SoftmaxKernelBase::GetCommonKernelsData(const Params& params, const 
 
         kd.internalBufferSizes.clear();
         kd.internalBufferSizes.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
-        kd.internalBufferDataType = Datatype::F32;
+        kd.internalBufferDataType = orgParams.inputs[0].GetDType();
     }
 
     return {kd};

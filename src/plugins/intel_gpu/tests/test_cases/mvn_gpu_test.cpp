@@ -339,7 +339,6 @@ TEST(mvn_gpu_test, dynamic_across_channels_inside_sqrt_bfyx_normalize_variance_f
     topology.add(input_layout("input", in_layout));
     topology.add(mvn("mvn", "input", true, 1e-10f, true, true));
 
-
     build_options bo;
     bo.set_option(build_option::allow_new_shape_infer(true));
     network network(engine, topology, bo);

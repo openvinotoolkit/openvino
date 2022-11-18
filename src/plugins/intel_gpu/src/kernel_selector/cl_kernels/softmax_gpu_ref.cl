@@ -111,7 +111,6 @@ KERNEL(softmax)(
     // TODO: currently we calculate on float32 because it's lot of "add" operation and it stuck on the value "8192.0f"
     ACCUMULATOR_TYPE denominator = 0.0;
     for (cls = 0; cls < class_num; ++cls) {
-
         ACCUMULATOR_TYPE t = native_exp(data[cls*TMP_CLASS_PITCH] - max_value);
         denominator += t;
         data[cls*TMP_CLASS_PITCH] = t;
