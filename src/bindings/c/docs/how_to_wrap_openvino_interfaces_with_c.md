@@ -1,15 +1,16 @@
 # How to wrap OpenVINO interfaces with C
 
-Library `openvino_c` implements the most C++ interfaces provided in OpenVINO with C, the details mapping relationship can be found in [Mapping Relationship of Interfaces](./docs/mapping_relationship_of_interfaces.md). Here is the details about how to wrap interfaces(C++) from OpenVINO to interfaces(C), main steps including:
- 1) define C interface name and input parameters
- 2) check the validation of input parameters
- 3) convert C input parameters to C++ interface using
- 4) call C++ interface and get return
- 5) convert C++ return object to C object
+The library `openvino_c` implements most C++ interfaces provided in OpenVINO with C. Read [Mapping Relationship of Interfaces](./mapping_relationship_of_interfaces.md) to learn more. 
+This page describes how to wrap C++ interfaces from OpenVINO to C interfaces:
+ 1) Define C interface name and input parameters
+ 2) Check the validation of input parameters
+ 3) Convert C input parameters to C++ interface parameters
+ 4) Call C++ interface and get return object
+ 5) Convert C++ return object to C object
 
 ```mermaid
 flowchart LR
-    subgraph c_wrap_process[The Flow about Wrapping C++ by C]
+    subgraph c_wrap_process[Wrapping C++ by C Flow]
         c_interface["Define C name"]
         c_check_parameter["Input parameter checking"]
         c_return_invalid["return ov_status_e::INVALID_C_PARAM"]
@@ -36,12 +37,12 @@ flowchart LR
     end
 ```
 
-According to the ability, all C provided interfaces can be classified to three kinds of methods:
-- Wrap C++ interface to create object
-- Wrap C++ interface to operate object
-- C implement interfaces 
+All C-provided interfaces can be classified into three types of methods:
+- Wrap C++ interface to create an object
+- Wrap C++ interface to operate an object
+- Interfaces implemented by C
 
-## Wrap C++ interface to create object
+## Wrap C++ interface to create an object
 Like the C++ programming create `class` instance, C also need to create related object such as creating `ov::Core`, `ov::Model`, `ov::InferRequest` and so on. C wrap this operation directly and save a shared pointer to the object(C++) back to C `struct` object. Based on the above wrapping method, example about creating `ov::Core` instance will be introduction for more details to illustrate how to wrap C++ interfaces.
 
 Thinking about the C++ interface:
