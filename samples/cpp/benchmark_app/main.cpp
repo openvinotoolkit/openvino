@@ -1217,7 +1217,7 @@ int main(int argc, char* argv[]) {
 
                 std::string data_shapes_string = "";
                 for (auto& item : app_inputs_info[i]) {
-                    data_shapes_string += item.first + get_shape_string(item.second.dataShape) + ",";
+                    data_shapes_string += item.first + item.second.dataShape.to_string() + ",";
                 }
                 data_shapes_string =
                     data_shapes_string == "" ? "" : data_shapes_string.substr(0, data_shapes_string.size() - 1);
@@ -1327,7 +1327,7 @@ int main(int argc, char* argv[]) {
                         auto shape = item.second.dataShape;
                         std::copy(shape.begin(), shape.end() - 1, std::ostream_iterator<size_t>(input_shape, ","));
                         input_shape << shape.back();
-                        slog::info << " " << item.first << ": " << get_shape_string(item.second.dataShape);
+                        slog::info << " " << item.first << " : " << item.second.dataShape;
                     }
                     slog::info << slog::endl;
 
