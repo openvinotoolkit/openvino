@@ -1765,7 +1765,7 @@ TEST(fully_connected_gpu, dynamic) {
 
     auto input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(1, 10), input_f }, data_types::f32,format::bfyx };
     auto input_data = engine.allocate_memory(layout{ ov::PartialShape{ input_b, input_f }, data_types::f32,format::bfyx });
-    auto weights_data = engine.allocate_memory({ ov::PartialShape{ weight_b, input_f }, data_types::f32,format::bfyx });
+    auto weights_data = engine.allocate_memory({ ov::PartialShape{ input_f, weight_b }, data_types::f32,format::bfyx });
 
     set_values(input_data, { -0.5f, 2.0f, 0.5f });
     set_values(weights_data, { 1.5f, 1.0f, 0.5f, -1.0f, 0.0f, 0.5f, 0.5f, -0.5f, -2.0f, -0.5f, 1.0f, 1.5f });
@@ -1773,7 +1773,7 @@ TEST(fully_connected_gpu, dynamic) {
     cldnn::topology topology{
         input_layout("input", input_dyn_layout),
         data("weights", weights_data),
-        fully_connected("fc", "input", "weights")
+        fully_connected("fc", "input", "weights", "", padding(), 2, true)
     };
 
     build_options options;
@@ -1797,10 +1797,10 @@ TEST(fully_connected_gpu, dynamic) {
 
     cldnn::mem_lock<float> output_ptr (output_prim_mem, get_test_stream());
 
-    ASSERT_EQ(1.5f, output_ptr[0]);
-    ASSERT_EQ(0.75f, output_ptr[1]);
-    ASSERT_EQ(-2.25f, output_ptr[2]);
-    ASSERT_EQ(3.0f, output_ptr[3]);
+    ASSERT_EQ(-1.75f, output_ptr[0]);
+    ASSERT_EQ(0.25f, output_ptr[1]);
+    ASSERT_EQ(1.25f, output_ptr[2]);
+    ASSERT_EQ(0.25f, output_ptr[3]);
 }
 
 TEST(fully_connected_gpu, dynamic_multi_inference_same_shape) {
@@ -1811,19 +1811,18 @@ TEST(fully_connected_gpu, dynamic_multi_inference_same_shape) {
     auto input_actual_layout = layout{ ov::PartialShape{ input_b, input_f }, data_types::f32,format::bfyx };
     auto input_data1 = engine.allocate_memory(input_actual_layout);
     auto input_data2 = engine.allocate_memory(input_actual_layout);
-    auto weights_data = engine.allocate_memory({ ov::PartialShape{ weight_b, input_f }, data_types::f32,format::bfyx });
+    auto weights_data = engine.allocate_memory({ ov::PartialShape{ input_f, weight_b }, data_types::f32,format::bfyx });
 
     set_values(input_data1, { 0.5f, -2.0f, -0.5f });
     set_values(input_data2, { -0.5f, 2.0f, 0.5f });
-    set_values(weights_data, { 1.5f, 1.0f, 0.5f,
-                              -1.0f, 0.0f, 0.5f,
-                              0.5f, -0.5f, -2.0f,
-                              -0.5f, 1.0f, 1.5f });
+    set_values(weights_data, { 1.5f, 1.0f, 0.5f, -1.0f,
+                               0.0f, 0.5f, 0.5f, -0.5f,
+                               -2.0f, -0.5f, 1.0f, 1.5f });
 
     cldnn::topology topology{
         input_layout("input", input_dyn_layout),
         data("weights", weights_data),
-        fully_connected("fc", "input", "weights")
+        fully_connected("fc", "input", "weights", "", padding(), 2, true)
     };
 
     build_options options;
@@ -1849,10 +1848,10 @@ TEST(fully_connected_gpu, dynamic_multi_inference_same_shape) {
 
         cldnn::mem_lock<float> output_ptr (output_prim_mem, get_test_stream());
 
-        ASSERT_EQ(-1.5f, output_ptr[0]);
-        ASSERT_EQ(-0.75f, output_ptr[1]);
-        ASSERT_EQ(2.25f, output_ptr[2]);
-        ASSERT_EQ(-3.0f, output_ptr[3]);
+        ASSERT_EQ(1.75f, output_ptr[0]);
+        ASSERT_EQ(-0.25f, output_ptr[1]);
+        ASSERT_EQ(-1.25f, output_ptr[2]);
+        ASSERT_EQ(-0.25f, output_ptr[3]);
     }
 
     {
@@ -1873,10 +1872,10 @@ TEST(fully_connected_gpu, dynamic_multi_inference_same_shape) {
 
         cldnn::mem_lock<float> output_ptr (output_prim_mem, get_test_stream());
 
-        ASSERT_EQ(1.5f, output_ptr[0]);
-        ASSERT_EQ(0.75f, output_ptr[1]);
-        ASSERT_EQ(-2.25f, output_ptr[2]);
-        ASSERT_EQ(3.0f, output_ptr[3]);
+        ASSERT_EQ(-1.75f, output_ptr[0]);
+        ASSERT_EQ(0.25f, output_ptr[1]);
+        ASSERT_EQ(1.25f, output_ptr[2]);
+        ASSERT_EQ(0.25f, output_ptr[3]);
     }
 }
 
@@ -1890,20 +1889,19 @@ TEST(fully_connected_gpu, dynamic_multi_inference_different_shape) {
     auto input_actual_layout2 = layout{ ov::PartialShape{ 1, input_f }, data_types::f32,format::bfyx};
     auto input_data1 = engine.allocate_memory(input_actual_layout1);
     auto input_data2 = engine.allocate_memory(input_actual_layout2);
-    auto weights_data = engine.allocate_memory({ ov::PartialShape{ weight_b, input_f }, data_types::f32,format::bfyx});
+    auto weights_data = engine.allocate_memory({ ov::PartialShape{ input_f, weight_b }, data_types::f32,format::bfyx});
 
     set_values(input_data1, { 0.5f, -2.0f, -0.5f,
                               -0.5f, 2.0f, 0.5f });
     set_values(input_data2, { -0.5f, 2.0f, 0.5f });
-    set_values(weights_data, { 1.5f, 1.0f, 0.5f,
-                              -1.0f, 0.0f, 0.5f,
-                              0.5f, -0.5f, -2.0f,
-                              -0.5f, 1.0f, 1.5f });
+    set_values(weights_data, { 1.5f, 1.0f, 0.5f, -1.0f,
+                               0.0f, 0.5f, 0.5f, -0.5f,
+                               -2.0f, -0.5f, 1.0f, 1.5f });
 
     cldnn::topology topology{
         input_layout("input", input_dyn_layout),
         data("weights", weights_data),
-        fully_connected("fc", "input", "weights")
+        fully_connected("fc", "input", "weights", "", padding(), 2, true)
     };
 
     build_options options;
@@ -1929,15 +1927,15 @@ TEST(fully_connected_gpu, dynamic_multi_inference_different_shape) {
 
         cldnn::mem_lock<float> output_ptr (output_prim_mem, get_test_stream());
 
-        ASSERT_EQ(-1.5f, output_ptr[0]);
-        ASSERT_EQ(-0.75f, output_ptr[1]);
-        ASSERT_EQ(2.25f, output_ptr[2]);
-        ASSERT_EQ(-3.0f, output_ptr[3]);
+        ASSERT_EQ(1.75f, output_ptr[0]);
+        ASSERT_EQ(-0.25f, output_ptr[1]);
+        ASSERT_EQ(-1.25f, output_ptr[2]);
+        ASSERT_EQ(-0.25f, output_ptr[3]);
 
-        ASSERT_EQ(1.5f, output_ptr[4]);
-        ASSERT_EQ(0.75f, output_ptr[5]);
-        ASSERT_EQ(-2.25f, output_ptr[6]);
-        ASSERT_EQ(3.0f, output_ptr[7]);
+        ASSERT_EQ(-1.75f, output_ptr[4]);
+        ASSERT_EQ(0.25f, output_ptr[5]);
+        ASSERT_EQ(1.25f, output_ptr[6]);
+        ASSERT_EQ(0.25f, output_ptr[7]);
     }
 
     {
@@ -1958,10 +1956,10 @@ TEST(fully_connected_gpu, dynamic_multi_inference_different_shape) {
 
         cldnn::mem_lock<float> output_ptr (output_prim_mem, get_test_stream());
 
-        ASSERT_EQ(1.5f, output_ptr[0]);
-        ASSERT_EQ(0.75f, output_ptr[1]);
-        ASSERT_EQ(-2.25f, output_ptr[2]);
-        ASSERT_EQ(3.0f, output_ptr[3]);
+        ASSERT_EQ(-1.75f, output_ptr[0]);
+        ASSERT_EQ(0.25f, output_ptr[1]);
+        ASSERT_EQ(1.25f, output_ptr[2]);
+        ASSERT_EQ(0.25f, output_ptr[3]);
     }
 }
 
@@ -1975,20 +1973,19 @@ TEST(fully_connected_gpu, dynamic_multi_inference_multiple_shapes) {
     auto input_actual_layout2 = layout{ ov::PartialShape{ 1, input_f }, data_types::f32,format::bfyx};
     auto input_data1 = engine.allocate_memory(input_actual_layout1);
     auto input_data2 = engine.allocate_memory(input_actual_layout2);
-    auto weights_data = engine.allocate_memory({ ov::PartialShape{ weight_b, input_f }, data_types::f32,format::bfyx});
+    auto weights_data = engine.allocate_memory({ ov::PartialShape{ input_f, weight_b }, data_types::f32,format::bfyx});
 
     set_values(input_data1, { 0.5f, -2.0f, -0.5f,
                               -0.5f, 2.0f, 0.5f });
     set_values(input_data2, { -0.5f, 2.0f, 0.5f });
-    set_values(weights_data, { 1.5f, 1.0f, 0.5f,
-                              -1.0f, 0.0f, 0.5f,
-                              0.5f, -0.5f, -2.0f,
-                              -0.5f, 1.0f, 1.5f });
+    set_values(weights_data, { 1.5f, 1.0f, 0.5f, -1.0f,
+                               0.0f, 0.5f, 0.5f, -0.5f,
+                               -2.0f, -0.5f, 1.0f, 1.5f });
 
     cldnn::topology topology{
         input_layout("input", input_dyn_layout),
         data("weights", weights_data),
-        fully_connected("fc", "input", "weights")
+        fully_connected("fc", "input", "weights", "", padding(), 2, true)
     };
 
     build_options options;
@@ -2016,15 +2013,15 @@ TEST(fully_connected_gpu, dynamic_multi_inference_multiple_shapes) {
 
             cldnn::mem_lock<float> output_ptr (output_prim_mem, get_test_stream());
 
-            ASSERT_EQ(-1.5f, output_ptr[0]);
-            ASSERT_EQ(-0.75f, output_ptr[1]);
-            ASSERT_EQ(2.25f, output_ptr[2]);
-            ASSERT_EQ(-3.0f, output_ptr[3]);
+            ASSERT_EQ(1.75f, output_ptr[0]);
+            ASSERT_EQ(-0.25f, output_ptr[1]);
+            ASSERT_EQ(-1.25f, output_ptr[2]);
+            ASSERT_EQ(-0.25f, output_ptr[3]);
 
-            ASSERT_EQ(1.5f, output_ptr[4]);
-            ASSERT_EQ(0.75f, output_ptr[5]);
-            ASSERT_EQ(-2.25f, output_ptr[6]);
-            ASSERT_EQ(3.0f, output_ptr[7]);
+            ASSERT_EQ(-1.75f, output_ptr[4]);
+            ASSERT_EQ(0.25f, output_ptr[5]);
+            ASSERT_EQ(1.25f, output_ptr[6]);
+            ASSERT_EQ(0.25f, output_ptr[7]);
         }
 
         {
@@ -2045,10 +2042,10 @@ TEST(fully_connected_gpu, dynamic_multi_inference_multiple_shapes) {
 
             cldnn::mem_lock<float> output_ptr (output_prim_mem, get_test_stream());
 
-            ASSERT_EQ(1.5f, output_ptr[0]);
-            ASSERT_EQ(0.75f, output_ptr[1]);
-            ASSERT_EQ(-2.25f, output_ptr[2]);
-            ASSERT_EQ(3.0f, output_ptr[3]);
+            ASSERT_EQ(-1.75f, output_ptr[0]);
+            ASSERT_EQ(0.25f, output_ptr[1]);
+            ASSERT_EQ(1.25f, output_ptr[2]);
+            ASSERT_EQ(0.25f, output_ptr[3]);
         }
     }
 }
@@ -2060,7 +2057,7 @@ TEST(fully_connected_gpu, new_shape_inference_2d_1) {
 
     cldnn::layout input_data_layout{ ov::PartialShape{ ov::Dimension(1, 10), ov::Dimension(1, 10) }, data_types::f32,format::bfyx };
     auto input_data = engine.allocate_memory({ ov::PartialShape{ input_b, input_f }, data_types::f32,format::bfyx });
-    cldnn::layout weights_layout{ ov::PartialShape{ weight_b, input_f }, data_types::f32,format::bfyx };
+    cldnn::layout weights_layout{ ov::PartialShape{ input_f, weight_b }, data_types::f32,format::bfyx };
     auto weights_data = engine.allocate_memory(weights_layout);
 
     set_values(input_data, { -0.5f, 2.0f, 0.5f });
@@ -2108,7 +2105,7 @@ TEST(fully_connected_gpu, new_shape_inference_2d_2) {
 
     cldnn::layout input_data_layout{ ov::PartialShape{ input_b, input_f }, data_types::f32,format::bfyx };
     auto input_data = engine.allocate_memory(input_data_layout);
-    cldnn::layout weights_layout{ ov::PartialShape{ weight_b, input_f }, data_types::f32,format::bfyx };
+    cldnn::layout weights_layout{ ov::PartialShape{ input_f, weight_b }, data_types::f32,format::bfyx };
     auto weights_data = engine.allocate_memory(weights_layout);
 
     set_values(input_data, { -0.5f, 2.0f, 0.5f,
@@ -2120,7 +2117,7 @@ TEST(fully_connected_gpu, new_shape_inference_2d_2) {
     cldnn::topology topology{
         input_layout("input", input_data_layout),
         data("weights", weights_data),
-        fully_connected("fc", "input", "weights", "", padding(), 2, true)
+        fully_connected("fc", "input", "weights", "", padding(), 3, true)
     };
 
     build_options options;
@@ -2158,7 +2155,7 @@ TEST(fully_connected_gpu, new_shape_inference_3d_1batch) {
 
     cldnn::layout input_data_layout{ ov::PartialShape{ input_b, input_f, ov::Dimension(1, input_y) }, data_types::f32,format::bfyx };
     auto input_data = engine.allocate_memory({ ov::PartialShape{ input_b, input_f, input_y }, data_types::f32,format::bfyx });
-    cldnn::layout weights_layout{ ov::PartialShape{ input_b, weight_b, input_y }, data_types::f32,format::bfyx };
+    cldnn::layout weights_layout{ ov::PartialShape{ input_b, input_y, weight_b }, data_types::f32,format::bfyx };
     auto weights_data = engine.allocate_memory(weights_layout);
 
     set_values(input_data, { //b0
@@ -2211,7 +2208,7 @@ TEST(fully_connected_gpu, new_shape_inference_3d_2batch) {
 
     cldnn::layout input_data_layout{ ov::PartialShape{ input_b, input_f, input_y }, data_types::f32,format::bfyx };
     auto input_data = engine.allocate_memory(input_data_layout);
-    cldnn::layout weights_layout{ ov::PartialShape{ input_b, weight_b, input_y }, data_types::f32,format::bfyx };
+    cldnn::layout weights_layout{ ov::PartialShape{ input_b, input_y, weight_b }, data_types::f32,format::bfyx };
     auto weights_data = engine.allocate_memory(weights_layout);
 
     set_values(input_data, { //b0
@@ -2236,7 +2233,7 @@ TEST(fully_connected_gpu, new_shape_inference_3d_2batch) {
     cldnn::topology topology{
         input_layout("input", input_data_layout),
         data("weights", weights_data),
-        fully_connected("fc", "input", "weights", "", padding(), 2, true)
+        fully_connected("fc", "input", "weights", "", padding(), 4, true)
     };
 
     build_options options;
@@ -2277,7 +2274,7 @@ TEST(fully_connected_gpu, new_shape_inference_4d) {
 
     cldnn::layout input_data_layout{ov::PartialShape{input_b1, input_b2, input_f, input_y }, data_types::f32, format::bfyx };
     auto input_data = engine.allocate_memory(input_data_layout);
-    cldnn::layout weights_layout{ov::PartialShape{input_b1, input_b2, weight_b, input_y }, data_types::f32, format::bfyx };
+    cldnn::layout weights_layout{ov::PartialShape{input_b1, input_b2, input_y, weight_b }, data_types::f32, format::bfyx };
     auto weights_data = engine.allocate_memory(weights_layout);
 
     set_values(input_data, { //b0b0
@@ -2334,7 +2331,7 @@ TEST(fully_connected_gpu, new_shape_inference_4d) {
     cldnn::topology topology{
         input_layout("input", input_data_layout),
         data("weights", weights_data),
-        fully_connected("fc", "input", "weights", "", padding(), 2, true)
+        fully_connected("fc", "input", "weights", "", padding(), 4, true)
     };
 
     build_options options;

@@ -102,7 +102,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, fully_connected_test,
     testing::ValuesIn(std::vector<matmul_test_params>{
         {
             layout{ov::PartialShape{10, 1024}, data_types::i8, format::bfyx},
-            layout{ov::PartialShape{1000, 1024}, data_types::i8, format::bfyx},
+            layout{ov::PartialShape{1024, 1000}, data_types::i8, format::bfyx},
             data_types::f16, false, false,
             layout{ov::PartialShape{10, 1000}, data_types::f16, format::bfyx}
         },
