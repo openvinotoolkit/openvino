@@ -4,7 +4,6 @@
 import os
 import shutil
 
-
 def remove_xml_dir(path):
     """
     Remove doxygen xml folder
