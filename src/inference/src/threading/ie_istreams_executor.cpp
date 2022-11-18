@@ -351,7 +351,7 @@ void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config) {
         config._threads_per_stream_big = threads_per_stream;
         config._small_core_streams = 0;
         config._threads_per_stream_small = 0;
-    } else if ((num_small_cores_phys / threads_per_stream >= streams) & (num_big_cores_phys < threads_per_stream)) {
+    } else if ((num_small_cores_phys / threads_per_stream >= streams) && (num_big_cores_phys < threads_per_stream)) {
         config._big_core_streams = 0;
         config._threads_per_stream_big = 0;
         config._small_core_streams = streams;
