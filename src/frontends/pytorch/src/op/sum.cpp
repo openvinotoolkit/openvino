@@ -14,8 +14,7 @@ OutputVector translate_sum(NodeContext& context) {
     bool keep_dims = false;
     ov::Output<ov::Node> axes;
     Output<Node> cast;
-    FRONT_END_OP_CONVERSION_CHECK(context.get_input_size() >= 1, "Operation has no inputs.");
-    FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0), "Input should not be None.");
+    FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0), "Operation should have at least 1 input");
     auto data = context.get_input(0);
     if (context.input_is_none(1)) {
         auto start = std::make_shared<opset8::Constant>(element::i32, Shape{}, 0);
@@ -27,7 +26,7 @@ OutputVector translate_sum(NodeContext& context) {
     } else {
         axes = context.get_input(1);
     }
-    if (context.get_input_size() >= 2 && !context.input_is_none(2)) {
+    if (!context.input_is_none(2)) {
         keep_dims = context.const_input<bool>(2);
     }
 
