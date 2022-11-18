@@ -2055,7 +2055,7 @@ TEST(fully_connected_gpu, new_shape_inference_2d_1) {
 
     const int32_t input_f = 3, input_b = 1, weight_b = 4;
 
-    cldnn::layout input_data_layout{ ov::PartialShape{ ov::Dimension(1, 10), ov::Dimension(1, 10) }, data_types::f32,format::bfyx };
+    cldnn::layout input_data_layout{ ov::PartialShape{ input_b, input_f }, data_types::f32,format::bfyx };
     auto input_data = engine.allocate_memory({ ov::PartialShape{ input_b, input_f }, data_types::f32,format::bfyx });
     cldnn::layout weights_layout{ ov::PartialShape{ input_f, weight_b }, data_types::f32,format::bfyx };
     auto weights_data = engine.allocate_memory(weights_layout);
@@ -2153,7 +2153,7 @@ TEST(fully_connected_gpu, new_shape_inference_3d_1batch) {
 
     const int32_t input_b = 1, input_f = 2, input_y = 4,  weight_b = 3;
 
-    cldnn::layout input_data_layout{ ov::PartialShape{ input_b, input_f, ov::Dimension(1, input_y) }, data_types::f32,format::bfyx };
+    cldnn::layout input_data_layout{ ov::PartialShape{ input_b, input_f, input_y }, data_types::f32,format::bfyx };
     auto input_data = engine.allocate_memory({ ov::PartialShape{ input_b, input_f, input_y }, data_types::f32,format::bfyx });
     cldnn::layout weights_layout{ ov::PartialShape{ input_b, input_y, weight_b }, data_types::f32,format::bfyx };
     auto weights_data = engine.allocate_memory(weights_layout);
