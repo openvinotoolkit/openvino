@@ -289,7 +289,7 @@ class Scrollbox(Directive):
     has_content = True
 
     def run(self):
-        classes = []
+        classes = ['scrollbox','']
         node = Nodescrollbox("div", rawtext="\n".join(self.content), classes=classes)
         if 'height' in self.options:
             node['height'] = self.options['height']
