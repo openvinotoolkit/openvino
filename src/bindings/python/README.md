@@ -17,21 +17,17 @@ If you have any questions, feature requests or want us to review your PRs, send 
 
 ## Components
 
-```
-openvino/src/bindings/python
-├── docs                    <-- Developer documentation
-│   └── examples            <-- Developer code examples
-├── README.md               <-- This file:)
-├── src
-│   ├── compatibility       <-- Sources for compatibility API
-│   ├── openvino            <-- Python sources for current API
-│   └── pyopenvino          <-- C++ sources for current API
-├── tests
-├── tests_compatibility
-├── thirdparty              <-- Thirdparty libraries
-│   └── pybind11
-└── wheel                   <-- Wheel specific directory
-```
+OpenVINO PYTHON API has the following structure:
+
+* [docs](./docs/) - folder that contains developer documentation and code examples.
+* [src](./src/) - folder with all source files for Python API.
+    * [src/compatibility](./src/compatibility/) - sources for compatibility API, including older modules like `ngraph` and `openvino.inference_engine`.
+    * [src/compatibility](./src/openvino/) - Python sources for current API.
+    * [src/pyopenvino](./src/pyopenvino/) - C++ sources for current API.
+* [tests](./tests/) - tests directory for current API.
+* [tests_compatibility](./tests_compatibility/) - tests directory for compatibility API.
+* [thirdparty](./thirdparty/) - folder that contains thirdparty modules like `pybind11`.
+* [wheel](./wheel/) - wheel specific directory, contains all specifc requirements and files used during wheel creation.
 
 ## Tutorials
 
