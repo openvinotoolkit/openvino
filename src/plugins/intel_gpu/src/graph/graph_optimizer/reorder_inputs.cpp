@@ -9,6 +9,7 @@
 #include "layout_optimizer.h"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/format.hpp"
 #include "program_helpers.h"
 #include "binary_convolution_inst.h"
 #include "mvn_inst.h"
@@ -410,6 +411,11 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
             if (reorders_cnt.number < best_reorder_cnt.number ||
                 (reorders_cnt.number == best_reorder_cnt.number && reorders_cnt.total_sizes < best_reorder_cnt.total_sizes
                                                                 && !node->get_output_layout().is_dynamic())) {
+                best_reorder_cnt = reorders_cnt;
+                best_format = new_fmt;
+            } else if (reorders_cnt.number == best_reorder_cnt.number && reorders_cnt.total_sizes == best_reorder_cnt.total_sizes &&
+                best_format == format::bfyx && !format::is_simple_data_format(new_fmt) && !node->get_output_layout().is_dynamic()) {
+                // perfer a blocked format from connected nodes to a default bfyx format if its reorder count is same
                 best_reorder_cnt = reorders_cnt;
                 best_format = new_fmt;
             }

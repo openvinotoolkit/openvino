@@ -5325,6 +5325,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32_crop, fs_byx_fsv32_crop)
 
     topology.add(reorder("reorder", "conv_fsv", { data_types::f16, format::bfyx, input_size }));
     topology.add(concatenation("concat", { "left_crop", "reorder" }, 1));
+    topology.add(reorder("reorder_output", "concat", { data_types::f16, format::bfyx, input_size }));
 
     auto ref_result = VVVVF<FLOAT16>(batch_num);
     // concatenate half ref input and ref conv output, by features
@@ -5352,7 +5353,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32_crop, fs_byx_fsv32_crop)
 
     network.execute();
 
-    auto out_mem = network.get_output("concat").get_memory();
+    auto out_mem = network.get_output("reorder_output").get_memory();
     cldnn::mem_lock<FLOAT16> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::bfyx);
