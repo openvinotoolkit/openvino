@@ -39,7 +39,7 @@ std::vector<size_t> MakeGatherIndexes(size_t size) {
 
 namespace LayerTestsDefinitions {
 
-class RemoveGather : public testing::WithParamInterface<GatherRemoveConvsParams>,
+class RemoveInputGather : public testing::WithParamInterface<GatherRemoveConvsParams>,
     public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<GatherRemoveConvsParams> obj) {
@@ -90,12 +90,12 @@ protected:
 
         auto multiply_input_const_node = ngraph::opset9::Constant::create(ngPrc, input_shape, GenerateVector(input_shape_product, 1));
 
-        auto matmul_node1 = std::make_shared<ngraph::opset9::Multiply>(gather_node,
+        auto matmul_node = std::make_shared<ngraph::opset9::Multiply>(gather_node,
                                                                   multiply_input_const_node);
 
         auto add_input_const_node = ngraph::opset9::Constant::create(ngPrc, input_shape, GenerateVector(input_shape_product, 1));
 
-        auto add_node = std::make_shared<ngraph::opset9::Add>(matmul_node1,
+        auto add_node = std::make_shared<ngraph::opset9::Add>(matmul_node,
                                                                   add_input_const_node);
 
         auto result = std::make_shared<ngraph::opset9::Result>(add_node);
@@ -104,7 +104,70 @@ protected:
     }
 };
 
-TEST_P(RemoveGather, CompareWithRefs) {
+class RemoveOutputGather : public testing::WithParamInterface<GatherRemoveConvsParams>,
+    public LayerTestsUtils::LayerTestsCommon {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<GatherRemoveConvsParams> obj) {
+        InferenceEngine::Precision netPrecision;
+        std::string targetDevice;
+        std::map<std::string, std::string> configuration;
+        std::tie(netPrecision, targetDevice, configuration) = obj.param;
+
+        std::ostringstream result;
+        result << "netPRC=" << netPrecision.name() << "_";
+        result << "targetDevice=" << targetDevice << "_";
+        for (auto const& configItem : configuration) {
+            result << "_configItem=" << configItem.first << "_" << configItem.second;
+        }
+        return result.str();
+    }
+
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
+        InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
+        blob->allocate();
+
+        auto* rawBlobDataPtr = blob->buffer().as<float*>();
+        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
+        for (size_t i = 0; i < blob->size(); i++) {
+            rawBlobDataPtr[i] = values[i];
+        }
+        return blob;
+    }
+
+protected:
+    void SetUp() override {
+        InferenceEngine::Precision netPrecision;
+        std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
+        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+
+        const std::vector<size_t> input_shape = {1, 128};
+        const size_t input_shape_product = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<size_t>());
+
+        auto input_params = ngraph::builder::makeParams(ngPrc, { input_shape });
+
+        auto tanh = std::make_shared<ngraph::opset9::Tanh>(input_params[0]);
+        auto tanh1 = std::make_shared<ngraph::opset9::Tanh>(tanh);
+
+        const std::vector<size_t> indexes = MakeGatherIndexes(input_shape_product);
+        auto gather_indexes_node = ngraph::opset9::Constant::create(ngraph::element::i64, ov::Shape{indexes.size()}, indexes);
+        const size_t gather_axis = 1;
+        auto gather_axis_node = ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape{}, {gather_axis});
+        auto gather_node = std::make_shared<ngraph::opset9::Gather>(tanh1,
+                                                                gather_indexes_node,
+                                                                gather_axis_node);
+
+        auto result = std::make_shared<ngraph::opset9::Result>(gather_node);
+        function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                              ngraph::ParameterVector{input_params});
+    }
+};
+
+
+TEST_P(RemoveInputGather, CompareWithRefs) {
+    Run();
+}
+
+TEST_P(RemoveOutputGather, CompareWithRefs) {
     Run();
 }
 
@@ -122,11 +185,19 @@ const std::vector<std::map<std::string, std::string>> configs = {
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_gather_on_cpu, RemoveGather,
+INSTANTIATE_TEST_SUITE_P(smoke_gather_on_cpu, RemoveInputGather,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
         ::testing::ValuesIn(configs)),
-    RemoveGather::getTestCaseName);
+    RemoveInputGather::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_gather_on_cpu, RemoveOutputGather,
+    ::testing::Combine(
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(CommonTestUtils::DEVICE_GNA),
+        ::testing::ValuesIn(configs)),
+    RemoveOutputGather::getTestCaseName);
+
 
 } // namespace LayerTestsDefinitions

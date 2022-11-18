@@ -159,6 +159,7 @@ GatherIESubstitute::GatherIESubstitute() {
                                                                         gather_indexes_node,
                                                                         gather_axis_node);
         ov::replace_node(gather_node, new_gather_node);
+        SwapNames(gather_node, new_gather_node);
 
         return true;
     };
