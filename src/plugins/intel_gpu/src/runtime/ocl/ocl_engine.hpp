@@ -32,6 +32,7 @@ public:
     void* get_user_context() const override;
 
     allocation_type get_default_allocation_type() const override { return allocation_type::cl_mem; }
+    allocation_type detect_usm_allocation_type(const void* memory) const override;
 
     const cl::Context& get_cl_context() const;
     const cl::Device& get_cl_device() const;
