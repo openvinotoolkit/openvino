@@ -100,7 +100,10 @@ struct CPUStreamsExecutor::Impl {
                     const auto total_streams = _impl->total_streams_on_core_types.back().second;
                     const auto big_core_streams = _impl->total_streams_on_core_types.front().second;
                     const auto hybrid_core = _impl->total_streams_on_core_types.size() > 1;
-                    const auto phy_core_streams = _impl->num_big_core_phys / _impl->_config._threads_per_stream_big;
+                    const auto phy_core_streams =
+                        _impl->_config._big_core_streams == 0
+                            ? 0
+                            : _impl->num_big_core_phys / _impl->_config._threads_per_stream_big;
                     const auto streamId_wrapped = _streamId % total_streams;
                     const auto& selected_core_type =
                         std::find_if(
