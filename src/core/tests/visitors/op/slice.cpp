@@ -21,6 +21,7 @@ TEST(attributes, slice_op_no_axes) {
 
     const auto op = make_shared<opset8::Slice>(data, start, stop, step);
     NodeBuilder builder(op, {data, start, stop, step});
+    EXPECT_NO_THROW(auto g_op = ov::as_type_ptr<opset8::Slice>(builder.create()));
 
     const auto expected_attr_count = 0;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
@@ -36,6 +37,7 @@ TEST(attributes, slice_op_with_axes) {
 
     const auto op = make_shared<opset8::Slice>(data, start, stop, step, axes);
     NodeBuilder builder(op, {data, start, stop, step, axes});
+    EXPECT_NO_THROW(auto g_op = ov::as_type_ptr<opset8::Slice>(builder.create()));
 
     const auto expected_attr_count = 0;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
