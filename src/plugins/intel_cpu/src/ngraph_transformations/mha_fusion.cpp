@@ -9,6 +9,7 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "op/mha.hpp"
+#include "simplify_fakequantize.hpp"
 
 #include "itt.hpp"
 
@@ -247,72 +248,6 @@ ov::intel_cpu::MHAFloatFusion2::MHAFloatFusion2() {
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(transpose3, matcher_name);
     this->register_matcher(m, callback);
-}
-
-static std::vector<float> simplifyToScale(const std::shared_ptr<ngraph::opset1::FakeQuantize>& fq_node) {
-    auto levels = fq_node->get_levels();
-    auto input_low = ngraph::as_type_ptr<ngraph::opset4::Constant>(fq_node->get_input_node_shared_ptr(1))->cast_vector<float>();
-    auto input_high = ngraph::as_type_ptr<ngraph::opset4::Constant>(fq_node->get_input_node_shared_ptr(2))->cast_vector<float>();
-    auto output_low = ngraph::as_type_ptr<ngraph::opset4::Constant>(fq_node->get_input_node_shared_ptr(3))->cast_vector<float>();
-    auto output_high = ngraph::as_type_ptr<ngraph::opset4::Constant>(fq_node->get_input_node_shared_ptr(4))->cast_vector<float>();
-
-    std::vector<float> cl, ch, isc, ish, osc, osh;
-    for (int i = 0; i < input_low.size(); i++) {
-        cl.push_back(input_low[i]);
-    }
-    for (int i = 0; i < input_high.size(); i++) {
-        ch.push_back(input_high[i]);
-    }
-
-    for (int i = 0; i < std::max(input_low.size(), input_high.size()); i++) {
-        float il = input_low[input_low.size() == 1 ? 0 : i];
-        float ih = input_high[input_high.size() == 1 ? 0 : i];
-
-        isc.push_back((levels - 1) / (ih - il));
-        ish.push_back(-il * (levels - 1) / (ih - il));
-    }
-
-    for (int i = 0; i < std::max(output_low.size(), output_high.size()); i++) {
-        float ol = output_low[output_low.size() == 1 ? 0 : i];
-        float oh = output_high[output_high.size() == 1 ? 0 : i];
-
-        osc.push_back((oh - ol) / (levels - 1));
-        osh.push_back(ol);
-    }
-
-    std::vector<float> outScale;
-
-    if (fq_node->get_output_element_type(0) == ngraph::element::u8 &&
-            std::all_of(cl.cbegin(), cl.cend(), [](float val) { return val == 0.0f; }) &&
-            std::all_of(ish.cbegin(), ish.cend(), [](float val) { return val == 0.0f; }) &&
-            std::all_of(osc.cbegin(), osc.cend(), [](float val) { return val == 1.0f; }) &&
-            std::all_of(osh.cbegin(), osh.cend(), [](float val) { return val == 0.0f; })) {
-        outScale = isc;
-    }
-
-    if (fq_node->get_output_element_type(0) == ngraph::element::i8 &&
-            std::all_of(ish.cbegin(), ish.cend(), [](float val) { return std::abs(val - 128.f) < 0.0001f; }) &&
-            std::all_of(osc.cbegin(), osc.cend(), [](float val) { return val == 1.f; }) &&
-            std::all_of(osh.cbegin(), osh.cend(), [](float val) { return std::abs(val + 128.f) < 0.0001f; })) {
-        bool isCropAligned = true;
-        for (int i = 0; i < std::max(cl.size(), isc.size()); i++) {
-            if (std::abs(cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] + 128.f) > 0.0001f) {
-                isCropAligned = false;
-            }
-        }
-
-        for (int i = 0; i < std::max(ch.size(), isc.size()); i++) {
-            if (std::abs(ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] - 127.f) > 0.0001f) {
-                isCropAligned = false;
-            }
-        }
-
-        if (isCropAligned) {
-            outScale = isc;
-        }
-    }
-
-    return outScale;
 }
 
 // TODO: draw pattern
