@@ -71,14 +71,16 @@ void CommonReferenceTest::Validate() {
 
     ASSERT_EQ(refOutData.size(), actualOutData.size());
     for (size_t i = 0; i < refOutData.size(); i++) {
-        ValidateBlobs(refOutData[i], actualOutData[i], threshold, abs_threshold, actual_comparision_size);
+        ValidateBlobs(refOutData[i], actualOutData[i], i, threshold, abs_threshold, actual_comparision_size);
     }
 }
 
-void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob, const ov::Tensor& outBlob,
+void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob, const ov::Tensor& outBlob, const size_t blob_idx,
                                         float threshold, float abs_threshold, size_t actual_comparision_size) {
-    ASSERT_EQ(refBlob.get_element_type(), outBlob.get_element_type());
-    ASSERT_EQ(refBlob.get_byte_size(), outBlob.get_byte_size());
+    ASSERT_EQ(refBlob.get_element_type(), outBlob.get_element_type())
+        << "Incompatible element type for blob with index " << blob_idx;
+    ASSERT_EQ(refBlob.get_byte_size(), outBlob.get_byte_size())
+        << "Incorrect byte size for blob with index " << blob_idx;
 
     if (actual_comparision_size == 0)
         actual_comparision_size = refBlob.get_size();
