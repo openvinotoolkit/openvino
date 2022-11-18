@@ -9,6 +9,8 @@ OpenVINO Python API is a part of OpenVINO library. The component is responsible 
     * Provides shortcuts and helpers with more pythonic design.
     * Allows to apply advanced concepts like shared memory to take full advantage of OpenVINO.
 
+OpenVINO Python API uses [common coding style rules](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/python/docs/contributing.md#contribution-guidelines-and-best-practices) that are adjusted to project needs.
+
 ## Key contacts
 
 If you have any questions, feature requests or want us to review your PRs, send us a message or ping us on GitHub via [openvino-ie-python-api-maintainers](https://github.com/orgs/openvinotoolkit/teams/openvino-ie-python-api-maintainers). You can always directly contact everyone from this group.
@@ -44,7 +46,7 @@ If you want to contribute to OpenVINO Python API, here is the list of learning m
 
 * [OpenVINO™ README](../../../README.md)
 * [OpenVINO™ Core Components](../../README.md)
-* [OpenVINO™ Python API reference](https://docs.openvino.ai/latest/api/ie_python_api/api.html)
+* [OpenVINO™ Python API Reference](https://docs.openvino.ai/latest/api/ie_python_api/api.html)
 * [OpenVINO™ Python API Exclusives](https://docs.openvino.ai/latest/openvino_docs_OV_UG_Python_API_exclusives.html)
 * [pybind11 repository](https://github.com/pybind/pybind11)
 * [pybind11 documentation](https://pybind11.readthedocs.io/en/stable/)
