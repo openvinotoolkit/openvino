@@ -110,6 +110,15 @@ event::ptr gpu_buffer::copy_from(stream& stream, const void* host_ptr) {
     return ev;
 }
 
+event::ptr gpu_buffer::copy_to(stream& stream, void* host_ptr) {
+    auto& cl_stream = downcast<ocl_stream>(stream);
+    auto ev = stream.create_base_event();
+    cl::Event ev_ocl = downcast<ocl_event>(ev.get())->get();
+    cl_stream.get_cl_queue().enqueueReadBuffer(_buffer, false, 0, size(), host_ptr, nullptr, &ev_ocl);
+
+    return ev;
+}
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 dnnl::memory gpu_buffer::get_onednn_memory(dnnl::memory::desc desc, int64_t offset) {
     auto onednn_engine = _engine->get_onednn_engine();
@@ -237,11 +246,19 @@ shared_mem_params gpu_image2d::get_internal_params() const {
 }
 
 event::ptr gpu_image2d::copy_from(stream& /* stream */, const memory& /* other */) {
-    throw std::runtime_error("[clDNN] copy_from is not implemented for gpu_image2d");
+    throw std::runtime_error("[GPU] copy_from is not implemented for gpu_image2d");
 }
 
 event::ptr gpu_image2d::copy_from(stream& /* stream */, const void* /* host_ptr */) {
-    throw std::runtime_error("[clDNN] copy_from is not implemented for gpu_image2d");
+    throw std::runtime_error("[GPU] copy_from is not implemented for gpu_image2d");
+}
+
+event::ptr gpu_image2d::copy_to(stream& /* stream */, memory& /* other */) {
+    throw std::runtime_error("[GPU] copy_to is not implemented for gpu_image2d");
+}
+
+event::ptr gpu_image2d::copy_to(stream& /* stream */, void* /* host_ptr */) {
+    throw std::runtime_error("[GPU] copy_to is not implemented for gpu_image2d");
 }
 
 gpu_media_buffer::gpu_media_buffer(ocl_engine* engine,
@@ -384,15 +401,24 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& other) {
 
 event::ptr gpu_usm::copy_from(stream& stream, const void* host_ptr) {
     auto& cl_stream = downcast<ocl_stream>(stream);
-    auto ev = stream.create_base_event();
     auto dst_ptr = get_buffer().get();
     cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(),
                                               dst_ptr,
                                               host_ptr,
                                               _bytes_count,
                                               true);
+    return stream.create_user_event(true);
+}
 
-    return ev;
+event::ptr gpu_usm::copy_to(stream& stream, void* host_ptr) {
+    auto& cl_stream = downcast<ocl_stream>(stream);
+    auto src_ptr = get_buffer().get();
+    cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(),
+                                              host_ptr,
+                                              src_ptr,
+                                              _bytes_count,
+                                              true);
+    return stream.create_user_event(true);
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -420,18 +446,26 @@ shared_mem_params gpu_usm::get_internal_params() const {
     };
 }
 
-allocation_type gpu_usm::detect_allocation_type(ocl_engine* engine, const cl::UsmMemory& buffer) {
-    auto cl_alloc_type = engine->get_usm_helper().get_usm_allocation_type(buffer.get());
+allocation_type gpu_usm::detect_allocation_type(const ocl_engine* engine, const void* mem_ptr) {
+    auto cl_alloc_type = engine->get_usm_helper().get_usm_allocation_type(mem_ptr);
 
-    allocation_type res = allocation_type::unknown;
+    allocation_type res;
     switch (cl_alloc_type) {
         case CL_MEM_TYPE_DEVICE_INTEL: res = allocation_type::usm_device; break;
         case CL_MEM_TYPE_HOST_INTEL: res = allocation_type::usm_host; break;
         case CL_MEM_TYPE_SHARED_INTEL: res = allocation_type::usm_shared; break;
-        default: throw std::runtime_error("[GPU] Unsupported USM alloc type: " + std::to_string(cl_alloc_type));
+        default: res = allocation_type::unknown;
     }
 
     return res;
+}
+
+allocation_type gpu_usm::detect_allocation_type(const ocl_engine* engine, const cl::UsmMemory& buffer) {
+    auto alloc_type = detect_allocation_type(engine, buffer.get());
+    OPENVINO_ASSERT(alloc_type == allocation_type::usm_device ||
+                    alloc_type == allocation_type::usm_host ||
+                    alloc_type == allocation_type::usm_shared, "[GPU] Unsupported USM alloc type: " + to_string(alloc_type));
+    return alloc_type;
 }
 
 std::vector<cl_mem> ocl_surfaces_lock::get_handles(std::vector<memory::ptr> mem) const {

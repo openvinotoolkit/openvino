@@ -227,7 +227,7 @@ def fe_input_user_data_repack(
                         "input_name": input_name
                     }
                 )
-    elif isinstance(input_user_shapes, tuple):
+    elif isinstance(input_user_shapes, PartialShape):
         model_inputs = input_model.get_inputs()
         assert len(model_inputs) == 1
         _input_shapes.append({"node": model_inputs[0], "shape": input_user_shapes})
