@@ -52,6 +52,8 @@ OP_CONVERTER(translate_sub);
 OP_CONVERTER(translate_to);
 OP_CONVERTER(translate_transpose);
 OP_CONVERTER(translate_tuple_construct);
+OP_CONVERTER(translate_upsample2d_bilinear);
+OP_CONVERTER(translate_upsample2d_nearest);
 OP_CONVERTER(translate_view);
 
 }  // namespace op
@@ -123,6 +125,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::to", op::translate_to},
         {"aten::transpose", op::translate_transpose},
         {"aten::unsqueeze", op::translate_1to1_match_2_inputs<opset8::Unsqueeze>},
+        {"aten::upsample_biliniear2d", op::translate_upsample2d_bilinear},
+        {"aten::upsample_nearest2d", op::translate_upsample2d_nearest},
         {"aten::view", op::translate_view},
         {"prim::Constant", op::translate_constant},
         {"prim::If", op::translate_if},
