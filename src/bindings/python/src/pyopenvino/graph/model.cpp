@@ -319,7 +319,7 @@ void regclass_graph_Model(py::module m) {
     model.def(
         "reshape",
         [](ov::Model& self, const std::string& partial_shape) {
-            self.reshape(Common::partial_shape_from_str(partial_shape));
+            self.reshape(ov::PartialShape(partial_shape));
         },
         py::call_guard<py::gil_scoped_release>(),
         py::arg("partial_shape"),
@@ -356,7 +356,7 @@ void regclass_graph_Model(py::module m) {
                 } else if (py::isinstance<py::list>(item.second) || py::isinstance<py::tuple>(item.second)) {
                     new_shape.second = Common::partial_shape_from_list(item.second.cast<py::list>());
                 } else if (py::isinstance<py::str>(item.second)) {
-                    new_shape.second = Common::partial_shape_from_str(item.second.cast<std::string>());
+                    new_shape.second = ov::PartialShape(item.second.cast<std::string>());
                 } else {
                     throw py::type_error(
                         "Incorrect value type " + std::string(item.second.get_type().str()) +

@@ -64,6 +64,10 @@ public:
     /// \param shape The PartialShape to convert into PartialShape.
     PartialShape(const Shape& shape);
 
+    /// \brief Constructs a static PartialShape from a string.
+    /// \param shape The string to parse into PartialShape.
+    PartialShape(const std::string& shape);
+
     /// \brief Check if this shape is static.
     /// \return `true` if this shape is static, else `false`.
     ///
@@ -338,6 +342,9 @@ public:
         m_rank_is_static = true;
         m_shape_type = ShapeType::SHAPE_IS_UPDATED;
     }
+
+    /// \brief String representation of PartialShape
+    std::string to_string() const;
 
 private:
     // Private constructor for PartialShape::dynamic().

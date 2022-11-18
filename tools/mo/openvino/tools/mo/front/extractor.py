@@ -18,6 +18,8 @@ from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.unsupported_ops import UnsupportedOps
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
+from openvino.runtime import PartialShape, Dimension
+
 
 def restore_edges(graph: Graph, get_edges: callable):
     """
@@ -647,8 +649,8 @@ def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, n
             [_input_shapes[ph_id].append({'shape': None, 'port': None}) for ph_id in _freeze_placeholder
              if ph_id not in _input_shapes]
     else:
-        # np.ndarray is a shape. User provided only --input_shape key
-        assert isinstance(input_user_shapes, tuple)
+        # User provided only --input_shape key
+        assert isinstance(input_user_shapes, PartialShape)
         if len(placeholders_ids) == 1:
             # There is only one placeholder in the original network
             _input_shapes[placeholders_ids[0]].append({'shape': input_user_shapes, 'port': None})
@@ -1051,8 +1053,20 @@ def add_input_ops(graph: Graph, user_defined_inputs: dict, before_infer: bool):
                 user_shape = None
                 if shape is not None:
                     user_shape = shape
-                    shape = shape_array(
-                        [dim if type(dim) != tuple and dim >= 0 else dynamic_dimension_value for dim in shape])
+                    shape_list = []
+                    for dim in shape:
+                        if isinstance(dim, Dimension):
+                            if dim.is_static:
+                                shape_list.append(dim.get_min_length())
+                            else:
+                                shape_list.append(dynamic_dimension_value)
+                            continue
+                        if dim >= 0:
+                            shape_list.append(dim)
+                        else:
+                            shape_list.append(dynamic_dimension_value)
+
+                    shape = shape_array(shape_list)
                 data_type = port_and_shape_info['data_type'] if 'data_type' in port_and_shape_info else None
                 smart_node = Node(graph, node_id)
 
