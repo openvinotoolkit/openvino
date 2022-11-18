@@ -126,13 +126,13 @@ LIB_INSTALL_CFG = {
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BUILD_DIR,
     },
-    # uncomment once TF FE will be used in MO
-    # "tensorflow_libs": {                      # noqa: E800
-    #     "name": "tensorflow",                 # noqa: E800
-    #     "prefix": "libs.core",                # noqa: E800
-    #     "install_dir": OV_RUNTIME_LIBS_DIR,   # noqa: E800
-    #     "binary_dir": OPENVINO_BUILD_DIR,     # noqa: E800
-    # },                                        # noqa: E800
+    "tensorflow_libs": {
+        "name": "tensorflow",
+        "prefix": "libs.tensorflow",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
+    },
 }
 
 PY_INSTALL_CFG = {

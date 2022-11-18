@@ -71,6 +71,9 @@ struct memory {
     virtual event::ptr copy_from(stream& /* stream */, const memory& /* other */) = 0;
     virtual event::ptr copy_from(stream& /* stream */, const void* /* host_ptr */) = 0;
 
+    virtual event::ptr copy_to(stream& stream, memory& other) { return other.copy_from(stream, *this); }
+    virtual event::ptr copy_to(stream& /* stream */, void* /* host_ptr */) = 0;
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
     virtual dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */, int64_t offset = 0) {
         throw std::runtime_error("[CLDNN] Can't convert memory object to onednn");
@@ -107,6 +110,9 @@ struct simple_attached_memory : memory {
 
     event::ptr copy_from(stream& /* stream */, const memory& /* other */) override { return nullptr; };
     event::ptr copy_from(stream& /* stream */, const void* /* host_ptr */) override { return nullptr; }
+
+    event::ptr copy_to(stream& /* stream */, memory& /* other */) override { return nullptr; };
+    event::ptr copy_to(stream& /* stream */, void* /* host_ptr */) override { return nullptr; }
 
 private:
     void* _pointer;
