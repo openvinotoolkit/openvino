@@ -49,6 +49,7 @@ OP_CONVERTER(translate_softmax);
 OP_CONVERTER(translate_square);
 OP_CONVERTER(translate_squeeze);
 OP_CONVERTER(translate_sub);
+OP_CONVERTER(translate_sum);
 OP_CONVERTER(translate_to);
 OP_CONVERTER(translate_transpose);
 OP_CONVERTER(translate_tuple_construct);
@@ -119,6 +120,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::square", op::translate_square},
         {"aten::squeeze", op::translate_squeeze},
         {"aten::sub", op::translate_sub},
+        {"aten::sum", op::translate_sum},
         {"aten::tanh", op::translate_1to1_match_1_inputs<opset8::Tanh>},
         {"aten::to", op::translate_to},
         {"aten::transpose", op::translate_transpose},
