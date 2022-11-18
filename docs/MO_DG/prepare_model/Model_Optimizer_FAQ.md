@@ -440,7 +440,7 @@ Keep in mind that there is no space between and inside the brackets for input sh
 
 #### Q75. What does the message "... elements of ... were clipped to infinity while converting a blob for node [...] to ..." mean? <a name="question-75"></a>
 
-**A** : This message may appear when the `--compress_to_fp16` (or deprecated `--data_type`) command-line option is used. This option implies conversion of all the blobs in the node to FP16. If a value in a blob is out of the range of valid FP16 values, the value is converted to positive or negative infinity. It may lead to incorrect results of inference or may not be a problem, depending on the model. The number of such elements and the total number of elements in the blob is printed out together with the name of the node, where this blob is used.
+**A** : This message may appear when the `--compress_to_fp16` (or deprecated `--data_type`) command-line option is used. This option implies compression of all the model weights, biases and other constant values to FP16. If a value of a constant is out of the range of valid FP16 values, the value is converted to positive or negative infinity. It may lead to incorrect results of inference or may not be a problem, depending on the model. The number of such elements and the total number of elements in the constant value is printed out together with the name of the node, where this value is used.
 
 #### Q76. What does the message "... elements of ... were clipped to zero while converting a blob for node [...] to ..." mean? <a name="question-76"></a>
 

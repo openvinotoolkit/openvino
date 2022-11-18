@@ -988,8 +988,8 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     # TODO: isn't it a weights precision type
     common_group.add_argument('--data_type',
                               help='[DEPRECATED] Data type for model weights and biases. '
-                                   'If original model is in FP32 and --data_type=FP16 is specified, '
-                                   'model weights and biases are compressed to FP16. '
+                                   'If original model has FP32 weights or biases and --data_type=FP16 is specified, '
+                                   'FP32 model weights and biases are compressed to FP16. '
                                    'All intermediate data is kept in original precision.',
                               choices=["FP16", "FP32", "half", "float"],
                               default='float',
