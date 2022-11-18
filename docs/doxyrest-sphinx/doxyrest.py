@@ -159,7 +159,13 @@ def depart_scrollbox(self, node):
     self.body.append("</div>\n")
 
 class Nodescrollbox(nodes.container):
-    pass
+    def create_scrollbox_component(
+        rawtext: str = "",
+        **attributes,
+    ) -> nodes.container:
+        node = nodes.container(rawtext, is_div=True, **attributes)
+        node.extend(node)
+        return node
 
 #...............................................................................
 #
@@ -279,9 +285,12 @@ class Scrollbox(Directive):
         'bar-color': directives.unchanged,
         'sortable': directives.unchanged
     }
+
     has_content = True
+
     def run(self):
-        node = nodes.container(rawtext="\n".join(self.content))
+        classes = []
+        node = Nodescrollbox("div", rawtext="\n".join(self.content), classes=classes)
         if 'height' in self.options:
             node['height'] = self.options['height']
         if 'width' in self.options:
