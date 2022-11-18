@@ -66,10 +66,11 @@ The sample application logs each step in a standard output stream and outputs to
 @sphinxdirective
 
 .. scrollbox::
-   :height:500px
+   :height:300px
+   :bar:0px
 
    .. code-block:: cpp
-
+   
       [ INFO ] OpenVINO Runtime version ......... <version>
       [ INFO ] Build ........... <build>
       [ INFO ]
@@ -104,65 +105,65 @@ The sample application logs each step in a standard output stream and outputs to
       [ INFO ] Combine images in batch and set to input tensor
       [ INFO ] Start sync inference
       [ INFO ] Processing output tensor
-
+   
       Top 1 results:
-
+   
       Image 0
-
+   
       classid probability label
       ------- ----------- -----
       0       1.0000000   0
-
+   
       Image 1
-
+   
       classid probability label
       ------- ----------- -----
       1       1.0000000   1
-
+   
       Image 2
-
+   
       classid probability label
       ------- ----------- -----
       2       1.0000000   2
-
+   
       Image 3
-
+   
       classid probability label
       ------- ----------- -----
       3       1.0000000   3
-
+   
       Image 4
-
+   
       classid probability label
       ------- ----------- -----
       4       1.0000000   4
-
+   
       Image 5
-
+   
       classid probability label
       ------- ----------- -----
       5       1.0000000   5
-
+   
       Image 6
-
+   
       classid probability label
       ------- ----------- -----
       6       1.0000000   6
-
+   
       Image 7
-
+   
       classid probability label
       ------- ----------- -----
       7       1.0000000   7
-
+   
       Image 8
-
+   
       classid probability label
       ------- ----------- -----
       8       1.0000000   8
-
+   
       Image 9
-
+   
       classid probability label
       ------- ----------- -----
       9       1.0000000   9
