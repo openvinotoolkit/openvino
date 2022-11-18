@@ -126,6 +126,9 @@ program::program(engine& engine_ref,
     } else {
         build_program(is_internal);
     }
+
+    _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(_impls_cache_capacity));
+    _in_mem_kernels_cache = std::unique_ptr<KernelsCache>(new KernelsCache(_in_mem_kernels_cache_capacity));
 }
 
 program::program(engine& engine_ref,
@@ -147,6 +150,9 @@ program::program(engine& engine_ref,
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(nodes);
     build_program(is_internal);
+
+    _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(_impls_cache_capacity));
+    _in_mem_kernels_cache = std::unique_ptr<KernelsCache>(new KernelsCache(_in_mem_kernels_cache_capacity));
 }
 
 program::program(engine& engine)

@@ -255,7 +255,19 @@ public:
     bool is_local_block_io_supported() const;
     void query_local_block_io_supported();
 
+    /// Return implentations_cache
+    ImplementationsCache& get_implementations_cache() const { return *_impls_cache; }
+
+    /// Return in_mem_kernels_cache
+    KernelsCache& get_in_mem_kernels_cache() const { return *_in_mem_kernels_cache; }
+
 private:
+    std::unique_ptr<ImplementationsCache> _impls_cache;
+    std::unique_ptr<KernelsCache> _in_mem_kernels_cache;
+    // TODO: initial version use unlimited caches. Need to adjust it once dynamic flow works on wide set of models.
+    const size_t _impls_cache_capacity = 0;
+    const size_t _in_mem_kernels_cache_capacity = 0;
+
     uint32_t prog_id = 0;
     engine& _engine;
     stream::ptr _stream;

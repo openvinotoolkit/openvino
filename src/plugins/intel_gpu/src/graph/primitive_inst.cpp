@@ -344,7 +344,8 @@ void primitive_inst::update_impl() {
         // Update param if fake_alignment is available
         auto updated_params = _node->type()->get_fake_aligned_params(*_impl_params);
         auto layout_key = get_layout_key(updated_params);
-        auto& cache = get_network().get_implementations_cache();
+        auto& cache = get_node().get_program().get_implementations_cache();
+
         if (cache.has(layout_key)) {
             _impl = cache.get(layout_key)->clone();
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
@@ -704,7 +705,7 @@ event::ptr primitive_inst::update_weights() {
         cldnn::kernel::ptr kernel = nullptr;
         auto layout_key = get_layout_key();
         if (layout_key != "") {
-            auto& cache = get_network().get_in_mem_kernels_cache();
+            auto& cache = get_node().get_program().get_in_mem_kernels_cache();
             if (cache.has(layout_key)) {
                 GPU_DEBUG_IF(debug_config->verbose >= 4) {
                     GPU_DEBUG_COUT << id() << ": reorder weights (cached) from " << original_layout << "\nto " << expected_layout << std::endl;

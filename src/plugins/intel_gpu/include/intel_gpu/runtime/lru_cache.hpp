@@ -50,6 +50,7 @@ public:
      * @return false Otherwise
      */
     bool add(const Key& key, const Value& value) {
+        std::lock_guard<std::mutex> guard(_mutex);
         auto map_iter = _key_map.find(key);
         if (map_iter != _key_map.end()) {
             touch_data(map_iter->second);
@@ -75,6 +76,7 @@ public:
      * @return false otherwise
      */
     bool has(const Key& key) const {
+        std::lock_guard<std::mutex> guard(_mutex);
         return (_key_map.find(key) != _key_map.end());
     }
 
@@ -85,6 +87,7 @@ public:
      * @return Value a value associated with input key. if the key is not existed in the cache, return nullptr
      */
     Value get(const Key& key) {
+        std::lock_guard<std::mutex> guard(_mutex);
         auto iter = _key_map.find(key);
         if (iter == _key_map.end()) {
             return Value();
@@ -161,6 +164,7 @@ private:
             _lru_data_list.pop_back();
         }
     }
+    mutable std::mutex _mutex;
 };
 
 using ImplementationsCache = cldnn::LruCache<size_t, std::shared_ptr<primitive_impl>>;
