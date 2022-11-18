@@ -171,7 +171,7 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::get_op_place
 std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cut_nodes() const {
     std::vector<std::shared_ptr<OpPlace>> topologically_sorted_ops;
     std::stack<std::shared_ptr<OpPlace>> ops_to_do;
-    std::unordered_set<std::string> ops_names_to_do;
+    std::unordered_set<std::shared_ptr<OpPlace>> ops_set_to_do;
     std::unordered_set<std::shared_ptr<OpPlace>> ops_done;
 
     for (const auto& output_place : m_outputs) {
@@ -187,7 +187,7 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
         ops_to_do.push(output_operation_place);
         FRONT_END_GENERAL_CHECK(output_operation_place->get_names().size() > 0,
                                 "TensorPlace must have at least one name.");
-        ops_names_to_do.insert(output_operation_place->get_names()[0]);
+        ops_set_to_do.insert(output_operation_place);
     }
 
     // the traversing algorithm to compute topologically sorted nodes is taken from topological_sort in
@@ -249,10 +249,10 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
                 // we break the cycle by outputs from the NextIteration operation
                 // otherwise, the operations nodes in the cycle will be added to ops_to_do infinitely
                 if (!is_input && ops_done.count(producer_operation_place) == 0 &&
-                    ops_names_to_do.count(producer_name) == 0) {
+                    ops_set_to_do.count(producer_operation_place) == 0) {
                     can_add = false;
                     ops_to_do.push(producer_operation_place);
-                    ops_names_to_do.insert(producer_name);
+                    ops_set_to_do.insert(producer_operation_place);
                 }
             }
 

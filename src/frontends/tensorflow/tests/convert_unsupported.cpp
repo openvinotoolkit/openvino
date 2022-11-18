@@ -54,7 +54,8 @@ TEST(FrontEndConvertModelTest, test_unsupported_tf1_while) {
 
     try {
         function = frontEnd->convert(inputModel);
-        FAIL() << "TensorFlow 1 While must not be supported now.";
+        FAIL() << "TensorFlow 1 While is not supported in TF FE but conversion passed without errors. "
+                  "OpConversionFailure is expected.";
     } catch (const OpConversionFailure& error) {
         string error_message = error.what();
         string ref_message = "No translator found for Enter node.";
