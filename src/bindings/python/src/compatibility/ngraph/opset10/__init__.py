@@ -172,5 +172,6 @@ from ngraph.opset1.ops import tensor_iterator
 from ngraph.opset1.ops import tile
 from ngraph.opset3.ops import topk
 from ngraph.opset1.ops import transpose
+from ngraph.opset10.ops import unique
 from ngraph.opset1.ops import unsqueeze
 from ngraph.opset1.ops import variadic_split
