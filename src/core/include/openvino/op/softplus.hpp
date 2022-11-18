@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/op/op.hpp"
+#include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 
 namespace ov {
 namespace op {
@@ -13,9 +13,9 @@ namespace v4 {
 /// f(x) =  ln(exp(x) + 1.)
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API SoftPlus : public Op {
+class OPENVINO_API SoftPlus : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("SoftPlus", "opset4", op::Op, 4);
+    OPENVINO_OP("SoftPlus", "opset4", util::UnaryElementwiseArithmetic, 4);
     BWDCMP_RTTI_DECLARATION;
 
     SoftPlus() = default;

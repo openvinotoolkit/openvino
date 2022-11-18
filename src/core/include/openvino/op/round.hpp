@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/op/op.hpp"
+#include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 
 namespace ov {
 namespace op {
@@ -15,10 +15,10 @@ namespace v5 {
 ///     'HALF_AWAY_FROM_ZERO': - round in such a way that the result heads away from
 /// zero.
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API Round : public Op {
+class OPENVINO_API Round : public util::UnaryElementwiseArithmetic {
 public:
     enum class RoundMode { HALF_TO_EVEN, HALF_AWAY_FROM_ZERO };
-    OPENVINO_OP("Round", "opset5", op::Op, 5);
+    OPENVINO_OP("Round", "opset5", util::UnaryElementwiseArithmetic, 5);
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a round operation.
@@ -42,6 +42,9 @@ public:
 
     RoundMode get_mode() const {
         return m_mode;
+    }
+    void set_mode(const RoundMode& mode) {
+        m_mode = mode;
     }
 
 private:

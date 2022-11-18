@@ -18,7 +18,7 @@ BWDCMP_RTTI_DEFINITION(op::v0::Gelu);
 
 op::v0::Gelu::Gelu() : UnaryElementwiseArithmetic() {}
 
-op::v0::Gelu::Gelu(const Output<Node>& data) : UnaryElementwiseArithmetic({data}) {
+op::v0::Gelu::Gelu(const Output<Node>& data) : UnaryElementwiseArithmetic(data) {
     constructor_validate_and_infer_types();
 }
 

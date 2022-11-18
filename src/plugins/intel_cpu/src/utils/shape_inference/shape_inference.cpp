@@ -413,13 +413,14 @@ std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::
     } else if (auto node = ov::as_type_ptr<ov::op::util::LogicalReductionKeepDims>(op)) {
         return make_shared_entryIOC(node);
     } else if (ov::is_type<ov::op::util::UnaryElementwiseArithmetic>(op) || ov::is_type<ov::opset1::Convert>(op) ||
-               ov::is_type<ov::opset1::Clamp>(op) || ov::is_type<ov::opset1::GRN>(op) || ov::is_type<ov::opset1::NormalizeL2>(op) ||
-               ov::is_type<ov::opset1::LogicalNot>(op) || ov::is_type<ov::opset4::Mish>(op) || ov::is_type<ov::opset2::MVN>(op) ||
-               ov::is_type<ov::opset1::Relu>(op) || ov::is_type<ov::opset1::Elu>(op) || ov::is_type<ov::opset1::Softmax>(op) ||
-               ov::is_type<ov::opset8::Softmax>(op) || ov::is_type<ov::opset5::Round>(op)) {
+            ov::is_type<ov::opset1::LogicalNot>(op) || ov::is_type<ov::opset2::MVN>(op) ||
+            ov::is_type<ov::opset1::Softmax>(op) || ov::is_type<ov::opset8::Softmax>(op)) {
         return std::make_shared<entryCopy>(op);
     } else if (ov::is_type<ov::opset6::MVN>(op) || ov::is_type<ov::opset1::LRN>(op) ||
-               ov::is_type<ov::opset1::PRelu>(op) || ov::is_type<ov::opset4::Swish>(op)) {
+            ov::is_type<ov::opset1::HardSigmoid>(op) || ov::is_type<ov::opset1::Selu>(op) ||
+            ov::is_type<ov::opset1::PRelu>(op) || ov::is_type<ov::opset3::CumSum>(op) ||
+            ov::is_type<ov::opset1::BatchNormInference>(op) || ov::is_type<ov::opset5::BatchNormInference>(op) ||
+            ov::is_type<ov::opset4::Swish>(op) || ov::is_type<ov::opset1::NormalizeL2>(op)) {
         return std::make_shared<entryFirstPassthrough>(op);
     } else if (ov::is_type<ov::op::util::BinaryElementwiseArithmetic>(op) ||
                ov::is_type<ov::op::util::BinaryElementwiseComparison>(op) ||
