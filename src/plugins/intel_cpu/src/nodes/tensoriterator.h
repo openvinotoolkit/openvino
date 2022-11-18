@@ -131,7 +131,7 @@ private:
     /* Dynamic support */
     void reshapeSubgraphInput();
     void reshapeAndFillOutput(dnnl::stream strm);
-    void checkForBodyShapesWereChanged();
+    bool checkForInputAndBodyShapesInequality() const;
     int getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) const;
 
     ExtensionManager::Ptr ext_mng;
@@ -164,8 +164,6 @@ private:
 
     int lastUsedTripCount = -1;
     bool lastUsedCond = false;
-
-    bool body_inshapes_reset = false;
 
     const std::shared_ptr<ov::Node> ngraphOp;
 };

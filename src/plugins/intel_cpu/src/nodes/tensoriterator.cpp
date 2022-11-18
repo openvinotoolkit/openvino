@@ -482,17 +482,7 @@ bool TensorIterator::needPrepareParams() const {
             return true;
     }
 
-    // If input body shape is changed after execution, it means that the execution influences shapes.
-    // Thus, for these cases we should always reset this input shape after execution even if Loop/TI has the same input shapes,
-    // the same input data to have correct input shape for the next InferRequest (execution)
-    // For example, it's a valid case when body has explicit concatenation Result:
-    // Parameter0     ...
-    //    \         /
-    //       Concat
-    //         |
-    //       Result
-    //  (with back edge to Parameter0)
-    if (body_inshapes_reset) {
+    if (checkForInputAndBodyShapesInequality()) {
         return true;
     }
 
@@ -581,8 +571,6 @@ void TensorIterator::executeDynamicImpl(dnnl::stream strm) {
     }
 
     reshapeAndFillOutput(strm);
-
-    checkForBodyShapesWereChanged();
 }
 
 /* *==============* Prepare reorders, edges between body and TI *==============* */
@@ -727,8 +715,7 @@ void TensorIterator::reshapeAndFillOutput(dnnl::stream strm) {
     }
 }
 
-void TensorIterator::checkForBodyShapesWereChanged() {
-    body_inshapes_reset = false;
+bool TensorIterator::checkForInputAndBodyShapesInequality() const {
     for (auto map_rule : inputPortMap) {
         auto &from_mem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
         auto original_dims = from_mem->getStaticDims();
@@ -738,10 +725,11 @@ void TensorIterator::checkForBodyShapesWereChanged() {
         auto &to_mems = input_mems[map_rule.to];
         const auto& body_inshape = to_mems.front()->GetShape();
         if (body_inshape.isDynamic() || body_inshape.getDims() != original_dims) {
-            body_inshapes_reset = true;
-            break;
+            return true;
         }
     }
+
+    return false;
 }
 
 int TensorIterator::getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) const {
