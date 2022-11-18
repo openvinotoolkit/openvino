@@ -158,20 +158,8 @@ def visit_scrollbox(self, node):
 def depart_scrollbox(self, node):
     self.body.append("</div>\n")
 
-class Nodescrollbox (nodes.container):
-    def create_scrollbox_component(
-        name: str,
-        classes: Sequence[str] = (),
-        *,
-        rawtext: str = "",
-        children: Sequence[nodes.Node] = (),
-        **attributes,
-    ) -> nodes.container:
-        node = nodes.container(
-            rawtext, is_div=True, design_component=name, classes=classes, **attributes
-        )
-        node.extend(children)
-        return node
+class Nodescrollbox(nodes.container):
+    pass
 
 #...............................................................................
 #
@@ -291,12 +279,9 @@ class Scrollbox(Directive):
         'bar-color': directives.unchanged,
         'sortable': directives.unchanged
     }
-
     has_content = True
-
     def run(self):
-        classes = []
-        node = Nodescrollbox("div", rawtext="\n".join(self.content), classes=classes)
+        node = nodes.container(rawtext="\n".join(self.content))
         if 'height' in self.options:
             node['height'] = self.options['height']
         if 'width' in self.options:
