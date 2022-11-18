@@ -680,7 +680,7 @@ mo_convert_params = {
         "Removes the Memory layer and use additional inputs outputs instead", '', '',
         None),
     'compress_to_fp16': ParamDescription(
-        'If original model has FP32 weights or biases they are compressed to FP16. '
+        'If the original model has FP32 weights or biases, they are compressed to FP16. '
         'All intermediate data is kept in original precision.', '', '', None),
     'help': ParamDescription(
         'Print available parameters.', '', '', None),
