@@ -718,6 +718,10 @@ memory::ptr network::get_output_memory(const primitive_id& output_id) {
     return get_primitive(output_id)->output_memory_ptr();
 }
 
+layout network::get_output_layout(const primitive_id& output_id) const {
+    return get_primitive(output_id)->get_output_layout();
+}
+
 layout network::get_node_output_layout(const primitive_id& output_id) const {
     auto res = std::find_if(_outputs.begin(), _outputs.end(), [&](const std::shared_ptr<primitive_inst>& v) {
         return v->id() == output_id;
