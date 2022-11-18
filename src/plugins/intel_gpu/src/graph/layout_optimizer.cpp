@@ -250,25 +250,25 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         if (found_reorder == std::end(next.get_dependencies())) {
             return true;
         }
-        for (auto& next_dep : next.get_dependencies()) {
-            if (!next_dep->is_type<reorder>())
+        auto& next_dep = next.get_dependency(0);
+        if (!next_dep.is_type<reorder>())
+            return false;
+        for (auto& prev_usr : prev.get_users()) {
+            if (!prev_usr->is_type<reorder>())
                 continue;
-            for (auto& prev_usr : prev.get_users()) {
-                if (!prev_usr->is_type<reorder>())
-                    continue;
-                if (next_dep == prev_usr && next.get_dependency_index(*next_dep) == 0) {
-                    return true;
-                }
+            if (&next_dep == prev_usr && next.get_dependency_index(next_dep) == 0) {
+                return true;
             }
         }
-         return false;
+        return false;
     };
 
     // Errata for onednn layout selection
     if (next.is_type<convolution>() &&
         next.get_preferred_impl_type() == impl_types::onednn &&
         ((fmt_prev == format::byxf && fmt_next == format::byxf) ||
-         (fmt_prev == format::bfyx && fmt_next == format::byxf && prev_dt != data_types::i8 && prev_dt != data_types::f16)) &&
+         (fmt_prev == format::bfyx && fmt_next == format::byxf &&
+            (prev_dt == data_types::f16 && next.get_dependency(0).get_output_layout().feature() <= 8))) &&
         is_input_reorder(prev, next))
         return true;
 
