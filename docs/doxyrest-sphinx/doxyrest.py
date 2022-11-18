@@ -164,7 +164,6 @@ class Nodescrollbox(nodes.container):
         **attributes,
     ) -> nodes.container:
         node = nodes.container(rawtext, is_div=True, **attributes)
-        node.extend(node)
         return node
 
 #...............................................................................
