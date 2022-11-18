@@ -344,22 +344,57 @@ void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config) {
     const auto streams = config._streams > 0 ? config._streams : 1;
 
     config._small_core_offset = num_big_cores;
-    const int threads_per_stream = std::max(1, threads / streams);
-    const int threads_per_stream_big = std::min(num_big_cores_phys, threads_per_stream);
-    const int threads_per_stream_small = std::min(num_small_cores_phys, threads_per_stream);
-    const int base_big_streams = num_cores > num_cores_phys
-                                     ? (num_big_cores_phys + threads_per_stream_big - 1) / threads_per_stream_big * 2
-                                     : (num_big_cores_phys + threads_per_stream_big - 1) / threads_per_stream_big;
-    const int base_small_streams = num_small_cores_phys > 0 ? num_small_cores_phys / threads_per_stream_small : 0;
-    const int base_streams = base_big_streams + base_small_streams;
-    // big_streams = all_streams * base_big_streams / base_streams
-    config._big_core_streams = (streams * base_big_streams + base_streams - 1) / base_streams;
-    config._small_core_streams = config._streams - config._big_core_streams;
-    // _big_core_streams > 2, num_big_cores_phys must be divisible by threads_per_stream_big
-    config._threads_per_stream_big = (config._big_core_streams > 2 && num_big_cores_phys % threads_per_stream_big != 0)
-                                         ? std::min(num_big_cores_phys, num_big_cores / base_big_streams)
-                                         : threads_per_stream_big;
-    config._threads_per_stream_small = config._small_core_streams > 0 ? threads_per_stream_small : 0;
+    int threads_per_stream = std::max(1, threads / streams);
+
+    if ((num_big_cores_phys / threads_per_stream >= streams) && (1 < threads_per_stream)) {
+        config._big_core_streams = streams;
+        config._threads_per_stream_big = threads_per_stream;
+        config._small_core_streams = 0;
+        config._threads_per_stream_small = 0;
+    } else if ((num_small_cores_phys / threads_per_stream >= streams) && (num_big_cores_phys < threads_per_stream)) {
+        config._big_core_streams = 0;
+        config._threads_per_stream_big = 0;
+        config._small_core_streams = streams;
+        config._threads_per_stream_small = threads_per_stream;
+    } else {
+        const int threads_per_stream_big = std::min(num_big_cores_phys, threads_per_stream);
+        const int threads_per_stream_small = std::min(num_small_cores_phys, threads_per_stream);
+
+        threads_per_stream = std::min(threads_per_stream_big, threads_per_stream_small);
+        while (threads_per_stream > 1) {
+            const int base_big_streams = num_big_cores_phys / threads_per_stream;
+            const int base_small_streams = num_small_cores_phys > 0 ? num_small_cores_phys / threads_per_stream : 0;
+            if (base_big_streams + base_small_streams >= streams) {
+                config._big_core_streams = base_big_streams;
+                config._small_core_streams = streams - base_big_streams;
+                break;
+            } else if (base_big_streams * 2 + base_small_streams >= streams) {
+                config._big_core_streams = streams - base_small_streams;
+                config._small_core_streams = base_small_streams;
+                break;
+            } else {
+                threads_per_stream = threads_per_stream > 1 ? threads_per_stream - 1 : 1;
+            }
+        }
+
+        if (threads_per_stream == 1) {
+            const int stream_loops = streams / num_cores;
+            const int remain_streams = streams - stream_loops * num_cores;
+            if (num_big_cores_phys >= remain_streams) {
+                config._big_core_streams = remain_streams + num_big_cores * stream_loops;
+                config._small_core_streams = num_small_cores_phys * stream_loops;
+            } else if (num_big_cores_phys + num_small_cores_phys >= remain_streams) {
+                config._big_core_streams = num_big_cores_phys + num_big_cores * stream_loops;
+                config._small_core_streams = remain_streams - num_big_cores_phys + num_small_cores_phys * stream_loops;
+            } else {
+                config._big_core_streams = remain_streams - num_small_cores_phys + num_big_cores * stream_loops;
+                config._small_core_streams = num_small_cores_phys * (stream_loops + 1);
+            }
+        }
+
+        config._threads_per_stream_big = threads_per_stream;
+        config._threads_per_stream_small = threads_per_stream;
+    }
 }
 
 IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(const IStreamsExecutor::Config& initial,
