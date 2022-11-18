@@ -391,6 +391,10 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::g_os_is_zyx_isv8_osv16_isv2:                 return "G_OS_IS_ZYX_ISV8_OSV16_ISV2";
         case WeightsLayout::g_os_is_yx_isv8_osv16_isv2:                  return "G_OS_IS_YX_ISV8_OSV16_ISV2";
         case WeightsLayout::g_os_is_zyx_isv16_osv16:                     return "G_OS_IS_ZYX_ISV16_OSV16";
+        case WeightsLayout::g_os_zy_is_x_osv8_isv2:                      return "G_OS_ZY_IS_X_OSV8_ISV2";
+        case WeightsLayout::g_os_zy_is_x_osv8_isv4:                      return "G_OS_ZY_IS_X_OSV8_ISV4";
+        case WeightsLayout::g_os_zyx_is_osv8_isv2:                       return "G_OS_ZYX_IS_OSV8_ISV2";
+        case WeightsLayout::g_os_zyx_is_osv8_isv4:                       return "G_OS_ZYX_IS_OSV8_ISV4";
         case WeightsLayout::giy_xs_os_xsv2_osv16__ao32:                  return "GIY_XS_OS_XSV2_OSV16__AO32";
         case WeightsLayout::giy_xs_os_xsv2_osv8__ao32:                   return "GIY_XS_OS_XSV2_OSV8__AO32";
         case WeightsLayout::gs_oi_yxs_gsv4_yxsv4:                        return "GS_OI_YXS_GSV4_YXSV4";
@@ -400,6 +404,8 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::g_os_is_yx_osa2_isa8_osv8_isv2:              return "G_OS_IS_YX_OSA2_ISA8_OSV8_ISV2";
         case WeightsLayout::g_os_is_yx_osa4_isa8_osv8_isv4:              return "G_OS_IS_YX_OSA4_ISA8_OSV8_ISV4";
         case WeightsLayout::g_os_is_zyx_osa4_isa8_osv8_isv4:             return "G_OS_IS_ZYX_OSA4_ISA8_OSV8_ISV4";
+        case WeightsLayout::g_os_is_zyx_isa8_osv8_isv2:                  return "G_OS_IS_ZYX_ISA8_OSV8_ISV2";
+        case WeightsLayout::g_os_is_zyx_isa8_osv8_isv4:                  return "G_OS_IS_ZYX_ISA8_OSV8_ISV4";
         case WeightsLayout::os_is_yx_osa4_isa8_osv8_isv2:                return "OS_IS_YX_OSA4_ISA8_OSV8_ISV2";
         case WeightsLayout::os_is_zyx_osa4_isa8_osv8_isv2:               return "OS_IS_ZYX_OSA4_ISA8_OSV8_ISV2";
         case WeightsLayout::os_is_zyx_osa4_isa8_osv8_isv4:               return "OS_IS_ZYX_OSA4_ISA8_OSV8_ISV4";
