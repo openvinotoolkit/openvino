@@ -898,7 +898,8 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     if (sortedNet.empty()) {
         THROW_GNA_EXCEPTION << "Sorted network is empty";
     }
-    // put Assign (sortedNet) layers at the end to properly update states variables (Read)
+    // Copy operations connected to memory layer (Assign to state variable) should be executed when all functional layers are calculated.
+    // To simplify, just moving these Copy operations at the end of the execution list
     std::stable_partition(sortedNet.begin(), sortedNet.end(), [&](CNNLayerPtr layer){return !LayerInfo(layer).isCopyToMemory();});
 
     std::vector<CNNLayerPtr> sortedNoMem;
