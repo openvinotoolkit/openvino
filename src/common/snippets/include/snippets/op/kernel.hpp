@@ -19,6 +19,7 @@ namespace op {
 class Kernel : public ngraph::op::Op {
 public:
     OPENVINO_OP("Kernel", "SnippetsOpset");
+    BWDCMP_RTTI_DECLARATION;
 
     Kernel(const std::vector<std::pair<std::shared_ptr<ngraph::snippets::Emitter>, ngraph::snippets::RegInfo>>& region);
     Kernel() = default;

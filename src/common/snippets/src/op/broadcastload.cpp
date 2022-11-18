@@ -11,6 +11,8 @@
 using namespace std;
 using namespace ngraph;
 
+BWDCMP_RTTI_DEFINITION(ngraph::snippets::op::BroadcastLoad);
+
 snippets::op::BroadcastLoad::BroadcastLoad(const Output<Node>& x, Shape shape)
 : BroadcastMove(x, shape) {
     constructor_validate_and_infer_types();

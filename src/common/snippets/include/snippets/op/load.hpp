@@ -20,6 +20,7 @@ namespace op {
 class Load : public ngraph::op::Op {
 public:
     OPENVINO_OP("Load", "SnippetsOpset");
+    BWDCMP_RTTI_DECLARATION;
 
     Load(const Output<Node>& x, const size_t count = 1lu);
     Load() = default;

@@ -22,6 +22,7 @@ namespace op {
 class TileScheduler : public ngraph::op::Op {
 public:
     OPENVINO_OP("TileScheduler", "SnippetsOpset");
+    BWDCMP_RTTI_DECLARATION;
 
     TileScheduler(const AllocatedEmitter& vector_region, const AllocatedEmitter& scalar_region);
     TileScheduler() = default;
