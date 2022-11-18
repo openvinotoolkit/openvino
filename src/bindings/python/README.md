@@ -9,7 +9,7 @@ OpenVINO Python API is a part of OpenVINO library. The component is responsible 
     * Provides shortcuts and helpers with more pythonic design.
     * Allows to apply advanced concepts like shared memory to take full advantage of OpenVINO.
 
-OpenVINO Python API uses [common coding style rules](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/python/docs/contributing.md#contribution-guidelines-and-best-practices) that are adjusted to project needs.
+OpenVINO Python API uses [common codestyle checks](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/python/docs/contributing.md#contribution-guidelines-and-best-practices) that are adjusted to project needs.
 
 ## Key contacts
 
