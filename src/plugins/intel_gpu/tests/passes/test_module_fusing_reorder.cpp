@@ -297,7 +297,8 @@ INSTANTIATE_TEST_SUITE_P(testing_can_fuse_reorder_first_conv, test_can_fuse_reor
                                                 tensor{1}, tensor{0}, data_types::f16, format::goiyx, true},
                                             }));
 
-struct fusing_test_param {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+struct onednn_layout_errata_test_param {
     layout input_layout;
     layout reorder_layout;
     layout weight_layout;
@@ -305,13 +306,15 @@ struct fusing_test_param {
     bool expected_result;
 };
 
-// Errta cases for onednn convolution.
-class test_can_fuse_reorder_onednn_errta : public ReorderTest<fusing_test_param> {};
+// Errata cases for onednn convolution layout: both bfyx and byxf are acceptable
+class test_can_fuse_reorder_onednn_errta : public ReorderTest<onednn_layout_errata_test_param> {};
 TEST_P(test_can_fuse_reorder_onednn_errta, errata_case_for_conv)
 {
     build_options build_opt;
     topology topology;
     auto p = GetParam();
+    if (!engine.get_device_info().supports_immad)
+        return;
 
     auto input = engine.allocate_memory({ p.input_layout });
     auto weights = engine.allocate_memory({ p.weight_layout });
@@ -320,7 +323,7 @@ TEST_P(test_can_fuse_reorder_onednn_errta, errata_case_for_conv)
     topology.add(data("weights", weights));
     topology.add(reorder("reorder_input", "input", p.input_layout.format, p.input_layout.data_type));
     topology.add(reorder("reorder_conv", "reorder_input", p.reorder_layout.format, p.reorder_layout.data_type));
-    topology.add(cldnn::convolution("conv", { "reorder_conv" }, { "weights" }));
+    topology.add(convolution("conv", { "reorder_conv" }, { "weights" }));
     topology.add(reorder("reorder_result", "conv", p.conv_layout));
 
     program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
@@ -342,17 +345,20 @@ TEST_P(test_can_fuse_reorder_onednn_errta, errata_case_for_conv)
     }
 }
 
-/// layout(data_types data_type, cldnn::format fmt, tensor size, padding apadding = padding())
 INSTANTIATE_TEST_SUITE_P(testing_can_fuse_reorder_errata_case_for_conv, test_can_fuse_reorder_onednn_errta,
-                        ::testing::ValuesIn(std::vector<fusing_test_param>{
-                                            fusing_test_param{  layout(data_types::f16, format::byxf, {1, 16, 1088, 1920}),
-                                                                layout(data_types::f16, format::b_fs_yx_fsv16, {1, 16, 1088, 1920}),
-                                                                layout(data_types::f16, format::bfyx, {1, 8, 1, 1}),
-                                                                layout(data_types::f16, format::byxf, {1, 8, 1088, 1920}),
-                                                                true },
-                                            fusing_test_param{  layout(data_types::f16, format::bfyx, {1, 8, 2176, 3840}),
-                                                                layout(data_types::f16, format::byxf, {1, 8, 2176, 3840}),
-                                                                layout(data_types::f16, format::bfyx, {1, 3, 1, 1}),
-                                                                layout(data_types::f16, format::byxf, {1, 3, 2176, 3840}),
-                                                                true },
+                        ::testing::ValuesIn(std::vector<onednn_layout_errata_test_param>{
+                                            onednn_layout_errata_test_param{
+                                                layout(data_types::f16, format::byxf, {1, 16, 8, 8}),
+                                                layout(data_types::f16, format::b_fs_yx_fsv16, {1, 16, 8, 8}),
+                                                layout(data_types::f16, format::bfyx, {1, 8, 1, 1}),
+                                                layout(data_types::f16, format::byxf, {1, 8, 8, 8}),
+                                                true },
+                                            onednn_layout_errata_test_param{
+                                                layout(data_types::f16, format::bfyx, {1, 8, 8, 8}),
+                                                layout(data_types::f16, format::byxf, {1, 8, 8, 8}),
+                                                layout(data_types::f16, format::bfyx, {1, 3, 1, 1}),
+                                                layout(data_types::f16, format::byxf, {1, 3, 8, 8}),
+                                                true },
                                             }));
+#endif
+

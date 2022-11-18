@@ -241,6 +241,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     if (next.is_type<reorder>())
         return true;
 
+    // Check whether the reorder between prev and next is the first input of next.
     auto is_input_reorder = [](program_node& prev, program_node& next) {
         auto found_reorder = std::find_if(next.get_dependencies().begin(), next.get_dependencies().end(), [](cldnn::program_node* node){
             return node->is_type<reorder>();
@@ -263,7 +264,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         return false;
     };
 
-    // Errata for onednn layout selection
+    // Errata for onednn layout selection. First conv can receive both bfyx and byxf directly.
     if (next.is_type<convolution>() &&
         next.get_preferred_impl_type() == impl_types::onednn &&
         ((fmt_prev == format::byxf && fmt_next == format::byxf) ||
