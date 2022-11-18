@@ -482,8 +482,8 @@ void Reorder::reorderData(const Memory &input, const Memory &output, MultiCacheP
                 pReorder = getReorder(cache, srcMemory, dstMemory);
             }
             if (!pReorder) {
-                IE_THROW() << "Not supported reorder conversion, in type: " <<
-                    input.getDesc().getPrecision() << ", out type: " << output.getDesc().getPrecision();
+                IE_THROW() << "No reorder available for the following tensor descriptors: "
+                    << input.getDesc().serializeFormat() << " and " << output.getDesc().serializeFormat();
             }
         }
         if (pReorder) {

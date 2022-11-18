@@ -781,7 +781,12 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
     bool retVal = false;
     const auto inRank = getInputShapeAtPort(DATA_ID).getRank();
     const auto weightRank = getInputShapeAtPort(WEIGHTS_ID).getRank();
-    // disable rank=4: rank == 4 means a matrix: N * IC * H * W --> N * (IC*H*W) --> N * IC * 1 * 1, it should not be efficient since acts as a vector multiply
+    // disable rank=4:
+    // if layout is nhwc:
+    //   A matrix: N * IC * H * W --> N * (IC*H*W), the M, N', K of matrix multiply will be:
+    //   M = 1, K = (IC*H*W), when M = 1 it should not be efficient since acts as a vector multiply
+    // if layout is nchw/nChw16c: brg1x1 not support. Although jit supports, it should have similar
+    //   problems with the above.
     if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
         getOriginalInputPrecisionAtPort(DATA_ID) == InferenceEngine::Precision::FP32 &&
         one_of(inRank, 2, 3) && weightRank == 2) {
