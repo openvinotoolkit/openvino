@@ -595,14 +595,6 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
 
     DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, args, dims, 1, isINT8);
 
-    auto getBinPostOpShape = [&]() {
-        const auto outShapeRank = dims.size();
-        const auto chIdx = getFusingAxis();
-        std::vector<size_t> binaryShape(outShapeRank, 1);
-        binaryShape[chIdx] = dims[chIdx];
-        return binaryShape;
-    };
-
     DEBUG_LOG(getName(), " useLegacyPostOps=", useLegacyPostOps, " initWeights=", initWeights);
 
     for (int i = 0; i < fusedWith.size(); ++i) {
