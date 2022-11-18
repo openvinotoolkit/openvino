@@ -369,9 +369,6 @@ macro(ov_cpack_settings)
     set(CPACK_DEBIAN_OPENVINO_PACKAGE_NAME "openvino-${cpack_name_ver}")
     set(CPACK_DEBIAN_OPENVINO_PACKAGE_ARCHITECTURE "all")
     ov_debian_generate_conflicts(openvino ${conflicting_versions})
-    ov_debian_add_lintian_suppression(openvino
-        # reproduced only on ubu18
-        "description-starts-with-package-name")
     set(openvino_copyright "generic")
 
     list(APPEND CPACK_COMPONENTS_ALL "libraries;libraries_dev;openvino")
