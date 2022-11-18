@@ -144,6 +144,7 @@ _OPENVINO_OP_REG(MulticlassNms, op::v9)
 _OPENVINO_OP_REG(IsFinite, op::v10)
 _OPENVINO_OP_REG(IsInf, op::v10)
 _OPENVINO_OP_REG(IsNaN, op::v10)
+_OPENVINO_OP_REG(Unique, op::v10)
 
 _OPENVINO_OP_REG(AUGRUCell, ov::op::internal)
 _OPENVINO_OP_REG(AUGRUSequence, ov::op::internal)
