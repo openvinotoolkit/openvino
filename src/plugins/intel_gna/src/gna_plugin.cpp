@@ -1811,3 +1811,7 @@ InferenceEngine::QueryNetworkResult GNAPlugin::QueryNetwork(const InferenceEngin
     return res;
 }
 
+GNAPlugin::~GNAPlugin() {
+    if (gnadevice)
+        gnadevice->close();
+}

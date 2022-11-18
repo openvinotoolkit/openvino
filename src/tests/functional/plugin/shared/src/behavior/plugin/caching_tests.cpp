@@ -16,8 +16,6 @@ using namespace InferenceEngine;
 using namespace ::testing;
 using namespace std::placeholders;
 
-#define GTEST_COUT std::cout << "[          ] [ INFO ] "
-
 namespace LayerTestsDefinitions {
 
 static std::shared_ptr<ngraph::Function> simple_function_multiply(ngraph::element::Type type, size_t batchSize) {
@@ -142,11 +140,7 @@ void LoadNetworkCacheTestBase::SetUp() {
     APIBaseTest::SetUp();
     auto fGen = std::get<0>(funcPair);
     m_functionName = std::get<1>(funcPair);
-    try {
-        function = fGen(m_precision, m_batchSize);
-    } catch (...) {
-        GTEST_SKIP();
-    }
+    function = fGen(m_precision, m_batchSize);
 
     std::stringstream ss;
     auto hash = std::hash<std::string>()(LayerTestsUtils::LayerTestsCommon::GetTestName());
@@ -177,12 +171,10 @@ void LoadNetworkCacheTestBase::Run() {
         }
     };
     if (!function) {
-        GTEST_COUT << "Can't create function " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
-        GTEST_SKIP();
+        GTEST_FAIL() << "Can't create function " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
     }
-    if ((targetDevice.find("AUTO") == std::string::npos) && !importExportSupported(*core)) {
-        GTEST_COUT << "Plugin doesn't support import and export - skipping test" << std::endl;
-        GTEST_SKIP();
+    if (!importExportSupported(*core)) {
+        GTEST_FAIL() << "Plugin doesn't support import and export - skipping test" << std::endl;
     }
     cnnNetwork = CNNNetwork{function};
     ConfigureNetwork();
@@ -191,12 +183,10 @@ void LoadNetworkCacheTestBase::Run() {
         GenerateInputs();
         Infer();
     } catch (const Exception &ex) {
-        GTEST_COUT << "Can't loadNetwork without cache for " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
-        GTEST_COUT << "Exception [" << ex.what() << "]" << std::endl;
-        GTEST_SKIP();
+        GTEST_FAIL() << "Can't loadNetwork without cache for " << m_functionName << " with precision " << m_precision.get_type_name()  << "\n"
+            << "Exception [" << ex.what() << "]" << std::endl;
     } catch (...) {
-        GTEST_COUT << "Can't loadNetwork without cache for " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
-        GTEST_SKIP(); // skip caching test if such network is not supported by device at all
+        GTEST_FAIL() << "Can't loadNetwork without cache for " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
     }
     auto originalOutputs = GetOutputs();
 
@@ -316,48 +306,43 @@ TEST_P(LoadNetworkCompiledKernelsCacheTest, TwoNetworksWithSameModelCreatesSameC
 
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
 TEST_P(LoadNetworkCompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
-    #if defined(_WIN32) || defined(_WIN64)
-        GTEST_SKIP();
-    #else
-        std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
-        // Create CNNNetwork from ngraph::Function
-        InferenceEngine::CNNNetwork cnnNet(function);
-        for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
-            std::wstring postfix  = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
-            std::wstring cache_path_w = CommonTestUtils::stringToWString(cache_path) + postfix;
+    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
+    // Create CNNNetwork from ngraph::Function
+    InferenceEngine::CNNNetwork cnnNet(function);
+    for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
+        std::wstring postfix  = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
+        std::wstring cache_path_w = CommonTestUtils::stringToWString(cache_path) + postfix;
 
-            try {
-                auto cache_path_mb = ov::util::wstring_to_string(cache_path_w);
-                ie->SetConfig({{ CONFIG_KEY(CACHE_DIR), cache_path_mb }});
-                // Load CNNNetwork to target plugins
-                auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-                execNet = {};
-                // Check that directory with cached kernels exists after loading network
-                ASSERT_TRUE(CommonTestUtils::directoryExists(cache_path_w)) << "Directory with cached kernels doesn't exist";
+        try {
+            auto cache_path_mb = ov::util::wstring_to_string(cache_path_w);
+            ie->SetConfig({{ CONFIG_KEY(CACHE_DIR), cache_path_mb }});
+            // Load CNNNetwork to target plugins
+            auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+            execNet = {};
+            // Check that directory with cached kernels exists after loading network
+            ASSERT_TRUE(CommonTestUtils::directoryExists(cache_path_w)) << "Directory with cached kernels doesn't exist";
+            // Check that folder contains cache files and remove them
+            for (auto& ext : m_extList) {
                 // Check that folder contains cache files and remove them
+                ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path_w, CommonTestUtils::stringToWString(ext)), 0);
+            }
+            //ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path_w, L"cl_cache"), 0);
+            // Remove directory and check that it doesn't exist anymore
+            ASSERT_EQ(CommonTestUtils::removeDir(cache_path_w), 0);
+            ASSERT_FALSE(CommonTestUtils::directoryExists(cache_path_w));
+        } catch (std::exception& ex) {
+            // Cleanup in case of any exception
+            if (CommonTestUtils::directoryExists(cache_path_w)) {
                 for (auto& ext : m_extList) {
                     // Check that folder contains cache files and remove them
-                    ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path_w, CommonTestUtils::stringToWString(ext)), 0);
+                    ASSERT_GE(CommonTestUtils::removeFilesWithExt(cache_path_w, CommonTestUtils::stringToWString(ext)), 0);
                 }
-                //ASSERT_GT(CommonTestUtils::removeFilesWithExt(cache_path_w, L"cl_cache"), 0);
-                // Remove directory and check that it doesn't exist anymore
                 ASSERT_EQ(CommonTestUtils::removeDir(cache_path_w), 0);
-                ASSERT_FALSE(CommonTestUtils::directoryExists(cache_path_w));
-            } catch (std::exception& ex) {
-                // Cleanup in case of any exception
-                if (CommonTestUtils::directoryExists(cache_path_w)) {
-                    for (auto& ext : m_extList) {
-                        // Check that folder contains cache files and remove them
-                        ASSERT_GE(CommonTestUtils::removeFilesWithExt(cache_path_w, CommonTestUtils::stringToWString(ext)), 0);
-                    }
-                    ASSERT_EQ(CommonTestUtils::removeDir(cache_path_w), 0);
-                }
-                FAIL() << ex.what() << std::endl;
             }
+            FAIL() << ex.what() << std::endl;
         }
-    #endif
+    }
 }
 #endif
 } // namespace LayerTestsDefinitions
