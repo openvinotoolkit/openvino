@@ -69,7 +69,7 @@ The sample application logs each step in a standard output stream and outputs to
    :height:300px
    :bar:0px
 
-   .. code-block:: cpp
+   .. ref-code-block:: cpp
    
       [ INFO ] OpenVINO Runtime version ......... <version>
       [ INFO ] Build ........... <build>
