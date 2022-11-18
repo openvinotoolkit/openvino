@@ -337,10 +337,21 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             continue;
 
         auto& eltw_node = node->as<eltwise>();
-        bool is_bias = eltw_node.get_primitive()->mode == eltwise_mode::sum &&
-                       eltw_node.get_dependencies().size() == 2;
+        auto get_eltw_const_dep_idx = [](typed_program_node<eltwise>& eltw_node) {
+            for (auto i = 0; i < static_cast<int32_t>(eltw_node.get_dependencies().size()); ++i) {
+                if (eltw_node.get_dependency(i).is_constant())
+                    return i;
+            }
+            return -1;
+        };
+        auto const_dep_idx = get_eltw_const_dep_idx(eltw_node);
+        auto non_const_dep_idx = 1 - const_dep_idx;
 
-        if (!is_bias)
+        bool is_bias_add = eltw_node.get_primitive()->mode == eltwise_mode::sum &&
+                           eltw_node.get_dependencies().size() == 2 &&
+                           const_dep_idx >= 0 && const_dep_idx < 2;
+
+        if (!is_bias_add)
             continue;
 
         auto is_3d_fully_connected = [](program_node& node) {
@@ -350,37 +361,51 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             return node.as<fully_connected>().get_primitive()->input_size == 3;
         };
 
-        if (node->get_output_layout().is_dynamic())
-            continue;
 
-        cldnn::tensor::value_type out_features = node->get_output_layout().feature();
-        bool is_3d_fc = false;
+        if (node->get_output_layout().is_dynamic()) {
+            auto broadcast_type = eltw_node.get_primitive()->broadcast_spec.m_type;
+            if (!eltw_node.get_dependency(non_const_dep_idx).is_type<fully_connected>())
+                continue;
+            if (broadcast_type != ov::op::AutoBroadcastType::NUMPY && broadcast_type != ov::op::AutoBroadcastType::NONE)
+                continue;
+            // Numpy broadcast rule requires the dimension size which is not one to be same as the corresponding dimension of the other operand.
+            // So we can ensure that the feature size is same for this broadcasting rule, thereby being considered as bias.
+            auto const_shape = eltw_node.get_dependency(const_dep_idx).get_output_layout().get_shape();
+            int32_t count_elements_not_one = 0;
+            int32_t idx_element_not_one = -1;
+            for (size_t i = 0; i < const_shape.size(); ++i) {
+                if (const_shape[i] != 1) {
+                    count_elements_not_one++;
+                    idx_element_not_one = i;
+                }
+                if (count_elements_not_one > 1)
+                    break;
+            }
+            if (count_elements_not_one != 1 ||
+                (idx_element_not_one != (static_cast<int32_t>(const_shape.size()) - 1))) {
+                continue;
+            }
+        } else {
+            cldnn::tensor::value_type out_features = node->get_output_layout().feature();
+            bool is_3d_fc = false;
 
-        // Change out_features value to proper dimension for 3D FC case
-        if (is_3d_fully_connected(node->get_dependency(0))) {
-            out_features = node->get_dependency(0).get_output_layout().spatial(1);
-            is_3d_fc = true;
-        } else if (is_3d_fully_connected(node->get_dependency(1))) {
-            out_features = node->get_dependency(1).get_output_layout().spatial(1);
-            is_3d_fc = true;
-        }
-
-        int bias_idx = -1;
-        for (size_t i = 0; i < eltw_node.get_dependencies().size(); i++) {
-            auto& dep = eltw_node.get_dependency(i);
-            if (dep.is_constant() &&
-                (dep.get_output_layout().feature() == out_features || is_3d_fc) &&
-                dep.get_output_layout().count() == static_cast<size_t>(out_features)) {
-                bias_idx = static_cast<int>(i);
-                break;
+            // Change out_features value to proper dimension for 3D FC case
+            if (is_3d_fully_connected(node->get_dependency(0))) {
+                out_features = node->get_dependency(0).get_output_layout().spatial(1);
+                is_3d_fc = true;
+            } else if (is_3d_fully_connected(node->get_dependency(1))) {
+                out_features = node->get_dependency(1).get_output_layout().spatial(1);
+                is_3d_fc = true;
+            }
+            auto& const_dep = eltw_node.get_dependency(const_dep_idx);
+            if ((const_dep.get_output_layout().feature() != out_features && !is_3d_fc) ||
+                const_dep.get_output_layout().count() != static_cast<size_t>(out_features)) {
+                continue;
             }
         }
-        if (bias_idx < 0)
-            continue;
-
-        auto& bias_node = eltw_node.get_dependency(bias_idx);
+        auto& bias_node = eltw_node.get_dependency(const_dep_idx);
         primitive_id bias_name = bias_node.id();
-        auto& replace_candidate = bias_idx == 0 ? eltw_node.get_dependency(1) : eltw_node.get_dependency(0);
+        auto& replace_candidate = eltw_node.get_dependency(non_const_dep_idx);
 
         if (bias_node.get_output_layout().data_type != replace_candidate.get_output_layout().data_type)
             continue;
