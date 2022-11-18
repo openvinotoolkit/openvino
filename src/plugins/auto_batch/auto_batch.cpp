@@ -899,7 +899,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         if (!batched_inputs.size() || !batched_outputs.size())
             IE_THROW(NotImplemented)
                 << "Auto-batching supports only networks with inputs/outputs featuring batched dim!";
-    } catch (...) {
+    } catch (const InferenceEngine::Exception&) {
         metaDevice.batchForDevice = 1;
     }
 
@@ -966,7 +966,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             reshaped.reshape(shapes);
             executableNetworkWithBatch = ctx ? core->LoadNetwork(reshaped, ctx, deviceConfigNoAutoBatch)
                                              : core->LoadNetwork(reshaped, deviceName, deviceConfigNoAutoBatch);
-        } catch (...) {
+        } catch (const InferenceEngine::Exception&) {
             metaDevice.batchForDevice = 1;
         }
     }
