@@ -22,3 +22,16 @@
    border-top: solid 1px #dee2e6!important;
    border-bottom: solid 1px #dee2e6!important;
 }
+
+.scrollbox div.highlight {
+   margin:0px!important;
+}
+
+.scrollbox div[class*="highlight-"] {
+margin: 0 !important;
+}
+
+.scrollbox {
+overflow-y:scroll;
+height:300px
+}

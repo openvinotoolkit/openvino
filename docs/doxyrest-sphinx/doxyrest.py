@@ -142,32 +142,26 @@ def create_target_node(raw_text, text, target, highlight_language, lineno, docum
 
 def visit_scrollbox(self, node):
     attrs = {}
-    if "height" in node:
-        attrs["style"] = (
-            "height: "
-            + "".join(c for c in str(node["height"]) if c.isdigit()) + "px; "
-            + (("width: " + "".join(c for c in str(node["width"]) if c.isdigit()) ) if "width" in node is not None else "")
-            + (("px; " if node["width"].find("px") != -1 else "%;") if "width" in node is not None else "")
-            + ( ("border-left:solid "+"".join(c for c in str(node["bar"]) if c.isdigit())+ "px " + (("".join(str(node["bar-color"]))) if "bar-color" in node is not None else "#dee2e6") +"; ") if "bar" in node is not None else "")
-            + "overflow-y: scroll; "
-        )
-        attrs["class"] = ("scrollbox sortable-table" if "sortable" in node is not None else "scrollbox")
+    attrs["style"] = (
+        (("height:" + "".join(c for c in str(node["height"]) if c.isdigit()) + "px!important; " ) if "height" in node is not None else "")
+        + (("width:" + "".join(c for c in str(node["width"]) if c.isdigit()) ) if "width" in node is not None else "")
+        + (("px; " if node["width"].find("px") != -1 else "%;") if "width" in node is not None else "")
+        + ( ("border-left:solid "+"".join(c for c in str(node["bar"]) if c.isdigit())+ "px " + (("".join(str(node["bar-color"]))) if "bar-color" in node is not None else "#dee2e6") +"; ") if "bar" in node is not None else "")
+    )
+    attrs["class"] = ("scrollbox sortable-table" if "sortable" in node is not None else "scrollbox")
     self.body.append(self.starttag(node, "div", **attrs))
 
 
 def depart_scrollbox(self, node):
     self.body.append("</div>\n")
 
-class Nodescrollbox11(nodes.container):
+class Nodescrollbox(nodes.container):
     def create_scrollbox_component(
         rawtext: str = "",
         **attributes,
     ) -> nodes.container:
         node = nodes.container(rawtext, is_div=True, **attributes)
         return node
-
-class Nodescrollbox(nodes.container):
-    pass
 
 #...............................................................................
 #
@@ -292,7 +286,7 @@ class Scrollbox(Directive):
 
     def run(self):
         classes = ['scrollbox','']
-        node = nodes.container("div", rawtext="\n".join(self.content), classes=classes)
+        node = Nodescrollbox("div", rawtext="\n".join(self.content), classes=classes)
         if 'height' in self.options:
             node['height'] = self.options['height']
         if 'width' in self.options:
@@ -546,7 +540,7 @@ def setup(app):
         latex=(visit_doxyrest_literalblock_node, depart_doxyrest_literalblock_node)
     )
     app.add_node(
-        nodes.container,
+        Nodescrollbox,
         html=(visit_scrollbox, depart_scrollbox),
         latex=(visit_scrollbox, depart_scrollbox)
     )
