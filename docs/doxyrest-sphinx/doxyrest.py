@@ -158,13 +158,16 @@ def visit_scrollbox(self, node):
 def depart_scrollbox(self, node):
     self.body.append("</div>\n")
 
-class Nodescrollbox(nodes.container):
+class Nodescrollbox11(nodes.container):
     def create_scrollbox_component(
         rawtext: str = "",
         **attributes,
     ) -> nodes.container:
         node = nodes.container(rawtext, is_div=True, **attributes)
         return node
+
+class Nodescrollbox(nodes.container):
+    pass
 
 #...............................................................................
 #
@@ -289,7 +292,7 @@ class Scrollbox(Directive):
 
     def run(self):
         classes = ['scrollbox','']
-        node = Nodescrollbox("div", rawtext="\n".join(self.content), classes=classes)
+        node = nodes.container("div", rawtext="\n".join(self.content), classes=classes)
         if 'height' in self.options:
             node['height'] = self.options['height']
         if 'width' in self.options:
@@ -543,7 +546,7 @@ def setup(app):
         latex=(visit_doxyrest_literalblock_node, depart_doxyrest_literalblock_node)
     )
     app.add_node(
-        Nodescrollbox,
+        nodes.container,
         html=(visit_scrollbox, depart_scrollbox),
         latex=(visit_scrollbox, depart_scrollbox)
     )
