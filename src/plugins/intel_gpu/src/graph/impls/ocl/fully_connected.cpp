@@ -113,7 +113,7 @@ public:
         if (params.new_shape_infer) {
             params.input_shape = updated_impl_param.input_layouts[0].get_partial_shape();
             params.weights_shape = updated_impl_param.input_layouts[1].get_partial_shape();
-            params.output_shape = updated_impl_param.output_layout.get_partial_shape();
+            params.output_shape = updated_impl_param.output_layouts[0].get_partial_shape();
         } else {
             if (primitive->input_size != 3) {
                 params.outputs = { params.outputs[0].FlattenFeatureAndSpatials() };
