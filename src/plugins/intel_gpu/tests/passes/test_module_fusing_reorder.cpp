@@ -307,8 +307,8 @@ struct onednn_layout_errata_test_param {
 };
 
 // Errata cases for onednn convolution layout: both bfyx and byxf are acceptable
-class test_can_fuse_reorder_onednn_errta : public ReorderTest<onednn_layout_errata_test_param> {};
-TEST_P(test_can_fuse_reorder_onednn_errta, errata_case_for_conv)
+class test_can_fuse_reorder_onednn_errata : public ReorderTest<onednn_layout_errata_test_param> {};
+TEST_P(test_can_fuse_reorder_onednn_errata, errata_case_for_conv)
 {
     build_options build_opt;
     topology topology;
@@ -345,7 +345,7 @@ TEST_P(test_can_fuse_reorder_onednn_errta, errata_case_for_conv)
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(testing_can_fuse_reorder_errata_case_for_conv, test_can_fuse_reorder_onednn_errta,
+INSTANTIATE_TEST_SUITE_P(testing_can_fuse_reorder_errata_case_for_conv, test_can_fuse_reorder_onednn_errata,
                         ::testing::ValuesIn(std::vector<onednn_layout_errata_test_param>{
                                             onednn_layout_errata_test_param{
                                                 layout(data_types::f16, format::byxf, {1, 16, 8, 8}),
