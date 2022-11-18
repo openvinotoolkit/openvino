@@ -132,65 +132,22 @@ Analyze which code region need conditional complication and figure out requireme
 Create itt.hpp file in the target component directory, in which you need define some particular macro needed by conditional compilation if existed macro cannot meet requirement. An example [itt.hpp](https://github.com/openvinotoolkit/openvino/blob/master/src/core/src/itt.hpp).
 
 - Add macro into itt.hpp to define new CC domain:
-```
-#pragma once
 
-    #include <openvino/cc/factory.h>
-    #include <openvino/cc/selective_build.h>
-
-    #include <openvino/cc/pass/itt.hpp>
-    #include <openvino/itt.hpp>
-
-    namespace ov {
-    namespace itt {
-    namespace domains {
-    OV_ITT_DOMAIN(core);
-    OV_ITT_DOMAIN(ov_pass);
-    OV_ITT_DOMAIN(ov_op, "ov::Op");
-    }  // namespace domains
-    }  // namespace itt
-    }  // namespace ov
-    OV_CC_DOMAINS(ov_op);
-    OV_CC_DOMAINS(ov_opset);
-```
+https://github.com/openvinotoolkit/openvino/blob/be277ab9772de827739ccf960bf7cebf1c6f06b0/src/core/src/itt.hpp#L12-L28
     
 - Define new macro according to the actual requirement by target component
   The same macro should be defined in the 3 modes separately, below is an example:
 
-```
-    #if defined(SELECTIVE_BUILD_ANALYZER)
-    #    define OV_OP_SCOPE(region) OV_SCOPE(ov_op, region)
-    #    define OV_PASS_CALLBACK(matcher)                                   \
-            openvino::itt::handle_t m_callback_handle;                      \
-            m_callback_handle = openvino::itt::handle(matcher->get_name()); \
-            OV_ITT_SCOPED_TASK(SIMPLE_ov_pass, m_callback_handle)
-    #    define REGISTER_OP(opset_name, op_name) \
-            OV_ITT_SCOPED_TASK(SIMPLE_ov_opset, openvino::itt::handle(opset_name + "_" + op_name))
-    #    define INSERT_OP(opset_name, op_name, op_namespace) opset.insert<op_namespace::op_name>()
-    #elif defined(SELECTIVE_BUILD)
-    #    define OV_OP_SCOPE(region)                                        \
-            if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_op, _, region)) == 0) \
-            throw ngraph::ngraph_error(std::string(OV_PP_TOSTRING(OV_PP_CAT3(ov_op, _, region))) + " is disabled!")
-    #    define OV_PASS_CALLBACK(matcher)
-    #    define REGISTER_OP(opset_name, op_name)
-    #    define INSERT_OP(opset_name, op_name, op_namespace)                                \
-            if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT4(ov_opset_, opset_name, _, op_name)) == 1) \
-            opset.insert<op_namespace::op_name>()
-    #else
-    #    define OV_OP_SCOPE(region) OV_ITT_SCOPED_TASK(ov::itt::domains::ov_op, OV_PP_TOSTRING(region))
-    #    define OV_PASS_CALLBACK(matcher)
-    #    define REGISTER_OP(opset_name, op_name)
-    #    define INSERT_OP(opset_name, op_name, op_namespace) opset.insert<op_namespace::op_name>()
-    #endif
-```
+https://github.com/openvinotoolkit/openvino/blob/be277ab9772de827739ccf960bf7cebf1c6f06b0/src/core/src/itt.hpp#L34-L57
 
-### step 3: apply CC macro
-Apply the CC macro into your code region that need conditional compilation.
+
+### step 3: apply CC macros
+Apply the CC macros into your code region that need conditional compilation.
 An example:
 
 https://github.com/openvinotoolkit/openvino/blob/807279276b78e1fdf9e1e0babd427e1e8dd9a07b/src/core/src/op/abs.cpp#L19-L23
 
-Then code region in  ov::op::v0::Abs::clone_with_new_inputs() is implement conditional compilation.
+Then code region in ov::op::v0::Abs::clone_with_new_inputs() is implement conditional compilation.
 In `SELECTIVE_BUILD=COLLECT` stage, if it was not called, then in `SELECTIVE_BUILD=ON` stage, the code region in this function will be stripped out.
 
 
