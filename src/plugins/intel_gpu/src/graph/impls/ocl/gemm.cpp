@@ -170,7 +170,7 @@ attach_gemm_impl::attach_gemm_impl() {
 
     implementation_map<gemm>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<gemm>::create<gemm_impl>, types, formats);
 
-    const std::vector<format::type> dynamic_formats {
+    const std::vector<format::type> dyn_formats {
         format::bfyx,
         format::bfzyx,
         format::bfwzyx,
@@ -178,7 +178,7 @@ attach_gemm_impl::attach_gemm_impl() {
 
     implementation_map<gemm>::add(impl_types::ocl,
                                   shape_types::dynamic_shape,
-                                  typed_primitive_impl_ocl<gemm>::create<gemm_impl>, types, dynamic_formats);
+                                  typed_primitive_impl_ocl<gemm>::create<gemm_impl>, types, dyn_formats);
 }
 
 }  // namespace detail

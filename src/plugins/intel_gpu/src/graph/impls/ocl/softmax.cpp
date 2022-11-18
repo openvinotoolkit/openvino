@@ -75,7 +75,14 @@ attach_softmax_impl::attach_softmax_impl() {
             format::bfzyx
     };
 
-    implementation_map<softmax>::add(impl_types::ocl, shape_types::any, typed_primitive_impl_ocl<softmax>::create<softmax_impl>, types, formats);
+    implementation_map<softmax>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<softmax>::create<softmax_impl>, types, formats);
+
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx,
+    };
+
+    implementation_map<softmax>::add(impl_types::ocl, shape_types::dynamic_shape, typed_primitive_impl_ocl<softmax>::create<softmax_impl>, types, dyn_formats);
 }
 
 }  // namespace detail
