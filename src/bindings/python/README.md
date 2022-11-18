@@ -11,16 +11,7 @@ OpenVINO Python API is a part of OpenVINO library. The component is responsible 
 
 ## Key contacts
 
-If you have any questions, feature requests or want us to review your PRs, send us a message or ping us on Github.
-
-Team members and main responsibilities:
-
-* [Jan Iwaszkiewicz](https://github.com/jiwaszki) (e-mail: jan.iwaszkiewicz@intel.com)  
-Techincal Lead: questions, issues and feature requests, memory and GIL related questions
-* [Anastasia Kuporosova](https://github.com/akuporos) (e-mail: anastasia.kuporosova@intel.com)  
-Developer: building of the component, general bindings
-* [Przemyslaw Wysocki](https://github.com/p-wysocki) (e-mail: przemyslaw.wysocki@intel.com)  
-Developer: project requirements, general bindings
+If you have any questions, feature requests or want us to review your PRs, send us a message or ping us on GitHub via [openvino-ie-python-api-maintainers](https://github.com/orgs/openvinotoolkit/teams/openvino-ie-python-api-maintainers). You can always directly contact everyone from this group.
 
 ## Components
 
@@ -42,15 +33,18 @@ openvino/src/bindings/python
 
 ## Tutorials
 
-If you want to contribute to OpenVINO Python API, here is the list of learning materials and project's guidelines:
+If you want to contribute to OpenVINO Python API, here is the list of learning materials and project guidelines:
 
-* [How to contribute](docs/contributing.md)
-* [How to extend OpenVINO Python API](docs/code_examples.md)
-* [How to test OpenVINO Python API](docs/test_examples.md)
-* [How to upgrade local Python version](docs/python_version_upgrade.md)
+* [How to contribute](./docs/contributing.md)
+* [How to extend OpenVINO Python API](./docs/code_examples.md)
+* [How to test OpenVINO Python API](./docs/test_examples.md)
+* [How to upgrade local Python version](./docs/python_version_upgrade.md)
 
 ## See also
 
-Related pages and articles:
+* [OpenVINO™ README](../../../README.md)
+* [OpenVINO™ Core Components](../../README.md)
+* [OpenVINO™ Python API reference](https://docs.openvino.ai/latest/api/ie_python_api/api.html)
+* [OpenVINO™ Python API Exclusives](https://docs.openvino.ai/latest/openvino_docs_OV_UG_Python_API_exclusives.html)
 * [pybind11 repository](https://github.com/pybind/pybind11)
 * [pybind11 documentation](https://pybind11.readthedocs.io/en/stable/)
