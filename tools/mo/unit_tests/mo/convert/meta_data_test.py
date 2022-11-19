@@ -9,7 +9,7 @@ from generator import generator
 from openvino.runtime import get_version as get_rt_version
 from openvino.runtime import serialize
 
-from openvino.tools.mo import convert
+from openvino.tools.mo import convert_model
 from openvino.tools.mo.utils import import_extensions
 from openvino.tools.mo.utils.version import get_version
 from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
@@ -93,7 +93,7 @@ class MetaDataTest(UnitTestWithMockedTelemetry):
             model_path = save_to_onnx(model, tmpdir)
             out_xml = os.path.join(tmpdir, "model.xml")
 
-            ov_model = convert(model_path)
+            ov_model = convert_model(model_path)
             check_meta_data(ov_model)
 
             serialize(ov_model, out_xml.encode('utf-8'), out_xml.replace('.xml', '.bin').encode('utf-8'))

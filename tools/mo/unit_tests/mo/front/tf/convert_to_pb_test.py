@@ -34,19 +34,21 @@ class ConvertToPBTests(unittest.TestCase):
     def test_meta_format(self):
         try:
             import tensorflow.compat.v1 as tf_v1
-            tf_v1.disable_eager_execution()
         except ImportError:
             import tensorflow as tf_v1
+        from tensorflow.python.eager.context import graph_mode
 
         with tempfile.TemporaryDirectory(dir=self.test_directory) as tmp_dir:
-            a = tf_v1.get_variable("A", initializer=tf_v1.constant(3, shape=[2]))
-            b = tf_v1.get_variable("B", initializer=tf_v1.constant(5, shape=[2]))
-            tf_v1.add(a, b, name='Add')
-            init_op = tf_v1.global_variables_initializer()
-            saver = tf_v1.train.Saver()
-            with tf_v1.Session() as sess:
-                sess.run(init_op)
-                saver.save(sess, os.path.join(tmp_dir, 'model'))
+            with graph_mode():
+                a = tf_v1.get_variable("A", initializer=tf_v1.constant(3, shape=[2]))
+                b = tf_v1.get_variable("B", initializer=tf_v1.constant(5, shape=[2]))
+                tf_v1.add(a, b, name='Add')
+                init_op = tf_v1.global_variables_initializer()
+                saver = tf_v1.train.Saver()
+                with tf_v1.Session() as sess:
+                    sess.run(init_op)
+                    saver.save(sess, os.path.join(tmp_dir, 'model'))
+
             self.argv.input_meta_graph = os.path.join(tmp_dir, 'model.meta')
             self.argv.output_dir = tmp_dir
             path_to_pb = convert_to_pb(self.argv)

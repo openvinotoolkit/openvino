@@ -2,10 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+import numpy as np
 
 from common.mo_convert_test_class import CommonMOConvertTest
 from common.onnx_layer_test_class import save_to_onnx
 from unit_tests.utils.graph import build_graph
+
+import openvino.runtime as ov
+from openvino.runtime import PartialShape, Model
 
 
 class TestExtensions(CommonMOConvertTest):
@@ -77,44 +81,26 @@ class TestExtensions(CommonMOConvertTest):
         return ConversionExtension("Elu", custom_converter)
 
     def create_ref_graph1():
-        nodes_attributes = {
-            'input': {'kind': 'op', 'type': 'Parameter'},
-            'input_data': {'shape': [2, 3, 4], 'kind': 'data'},
-            'relu': {'kind': 'op', 'type': 'ReLU'},
-            'relu_data': {'shape': [2, 3, 4], 'kind': 'data'},
-            'elu': {'kind': 'op', 'type': 'Elu'},
-            'elu_data': {'shape': [2, 3, 4], 'kind': 'data'},
-            'result': {'kind': 'op', 'type': 'Result'}
-        }
+        shape = PartialShape([2, 3, 4])
+        param = ov.opset8.parameter(shape, dtype=np.float32)
+        param.get_output_tensor(0).set_names({"input"})
+        relu = ov.opset8.relu(param)
+        relu.get_output_tensor(0).set_names({"LeakyRelu_data"})
+        elu = ov.opset8.elu(relu, alpha=0.1)
+        elu.get_output_tensor(0).set_names({"output"})
 
-        return build_graph(nodes_attributes,
-                           [('input', 'input_data'),
-                            ('input_data', 'relu'),
-                            ('relu', 'relu_data'),
-                            ('relu_data', 'elu'),
-                            ('elu', 'elu_data'),
-                            ('elu_data', 'result'),
-                            ])
+        return Model([elu], [param], "test")
 
     def create_ref_graph2():
-        nodes_attributes = {
-            'input': {'kind': 'op', 'type': 'Parameter'},
-            'input_data': {'shape': [2, 3, 4], 'kind': 'data'},
-            'relu': {'kind': 'op', 'type': 'ReLU'},
-            'relu_data': {'shape': [2, 3, 4], 'kind': 'data'},
-            'sigmoid': {'kind': 'op', 'type': 'Sigmoid'},
-            'sigmoid_data': {'shape': [2, 3, 4], 'kind': 'data'},
-            'result': {'kind': 'op', 'type': 'Result'}
-        }
+        shape = PartialShape([2, 3, 4])
+        param = ov.opset8.parameter(shape, dtype=np.float32)
+        param.get_output_tensor(0).set_names({"input"})
+        relu = ov.opset8.relu(param)
+        relu.get_output_tensor(0).set_names({"LeakyRelu_data"})
+        sigmoid = ov.opset8.sigmoid(relu)
+        sigmoid.get_output_tensor(0).set_names({"output"})
 
-        return build_graph(nodes_attributes,
-                           [('input', 'input_data'),
-                            ('input_data', 'relu'),
-                            ('relu', 'relu_data'),
-                            ('relu_data', 'sigmoid'),
-                            ('sigmoid', 'sigmoid_data'),
-                            ('sigmoid_data', 'result'),
-                            ])
+        return Model([sigmoid], [param], "test")
 
     test_data = [
         {'params_test': {'extensions': create_custom_extension_leaky_relu_to_relu()},
