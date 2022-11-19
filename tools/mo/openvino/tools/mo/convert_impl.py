@@ -862,7 +862,6 @@ def _convert(**args):
     telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=get_simplified_mo_version())
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', get_simplified_mo_version())
-
     try:
         model_framework = None
         inp_model_is_object = input_model_is_object(args)
