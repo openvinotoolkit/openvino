@@ -21,7 +21,17 @@ using namespace ::tests;
 using namespace testing;
 
 
-static void setting_node(program::ptr prog, layout_optimizer& lo, const primitive_id& id, layout new_layout) {
+static void setting_node(program::ptr prog, const primitive_id& id, layout new_layout) {
+    auto itr = prog->get_processing_order().begin();
+    while (itr != prog->get_processing_order().end()) {
+        auto node_ptr = *itr++;
+        if (node_ptr->id() == id) {
+            node_ptr->set_output_layout(new_layout);
+        }
+    }
+}
+
+static void setting_onednn_conv(program::ptr prog, layout_optimizer& lo, const primitive_id& id, layout new_layout) {
     auto itr = prog->get_processing_order().begin();
     while (itr != prog->get_processing_order().end()) {
         auto node_ptr = *itr++;
@@ -176,7 +186,7 @@ TEST_P(test_fused_reorder_deep_depth, no_removal_for_deep_depth_conv)
     program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
     layout_optimizer lo = layout_optimizer();
     lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
-    setting_node(prog, lo, "conv", conv_layout);
+    setting_node(prog, "conv", conv_layout);
 
     auto itr = prog->get_processing_order().begin();
     while (itr != prog->get_processing_order().end()) {
@@ -273,7 +283,7 @@ TEST_P(test_can_fuse_reorder_onednn, reorder_for_firstconv_onednn)
     program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
     layout_optimizer lo = layout_optimizer();
     lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
-    setting_node(prog, lo, "conv", conv_layout);
+    setting_node(prog, "conv", conv_layout);
 
     auto itr = prog->get_processing_order().begin();
     while (itr != prog->get_processing_order().end()) {
@@ -329,7 +339,7 @@ TEST_P(test_can_fuse_reorder_onednn_errata, errata_case_for_conv)
     program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
     layout_optimizer lo = layout_optimizer();
     lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
-    setting_node(prog, lo, "conv", p.conv_layout);
+    setting_onednn_conv(prog, lo, "conv", p.conv_layout);
 
     auto itr = prog->get_processing_order().begin();
     while (itr != prog->get_processing_order().end()) {
