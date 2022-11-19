@@ -225,3 +225,18 @@ class TestConvertingConvertArgumentsToString(UnitTestWithMockedTelemetry):
         self.assertRaises(Exception, layout_param_to_str, **{"value": {"op": Dimension(1)}})
         self.assertRaises(Exception, layout_param_to_str, **{"value": {("a", "b"): Layout("nhwc")}})
         self.assertRaises(Exception, layout_param_to_str, **{"value": Dimension(1)})
+
+        layout = ["nhwc", "[n,c]"]
+        self.assertTrue(layout_param_to_str(layout) == "nhwc,[n,c]")
+
+        layout = ["abc->cab", "..nc"]
+        self.assertTrue(layout_param_to_str(layout) == "abc->cab,..nc")
+
+        layout_map1 = LayoutMap(source_layout=Layout("n??"), target_layout=None)
+        layout = [layout_map1, "..nc"]
+        self.assertTrue(layout_param_to_str(layout) == "[N,?,?],..nc")
+
+        layout_map2 = LayoutMap(source_layout=Layout("nhwc"), target_layout=("nchw"))
+        layout_map3 = LayoutMap(source_layout="abc", target_layout="cab")
+        layout = [layout_map2, layout_map3]
+        self.assertTrue(layout_param_to_str(layout) == "[N,H,W,C]->nchw,abc->cab")
