@@ -321,7 +321,7 @@ However, if your model contains more than one input, Model Optimizer is able to 
 
 #### Q49. What does the message "Data type is unsupported" mean? <a name="question-49"></a>
 
-**A** : Model Optimizer cannot read the value of the specified data type. Currently, the following types are supported: bool, float16, float32, double, int8, int16, int32, int64, uint8, uint16, uint32, uint64, str.
+**A** : Model Optimizer cannot read the value with the specified data type. Currently, the following types are supported: bool, float16, float32, double, int8, int16, int32, int64, uint8, uint16, uint32, uint64, str.
 
 #### Q50. What does the message "No node with name ..." mean? <a name="question-50"></a>
 
