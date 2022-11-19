@@ -557,10 +557,9 @@ mo_convert_params = {
         'ModelOptimizer to change layout, for example: '
         '--layout "name1(nhwc->nchw),name2(cn->nc)". Also "*" in long layout form can be'
         ' used to fuse dimensions, for example "[n,c,...]->[n*c,...]".', '', '', layout_param_to_str),
-    'data_type': ParamDescription(
-        'Data type for all intermediate tensors and weights. ' +
-        'If original model is in FP32 and --data_type=FP16 is specified, all model weights ' +
-        'and biases are compressed to FP16.', '', '', None),
+    'compress_to_fp16': ParamDescription(
+        'If the original model has FP32 weights or biases, they are compressed to FP16. '
+        'All intermediate data is kept in original precision.', '', '', None),
     'transform': ParamDescription(
         'Apply additional transformations. {}' +
         '"--transform transformation_name1[args],transformation_name2..." ' +
@@ -1011,9 +1010,19 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               default=())
     # TODO: isn't it a weights precision type
     common_group.add_argument('--data_type',
-                              help=mo_convert_params_common['data_type'].description,
+                              help='[DEPRECATED] Data type for model weights and biases. '
+                                   'If original model has FP32 weights or biases and --data_type=FP16 is specified, '
+                                   'FP32 model weights and biases are compressed to FP16. '
+                                   'All intermediate data is kept in original precision.',
                               choices=["FP16", "FP32", "half", "float"],
-                              default='float')
+                              default='float',
+                              action=DeprecatedOptionCommon)
+    common_group.add_argument('--compress_to_fp16',
+                              help=mo_convert_params_common['compress_to_fp16'].description,
+                              type=check_bool,
+                              nargs="?",
+                              const=True,
+                              default=False)
     common_group.add_argument('--transform',
                               help=mo_convert_params_common['transform'].description.format(
                                   mo_convert_params_common['transform'].possible_types_command_line),
