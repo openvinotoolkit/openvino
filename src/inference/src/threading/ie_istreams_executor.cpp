@@ -33,15 +33,17 @@ std::vector<std::string> IStreamsExecutor::Config::SupportedKeys() const {
         CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG),
         CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL),
         CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET),
+        CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD),
         ov::num_streams.name(),
         ov::inference_num_threads.name(),
         ov::affinity.name(),
     };
 }
-int IStreamsExecutor::Config::GetDefaultNumStreams() {
+int IStreamsExecutor::Config::GetDefaultNumStreams(const bool enable_hyper_thread) {
     const int sockets = static_cast<int>(getAvailableNUMANodes().size());
     // bare minimum of streams (that evenly divides available number of core)
-    const int num_cores = sockets == 1 ? parallel_get_max_threads() : getNumberOfCPUCores();
+    const int num_cores = sockets == 1 ? (enable_hyper_thread ? parallel_get_max_threads() : getNumberOfCPUCores())
+                                       : getNumberOfCPUCores();
     if (0 == num_cores % 4)
         return std::max(4, num_cores / 4);
     else if (0 == num_cores % 5)
@@ -280,6 +282,14 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
                        << ". Expected only non negative numbers";
         }
         _small_core_offset = val_i;
+    } else if (key == CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD)) {
+        if (value == CONFIG_VALUE(YES)) {
+            _enable_hyper_thread = true;
+        } else if (value == CONFIG_VALUE(NO)) {
+            _enable_hyper_thread = false;
+        } else {
+            OPENVINO_UNREACHABLE("Unsupported enable hyper thread type");
+        }
     } else {
         IE_THROW() << "Wrong value for property key " << key;
     }
@@ -328,6 +338,8 @@ Parameter IStreamsExecutor::Config::GetConfig(const std::string& key) const {
         return {std::to_string(_threads_per_stream_small)};
     } else if (key == CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)) {
         return {std::to_string(_small_core_offset)};
+    } else if (key == CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD)) {
+        return {_enable_hyper_thread ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO)};
     } else {
         IE_THROW() << "Wrong value for property key " << key;
     }
@@ -445,18 +457,19 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
                        << streamExecutorConfig._threads_per_stream_small << ")";
     }
 #endif
-    const auto hwCores = !bLatencyCase && numaNodesNum == 1
-                             // throughput case on a single-NUMA node machine uses all available cores
-                             ? parallel_get_max_threads()
-                             // in the rest of cases:
-                             //    multi-node machine
-                             //    or
-                             //    latency case, single-node yet hybrid case that uses
-                             //      all core types
-                             //      or
-                             //      big-cores only, but the #cores is "enough" (pls see the logic above)
-                             // it is usually beneficial not to use the hyper-threading (which is default)
-                             : num_cores_default;
+    const auto hwCores =
+        !bLatencyCase && numaNodesNum == 1
+            // throughput case on a single-NUMA node machine uses all available cores
+            ? (streamExecutorConfig._enable_hyper_thread ? parallel_get_max_threads() : num_cores_default)
+            // in the rest of cases:
+            //    multi-node machine
+            //    or
+            //    latency case, single-node yet hybrid case that uses
+            //      all core types
+            //      or
+            //      big-cores only, but the #cores is "enough" (pls see the logic above)
+            // it is usually beneficial not to use the hyper-threading (which is default)
+            : num_cores_default;
     const auto threads =
         streamExecutorConfig._threads ? streamExecutorConfig._threads : (envThreads ? envThreads : hwCores);
     streamExecutorConfig._threadsPerStream =

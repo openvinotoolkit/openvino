@@ -455,40 +455,100 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     std::mutex load_mutex;
     std::vector<Task> loads;
     std::once_flag readNetworkFlag;
+
+    auto loadInferEngTask = [&](DeviceInformation& p) {
+        auto tmpiter = fullConfig.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
+        if (tmpiter != fullConfig.end()) {
+            if (tmpiter->second == PluginConfigParams::NO) {
+                LOG_INFO_TAG("set %s=%s", tmpiter->first.c_str(), tmpiter->second.c_str());
+                multiSContext->_batchingDisabled = true;
+            }
+            p.config.insert({tmpiter->first, tmpiter->second});
+        }
+        insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), p.deviceName, p.config);
+        insertPropToConfig(CONFIG_KEY(CACHE_DIR), p.deviceName, p.config);
+        const auto& deviceName = p.deviceName;
+        const auto& deviceConfig = p.config;
+        SoExecutableNetworkInternal exec_net;
+        LOG_DEBUG_TAG("load network to device:%s", deviceName.c_str());
+        if (modelPath.empty()) {
+            exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
+        } else if (GetCore()->DeviceSupportsImportExport(deviceName)) {
+            exec_net = GetCore()->LoadNetwork(modelPath, deviceName, deviceConfig);
+        } else {
+            std::call_once(readNetworkFlag, [&]() {
+                network = GetCore()->ReadNetwork(modelPath, std::string());
+            });
+            exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
+        }
+
+        try {
+            std::string sStreamNums = "";
+            std::string sThreadNums = "";
+            if (deviceName.find("CPU") != std::string::npos) {
+                sStreamNums = exec_net->GetMetric(ov::num_streams.name()).as<std::string>();
+                sThreadNums = exec_net->GetMetric(ov::inference_num_threads.name()).as<std::string>();
+            } else if (deviceName.find("GPU") != std::string::npos) {
+                sStreamNums = exec_net->GetConfig(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS).as<std::string>();
+                sThreadNums = exec_net->GetConfig(GPUConfigParams::KEY_GPU_MAX_NUM_THREADS).as<std::string>();
+            }
+
+            // print CPU or GPU streams num and threads num
+            if (!sStreamNums.empty() && !sThreadNums.empty()) {
+                LOG_INFO_TAG("after load network, %s streamNums:%s, %s threadNums:%s",
+                             deviceName.c_str(),
+                             sStreamNums.c_str(),
+                             deviceName.c_str(),
+                             sThreadNums.c_str());
+            }
+        } catch (...) {
+            LOG_DEBUG_TAG("deviceName:%s cannot get streamNums and threadNums from exec_net", deviceName.c_str());
+        }
+        std::unique_lock<std::mutex> lock{load_mutex};
+        executableNetworkPerDevice.insert({deviceName, exec_net});
+        multiNetworkConfig.insert(deviceConfig.begin(), deviceConfig.end());
+    };
+
+    // Check if CPU is in device list
+    auto iterCPU = std::find_if(metaDevices.begin(), metaDevices.end(), [&](DeviceInformation& d) {
+        return d.deviceName.find("CPU") != std::string::npos;
+    });
+    // Load devices other than CPU first
     for (auto& p : metaDevices) {
+        if (iterCPU != metaDevices.end() && p.deviceName == iterCPU->deviceName) {
+            continue;
+        }
         loads.push_back([&]() {
-            auto tmpiter = fullConfig.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
-            if (tmpiter != fullConfig.end()) {
-                if (tmpiter->second == PluginConfigParams::NO)
-                    multiSContext->_batchingDisabled = true;
-                p.config.insert({tmpiter->first, tmpiter->second});
-            }
-            insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), p.deviceName, p.config);
-            insertPropToConfig(CONFIG_KEY(CACHE_DIR), p.deviceName, p.config);
-            const auto& deviceName = p.deviceName;
-            const auto& deviceConfig = p.config;
-            SoExecutableNetworkInternal exec_net;
-            if (modelPath.empty()) {
-                exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
-            } else if (GetCore()->DeviceSupportsImportExport(deviceName)) {
-                exec_net = GetCore()->LoadNetwork(modelPath, deviceName, deviceConfig);
-            } else {
-                std::call_once(readNetworkFlag, [&]() {
-                    network = GetCore()->ReadNetwork(modelPath, std::string());
-                });
-                exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
-            }
-            std::unique_lock<std::mutex> lock{load_mutex};
-            executableNetworkPerDevice.insert({deviceName, exec_net});
-            multiNetworkConfig.insert(deviceConfig.begin(), deviceConfig.end());
+            loadInferEngTask(p);
         });
     }
+
     auto executor = executorManager()->getIdleCPUStreamsExecutor(
-            IStreamsExecutor::Config{"MultiDeviceAsyncLoad",
-                                     static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
-                                     0 /*default threads per stream, workaround for ticket 62376*/,
-                                     IStreamsExecutor::ThreadBindingType::NONE});
-    executor->runAndWait(loads);
+        IStreamsExecutor::Config{"MultiDeviceAsyncLoad",
+                                 static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
+                                 0 /*default threads per stream, workaround for ticket 62376*/,
+                                 IStreamsExecutor::ThreadBindingType::NONE});
+    if (loads.size() > 0) {
+        // Wait for the device to load the network
+        executor->runAndWait(loads);
+        loads.clear();
+    }
+
+    // Finally load the CPU
+    if (iterCPU != metaDevices.end()) {
+        if (!executableNetworkPerDevice.empty() && iterCPU->config.find(ov::affinity.name()) == iterCPU->config.end()) {
+            LOG_DEBUG_TAG("set affinity to NUMA and disable hyper thread for CPU");
+            // If the other devices load successfully and no user set affinity then set NUMA to CPU
+            iterCPU->config.insert({ov::affinity.name(), ov::affinity(ov::Affinity::NUMA).second.as<std::string>()});
+            iterCPU->config.insert({CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD), CONFIG_VALUE(NO)});
+        }
+        loads.push_back([&]() {
+            loadInferEngTask(*iterCPU);
+        });
+        // Wait for CPU to load the network
+        executor->runAndWait(loads);
+    }
+
     if (executableNetworkPerDevice.empty())
         IE_THROW(NotFound) << "Failed to load network to any device "
                            <<  "that the " << GetName() << " device is initialized to work with";
