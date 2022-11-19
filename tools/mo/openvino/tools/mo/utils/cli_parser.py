@@ -1020,7 +1020,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               default='float',
                               action=DeprecatedOptionCommon)
     common_group.add_argument('--compress_to_fp16',
-                              help=mo_convert_params['compress_to_fp16'].description,
+                              help=mo_convert_params_common['compress_to_fp16'].description,
                               type=check_bool,
                               nargs="?",
                               const=True,
