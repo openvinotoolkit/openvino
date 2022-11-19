@@ -53,4 +53,52 @@ std::string data_inst::to_string(data_node const& node) {
 data_inst::typed_primitive_inst(network& network, data_node const& node)
     : parent(network, node, attach_or_copy_data(network, node.get_attached_memory_ptr())) {}
 
+// Cache blob format:
+//     [ kernel_impl_params ]
+//     [ output memory information ]
+//     [ data stored in memory ]
+void data_inst::save(cldnn::BinaryOutputBuffer& ob) const {
+    _impl_params->save(ob);
+    ob << _outputs[0]->get_layout();
+
+    const auto _allocation_type = _outputs[0]->get_allocation_type();
+    ob << make_data(&_allocation_type, sizeof(_allocation_type));
+
+    size_t data_size = _outputs[0]->size();
+    ob << cldnn::make_data(&data_size, sizeof(size_t));
+
+    if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
+        ob << cldnn::make_data(_outputs[0]->buffer_ptr(), data_size);
+    } else {
+        mem_lock<char, mem_lock_type::read> lock{_outputs[0], get_node().get_program().get_stream()};
+        ob << cldnn::make_data(lock.data(), data_size);
+    }
+}
+
+void data_inst::load(BinaryInputBuffer& ib) {
+    _type = cldnn::data::type_id();
+    _impl_params.release();
+    _impl_params = make_unique<kernel_impl_params>();
+    _impl_params->load(ib);
+
+    layout output_layout = layout(cldnn::data_types::bin, cldnn::format::any, cldnn::tensor());
+    ib >> output_layout;
+
+    allocation_type _allocation_type;
+    ib >> make_data(&_allocation_type, sizeof(_allocation_type));
+
+    size_t data_size;
+    ib >> cldnn::make_data(&data_size, sizeof(size_t));
+    _outputs[0] = get_network().get_memory_pool().get_memory(output_layout, _allocation_type, false);
+
+    if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
+        ib >> cldnn::make_data(_outputs[0]->buffer_ptr(), data_size);
+    } else {
+        std::vector<uint8_t> _buf;
+        _buf.resize(data_size);
+        ib >> cldnn::make_data(_buf.data(), data_size);
+        _outputs[0]->copy_from(get_network().get_stream(), _buf.data());
+    }
+}
+
 }  // namespace cldnn

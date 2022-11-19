@@ -1060,12 +1060,6 @@ static primitive_id find_dep_by_mem(const cldnn::primitive_inst* p_inst, memory&
 
 // Cache blob format:
 //     [ primitive type ]
-//  for DATA_INST
-//     [ primtive_type_string ]
-//     [ kernel_impl_params ]
-//     [ output memory information ]
-//     [ data stored in memory ]
-//  for EXECUTABLE_INST
 //     [ kernel_arguments ]
 //     [ kernel_impl_params ]
 //     [ primitive_impl ]
@@ -1075,81 +1069,56 @@ static primitive_id find_dep_by_mem(const cldnn::primitive_inst* p_inst, memory&
 //     [ execution dependency information ]
 //     [ intermediate memory information ]
 void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
-    if (type() == cldnn::data::type_id() ||
-       (type() == cldnn::mutable_data::type_id() && _impl == nullptr)) {
-        std::string _object_type = "DATA_INST";
-        ob << _object_type;
-        ob << _node->get_primitive()->type_string();
-        _impl_params->save(ob);
-        ob << _outputs[0]->get_layout();
+    kernel_arguments_data args = _impl->get_arguments(*this);
+    kernel_arguments_data_idx args_idx;
+    convert_args(args, args_idx);
+    _impl->set_arguments(args_idx);
 
-        const auto _allocation_type = _outputs[0]->get_allocation_type();
+    _impl_params->save(ob);
+    ob.setKernlImplParams(_impl_params.get());
+    ob << _impl;
+
+    ob << _node_output_layout;
+    ob << has_mutable_input();
+    ob << mem_allocated();
+    ob << is_dynamic();
+    ob << _node->get_primitive()->type_string();
+    ob << id();
+    ob << org_id();
+    ob << is_input();
+    ob << is_output();
+    ob << inputs_memory_count();
+    ob << outputs_memory_count();
+    ob << get_fused_mem_count();
+    ob << get_fused_mem_offset();
+    ob << can_be_optimized();
+    ob << can_share_buffer();
+    ob << is_constant();
+
+    ob << _outputs[0]->get_layout();
+    const auto _allocation_type = _outputs[0]->get_allocation_type();
+    ob << make_data(&_allocation_type, sizeof(_allocation_type));
+
+    ob << _node->get_memory_dependencies();
+
+    ob << _deps.size();
+    for (const auto& dep : _deps) {
+        ob << dep->id();
+    }
+
+    ob << _exec_deps.size();
+    for (const auto& dep : _exec_deps) {
+        ob << dep->id();
+    }
+
+    if (!mem_allocated())
+        ob << find_dep_by_mem(this, output_memory());
+
+    ob << _intermediates_memory.size();
+    for (const auto& ibuf : _intermediates_memory) {
+        ob << ibuf->get_layout();
+        const auto _allocation_type = ibuf->get_allocation_type();
         ob << make_data(&_allocation_type, sizeof(_allocation_type));
-
-        size_t data_size = _outputs[0]->size();
-        ob << cldnn::make_data(&data_size, sizeof(size_t));
-
-        if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
-            ob << cldnn::make_data(_outputs[0]->buffer_ptr(), data_size);
-        } else {
-            mem_lock<char, mem_lock_type::read> lock{_outputs[0], get_node().get_program().get_stream()};
-            ob << cldnn::make_data(lock.data(), data_size);
-        }
-    } else {
-        std::string _object_type = "EXECUTABLE_INST";
-        ob << _object_type;
-
-        kernel_arguments_data args = _impl->get_arguments(*this);
-        kernel_arguments_data_idx args_idx;
-        convert_args(args, args_idx);
-        _impl->set_arguments(args_idx);
-
-        _impl_params->save(ob);
-        ob.setKernlImplParams(_impl_params.get());
-        ob << _impl;
-
-        ob << _node_output_layout;
-        ob << has_mutable_input();
-        ob << mem_allocated();
-        ob << is_dynamic();
-        ob << _node->get_primitive()->type_string();
-        ob << id();
-        ob << org_id();
-        ob << is_input();
-        ob << is_output();
-        ob << inputs_memory_count();
-        ob << outputs_memory_count();
-        ob << get_fused_mem_count();
-        ob << get_fused_mem_offset();
-        ob << can_be_optimized();
-        ob << can_share_buffer();
-        ob << is_constant();
-
-        ob << _outputs[0]->get_layout();
-        const auto _allocation_type = _outputs[0]->get_allocation_type();
-        ob << make_data(&_allocation_type, sizeof(_allocation_type));
-
-        ob << _node->get_memory_dependencies();
-
-        ob << _deps.size();
-        for (const auto& dep : _deps) {
-            ob << dep->id();
-        }
-
-        ob << _exec_deps.size();
-        for (const auto& dep : _exec_deps) {
-            ob << dep->id();
-        }
-
-        if (!mem_allocated())
-            ob << find_dep_by_mem(this, output_memory());
-
-        ob << _intermediates_memory.size();
-        for (const auto& ibuf : _intermediates_memory) {
-            ob << ibuf->get_layout();
-            const auto _allocation_type = ibuf->get_allocation_type();
-            ob << make_data(&_allocation_type, sizeof(_allocation_type));
-        }
     }
 }
 
@@ -1193,110 +1162,78 @@ int32_t primitive_inst::get_index_in_deps(memory::cptr arg) const {
 }
 
 void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
-    std::string _object_type;
-    ib >> _object_type;
+    _impl_params.release();
+    _impl_params = make_unique<kernel_impl_params>();
+    _impl_params->load(ib);
+    _impl.release();
+    ib.setKernlImplParams(_impl_params.get());
+    ib >> _impl;
 
-    if (_object_type.compare("DATA_INST") == 0) {
-        std::string type_str;
-        ib >> type_str;
-        _type = cldnn::prim_map_storage::instance().get_type_id(type_str);
+    ib >> _node_output_layout;
+    ib >> _has_mutable_input;
+    ib >> _mem_allocated;
+    ib >> _is_dynamic;
+    std::string type_str;
+    ib >> type_str;
+    _type = cldnn::prim_map_storage::instance().get_type_id(type_str);
+    ib >> _id;
+    ib >> _org_id;
+    ib >> _is_input;
+    ib >> _is_output;
+    ib >> _inputs_memory_count;
+    ib >> _outputs_memory_count;
+    ib >> _fused_mem_count;
+    ib >> _fused_mem_offset;
+    ib >> _can_be_optimized;
+    ib >> _can_share_buffer;
+    ib >> _is_constant;
 
-        _impl_params.release();
-        _impl_params = make_unique<kernel_impl_params>();
-        _impl_params->load(ib);
+    layout output_layout = layout(cldnn::data_types::bin, cldnn::format::any, cldnn::tensor());
+    ib >> output_layout;
 
-        layout output_layout = layout(cldnn::data_types::bin, cldnn::format::any, cldnn::tensor());
-        ib >> output_layout;
+    allocation_type _allocation_type;
+    ib >> make_data(&_allocation_type, sizeof(_allocation_type));
 
+    std::set<primitive_id> _node_mem_deps;
+    ib >> _node_mem_deps;
+
+    size_t vector_size = 0UL;
+    ib >> vector_size;
+    _dep_ids.resize(vector_size);
+    for (auto& el : _dep_ids) {
+        ib >> el;
+    }
+
+    ib >> vector_size;
+    _exec_dep_ids.resize(vector_size);
+    for (auto& el : _exec_dep_ids) {
+        ib >> el;
+    }
+
+    _outputs[0] = nullptr;
+    if (!_mem_allocated) {
+        std::string dep_id;
+        ib >> dep_id;
+        if (dep_id.compare("NOT_FOUND") != 0)
+            _outputs[0] = get_network().get_engine().reinterpret_buffer(get_network().get_primitive(dep_id)->output_memory(), output_layout);
+    } else {
+        if ((!can_share_buffer()) || can_be_optimized() || is_output()) {
+            _outputs[0] = get_network().get_engine().allocate_memory(output_layout, _allocation_type);
+        } else {
+            _outputs[0] = get_network().get_memory_pool().get_memory(output_layout, id(), get_network_id(), _node_mem_deps, _allocation_type, true);
+        }
+    }
+    _output_changed = false;
+
+    ib >> vector_size;
+    _intermediates_memory.resize(vector_size);
+    for (size_t i = 0; i < vector_size; i++) {
+        layout ibuf_layout = layout(cldnn::data_types::bin, cldnn::format::any, cldnn::tensor());
+        ib >> ibuf_layout;
         allocation_type _allocation_type;
         ib >> make_data(&_allocation_type, sizeof(_allocation_type));
 
-        size_t data_size;
-        ib >> cldnn::make_data(&data_size, sizeof(size_t));
-        _outputs[0] = get_network().get_memory_pool().get_memory(output_layout, _allocation_type, false);
-
-        if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
-            ib >> cldnn::make_data(_outputs[0]->buffer_ptr(), data_size);
-        } else {
-            std::vector<uint8_t> _buf;
-            _buf.resize(data_size);
-            ib >> cldnn::make_data(_buf.data(), data_size);
-            _outputs[0]->copy_from(get_network().get_stream(), _buf.data());
-        }
-    } else if (_object_type.compare("EXECUTABLE_INST") == 0) {
-        _impl_params.release();
-        _impl_params = make_unique<kernel_impl_params>();
-        _impl_params->load(ib);
-        _impl.release();
-        ib.setKernlImplParams(_impl_params.get());
-        ib >> _impl;
-
-        ib >> _node_output_layout;
-        ib >> _has_mutable_input;
-        ib >> _mem_allocated;
-        ib >> _is_dynamic;
-        std::string type_str;
-        ib >> type_str;
-        _type = cldnn::prim_map_storage::instance().get_type_id(type_str);
-        ib >> _id;
-        ib >> _org_id;
-        ib >> _is_input;
-        ib >> _is_output;
-        ib >> _inputs_memory_count;
-        ib >> _outputs_memory_count;
-        ib >> _fused_mem_count;
-        ib >> _fused_mem_offset;
-        ib >> _can_be_optimized;
-        ib >> _can_share_buffer;
-        ib >> _is_constant;
-
-        layout output_layout = layout(cldnn::data_types::bin, cldnn::format::any, cldnn::tensor());
-        ib >> output_layout;
-
-        allocation_type _allocation_type;
-        ib >> make_data(&_allocation_type, sizeof(_allocation_type));
-
-        std::set<primitive_id> _node_mem_deps;
-        ib >> _node_mem_deps;
-
-        size_t vector_size = 0UL;
-        ib >> vector_size;
-        _dep_ids.resize(vector_size);
-        for (auto& el : _dep_ids) {
-            ib >> el;
-        }
-
-        ib >> vector_size;
-        _exec_dep_ids.resize(vector_size);
-        for (auto& el : _exec_dep_ids) {
-            ib >> el;
-        }
-
-        _outputs[0] = nullptr;
-        if (!_mem_allocated) {
-            std::string dep_id;
-            ib >> dep_id;
-            if (dep_id.compare("NOT_FOUND") != 0)
-                _outputs[0] = get_network().get_engine().reinterpret_buffer(get_network().get_primitive(dep_id)->output_memory(), output_layout);
-        } else {
-            if ((!can_share_buffer()) || can_be_optimized() || is_output()) {
-                _outputs[0] = get_network().get_engine().allocate_memory(output_layout, _allocation_type);
-            } else {
-                _outputs[0] = get_network().get_memory_pool().get_memory(output_layout, id(), get_network_id(), _node_mem_deps, _allocation_type, true);
-            }
-        }
-        _output_changed = false;
-
-        ib >> vector_size;
-        _intermediates_memory.resize(vector_size);
-        for (size_t i = 0; i < vector_size; i++) {
-            layout ibuf_layout = layout(cldnn::data_types::bin, cldnn::format::any, cldnn::tensor());
-            ib >> ibuf_layout;
-            allocation_type _allocation_type;
-            ib >> make_data(&_allocation_type, sizeof(_allocation_type));
-
-            _intermediates_memory[i] = get_network().get_engine().allocate_memory(ibuf_layout, _allocation_type);
-        }
+        _intermediates_memory[i] = get_network().get_engine().allocate_memory(ibuf_layout, _allocation_type);
     }
 }
 }  // namespace cldnn
