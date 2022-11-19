@@ -63,7 +63,9 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
     Precision precision = outputData->getPrecision();
     std::string outputID = inputs[0];
 
-    if (p.use_new_shape_infer()) {
+    if (p.use_new_shape_infer()
+        && !ngraph::is_type<ngraph::op::v1::Split>(prev)
+        && !ngraph::is_type<ngraph::op::v1::VariadicSplit>(prev)) {
         auto reorder_primitive = cldnn::reorder(outLayerName,
                                                 outputID,
                                                 FormatFromLayout(outputlayout),
