@@ -841,3 +841,167 @@ TEST(TransformationTests, LowLatencyLSTM_LLTv1_LLTv2) {
         EXPECT_NO_THROW(manager.run_passes(f));
     }
 }
+
+namespace {
+using OutPtr = Output<Node>;
+enum class RNNType : size_t {
+    RNN = 1,
+    GRU = 3,
+    LSTM = 4,
+};
+
+struct LLT2Params {
+    RNNType rnn_type;
+    size_t seq_len;
+};
+
+struct RNNAttributes {
+    size_t batch;
+    size_t num_dir;
+    size_t hidden_size;
+    size_t input_size;
+    size_t seq_len;
+};
+
+OutputVector create_sequence(RNNType rnn_type, RNNAttributes attrs, const OutPtr& X, const OutPtr& H, const OutPtr& C) {
+    auto gate = static_cast<size_t>(rnn_type);
+    auto shape_of = std::make_shared<ShapeOf>(X);
+    auto batch_dimension = std::make_shared<Gather>(
+            shape_of,
+            Constant::create(ngraph::element::i64, {1}, {0}),
+            Constant::create(ngraph::element::i64, {}, {0}));
+    auto seq_len_dim = std::make_shared<Gather>(
+            shape_of,
+            Constant::create(element::i64, {1}, {1}),
+            Constant::create(element::i64, {}, {0}));
+    auto seq_lengths = std::make_shared<Broadcast>(seq_len_dim, batch_dimension);
+    auto W = make_shared<Constant>(element::f32, Shape{attrs.num_dir, gate * attrs.hidden_size, attrs.input_size}, 0);
+    auto R = make_shared<Constant>(element::f32, Shape{attrs.num_dir, gate * attrs.hidden_size, attrs.hidden_size}, 0);
+    auto B = make_shared<Constant>(element::f32, Shape{attrs.num_dir, gate * attrs.hidden_size}, 0);
+
+    shared_ptr<Node> sequence;
+    if (rnn_type == RNNType::LSTM) {
+        sequence = make_shared<LSTMSequence>(X, H, C, seq_lengths, W, R, B, attrs.hidden_size, LSTMSequence::direction::FORWARD);
+    } else if (rnn_type == RNNType::RNN) {
+        sequence = make_shared<RNNSequence>(X, H, seq_lengths, W, R, B, attrs.hidden_size, op::RecurrentSequenceDirection::FORWARD);
+    } else if (rnn_type == RNNType::GRU) {
+        sequence = make_shared<GRUSequence>(X, H, seq_lengths, W, R, B, attrs.hidden_size, op::RecurrentSequenceDirection::FORWARD);
+    }
+    return sequence->outputs();
+}
+
+shared_ptr<ReadValue> create_read_value(const shared_ptr<Parameter>& param, const VariablePtr& variable) {
+    auto const_zero = make_shared<Constant>(param->get_element_type(), ov::Shape{1}, 0);
+    auto shape_of = make_shared<ShapeOf>(param);
+    auto broadcast = make_shared<Broadcast>(const_zero, shape_of);
+    auto read_value = make_shared<ReadValue>(broadcast, variable);
+    return read_value;
+}
+
+OutputVector create_cell_reference(RNNType rnn_type, RNNAttributes attrs, const OutPtr& X, const OutPtr& H, const OutPtr& C) {
+    auto gate = static_cast<size_t>(rnn_type);
+    auto axis_0 = Constant::create(element::i32, Shape{1}, {0});
+    auto axis_1 = Constant::create(element::i32, Shape{1}, {1});
+
+    shared_ptr<Node> squeeze_C;
+    if (rnn_type == RNNType::LSTM) {
+        squeeze_C = make_shared<Squeeze>(C, axis_1);
+    }
+
+    auto squeeze_X = make_shared<Squeeze>(X, axis_1);
+    auto squeeze_H = make_shared<Squeeze>(H, axis_1);
+
+    auto W = make_shared<Constant>(element::f32, Shape{attrs.num_dir, gate * attrs.hidden_size, attrs.input_size}, 0);
+    auto R = make_shared<Constant>(element::f32, Shape{attrs.num_dir, gate * attrs.hidden_size, attrs.hidden_size}, 0);
+    auto B = make_shared<Constant>(element::f32, Shape{attrs.num_dir, gate * attrs.hidden_size}, 0);
+
+    auto squeeze_W = std::make_shared<Squeeze>(W, axis_0);
+    auto squeeze_R = std::make_shared<Squeeze>(R, axis_0);
+    auto squeeze_B = std::make_shared<Squeeze>(B, axis_0);
+
+    shared_ptr<Node> cell;
+    if (rnn_type == RNNType::LSTM) {
+        cell = make_shared<LSTMCell>(squeeze_X, squeeze_H, squeeze_C, squeeze_W, squeeze_R, squeeze_B, attrs.hidden_size);
+    } else if (rnn_type == RNNType::RNN) {
+        cell = make_shared<RNNCell>(squeeze_X, squeeze_H, squeeze_W, squeeze_R, squeeze_B, attrs.hidden_size);
+    } else if (rnn_type == RNNType::GRU) {
+        cell = make_shared<GRUCell>(squeeze_X, squeeze_H, squeeze_W, squeeze_R, squeeze_B, attrs.hidden_size);
+    }
+
+    auto axis_12 = Constant::create(element::i32, Shape{2}, {1, 2});
+    auto unsqueeze_Y = make_shared<Unsqueeze>(cell->output(0), axis_12);
+    auto unsqueeze_H = make_shared<Unsqueeze>(cell->output(0), axis_1);
+    OutputVector outputs = {unsqueeze_Y, unsqueeze_H};
+
+    if (rnn_type == RNNType::LSTM) {
+        auto unsqueeze_C = make_shared<Unsqueeze>(cell->output(1), axis_1);
+        outputs.push_back(unsqueeze_C);
+    }
+    return outputs;
+}
+} // namespace
+
+class LLT2Sequence
+        : public WithParamInterface<LLT2Params>,
+          public TransformationTestsF {
+};
+
+TEST_P(LLT2Sequence, RNNLowLatency_v2) {
+    const auto& p = GetParam();
+    RNNAttributes attrs = {1, 1, 10, 4, p.seq_len};
+    {
+        auto X = make_shared<Parameter>(element::f32, Shape{attrs.batch, attrs.seq_len, attrs.input_size});
+        auto H = make_shared<Parameter>(element::f32, Shape{attrs.batch, attrs.num_dir, attrs.hidden_size});
+        auto C = make_shared<Parameter>(element::f32, Shape{attrs.batch, attrs.num_dir, attrs.hidden_size});
+        auto outputs = create_sequence(p.rnn_type, attrs, X, H, C);
+        ParameterVector params{X, H};
+        if (p.rnn_type == RNNType::LSTM) {
+            params.push_back(C);
+        }
+        model = make_shared<ov::Model>(outputs, params);
+        manager.register_pass<pass::LowLatency2>();
+    }
+
+    {
+        auto X = make_shared<Parameter>(element::f32, Shape{attrs.batch, attrs.seq_len, attrs.input_size});
+        auto H = make_shared<Parameter>(element::f32, Shape{attrs.batch, attrs.num_dir, attrs.hidden_size});
+        auto C = make_shared<Parameter>(element::f32, Shape{attrs.batch, attrs.num_dir, attrs.hidden_size});
+        auto variable_h = make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "node_28/variable_0"});
+        auto variable_c = make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "node_28/variable_1"});
+        auto read_val_H = create_read_value(H, variable_h);
+        auto read_val_C = create_read_value(C, variable_c);
+
+        OutputVector outputs;
+        if (p.seq_len == 1) {
+            outputs = create_cell_reference(p.rnn_type, attrs, X, read_val_H, read_val_C);
+        } else {
+            outputs = create_sequence(p.rnn_type, attrs, X, read_val_H, read_val_C);
+        }
+
+        SinkVector sinks;
+        auto assign_h = make_shared<Assign>(outputs[1], variable_h);
+        sinks.push_back(assign_h);
+        assign_h->add_control_dependency(read_val_H);
+
+        ParameterVector params = {X, H};
+        if (p.rnn_type == RNNType::LSTM) {
+            params.push_back(C);
+            auto assign_c = make_shared<Assign>(outputs[2], variable_c);
+            assign_c->add_control_dependency(read_val_C);
+            sinks.push_back(assign_c);
+        }
+        model_ref = make_shared<ov::Model>(outputs, sinks, params);
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+static const std::vector<LLT2Params> llt_v2_params = {
+        LLT2Params{RNNType::RNN, 1},
+        LLT2Params{RNNType::GRU, 1},
+        LLT2Params{RNNType::LSTM, 1},
+        LLT2Params{RNNType::RNN, 10},
+        LLT2Params{RNNType::GRU, 10},
+        LLT2Params{RNNType::LSTM, 10},
+};
+
+INSTANTIATE_TEST_SUITE_P(LLT2Sequence, LLT2Sequence, ValuesIn(llt_v2_params));

@@ -69,9 +69,9 @@ ov::pass::EliminateDuplicateTIInputs::EliminateDuplicateTIInputs() {
 
         const auto& body = ti->get_function();
         // re-connect outputs of duplicate Parameters
+        auto parameters = body->get_parameters();
         for (const auto& it : need_to_eliminate) {
             for (const auto& redundant : it.second) {
-                auto parameters = body->get_parameters();
                 parameters[redundant->m_body_parameter_index]->output(0).replace(
                     parameters[it.first->m_body_parameter_index]);
             }

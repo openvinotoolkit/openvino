@@ -177,7 +177,6 @@ shared_ptr<ov::opset9::Assign> replace_with_memory(const ov::Input<ov::Node>& in
     }
     auto read_value = to.make<ReadValue>(read_value_in, variable);
     input.replace_source_output(read_value->output(0));
-    read_value->set_friendly_name(variable_name);
     auto assign = to.make<Assign>(output, variable);
     // control dependency so that ReadValue is processed before Assign
     assign->add_control_dependency(read_value);
@@ -189,10 +188,15 @@ std::vector<shared_ptr<ov::opset9::Assign>> replace_with_memory(const shared_ptr
                                                                 bool use_const_initializer,
                                                                 ov::pass::NodeRegistry& to) {
     std::vector<shared_ptr<ov::opset9::Assign>> new_assigns;
+    size_t var_idx = 0;
     for (const auto& idx : indexes) {
         auto in = node->input(idx);
         auto out = node->output(idx);
-        new_assigns.push_back(replace_with_memory(in, out, node->get_friendly_name(), use_const_initializer, to));
+        new_assigns.push_back(replace_with_memory(in,
+                                                  out,
+                                                  node->get_friendly_name() + "/variable_" + to_string(var_idx++),
+                                                  use_const_initializer,
+                                                  to));
     }
     return new_assigns;
 }
@@ -211,7 +215,7 @@ ov::OutputVector prepare_inputs(const shared_ptr<ov::Node>& op, size_t seq_len_i
     auto axis_0 = to.make<Constant>(ov::element::i32, ov::Shape{1}, 0);
     auto axis_1 = to.make<Constant>(ov::element::i32, ov::Shape{1}, 1);
     size_t num_lstm_inputs_without_peepholes = 7;
-    for (size_t i = 0; i < max(op->get_input_size(), num_lstm_inputs_without_peepholes); ++i) {
+    for (size_t i = 0; i < min(op->get_input_size(), num_lstm_inputs_without_peepholes); ++i) {
         if (i < seq_len_idx) {
             inputs.push_back(to.make<Squeeze>(op->get_input_source_output(i), axis_1));
         } else if (i > seq_len_idx) {
@@ -305,13 +309,19 @@ std::vector<shared_ptr<ov::opset9::Assign>> process_sequence(const shared_ptr<ov
         auto axis_1 = to.make<Constant>(ov::element::i32, ov::Shape{1}, 1);
         ov::OutputVector outputs;
 
-        outputs.push_back(to.make<Unsqueeze>(cell->output(0), axis_1_2));
+        auto unsqueeze_Y = to.make<Unsqueeze>(cell->output(0), axis_1_2);
+        unsqueeze_Y->set_friendly_name(op->get_friendly_name() + ":0");
+        outputs.push_back(unsqueeze_Y);
+
+        size_t idx = 1;
         for (const auto& out : cell->outputs()) {
-            outputs.push_back(to.make<Unsqueeze>(out, axis_1));
+            auto unsqueeze_state = to.make<Unsqueeze>(out, axis_1);
+            unsqueeze_state->set_friendly_name(op->get_friendly_name() + ":" + to_string(idx++));
+            outputs.push_back(unsqueeze_state);
         }
         replace_node(op, outputs);
-        copy_runtime_info(op, to.get());
     }
+    copy_runtime_info(op, to.get());
     return new_assigns;
 }
 }  // namespace

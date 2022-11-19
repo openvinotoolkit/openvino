@@ -323,12 +323,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return isCellPrimitiveSupported(node);
             });
 
-        pass_config->set_callback<ngraph::pass::ConvertRNNSequenceToTensorIterator,
-                                  ngraph::pass::ConvertGRUSequenceToTensorIterator,
-                                  ngraph::pass::ConvertLSTMSequenceToTensorIterator>(
-                [isSequencePrimitiveSupported](const_node_ptr &node) -> bool {
-                    return isSequencePrimitiveSupported(node);
-                });
+        if (config.enable_loop_unrolling) {
+            pass_config->set_callback<ngraph::pass::ConvertRNNSequenceToTensorIterator,
+                    ngraph::pass::ConvertGRUSequenceToTensorIterator,
+                    ngraph::pass::ConvertLSTMSequenceToTensorIterator>(
+                    [isSequencePrimitiveSupported](const_node_ptr &node) -> bool {
+                        return isSequencePrimitiveSupported(node);
+                    });
+        }
 
         pass_config->set_callback<ngraph::pass::MVN6Decomposition>(
             [](const_node_ptr &node) -> bool {
