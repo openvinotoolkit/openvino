@@ -31,6 +31,7 @@ static void setting_node(program::ptr prog, const primitive_id& id, layout new_l
     }
 }
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
 static void setting_onednn_conv(program::ptr prog, layout_optimizer& lo, const primitive_id& id, layout new_layout) {
     auto itr = prog->get_processing_order().begin();
     while (itr != prog->get_processing_order().end()) {
@@ -42,6 +43,7 @@ static void setting_onednn_conv(program::ptr prog, layout_optimizer& lo, const p
         }
     }
 }
+#endif
 
 // To test removal of reorder for mixed precision of Onednn conv kernel (conv: u8->fp32)
 TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_onednn)
