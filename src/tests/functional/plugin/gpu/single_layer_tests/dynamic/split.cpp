@@ -95,7 +95,7 @@ const std::vector<InputShape> inputShapes5d = {
 
 const std::vector<InputShape> inputShapes6d = {
         {
-            {-1, -1, -1, -1, -1, -1}, {{10, 32, 3, 4, 12, 24}, {5, 2, 3, 1, 30, 12}, {3, 1, 6, 2, 6, 18}}
+            {-1, -1, -1, -1, -1, -1}, {{10, 32, 3, 4, 12, 24}, {5, 2, 3, 1, 32, 12}, {3, 1, 6, 2, 4, 18}}
         }
 };
 
@@ -119,7 +119,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_SplitsCheck5D, SplitLayerGPUDynamicTest,
 
 INSTANTIATE_TEST_SUITE_P(smoke_SplitsCheck6D, SplitLayerGPUDynamicTest,
                         ::testing::Combine(
-                                ::testing::Values(5),                                       // nSplits
+                                ::testing::Values(4),                                       // nSplits
                                 ::testing::Values(4),                                       // axes
                                 ::testing::Values(ElementType::i8),                         // netPrec
                                 ::testing::ValuesIn(inputShapes6d),                         // inShapes
@@ -130,7 +130,7 @@ typedef std::tuple<
         size_t,                    // Axis
         std::vector<int32_t>,      // SplitLength
         ElementType,               // Net precision
-        InputShape,                // Input shapes
+        InputShape                // Input shapes
 > varSplitDynamicGPUTestParams;
 
 class VariadicSplitLayerGPUDynamicTest : public testing::WithParamInterface<varSplitDynamicGPUTestParams>,
@@ -138,12 +138,11 @@ class VariadicSplitLayerGPUDynamicTest : public testing::WithParamInterface<varS
 public:
     static std::string getTestCaseName(testing::TestParamInfo<varSplitDynamicGPUTestParams> obj) {
         std::ostringstream result;
-        int64_t axis;
+        size_t axis;
         std::vector<int32_t> splitLength;
         ElementType netPrecision;
         InputShape inputShape;
-        std::vector<size_t> outIndices;
-        std::tie(axis, splitLength, netPrecision, inputShape, outIndices) = obj.param;
+        std::tie(axis, splitLength, netPrecision, inputShape) = obj.param;
 
         result << "IS=";
         result << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
@@ -153,9 +152,6 @@ public:
         }
         result << "SplitLen=" << CommonTestUtils::vec2str(splitLength) << "_";
         result << "axis=" << axis << "_";
-        if (!outIndices.empty()) {
-            result << "outIndices" << CommonTestUtils::vec2str(outIndices) << "_";
-        }
         result << "netPRC=" << netPrecision << "_";
         return result.str();
     }
@@ -173,7 +169,7 @@ protected:
         auto paramOuts =
             ngraph::helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(dyn_params));
 
-        auto splitAxisOp = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{}, std::vector<int64_t>{axis});
+        auto splitAxisOp = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{}, std::vector<int64_t>{static_cast<int64_t>(axis)});
         auto splitLengthOp = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i32, ngraph::Shape{splitLength.size()}, splitLength);
 
         auto varSplit = std::make_shared<ngraph::opset3::VariadicSplit>(paramOuts[0], splitAxisOp, splitLengthOp);
@@ -189,12 +185,6 @@ TEST_P(VariadicSplitLayerGPUDynamicTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
 }
-
-const std::vector<InputShape> splitLength = {
-        {
-            {-1, -1, -1, -1, -1, -1}, {{10, 32, 3, 4, 12, 30}, {5, 2, 3, 1, 30, 12}, {3, 1, 6, 2, 6, 18}}
-        }
-};
 
 INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplitsCheck4D, VariadicSplitLayerGPUDynamicTest,
                         ::testing::Combine(
