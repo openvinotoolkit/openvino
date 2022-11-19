@@ -580,6 +580,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             ov::PropertyName{ov::optimal_batch_size.name(), PropertyMutability::RO},
             ov::PropertyName{ov::max_batch_size.name(), PropertyMutability::RO},
             ov::PropertyName{ov::caching_properties.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::device::architecture.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::full_name.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::uuid.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::type.name(), PropertyMutability::RO},
@@ -968,6 +969,17 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
     } else if (name == ov::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties;
         return decltype(ov::caching_properties)::value_type(cachingProperties);
+    } else if (name == ov::device::architecture) {
+        std::stringstream s;
+        s << "GPU.";
+        if (device_info.gfx_ver.major == 0 && device_info.gfx_ver.minor == 0) {
+            s << "unknown";
+        } else {
+            s << static_cast<int>(device_info.gfx_ver.major) << "."
+              << static_cast<int>(device_info.gfx_ver.minor) << "."
+              << static_cast<int>(device_info.gfx_ver.revision);
+        }
+        return decltype(ov::device::architecture)::value_type {s.str()};
     } else {
         IE_THROW() << "Unsupported metric key " << name;
     }
