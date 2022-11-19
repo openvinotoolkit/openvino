@@ -633,7 +633,7 @@ def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, n
     if input_user_shapes is None:
         # None User did not provide neither --input nor --input_shape keys
         _input_shapes = None
-    elif isinstance(input_user_shapes, list) and len(input_user_shapes) > 1 and isinstance(input_user_shapes[0], tuple):
+    elif isinstance(input_user_shapes, list) and len(input_user_shapes) > 1 and isinstance(input_user_shapes[0], PartialShape):
         raise Error('Please provide input layer names for input layer shapes. ' + refer_to_faq_msg(58))
     elif isinstance(input_user_shapes, list) or isinstance(input_user_shapes, dict):
         # list [layer names w or w/o ports]. User provided only --input key
