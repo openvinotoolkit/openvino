@@ -2295,6 +2295,13 @@ def depersonalize(value: str, key: str):
     dir_keys = [
         'output_dir', 'extensions', 'saved_model_dir', 'tensorboard_logdir', 'caffe_parser_path'
     ]
+
+    if isinstance(value, list):
+        updated_value = []
+        for elem in value:
+            updated_value.append(depersonalize(elem, key))
+        return updated_value
+
     if not isinstance(value, str):
         return value
     res = []
@@ -2306,30 +2313,6 @@ def depersonalize(value: str, key: str):
         else:
             res.append(path)
     return ','.join(res)
-
-
-def get_meta_info(argv: [argparse.Namespace, dict]):
-    meta_data = {'unset': []}
-    dict_items = None
-    if isinstance(argv, argparse.Namespace):
-        dict_items = argv.__dict__.items()
-    elif isinstance(argv, dict):
-        dict_items = argv.items()
-    else:
-        raise Error('Incorrect type of argv. Expected dict or argparse.Namespace, got {}'.format(type(dict_items)))
-
-    for key, value in dict_items:
-        if value is not None:
-            value = depersonalize(value, key)
-            meta_data[key] = value
-        else:
-            meta_data['unset'].append(key)
-    # The attribute 'k' is treated separately because it points to not existing file by default
-    for key in ['k']:
-        if key in meta_data:
-            meta_data[key] = ','.join([os.path.join('DIR', os.path.split(i)[1]) for i in meta_data[key].split(',')])
-    return meta_data
-
 
 def get_available_front_ends(fem=None):
     # Use this function as workaround to avoid IR frontend usage by MO
