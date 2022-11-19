@@ -560,8 +560,6 @@ mo_convert_params = {
     'compress_to_fp16': ParamDescription(
         'If the original model has FP32 weights or biases, they are compressed to FP16. '
         'All intermediate data is kept in original precision.', '', '', None),
-        'help': ParamDescription(
-            'Print available parameters.', '', '', None),
     'transform': ParamDescription(
         'Apply additional transformations. {}' +
         '"--transform transformation_name1[args],transformation_name2..." ' +
