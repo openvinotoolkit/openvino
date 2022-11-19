@@ -44,9 +44,6 @@ public:
 
     typed_primitive_inst(network& network, mutable_data_node const& node);
     void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
-
-    void save(cldnn::BinaryOutputBuffer& ob) const override;
-    void load(cldnn::BinaryInputBuffer& ib) override;
 };
 
 using mutable_data_inst = typed_primitive_inst<mutable_data>;

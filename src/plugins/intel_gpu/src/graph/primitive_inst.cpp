@@ -1033,6 +1033,31 @@ std::string primitive_inst::get_implementation_name() const {
     return "undef";
 }
 
+static primitive_id find_dep_by_mem(const cldnn::primitive_inst* p_inst, memory& mem_ptr, int max_dist = 5) {
+    std::vector<std::pair<primitive_id, int>> queue;
+    size_t head = 0;
+
+    for (auto& p_inst : p_inst->dependencies())
+        queue.emplace_back(std::make_pair(p_inst->id(), 0));
+
+    const network& const_network = p_inst->get_network();
+    while (head < queue.size()) {
+        auto curr_item = queue.at(head);
+        auto curr_prim = const_network.get_primitive(curr_item.first);
+
+        if (p_inst->get_network().get_engine().is_the_same_buffer(mem_ptr, curr_prim->output_memory()))
+            return curr_prim->id();
+
+        if (max_dist > curr_item.second)
+            for (auto& p_inst : curr_prim->dependencies())
+                queue.emplace_back(std::make_pair(p_inst->id(), curr_item.second+1));
+
+        head += 1;
+    }
+
+    return "NOT_FOUND";
+}
+
 // Cache blob format:
 //     [ primitive type ]
 //  for DATA_INST
@@ -1115,6 +1140,9 @@ void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
         for (const auto& dep : _exec_deps) {
             ob << dep->id();
         }
+
+        if (!mem_allocated())
+            ob << find_dep_by_mem(this, output_memory());
 
         ob << _intermediates_memory.size();
         for (const auto& ibuf : _intermediates_memory) {
@@ -1246,8 +1274,10 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
 
         _outputs[0] = nullptr;
         if (!_mem_allocated) {
-            if (can_be_optimized() && type() != cldnn::concatenation::type_id())
-                _outputs[0] = get_network().get_engine().reinterpret_buffer(get_network().get_primitive(_dep_ids[0])->output_memory(), output_layout);
+            std::string dep_id;
+            ib >> dep_id;
+            if (dep_id.compare("NOT_FOUND") != 0)
+                _outputs[0] = get_network().get_engine().reinterpret_buffer(get_network().get_primitive(dep_id)->output_memory(), output_layout);
         } else {
             if ((!can_share_buffer()) || can_be_optimized() || is_output()) {
                 _outputs[0] = get_network().get_engine().allocate_memory(output_layout, _allocation_type);
