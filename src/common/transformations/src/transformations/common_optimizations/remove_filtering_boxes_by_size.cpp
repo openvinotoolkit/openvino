@@ -14,8 +14,8 @@
 #include "transformations/common_optimizations/subtract_fusion.hpp"
 
 ov::pass::FuseFilteringBoxesBySize::FuseFilteringBoxesBySize() {
-    add_matcher<SubtractFusion>();
-    add_matcher<RemoveFilteringBoxesBySize>();
+    ADD_MATCHER_FOR_THIS(SubtractFusion);
+    ADD_MATCHER_FOR_THIS(RemoveFilteringBoxesBySize);
 }
 
 ov::pass::RemoveFilteringBoxesBySize::RemoveFilteringBoxesBySize() {

@@ -93,8 +93,8 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
 
     ov::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
-
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    using namespace ngraph::pass;
+    REGISTER_PASS(manager, InitNodeInfo)
     if (m_low_precision_enabled) {
         manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
             element::TypeVector{ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4});
@@ -108,125 +108,125 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     // Zero dimensions in shape causes creation empty tensors, which are incorrect during CF.
     // In particular, if zero dim tensor is consumed in body of MultiSubGraphOp
     // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParams should be called together.
-    manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
-    manager.register_pass<ov::pass::Validate>();
-    manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParams>();
-    manager.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
-    manager.register_pass<ov::pass::DisableRandomUniformConstantFolding>();
-    manager.register_pass<ov::pass::ConstantFolding>();
-    manager.register_pass<ov::pass::Validate>();
+    using namespace ov::pass;
+    REGISTER_PASS(manager, RemoveConcatZeroDimInput)
+    REGISTER_PASS(manager, Validate)
+    REGISTER_PASS(manager, RemoveMultiSubGraphOpDanglingParams)
+    REGISTER_PASS(manager, FoldSubgraphEmptyInputs)
+    REGISTER_PASS(manager, DisableRandomUniformConstantFolding)
+    REGISTER_PASS(manager, ConstantFolding)
+    REGISTER_PASS(manager, Validate)
 
     // FusedFilteringBoxesBySize transformation has the complex pattern
     // which can be affected by further transformations. So we have to
     // execute it at the beginning of the pipeline. Also, this pass resolves
     // dynamism, so we have to execute type/shape propagation after.
-    manager.register_pass<ov::pass::FuseFilteringBoxesBySize>();
-    manager.register_pass<ov::pass::Validate>();
+    REGISTER_PASS(manager, FuseFilteringBoxesBySize)
+    REGISTER_PASS(manager, Validate)
 
     if (!m_use_shapes) {  // Approved Smart Reshape
-        manager.register_pass<ov::pass::LSTMStatesBroadcast>();
-        manager.register_pass<ov::pass::Validate>();
-        manager.register_pass<ov::pass::ReshapeSinkingMatMul>();
-        manager.register_pass<ov::pass::Validate>();
+        REGISTER_PASS(manager, LSTMStatesBroadcast)
+        REGISTER_PASS(manager, Validate)
+        REGISTER_PASS(manager, ReshapeSinkingMatMul)
+        REGISTER_PASS(manager, Validate)
     }
+    REGISTER_PASS(manager, ConvertQuantizeDequantize)
+    REGISTER_PASS(manager, SimplifyShapeOfSubGraph)
 
-    manager.register_pass<ov::pass::ConvertQuantizeDequantize>();
-    manager.register_pass<ov::pass::SimplifyShapeOfSubGraph>();
     if (!m_use_shapes) {
         manager.register_pass<ov::pass::DisableShapeOfConstantFolding>();
     }
     // workaround until dynamism in NMS is not supported
-    manager.register_pass<ov::pass::ConvertNmsGatherPathToUnsigned>();
-    manager.register_pass<ov::pass::StridedSliceOptimization>(m_use_shapes);
-    manager.register_pass<ov::pass::BroadcastElementwiseFusion>();
-    manager.register_pass<ov::pass::PullThroughReduce>();
+    REGISTER_PASS(manager, ConvertNmsGatherPathToUnsigned)
+    REGISTER_PASS(manager, StridedSliceOptimization, m_use_shapes)
+    REGISTER_PASS(manager, BroadcastElementwiseFusion)
+    REGISTER_PASS(manager, PullThroughReduce)
 
     auto transpose_sinking = manager.register_pass<ov::pass::GraphRewrite>();
-    transpose_sinking->add_matcher<ov::pass::TransposeSinking>();
+    ADD_MATCHER(transpose_sinking, TransposeSinking)
+
     // SplitSqueezeConcatFusion should work in same GraphRewrite as TransposesSinking,
     // because it replaces pattern that may contain Transposes which must be optimized before
     // the transformation and it also inserts Transpose that can be optimized by TransposeSinking
-    transpose_sinking->add_matcher<ov::pass::SplitSqueezeConcatFusion>();
+    ADD_MATCHER(transpose_sinking, SplitSqueezeConcatFusion)
 
     auto eliminations = manager.register_pass<ov::pass::GraphRewrite>();
-    eliminations->add_matcher<ov::pass::EliminateUnsqueezeGather>();
-    eliminations->add_matcher<ov::pass::NopElimination>(m_use_shapes /* do not use shape for elimination */);
+    ADD_MATCHER(eliminations, EliminateUnsqueezeGather)
+    ADD_MATCHER(eliminations, NopElimination, m_use_shapes)
     eliminations->set_name("ov::pass::CommonEliminations");
 
     manager.register_pass<ov::pass::ConstantFolding>();
 
     auto common_fusions = manager.register_pass<ov::pass::GraphRewrite>();
-    common_fusions->add_matcher<ngraph::pass::ConvertScatterElementsToScatter>();
-    common_fusions->add_matcher<ov::pass::SoftPlusFusion>();
-    common_fusions->add_matcher<ov::pass::SoftPlusToMishFusion>();
-    common_fusions->add_matcher<ov::pass::SwishFusion>();
-    common_fusions->add_matcher<ov::pass::HSwishFusion>();
-    common_fusions->add_matcher<ov::pass::HSigmoidFusion>();
-    common_fusions->add_matcher<ov::pass::NormalizeL2Fusion>();
-    common_fusions->add_matcher<ov::pass::ClampFusion>();
-    common_fusions->add_matcher<ov::pass::PadFusion>();
-    common_fusions->add_matcher<ov::pass::SoftmaxFusion>();
-    common_fusions->add_matcher<ov::pass::ReduceReshapeFusion>();
-    common_fusions->add_matcher<ov::pass::MVNFusion>();
-    common_fusions->add_matcher<ov::pass::DilatedConvolutionConverter>();
-    common_fusions->add_matcher<ov::pass::GeluFusion>();
-    common_fusions->add_matcher<ov::pass::LeakyReluFusion>();
-    common_fusions->add_matcher<ov::pass::RandomUniformFusion>();
-    common_fusions->add_matcher<ov::pass::EliminateDuplicateTIInputs>();
-    common_fusions->add_matcher<ov::pass::GRUCellFusion>();
-    common_fusions->add_matcher<ov::pass::SequenceFusion>();
-    common_fusions->add_matcher<ngraph::pass::ConvertTensorIteratorToSequence>();
-    common_fusions->add_matcher<ngraph::pass::SplitConcatPairToInterpolateFusion>(m_use_shapes);
+    ADD_MATCHER(common_fusions, ConvertScatterElementsToScatter)
+    ADD_MATCHER(common_fusions, SoftPlusFusion)
+    ADD_MATCHER(common_fusions, SoftPlusToMishFusion)
+    ADD_MATCHER(common_fusions, SwishFusion)
+    ADD_MATCHER(common_fusions, HSwishFusion)
+    ADD_MATCHER(common_fusions, HSigmoidFusion)
+    ADD_MATCHER(common_fusions, NormalizeL2Fusion)
+    ADD_MATCHER(common_fusions, ClampFusion)
+    ADD_MATCHER(common_fusions, PadFusion)
+    ADD_MATCHER(common_fusions, SoftmaxFusion)
+    ADD_MATCHER(common_fusions, ReduceReshapeFusion)
+    ADD_MATCHER(common_fusions, MVNFusion)
+    ADD_MATCHER(common_fusions, DilatedConvolutionConverter)
+    ADD_MATCHER(common_fusions, GeluFusion)
+    ADD_MATCHER(common_fusions, LeakyReluFusion)
+    ADD_MATCHER(common_fusions, RandomUniformFusion)
+    ADD_MATCHER(common_fusions, EliminateDuplicateTIInputs)
+    ADD_MATCHER(common_fusions, GRUCellFusion)
+    ADD_MATCHER(common_fusions, SequenceFusion)
+    ADD_MATCHER(common_fusions, ConvertTensorIteratorToSequence)
+    ADD_MATCHER(common_fusions, SplitConcatPairToInterpolateFusion, m_use_shapes)
     if (m_use_shapes) {
-        common_fusions->add_matcher<ov::pass::NearestNeighborUpsamplingFusion>();
+        ADD_MATCHER(common_fusions, NearestNeighborUpsamplingFusion)
     }
-    common_fusions->add_matcher<ov::pass::DivideFusion>();
-    common_fusions->add_matcher<ov::pass::SubtractFusion>();
-    common_fusions->add_matcher<ov::pass::TransposeToReshape>();
-    common_fusions->add_matcher<ov::pass::ReshapeSequenceFusion>(m_use_shapes);
-    common_fusions->add_matcher<ov::pass::MatMulConstTransposesExtraction>();
-    common_fusions->add_matcher<ov::pass::PReluFusion>();
-    common_fusions->add_matcher<ov::pass::DepthToSpaceFusion>();
-    common_fusions->add_matcher<ov::pass::ShuffleChannelsFusion>(!m_use_shapes);
+
+    ADD_MATCHER(common_fusions, DivideFusion)
+    ADD_MATCHER(common_fusions, SubtractFusion)
+    ADD_MATCHER(common_fusions, TransposeToReshape)
+    ADD_MATCHER(common_fusions, ReshapeSequenceFusion, m_use_shapes)
+    ADD_MATCHER(common_fusions, MatMulConstTransposesExtraction)
+    ADD_MATCHER(common_fusions, PReluFusion)
+    ADD_MATCHER(common_fusions, DepthToSpaceFusion)
+    ADD_MATCHER(common_fusions, ShuffleChannelsFusion, !m_use_shapes)
     common_fusions->set_name("ov::pass::CommonFusions");
 
-    manager.register_pass<ov::pass::BinarizeWeights>();
-    manager.register_pass<ov::pass::ConvToBinaryConv>();
+    REGISTER_PASS(manager, BinarizeWeights)
+    REGISTER_PASS(manager, ConvToBinaryConv)
 
     auto decomp = manager.register_pass<ov::pass::GraphRewrite>();
-    decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
-    decomp->add_matcher<ngraph::pass::ConvertDivideWithConstant>();
-    decomp->add_matcher<ngraph::pass::ConvertNegative>();
+    ADD_MATCHER(decomp, BatchNormDecomposition)
+    ADD_MATCHER(decomp, ConvertDivideWithConstant)
+    ADD_MATCHER(decomp, ConvertNegative)
 
     manager.register_pass<ov::pass::LinOpSequenceFusion>();
 
     auto multiply_fusions = manager.register_pass<ov::pass::GraphRewrite>();
-    multiply_fusions->add_matcher<ov::pass::ConvolutionMultiplyFusion>();
-    multiply_fusions->add_matcher<ov::pass::GroupConvolutionMultiplyFusion>();
-    multiply_fusions->add_matcher<ov::pass::ConvolutionBackpropDataMultiplyFusion>();
-    multiply_fusions->add_matcher<ov::pass::GroupConvolutionBackpropDataMultiplyFusion>();
-    multiply_fusions->add_matcher<ov::pass::MultiplyConvolutionFusion>();
-    multiply_fusions->add_matcher<ov::pass::MultiplyGroupConvolutionFusion>();
-    multiply_fusions->add_matcher<ov::pass::MultiplyConvolutionBackpropDataFusion>();
-    multiply_fusions->add_matcher<ov::pass::MultiplyGroupConvolutionBackpropDataFusion>();
-    multiply_fusions->add_matcher<ov::pass::MatMulMultiplyFusion>();
+    ADD_MATCHER(multiply_fusions, ConvolutionMultiplyFusion)
+    ADD_MATCHER(multiply_fusions, GroupConvolutionMultiplyFusion)
+    ADD_MATCHER(multiply_fusions, ConvolutionBackpropDataMultiplyFusion)
+    ADD_MATCHER(multiply_fusions, GroupConvolutionBackpropDataMultiplyFusion)
+    ADD_MATCHER(multiply_fusions, MultiplyConvolutionFusion)
+    ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionFusion)
+    ADD_MATCHER(multiply_fusions, MultiplyConvolutionBackpropDataFusion)
+    ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionBackpropDataFusion)
+    ADD_MATCHER(multiply_fusions, MatMulMultiplyFusion)
     multiply_fusions->set_name("ov::pass::MultiplyFusions");
-    manager.register_pass<ov::pass::ConstantFolding>();
+    REGISTER_PASS(manager, ConstantFolding)
 
     auto fq_fusions = manager.register_pass<ov::pass::GraphRewrite>();
-    fq_fusions->add_matcher<ov::pass::FakeQuantizeMulFusion>();
-    fq_fusions->add_matcher<ov::pass::FakeQuantizeReshapeFusion>();
-    fq_fusions->add_matcher<ov::pass::PullTransposeThroughFQUp>();
-    fq_fusions->add_matcher<ov::pass::ReluFakeQuantizeFusion>();
-    fq_fusions->add_matcher<ov::pass::AddFakeQuantizeFusion>();
-    fq_fusions->add_matcher<ov::pass::MulFakeQuantizeFusion>();
+    ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)
+    ADD_MATCHER(fq_fusions, FakeQuantizeReshapeFusion)
+    ADD_MATCHER(fq_fusions, PullTransposeThroughFQUp)
+    ADD_MATCHER(fq_fusions, ReluFakeQuantizeFusion)
+    ADD_MATCHER(fq_fusions, AddFakeQuantizeFusion)
+    ADD_MATCHER(fq_fusions, MulFakeQuantizeFusion)
     fq_fusions->set_name("ov::pass::FakeQuantizeFusions");
-
-    manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
-
-    manager.register_pass<ov::pass::AlignEltwiseInputRanks>();
-
-    manager.register_pass<ov::pass::ConstantFolding>();
+    REGISTER_PASS(manager, ReverseInputChannelsFusion)
+    REGISTER_PASS(manager, AlignEltwiseInputRanks)
+    REGISTER_PASS(manager, ConstantFolding)
 
     manager.run_passes(f);
 
