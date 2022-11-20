@@ -137,3 +137,48 @@ TEST(add_reorders_gpu, basic_reshape_and_tile) {
         EXPECT_EQ(output_ptr[i], output_ref_ptr[i]);
     }
 }
+
+TEST(add_reorders_gpu, export_import) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::f32, format::byxf,{ 1, 2, 2, 1 } });
+    auto output_ref = engine.allocate_memory({ data_types::f32, format::byxf,{ 2, 1, 4, 2 } });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(reshape("reshape", "input", tensor(2, 1, 2, 1)));
+    topology.add(tile("tile", "reshape", std::vector<int64_t>{ 1, 1, 4, 1 }));
+
+    std::vector<float> input_vec = { 1.f, 0.f, 5.f, 1.5f };
+    set_values(input, input_vec);
+    tile_ref<float>(input, output_ref, 2, 4);
+
+    std::shared_ptr<cldnn::network> network;
+
+    membuf mem_buf;
+    {
+        cldnn::network _network(engine, topology);
+        std::ostream out_mem(&mem_buf);
+        BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+        _network.save(ob);
+    }
+    {
+        std::istream in_mem(&mem_buf);
+        BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+        network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+    }
+
+    network->set_input_data("input", input);
+
+    //reorder is required as tile accepts only bfyx format
+    EXPECT_EQ(network->get_all_primitive_org_ids().size(), size_t(4));
+    auto outputs = network->execute();
+
+    auto output = outputs.at("tile").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
+
+    for (unsigned int i = 0; i < output_ref->count(); ++i) {
+        EXPECT_EQ(output_ptr[i], output_ref_ptr[i]);
+    }
+}

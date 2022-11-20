@@ -158,11 +158,29 @@ public:
             result_id = reorder_result_id;
         }
 
-        network network(engine, topology);
+        std::shared_ptr<cldnn::network> network;
 
-        network.set_input_data(input_data_id, input_mem);
+        if (is_caching_test()) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology);
+                
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology);
+        }
 
-        auto result = network.execute();
+        network->set_input_data(input_data_id, input_mem);
+
+        auto result = network->execute();
 
         auto out_mem = result.at(result_id).get_memory();
         cldnn::mem_lock<T> out_ptr(out_mem, get_test_stream());
@@ -173,6 +191,9 @@ public:
             EXPECT_NEAR(expected[i], out_ptr[i], getError<T>())
                 << "i = " << i << ", format=" << fmt_to_str(target_layout);
         }
+
+        if (is_caching_test())
+            return;
 
         const auto block_sizes = format::traits(target_layout).block_sizes;
         const auto index_offset = std::accumulate(block_sizes.begin(), block_sizes.end(), 1u,
@@ -278,4 +299,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_max_pooling_test_3d_all_formats,
                                     }),
                                  ::testing::Values(format::bfzyx),
                                  ::testing::ValuesIn(layouts_3d)),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(export_import,
+                         adaptive_max_pooling_test_f16,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(std::vector<AdaptiveMaxPoolingParams>{
+                                        { tensor(1, 2, 7, 3), tensor(1, 2, 3, 3) },
+                                    }),
+                                 ::testing::Values(format::bfyx),
+                                 ::testing::Values(format::bfyx)),
                          PrintToStringParamName());

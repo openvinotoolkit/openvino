@@ -58,6 +58,7 @@ cldnn::engine& get_test_engine(const cldnn::engine_configuration& configuration)
 #ifdef ENABLE_ONEDNN_FOR_GPU
 cldnn::engine& get_onednn_test_engine();
 #endif
+cldnn::stream_ptr get_test_stream_ptr();
 cldnn::stream& get_test_stream();
 
 template<typename T>
@@ -571,6 +572,34 @@ T div_up(const T a, const U b) {
 
 double default_tolerance(data_types dt);
 
+class membuf : public std::streambuf
+{
+public:
+    membuf() : _pos(0) { }
+
+protected:
+    virtual int_type overflow (int_type c) {
+        _buf.emplace_back(c);
+        return c;
+    }
+
+    virtual int_type uflow() {
+        return (_pos < _buf.size()) ? _buf[_pos++] : EOF;
+    }
+
+private:
+    std::vector<int_type> _buf;
+    size_t _pos;
+};
+
+inline bool is_caching_test() {
+    std::string curr_test_suite_name(::testing::UnitTest::GetInstance()->current_test_suite()->name());
+    if (curr_test_suite_name.rfind("export_import", 0) == 0) {
+        std::cout << "caching_enabled" << std::endl;
+        return true;
+    }
+    return false;
+}
 // inline void print_bin_blob(cldnn::memory& mem, std::string name)
 // {
 //     auto&& size = mem.get_layout().get_tensor();
