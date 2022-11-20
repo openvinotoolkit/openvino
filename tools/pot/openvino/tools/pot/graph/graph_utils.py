@@ -24,7 +24,7 @@ def load_graph(model_config, target_device='ANY'):
     """ Loads model from specified path
     :return NetworkX model
      """
-    special_transform_devices = ['GNA']
+    special_transform_devices = ['GNA', 'GNA3.5']
     serialized_bin_path = os.path.join(tempfile.gettempdir(), 'serialized_ir.bin')
     serialized_xml_path = os.path.join(tempfile.gettempdir(), 'serialized_ir.xml')
     bin_path = model_config.weights
@@ -67,7 +67,7 @@ def load_graph(model_config, target_device='ANY'):
     return graph_from_ir
 
 
-def save_graph(graph: Graph, save_path, model_name=None, rename_results=False):
+def save_graph(graph: Graph, save_path, model_name=None):
     """ Save model as IR in specified path
     :param graph: NetworkX model to save
     :param save_path: path to save the model
@@ -86,7 +86,7 @@ def save_graph(graph: Graph, save_path, model_name=None, rename_results=False):
     graph_copy = deepcopy(graph)
     add_removed_converts(graph_copy)
     save_restored_graph(graph=graph_copy, path=save_path, meta_data=graph.meta_data,
-                        name=model_name, rename_results=rename_results)
+                        name=model_name)
 
 
 def model_preprocessing(model):

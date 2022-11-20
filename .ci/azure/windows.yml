@@ -152,7 +152,7 @@ jobs:
       python -m pip install -r $(REPO_DIR)\src\bindings\python\wheel\requirements-dev.txt
       python -m pip install -r $(REPO_DIR)\src\bindings\python\requirements.txt
       rem For running Paddle frontend unit tests
-      python -m pip install -r $(REPO_DIR)\src\core\tests\frontend\paddle\requirements_dev.txt
+      python -m pip install -r $(REPO_DIR)\src\frontends\paddle\tests\requirements.txt
       rem For running ONNX frontend unit tests
       python -m pip install -r $(REPO_DIR)\src\frontends\onnx\tests\requirements.txt
       rem For MO unit tests
