@@ -92,6 +92,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::Int", op::translate_int},
         {"aten::is_grad_enabled", op::return_false_scalar},
         {"aten::layer_norm", op::translate_layer_norm},
+        {"aten::leaky_relu", op::translate_1to1_match_2_inputs<opset8::PRelu>},
+        {"aten::leaky_relu_", op::inplace_op<op::translate_1to1_match_2_inputs<opset8::PRelu>>},
         {"aten::linear", op::translate_linear},
         {"aten::lt", op::translate_1to1_match_2_inputs<opset8::Less>},
         {"aten::matmul", op::translate_1to1_match_2_inputs<opset8::MatMul>},
