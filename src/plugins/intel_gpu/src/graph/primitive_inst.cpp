@@ -1059,24 +1059,27 @@ static primitive_id find_dep_by_mem(const cldnn::primitive_inst* p_inst, memory&
 }
 
 // Cache blob format:
-//     [ primitive type ]
-//     [ kernel_arguments ]
-//     [ kernel_impl_params ]
 //     [ primitive_impl ]
+//     [ kernel_impl_params ]
 //     [ member variables of primitive_inst ]
 //     [ output memory information ]
 //     [ memory dependency information ]
 //     [ execution dependency information ]
 //     [ intermediate memory information ]
 void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
-    kernel_arguments_data args = _impl->get_arguments(*this);
-    kernel_arguments_data_idx args_idx;
-    convert_args(args, args_idx);
-    _impl->set_arguments(args_idx);
+    if (_impl != nullptr) {
+        ob << true;
+        kernel_arguments_data args = _impl->get_arguments(*this);
+        kernel_arguments_data_idx args_idx;
+        convert_args(args, args_idx);
+        _impl->set_arguments(args_idx);
+        ob << _impl;
+    } else {
+        ob << false;
+    }
 
     _impl_params->save(ob);
     ob.setKernlImplParams(_impl_params.get());
-    ob << _impl;
 
     ob << _node_output_layout;
     ob << has_mutable_input();
@@ -1162,12 +1165,17 @@ int32_t primitive_inst::get_index_in_deps(memory::cptr arg) const {
 }
 
 void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
+    bool has_impl;
+    ib >> has_impl;
+    if (has_impl) {
+        _impl.release();
+        ib >> _impl;
+    }
+
     _impl_params.release();
     _impl_params = make_unique<kernel_impl_params>();
     _impl_params->load(ib);
-    _impl.release();
     ib.setKernlImplParams(_impl_params.get());
-    ib >> _impl;
 
     ib >> _node_output_layout;
     ib >> _has_mutable_input;
@@ -1214,8 +1222,11 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
     if (!_mem_allocated) {
         std::string dep_id;
         ib >> dep_id;
-        if (dep_id.compare("NOT_FOUND") != 0)
+        if (dep_id.compare("NOT_FOUND") != 0) {
             _outputs[0] = get_network().get_engine().reinterpret_buffer(get_network().get_primitive(dep_id)->output_memory(), output_layout);
+        } else if (type() == cldnn::mutable_data::type_id()) {
+            _outputs[0] = get_network().get_engine().allocate_memory(output_layout, _allocation_type);
+        }
     } else {
         if ((!can_share_buffer()) || can_be_optimized() || is_output()) {
             _outputs[0] = get_network().get_engine().allocate_memory(output_layout, _allocation_type);
