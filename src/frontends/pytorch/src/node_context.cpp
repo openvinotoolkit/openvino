@@ -55,6 +55,11 @@ std::vector<int64_t> NodeContext::const_input<std::vector<int64_t>>(size_t index
 }
 
 template <>
+std::vector<double> NodeContext::const_input<std::vector<double>>(size_t index) const {
+    return get_constant_at_input(index)->cast_vector<double>();
+}
+
+template <>
 std::string NodeContext::const_input<std::string>(size_t index) const {
     OV_FRONTEND_REQUIRE(!input_is_none(index));
     auto input_node = get_input_from_visible_context(index).get_node_shared_ptr();
