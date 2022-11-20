@@ -586,6 +586,9 @@ mo_convert_params = {
         extensions_to_str_or_extensions_class),
     'batch': ParamDescription(
         'Input batch size', '', '', batch_to_int),
+    'tensorboard_ir_logdir': ParamDescription(
+        'Dump the generated OpenVINO model to a given directory to be opened by TensorBoard.', '', '',
+        path_to_str),
     'silent': ParamDescription(
         'Prevent any output messages except those that correspond to log level equals '
         'ERROR, that can be set with the following option: --log_level. '
@@ -1027,6 +1030,10 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               help=mo_convert_params_common['transform'].description.format(
                                   mo_convert_params_common['transform'].possible_types_command_line),
                               default="")
+    common_group.add_argument('--tensorboard_ir_logdir',
+                              help=mo_convert_params['tensorboard_ir_logdir'].description,
+                              action=CanonicalizePathCheckExistenceAction,
+                              type=readable_file_or_dir)
     common_group.add_argument('--disable_fusing',
                               help='[DEPRECATED] Turn off fusing of linear operations to Convolution.',
                               action=DeprecatedStoreTrue)
@@ -1113,6 +1120,7 @@ def get_common_cli_options(model_name):
     d['reverse_input_channels'] = '- Reverse input channels'
     d['static_shape'] = '- Enable IR generation for fixed input shape'
     d['transformations_config'] = '- Use the transformations config file'
+    d['tensorboard_ir_logdir'] = ['- The directory with TensorBoard logs for IR', lambda x: x if x else 'Not specified']
     return d
 
 

@@ -732,6 +732,12 @@ def driver(argv: argparse.Namespace, non_default_params: dict):
     if res_ngraph_function is None:
         return res_ngraph_function
 
+    if argv.tensorboard_ir_logdir:
+        from openvino.tools.mo.utils.tensorboard.writer import SummaryWriter
+        writer = SummaryWriter(argv.tensorboard_ir_logdir)
+        writer.add_graph(res_ngraph_function)
+        writer.close()
+
     if not argv.silent:
         elapsed_time = datetime.datetime.now() - start_time
         print('[ SUCCESS ] Total execution time: {:.2f} seconds. '.format(elapsed_time.total_seconds()))
