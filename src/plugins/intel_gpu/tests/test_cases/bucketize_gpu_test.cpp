@@ -58,10 +58,28 @@ struct bucketize_test : testing::TestWithParam<bucketize_test_params<I, B, O>> {
         topology.add(
             reorder("plane_bucketize_left_bound", "bucketize_left_bound", format::bfyx, type_to_data_type<O>::value));
 
-        network network(engine, topology);
-        network.set_input_data("input", input);
-        network.set_input_data("buckets", buckets);
-        const auto outputs = network.execute();
+        std::shared_ptr<cldnn::network> network;
+
+        if (is_caching_test()) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology);
+        }
+
+        network->set_input_data("input", input);
+        network->set_input_data("buckets", buckets);
+        const auto outputs = network->execute();
 
         {
             auto output = outputs.at("plane_bucketize_right_bound").get_memory();
@@ -140,6 +158,11 @@ INSTANTIATE_BUCKETIZE_TEST_SUITE(float, FLOAT16, int64_t, getBucketizeFloatingPo
 INSTANTIATE_BUCKETIZE_TEST_SUITE(FLOAT16, float, int32_t, getBucketizeFloatingPointParams)
 INSTANTIATE_BUCKETIZE_TEST_SUITE(float, float, int64_t, getBucketizeFloatingPointParams)
 INSTANTIATE_BUCKETIZE_TEST_SUITE(FLOAT16, FLOAT16, int32_t, getBucketizeFloatingPointParams)
+INSTANTIATE_TEST_SUITE_P(export_import,
+                         bucketize_test_FLOAT16FLOAT16int32_t,
+                         testing::Combine(testing::ValuesIn(getBucketizeFloatingPointParams<FLOAT16, FLOAT16, int32_t>()),
+                                          testing::Values(layout_formats[0])),
+                         bucketize_test_FLOAT16FLOAT16int32_t::PrintToStringParamName);
 
 #undef INSTANTIATE_BUCKETIZE_TEST_SUITE
 

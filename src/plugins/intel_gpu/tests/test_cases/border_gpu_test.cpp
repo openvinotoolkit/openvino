@@ -83,9 +83,27 @@ public:
                                    pad_mode,
                                    pad_value),
                             reorder("output", "border", cldnn::format::bfyx, T_dt));
-        cldnn::network target_network(engine, target_topology);
-        target_network.set_input_data("input", input);
-        auto target_output = target_network.execute().at("output").get_memory();
+        std::shared_ptr<cldnn::network> target_network;
+
+        if (is_caching_test()) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, target_topology);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                target_network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            target_network = std::make_shared<cldnn::network>(engine, target_topology);
+        }
+
+        target_network->set_input_data("input", input);
+        auto target_output = target_network->execute().at("output").get_memory();
         cldnn::mem_lock<T> target_output_ptr(target_output, get_test_stream());
 
         topology base_topology;
@@ -138,6 +156,14 @@ INSTANTIATE_TEST_SUITE_P(border_test_i32,
 using border_test_f16 = border_test<FLOAT16, data_types::f16>;
 TEST_P(border_test_f16, border_test_f16) {}
 INSTANTIATE_TEST_SUITE_P(border_test_f16,
+                         border_test_f16,
+                         testing::Combine(testing::Values(ov::op::PadMode::REFLECT),
+                                          testing::Values(FLOAT16(123)),
+                                          testing::Values(format::type::bs_fs_yx_bsv32_fsv16),
+                                          testing::Values(std::array<int, 4>{2, 3, 4, 5}),
+                                          testing::Values(std::array<int, 4>{1, 2, 3, 4}),
+                                          testing::Values(std::array<int, 4>{1, 1, 1, 1})));
+INSTANTIATE_TEST_SUITE_P(export_import,
                          border_test_f16,
                          testing::Combine(testing::Values(ov::op::PadMode::REFLECT),
                                           testing::Values(FLOAT16(123)),

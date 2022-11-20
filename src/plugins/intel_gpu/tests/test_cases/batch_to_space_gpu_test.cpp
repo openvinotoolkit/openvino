@@ -698,3 +698,64 @@ TEST(batch_to_space_fp32_gpu, i41021_bs1221_cb0201_ce0810_b_fs_yx_fsv16) {
         EXPECT_EQ(expected_results[i], output_ptr[i]);
     }
 }
+
+TEST(batch_to_space_fp32_gpu, export_import) {
+    auto& engine = get_test_engine();
+    tensor input_shape = tensor{batch(4), feature(10), spatial(1, 2)};
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, input_shape });
+
+    set_values(input, {
+        0.0f,  1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  9.0f,
+        10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f,
+        20.0f, 21.0f, 22.0f, 23.0f, 24.0f, 25.0f, 26.0f, 27.0f, 28.0f, 29.0f,
+        30.0f, 31.0f, 32.0f, 33.0f, 34.0f, 35.0f, 36.0f, 37.0f, 38.0f, 39.0f,
+        40.0f, 41.0f, 42.0f, 43.0f, 44.0f, 45.0f, 46.0f, 47.0f, 48.0f, 49.0f,
+        50.0f, 51.0f, 52.0f, 53.0f, 54.0f, 55.0f, 56.0f, 57.0f, 58.0f, 59.0f,
+        60.0f, 61.0f, 62.0f, 63.0f, 64.0f, 65.0f, 66.0f, 67.0f, 68.0f, 69.0f,
+        70.0f, 71.0f, 72.0f, 73.0f, 74.0f, 75.0f, 76.0f, 77.0f, 78.0f, 79.0f
+    });
+
+    topology topology;
+    topology.add(input_layout("Input", input->get_layout()));
+    topology.add(reorder("input_fsv", "Input", format::b_fs_yx_fsv16, data_types::f32));
+    topology.add(batch_to_space("batch_to_space", "input_fsv", tensor(format::bfyx, {1,2,2,1}, 1),
+                                                               tensor(format::bfyx, {0,8,1,0}, 0),
+                                                               tensor(format::bfyx, {0,4,0,0}, 0),
+                                                               tensor(format::bfyx, {1,8,3,1}, 1)));
+    topology.add(reorder("bts_to_bfyx", "batch_to_space", format::bfyx, data_types::f32));
+
+    std::shared_ptr<cldnn::network> network;
+
+    membuf mem_buf;
+    {
+        cldnn::network _network(engine, topology);
+        std::ostream out_mem(&mem_buf);
+        BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+        _network.save(ob);
+    }
+    {
+        std::istream in_mem(&mem_buf);
+        BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+        network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+    }
+
+    network->set_input_data("Input", input);
+
+    auto outputs = network->execute();
+
+    auto output = outputs.at("bts_to_bfyx").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    std::vector<float> expected_results = {
+        28.0f, 9.0f,  29.0f, 68.0f, 49.0f, 69.0f,
+        30.0f, 11.0f, 31.0f, 70.0f, 51.0f, 71.0f,
+        32.0f, 13.0f, 33.0f, 72.0f, 53.0f, 73.0f,
+        34.0f, 15.0f, 35.0f, 74.0f, 55.0f, 75.0f
+    };
+
+    ASSERT_EQ(output_ptr.size(), expected_results.size());
+
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        EXPECT_EQ(expected_results[i], output_ptr[i]);
+    }
+}

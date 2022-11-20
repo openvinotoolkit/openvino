@@ -223,10 +223,28 @@ TEST_P(binary_convolution_test, conv) {
     topology_bin.add(binary_convolution(output_name, input_name, {output_name + weights_suffix},
                                         stride, pad, dilation, os_size, 1, p.pad_value, p.dt));
 
-    network network_bin(engine, topology_bin, options);
-    network_bin.set_input_data(input_name, input);
+    std::shared_ptr<cldnn::network> network_bin;
 
-    std::map<primitive_id, network_output> outputs = network_bin.execute();
+    if (is_caching_test()) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology_bin, options);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network_bin = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network_bin = std::make_shared<cldnn::network>(engine, topology_bin, options);
+    }
+
+    network_bin->set_input_data(input_name, input);
+
+    std::map<primitive_id, network_output> outputs = network_bin->execute();
     auto outputMemory = outputs.at(output_name).get_memory();
 
     for (size_t i = 0; i < output_ref->count(); i++) {
@@ -300,6 +318,10 @@ INSTANTIATE_TEST_SUITE_P(BinaryConvTest, binary_convolution_test, ::testing::Val
         TestParams{1, 1,  264,24,42, 192,24, 42, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv5_5_sep_BIN"}, // back_bone_seq_conv5_5_sep_BIN
         TestParams{1, 1,  192,12,21, 208,12, 21, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv5_6_sep_BIN"}, // back_bone_seq_conv5_6_sep_BIN
         TestParams{1, 1,  208,12,21,  88,12, 21, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv6_sep_BN"} // back_bone_seq_conv6_sep_BN
+));
+
+INSTANTIATE_TEST_SUITE_P(export_import, binary_convolution_test, ::testing::Values(
+        TestParams{1, 1,  208,12,21,  88,12, 21, 1,1, 1,1, 0,0, -1.0f, data_types::f16, "conv6_sep_BN"}
 ));
 
 template <typename T>
