@@ -806,28 +806,24 @@ void Graph::AllocateWithReuse() {
     }
 
     if (!undefinedBoxes.empty()) {
-        //We have to extend sync point nodes output tensors lifespan in order to save
-        //the intermediate computation results from possible loss due to tensor resize
         if (!syncNodesInds.empty()) {
+            //We have to extend the lifespan of thensors that are crossing a sync point border in order to save
+            //the intermediate computation results from possible loss due to the tensor resize
+            std::vector<int> vecIntervals = {0};
+            for (const auto& item : syncNodesInds) {
+                vecIntervals.push_back(item.first->execIndex);
+            }
             for (auto& box : undefinedBoxes) {
-                for (auto& edge : edge_clusters[box.id]) {
-                    auto node = edge->getParent();
-                    //1. Check whether the nod is a sync point
-                    auto itr = syncNodesInds.find(node.get());
-                    if (itr != syncNodesInds.end()) {
-                        //2. Extend the lifespan of the box to the next sync point after the finish time,
-                        //or set -1 if there are no sync points beyond the expiration time of the box
-                        int endTime = -1;
-                        while (++itr != syncNodesInds.end()) {
-                            auto time = graphNodes[itr->second]->execIndex;
-                            if (time > box.finish) {
-                                endTime = time;
-                                break;
-                            }
-                        }
-                        //3. assign the next sync node execIndx as the end_time of the box lifespan
-                        box.finish = endTime;
-                        break;
+                if (-1 == box.finish) {
+                    continue;
+                }
+                auto itr_upper = std::upper_bound(vecIntervals.begin(), vecIntervals.end(), box.finish, [](int y, int x) { return y <= x;});
+                auto itr_lower = std::lower_bound(vecIntervals.begin(), vecIntervals.end(), box.start);
+                if (itr_lower != itr_upper) { // across sections
+                    if (itr_upper == vecIntervals.end()) {
+                        box.finish = -1;
+                    } else {
+                        box.finish = *itr_upper;
                     }
                 }
             }
