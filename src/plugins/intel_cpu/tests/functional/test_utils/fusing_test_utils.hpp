@@ -153,11 +153,6 @@ const auto fusingClamp = fusingSpecificParams{std::make_shared<postNodesMgr>(std
                 return ngraph::builder::makeActivation(cfg.input, cfg.type, ngraph::helpers::Clamp, {}, {3.0f, 6.0f});
             }, "Clamp"}}), {"Clamp"}};
 
-const auto fusingRoundHalfToEven = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
-            {[](postNodeConfig& cfg){
-                return ngraph::builder::makeActivation(cfg.input, cfg.type, ngraph::helpers::RoundHalfToEven);
-            }, "Round"}}), {"Round"}};
-
 const auto fusingTanh = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](postNodeConfig& cfg){
                 return ngraph::builder::makeActivation(cfg.input, cfg.type, ngraph::helpers::Tanh);
@@ -249,7 +244,7 @@ const auto fusingScaleShift = fusingSpecificParams{ std::make_shared<postNodesMg
                 return std::make_shared<ngraph::opset1::Add>(cfg.input, constNode);
             }, "Add(PerChannel)"}}), {"Add"} };
 
-const auto fusingMultiEltwise = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+const auto fusingClampRoundAddRelu = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](postNodeConfig& cfg){
                 return ngraph::builder::makeActivation(cfg.input, cfg.type, ngraph::helpers::Clamp, {}, {3.0f, 6.0f});
             }, "Clamp"},
