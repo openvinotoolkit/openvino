@@ -8,7 +8,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestReshape(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.random.uniform(0, 50, 6).astype(np.float32),)
+        return (np.random.uniform(0, 50, (1, 12, 12, 24)).astype(np.float32),)
 
     def create_model(self, shape):
 
@@ -28,11 +28,14 @@ class TestReshape(PytorchLayerTest):
         return aten_reshape(shape), ref_net, "aten::reshape"
 
     @pytest.mark.parametrize(("shape"), [
-        [2, 3],
-        [3, 2],
-        [3, 2],
-        [6, 1],
-        [1, 6],
+        [-1, 6],
+        [12, 12, 24, 1],
+        [12, 12, 12, 2],
+        [12, -1, 12, 24],
+        [24, 12, 12, 1],
+        [24, 12, 12, -1],
+        [24, 1, -1, 12],
+        [24, 1, 1, -1, 12],
     ])
     @pytest.mark.nightly
     def test_reshape(self, shape, ie_device, precision, ir_version):
