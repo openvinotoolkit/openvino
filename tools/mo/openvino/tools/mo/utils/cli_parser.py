@@ -1031,7 +1031,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                   mo_convert_params_common['transform'].possible_types_command_line),
                               default="")
     common_group.add_argument('--tensorboard_ir_logdir',
-                              help=mo_convert_params['tensorboard_ir_logdir'].description,
+                              help=mo_convert_params_common['tensorboard_ir_logdir'].description,
                               action=CanonicalizePathCheckExistenceAction,
                               type=readable_file_or_dir)
     common_group.add_argument('--disable_fusing',

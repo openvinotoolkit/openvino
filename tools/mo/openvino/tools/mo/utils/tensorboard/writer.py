@@ -88,9 +88,8 @@ class SummaryWriter(object):
             graph_def_str += node_def_str
         graph_def = tf.GraphDef()
         text_format.Merge(graph_def_str, graph_def)
-        event_writer = EventFileWriter(".", 10, 120, "")
         event = event_pb2.Event(graph_def=graph_def.SerializeToString())
-        event_writer.add_event(event)
+        self.event_writer.add_event(event)
 
     def flush(self):
         """
