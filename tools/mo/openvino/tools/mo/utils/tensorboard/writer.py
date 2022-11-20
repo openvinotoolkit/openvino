@@ -13,7 +13,7 @@ try:
 except ImportError:
     raise Error(
         'For generation of TensorBoard logs for OpenVINO Model,'
-        'nstall required dependencies: pip install tensorflow protobuf tensorboard')
+        'Install required dependencies: pip install tensorflow protobuf tensorboard')
 
 from openvino.runtime import Model  # pylint: disable=no-name-in-module,import-error
 
