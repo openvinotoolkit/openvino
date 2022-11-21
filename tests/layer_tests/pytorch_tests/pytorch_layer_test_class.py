@@ -116,7 +116,7 @@ class PytorchLayerTest:
         raise RuntimeError("Please provide inputs generation function")
 
 
-def get_params(ie_device=['CPU'], precision=None):
+def get_params(ie_device=None, precision=None):
     """
     :param ie_device: list of devices
     :param precision: list of precisions
