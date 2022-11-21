@@ -11,9 +11,9 @@ Once the prerequisites have been installed, perform the following steps:
 3. <a href="#download-media">Download media files to run inference.</a>
 4. <a href="#run-image-classification">Run inference with the Image Classification sample application and see the results.</a>
 
-## <a name="prerequisites"></a>Prerequisites
+### <a name="prerequisites"></a>Prerequisites
 
-### Install OpenVINO Runtime
+#### Install OpenVINO Runtime
 
 To use sample applications, Install OpenVINO Runtime via one of the following distribution channels (other distributions do not include sample files):
 
@@ -23,7 +23,7 @@ To use sample applications, Install OpenVINO Runtime via one of the following di
 
 Make sure to [install OpenCV](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO). It is required for running sample applications.
 
-### Install OpenVINO Development Tools
+#### Install OpenVINO Development Tools
 
 To install OpenVINO Development Tools, follow the [instructions for C++ developers on the Install OpenVINO Development Tools page](../install_guides/installing-model-dev-tools.md#cpp-developers). This guide uses the `googlenet-v1` model from the Caffe framework, therefore, when you get to Step 4 of the installation, run the following command to install OpenVINO with the Caffe requirements:
 
@@ -31,7 +31,7 @@ To install OpenVINO Development Tools, follow the [instructions for C++ develope
    pip install openvino-dev[caffe]
 ```
 
-### Build Samples
+#### Build Samples
 
 To build OpenVINO samples, follow the steps for your operating system in the OpenVINO Samples page ([Linux](../OV_Runtime_UG/Samples_Overview.md#build-the-sample-applications-on-linux), [Windows](../OV_Runtime_UG/Samples_Overview.md#build-the-sample-applications-on-microsoft-windows), [macOS](../OV_Runtime_UG/Samples_Overview.md#build-the-sample-applications-on-macos)). The build will take about 5-10 minutes, depending on your system.
 
