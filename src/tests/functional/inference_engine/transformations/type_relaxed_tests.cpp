@@ -6,7 +6,7 @@
 #include "common_test_utils/test_common.hpp"
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/constant_folding.hpp>
-#include <ngraph_ops/type_relaxed.hpp>
+#include <ov_ops/type_relaxed.hpp>
 
 #include <ngraph/pass/manager.hpp>
 

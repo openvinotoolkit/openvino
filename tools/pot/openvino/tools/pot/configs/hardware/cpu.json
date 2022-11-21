@@ -225,7 +225,27 @@
         {
             "type": "Concat",
             "attributes": {
-                "scales": "unified"
+                "unified_scales": "all"
+            }
+        },
+        {
+            "type": "LSTMSequence",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": "q8_w_sym"
+            },
+            "attributes": {
+                "unified_scales": [[0, 1], [4, 5]]
+            }
+        },
+        {
+            "type": "GRUSequence",
+            "quantization": {
+                "activations": "q8_a",
+                "weights": "q8_w_sym"
+            },
+            "attributes": {
+                "unified_scales": [[0, 1], [3, 4]]
             }
         },
         {"type": "Reshape"},
@@ -241,7 +261,8 @@
         {"type": "ShuffleChannels"},
         {"type": "Broadcast"},
         {"type": "Pad"},
-        {"type": "ConvertLike"},  
+        {"type": "ConvertLike"},
+        {"type": "Gather"},
         {"type": "DepthToSpace"}
     ]
 }

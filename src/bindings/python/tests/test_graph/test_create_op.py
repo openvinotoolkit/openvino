@@ -2201,7 +2201,7 @@ def test_interpolate_opset10(dtype, expected_shape, shape_calculation_mode):
     assert list(node.get_output_shape(0)) == expected_shape
 
 
-def test_in_finite_opset10():
+def test_is_finite_opset10():
     input_shape = [1, 2, 3, 4]
     input_node = ov.parameter(input_shape, np.float, name="InputData")
     node = ov_opset10.is_finite(input_node)
@@ -2261,7 +2261,7 @@ def test_is_inf_opset10_custom_all_attributes():
     assert node_attributes["detect_negative"] is False
 
 
-def test_in_nan_opset10():
+def test_is_nan_opset10():
     input_shape = [1, 2, 3, 4]
     input_node = ov.parameter(input_shape, np.float, name="InputData")
     node = ov_opset10.is_nan(input_node)

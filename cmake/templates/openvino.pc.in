@@ -16,7 +16,6 @@ Name: OpenVINO
 Description: OpenVINO™ Toolkit
 URL: https://docs.openvino.ai/latest/index.html
 Version: @OpenVINO_VERSION@
-Requires.private: @PKGCONFIG_OpenVINO_REQUIRES_PRIVATE@
 Conflicts: openvino < @OpenVINO_VERSION@
 Cflags: -I${includedir_old} -I${includedir_new}
 Libs: -L${libdir} @PKGCONFIG_OpenVINO_FRONTENDS@ -lopenvino_c -lopenvino @PKGCONFIG_OpenVINO_PRIVATE_DEPS@

@@ -15,7 +15,9 @@ if(ENABLE_PROFILING_ITT)
     add_subdirectory(itt_collector EXCLUDE_FROM_ALL)
 endif()
 
-add_subdirectory(cnpy EXCLUDE_FROM_ALL)
+if(ENABLE_SAMPLES OR ENABLE_TESTS)
+    add_subdirectory(cnpy EXCLUDE_FROM_ALL)
+endif()
 
 if(ENABLE_INTEL_GPU)
     add_subdirectory(ocl)
@@ -29,21 +31,23 @@ ov_install_static_lib(xbyak ${OV_CPACK_COMP_CORE})
 # zlib
 #
 
-if(NOT ANDROID)
-    find_package(PkgConfig QUIET)
-    if(PkgConfig_FOUND)
-        pkg_search_module(zlib QUIET
-                          IMPORTED_TARGET GLOBAL
-                          zlib)
-        if(zlib_FOUND)
-            add_library(zlib::zlib ALIAS PkgConfig::zlib)
-            message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
+if(ENABLE_SAMPLES OR ENABLE_TESTS)
+    if(NOT ANDROID)
+        find_package(PkgConfig QUIET)
+        if(PkgConfig_FOUND)
+            pkg_search_module(zlib QUIET
+                              IMPORTED_TARGET GLOBAL
+                              zlib)
+            if(zlib_FOUND)
+                add_library(zlib::zlib ALIAS PkgConfig::zlib)
+                message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
+            endif()
         endif()
     endif()
-endif()
 
-if(NOT zlib_FOUND)
-    add_subdirectory(zlib EXCLUDE_FROM_ALL)
+    if(NOT zlib_FOUND)
+        add_subdirectory(zlib EXCLUDE_FROM_ALL)
+    endif()
 endif()
 
 #
@@ -171,39 +175,41 @@ endif()
 # Gflags
 #
 
-if(NOT APPLE OR CPACK_GENERATOR MATCHES "^(BREW|CONDA-FORGE)$")
-    # - on Apple only dynamic libraries are available
-    #   also, we can easily mix arm64 and x86_64 binaries when cross-compile for Intel CPU
+if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
+    if(NOT APPLE OR CPACK_GENERATOR MATCHES "^(BREW|CONDA-FORGE)$")
+        # - on Apple only dynamic libraries are available
+        #   also, we can easily mix arm64 and x86_64 binaries when cross-compile for Intel CPU
 
-    if(CPACK_GENERATOR MATCHES "^(BREW|CONDA-FORGE)$" OR DEFINED ENV{HOMEBREW_PREFIX} OR LINUX_OS_NAME MATCHES "(Fedora|CentOS)")
-        # conda-forge and brew contains only shared version of gflags
-        find_package(gflags QUIET COMPONENTS nothreads_shared)
-    else()
-        find_package(gflags QUIET COMPONENTS nothreads_static)
+        if(CPACK_GENERATOR MATCHES "^(BREW|CONDA-FORGE)$" OR DEFINED ENV{HOMEBREW_PREFIX} OR LINUX_OS_NAME MATCHES "(Fedora|CentOS)")
+            # conda-forge and brew contains only shared version of gflags
+            find_package(gflags QUIET COMPONENTS nothreads_shared)
+        else()
+            find_package(gflags QUIET COMPONENTS nothreads_static)
+        endif()
     endif()
-endif()
 
-if(gflags_FOUND)
-    if(TARGET gflags)
-        set_target_properties(gflags PROPERTIES IMPORTED_GLOBAL ON)
-    elseif(TARGET gflags_nothreads-shared)
-        # gflags shared case for CentOS/RHEL8
-        set_target_properties(gflags_nothreads-shared PROPERTIES IMPORTED_GLOBAL ON)
-        add_library(gflags ALIAS gflags_nothreads-shared)
-    elseif(TARGET gflags_nothreads-static)
-        # debian_9_arm case
-        set_target_properties(gflags_nothreads-static PROPERTIES IMPORTED_GLOBAL ON)
-        add_library(gflags ALIAS gflags_nothreads-static)
-    elseif(TARGET ${GFLAGS_TARGET})
-        set_target_properties(${GFLAGS_TARGET} PROPERTIES IMPORTED_GLOBAL ON)
-        add_library(gflags ALIAS ${GFLAGS_TARGET})
+    if(gflags_FOUND)
+        if(TARGET gflags)
+            set_target_properties(gflags PROPERTIES IMPORTED_GLOBAL ON)
+        elseif(TARGET gflags_nothreads-shared)
+            # gflags shared case for CentOS/RHEL8
+            set_target_properties(gflags_nothreads-shared PROPERTIES IMPORTED_GLOBAL ON)
+            add_library(gflags ALIAS gflags_nothreads-shared)
+        elseif(TARGET gflags_nothreads-static)
+            # debian_9_arm case
+            set_target_properties(gflags_nothreads-static PROPERTIES IMPORTED_GLOBAL ON)
+            add_library(gflags ALIAS gflags_nothreads-static)
+        elseif(TARGET ${GFLAGS_TARGET})
+            set_target_properties(${GFLAGS_TARGET} PROPERTIES IMPORTED_GLOBAL ON)
+            add_library(gflags ALIAS ${GFLAGS_TARGET})
+        else()
+            message(FATAL_ERROR "Internal error: failed to find imported target 'gflags'")
+        endif()
+        message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR}")
     else()
-        message(FATAL_ERROR "Internal error: failed to find imported target 'gflags'")
+        add_subdirectory(gflags EXCLUDE_FROM_ALL)
+        openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
     endif()
-    message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR}")
-else()
-    add_subdirectory(gflags EXCLUDE_FROM_ALL)
-    openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
 endif()
 
 #
@@ -283,10 +289,9 @@ endif()
 add_subdirectory(json)
 
 openvino_developer_export_targets(COMPONENT openvino_common
-                                  TARGETS nlohmann_json nlohmann_json_schema_validator)
+                                  TARGETS nlohmann_json)
 
 ov_install_static_lib(nlohmann_json ${OV_CPACK_COMP_CORE})
-ov_install_static_lib(nlohmann_json_schema_validator ${OV_CPACK_COMP_CORE})
 
 #
 # Install
@@ -295,11 +300,13 @@ ov_install_static_lib(nlohmann_json_schema_validator ${OV_CPACK_COMP_CORE})
 if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
     # These libraries are dependencies for openvino-samples package
 
-    if(NOT gflags_FOUND)
-        message(FATAL_ERROR "gflags must be used as a ${CPACK_GENERATOR} package. Install libgflags-dev / gflags-devel")
-    endif()
-    if(NOT zlib_FOUND)
-        message(FATAL_ERROR "zlib must be used as a ${CPACK_GENERATOR} package. Install zlib1g-dev / zlib-devel")
+    if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
+        if(NOT gflags_FOUND)
+            message(FATAL_ERROR "gflags must be used as a ${CPACK_GENERATOR} package. Install libgflags-dev / gflags-devel")
+        endif()
+        if(NOT zlib_FOUND)
+            message(FATAL_ERROR "zlib must be used as a ${CPACK_GENERATOR} package. Install zlib1g-dev / zlib-devel")
+        endif()
     endif()
     if(NOT ENABLE_SYSTEM_PUGIXML AND NOT LINUX_OS_NAME STREQUAL "CentOS 7")
         message(FATAL_ERROR "Pugixml must be used as a ${CPACK_GENERATOR} package. Install libpugixml-dev / pugixml-devel")
@@ -336,25 +343,22 @@ else()
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/json/nlohmann_json
             DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
             COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-            PATTERN appveyor.yml EXCLUDE
-            PATTERN benchmarks EXCLUDE
             PATTERN ChangeLog.md EXCLUDE
             PATTERN CITATION.cff EXCLUDE
             PATTERN .clang-format EXCLUDE
             PATTERN .clang-tidy EXCLUDE
-            PATTERN CODE_OF_CONDUCT.md EXCLUDE
-            PATTERN doc EXCLUDE
+            PATTERN docs EXCLUDE
             PATTERN .git EXCLUDE
-            PATTERN .drone.yml EXCLUDE
             PATTERN .github EXCLUDE
             PATTERN .gitignore EXCLUDE
+            PATTERN .lgtm.yml EXCLUDE
             PATTERN Makefile EXCLUDE
             PATTERN meson.build EXCLUDE
             PATTERN nlohmann_json.natvis EXCLUDE
             PATTERN README.md EXCLUDE
-            PATTERN test EXCLUDE
-            PATTERN third_party EXCLUDE
-            PATTERN .travis.yml EXCLUDE
+            PATTERN .reuse EXCLUDE
+            PATTERN tests EXCLUDE
+            PATTERN tools EXCLUDE
             PATTERN wsjcpp.yml EXCLUDE)
 endif()
 

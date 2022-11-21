@@ -24,6 +24,11 @@ namespace cldnn {
 namespace ocl {
 
 struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
+    using parent = typed_primitive_impl<custom_gpu_primitive>;
+    using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::shared_ptr<kernel_selector::cl_kernel_data> cl_kernel;
     std::vector<kernel::ptr> _kernels;
     kernel_id _kernel_id;
@@ -31,6 +36,9 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<custom_gpu_primitive_impl>(*this);
     }
+
+    custom_gpu_primitive_impl()
+    : _kernels() {}
 
     custom_gpu_primitive_impl(const custom_gpu_primitive_impl& other)
     : cl_kernel(other.cl_kernel)
@@ -76,6 +84,17 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     std::vector<std::string> get_kernel_ids() override {
         return {_kernel_id};
     }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        ob << *cl_kernel;
+        ob << _kernel_id;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        cl_kernel = std::make_shared<kernel_selector::cl_kernel_data>();
+        ib >> *cl_kernel;
+        ib >> _kernel_id;
+    }
 };
 
 static kernel_selector::kernel_argument_element get_arg(custom_gpu_primitive::arg_desc arg) {
@@ -97,7 +116,7 @@ static kernel_selector::kernel_argument_element get_arg(custom_gpu_primitive::ar
     return ret;
 }
 
-std::string value_macro(const std::string& name, const std::string& value) {
+static std::string value_macro(const std::string& name, const std::string& value) {
     std::ostringstream oss;
     oss << "#define " << name << " " << value << std::endl;
     return oss.str();
@@ -196,7 +215,7 @@ static std::string get_jit_constant(const custom_gpu_primitive_node& outer, cons
         add_layout_to_jit(mem_consts, "INPUT" + std::to_string(i), impl_param.get_input_layout(i));
     }
 
-    add_layout_to_jit(mem_consts, "OUTPUT0", impl_param.output_layout);
+    add_layout_to_jit(mem_consts, "OUTPUT0", impl_param.get_output_layout());
 
     std::ostringstream oss;
     oss << "// Custom Layer Built-ins\n\n";
@@ -207,7 +226,7 @@ static std::string get_jit_constant(const custom_gpu_primitive_node& outer, cons
     return oss.str();
 }
 
-static primitive_impl* create(const custom_gpu_primitive_node& arg, const kernel_impl_params& impl_param) {
+static std::unique_ptr<primitive_impl> create(const custom_gpu_primitive_node& arg, const kernel_impl_params& impl_param) {
     const auto primitive = arg.get_primitive().get();
 
     auto cl_kernel = std::make_shared<kernel_selector::cl_kernel_data>();
@@ -226,7 +245,7 @@ static primitive_impl* create(const custom_gpu_primitive_node& arg, const kernel
         cl_kernel->params.arguments.push_back(get_arg(p));
     }
 
-    return new custom_gpu_primitive_impl(arg, cl_kernel);
+    return cldnn::make_unique<custom_gpu_primitive_impl>(arg, cl_kernel);
 }
 
 namespace detail {
@@ -238,3 +257,5 @@ attach_custom_gpu_primitive_impl::attach_custom_gpu_primitive_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::custom_gpu_primitive_impl, cldnn::object_type::CUSTOM_GPU_PRIMITIVE_IMPL)

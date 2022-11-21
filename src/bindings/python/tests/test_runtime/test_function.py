@@ -22,7 +22,7 @@ from openvino.runtime import (
     serialize,
 )
 
-from ..test_utils.test_utils import generate_add_model  # TODO: reformat into an absolute path
+from tests.test_utils.test_utils import generate_add_model, create_filename_for_test
 
 
 def test_test_descriptor_tensor():
@@ -34,7 +34,7 @@ def test_test_descriptor_tensor():
     assert "relu_t1" in td.names
     assert td.element_type == Type.f32
     assert td.partial_shape == PartialShape([1])
-    assert repr(td.shape) == "<Shape: {1}>"
+    assert repr(td.shape) == "<Shape: [1]>"
     assert td.size == 4
     assert td.any_name == "relu_t1"
 
@@ -275,7 +275,7 @@ def test_evaluate_invalid_input_shape():
             [Tensor("float32", Shape([2, 1]))],
             [Tensor("float32", Shape([3, 1])), Tensor("float32", Shape([3, 1]))],
         )
-    assert "must be compatible with the partial shape: {2,1}" in str(e.value)
+    assert "must be compatible with the partial shape: [2,1]" in str(e.value)
 
 
 def test_get_batch():
@@ -411,7 +411,7 @@ def test_reshape_with_python_types(device):
     model.reshape(new_shapes)
     check_shape(PartialShape(shape6))
 
-    shape7 = "1..10, ?"
+    shape7 = "[1..10, ?]"
     new_shapes = {input: shape7 for input in model.inputs}
     model.reshape(new_shapes)
     check_shape(PartialShape(shape7))
@@ -430,7 +430,7 @@ def test_reshape_with_python_types(device):
     model.reshape(shape9)
     check_shape(PartialShape([Dimension(-1), Dimension(3), Dimension(28, 56), Dimension(28, 56)]))
 
-    shape10 = "?,3,..224,..224"
+    shape10 = "[?,3,..224,..224]"
     model.reshape(shape10)
     check_shape(PartialShape([Dimension(-1), Dimension(3), Dimension(-1, 224), Dimension(-1, 224)]))
 
@@ -452,7 +452,8 @@ def test_reshape_with_python_types(device):
     )
 
 
-def test_serialize_rt_info():
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_serialize_rt_info(request):
     version = "TestVersion"
     config = "TestConfig"
     framework_batch = "1"
@@ -473,8 +474,7 @@ def test_serialize_rt_info():
             assert model.get_rt_info(["optimization", "test"])
 
     core = Core()
-    xml_path = "./serialized_model.xml"
-    bin_path = "./serialized_model.bin"
+    xml_path, bin_path = create_filename_for_test(request.node.name)
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
     relu1 = ops.relu(param, name="relu1")

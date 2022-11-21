@@ -362,7 +362,8 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
             auto reorders_cnt = count_reorders(fmt_map, lo, node);
 
             if (reorders_cnt.number < best_reorder_cnt.number ||
-                (reorders_cnt.number == best_reorder_cnt.number && reorders_cnt.total_sizes < best_reorder_cnt.total_sizes)) {
+                (reorders_cnt.number == best_reorder_cnt.number && reorders_cnt.total_sizes < best_reorder_cnt.total_sizes
+                                                                && !node->get_output_layout().is_dynamic())) {
                 best_reorder_cnt = reorders_cnt;
                 best_format = new_fmt;
             }
@@ -566,7 +567,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
     insert_reorders(p, fmt_map, rf, lo);
 
     for (auto n : p.get_processing_order()) {
-        n->recalc_output_layout(true);
+        n->recalc_output_layouts(true);
     }
 
     const auto reorder_input_detection_output = [&p, &rf](typed_program_node<detection_output>& detection_output_node) {
@@ -620,7 +621,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                 layout{ weights_layout.data_type, preferred_format, weights_layout.get_tensor() });
             if (reorder.first) {
                 p.add_intermediate(reorder.first, deconv_node, 1, !reorder.second);
-                p.get_or_create(reorder.first).recalc_output_layout(false);
+                p.get_or_create(reorder.first).recalc_output_layouts(false);
             }
         }
     };
@@ -637,7 +638,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                     layout{ weights_layout.data_type, preferred_format, weights_layout.get_tensor() });
                 if (reorder.first) {
                     p.add_intermediate(reorder.first, conv_node, 1, !reorder.second);
-                    p.get_or_create(reorder.first).recalc_output_layout(false);
+                    p.get_or_create(reorder.first).recalc_output_layouts(false);
                 }
             }
         }
@@ -652,7 +653,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                 auto new_input = rf.get_reorder(input.id(), input_layout, new_layout);
                 if (new_input.first) {
                     p.add_intermediate(new_input.first, conv_node, 0, !new_input.second);
-                    p.get_or_create(new_input.first).recalc_output_layout(true);
+                    p.get_or_create(new_input.first).recalc_output_layouts(true);
                 }
             }
 
@@ -665,7 +666,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                 auto new_input = rf.get_reorder(weights.id(), weights_layout, new_layout);
                 if (new_input.first) {
                     p.add_intermediate(new_input.first, conv_node, 1, !new_input.second);
-                    p.get_or_create(new_input.first).recalc_output_layout(false);
+                    p.get_or_create(new_input.first).recalc_output_layouts(false);
                 }
             }
         }
@@ -800,7 +801,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                     new_layout.data_type = expected_dt;
                     auto new_input = rf.get_reorder(node->get_dependency(dep_idx).id(), orig_layout, new_layout);
                     if (new_input.first)
-                        p.add_intermediate(new_input.first, *node, dep_idx);
+                        p.add_intermediate(new_input.first, *node, dep_idx, !new_input.second);
                 }
             }
         }
