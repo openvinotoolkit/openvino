@@ -40,3 +40,6 @@ if (ENABLE_TEMPLATE_REGISTRATION)
     ov_register_plugins(MAIN_TARGET ${TARGET_NAME})
 endif()
 # [cmake:plugin]
+
+install(TARGETS ${TARGET_NAME}
+    LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)

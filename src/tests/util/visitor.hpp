@@ -373,11 +373,12 @@ protected:
 
 class NodeBuilder : public ValueMap, public DeserializeAttributeVisitor {
 public:
-    NodeBuilder() : DeserializeAttributeVisitor(static_cast<ValueMap&>(*this)), m_serializer(*this) {}
+    NodeBuilder() : DeserializeAttributeVisitor(static_cast<ValueMap&>(*this)), m_serializer(*this), m_inputs{} {}
 
-    NodeBuilder(const std::shared_ptr<Node>& node)
+    NodeBuilder(const std::shared_ptr<Node>& node, ov::OutputVector inputs = {})
         : DeserializeAttributeVisitor(static_cast<ValueMap&>(*this)),
-          m_serializer(*this) {
+          m_serializer(*this),
+          m_inputs(inputs) {
         save_node(node);
     }
 
@@ -386,12 +387,17 @@ public:
         node->visit_attributes(m_serializer);
     }
 
-    // Does not validate, since inputs aren't set
     std::shared_ptr<Node> create() {
         std::shared_ptr<Node> node(get_ops().create(m_node_type_info));
         node->visit_attributes(*this);
-        return node;
+
+        if (m_inputs.size()) {
+            node->set_arguments(m_inputs);
+            return node->clone_with_new_inputs(m_inputs);
+        } else
+            return node;
     }
+
     AttributeVisitor& get_node_saver() {
         return m_serializer;
     }
@@ -412,6 +418,7 @@ public:
 protected:
     Node::type_info_t m_node_type_info;
     SerializeAttributeVisitor m_serializer;
+    ov::OutputVector m_inputs;
 };
 }  // namespace test
 }  // namespace ngraph

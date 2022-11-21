@@ -140,6 +140,11 @@ if(LINUX)
     endif()
 endif()
 
+if(CMAKE_VERSION VERSION_LESS 3.15)
+    message(${message_mode} "Cmake version 3.15 and higher is required. Provided version ${CMAKE_VERSION}")
+    set(ENABLE_WHEEL_DEFAULT OFF)
+endif()
+
 # this option should not be a part of OpenVINODeveloperPackage
 # since wheels can be built only together with main OV build
 ie_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ${ENABLE_WHEEL_DEFAULT} "ENABLE_PYTHON" OFF)

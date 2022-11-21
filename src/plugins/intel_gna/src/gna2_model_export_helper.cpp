@@ -11,12 +11,15 @@
 #include "gna/gna_config.hpp"
 #include "common/gna_target.hpp"
 #include "common/versioning.hpp"
+#include "log/log.hpp"
 
 #include "gna2-tlv-writer.h"
 
 #include <cstdint>
 #include <fstream>
 #include <numeric>
+
+using namespace ov::intel_gna;
 
 void * ExportSueLegacyUsingGnaApi2(
     uint32_t modelId,
@@ -61,7 +64,6 @@ void * ExportSueLegacyUsingGnaApi2(
 #define Gna2TlvTypeOVOutputScaleFactor GNA2_TLV_IMPL_CHAR_TO_TYPE("OVOS")
 #define Gna2TlvTypeOVString GNA2_TLV_IMPL_CHAR_TO_TYPE("OVSS")
 #define Gna2TlvTypeOVVersion GNA2_TLV_IMPL_CHAR_TO_TYPE("OVVR")
-#define Gna2ExportTlv(...) 1
 
 static_assert(std::numeric_limits<float>::is_iec559, "Float is not IEC 559 compatible");
 typedef std::array<char, sizeof(Gna2TlvRecord) + sizeof(float)> TlvFloatRecord;
@@ -124,7 +126,7 @@ std::string WriteAllEndpoints(std::ostream& outStream,
         outStream.write(scaleFactorTlv.data(), scaleFactorTlv.size());
     }
     if (allEndpoints.size() != 1) {
-        gnawarn() << "Number of endpoints: " << allEndpoints.size() << " for " << endPointType << "\n";
+        log::warning() << "Number of endpoints: " << allEndpoints.size() << " for " << endPointType << "\n";
     }
 
     std::stringstream stream;

@@ -30,6 +30,7 @@ using shape_of_node = typed_program_node<shape_of>;
 template <>
 class typed_primitive_inst<shape_of> : public typed_primitive_inst_base<shape_of> {
     using parent = typed_primitive_inst_base<shape_of>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>

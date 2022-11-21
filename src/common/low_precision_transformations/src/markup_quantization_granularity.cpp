@@ -57,6 +57,12 @@ bool ngraph::pass::low_precision::MarkupQuantizationGranularity::run_on_model(co
             continue;
         }
 
+        if (const auto multiSubGraph = ov::as_type_ptr<ngraph::op::util::MultiSubGraphOp>(node)) {
+            for (size_t i = 0; i < multiSubGraph->get_internal_subgraphs_size(); i++)
+                run_on_model(multiSubGraph->get_function(i));
+            continue;
+        }
+
         const auto typeIt = restrictionsByOperation.find(node->get_type_info().name);
         if (typeIt == restrictionsByOperation.end()) {
             continue;

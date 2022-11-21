@@ -23,7 +23,7 @@ ov::op::util::BinaryElementwiseLogical::BinaryElementwiseLogical(const Output<No
 void ov::op::util::BinaryElementwiseLogical::validate_and_infer_types() {
     OV_OP_SCOPE(v0_util_BinaryElementwiseLogical_validate_and_infer_types);
 
-    auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this, m_autob);
+    auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this);
     element::Type& args_et = std::get<0>(args_et_pshape);
     PartialShape& args_pshape = std::get<1>(args_et_pshape);
 

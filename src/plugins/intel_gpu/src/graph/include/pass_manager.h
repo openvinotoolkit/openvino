@@ -310,12 +310,14 @@ private:
     reorder_factory& _rf;
 };
 
-class set_required_layouts : public base_pass {
+class select_preferred_formats : public base_pass {
 public:
-    set_required_layouts() : base_pass("set_required_layouts") {}
+    explicit select_preferred_formats(layout_optimizer& lo_ref) :
+        base_pass("select_preferred_formats"), _lo(lo_ref) {}
 
 private:
     void run(program& p) override;
+    layout_optimizer& _lo;
 };
 
 class trim_to_outputs : public base_pass {

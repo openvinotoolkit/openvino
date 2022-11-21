@@ -118,7 +118,8 @@ public:
     jit_convert_array(convert_vec_t convert_vec,
                       size_t src_size,
                       size_t dst_size)
-        : _convert_vec(convert_vec)
+        : jit_kernel(jit_name())
+        , _convert_vec(convert_vec)
         , _src_size(src_size)
         , _dst_size(dst_size) {}
 
