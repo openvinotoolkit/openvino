@@ -40,7 +40,7 @@ class NGRAPH_API ConvertPrecision;
  * For all operations from opset1-opset4 this conversions can be applied without adding Conversion operations.
  * That is possible because all operations that produces "FROM" type can produce "TO" type. And for this operations
  * we have created special fuse_type_into_<type> functoin (can be found in cpp file) that performs type fusion
- * into operation.
+ * into operation. m_additional_type_to_fuse_map allows to rewrite existing type convertors.
  *
  * List of operations that are supported by this transformations for i64 -> i32 conversion:
  *     opset4::Parameter
