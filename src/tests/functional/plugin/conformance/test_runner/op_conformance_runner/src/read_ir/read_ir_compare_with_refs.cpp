@@ -16,9 +16,7 @@ using namespace ov::test::subgraph;
 
 namespace {
 
-#include <ngraph/ngraph.hpp>
-
-#define NGRAPH_OP(NAME, NAMESPACE)                                                                         \
+#define _OPENVINO_OP_REG(NAME, NAMESPACE)                                                                         \
     INSTANTIATE_TEST_SUITE_P(conformance##NAME,                                                            \
                              ReadIRTest,                                                                   \
                              ::testing::Combine(::testing::ValuesIn(getModelPaths(IRFolderPaths, #NAME)),  \
@@ -27,8 +25,8 @@ namespace {
                              ReadIRTest::getTestCaseName); \
 
 // It should point on latest opset which contains biggest list of operations
-#include <ngraph/opsets/opset10_tbl.hpp>
-#undef NGRAPH_OP
+#include "openvino/opsets/opset10_tbl.hpp"
+#undef _OPENVINO_OP_REG
 
 INSTANTIATE_TEST_SUITE_P(conformanceOther,
                         ReadIRTest,
