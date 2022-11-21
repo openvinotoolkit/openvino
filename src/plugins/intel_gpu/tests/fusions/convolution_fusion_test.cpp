@@ -147,6 +147,9 @@ class ConvEltwTest : public ::BaseFusingTest<conv_eltw_test_params> {
 public:
 
     void execute(conv_eltw_test_params& p) {
+        if (engine.get_device_info().supports_immad)
+            p.expected_fused_primitives = p.expected_fused_primitives_onednn;
+
         auto input_prim = get_mem(get_input_layout(p));
         network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
         network network_fused(this->engine, this->topology_fused, bo_fused);
@@ -1594,7 +1597,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_scale_activation_eltwise_fp32_quantiz
     conv_eltw_test_params{ CASE_CONV_ELTW_FP32_5, 3, 2, 6 },
     conv_eltw_test_params{ CASE_CONV_ELTW_FP32_6, 3, 2, 6 },
     conv_eltw_test_params{ CASE_CONV_ELTW_FP32_7, 3, 3, 6 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_8, 3, 2, 6 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_8, 3, 3, 6 },
 }));
 
 /* ----------------------------------------------------------------------------------------------------- */
