@@ -248,7 +248,7 @@ int main(int argc, char* argv[]) {
 
         // Load device config file if specified
         std::map<std::string, ov::AnyMap> config;
-        bool isLoadConfig = false;
+        bool is_load_config = false;
         if (!FLAGS_load_config.empty()) {
             load_config(FLAGS_load_config, config);
             isLoadConfig = true;
