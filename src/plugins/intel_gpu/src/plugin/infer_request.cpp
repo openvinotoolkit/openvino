@@ -836,7 +836,7 @@ std::map<std::string, InferenceEngineProfileInfo> InferRequest::GetPerformanceCo
 }
 
 void InferRequest::allocate_dev_mem_if_needed(InferenceEngine::BlobMap& device_mems, InferenceEngine::Blob::Ptr& user_blob,
-                                              const cldnn::primitive_id& blob_name, const cldnn::layout& layout) {
+                                              const cldnn::primitive_id& blob_name, const cldnn::layout& layout, bool need_lockable_mem) {
     const auto input_ptr = static_cast<const void*>(user_blob->cbuffer());
     const auto alloc_type = m_graph->GetEngine()->detect_usm_allocation_type(input_ptr);
     const auto is_usm_host = alloc_type == cldnn::allocation_type::usm_host;
@@ -855,7 +855,13 @@ void InferRequest::allocate_dev_mem_if_needed(InferenceEngine::BlobMap& device_m
         // so we don't need to allocate new memory
         can_skip_allocation |= same_host_mem(impl_mem, src_ptr);
         // Or if blob has any type except usm_host - in that case explicit copy will be performed anyway
-        can_skip_allocation |= impl_mem->get_allocation_type() != cldnn::allocation_type::usm_host;
+        // Or if blob has usm_host type and lockable memory is expected by impl
+        can_skip_allocation |= !need_lockable_mem ? impl_mem->get_allocation_type() != cldnn::allocation_type::usm_host
+                                                  : impl_mem->get_allocation_type() == cldnn::allocation_type::usm_host;
+        // In case of lockable memory we need to keep updated device's usm_host memory buffer with
+        // user's blob to avoid incorrect behaviour if user will call set_blob() with
+        // the following sequence (usm_host, system_host, usm_host, system_host...)
+        can_skip_allocation &= !need_lockable_mem ? true : users_blobs_matching[blob_name] == user_blob;
     }
 
     if (!can_skip_allocation) {
@@ -863,9 +869,13 @@ void InferRequest::allocate_dev_mem_if_needed(InferenceEngine::BlobMap& device_m
             // For USM case we create host blob using custom USM host allocator
             // and then create shared device blob on top of this buffer
             device_mems[blob_name] = create_shared_device_blob(user_blob->getTensorDesc(), layout, user_blob->buffer().as<void*>());
+        } else if (need_lockable_mem) {
+            auto host_blob = create_host_blob(user_blob->getTensorDesc(), layout.is_dynamic());
+            device_mems[blob_name] = create_shared_device_blob(user_blob->getTensorDesc(), layout, host_blob->buffer().as<void*>());
         } else {
             device_mems[blob_name] = create_device_blob(user_blob->getTensorDesc());
         }
+        users_blobs_matching[blob_name] = user_blob;
     }
 }
 
@@ -980,7 +990,10 @@ void InferRequest::prepare_output(const cldnn::primitive_id& outputName, Blob::P
     const bool is_dev_input = remote_ptr != nullptr;
 
     if (is_static && can_use_usm && !is_dev_input) {
-        allocate_dev_mem_if_needed(_deviceOutputs, outputBlob, outputName, output_layout);
+        auto output_prim_id = outputsMap[outputName];
+        auto impl_type = m_graph->GetNetwork()->get_impl_type(output_prim_id);
+        auto is_cpu_impl = impl_type == cldnn::impl_types::cpu;
+        allocate_dev_mem_if_needed(_deviceOutputs, outputBlob, outputName, output_layout, is_cpu_impl);
     }
 
     OPENVINO_ASSERT(!is_static || _deviceOutputs.find(outputName) != _deviceOutputs.end(),

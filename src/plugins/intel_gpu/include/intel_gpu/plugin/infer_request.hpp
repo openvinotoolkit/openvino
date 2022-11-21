@@ -59,6 +59,7 @@ public:
 private:
     // This blob is used for outputs processing if output data type convertion or padding handling is needed
     InferenceEngine::Blob::Ptr intermediate_output_blob = nullptr;
+    InferenceEngine::BlobMap users_blobs_matching;
     InferenceEngine::BlobMap _deviceOutputs;
     std::map<std::string, cldnn::primitive_id> inputsMap;
     std::map<std::string, cldnn::primitive_id> outputsMap;
@@ -76,7 +77,8 @@ private:
                        std::vector<cldnn::event::ptr>& dependencies);
     void prepare_output(const cldnn::primitive_id& outputName, InferenceEngine::Blob::Ptr& outputBlob);
     void allocate_dev_mem_if_needed(InferenceEngine::BlobMap& device_mems, InferenceEngine::Blob::Ptr& user_blob,
-                                    const cldnn::primitive_id& blob_name, const cldnn::layout& layout);
+                                    const cldnn::primitive_id& blob_name, const cldnn::layout& layout,
+                                    const bool need_lockable_mem = false);
 
     InferenceEngine::Blob::Ptr create_host_blob(const InferenceEngine::TensorDesc& desc, bool is_dynamic);
     InferenceEngine::Blob::Ptr create_device_blob(const InferenceEngine::TensorDesc& desc);
