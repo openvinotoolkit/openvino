@@ -36,10 +36,10 @@ def parse_and_check_command_line():
         raise Exception("-nstreams, -nthreads and -pin options are fine tune options. To use them you " \
                         "should explicitely set -hint option to none. This is not OpenVINO limitation " \
                         "(those options can be used in OpenVINO together), but a benchmark_app UI rule.")
-    
+
     if args.report_type == "average_counters" and "MULTI" in args.target_device:
         raise Exception("only detailed_counters report type is supported for MULTI device")
-    
+
     _, ext = os.path.splitext(args.path_to_model)
     is_network_compiled = True if ext == BLOB_EXTENSION else False
     is_precisiton_set = not (args.input_precision == "" and args.output_precision == "" and args.input_output_precision == "")
@@ -48,21 +48,16 @@ def parse_and_check_command_line():
         raise Exception("Cannot set precision for a compiled model. " \
                         "Please re-compile your model with required precision " \
                         "using compile_tool")
-    
+
     return args, is_network_compiled
 
 def main():
     statistics = None
     try:
         # ------------------------------ 1. Parsing and validating input arguments ------------------------------
-        args_string = f"{os.path.realpath(sys.argv[0])} "
-        for i in range(1,len(sys.argv)):
-            args_string += f"{sys.argv[i]} "
-
         next_step()
         logger.info("Parsing input parameters")
         args, is_network_compiled = parse_and_check_command_line()
-        logger.info(f"Input command: {args_string}")
 
         command_line_arguments = get_command_line_arguments(sys.argv)
         if args.report_type:
@@ -509,7 +504,7 @@ def main():
                 total_sorted_list = print_perf_counters_sort(perfs_count_list,sort_flag=args.perf_counts_sort)
                 if statistics:
                     statistics.dump_performance_counters_sorted(total_sorted_list)
-            
+
             elif args.perf_counts:
                 print_perf_counters(perfs_count_list)
 
