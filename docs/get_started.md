@@ -84,7 +84,7 @@ Use OpenVINO’s model compression tools to reduce your model’s latency and me
 * <a href="notebooks/openvino_docs_model_optimization_guide.html">Model Optimization Guide</a>
 
 #### Automated Device Configuration
-OpenVINO’s hardware device configuration features enable you to write an application once and deploy it anywhere with optimal performance.
+OpenVINO’s hardware device configuration options enable you to write an application once and deploy it anywhere with optimal performance.
 * Increase application portability with [Automatic Device Selection (AUTO)](./OV_Runtime_UG/auto_device_selection.md)
 * Perform parallel inference across processors with [Multi-Device Execution (MULTI)](./OV_Runtime_UG/multi_device.md)
 * Efficiently split inference between hardware cores with [Heterogeneous Execution (HETERO)](./OV_Runtime_UG/hetero_execution.md)
