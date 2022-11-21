@@ -35,9 +35,17 @@ class PytorchLayerTest:
                                                        Example: "transform_1,transform_2"
         """
         import torch
+        if 'kwargs_to_prepare_input' in kwargs and kwargs['kwargs_to_prepare_input']:
+            inputs = self._prepare_input(kwargs['kwargs_to_prepare_input'])
+        else:
+            inputs = self._prepare_input()
         with torch.no_grad():
             model.eval()
-            model = torch.jit.freeze(torch.jit.script(model))
+            if not kwargs.get('trace_model', False):
+                model = torch.jit.freeze(torch.jit.script(model))
+            else:
+                torch_inputs = [torch.from_numpy(inp) for inp in inputs]
+                model = torch.jit.freeze(torch.jit.trace(model, torch_inputs))
             graph = model.inlined_graph
             print(graph)
 
@@ -52,10 +60,7 @@ class PytorchLayerTest:
             im = fe.load(decoder)
             om = fe.convert(im)
 
-        if 'kwargs_to_prepare_input' in kwargs and kwargs['kwargs_to_prepare_input']:
-            inputs = self._prepare_input(kwargs['kwargs_to_prepare_input'])
-        else:
-            inputs = self._prepare_input()
+  
 
         params = om.get_parameters()
         # todo: support lists and dicts
