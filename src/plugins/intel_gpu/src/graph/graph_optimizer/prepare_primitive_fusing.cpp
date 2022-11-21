@@ -211,17 +211,22 @@ void prepare_primitive_fusing::fuse_reorders(program &p) {
                 node.get_dependencies().size() != 1 || input.can_be_optimized())
                 return;
 
-            // - check if previous node is reorder with 1 user (and if the layouts are the same - remove reorder)
+            // - check if previous node is reorder with 1 user
+            //   and if the layouts are the same OR input is NV12 reorder - remove reorder
             // - do not fuse if current node has mean subtract
             if (input.get_users().size() != 1 || !input.is_type<reorder>() ||
-                input.get_output_layout() != node.get_output_layout() || node.has_mean() ||
-                !node.get_primitive()->subtract_per_feature.empty())
+                (input.get_output_layout() != node.get_output_layout() && !input.as<reorder>().get_primitive()->has_surface_input()) ||
+                node.has_mean() || !node.get_primitive()->subtract_per_feature.empty())
                 return;
 
             p.add_optimized_primitive_info(node.id());
 
             auto output_layout = node.get_output_layout();
             input.set_output_layout(output_layout, false);
+
+            if (input.as<reorder>().get_primitive()->has_surface_input()) {
+                std::const_pointer_cast<reorder>(input.as<reorder>().get_primitive())->output_data_type = output_layout.data_type;
+            }
             p.extract_and_remove(node);
         });
     }
