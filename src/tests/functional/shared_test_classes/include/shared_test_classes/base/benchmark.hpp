@@ -7,60 +7,60 @@
 #include <cctype>
 #include <iostream>
 
-#include <nlohmann/json.hpp>
+#include "pugixml.hpp"
 #include "layer_test_utils.hpp"
 #include "ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
 
-using json = nlohmann::json;
-
 class BenchmarkLayerTestReporter {
 public:
-    static constexpr const char* benchmarkReportFileName = "benchmark_layers.json";
+    static constexpr const char* const benchmarkReportFileName = "benchmark_layers.xml";
+    static constexpr const char* const timeAttributeName = "time";
 
-    explicit BenchmarkLayerTestReporter(bool is_readonly)
-        : is_readonly_{is_readonly} {
-        if (is_readonly) {
-            try {
-                report_file_.open(benchmarkReportFileName, std::ios::in);
-                report_json_ = json::parse(report_file_);
-            } catch (...) {
-                report_json_ = json{};
-            }
-        } else {
-            try {
-                report_file_.open(benchmarkReportFileName, std::ios::in | std::ios::out);
-                report_json_ = json::parse(report_file_);
-            } catch (...) {
-                report_file_.open(benchmarkReportFileName, std::ios::out | std::ios::trunc);
-                report_json_ = json{};
-            }
-        }
+    explicit BenchmarkLayerTestReporter(bool is_readonly) : is_readonly_{is_readonly} {
+        report_xml_.load_file(benchmarkReportFileName);
     }
 
     ~BenchmarkLayerTestReporter() {
         if (!is_readonly_) {
-            report_file_ << report_json_.dump(4);
+            report_xml_.save_file(benchmarkReportFileName);
         }
     }
 
-    void report(const std::string& nodeTypeName,
-                const std::string& testCaseName,
-                const uint64_t time) {
-        report_json_[nodeTypeName][testCaseName] = time;
+    void report(const std::string& nodeTypeName, const std::string& testCaseName, const uint64_t time) {
+        pugi::xml_node nodeTypeNode = report_xml_.child(nodeTypeName.c_str());
+        if (!nodeTypeNode) {
+            nodeTypeNode = report_xml_.append_child(nodeTypeName.c_str());
+        }
+
+        pugi::xml_node testCaseNode = nodeTypeNode.child(testCaseName.c_str());
+        if (!testCaseNode) {
+            testCaseNode = nodeTypeNode.append_child(testCaseName.c_str());
+        }
+
+        pugi::xml_attribute timeAttribute = testCaseNode.attribute(timeAttributeName);
+        if (!timeAttribute) {
+            timeAttribute = testCaseNode.append_attribute(timeAttributeName);
+        }
+
+        timeAttribute.set_value(time);
     }
 
-    uint64_t get_time(const std::string& nodeTypeName,
-                      const std::string& testCaseName) {
-        return report_json_[nodeTypeName][testCaseName];
+    uint64_t get_time(const std::string& nodeTypeName, const std::string& testCaseName) {
+        pugi::xml_attribute timeAttribute =
+            report_xml_.child(nodeTypeName.c_str()).child(testCaseName.c_str()).attribute(timeAttributeName);
+        if (!timeAttribute) {
+            throw std::range_error("no time stored for " + testCaseName);
+        }
+
+        return std::stoull(timeAttribute.value());
     }
 
 private:
     bool is_readonly_{};
-    std::fstream report_file_{};
-    json report_json_;
+    pugi::xml_document report_xml_{};
 };
 
 }  // namespace test
