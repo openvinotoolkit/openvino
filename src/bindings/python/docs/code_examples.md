@@ -35,11 +35,11 @@ Let's go over the example available in `openvino/src/bindings/python/docs/exampl
 
 ```
 openvino/               <-- Main package/namespace
-    __init__.py         <-- Unified file between all packages
-    mymodule/           <-- This is your new module and it's contents:)
-        __init__.py
-        ...
-        myclass.py
+├── __init__.py         <-- Unified file between all packages
+└── mymodule/           <-- This is your new module and it's contents:)
+    ├── __init__.py
+    ├── ...
+    └── myclass.py
 ```
 
 Now let's add it to your exisiting `PYTHONPATH` (replace `[your_path]` with correct path to the OpenVINO:tm: project):
@@ -61,18 +61,18 @@ But how to extend existing API? Let's navigate to `openvino/src/bindings/python/
 
 ```
 openvino/
-    frontend/
-    helpers/                        <-- Working directory
-        __init__.py
-        custom_module/              <-- New directory
-            __init__.py             <-- New file
-            custom_helpers.py       <-- New file
-        packing.py
-    ...
-    runtime/
-    test_utils/
-    __init__.py
-    utils.py
+├── frontend/
+├── helpers/                        <-- Working directory
+│   ├── __init__.py
+│   ├── custom_module/              <-- New directory
+│   │   ├── __init__.py             <-- New file
+│   │   ├── custom_helpers.py       <-- New file
+│   │   └── packing.py
+│   ├── ...
+│   ├── runtime/
+│   ├── test_utils/
+│   └── __init__.py
+└── utils.py
 ```
 
 Let's add in `custom_module/custom_helpers.py`:
