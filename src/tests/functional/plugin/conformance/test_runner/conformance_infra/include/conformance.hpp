@@ -48,7 +48,7 @@ inline ov::AnyMap readPluginConfig(const std::string &configFilePath) {
 }
 
 inline std::vector<std::string> getModelPaths(const std::vector<std::string>& conformance_ir_paths,
-                                              const std::string opName = "") {
+                                              const std::string opName = CONFORMANCE_OTHER_OPS) {
     // This is required to prevent re-scan folders each call in case there is nothing found
     static bool listPrepared = false;
     if (!listPrepared) {
