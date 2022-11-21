@@ -204,6 +204,9 @@ class Conformance:
         self._model_path = conformance_ir_path
 
     def _prepare_filelist(self):
+        if os.path.is_file(self._model_path):
+            logger.info(f"{filelist_path} is exists! Skip the step to prepare fileslist")
+            return self._model_path
         filelist_path = os.path.join(self._model_path, "conformance_ir_files.lst")
         if os.path.is_file(filelist_path):
             logger.info(f"{filelist_path} is exists! Skip the step to prepare fileslist")
