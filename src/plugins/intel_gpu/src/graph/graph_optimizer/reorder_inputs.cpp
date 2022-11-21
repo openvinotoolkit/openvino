@@ -380,7 +380,7 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
         std::set<format::type> local_formats;
 
         for (auto user : node->get_users()) {
-            auto user_fmt = fmt_map.at(user);
+            auto user_fmt = get_target_input_format(lo, fmt_map, user, node);
 
             if (user_fmt != format::any &&
                 lo.is_format_supported(*node, user_fmt)) {
@@ -392,7 +392,7 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
             if (!dep->is_in_data_flow())
                 continue;
 
-            auto dep_fmt = fmt_map.at(dep);
+            auto dep_fmt = get_target_output_format(lo, fmt_map, dep, node);
 
             if (dep_fmt != format::any &&
                 lo.is_format_supported(*node, dep_fmt)) {
