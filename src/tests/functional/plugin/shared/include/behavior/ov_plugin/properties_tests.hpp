@@ -57,6 +57,8 @@ public:
     AnyMap compileModelProperties;
 };
 using OVSetPropComplieModleWihtIncorrectPropTests = OVSetPropComplieModleGetPropTests;
+using OVSetSupportPropComplieModleWithoutConfigTests = OVSetPropComplieModleGetPropTests;
+using OVSetUnsupportPropComplieModleWithoutConfigTests = OVSetPropComplieModleGetPropTests;
 
 using OvPropertiesParams = std::tuple<
         std::string,                          // device name
