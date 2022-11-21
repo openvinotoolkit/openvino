@@ -2,7 +2,7 @@
 
 The guide presents a basic workflow for building and running C++ code samples in OpenVINO. Note that these steps will not work with the Python samples. 
 
-To get started with samples, you must first install OpenVINO Runtime, install OpenVINO Development tools, and build the sample applications. See the <a href="#prerequisites">Prerequisites</a> section for instructions.
+To get started, you must first install OpenVINO Runtime, install OpenVINO Development tools, and build the sample applications. See the <a href="#prerequisites">Prerequisites</a> section for instructions.
 
 Once the prerequisites have been installed, perform the following steps:
 
