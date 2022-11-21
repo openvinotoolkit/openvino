@@ -23,12 +23,8 @@
    border-bottom: solid 1px #dee2e6!important;
 }
 
-.scrollbox div.highlight {
+.scrollbox div {
    margin:0px!important;
-}
-
-.scrollbox div[class*="highlight-"] {
-margin: 0 !important;
 }
 
 .scrollbox {
