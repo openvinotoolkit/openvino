@@ -113,7 +113,7 @@
 #include <ov_ops/augru_cell.hpp>
 #include <ov_ops/augru_sequence.hpp>
 
-#include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
+#include <transformations/low_precision/mark_dequantization_subgraph.hpp>
 #include <low_precision/common/quantization_granularity_restriction.hpp>
 #include <low_precision/common/precisions_restriction.hpp>
 #include <low_precision/convert_subtract_constant.hpp>
@@ -134,6 +134,7 @@
 #include "nodes/normalize.h"
 #include "nodes/mha.h"
 #include "utils/denormals.hpp"
+#include "transformations/common_optimizations/augru_cell_fusion.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #ifndef __GNUC_PREREQ
@@ -280,7 +281,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         if (hasINT16orINT32Levels) {
             defaultPrecisions = ngraph::pass::low_precision::precision_set::int8_int16_int32_support;
         }
-        manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(defaultPrecisions);
+        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(defaultPrecisions);
     }
     auto get_convert_precisions = []() {
         precisions_array array = {
@@ -304,13 +305,13 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 
     static const auto precisions = get_convert_precisions();
 
+    manager.register_pass<ov::pass::AUGRUCellFusion>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
     manager.register_pass<ngraph::pass::TransposeSinking>();
     manager.register_pass<ngraph::pass::ConvertSequenceToTensorIterator>();
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
-    manager.register_pass<ngraph::pass::ConvertTensorIteratorToSequence>();
     manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
     manager.register_pass<ngraph::pass::GRUCellDecomposition>();
     manager.register_pass<ngraph::pass::RNNCellDecomposition>();
@@ -333,6 +334,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     manager.register_pass<ngraph::pass::EliminateConvert>();
     manager.register_pass<SwapConvertTranspose>();
     manager.register_pass<ConvertToInteraction>();
+    manager.register_pass<ConvertInteractionInt8>();
 
     auto pass_config = manager.get_pass_config();
 
@@ -429,19 +431,6 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                 return isCellPrimitiveSupported(node);
             });
 
-    pass_config->set_callback<ngraph::pass::ConvertTensorIteratorToRNNSequence,
-                              ngraph::pass::ConvertTensorIteratorToLSTMSequence,
-                              ngraph::pass::ConvertTensorIteratorToGRUSequence>(
-            [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
-                if (const auto& ti_op = std::dynamic_pointer_cast<const ngraph::op::TensorIterator>(node)) {
-                    size_t count_rnn = 0;
-                    for (const auto &op : ti_op->get_body()->get_ops())
-                        count_rnn += isCellPrimitiveSupported(op);
-                    return count_rnn != 1;
-                }
-                return true;
-            });
-
     pass_config->set_callback<ngraph::pass::MVN6Decomposition>(
             [](const_node_ptr &node) -> bool {
                 std::string errorMessage;
@@ -527,10 +516,6 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 
         pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([&defaultPrecisions](const_node_ptr &node) -> bool {
             return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node, defaultPrecisions);
-        });
-
-        pass_config->set_callback<ngraph::pass::ConvertSubtract>([&defaultPrecisions](const_node_ptr &node) -> bool {
-            return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(node, defaultPrecisions);
         });
     }
 
@@ -629,6 +614,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 
     // Snippets may brake MHA patterns so the fusion has to performed before
     postLPTPassManager.register_pass<MHAFusion>();
+    postLPTPassManager.register_pass<FuseFQtoInteraction>();
     postLPTPassManager.get_pass_config()->set_callback<MHAFloatFusion, MHAFloatFusion2,
                                                        MHAQuantFusion, MHAQuantFusion2>([_enableBF16](const std::shared_ptr<const ov::Node>& n) -> bool {
         std::string errorMessage;
@@ -743,7 +729,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             engConfig.streamExecutorConfig._threadBindingType ==
                     InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
                 ? IStreamsExecutor::Config::GetHybridNumStreams(config, IStreamsExecutor::Config::StreamMode::DEFAULT)
-                : IStreamsExecutor::Config::GetDefaultNumStreams();
+                : IStreamsExecutor::Config::GetDefaultNumStreams(engConfig.streamExecutorConfig._enable_hyper_thread);
         int num_streams = default_num_streams;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
             if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL)
@@ -817,13 +803,24 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
     hints_props.insert({tput_name, tput_hints.second});
     ngraphFunc->set_rt_info(hints_props, "intel_cpu_hints_config");
 
+    auto resetHybridParam = [&]() {
+        config[CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)] = std::to_string(0);
+        config[CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)] = std::to_string(0);
+        config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)] = std::to_string(0);
+        config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)] = std::to_string(0);
+        config[CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)] = std::to_string(0);
+    };
+
     const auto perf_hint_name = getPerfHintName();
     if (perf_hint_name == CONFIG_VALUE(LATENCY)) {
         config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = latency_hints.first;
         config[ov::num_streams.name()] = latency_hints.second;
+        resetHybridParam();
     } else if (perf_hint_name == CONFIG_VALUE(THROUGHPUT)) {
         config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = tput_hints.first;
         config[ov::num_streams.name()] = tput_hints.first;
+    } else {
+        resetHybridParam();
     }
 }
 

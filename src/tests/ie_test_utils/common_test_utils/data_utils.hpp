@@ -12,6 +12,7 @@
 #include "openvino/runtime/tensor.hpp"
 #include <ngraph/type/bfloat16.hpp>
 #include <ngraph/type/float16.hpp>
+#include <ngraph/type/element_type_traits.hpp>
 
 #include <ie_blob.h>
 #include <random>
@@ -29,7 +30,7 @@ inline void fill_data(float *data, size_t size, size_t duty_ratio = 10) {
 }
 
 /**
- * @brief Create vector of floats with length of vec_len, with values ranging from min to max, 
+ * @brief Create vector of floats with length of vec_len, with values ranging from min to max,
  * with initial seed equal to variable seed with default of 0
  */
 inline std::vector<float> generate_float_numbers(std::size_t vec_len, float min, float max, int seed = 0) {
@@ -251,6 +252,52 @@ void inline fill_random_unique_sequence(T* rawBlobDataPtr,
         }
     }
     std::copy(elems.begin(), elems.end(), rawBlobDataPtr);
+}
+
+/** @brief Fill tensor with random data.
+ *
+ * @param tensor Target tensor
+ * @param range Values range
+ * @param start_from Value from which range should start
+ * @param k Resolution of floating point numbers.
+ * - With k = 1 every random number will be basically integer number.
+ * - With k = 2 numbers resolution will 1/2 so outputs only .0 or .50
+ * - With k = 4 numbers resolution will 1/4 so outputs only .0 .25 .50 0.75 and etc.
+ */
+template<ov::element::Type_t DT>
+void inline fill_tensor_random(ov::Tensor& tensor, const uint32_t range = 10, int32_t start_from = 0,
+                               const int32_t k = 1, const int seed = 1) {
+    using T = typename ov::element_type_traits<DT>::value_type;
+    auto *rawBlobDataPtr = static_cast<T*>(tensor.data());
+    if (DT == ov::element::u4 || DT == ov::element::i4 ||
+        DT == ov::element::u1) {
+        fill_data_random(rawBlobDataPtr, tensor.get_byte_size(), range, start_from, k, seed);
+    } else {
+        fill_data_random(rawBlobDataPtr, tensor.get_size(), range, start_from, k, seed);
+    }
+}
+
+template<ov::element::Type_t DT>
+void inline
+fill_tensor_random_float(ov::Tensor& tensor, const uint32_t range, int32_t start_from, const int32_t k,
+                         const int seed = 1) {
+    using T = typename ov::element_type_traits<DT>::value_type;
+    std::default_random_engine random(seed);
+    // 1/k is the resolution of the floating point numbers
+    std::uniform_int_distribution<int32_t> distribution(k * start_from, k * (start_from + range));
+
+    auto *rawBlobDataPtr = static_cast<T*>(tensor.data());
+    for (size_t i = 0; i < tensor.get_size(); i++) {
+        auto value = static_cast<float>(distribution(random));
+        value /= static_cast<float>(k);
+        if (DT == ov::element::Type_t::f16) {
+            rawBlobDataPtr[i] = static_cast<T>(ngraph::float16(value).to_bits());
+        } else if (DT == ov::element::Type_t::bf16) {
+            rawBlobDataPtr[i] = static_cast<T>(ngraph::bfloat16(value).to_bits());
+        } else {
+            rawBlobDataPtr[i] = static_cast<T>(value);
+        }
+    }
 }
 
 /** @brief Fill blob with random data.
