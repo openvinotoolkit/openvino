@@ -12,8 +12,6 @@ Tips:
 2) For the objects which needs to be created, operated and read by users, rewrite the C++ `class` will be better.
 3) For some simple objects, C `struct` contains a instance of C++ `class` will be enough.
 
-> **NOTE**: For more matching details can be found in [Mapping Relationship of Objects](./docs/mapping_relationship_of_objects.md).
-
  ## Wrap by C++ Shared Pointer
 
 C construct a new `struct` represents the class, which contains a shared pointer to the `class` as following:
@@ -75,5 +73,4 @@ https://github.com/openvinotoolkit/openvino/blob/d96c25844d6cfd5ad131539c8a09282
  ## See also
  * [OpenVINO™ README](../../../../README.md)
  * [C API developer guide](../README.md)
- * [Mapping Relationship of Objects](./docs/mapping_relationship_of_objects.md)
  * [C API Reference](https://docs.openvino.ai/latest/api/api_reference.html)
