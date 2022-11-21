@@ -78,7 +78,7 @@ TEST_P(FrontEndConversionExtensionTest, TestConversionExtension) {
 
 TEST_P(FrontEndConversionExtensionTest, TestConversionExtensionViaSO) {
     auto frontend = m_param.m_frontend;
-    const auto& lib_path = get_lib_path("test_builtin_extensions_1");
+    const auto& lib_path = get_lib_path("test_builtin_extensions");
     frontend->add_extension(lib_path);
     std::shared_ptr<InputModel> input_model;
     ASSERT_NO_THROW(input_model = frontend->load(m_param.m_modelName));

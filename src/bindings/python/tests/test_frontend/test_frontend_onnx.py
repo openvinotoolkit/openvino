@@ -616,7 +616,7 @@ def get_builtin_extensions_path():
     win_folder_path = Path(__file__).parent.parent.parent.parent
     linux_folder_path = win_folder_path.joinpath("lib")
     for lib_path in chain(win_folder_path.glob("*.dll"), linux_folder_path.glob("*.so")):
-        if "libtest_builtin_extensions_1" in lib_path.name:
+        if "libtest_builtin_extensions" in lib_path.name:
             return str(lib_path)
     return ""
 
