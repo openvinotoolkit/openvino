@@ -186,7 +186,7 @@ void detection_output_inst::save(cldnn::BinaryOutputBuffer& ob) const {
     ob << argument->input[0];
     ob << argument->input[1];
     ob << argument->input[2];
-    ob << cldnn::make_data(&argument->output_padding, sizeof(argument->output_padding));
+    ob << make_data(&argument->output_padding, sizeof(argument->output_padding));
     ob << argument->num_classes;
     ob << argument->keep_top_k;
     ob << argument->share_location;
@@ -194,7 +194,7 @@ void detection_output_inst::save(cldnn::BinaryOutputBuffer& ob) const {
     ob << argument->nms_threshold;
     ob << argument->top_k;
     ob << argument->eta;
-    ob << cldnn::make_data(&argument->code_type, sizeof(argument->code_type));
+    ob << make_data(&argument->code_type, sizeof(argument->code_type));
     ob << argument->variance_encoded_in_target;
     ob << argument->confidence_threshold;
     ob << argument->prior_info_size;
@@ -239,7 +239,7 @@ void detection_output_inst::load(cldnn::BinaryInputBuffer& ib) {
     ib >> input_location;
     ib >> input_confidence;
     ib >> input_prior_box;
-    ib >> cldnn::make_data(&output_padding, sizeof(output_padding));
+    ib >> make_data(&output_padding, sizeof(output_padding));
     ib >> num_classes;
     ib >> keep_top_k;
     ib >> share_location;
@@ -247,7 +247,7 @@ void detection_output_inst::load(cldnn::BinaryInputBuffer& ib) {
     ib >> nms_threshold;
     ib >> top_k;
     ib >> eta;
-    ib >> cldnn::make_data(&code_type, sizeof(code_type));
+    ib >> make_data(&code_type, sizeof(code_type));
     ib >> variance_encoded_in_target;
     ib >> confidence_threshold;
     ib >> prior_info_size;
