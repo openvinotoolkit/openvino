@@ -15,13 +15,11 @@ Once the prerequisites have been installed, perform the following steps:
 
 ### Install OpenVINO Runtime
 
-If you have not yet installed and configured OpenVINO Runtime, see the following guides. The source code for the OpenVINO samples is not included with the PyPI distribution, so the archive file installation method must be used.
-
 To use sample applications, Install OpenVINO Runtime via one of the following distribution channels (other distributions do not include sample files):
 
 * Archive files (recommended) - [Linux](@ref openvino_docs_install_guides_installing_openvino_from_archive_linux) | [Windows](@ref openvino_docs_install_guides_installing_openvino_from_archive_windows) | [macOS](@ref openvino_docs_install_guides_installing_openvino_from_archive_macos)
 * Docker image - [Linux](@ref openvino_docs_install_guides_installing_openvino_docker_linux) | [Windows](@ref openvino_docs_install_guides_installing_openvino_docker_windows)
-* Build from source
+* [Build from source](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode)
 
 Make sure to [install OpenCV](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO). It is required for running sample applications.
 
