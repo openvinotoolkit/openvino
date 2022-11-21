@@ -364,7 +364,7 @@ The following command shows how to run the Image Classification Code Sample usin
 
 @endsphinxdirective
 
-When the sample application is complete, you see the label and confidence for the top 10 categories on the display. The input image and sample output of the inference results is shown below:
+When the sample application is complete, you are given the label and confidence for the top 10 categories. The input image and sample output of the inference results is shown below:
 
 <img src="https://storage.openvinotoolkit.org/data/test_data/images/224x224/dog.bmp">
 
