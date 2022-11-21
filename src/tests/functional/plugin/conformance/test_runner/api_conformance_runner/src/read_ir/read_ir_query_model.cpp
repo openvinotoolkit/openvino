@@ -13,8 +13,8 @@ namespace op {
 using namespace ov::test::subgraph;
 
 namespace {
-#define _OPENVINO_OP_REG(NAME, NAMESPACE)                                                                         \
-    INSTANTIATE_TEST_SUITE_P(conformance_query_model_##NAME,                                                            \
+#define _OPENVINO_OP_REG(NAME, NAMESPACE)                                                                  \
+    INSTANTIATE_TEST_SUITE_P(conformance_query_model_##NAME,                                               \
                              ReadIRTest,                                                                   \
                              ::testing::Combine(::testing::ValuesIn(getModelPaths(IRFolderPaths, #NAME)),  \
                                                 ::testing::Values(targetDevice),                           \
@@ -27,7 +27,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(conformance_query_model_other,
                         ReadIRTest,
-                        ::testing::Combine(::testing::ValuesIn(getModelPaths(IRFolderPaths, CONFORMANCE_OTHER_OPS)),
+                        ::testing::Combine(::testing::ValuesIn(getModelPaths(IRFolderPaths)),
                                         ::testing::Values(targetDevice),
                                         ::testing::Values(pluginConfig)),
                         ReadIRTest::getTestCaseName);

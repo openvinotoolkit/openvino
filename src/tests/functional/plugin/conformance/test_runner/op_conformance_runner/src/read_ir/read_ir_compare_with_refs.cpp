@@ -17,7 +17,7 @@ using namespace ov::test::subgraph;
 namespace {
 
 #define _OPENVINO_OP_REG(NAME, NAMESPACE)                                                                         \
-    INSTANTIATE_TEST_SUITE_P(conformance##NAME,                                                            \
+    INSTANTIATE_TEST_SUITE_P(conformance_##NAME,                                                            \
                              ReadIRTest,                                                                   \
                              ::testing::Combine(::testing::ValuesIn(getModelPaths(IRFolderPaths, #NAME)),  \
                                                 ::testing::Values(targetDevice),                           \
@@ -28,9 +28,9 @@ namespace {
 #include "openvino/opsets/opset10_tbl.hpp"
 #undef _OPENVINO_OP_REG
 
-INSTANTIATE_TEST_SUITE_P(conformanceOther,
+INSTANTIATE_TEST_SUITE_P(conformance_other,
                         ReadIRTest,
-                        ::testing::Combine(::testing::ValuesIn(getModelPaths(IRFolderPaths, CONFORMANCE_OTHER_OPS)),
+                        ::testing::Combine(::testing::ValuesIn(getModelPaths(IRFolderPaths)),
                                         ::testing::Values(targetDevice),
                                         ::testing::Values(pluginConfig)),
                         ReadIRTest::getTestCaseName);
