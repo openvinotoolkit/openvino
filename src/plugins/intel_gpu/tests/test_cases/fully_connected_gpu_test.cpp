@@ -2376,3 +2376,182 @@ TEST(fully_connected_gpu, new_shape_inference_4d) {
         ASSERT_EQ(expected[i], output_ptr[i]) << i;
     }
 }
+
+TEST(fully_connected_gpu, new_shape_inference_5d) {
+    auto& engine = get_test_engine();
+
+    const int32_t input_b1 = 2, input_b2 = 2, input_b3 = 1, input_f = 2, input_y = 4,  weight_b = 3;
+
+    cldnn::layout input_data_layout{ov::PartialShape{input_b1, input_b2, input_b3, input_f, input_y }, data_types::f32, format::bfzyx };
+    auto input_data = engine.allocate_memory(input_data_layout);
+    cldnn::layout weights_layout{ov::PartialShape{input_b1, input_b2, input_b3, input_y, weight_b }, data_types::f32, format::bfzyx };
+    auto weights_data = engine.allocate_memory(weights_layout);
+
+    set_values(input_data, { //b0b0b0
+                             -0.5f, 2.0f, 0.5f, 1.0f,
+                             3.0f, 4.0f, 5.0f, 2.0f,
+                             //b1b1b0
+                             -1.5f, 3.0f, 1.5f, 2.0f,
+                             4.0f, 5.0f, 6.0f, 3.0f,
+                             //b1b0b0
+                             -0.5f, 2.0f, 0.5f, 1.0f,
+                             3.0f, 4.0f, 5.0f, 2.0f,
+                             //b1b1b0
+                             -1.5f, 3.0f, 1.5f, 2.0f,
+                             4.0f, 5.0f, 6.0f, 3.0f,
+                             });
+    set_values(weights_data, { //b0b0b0
+                               1.5f, 1.0f, 0.5f,
+                               -1.0f, 0.0f, 0.5f,
+                               0.5f, -0.5f, -2.0f,
+                               -0.5f, 1.0f, 1.5f,
+                               //b0b1b0
+                               0.5f, 0.0f, -0.5f,
+                               -2.0f, 1.0f, 1.5f,
+                               1.5f, -1.5f, -1.0f,
+                               -1.5f, 2.0f, 0.5f,
+                               //b1b0b0
+                               1.5f, 1.0f, 0.5f,
+                               -1.0f, 0.0f, 0.5f,
+                               0.5f, -0.5f, -2.0f,
+                               -0.5f, 1.0f, 1.5f,
+                               //b1b1b0
+                               0.5f, 0.0f, -0.5f,
+                               -2.0f, 1.0f, 1.5f,
+                               1.5f, -1.5f, -1.0f,
+                               -1.5f, 2.0f, 0.5f,
+                               });
+
+    cldnn::topology topology{
+        input_layout("input", input_data_layout),
+        data("weights", weights_data),
+        fully_connected("fc", "input", "weights", "", padding(), 4, true)
+    };
+
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
+    network network(engine, topology, options);
+    network.set_input_data("input", input_data);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc");
+
+    auto output_prim = outputs.begin()->second.get_memory();
+
+    auto out_l = output_prim->get_layout();
+    ASSERT_EQ(out_l.batch(), input_b1);
+    ASSERT_EQ(out_l.feature(), input_b2);
+    ASSERT_EQ(out_l.spatial(2), input_b3);
+    ASSERT_EQ(out_l.spatial(0), weight_b);
+    ASSERT_EQ(out_l.spatial(1), input_f);
+
+    cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+    const std::vector<float> expected = {//b0b0b0
+                                         -3.0f, 0.25f, 1.25f,
+                                         2.0f, 2.5f, -3.5f,
+                                         //b0b1b0
+                                         -7.5f, 4.75f, 4.75f,
+                                         -3.5f, 2.0f, 1.0f,
+                                         //b1b0b0
+                                         -3.0f, 0.25f, 1.25f,
+                                         2.0f, 2.5f, -3.5f,
+                                         //b1b1b0
+                                         -7.5f, 4.75f, 4.75f,
+                                         -3.5f, 2.0f, 1.0f};
+    ASSERT_EQ(expected.size(), output_ptr.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(expected[i], output_ptr[i]) << i;
+    }
+}
+
+TEST(fully_connected_gpu, new_shape_inference_6d) {
+    auto& engine = get_test_engine();
+
+    const int32_t input_b1 = 2, input_b2 = 2, input_b3 = 1, input_b4 = 1, input_f = 2, input_y = 4,  weight_b = 3;
+
+    cldnn::layout input_data_layout{ov::PartialShape{input_b1, input_b2, input_b3, input_b4, input_f, input_y }, data_types::f32, format::bfwzyx };
+    auto input_data = engine.allocate_memory(input_data_layout);
+    cldnn::layout weights_layout{ov::PartialShape{input_b1, input_b2, input_b3, input_b4, input_y, weight_b }, data_types::f32, format::bfwzyx };
+    auto weights_data = engine.allocate_memory(weights_layout);
+
+    set_values(input_data, { //b0b0b0b0
+                             -0.5f, 2.0f, 0.5f, 1.0f,
+                             3.0f, 4.0f, 5.0f, 2.0f,
+                             //b1b1b0b0
+                             -1.5f, 3.0f, 1.5f, 2.0f,
+                             4.0f, 5.0f, 6.0f, 3.0f,
+                             //b1b0b0b0
+                             -0.5f, 2.0f, 0.5f, 1.0f,
+                             3.0f, 4.0f, 5.0f, 2.0f,
+                             //b1b1b0b0
+                             -1.5f, 3.0f, 1.5f, 2.0f,
+                             4.0f, 5.0f, 6.0f, 3.0f,
+                             });
+    set_values(weights_data, { //b0b0b0b0
+                               1.5f, 1.0f, 0.5f,
+                               -1.0f, 0.0f, 0.5f,
+                               0.5f, -0.5f, -2.0f,
+                               -0.5f, 1.0f, 1.5f,
+                               //b0b1b0b0
+                               0.5f, 0.0f, -0.5f,
+                               -2.0f, 1.0f, 1.5f,
+                               1.5f, -1.5f, -1.0f,
+                               -1.5f, 2.0f, 0.5f,
+                               //b1b0b0b0
+                               1.5f, 1.0f, 0.5f,
+                               -1.0f, 0.0f, 0.5f,
+                               0.5f, -0.5f, -2.0f,
+                               -0.5f, 1.0f, 1.5f,
+                               //b1b1b0b0
+                               0.5f, 0.0f, -0.5f,
+                               -2.0f, 1.0f, 1.5f,
+                               1.5f, -1.5f, -1.0f,
+                               -1.5f, 2.0f, 0.5f,
+                               });
+
+    cldnn::topology topology{
+        input_layout("input", input_data_layout),
+        data("weights", weights_data),
+        fully_connected("fc", "input", "weights", "", padding(), 4, true)
+    };
+
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
+    network network(engine, topology, options);
+    network.set_input_data("input", input_data);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc");
+
+    auto output_prim = outputs.begin()->second.get_memory();
+
+    auto out_l = output_prim->get_layout();
+    ASSERT_EQ(out_l.batch(), input_b1);
+    ASSERT_EQ(out_l.feature(), input_b2);
+    ASSERT_EQ(out_l.spatial(3), input_b3);
+    ASSERT_EQ(out_l.spatial(2), input_b4);
+    ASSERT_EQ(out_l.spatial(0), weight_b);
+    ASSERT_EQ(out_l.spatial(1), input_f);
+
+    cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+    const std::vector<float> expected = {//b0b0b0b0
+                                         -3.0f, 0.25f, 1.25f,
+                                         2.0f, 2.5f, -3.5f,
+                                         //b0b1b0b0
+                                         -7.5f, 4.75f, 4.75f,
+                                         -3.5f, 2.0f, 1.0f,
+                                         //b1b0b0b0
+                                         -3.0f, 0.25f, 1.25f,
+                                         2.0f, 2.5f, -3.5f,
+                                         //b1b1b0b0
+                                         -7.5f, 4.75f, 4.75f,
+                                         -3.5f, 2.0f, 1.0f};
+    ASSERT_EQ(expected.size(), output_ptr.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(expected[i], output_ptr[i]) << i;
+    }
+}
