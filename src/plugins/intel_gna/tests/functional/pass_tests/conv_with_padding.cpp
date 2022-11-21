@@ -68,7 +68,7 @@ protected:
         std::tie(precision, targetDevice, configuration, input_shape, filter_shape, padding_size) = this->GetParam();
 
         GnaLayerTestCheck::SetUp(targetDevice);
-        if (GnaLayerTestCheck::gnaLibVersionLessThan(3.5f)) {
+        if (GnaLayerTestCheck::gnaLibVersionLessThan("3.5")) {
             GTEST_SKIP() << GnaLayerTestCheck::getLastCmpResultMsg() << std::endl;
         }
 
@@ -120,29 +120,64 @@ const std::vector<std::map<std::string, std::string>> configs_gna_3_0 = {
 const std::vector<std::map<std::string, std::string>> configs_gna_3_5 = {
     {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};
 
-const std::vector<size_t> input = {1, 8, 16, 16};
-const std::vector<size_t> filter = {8, 8, 2, 2};
-const std::vector<std::ptrdiff_t> no_padding{};
-const std::vector<std::ptrdiff_t> padding{1, 1};
+const std::vector<size_t> input2D = {1, 8, 16, 16};
+const std::vector<size_t> filter2D = {8, 8, 2, 2};
+const std::vector<std::vector<size_t>> inputs2D_gna_3_5 = {{1, 1, 4, 16}, {1, 1, 16, 16}};
+const std::vector<std::vector<size_t>> inputs1D_gna_3_5 = {{1, 1, 1, 16}};
+const std::vector<std::vector<size_t>> filters1D_gna_3_5 = {{1, 1, 1, 2}, {1, 1, 1, 16}};
+const std::vector<std::vector<size_t>> filters2D_mappable_to_1D_gna_3_5 = {{1, 1, 2, 16}};
+const std::vector<std::ptrdiff_t> no_padding ={0, 0};
+const std::vector<std::ptrdiff_t> padding1D = {0, 1};
+const std::vector<std::ptrdiff_t> padding2D = {1, 1};
 
 INSTANTIATE_TEST_SUITE_P(smoke_conv_without_padding,
                          ConvWithPaddingTestPos,
                          ::testing::Combine(::testing::Values(net_precisions),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs_gna_3_0_to_3_5),
-                                            ::testing::Values(input),
-                                            ::testing::Values(filter),
+                                            ::testing::Values(input2D),
+                                            ::testing::Values(filter2D),
                                             ::testing::Values(no_padding)),
                          ConvWithPaddingTestPos::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_conv_with_padding_gna_3_5,
+INSTANTIATE_TEST_SUITE_P(smoke_conv_with_padding_input1D_filter1D_gna_3_5,
                          ConvWithPaddingTestPos,
                          ::testing::Combine(::testing::Values(net_precisions),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs_gna_3_5),
-                                            ::testing::Values(input),
-                                            ::testing::Values(filter),
-                                            ::testing::Values(padding)),
+                                            ::testing::ValuesIn(inputs1D_gna_3_5),
+                                            ::testing::ValuesIn(filters1D_gna_3_5),
+                                            ::testing::Values(padding1D)),
+                         ConvWithPaddingTestPos::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_conv_with_padding_input2D_filter1D_gna_3_5,
+                         ConvWithPaddingTestPos,
+                         ::testing::Combine(::testing::Values(net_precisions),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::ValuesIn(configs_gna_3_5),
+                                            ::testing::ValuesIn(inputs2D_gna_3_5),
+                                            ::testing::ValuesIn(filters1D_gna_3_5),
+                                            ::testing::Values(padding1D)),
+                         ConvWithPaddingTestPos::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_conv_with_padding_2D_mappable_to_1D_gna_3_5,
+                         ConvWithPaddingTestPos,
+                         ::testing::Combine(::testing::Values(net_precisions),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::ValuesIn(configs_gna_3_5),
+                                            ::testing::ValuesIn(inputs2D_gna_3_5),
+                                            ::testing::ValuesIn(filters2D_mappable_to_1D_gna_3_5),
+                                            ::testing::Values(padding1D)),
+                         ConvWithPaddingTestPos::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_conv_with_padding_2D_gna_3_5,
+                         ConvWithPaddingTestPos,
+                         ::testing::Combine(::testing::Values(net_precisions),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::ValuesIn(configs_gna_3_5),
+                                            ::testing::Values(input2D),
+                                            ::testing::Values(filter2D),
+                                            ::testing::Values(padding2D)),
                          ConvWithPaddingTestPos::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_expect_exception_for_conv_with_padding_when_gna_3_0,
@@ -150,8 +185,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_expect_exception_for_conv_with_padding_when_gna_3
                          ::testing::Combine(::testing::Values(net_precisions),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs_gna_3_0),
-                                            ::testing::Values(input),
-                                            ::testing::Values(filter),
-                                            ::testing::Values(padding)),
+                                            ::testing::Values(input2D),
+                                            ::testing::Values(filter2D),
+                                            ::testing::Values(padding2D)),
                          ConvWithPaddingTestNeg::getTestCaseName);
 }  // namespace LayerTestsDefinitions

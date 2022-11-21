@@ -31,7 +31,7 @@ static bool shouldSplitCnn(const ngraph::Output<ngraph::Node>& node) {
         auto kW = filters.at(3);
         auto sH = convolution->get_strides().at(0);
         auto sW = convolution->get_strides().at(1);
-        if (GNAPluginNS::GNAConvolutionLayer::isConv2D(height, width, in_channels, kH, kW) &&
+        if (GNAPluginNS::GNAConvolutionLayer::is3DInputOr2DKernel(height, width, in_channels, kH, kW) &&
             !GNAPluginNS::GNAConvolutionLayer::isMappableFrom2DTo1D(height, width, in_channels, kH, kW, sH, sW)) {
             return false;
         }

@@ -335,7 +335,8 @@ void GNAPlugin::ImportFrames(void *ptr_dst,
     }
 }
 
-GNAPlugin::GNAPlugin() {
+GNAPlugin::GNAPlugin() :
+    graphCompiler(config) {
     Init();
     UpdateFieldsFromConfig();
     InitGNADevice();
@@ -350,7 +351,8 @@ std::string GNAPluginNS::GNAPlugin::GetCompileTarget() const {
     return common::kGnaTarget3_0;
 }
 
-GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) {
+GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) :
+    graphCompiler(config) {
     Init();
     SetConfig(configMap);
     InitGNADevice();
@@ -365,7 +367,6 @@ void GNAPlugin::Init() {
     outputs_ = GNAPluginNS::GnaOutputs();
 
     graphCompiler.setDNNPtr(dnn);
-    graphCompiler.setGNAFlagsPtr(gnaFlags);
     graphCompiler.setInputsPtr(inputs_ptr_);
 
     requestWorkerPool_ = std::make_shared<request::WorkerPoolImpl>();
