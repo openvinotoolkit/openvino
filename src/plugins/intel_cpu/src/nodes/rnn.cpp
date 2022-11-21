@@ -357,8 +357,8 @@ RNN::RNN(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSh
         initSequence();
     }
 
-    inDataTypes.reserve(getOriginalInputsNumber());
-    outDataTypes.reserve(getOriginalOutputsNumber());
+    inDataTypes.resize(getOriginalInputsNumber());
+    outDataTypes.resize(getOriginalOutputsNumber());
 }
 
 bool RNN::created() const {
@@ -373,17 +373,22 @@ void RNN::configurePortDataTypes() {
     if (!is_cell)
         inDataTypes[sIdx] = memory::data_type::s32;
     inDataTypes[wIdx] = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(wIdx));
-    inDataTypes[rIdx] = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(wIdx));
+    inDataTypes[rIdx] = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(rIdx));
 
-    inDataTypes[bIdx] = memory::data_type::f32;
+    inDataTypes[bIdx] = memory::data_type::f32; // @todo bf16 is also allowed, should be tried out
     if (haveAttention(cell_type))
         inDataTypes[aIdx] = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(aIdx));
 
     if (!is_cell)
         outDataTypes[yIdx] = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(0));
+
     outDataTypes[hoIdx] = inDataTypes[hIdx]; // required by oneDNN. Output hidden state is a input hidden state for the next iteration
+
     if (haveCellState(cell_type))
         outDataTypes[coIdx] = inDataTypes[cIdx]; // required by oneDNN.
+
+    if (inDataTypes[xIdx] == memory::data_type::bf16)
+        outDataTypes[yIdx] = outDataTypes[hoIdx] = inDataTypes[hIdx] = inDataTypes[xIdx]; // required by oneDNN.
 }
 
 void RNN::getSupportedDescriptors() {
@@ -944,7 +949,7 @@ void RNN::prepareParams() {
 
     bool wFormatWasChanged = false;
     // WA To avoid different weights layer and iter formats in FP32 case.
-    if (one_of(inDataTypes[xIdx], memory::data_type::f32, memory::data_type::bf16) &&
+    if (one_of(inDataTypes[xIdx], memory::data_type::f32) &&
         (SL != 1 || B < optimalBatchSize)) {
         if (wFormat != dnnl::memory::format_tag::ldigo) {
             wFormat = dnnl::memory::format_tag::ldigo;
