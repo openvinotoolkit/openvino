@@ -6,7 +6,7 @@
 
 #include "test_utils.h"
 #include "network_test.h"
-
+#include <intel_gpu/runtime/utils.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include <intel_gpu/primitives/quantize.hpp>
@@ -17,6 +17,7 @@
 using namespace cldnn;
 using namespace ::tests;
 
+namespace {
 cldnn::format::type layout_4d(cldnn::format f) {
     switch (f.value) {
     case cldnn::format::bfyx:
@@ -130,6 +131,7 @@ void generic_fully_connected_test(cldnn::format test_input_fmt, cldnn::format te
         << "slope = " << (float)slope << std::endl
         << "type = " << (sizeof(T) == 2 ? "float16" : "float32") << std::endl;
 }
+}  // namespace
 
 TEST(DISABLED_fully_connected_gpu, generic_random_short) {
     VF<cldnn::format> test_input_fmts = { cldnn::format::bfyx, cldnn::format::yxfb };
@@ -1757,15 +1759,16 @@ TEST(fully_connected_gpu, dynamic) {
     ASSERT_EQ(outputs.size(), size_t(1));
     ASSERT_EQ(outputs.begin()->first, "fc");
 
-    auto output_prim = outputs.begin()->second.get_memory();
+    auto output_prim_mem = outputs.begin()->second.get_memory();
 
-    auto out_l = output_prim->get_layout();
+    auto out_l = network.get_output_layout(outputs.begin()->first);
+    ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, 16)); // fake_alignment
     ASSERT_EQ(out_l.batch(), input_b);
     ASSERT_EQ(out_l.feature(), weight_b);
     ASSERT_EQ(out_l.spatial(0), 1);
     ASSERT_EQ(out_l.spatial(1), 1);
 
-    cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+    cldnn::mem_lock<float> output_ptr (output_prim_mem, get_test_stream());
 
     ASSERT_EQ(1.5f, output_ptr[0]);
     ASSERT_EQ(0.75f, output_ptr[1]);
@@ -1808,15 +1811,16 @@ TEST(fully_connected_gpu, dynamic_multi_inference_same_shape) {
         ASSERT_EQ(outputs.size(), size_t(1));
         ASSERT_EQ(outputs.begin()->first, "fc");
 
-        auto output_prim = outputs.begin()->second.get_memory();
+        auto output_prim_mem = outputs.begin()->second.get_memory();
 
-        auto out_l = output_prim->get_layout();
+        auto out_l = network.get_output_layout(outputs.begin()->first);
+        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, 16)); // fake_alignment
         ASSERT_EQ(out_l.batch(), input_b);
         ASSERT_EQ(out_l.feature(), weight_b);
         ASSERT_EQ(out_l.spatial(0), 1);
         ASSERT_EQ(out_l.spatial(1), 1);
 
-        cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+        cldnn::mem_lock<float> output_ptr (output_prim_mem, get_test_stream());
 
         ASSERT_EQ(-1.5f, output_ptr[0]);
         ASSERT_EQ(-0.75f, output_ptr[1]);
@@ -1831,15 +1835,16 @@ TEST(fully_connected_gpu, dynamic_multi_inference_same_shape) {
         ASSERT_EQ(outputs.size(), size_t(1));
         ASSERT_EQ(outputs.begin()->first, "fc");
 
-        auto output_prim = outputs.begin()->second.get_memory();
+        auto output_prim_mem = outputs.begin()->second.get_memory();
 
-        auto out_l = output_prim->get_layout();
+        auto out_l = network.get_output_layout(outputs.begin()->first);
+        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, 16)); // fake_alignment
         ASSERT_EQ(out_l.batch(), input_b);
         ASSERT_EQ(out_l.feature(), weight_b);
         ASSERT_EQ(out_l.spatial(0), 1);
         ASSERT_EQ(out_l.spatial(1), 1);
 
-        cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+        cldnn::mem_lock<float> output_ptr (output_prim_mem, get_test_stream());
 
         ASSERT_EQ(1.5f, output_ptr[0]);
         ASSERT_EQ(0.75f, output_ptr[1]);
@@ -1886,15 +1891,16 @@ TEST(fully_connected_gpu, dynamic_multi_inference_different_shape) {
         ASSERT_EQ(outputs.size(), size_t(1));
         ASSERT_EQ(outputs.begin()->first, "fc");
 
-        auto output_prim = outputs.begin()->second.get_memory();
+        auto output_prim_mem = outputs.begin()->second.get_memory();
 
-        auto out_l = output_prim->get_layout();
+        auto out_l = network.get_output_layout(outputs.begin()->first);
+        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(2, 16)); // fake_alignment
         ASSERT_EQ(out_l.batch(), 2);
         ASSERT_EQ(out_l.feature(), weight_b);
         ASSERT_EQ(out_l.spatial(0), 1);
         ASSERT_EQ(out_l.spatial(1), 1);
 
-        cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+        cldnn::mem_lock<float> output_ptr (output_prim_mem, get_test_stream());
 
         ASSERT_EQ(-1.5f, output_ptr[0]);
         ASSERT_EQ(-0.75f, output_ptr[1]);
@@ -1914,15 +1920,16 @@ TEST(fully_connected_gpu, dynamic_multi_inference_different_shape) {
         ASSERT_EQ(outputs.size(), size_t(1));
         ASSERT_EQ(outputs.begin()->first, "fc");
 
-        auto output_prim = outputs.begin()->second.get_memory();
+        auto output_prim_mem = outputs.begin()->second.get_memory();
 
-        auto out_l = output_prim->get_layout();
+        auto out_l = network.get_output_layout(outputs.begin()->first);
+        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(1, 16)); // fake_alignment
         ASSERT_EQ(out_l.batch(), 1);
         ASSERT_EQ(out_l.feature(), weight_b);
         ASSERT_EQ(out_l.spatial(0), 1);
         ASSERT_EQ(out_l.spatial(1), 1);
 
-        cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+        cldnn::mem_lock<float> output_ptr (output_prim_mem, get_test_stream());
 
         ASSERT_EQ(1.5f, output_ptr[0]);
         ASSERT_EQ(0.75f, output_ptr[1]);
@@ -1971,15 +1978,16 @@ TEST(fully_connected_gpu, dynamic_multi_inference_multiple_shapes) {
             ASSERT_EQ(outputs.size(), size_t(1));
             ASSERT_EQ(outputs.begin()->first, "fc");
 
-            auto output_prim = outputs.begin()->second.get_memory();
+            auto output_prim_mem = outputs.begin()->second.get_memory();
 
-            auto out_l = output_prim->get_layout();
-            ASSERT_EQ(out_l.batch(), 2);
+            auto out_l = network.get_output_layout(outputs.begin()->first);
+            ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(2, 16)); // fake_alignment
+            ASSERT_EQ(out_l.batch(), 2); // fake_alignment
             ASSERT_EQ(out_l.feature(), weight_b);
             ASSERT_EQ(out_l.spatial(0), 1);
             ASSERT_EQ(out_l.spatial(1), 1);
 
-            cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+            cldnn::mem_lock<float> output_ptr (output_prim_mem, get_test_stream());
 
             ASSERT_EQ(-1.5f, output_ptr[0]);
             ASSERT_EQ(-0.75f, output_ptr[1]);
@@ -1999,15 +2007,16 @@ TEST(fully_connected_gpu, dynamic_multi_inference_multiple_shapes) {
             ASSERT_EQ(outputs.size(), size_t(1));
             ASSERT_EQ(outputs.begin()->first, "fc");
 
-            auto output_prim = outputs.begin()->second.get_memory();
+            auto output_prim_mem = outputs.begin()->second.get_memory();
 
-            auto out_l = output_prim->get_layout();
-            ASSERT_EQ(out_l.batch(), 1);
+            auto out_l = network.get_output_layout(outputs.begin()->first);
+            ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(1, 16)); // fake_alignment
+            ASSERT_EQ(out_l.batch(), 1); // fake_alignment
             ASSERT_EQ(out_l.feature(), weight_b);
             ASSERT_EQ(out_l.spatial(0), 1);
             ASSERT_EQ(out_l.spatial(1), 1);
 
-            cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+            cldnn::mem_lock<float> output_ptr (output_prim_mem, get_test_stream());
 
             ASSERT_EQ(1.5f, output_ptr[0]);
             ASSERT_EQ(0.75f, output_ptr[1]);

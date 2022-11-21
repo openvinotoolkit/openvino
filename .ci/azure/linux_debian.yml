@@ -9,6 +9,7 @@ trigger:
     - /**/docs/*
     - /**/*.md
     - README.md
+    - /**/layer_tests_summary/**
 
 pr:
   branches:
@@ -21,6 +22,7 @@ pr:
     - /**/docs/*
     - /**/*.md
     - README.md
+    - /**/layer_tests_summary/**
 
 resources:
   repositories:
@@ -129,7 +131,7 @@ jobs:
       # For running Python API tests
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
       # For running Paddle frontend unit tests
-      python3 -m pip install -r $(REPO_DIR)/src/core/tests/frontend/paddle/requirements_dev.txt
+      python3 -m pip install -r $(REPO_DIR)/src/frontends/paddle/tests/requirements.txt
       # For running ONNX frontend unit tests
       python3 -m pip install -r $(REPO_DIR)/src/frontends/onnx/tests/requirements.txt
       # For MO unit tests
@@ -165,7 +167,7 @@ jobs:
         -DENABLE_FASTER_BUILD=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
         -DENABLE_REQUIREMENTS_INSTALL=OFF
-        -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
+        -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
         -DCMAKE_CXX_LINKER_LAUNCHER=ccache
@@ -333,8 +335,7 @@ jobs:
     continueOnError: false
 
   - script: |
-      export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
-      export OV_FRONTEND_PATH=$(INSTALL_TEST_DIR)
+      export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
       $(INSTALL_TEST_DIR)/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
     displayName: 'TensorFlow Frontend Unit Tests'
     continueOnError: false

@@ -4,10 +4,10 @@
 import numpy as np
 import pytest
 
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 
-class TestDropout(Caffe2OnnxLayerTest):
+class TestDropout(OnnxRuntimeLayerTest):
     def create_net(self, shape, ratio, ir_version, opset=None):
         """
             ONNX net                                IR net

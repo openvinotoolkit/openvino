@@ -121,7 +121,7 @@ InferenceEngine::CNNNetwork Plugin::CloneAndTransformNetwork(const InferenceEngi
     return clonedNetwork;
 }
 
-Plugin::Plugin() : m_defaultContext(nullptr) {
+Plugin::Plugin() : m_defaultContexts({}) {
     _pluginName = "GPU";
     _impl = std::make_shared<impl>();
     RegisterPrimitives();
@@ -161,6 +161,12 @@ Plugin::Plugin() : m_defaultContext(nullptr) {
     config_path += "/cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml";
     for (auto& config : _impl->m_configs) {
         CustomLayer::LoadFromFile(config_path, config.second.customLayers, true);
+    }
+
+    if (const char* env_p = std::getenv("OV_GPU_CACHE_MODEL")) {
+        if (env_p[0] == '1') {
+            isModelCachingEnabled = true;
+        }
     }
 }
 
@@ -264,37 +270,20 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     RemoteCLContext::Ptr context;
 
     auto canReuseDefaultContext = [&]() -> bool {
-        if (m_defaultContext == nullptr)
+        if (m_defaultContexts.find(conf.device_id) == m_defaultContexts.end())
             return false;
 
-        const Config& context_config = m_defaultContext->GetConfig();
-        const Config& current_config = conf;
-
-        return context_config.throughput_streams == current_config.throughput_streams &&
-               context_config.useProfiling == current_config.useProfiling &&
-               context_config.dumpCustomKernels == current_config.dumpCustomKernels &&
-               context_config.memory_pool_on == current_config.memory_pool_on &&
-               context_config.queueThrottle == current_config.queueThrottle &&
-               context_config.queuePriority == current_config.queuePriority &&
-               context_config.sources_dumps_dir == current_config.sources_dumps_dir &&
-               context_config.tuningConfig.mode == current_config.tuningConfig.mode &&
-               context_config.tuningConfig.cache_file_path == current_config.tuningConfig.cache_file_path &&
-               context_config.kernels_cache_dir == current_config.kernels_cache_dir &&
-               context_config.device_id == current_config.device_id &&
-               context_config.task_exec_config._streams == current_config.task_exec_config._streams &&
-               context_config.task_exec_config._threadPreferredCoreType == current_config.task_exec_config._threadPreferredCoreType &&
-               context_config.enable_loop_unrolling == current_config.enable_loop_unrolling;
+        return m_defaultContexts.at(conf.device_id)->GetConfig().CanShareContextWith(conf);
     };
 
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::LoadExeNetworkImpl::CreateContext");
         std::lock_guard<std::mutex> lock(engine_mutex);
-        if (!canReuseDefaultContext()) {
-            m_defaultContext.reset(new RemoteCLContext(shared_from_this(), AnyMap(), conf));
-        }
+        if (!canReuseDefaultContext())
+            m_defaultContexts[conf.device_id] = std::make_shared<RemoteCLContext>(shared_from_this(), AnyMap(), conf);
     }
 
-    context = m_defaultContext;
+    context = m_defaultContexts[conf.device_id];
 
     auto transformedNetwork = CloneAndTransformNetwork(network, conf);
     {
@@ -342,10 +331,22 @@ InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const AnyMap& params) 
 }
 
 InferenceEngine::RemoteContext::Ptr Plugin::GetDefaultContext(const AnyMap& params) {
-    if (nullptr == m_defaultContext) {
-        m_defaultContext.reset(new RemoteCLContext(shared_from_this(), params, _impl->m_configs.GetDefaultDeviceConfig()));
+    RemoteCLContext::Ptr ctx;
+    std::string device_id = "";
+
+    if (params.find(CONFIG_KEY(DEVICE_ID)) != params.end())
+        device_id = params.at(CONFIG_KEY(DEVICE_ID)).as<std::string>();
+
+    const Config conf = _impl->m_configs.GetConfig(device_id);
+
+    if (m_defaultContexts.find(conf.device_id) != m_defaultContexts.end() &&
+        m_defaultContexts.at(conf.device_id)->GetConfig().CanShareContextWith(conf)) {
+        ctx = m_defaultContexts.at(conf.device_id);
+    } else {
+        ctx = std::make_shared<RemoteCLContext>(shared_from_this(), AnyMap(), conf);
     }
-    return m_defaultContext;
+
+    return ctx;
 }
 
 void Plugin::SetConfig(const std::map<std::string, std::string> &config) {
@@ -381,12 +382,17 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
 
     UpdateConfig(conf, network, config);
 
-    if (m_defaultContext == nullptr) {
-        m_defaultContext.reset(new RemoteCLContext(
+    RemoteCLContext::Ptr ctx;
+    if (m_defaultContexts.find(conf.device_id) != m_defaultContexts.end() &&
+        m_defaultContexts.at(conf.device_id)->GetConfig().CanShareContextWith(conf)) {
+        ctx = m_defaultContexts.at(conf.device_id);
+    } else {
+        ctx = std::make_shared<RemoteCLContext>(
             std::const_pointer_cast<InferenceEngine::IInferencePlugin>(shared_from_this()),
-            AnyMap(), conf));
+            AnyMap(), conf);
+        m_defaultContexts[conf.device_id] = ctx;
     }
-    Program prog(m_defaultContext->getImpl()->GetEngine(), conf);
+    Program prog(ctx->getImpl()->GetEngine(), conf);
     bool dyn_shape_batch_found = false;
 
     auto model = network.getFunction();
@@ -434,10 +440,48 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     });
 
     for (auto&& layerName : supported) {
-        res.supportedLayersMap.emplace(layerName, GetName());
+        res.supportedLayersMap.emplace(layerName, GetName() + "." + conf.device_id);
     }
 
     return res;
+}
+
+InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istream& networkModel,
+                                            const std::map<std::string, std::string>& orig_config) {
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork");
+    Configs confs = _impl->m_configs;
+    std::string device_id = GetDeviceIDFromConfig(orig_config);
+    Config conf = confs.GetConfig(device_id);
+
+    auto config = ConvertPerfHintsToConfig(orig_config, conf);
+
+    RemoteCLContext::Ptr context;
+
+    auto canReuseDefaultContext = [&]() -> bool {
+        if (m_defaultContexts.find(conf.device_id) == m_defaultContexts.end())
+            return false;
+
+        return m_defaultContexts.at(conf.device_id)->GetConfig().CanShareContextWith(conf);
+    };
+
+    {
+        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork::CreateContext");
+        std::lock_guard<std::mutex> lock(engine_mutex);
+        if (!canReuseDefaultContext()) {
+            context = std::make_shared<RemoteCLContext>(shared_from_this(), AnyMap(), conf);
+            m_defaultContexts[conf.device_id] = context;
+        }
+    }
+
+    context = m_defaultContexts[conf.device_id];
+
+    {
+        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork::CreateExeNetwork");
+        CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(networkModel, context, conf);
+        exeNetwork->SetPointerToPlugin(shared_from_this());
+        UpdateStatistics(context);
+        return exeNetwork;
+    }
 }
 
 Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {
@@ -512,58 +556,6 @@ auto StringRightTrim = [](std::string string, std::string substring, bool case_s
     return ret_str;
 };
 
-static float GetGOPS(cldnn::device_info info, cldnn::data_types dt) {
-    auto freqGHz = info.gpu_frequency / 1000.f;
-    auto numEUs = info.execution_units_count;
-    auto opsPerComputeBlock = 0;
-    auto computeBlockIPC = 1.0f;
-    switch (dt) {
-    case cldnn::data_types::u8:
-    case cldnn::data_types::i8: {
-        if (info.supports_immad) {
-            if (info.gfx_ver.major == 12) {
-                if (info.gfx_ver.minor == 5)
-                    opsPerComputeBlock = 512;
-                else if (info.gfx_ver.minor == 7)
-                    opsPerComputeBlock = 256;
-            }
-        } else if (info.supports_imad) {
-            // fma * simd size
-            opsPerComputeBlock = 2 * 32;
-        } else {
-            // separate mul + add instructions for int8 data type
-            opsPerComputeBlock = 2 * 16;
-            // mul/add instructions can't be executed in parallel, so we need 2 clocks to execute compute block
-            computeBlockIPC = 0.5f;
-        }
-        break;
-    }
-    case cldnn::data_types::f16: {
-        if (info.supports_immad) {
-            if (info.gfx_ver.major == 12) {
-                if (info.gfx_ver.minor == 5)
-                    opsPerComputeBlock = 256;
-                else if (info.gfx_ver.minor == 7)
-                    opsPerComputeBlock = 128;
-            }
-        } else {
-            // fma * simd size
-            opsPerComputeBlock = 2 * 16;
-        }
-        break;
-    }
-    case cldnn::data_types::f32: {
-        // fma * simd size
-        opsPerComputeBlock = 2 * 8;
-        break;
-    }
-
-    default: throw std::runtime_error("GetGOPS: Unsupported precision");
-    }
-
-    return freqGHz * opsPerComputeBlock * computeBlockIPC * numEUs;
-}
-
 Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::GetMetric");
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -587,6 +579,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             ov::PropertyName{ov::range_for_streams.name(), PropertyMutability::RO},
             ov::PropertyName{ov::optimal_batch_size.name(), PropertyMutability::RO},
             ov::PropertyName{ov::max_batch_size.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::caching_properties.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::full_name.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::uuid.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::type.name(), PropertyMutability::RO},
@@ -625,6 +618,8 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         metrics.push_back(METRIC_KEY(DEVICE_GOPS));
         metrics.push_back(METRIC_KEY(OPTIMAL_BATCH_SIZE));
         metrics.push_back(METRIC_KEY(MAX_BATCH_SIZE));
+        if (isModelCachingEnabled)
+            metrics.push_back(METRIC_KEY(IMPORT_EXPORT_SUPPORT));
         metrics.push_back(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
         metrics.push_back(GPU_METRIC_KEY(UARCH_VERSION));
         metrics.push_back(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
@@ -648,17 +643,17 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
     } else if (name == ov::device::gops) {
         if (is_new_api) {
             std::map<element::Type, float> gops;
-            gops[element::i8] = GetGOPS(device_info, cldnn::data_types::i8);
-            gops[element::u8] = GetGOPS(device_info, cldnn::data_types::u8);
-            gops[element::f16] = GetGOPS(device_info, cldnn::data_types::f16);
-            gops[element::f32] = GetGOPS(device_info, cldnn::data_types::f32);
+            gops[element::i8] = device->get_gops(cldnn::data_types::i8);
+            gops[element::u8] = device->get_gops(cldnn::data_types::u8);
+            gops[element::f16] = device->get_gops(cldnn::data_types::f16);
+            gops[element::f32] = device->get_gops(cldnn::data_types::f32);
             return decltype(ov::device::gops)::value_type {gops};
         } else {
             std::map<InferenceEngine::Precision, float> gops;
-            gops[InferenceEngine::Precision::I8] = GetGOPS(device_info, cldnn::data_types::i8);
-            gops[InferenceEngine::Precision::U8] = GetGOPS(device_info, cldnn::data_types::u8);
-            gops[InferenceEngine::Precision::FP16] = GetGOPS(device_info, cldnn::data_types::f16);
-            gops[InferenceEngine::Precision::FP32] = GetGOPS(device_info, cldnn::data_types::f32);
+            gops[InferenceEngine::Precision::I8] = device->get_gops(cldnn::data_types::i8);
+            gops[InferenceEngine::Precision::U8] = device->get_gops(cldnn::data_types::u8);
+            gops[InferenceEngine::Precision::FP16] = device->get_gops(cldnn::data_types::f16);
+            gops[InferenceEngine::Precision::FP32] = device->get_gops(cldnn::data_types::f32);
             IE_SET_METRIC_RETURN(DEVICE_GOPS, gops);
         }
     } else if (name == ov::intel_gpu::execution_units_count) {
@@ -774,7 +769,8 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             capabilities.push_back(ov::device::capability::INT8);
         if (device_info.supports_immad)
             capabilities.push_back(ov::intel_gpu::capability::HW_MATMUL);
-
+        if (isModelCachingEnabled)
+            capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
         return decltype(ov::device::capabilities)::value_type {capabilities};
     } else if (name == ov::range_for_async_infer_requests) {
         std::tuple<unsigned int, unsigned int, unsigned int> range = std::make_tuple(1, 2, 1);
@@ -967,6 +963,11 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
             }
         }
         return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(max_batch_size)};
+    } else if (isModelCachingEnabled && name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
+        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
+    } else if (name == ov::caching_properties) {
+        std::vector<ov::PropertyName> cachingProperties;
+        return decltype(ov::caching_properties)::value_type(cachingProperties);
     } else {
         IE_THROW() << "Unsupported metric key " << name;
     }

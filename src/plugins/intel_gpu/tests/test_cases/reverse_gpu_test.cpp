@@ -47,31 +47,41 @@ public:
         auto data_type = type_to_data_type<T>::value;
         ReverseParams<T, mode> params = testing::TestWithParam<ReverseParams<T, mode>>::GetParam();
         auto& engine = get_test_engine();
-        tensor t;
 
-        auto reverse_input = engine.allocate_memory({data_type, params.input_format, params.input_tensor});
+        format fmt = generic_test::get_plain_format_for(params.input_format);
+        bool reorder_needed = fmt != params.input_format;
+
+        auto reverse_input = engine.allocate_memory({data_type, fmt, params.input_tensor});
         auto reverse_axes = engine.allocate_memory(
-            {ReverseModeTraits<mode>::data_type, format::bfyx, tensor(batch(1), feature(params.axis.size()))});
-
+            {ReverseModeTraits<mode>::data_type, fmt, tensor(batch(1), feature(params.axis.size()))});
         set_values(reverse_input, params.input);
         set_values(reverse_axes, params.axis);
 
-        const std::string reverse_id = "reverse";
         const std::string reverse_input_id = "reverse_input";
         const std::string axes_id = "reverse_axes";
-        topology topology;
-        topology.add(input_layout(reverse_input_id, reverse_input->get_layout()));
-        topology.add(input_layout(axes_id, reverse_axes->get_layout()));
+        topology tp;
+        tp.add(input_layout(reverse_input_id, reverse_input->get_layout()));
+        tp.add(input_layout(axes_id, reverse_axes->get_layout()));
+        const std::string reverse_id = "reverse";
+        std::string ouput_op_name{reverse_id};
+        if (reorder_needed) {
+            const std::string r_reverse_input_id = "r_reverse_input";
+            const std::string r_axes_id = "r_reverse_axes";
+            tp.add(reorder(r_reverse_input_id, reverse_input_id, params.input_format, type_to_data_type<T>::value));
+            tp.add(reorder(r_axes_id, axes_id, params.input_format, type_to_data_type<T>::value));
+            tp.add(reverse(reverse_id, r_reverse_input_id, r_axes_id, mode));
+            ouput_op_name = "reversed_result";
+            tp.add(reorder(ouput_op_name, reverse_id, fmt, type_to_data_type<T>::value));
+        } else {
+            tp.add(reverse(reverse_id, reverse_input_id, axes_id, mode));
+        }
 
-        topology.add(reverse(reverse_id, reverse_input_id, axes_id, mode));
-
-        network network(engine, topology);
-
+        network network(engine, tp);
         network.set_input_data(reverse_input_id, reverse_input);
         network.set_input_data(axes_id, reverse_axes);
-
         auto result = network.execute();
-        auto out_mem = result.at(reverse_id).get_memory();
+
+        auto out_mem = result.at(ouput_op_name).get_memory();
         cldnn::mem_lock<T> out_ptr(out_mem, get_test_stream());
 
         ASSERT_EQ(params.expected_out.size(), out_ptr.size());
@@ -90,7 +100,7 @@ struct PrintToStringParamName {
         for (auto val : param.param.axis) {
             buf << val << ",";
         }
-        buf << "} format" << param.param.input_format.to_string();
+        buf << "} format " << param.param.input_format.to_string();
         return buf.str();
     }
 };
@@ -156,161 +166,200 @@ TEST_P(reverse_gpu_test_f16_index, reverse_f16_index) {
     ASSERT_NO_FATAL_FAILURE(test());
 }
 
+namespace {
+
+const auto four_d_formats = {
+    format::bfyx,
+    format::b_fs_yx_fsv16,
+    format::b_fs_yx_fsv32,
+    format::bs_fs_yx_bsv16_fsv16,
+    format::bs_fs_yx_bsv32_fsv32,
+    format::bs_fs_yx_bsv32_fsv16,
+};
+
+const auto five_d_formats = {
+    format::bfzyx,
+    format::b_fs_zyx_fsv16,
+    format::b_fs_zyx_fsv32,
+    format::bs_fs_zyx_bsv16_fsv32,
+    format::bs_fs_zyx_bsv16_fsv16,
+    format::bs_fs_zyx_bsv32_fsv32,
+    format::bs_fs_zyx_bsv32_fsv16,
+};
+}  // namespace
+
 template <typename T>
 std::vector<ReverseParams<T, reverse_mode::mask>> generateMaskParams() {
-    std::vector<ReverseParams<T, reverse_mode::mask>> params{
-        // reverse_2d_1_mask
-        {tensor(batch(4), feature(3)),
-         format::bfyx,
-         std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
-         {false, true},
-         std::vector<T>{2, 1, 0, 5, 4, 3, 8, 7, 6, 11, 10, 9}},
-        {tensor(batch(4), feature(3)),
-         format::bfyx,
-         std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
-         {true, true},
-         std::vector<T>{11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0}},
-        {tensor(batch(4), feature(3)),
-         format::bfyx,
-         std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
-         {false, false},
-         std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}},
-    };
+    std::vector<ReverseParams<T, reverse_mode::mask>> params;
+    for (const auto f : four_d_formats) {
+        params.push_back({tensor(batch(4), feature(3)),
+                          f,
+                          std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
+                          {false, true},
+                          std::vector<T>{2, 1, 0, 5, 4, 3, 8, 7, 6, 11, 10, 9}});
+        params.push_back({tensor(batch(4), feature(3)),
+                          f,
+                          std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
+                          {true, true},
+                          std::vector<T>{11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0}});
+
+        params.push_back({tensor(batch(4), feature(3)),
+                          f,
+                          std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
+                          {false, false},
+                          std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}});
+    }
     return params;
 }
 
 template <typename T>
 std::vector<ReverseParams<T, reverse_mode::index>> generateIndexParams() {
-    std::vector<ReverseParams<T, reverse_mode::index>> params{
+    std::vector<ReverseParams<T, reverse_mode::index>> params;
+    for (const auto fmt : four_d_formats) {
+        std::vector<ReverseParams<T, reverse_mode::index>> local_params{
+            //{tensor(batch(8)), format::bfyx, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7}, {},
+            // std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7}},
+            {tensor(batch(8)),
+             fmt,
+             std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7},
+             {0},
+             std::vector<T>{7, 6, 5, 4, 3, 2, 1, 0}},
+            {tensor(batch(4), feature(3)),
+             fmt,
+             std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
+             {0},
+             std::vector<T>{9, 10, 11, 6, 7, 8, 3, 4, 5, 0, 1, 2}},
+            {tensor(batch(4), feature(3)),
+             fmt,
+             std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
+             {1},
+             std::vector<T>{2, 1, 0, 5, 4, 3, 8, 7, 6, 11, 10, 9}},
+            {tensor(batch(4), feature(3)),
+             fmt,
+             std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
+             {0, 1},
+             std::vector<T>{11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0}},
+            {tensor{2, 4, 1, 3},
+             fmt,
+             std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23},
+             {0, 1},
+             std::vector<T>{21, 22, 23, 18, 19, 20, 15, 16, 17, 12, 13, 14, 9, 10, 11, 6, 7, 8, 3, 4, 5, 0, 1, 2}},
+            {tensor{
+                 2,
+                 4,
+                 1,
+                 3,
+             },
+             fmt,
+             std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23},
+             {0, 2},
+             std::vector<T>{14, 13, 12, 17, 16, 15, 20, 19, 18, 23, 22, 21, 2, 1, 0, 5, 4, 3, 8, 7, 6, 11, 10, 9}},
+            {tensor{2, 4, 1, 3},
+             fmt,
+             std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23},
+             {1, 2},
+             std::vector<T>{11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12}},
+            {tensor{2, 4, 1, 3},
+             fmt,
+             std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23},
+             {0, 1, 2},
+             std::vector<T>{23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0}}};
+        std::move(local_params.begin(), local_params.end(), std::back_inserter(params));
+    }
 
-        //{tensor(batch(8)), format::bfyx, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7}, {},
-        // std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7}},
-        {tensor(batch(8)),
-         format::bfyx,
-         std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7},
-         {0},
-         std::vector<T>{7, 6, 5, 4, 3, 2, 1, 0}},
-        {tensor(batch(4), feature(3)),
-         format::bfyx,
-         std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
-         {0},
-         std::vector<T>{9, 10, 11, 6, 7, 8, 3, 4, 5, 0, 1, 2}},
-        {tensor(batch(4), feature(3)),
-         format::bfyx,
-         std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
-         {1},
-         std::vector<T>{2, 1, 0, 5, 4, 3, 8, 7, 6, 11, 10, 9}},
-        {tensor(batch(4), feature(3)),
-         format::bfyx,
-         std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
-         {0, 1},
-         std::vector<T>{11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0}},
-        {tensor{1, 1, 3, 4, 2},
-         format::bfzyx,
-         std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23},
-         {2},
-         std::vector<T>{12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}},
-        {tensor{1, 1, 3, 4, 2},
-         format::bfzyx,
-         std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23},
-         {3},
-         std::vector<T>{9, 10, 11, 6, 7, 8, 3, 4, 5, 0, 1, 2, 21, 22, 23, 18, 19, 20, 15, 16, 17, 12, 13, 14}},
-        {tensor{1, 1, 3, 4, 2},
-         format::bfzyx,
-         std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23},
-         {4},
-         std::vector<T>{2, 1, 0, 5, 4, 3, 8, 7, 6, 11, 10, 9, 14, 13, 12, 17, 16, 15, 20, 19, 18, 23, 22, 21}},
-        {tensor{2, 4, 1, 3},
-         format::bfyx,
-         std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23},
-         {0, 1},
-         std::vector<T>{21, 22, 23, 18, 19, 20, 15, 16, 17, 12, 13, 14, 9, 10, 11, 6, 7, 8, 3, 4, 5, 0, 1, 2}},
-        {tensor{
-             2,
-             4,
-             1,
-             3,
-         },
-         format::bfyx,
-         std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23},
-         {0, 2},
-         std::vector<T>{14, 13, 12, 17, 16, 15, 20, 19, 18, 23, 22, 21, 2, 1, 0, 5, 4, 3, 8, 7, 6, 11, 10, 9}},
-        {tensor{2, 4, 1, 3},
-         format::bfyx,
-         std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23},
-         {1, 2},
-         std::vector<T>{11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12}},
-        {tensor{2, 4, 1, 3},
-         format::bfyx,
-         std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23},
-         {0, 1, 2},
-         std::vector<T>{23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0}}};
+    for (const auto fmt : five_d_formats) {
+        std::vector<ReverseParams<T, reverse_mode::index>> local_params{
+            {tensor{1, 1, 3, 4, 2},
+             fmt,
+             std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23},
+             {2},
+             std::vector<T>{12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}},
+            {tensor{1, 1, 3, 4, 2},
+             fmt,
+             std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23},
+             {3},
+             std::vector<T>{9, 10, 11, 6, 7, 8, 3, 4, 5, 0, 1, 2, 21, 22, 23, 18, 19, 20, 15, 16, 17, 12, 13, 14}},
+            {tensor{1, 1, 3, 4, 2},
+             fmt,
+             std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23},
+             {4},
+             std::vector<T>{2, 1, 0, 5, 4, 3, 8, 7, 6, 11, 10, 9, 14, 13, 12, 17, 16, 15, 20, 19, 18, 23, 22, 21}},
+        };
+        std::move(local_params.begin(), local_params.end(), std::back_inserter(params));
+    }
     return params;
 }
 
 template <>
 std::vector<ReverseParams<half_t, reverse_mode::mask>> generateMaskParams() {
-    std::vector<ReverseParams<half_t, reverse_mode::mask>> params{// reverse_2d_1_mask
-                                                                  {tensor(batch(4), feature(3)),
-                                                                   format::bfyx,
-                                                                   std::vector<half_t>{half_t(0),
-                                                                                       half_t(1),
-                                                                                       half_t(2),
-                                                                                       half_t(3),
-                                                                                       half_t(4),
-                                                                                       half_t(5),
-                                                                                       half_t(6),
-                                                                                       half_t(7),
-                                                                                       half_t(8),
-                                                                                       half_t(9),
-                                                                                       half_t(10),
-                                                                                       half_t(11)},
-                                                                   {false, true},
-                                                                   std::vector<half_t>{half_t(2),
-                                                                                       half_t(1),
-                                                                                       half_t(0),
-                                                                                       half_t(5),
-                                                                                       half_t(4),
-                                                                                       half_t(3),
-                                                                                       half_t(8),
-                                                                                       half_t(7),
-                                                                                       half_t(6),
-                                                                                       half_t(11),
-                                                                                       half_t(10),
-                                                                                       half_t(9)}}};
+    std::vector<ReverseParams<half_t, reverse_mode::mask>> params;
+    for (const auto fmt : four_d_formats) {
+        // reverse_2d_1_mask
+        params.push_back({tensor(batch(4), feature(3)),
+                          fmt,
+                          std::vector<half_t>{half_t(0),
+                                              half_t(1),
+                                              half_t(2),
+                                              half_t(3),
+                                              half_t(4),
+                                              half_t(5),
+                                              half_t(6),
+                                              half_t(7),
+                                              half_t(8),
+                                              half_t(9),
+                                              half_t(10),
+                                              half_t(11)},
+                          {false, true},
+                          std::vector<half_t>{half_t(2),
+                                              half_t(1),
+                                              half_t(0),
+                                              half_t(5),
+                                              half_t(4),
+                                              half_t(3),
+                                              half_t(8),
+                                              half_t(7),
+                                              half_t(6),
+                                              half_t(11),
+                                              half_t(10),
+                                              half_t(9)}});
+    }
+
     return params;
 }
 
 template <>
 std::vector<ReverseParams<half_t, reverse_mode::index>> generateIndexParams() {
-    std::vector<ReverseParams<half_t, reverse_mode::index>> params{// reverse_2d_1_mask
-                                                                   {tensor(batch(4), feature(3)),
-                                                                    format::bfyx,
-                                                                    std::vector<half_t>{half_t(0),
-                                                                                        half_t(1),
-                                                                                        half_t(2),
-                                                                                        half_t(3),
-                                                                                        half_t(4),
-                                                                                        half_t(5),
-                                                                                        half_t(6),
-                                                                                        half_t(7),
-                                                                                        half_t(8),
-                                                                                        half_t(9),
-                                                                                        half_t(10),
-                                                                                        half_t(11)},
-                                                                    {1},
-                                                                    std::vector<half_t>{half_t(2),
-                                                                                        half_t(1),
-                                                                                        half_t(0),
-                                                                                        half_t(5),
-                                                                                        half_t(4),
-                                                                                        half_t(3),
-                                                                                        half_t(8),
-                                                                                        half_t(7),
-                                                                                        half_t(6),
-                                                                                        half_t(11),
-                                                                                        half_t(10),
-                                                                                        half_t(9)}}};
+    std::vector<ReverseParams<half_t, reverse_mode::index>> params;
+    for (const auto fmt : four_d_formats) {
+        // reverse_2d_1_mask
+        params.push_back({tensor(batch(4), feature(3)),
+                          fmt,
+                          std::vector<half_t>{half_t(0),
+                                              half_t(1),
+                                              half_t(2),
+                                              half_t(3),
+                                              half_t(4),
+                                              half_t(5),
+                                              half_t(6),
+                                              half_t(7),
+                                              half_t(8),
+                                              half_t(9),
+                                              half_t(10),
+                                              half_t(11)},
+                          {1},
+                          std::vector<half_t>{half_t(2),
+                                              half_t(1),
+                                              half_t(0),
+                                              half_t(5),
+                                              half_t(4),
+                                              half_t(3),
+                                              half_t(8),
+                                              half_t(7),
+                                              half_t(6),
+                                              half_t(11),
+                                              half_t(10),
+                                              half_t(9)}});
+    }
     return params;
 }
 

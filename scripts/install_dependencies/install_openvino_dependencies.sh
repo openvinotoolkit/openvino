@@ -60,7 +60,7 @@ if [ -n "$selftest" ] ; then
             echo "||"
             echo "|| Test $image / '$opt'"
             echo "||"
-            SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" >/dev/null 2>&1 && pwd )"
+            SCRIPT_DIR="$( cd "$( dirname "$(realpath "${BASH_SOURCE[0]}")" )" >/dev/null 2>&1 && pwd )"
             docker run -it --rm \
                 --volume ${SCRIPT_DIR}:/scripts:ro,Z  \
                 --volume yum-cache:/var/cache/yum \
@@ -154,7 +154,10 @@ elif [ "$os" == "rhel8" ] ; then
     pkgs_core=(libtbb2 libpugixml1v5)
     pkgs_opencv_req=(gtk3)
     pkgs_python=(python38 python38-pip)
-    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake pkg-config zlib-devel.i686 curl sudo)
+    pkgs_dev=(
+    gcc gcc-c++ make glibc libstdc++ libgcc cmake pkg-config zlib-devel.i686 curl sudo
+    https://vault.centos.org/centos/8/PowerTools/x86_64/os/Packages/gflags-2.1.2-6.el8.x86_64.rpm
+    )
     pkgs_myriad=()
     pkgs_opencv_opt=(
         https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/libcdio-2.0.0-3.el8.x86_64.rpm

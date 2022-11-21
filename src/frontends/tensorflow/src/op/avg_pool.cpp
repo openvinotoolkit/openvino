@@ -56,7 +56,7 @@ OutputVector translate_avg_pool_op(const NodeContext& node) {
                                          auto_pad);
     auto avg_pool_output = avg_pool->output(0);
     convert_nchw_to_nhwc(is_nhwc, avg_pool_output, ov::Rank(spatial_dim + 2));
-    set_node_name(node.get_name(), avg_pool);
+    set_node_name(node.get_name(), avg_pool_output.get_node_shared_ptr());
 
     return {avg_pool_output};
 }

@@ -594,7 +594,7 @@ def test_ngraph_set_layout_by_str_thow_exception(layout):
 
     with pytest.raises(RuntimeError) as e:
         ppp.input().model().set_layout(layout)
-    assert "Layout name is invalid" in str(e)
+    assert "Layout name is invalid" in str(e.value)
 
 
 def test_ngraph_set_layout_by_layout_class_thow_exception():
@@ -608,4 +608,4 @@ def test_ngraph_set_layout_by_layout_class_thow_exception():
     with pytest.raises(RuntimeError) as e:
         layout = ov.Layout("1-2-3D")
         ppp.input().model().set_layout(layout)
-    assert "Layout name is invalid" in str(e)
+    assert "Layout name is invalid" in str(e.value)
