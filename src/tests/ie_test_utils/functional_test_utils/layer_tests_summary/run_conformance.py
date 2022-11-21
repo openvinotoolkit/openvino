@@ -288,7 +288,8 @@ class Conformance:
                 self.download_and_convert_models()
             self.dump_subgraph()
         if not os.path.isdir(self._model_path):
-           raise Exception(f"Directory {self._model_path} does not exist")
+            logger.error(f"Directory {self._model_path} does not exist")
+            exit(-1)
         xml_report, report_dir = self.run_conformance()
         self.summarize(xml_report, report_dir)
         
