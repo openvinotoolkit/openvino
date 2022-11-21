@@ -6,9 +6,7 @@ https://github.com/openvinotoolkit/openvino/blob/d96c25844d6cfd5ad131539c8a09282
 
 There are two main types of possible issues:
 * parameter checking issue: return value is -14, check the input parameters
-* C++ call exception issue: C interface just returns the status value, without a detailed message. If you want details, print it in exception macro.
-
-> **NOTE**: The exception from C interface is not the same as C++ exception, do not use the C status value in C++ debugging.
+* C++ call exception issue: if C++ called by C interface throw exception, C interface will catch the exception but no throw to C user, just returns the status value, without a detailed message. If you want details, can print it in exception macro.
 
  ## See also
  * [OpenVINO™ README](../../../../README.md)
