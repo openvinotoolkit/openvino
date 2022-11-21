@@ -433,8 +433,8 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                 auto node = nodes[0];
                 auto elem_type = node.get_element_type();
                 auto shape = node.get_partial_shape();
-                OPENVINO_ASSERT(shape.size() >= 3 && shape.size() <= 5,
-                                "Input shape size should be more or equal to 3 or less or equal to 5, actual size: ",
+                OPENVINO_ASSERT(shape.size() == 4,
+                                "Input shape size should be equal to 4, actual size: ",
                                 shape.size());
                 auto channels_idx = get_and_check_channels_idx(context.layout(), shape);
                 OPENVINO_ASSERT(shape[channels_idx] == 3,

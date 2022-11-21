@@ -68,16 +68,15 @@ public:
         return {};
     }
 
-    // Calculate shape of plane based image shape in NHWC format
-    PartialShape shape(size_t plane_num, const PartialShape& image_src_shape) const {
+    PartialShape shape(size_t plane_num, const PartialShape& src_shape, const Layout& src_layout) const {
         OPENVINO_ASSERT(plane_num < planes_count(),
                         "Internal error: incorrect plane number specified for color format");
-        return calculate_shape(plane_num, image_src_shape);
+        return calculate_shape(plane_num, src_shape, src_layout);
     }
 
 protected:
-    virtual PartialShape calculate_shape(size_t plane_num, const PartialShape& image_shape) const {
-        return image_shape;
+    virtual PartialShape calculate_shape(size_t plane_num, const PartialShape& src_shape, const Layout& src_layout) const {
+        return src_shape;
     }
 
     explicit ColorFormatInfo(ColorFormat format) : m_format(format) {}
@@ -94,15 +93,31 @@ public:
     }
 };
 
+// Assume that it should work with NHWC and NCHW cases, but default is NHWC
+class ColorFormatRGB : public ColorFormatNHWC {
+public:
+    explicit ColorFormatRGB(ColorFormat format) : ColorFormatNHWC(format) {}
+
+protected:
+    PartialShape calculate_shape(size_t plane_num, const PartialShape& src_shape, const Layout& src_layout) const override {
+        PartialShape result = src_shape;
+        if (src_shape.rank().is_static())
+            result[ov::layout::channels_idx(src_layout)] = 3;
+        return result;
+    }
+};
+
+using ColorFormatBGR = ColorFormatRGB;
+
 // Applicable for both NV12 and I420 formats
 class ColorFormatInfoYUV420_Single : public ColorFormatNHWC {
 public:
     explicit ColorFormatInfoYUV420_Single(ColorFormat format) : ColorFormatNHWC(format) {}
 
 protected:
-    PartialShape calculate_shape(size_t plane_num, const PartialShape& image_shape) const override {
-        PartialShape result = image_shape;
-        if (image_shape.rank().is_static() && image_shape.rank().get_length() == 4) {
+    PartialShape calculate_shape(size_t plane_num, const PartialShape& src_shape, const Layout& src_layout) const override {
+        PartialShape result = src_shape;
+        if (src_shape.rank().is_static() && src_shape.rank().get_length() == 4) {
             result[3] = 1;
             if (result[1].is_static()) {
                 result[1] = result[1].get_length() * 3 / 2;
@@ -121,9 +136,9 @@ public:
     }
 
 protected:
-    PartialShape calculate_shape(size_t plane_num, const PartialShape& image_shape) const override {
-        PartialShape result = image_shape;
-        if (image_shape.rank().is_static() && image_shape.rank().get_length() == 4) {
+    PartialShape calculate_shape(size_t plane_num, const PartialShape& src_shape, const Layout& src_layout) const override {
+        PartialShape result = src_shape;
+        if (src_shape.rank().is_static() && src_shape.rank().get_length() == 4) {
             if (plane_num == 0) {
                 result[3] = 1;
                 return result;
@@ -151,9 +166,9 @@ public:
     }
 
 protected:
-    PartialShape calculate_shape(size_t plane_num, const PartialShape& image_shape) const override {
-        PartialShape result = image_shape;
-        if (image_shape.rank().is_static() && image_shape.rank().get_length() == 4) {
+    PartialShape calculate_shape(size_t plane_num, const PartialShape& src_shape, const Layout& src_layout) const override {
+        PartialShape result = src_shape;
+        if (src_shape.rank().is_static() && src_shape.rank().get_length() == 4) {
             result[3] = 1;  //  Number of channels is always 1 for I420 planes
             if (plane_num == 0) {
                 return result;
@@ -176,9 +191,9 @@ public:
     explicit ColorFormatInfo_RGBX_Base(ColorFormat format) : ColorFormatNHWC(format) {}
 
 protected:
-    PartialShape calculate_shape(size_t plane_num, const PartialShape& image_shape) const override {
-        PartialShape result = image_shape;
-        if (image_shape.rank().is_static() && image_shape.rank().get_length() == 4) {
+    PartialShape calculate_shape(size_t plane_num, const PartialShape& src_shape, const Layout& src_layout) const override {
+        PartialShape result = src_shape;
+        if (src_shape.rank().is_static() && src_shape.rank().get_length() == 4) {
             result[3] = 4;
             return result;
         }

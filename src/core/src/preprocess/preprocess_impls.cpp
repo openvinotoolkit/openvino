@@ -95,7 +95,7 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
 
     // Create separate parameter for each plane. Shape is based on color format
     for (size_t plane = 0; plane < color_info->planes_count(); plane++) {
-        auto plane_shape = color_info->shape(plane, new_param_shape);
+        auto plane_shape = color_info->shape(plane, new_param_shape, res.m_tensor_layout);
         auto plane_param = std::make_shared<opset8::Parameter>(tensor_elem_type, plane_shape);
         if (plane < get_tensor_data()->planes_sub_names().size()) {
             std::unordered_set<std::string> plane_tensor_names;
@@ -194,6 +194,15 @@ bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
     if (node.get_partial_shape() != context.model_shape()) {
         need_validate = true;  // Trigger revalidation if input parameter shape is changed
     }
+
+    // Check final shape
+    OPENVINO_ASSERT(node.get_partial_shape().compatible(context.model_shape()),
+                    "Resulting shape '",
+                    node.get_partial_shape(),
+                    "' after preprocessing is not aligned with original parameter's shape: ",
+                    context.model_shape(),
+                    ", input parameter: ",
+                    data.m_param->get_friendly_name());
 
     // Replace parameter
     for (auto consumer : consumers) {
