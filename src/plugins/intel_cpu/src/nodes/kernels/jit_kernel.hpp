@@ -16,12 +16,12 @@ using namespace dnnl::impl::cpu;
 struct jit_kernel_args_stub {};
 
 template<typename jit_params, typename jit_call_args>
-class jit_kernel : public JitKernelBase {
+class jit_kernel : public jit_kernel_base {
 public:
     using kernel_func = void (*)(const jit_call_args *);
 
     explicit jit_kernel(const char* name, x64::cpu_isa_t max_cpu_isa, const jit_params& jqp)
-            : JitKernelBase{name, max_cpu_isa}, kernel_{nullptr}, params_{jqp} {}
+            : jit_kernel_base{name, max_cpu_isa}, kernel_{nullptr}, params_{jqp} {}
     ~jit_kernel() override = default;
 
     status_t create_kernel() override {

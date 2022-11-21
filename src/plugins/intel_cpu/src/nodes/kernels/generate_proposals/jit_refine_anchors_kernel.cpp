@@ -478,7 +478,7 @@ void jit_refine_anchors_kernel_fp32<isa>::generate_impl() {
              */
             uni_vbroadcastss(vmm_min_box_w, ptr[reg_params + offsetof(jit_refine_anchors_call_args, min_box_w)]);
             uni_vbroadcastss(vmm_min_box_h, ptr[reg_params + offsetof(jit_refine_anchors_call_args, min_box_h)]);
-            if (isValidIsa(avx512_core)) {
+            if (is_valid_isa(avx512_core)) {
                 vcmpps(k1, vmm_min_box_w, vmm_box_w, VCMPPS_LE);
                 vpmovm2d(vmm_box_w, k1);
                 vcmpps(k1, vmm_min_box_h, vmm_box_h, VCMPPS_LE);
