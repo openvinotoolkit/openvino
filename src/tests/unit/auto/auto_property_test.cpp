@@ -97,11 +97,12 @@ TEST(SetPropertyOverwriteTest, smoke_MULTI_SetPropertyOverwriteTestNoThrow) {
 }
 
 TEST_P(SetSupportedPropertyTestP, setSupportedPropertyTestNoThrow) {
-    ASSERT_NO_THROW(core->set_property(device, configuration));
+    ov::Core ie;
+    ASSERT_NO_THROW(ie.set_property(device, configuration));
     ov::AnyMap config = {};
     if (device == "MULTI")
         config = {ov::device::priorities("CPU")};
-    ASSERT_NO_THROW(core->compile_model(actualNetwork, device, config));
+    ASSERT_NO_THROW(ie.compile_model(actualNetwork, device, config));
 }
 
 TEST_P(SetUnsupportedPropertyTestP, setUnsupportedPropertyTestNoThrow) {
@@ -165,4 +166,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_LoadNetworkUnsupportedPropertyTestNoThrow,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                             ::testing::ValuesIn(configsAutoLoadNetworkUnsupportedPropertyTest)),
                          ::testing::PrintToStringParamName());
-
