@@ -84,9 +84,26 @@ public:
             tp.add(reorder("output", "eye", oupput_fmt, type_to_data_type<OutputType>::value));
         }
 
-        network network(engine_, tp);
+        cldnn::network::ptr network; 
 
-        auto outputs = network.execute();
+        if (is_caching_test()) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine_, tp);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine_);
+                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine_);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine_, tp);
+        }
+
+        auto outputs = network->execute();
 
         EXPECT_EQ(outputs.size(), size_t(1));
         EXPECT_EQ(outputs.begin()->first, ouput_op_name);
@@ -192,7 +209,21 @@ using eye_test_5d_float_int32 = EyeTest<float, int32_t>;
 TEST_P(eye_test_5d_float_int32, eye_test_5d_float_int32) {}
 INSTANTIATE_TEST_SUITE_P(eye_test_5d_float_int32,
                          eye_test_5d_float_int32,
-                         testing::Combine(testing::ValuesIn(five_d_formats),
+                         testing::Combine(testing::Values(five_d_formats[0]),
+                                          testing::Values(2),
+                                          testing::Values(2),
+                                          testing::Values(0),
+                                          testing::ValuesIn(std::vector<std::vector<int32_t>>{{2, 2, 2}}),
+                                          testing::Values(std::vector<int32_t>{2, 2, 2, 2, 2}),
+                                          testing::Values(std::vector<float>{
+                                              1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1,
+
+                                              1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1,
+                                          })));
+
+INSTANTIATE_TEST_SUITE_P(export_import,
+                         eye_test_5d_float_int32,
+                         testing::Combine(testing::Values(five_d_formats[0]),
                                           testing::Values(2),
                                           testing::Values(2),
                                           testing::Values(0),

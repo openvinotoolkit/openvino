@@ -158,7 +158,7 @@ public:
             result_id = reorder_result_id;
         }
 
-        std::shared_ptr<cldnn::network> network;
+        cldnn::network::ptr network;
 
         if (is_caching_test()) {
             membuf mem_buf;

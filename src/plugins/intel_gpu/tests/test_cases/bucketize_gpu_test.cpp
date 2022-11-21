@@ -58,7 +58,7 @@ struct bucketize_test : testing::TestWithParam<bucketize_test_params<I, B, O>> {
         topology.add(
             reorder("plane_bucketize_left_bound", "bucketize_left_bound", format::bfyx, type_to_data_type<O>::value));
 
-        std::shared_ptr<cldnn::network> network;
+        cldnn::network::ptr network;
 
         if (is_caching_test()) {
             membuf mem_buf;

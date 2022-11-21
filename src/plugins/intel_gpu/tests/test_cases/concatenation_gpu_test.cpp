@@ -844,17 +844,35 @@ public:
         topology.add(pooling("pool_final", "conv", pooling_mode::max, {1, 1}, {1, 1}));
         topology.add(reorder("reorder", "pool_final", layout(data_type, format::bfyx, {(int32_t)batch_num, (int32_t)output_f, (int32_t)input_y, (int32_t)input_x})));
 
-        network concat_network(engine, topology, options);
-        for (size_t i = 0; i < in_features.size(); i++) {
-            concat_network.set_input_data(input_ids[i], in_memory[i]);
+        std::shared_ptr<cldnn::network> concat_network;
+
+        if (is_caching_test()) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology, options);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                concat_network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            concat_network = std::make_shared<cldnn::network>(engine, topology, options);
         }
-        concat_network.execute();
+
+        for (size_t i = 0; i < in_features.size(); i++) {
+            concat_network->set_input_data(input_ids[i], in_memory[i]);
+        }
+        concat_network->execute();
 
         bool concat_opt_enabled = options.get<build_option_type::optimize_data>()->enabled();
-        bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network.get_primitive("concat"))->node->can_be_optimized();
+        bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network->get_primitive("concat"))->can_be_optimized();
         EXPECT_TRUE(concat_opt_enabled==concat_opt_result);
 
-        return concat_network.get_output("reorder").get_memory();
+        return concat_network->get_output("reorder").get_memory();
     }
 
     std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> generate_input() {
@@ -906,6 +924,13 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                         ::testing::Values(
                             TestParamType_concat(1, { 16, 16 }, 2, 2),
                             TestParamType_concat(1, { 16, 8 }, 2, 2),
+                            TestParamType_concat(1, { 8, 16 }, 2, 2)
+                        ),
+                        concat_gpu::PrintToStringParamName);
+
+INSTANTIATE_TEST_SUITE_P(export_import,
+                        concat_implicit_gpu_4d_f16,
+                        ::testing::Values(
                             TestParamType_concat(1, { 8, 16 }, 2, 2)
                         ),
                         concat_gpu::PrintToStringParamName);

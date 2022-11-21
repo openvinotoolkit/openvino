@@ -131,7 +131,7 @@ public:
         topology.add(adaptive_pooling("adaptive_avg_pooling_blocked", "input_reordered", params.outputTensor));
         topology.add(reorder("adaptive_avg_pooling", "adaptive_avg_pooling_blocked", plain_layout, data_type));
 
-        std::shared_ptr<cldnn::network> network;
+        cldnn::network::ptr network;
 
         if (is_caching_test()) {
             membuf mem_buf;

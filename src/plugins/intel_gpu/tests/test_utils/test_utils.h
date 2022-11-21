@@ -594,7 +594,17 @@ private:
 
 inline bool is_caching_test() {
     std::string curr_test_suite_name(::testing::UnitTest::GetInstance()->current_test_suite()->name());
-    if (curr_test_suite_name.rfind("export_import", 0) == 0) {
+    if (curr_test_suite_name.find("export_import", 0) != std::string::npos) {
+        std::cout << "caching_enabled" << std::endl;
+        return true;
+    }
+    std::string curr_test_info_name(::testing::UnitTest::GetInstance()->current_test_info()->name());
+    if (curr_test_info_name.find("export_import", 0) != std::string::npos) {
+        std::cout << "caching_enabled" << std::endl;
+        return true;
+    }
+    std::string curr_test_case_name(::testing::UnitTest::GetInstance()->current_test_case()->name());
+    if (curr_test_case_name.find("export_import", 0) != std::string::npos) {
         std::cout << "caching_enabled" << std::endl;
         return true;
     }

@@ -373,12 +373,18 @@ network::network(cldnn::BinaryInputBuffer& ib, stream::ptr stream, engine& engin
     for (const auto& p_inst : _exec_order) {
         ib >> *p_inst;
         _primitives[p_inst->id()] = p_inst;
+        p_inst->init_kernels(kernels_cache);
+    }
+
+    for (auto& item : _primitives) {
+        auto& p_inst = item.second;
         if (p_inst->is_input())
             _inputs.push_back(p_inst);
-        if (p_inst->is_output())
+        if (p_inst->is_output()) {
             _outputs.push_back(p_inst);
-
-        p_inst->init_kernels(kernels_cache);
+            if (p_inst->type() == cldnn::data::type_id())
+                _data_outputs.push_back(p_inst);
+        }
     }
 
     for (auto p_inst : _exec_order) {
@@ -434,7 +440,8 @@ network::~network() {
 void network::save(cldnn::BinaryOutputBuffer& ob) {
     kernels_cache kernels_cache(get_engine(), 0, {""});
     for (const auto& p_inst : _exec_order) {
-        kernels_cache.add_kernels(p_inst->get_impl()->get_kernel_ids(), p_inst->get_impl()->get_kernels());
+        if (p_inst->get_impl() != nullptr)
+            kernels_cache.add_kernels(p_inst->get_impl()->get_kernel_ids(), p_inst->get_impl()->get_kernels());
     }
     ob << kernels_cache;
 
@@ -601,9 +608,9 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
         }
 
         //then users
-        const auto& users = p_inst->get_users();
-        for (const auto& usr : users) {
-            auto usr_prim = get_primitive(usr->id());
+        const auto& user_ids = mdata_ptr->get_user_ids();
+        for (const auto& id : user_ids) {
+            auto usr_prim = get_primitive(id);
             if (eng.is_the_same_buffer(mem_orig, usr_prim->output_memory())) {
                 chain.push_back(usr_prim);
             }

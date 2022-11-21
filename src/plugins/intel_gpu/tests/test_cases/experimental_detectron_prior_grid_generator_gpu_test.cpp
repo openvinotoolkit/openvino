@@ -61,11 +61,28 @@ public:
                                                                  params.imageShape.first,
                                                                  params.imageShape.second));
 
-        network network(engine, topology);
+        cldnn::network::ptr network;
 
-        network.set_input_data(priors_id, prior_input);
+        if (is_caching_test()) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology);
+        }
 
-        auto result = network.execute();
+        network->set_input_data(priors_id, prior_input);
+
+        auto result = network->execute();
 
         auto out_mem = result.at(experimental_detectron_prior_grid_generator_id).get_memory();
         cldnn::mem_lock<T> out_ptr(out_mem, get_test_stream());
@@ -227,4 +244,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_experimental_detectron_prior_grid_generator_test_
 INSTANTIATE_TEST_SUITE_P(smoke_experimental_detectron_prior_grid_generator_test_f16,
                          experimental_detectron_prior_grid_generator_test_f16,
                          ::testing::ValuesIn(generateExperimentalPGGParams<half_t>()),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(export_import,
+                         experimental_detectron_prior_grid_generator_test_f16,
+                         ::testing::Values(generateExperimentalPGGParams<half_t>()[0]),
                          PrintToStringParamName());

@@ -116,9 +116,27 @@ public:
         // It's simpler to use "bfwzyx" format for all cases, as input and output can have different ranks
         topology.add(reorder("out", "dft", format::bfwzyx, data_type));
 
-        network network(engine, topology);
-        network.set_input_data("input", input);
-        const auto outputs = network.execute();
+        cldnn::network::ptr network;
+
+        if (is_caching_test()) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology);
+        }
+
+        network->set_input_data("input", input);
+        const auto outputs = network->execute();
 
         ASSERT_EQ(outputs.size(), size_t(1));
         ASSERT_EQ(outputs.begin()->first, "out");
@@ -2010,6 +2028,14 @@ TEST_P(dft_gpu_test_half_t, test) {
 
 INSTANTIATE_DFT_TEST_SUITE_WITH_TYPES(DFT, 4d)
 INSTANTIATE_DFT_TEST_SUITE_WITH_TYPES(DFT, 5d)
+
+INSTANTIATE_TEST_SUITE_P(export_import,
+                         dft_gpu_test_float,
+                         testing::Combine(testing::Values(plain_format_5d),
+                                          testing::Values(blocked_format_5d[0]),
+                                          testing::Values(DFT),
+                                          testing::Values(DFT_params_5d[0])),
+                         dft_gpu_test_float::PrintToStringParamName);
 
 INSTANTIATE_DFT_TEST_SUITE_WITH_TYPES(IDFT, 4d)
 INSTANTIATE_DFT_TEST_SUITE_WITH_TYPES(IDFT, 5d)

@@ -58,7 +58,7 @@ data_inst::typed_primitive_inst(network& network, data_node const& node)
 //     [ output memory information ]
 //     [ data stored in memory ]
 void data_inst::save(cldnn::BinaryOutputBuffer& ob) const {
-    _impl_params->save(ob);
+    parent::save(ob);
     ob << _outputs[0]->get_layout();
 
     const auto _allocation_type = _outputs[0]->get_allocation_type();
@@ -76,11 +76,7 @@ void data_inst::save(cldnn::BinaryOutputBuffer& ob) const {
 }
 
 void data_inst::load(BinaryInputBuffer& ib) {
-    _type = cldnn::data::type_id();
-    _impl_params.release();
-    _impl_params = make_unique<kernel_impl_params>();
-    _impl_params->load(ib);
-
+    parent::load(ib);
     layout output_layout = layout(cldnn::data_types::bin, cldnn::format::any, cldnn::tensor());
     ib >> output_layout;
 

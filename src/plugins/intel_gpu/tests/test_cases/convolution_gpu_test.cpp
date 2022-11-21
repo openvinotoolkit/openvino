@@ -9193,8 +9193,8 @@ TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
 
 #endif   // ENABLE_ONEDNN_FOR_GPU
 
-TEST(convolution_f32_gpu, convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1)
-{
+template <typename T>
+void test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1() {
     auto& engine = get_test_engine();
 
     const int batch_num = 1;
@@ -9215,19 +9215,19 @@ TEST(convolution_f32_gpu, convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1)
     const int output_x = 1 + (input_xy + 2 * pad_x - filter_x) / stride + 2 * output_padding;
 
     auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
-    auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, -1, 1);
+    auto input_data = generate_random_4d<T>(batch_num, input_f, input_xy, input_xy, -1, 1);
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
     auto weights_size = tensor(group(output_f), batch(1), feature(1), spatial(filter_x, filter_y));
-    auto weights_data = generate_random_4d<FLOAT16>(output_f, 1, filter_y, filter_x, -1, 1);
+    auto weights_data = generate_random_4d<T>(output_f, 1, filter_y, filter_x, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights_mem = engine.allocate_memory({ data_types::f16, format::goiyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
 
     // Will be used to store reference values calculated in branches depending on bias
-    auto reference_result = VVVVF<FLOAT16>(batch_num, VVVF<FLOAT16>(output_f));
+    auto reference_result = VVVVF<T>(batch_num, VVVF<T>(output_f));
 
     topology topology(
         input_layout("input", input_mem->get_layout()),
@@ -9263,14 +9263,31 @@ TEST(convolution_f32_gpu, convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1)
     options.set_option(build_option::optimize_data(true));
     implementation_desc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_depthwise" };
     options.set_option(build_option::force_implementations({ { "conv_fsv", conv_impl } }));
-    network network(engine, topology, options);
+    cldnn::network::ptr network;
 
-    network.set_input_data("input", input_mem);
+    if (is_caching_test()) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology, options);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology, options);
+    }
 
-    network.execute();
+    network->set_input_data("input", input_mem);
 
-    auto out_mem = network.get_output("conv_fsv").get_memory();
-    cldnn::mem_lock<FLOAT16> out_ptr(out_mem, get_test_stream());
+    network->execute();
+
+    auto out_mem = network->get_output("conv_fsv").get_memory();
+    cldnn::mem_lock<T> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::b_fs_yx_fsv16);
 
@@ -9293,4 +9310,12 @@ TEST(convolution_f32_gpu, convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1)
                         std::cout << "At b = " << bi << ", fi = " << fi << ", yi = " << yi << ", xi = " << xi << std::endl;
                     }
                 }
+}
+
+TEST(convolution_f32_gpu, convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1) {
+    test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1<FLOAT16>();
+}
+
+TEST(export_import_convolution_f32_gpu, convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1) {
+    test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1<FLOAT16>();
 }

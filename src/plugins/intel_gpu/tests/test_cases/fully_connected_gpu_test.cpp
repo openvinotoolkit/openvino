@@ -1086,6 +1086,17 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(""))
 );
 
+INSTANTIATE_TEST_SUITE_P(
+    export_import,
+    fully_connected_random_test_f16,
+    ::testing::Combine(
+        ::testing::Values(2),
+        ::testing::Values(shared_dims{32, 1, 1}),
+        ::testing::Values(32),
+        ::testing::Values(format::bfyx),
+        ::testing::Values(format::bfyx),
+        ::testing::Values(""))
+);
 
 template <typename InputT, typename WeightsT, typename BiasT, typename OutputT>
 struct fully_connected_random_test_3d : ::testing::TestWithParam<fully_connected_test_params> {

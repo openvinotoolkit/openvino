@@ -1214,9 +1214,27 @@ TEST_P(crop_gpu, pad_test) {
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
 
-    network network(engine, topology, bo);
-    network.set_input_data("input", input);
-    auto outputs = network.execute();
+    cldnn::network::ptr network;
+
+    if (is_caching_test()) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology, bo);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology, bo);
+    }
+
+    network->set_input_data("input", input);
+    auto outputs = network->execute();
 
     auto output = outputs.at("out").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -1243,6 +1261,13 @@ INSTANTIATE_TEST_SUITE_P(crop_test, crop_gpu,
                                 ::testing::ValuesIn(formats)
                                 ));
 
+INSTANTIATE_TEST_SUITE_P(export_import_crop_test, crop_gpu,
+                        ::testing::Combine(
+                                ::testing::Values(batches[0]),
+                                ::testing::Values(in_features[0]),
+                                ::testing::Values(crop_features[0]),
+                                ::testing::Values(formats[0])
+                                ));
 
 TEST(crop_gpu, dynamic_i32_in2x3x2x2_crop_offsets) {
     auto& engine = get_test_engine();

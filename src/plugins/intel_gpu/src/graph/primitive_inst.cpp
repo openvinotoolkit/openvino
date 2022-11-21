@@ -1098,6 +1098,10 @@ void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
     ob << can_share_buffer();
     ob << is_constant();
 
+    if (type() == cldnn::data::type_id()) {
+        return;
+    }
+
     ob << _outputs[0]->get_layout();
     const auto _allocation_type = _outputs[0]->get_allocation_type();
     ob << make_data(&_allocation_type, sizeof(_allocation_type));
@@ -1195,6 +1199,10 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
     ib >> _can_be_optimized;
     ib >> _can_share_buffer;
     ib >> _is_constant;
+
+    if (type() == cldnn::data::type_id()) {
+        return;
+    }
 
     layout output_layout = layout(cldnn::data_types::bin, cldnn::format::any, cldnn::tensor());
     ib >> output_layout;

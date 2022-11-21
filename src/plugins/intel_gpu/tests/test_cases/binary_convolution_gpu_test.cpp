@@ -223,7 +223,7 @@ TEST_P(binary_convolution_test, conv) {
     topology_bin.add(binary_convolution(output_name, input_name, {output_name + weights_suffix},
                                         stride, pad, dilation, os_size, 1, p.pad_value, p.dt));
 
-    std::shared_ptr<cldnn::network> network_bin;
+    cldnn::network::ptr network_bin;
 
     if (is_caching_test()) {
         membuf mem_buf;

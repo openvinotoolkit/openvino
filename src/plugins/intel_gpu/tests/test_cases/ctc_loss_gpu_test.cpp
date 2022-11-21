@@ -103,11 +103,29 @@ public:
         topology.add(ctc_loss("ctc_loss", inputs_ids, p.preprocess_collapse_repeated, p.ctc_merge_repeated, p.unique));
         topology.add(reorder("reordered_ctc_loss", "ctc_loss", plane_format, float_data_type));
 
-        network network(engine, topology);
-        for (auto& input : inputs) {
-            network.set_input_data(std::get<0>(input), std::get<1>(input));
+        cldnn::network::ptr network;
+
+        if (is_caching_test()) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology);
         }
-        const auto outputs = network.execute();
+
+        for (auto& input : inputs) {
+            network->set_input_data(std::get<0>(input), std::get<1>(input));
+        }
+        const auto outputs = network->execute();
 
         EXPECT_EQ(outputs.size(), size_t(1));
         EXPECT_EQ(outputs.begin()->first, "reordered_ctc_loss");
@@ -238,5 +256,10 @@ const std::vector<format::type> layout_formats = {
 
 INSTANTIATE_CTC_LOSS_TEST_SUITE(float, int64_t);
 INSTANTIATE_CTC_LOSS_TEST_SUITE(FLOAT16, int32_t);
+INSTANTIATE_TEST_SUITE_P(export_import,
+                         ctc_loss_gpu_test_FLOAT16int32_t,
+                         testing::Combine(testing::Values(getCTCLossParams<FLOAT16, int32_t>()[0]),
+                                         testing::Values(layout_formats[0])),
+                         ctc_loss_gpu_test_FLOAT16int32_t::PrintToStringParamName);
 
 }  // namespace

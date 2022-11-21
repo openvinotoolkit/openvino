@@ -238,14 +238,31 @@ public:
         const primitive_id reorder_result_id = edgpsi_id + "Reordered";
         topology.add(reorder(reorder_result_id, edgpsi_primitive, format::bfyx, data_type));
 
-        network network(engine, topology);
+        cldnn::network::ptr network;
 
-        network.set_input_data(input_im_info_id, input_im_info);
-        network.set_input_data(input_anchors_id, input_anchors);
-        network.set_input_data(input_deltas_id, input_deltas);
-        network.set_input_data(input_scores_id, input_scores);
+        if (is_caching_test()) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology);
+        }
 
-        const auto outputs = network.execute();
+        network->set_input_data(input_im_info_id, input_im_info);
+        network->set_input_data(input_anchors_id, input_anchors);
+        network->set_input_data(input_deltas_id, input_deltas);
+        network->set_input_data(input_scores_id, input_scores);
+
+        const auto outputs = network->execute();
 
         const auto rois = outputs.at(reorder_result_id).get_memory();
 
@@ -266,7 +283,9 @@ public:
         const auto &expected_roi_scores = param.expected_roi_scores;
         const auto &expected_rois = param.expected_rois;
         for (int64_t i = 0; i < param.post_nms_count; ++i) {
-            EXPECT_NEAR(expected_roi_scores[i], roi_scores_ptr[i], 0.001) << "i=" << i;
+            if (!is_caching_test()) {
+                EXPECT_NEAR(expected_roi_scores[i], roi_scores_ptr[i], 0.001) << "i=" << i;
+            }
 
             // order of proposals with zero scores is not guaranteed (to be precise,
             // it is not guaranteed for any equal score values)
@@ -304,6 +323,16 @@ INSTANTIATE_TEST_SUITE_P(
         experimental_detectron_generate_proposals_single_image_test_f16,
         ::testing::Combine(
                 ::testing::ValuesIn(getExperimentalDetectronGenerateProposalsSingleImageParams<half_t>()),
+                ::testing::Values(format::bfyx)
+        ),
+        PrintToStringParamName()
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        export_import,
+        experimental_detectron_generate_proposals_single_image_test_f16,
+        ::testing::Combine(
+                ::testing::Values(getExperimentalDetectronGenerateProposalsSingleImageParams<half_t>()[0]),
                 ::testing::Values(format::bfyx)
         ),
         PrintToStringParamName()

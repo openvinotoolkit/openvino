@@ -130,7 +130,7 @@ void start_broadcast_test_5d(format cldnn_format, data_types cldnn_data_type, st
 
     set_values(input, input_data);
 
-    std::shared_ptr<cldnn::network> network;
+    cldnn::network::ptr network;
 
     if (is_caching_test()) {
         membuf mem_buf;

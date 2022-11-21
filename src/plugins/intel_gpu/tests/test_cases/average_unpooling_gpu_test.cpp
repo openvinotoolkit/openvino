@@ -232,7 +232,8 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_output_padding) {
     }
 }
 
-TEST(average_unpooling_gpu, basic_in2x2x2x1_fp16) {
+template <typename T>
+void test_average_unpooling_gpu_basic_in2x2x2x1_fp16() {
     //  Input  : 2x2x2x1
     //  Output Padding : 0x0x1x1
     //  Output : 2x2x3x2
@@ -269,66 +270,23 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_fp16) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(average_unpooling("average_unpooling", "input", { 2, 2, 3, 2 }, { 1, 1, 2, 2 }, { 1, 1, 1, 1 }));
 
-    network network(engine, topology);
+    cldnn::network::ptr network;
 
-    network.set_input_data("input", input);
-
-    auto outputs = network.execute();
-
-    auto output = outputs.at("average_unpooling").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
-    auto output_layout = output->get_layout();
-
-    EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(output_layout.spatial(1), 2);
-    EXPECT_EQ(output_layout.spatial(0), 3);
-    EXPECT_EQ(output_layout.feature(), 2);
-    EXPECT_EQ(output_layout.batch(), 2);
-
-    std::vector<float> expected_output_vec = {
-        0.625f, -0.5f, -1.125,
-        0.625f, -0.5f, -1.125,
-        1.5f, 2.5f, 1.f,
-        1.5f, 2.5f, 1.f,
-        0.f, -1.6875f, -1.6875f,
-        0.f, -1.6875f, -1.6875f,
-        1.75f, 2.9375f, 1.1875f,
-        1.75f, 2.9375f, 1.1875f
-    };
-    for (size_t i = 0; i < expected_output_vec.size(); ++i) {
-        EXPECT_EQ(expected_output_vec[i], half_to_float(output_ptr[i]));
-    }
-}
-
-TEST(average_unpooling_gpu, export_import) {
-    auto& engine = get_test_engine();
-
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx,{ 2, 2, 2, 1 } });
-
-    set_values(input, {
-        FLOAT16(2.5f), FLOAT16(-4.5f),
-        FLOAT16(6.f), FLOAT16(4.f),
-        FLOAT16(0.f), FLOAT16(-6.75f),
-        FLOAT16(7.0f), FLOAT16(4.75f)
-    });
-
-    topology topology;
-    topology.add(input_layout("input", input->get_layout()));
-    topology.add(average_unpooling("average_unpooling", "input", { 2, 2, 3, 2 }, { 1, 1, 2, 2 }, { 1, 1, 1, 1 }));
-
-    std::shared_ptr<cldnn::network> network;
-
-    membuf mem_buf;
-    {
-        cldnn::network _network(engine, topology);
-        std::ostream out_mem(&mem_buf);
-        BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-        _network.save(ob);
-    }
-    {
-        std::istream in_mem(&mem_buf);
-        BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-        network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+    if (is_caching_test()) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology);
     }
 
     network->set_input_data("input", input);
@@ -345,7 +303,7 @@ TEST(average_unpooling_gpu, export_import) {
     EXPECT_EQ(output_layout.feature(), 2);
     EXPECT_EQ(output_layout.batch(), 2);
 
-    std::vector<float> expected_output_vec = {
+    std::vector<T> expected_output_vec = {
         0.625f, -0.5f, -1.125,
         0.625f, -0.5f, -1.125,
         1.5f, 2.5f, 1.f,
@@ -358,4 +316,12 @@ TEST(average_unpooling_gpu, export_import) {
     for (size_t i = 0; i < expected_output_vec.size(); ++i) {
         EXPECT_EQ(expected_output_vec[i], half_to_float(output_ptr[i]));
     }
+}
+
+TEST(average_unpooling_gpu, basic_in2x2x2x1_fp16) {
+    test_average_unpooling_gpu_basic_in2x2x2x1_fp16<float>();
+}
+
+TEST(export_import_average_unpooling_gpu, basic_in2x2x2x1_fp16) {
+    test_average_unpooling_gpu_basic_in2x2x2x1_fp16<float>();
 }

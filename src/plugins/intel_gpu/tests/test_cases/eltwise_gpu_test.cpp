@@ -4026,11 +4026,29 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
         auto buildops_opt = build_options();
         buildops_opt.set_option(build_option::outputs({"eltwise_opt"}));
 
-        cldnn::network net_opt(engine, topo_opt, buildops_opt);
-        net_opt.set_input_data("input1", input1);
-        net_opt.set_input_data("input2", input2);
+        std::shared_ptr<cldnn::network> net_opt;
 
-        auto result_opt = net_opt.execute();
+        if (is_caching_test()) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topo_opt, buildops_opt);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                net_opt = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            net_opt = std::make_shared<cldnn::network>(engine, topo_opt, buildops_opt);
+        }
+
+        net_opt->set_input_data("input1", input1);
+        net_opt->set_input_data("input2", input2);
+
+        auto result_opt = net_opt->execute();
         auto output_opt = result_opt.at("eltwise_opt").get_memory();
 
         if (check_result == true) {
@@ -4090,3 +4108,11 @@ INSTANTIATE_TEST_SUITE_P(eltwise_smoke_fsv4,
                             .simple_params(data_types::i8, format::b_fs_yx_fsv4, format::b_fs_yx_fsv4)
                             .simple_params(data_types::u8, format::b_fs_yx_fsv4, format::b_fs_yx_fsv4)
                         ));
+
+INSTANTIATE_TEST_SUITE_P(export_import,
+                         eltwise_random_test,
+                         testing::ValuesIn(
+                            eltwise_random_test_param_generator()
+                            .add(eltwise_random_test_params{ data_types::f16, {1, 1, 48, 64}, {1, 10, 48, 64}, format::b_fs_yx_fsv4,
+                                                             format::b_fs_yx_fsv4, format::b_fs_yx_fsv4, eltwise_mode::sum})
+                         ));
