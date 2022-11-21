@@ -399,7 +399,7 @@ jobs:
     displayName: 'OV Core UT'
     continueOnError: false
 
-  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_conditional_complilation_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ConditionalCompilation.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_conditional_compilation_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ConditionalCompilation.xml
     displayName: 'Conditional Compilation Tests'
     continueOnError: false
 
