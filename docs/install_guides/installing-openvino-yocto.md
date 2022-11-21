@@ -1,40 +1,84 @@
 # Create a Yocto Image with Intel® Distribution of OpenVINO™ toolkit {#openvino_docs_install_guides_installing_openvino_yocto}
+
 This document provides instructions for creating a Yocto image with Intel® Distribution of OpenVINO™ toolkit.
 
 ## System Requirements
-Use the [Yocto Project official documentation](https://docs.yoctoproject.org/brief-yoctoprojectqs/index.html#compatible-linux-distribution) to set up and configure your host machine to be compatible with BitBake.
 
-## Step 1: Set Up Environment
+@sphinxdirective
+.. tab:: Supported Linux Distributions
 
-### Set Up Git Repositories
-The following Git repositories are required to build a Yocto image:
+   +--------------------------------+----------------------------------------+
+   | Operating System               | Version                                |
+   +================================+========================================+
+   | Ubuntu                         | 18.04 (LTS), 20.04 (LTS), 22.04 (LTS)  |
+   +--------------------------------+----------------------------------------+
+   | Fedora                         | 34, 35                                 |
+   +--------------------------------+----------------------------------------+
+   | AlmaLinux                      | 8.5                                    |
+   +--------------------------------+----------------------------------------+
+   | Debian GNU/Linux               | 10.x (Buster), 11.x (Bullseye)         |
+   +--------------------------------+----------------------------------------+
+   | OpenSUSE Leap                  | 15.3                                   |
+   +--------------------------------+----------------------------------------+
 
-- [Poky](https://git.yoctoproject.org/poky)
-- [Meta-intel](https://git.yoctoproject.org/meta-intel/tree/README)
-- [Meta-openembedded](http://cgit.openembedded.org/meta-openembedded/tree/README)
-- <a href="https://github.com/kraj/meta-clang/blob/master/README.md">Meta-clang</a>
+.. tab::  Required Software
 
-Clone these Git repositories to your host machine: 
+   +---------------------------------------------+---------------------------+
+   | Software                                    | Version                   |
+   +=============================================+===========================+
+   | `GIT <https://git-scm.com/>`__              | 1.8.3.1 or greater        |
+   +---------------------------------------------+---------------------------+
+   | `tar <https://www.gnu.org/software/tar/>`__ | 1.28 or greater           |
+   +---------------------------------------------+---------------------------+
+   | `Python <https://www.python.org/>`__        | 3.6 or greater            |
+   +---------------------------------------------+---------------------------+
+   | `gcc <https://gcc.gnu.org/index.html>`__    | 7.5 or greater            |
+   +---------------------------------------------+---------------------------+
+
+@endsphinxdirective
+
+
+## Set Up Environment
+
+### 1. Clone the repository.
+
 ```sh
-git clone https://git.yoctoproject.org/git/poky --branch kirkstone
-git clone https://git.yoctoproject.org/git/meta-intel --branch kirkstone
-git clone https://git.openembedded.org/meta-openembedded --branch kirkstone
-git clone https://github.com/kraj/meta-clang.git --branch kirkstone-clang12
+git clone https://git.yoctoproject.org/git/poky
 ```
 
-### Set up BitBake Layers
+### 2. Navigate to the "poky" folder and clone the following repositories.
 
 ```sh
-source poky/oe-init-build-env
+cd poky
+git clone https://git.yoctoproject.org/git/meta-intel
+git clone https://git.openembedded.org/meta-openembedded
+git clone https://github.com/kraj/meta-clang.git
+```
+
+### 3. Set up the OpenEmbedded build environment.
+
+```sh
+source oe-init-build-env
+```
+
+### 4. Add BitBake layers.
+
+```sh
 bitbake-layers add-layer ../meta-intel
 bitbake-layers add-layer ../meta-openembedded/meta-oe
 bitbake-layers add-layer ../meta-openembedded/meta-python
 bitbake-layers add-layer ../meta-clang
 ```
 
-### Set up BitBake Configurations
+### 5. Verify if layers were added (optional step).
 
-Include extra configuration in `conf/local.conf` in your build directory as required.
+```sh
+bitbake-layers show-layers
+```
+
+### 6. Set up BitBake configurations.
+
+Include extra configuration in the `conf/local.conf` file in your build directory as required.
 
 ```sh
 # Build with SSE4.2, AVX2 etc. extensions
@@ -65,14 +109,17 @@ CORE_IMAGE_EXTRA_INSTALL:append = " openvino-inference-engine-vpu-firmware"
 CORE_IMAGE_EXTRA_INSTALL:append = " openvino-model-optimizer"
 ```
 
-## Step 2: Build a Yocto Image with OpenVINO Packages
+### 7. Build a Yocto image with OpenVINO packages.
 
-Run BitBake to build your image with OpenVINO packages. To build the minimal image, for example, run:
+To build your image with OpenVINO packages, run the following command:
+
 ```sh
 bitbake core-image-minimal
 ```
 
-## Step 3: Verify the Yocto Image with OpenVINO Packages
+> **NOTE**: For validation/testing/reviewing purposes, you may consider using `nohup` command and ensuring that your vpn/ssh connection remains uninterrupted.
+
+## 8. Verify the Yocto Image with OpenVINO packages.
 
 Verify that OpenVINO packages were built successfully.
 Run the following command:
@@ -80,7 +127,7 @@ Run the following command:
 oe-pkgdata-util list-pkgs | grep openvino
 ```
 
-If the image was built successfully, it will return the list of packages as below:
+If the image build is successful, it will return the list of packages as below:
 ```sh
 openvino-inference-engine
 openvino-inference-engine-dbg
@@ -93,3 +140,25 @@ openvino-model-optimizer
 openvino-model-optimizer-dbg
 openvino-model-optimizer-dev
 ```
+## Troubleshooting
+
+When using the `bitbake-layers add-layer meta-intel` command, the following error might occur:
+```sh
+NOTE: Starting bitbake server...
+ERROR: The following required tools (as specified by HOSTTOOLS) appear to be unavailable in PATH, please install them in order to proceed: chrpath diffstat pzstd zstd
+```
+
+To resolve the issue, install the `chrpath diffstat zstd` tools:
+
+```sh
+sudo apt-get install chrpath diffstat zstd
+```
+
+## Additional Resources
+
+- [Yocto Project](https://docs.yoctoproject.org/) - official documentation webpage
+- [BitBake Tool](https://docs.yoctoproject.org/bitbake/)
+- [Poky](https://git.yoctoproject.org/poky)
+- [Meta-intel](https://git.yoctoproject.org/meta-intel/tree/README)
+- [Meta-openembedded](http://cgit.openembedded.org/meta-openembedded/tree/README)
+- [Meta-clang](https://github.com/kraj/meta-clang/tree/master/#readme)
