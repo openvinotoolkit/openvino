@@ -103,7 +103,7 @@ public:
 }  // namespace ov
 
 ov::pass::ConvertNmsGatherPathToUnsigned::ConvertNmsGatherPathToUnsigned() {
-    add_matcher<InitNMSPath>();
-    add_matcher<PropagateNMSPath>();
-    add_matcher<UpdateConvertGather>();
+    ADD_MATCHER_FOR_THIS(InitNMSPath)
+    ADD_MATCHER_FOR_THIS(PropagateNMSPath)
+    ADD_MATCHER_FOR_THIS(UpdateConvertGather)
 }
