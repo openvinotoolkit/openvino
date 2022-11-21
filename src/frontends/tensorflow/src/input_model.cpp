@@ -171,6 +171,7 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::get_op_place
 std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cut_nodes() const {
     std::vector<std::shared_ptr<OpPlace>> topologically_sorted_ops;
     std::stack<std::shared_ptr<OpPlace>> ops_to_do;
+    std::unordered_set<std::shared_ptr<OpPlace>> ops_set_to_do;
     std::unordered_set<std::shared_ptr<OpPlace>> ops_done;
 
     for (const auto& output_place : m_outputs) {
@@ -184,6 +185,7 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
                                 "Custom specified output is incorrect: " + output_place_name);
         auto output_operation_place = m_op_places_map.at(operation_name);
         ops_to_do.push(output_operation_place);
+        ops_set_to_do.insert(output_operation_place);
     }
 
     // the traversing algorithm to compute topologically sorted nodes is taken from topological_sort in
@@ -195,6 +197,7 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
         if (ops_done.count(current_operation_place) == 0) {
             bool can_add = true;
             auto input_count = current_operation_decoder->get_input_size();
+
             for (size_t input_port_idx = 0; input_port_idx < input_count; ++input_port_idx) {
                 std::string producer_name;
                 size_t producer_output_port_idx;
@@ -240,9 +243,14 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cu
                     is_input |= tensor_place->is_input();
                 }
 
-                if (!is_input && ops_done.count(producer_operation_place) == 0) {
+                // in case presence of NextIteration in the graph (or cycle created by other operation),
+                // we break the cycle by outputs from the NextIteration operation
+                // otherwise, the operations nodes in the cycle will be added to ops_to_do infinitely
+                if (!is_input && ops_done.count(producer_operation_place) == 0 &&
+                    ops_set_to_do.count(producer_operation_place) == 0) {
                     can_add = false;
                     ops_to_do.push(producer_operation_place);
+                    ops_set_to_do.insert(producer_operation_place);
                 }
             }
 
