@@ -160,7 +160,7 @@ void setDeviceProperty(ov::Core& core,
                        std::string& device,
                        ov::AnyMap& device_config,
                        const std::pair<std::string, ov::Any>& property,
-                       std::map<std::string, bool>& isDevSetProperty,
+                       std::map<std::string, bool>& is_dev_set_property,
                        const std::pair<std::string, ov::Any>& config = {}) {
     auto supported_properties = core.get_property(device, ov::supported_properties);
     auto supported = [&](const std::string& key) {
