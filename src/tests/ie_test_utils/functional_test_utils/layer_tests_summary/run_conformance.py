@@ -266,7 +266,7 @@ class Conformance:
         logger.info(f"Report was saved to {os.path.join(report_dir, 'report.html')}")
 
     def start_pipeline(self, dump_models: bool):
-        command = f'pip3 install -r requirements.txt'
+        command = f'pip3 install -r {os.path.join(Path.cwd(), "requirements.txt")}'
         process = Popen(command, shell=True)
         out, err = process.communicate()
         if err is None:

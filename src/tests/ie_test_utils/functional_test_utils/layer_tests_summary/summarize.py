@@ -7,6 +7,7 @@ import csv
 import xml.etree.ElementTree as ET
 
 from jinja2 import Environment, FileSystemLoader
+from pathlib import Path
 
 from utils import utils
 
@@ -250,7 +251,7 @@ def create_summary(summary_root: ET.Element, output_folder: os.path, expected_de
 
     device_list = sorted(device_list)
 
-    file_loader = FileSystemLoader('template')
+    file_loader = FileSystemLoader(os.path.join(Path.cwd(), 'template'))
     env = Environment(loader=file_loader)
     template = env.get_template('report_template.html')
 
