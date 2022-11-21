@@ -421,20 +421,4 @@ The following two examples show how to run the same sample using GPU or MYRIAD a
 
 See the [Samples](../OV_Runtime_UG/Samples_Overview.md) page for more sample applications. Each sample page explains how the application works and shows how to run it. Use the samples as a starting point that can be adapted for your own application.
 
-OpenVINO also provides demo applications for using off-the-shelf models from [Open Model Zoo](@ref model_zoo). These give even more examples of how to run model inference with the OpenVINO API. To run the demos in Open Model Zoo, you need to build OpenVINO demos first:
-
-@sphinxdirective
-
-.. tab:: Linux
-
-   Go to :ref:`Open Model Zoo Demos page <omz_demos>` and see the "Build the Demo Applications on Linux" section.
-
-.. tab:: Windows
-
-   Go to :ref:`Open Model Zoo Demos page <omz_demos>` and see the "Build the Demo Applications on Microsoft Windows OS" section.
-
-.. tab:: macOS
-
-   Go to :ref:`Open Model Zoo Demos page <omz_demos>` and see the "Build the Demo Applications on Linux" section. You can use the requirements from "To build OpenVINO samples" above and adapt the Linux build steps for macOS.
-
-@endsphinxdirective
+OpenVINO also provides demo applications for using off-the-shelf models from [Open Model Zoo](@ref model_zoo). Visit [Open Model Zoo Demos](@ref omz_demos) if you'd like to see even more examples of how to run model inference with the OpenVINO API.
