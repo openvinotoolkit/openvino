@@ -68,6 +68,8 @@ static bool CheckIFLastComponentIsPrecededByConv2D(const GNAPluginNS::backend::D
 
 #define CREATE(name) [](GNAGraphCompiler *p, CNNLayerPtr l) {p->name(l);}
 
+GNAGraphCompiler::GNAGraphCompiler(const Config& gna_config) : gna_config(gna_config) {}
+
 void GNAGraphCompiler::setGNAMemoryPtr(std::shared_ptr<GNAPluginNS::gna_memory_type> gnaMemPtr) {
     this->gnamem = std::move(gnaMemPtr);
 }
@@ -78,10 +80,6 @@ void GNAGraphCompiler::setDNNPtr(std::shared_ptr<GNAPluginNS::backend::AMIntelDN
 
 void GNAGraphCompiler::setInputsPtr(std::shared_ptr<GNAPluginNS::GnaInputs> inputsPtr) {
     this->inputs_ptr_ = std::move(inputsPtr);
-}
-
-void GNAGraphCompiler::setGNAFlagsPtr(std::shared_ptr<GNAPluginNS::GNAFlags> gnaFlagsPtr) {
-    this->gnaFlags = std::move(gnaFlagsPtr);
 }
 
 intel_dnn_component_t * GNAGraphCompiler::find_first_unused_input(InferenceEngine::CNNLayerPtr current) {
@@ -105,7 +103,7 @@ void GNAGraphCompiler::fillMemoryConnections(std::unordered_map<std::string,
         IE_ASSERT(1 == outputLayer->insData.size());
 
         // creating connection for layers output as form of extramap
-        memory_connection.emplace_back(memory.first, GNAMemoryLayer(inputLayer, outputLayer, gnaFlags->sw_fp32 ? 4 : 2));
+        memory_connection.emplace_back(memory.first, GNAMemoryLayer(inputLayer, outputLayer, gna_config.gnaFlags.sw_fp32 ? 4 : 2));
     }
 }
 
@@ -220,6 +218,10 @@ void GNAPluginNS::GNAGraphCompiler::SetValidatorTarget(const std::string& target
     cnn2dValidator.reset(temp.release());
 }
 
+bool GNAPluginNS::GNAGraphCompiler::ShouldUseOnlyConv2DGnaIface() const {
+    return gna_config.gnaCompileTarget == common::kGnaTarget3_5;
+}
+
 void GNAPluginNS::GNAGraphCompiler::ValidateCnn2D(const std::string& name,
                                                   const uint32_t inHeight,
                                                   const uint32_t inWidth,
@@ -233,8 +235,10 @@ void GNAPluginNS::GNAGraphCompiler::ValidateCnn2D(const std::string& name,
                                                   const uint32_t dilW,
                                                   OvGnaType inPrecision) const {
     if (cnn2dValidator) {
-        cnn2dValidator
-            ->ValidateCnn2D(name, inHeight, inWidth, inChannels, kH, kW, kN, strideH, strideW, dilH, dilW, inPrecision);
+        if (cnn2dValidator->ValidateCnn1D(name, inHeight, inWidth, inChannels, kH, kW, kN, strideH, strideW, dilH, dilW, inPrecision, false)) {
+            return;
+        }
+        cnn2dValidator->ValidateCnn2D(name, inHeight, inWidth, inChannels, kH, kW, kN, strideH, strideW, dilH, dilW, inPrecision);
     } else {
         THROW_GNA_EXCEPTION << "No Cnn2D validator found for layer " << name;
     }
@@ -338,8 +342,9 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     auto in_kernel_h = convolution._kernel_y;
     bool transpose_h_w = false;
 
-    // Map 2d convolution to 1d if it's possible
-    if (GNAConvolutionLayer::isMappableFrom2DTo1D(in_height, in_width, in_channels,
+    // Map 2d convolution to 1d if it's possible.
+    if (!ShouldUseOnlyConv2DGnaIface() &&
+        GNAConvolutionLayer::isMappableFrom2DTo1D(in_height, in_width, in_channels,
                                                   convolution._kernel_y, convolution._kernel_x,
                                                   convolution._stride_y, convolution._stride_x)) {
         transpose_h_w = (in_height == convolution._kernel_y);
@@ -379,7 +384,8 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         dnn->new_num_conv_columns = 0;
     }
 
-    if (GNAConvolutionLayer::isConv2D(in_height, in_width, in_channels, convolution._kernel_y, convolution._kernel_x) ||
+    if (ShouldUseOnlyConv2DGnaIface() ||
+        GNAConvolutionLayer::is3DInputOr2DKernel(in_height, in_width, in_channels, convolution._kernel_y, convolution._kernel_x) ||
         in_height != 1) {
         // TensorFlow default layout is NHWC
         // OpenVino Default layout is   NCHW
@@ -679,9 +685,9 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     const auto biasPrec = OvGnaTypeIntFromBytes(biasPrecision.size());
 
     ValidateCnn2D(layer->name,
-        in_height, in_width, in_channels,
-        convolution._kernel_y, convolution._kernel_x, filter_n, convolution._stride_y, convolution._stride_x,
-        convolution._dilation_y, convolution._dilation_x, inputPrec);
+            in_height, in_width, in_channels,
+            convolution._kernel_y, convolution._kernel_x, filter_n, convolution._stride_y, convolution._stride_x,
+            convolution._dilation_y, convolution._dilation_x, inputPrec);
 
     float weight_scale_factor = GetScaleFactor(layer, QuantizedDataType::weights);
     float output_scale_factor = GetScaleFactor(layer, QuantizedDataType::output);
@@ -771,7 +777,7 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
 
     auto outputs = *layer->outData.begin();
     auto reshaped_dims = Get2DReshapedData(input, GNALimitations::GetMinBatchToFitInBuffer(input), 8)->getDims();
-    const uint32_t noOfInputsDivisor = gnaFlags->input_low_precision ?
+    const uint32_t noOfInputsDivisor = gna_config.gnaFlags.input_low_precision ?
         GNALimitations::noOfInputsLowPrecDivisor : GNALimitations::noOfInputsDivisor;
     uint32_t num_rows_in = reshaped_dims[1];
     uint32_t num_columns_in = reshaped_dims[0];
@@ -793,7 +799,7 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
         auto& currentComponent = dnnComponents.addComponent(layer->name, "power");
 
         auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
-        IE_ASSERT(gnaFlags->sw_fp32 ? (quantized == nullptr) : (quantized != nullptr));
+        IE_ASSERT(gna_config.gnaFlags.sw_fp32 ? (quantized == nullptr) : (quantized != nullptr));
         dnn->InitAffineComponent(currentComponent,
             num_rows_in + num_padding,
             num_columns_in,
@@ -801,8 +807,8 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
             input->getPrecision().size(),
             outputs->getPrecision().size(),
             // TODO: only fp32 and Int16 tested
-            quantized == nullptr ? input->getPrecision().size() : (gnaFlags->input_low_precision ? 1 : 2),
-            quantized == nullptr ? input->getPrecision().size() : (gnaFlags->input_low_precision ? 1 : 4),
+            quantized == nullptr ? input->getPrecision().size() : (gna_config.gnaFlags.input_low_precision ? 1 : 2),
+            quantized == nullptr ? input->getPrecision().size() : (gna_config.gnaFlags.input_low_precision ? 1 : 4),
             quantized == nullptr ? 1 : quantized->_weights_quant.GetScale(),
             quantized == nullptr ? 1 : quantized->_dst_quant.GetScale(),
             ptr_inputs,
@@ -813,13 +819,13 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
         connectOutput(layer, ptr_outputs, num_data_bytes_out);
         connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
 
-        if (gnaFlags->sw_fp32) {
+        if (gna_config.gnaFlags.sw_fp32) {
             IE_ASSERT(quantized == nullptr);
             gnamem->getQueue(REGION_RO)->push_value(layer, ptr_weights, power.scale, num_rows_out, 64);
             gnamem->getQueue(REGION_RO)->push_value(layer, ptr_biases, power.offset, num_rows_out, 64);
         } else {
             IE_ASSERT(quantized != nullptr);
-            if (!gnaFlags->input_low_precision) {
+            if (!gna_config.gnaFlags.input_low_precision) {
                 auto quantizedScale = FLOAT_TO_INT16(std::min(quantized->_weights_quant.GetScale() * power.scale,
                     static_cast<float>(INT16_MAX)));
                 auto quantizedOffset = FLOAT_TO_INT32(std::min(quantized->_dst_quant.GetScale() * power.offset,
@@ -855,7 +861,7 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
         float output_pwl_scale_factor = GetScaleFactor(layer, QuantizedDataType::output);
         float input_pwl_scale_factor = GetScaleFactor(layer, QuantizedDataType::input);
 
-        if (!gnaFlags->sw_fp32 && gnaFlags->uniformPwlDesign) {
+        if (!gna_config.gnaFlags.sw_fp32 && gna_config.gnaFlags.uniformPwlDesign) {
             uint32_t num_segments = POW_NUM_SEGMENTS;
             if (activation_type.args.pow.exponent == 0.0f) {
                 num_segments = 3;
@@ -867,7 +873,7 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
                 static_cast<uint32_t>(ptr_pwl_segments.size()),
                 input_pwl_scale_factor,
                 output_pwl_scale_factor,
-                gnaFlags->input_low_precision);
+                gna_config.gnaFlags.input_low_precision);
         }
 
         ptr_pwl_segments_target = reinterpret_cast<gna_pwl_segment_t*>(&ptr_pwl_segments_target);
@@ -1181,7 +1187,7 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
         uint32_t num_columns_in = 1;
 
         uint32_t num_rows_out = InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()));
-        const uint32_t noOfInputsDivisor = gnaFlags->input_low_precision ?
+        const uint32_t noOfInputsDivisor = gna_config.gnaFlags.input_low_precision ?
             GNALimitations::noOfInputsLowPrecDivisor : GNALimitations::noOfInputsDivisor;
         uint32_t num_padding = ALIGN(num_rows_in, noOfInputsDivisor) - num_rows_in;
 
@@ -1199,8 +1205,8 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
             num_rows_out,
             inputs->getPrecision().size(),
             outputs->getPrecision().size(),
-            quantized == nullptr ? inputs->getPrecision().size() : (gnaFlags->input_low_precision ? 1 : 2),
-            gnaFlags->input_low_precision ? 1 : 4,
+            quantized == nullptr ? inputs->getPrecision().size() : (gna_config.gnaFlags.input_low_precision ? 1 : 2),
+            gna_config.gnaFlags.input_low_precision ? 1 : 4,
             GetScaleFactor(layer, QuantizedDataType::weights),
             GetScaleFactor(layer, QuantizedDataType::output),
             ptr_inputs,
@@ -1237,7 +1243,7 @@ void GNAGraphCompiler::SlicePrimitive(InferenceEngine::CNNLayerPtr layer) {
 void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto& eltwise = dynamic_cast<EltwiseLayer&>(*layer.get());
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
-    const uint32_t noOfInputsDivisor = gnaFlags->input_low_precision ?
+    const uint32_t noOfInputsDivisor = gna_config.gnaFlags.input_low_precision ?
         GNALimitations::noOfInputsLowPrecDivisor : GNALimitations::noOfInputsDivisor;
 
     // for eltwise sum/sub in 16-bit precision one input should be 4 bytes and one 2 bytes - detecting that below
@@ -1257,7 +1263,7 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
         case InferenceEngine::EltwiseLayer::Sum:
         case InferenceEngine::EltwiseLayer::Sub:
         {
-            if (gnaFlags->input_low_precision == false) {
+            if (gna_config.gnaFlags.input_low_precision == false) {
                 if (inputFunc4Bytes->getPrecision().size() != 4) {
                     std::swap(inputFunc4Bytes, inputFunc2Bytes);
                     std::swap(inputs4Bytes, inputs2Bytes);
@@ -1274,7 +1280,7 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
         }
         case InferenceEngine::EltwiseLayer::Prod:
         {
-            if (gnaFlags->input_low_precision == false) {
+            if (gna_config.gnaFlags.input_low_precision == false) {
                 // for mul both inputs should be 2 bytes precision
                 GNA_LAYER_ASSERT(layer, inputFunc2Bytes->getPrecision().size() == 2);
                 GNA_LAYER_ASSERT(layer, inputFunc4Bytes->getPrecision().size() == 2);
@@ -1335,8 +1341,8 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
         inputs2Bytes->getPrecision().size(),
         outputs->getPrecision().size(),
         // TODO: only fp32 and Int16 tested
-        quantized == nullptr ? inputs2Bytes->getPrecision().size() : (gnaFlags->input_low_precision ? 1 : 2),
-        quantized == nullptr ? inputs4Bytes->getPrecision().size() : (gnaFlags->input_low_precision ? 1 : 4),
+        quantized == nullptr ? inputs2Bytes->getPrecision().size() : (gna_config.gnaFlags.input_low_precision ? 1 : 2),
+        quantized == nullptr ? inputs4Bytes->getPrecision().size() : (gna_config.gnaFlags.input_low_precision ? 1 : 4),
         GetScaleFactor(layer, QuantizedDataType::weights),
         GetScaleFactor(layer, QuantizedDataType::output),
         ptr_inputs,
@@ -1360,7 +1366,7 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
         } else {
             auto scaledIdentity = -quantized->_weights_quant.GetScale();
 
-            if (gnaFlags->input_low_precision == false) {
+            if (gna_config.gnaFlags.input_low_precision == false) {
                 auto quantizedIdentity = FLOAT_TO_INT16(std::min(scaledIdentity, static_cast<float>(INT16_MAX)));
                 gnamem->getQueue(REGION_RO)->push_value<int16_t>(layer, ptr_weights, quantizedIdentity, num_rows_out, 64);
             } else {
@@ -1377,7 +1383,7 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
         } else {
             auto scaledIdentity = quantized->_weights_quant.GetScale();
 
-            if (gnaFlags->input_low_precision == false) {
+            if (gna_config.gnaFlags.input_low_precision == false) {
                 auto quantizedIdentity = FLOAT_TO_INT16(std::min(scaledIdentity, static_cast<float>(INT16_MAX)));
 
                 gnamem->getQueue(REGION_RO)->push_value<int16_t>(layer, ptr_weights, quantizedIdentity, num_rows_out, 64);
@@ -1394,7 +1400,7 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
         if (quantized == nullptr) {
             gnamem->getQueue(REGION_RO)->push_value(layer, ptr_biases, 0.0f, num_rows_out, 64);
         } else {
-            if (gnaFlags->input_low_precision == false) {
+            if (gna_config.gnaFlags.input_low_precision == false) {
                 gnamem->getQueue(REGION_RO)->push_value<int32_t>(layer, ptr_biases, 0, num_rows_out, 64);
             } else {
                 gnamem->getQueue(REGION_RO)->push_value<int8_t>(layer, ptr_biases, 0, num_rows_out, 64);
@@ -1464,7 +1470,7 @@ void GNAGraphCompiler::GemmPrimitive(InferenceEngine::CNNLayerPtr layer) {
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
     connectInput(layer, ptr_input_1, num_data_bytes_in_1);
     connectInput(layer, ptr_input_2, num_data_bytes_in_2, 0, 1);
-    if (gnaFlags->sw_fp32) {
+    if (gna_config.gnaFlags.sw_fp32) {
         IE_ASSERT(quantized == nullptr);
         gnamem->getQueue(REGION_RO)->push_value(layer, ptr_biases, 0.0f, num_rows_out, 64);
     } else {
@@ -1486,7 +1492,7 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
 
     if (!quantized) {
         inputPrecision = inputs->getPrecision();
-    } else if (gnaFlags->input_low_precision == false) {
+    } else if (gna_config.gnaFlags.input_low_precision == false) {
         inputPrecision = Precision(Precision::I16);
     } else {
         inputPrecision = Precision(Precision::I8);
@@ -1510,7 +1516,7 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
 
     // TODO: questionable why for biases that are not in IR we inventing precision
     auto biasPrecisionSize = weightable._biases ?
-        weightable._biases->getTensorDesc().getPrecision().size() : (gnaFlags->input_low_precision ? 1 : 4);
+        weightable._biases->getTensorDesc().getPrecision().size() : (gna_config.gnaFlags.input_low_precision ? 1 : 4);
 
     // layer without biases might be connected to functional layer without activations
     auto prevLayer = CNNNetPrevLayer(layer);
@@ -1693,7 +1699,7 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
     auto outputs = *layer->outData.begin();
     auto inputs = layer->insData.begin()->lock();
 
-    const uint32_t noOfInputsDivisor = gnaFlags->input_low_precision ?
+    const uint32_t noOfInputsDivisor = gna_config.gnaFlags.input_low_precision ?
         GNALimitations::noOfInputsLowPrecDivisor : GNALimitations::noOfInputsDivisor;
     uint32_t num_columns_in = GetDimFromBack(inputs->getDims(), 2);
     uint32_t num_rows_out = GetDimFromBack(outputs->getDims(), 1);
@@ -1746,7 +1752,7 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
 
     // TODO: questionable why for biases that are not in IR we inventing precision
     auto biasPrecisionSize = filterLayer->_biases ?
-        filterLayer->_biases->getTensorDesc().getPrecision().size() : (gnaFlags->input_low_precision ? 1 : 4);
+        filterLayer->_biases->getTensorDesc().getPrecision().size() : (gna_config.gnaFlags.input_low_precision ? 1 : 4);
     auto& currentComponent = dnnComponents.addComponent(layer->name, "affine");
 
     dnn->InitAffineComponent(currentComponent,
@@ -1829,7 +1835,7 @@ void GNAGraphCompiler::ConvolutionFilterPrimitive(InferenceEngine::CNNLayerPtr l
     auto outputs = *layer->outData.begin();
     auto inputs = layer->insData.begin()->lock();
 
-    const auto noOfInputsDivisor = gnaFlags->input_low_precision ?
+    const auto noOfInputsDivisor = gna_config.gnaFlags.input_low_precision ?
         GNALimitations::noOfInputsLowPrecDivisor : GNALimitations::noOfInputsDivisor;
     const uint32_t orginalInputSize =
         InferenceEngine::details::product(std::next(inputs->getDims().begin()), inputs->getDims().end());
@@ -2056,10 +2062,10 @@ case name:\
     auto& currentComponent = dnnComponents.addComponent(layer->name, actName);
     gna_pwl_segment_t* ptr_pwl_segments_target = nullptr;
 
-    if (!gnaFlags->sw_fp32) {
+    if (!gna_config.gnaFlags.sw_fp32) {
         // TODO: generalize activation function code
         // now that scale factors are known, create PWL approximations to activation functions
-        if (gnaFlags->uniformPwlDesign) {
+        if (gna_config.gnaFlags.uniformPwlDesign) {
             switch (activation_type) {
             case kActSigmoid:ptr_pwl_segments.resize(SIGMOID_NUM_SEGMENTS);
                 break;
@@ -2083,12 +2089,12 @@ case name:\
                 static_cast<uint32_t>(ptr_pwl_segments.size()),
                 input_pwl_scale_factor,
                 output_pwl_scale_factor,
-                gnaFlags->input_low_precision);
+                gna_config.gnaFlags.input_low_precision);
         } else {
             PwlDesignOpt(activation_type,
                          input_pwl_scale_factor,
                          output_pwl_scale_factor,
-                         gnaFlags->input_low_precision,
+                         gna_config.gnaFlags.input_low_precision,
                          layer->getNode(),
                          CheckIFLastComponentIsPrecededByConv2D(dnnComponents.components),
                          ptr_pwl_segments);
@@ -2157,7 +2163,7 @@ void GNAGraphCompiler::PermutePrimitive(InferenceEngine::CNNLayerPtr layer) {
                             << std::min(squeezedInputOrder[0], squeezedInputOrder[1]) << " > 8)";
     }
 
-    const uint32_t noOfInputsDivisor = gnaFlags->input_low_precision ?
+    const uint32_t noOfInputsDivisor = gna_config.gnaFlags.input_low_precision ?
         GNALimitations::noOfInputsLowPrecDivisor : GNALimitations::noOfInputsDivisor;
 
     // now this can be run on GNA
@@ -2469,7 +2475,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
             // if request for allocation less that realTensorInput - we need to extend request
             auto minInput = inputs_ptr_->at(prevLayer->name).get_required_size();
             if (num_data_bytes_in < minInput) {
-                const uint32_t noOfInputsDivisor = gnaFlags->input_low_precision ?
+                const uint32_t noOfInputsDivisor = gna_config.gnaFlags.input_low_precision ?
                     GNALimitations::noOfInputsLowPrecDivisor : GNALimitations::noOfInputsDivisor;
                 log::debug() << "[INPUT] : requested bytes: " << num_data_bytes_in << ", extended to" << ALIGN(minInput, noOfInputsDivisor);
                 num_data_bytes_in = ALIGN(minInput, noOfInputsDivisor);
