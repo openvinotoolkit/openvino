@@ -16,7 +16,7 @@ Hello Classification C sample application demonstrates how to use the C API from
 | Options  | Values |
 |:---                              |:---
 | Validated Models                 | [alexnet](@ref omz_models_model_alexnet), [googlenet-v1](@ref omz_models_model_googlenet_v1)
-| Model Format                     | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)
+| Model Format                     | OpenVINO™ Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)
 | Validated images                 | The sample uses OpenCV\* to [read input image](https://docs.opencv.org/master/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56) (\*.bmp, \*.png)
 | Supported devices                | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 | Other language realization       | [C++](../../../samples/cpp/hello_classification/README.md), [Python](../../python/hello_classification/README.md) |
@@ -24,42 +24,41 @@ Hello Classification C sample application demonstrates how to use the C API from
 ## How It Works
 
 Upon the start-up, the sample application reads command line parameters, loads specified network and an image to the Inference Engine plugin.
-Then, the sample creates an synchronous inference request object. When inference is done, the application outputs data to the standard output stream.
+Then, the sample creates a synchronous inference request object. When inference is done, the application outputs data to the standard output stream.
 
-You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
+For more information, refer to the explicit description of
+**Integration Steps** in the [Integrate OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) guide.
 
 ## Building
 
-To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) section in Inference Engine Samples guide.
+To build the sample, use the instructions available in the **Build the Sample Applications** section in [OpenVINO Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md).
 
 ## Running
 
-To run the sample, you need specify a model and image:
+Before running the sample, you need to specify a model and image:
 
-- you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
-- you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
+- You may use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
+- You may use images from the media files collection, available online in the [test data storage](https://storage.openvinotoolkit.org/data/test_data).
 
 > **NOTES**:
+> - By default, samples and demos in OpenVINO Toolkit expect input with `BGR` order of channels. If you trained your model to work with `RGB` order, you need to manually rearrange the default order of channels in the sample or demo application, or reconvert your model, using Model Optimizer with the `--reverse_input_channels` argument specified. For more information about the argument, refer to the **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
 >
-> - By default, OpenVINO™ Toolkit Samples and Demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Embedding Preprocessing Computation](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md).
+> - Before running the sample with a trained model, make sure that the model is converted to the OpenVINO Intermediate Representation (OpenVINO IR) format (\*.xml + \*.bin) by using [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
-> - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
->
-> - The sample accepts models in ONNX format (\*.onnx) that do not require preprocessing.
+> - The sample accepts models in the ONNX format (\*.onnx) that do not require preprocessing.
 
 ### Example
-1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader):
+1. Download a pre-trained model, using [Model Downloader](@ref omz_tools_downloader):
    ```
    python <path_to_omz_tools>/downloader.py --name alexnet
    ```
 
-2. If a model is not in the Inference Engine IR or ONNX format, it must be converted. You can do this using the model converter script:
+2. If a model is not in the OpenVINO IR or ONNX format, it must be converted with Model Converter:
    ```
    python <path_to_omz_tools>/converter.py --name alexnet
    ```
 
-3. Perform inference of `car.bmp` using `alexnet` model on a `GPU`, for example:
+3. Perform inference of the `car.bmp` image, using the `alexnet` model on a `GPU`, for example:
    ```
    <path_to_sample>/hello_classification_c <path_to_model>/alexnet.xml <path_to_image>/car.bmp GPU
    ```
@@ -86,13 +85,33 @@ classid probability
 569       0.008178
 717       0.006336
 
-This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
+This sample is an API example. Use the dedicated `benchmark_app` tool for any performance measurements.
 ```
 
-## See Also
+## Additional Resources
 
-- [Integrate OpenVINO™ into Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
-- [Using OpenVINO™ Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
+- [Integrate OpenVINO into Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
+- [Using OpenVINO Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 - [C API Reference](https://docs.openvino.ai/latest/api/api_reference.html)
+- [OpenVINO Toolkit Test Data Storage](https://storage.openvinotoolkit.org/data/test_data).
+
+[ie_core_create]:https://docs.openvino.ai/latest/ie_c_api/group__Core.html#gaab73c7ee3704c742eaac457636259541
+[ie_core_read_network]:https://docs.openvino.ai/latest/ie_c_api/group__Core.html#gaa40803295255b3926a3d1b8924f26c29
+[ie_network_get_input_name]:https://docs.openvino.ai/latest/ie_c_api/group__Network.html#ga36b0c28dfab6db2bfcc2941fd57fbf6d
+[ie_network_set_input_precision]:https://docs.openvino.ai/latest/ie_c_api/group__Network.html#gadd99b7cc98b3c33daa2095b8a29f66d7
+[ie_network_get_output_name]:https://docs.openvino.ai/latest/ie_c_api/group__Network.html#ga1feabc49576db24d9821a150b2b50a6c
+[ie_network_get_output_precision]:https://docs.openvino.ai/latest/ie_c_api/group__Network.html#gaeaa7f1fb8f56956fc492cd9207235984
+[ie_core_load_network]:https://docs.openvino.ai/latest/ie_c_api/group__Core.html#ga318d4b0214b8a3fd33f9e44170befcc5
+[ie_exec_network_create_infer_request]:https://docs.openvino.ai/latest/ie_c_api/group__ExecutableNetwork.html#gae72247391c1429a18c367594a4b7db9f
+[ie_blob_make_memory_from_preallocated]:https://docs.openvino.ai/latest/ie_c_api/group__Blob.html#ga7a874d46375e10fa1a7e8e3d7e1c9c9c
+[ie_infer_request_set_blob]:https://docs.openvino.ai/latest/ie_c_api/group__InferRequest.html#ga891c2d475501bba761148a0c3faca196
+[ie_infer_request_infer]:https://docs.openvino.ai/latest/ie_c_api/group__InferRequest.html#gac6c6fcb67ccb4d0ec9ad1c63a5bee7b6
+[ie_infer_request_get_blob]:https://docs.openvino.ai/latest/ie_c_api/group__InferRequest.html#ga6cd04044ea95987260037bfe17ce1a2d
+[ie_blob_get_dims]:https://docs.openvino.ai/latest/ie_c_api/group__Blob.html#ga25d93efd7ec1052a8896ac61cc14c30a
+[ie_blob_get_cbuffer]:https://docs.openvino.ai/latest/ie_c_api/group__Blob.html#gaf6b4a110b4c5723dcbde135328b3620a
+[ie_network_set_input_resize_algorithm]:https://docs.openvino.ai/latest/ie_c_api/group__Network.html#ga46ab3b3a06359f2b77f58bdd6e8a5492
+[ie_network_set_input_layout]:https://docs.openvino.ai/latest/ie_c_api/group__Network.html#ga27ea9f92290e0b2cdedbe8a85feb4c01
+[ie_network_get_inputs_number]:https://docs.openvino.ai/latest/ie_c_api/group__Network.html#ga6a3349bca66c4ba8b41a434061fccf52
+[ie_network_get_outputs_number]:https://docs.openvino.ai/latest/ie_c_api/group__Network.html#ga869b8c309797f1e09f73ddffd1b57509
