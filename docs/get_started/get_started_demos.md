@@ -49,7 +49,7 @@ Options to find a model suitable for the OpenVINO™ toolkit:
 - Download from GitHub*, Caffe* Zoo, TensorFlow* Zoo, etc.
 - Train your own model with machine learning tools
   
-This guide uses the OpenVINO™ Model Downloader to get pre-trained models. You can use one of the following commands to find a model:
+This guide uses the OpenVINO™ Model Downloader to get pre-trained models. You can use one of the following commands to find a model (replace `<models_dir>` with the directory to download the model to and `<model_name>` with the name of the model):
 
 * List the models available in the downloader
   ``` sh
@@ -63,12 +63,11 @@ This guide uses the OpenVINO™ Model Downloader to get pre-trained models. You 
 
 * Use Model Downloader to download models.
 
-  This guide uses `<models_dir>` and `<model_name>` as placeholders for the models directory and model name:
   ``` sh
      omz_downloader --name <model_name> --output_dir <models_dir>
   ```
 
-* Download the following models to run the Image Classification Sample:
+Download the following model to run the Image Classification Sample:
 
   |Model Name                                     | Code Sample or Demo App                  |
   |-----------------------------------------------|------------------------------------------|
