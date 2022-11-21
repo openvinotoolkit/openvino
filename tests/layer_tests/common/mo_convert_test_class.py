@@ -4,8 +4,8 @@
 from pathlib import Path
 
 from openvino.runtime import serialize
-from openvino.tools.mo import convert
-from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
+from openvino.test_utils import compare_functions
+from openvino.tools.mo import convert_model
 
 from common.utils.common_utils import generate_ir
 
@@ -16,7 +16,7 @@ class CommonMOConvertTest:
         output_dir = kwargs['output_dir']
         model_name = kwargs['model_name']
         del kwargs['output_dir']
-        model = convert(**kwargs)
+        model = convert_model(**kwargs)
         serialize(model, str(Path(output_dir, model_name + '.xml')))
 
     def _test(self, temp_dir, test_params, ref_params):
@@ -24,6 +24,9 @@ class CommonMOConvertTest:
         Generates two IRs using MO Python API and using cmd tool.
         Then two IRs are compared.
         """
+        from openvino.runtime import Core
+        core = Core()
+
         test_params.update({"model_name": 'model_test', "output_dir": temp_dir})
         ref_params.update({"model_name": 'model_ref', "output_dir": temp_dir})
 
@@ -33,19 +36,25 @@ class CommonMOConvertTest:
         assert not exit_code, (
             "Reference IR generation failed with {} exit code: {}".format(exit_code, stderr))
 
-        ir_test = IREngine(Path(temp_dir, 'model_test.xml'), Path(temp_dir, 'model_test.bin'))
-        ir_ref = IREngine(Path(temp_dir, 'model_ref.xml'), Path(temp_dir, 'model_ref.bin'))
-        flag, resp = ir_test.compare(ir_ref)
-        assert flag, '\n'.join(resp)
+        ir_test = core.read_model(Path(temp_dir, 'model_test.xml'))
+        ir_ref = core.read_model(Path(temp_dir, 'model_ref.xml'))
 
-    def _test_by_ref_graph(self, temp_dir, test_params, ref_graph):
+        flag, msg = compare_functions(ir_test, ir_ref)
+        assert flag, '\n'.join(msg)
+
+    def _test_by_ref_graph(self, temp_dir, test_params, ref_graph, compare_tensor_names=True, compare_layout=True):
         """
         Generates IR using MO Python API, reads it and compares with reference graph.
         """
+        from openvino.runtime import Core
+        core = Core()
+
         test_params.update({"model_name": 'model_test', "output_dir": temp_dir})
-
         self.generate_ir_python_api(**test_params)
+        ir_test = core.read_model(Path(temp_dir, 'model_test.xml'))
+        flag, msg = compare_functions(ir_test, ref_graph, compare_tensor_names=compare_tensor_names)
+        assert flag, msg
 
-        ir_test = IREngine(Path(temp_dir, 'model_test.xml'), Path(temp_dir, 'model_test.bin'))
-        flag, resp = ir_test.compare(ref_graph)
-        assert flag, '\n'.join(resp)
+        if compare_layout:
+            for idx in range(len(ir_test.inputs)):
+                assert ir_test.inputs[idx].node.layout == ref_graph.inputs[idx].node.layout

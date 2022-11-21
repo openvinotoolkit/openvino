@@ -729,7 +729,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             engConfig.streamExecutorConfig._threadBindingType ==
                     InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
                 ? IStreamsExecutor::Config::GetHybridNumStreams(config, IStreamsExecutor::Config::StreamMode::DEFAULT)
-                : IStreamsExecutor::Config::GetDefaultNumStreams();
+                : IStreamsExecutor::Config::GetDefaultNumStreams(engConfig.streamExecutorConfig._enable_hyper_thread);
         int num_streams = default_num_streams;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
             if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL)
@@ -803,13 +803,24 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
     hints_props.insert({tput_name, tput_hints.second});
     ngraphFunc->set_rt_info(hints_props, "intel_cpu_hints_config");
 
+    auto resetHybridParam = [&]() {
+        config[CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)] = std::to_string(0);
+        config[CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)] = std::to_string(0);
+        config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)] = std::to_string(0);
+        config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)] = std::to_string(0);
+        config[CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)] = std::to_string(0);
+    };
+
     const auto perf_hint_name = getPerfHintName();
     if (perf_hint_name == CONFIG_VALUE(LATENCY)) {
         config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = latency_hints.first;
         config[ov::num_streams.name()] = latency_hints.second;
+        resetHybridParam();
     } else if (perf_hint_name == CONFIG_VALUE(THROUGHPUT)) {
         config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = tput_hints.first;
         config[ov::num_streams.name()] = tput_hints.first;
+    } else {
+        resetHybridParam();
     }
 }
 
