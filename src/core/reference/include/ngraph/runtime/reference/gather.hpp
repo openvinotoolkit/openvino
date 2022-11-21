@@ -44,7 +44,7 @@ void gather(const T* const data,
                 idx = indices[i + batch_indices_mul * batch];
                 if (idx < 0)
                     idx += axis_size;
-                // for out of bound values have to be left with zeros
+                // for out of bound values have to be filled with zeros
                 if (idx >= axis_size || idx < 0)
                     continue;
 
