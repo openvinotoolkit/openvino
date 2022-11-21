@@ -45,6 +45,7 @@ macro(ov_find_package_tbb)
             # don't set NO_CMAKE_PATH to allow -DTBB_DIR=XXX
             # don't set NO_CMAKE_ENVIRONMENT_PATH to allow env TBB_DIR=XXX
             set(_find_package_no_args NO_PACKAGE_ROOT_PATH
+                                      NO_CMAKE_ENVIRONMENT_PATH
                                       NO_SYSTEM_ENVIRONMENT_PATH
                                       NO_CMAKE_PACKAGE_REGISTRY
                                       NO_CMAKE_SYSTEM_PATH
@@ -111,7 +112,7 @@ macro(ov_find_package_tbb)
 
             if(NOT TBB_FOUND)
                 # system TBB failed to be found
-                set(ENABLE_SYSTEM_TBB OFF CACHE BOOL "" FORCE)
+                set(ENABLE_SYSTEM_TBB OFF)
 
                 # TBB on system is not found, download prebuilt one
                 # if TBBROOT env variable is not defined
