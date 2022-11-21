@@ -83,6 +83,11 @@ public:
 
 }  // namespace cldnn
 
+#define ASSIGN_TYPE_NAME(cls_name) \
+            namespace cldnn {                            \
+            const std::string cls_name::type = #cls_name; \
+            }
+
 #define BIND_BINARY_BUFFER_WITH_TYPE(cls_name) \
             namespace cldnn {                            \
             const std::string cls_name::type = #cls_name; \
