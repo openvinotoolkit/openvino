@@ -6,13 +6,15 @@
 #include <memory>
 #include <strided_slice_shape_inference.hpp>
 
-#include "gtest/gtest.h"
+#include "common_test_utils/test_assertions.hpp"
+#include "gmock/gmock.h"
 #include "ngraph/ngraph.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
+using namespace testing;
 
 TEST(type_prop, strided_slice_begin_incorrect_type) {
     auto data = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
@@ -129,41 +131,84 @@ TEST(type_prop, strided_slice_end_incorrect_shape) {
     }
 }
 
-TEST(type_prop, strided_slice_default_stride_dynamic_shape_input) {
+TEST(type_prop, strided_slice_default_stride_dynamic_shape_input_begin_not_1d) {
     auto data = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
     auto begin = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
+    const auto end = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
+
+    OV_EXPECT_THROW(
+        const auto strided_slice =
+            make_shared<op::v1::StridedSlice>(data, begin, end, vector<int64_t>{0, 0}, vector<int64_t>{0, 0}),
+        CheckFailure,
+        HasSubstr("Begin input must be 1D"));
+}
+
+TEST(type_prop, strided_slice_default_stride_dynamic_shape_input) {
+    auto shape = PartialShape{2, 4, 6, 8};
+    set_shape_labels(shape, 11);
+    auto data = make_shared<op::Parameter>(element::f32, shape);
+    auto begin = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
     auto end = make_shared<op::Parameter>(element::i64, Shape{2});
+
     auto strided_slice =
         make_shared<op::v1::StridedSlice>(data, begin, end, vector<int64_t>{0, 0}, vector<int64_t>{0, 0});
 
-    ASSERT_TRUE(strided_slice->input_value(3).get_partial_shape().compatible(PartialShape{2}));
-
-    try {
-        end = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
-        strided_slice =
-            make_shared<op::v1::StridedSlice>(data, begin, end, vector<int64_t>{0, 0}, vector<int64_t>{0, 0});
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Unknown data to calculate default strides exception not thrown.";
-    } catch (const CheckFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Begin input must be 1D"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    EXPECT_EQ(strided_slice->get_output_partial_shape(0), PartialShape({{0, 2}, {0, 4}, 6, 8}));
+    EXPECT_THAT(get_shape_labels(strided_slice->get_output_partial_shape(0)),
+                ElementsAre(ov::no_label, ov::no_label, 13, 14));
 }
 
-TEST(type_prop, strided_slice_reverse_out_of_bounds) {
-    auto data = std::make_shared<op::Parameter>(ngraph::element::f32, ngraph::Shape{3, 4, 5});
-    auto begin = op::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {100});
-    auto end = op::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {-100});
-    auto stride = op::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {-1});
+TEST(type_prop, strided_slice_reverse_out_of_bounds_on_dims_0_1) {
+    auto shape = PartialShape{3, 4, 5};
+    set_shape_labels(shape, 10);
+    auto data = std::make_shared<op::Parameter>(element::f32, shape);
+    auto begin = op::Constant::create(element::i64, Shape{2}, {10, 2});
+    auto end = op::Constant::create(element::i64, Shape{2}, {-10, -10});
+    auto stride = op::Constant::create(element::i64, Shape{2}, {-1});
 
-    std::vector<int64_t> begin_mask = {0, 0, 0, 0};
-    std::vector<int64_t> end_mask = {0, 0, 0, 0};
+    auto begin_mask = std::vector<int64_t>(shape.size(), 0);
+    auto end_mask = std::vector<int64_t>(shape.size(), 0);
 
     auto ss = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
 
-    Shape expected{3, 4, 5};
-    EXPECT_EQ(ss->get_output_shape(0), expected);
+    EXPECT_EQ(ss->get_output_partial_shape(0), PartialShape({3, 3, 5}));
+    EXPECT_THAT(get_shape_labels(ss->get_output_partial_shape(0)), ElementsAre(10, ov::no_label, 12));
+}
+
+TEST(type_prop, strided_slice_to_out_of_upper_bound) {
+    auto shape = PartialShape{3, 3, 3, 3, 3, 3, 3, 3};
+    set_shape_labels(shape, 10);
+    auto data = std::make_shared<op::Parameter>(element::f32, shape);
+    auto begin = op::Constant::create(element::i64, Shape{shape.size()}, {0, 0, 0, 0, 1, 1, 1, 1});
+    auto end = op::Constant::create(element::i64, Shape{shape.size()}, {1, 2, 3, 4, 1, 2, 3, 4});
+    auto stride = op::Constant::create(element::i64, Shape{shape.size()}, {1});
+
+    auto begin_mask = std::vector<int64_t>(shape.size(), 0);
+    auto end_mask = std::vector<int64_t>(shape.size(), 0);
+
+    auto ss = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
+
+    EXPECT_EQ(ss->get_output_partial_shape(0), PartialShape({1, 2, 3, 3, 0, 1, 2, 2}));
+    EXPECT_THAT(
+        get_shape_labels(ss->get_output_partial_shape(0)),
+        ElementsAre(ov::no_label, ov::no_label, 12, 13, ov::no_label, ov::no_label, ov::no_label, ov::no_label));
+}
+
+TEST(type_prop, strided_slice_to_out_of_upper_bound_negative_begin) {
+    auto shape = PartialShape{3, 3, 3, 3, 3, 3, 3, 3};
+    set_shape_labels(shape, 10);
+    auto data = std::make_shared<op::Parameter>(element::f32, shape);
+    auto begin = op::Constant::create(element::i64, Shape{shape.size()}, {-1, -1, -1, -1, -2, -2, -2, -2});
+    auto end = op::Constant::create(element::i64, Shape{shape.size()}, {1, 2, 3, 4, 1, 2, 3, 4});
+    auto stride = op::Constant::create(element::i64, Shape{shape.size()}, {1});
+
+    auto begin_mask = std::vector<int64_t>(shape.size(), 0);
+    auto end_mask = std::vector<int64_t>(shape.size(), 0);
+
+    auto ss = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
+
+    EXPECT_EQ(ss->get_output_partial_shape(0), PartialShape({0, 0, 1, 1, 0, 1, 2, 2}));
+    EXPECT_THAT(get_shape_labels(ss->get_output_partial_shape(0)), Each(ov::no_label));
 }
 
 TEST(type_prop, strided_slice_dynamic_value_and_label_propagation) {
@@ -212,6 +257,7 @@ TEST(type_prop, strided_slice_default_shape_inference) {
 }
 
 struct StridedSliceTestParams {
+    std::string case_name;
     PartialShape input_shape;
     PartialShape begin_shape;
     PartialShape end_shape;
@@ -226,101 +272,178 @@ struct StridedSliceTestParams {
     ov::element::Type ref_type;
 };
 
-struct StridedSliceShapeInferTest : ::testing::TestWithParam<StridedSliceTestParams> {};
+struct StridedSliceShapeInferTest : public TypePropOpTest<op::v1::StridedSlice>,
+                                    public WithParamInterface<StridedSliceTestParams> {
+public:
+    static std::string get_test_case_name(const TestParamInfo<StridedSliceTestParams>& obj) {
+        return obj.param.case_name;
+    }
+};
 
-TEST_P(StridedSliceShapeInferTest, non_const_begin) {
-    auto params = GetParam();
+TEST_P(StridedSliceShapeInferTest, begin_end_strides_are_not_constants) {
+    using namespace ov::opset9;
 
-    auto input_data = std::make_shared<ov::opset9::Parameter>(ov::element::f32, params.input_shape);
-    auto begin = std::make_shared<ov::opset9::Parameter>(ov::element::i32, params.begin_shape);
-    auto end = std::make_shared<ov::opset9::Parameter>(ov::element::i32, params.end_shape);
-    auto strides = std::make_shared<ov::opset9::Parameter>(ov::element::i32, params.strides_shape);
-    std::vector<int64_t> begin_mask = params.begin_mask;
-    std::vector<int64_t> end_mask = params.end_mask;
-    std::vector<int64_t> new_axis_mask = params.new_axis_mask;
-    std::vector<int64_t> shrink_axis_mask = params.shrink_axis_mask;
-    std::vector<int64_t> ellipsis_mask = params.ellipsis_mask;
+    const auto& params = GetParam();
 
-    auto strided_slice = std::make_shared<ov::opset9::StridedSlice>(input_data,
-                                                                    begin,
-                                                                    end,
-                                                                    strides,
-                                                                    begin_mask,
-                                                                    end_mask,
-                                                                    new_axis_mask,
-                                                                    shrink_axis_mask,
-                                                                    ellipsis_mask);
+    const auto input_data = std::make_shared<Parameter>(params.ref_type, params.input_shape);
+    const auto begin = std::make_shared<Parameter>(ov::element::i32, params.begin_shape);
+    const auto end = std::make_shared<Parameter>(ov::element::i32, params.end_shape);
+    const auto strides = std::make_shared<Parameter>(ov::element::i32, params.strides_shape);
+    const auto& begin_mask = params.begin_mask;
+    const auto& end_mask = params.end_mask;
+    const auto& new_axis_mask = params.new_axis_mask;
+    const auto& shrink_axis_mask = params.shrink_axis_mask;
+    const auto& ellipsis_mask = params.ellipsis_mask;
+
+    const auto strided_slice =
+        make_op(input_data, begin, end, strides, begin_mask, end_mask, new_axis_mask, shrink_axis_mask, ellipsis_mask);
 
     EXPECT_EQ(strided_slice->get_element_type(), params.ref_type);
-    auto res_shape = strided_slice->get_output_partial_shape(0);
-    EXPECT_EQ(res_shape, params.ref_shape);
+    EXPECT_EQ(strided_slice->get_output_size(), 1);
+    EXPECT_EQ(strided_slice->get_output_partial_shape(0), params.ref_shape);
 }
 
 INSTANTIATE_TEST_SUITE_P(type_prop,
                          StridedSliceShapeInferTest,
-                         ::testing::Values(StridedSliceTestParams{{1, 200, 300, 3},  // input_shape
-                                                                  {4},               // begin shape
-                                                                  {4},               // end shape
-                                                                  {4},               // strides shape
-                                                                  {0, 0, 0, 0},      // begin mask
-                                                                  {0, 0, 0, 0},      // end mask
-                                                                  {0, 0, 0, 0},      // new axis mask
-                                                                  {0, 1, 0, 0},      // shrink axis mask
-                                                                  {0, 0, 0, 0},      // ellipsis mask
-                                                                  PartialShape{
-                                                                      Dimension(0, 1),
-                                                                      Dimension(0, 300),
-                                                                      Dimension(0, 3),
-                                                                  },                 // reference shape
-                                                                  element::f32},     // reference type
-                                           StridedSliceTestParams{{1, 200, 300, 3},  // input_shape
-                                                                  {4},               // begin shape
-                                                                  {4},               // end shape
-                                                                  {4},               // strides shape
-                                                                  {1, 0, 0, 0},      // begin mask
-                                                                  {1, 0, 0, 0},      // end mask
-                                                                  {0, 0, 0, 0},      // new axis mask
-                                                                  {0, 1, 0, 1},      // shrink axis mask
-                                                                  {0, 0, 0, 0},      // ellipsis mask
-                                                                  PartialShape{
-                                                                      Dimension(0, 1),
-                                                                      Dimension(0, 300),
-                                                                  },                 // reference shape
-                                                                  element::f32},     // reference type
-                                           StridedSliceTestParams{{1, 200, 200, 3},  // input_shape
-                                                                  {4},               // begin shape
-                                                                  {4},               // end shape
-                                                                  {4},               // strides shape
-                                                                  {1, 0, 0, 0},      // begin mask
-                                                                  {1, 0, 0, 0},      // end mask
-                                                                  {0, 0, 1, 0},      // new axis mask
-                                                                  {0, 0, 0, 0},      // shrink axis mask
-                                                                  {0, 0, 0, 0},      // ellipsis mask
-                                                                  PartialShape{
-                                                                      Dimension(0, 1),
-                                                                      Dimension(0, 200),
-                                                                      1,
-                                                                      Dimension(0, 200),
-                                                                      3,
-                                                                  },              // reference shape
-                                                                  element::f32},  // reference type
-                                           // case when input has dynamic dimensions
-                                           StridedSliceTestParams{
-                                               PartialShape{Dimension(8, -1), 200, 200, 3},  // input_shape
-                                               {4},                                          // begin shape
-                                               {4},                                          // end shape
-                                               {4},                                          // strides shape
-                                               {0, 0, 0, 0},                                 // begin mask
-                                               {0, 0, 0, 0},                                 // end mask
-                                               {0, 0, 0, 0},                                 // new axis mask
-                                               {0, 0, 0, 0},                                 // shrink axis mask
-                                               {0, 0, 0, 0},                                 // ellipsis mask
-                                               PartialShape{
-                                                   Dimension::dynamic(),
-                                                   Dimension(0, 200),
-                                                   Dimension(0, 200),
-                                                   Dimension(0, 3),
-                                               },             // reference shape
-                                               element::f32}  // reference type
-                                           ),
-                         PrintToDummyParamName());
+                         Values(
+                             StridedSliceTestParams{
+                                 "shrink_2nd_dim",
+                                 {1, 200, 300, 3},            // input_shape
+                                 {4},                         // begin shape
+                                 {4},                         // end shape
+                                 {4},                         // strides shape
+                                 {0, 0, 0, 0},                // begin mask
+                                 {0, 0, 0, 0},                // end mask
+                                 {0, 0, 0, 0},                // new axis mask
+                                 {0, 1, 0, 0},                // shrink axis mask
+                                 {0, 0, 0, 0},                // ellipsis mask
+                                 {{0, 1}, {0, 300}, {0, 3}},  // reference shape
+                                 element::f32                 // reference type
+                             },
+                             StridedSliceTestParams{
+                                 "shrink_output_shape_by_axes",
+                                 {1, 200, 300, 3},    // input_shape
+                                 {4},                 // begin shape
+                                 {4},                 // end shape
+                                 {4},                 // strides shape
+                                 {1, 0, 0, 0},        // begin mask
+                                 {1, 0, 0, 0},        // end mask
+                                 {0, 0, 0, 0},        // new axis mask
+                                 {0, 1, 0, 1},        // shrink axis mask
+                                 {0, 0, 0, 0},        // ellipsis mask
+                                 {{0, 1}, {0, 300}},  // reference shape
+                                 element::f32         // reference type
+                             },
+                             StridedSliceTestParams{
+                                 "extend_output_shape_by_new_axes",
+                                 {1, 200, 200, 3},                    // input_shape
+                                 {4},                                 // begin shape
+                                 {4},                                 // end shape
+                                 {4},                                 // strides shape
+                                 {1, 0, 0, 0},                        // begin mask
+                                 {1, 0, 0, 0},                        // end mask
+                                 {0, 0, 1, 0},                        // new axis mask
+                                 {0, 0, 0, 0},                        // shrink axis mask
+                                 {0, 0, 0, 0},                        // ellipsis mask
+                                 {{0, 1}, {0, 200}, 1, {0, 200}, 3},  // reference shape
+                                 element::f32                         // reference type
+                             },
+                             StridedSliceTestParams{
+                                 "there_are_empty_masks",
+                                 {1, 200, 200, 3},                       // input_shape
+                                 {4},                                    // begin shape
+                                 {4},                                    // end shape
+                                 {4},                                    // strides shape
+                                 {1, 0, 0, 0},                           // begin mask
+                                 {1, 0, 0, 0},                           // end mask
+                                 {},                                     // new axis mask (empty)
+                                 {},                                     // shrink axis mask
+                                 {},                                     // ellipsis mask
+                                 {{0, 1}, {-1, 200}, {0, 200}, {0, 3}},  // reference shape
+                                 element::f32                            // reference type
+                             },
+                             StridedSliceTestParams{
+                                 "when_input_has_dynamic_dimension",
+                                 {{8, -1}, 200, 200, 3},                              // input_shape
+                                 {4},                                                 // begin shape
+                                 {4},                                                 // end shape
+                                 {4},                                                 // strides shape
+                                 {0, 0, 0, 0},                                        // begin mask
+                                 {0, 0, 0, 0},                                        // end mask
+                                 {0, 0, 0, 0},                                        // new axis mask
+                                 {0, 0, 0, 0},                                        // shrink axis mask
+                                 {0, 0, 0, 0},                                        // ellipsis mask
+                                 {Dimension::dynamic(), {0, 200}, {0, 200}, {0, 3}},  // reference shape
+                                 element::f32                                         // reference type
+                             },
+                             StridedSliceTestParams{
+                                 "input_has_dynamic_dimensions_and_shrink_one",
+                                 {{8, 40}, 200, {100, 200}, 3},             // input_shape
+                                 {4},                                       // begin shape
+                                 {4},                                       // end shape
+                                 {4},                                       // strides shape
+                                 {0, 0, 0, 0},                              // begin mask
+                                 {0, 0, 0, 0},                              // end mask
+                                 {0, 0, 0, 0},                              // new axis mask
+                                 {1, 0, 0, 0},                              // shrink axis mask
+                                 {0, 0, 0, 0},                              // ellipsis mask
+                                 {{0, 200}, Dimension::dynamic(), {0, 3}},  // reference shape
+                                 element::f32                               // reference type
+                             },
+                             StridedSliceTestParams{
+                                 "input_is_dynamic_rank",
+                                 PartialShape::dynamic(),  // input_shape
+                                 {4},                      // begin shape
+                                 {4},                      // end shape
+                                 {4},                      // strides shape
+                                 {1, 0, 1, 0},             // begin mask
+                                 {0, 0, 0, 0},             // end mask
+                                 {1, 0, 0, 0},             // new axis mask
+                                 {0, 0, 0, 0},             // shrink axis mask
+                                 {0, 0, 0, 0},             // ellipsis mask
+                                 PartialShape::dynamic(),  // reference shape
+                                 element::f32              // reference type
+                             },
+                             StridedSliceTestParams{
+                                 "extend_input_with_static_rank_and_all_dynamic_dims",
+                                 PartialShape::dynamic(4),  // input_shape
+                                 {4},                       // begin shape
+                                 {4},                       // end shape
+                                 {4},                       // strides shape
+                                 {1, 0, 1, 0},              // begin mask
+                                 {0, 0, 0, 0},              // end mask
+                                 {1, 0, 0, 0},              // new axis mask
+                                 {0, 0, 0, 0},              // shrink axis mask
+                                 {0, 0, 0, 0},              // ellipsis mask
+                                 {1, -1, -1, -1, -1},       // reference shape
+                                 element::f32               // reference type
+                             },
+                             StridedSliceTestParams{
+                                 "begin_strides_are_dynamic_rank",
+                                 {3, 5, 4},                 // input_shape
+                                 PartialShape::dynamic(),   // begin shape
+                                 {3},                       // end shape
+                                 PartialShape::dynamic(),   // strides shape
+                                 {1, 0, 1, 0},              // begin mask
+                                 {0, 0, 0, 0},              // end mask
+                                 {0, 0, 0, 0},              // new axis mask
+                                 {0, 0, 0, 0},              // shrink axis mask
+                                 {0, 0, 0, 0},              // ellipsis mask
+                                 {{0, 3}, {0, 5}, {0, 4}},  // reference shape
+                                 element::f32               // reference type
+                             },
+                             StridedSliceTestParams{
+                                 "begin_end_strides_are_dynamic_rank",
+                                 {3, 5, 4},                // input_shape
+                                 PartialShape::dynamic(),  // begin shape
+                                 PartialShape::dynamic(),  // end shape
+                                 PartialShape::dynamic(),  // strides shape
+                                 {1, 0, 1, 0},             // begin mask
+                                 {0, 0, 0, 0},             // end mask
+                                 {0, 0, 0, 0},             // new axis mask
+                                 {0, 0, 0, 0},             // shrink axis mask
+                                 {0, 0, 0, 0},             // ellipsis mask
+                                 PartialShape::dynamic(),  // reference shape
+                                 element::f32              // reference type
+                             }),
+                         StridedSliceShapeInferTest::get_test_case_name);

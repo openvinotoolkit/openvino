@@ -103,7 +103,7 @@ void shape_infer(const StridedSlice* op,
 
     // collect indices of axes by which the shape needs to be changed
     auto convert_mask_to_axis_set = [](const std::vector<int64_t>& mask) {
-        AxisSet axis_set{};
+        AxisSet axis_set;
         for (size_t i = 0; i < mask.size(); ++i) {
             if (mask[i] == 1) {
                 axis_set.emplace(i);
@@ -159,13 +159,10 @@ void shape_infer(const StridedSlice* op,
             }
             // calculating dimension (begin, end, begin_mask, end_mask, stride)
             else if (got_begin && got_end && got_strides) {
-                const int64_t lb0 = begin[axis];
-                const int64_t ub0 = end[axis];
+                const auto& lb0 = begin[axis];
+                const auto& ub0 = end[axis];
                 // set default value for stride or use given value
-                int64_t stride = 1;
-                if (strides.size() > static_cast<size_t>(axis)) {
-                    stride = strides[axis];
-                }
+                auto stride = (strides.size() > static_cast<size_t>(axis)) ? strides[axis] : static_cast<int64_t>(1);
                 NODE_VALIDATION_CHECK(op, stride != 0, "Stride must be non-zero");
 
                 auto get_output_dim = [&](int64_t input_dim) {
@@ -177,11 +174,11 @@ void shape_infer(const StridedSlice* op,
                     // conversion lb < 0
                     // so according to tensorflow and numpy we just get 0
                     if (lb < 0) {
-                        lb = std::max(input_dim + lb, int64_t(0));
+                        lb = std::max(input_dim + lb, static_cast<int64_t>(0));
                     }
 
                     if (ub < 0) {
-                        ub = std::max(input_dim + ub, stride > 0 ? int64_t(0) : int64_t(-1));
+                        ub = std::max(input_dim + ub, stride > 0 ? static_cast<int64_t>(0) : static_cast<int64_t>(-1));
                     }
 
                     // apply restrictions when begin or end values more than max possible values.
@@ -224,17 +221,17 @@ void shape_infer(const StridedSlice* op,
                     // the relationship between input and output length is monotonically increasing
                     // so we repeat the dimension inference twice to infer dynamic dimension
                     const Interval& interval = input_shape[input_shape_idx].get_interval();
-                    int64_t odim_min = get_output_dim(interval.get_min_val());
-                    int64_t odim_max;
-                    if (interval.has_upper_bound())
-                        odim_max = get_output_dim(interval.get_max_val());
-                    else
-                        odim_max = -1;
-
-                    dims.emplace_back(ov::Dimension(odim_min, odim_max));
+                    auto odim_min = get_output_dim(interval.get_min_val());
+                    auto odim_max = interval.has_upper_bound() ? get_output_dim(interval.get_max_val()) : -1;
+                    dims.emplace_back(odim_min, odim_max);
                 } else {
                     int64_t dimension = get_output_dim(input_shape[input_shape_idx].get_length());
                     dims.emplace_back(dimension);
+                }
+
+                if (std::is_same<DimType, ov::Dimension>::value && dims.back() == input_shape[input_shape_idx]) {
+                    // For equal ov::Dimension do merge to get input label (always success).
+                    DimType::merge(dims.back(), dims.back(), input_shape[input_shape_idx]);
                 }
 
                 input_shape_idx++;
