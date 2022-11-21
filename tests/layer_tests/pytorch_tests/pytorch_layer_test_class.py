@@ -85,11 +85,12 @@ class PytorchLayerTest:
         torch_inps = [torch.from_numpy(inp) for inp in inputs]
         fw_res = model(*torch_inps)
 
-        # check if results dtypes match
-        assert torch.tensor(np.array(list(infer_res.values()))).dtype == fw_res.dtype
-
         if not isinstance(fw_res, tuple):
             fw_res = (fw_res,)
+
+        # check if results dtypes match
+        for fw_tensor, ov_tensor in zip(fw_res, list(infer_res.values())):
+            assert torch.tensor(np.array(ov_tensor)).dtype == fw_tensor.dtype
 
         if 'custom_eps' in kwargs and kwargs['custom_eps'] is not None:
             custom_eps = kwargs['custom_eps']
