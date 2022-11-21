@@ -1,0 +1,29 @@
+{
+    "commonConfig" : {
+        "modeMap" : {
+            "checkOutput" : "CheckOutputMode"
+        },
+        "traversalMap" : {
+            "firstBadVersion" : "FirstBadVersion"
+        },
+        "commandList" : [
+            {"cmd" : "git checkout {commit}", "catchMsg" : "error", "path" : "{gitPath}"},
+            {"cmd" : "git submodule init", "path" : "{gitPath}"},
+            {"cmd" : "git submodule update --recursive", "path" : "{buildPath}"},
+            {"cmd" : "cmake ../", "catchMsg" : "CMake Error", "path" : "{buildPath}"},
+            {"cmd" : "make --jobs=4", "path" : "{buildPath}"}
+        ],
+        "gitPath" : "samples/sample3",
+        "buildPath" : "samples/sample3/build",
+        "cachePath" : "stroller_cache/",
+        "logPath" : "log",
+        "appCmd" : "./sample3 --some_arg",
+        "appPath" : "samples/sample3/build",
+        "clear_log" : true
+    },
+    "specialConfig" : {
+        "mode" : "checkOutput",
+        "traversal" : "firstBadVersion",
+        "stopPattern" : "(.)*failed(.)*"
+    }
+}
