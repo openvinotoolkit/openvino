@@ -957,7 +957,7 @@ TEST(depth_concatenate_i32_gpu, optimize_data05) {
 }
 
 template <typename T>
-void test_depth_concatenate_f32_gpu_basic_bfwzyx_along_w() {
+void test_depth_concatenate_f32_gpu_basic_bfwzyx_along_w(bool is_caching_test) {
     auto& engine = get_test_engine();
     const int b = 2;
     const int f = 3;
@@ -996,7 +996,7 @@ void test_depth_concatenate_f32_gpu_basic_bfwzyx_along_w() {
     build_opt.set_option(build_option::optimize_data(true));
     cldnn::network::ptr network;
 
-    if (is_caching_test()) {
+    if (is_caching_test) {
         membuf mem_buf;
         {
             cldnn::network _network(engine, topology, build_opt);
@@ -1026,11 +1026,11 @@ void test_depth_concatenate_f32_gpu_basic_bfwzyx_along_w() {
 }
 
 TEST(depth_concatenate_f32_gpu, basic_bfwzyx_along_w) {
-    test_depth_concatenate_f32_gpu_basic_bfwzyx_along_w<float>();
+    test_depth_concatenate_f32_gpu_basic_bfwzyx_along_w<float>(false);
 }
 
 TEST(export_import_depth_concatenate_f32_gpu, basic_bfwzyx_along_w) {
-    test_depth_concatenate_f32_gpu_basic_bfwzyx_along_w<float>();
+    test_depth_concatenate_f32_gpu_basic_bfwzyx_along_w<float>(true);
 }
 
 //////////////////////////////////////////////////////////////////////////////

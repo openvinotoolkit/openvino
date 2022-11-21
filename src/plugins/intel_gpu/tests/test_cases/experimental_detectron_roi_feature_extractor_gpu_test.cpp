@@ -17,7 +17,7 @@ using namespace cldnn;
 using namespace ::tests;
 
 template <typename T>
-void test_experimental_detectron_roi_feature_extractor_gpu_fp32_one_level() {
+void test_experimental_detectron_roi_feature_extractor_gpu_fp32_one_level(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     const int rois_num = 2;
@@ -55,7 +55,7 @@ void test_experimental_detectron_roi_feature_extractor_gpu_fp32_one_level() {
 
     cldnn::network::ptr network;
 
-    if (is_caching_test()) {
+    if (is_caching_test) {
         membuf mem_buf;
         {
             cldnn::network _network(engine, topology);
@@ -90,7 +90,7 @@ void test_experimental_detectron_roi_feature_extractor_gpu_fp32_one_level() {
         EXPECT_FLOAT_EQ(expected_first_output[i], first_output_ptr[i]);
     }
 
-    if (is_caching_test())
+    if (is_caching_test)
         return;
 
     std::vector<T>& expected_second_output = rois;
@@ -106,11 +106,11 @@ void test_experimental_detectron_roi_feature_extractor_gpu_fp32_one_level() {
 }
 
 TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, one_level) {
-    test_experimental_detectron_roi_feature_extractor_gpu_fp32_one_level<float>();
+    test_experimental_detectron_roi_feature_extractor_gpu_fp32_one_level<float>(false);
 }
 
 TEST(export_import_experimental_detectron_roi_feature_extractor_gpu_fp32, one_level) {
-    test_experimental_detectron_roi_feature_extractor_gpu_fp32_one_level<float>();
+    test_experimental_detectron_roi_feature_extractor_gpu_fp32_one_level<float>(true);
 }
 
 TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, two_levels) {

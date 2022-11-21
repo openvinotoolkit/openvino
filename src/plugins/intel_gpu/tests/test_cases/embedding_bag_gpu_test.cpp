@@ -1364,7 +1364,7 @@ TEST(embedding_bag_fp32_gpu, packed_sum_dim3) {
 }
 
 template <typename T>
-void test_embedding_bag_fp32_gpu_extended5_6() {
+void test_embedding_bag_fp32_gpu_extended5_6(bool is_caching_test) {
     //  emb_table : 5x2
     //  indices : 3x2
     //  per_sample_weights : 3x2
@@ -1398,7 +1398,7 @@ void test_embedding_bag_fp32_gpu_extended5_6() {
 
     cldnn::network::ptr network;
 
-    if (is_caching_test()) {
+    if (is_caching_test) {
         membuf mem_buf;
         {
             cldnn::network _network(engine, topology);
@@ -1438,9 +1438,9 @@ void test_embedding_bag_fp32_gpu_extended5_6() {
 }
 
 TEST(embedding_bag_fp32_gpu, extended5_6) {
-    test_embedding_bag_fp32_gpu_extended5_6<float>();
+    test_embedding_bag_fp32_gpu_extended5_6<float>(false);
 }
 
 TEST(export_import_embedding_bag_fp32_gpu, extended5_6) {
-    test_embedding_bag_fp32_gpu_extended5_6<float>();
+    test_embedding_bag_fp32_gpu_extended5_6<float>(true);
 }

@@ -161,7 +161,7 @@ TEST(experimental_detectron_topk_rois_gpu_test, export_import) {
 
     cldnn::network::ptr network;
 
-    if (is_caching_test()) {
+    {
         membuf mem_buf;
         {
             cldnn::network _network(engine, topology);
@@ -174,8 +174,6 @@ TEST(experimental_detectron_topk_rois_gpu_test, export_import) {
             BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
             network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
         }
-    } else {
-        network = std::make_shared<cldnn::network>(engine, topology);
     }
 
     network->set_input_data(input_rois_id, roi_input);

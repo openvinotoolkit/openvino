@@ -1163,7 +1163,7 @@ TEST(crop_gpu, basic_in3x1x3x2x2x1_crop_all_bfwzyx) {
 }
 
 // batch size, input feature, crop out feature, (in_out format, crop format)
-using crop_test_params = std::tuple<size_t, size_t, size_t, std::pair<cldnn::format,cldnn::format>>;
+using crop_test_params = std::tuple<size_t, size_t, size_t, std::pair<cldnn::format,cldnn::format>, bool>;
 
 class crop_gpu : public ::testing::TestWithParam<crop_test_params> {};
 
@@ -1187,6 +1187,7 @@ TEST_P(crop_gpu, pad_test) {
 
     auto in_out_format = std::get<3>(p).first;
     auto crop_format = std::get<3>(p).second;
+    bool is_caching_test = std::get<4>(p);
 
     auto input = engine.allocate_memory({ data_types::f32, in_out_format, { tensor(spatial(x_size, y_size, z_size), feature(feature_num), batch(batch_num)) } });
 
@@ -1216,7 +1217,7 @@ TEST_P(crop_gpu, pad_test) {
 
     cldnn::network::ptr network;
 
-    if (is_caching_test()) {
+    if (is_caching_test) {
         membuf mem_buf;
         {
             cldnn::network _network(engine, topology, bo);
@@ -1258,7 +1259,8 @@ INSTANTIATE_TEST_SUITE_P(crop_test, crop_gpu,
                                 ::testing::ValuesIn(batches),
                                 ::testing::ValuesIn(in_features),
                                 ::testing::ValuesIn(crop_features),
-                                ::testing::ValuesIn(formats)
+                                ::testing::ValuesIn(formats),
+                                ::testing::Values(false)
                                 ));
 
 INSTANTIATE_TEST_SUITE_P(export_import_crop_test, crop_gpu,
@@ -1266,7 +1268,8 @@ INSTANTIATE_TEST_SUITE_P(export_import_crop_test, crop_gpu,
                                 ::testing::Values(batches[0]),
                                 ::testing::Values(in_features[0]),
                                 ::testing::Values(crop_features[0]),
-                                ::testing::Values(formats[0])
+                                ::testing::Values(formats[0]),
+                                ::testing::Values(true)
                                 ));
 
 TEST(crop_gpu, dynamic_i32_in2x3x2x2_crop_offsets) {

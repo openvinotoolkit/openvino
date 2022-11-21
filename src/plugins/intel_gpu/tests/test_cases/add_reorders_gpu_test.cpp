@@ -108,7 +108,7 @@ void tile_ref(const memory::ptr input, memory::ptr output, int64_t axis, int num
 }
 
 template <typename T>
-void test_add_reorders_gpu_basic_reshape_and_tile() {
+void test_add_reorders_gpu_basic_reshape_and_tile(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ data_types::f32, format::byxf,{ 1, 2, 2, 1 } });
@@ -125,7 +125,7 @@ void test_add_reorders_gpu_basic_reshape_and_tile() {
 
     cldnn::network::ptr network;
 
-    if (is_caching_test()) {
+    if (is_caching_test) {
         membuf mem_buf;
         {
             cldnn::network _network(engine, topology);
@@ -158,9 +158,9 @@ void test_add_reorders_gpu_basic_reshape_and_tile() {
 }
 
 TEST(add_reorders_gpu, basic_reshape_and_tile) {
-    test_add_reorders_gpu_basic_reshape_and_tile<float>();
+    test_add_reorders_gpu_basic_reshape_and_tile<float>(false);
 }
 
 TEST(export_import_add_reorders_gpu, basic_reshape_and_tile) {
-    test_add_reorders_gpu_basic_reshape_and_tile<float>();
+    test_add_reorders_gpu_basic_reshape_and_tile<float>(true);
 }

@@ -667,7 +667,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_indices) {
 }
 
 template <typename T>
-void test_top_k_layer_tests_sort_probabilities_by_indices() {
+void test_top_k_layer_tests_sort_probabilities_by_indices(bool is_caching_test) {
     static const int32_t x_size = 10, y_size = 1, feature_num = 1, batch_num = 1;
     auto& engine = get_test_engine();
     const int top_k = 5;
@@ -692,7 +692,7 @@ void test_top_k_layer_tests_sort_probabilities_by_indices() {
 
     cldnn::network::ptr network;
 
-    if (is_caching_test()) {
+    if (is_caching_test) {
         membuf mem_buf;
         {
             cldnn::network _network(engine, topology);
@@ -727,11 +727,11 @@ void test_top_k_layer_tests_sort_probabilities_by_indices() {
 }
 
 TEST(top_k_layer_tests, sort_probabilities_by_indices) {
-    test_top_k_layer_tests_sort_probabilities_by_indices<float>();
+    test_top_k_layer_tests_sort_probabilities_by_indices<float>(false);
 }
 
 TEST(export_import_top_k_layer_tests, sort_probabilities_by_indices) {
-    test_top_k_layer_tests_sort_probabilities_by_indices<float>();
+    test_top_k_layer_tests_sort_probabilities_by_indices<float>(true);
 }
 
 const std::vector<float> input_vec1 = {
@@ -829,7 +829,7 @@ const std::vector<float> input_vec1 = {
 const int output_ref = 341;
 
 template <typename T>
-void test_top_k_layer_md_sync() {
+void test_top_k_layer_md_sync(bool is_caching_test) {
     static const int32_t x_size = 1, y_size = 1, feature_num = 1001, batch_num = 1;
     const int top_k = 1;
     layout inp_l = {data_types::f32, format::yxfb, {batch_num, feature_num, x_size, y_size}};
@@ -859,7 +859,7 @@ void test_top_k_layer_md_sync() {
 
     cldnn::network::ptr network;
 
-    if (is_caching_test()) {
+    if (is_caching_test) {
         membuf mem_buf;
         {
             cldnn::network _network(engine, topology);
@@ -887,9 +887,9 @@ void test_top_k_layer_md_sync() {
 }
 
 TEST(top_k_layer_tests, md_sync) {
-    test_top_k_layer_md_sync<int>();
+    test_top_k_layer_md_sync<int>(false);
 }
 
 TEST(export_import_top_k_layer_tests, md_sync) {
-    test_top_k_layer_md_sync<int>();
+    test_top_k_layer_md_sync<int>(true);
 }

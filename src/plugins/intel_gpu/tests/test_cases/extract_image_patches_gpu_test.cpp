@@ -491,7 +491,7 @@ TEST(extract_image_patches_gpu, basic4) {
 }
 
 template <typename T>
-void test_extract_image_patches_gpu_basic5() {
+void test_extract_image_patches_gpu_basic5(bool is_caching_test) {
     //  Input  : 1x2x5x5
     //  Output : 1x8x2x2
 
@@ -522,7 +522,7 @@ void test_extract_image_patches_gpu_basic5() {
 
     cldnn::network::ptr network;
 
-    if (is_caching_test()) {
+    if (is_caching_test) {
         membuf mem_buf;
         {
             cldnn::network _network(engine, topology);
@@ -581,9 +581,9 @@ void test_extract_image_patches_gpu_basic5() {
 }
 
 TEST(extract_image_patches_gpu, basic5) {
-    test_extract_image_patches_gpu_basic5<float>();
+    test_extract_image_patches_gpu_basic5<float>(false);
 }
 
 TEST(extract_image_patches_gpu, export_import) {
-    test_extract_image_patches_gpu_basic5<float>();
+    test_extract_image_patches_gpu_basic5<float>(true);
 }

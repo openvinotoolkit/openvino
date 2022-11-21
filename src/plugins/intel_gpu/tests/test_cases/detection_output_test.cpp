@@ -716,7 +716,7 @@ public:
         check_results(output_prim, 7, "0 0 0 0 0 0 0");
     }
 
-    void test_forward_no_share_location_top_k_faster_rcnn_case() {
+    void test_forward_no_share_location_top_k_faster_rcnn_case(bool is_caching_test) {
         const bool share_location = false;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 4;
@@ -754,7 +754,7 @@ public:
         build_options opts;
         cldnn::network::ptr network;
 
-        if (is_caching_test()) {
+        if (is_caching_test) {
             membuf mem_buf;
             {
                 cldnn::network _network(engine, topology, opts);
@@ -856,9 +856,9 @@ TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k_input_pad
 }
 
 TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k_faster_rcnn_case) {
-    this->test_forward_no_share_location_top_k_faster_rcnn_case();
+    this->test_forward_no_share_location_top_k_faster_rcnn_case(false);
 }
 
 TYPED_TEST(detection_output_test, export_import) {
-    this->test_forward_no_share_location_top_k_faster_rcnn_case();
+    this->test_forward_no_share_location_top_k_faster_rcnn_case(true);
 }

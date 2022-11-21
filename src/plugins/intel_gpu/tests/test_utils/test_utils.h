@@ -591,25 +591,6 @@ private:
     std::vector<int_type> _buf;
     size_t _pos;
 };
-
-inline bool is_caching_test() {
-    std::string curr_test_suite_name(::testing::UnitTest::GetInstance()->current_test_suite()->name());
-    if (curr_test_suite_name.find("export_import", 0) != std::string::npos) {
-        std::cout << "caching_enabled" << std::endl;
-        return true;
-    }
-    std::string curr_test_info_name(::testing::UnitTest::GetInstance()->current_test_info()->name());
-    if (curr_test_info_name.find("export_import", 0) != std::string::npos) {
-        std::cout << "caching_enabled" << std::endl;
-        return true;
-    }
-    std::string curr_test_case_name(::testing::UnitTest::GetInstance()->current_test_case()->name());
-    if (curr_test_case_name.find("export_import", 0) != std::string::npos) {
-        std::cout << "caching_enabled" << std::endl;
-        return true;
-    }
-    return false;
-}
 // inline void print_bin_blob(cldnn::memory& mem, std::string name)
 // {
 //     auto&& size = mem.get_layout().get_tensor();

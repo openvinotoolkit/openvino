@@ -15,7 +15,7 @@ using namespace std;
 namespace {
 // Run some topology too see if command queue does work correctly
 // Coppied from arg_max_gpu.base test.
-void exexute_network(cldnn::engine& engine) {
+void exexute_network(cldnn::engine& engine, bool is_caching_test=false) {
     //  Input  : 2x4x2x2
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     const int top_k = 2;
@@ -40,7 +40,7 @@ void exexute_network(cldnn::engine& engine) {
 
     cldnn::network::ptr network;
 
-    if (is_caching_test()) {
+    if (is_caching_test) {
         membuf mem_buf;
         {
             cldnn::network _network(engine, topology);
@@ -120,5 +120,5 @@ TEST(export_import_command_queue_test, test_priority_and_throttle_hints) {
             priority_mode_types::high,
             throttle_mode_types::low);
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, configuration);
-    exexute_network(*engine);
+    exexute_network(*engine, true);
 }

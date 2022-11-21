@@ -979,7 +979,8 @@ using fully_connected_test_params = std::tuple<
     size_t,        // output_f
     format::type,  // input format
     format::type,  // output format
-    std::string    // kernel
+    std::string,   // kernel
+    bool           // is_caching_test
 >;
 
 template <typename InputT, typename WeightsT, typename BiasT, typename OutputT>
@@ -989,8 +990,9 @@ struct fully_connected_random_test : ::testing::TestWithParam<fully_connected_te
         size_t batch, input_f, input_x, input_y, output_f;
         format::type input_format, output_format;
         std::string kernel;
+        bool is_caching_test;
 
-        std::tie(batch, dims, output_f, input_format, output_format, kernel) = GetParam();
+        std::tie(batch, dims, output_f, input_format, output_format, kernel, is_caching_test) = GetParam();
         std::tie(input_f, input_x, input_y) = dims;
 
         auto input_data = generate_smart_random_4d<InputT>(batch, input_f, input_y, input_x);
@@ -1004,7 +1006,7 @@ struct fully_connected_random_test : ::testing::TestWithParam<fully_connected_te
         auto bias = net.add_data<BiasT, 2>("bias", format::bfyx, std::move(bias_data));
         auto fc = net.add_fully_connected<OutputT>("fc_prim", input, weights, bias, implementation_desc{ output_format, kernel });
 
-        net.run(build_options(build_option::optimize_data(true)));
+        net.run(build_options(build_option::optimize_data(true)), is_caching_test);
     }
 };
 
@@ -1025,7 +1027,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(3, 32),
         ::testing::Values(format::bfyx, format::yxfb),
         ::testing::Values(format::any),
-        ::testing::Values(""))
+        ::testing::Values(""),
+        ::testing::Values(false))
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1038,7 +1041,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(3, 32),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::bfyx),
-        ::testing::Values(""))
+        ::testing::Values(""),
+        ::testing::Values(false))
 );
 
 TEST_P(fully_connected_random_test_f16, basic) {
@@ -1057,7 +1061,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(3, 32),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
-        ::testing::Values(""))
+        ::testing::Values(""),
+        ::testing::Values(false))
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1070,7 +1075,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(3, 32),
         ::testing::Values(format::yxfb),
         ::testing::Values(format::any),
-        ::testing::Values(""))
+        ::testing::Values(""),
+        ::testing::Values(false))
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1083,7 +1089,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(3, 32),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::bfyx),
-        ::testing::Values(""))
+        ::testing::Values(""),
+        ::testing::Values(false))
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1095,7 +1102,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(32),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::bfyx),
-        ::testing::Values(""))
+        ::testing::Values(""),
+        ::testing::Values(true))
 );
 
 template <typename InputT, typename WeightsT, typename BiasT, typename OutputT>
@@ -1105,8 +1113,9 @@ struct fully_connected_random_test_3d : ::testing::TestWithParam<fully_connected
         size_t batch, input_f, input_x, input_y, output_y;
         format::type input_format, output_format;
         std::string kernel;
+        bool is_caching_test;
 
-        std::tie(batch, dims, output_y, input_format, output_format, kernel) = GetParam();
+        std::tie(batch, dims, output_y, input_format, output_format, kernel, is_caching_test) = GetParam();
         std::tie(input_f, input_x, input_y) = dims;
 
         auto input_data = generate_smart_random_4d<InputT>(batch, input_f, input_y, input_x);
@@ -1120,7 +1129,7 @@ struct fully_connected_random_test_3d : ::testing::TestWithParam<fully_connected
         auto bias = net.add_data<BiasT, 2>("bias", format::bfyx, std::move(bias_data));
         auto fc = net.add_fully_connected_3d<OutputT>("fc_prim", input, weights, bias, implementation_desc{ output_format, kernel }, 3);
 
-        net.run(build_options(build_option::optimize_data(true)));
+        net.run(build_options(build_option::optimize_data(true)), is_caching_test);
     }
 };
 
@@ -1145,7 +1154,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(1, 3, 16),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
-        ::testing::Values(""))
+        ::testing::Values(""),
+        ::testing::Values(false))
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1160,7 +1170,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(1, 32, 64),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
-        ::testing::Values(""))
+        ::testing::Values(""),
+        ::testing::Values(false))
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1175,7 +1186,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(17, 32),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
-        ::testing::Values(""))
+        ::testing::Values(""),
+        ::testing::Values(false))
 );
 
 TEST_P(fully_connected_random_test_f16_3d, basic) {
@@ -1194,7 +1206,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(1, 3, 16),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
-        ::testing::Values(""))
+        ::testing::Values(""),
+        ::testing::Values(false))
 );
 
 TEST_P(fully_connected_random_test_i8_3d, basic) {
@@ -1213,7 +1226,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(1, 3, 16),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
-        ::testing::Values(""))
+        ::testing::Values(""),
+        ::testing::Values(false))
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1228,7 +1242,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(1, 32, 64),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
-        ::testing::Values(""))
+        ::testing::Values(""),
+        ::testing::Values(false))
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1243,7 +1258,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(17, 32),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
-        ::testing::Values(""))
+        ::testing::Values(""),
+        ::testing::Values(false))
 );
 
 

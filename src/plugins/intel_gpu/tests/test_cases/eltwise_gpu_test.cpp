@@ -3911,6 +3911,7 @@ struct eltwise_random_test_params {
     format::type in_format_second;  // For testing 1x1x1x1 bfyx
     format::type out_format;
     eltwise_mode mode;
+    bool         is_caching_test;
 };
 
 struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
@@ -3995,6 +3996,7 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
 
         auto in_layout1 = layout(params.input_type, params.in_format, params.first_input_size);
         auto in_layout2 = layout(params.input_type, params.in_format_second, params.second_input_size);
+        bool is_caching_test = params.is_caching_test;
         auto input1 = engine.allocate_memory(in_layout1);
         auto input2 = engine.allocate_memory(in_layout2);
         fill_random(input1);
@@ -4028,7 +4030,7 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
 
         std::shared_ptr<cldnn::network> net_opt;
 
-        if (is_caching_test()) {
+        if (is_caching_test) {
             membuf mem_buf;
             {
                 cldnn::network _network(engine, topo_opt, buildops_opt);
@@ -4075,17 +4077,17 @@ struct eltwise_random_test_param_generator : std::vector<eltwise_random_test_par
     }
 
     eltwise_random_test_param_generator& broadcast_params(data_types type, format::type input_format, format::type output_format) {
-        push_back(eltwise_random_test_params{ type, {1, 1, 48, 64},  {1, 10, 48, 64}, input_format, input_format, output_format, eltwise_mode::sum});
-        push_back(eltwise_random_test_params{ type, {1, 16, 48, 64}, {1, 1, 48, 64},  input_format, input_format, output_format, eltwise_mode::sum});
-        push_back(eltwise_random_test_params{ type, {1, 5, 4, 4},    {1, 1, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum});
-        push_back(eltwise_random_test_params{ type, {1, 8, 4, 4},    {1, 1, 1, 1},    input_format, format::bfyx, output_format, eltwise_mode::sum});
+        push_back(eltwise_random_test_params{ type, {1, 1, 48, 64},  {1, 10, 48, 64}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 16, 48, 64}, {1, 1, 48, 64},  input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 5, 4, 4},    {1, 1, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 8, 4, 4},    {1, 1, 1, 1},    input_format, format::bfyx, output_format, eltwise_mode::sum, false });
         return *this;
     }
 
     eltwise_random_test_param_generator& simple_params(data_types type, format::type input_format, format::type output_format) {
-        push_back(eltwise_random_test_params{ type, {1, 10, 10, 10}, {1, 10, 10, 10}, input_format, input_format, output_format, eltwise_mode::sum});
-        push_back(eltwise_random_test_params{ type, {1, 5, 4, 4},    {1, 5, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum});
-        push_back(eltwise_random_test_params{ type, {1, 20, 16, 16}, {1, 20, 16, 16}, input_format, input_format, output_format, eltwise_mode::sum});
+        push_back(eltwise_random_test_params{ type, {1, 10, 10, 10}, {1, 10, 10, 10}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 5, 4, 4},    {1, 5, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 20, 16, 16}, {1, 20, 16, 16}, input_format, input_format, output_format, eltwise_mode::sum, false });
         return *this;
     }
 };
@@ -4114,5 +4116,5 @@ INSTANTIATE_TEST_SUITE_P(export_import,
                          testing::ValuesIn(
                             eltwise_random_test_param_generator()
                             .add(eltwise_random_test_params{ data_types::f16, {1, 1, 48, 64}, {1, 10, 48, 64}, format::b_fs_yx_fsv4,
-                                                             format::b_fs_yx_fsv4, format::b_fs_yx_fsv4, eltwise_mode::sum})
+                                                             format::b_fs_yx_fsv4, format::b_fs_yx_fsv4, eltwise_mode::sum, true })
                          ));

@@ -24,7 +24,7 @@ struct ExperimentalDetectronGenerateProposalsSingleImageParams {
 
 template <typename T>
 using ExperimentalDetectronGenerateProposalsSingleImageParamsWithLayout =
-        std::tuple<ExperimentalDetectronGenerateProposalsSingleImageParams<T>, format::type>;
+        std::tuple<ExperimentalDetectronGenerateProposalsSingleImageParams<T>, format::type, bool>;
 
 constexpr size_t image_height = 150;
 constexpr size_t image_width = 150;
@@ -156,13 +156,15 @@ struct PrintToStringParamName {
         std::stringstream buf;
         ExperimentalDetectronGenerateProposalsSingleImageParams<T> p;
         format::type layout;
-        std::tie(p, layout) = param.param;
+        bool is_caching_test;
+        std::tie(p, layout, is_caching_test) = param.param;
 
         buf << "min_size=" << p.min_size << "_";
         buf << "nms_threshold=" << p.nms_threshold << "_";
         buf << "pre_nms_count=" << p.pre_nms_count << "_";
         buf << "post_nms_count=" << p.post_nms_count << "_";
         buf << "layout=" << fmt_to_str(layout);
+        buf << "is_caching_test=" << is_caching_test;
         return buf.str();
     }
 };
@@ -175,7 +177,8 @@ public:
     void test() {
         ExperimentalDetectronGenerateProposalsSingleImageParams<T> param;
         format::type data_layout;
-        std::tie(param, data_layout) = this->GetParam();
+        bool is_caching_test;
+        std::tie(param, data_layout, is_caching_test) = this->GetParam();
         const auto data_type = type_to_data_type<T>::value;
 
         auto &engine = get_test_engine();
@@ -240,7 +243,7 @@ public:
 
         cldnn::network::ptr network;
 
-        if (is_caching_test()) {
+        if (is_caching_test) {
             membuf mem_buf;
             {
                 cldnn::network _network(engine, topology);
@@ -283,7 +286,7 @@ public:
         const auto &expected_roi_scores = param.expected_roi_scores;
         const auto &expected_rois = param.expected_rois;
         for (int64_t i = 0; i < param.post_nms_count; ++i) {
-            if (!is_caching_test()) {
+            if (!is_caching_test) {
                 EXPECT_NEAR(expected_roi_scores[i], roi_scores_ptr[i], 0.001) << "i=" << i;
             }
 
@@ -313,7 +316,8 @@ INSTANTIATE_TEST_SUITE_P(
         experimental_detectron_generate_proposals_single_image_test_f32,
         ::testing::Combine(
                 ::testing::ValuesIn(getExperimentalDetectronGenerateProposalsSingleImageParams<float>()),
-                ::testing::Values(format::bfyx)
+                ::testing::Values(format::bfyx),
+                ::testing::Values(false)
         ),
         PrintToStringParamName()
 );
@@ -323,7 +327,8 @@ INSTANTIATE_TEST_SUITE_P(
         experimental_detectron_generate_proposals_single_image_test_f16,
         ::testing::Combine(
                 ::testing::ValuesIn(getExperimentalDetectronGenerateProposalsSingleImageParams<half_t>()),
-                ::testing::Values(format::bfyx)
+                ::testing::Values(format::bfyx),
+                ::testing::Values(false)
         ),
         PrintToStringParamName()
 );
@@ -333,7 +338,8 @@ INSTANTIATE_TEST_SUITE_P(
         experimental_detectron_generate_proposals_single_image_test_f16,
         ::testing::Combine(
                 ::testing::Values(getExperimentalDetectronGenerateProposalsSingleImageParams<half_t>()[0]),
-                ::testing::Values(format::bfyx)
+                ::testing::Values(format::bfyx),
+                ::testing::Values(true)
         ),
         PrintToStringParamName()
 );
@@ -363,7 +369,8 @@ INSTANTIATE_TEST_SUITE_P(
                         {0.695249, 0.411288, 0.0941284, 0.0, 0.0, 0.0,
                          0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}}
                     ),
-                ::testing::ValuesIn(layouts)
+                ::testing::ValuesIn(layouts),
+                ::testing::Values(false)
         ),
         PrintToStringParamName()
 );

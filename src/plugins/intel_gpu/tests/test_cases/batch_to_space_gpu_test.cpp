@@ -645,7 +645,7 @@ TEST(batch_to_space_fp32_gpu, i21621_bs1112_cb0201_ce0810_b_fs_yx_fsv16) {
 }
 
 template <typename T>
-void test_batch_to_space_fp32_gpu_i41021_bs1221_cb0201_ce0810_b_fs_yx_fsv16() {
+void test_batch_to_space_fp32_gpu_i41021_bs1221_cb0201_ce0810_b_fs_yx_fsv16(bool is_caching_test) {
     //  Input  :      4x10x2x1
     //  Block shape : 1x2x2x1
     //  Crops begin : 0x8x1x0
@@ -679,7 +679,7 @@ void test_batch_to_space_fp32_gpu_i41021_bs1221_cb0201_ce0810_b_fs_yx_fsv16() {
 
     cldnn::network::ptr network;
 
-    if (is_caching_test()) {
+    if (is_caching_test) {
         membuf mem_buf;
         {
             cldnn::network _network(engine, topology);
@@ -718,9 +718,9 @@ void test_batch_to_space_fp32_gpu_i41021_bs1221_cb0201_ce0810_b_fs_yx_fsv16() {
 }
 
 TEST(batch_to_space_fp32_gpu, i41021_bs1221_cb0201_ce0810_b_fs_yx_fsv16) {
-    test_batch_to_space_fp32_gpu_i41021_bs1221_cb0201_ce0810_b_fs_yx_fsv16<float>();
+    test_batch_to_space_fp32_gpu_i41021_bs1221_cb0201_ce0810_b_fs_yx_fsv16<float>(false);
 }
 
 TEST(export_import_batch_to_space_fp32_gpu, i41021_bs1221_cb0201_ce0810_b_fs_yx_fsv16) {
-    test_batch_to_space_fp32_gpu_i41021_bs1221_cb0201_ce0810_b_fs_yx_fsv16<float>();
+    test_batch_to_space_fp32_gpu_i41021_bs1221_cb0201_ce0810_b_fs_yx_fsv16<float>(true);
 }

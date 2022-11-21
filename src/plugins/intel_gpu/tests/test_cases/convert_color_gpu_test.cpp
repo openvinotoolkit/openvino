@@ -526,7 +526,7 @@ TEST(convert_color, i420_to_rgb_three_planes_buffer_fp32) {
 }
 
 template <typename T>
-void test_convert_color_i420_to_rgb_three_planes_surface_u8() {
+void test_convert_color_i420_to_rgb_three_planes_surface_u8(bool is_caching_test) {
     int width = 224;
     int height = 448;
 
@@ -595,7 +595,7 @@ void test_convert_color_i420_to_rgb_three_planes_surface_u8() {
 
     cldnn::network::ptr network;
 
-    if (is_caching_test()) {
+    if (is_caching_test) {
         membuf mem_buf;
         {
             cldnn::network _network(*engine, topology);
@@ -633,9 +633,9 @@ void test_convert_color_i420_to_rgb_three_planes_surface_u8() {
 }
 
 TEST(convert_color, i420_to_rgb_three_planes_surface_u8) {
-    test_convert_color_i420_to_rgb_three_planes_surface_u8<uint8_t>();
+    test_convert_color_i420_to_rgb_three_planes_surface_u8<uint8_t>(false);
 }
 
 TEST(export_import_convert_color, i420_to_rgb_three_planes_surface_u8) {
-    test_convert_color_i420_to_rgb_three_planes_surface_u8<uint8_t>();
+    test_convert_color_i420_to_rgb_three_planes_surface_u8<uint8_t>(true);
 }

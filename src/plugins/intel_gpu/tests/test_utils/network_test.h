@@ -338,11 +338,11 @@ public:
         return add_node(id, reference_tensor_typed<T, 4>(output_data), {input, weights, bias});
     }
 
-    cldnn::network::ptr build_network(cldnn::build_options opts) {
+    cldnn::network::ptr build_network(cldnn::build_options opts, bool is_caching_test=false) {
         opts.set_option(cldnn::build_option::force_implementations(forced_impls));
         cldnn::network::ptr net;
 
-        if (is_caching_test()) {
+        if (is_caching_test) {
             membuf mem_buf;
             {
                 cldnn::network _network(eng, topo, opts);
@@ -365,9 +365,9 @@ public:
         return net;
     }
 
-    void run(cldnn::build_options opts) {
-        auto net = build_network(opts);
-        if (!is_caching_test()) {
+    void run(cldnn::build_options opts, bool is_caching_test=false) {
+        auto net = build_network(opts, is_caching_test);
+        if (!is_caching_test) {
             std::stringstream network_info;
             network_info << "Executed kernels: " << std::endl;
             for (auto info : net->get_primitives_info()) {

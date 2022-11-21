@@ -2334,7 +2334,7 @@ TEST(deconvolution_f32_fw_gpu, bs_fs_zyx_bsv16_fsv16_wsiz2x2x2_in1x1x2x2x2_strid
 }
 
 template <typename T>
-void test_deconvolution_f16_fw_gpu_basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1_pad1_replace_to_conv() {
+void test_deconvolution_f16_fw_gpu_basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1_pad1_replace_to_conv(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ data_types::f16, format::bfyx,{ 2, 1, 2, 2 } });
@@ -2364,7 +2364,7 @@ void test_deconvolution_f16_fw_gpu_basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1
 
     cldnn::network::ptr network;
 
-    if (is_caching_test()) {
+    if (is_caching_test) {
         membuf mem_buf;
         {
             cldnn::network _network(engine, topology, options);
@@ -2405,11 +2405,11 @@ void test_deconvolution_f16_fw_gpu_basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1
 }
 
 TEST(deconvolution_f16_fw_gpu, basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1_pad1_replace_to_conv) {
-    test_deconvolution_f16_fw_gpu_basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1_pad1_replace_to_conv<float>();
+    test_deconvolution_f16_fw_gpu_basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1_pad1_replace_to_conv<float>(false);
 }
 
 TEST(export_import_deconvolution_f16_fw_gpu, basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1_pad1_replace_to_conv) {
-    test_deconvolution_f16_fw_gpu_basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1_pad1_replace_to_conv<float>();
+    test_deconvolution_f16_fw_gpu_basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1_pad1_replace_to_conv<float>(true);
 }
 
 struct deconvolution_random_test_params {

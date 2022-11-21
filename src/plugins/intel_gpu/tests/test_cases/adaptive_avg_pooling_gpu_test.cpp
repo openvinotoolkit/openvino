@@ -24,7 +24,8 @@ struct AdaptiveAvgPoolingParams {
 using AdaptiveAvgPoolingParamsWithLayout = std::tuple<
     AdaptiveAvgPoolingParams,
     format::type,   // source (plain) layout - bfyx or bfzyx
-    format::type    // target (blocked) layout
+    format::type,   // target (blocked) layout
+    bool            // is_caching_test
 >;
 
 const std::vector<format::type> layouts_2d = {
@@ -95,11 +96,13 @@ struct PrintToStringParamName {
         AdaptiveAvgPoolingParams p;
         format::type plain_layout;
         format::type target_layout;
-        std::tie(p, plain_layout, target_layout) = param.param;
+        bool is_caching_test;
+        std::tie(p, plain_layout, target_layout, is_caching_test) = param.param;
         buf << " input tensor " << p.inputTensor.to_string()
             << " output tensor " << p.outputTensor.to_string()
             << " plain layout " << plain_layout
-            << " target layout " << target_layout;
+            << " target layout " << target_layout
+            << " is_caching_test " << is_caching_test;
         return buf.str();
     }
 };
@@ -114,7 +117,8 @@ public:
         AdaptiveAvgPoolingParams params;
         format::type plain_layout;
         format::type target_layout;
-        std::tie(params, plain_layout, target_layout) = this->GetParam();
+        bool is_caching_test;
+        std::tie(params, plain_layout, target_layout, is_caching_test) = this->GetParam();
 
         std::vector<T> input_data;
         std::vector<T> expected;
@@ -133,7 +137,7 @@ public:
 
         cldnn::network::ptr network;
 
-        if (is_caching_test()) {
+        if (is_caching_test) {
             membuf mem_buf;
             {
                 cldnn::network _network(engine, topology);
@@ -186,7 +190,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_avg_pooling_test_f32_2d,
                                         { tensor(2, 3, 7, 3), tensor(2, 3, 3, 3) },
                                     }),
                                  ::testing::Values(format::bfyx),
-                                 ::testing::Values(format::bfyx)),
+                                 ::testing::Values(format::bfyx),
+                                 ::testing::Values(false)),
                          PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(smoke_adaptive_avg_pooling_test_f32_3d,
@@ -197,7 +202,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_avg_pooling_test_f32_3d,
                                         { tensor(2, 2, 8, 5, 4), tensor(2, 2, 3, 3, 3) },
                                     }),
                                  ::testing::Values(format::bfzyx),
-                                 ::testing::Values(format::bfzyx)),
+                                 ::testing::Values(format::bfzyx),
+                                 ::testing::Values(false)),
                          PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(smoke_adaptive_avg_pooling_test_f16_2d,
@@ -208,7 +214,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_avg_pooling_test_f16_2d,
                                         { tensor(2, 3, 7, 3), tensor(2, 3, 3, 3) },
                                     }),
                                  ::testing::Values(format::bfyx),
-                                 ::testing::Values(format::bfyx)),
+                                 ::testing::Values(format::bfyx),
+                                 ::testing::Values(false)),
                          PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(smoke_adaptive_avg_pooling_test_f16_3d,
@@ -219,7 +226,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_avg_pooling_test_f16_3d,
                                         { tensor(2, 2, 8, 5, 4), tensor(2, 2, 3, 3, 3) },
                                     }),
                                  ::testing::Values(format::bfzyx),
-                                 ::testing::Values(format::bfzyx)),
+                                 ::testing::Values(format::bfzyx),
+                                 ::testing::Values(false)),
                          PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(smoke_adaptive_avg_pooling_test_2d_all_formats,
@@ -230,7 +238,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_avg_pooling_test_2d_all_formats,
                                         { tensor(32, 32, 7, 3), tensor(32, 32, 3, 3) },
                                     }),
                                  ::testing::Values(format::bfyx),
-                                 ::testing::ValuesIn(layouts_2d)),
+                                 ::testing::ValuesIn(layouts_2d),
+                                 ::testing::Values(false)),
                          PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(smoke_adaptive_avg_pooling_test_3d_all_formats,
@@ -241,7 +250,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_adaptive_avg_pooling_test_3d_all_formats,
                                         { tensor(32, 32, 7, 3, 3), tensor(32, 32, 3, 3, 2) },
                                     }),
                                  ::testing::Values(format::bfzyx),
-                                 ::testing::ValuesIn(layouts_3d)),
+                                 ::testing::ValuesIn(layouts_3d),
+                                 ::testing::Values(false)),
                          PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(export_import,
@@ -251,5 +261,6 @@ INSTANTIATE_TEST_SUITE_P(export_import,
                                         { tensor(1, 2, 7, 3), tensor(1, 2, 3, 3) },
                                     }),
                                  ::testing::Values(format::bfyx),
-                                 ::testing::Values(format::bfyx)),
+                                 ::testing::Values(format::bfyx),
+                                 ::testing::Values(true)),
                          PrintToStringParamName());

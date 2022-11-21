@@ -483,27 +483,10 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
         4.f, -0.5f, 8.f,  8.f
     });
 
-    cldnn::network::ptr network;
+    network network(engine, topology);
 
-    if (is_caching_test()) {
-        membuf mem_buf;
-        {
-            cldnn::network _network(engine, topology);
-            std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-            _network.save(ob);
-        }
-        {
-            std::istream in_mem(&mem_buf);
-            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-        }
-    } else {
-        network = std::make_shared<cldnn::network>(engine, topology);
-    }
-
-    network->set_input_data("input", input);
-    auto outputs = network->execute();
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
 
     EXPECT_EQ(outputs.size(), size_t(1));
     EXPECT_EQ(outputs.begin()->first, "user_kernel2");
@@ -519,7 +502,7 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
 }
 
 template <typename T>
-void test_custom_gpu_primitive_u8_add_basic_in2x2x2x2() {
+void test_custom_gpu_primitive_u8_add_basic_in2x2x2x2(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ data_types::u8, format::yxfb,{ 2, 2, 2, 2 } });
@@ -566,7 +549,7 @@ void test_custom_gpu_primitive_u8_add_basic_in2x2x2x2() {
 
     cldnn::network::ptr network;
 
-    if (is_caching_test()) {
+    if (is_caching_test) {
         membuf mem_buf;
         {
             cldnn::network _network(engine, topology);
@@ -607,9 +590,9 @@ void test_custom_gpu_primitive_u8_add_basic_in2x2x2x2() {
 }
 
 TEST(custom_gpu_primitive_u8, add_basic_in2x2x2x2) {
-    test_custom_gpu_primitive_u8_add_basic_in2x2x2x2<unsigned char>();
+    test_custom_gpu_primitive_u8_add_basic_in2x2x2x2<unsigned char>(false);
 }
 
 TEST(export_import_custom_gpu_primitive_u8, add_basic_in2x2x2x2) {
-    test_custom_gpu_primitive_u8_add_basic_in2x2x2x2<unsigned char>();
+    test_custom_gpu_primitive_u8_add_basic_in2x2x2x2<unsigned char>(true);
 }

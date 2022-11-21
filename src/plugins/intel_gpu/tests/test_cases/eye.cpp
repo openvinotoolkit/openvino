@@ -22,7 +22,8 @@ using eye_test_param = std::tuple<format,                    // Input and output
                                   InputType,                 // diagonal index
                                   std::vector<InputType>,    // batch shape
                                   std::vector<int32_t>,      // output shape
-                                  std::vector<OutputType>>;  // expected values
+                                  std::vector<OutputType>,   // expected values
+                                  bool>;                     // is_caching_test
 
 template <class OutputType, class InputType>
 class EyeTest : public ::testing::TestWithParam<eye_test_param<OutputType, InputType>> {
@@ -35,8 +36,8 @@ public:
         std::vector<InputType> batch_shape;
         std::vector<int32_t> output_shape;
         std::vector<OutputType> expected_values;
-
-        std::tie(fmt, cols, rows, diag, batch_shape, output_shape, expected_values) = this->GetParam();
+        bool is_caching_test;
+        std::tie(fmt, cols, rows, diag, batch_shape, output_shape, expected_values, is_caching_test) = this->GetParam();
 
         auto num_rows = engine_.allocate_memory({type_to_data_type<InputType>::value, fmt, tensor{1}});
         set_values<InputType>(num_rows, {rows});
@@ -86,7 +87,7 @@ public:
 
         cldnn::network::ptr network; 
 
-        if (is_caching_test()) {
+        if (is_caching_test) {
             membuf mem_buf;
             {
                 cldnn::network _network(engine_, tp);
@@ -141,7 +142,8 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::Values(0),
                      testing::ValuesIn(std::vector<std::vector<int32_t>>{{}, {1}, {1, 1}, {1, 1, 1}}),
                      testing::Values(std::vector<int32_t>{1, 1, 2, 3}),
-                     testing::Values(std::vector<float>{1, 0, 0, 1, 0, 0})));
+                     testing::Values(std::vector<float>{1, 0, 0, 1, 0, 0}),
+                     testing::Values(false)));
 
 using eye_test_4d_int64_int32 = EyeTest<int64_t, int32_t>;
 TEST_P(eye_test_4d_int64_int32, eye_test_4d_int64_int32) {}
@@ -154,7 +156,8 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::Values(0),
                      testing::ValuesIn(std::vector<std::vector<int32_t>>{{}, {1}, {1, 1}, {1, 1, 1}}),
                      testing::Values(std::vector<int32_t>{1, 1, 2, 3}),
-                     testing::Values(std::vector<int64_t>{1, 0, 0, 1, 0, 0})));
+                     testing::Values(std::vector<int64_t>{1, 0, 0, 1, 0, 0}),
+                     testing::Values(false)));
 
 using eye_test_4d_u8_int64 = EyeTest<uint8_t, int64_t>;
 TEST_P(eye_test_4d_u8_int64, eye_test_4d_u8_int64) {}
@@ -167,7 +170,8 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::Values(-1),
                      testing::ValuesIn(std::vector<std::vector<int64_t>>{{}, {1}, {1, 1}, {1, 1, 1}}),
                      testing::Values(std::vector<int32_t>{1, 1, 4, 3}),
-                     testing::Values(std::vector<uint8_t>{0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0})));
+                     testing::Values(std::vector<uint8_t>{0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0}),
+                     testing::Values(false)));
 
 using eye_test_4d_i8_int64_no_diag = EyeTest<int8_t, int64_t>;
 TEST_P(eye_test_4d_i8_int64_no_diag, eye_test_4d_i8_int64_no_diag) {}
@@ -180,7 +184,8 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::Values(4),
                      testing::ValuesIn(std::vector<std::vector<int64_t>>{{}, {1}, {1, 1}, {1, 1, 1}}),
                      testing::Values(std::vector<int32_t>{1, 1, 4, 3}),
-                     testing::Values(std::vector<int8_t>{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})));
+                     testing::Values(std::vector<int8_t>{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}),
+                     testing::Values(false)));
 
 using eye_test_4d_int32_int32_batch = EyeTest<int32_t, int32_t>;
 TEST_P(eye_test_4d_int32_int32_batch, eye_test_4d_int32_int32_batch) {}
@@ -193,7 +198,8 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::Values(1),
                      testing::ValuesIn(std::vector<std::vector<int32_t>>{{2, 2}}),
                      testing::Values(std::vector<int32_t>{2, 2, 2, 2}),
-                     testing::Values(std::vector<int32_t>{0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0})));
+                     testing::Values(std::vector<int32_t>{0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0}),
+                     testing::Values(false)));
 
 std::vector<format> five_d_formats{
     format::bfzyx,
@@ -219,7 +225,8 @@ INSTANTIATE_TEST_SUITE_P(eye_test_5d_float_int32,
                                               1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1,
 
                                               1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1,
-                                          })));
+                                          }),
+                                          testing::Values(false)));
 
 INSTANTIATE_TEST_SUITE_P(export_import,
                          eye_test_5d_float_int32,
@@ -233,6 +240,7 @@ INSTANTIATE_TEST_SUITE_P(export_import,
                                               1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1,
 
                                               1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1,
-                                          })));
+                                          }),
+                                          testing::Values(true)));
 
 }  // anonymous namespace

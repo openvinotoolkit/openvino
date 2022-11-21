@@ -369,7 +369,7 @@ TEST(depth_to_space_fp32_gpu, d1822_bs2_blocks_first) {
 }
 
 template <typename T>
-void test_depth_to_space_fp32_gpu_d1822_bs2_depth_first() {
+void test_depth_to_space_fp32_gpu_d1822_bs2_depth_first(bool is_caching_test) {
     //  Input  : 1x8x2x2
     //  Block size : 2
     //  Output : 1x2x4x4
@@ -399,7 +399,7 @@ void test_depth_to_space_fp32_gpu_d1822_bs2_depth_first() {
 
     cldnn::network::ptr network;
 
-    if (is_caching_test()) {
+    if (is_caching_test) {
         membuf mem_buf;
         {
             cldnn::network _network(engine, topology);
@@ -436,9 +436,9 @@ void test_depth_to_space_fp32_gpu_d1822_bs2_depth_first() {
 }
 
 TEST(depth_to_space_fp32_gpu, d1822_bs2_depth_first) {
-    test_depth_to_space_fp32_gpu_d1822_bs2_depth_first<float>();
+    test_depth_to_space_fp32_gpu_d1822_bs2_depth_first<float>(false);
 }
 
 TEST(export_import_depth_to_space_fp32_gpu, d1822_bs2_depth_first) {
-    test_depth_to_space_fp32_gpu_d1822_bs2_depth_first<float>();
+    test_depth_to_space_fp32_gpu_d1822_bs2_depth_first<float>(true);
 }

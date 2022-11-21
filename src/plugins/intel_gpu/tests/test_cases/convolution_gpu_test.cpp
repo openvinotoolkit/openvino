@@ -9194,7 +9194,7 @@ TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
 #endif   // ENABLE_ONEDNN_FOR_GPU
 
 template <typename T>
-void test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1() {
+void test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     const int batch_num = 1;
@@ -9265,7 +9265,7 @@ void test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1(
     options.set_option(build_option::force_implementations({ { "conv_fsv", conv_impl } }));
     cldnn::network::ptr network;
 
-    if (is_caching_test()) {
+    if (is_caching_test) {
         membuf mem_buf;
         {
             cldnn::network _network(engine, topology, options);
@@ -9313,9 +9313,9 @@ void test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1(
 }
 
 TEST(convolution_f32_gpu, convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1) {
-    test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1<FLOAT16>();
+    test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1<FLOAT16>(false);
 }
 
 TEST(export_import_convolution_f32_gpu, convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1) {
-    test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1<FLOAT16>();
+    test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1<FLOAT16>(true);
 }

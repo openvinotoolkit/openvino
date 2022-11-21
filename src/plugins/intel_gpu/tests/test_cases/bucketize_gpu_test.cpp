@@ -21,14 +21,15 @@ struct bucketize_test_inputs {
 };
 
 template <class I, class B, class O>
-using bucketize_test_params = std::tuple<bucketize_test_inputs<I, B, O>, format::type>;
+using bucketize_test_params = std::tuple<bucketize_test_inputs<I, B, O>, format::type, bool>;
 
 template <class I, class B, class O>
 struct bucketize_test : testing::TestWithParam<bucketize_test_params<I, B, O>> {
     void test() {
         format fmt = format::bfyx;
         bucketize_test_inputs<I, B, O> p;
-        std::tie(p, fmt) = testing::TestWithParam<bucketize_test_params<I, B, O>>::GetParam();
+        bool is_caching_test;
+        std::tie(p, fmt, is_caching_test) = testing::TestWithParam<bucketize_test_params<I, B, O>>::GetParam();
         auto& engine = get_test_engine();
 
         const layout in_layout(type_to_data_type<I>::value,
@@ -60,7 +61,7 @@ struct bucketize_test : testing::TestWithParam<bucketize_test_params<I, B, O>> {
 
         cldnn::network::ptr network;
 
-        if (is_caching_test()) {
+        if (is_caching_test) {
             membuf mem_buf;
             {
                 cldnn::network _network(engine, topology);
@@ -106,6 +107,7 @@ struct bucketize_test : testing::TestWithParam<bucketize_test_params<I, B, O>> {
         result << "bucketsType=" << data_type_traits::name(type_to_data_type<B>::value) << "_";
         result << "outType=" << data_type_traits::name(type_to_data_type<O>::value) << "_";
         result << "format=" << std::get<1>(info.param);
+        result << "is_caching_test=" << std::get<2>(info.param);
         return result.str();
     }
 };
@@ -145,7 +147,8 @@ const std::vector<format::type> layout_formats = {format::bfyx,
     INSTANTIATE_TEST_SUITE_P(bucketize_smoke_##inputType##bucketsType##outType,                               \
                              bucketize_test_##inputType##bucketsType##outType,                                \
                              testing::Combine(testing::ValuesIn(func<inputType, bucketsType, outType>()),     \
-                                              testing::ValuesIn(layout_formats)),                             \
+                                              testing::ValuesIn(layout_formats),                              \
+                                              testing::Values(false)),                                        \
                              bucketize_test_##inputType##bucketsType##outType::PrintToStringParamName);
 
 INSTANTIATE_BUCKETIZE_TEST_SUITE(int8_t, int32_t, int32_t, getBucketizeParams)
@@ -161,7 +164,8 @@ INSTANTIATE_BUCKETIZE_TEST_SUITE(FLOAT16, FLOAT16, int32_t, getBucketizeFloating
 INSTANTIATE_TEST_SUITE_P(export_import,
                          bucketize_test_FLOAT16FLOAT16int32_t,
                          testing::Combine(testing::ValuesIn(getBucketizeFloatingPointParams<FLOAT16, FLOAT16, int32_t>()),
-                                          testing::Values(layout_formats[0])),
+                                          testing::Values(layout_formats[0]),
+                                          testing::Values(true)),
                          bucketize_test_FLOAT16FLOAT16int32_t::PrintToStringParamName);
 
 #undef INSTANTIATE_BUCKETIZE_TEST_SUITE

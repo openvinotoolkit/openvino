@@ -442,7 +442,8 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
 using TestParamType_concat = ::testing::tuple<size_t,   // 0 - Input Batch size
         std::vector<size_t>,                            // 1 - Inputs Features Sizes
         size_t,                                         // 2 - Input Y Size
-        size_t>;                                        // 3 - Input X Size
+        size_t,                                         // 3 - Input X Size
+        bool>;                                          // 4 - is_caching_test
 
 
 struct concat_gpu : public ::testing::TestWithParam<TestParamType_concat>
@@ -458,56 +459,57 @@ struct concat_gpu : public ::testing::TestWithParam<TestParamType_concat>
 
         return "in" + std::to_string(testing::get<0>(param_info.param))
                + "x" + in + "x" + std::to_string(testing::get<2>(param_info.param))
-               + 'x' + std::to_string(testing::get<3>(param_info.param));
+               + 'x' + std::to_string(testing::get<3>(param_info.param))
+               + "is_caching_test" + std::to_string(testing::get<4>(param_info.param));
     }
 };
 
 static const auto concat_gpu_all_params = ::testing::Values(
     // Input Batch, Input Features, Input Y, Input X
-    TestParamType_concat(2, { 2, 15 }, 2, 1),
-    TestParamType_concat(2, { 2, 31 }, 2, 1),
-    TestParamType_concat(2, { 2, 32 }, 2, 1),
-    TestParamType_concat(2, { 2, 37 }, 2, 1),
-    TestParamType_concat(2, { 2, 63 }, 2, 1),
-    TestParamType_concat(2, { 2, 64 }, 2, 1),
-    TestParamType_concat(2, { 2, 65 }, 2, 1),
-    TestParamType_concat(2, { 2, 75 }, 2, 1),
-    TestParamType_concat(2, { 15, 2 }, 2, 1),
-    TestParamType_concat(2, { 31, 2 }, 2, 1),
-    TestParamType_concat(2, { 32, 2 }, 2, 1),
-    TestParamType_concat(2, { 37, 2 }, 2, 1),
-    TestParamType_concat(2, { 63, 2 }, 2, 1),
-    TestParamType_concat(2, { 64, 2 }, 2, 1),
-    TestParamType_concat(2, { 65, 2 }, 2, 1),
-    TestParamType_concat(2, { 75, 2 }, 2, 1),
-    TestParamType_concat(2, { 2, 15 }, 1, 2),
-    TestParamType_concat(2, { 2, 31 }, 1, 2),
-    TestParamType_concat(2, { 2, 32 }, 1, 2),
-    TestParamType_concat(2, { 2, 37 }, 1, 2),
-    TestParamType_concat(2, { 2, 63 }, 1, 2),
-    TestParamType_concat(2, { 2, 64 }, 1, 2),
-    TestParamType_concat(2, { 2, 65 }, 1, 2),
-    TestParamType_concat(2, { 2, 75 }, 1, 2),
-    TestParamType_concat(2, { 15, 2 }, 1, 2),
-    TestParamType_concat(2, { 31, 2 }, 1, 2),
-    TestParamType_concat(2, { 32, 2 }, 1, 2),
-    TestParamType_concat(2, { 37, 2 }, 1, 2),
-    TestParamType_concat(2, { 63, 2 }, 1, 2),
-    TestParamType_concat(2, { 64, 2 }, 1, 2),
-    TestParamType_concat(2, { 65, 2 }, 1, 2),
-    TestParamType_concat(2, { 75, 2 }, 1, 2),
-    TestParamType_concat(2, { 32, 32 }, 1, 1),
-    TestParamType_concat(2, { 64, 64 }, 1, 1),
-    TestParamType_concat(2, { 2, 2, 2 }, 1, 1),
-    TestParamType_concat(2, { 2, 32, 2 }, 1, 1),
-    TestParamType_concat(2, { 31, 32, 32 }, 1, 1),
-    TestParamType_concat(2, { 32, 31, 2 }, 1, 1),
-    TestParamType_concat(2, { 32, 31, 32 }, 1, 1),
-    TestParamType_concat(2, { 32, 32, 32 }, 1, 1),
-    TestParamType_concat(2, { 33, 32, 32 }, 1, 1),
-    TestParamType_concat(2, { 33, 3, 3 }, 1, 1),
-    TestParamType_concat(2, { 33, 3, 33 }, 1, 1),
-    TestParamType_concat(2, { 64, 64, 64, 64 }, 1, 1)
+    TestParamType_concat(2, { 2, 15 }, 2, 1, false),
+    TestParamType_concat(2, { 2, 31 }, 2, 1, false),
+    TestParamType_concat(2, { 2, 32 }, 2, 1, false),
+    TestParamType_concat(2, { 2, 37 }, 2, 1, false),
+    TestParamType_concat(2, { 2, 63 }, 2, 1, false),
+    TestParamType_concat(2, { 2, 64 }, 2, 1, false),
+    TestParamType_concat(2, { 2, 65 }, 2, 1, false),
+    TestParamType_concat(2, { 2, 75 }, 2, 1, false),
+    TestParamType_concat(2, { 15, 2 }, 2, 1, false),
+    TestParamType_concat(2, { 31, 2 }, 2, 1, false),
+    TestParamType_concat(2, { 32, 2 }, 2, 1, false),
+    TestParamType_concat(2, { 37, 2 }, 2, 1, false),
+    TestParamType_concat(2, { 63, 2 }, 2, 1, false),
+    TestParamType_concat(2, { 64, 2 }, 2, 1, false),
+    TestParamType_concat(2, { 65, 2 }, 2, 1, false),
+    TestParamType_concat(2, { 75, 2 }, 2, 1, false),
+    TestParamType_concat(2, { 2, 15 }, 1, 2, false),
+    TestParamType_concat(2, { 2, 31 }, 1, 2, false),
+    TestParamType_concat(2, { 2, 32 }, 1, 2, false),
+    TestParamType_concat(2, { 2, 37 }, 1, 2, false),
+    TestParamType_concat(2, { 2, 63 }, 1, 2, false),
+    TestParamType_concat(2, { 2, 64 }, 1, 2, false),
+    TestParamType_concat(2, { 2, 65 }, 1, 2, false),
+    TestParamType_concat(2, { 2, 75 }, 1, 2, false),
+    TestParamType_concat(2, { 15, 2 }, 1, 2, false),
+    TestParamType_concat(2, { 31, 2 }, 1, 2, false),
+    TestParamType_concat(2, { 32, 2 }, 1, 2, false),
+    TestParamType_concat(2, { 37, 2 }, 1, 2, false),
+    TestParamType_concat(2, { 63, 2 }, 1, 2, false),
+    TestParamType_concat(2, { 64, 2 }, 1, 2, false),
+    TestParamType_concat(2, { 65, 2 }, 1, 2, false),
+    TestParamType_concat(2, { 75, 2 }, 1, 2, false),
+    TestParamType_concat(2, { 32, 32 }, 1, 1, false),
+    TestParamType_concat(2, { 64, 64 }, 1, 1, false),
+    TestParamType_concat(2, { 2, 2, 2 }, 1, 1, false),
+    TestParamType_concat(2, { 2, 32, 2 }, 1, 1, false),
+    TestParamType_concat(2, { 31, 32, 32 }, 1, 1, false),
+    TestParamType_concat(2, { 32, 31, 2 }, 1, 1, false),
+    TestParamType_concat(2, { 32, 31, 32 }, 1, 1, false),
+    TestParamType_concat(2, { 32, 32, 32 }, 1, 1, false),
+    TestParamType_concat(2, { 33, 32, 32 }, 1, 1, false),
+    TestParamType_concat(2, { 33, 3, 3 }, 1, 1, false),
+    TestParamType_concat(2, { 33, 3, 33 }, 1, 1, false),
+    TestParamType_concat(2, { 64, 64, 64, 64 }, 1, 1, false)
 );
 
 template <typename Type>
@@ -751,11 +753,11 @@ TEST_P(concat_id_conv_gpu_4d_f16, input_order_opt_b_fs_yx_fsv16) {
 INSTANTIATE_TEST_SUITE_P(smoke_low_precision,
                         concat_id_conv_gpu_4d_f16,
                         ::testing::Values(
-                            TestParamType_concat(2, { 2, 32 }, 2, 1),
-                            TestParamType_concat(2, { 31, 64 }, 2, 2),
-                            TestParamType_concat(2, { 15, 15, 16 }, 2, 1),
-                            TestParamType_concat(2, { 16, 15, 16 }, 2, 2),
-                            TestParamType_concat(2, { 15, 2, 16, 64 }, 1, 2)
+                            TestParamType_concat(2, { 2, 32 }, 2, 1, false),
+                            TestParamType_concat(2, { 31, 64 }, 2, 2, false),
+                            TestParamType_concat(2, { 15, 15, 16 }, 2, 1, false),
+                            TestParamType_concat(2, { 16, 15, 16 }, 2, 2, false),
+                            TestParamType_concat(2, { 15, 2, 16, 64 }, 1, 2, false)
                         ),
                         concat_gpu::PrintToStringParamName);
 
@@ -766,11 +768,11 @@ TEST_P(concat_id_conv_gpu_4d_i8, input_order_opt_b_fs_yx_fsv16) {
 INSTANTIATE_TEST_SUITE_P(smoke_low_precision,
                         concat_id_conv_gpu_4d_i8,
                         ::testing::Values(
-                            TestParamType_concat(2, { 2, 32 }, 2, 1),
-                            TestParamType_concat(2, { 31, 64 }, 2, 2),
-                            TestParamType_concat(2, { 15, 15, 16 }, 2, 1),
-                            TestParamType_concat(2, { 16, 15, 16 }, 2, 2),
-                            TestParamType_concat(2, { 15, 2, 16, 64 }, 1, 2)
+                            TestParamType_concat(2, { 2, 32 }, 2, 1, false),
+                            TestParamType_concat(2, { 31, 64 }, 2, 2, false),
+                            TestParamType_concat(2, { 15, 15, 16 }, 2, 1, false),
+                            TestParamType_concat(2, { 16, 15, 16 }, 2, 2, false),
+                            TestParamType_concat(2, { 15, 2, 16, 64 }, 1, 2, false)
                         ),
                         concat_gpu::PrintToStringParamName);
 
@@ -784,6 +786,7 @@ public:
         const std::vector<size_t> in_features = testing::get<1>(GetParam());
         const size_t input_y = testing::get<2>(GetParam());
         const size_t input_x = testing::get<3>(GetParam());
+        const bool is_caching_test = testing::get<4>(GetParam());
         size_t output_f = 0;
         for (auto& f : in_features)
             output_f += f;
@@ -846,7 +849,7 @@ public:
 
         std::shared_ptr<cldnn::network> concat_network;
 
-        if (is_caching_test()) {
+        if (is_caching_test) {
             membuf mem_buf;
             {
                 cldnn::network _network(engine, topology, options);
@@ -922,16 +925,16 @@ TEST_P(concat_implicit_gpu_4d_f16, input_order_opt_b_fs_yx_fsv16) {
 INSTANTIATE_TEST_SUITE_P(smoke,
                         concat_implicit_gpu_4d_f16,
                         ::testing::Values(
-                            TestParamType_concat(1, { 16, 16 }, 2, 2),
-                            TestParamType_concat(1, { 16, 8 }, 2, 2),
-                            TestParamType_concat(1, { 8, 16 }, 2, 2)
+                            TestParamType_concat(1, { 16, 16 }, 2, 2, false),
+                            TestParamType_concat(1, { 16, 8 }, 2, 2, false),
+                            TestParamType_concat(1, { 8, 16 }, 2, 2, false)
                         ),
                         concat_gpu::PrintToStringParamName);
 
 INSTANTIATE_TEST_SUITE_P(export_import,
                         concat_implicit_gpu_4d_f16,
                         ::testing::Values(
-                            TestParamType_concat(1, { 8, 16 }, 2, 2)
+                            TestParamType_concat(1, { 8, 16 }, 2, 2, true)
                         ),
                         concat_gpu::PrintToStringParamName);
 
@@ -1150,9 +1153,9 @@ TEST_P(concat_implicit_gpu_onednn_4d_f16, input_order_opt_b_fs_yx_fsv16) {
 INSTANTIATE_TEST_SUITE_P(smoke,
                         concat_implicit_gpu_onednn_4d_f16,
                         ::testing::Values(
-                            TestParamType_concat(1, { 16, 16 }, 2, 2),
-                            TestParamType_concat(1, { 16, 8 }, 2, 2),
-                            TestParamType_concat(1, { 8, 16 }, 2, 2)
+                            TestParamType_concat(1, { 16, 16 }, 2, 2, false),
+                            TestParamType_concat(1, { 16, 8 }, 2, 2, false),
+                            TestParamType_concat(1, { 8, 16 }, 2, 2, false)
                         ),
                         concat_gpu::PrintToStringParamName);
 
@@ -1163,9 +1166,9 @@ TEST_P(concat_implicit_gpu_onednn_4d_i8, input_order_opt_b_fs_yx_fsv32) {
 INSTANTIATE_TEST_SUITE_P(smoke,
                         concat_implicit_gpu_onednn_4d_i8,
                         ::testing::Values(
-                            TestParamType_concat(1, { 32, 32 }, 2, 2),
-                            TestParamType_concat(1, { 32, 8 }, 2, 2),
-                            TestParamType_concat(1, { 8, 32 }, 2, 2)
+                            TestParamType_concat(1, { 32, 32 }, 2, 2, false),
+                            TestParamType_concat(1, { 32, 8 }, 2, 2, false),
+                            TestParamType_concat(1, { 8, 32 }, 2, 2, false)
                         ),
                         concat_gpu::PrintToStringParamName);
 #endif

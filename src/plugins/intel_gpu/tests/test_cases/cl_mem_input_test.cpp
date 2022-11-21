@@ -72,7 +72,7 @@ std::vector<float> createReferenceData(std::vector<unsigned char> data, int widt
 }  // namespace
 
 template <typename T>
-void start_cl_mem_check_2_inputs() {
+void start_cl_mem_check_2_inputs(bool is_caching_test) {
     device_query query(engine_types::ocl, runtime_types::ocl);
     auto devices = query.get_available_devices();
     auto iter = devices.find(std::to_string(device_query::device_id));
@@ -126,7 +126,7 @@ void start_cl_mem_check_2_inputs() {
 
     cldnn::network::ptr network;
 
-    if (is_caching_test()) {
+    if (is_caching_test) {
         membuf mem_buf;
         {
             cldnn::network _network(*engine, topology);
@@ -160,11 +160,11 @@ void start_cl_mem_check_2_inputs() {
 }
 
 TEST(cl_mem_check, check_2_inputs) {
-    start_cl_mem_check_2_inputs<float>();
+    start_cl_mem_check_2_inputs<float>(false);
 }
 
 TEST(export_import_cl_mem_check, check_2_inputs) {
-    start_cl_mem_check_2_inputs<float>();
+    start_cl_mem_check_2_inputs<float>(true);
 }
 
 TEST(cl_mem_check, check_input) {

@@ -59,7 +59,7 @@ struct ExperimentalDetectronDetectionOutputParams {
 
 template <typename T>
 using ExperimentalDetectronDetectionOutputParamsWithLayout =
-        std::tuple<ExperimentalDetectronDetectionOutputParams<T>, format::type>;
+        std::tuple<ExperimentalDetectronDetectionOutputParams<T>, format::type, bool>;
 
 template <typename T>
 struct experimental_detectron_detection_output_test
@@ -68,7 +68,8 @@ public:
     void test() {
         ExperimentalDetectronDetectionOutputParams<T> param;
         format::type fmt;
-        std::tie(param, fmt) = this->GetParam();
+        bool is_caching_test;
+        std::tie(param, fmt, is_caching_test) = this->GetParam();
         auto data_type = type_to_data_type<T>::value;
 
         auto& engine = get_test_engine();
@@ -144,7 +145,7 @@ public:
 
         cldnn::network::ptr network;
 
-        if (is_caching_test()) {
+        if (is_caching_test) {
             membuf mem_buf;
             {
                 cldnn::network _network(engine, topology);
@@ -197,7 +198,7 @@ public:
         const auto& expected_classes = param.expected_classes;
         const auto& expected_scores = param.expected_scores;
         for (int i = 0; i < param.max_detections_per_image; ++i) {
-            if (!is_caching_test()) {
+            if (!is_caching_test) {
                 EXPECT_NEAR(expected_scores[i], output_scores_ptr[i], 0.001) << "i=" << i;
             }
             for (size_t coord = 0; coord < 4; ++coord) {
@@ -205,7 +206,7 @@ public:
                 EXPECT_NEAR(expected_boxes[roi_idx], output_boxes_ptr[roi_idx], getError<T>())
                     << "i=" << i << ", coord=" << coord;
             }
-            if (!is_caching_test()) {
+            if (!is_caching_test) {
                 EXPECT_EQ(expected_classes[i], output_classes_ptr[i]) << "i=" << i;
             }
         }
@@ -451,19 +452,22 @@ INSTANTIATE_TEST_SUITE_P(experimental_detectron_detection_output_gpu_test,
                          experimental_detectron_detection_output_test_f32,
                          testing::Combine(
                              ::testing::ValuesIn(getExperimentalDetectronDetectionOutputParams<float>()),
-                             ::testing::ValuesIn(layouts)
+                             ::testing::ValuesIn(layouts),
+                             ::testing::Values(false)
                          ));
 
 INSTANTIATE_TEST_SUITE_P(experimental_detectron_detection_output_gpu_test,
                          experimental_detectron_detection_output_test_f16,
                          testing::Combine(
                              ::testing::ValuesIn(getExperimentalDetectronDetectionOutputParams<half_t>()),
-                             ::testing::ValuesIn(layouts)
+                             ::testing::ValuesIn(layouts),
+                             ::testing::Values(false)
                          ));
 
 INSTANTIATE_TEST_SUITE_P(export_import,
                          experimental_detectron_detection_output_test_f16,
                          testing::Combine(
                              ::testing::Values(getExperimentalDetectronDetectionOutputParams<half_t>()[0]),
-                             ::testing::Values(layouts[0])
+                             ::testing::Values(layouts[0]),
+                             ::testing::Values(true)
                          ));

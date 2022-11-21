@@ -233,7 +233,7 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_output_padding) {
 }
 
 template <typename T>
-void test_average_unpooling_gpu_basic_in2x2x2x1_fp16() {
+void test_average_unpooling_gpu_basic_in2x2x2x1_fp16(bool is_caching_test) {
     //  Input  : 2x2x2x1
     //  Output Padding : 0x0x1x1
     //  Output : 2x2x3x2
@@ -272,7 +272,7 @@ void test_average_unpooling_gpu_basic_in2x2x2x1_fp16() {
 
     cldnn::network::ptr network;
 
-    if (is_caching_test()) {
+    if (is_caching_test) {
         membuf mem_buf;
         {
             cldnn::network _network(engine, topology);
@@ -319,9 +319,9 @@ void test_average_unpooling_gpu_basic_in2x2x2x1_fp16() {
 }
 
 TEST(average_unpooling_gpu, basic_in2x2x2x1_fp16) {
-    test_average_unpooling_gpu_basic_in2x2x2x1_fp16<float>();
+    test_average_unpooling_gpu_basic_in2x2x2x1_fp16<float>(false);
 }
 
 TEST(export_import_average_unpooling_gpu, basic_in2x2x2x1_fp16) {
-    test_average_unpooling_gpu_basic_in2x2x2x1_fp16<float>();
+    test_average_unpooling_gpu_basic_in2x2x2x1_fp16<float>(true);
 }
