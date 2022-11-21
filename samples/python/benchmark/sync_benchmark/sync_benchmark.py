@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
-from math import ceil
 import statistics
 import sys
 from time import perf_counter
@@ -12,10 +11,6 @@ from time import perf_counter
 import numpy as np
 from openvino.runtime import Core, get_version
 from openvino.runtime.utils.types import get_dtype
-
-
-def percentile(values, percent):
-    return values[ceil(len(values) * percent / 100) - 1]
 
 
 def fill_tensor_random(tensor):
