@@ -1,15 +1,15 @@
 # OpenVINO Python API
 
-OpenVINO Python API is a part of OpenVINO library. The component is responsible for:
+OpenVINO Python API is a part of the OpenVINO library. The component is responsible for:
 
-* Bindings of OpenVINO - allowing users to utilize OpenVINO library in their Python code. Python API provides bindings to basic and advanced APIs from OpenVINO Runtime.
+* Bindings of OpenVINO - allowing users to use the OpenVINO library in their Python code. Python API provides bindings to basic and advanced APIs from OpenVINO Runtime.
 * Extending OpenVINO with pythonic features - on top of direct translations from C++, Python API component:
     * Adds specific extensions to support numpy-based data.
     * Provides support for external frameworks inputs.
     * Provides shortcuts and helpers with more pythonic design.
-    * Allows to apply advanced concepts like shared memory to take full advantage of OpenVINO.
+    * Allows to apply advanced concepts, like shared memory, to take full advantage of OpenVINO.
 
-OpenVINO Python API uses [common codestyle checks](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/python/docs/contributing.md#contribution-guidelines-and-best-practices) that are adjusted to project needs.
+OpenVINO Python API uses [the common codestyle checks](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/python/docs/contributing.md#contribution-guidelines-and-best-practices) which are adjusted to project needs.
 
 ## Key contacts
 
@@ -22,12 +22,12 @@ OpenVINO PYTHON API has the following structure:
 * [docs](./docs/) - folder that contains developer documentation and code examples.
 * [src](./src/) - folder with all source files for Python API.
     * [src/compatibility](./src/compatibility/) - sources for compatibility API, including older modules like `ngraph` and `openvino.inference_engine`.
-    * [src/compatibility](./src/openvino/) - Python sources for current API.
+    * [src/openvino](./src/openvino/) - Python sources for current API.
     * [src/pyopenvino](./src/pyopenvino/) - C++ sources for current API.
 * [tests](./tests/) - tests directory for current API.
 * [tests_compatibility](./tests_compatibility/) - tests directory for compatibility API.
-* [thirdparty](./thirdparty/) - folder that contains thirdparty modules like `pybind11`.
-* [wheel](./wheel/) - wheel specific directory, contains all specifc requirements and files used during wheel creation.
+* [thirdparty](./thirdparty/) - folder that contains third-party modules like `pybind11`.
+* [wheel](./wheel/) - wheel-specific directory that contains all specific requirements and files used during wheel creation.
 
 ## Tutorials
 
