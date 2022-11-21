@@ -54,7 +54,7 @@ NamedOutputs dequantize_linear(const NodeContext& node) {
 
         const auto out_node = std::make_shared<default_opset::Multiply>(q_node, reshape_scale);
         return node.default_single_output_mapping({out_node}, {"Y"});
-    } 
+    }
 }
 
 }  // namespace op
