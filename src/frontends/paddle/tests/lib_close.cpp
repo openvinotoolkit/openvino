@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "lib_close.hpp"
+#include "functional_test_utils/lib_close.hpp"
 
 #include <gtest/gtest.h>
 

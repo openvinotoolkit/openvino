@@ -16,7 +16,7 @@
 #include "common_test_utils/unicode_utils.hpp"
 
 TEST(Paddle_Reader_Tests, ImportBasicModelToCore) {
-    auto model = std::string(PADDLE_TEST_MODELS) + "relu.pdmodel";
+    auto model = std::string(TEST_PADDLE_MODELS_DIRNAME) + "relu.pdmodel";
     InferenceEngine::Core ie;
     auto cnnNetwork = ie.ReadNetwork(model);
     auto function = cnnNetwork.getFunction();
@@ -49,7 +49,7 @@ TEST(Paddle_Reader_Tests, ImportBasicModelToCore) {
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 TEST(Paddle_Reader_Tests, ImportBasicModelToCoreWstring) {
-    std::string win_dir_path{ PADDLE_TEST_MODELS "relu.pdmodel" };
+    std::string win_dir_path{ TEST_PADDLE_MODELS_DIRNAME "relu.pdmodel" };
     std::wstring wmodel = CommonTestUtils::addUnicodePostfixToPath(win_dir_path,
         CommonTestUtils::test_unicode_postfix_vector[0]);
     bool is_copy_successfully = CommonTestUtils::copyFile(win_dir_path, wmodel);
