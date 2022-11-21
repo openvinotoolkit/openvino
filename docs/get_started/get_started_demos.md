@@ -33,25 +33,7 @@ To install OpenVINO Development Tools, follow the [instructions for C++ develope
 
 ### Build Samples
 
-If you have already built the demos and samples, you can skip this section. The build will take about 5-10 minutes, depending on your system.
-
-To build OpenVINO samples:
-
-@sphinxdirective
-.. tab:: Linux
-
-   Go to :doc:`OpenVINO Samples page <openvino_docs_OV_UG_Samples_Overview>` and see the "Build the Sample Applications on Linux" section.
-
-.. tab:: Windows
-
-   Go to :doc:`OpenVINO Samples page <openvino_docs_OV_UG_Samples_Overview>` and see the "Build the Sample Applications on Microsoft Windows OS" section.
-
-.. tab:: macOS
-
-   Go to :doc:`OpenVINO Samples page <openvino_docs_OV_UG_Samples_Overview>` and see the "Build the Sample Applications on macOS" section. 
-
-@endsphinxdirective
-
+To build OpenVINO samples, follow the steps for your operating system in the OpenVINO Samples page ([Linux](../OV_Runtime_UG/Samples_Overview.md#build-the-sample-applications-on-linux), [Windows](../OV_Runtime_UG/Samples_Overview.md#build-the-sample-applications-on-microsoft-windows), [macOS](../OV_Runtime_UG/Samples_Overview.md#build-the-sample-applications-on-macos)). The build will take about 5-10 minutes, depending on your system.
 
 ## <a name="download-models"></a> Step 1: Download the Models
 
