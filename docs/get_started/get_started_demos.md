@@ -1,4 +1,4 @@
-# Basic OpenVINO™ Workflow {#openvino_docs_get_started_get_started_demos}
+# Get Started with C++ Samples {#openvino_docs_get_started_get_started_demos}
 
 The guide presents a basic workflow for building and running C++ code samples in OpenVINO. Note that these steps will not work with the Python samples. 
 
