@@ -61,7 +61,7 @@ def get_ov_path(ov_dir=None, is_bin=False):
         if 'INTEL_OPENVINO_DIR' in os.environ:
             ov_dir = os.environ['INTEL_OPENVINO_DIR']
         else:
-            ov_dir = os.path.abspath(os.getcwd())[:os.path.abspath(os.getcwd()).find(OPENVINO_NAME) + len(OPENVINO_NAME)]
+            ov_dir = os.path.abspath(os.path.split(os.path.abspath(__file__)))[:os.path.abspath(os.path.split(os.path.abspath(__file__))).find(OPENVINO_NAME) + len(OPENVINO_NAME)]
     if is_bin:
         ov_dir = os.path.join(ov_dir, find_latest_dir(ov_dir, ['bin']))
         ov_dir = os.path.join(ov_dir, find_latest_dir(ov_dir))
@@ -204,7 +204,7 @@ class Conformance:
         self._model_path = conformance_ir_path
 
     def _prepare_filelist(self):
-        if os.path.is_file(self._model_path):
+        if self._model_path.is_file():
             logger.info(f"{filelist_path} is exists! Skip the step to prepare fileslist")
             return self._model_path
         filelist_path = os.path.join(self._model_path, "conformance_ir_files.lst")
@@ -266,7 +266,7 @@ class Conformance:
         logger.info(f"Report was saved to {os.path.join(report_dir, 'report.html')}")
 
     def start_pipeline(self, dump_models: bool):
-        command = f'pip3 install -r {os.path.join(Path.cwd(), "requirements.txt")}'
+        command = f'pip3 install -r {os.path.join(os.path.split(os.path.abspath(__file__)), "requirements.txt")}'
         process = Popen(command, shell=True)
         out, err = process.communicate()
         if err is None:
