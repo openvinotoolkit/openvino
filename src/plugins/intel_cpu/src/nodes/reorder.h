@@ -65,7 +65,7 @@ public:
 
     static std::string getReorderArgs(const MemoryDesc &parentDesc, const MemoryDesc &childDesc);
 
-    static void reorderData(const Memory &input, const Memory &output);
+    static void reorderData(const Memory &input, const Memory &output, MultiCachePtr cache = nullptr);
 
 private:
     std::shared_ptr<MemoryDesc> input;

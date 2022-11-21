@@ -156,5 +156,13 @@ DnnlMemoryDescPtr DnnlExtensionUtils::query_md(const const_dnnl_primitive_desc_t
     return DnnlExtensionUtils::makeDescriptor(*cdesc);
 }
 
+std::string DnnlExtensionUtils::query_impl_info_str(const const_dnnl_primitive_desc_t& pd) {
+    const char *res;
+    dnnl_status_t status = dnnl_primitive_desc_query(pd, dnnl_query_impl_info_str, 0, &res);
+    if (status != dnnl_success)
+        IE_THROW() << "query_impl_info_str failed.";
+    return std::string(res);
+}
+
 }   // namespace intel_cpu
 }   // namespace ov

@@ -6,6 +6,7 @@
 
 #include <cpu_memory.h>
 #include <primitive.h>
+#include <onednn/iml_type_mapper.h>
 
 namespace ov {
 namespace intel_cpu {
@@ -30,6 +31,11 @@ class DnnlExecutor {
         bool needReordering() const;
         virtual ~DnnlExecutor() = default;
         Primitive getExecPrim() const;
+        const_dnnl_primitive_desc_t getPrimitiveDesc() const;
+        dnnl::memory::desc getSrcDesc() const;
+        dnnl::memory::desc getWeightDesc() const;
+        dnnl::memory::desc getDstDesc() const;
+        impl_desc_type getImplementationType() const;
 
     protected:
         DnnlExecutor() = default;
