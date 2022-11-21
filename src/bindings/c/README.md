@@ -27,16 +27,16 @@ OpenVINO C API has the following structure:
  * [docs](./docs) contains developer documentation for OpenVINO C APIs.
  * [include](./include) contains all provided C API headers. [Learn more](https://docs.openvino.ai/latest/api/api_reference.html).
  * [src](./src) contains the implementations of all C APIs.
- * [tests](./tests) contains all tests for OpenVINO C APIs. [Learn more](./docs/how_to_write_unite_test.md).
+ * [tests](./tests) contains all tests for OpenVINO C APIs. [Learn more](./docs/how_to_write_unit_test.md).
 
-> **NOTE**:  Using API 2.0 is strongly recommended. Legacy API (for C) [header file](./include/c_api/ie_c_api.h), [source file](./src/ie_c_api.cpp), [unite test](./tests/ie_c_api_test.cpp) are also included in the component, but the legacy API is no longer extended. 
+> **NOTE**:  Using API 2.0 is strongly recommended. Legacy API (for C) [header file](./include/c_api/ie_c_api.h), [source file](./src/ie_c_api.cpp), [unit test](./tests/ie_c_api_test.cpp) are also included in the component, but the legacy API is no longer extended. 
 
 ## Tutorials
 
 * [How to integrate OpenVINO C API with Your Application](https://docs.openvino.ai/latest/openvino_docs_OV_UG_Integrate_OV_with_your_application.html)
 * [How to wrap OpenVINO objects with C](./docs/how_to_wrap_openvino_objects_with_c.md)
 * [How to wrap OpenVINO interfaces with C](./docs/how_to_wrap_openvino_interfaces_with_c.md)
-* [Samples implemented by OpenVINO C API](../../../samples/c/hello_classification/README.md)
+* [Samples implemented by OpenVINO C API](../../../samples/c/)
 * [How to debug C API issues](./docs/how_to_debug_c_api_issues.md)
 * [How to write unit test](./docs/how_to_write_unit_test.md)
 
