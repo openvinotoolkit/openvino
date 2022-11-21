@@ -269,7 +269,7 @@ void wait_for_the_turn() {}
 #endif
 }  // namespace
 
-uint32_t network::get_new_net_id() {
+static uint32_t get_unique_net_id() {
     static std::atomic<uint32_t> id_gen{0};
     return ++id_gen;
 }
@@ -287,7 +287,7 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     , _is_primary_stream(is_primary_stream)
     , _reset_arguments(true) {
     if (!_internal) {
-        net_id = get_new_net_id();
+        net_id = get_unique_net_id();
     }
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -337,7 +337,7 @@ network::network(cldnn::BinaryInputBuffer& ib, stream::ptr stream, engine& engin
     , _internal(false)
     , _is_primary_stream(false)
     , _reset_arguments(true) {
-    net_id = get_new_net_id();
+    net_id = get_unique_net_id();
 
     kernels_cache kernels_cache(get_engine(), 0, {""});
     ib >> kernels_cache;
