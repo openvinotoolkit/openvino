@@ -105,7 +105,9 @@ public:
         }
 
         const auto& progam = impl_param.get_program();
-        auto params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(updated_impl_param);
+        const auto rank = updated_impl_param.output_layouts[0].get_partial_shape().rank().get_length();
+        auto params = rank < 6 ? get_weights_bias_default_params<kernel_selector::fully_connected_params>(updated_impl_param) :
+                get_weights_bias_default_params<kernel_selector::fully_connected_params>(updated_impl_param, 1, 1, true);
         auto optional_params = get_default_weights_bias_optional_params<kernel_selector::fully_connected_optional_params>(progam);
         optional_params.allowInputReordering = true;
 
@@ -159,6 +161,9 @@ attach_fully_connected_impl::attach_fully_connected_impl() {
         std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
         std::make_tuple(data_types::f32, format::bfzyx),
         std::make_tuple(data_types::f16, format::bfzyx),
+
+        std::make_tuple(data_types::f32, format::bfwzyx),
+        std::make_tuple(data_types::f16, format::bfwzyx),
     });
 }
 
