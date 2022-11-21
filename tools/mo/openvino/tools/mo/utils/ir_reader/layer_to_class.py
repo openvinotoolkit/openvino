@@ -65,7 +65,7 @@ def collect_ops(path: str):
     import_by_path(os.path.join(path, 'mo', 'ops'), ['mo', 'ops'], 'openvino.tools.')
     update_registration(classes=[Op, Activation, Elementwise, UnaryElementwise, LogicalElementwise,
                                  EmbeddingBagBase, ReduceOp, Scatter, ScatterNDBase, FFTBase],
-                        enabled_transforms=[], disabled_transforms=[])
+                        enabled_transforms=[], disabled_transforms=[], exclude_modules=set())
 
 
 def collect_extenders(path: str):
@@ -76,7 +76,7 @@ def collect_extenders(path: str):
     """
     import_by_path(os.path.join(path, 'mo', 'utils', 'ir_reader', 'extenders'),
                    ['mo', 'utils', 'ir_reader', 'extenders'], 'openvino.tools.')
-    update_registration(classes=[Extender], enabled_transforms=[], disabled_transforms=[])
+    update_registration(classes=[Extender], enabled_transforms=[], disabled_transforms=[], exclude_modules=set())
 
 
 def collect_node_outputs(node: Node) -> dict:

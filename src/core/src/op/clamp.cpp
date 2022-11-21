@@ -101,9 +101,10 @@ bool op::v0::Clamp::has_evaluate() const {
 
 BWDCMP_RTTI_DEFINITION(op::v0::Clamp);
 
-op::Clamp::Clamp() : Op(), m_min(), m_max() {}
-
-op::Clamp::Clamp(const Output<Node>& data, const double min, const double max) : Op({data}), m_min{min}, m_max{max} {
+op::Clamp::Clamp(const Output<Node>& data, const double min, const double max)
+    : util::UnaryElementwiseArithmetic(data),
+      m_min{min},
+      m_max{max} {
     constructor_validate_and_infer_types();
 }
 
@@ -138,4 +139,12 @@ bool op::Clamp::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("min", m_min);
     visitor.on_attribute("max", m_max);
     return true;
+}
+
+bool op::Clamp::evaluate_lower(const HostTensorVector& output_values) const {
+    return default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::Clamp::evaluate_upper(const HostTensorVector& output_values) const {
+    return default_upper_bound_evaluator(this, output_values);
 }
