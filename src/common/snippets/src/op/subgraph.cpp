@@ -23,7 +23,7 @@
 
 #include <ngraph/pass/manager.hpp>
 #include "ngraph/pass/constant_folding.hpp"
-#include "ngraph_ops/type_relaxed.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include <openvino/pass/serialize.hpp>
 
 #include <algorithm>

@@ -14,9 +14,8 @@ bool isMappableFrom2DTo1D(const uint32_t inHeight, const uint32_t inWidth, const
                           const uint32_t kernelHeight, const uint32_t kernelWidth,
                           const uint32_t strideHeight, const uint32_t strideWidth);
 
-// 3D input or 2D kernel
-bool isConv2D(const uint32_t inHeight, const uint32_t inWidth, const uint32_t inDepth,
-    const uint32_t kernelHeight, const uint32_t kernelWidth);
+bool is3DInputOr2DKernel(const uint32_t inHeight, const uint32_t inWidth, const uint32_t inDepth,
+                         const uint32_t kernelHeight, const uint32_t kernelWidth);
 
 double getWeightsReducer(InferenceEngine::ConvolutionLayer& conv);
 
