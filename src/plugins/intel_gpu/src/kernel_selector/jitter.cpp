@@ -649,7 +649,7 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
     )
                 )V0G0N";
             } else if (l == WeightsLayout::os_iyx_osv16 || l == WeightsLayout::os_iyx_osv32 ||
-                       l == WeightsLayout::os_iyx_osv32__ai32 || l == WeightsLayout::g_os_iyx_osv16 ||
+                       l == WeightsLayout::os_iyx_osv32__ai32 || l == WeightsLayout::g_os_iyx_osv8 || l == WeightsLayout::g_os_iyx_osv16 ||
                        l == WeightsLayout::g_os_iyx_osv32) {
                 args macroNameArgs = {"prefix", "g", "o", "i", "y", "x", "sub_group_size"};
                 this->calcFunction = FuncBody(layout_name);
@@ -881,6 +881,8 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
                     index_func_val = called_func_name + "(" + _name + ", g, o, i, 0, y, x)";
                 else if (layout == WeightsLayout::g_os_is_yx_isv16_osv16)
                     index_func_val = called_func_name + "(" + _name + ", g, o, i, 0, y, x, 16)";
+                else if (layout == WeightsLayout::g_os_iyx_osv8)
+                    index_func_val = called_func_name + "(" + _name + ", g, o, i, y, x, 8)";
                 else if (layout == WeightsLayout::g_os_iyx_osv16)
                     index_func_val = called_func_name + "(" + _name + ", g, o, i, y, x, 16)";
                 else if (layout == WeightsLayout::g_is_os_yx_isv16_osv16)

@@ -166,6 +166,7 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::gioyx,                                       {  0,  1, -1,   3,   2,  4 } },
     { WeightsLayout::goizyx,                                      {  0,  1,  2,   3,   4,  5 } },
     { WeightsLayout::giozyx,                                      {  0,  1,  2,   4,   3,  5 } },
+    { WeightsLayout::g_os_iyx_osv8,                               {  0,  1, -1,   2,   3,  4 } },
     { WeightsLayout::g_os_iyx_osv16,                              {  0,  1, -1,   2,   3,  4 } },
     { WeightsLayout::g_os_iyx_osv32,                              {  0,  1, -1,   2,   3,  4 } },
     { WeightsLayout::gs_oiyx_gsv16,                               {  0,  1, -1,   2,   3,  4 } },
@@ -765,6 +766,10 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
             break;
         case os_i_yxs_osv4_yxsv4:
             newDims[3] = RoundUp(newDims[3], 4);
+            break;
+        case g_os_iyx_osv8:
+            assert(newDims.size() == 5);
+            newDims[3] = RoundUp(newDims[3], 8);
             break;
         case g_os_iyx_osv16:
         case g_os_iyx_osv16_rotate_180:

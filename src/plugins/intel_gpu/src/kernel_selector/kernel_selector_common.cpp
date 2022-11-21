@@ -379,6 +379,7 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::gyxio:                                       return "GYXIO";
         case WeightsLayout::goizyx:                                      return "GOIZYX";
         case WeightsLayout::giozyx:                                      return "GIOZYX";
+        case WeightsLayout::g_os_iyx_osv8:                               return "G_OS_IYX_OSV8";
         case WeightsLayout::g_os_iyx_osv16:                              return "G_OS_IYX_OSV16";
         case WeightsLayout::g_os_iyx_osv32:                              return "G_OS_IYX_OSV32";
         case WeightsLayout::gs_oiyx_gsv16:                               return "GS_OIYX_GSV16";
