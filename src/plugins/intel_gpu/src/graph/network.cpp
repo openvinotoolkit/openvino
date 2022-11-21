@@ -331,7 +331,7 @@ network::network(program::ptr program, stream::ptr stream, uint16_t stream_id)
 
 network::network(cldnn::BinaryInputBuffer& ib, stream::ptr stream, engine& engine, uint16_t stream_id)
     : _program(nullptr)
-    , _engine(ib.get_engine())
+    , _engine(engine)
     , _stream(stream)
     , _memory_pool(new memory_pool(engine))
     , _internal(false)
