@@ -152,12 +152,12 @@ TEST(experimental_detectron_topk_rois_gpu_test, export_import) {
     topology topology;
     topology.add(input_layout(input_rois_id, roi_input->get_layout()));
     topology.add(input_layout(input_indices_id, roi_indices->get_layout()));
-    topology.add(reorder("reordered_input", input_rois_id, test_format, test_data_type));
-    topology.add(reorder("reordered_indices", input_indices_id, test_format, data_types::i32));
+    topology.add(reorder("reordered_input", input_info(input_rois_id), test_format, test_data_type));
+    topology.add(reorder("reordered_indices", input_info(input_indices_id), test_format, data_types::i32));
     topology.add(experimental_detectron_topk_rois(experimental_detectron_topk_rois_id,
-                                                  {"reordered_input", "reordered_indices"},
+                                                  { input_info("reordered_input"), input_info("reordered_indices") },
                                                   rois_num));
-    topology.add(reorder("plane_output", experimental_detectron_topk_rois_id, format::bfyx, test_data_type));
+    topology.add(reorder("plane_output", input_info(experimental_detectron_topk_rois_id), format::bfyx, test_data_type));
 
     cldnn::network::ptr network;
 

@@ -325,7 +325,7 @@ void primitive_inst::update_impl() {
         mem_lock<int32_t> lock(_shape_info_memory, _network.get_stream());
         size_t offset = 0;
         for (size_t i = 0; i < _node->get_dependencies().size(); i++) {
-            if (_node->get_dependency(i).get_output_layout().is_dynamic()) {
+            if (_node->get_dependency(i).first->get_output_layout().is_dynamic()) {
                 auto input_shape = extend_to_6d(params.get_input_layout(i).get_partial_shape());
                 for (size_t j = 0; j < input_shape.size(); j++)
                     lock[offset++] = static_cast<int32_t>(input_shape[j]);
@@ -552,6 +552,7 @@ void primitive_inst::rebuild_deps(
     for (size_t i = 0; i < _dep_ids.size(); i++) {
         OPENVINO_ASSERT((primitives.count(_dep_ids[i]) > 0), _dep_ids[i], "is not found in primitives while rebuilding _deps");
         _deps[i] = {primitives.at(_dep_ids[i]), 0}; // TODO: Need to check dependency's output index during rebuilding deps
+    }
 }
 
 void primitive_inst::rebuild_exec_deps(
@@ -1087,7 +1088,7 @@ static primitive_id find_dep_by_mem(const cldnn::primitive_inst* p_inst, memory&
     size_t head = 0;
 
     for (auto& p_inst : p_inst->dependencies())
-        queue.emplace_back(std::make_pair(p_inst->id(), 0));
+        queue.emplace_back(std::make_pair(p_inst.first->id(), 0));
 
     const network& const_network = p_inst->get_network();
     while (head < queue.size()) {
@@ -1099,7 +1100,7 @@ static primitive_id find_dep_by_mem(const cldnn::primitive_inst* p_inst, memory&
 
         if (max_dist > curr_item.second)
             for (auto& p_inst : curr_prim->dependencies())
-                queue.emplace_back(std::make_pair(p_inst->id(), curr_item.second+1));
+                queue.emplace_back(std::make_pair(p_inst.first->id(), curr_item.second+1));
 
         head += 1;
     }

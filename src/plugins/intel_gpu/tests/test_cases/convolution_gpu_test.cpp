@@ -9234,7 +9234,7 @@ void test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1(
         data("weights_fsv", weights_mem));
 
     // Reorder input to b_fs_yx_fsv16
-    topology.add(reorder("input_fsv", "input", { data_types::f16, format::b_fs_yx_fsv16, input_size }));
+    topology.add(reorder("input_fsv", input_info("input"), { data_types::f16, format::b_fs_yx_fsv16, input_size }));
 
     // Calculate reference values without bias
     for (auto bi = 0; bi < batch_num; ++bi)
@@ -9253,9 +9253,9 @@ void test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1(
         }
     }
 
-    auto conv_fsv = convolution("conv_fsv", "input_fsv", { "weights_fsv" }, groups,
+    auto conv_fsv = convolution("conv_fsv", input_info("input_fsv"), { "weights_fsv" }, groups,
                                 { stride, stride }, { pad_y, pad_x });
-    conv_fsv.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+    conv_fsv.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
 
     topology.add(conv_fsv);
 

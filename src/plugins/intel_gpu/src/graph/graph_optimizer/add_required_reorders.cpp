@@ -77,7 +77,7 @@ void add_required_reorders::run(program& p) {
                 if (dep_id >= usr->get_dependencies().size())
                     continue;
 
-                auto& dep = usr->get_dependency(dep_id);
+                auto& dep = *usr->get_dependency(dep_id).first;
                 if (!dep.is_type<data>())
                     continue;
 

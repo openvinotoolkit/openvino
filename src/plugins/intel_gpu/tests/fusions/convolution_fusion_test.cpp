@@ -605,10 +605,10 @@ TEST_P(conv_fp32_add_per_element_planar_const, basic) {
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("data", get_mem(out_layout)),
-        convolution("conv_prim", "input", { "weights" }, std::vector<primitive_id>{}, p.groups, p.stride, p.pad, p.dilation),
-        eltwise("add", { "conv_prim", "data" }, eltwise_mode::sum),
-        permute("permute", "add", {3, 2, 1, 0}),
-        reorder("reorder_bfyx", "permute", p.default_format, data_types::f32)
+        convolution("conv_prim", input_info("input"), { "weights" }, std::vector<primitive_id>{}, p.groups, p.stride, p.pad, p.dilation),
+        eltwise("add", { input_info("conv_prim"), input_info("data") }, eltwise_mode::sum),
+        permute("permute", input_info("add"), {3, 2, 1, 0}),
+        reorder("reorder_bfyx", input_info("permute"), p.default_format, data_types::f32)
     );
 
     tolerance = default_tolerance(p.default_type);

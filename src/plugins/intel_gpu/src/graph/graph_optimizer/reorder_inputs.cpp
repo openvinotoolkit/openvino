@@ -217,13 +217,13 @@ bool can_propagate_formats_rec<direction_e::backwards>(
     if (fmt == sel_fmt)
         return true;
 
-    auto first_node = travel_direction_wrapper<direction_e::backwards>::first(prev, node);
-    auto second_node = travel_direction_wrapper<direction_e::backwards>::second(prev, node);
-    auto first_fmt = travel_direction_wrapper<direction_e::backwards>::first(fmt, sel_fmt);
-    auto second_fmt = travel_direction_wrapper<direction_e::backwards>::second(fmt, sel_fmt);
+    auto predecessor = travel_direction_wrapper<direction_e::backwards>::first(prev, node);
+    auto successor = travel_direction_wrapper<direction_e::backwards>::second(prev, node);
+    auto first_fmt = get_target_output_format(lo, fmt_map, predecessor, successor);
+    auto second_fmt = get_target_input_format(lo, fmt_map, successor, predecessor);
 
-    if (lo.can_fuse_reorder(*first_node,
-                            *second_node,
+    if (lo.can_fuse_reorder(*predecessor,
+                            *successor,
                             first_fmt,
                             second_fmt))
         return true;
@@ -299,18 +299,23 @@ void propagate_formats_rec<direction_e::backwards>(std::map<program_node*, forma
     if (sel_fmt == fmt)
         return;
 
-    auto first_node = travel_direction_wrapper<direction_e::backwards>::first(prev, node);
-    auto second_node = travel_direction_wrapper<direction_e::backwards>::second(prev, node);
-    auto first_fmt = travel_direction_wrapper<direction_e::backwards>::first(fmt, sel_fmt);
-    auto second_fmt = travel_direction_wrapper<direction_e::backwards>::second(fmt, sel_fmt);
+    auto predecessor = travel_direction_wrapper<direction_e::backwards>::first(prev, node);
+    auto successor = travel_direction_wrapper<direction_e::backwards>::second(prev, node);
+    auto first_fmt = get_target_output_format(lo, fmt_map, predecessor, successor);
+    auto second_fmt = get_target_input_format(lo, fmt_map, successor, predecessor);
 
-    if (lo.can_fuse_reorder(*first_node,
-                            *second_node,
+    if (lo.can_fuse_reorder(*predecessor,
+                            *successor,
                             first_fmt,
                             second_fmt))
         return;
 
+    fmt = travel_direction_wrapper<direction_e::backwards>::first(first_fmt, second_fmt);
     fmt_map.at(node) = fmt;
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->verbose >= 2) {
+        GPU_DEBUG_COUT << "[clDNN][reorder_inputs] propagate_formats_rec: " << node->id() << " - " << fmt_to_str(fmt) << std::endl;
+    }
 
     for (auto next : travel_direction_wrapper<direction_e::backwards>::next_nodes(node)) {
         if (!next.first->is_in_data_flow())
@@ -411,20 +416,21 @@ reorder_cnt count_reorders_in_dir<direction_e::backwards>(const std::map<program
                                                           layout_optimizer& lo, program_node* node) {
     size_t cnt = 0;
     size_t size = 0;
-    auto sel_fmt = fmt_map.at(node);
 
     for (auto next : travel_direction_wrapper<direction_e::backwards>::next_nodes(node)) {
         if (!next.first->is_in_data_flow())
             continue;
 
-        auto next_fmt = fmt_map.at(next.first);
+        auto predecessor = travel_direction_wrapper<direction_e::backwards>::first(node, next.first);
+        auto successor = travel_direction_wrapper<direction_e::backwards>::second(node, next.first);
+        auto first_fmt = get_target_output_format(lo, fmt_map, predecessor, successor);
+        auto second_fmt = get_target_input_format(lo, fmt_map, successor, predecessor);
 
-        if (next_fmt == format::any ||
-            (sel_fmt != next_fmt &&
-             !lo.can_fuse_reorder(*travel_direction_wrapper<direction_e::backwards>::first(node, next.first),
-                                  *travel_direction_wrapper<direction_e::backwards>::second(node, next.first),
-                                  travel_direction_wrapper<direction_e::backwards>::first(sel_fmt, next_fmt),
-                                  travel_direction_wrapper<direction_e::backwards>::second(sel_fmt, next_fmt)))) {
+        if (second_fmt == format::any ||
+            (first_fmt != second_fmt &&
+             !lo.can_fuse_reorder(*predecessor,
+                                  *successor,
+                                  first_fmt, second_fmt))) {
             cnt += 1;
             auto l = travel_direction_wrapper<direction_e::backwards>::first(node, next.first)->get_output_layout();
             if (l.is_static())
@@ -610,11 +616,9 @@ void insert_reorders_in_dir<direction_e::backwards>(program& p, const std::map<p
         auto successor = travel_direction_wrapper<direction_e::backwards>::second(node, next.first);
         auto in_layout = predecessor->get_output_layout();
         auto out_layout = in_layout;
-        auto index_to_pred = successor->get_dependency_index(*predecessor);
-        auto index_to_succ = predecessor->get_user_index(*successor);
 
-        in_layout.format = get_target_output_format(lo, fmt_map, predecessor, index_to_succ);
-        out_layout.format = get_target_input_format(lo, fmt_map, successor, index_to_pred);
+        in_layout.format = get_target_output_format(lo, fmt_map, predecessor, successor);
+        out_layout.format = get_target_input_format(lo, fmt_map, successor, predecessor);
 
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
             GPU_DEBUG_COUT << __func__ << ":" << __LINE__ << ":" << dir_msg(direction_e::backwards)

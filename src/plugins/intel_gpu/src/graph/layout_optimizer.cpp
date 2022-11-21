@@ -245,14 +245,14 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 
     // Check whether the reorder between prev and next is the first input of next.
     auto is_input_reorder = [](program_node& prev, program_node& next) {
-        auto found_reorder = std::find_if(next.get_dependencies().begin(), next.get_dependencies().end(), [](cldnn::program_node* node){
-            return node->is_type<reorder>();
+        auto found_reorder = std::find_if(next.get_dependencies().begin(), next.get_dependencies().end(), [](const std::pair<program_node*, int32_t>& dep){
+            return dep.first->is_type<reorder>();
         });
         // if there is no reorder between prev and next, it returns true.
         // This case is needed for can_fuse_reorder in reorder_inputs pass.
         if (found_reorder == std::end(next.get_dependencies()) && next.get_dependency_index(prev) == 0)
             return true;
-        auto& next_dep = next.get_dependency(0);
+        auto& next_dep = *next.get_dependency(0).first;
         if (!next_dep.is_type<reorder>())
             return false;
         for (auto& prev_usr : prev.get_users()) {
@@ -270,7 +270,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         next.get_preferred_impl_type() == impl_types::onednn &&
         ((fmt_prev == format::byxf && fmt_next == format::byxf) ||
          (fmt_prev == format::bfyx && fmt_next == format::byxf &&
-            (prev_dt == data_types::f16 && next.get_dependency(0).get_output_layout().feature() <= 8))) &&
+            (prev_dt == data_types::f16 && next.get_dependency(0).first->get_output_layout().feature() <= 8))) &&
         is_input_reorder(prev, next))
         return true;
 

@@ -1866,7 +1866,7 @@ TEST(permute_gpu_f32_dynamic, bfyx_0_2_3_1) {
 
     topology topology(
         input_layout("input", input_layout_dynamic),
-        permute("permute", "input", { 0, 2, 3, 1 }));
+        permute("permute", input_info("input"), { 0, 2, 3, 1 }));
 
     build_options bo;
     bo.set_option(build_option::allow_new_shape_infer(true));

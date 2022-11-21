@@ -448,10 +448,10 @@ TEST_P(test_can_fuse_reorder_onednn_errata, errata_case_for_conv)
 
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights", weights));
-    topology.add(reorder("reorder_input", "input", p.input_layout.format, p.input_layout.data_type));
-    topology.add(reorder("reorder_conv", "reorder_input", p.reorder_layout.format, p.reorder_layout.data_type));
-    topology.add(convolution("conv", { "reorder_conv" }, { "weights" }));
-    topology.add(reorder("reorder_result", "conv", p.conv_layout));
+    topology.add(reorder("reorder_input", input_info("input"), p.input_layout.format, p.input_layout.data_type));
+    topology.add(reorder("reorder_conv", input_info("reorder_input"), p.reorder_layout.format, p.reorder_layout.data_type));
+    topology.add(convolution("conv", { input_info("reorder_conv") }, { "weights" }));
+    topology.add(reorder("reorder_result", input_info("conv"), p.conv_layout));
 
     program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
     layout_optimizer lo = layout_optimizer();

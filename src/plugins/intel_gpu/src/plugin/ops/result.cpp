@@ -70,11 +70,7 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
         auto reorder_primitive = cldnn::reorder(outLayerName,
                                                 outputID,
                                                 FormatFromLayout(outputlayout),
-                                                DataTypeFromPrecision(precision),
-                                                {},
-                                                cldnn::reorder_mean_mode::subtract,
-                                                cldnn::padding(),
-                                                {cldnn::input_info(outputID, op->get_input_source_output(0).get_index())});
+                                                DataTypeFromPrecision(precision));
         p.add_primitive(*op, reorder_primitive, {originalOutName});
 
     } else {
