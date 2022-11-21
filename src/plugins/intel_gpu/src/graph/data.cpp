@@ -77,7 +77,7 @@ void data_inst::save(cldnn::BinaryOutputBuffer& ob) const {
 
 void data_inst::load(BinaryInputBuffer& ib) {
     parent::load(ib);
-    layout output_layout = layout(cldnn::data_types::bin, cldnn::format::any, cldnn::tensor());
+    layout output_layout = layout();
     ib >> output_layout;
 
     allocation_type _allocation_type;

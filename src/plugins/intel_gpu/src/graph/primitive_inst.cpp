@@ -1204,7 +1204,7 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
         return;
     }
 
-    layout output_layout = layout(cldnn::data_types::bin, cldnn::format::any, cldnn::tensor());
+    layout output_layout = layout();
     ib >> output_layout;
 
     allocation_type _allocation_type;
@@ -1247,7 +1247,7 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
     ib >> vector_size;
     _intermediates_memory.resize(vector_size);
     for (size_t i = 0; i < vector_size; i++) {
-        layout ibuf_layout = layout(cldnn::data_types::bin, cldnn::format::any, cldnn::tensor());
+        layout ibuf_layout = layout();
         ib >> ibuf_layout;
         allocation_type _allocation_type;
         ib >> make_data(&_allocation_type, sizeof(_allocation_type));
