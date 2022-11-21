@@ -20,7 +20,7 @@ public:
     void write(void const * data, std::streamsize size) {
         auto const written_size = stream.rdbuf()->sputn(reinterpret_cast<const char*>(data), size);
         OPENVINO_ASSERT(written_size == size,
-            "Failed to write " + std::to_string(size) + " bytes to stream! Wrote " + std::to_string(written_size));
+            "[GPU] Failed to write " + std::to_string(size) + " bytes to stream! Wrote " + std::to_string(written_size));
     }
 
     void setKernlImplParams(void* impl_params) { _impl_params = impl_params; }
@@ -38,7 +38,7 @@ public:
     void read(void* const data, std::streamsize size) {
         auto const read_size = stream.rdbuf()->sgetn(reinterpret_cast<char*>(data), size);
         OPENVINO_ASSERT(read_size == size,
-            "Failed to read " + std::to_string(size) + " bytes from stream! Read " + std::to_string(read_size));
+            "[GPU] Failed to read " + std::to_string(size) + " bytes from stream! Read " + std::to_string(read_size));
     }
 
     void setKernlImplParams(void* impl_params) { _impl_params = impl_params; }
