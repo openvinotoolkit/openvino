@@ -38,6 +38,8 @@ This document provides instructions for creating a Yocto image with Intel® Dist
 @endsphinxdirective
 
 
+Use the [Yocto Project official documentation](https://docs.yoctoproject.org/brief-yoctoprojectqs/index.html#compatible-linux-distribution) to set up and configure your host machine to be compatible with BitBake.
+
 ## Set Up Environment
 
 ### 1. Clone the repository.
