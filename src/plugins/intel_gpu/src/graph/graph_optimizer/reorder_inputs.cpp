@@ -318,7 +318,7 @@ reorder_cnt count_reorders_in_dir(const std::map<program_node*, format::type>& f
             (first_fmt != second_fmt &&
              !lo.can_fuse_reorder(*predecessor,
                                   *successor,
-                                  first_fmt, second_fmt)) {
+                                  first_fmt, second_fmt))) {
             cnt += 1;
             auto l = travel_direction_wrapper<dir>::first(node, next)->get_output_layout();
             if (l.is_static())
