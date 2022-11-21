@@ -242,7 +242,7 @@ TEST_P(GenerateProposalsBenchmarkTest, DISABLED_GenerateProposals_Benchmark) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_BasicTest,
+        BasicTest,
         GenerateProposalsBenchmarkTest,
         ::testing::Combine(
                 ::testing::ValuesIn(dynamicInputShape),
