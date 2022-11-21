@@ -9,7 +9,7 @@ from subprocess import Popen
 from shutil import copytree, rmtree
 from summarize import create_summary
 from merge_xmls import merge_xml
-from pathlib import Path
+from pathlib import Path, PurePath
 from sys import version, platform
 
 import xml.etree.ElementTree as ET
@@ -30,6 +30,9 @@ API_CONFORMANCE_BIN_NAME = "apiConformanceTests"
 OP_CONFORMANCE_BIN_NAME = "conformanceTests"
 SUBGRAPH_DUMPER_BIN_NAME = "subgraphsDumper"
 
+DEBUG_DIR = "Debug"
+RELEASE_DIR = "Release"
+
 IS_WIN = "windows" in platform
 
 OS_SCRIPT_EXT = ".bat" if IS_WIN else ""
@@ -39,6 +42,20 @@ NO_MODEL_CONSTANT = "NO_MODEL"
 
 ENV_SEPARATOR = ";" if IS_WIN else ":"
 
+def find_latest_dir(in_dir: Path, pattern_list = list()):
+    get_latest_dir = lambda path: sorted(Path(path).iterdir(), key=os.path.getmtime)
+    dir_list = get_latest_dir(in_dir)
+    for dir in dir_list:
+        if dir.is_dir():
+            if len(pattern_list) == 0:
+                return dir
+            else:
+                for pattern in pattern_list: 
+                    if pattern in str(os.fspath(PurePath(dir))):
+                        return dir
+    logger.error(f"{in_dir} does not contain applicable directories to patterns: {pattern_list}")
+    exit(-1)
+
 def get_ov_path(ov_dir=None, is_bin=False):
     if ov_dir is None or not os.path.isdir(ov_dir):
         if 'INTEL_OPENVINO_DIR' in os.environ:
@@ -46,10 +63,9 @@ def get_ov_path(ov_dir=None, is_bin=False):
         else:
             ov_dir = os.path.abspath(os.getcwd())[:os.path.abspath(os.getcwd()).find(OPENVINO_NAME) + len(OPENVINO_NAME)]
     if is_bin:
-        ov_dir = os.path.join(ov_dir, 'bin')
-        get_latest_dir = lambda path: sorted(Path(ov_dir).iterdir(), key=os.path.getmtime)[0]
-        ov_dir = os.path.join(get_latest_dir(ov_dir))
-        ov_dir = os.path.join(get_latest_dir(ov_dir))
+        ov_dir = os.path.join(ov_dir, find_latest_dir(ov_dir, ['bin']))
+        ov_dir = os.path.join(ov_dir, find_latest_dir(ov_dir))
+        ov_dir = os.path.join(ov_dir, find_latest_dir(ov_dir, [DEBUG_DIR, RELEASE_DIR]))
     return ov_dir
 
 def get_default_working_dir():
@@ -266,7 +282,7 @@ class Conformance:
                 self.download_and_convert_models()
             self.dump_subgraph()
         if not os.path.isdir(self._model_path):
-            raise Exception(f"Directory {self._model_path} does not exist")
+           raise Exception(f"Directory {self._model_path} does not exist")
         xml_report, report_dir = self.run_conformance()
         self.summarize(xml_report, report_dir)
         
