@@ -3,7 +3,7 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
-#include "include/imad.cl"
+#include "include/batch_headers/imad.cl"
 #include "include/batch_headers/data_types.cl"
 
 #include "mvn_gpu_b_fs_yx_fsv16_imad_accumulate.cl"

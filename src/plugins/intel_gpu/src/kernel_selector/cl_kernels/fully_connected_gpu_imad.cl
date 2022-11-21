@@ -4,7 +4,7 @@
 
 #include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
-#include "include/imad.cl"
+#include "include/batch_headers/imad.cl"
 
 #define BYTES_PER_READ          (PACK_SIZE * SIMD_SIZE)
 #define BYTES_PER_READ8         (8 * BYTES_PER_READ)

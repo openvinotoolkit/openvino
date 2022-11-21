@@ -3,7 +3,7 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
-#include "include/imad.cl"
+#include "include/batch_headers/imad.cl"
 #if QUANTIZATION_TERM
 #    define ACCUMULATOR_TYPE int
 #    define TO_ACCUMULATOR_TYPE(x) convert_int(x)

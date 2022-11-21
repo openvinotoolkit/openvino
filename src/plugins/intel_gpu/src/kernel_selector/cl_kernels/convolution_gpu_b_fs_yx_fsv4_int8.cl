@@ -4,7 +4,7 @@
 
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/data_types.cl"
-#include "include/imad.cl"
+#include "include/batch_headers/imad.cl"
 
 #define INPUT0_PACKED_TYPE uint
 
