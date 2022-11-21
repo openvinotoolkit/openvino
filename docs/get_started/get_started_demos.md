@@ -33,7 +33,7 @@ To install OpenVINO Development Tools, follow the [instructions for C++ develope
 
 #### Build Samples
 
-To build OpenVINO samples, follow the steps for your operating system in the OpenVINO Samples page ([Linux](../OV_Runtime_UG/Samples_Overview.md#build-the-sample-applications-on-linux), [Windows](../OV_Runtime_UG/Samples_Overview.md#build-the-sample-applications-on-microsoft-windows), [macOS](../OV_Runtime_UG/Samples_Overview.md#build-the-sample-applications-on-macos)). The build will take about 5-10 minutes, depending on your system.
+To build OpenVINO samples, follow the build instructions for your operating system in the [OpenVINO Samples](../OV_Runtime_UG/Samples_Overview.md) page. The build will take about 5-10 minutes, depending on your system.
 
 ## <a name="download-models"></a> Step 1: Download the Models
 
@@ -43,13 +43,13 @@ You must have a model that is specific for your inference task. Example model ty
 - Object Detection (SSD, YOLO): Draws bounding boxes around multiple types of objects in an image
 - Custom: Often based on SSD
 
-Options to find a model suitable for the OpenVINO™ toolkit:
+Options to find a model suitable for OpenVINO toolkit:
 
-- Download public or Intel pre-trained models from the [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) using the [Model Downloader tool](@ref omz_tools_downloader)
-- Download from GitHub*, Caffe* Zoo, TensorFlow* Zoo, etc.
+- Download public or Intel pre-trained models from [Open Model Zoo](@ref model_zoo) using [Model Downloader tool](@ref omz_tools_downloader)
+- Download from GitHub, Caffe Zoo, TensorFlow Zoo, etc.
 - Train your own model with machine learning tools
   
-This guide uses the OpenVINO™ Model Downloader to get pre-trained models. You can use one of the following commands to find a model (replace `<models_dir>` with the directory to download the model to and `<model_name>` with the name of the model):
+This guide uses OpenVINO Model Downloader to get pre-trained models. You can use one of the following commands to find a model (replace `<models_dir>` with the directory to download the model to and `<model_name>` with the name of the model):
 
 * List the models available in the downloader
   ``` sh
@@ -165,17 +165,17 @@ Your screen looks similar to this after the download and shows the paths of down
 
 ## <a name="convert-models-to-intermediate-representation"></a>Step 2: Convert the Model with Model Optimizer
 
-In this step, your trained models are ready to run through the Model Optimizer to convert them to the IR (Intermediate Representation) format. For most model types, this is required before using the OpenVINO Runtime with the model.
+In this step, your trained models are ready to run through the Model Optimizer to convert them to the IR (Intermediate Representation) format. For most model types, this is required before using OpenVINO Runtime with the model.
 
-Models in the IR format always include an `.xml` and `.bin` file and may also include other files such as `.json` or `.mapping`. Make sure you have these files together in a single directory so the OpenVINO Runtime can find them.
+Models in the IR format always include an `.xml` and `.bin` file and may also include other files such as `.json` or `.mapping`. Make sure you have these files together in a single directory so OpenVINO Runtime can find them.
 
 REQUIRED: `model_name.xml`
 REQUIRED: `model_name.bin`
 OPTIONAL: `model_name.json`, `model_name.mapping`, etc.
 
-This tutorial uses the public GoogleNet v1 Caffe* model to run the Image Classification Sample. See the example in the Download Models section of this page to learn how to download this model.
+This tutorial uses the public GoogleNet v1 Caffe model to run the Image Classification Sample. See the example in the Download Models section of this page to learn how to download this model.
 
-The googlenet-v1 model is downloaded in the Caffe* format. You must use the Model Optimizer to convert the model to IR.
+The googlenet-v1 model is downloaded in the Caffe format. You must use Model Optimizer to convert the model to IR.
 
 Create an `<ir_dir>` directory to contain the model's Intermediate Representation (IR).
 
@@ -201,7 +201,7 @@ Create an `<ir_dir>` directory to contain the model's Intermediate Representatio
 
 @endsphinxdirective
 
-To save disk space for your IR file, you can apply [weights compression to FP16](../MO_DG/prepare_model/FP16_Compression.md). To generate an IR with FP16 weights, run the Model Optimizer with the `--compress_to_fp16` option.
+To save disk space for your IR file, you can apply [weights compression to FP16](../MO_DG/prepare_model/FP16_Compression.md). To generate an IR with FP16 weights, run Model Optimizer with the `--compress_to_fp16` option.
 
 Generic Model Optimizer script:
 
@@ -239,7 +239,7 @@ The command with most placeholders filled in and FP16 precision:
 
 Most of the samples require you to provide an image or a video as the input to run the model on. You can get them from sites like [Pexels](https://pexels.com) or [Google Images](https://images.google.com).
 
-As an alternative, Intel® Distribution of OpenVINO™ toolkit also provides several sample images and videos for you to run code samples and demo applications:
+As an alternative, OpenVINO toolkit also provides several sample images and videos for you to run code samples and demo applications:
 
    - [Sample images and video](https://storage.openvinotoolkit.org/data/test_data/)
    - [Sample videos](https://github.com/intel-iot-devkit/sample-videos)
@@ -375,7 +375,7 @@ When the sample application is complete, you are given the label and confidence 
 The following two examples show how to run the same sample using GPU or MYRIAD as the target device.
 
    **GPU:**
-   > **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires [additional hardware configuration steps](../install_guides/configurations-for-intel-gpu.md), as described earlier on this page. Running on GPU is not compatible with macOS*.
+   > **NOTE**: Running inference on Intel® Processor Graphics (GPU) requires [additional hardware configuration steps](../install_guides/configurations-for-intel-gpu.md), as described earlier on this page. Running on GPU is not compatible with macOS.
 
 @sphinxdirective
 .. tab:: Linux
