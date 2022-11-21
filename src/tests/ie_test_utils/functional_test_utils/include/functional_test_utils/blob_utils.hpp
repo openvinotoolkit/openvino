@@ -572,6 +572,37 @@ inline ov::Tensor create_and_fill_tensor(
     return tensor;
 }
 
+void inline fill_tensor(ov::Tensor& tensor,
+                        uint32_t range = 10,
+                        int32_t start_from = 0,
+                        const int32_t k = 1,
+                        const int seed = 1) {
+    auto element_type = tensor.get_element_type();
+    switch (element_type) {
+#define CASE(X) case X: CommonTestUtils::fill_tensor_random<X>(tensor, range, start_from, k, seed); break;
+#define CASE_FLOAT(X) case X: CommonTestUtils::fill_tensor_random_float<X>(tensor, range, start_from, k, seed); break;
+    CASE_FLOAT(ov::element::f64)
+    CASE_FLOAT(ov::element::f32)
+    CASE_FLOAT(ov::element::f16)
+    CASE_FLOAT(ov::element::bf16)
+    CASE(ov::element::u1)
+    CASE(ov::element::u4)
+    CASE(ov::element::u8)
+    CASE(ov::element::u32)
+    CASE(ov::element::u16)
+    CASE(ov::element::u64)
+    CASE(ov::element::i4)
+    CASE(ov::element::i8)
+    CASE(ov::element::i16)
+    CASE(ov::element::i32)
+    CASE(ov::element::i64)
+#undef CASE
+#undef CASE_FLOAT
+    default:
+        IE_THROW() << "Wrong precision specified: " << element_type;
+    }
+}
+
 inline InferenceEngine::Blob::Ptr createAndFillBlobConsistently(
     const InferenceEngine::TensorDesc &td,
     const uint32_t range,

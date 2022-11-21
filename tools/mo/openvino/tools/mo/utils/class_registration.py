@@ -63,12 +63,21 @@ class ClassType(Enum):
 
 
 def _update(cls, registered_list: list, registered_dict: dict, key: str, enabled_transforms: list,
-            disabled_transforms: list):
+            disabled_transforms: list, exclude_modules: set):
     new_keys = {}  # maps a custom name to class
     new_keys_lower = {}  # translates lowered custom name to its original form
     # print('Registering new subclasses for', cls)
 
     for c in cls.__subclasses__():
+        # skip importing loaders of other frameworks
+        if cls.__name__ == 'Loader':
+            need_exclude = False
+            for framework in exclude_modules:
+                if framework in c.__module__:
+                    need_exclude = True
+                    break
+            if need_exclude:
+                continue
         # Force enabling operations
         if hasattr(c, 'id') and c.id in enabled_transforms or \
                 ".".join([c.__module__, c.__name__]) in enabled_transforms:
@@ -87,10 +96,9 @@ def _update(cls, registered_list: list, registered_dict: dict, key: str, enabled
             if hasattr(c, key) and getattr(c, key) is not None:
                 k = getattr(c, key)
                 if k.lower() in new_keys_lower:
-                    raise Error(
-                        'Attempt to register of custom name {} for the second time as class {}. ' \
-                        'Note that custom names are case-insensitive. ' +
-                        refer_to_faq_msg(55), k, c)
+                    log.warning('Attempt to register of custom name {} for the second time as class {}. '
+                                'Note that custom names are case-insensitive. ' + refer_to_faq_msg(55), k, c)
+                    continue
                 else:
                     new_keys_lower[k.lower()] = k
                     new_keys[k] = c
@@ -100,9 +108,9 @@ def _update(cls, registered_list: list, registered_dict: dict, key: str, enabled
     registered_dict.update(new_keys)
 
 
-def update_registration(classes: list, enabled_transforms: list, disabled_transforms: list):
+def update_registration(classes: list, enabled_transforms: list, disabled_transforms: list, exclude_modules: set):
     for cls in classes:
-        _update(cls, cls.registered_cls, cls.registered_ops, 'op', enabled_transforms, disabled_transforms)
+        _update(cls, cls.registered_cls, cls.registered_ops, 'op', enabled_transforms, disabled_transforms, exclude_modules)
         _registered_classes_dict.setdefault(cls.class_type(), set()).add(cls)
 
 
@@ -326,3 +334,7 @@ def apply_replacements(graph: Graph, replacements_type: list):
     """
     replacers_order = get_replacers_order(replacements_type)
     apply_replacements_list(graph, replacers_order)
+
+
+def clear_registered_classes_dict():
+    _registered_classes_dict.clear()
