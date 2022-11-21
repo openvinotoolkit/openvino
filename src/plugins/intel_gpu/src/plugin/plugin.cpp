@@ -968,12 +968,17 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     } else if (name == ov::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties;
+        cachingProperties.push_back(ov::PropertyName(uarch_version.name(), PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(execution_units_count.name(), PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName("GPU_DRIVER_VERSION", PropertyMutability::RO));
         return decltype(ov::caching_properties)::value_type(cachingProperties);
+    } else if (name == "GPU_DRIVER_VERSION") {
+        return device_info.driver_version;
     } else if (name == ov::device::architecture) {
         std::stringstream s;
         s << "GPU.";
         if (device_info.gfx_ver.major == 0 && device_info.gfx_ver.minor == 0) {
-            s << "unknown";
+            s << device_info.dev_name;
         } else {
             s << static_cast<int>(device_info.gfx_ver.major) << "."
               << static_cast<int>(device_info.gfx_ver.minor) << "."
