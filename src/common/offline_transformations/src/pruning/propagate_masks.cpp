@@ -1432,10 +1432,10 @@ public:
     }
 };
 
-static ngraph::Mask::Ptr create_split_mask(ngraph::Mask::Ptr input_mask,
-                                           int64_t axis,
-                                           uint64_t split_start,
-                                           uint64_t split_end) {
+static ngraph::Mask::Ptr create_connect_split_output_mask(ngraph::Mask::Ptr input_mask,
+                                                          const int64_t axis,
+                                                          const uint64_t split_start,
+                                                          const uint64_t split_end) {
     auto output_mask = std::make_shared<ngraph::Mask>();
     auto input_mask_raw = input_mask.get();
     output_mask->add_callback(
@@ -1522,7 +1522,7 @@ public:
             std::vector<ngraph::Mask::Ptr> output_masks;
             for (size_t i = 0; i < split->get_output_size(); i++) {
                 split_end += split_lengths[i];
-                output_masks.push_back(create_split_mask(input_mask, axis, split_start, split_end));
+                output_masks.push_back(create_connect_split_output_mask(input_mask, axis, split_start, split_end));
                 ngraph::setMask(split->output(i), output_masks[i]);
                 split_start = split_end;
             }
@@ -1571,7 +1571,7 @@ public:
             uint64_t split_end = split_step;
             std::vector<ngraph::Mask::Ptr> output_masks;
             for (size_t i = 0; i < split->get_output_size(); i++) {
-                output_masks.push_back(create_split_mask(input_mask, axis, split_start, split_end));
+                output_masks.push_back(create_connect_split_output_mask(input_mask, axis, split_start, split_end));
                 ngraph::setMask(split->output(i), output_masks[i]);
                 split_start = split_end;
                 split_end += split_step;
