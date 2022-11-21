@@ -21,7 +21,7 @@ class TestRelu(PytorchLayerTest):
                 self.inplace = inplace
 
             def forward(self, x):
-                return F.relu(x, inplace=self.inplace)
+                return torch.cat([x, F.relu(x, inplace=self.inplace)])
 
         ref_net = None
 
@@ -30,4 +30,4 @@ class TestRelu(PytorchLayerTest):
     @pytest.mark.parametrize("inplace", [False, True])
     @pytest.mark.nightly
     def test_relu(self, inplace, ie_device, precision, ir_version):
-        self._test(*self.create_model(inplace), ie_device, precision, ir_version, inplace=inplace)
+        self._test(*self.create_model(inplace), ie_device, precision, ir_version)

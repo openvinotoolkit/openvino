@@ -21,7 +21,7 @@ class TestLeakyRelu(PytorchLayerTest):
                 self.inplace = inplace
 
             def forward(self, x):
-                return F.leaky_relu(x, self.alpha, inplace=self.inplace)
+                return torch.cat([x, F.leaky_relu(x, self.alpha, inplace=self.inplace)])
             
         ref_net = None
 
@@ -31,4 +31,4 @@ class TestLeakyRelu(PytorchLayerTest):
     @pytest.mark.parametrize("alpha,inplace", [(0.01, True), (0.01, False), (1.01, True), (1.01, False), (-0.01, True), (-0.01, False)])
     @pytest.mark.nightly
     def test_leaky_relu(self, alpha, inplace, ie_device, precision, ir_version):
-        self._test(*self.create_model(alpha, inplace), ie_device, precision, ir_version, inplace=inplace)
+        self._test(*self.create_model(alpha, inplace), ie_device, precision, ir_version)

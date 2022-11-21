@@ -29,7 +29,7 @@ class PytorchLayerTest:
                     return True
         return False
 
-    def _test(self, model, ref_net, kind, ie_device, precision, ir_version, infer_timeout=60, dynamic_shapes=True, inplace=False, **kwargs):
+    def _test(self, model, ref_net, kind, ie_device, precision, ir_version, infer_timeout=60, dynamic_shapes=True, **kwargs):
         """
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
                                                        Example: "transform_1,transform_2"
@@ -80,14 +80,12 @@ class PytorchLayerTest:
         torch_inps = [torch.from_numpy(inp) for inp in inputs]
         fw_res = model(*torch_inps)
 
-        # check if results dtypes match
-        assert torch.tensor(np.array(list(infer_res.values()))).dtype == fw_res.dtype
-
         if not isinstance(fw_res, tuple):
             fw_res = (fw_res,)
-        
-        if inplace:
-            fw_res = tuple([fw_res[0], fw_res[0]])
+
+        # check if results dtypes match
+        for fw_tensor, ov_tensor in zip(fw_res, list(infer_res.values())):
+            assert torch.tensor(np.array(ov_tensor)).dtype == fw_tensor.dtype
 
         if 'custom_eps' in kwargs and kwargs['custom_eps'] is not None:
             custom_eps = kwargs['custom_eps']
@@ -118,7 +116,7 @@ class PytorchLayerTest:
         raise RuntimeError("Please provide inputs generation function")
 
 
-def get_params(ie_device=None, precision=None):
+def get_params(ie_device=['CPU'], precision=None):
     """
     :param ie_device: list of devices
     :param precision: list of precisions
