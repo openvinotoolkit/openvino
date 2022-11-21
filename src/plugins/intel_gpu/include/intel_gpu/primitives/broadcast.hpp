@@ -78,7 +78,7 @@ struct broadcast : public primitive_base<broadcast> {
               const tensor& broadcast_sizes,
               const std::vector<uint16_t>& broadcast_axes = {},
               const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           broadcast_sizes(broadcast_sizes),
           broadcast_axes(broadcast_axes) {}
 
@@ -103,7 +103,7 @@ struct broadcast : public primitive_base<broadcast> {
               const ngraph::AxisSet& axes_mapping,
               const ov::op::BroadcastModeSpec& broadcast_spec = ov::op::BroadcastType::EXPLICIT,
               const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           target_shape(target_shape),
           axes_mapping(axes_mapping),
           broadcast_mode(broadcast_spec),
@@ -117,7 +117,7 @@ struct broadcast : public primitive_base<broadcast> {
           const ngraph::AxisSet& axes_mapping,
           const ov::op::BroadcastModeSpec& broadcast_spec = ov::op::BroadcastType::EXPLICIT,
           const padding& output_padding = padding())
-    : primitive_base(id, {input, target_shape_id}, output_padding),
+    : primitive_base(id, {input, target_shape_id}, {output_padding}),
       target_shape({}),
       axes_mapping(axes_mapping),
       broadcast_mode(broadcast_spec),

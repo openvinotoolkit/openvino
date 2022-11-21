@@ -53,7 +53,7 @@ struct pyramid_roi_align : public primitive_base<pyramid_roi_align> {
                       const padding &output_padding = padding())
         : primitive_base(id,
                          { rois, P2, P3, P4, P5 },
-                         output_padding)
+                         {output_padding})
         , output_size(output_size)
         , sampling_ratio(sampling_ratio)
         , pyramid_scales(std::move(pyramid_scales))

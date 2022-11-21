@@ -50,7 +50,7 @@ struct border : public primitive_base<border> {
            const ov::op::PadMode pad_mode = ov::op::PadMode::CONSTANT,
            const float pad_value = 0.0f,
            const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           pads_begin(pads_begin),
           pads_end(pads_end),
           pad_mode(pad_mode),
@@ -64,7 +64,7 @@ struct border : public primitive_base<border> {
            const ov::op::PadMode pad_mode = ov::op::PadMode::CONSTANT,
            const float pad_value = 0.0f,
            const padding& output_padding = padding())
-        : primitive_base(id, {input, pads_begin_id, pads_end_id}, output_padding),
+        : primitive_base(id, {input, pads_begin_id, pads_end_id}, {output_padding}),
           pads_begin({}),
           pads_end({}),
           pad_mode(pad_mode),

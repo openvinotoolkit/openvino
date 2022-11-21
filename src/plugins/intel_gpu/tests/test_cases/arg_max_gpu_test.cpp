@@ -487,15 +487,18 @@ TEST(top_k_layer_tests, multiple_outputs) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(cldnn::data("const", {top_k_input}));
-    topology.add(arg_max_min("arg_max",
-                             { input_info("input"), input_info("const") },
-                             ov::op::TopKMode::MAX, top_k,
-                             0,
-                             ov::op::TopKSortType::SORT_VALUES,
-                             false,
-                             padding(),
-                             data_types::f32,
-                             2));
+    auto arg_max_min_prim = arg_max_min("arg_max",
+                                        { input_info("input"), input_info("const") },
+                                        ov::op::TopKMode::MAX, top_k,
+                                        0,
+                                        ov::op::TopKSortType::SORT_VALUES,
+                                        false,
+                                        padding(),
+                                        data_types::f32,
+                                        2);
+    arg_max_min_prim.output_paddings = {padding(), padding()};
+    arg_max_min_prim.output_data_types = {optional_data_type{data_types::f32}, optional_data_type{data_types::f32}};
+    topology.add(arg_max_min_prim);
     topology.add(permute("permute_1", input_info("arg_max", 0), {0, 1, 2, 3}, padding()));
     topology.add(permute("permute_2", input_info("arg_max", 1), {0, 1, 2, 3}, padding()));
     topology.add(concatenation("concat", { input_info("permute_1"), input_info("permute_2") }, 0));

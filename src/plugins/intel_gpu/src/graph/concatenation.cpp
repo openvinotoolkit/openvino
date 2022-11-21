@@ -21,7 +21,7 @@ layout concatenation_inst::calc_output_layout(concatenation_node const& node, ke
     auto output_format = input_layout.format;
     auto result_sizes = input_layout.get_dims();
 
-    auto output_dt = desc->output_data_type ? *desc->output_data_type : input_layout.data_type;
+    auto output_dt = desc->output_data_types[0].value_or(input_layout.data_type);
 
     auto axis_index = desc->axis;
 
@@ -46,7 +46,7 @@ std::vector<layout> concatenation_inst::calc_output_layouts(const concatenation_
 
     auto input_layout = impl_param.get_input_layout();
 
-    auto output_dt = desc->output_data_type.value_or(input_layout.data_type);
+    auto output_dt = desc->output_data_types[0].value_or(input_layout.data_type);
     auto output_format = input_layout.format;
     for (size_t i = 0; i < desc->input.size(); ++i) {
         if (impl_param.get_input_layout(i).format == format::b_fs_yx_fsv16)

@@ -95,7 +95,7 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
                 tensor_from_dims(op->get_output_shape(0)));
 
     // GPU primitive supports only i32 as output data type
-    primitive.output_data_type = cldnn::element_type_to_data_type(ngraph::element::i32);
+    primitive.output_data_types = {cldnn::element_type_to_data_type(ngraph::element::i32)};
 
     if (num_output == 2) {
         primitive.second_output = reordered_inputs.back().pid;

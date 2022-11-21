@@ -49,7 +49,7 @@ struct dft : public primitive_base<dft> {
         dft_direction direction,
         dft_mode mode,
         const padding& output_padding = {})
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           axes(std::move(axes)),
           signal_size(std::move(signal_size)),
           output_shape(output_shape),

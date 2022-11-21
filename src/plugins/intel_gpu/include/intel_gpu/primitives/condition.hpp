@@ -48,7 +48,7 @@ struct condition : public primitive_base<condition> {
               const cond_functions& func,
               const tensor& offset = {0, 0, 0, 0, 0},
               const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           topology_true(topology_true),
           topology_false(topology_false),
           compare_data(compare_data),

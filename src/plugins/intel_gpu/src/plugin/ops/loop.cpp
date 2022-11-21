@@ -125,7 +125,7 @@ static void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
                 const auto from_prim = body_topology.at(from_id);
                 const auto& to_ngraph_type = to->get_element_type();
                 const auto to_cldnn_type = cldnn::element_type_to_data_type(to_ngraph_type);
-                from_prim->output_data_type = to_cldnn_type;
+                from_prim->output_data_types = {to_cldnn_type};
             }
             back_edges.emplace_back(from_id, to_id);
         }

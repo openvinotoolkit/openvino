@@ -48,7 +48,7 @@ struct concatenation : public primitive_base<concatenation> {
         const std::vector<input_info>& input,
         const int64_t axis,
         const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding), axis(axis) {}
+        : primitive_base(id, {input}, {output_padding}), axis(axis) {}
 
     /// @li Constructs concatenation primitive.
     /// @param id This primitive id.
@@ -61,7 +61,7 @@ struct concatenation : public primitive_base<concatenation> {
         const int64_t axis,
         const data_types output_dt,
         const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding, optional_data_type{output_dt}), axis(axis) {}
+        : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_dt}}), axis(axis) {}
 
     /// @brief Dimension along which concatenation should take place
     int64_t axis;

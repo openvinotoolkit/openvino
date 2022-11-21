@@ -40,7 +40,7 @@ struct deconvolution : public primitive_base<deconvolution> {
                   ov::Strides stride = {1, 1},
                   ov::CoordinateDiff pad = {0, 0},
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           pad(pad),
           stride(stride),
           with_output_size(false),
@@ -66,7 +66,7 @@ struct deconvolution : public primitive_base<deconvolution> {
                   ov::Strides stride = {1, 1},
                   ov::CoordinateDiff pad = {0, 0},
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           pad(pad),
           stride(stride),
           with_output_size(false),
@@ -89,7 +89,7 @@ struct deconvolution : public primitive_base<deconvolution> {
                   ov::Strides stride = {1, 1},
                   ov::CoordinateDiff pad = {0, 0},
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           pad(pad),
           stride(stride),
           with_output_size(false),
@@ -114,7 +114,7 @@ struct deconvolution : public primitive_base<deconvolution> {
                   ov::Strides stride = {1, 1},
                   ov::CoordinateDiff pad = {0, 0},
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           pad(pad),
           stride(stride),
           with_output_size(false),
@@ -141,7 +141,7 @@ struct deconvolution : public primitive_base<deconvolution> {
                   ov::CoordinateDiff pad,
                   tensor output_size,
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           pad(pad),
           stride(stride),
           with_output_size(true),
@@ -172,7 +172,7 @@ struct deconvolution : public primitive_base<deconvolution> {
                   tensor output_size,
                   bool grouped_weights_shape,
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           pad(pad),
           stride(stride),
           with_output_size(true),
@@ -198,7 +198,7 @@ struct deconvolution : public primitive_base<deconvolution> {
                   ov::CoordinateDiff pad,
                   tensor output_size,
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           pad(pad),
           stride(stride),
           with_output_size(true),

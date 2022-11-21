@@ -49,7 +49,7 @@ struct lrn : public primitive_base<lrn> {
         float beta,
         lrn_norm_region lrn_norm_region,
         const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           size(size),
           k(k),
           alpha(alpha),

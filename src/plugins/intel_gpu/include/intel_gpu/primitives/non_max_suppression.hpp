@@ -49,7 +49,7 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
                         const primitive_id& second_output = primitive_id(),
                         const primitive_id& third_output = primitive_id(),
                         const size_t num_outputs = 1)
-        : primitive_base(id, {boxes_positions, boxes_score}, padding(), optional_data_type(), num_outputs)
+        : primitive_base(id, {boxes_positions, boxes_score}, {padding()}, {optional_data_type()}, num_outputs)
         , selected_indices_num(selected_indices_num)
         , center_point_box(center_point_box)
         , sort_result_descending(sort_result_descending)

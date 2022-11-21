@@ -26,6 +26,21 @@ static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>
     uint64_t chosen_axis = op->get_axis();
 
     if (p.use_new_shape_infer()) {
+        size_t num_outputs = op->get_output_size();
+        auto get_output_paddings = [&]() {
+            std::vector<cldnn::padding> output_paddings;
+            for (size_t i = 0; i < num_outputs; i++)
+                output_paddings.push_back(cldnn::padding());
+            return output_paddings;
+        };
+        auto get_output_data_types = [&]() {
+            std::vector<cldnn::optional_data_type> output_data_types;
+            for (size_t i = 0; i < num_outputs; i++) {
+                auto type = op->get_output_element_type(i);
+                output_data_types.push_back(cldnn::element_type_to_data_type(type));
+            }
+            return output_data_types;
+        };
         auto argmaxPrim = cldnn::arg_max_min(layerName,
                                              inputs,
                                              mode,
@@ -35,7 +50,9 @@ static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>
                                              true,
                                              cldnn::padding({0, 0, 0, 0}, 0),
                                              cldnn::element_type_to_data_type(op->get_output_element_type(0)),
-                                             op->get_output_size());
+                                             num_outputs);
+        argmaxPrim.output_paddings = get_output_paddings();
+        argmaxPrim.output_data_types = get_output_data_types();
         p.add_primitive(*op, argmaxPrim);
     } else {
         if (op->get_output_size() == 2) {

@@ -37,7 +37,7 @@ struct gather : public primitive_base<gather> {
            const int64_t batch_dim = 0,
            const bool support_neg_ind = false,
            const padding& output_padding = padding())
-        : primitive_base(id, {dict, idx}, output_padding)
+        : primitive_base(id, {dict, idx}, {output_padding})
         , axis(axis)
         , output_shape(output_shape)
         , batch_dim(batch_dim)

@@ -42,8 +42,8 @@ struct arg_max_min : public primitive_base<arg_max_min> {
                 bool values_first = false,
                 const padding& output_padding = padding(),
                 data_types output_data_type = data_types::f32,
-                const int num_outputs = 1)
-        : primitive_base(id, inputs, output_padding, optional_data_type{output_data_type}, num_outputs),
+                const size_t num_outputs = 1)
+        : primitive_base(id, inputs, {output_padding}, {optional_data_type{output_data_type}}, num_outputs),
           mode(mode),
           top_k(top_k),
           axis(axis),

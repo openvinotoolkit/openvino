@@ -2443,7 +2443,7 @@ public:
         assert(mean == "");
         assert(subtract_per_feature.size() == 0);
 
-        auto output = engine.allocate_memory(cldnn::layout(*reorder->output_data_type, inputs[0]->get_layout().format, inputs[0]->get_layout().get_tensor()));
+        auto output = engine.allocate_memory(cldnn::layout(*reorder->output_data_types[0], inputs[0]->get_layout().format, inputs[0]->get_layout().get_tensor()));
 
         cldnn::mem_lock<InputType> input_mem(inputs[0], get_test_stream());
         cldnn::mem_lock<OutputType> output_mem(output, get_test_stream());
@@ -2462,7 +2462,7 @@ public:
     {
         if (generic_params->data_type == data_types::f32)
         {
-            if (*layer_params->output_data_type == data_types::f32)
+            if (*layer_params->output_data_types[0] == data_types::f32)
             {
                 return generate_reference_typed<float, float>(inputs);
             }
@@ -2473,7 +2473,7 @@ public:
         }
         else
         {
-            if (*layer_params->output_data_type == data_types::f32)
+            if (*layer_params->output_data_types[0] == data_types::f32)
             {
                 return generate_reference_typed<FLOAT16, float>(inputs);
             }

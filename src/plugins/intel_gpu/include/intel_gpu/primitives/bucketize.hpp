@@ -27,7 +27,7 @@ struct bucketize : primitive_base<bucketize> {
               data_types output_type = data_types::i64,
               bool with_right_bound = true,
               const padding& output_padding = {})
-        : primitive_base(id, inputs, output_padding, optional_data_type(output_type)),
+        : primitive_base(id, inputs, {output_padding}, {optional_data_type(output_type)}),
           with_right_bound(with_right_bound) {}
 
     bool with_right_bound;

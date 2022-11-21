@@ -521,7 +521,7 @@ public:
         topology topology;
         auto red = reduce("reduce", input_info("input"), reduce_mode, reduce_axis, keep_dims);
         if (force_output_dt) {
-            red.output_data_type = output_dt;
+            red.output_data_types = {output_dt};
         }
         topology.add(input_layout("input", input_mem->get_layout()));
         topology.add(red);
@@ -1735,7 +1735,7 @@ public:
             topology topology;
             auto red = reduce("reduce", input_info("input"), target_mode, reduce_axis, keep_dims);
             if (force_output_dt) {
-                red.output_data_type = output_dt;
+                red.output_data_types = {output_dt};
             }
             topology.add(input_layout("input", input_mem->get_layout()));
             topology.add(red);
@@ -1889,7 +1889,7 @@ public:
         topology topology;
         auto red = reduce("reduce", input_info("input"), reduce_mode, reduce_axis, true);
         if (force_output_dt) {
-            red.output_data_type = output_dt;
+            red.output_data_types = {output_dt};
         }
         topology.add(input_layout("input", input_mem->get_layout()));
         topology.add(red);

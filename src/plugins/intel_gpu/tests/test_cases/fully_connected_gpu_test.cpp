@@ -1376,7 +1376,7 @@ public:
                                      [](tensor::value_type x) { return x != 1l; });
         size_t input_rank = std::distance(input_sizes.begin(), last_dim.base());
         auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "bias", cldnn::padding(), input_rank);
-        fc_prim.output_data_type = type_to_data_type<OutputT>::value;
+        fc_prim.output_data_types = {type_to_data_type<OutputT>::value};
         topo.add(fc_prim);
 
         topo.add(data("quant_input_low", quantization_input_low));

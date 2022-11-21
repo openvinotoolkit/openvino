@@ -54,7 +54,7 @@ struct one_hot : public primitive_base<one_hot> {
             const float& on_value = 1.0f,
             const float& off_value = 0.0f,
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding)
+        : primitive_base(id, {input}, {output_padding})
         , shape(shape)
         , one_hot_axis(one_hot_axis)
         , depth(depth)
@@ -77,7 +77,7 @@ struct one_hot : public primitive_base<one_hot> {
             const float& on_value = 1.0f,
             const float& off_value = 0.0f,
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding, optional_data_type{output_dt})
+        : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_dt}})
         , shape(shape)
         , one_hot_axis(one_hot_axis)
         , depth(depth)

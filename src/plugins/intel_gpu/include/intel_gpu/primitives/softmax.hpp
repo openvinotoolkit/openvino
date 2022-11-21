@@ -33,7 +33,7 @@ struct softmax : public primitive_base<softmax> {
             const input_info& input,
             const int64_t dimension = 1,
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding), dimension(dimension) {}
+        : primitive_base(id, {input}, {output_padding}), dimension(dimension) {}
 
     /// @brief Defines a scope of a single softmax normalization.
     /// @details

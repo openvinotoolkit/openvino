@@ -37,7 +37,7 @@ struct embedding_bag : public primitive_base<embedding_bag> {
                   const tensor& output_shape,
                   const int32_t default_index = -1,
                   const padding& output_padding = padding())
-        : primitive_base(id, inputs, output_padding), type(type), output_shape(output_shape), default_index(default_index) {}
+        : primitive_base(id, inputs, {output_padding}), type(type), output_shape(output_shape), default_index(default_index) {}
 
     /// @brief Type of EmbeddingBag operation
     embedding_bag_type type;

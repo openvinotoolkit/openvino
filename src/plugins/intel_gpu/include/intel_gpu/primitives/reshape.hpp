@@ -40,7 +40,7 @@ struct reshape : public primitive_base<reshape> {
             const tensor& output_shape,
             reshape_mode mode = reshape_mode::base,
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding)
+        : primitive_base(id, {input}, {output_padding})
         , output_shape(output_shape)
         , output_pattern({})
         , output_partial_shape({})
@@ -54,7 +54,7 @@ struct reshape : public primitive_base<reshape> {
             const ov::PartialShape& output_partial_shape,
             reshape_mode mode = reshape_mode::base,
             const padding& output_padding = padding())
-        : primitive_base(id, {input, pattern_id}, output_padding)
+        : primitive_base(id, {input, pattern_id}, {output_padding})
         , output_shape(tensor())
         , special_zero(special_zero)
         , output_pattern({})
@@ -69,7 +69,7 @@ struct reshape : public primitive_base<reshape> {
             const ov::PartialShape& output_partial_shape,
             reshape_mode mode = reshape_mode::base,
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding)
+        : primitive_base(id, {input}, {output_padding})
         , output_shape(tensor())
         , special_zero(special_zero)
         , output_pattern(output_pattern)

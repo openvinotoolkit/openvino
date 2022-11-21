@@ -180,9 +180,9 @@ void add_required_reorders::run(program& p) {
 
                         if (correct_layout_selected) {
                             // change output_data_type field in usr to i32
-                            if ((static_cast<bool>(usr->get_primitive()->output_data_type) == true) &&
-                                (*(usr->get_primitive()->output_data_type) == data_types::i64)) {
-                                std::const_pointer_cast<primitive>(usr->get_primitive())->output_data_type = data_types::i32;
+                            if ((static_cast<bool>(usr->get_primitive()->output_data_types[0]) == true) &&
+                                (*(usr->get_primitive()->output_data_types[0]) == data_types::i64)) {
+                                std::const_pointer_cast<primitive>(usr->get_primitive())->output_data_types[0] = data_types::i32;
                             }
                             // add reorders between usr int32 output and inputs of its users
                             auto next_usr_itr = usr->get_users().begin();
@@ -285,9 +285,9 @@ void add_required_reorders::run(program& p) {
                     }
 
                     // change output_data_type field in usr to i32
-                    if ((static_cast<bool>(usr->get_primitive()->output_data_type) == true) &&
-                        (*(usr->get_primitive()->output_data_type) == data_types::i64)) {
-                        std::const_pointer_cast<primitive>(usr->get_primitive())->output_data_type = data_types::i32;
+                    if ((static_cast<bool>(usr->get_primitive()->output_data_types[0]) == true) &&
+                        (*(usr->get_primitive()->output_data_types[0]) == data_types::i64)) {
+                        std::const_pointer_cast<primitive>(usr->get_primitive())->output_data_types[0] = data_types::i32;
                     }
 
                     // add reorders between usr int32 output and inputs of its users

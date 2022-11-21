@@ -15,7 +15,7 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(select)
 
 layout select_inst::calc_output_layout(select_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for select_node!");
 
     auto in_layout = impl_param.get_non_padded_input_layout(1);
@@ -40,7 +40,7 @@ std::vector<layout> select_inst::calc_output_layouts(const select_node& /*node*/
     auto input2_layout = impl_param.get_input_layout(2);
 
     auto desc = impl_param.typed_desc<select>();
-    auto dt = desc->output_data_type.value_or(input1_layout.data_type);
+    auto dt = desc->output_data_types[0].value_or(input1_layout.data_type);
 
     ov::op::v1::Select op;
     op.set_auto_broadcast(desc->broadcast_spec);

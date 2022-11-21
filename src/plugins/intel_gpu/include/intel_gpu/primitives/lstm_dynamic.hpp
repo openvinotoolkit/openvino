@@ -53,7 +53,7 @@ struct lstm_dynamic : public primitive_base<lstm_dynamic> {
                  const float clip = 0.0f,
                  const bool input_forget = 0,
                  const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           dyn_length(dyn_length),
           weights(weights),
           recurrent(recurrent),

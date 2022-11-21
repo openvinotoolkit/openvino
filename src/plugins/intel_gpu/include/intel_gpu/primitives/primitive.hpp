@@ -70,13 +70,13 @@ public:
     primitive(const primitive_type_id& type,
               const primitive_id& id,
               const std::vector<input_info>& input,
-              const padding& output_padding = padding(),
-              const optional_data_type output_data_type = optional_data_type(),
+              const std::vector<padding>& output_paddings = {padding()},
+              const std::vector<optional_data_type> output_data_types = {optional_data_type()},
               const size_t num_outputs = 1)
         : type(type),
           id(id),
-          output_padding(output_padding),
-          output_data_type(output_data_type),
+          output_paddings(output_paddings),
+          output_data_types(output_data_types),
           input(input),
           num_outputs(num_outputs) {}
 
@@ -108,10 +108,10 @@ public:
     std::string origin_op_type_name;
 
     /// @brief Requested output padding.
-    padding output_padding;
+    std::vector<padding> output_paddings;
 
     /// @brief Requested output precision, if any.
-    optional_data_type output_data_type;
+    std::vector<optional_data_type> output_data_types;
 
     size_t input_size() const { return input.size(); }
 
@@ -138,10 +138,10 @@ class primitive_base : public primitive {
 protected:
     explicit primitive_base(const primitive_id& id,
                             const std::vector<input_info>& input,
-                            const padding& output_padding = padding(),
-                            optional_data_type output_data_type = optional_data_type(),
+                            const std::vector<padding>& output_paddings = {padding()},
+                            const std::vector<optional_data_type> output_data_types = {optional_data_type()},
                             const size_t num_outputs = 1)
-        : primitive(PType::type_id(), id, input, output_padding, output_data_type, num_outputs) {}
+        : primitive(PType::type_id(), id, input, output_paddings, output_data_types, num_outputs) {}
 };
 
 struct primitive_info {

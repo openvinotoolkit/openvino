@@ -31,7 +31,7 @@ struct ctc_loss : primitive_base<ctc_loss> {
              bool ctc_merge_repeated,
              bool unique,
              const padding& output_padding = {})
-        : primitive_base(id, inputs, output_padding),
+        : primitive_base(id, inputs, {output_padding}),
           preprocess_collapse_repeated(preprocess_collapse_repeated),
           ctc_merge_repeated(ctc_merge_repeated),
           unique(unique) {}

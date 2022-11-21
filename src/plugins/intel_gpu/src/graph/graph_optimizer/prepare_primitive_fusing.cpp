@@ -555,7 +555,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                        desc->weights,
                                                                        bias_name,
                                                                        fc.get_output_layout().data_type,
-                                                                       desc->output_padding,
+                                                                       desc->output_paddings[0],
                                                                        desc->input_size);
 
             auto& new_fc_node = p.get_or_create(fc_with_bias_prim);

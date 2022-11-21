@@ -5005,7 +5005,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32, fs_byx_fsv32)
 
         auto conv_fsv = convolution("conv_fsv", input_info("input_fsv"), { "weights_fsv" }, { "biases_fsv" },
                                     { stride, stride }, { pad, pad });
-        conv_fsv.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+        conv_fsv.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
 
         topology.add(conv_fsv);
     }
@@ -5028,7 +5028,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32, fs_byx_fsv32)
 
         auto conv_fsv = convolution("conv_fsv", input_info("input_fsv"), { "weights_fsv" },
             { stride, stride }, { pad, pad });
-        conv_fsv.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+        conv_fsv.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
 
         topology.add(conv_fsv);
     }
@@ -5296,7 +5296,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32_crop, fs_byx_fsv32_crop)
 
         auto conv_fsv = convolution("conv_fsv", input_info("right_crop"), { "weights_fsv" }, { "biases_fsv" },
             { stride, stride }, { pad, pad });
-        conv_fsv.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+        conv_fsv.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
         topology.add(conv_fsv);
     }
     else
@@ -5318,7 +5318,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32_crop, fs_byx_fsv32_crop)
 
         auto conv_fsv = convolution("conv_fsv", input_info("right_crop"), { "weights_fsv" },
             { stride, stride }, { pad, pad });
-        conv_fsv.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+        conv_fsv.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
         topology.add(conv_fsv);
     }
 
@@ -5547,7 +5547,7 @@ TEST(convolution_gpu, bfyx_iyxo_5x5_fp16)
 
         auto conv_fsv = convolution("conv_fsv", input_info("input"), { "weights_fsv" }, { "biases_fsv" },
                                     { stride, stride }, { pad, pad });
-        conv_fsv.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+        conv_fsv.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
 
         topology.add(conv_fsv);
     }
@@ -5572,7 +5572,7 @@ TEST(convolution_gpu, bfyx_iyxo_5x5_fp16)
 
         auto conv_fsv = convolution("conv_fsv", input_info("input"), { "weights_fsv" },
             { stride, stride }, { pad, pad });
-        conv_fsv.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+        conv_fsv.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
 
         topology.add(conv_fsv);
     }
@@ -5775,7 +5775,7 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32)
 
         auto conv_bsv16_fsv16 = convolution("conv_bsv16_fsv16", input_info("input_bsv16_fsv16"), { "weights" }, { "biases" },
                                     { 1, stride, stride }, { 0, pad, pad });
-        conv_bsv16_fsv16.output_padding = padding({ 0, 0, output_padding, output_padding, 0 }, 0.f);
+        conv_bsv16_fsv16.output_paddings = {padding({ 0, 0, output_padding, output_padding, 0 }, 0.f)};
 
         topology.add(conv_bsv16_fsv16);
     }
@@ -5798,7 +5798,7 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32)
 
         auto conv_bsv16_fsv16 = convolution("conv_bsv16_fsv16", input_info("input_bsv16_fsv16"), { "weights" },
                                     { 1, stride, stride }, { 0, pad, pad });
-        conv_bsv16_fsv16.output_padding = padding({ 0, 0, output_padding, output_padding, 0 }, 0.f);
+        conv_bsv16_fsv16.output_paddings = {padding({ 0, 0, output_padding, output_padding, 0 }, 0.f)};
 
         topology.add(conv_bsv16_fsv16);
     }
@@ -5912,7 +5912,7 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp16)
 
         auto conv_bsv16_fsv16 = convolution("conv_bsv16_fsv16", input_info("input_bsv16_fsv16"), { "weights" }, { "biases" },
                                         { 1, stride, stride }, { 0, pad, pad });
-        conv_bsv16_fsv16.output_padding = padding({ 0, 0, output_padding, output_padding, 0 }, 0.f);
+        conv_bsv16_fsv16.output_paddings = {padding({ 0, 0, output_padding, output_padding, 0 }, 0.f)};
 
         topology.add(conv_bsv16_fsv16);
     }
@@ -5935,7 +5935,7 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp16)
 
         auto conv_bsv16_fsv16 = convolution("conv_bsv16_fsv16", input_info("input_bsv16_fsv16"), { "weights" },
                                         { 1, stride, stride }, { 0, pad, pad });
-        conv_bsv16_fsv16.output_padding = padding({ 0, 0, output_padding, output_padding, 0 }, 0.f);
+        conv_bsv16_fsv16.output_paddings = {padding({ 0, 0, output_padding, output_padding, 0 }, 0.f)};
 
         topology.add(conv_bsv16_fsv16);
     }
@@ -6041,7 +6041,7 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32_fused_ops)
 
         auto conv_bsv16_fsv16 = convolution("conv_bsv16_fsv16", input_info("input_bsv16_fsv16"), { "weights" }, { "biases" },
                                        { 1, stride, stride }, { 0, pad, pad });
-        conv_bsv16_fsv16.output_padding = padding({ 0, 0, output_padding, output_padding, 0 }, 0.f);
+        conv_bsv16_fsv16.output_paddings = {padding({ 0, 0, output_padding, output_padding, 0 }, 0.f)};
 
         topology.add(conv_bsv16_fsv16);
     }
@@ -6064,7 +6064,7 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32_fused_ops)
 
         auto conv_bsv16_fsv16 = convolution("conv_bsv16_fsv16", input_info("input_bsv16_fsv16"), { "weights" },
                                        { 1, stride, stride }, { 0, pad, pad });
-        conv_bsv16_fsv16.output_padding = padding({ 0, 0, output_padding, output_padding, 0 }, 0.f);
+        conv_bsv16_fsv16.output_paddings = {padding({ 0, 0, output_padding, output_padding, 0 }, 0.f)};
 
         topology.add(conv_bsv16_fsv16);
     }
@@ -6209,7 +6209,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32)
 
         auto conv_bsv16_fsv16 = convolution("conv_bsv16_fsv16", input_info("input_bsv16_fsv16"), { "weights" }, { "biases" },
                                        { stride, stride }, { pad, pad });
-        conv_bsv16_fsv16.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+        conv_bsv16_fsv16.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
 
         topology.add(conv_bsv16_fsv16);
     }
@@ -6232,7 +6232,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32)
 
         auto conv_bsv16_fsv16 = convolution("conv_bsv16_fsv16", input_info("input_bsv16_fsv16"), { "weights" },
                                        { stride, stride }, { pad, pad });
-        conv_bsv16_fsv16.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+        conv_bsv16_fsv16.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
 
         topology.add(conv_bsv16_fsv16);
     }
@@ -6349,7 +6349,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp16)
 
         auto conv_bsv16_fsv16 = convolution("conv_bsv16_fsv16", input_info("input_bsv16_fsv16"), { "weights" }, { "biases" },
                                        { stride, stride }, { pad, pad });
-        conv_bsv16_fsv16.output_padding = padding({ 0, 0, output_padding, output_padding, 0 }, 0.f);
+        conv_bsv16_fsv16.output_paddings = {padding({ 0, 0, output_padding, output_padding, 0 }, 0.f)};
 
         topology.add(conv_bsv16_fsv16);
     }
@@ -6372,7 +6372,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp16)
 
         auto conv_bsv16_fsv16 = convolution("conv_bsv16_fsv16", input_info("input_bsv16_fsv16"), { "weights" },
                                        { stride, stride }, { pad, pad });
-        conv_bsv16_fsv16.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+        conv_bsv16_fsv16.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
 
         topology.add(conv_bsv16_fsv16);
     }
@@ -6480,7 +6480,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32_fused_ops)
 
         auto conv_bsv16_fsv16 = convolution("conv_bsv16_fsv16", input_info("input_bsv16_fsv16"), { "weights" }, { "biases" },
                                        { stride, stride }, { pad, pad });
-        conv_bsv16_fsv16.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+        conv_bsv16_fsv16.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
 
         topology.add(conv_bsv16_fsv16);
     }
@@ -6503,7 +6503,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32_fused_ops)
 
         auto conv_bsv16_fsv16 = convolution("conv_bsv16_fsv16", input_info("input_bsv16_fsv16"), { "weights" },
                                        { stride, stride }, { pad, pad });
-        conv_bsv16_fsv16.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+        conv_bsv16_fsv16.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
 
         topology.add(conv_bsv16_fsv16);
     }
@@ -6651,7 +6651,7 @@ TEST_P(convolution_depthwise_gpu, depthwise_conv_fs_b_yx_fsv32)
 
     auto conv_fsv = convolution("conv_fsv", input_info("input_fsv"), { "weights_fsv" }, groups,
                                 { stride, stride }, { pad_y, pad_x });
-    conv_fsv.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+    conv_fsv.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
 
     topology.add(conv_fsv);
 
@@ -6794,7 +6794,7 @@ TEST_P(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16)
 
     auto conv_fsv = convolution("conv_fsv", input_info("input_fsv"), { "weights_fsv" }, groups,
                                 { stride, stride }, { pad_y, pad_x });
-    conv_fsv.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+    conv_fsv.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
 
     topology.add(conv_fsv);
 
@@ -6925,7 +6925,7 @@ TEST_P(convolution_depthwise_gpu_fsv16_xy, depthwise_conv_b_fs_yx_fsv16)
 
     auto conv_fsv = convolution("conv_fsv", input_info("input_fsv"), { "weights_fsv" }, groups,
                                 { stride, stride }, { pad_y, pad_x });
-    conv_fsv.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+    conv_fsv.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
 
     topology.add(conv_fsv);
 
@@ -7128,7 +7128,7 @@ TEST_P(convolution_depthwise_gpu_bfyx, depthwise_conv_bfyx)
 
     auto conv_fsv = convolution("conv", input_info("input"), { "weights" }, groups,
                                 { stride, stride }, { pad_y, pad_x });
-    conv_fsv.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+    conv_fsv.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
 
     topology.add(conv_fsv);
 
@@ -7585,7 +7585,7 @@ TEST_P(convolution_general_gpu, conv_fp16_cases) {
                                     groups,
                                     { stride, stride },
                                     { pad_y, pad_x });
-        conv_fsv.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+        conv_fsv.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
 
         topology.add(conv_fsv);
     } else {
@@ -7611,7 +7611,7 @@ TEST_P(convolution_general_gpu, conv_fp16_cases) {
                                     groups,
                                     { stride, stride },
                                     { pad_y, pad_x });
-        conv_fsv.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+        conv_fsv.output_paddings = {padding({ 0, 0, output_padding, output_padding }, 0.f)};
         topology.add(conv_fsv);
     }
     build_options options;
@@ -7713,12 +7713,12 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_padding)
     ov::CoordinateDiff input_padding_after = { pad_y, pad_x };
 
     auto conv_fsv = convolution("conv_fsv", input_info("input_fsv16"), { "weights_fsv" }, {stride, stride}, {pad_y, pad_x}, {1, 1}, input_padding_before, input_padding_after);
-    conv_fsv.output_padding = padding({ 0, 32, 2, 2 }, 0.f);
+    conv_fsv.output_paddings = {padding({ 0, 32, 2, 2 }, 0.f)};
     topology.add(conv_fsv);                                                                                 // format 8 to 8 -> after fusing, format 8 to 3
 
     // Add reorder to bfyx
     auto reorder_bfyx = reorder("reorder_bfyx", input_info("conv_fsv"), { data_types::f16, format::bfyx, input_size });
-    reorder_bfyx.output_padding = padding({ 0, 16, 1, 1 }, 0.f);
+    reorder_bfyx.output_paddings = {padding({ 0, 16, 1, 1 }, 0.f)};
     topology.add(reorder_bfyx);                                                                             // format 8 to 3 -> after fusing, removed
 
     // Exec ref network (non-fusing)
@@ -7904,7 +7904,7 @@ public:
                 {static_cast<uint64_t>(_stride_y), static_cast<uint64_t>(_stride_x)},
                 {static_cast<std::ptrdiff_t>(_offset_y), static_cast<std::ptrdiff_t>(_offset_x)},
                 {static_cast<uint64_t>(_dilation_y), static_cast<uint64_t>(_dilation_x)});
-            conv_prim.output_data_type = output_type();
+            conv_prim.output_data_types = {output_type()};
             topo.add(conv_prim);
         } else {
             auto bias_lay = layout(output_type(), format::bfyx, tensor(feature(output_features())));
@@ -7920,7 +7920,7 @@ public:
                 {static_cast<uint64_t>(_stride_y), static_cast<uint64_t>(_stride_x)},
                 {static_cast<std::ptrdiff_t>(_offset_y), static_cast<std::ptrdiff_t>(_offset_x)},
                 {static_cast<uint64_t>(_dilation_y), static_cast<uint64_t>(_dilation_x)});
-            conv_prim.output_data_type = output_type();
+            conv_prim.output_data_types = {output_type()};
             topo.add(conv_prim);
         }
 
@@ -8269,7 +8269,7 @@ public:
                 {static_cast<uint64_t>(this->_stride_y), static_cast<uint64_t>(this->_stride_x)},
                 {static_cast<std::ptrdiff_t>(this->_offset_y), static_cast<std::ptrdiff_t>(this->_offset_x)},
                 {static_cast<uint64_t>(this->_dilation_y), static_cast<uint64_t>(this->_dilation_x)});
-            conv_prim.output_data_type = this->output_type();
+            conv_prim.output_data_types = {this->output_type()};
             topo.add(conv_prim);
         } else {
             auto bias_lay = layout(this->output_type(), format::bfyx, tensor(feature(this->output_features())));
@@ -8285,7 +8285,7 @@ public:
                 {static_cast<uint64_t>(this->_stride_y), static_cast<uint64_t>(this->_stride_x)},
                 {static_cast<std::ptrdiff_t>(this->_offset_y), static_cast<std::ptrdiff_t>(this->_offset_x)},
                 {static_cast<uint64_t>(this->_dilation_y), static_cast<uint64_t>(this->_dilation_x)});
-            conv_prim.output_data_type = this->output_type();
+            conv_prim.output_data_types = {this->output_type()};
             topo.add(conv_prim);
         }
 
@@ -8790,7 +8790,7 @@ public:
         ov::Strides stride = convolution->stride;
         ov::CoordinateDiff pad = convolution->pad;
         tensor weights_size = inputs[1]->get_layout().get_tensor();
-        padding output_padding = convolution->output_padding;
+        padding output_padding = convolution->output_paddings[0];
 
         tensor output_size = get_expected_output_tensor();
 
@@ -8818,7 +8818,7 @@ public:
                 for (int y = 0; y < output_size_y; y++) {
                     for (int x = 0; x < output_size_x; x++) {
                         int output_index = (b * output_buffer_size.feature[0] + out_f) * output_buffer_size.spatial[1] * output_buffer_size.spatial[0];
-                        tensor lower_output_padding = convolution->output_padding.lower_size();
+                        tensor lower_output_padding = convolution->output_paddings[0].lower_size();
                         output_index += (lower_output_padding.spatial[1] + y) * output_buffer_size.spatial[0] + lower_output_padding.spatial[0] + x;
 
                         output_mem[output_index] += bias_mem[out_f];
@@ -8843,7 +8843,7 @@ public:
                             int output_yi = y;
                             int output_xi = x;
                             int output_index = (output_bi * output_buffer_size.feature[0] + output_fi) * output_buffer_size.spatial[1] * output_buffer_size.spatial[0];
-                            tensor lower_output_padding = convolution->output_padding.lower_size();
+                            tensor lower_output_padding = convolution->output_paddings[0].lower_size();
                             output_index += (lower_output_padding.spatial[1] + output_yi) * output_buffer_size.spatial[0] + lower_output_padding.spatial[0] + output_xi;
 
                             for (int kernel_y = 0; kernel_y < weights_size.spatial[1]; kernel_y++) {
@@ -9042,7 +9042,7 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
                                     groups,
                                     { stride, stride },
                                     { 0, 0 });
-        conv_fsv.output_padding = padding({ 0, 0, 0, 0 }, 0.f);
+        conv_fsv.output_paddings = {padding({ 0, 0, 0, 0 }, 0.f)};
 
         topology.add(conv_fsv);
     } else {
@@ -9068,7 +9068,7 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
                                     groups,
                                     { stride, stride },
                                     { 0, 0 });
-        conv_fsv.output_padding = padding({ 0, 0, 0, 0 }, 0.f);
+        conv_fsv.output_paddings = {padding({ 0, 0, 0, 0 }, 0.f)};
         topology.add(conv_fsv);
     }
     build_options options;

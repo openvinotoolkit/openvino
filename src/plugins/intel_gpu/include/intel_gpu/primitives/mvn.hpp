@@ -33,7 +33,7 @@ struct mvn : public primitive_base<mvn> {
         const bool eps_inside_sqrt,
         const bool across_channels = false,
         const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           normalize_variance(normalize_variance),
           epsilon(epsilon),
           eps_inside_sqrt(eps_inside_sqrt),

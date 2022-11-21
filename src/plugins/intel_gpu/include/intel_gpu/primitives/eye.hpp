@@ -29,7 +29,7 @@ struct eye : public primitive_base<eye> {
         const tensor& output_shape,
         const int32_t shift,
         const cldnn::data_types output_type)
-        : primitive_base{id, inputs, padding(), optional_data_type(output_type)},
+        : primitive_base{id, inputs, {padding()}, {optional_data_type(output_type)}},
           output_shape{output_shape},
           shift{shift} {}
 

@@ -51,7 +51,7 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const primitive_id& bias = "",
                     const padding& output_padding = padding(),
                     const size_t input_size = 2)
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           weights(weights),
           bias(bias),
           input_size(input_size)
@@ -69,7 +69,7 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const data_types data_type,
                     const padding& output_padding = padding(),
                     const size_t input_size = 2)
-        : primitive_base(id, { input }, output_padding, optional_data_type{data_type}),
+        : primitive_base(id, { input }, {output_padding}, {optional_data_type{data_type}}),
           weights(weights),
           bias(bias),
           input_size(input_size)

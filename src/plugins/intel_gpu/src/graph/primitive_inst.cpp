@@ -219,7 +219,7 @@ void primitive_inst::update_shape() {
     _impl_params->memory_deps = memory_deps;
 
     auto update_output_layout = [&](layout& layout, size_t idx) {
-        layout.data_padding = padding::max(_node->get_primitive()->output_padding, layout.data_padding);
+        layout.data_padding = padding::max(_node->get_primitive()->output_paddings[idx], layout.data_padding);
         if (_impl_params->get_output_layout(idx) != layout) {
             GPU_DEBUG_IF(debug_config->verbose >= 4) {
                 GPU_DEBUG_COUT << id() << ": update shape: was: " << _impl_params->get_output_layout(idx).to_short_string()

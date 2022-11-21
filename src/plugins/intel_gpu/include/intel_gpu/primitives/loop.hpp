@@ -131,7 +131,7 @@ struct loop : public primitive_base<loop> {
          const primitive_id& current_iteration_id = primitive_id(),
          const primitive_id& condition_id = primitive_id(),
          const padding& output_padding = padding())
-            : primitive_base(id, inputs, output_padding),
+            : primitive_base(id, inputs, {output_padding}),
               body(body),
               trip_count_id(trip_count_id),
               initial_execution_id(initial_condition_id),

@@ -29,7 +29,7 @@ struct cum_sum : public primitive_base<cum_sum> {
             const bool exclusive = false,
             const bool reverse = false,
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding), axis(axis), exclusive(exclusive), reverse(reverse)
+        : primitive_base(id, {input}, {output_padding}), axis(axis), exclusive(exclusive), reverse(reverse)
     {}
 
     /// @brief Scalar axis.

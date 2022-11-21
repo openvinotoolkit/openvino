@@ -36,7 +36,7 @@ struct gather_tree : public primitive_base<gather_tree> {
                     const input_info& max_seq_len_input,
                     const input_info& end_token,
                     const padding& output_padding = padding())
-            : primitive_base(id, { step_input, parent_input, max_seq_len_input, end_token }, output_padding) {}
+            : primitive_base(id, { step_input, parent_input, max_seq_len_input, end_token }, {output_padding}) {}
 };
     /// @}
     /// @}

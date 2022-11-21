@@ -43,14 +43,27 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
         }
     }
 
-    // GPU primitive supports only i32 as output data type
-    auto out_type = op->get_output_element_type(0);
-    if (out_type == ngraph::element::i64) {
-        out_type = ngraph::element::i32;
-    }
-
     auto boxesShape = op->get_input_partial_shape(0);
-    std::size_t num_output = op->get_output_size();
+    size_t num_outputs = op->get_output_size();
+
+    auto get_output_paddings = [&]() {
+        std::vector<cldnn::padding> output_paddings;
+        for (size_t i = 0; i < num_outputs; i++)
+            output_paddings.push_back(cldnn::padding());
+        return output_paddings;
+    };
+    auto get_output_data_types = [&]() {
+        std::vector<cldnn::optional_data_type> output_data_types;
+        for (size_t i = 0; i < num_outputs; i++) {
+            auto type = op->get_output_element_type(i);
+            // GPU primitive supports only i32 as output data type
+            if (type == ngraph::element::i64) {
+                type = ngraph::element::i32;
+            }
+            output_data_types.push_back(cldnn::element_type_to_data_type(type));
+        }
+        return output_data_types;
+    };
 
     if (p.use_new_shape_infer()) {
         auto nonMaxSupressionLayerName = layer_type_name_ID(op);
@@ -61,9 +74,10 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
                 0,
                 op->m_center_point_box,
                 op->m_sort_result_descending,
-                "", "", "", "", "", "", num_output);
+                "", "", "", "", "", "", num_outputs);
 
-        prim.output_data_type = cldnn::element_type_to_data_type(out_type);
+        prim.output_paddings = get_output_paddings();
+        prim.output_data_types = get_output_data_types();
 
         switch (reordered_inputs.size()) {
             case 6: prim.soft_nms_sigma = reordered_inputs[5].pid;
@@ -80,7 +94,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
 
         std::vector<cldnn::memory::ptr> shared_memory;
         GPU_DEBUG_GET_INSTANCE(debug_config);
-        switch (num_output) {
+        switch (num_outputs) {
             case 3: {
                 auto mutable_precision_second = op->get_output_element_type(2);
                 if (mutable_precision_second == ngraph::element::i64) {
@@ -124,7 +138,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
             default: IE_THROW() << "Incorrect number of output for layer: " << op->get_friendly_name();
         }
 
-        auto nonMaxSupressionLayerName = num_output > 1 ? layer_type_name_ID(op) + ".out0" : layer_type_name_ID(op);
+        auto nonMaxSupressionLayerName = num_outputs > 1 ? layer_type_name_ID(op) + ".out0" : layer_type_name_ID(op);
 
         auto prim = cldnn::non_max_suppression(
                 nonMaxSupressionLayerName,
@@ -135,7 +149,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
                 op->m_sort_result_descending,
                 "", "", "", "", "", "");
 
-        prim.output_data_type = cldnn::element_type_to_data_type(out_type);
+        prim.output_data_types = get_output_data_types();
 
         switch (reordered_inputs.size()) {
             case 6: prim.soft_nms_sigma = reordered_inputs[5].pid;
@@ -146,7 +160,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
             default: IE_THROW() << "Incorrect number of input primitives for layer: " << op->get_friendly_name();
         }
 
-        switch (num_output) {
+        switch (num_outputs) {
             case 3: prim.third_output = inputs[inputs.size() - 2].pid;
             case 2: prim.second_output = inputs[inputs.size() - 1].pid;
             default: break;
@@ -154,7 +168,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
 
         p.add_primitive(*op, prim);
 
-        switch (num_output) {
+        switch (num_outputs) {
             case 3: {
                 cldnn::primitive_id non_max_supression_id_r_second = layer_type_name_ID(op) + ".out2";
                 auto nms_mutable_prim_r_second = cldnn::mutable_data(non_max_supression_id_r_second,

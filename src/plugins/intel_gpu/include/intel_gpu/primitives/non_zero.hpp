@@ -17,7 +17,7 @@ struct count_nonzero : public primitive_base<count_nonzero> {
     count_nonzero(const primitive_id& id,
                   const input_info& data,
                   const padding& output_padding = padding())
-        : primitive_base(id, {data}, output_padding) {}
+        : primitive_base(id, {data}, {output_padding}) {}
 };
 
 struct gather_nonzero : public primitive_base<gather_nonzero> {
@@ -31,7 +31,7 @@ struct gather_nonzero : public primitive_base<gather_nonzero> {
                    const input_info& data,
                    const input_info& output_shape,
                    const padding& output_padding = padding())
-        : primitive_base(id, {data, output_shape}, output_padding) {}
+        : primitive_base(id, {data, output_shape}, {output_padding}) {}
 };
 
 }  // namespace cldnn

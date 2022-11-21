@@ -28,7 +28,7 @@ struct shape_of : public primitive_base<shape_of> {
              size_t output_rank,
              const data_types output_data_type,
              const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding, optional_data_type{output_data_type})
+        : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_data_type}})
         , output_rank(output_rank) {}
 
     /// @brief Constructs shape_of primitive.
@@ -39,7 +39,7 @@ struct shape_of : public primitive_base<shape_of> {
              const input_info& input,
              const data_types output_data_type,
              const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding, optional_data_type{output_data_type})
+        : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_data_type}})
         , output_rank(0) {}
 
     size_t output_rank;

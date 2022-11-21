@@ -29,7 +29,7 @@ struct non_max_suppression_test_params {
     bool center_point_box;
     bool sort_result_descending;
     std::vector<input_info> inputs;
-    int32_t num_outputs;
+    size_t num_outputs;
     std::vector<layout> expected_layouts;
 };
 
@@ -58,6 +58,8 @@ TEST_P(non_max_suppression_test, shape_infer) {
                                                                           primitive_id(),
                                                                           primitive_id(),
                                                                           p.num_outputs);
+    non_max_suppression_prim->output_paddings = {padding(), padding(), padding()};
+    non_max_suppression_prim->output_data_types = {optional_data_type{}, optional_data_type{p.in1_layout.data_type}, optional_data_type{}};
 
     cldnn::program prog(engine);
 

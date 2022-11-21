@@ -372,7 +372,7 @@ void prepare_quantization::prepare_packed_quantize(program& p, quantize_node& qu
         output_dt = data_types::bin;
     }
 
-    quantize_node.typed_desc()->output_data_type = optional_data_type{output_dt};
+    quantize_node.typed_desc()->output_data_types = {optional_data_type{output_dt}};
     quantize_node.recalc_output_layout();
 }
 
@@ -696,13 +696,13 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
                 a_zero_points,
                 compensation,
                 old_conv_prim->groups,
-                *old_conv_prim->output_data_type,
+                *old_conv_prim->output_data_types[0],
                 old_conv_prim->stride,
                 old_conv_prim->pad,
                 old_conv_prim->dilation,
                 output_size,
                 old_conv_prim->grouped_weights_shape,
-                old_conv_prim->output_padding);
+                old_conv_prim->output_paddings[0]);
 
     auto& new_conv_node = p.get_or_create(new_conv_prim);
 
@@ -834,7 +834,7 @@ bool prepare_quantization::optimize_quantize(program &p, quantize_node& quantize
             memcmp(mem_output_high_lock_first.data(), mem_output_high_lock_second.data(), mem_output_high_first->size()) != 0)
             continue;
 
-        if (quantize_prim_first->output_data_type != quantize_prim_second->output_data_type ||
+        if (quantize_prim_first->output_data_types[0] != quantize_prim_second->output_data_types[0] ||
             quantize_prim_first->levels != quantize_prim_second->levels)
             continue;
 

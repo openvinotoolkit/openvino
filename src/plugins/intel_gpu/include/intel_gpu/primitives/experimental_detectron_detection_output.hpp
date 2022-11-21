@@ -55,7 +55,7 @@ struct experimental_detectron_detection_output : public primitive_base<experimen
                                             const padding& output_padding = {})
         : primitive_base{id,
                          {input_rois, input_deltas, input_scores, input_im_info, output_classes, output_scores},
-                         output_padding},
+                         {output_padding}},
           output_classes{output_classes.pid},
           output_scores{output_scores.pid},
           score_threshold{score_threshold},

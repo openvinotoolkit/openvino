@@ -29,7 +29,7 @@ struct ctc_greedy_decoder : public primitive_base<ctc_greedy_decoder> {
                        const bool ctc_merge_repeated,
                        const tensor output_tensor,
                        const padding& output_padding = padding())
-        : primitive_base(id, inputs, output_padding)
+        : primitive_base(id, inputs, {output_padding})
         , blank_index(blank_index)
         , ctc_merge_repeated(ctc_merge_repeated)
         , output_tensor(output_tensor) {}

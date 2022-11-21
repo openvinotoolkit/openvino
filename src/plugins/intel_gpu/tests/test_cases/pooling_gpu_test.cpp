@@ -3025,7 +3025,7 @@ public:
         int pooled_height = output_tensor.spatial[1];
 
         //Output is bfyx
-        auto output = engine.allocate_memory(cldnn::layout(inputs[0]->get_layout().data_type, cldnn::format::bfyx, output_tensor, pooling->output_padding));
+        auto output = engine.allocate_memory(cldnn::layout(inputs[0]->get_layout().data_type, cldnn::format::bfyx, output_tensor, pooling->output_paddings[0]));
 
         cldnn::mem_lock<Type> input_mem(inputs[0], get_test_stream());
         cldnn::mem_lock<Type> output_mem(output, get_test_stream());
@@ -3126,7 +3126,7 @@ public:
                                 pad_y_start = std::max(pad_y_start, 0);
 
                                 int output_index = (b * feature + f) * output_height * output_width;
-                                tensor lower_padding = pooling->output_padding.lower_size();
+                                tensor lower_padding = pooling->output_paddings[0].lower_size();
                                 output_index += (lower_padding.spatial[1] + h) * output_width + lower_padding.spatial[0] + w;
 
                                 int num_of_elements = 0;

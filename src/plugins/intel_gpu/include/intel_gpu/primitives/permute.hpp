@@ -34,7 +34,7 @@ struct permute : public primitive_base<permute> {
             const input_info& input,
             const std::vector<uint16_t>& permute_order = {},
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding, optional_data_type()), permute_order(permute_order) { }
+        : primitive_base(id, {input}, {output_padding}, {optional_data_type()}), permute_order(permute_order) { }
 
     /// @brief Array of permuted output order in bfyx format.
     std::vector<uint16_t> permute_order;

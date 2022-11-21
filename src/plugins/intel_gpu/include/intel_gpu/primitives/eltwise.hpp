@@ -79,7 +79,7 @@ struct eltwise : public primitive_base<eltwise> {
             eltwise_mode mode,
             const ov::op::AutoBroadcastSpec& spec = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY),
             const padding& output_padding = padding())
-        : primitive_base(id, {input, input2}, output_padding),
+        : primitive_base(id, {input, input2}, {output_padding}),
           mode(mode),
           coefficients(std::vector<float>(0)),
           stride(std::vector<tensor>(0)),
@@ -99,7 +99,7 @@ struct eltwise : public primitive_base<eltwise> {
             eltwise_mode mode,
             const ov::op::AutoBroadcastSpec& spec = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY),
             const padding& output_padding = padding())
-        : primitive_base(id, {input, input2}, output_padding),
+        : primitive_base(id, {input, input2}, {output_padding}),
           mode(mode),
           coefficients(std::vector<float>(0)),
           stride(stride),
@@ -117,7 +117,7 @@ struct eltwise : public primitive_base<eltwise> {
             data_types data_type,
             const ov::op::AutoBroadcastSpec& spec = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY),
             const padding& output_padding = padding())
-        : primitive_base(id, inputs, output_padding, optional_data_type{data_type}),
+        : primitive_base(id, inputs, {output_padding}, {optional_data_type{data_type}}),
           mode(mode),
           coefficients(std::vector<float>(0)),
           stride(std::vector<tensor>(0)),
@@ -133,7 +133,7 @@ struct eltwise : public primitive_base<eltwise> {
             eltwise_mode mode,
             const ov::op::AutoBroadcastSpec& spec = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY),
             const padding& output_padding = padding())
-        : primitive_base(id, inputs, output_padding),
+        : primitive_base(id, inputs, {output_padding}),
           mode(mode),
           coefficients(std::vector<float>(0)),
           stride(std::vector<tensor>(0)),
@@ -153,7 +153,7 @@ struct eltwise : public primitive_base<eltwise> {
             data_types data_type,
             const ov::op::AutoBroadcastSpec& spec = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY),
             const padding& output_padding = padding())
-        : primitive_base(id, inputs, output_padding, optional_data_type{data_type}),
+        : primitive_base(id, inputs, {output_padding}, {optional_data_type{data_type}}),
           mode(mode),
           coefficients(coefficients),
           stride(std::vector<tensor>(0)),

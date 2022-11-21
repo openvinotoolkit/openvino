@@ -45,7 +45,7 @@ struct generate_proposals
                        float nms_eta,
                        const data_types roi_num_type,
                        const padding& output_padding = {}) :
-            primitive_base{id, inputs, output_padding},
+            primitive_base{id, inputs, {output_padding}},
             output_rois_scores{inputs[4].pid},
             output_rois_num{inputs[5].pid},
             min_size{min_size},

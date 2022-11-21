@@ -31,7 +31,7 @@ struct scatter_elements_update : public primitive_base<scatter_elements_update> 
                             const input_info& idupd,
                             const int64_t axis,
                             const padding& output_padding = padding())
-        : primitive_base(id, {data, idx, idupd}, output_padding), axis(axis) {}
+        : primitive_base(id, {data, idx, idupd}, {output_padding}), axis(axis) {}
 
     /// @brief ScatterElementsUpdate axis
     int64_t axis;

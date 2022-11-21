@@ -33,14 +33,14 @@ struct gather_elements : public primitive_base<gather_elements> {
                     const tensor& output_shape,
                     const int64_t axis,
                     const padding& output_padding = padding())
-        : primitive_base(id, {data, indices}, output_padding), output_format(output_format), output_shape(output_shape), axis(axis) {}
+        : primitive_base(id, {data, indices}, {output_padding}), output_format(output_format), output_shape(output_shape), axis(axis) {}
 
     gather_elements(const primitive_id& id,
                     const input_info& data,
                     const input_info& indices,
                     const int64_t axis,
                     const padding& output_padding = padding())
-        : primitive_base(id, {data, indices}, output_padding), output_format({}), output_shape({}), axis(axis) {}
+        : primitive_base(id, {data, indices}, {output_padding}), output_format({}), output_shape({}), axis(axis) {}
 
     /// @brief Gather Elements output format
     format output_format;

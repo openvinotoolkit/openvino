@@ -42,7 +42,7 @@ struct select : public primitive_base<select> {
            const input_info& input2,
            const ov::op::AutoBroadcastSpec& spec = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY),
            const padding& output_padding = padding())
-        : primitive_base(id, {mask, input, input2}, output_padding),
+        : primitive_base(id, {mask, input, input2}, {output_padding}),
           broadcast_spec(spec.m_type, spec.m_axis) {}
 
     /// @brief Define auto broadcast rule specification.

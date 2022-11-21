@@ -56,7 +56,7 @@ struct prior_box : public primitive_base<prior_box> {
               const std::vector<float>& fixed_size = {},
               const std::vector<float>& density = {},
               const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           img_size(img_size),
           min_sizes(min_sizes),
           max_sizes(max_sizes),
@@ -124,7 +124,7 @@ struct prior_box : public primitive_base<prior_box> {
               const std::vector<float>& heights,
               data_types output_dt,
               const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding, optional_data_type{output_dt}),
+        : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_dt}}),
           img_size(img_size),
           flip(false),
           clip(clip),

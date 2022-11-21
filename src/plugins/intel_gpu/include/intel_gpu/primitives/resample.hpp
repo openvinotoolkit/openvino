@@ -36,7 +36,7 @@ struct resample : public primitive_base<resample> {
              uint32_t num_filter,
              InterpolateOp::InterpolateMode operation_type = InterpolateOp::InterpolateMode::NEAREST,
              const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           output_size(output_size),
           num_filter(num_filter),
           sizes({}),
@@ -72,7 +72,7 @@ struct resample : public primitive_base<resample> {
              InterpolateOp::CoordinateTransformMode ctm = InterpolateOp::CoordinateTransformMode::HALF_PIXEL,
              InterpolateOp::NearestMode nm = InterpolateOp::NearestMode::ROUND_PREFER_FLOOR,
              const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           output_size(tensor()),
           num_filter(0),
           sizes(sizes),

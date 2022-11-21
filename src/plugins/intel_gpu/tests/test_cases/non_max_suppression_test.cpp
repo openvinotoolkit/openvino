@@ -370,20 +370,24 @@ TYPED_TEST(non_max_suppression_basic, multiple_outputs) {
     topo.add(input_layout("scores", layout{ov::PartialShape{l_scores.batch(), l_scores.feature(), l_scores.spatial(1)}, l_scores.data_type, l_scores.format}));
     topo.add(data("num_per_class", num_per_class_mem));
     topo.add(reorder("reformat_boxes", input_info("boxes"), this->layout_format, this->data_type),
-             reorder("reformat_scores", input_info("scores"), this->layout_format, this->data_type),
-             non_max_suppression("nms",
-                                 input_info("reformat_boxes"),
-                                 input_info("reformat_scores"),
-                                 this->batch_size * this->classes_num * 1,
-                                 false,
-                                 true,
-                                 "num_per_class",
-                                 cldnn::primitive_id(),
-                                 cldnn::primitive_id(),
-                                 cldnn::primitive_id(),
-                                 cldnn::primitive_id(),
-                                 cldnn::primitive_id(),
-                                 3));
+             reorder("reformat_scores", input_info("scores"), this->layout_format, this->data_type));
+    auto nms = non_max_suppression("nms",
+                                   input_info("reformat_boxes"),
+                                   input_info("reformat_scores"),
+                                   this->batch_size * this->classes_num * 1,
+                                   false,
+                                   true,
+                                   "num_per_class",
+                                   cldnn::primitive_id(),
+                                   cldnn::primitive_id(),
+                                   cldnn::primitive_id(),
+                                   cldnn::primitive_id(),
+                                   cldnn::primitive_id(),
+                                   3);
+    auto output_data_type = this->data_type;
+    nms.output_data_types = {optional_data_type{}, optional_data_type{output_data_type}, optional_data_type{}};
+    nms.output_paddings = {padding(), padding(), padding()};
+    topo.add(nms);
     topo.add(reorder("plane_nms", input_info("nms", 0), format::bfyx, cldnn::data_types::i32));
     topo.add(reorder("plane_scores", input_info("nms", 1), format::bfyx, this->data_type));
     topo.add(reorder("plane_outputs", input_info("nms", 2), format::bfyx, cldnn::data_types::i32));

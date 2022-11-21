@@ -659,7 +659,7 @@ struct mvn_random_test : ::testing::TestWithParam<mvn_basic_test_params> {
         topology topo;
         topo.add(input_layout("input", input->get_layout()));
         auto prim = mvn("mvn", input_info("input"), params.normalize_variance, 1e-10f, false, params.across_channels);
-        prim.output_padding = output_pad;
+        prim.output_paddings = {output_pad};
         topo.add(prim);
 
         network net(eng, topo);
@@ -851,7 +851,7 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
         topology topo;
         topo.add(input_layout("input", input->get_layout()));
         auto prim = mvn("mvn", input_info("input"), params.normalize_variance, 1e-10f, false, params.across_channels);
-        prim.output_padding = output_pad;
+        prim.output_paddings = {output_pad};
         topo.add(prim);
         auto build_opts = build_options();
         build_opts.set_option(build_option::outputs({"mvn"}));
@@ -867,7 +867,7 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
         topo_opt.add(input_layout("input", input->get_layout()));
         topo_opt.add(reorder("input_to_target_layout", input_info("input"), {params.input_type, params.input_format, size}));
         auto prim_opt = mvn("mvn_opt", input_info("input_to_target_layout"), params.normalize_variance, 1e-10f, false, params.across_channels);
-        prim_opt.output_padding = output_pad;
+        prim_opt.output_paddings = {output_pad};
         topo_opt.add(prim_opt);
         auto build_opts_opt = build_options();
         build_opts_opt.set_option(build_option::outputs({"mvn_opt", "input_to_target_layout"}));

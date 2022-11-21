@@ -57,7 +57,7 @@ struct space_to_batch : public primitive_base<space_to_batch> {
                    const tensor& pads_end,
                    const tensor& out_size,
                    const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           block_shape(block_shape),
           pads_begin(pads_begin),
           pads_end(pads_end),

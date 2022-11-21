@@ -121,7 +121,7 @@ struct multiclass_nms : public primitive_base<multiclass_nms> {
                                                         inputs[InputIdx::OutputSelectedIndices],
                                                         inputs[InputIdx::OutputSelectedNum]})
                              : inputs,
-                         output_padding},
+                         {output_padding}},
           output_selected_indices(inputs[InputIdx::OutputSelectedIndices].pid),
           output_selected_num(inputs[InputIdx::OutputSelectedNum].pid),
           attrs(attrs),

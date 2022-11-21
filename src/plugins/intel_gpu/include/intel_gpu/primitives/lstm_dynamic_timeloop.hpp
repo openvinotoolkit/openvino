@@ -48,7 +48,7 @@ struct lstm_dynamic_timeloop
                           const float clip = 0.0f,
                           const bool input_forget = 0,
                           const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           dyn_length(dyn_length),
           recurrent(recurrent),
           last_hidden_state(last_hidden_state),

@@ -26,7 +26,7 @@ struct tile : public primitive_base<tile> {
          const input_info& input,
          const std::vector<int64_t> repeats,
          const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           repeats(repeats) {}
 
     // @brief Constructs tile primitive with dynamic input.
@@ -34,7 +34,7 @@ struct tile : public primitive_base<tile> {
          const input_info& input,
          const input_info& repeats_id,
          const padding& output_padding = padding())
-        : primitive_base(id, {input, repeats_id}, output_padding),
+        : primitive_base(id, {input, repeats_id}, {output_padding}),
           repeats({}) {}
 
     /// @brief A per-dimension replication factor

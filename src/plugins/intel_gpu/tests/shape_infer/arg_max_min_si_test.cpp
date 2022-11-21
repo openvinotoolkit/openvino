@@ -28,7 +28,7 @@ struct arg_max_min_test_params {
     int64_t axis;
     data_types output_data_type;
     std::vector<input_info> inputs;
-    int32_t num_outputs;
+    size_t num_outputs;
     std::vector<layout> expected_layouts;
 };
 
@@ -66,6 +66,14 @@ TEST_P(arg_max_min_test, shape_infer) {
                                                           p.mode, p.top_k, p.axis,
                                                           ov::op::TopKSortType::SORT_VALUES, false, padding(),
                                                           p.output_data_type, p.num_outputs);
+    std::vector<padding> output_paddings;
+    std::vector<optional_data_type> output_data_types;
+    for (size_t i = 0; i < p.num_outputs; i++) {
+        output_paddings.push_back(padding());
+        output_data_types.push_back(optional_data_type{p.output_data_type});
+    }
+    arg_max_min_prim->output_paddings = output_paddings;
+    arg_max_min_prim->output_data_types = output_data_types;
     auto& arg_max_min_node = prog.get_or_create(arg_max_min_prim);
     for (auto& prim : input_prims) {
         auto& input_layout_node = prog.get_or_create(prim);

@@ -86,7 +86,7 @@ struct lstm : public primitive_base<lstm> {
          const lstm_output_selection output_selection = lstm_output_selection::sequence,
          const lstm_weights_order offset_order = lstm_weights_order::iofz,
          const padding& output_padding = padding())
-        : primitive_base(id, input, output_padding),
+        : primitive_base(id, input, {output_padding}),
           weights(weights),
           recurrent(recurrent),
           bias(bias),
@@ -167,7 +167,7 @@ struct lstm_gemm : public primitive_base<lstm_gemm> {
               const primitive_id& hidden = "",
               const uint32_t direction = 0,
               const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           weights(weights),
           recurrent(recurrent),
           bias(bias),
@@ -223,7 +223,7 @@ struct lstm_elt : public primitive_base<lstm_elt> {
              const lstm_weights_order offset_order = lstm_weights_order::iofz,
              const uint32_t direction = 0,
              const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           cell(cell),
           clip(clip),
           input_forget(input_forget),

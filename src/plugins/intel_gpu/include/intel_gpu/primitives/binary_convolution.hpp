@@ -46,7 +46,7 @@ struct binary_convolution : public primitive_base<binary_convolution> {
                        float pad_value = 0.0f,
                        data_types calc_precision = data_types::f32,
                        const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding, optional_data_type {calc_precision}),
+        : primitive_base(id, {input}, {output_padding}, {optional_data_type {calc_precision}}),
           pad(pad),
           stride(stride),
           dilation(dilation),

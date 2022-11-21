@@ -13,7 +13,7 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(detection_output)
 
 layout detection_output_inst::calc_output_layout(detection_output_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for "
            "detection_output_node!");
     auto desc = impl_param.typed_desc<detection_output>();
@@ -183,11 +183,10 @@ void detection_output_inst::save(cldnn::BinaryOutputBuffer& ob) const {
 
     // argument (struct detection_output)
     ob << argument->id;
-
     ob << make_data(&argument->input[0], sizeof(argument->input[0]));
     ob << make_data(&argument->input[1], sizeof(argument->input[1]));
     ob << make_data(&argument->input[2], sizeof(argument->input[2]));
-    ob << make_data(&argument->output_padding, sizeof(argument->output_padding));
+    ob << make_data(&argument->output_paddings[0], sizeof(argument->output_paddings[0]));
     ob << argument->num_classes;
     ob << argument->keep_top_k;
     ob << argument->share_location;
