@@ -383,3 +383,11 @@ function(link_system_libraries TARGET_NAME)
         endif()
     endforeach()
 endfunction()
+
+function(ov_try_use_gold_linker)
+    # gold linker on ubuntu20.04 may fail to link binaries build with sanitizer
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT ENABLE_SANITIZER AND NOT CMAKE_CROSSCOMPILING)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold" PARENT_SCOPE)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold" PARENT_SCOPE)
+    endif()
+endfunction()
