@@ -11,8 +11,8 @@
 #include <openvino/opsets/opset7.hpp>
 #include <openvino/opsets/opset8.hpp>
 
-#include "ngraph_ops/augru_cell.hpp"
-#include "ngraph_ops/augru_sequence.hpp"
+#include "ov_ops/augru_cell.hpp"
+#include "ov_ops/augru_sequence.hpp"
 
 #include "assign_shape_inference.hpp"
 #include "augru_cell_shape_inference.hpp"
@@ -42,6 +42,7 @@
 #include "gather_elements_shape_inference.hpp"
 #include "gather_shape_inference.hpp"
 #include "gather_tree_shape_inference.hpp"
+#include "grid_sample_shape_inference.hpp"
 #include "gru_sequence_shape_inference.hpp"
 #include "gru_cell_shape_inference.hpp"
 #include "interpolate_shape_inference.hpp"
@@ -412,13 +413,14 @@ std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::
     } else if (auto node = ov::as_type_ptr<ov::op::util::LogicalReductionKeepDims>(op)) {
         return make_shared_entryIOC(node);
     } else if (ov::is_type<ov::op::util::UnaryElementwiseArithmetic>(op) || ov::is_type<ov::opset1::Convert>(op) ||
-               ov::is_type<ov::opset1::Clamp>(op) || ov::is_type<ov::opset1::GRN>(op) || ov::is_type<ov::opset1::NormalizeL2>(op) ||
-               ov::is_type<ov::opset1::LogicalNot>(op) || ov::is_type<ov::opset4::Mish>(op) || ov::is_type<ov::opset2::MVN>(op) ||
-               ov::is_type<ov::opset1::Relu>(op) || ov::is_type<ov::opset1::Elu>(op) || ov::is_type<ov::opset1::Softmax>(op) ||
-               ov::is_type<ov::opset8::Softmax>(op) || ov::is_type<ov::opset5::Round>(op)) {
+            ov::is_type<ov::opset1::LogicalNot>(op) || ov::is_type<ov::opset2::MVN>(op) ||
+            ov::is_type<ov::opset1::Softmax>(op) || ov::is_type<ov::opset8::Softmax>(op)) {
         return std::make_shared<entryCopy>(op);
     } else if (ov::is_type<ov::opset6::MVN>(op) || ov::is_type<ov::opset1::LRN>(op) ||
-               ov::is_type<ov::opset1::PRelu>(op) || ov::is_type<ov::opset4::Swish>(op)) {
+            ov::is_type<ov::opset1::HardSigmoid>(op) || ov::is_type<ov::opset1::Selu>(op) ||
+            ov::is_type<ov::opset1::PRelu>(op) || ov::is_type<ov::opset3::CumSum>(op) ||
+            ov::is_type<ov::opset1::BatchNormInference>(op) || ov::is_type<ov::opset5::BatchNormInference>(op) ||
+            ov::is_type<ov::opset4::Swish>(op) || ov::is_type<ov::opset1::NormalizeL2>(op)) {
         return std::make_shared<entryFirstPassthrough>(op);
     } else if (ov::is_type<ov::op::util::BinaryElementwiseArithmetic>(op) ||
                ov::is_type<ov::op::util::BinaryElementwiseComparison>(op) ||
@@ -497,6 +499,8 @@ std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::
     } else if (auto node = ov::as_type_ptr<ov::op::util::GatherBase>(op)) {
         return make_shared_entryIOC(node);
     } else if (auto node = ov::as_type_ptr<ov::opset1::GatherTree>(op)) {
+        return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset9::GridSample>(op)) {
         return make_shared_entryIO(node);
     } else if (auto node = ov::as_type_ptr<ov::opset5::GRUSequence>(op)) {
         return make_shared_entryIO(node);

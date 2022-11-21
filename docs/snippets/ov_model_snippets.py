@@ -59,11 +59,8 @@ def ov_api_examples():
 
 # ! [ov:serialize]
 def serialize_example(m : ov.Model):
-    # Need import:
-    # * import openvino.runtime.passes as passes
-    pass_manager = passes.Manager()
-    pass_manager.register_pass(pass_name="Serialize", xml_path='model.xml', bin_path='model.bin')
-    pass_manager.run_passes(m)
+    from openvino.runtime import serialize
+    serialize(m, xml_path='model.xml', bin_path='model.bin')
 # ! [ov:serialize]
 
 # ! [ov:visualize]

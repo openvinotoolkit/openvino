@@ -106,7 +106,7 @@ TEST(GnaPwlTest, Power) {
         RunTest(
             pwl_test::CreateActivationFunction<ngraph::opset8::Power>({1, 32}, exp),
             pwl_test::CreateActivationFunction<ngraph::opset8::Power>({1, 32}, exp),
-            ov::intel_gna::pass::details::are_floats_equal(std::fmod(exp, 1.0), 0.0) ? -16 : 0,
+            ov::intel_gna::common::fp32eq(std::fmod(exp, 1.0), 0.0) ? -16 : 0,
             16);
     }
 }

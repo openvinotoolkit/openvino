@@ -41,7 +41,12 @@ set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Release;%INTEL_
 
 :: TBB
 if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb (
-   set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin;%OPENVINO_LIB_PATHS%"
+
+   if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\redist (
+      set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\redist\intel64\vc14;%OPENVINO_LIB_PATHS%"
+   ) else if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin (
+      set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin;%OPENVINO_LIB_PATHS%"
+   )
 
    if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\cmake (
       set "TBB_DIR=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\cmake"
@@ -49,6 +54,8 @@ if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb (
       set "TBB_DIR=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\lib\cmake\TBB"
    ) else if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\lib64\cmake\TBB (
       set "TBB_DIR=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\lib64\cmake\TBB"
+   ) else if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\lib\cmake\tbb (
+      set "TBB_DIR=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\lib\cmake\tbb"
    )
 )
 
@@ -63,7 +70,7 @@ set "PATH=%OPENVINO_LIB_PATHS%;%PATH%"
 :: Check if Python is installed
 set PYTHON_VERSION_MAJOR=3
 set MIN_REQUIRED_PYTHON_VERSION_MINOR=7
-set MAX_SUPPORTED_PYTHON_VERSION_MINOR=9
+set MAX_SUPPORTED_PYTHON_VERSION_MINOR=10
 
 python --version 2>NUL
 if errorlevel 1 (call :python_not_installed) else (call :check_python_version)
@@ -89,9 +96,9 @@ for /F "tokens=1,2 delims=. " %%a in ("%python_version%") do (
    set pyversion_minor=%%b
 )
 
-if "%pyversion_major%" equ "%PYTHON_VERSION_MAJOR%" (
-   if "%pyversion_minor%" geq "%MIN_REQUIRED_PYTHON_VERSION_MINOR%" (
-      if "%pyversion_minor%" leq "%MAX_SUPPORTED_PYTHON_VERSION_MINOR%" (
+if %pyversion_major% equ %PYTHON_VERSION_MAJOR% (
+   if %pyversion_minor% geq %MIN_REQUIRED_PYTHON_VERSION_MINOR% (
+      if %pyversion_minor% leq %MAX_SUPPORTED_PYTHON_VERSION_MINOR% (
          set "check_pyversion=true"
       )
    )   
