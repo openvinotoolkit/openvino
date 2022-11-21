@@ -146,8 +146,6 @@
 #   error convolution_gpu_b_fs_yx_fsv_16_32_imad_dw.cl - internal error, CHECK_BOUNDARY_IN_SLM enabled without PRELOAD_INPUT_TO_SLM.
 #endif
 
-#define CEIL_DIV(a, b)  ( ((a) + (b) - 1) / (b) )
-
 
 __attribute__((intel_reqd_sub_group_size(SIMD)))
 __attribute__((reqd_work_group_size(LWS0, LWS1, SIMD)))

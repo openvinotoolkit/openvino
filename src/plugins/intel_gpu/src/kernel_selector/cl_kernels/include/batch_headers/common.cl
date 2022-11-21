@@ -19,3 +19,5 @@
 #endif
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
+#define CEIL_DIV(a, b) (((a) + (b) - 1)/(b))
+#define ALIGN(a, b) (CEIL_DIV(a, b) * (b))

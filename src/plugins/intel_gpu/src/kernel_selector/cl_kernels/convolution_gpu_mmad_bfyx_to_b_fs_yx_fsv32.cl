@@ -6,8 +6,6 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/imad.cl"
 
-#define CEIL_DIV(x, y) (1 + ((x) - 1) / (y))
-
 #define ISV 4
 
 #ifdef ACCUMULATOR_TYPE
@@ -52,7 +50,6 @@
 #define AS_TYPE_N_(type, n, x) as_##type##n(x)
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
 #define AS_INPUT0_TYPE_4(x) AS_TYPE_N(INPUT0_TYPE, 4, x)
-#define CEIL_DIV(a, b) (((a) + (b) - 1) / (b))
 
 __attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
 __attribute__((reqd_work_group_size(LWS0, LWS1, LWS2)))
@@ -492,7 +489,6 @@ KERNEL(convolution_mmad_bfyx_to_b_fs_yx_fsv32)(
 
 #endif  // OUTPUT_IS_FP
 }
-#undef CEIL_DIV
 #undef PACKED_TYPE_VEC
 #undef ACCUMULATOR_TYPE_VEC
 #undef TO_ACCUMULATOR_TYPE_VEC

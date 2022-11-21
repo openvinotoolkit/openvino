@@ -51,7 +51,6 @@
 #define WEIGHTS_YXS_PITCH 4
 
 #define FILTER_SPATIAL_SIZE (FILTER_SIZE_X * FILTER_SIZE_Y)
-#define CEIL_DIV(a, b) (((a) + (b) - 1) / (b))
 
 #if FILTER_BLOCKED < FILTER_SPATIAL_SIZE && FILTER_BLOCKED % 4 != 0
 #   error convolution_gpu_b_fs_yx_fsv4_dw.cl - filter blocks must either cover whole spatial filter or be multiple of 4.
@@ -456,4 +455,3 @@ for (; y < tile_y_end; ++y) {
 #undef WEIGHTS_YXS_PITCH
 
 #undef FILTER_SPATIAL_SIZE
-#undef CEIL_DIV

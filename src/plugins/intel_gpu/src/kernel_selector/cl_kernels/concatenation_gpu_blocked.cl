@@ -21,8 +21,6 @@
 #   define TILE_F 1
 #endif
 
-#define CEIL_DIV(a, b) (((a) + (b) - 1) / (b))
-
 __attribute__((reqd_work_group_size(1, WORK_GROUP_SIZE, 1)))
 __attribute__((intel_reqd_sub_group_size(WORK_GROUP_SIZE)))
 KERNEL (concatenation_gpu_blocked)(
@@ -144,4 +142,3 @@ KERNEL (concatenation_gpu_blocked)(
 #undef OUTPUT_BLOCK_WRITE
 
 #undef TILE_F
-#undef CEIL_DIV

@@ -8,9 +8,6 @@
 #define SIMD 16
 #define FSV 16
 
-#define CEIL_DIV(a, b) (((a) + (b) - 1)/(b))
-#define ALIGN(a, b) (CEIL_DIV(a, b) * (b))
-
 #if !defined REDUCE_BATCH
     #define REDUCE_BATCH 0
 #endif

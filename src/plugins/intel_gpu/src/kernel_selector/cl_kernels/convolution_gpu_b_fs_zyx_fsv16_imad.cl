@@ -45,9 +45,6 @@
 
 #define AS_FILTER_TYPE_4(x) AS_TYPE_N(FILTER_TYPE, 4, x)
 
-#define CEIL_DIV(a, b) (((a) + (b) - 1)/(b))
-#define ALIGN(a, b) (CEIL_DIV(a, b) * (b))
-
 #define SIMD 16
 #define FSV 16
 
@@ -719,9 +716,6 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 #endif
 
 #undef AS_FILTER_TYPE_4
-
-#undef CEIL_DIV
-#undef ALIGN
 
 #undef SIMD
 #undef FSV

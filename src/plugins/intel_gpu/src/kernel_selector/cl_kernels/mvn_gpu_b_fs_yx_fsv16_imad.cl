@@ -80,8 +80,6 @@
 
 #define ITEMS_NUM             (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z)
 
-#define CEIL_DIV(a, b)        (((a) + (b) - 1) / (b))
-
 // ================================================================================================
 #if MVN_KERNEL_MEAN_1
 
@@ -769,5 +767,4 @@ KERNEL(mvn_final)(
 #undef INPUT_PACKED_BLOCK_READ
 #undef OUTPUT_PAD_IN_ITEMS
 
-#undef CEIL_DIV
 #undef USE_IMAD

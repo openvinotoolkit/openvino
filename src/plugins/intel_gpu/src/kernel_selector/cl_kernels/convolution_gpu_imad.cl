@@ -40,9 +40,6 @@
 #define AS_INPUT0_TYPE_4(x) AS_TYPE_N(INPUT0_TYPE, 4, x)
 #define AS_FILTER_TYPE_4(x) AS_TYPE_N(FILTER_TYPE, 4, x)
 
-#define CEIL_DIV(a, b) (((a) + (b) - 1) / (b))
-#define ALIGN(a, b) ((a % b == 0) ? a : a - a % b + b)
-
 #if INPUT0_PAD_BEFORE_SIZE_X != 0 || INPUT0_PAD_BEFORE_SIZE_Y != 0
     #define NON_ZERO_INPUT0_PAD_BEFORE
 #endif
@@ -403,5 +400,3 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
 #undef FILTER_TYPE_4
 #undef AS_FILTER_TYPE_4
 #undef NUM_FILTERS
-#undef CEIL_DIV
-#undef ALIGN

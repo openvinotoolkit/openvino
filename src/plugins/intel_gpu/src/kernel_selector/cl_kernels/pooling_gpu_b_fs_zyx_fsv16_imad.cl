@@ -5,8 +5,6 @@
 #include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
-#define ALIGN_TO(val, multiple) (((val) + (multiple) - 1) / (multiple) * (multiple))
-
 #define IN_VEC16 MAKE_VECTOR_TYPE(INPUT0_TYPE, 16)
 #define OUT_VEC16 MAKE_VECTOR_TYPE(OUTPUT_TYPE, 16)
 
@@ -243,8 +241,8 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
     const uint z    = zy / OUTPUT_SIZE_Y;
 #endif
     const uint bf   = (uint)get_global_id(2);
-    const uint f    = (bf * FEATURE_SLICE_SIZE) % ALIGN_TO(INPUT0_FEATURE_NUM, FEATURE_SLICE_SIZE);
-    const uint b    = (bf * FEATURE_SLICE_SIZE) / ALIGN_TO(INPUT0_FEATURE_NUM, FEATURE_SLICE_SIZE);
+    const uint f    = (bf * FEATURE_SLICE_SIZE) % ALIGN(INPUT0_FEATURE_NUM, FEATURE_SLICE_SIZE);
+    const uint b    = (bf * FEATURE_SLICE_SIZE) / ALIGN(INPUT0_FEATURE_NUM, FEATURE_SLICE_SIZE);
 
     const bool last_in_f_group = (f == FEATURE_SLICE_SIZE * ((INPUT0_FEATURE_NUM - 1) / FEATURE_SLICE_SIZE));
 
@@ -482,7 +480,6 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
 }
 #endif // GLOBAL_POOLING
 
-#undef ALIGN_TO
 #undef IN_VEC16
 #undef OUT_VEC16
 #undef ACTIVATION_VEC16

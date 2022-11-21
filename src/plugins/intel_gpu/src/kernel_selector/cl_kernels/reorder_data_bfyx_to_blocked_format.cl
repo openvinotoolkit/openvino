@@ -5,7 +5,6 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/data_types.cl"
 
-#define CEIL_DIV(A, B) (((A) + (B) - 1) / (B))
 #define INPUT0_GET_TILED_INDEX(ORDER) INPUT0_GET_INDEX(ORDER)
 
 #define INPUTVTYPE CAT(INPUT0_TYPE, TILE_SIZE)
@@ -159,4 +158,3 @@ KERNEL (reorder_data_bfyx_to_blocked_format)(
 #undef INPUTVTYPE
 
 #undef INPUT0_GET_TILED_INDEX
-#undef CEIL_DIV

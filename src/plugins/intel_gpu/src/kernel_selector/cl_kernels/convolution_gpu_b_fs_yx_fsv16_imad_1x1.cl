@@ -60,9 +60,6 @@
 
 #endif
 
-#define CEIL_DIV(a, b) (((a) + (b) - 1)/(b))
-#define ALIGN(a, b) (CEIL_DIV(a, b) * (b))
-
 #define FSV  16
 #define SIMD 16
 
@@ -581,9 +578,6 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
 #endif
 
 #undef AS_FILTER_TYPE_4
-
-#undef CEIL_DIV
-#undef ALIGN
 
 #undef SIMD
 #undef FSV

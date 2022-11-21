@@ -52,7 +52,6 @@
 #define OUTPUT_BLOCK_WRITE(ptr, offset, val) BLOCK_WRITEN(OUTPUT_TYPE, TILE_OFM, ptr, offset, val)
 
 // Utility math macros.
-#define CEIL_DIV(a, b) (((a) + (b) - 1) / (b))
 #define MIN(a, b)      ((a) < (b) ? (a) : (b))
 #define MAX(a, b)      ((a) > (b) ? (a) : (b))
 
@@ -314,7 +313,6 @@ KERNEL(fc)(
 #undef BIAS_BLOCK_READ
 #undef OUTPUT_BLOCK_WRITE
 
-#undef CEIL_DIV
 #undef MIN
 #undef MAX
 

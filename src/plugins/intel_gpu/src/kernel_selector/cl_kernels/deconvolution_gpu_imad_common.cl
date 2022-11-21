@@ -4,9 +4,6 @@
 
 #include "include/batch_headers/data_types.cl"
 
-#define CEIL_DIV(a, b) (((a) + ((b) - 1)) / (b))
-#define ALIGN(a, b) (CEIL_DIV(a, b) * (b))
-
 #define VEC_TO_ARR_1(var, arr, idx)             \
     arr[idx] = var
 #define VEC_TO_ARR_2(vec, arr, idx)             \

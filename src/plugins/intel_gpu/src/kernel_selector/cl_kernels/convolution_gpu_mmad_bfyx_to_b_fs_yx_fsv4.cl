@@ -6,8 +6,6 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/imad.cl"
 
-#define CEIL_DIV(x, y) (1 + ((x) - 1) / (y))
-
 #ifdef ACCUMULATOR_TYPE
 #undef ACCUMULATOR_TYPE
 #endif
@@ -223,7 +221,6 @@ KERNEL(convolution_mmad_bfyx_b_fs_yx_fsv32)(
 #endif  // OUTPUT_IS_FP
 }
 
-#undef CEIL_DIV
 #undef PACKED_TYPE_VEC
 #undef ACCUMULATOR_TYPE_VEC
 #undef TO_ACCUMULATOR_TYPE_VEC
