@@ -10,6 +10,8 @@ import sys
 from collections import OrderedDict
 from copy import deepcopy
 
+import numpy as np
+
 try:
     import openvino_telemetry as tm
 except ImportError:
@@ -30,7 +32,7 @@ from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
     get_common_cli_options, get_freeze_placeholder_values, get_kaldi_cli_options, get_layout_values, \
     get_mean_scale_dictionary, get_mxnet_cli_options, get_onnx_cli_options, \
     get_placeholder_shapes, get_tf_cli_options, get_tuple_values, parse_transform, parse_tuple_pairs, \
-    get_all_cli_parser, mo_convert_params, get_model_name_from_args, depersonalize
+    get_all_cli_parser, mo_convert_params, get_model_name_from_args, split_shapes, depersonalize
 
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.find_ie_version import find_ie_version
@@ -46,6 +48,7 @@ from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, ProgressReporterExtension, TelemetryExtension, JsonConfigExtension
+from openvino.runtime import PartialShape, Dimension
 from openvino.runtime import get_version as get_rt_version
 
 
@@ -158,6 +161,9 @@ def arguments_post_parsing(argv: argparse.Namespace):
                         'Please use --framework with one from the list: {}.',
                         '--input_model', argv.input_model, frameworks)
         elif argv.framework not in frameworks:
+            if argv.framework == 'ir':
+                raise Error('OpenVINO IR is passed as input_model in convert_model/mo, the IR doesn\'t need '
+                            'conversion, please use it in runtime for inference with read_model/compile_model.')
             raise Error('Framework {} is not a valid target. Please use --framework with one from the list: {}. ' +
                         refer_to_faq_msg(15), argv.framework, frameworks)
 
@@ -212,7 +218,8 @@ def arguments_post_parsing(argv: argparse.Namespace):
         log.error(e)
         raise_ie_not_found()
 
-    if 'data_type' in argv and argv.data_type in ['FP16', 'half']:
+    if ('data_type' in argv and argv.data_type in ['FP16', 'half']) or \
+            ('compress_to_fp16' in argv and argv.compress_to_fp16 is True):
         argv.data_type = 'FP32'
         argv.compress_fp16 = True
     else:
@@ -486,6 +493,229 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
     return func
 
 
+def get_static_shape(shape: [PartialShape, list, tuple], dynamic_value=None):
+    # Current function returns list with static dimensions with following logic.
+    # For dynamic dimensions return lower boundaries if they are set, otherwise
+    # return upper boundaries if they are set. If dimension is fully dynamic then raise error.
+    shape_list = []
+    for idx, dim in enumerate(shape):
+        if isinstance(dim, int):
+            if dim == -1:
+                shape_list.append(dynamic_value)
+                continue
+            shape_list.append(dim)
+        elif isinstance(dim, np.int64):
+            if dim == np.int64(-1):
+                shape_list.append(dynamic_value)
+                continue
+            shape_list.append(dim)
+        elif isinstance(dim, tuple):
+            # tuple where (min_length, max_length), the format which uses MO cli parser
+            assert len(dim) == 2, "Unknown dimension type {}".format(dim)
+            if dim[0] > 0:
+                shape_list.append(dim[0])
+            elif dim[1] < np.iinfo(np.int64).max:
+                shape_list.append(dim[1])
+            else:
+                shape_list.append(dynamic_value)
+                continue
+        elif isinstance(dim, Dimension):
+            if dim.is_static or dim.get_min_length() > 0:
+                shape_list.append(dim.get_min_length())
+            elif dim.get_max_length() != -1:
+                shape_list.append(dim.get_max_length())
+            else:
+                shape_list.append(dynamic_value)
+                continue
+        else:
+            raise Error("Unknown dimension type {}".format(dim))
+
+    return tuple(shape_list)
+
+
+def get_dynamic_dims(shape: [PartialShape, list, tuple]):
+    dynamic_dims = []
+    for idx, dim in enumerate(shape):
+        if isinstance(dim, int):
+            if dim == -1:
+                dynamic_dims.append(idx)
+        if isinstance(dim, np.int64):
+            if dim == np.int64(-1):
+                dynamic_dims.append(idx)
+        elif isinstance(dim, tuple):
+            dynamic_dims.append(idx)
+        elif isinstance(dim, Dimension):
+            if dim.get_min_length() == 0 and dim.get_max_length() == -1:
+                dynamic_dims.append(idx)
+
+    return dynamic_dims
+
+
+def check_model_object(argv):
+    model = argv['input_model']
+    if 'tensorflow' in sys.modules:
+        import tensorflow as tf
+        from tensorflow.python.training.tracking.base import Trackable
+
+        if isinstance(model, tf.compat.v1.GraphDef):
+            return "tf"
+        if isinstance(model, tf.compat.v1.Session):
+            argv['input_model'] = model.graph_def
+            return "tf"
+        if isinstance(model, tf.types.experimental.ConcreteFunction):
+            argv['input_model'] = model.graph.as_graph_def()
+            return "tf"
+        if isinstance(model, tf.keras.Model):
+            return "tf"
+        if isinstance(model, tf.train.Checkpoint):
+            if isinstance(model.root, tf.keras.Model):
+                argv['input_model'] = model.root
+                return "tf"
+            else:
+                raise Error("Unknown checkpoint format.")
+
+        if isinstance(model, tf.keras.layers.Layer) or isinstance(model, tf.Module):
+            assert 'input_shape' in argv and argv['input_shape'] is not None, \
+                "Converting of {} requires providing of input_shape.".format(type(model))
+            assert len(argv['input_shape']) > 0, "Please provide non-empty input shape."
+            inputs = []
+            for shape_idx, shape in enumerate(parse_input_shapes(argv)):
+                inp_shape = get_static_shape(shape)
+                batch_size = None
+                if len(inp_shape) > 1:
+                    batch_size = inp_shape[0]
+                    inp_shape = inp_shape[1:]
+                inputs.append(tf.keras.Input(shape=inp_shape, batch_size=batch_size))
+            outputs = model(*inputs)
+            argv['input_model'] = tf.keras.Model(inputs, outputs)
+            argv['input_shape'] = None
+            return "tf"
+        if isinstance(model, Trackable):
+            return "tf"
+    if 'torch' in sys.modules:
+        import torch
+        if isinstance(model, torch.nn.Module) or isinstance(model, torch.jit.ScriptFunction):
+            return "pytorch"
+
+    import io
+    if isinstance(model, io.BytesIO):
+        return 'onnx'
+
+    raise Error('Unknown model type: {}'.format(type(model)))
+
+
+def get_onnx_temp_filename(output_dir):
+    output_dir = output_dir if output_dir is not None else os.getcwd()
+    return os.path.normpath(os.path.join(output_dir, "model.onnx"))
+
+
+def to_torch_tensor(tensor):
+    import torch
+    from openvino.runtime import Tensor
+    if isinstance(tensor, torch.Tensor):
+        return tensor
+    if isinstance(tensor, np.ndarray):
+        return torch.tensor(tensor)
+    if isinstance(tensor, np.ndarray):
+        return torch.tensor(tensor)
+    if isinstance(tensor, Tensor):
+        return torch.tensor(tensor.data)
+    else:
+        raise Error("Unexpected type of example_input. Supported types torch.Tensor, np.array or ov.Tensor. "
+                    "Got {}".format(type(tensor)))
+
+
+def convert_pytorch_to_onnx(model, input_shape, opset_version, example_inputs, output_dir):
+    import io
+    import torch
+
+    input_names = None
+    if example_inputs is not None:
+        inputs = example_inputs
+        if isinstance(inputs, list):
+            inputs = [to_torch_tensor(x) for x in inputs]
+            if len(inputs) == 1:
+                inputs = torch.unsqueeze(inputs[0], 0)
+            else:
+                inputs = inputs
+        elif isinstance(inputs, tuple):
+            inputs = [to_torch_tensor(x) for x in inputs]
+            inputs = tuple(inputs)
+        elif isinstance(inputs, dict):
+            for name, tensor in inputs.items():
+                assert isinstance(name, str), "Expected dictionary where keys are input names of string type and" \
+                                              " values are tensors. Got key of type {}".format(type(name))
+                inputs[name] = to_torch_tensor(tensor)
+        else:
+            inputs = to_torch_tensor(inputs)
+    elif input_shape is not None:
+        inputs = []
+        for shape_idx, shape in enumerate(input_shape):
+            static_shape = get_static_shape(shape, dynamic_value=1)
+            inputs.append(torch.zeros(static_shape))
+        inputs = tuple(inputs)
+    else:
+        raise Error("Please provide input_shape or example_input for converting PyTorch model.")
+
+    dynamic_dims_dict = {}
+    if input_shape is not None and input_names is None:
+        input_names = ["input_{}".format(idx) for idx in range(len(input_shape))]
+        for shape_idx, shape in enumerate(input_shape):
+            dynamic_dims = get_dynamic_dims(shape)
+            if len(dynamic_dims) > 0:
+                dynamic_dims_dict[input_names[shape_idx]] = dynamic_dims
+    additional_params = {}
+    if len(dynamic_dims_dict) > 0:
+        additional_params.update({'dynamic_axes': dynamic_dims_dict})
+    if input_names is not None and len(input_names) > 0:
+        additional_params.update({'input_names': input_names})
+
+    if os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):
+        model_onnx = io.BytesIO()
+    else:
+        model_onnx = get_onnx_temp_filename(output_dir)
+    if opset_version is not None:
+        additional_params.update({'opset_version': opset_version})
+
+    torch.onnx.export(model,
+                      inputs,
+                      model_onnx,
+                      **additional_params)
+    return model_onnx
+
+
+def parse_input_shapes(argv):
+    input_shapes = None
+    if 'input_shape' in argv and argv['input_shape'] is not None:
+        shapes = argv['input_shape']
+        if isinstance(shapes, str):
+            shapes = ["[{}]".format(x) for x in split_shapes(shapes)]
+        if isinstance(shapes, list) or isinstance(shapes, tuple):
+            input_shapes = []
+            is_single_shape = False
+            for shape in shapes:
+                if isinstance(shape, str):
+                    _, shape_tuple, _ = get_placeholder_shapes(argv_input=None, argv_input_shape=shape)
+                    input_shapes.append(shape_tuple)
+                    if is_single_shape:
+                        raise Error("Incorrect format of shape.")
+                elif isinstance(shape, int) or isinstance(shape, np.int64) or isinstance(shape, Dimension):
+                    is_single_shape = True
+                    input_shapes.append(shape)
+                else:
+                    input_shapes.append(shape)
+            if is_single_shape:
+                return [input_shapes]
+            else:
+                return input_shapes
+        elif isinstance(shapes, PartialShape) or isinstance(shapes, torch.Size):
+            return [shapes]
+        else:
+            raise Error("Unknown type of input shape {}.".format(type(shapes)))
+
+    return input_shapes
+
+
 def driver(argv: argparse.Namespace, non_default_params: dict):
     init_logger(argv.log_level.upper(), argv.silent)
 
@@ -535,8 +765,13 @@ def pack_params_to_args_namespace(**kwargs):
     fe_manager = FrontEndManager()
     cli_parser = get_all_cli_parser(fe_manager)
     argv = cli_parser.parse_args(args_dict_to_list(cli_parser, **kwargs))
+
+    all_params = {}
+    for key, value in mo_convert_params.items():
+        all_params.update(value)
+
     for key, value in kwargs.items():
-        if key not in argv and key not in mo_convert_params.keys():
+        if key not in argv and key not in all_params.keys():
             raise Error("Unrecognized argument: {}".format(key))
         if value is not None:
             setattr(argv, key, value)
@@ -551,19 +786,73 @@ def pack_params_to_args_namespace(**kwargs):
 
 
 def params_to_string(**kwargs):
+    all_params = {}
+    for key, value in mo_convert_params.items():
+        all_params.update(value)
+
     for key, value in kwargs.items():
-        if key in mo_convert_params.keys():
-            param_data = mo_convert_params[key]
+        if key in all_params:
+            param_data = all_params[key]
             if param_data.to_string is not None:
                 kwargs[key] = param_data.to_string(value)
     return kwargs
 
 
+def add_line_breaks(text: str, char_num: int, line_break: str):
+    words = text.split(" ")
+    cnt = 0
+    for i, w in enumerate(words):
+        cnt += len(w)
+        if '\n' in w:
+            cnt = len(w) - w.find('\n') - 1
+        if cnt > char_num:
+            if words[i][-1] not in ['\n', '\t']:
+                words[i] = w + '\n'
+            cnt = 0
+    text = ' '.join(words).replace("\n ", "\n")
+    return line_break + text.replace("\n", line_break)
+
+
 def show_mo_convert_help():
-    print('MO convert parameters:')
-    for param_name in mo_convert_params.keys():
-        param_data = mo_convert_params[param_name]
-        print("{}: {}".format(param_name, param_data.description.format(param_data.possible_types_python_api)))
+    for group_name, group in mo_convert_params.items():
+        if group_name == "optional":
+            print("optional arguments:")
+        elif group_name == "fw_agnostic":
+            print("Framework-agnostic parameters:")
+        elif group_name == "tf":
+            print("TensorFlow*-specific parameters:")
+        elif group_name == "caffe":
+            print("Caffe*-specific parameters:")
+        elif group_name == "mxnet":
+            print("Mxnet-specific parameters:")
+        elif group_name == "kaldi":
+            print("Kaldi-specific parameters:")
+        elif group_name == "pytorch":
+            print("Pytorch-specific parameters:")
+        else:
+            raise Error("Unknown parameters group {}.".format(group_name))
+        for param_name in group:
+            param_data = group[param_name]
+            text = param_data.description.format(param_data.possible_types_python_api)
+            text = add_line_breaks(text, 56, "\n\t\t\t")
+            print("  --{} {}".format(param_name, text))
+        print()
+
+
+def input_model_is_object(argv):
+    if isinstance(argv['input_model'], str):
+        return False
+    if argv['input_model'] is None:
+        return False
+    return True
+
+
+def remove_tmp_onnx_model(out_dir):
+    if not os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):
+        tmp_onnx_model = get_onnx_temp_filename(out_dir)
+
+        if os.path.exists(tmp_onnx_model):
+            os.remove(tmp_onnx_model)
 
 
 def _convert(**args):
@@ -574,13 +863,63 @@ def _convert(**args):
     telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=get_simplified_mo_version())
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', get_simplified_mo_version())
-    args = params_to_string(**args)
-    argv, non_default_params = pack_params_to_args_namespace(**args)
-
-    if argv.model_name is None:
-        argv.model_name = get_model_name_from_args(argv)
-
     try:
+        model_framework = None
+        inp_model_is_object = input_model_is_object(args)
+        if inp_model_is_object:
+            model_framework = check_model_object(args)
+            if model_framework == "pytorch" and not os.environ.get('USE_PYTORCH_FRONTEND'):
+
+                opset_version = None
+                if 'onnx_opset_version' in args and args['onnx_opset_version'] is not None:
+                    opset_version = args['onnx_opset_version']
+
+                example_inputs = None
+                if 'example_input' in args and args['example_input'] is not None:
+                    example_inputs = args['example_input']
+
+                out_dir = args['output_dir'] if 'output_dir' in args else None
+
+                model_onnx = convert_pytorch_to_onnx(args['input_model'],
+                                                     parse_input_shapes(args),
+                                                     opset_version,
+                                                     example_inputs,
+                                                     out_dir)
+
+
+                args['input_model'] = model_onnx
+                if os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):
+                    args['use_legacy_frontend'] = True
+                args['example_input'] = None
+                args['onnx_opset_version'] = None
+
+                try:
+                    ov_model = _convert(**args)
+                except Exception as e:
+                    remove_tmp_onnx_model(out_dir)
+                    raise e
+
+                remove_tmp_onnx_model(out_dir)
+                return ov_model
+        args = params_to_string(**args)
+        argv, non_default_params = pack_params_to_args_namespace(**args)
+
+        if inp_model_is_object:
+            argv.model_name = "model"
+        if argv.model_name is None:
+            argv.model_name = get_model_name_from_args(argv)
+
+        if model_framework is not None:
+            if argv.framework is not None:
+                if argv.framework != model_framework:
+                    raise Error("Provided model does not correspond to provided framework. The provided "
+                                "framework is {}, the model type is {} which is expected to be {} framework.".format(
+                                    argv.framework,
+                                    type(argv.input_model),
+                                    model_framework))
+            else:
+                argv.framework = model_framework
+
         # Initialize logger with 'ERROR' as default level to be able to form nice messages
         # before arg parser deliver log_level requested by user
         init_logger('ERROR', False)
@@ -603,4 +942,4 @@ def _convert(**args):
         telemetry.send_event('mo', 'conversion_result', 'fail')
         telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)
-        raise e
+        raise e.with_traceback(None)

@@ -13,12 +13,10 @@
 
 bool ngraph::pass::POTTransformations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     ngraph::pass::Manager manager(get_pass_config());
-    if (m_device == "GNA") {
-        manager.register_pass<ngraph::pass::BidirectionalSequenceDecomposition>();
-        manager.register_pass<ngraph::pass::ConvertSequenceToTensorIterator>();
-        manager.register_pass<ngraph::pass::GRUCellDecomposition>();
-        manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
-    }
+    manager.register_pass<ngraph::pass::BidirectionalSequenceDecomposition>();
+    manager.register_pass<ngraph::pass::ConvertSequenceToTensorIterator>();
+    manager.register_pass<ngraph::pass::GRUCellDecomposition>();
+    manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
     manager.run_passes(f);
     return false;
 }

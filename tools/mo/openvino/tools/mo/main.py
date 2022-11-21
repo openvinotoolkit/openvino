@@ -11,7 +11,7 @@ try:
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
 
-from openvino.tools.mo.convert import convert
+from openvino.tools.mo.convert import convert_model
 from openvino.tools.mo.pipeline.common import get_ir_version
 from openvino.tools.mo.utils.cli_parser import get_model_name_from_args
 from openvino.tools.mo.utils.logger import init_logger
@@ -40,7 +40,7 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
 
     ngraph_function = None
     try:
-        ngraph_function = convert(**argv)
+        ngraph_function = convert_model(**argv)
         ov_update_message = get_ov_update_message()
         ov_api20_message = get_ov_api20_message()
         if ov_update_message is not None:
