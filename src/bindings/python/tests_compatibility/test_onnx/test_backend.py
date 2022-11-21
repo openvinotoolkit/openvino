@@ -50,7 +50,6 @@ from tests_compatibility import (
     xfail_issue_82039,
     xfail_issue_90649,
     xfail_issue_91151,
-    xfail_issue_91152,
     xfail_issue_91490,
     skip_dynamic_model,
 )

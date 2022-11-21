@@ -49,7 +49,6 @@ from tests import (
     xfail_issue_82039,
     xfail_issue_90649,
     xfail_issue_91151,
-    xfail_issue_91152,
     xfail_issue_91490,
 )
 from tests.test_onnx.utils.onnx_backend import OpenVinoTestBackend
