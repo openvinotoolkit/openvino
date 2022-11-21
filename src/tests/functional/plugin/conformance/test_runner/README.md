@@ -30,7 +30,7 @@ A result of `conformanceTests` run is `report_opset.xml` file. It demonstrates t
 Run the following command in build directory:
 1. Generate CMake project:
    ```
-   cmake -DENABLE_FUNCTIONAL_TESTS=ON ..
+   cmake -DENABLE_TESTS=ON -DENABLE_FUNCTIONAL_TESTS=ON ..
    ```
 2. Build the targets:
    ```
