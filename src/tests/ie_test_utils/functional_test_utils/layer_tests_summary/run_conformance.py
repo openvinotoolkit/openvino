@@ -204,8 +204,11 @@ class Conformance:
         self._model_path = conformance_ir_path
 
     def _prepare_filelist(self):
+        filelist_path = os.path.join(self._model_path, "conformance_ir_files.lst")
+        if os.path.is_file(filelist_path):
+            logger.info(f"{filelist_path} is exists! Skip the step to prepare fileslist")
+            return filelist_path
         xmls = Path(self._model_path).rglob("*.xml")
-        filelist_path = os.path.join(self._model_path, "conformance_ir.lst")
         with open(filelist_path, 'w') as file:
             for xml in xmls:
                 file.write(str(xml) + '\n')
