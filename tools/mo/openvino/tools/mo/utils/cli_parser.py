@@ -823,8 +823,6 @@ class DeprecatedCanonicalizePathCheckExistenceAction(CanonicalizePathCheckExiste
             option_string)
         if 'tensorflow_use_custom_operations_config' in option_string:
             dep_msg += 'Please use --transformations_config cli option instead'
-        if 'mean_file' in option_string or 'mean_offset' in option_string:
-            dep_msg += 'Please use --mean_values cli option instead.'
         log.error(dep_msg, extra={'is_warning': True})
         super().__call__(parser, namespace, values, option_string)
 
@@ -1127,8 +1125,6 @@ def get_caffe_cli_options():
     d = {
         'input_proto': ['- Path to the Input prototxt', lambda x: x],
         'caffe_parser_path': ['- Path to Python Caffe* parser generated from caffe.proto', lambda x: x],
-        'mean_file': ['- Path to a mean file', lambda x: x if x else 'Not specified'],
-        'mean_file_offsets': ['- Offsets for a mean file', lambda x: x if x else 'Not specified'],
         'k': '- Path to CustomLayersMapping.xml',
         'disable_resnet_optimization': ['- Enable resnet optimization', lambda x: not x],
     }
@@ -1181,8 +1177,8 @@ def get_onnx_cli_options():
 
 def get_params_with_paths_list():
     return ['input_model', 'output_dir', 'caffe_parser_path', 'extensions', 'k', 'output_dir',
-            'input_checkpoint', 'input_meta_graph', 'input_proto', 'input_symbol', 'mean_file',
-            'mean_file_offsets', 'pretrained_model_name', 'saved_model_dir', 'tensorboard_logdir',
+            'input_checkpoint', 'input_meta_graph', 'input_proto', 'input_symbol',
+            'pretrained_model_name', 'saved_model_dir', 'tensorboard_logdir',
             'tensorflow_custom_layer_libraries', 'tensorflow_custom_operations_config_update',
             'tensorflow_object_detection_api_pipeline_config', 'tensorflow_use_custom_operations_config',
             'transformations_config']
@@ -1219,20 +1215,6 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
                                                   'front', 'caffe',
                                                   'CustomLayersMapping.xml'),
                              action=CanonicalizePathCheckExistenceAction)
-    caffe_group.add_argument('--mean_file', '-mf',
-                             help='[DEPRECATED] ' +
-                                  'Mean image to be used for the input. Should be a binaryproto file',
-                             default=None,
-                             action=DeprecatedCanonicalizePathCheckExistenceAction)
-    caffe_group.add_argument('--mean_file_offsets', '-mo',
-                             help='[DEPRECATED] ' +
-                                  'Mean image offsets to be used for the input binaryproto file. ' +
-                                  'When the mean image is bigger than the expected input, it is cropped. By default, centers ' +
-                                  'of the input image and the mean image are the same and the mean image is cropped by ' +
-                                  'dimensions of the input image. The format to pass this option is the following: "-mo (x,y)". In this ' +
-                                  'case, the mean file is cropped by dimensions of the input image with offset (x,y) ' +
-                                  'from the upper left corner of the mean image',
-                             default=None)
     caffe_group.add_argument('--disable_omitting_optional',
                              help=mo_convert_params_caffe['disable_omitting_optional'].description,
                              action='store_true',
