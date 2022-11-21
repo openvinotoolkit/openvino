@@ -6,7 +6,6 @@
 #include "include/batch_headers/fetch_data.cl"
 
 #define FEATURE_SLICE_SIZE 16
-#define unroll_for  __attribute__((opencl_unroll_hint())) for
 
 #define OUTPUT_TYPE_BLOCK               MAKE_VECTOR_TYPE(OUTPUT_TYPE, BLOCK_SIZE)
 #define TO_TYPE(type, val)              CAT(convert_, type)(val)
@@ -107,7 +106,6 @@ KERNEL(eltwise_b_fs_yx_fsv16)(INPUTS_DECLS
 }
 
 #undef FEATURE_SLICE_SIZE
-#undef unroll_for
 #undef OUTPUT_TYPE_BLOCK
 #undef TO_TYPE
 #undef READ_FUNC

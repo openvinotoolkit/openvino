@@ -6,8 +6,6 @@
 #include "include/unit_type.cl"
 #include "include/batch_headers/fetch_data.cl"
 
-#define unroll_for __attribute__((opencl_unroll_hint)) for
-
 #define INPUT0_SIZE_X_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_X + INPUT0_SIZE_X + INPUT0_PAD_AFTER_SIZE_X)
 #define INPUT0_SIZE_Y_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y)
 
@@ -62,8 +60,6 @@ KERNEL (concatenation_gpu_fs_b_yx_fsv32)(__global UNIT_TYPE* input,
     }
 #endif
 }
-
-#undef unroll_for
 
 #undef INPUT0_SIZE_X_WITH_PADDING
 #undef INPUT0_SIZE_Y_WITH_PADDING

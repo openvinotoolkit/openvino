@@ -7,7 +7,6 @@
 
 #define SIMD 16
 #define FSV 16
-#define unroll_for  __attribute__((opencl_unroll_hint(READ_OFFSET))) for
 
 #define CEIL_DIV(a, b) (((a) + (b) - 1)/(b))
 #define ALIGN(a, b) (CEIL_DIV(a, b) * (b))
@@ -406,7 +405,6 @@ uint offset = batch_out * input_batch_pitch + ((feature_out + FSV - 1) / FSV) * 
 
 #undef SIMD
 #undef FSV
-#undef unroll_for
 #undef BLOCK_READ
 #undef READ_OFFSET
 #undef INPUT_VEC

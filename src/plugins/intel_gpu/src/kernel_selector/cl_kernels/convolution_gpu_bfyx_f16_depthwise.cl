@@ -5,8 +5,6 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/data_types.cl"
 
-#define unroll_for __attribute__((opencl_unroll_hint)) for
-
 #define FEATURE_SLICE_SIZE 16
 
 #define INPUT_TYPE        INPUT0_TYPE
@@ -304,8 +302,6 @@ KERNEL(convolution_depthwise)(
     }
 #endif
 }
-
-#undef unroll_for
 
 #undef FEATURE_SLICE_SIZE
 #undef X_BLOCK_SIZE

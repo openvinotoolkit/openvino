@@ -87,8 +87,6 @@ inline void FUNC(get_indices)(int *axes)
 #endif
 }
 
-#define unroll_for __attribute__((opencl_unroll_hint)) for
-
 #if CUM_SUM_PARTIAL_SUM
 inline uint FUNC(get_current_index)(int axis, int i)
 {

@@ -17,3 +17,5 @@
 #else
 #   define ASSUME_HINT(x) do { } while (0)
 #endif
+
+#define unroll_for __attribute__((opencl_unroll_hint)) for

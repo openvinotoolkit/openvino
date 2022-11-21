@@ -56,7 +56,6 @@
 // LOCAL_BATCHES_NUM     - number of batch that can be process per work-group
 // =================================================================================================================
 
-#define unroll_for __attribute__((opencl_unroll_hint)) for
 #define NUM_CLASSES_ACC (NUM_CLASSES + 2)
 
 typedef struct __attribute__((__packed__)) {

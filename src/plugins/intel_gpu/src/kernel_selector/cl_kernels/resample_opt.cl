@@ -5,8 +5,6 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/data_types.cl"
 
-#define unroll_for __attribute__((opencl_unroll_hint)) for
-
 #if ANTIALIAS == 1
     #define TRIANGLE_COEFF(a, x) ( (a) * ACCUMULATOR_MAX_FUNC(ACCUMULATOR_VAL_ZERO, ACCUMULATOR_VAL_ONE - ACCUMULATOR_ABS_FUNC((a) * (x))))
 #else
@@ -368,7 +366,6 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
 }
 #endif // !SAMPLE_TYPE_CAFFE_INTERP
 
-#undef unroll_for
 #undef TRIANGLE_COEFF
 #undef READ_FUNC
 #undef WRITE_FUNC

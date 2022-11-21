@@ -44,8 +44,6 @@
 
 #define MINIMUM_NUMBER_FOR_PARTIAL_SORTING 100
 
-#define unroll_for __attribute__((opencl_unroll_hint)) for
-
 ///////////////////////// Input offset /////////////////////////
 inline uint FUNC(get_input_offset)(uint b, uint f, uint z, uint y, uint x)
 {
@@ -504,4 +502,3 @@ KERNEL(arg_max_min_modified)(const __global INPUT0_TYPE* input
 #undef AXIS
 #undef VALUES_NUM
 #undef MINIMUM_NUMBER_FOR_PARTIAL_SORTING
-#undef unroll_for

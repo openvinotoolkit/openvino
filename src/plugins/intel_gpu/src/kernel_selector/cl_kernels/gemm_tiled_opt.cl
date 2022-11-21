@@ -5,8 +5,6 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/data_types.cl"
 
-#define unroll_for __attribute__((opencl_unroll_hint)) for
-
 #if INPUT0_TYPE_SIZE == 4
 #define BLOCK_SHUFFLE               intel_sub_group_shuffle
 #else // INPUT0_TYPE_SIZE == 4
@@ -342,7 +340,6 @@ KERNEL(gemm_tiled_opt)(
     } // Writing result in the global memory end
 }
 
-#undef unroll_for
 #undef BLOCK_SHUFFLE
 #undef BLOCK_READ_A
 #undef BLOCK_READ_B

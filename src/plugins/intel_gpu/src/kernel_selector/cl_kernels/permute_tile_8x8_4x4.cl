@@ -5,7 +5,6 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/data_types.cl"
 
-#define unroll_for __attribute__((opencl_unroll_hint)) for
 #define CEIL_DIV(A, B) (((A) + (B) - 1) / (B))
 #define INPUT0_GET_TILED_INDEX(ORDER) INPUT0_GET_INDEX(ORDER)
 #define OUTPUT_GET_TILED_INDEX(ORDER) OUTPUT_GET_INDEX(ORDER)

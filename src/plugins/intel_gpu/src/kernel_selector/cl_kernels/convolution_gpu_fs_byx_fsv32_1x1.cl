@@ -6,8 +6,6 @@
 #include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
-#define unroll_for __attribute__((opencl_unroll_hint)) for
-
 #define INPUT0_SIZE_X_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_X + INPUT0_SIZE_X + INPUT0_PAD_AFTER_SIZE_X)
 #define INPUT0_SIZE_Y_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y)
 #define INPUT0_SIZE_B_WITH_PADDING (INPUT0_PAD_BEFORE_BATCH_NUM + INPUT0_BATCH_NUM + INPUT0_PAD_AFTER_BATCH_NUM)
@@ -235,8 +233,6 @@ KERNEL(convolution_gpu_fs_byx_fsv32_1x1)(
     }
     // ========================================================================
 }
-
-#undef unroll_for
 
 #undef INPUT0_SIZE_X_WITH_PADDING
 #undef INPUT0_SIZE_Y_WITH_PADDING

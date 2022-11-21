@@ -38,8 +38,6 @@
 #define REQD_FEATURE_SLICE_SIZE 32
 #define REQD_FEATURES_PER_WORK_ITEM 2
 
-#define unroll_for __attribute__((opencl_unroll_hint)) for
-
 inline ACCUMULATOR_VEC2 FUNC(apply_pooling)(ACCUMULATOR_VEC2 tmp, ACCUMULATOR_VEC2 in)
 {
 #if MAX_POOLING

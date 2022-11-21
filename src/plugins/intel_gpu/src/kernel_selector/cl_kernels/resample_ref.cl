@@ -73,7 +73,6 @@ inline void FUNC(get_cubic_coeff)(float* cubic_coef, float coord, float coef)
 }
 
 #define TRIANGLE_COEFF(x) (ACCUMULATOR_MAX_FUNC(ACCUMULATOR_VAL_ZERO, ACCUMULATOR_VAL_ONE - ACCUMULATOR_ABS_FUNC(x)))
-#define unroll_for __attribute__((opencl_unroll_hint)) for
 
 KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
                           __global OUTPUT_TYPE* output
@@ -577,5 +576,4 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
 #endif // defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE
 }
 
-#undef unroll_for
 #undef TRIANGLE_COEFF

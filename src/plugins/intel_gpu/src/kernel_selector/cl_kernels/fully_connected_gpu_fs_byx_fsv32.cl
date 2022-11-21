@@ -5,8 +5,6 @@
 #include "include/batch_headers/common.cl"
 #include "include/unit_type.cl"
 
-#define unroll_for __attribute__((opencl_unroll_hint)) for
-
 #define INPUT0_SIZE_X_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_X + INPUT0_SIZE_X + INPUT0_PAD_AFTER_SIZE_X)
 #define INPUT0_SIZE_Y_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y)
 

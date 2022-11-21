@@ -28,8 +28,6 @@
 #define OUTPUT_VEC8 MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8)
 #define TO_OUTPUT_VEC8 CAT(convert_, OUTPUT_VEC8)
 
-#define unroll_for __attribute__((opencl_unroll_hint)) for
-
 #if MAX_POOLING
     #define INIT_VAL ACCUMULATOR_VAL_MIN
 #elif AVG_POOLING
@@ -191,7 +189,6 @@ KERNEL(pooling_gpu_bsv16_fsv16)(
 #undef HAS_PAD_Y
 #undef HAS_PAD_X
 
-#undef unroll_for
 #undef INPUT_VEC8
 
 #undef ACCUMULATOR_VEC8

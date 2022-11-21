@@ -23,8 +23,6 @@
 //                             data prefetching; requires additional global barrier
 // ======================================================================================
 
-#define unroll_for __attribute__((opencl_unroll_hint)) for
-
 #define FSV 4
 #define WEIGHTS_OSV 16
 
@@ -222,8 +220,6 @@ KERNEL(convolution)(
         output[output_offset] = out;
     }
 }
-
-#undef unroll_for
 
 #undef FSV
 #undef WEIGHTS_OSV

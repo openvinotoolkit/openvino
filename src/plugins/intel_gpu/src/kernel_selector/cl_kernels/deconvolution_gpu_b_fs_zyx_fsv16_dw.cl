@@ -8,7 +8,6 @@
 
 #include "deconvolution_gpu_imad_common.cl"
 
-#define unroll_for __attribute__((opencl_unroll_hint)) for
 #define FEATURE_SLICE_SIZE 16
 
 #if X_BLOCK_SIZE == 1
@@ -272,7 +271,6 @@ KERNEL(deconvolution_gpu_b_fs_zyx_fsv16_dw)(
     }
 }
 
-#undef unroll_for
 #undef FEATURE_SLICE_SIZE
 
 #undef GET_VEC_ELEM
