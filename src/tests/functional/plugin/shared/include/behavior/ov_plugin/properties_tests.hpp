@@ -45,6 +45,8 @@ public:
 
 using OVPropertiesIncorrectTests = OVPropertiesTests;
 using OVPropertiesDefaultTests = OVPropertiesTests;
+using OVSetSupportPropComplieModleWithoutConfigTests = OVPropertiesTests;
+using OVSetUnsupportPropComplieModleWithoutConfigTests = OVPropertiesTests;
 
 using CompileModelPropertiesParams = std::tuple<std::string, AnyMap, AnyMap>;
 class OVSetPropComplieModleGetPropTests : public testing::WithParamInterface<CompileModelPropertiesParams>,
@@ -57,8 +59,6 @@ public:
     AnyMap compileModelProperties;
 };
 using OVSetPropComplieModleWihtIncorrectPropTests = OVSetPropComplieModleGetPropTests;
-using OVSetSupportPropComplieModleWithoutConfigTests = OVSetPropComplieModleGetPropTests;
-using OVSetUnsupportPropComplieModleWithoutConfigTests = OVSetPropComplieModleGetPropTests;
 
 using OvPropertiesParams = std::tuple<
         std::string,                          // device name

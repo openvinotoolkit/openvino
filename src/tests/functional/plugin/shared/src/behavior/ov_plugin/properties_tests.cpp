@@ -161,7 +161,7 @@ TEST_P(OVSetSupportPropComplieModleWithoutConfigTests, SetPropertyComplieModelWi
 
 TEST_P(OVSetUnsupportPropComplieModleWithoutConfigTests, SetPropertyComplieModelWithIncorrectProperty) {
     OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
-    ASSERT_THROW(core->compile_model(model, target_device, {}) ov::Exception);
+    ASSERT_THROW(core->compile_model(model, target_device, {}), ov::Exception);
 }
 
 std::string OVCompileModelGetExecutionDeviceTests::getTestCaseName(testing::TestParamInfo<OvPropertiesParams> obj) {

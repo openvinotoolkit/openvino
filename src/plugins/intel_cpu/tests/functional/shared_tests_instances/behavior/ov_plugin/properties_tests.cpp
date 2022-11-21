@@ -106,8 +106,6 @@ const std::vector<ov::AnyMap> auto_multi_device_properties = {
 
 const std::vector<ov::AnyMap> auto_multi_incorrect_device_properties = {
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
-     ov::device::properties("CPU", ov::intel_auto::device_bind_buffer("INVALID"))},
-    {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
      ov::num_streams(4),
      ov::device::properties("CPU", ov::num_streams(4))},
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
