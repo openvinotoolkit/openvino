@@ -25,7 +25,7 @@ Make sure to [install OpenCV](https://github.com/opencv/opencv/wiki/BuildOpenCV4
 
 ### Install OpenVINO Development Tools
 
-To install OpenVINO Development Tools, follow the [instructions for C++ developers on the Install OpenVINO Development Tools page](../install_guides/installing-model-dev-tools.md#cpp-developers). The code for the example on this page uses the `googlenet-v1` model from the Caffe framework. When you get to Step 4 of the installation, run the following command to install OpenVINO with the Caffe requirements:
+To install OpenVINO Development Tools, follow the [instructions for C++ developers on the Install OpenVINO Development Tools page](../install_guides/installing-model-dev-tools.md#cpp-developers). This guide uses the `googlenet-v1` model from the Caffe framework, therefore, when you get to Step 4 of the installation, run the following command to install OpenVINO with the Caffe requirements:
 
 ``` sh
    pip install openvino-dev[caffe]
