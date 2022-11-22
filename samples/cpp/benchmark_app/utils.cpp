@@ -898,7 +898,7 @@ std::string parameter_name_to_tensor_name(const std::string& name,
                              "\" is not found neither in tensor names nor in nodes names.");
 }
 
-void processBinaryFile(std::ifstream& binaryFile, const std::string& fileName, const unsigned long inputSize) {
+void verifyBinaryFile(std::ifstream& binaryFile, const std::string& fileName, const unsigned long inputSize) {
     auto fileSize = static_cast<std::size_t>(binaryFile.tellg());
     binaryFile.seekg(0, std::ios_base::beg);
     OPENVINO_ASSERT(binaryFile.good(), "Can not read ", fileName);

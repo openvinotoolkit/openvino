@@ -35,7 +35,9 @@ def parse_args():
                            'Path to a folder with images and/or binaries or to specific image or binary file.'
                            'It is also allowed to map files to model inputs: '
                            'input_1:file_1/dir1,file_2/dir2,input_4:file_4/dir4 input_2:file_3/dir3'
-                           'Currently supported data types: bmp, dib, jpeg, jpg, jpe, jp2, png, pbm, pgm, ppm, sr, ras, tiff, tif, bin, npy')
+                           'Currently supported data types: bin, npy.'
+                           'If OPENCV is enabled, this functionality is extended with the following data types:'
+                           'bmp, dib, jpeg, jpg, jpe, jp2, png, pbm, pgm, ppm, sr, ras, tiff, tif.')
     args.add_argument('-m', '--path_to_model', type=str, required=True,
                       help='Required. Path to an .xml/.onnx file with a trained model or '
                            'to a .blob file with a trained compiled model.')

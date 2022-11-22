@@ -37,7 +37,9 @@ static const char input_message[] =
     "                              You should specify either one files set to be used for all inputs (without "
     "providing "
     "input names) or separate files sets for every input of model (providing inputs names).\n"
-    "Currently supported data types: bmp, dib, jpeg, jpg, jpe, jp2, png, pbm, pgm, ppm, sr, ras, tiff, tif, bin, npy.";
+    "Currently supported data types: bmp, bin, npy.\n"
+    "If OPENCV is enabled, this functionality is extended with the following data types:\n"
+    "dib, jpeg, jpg, jpe, jp2, png, pbm, pgm, ppm, sr, ras, tiff, tif.";
 
 /// @brief message for model argument
 static const char model_message[] =
