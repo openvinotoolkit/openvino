@@ -46,9 +46,9 @@ void adjust_coeff(const Output<Node>& x_rank,
     // in case NCHW format, we need to unsqueeze the normalizing coefficient by lower dimensions
     // to have the coefficient of shape [C, 1, 1]
     // generate axes range for unsqueezing the coefficient
-    auto const_two = make_shared<Constant>(element::i32, Shape{}, 2);
     auto const_one = make_shared<Constant>(element::i32, Shape{}, 1);
-    auto axes = make_shared<Range>(const_two, x_rank, const_one, element::i32);
+    auto x_rank_minus_one = make_shared<Subtract>(x_rank, const_one);
+    auto axes = make_shared<Range>(const_one, x_rank_minus_one, const_one, element::i32);
 
     // adjust shapes of the normalizing coefficients
     adjusted_coeff = make_shared<Unsqueeze>(adjusted_coeff, axes)->output(0);
@@ -71,7 +71,22 @@ void compute_batch_mean_and_variance(const Output<Node>& x,
     batch_variance = make_shared<Subtract>(x, unsqueezed_batch_mean)->output(0);
     auto const_two = make_shared<Constant>(x.get_element_type(), Shape{}, 2);
     batch_variance = make_shared<Power>(batch_variance, const_two);
-    batch_variance = make_shared<ReduceMean>(batch_variance, reduce_axes);
+    batch_variance = make_shared<ReduceMean>(batch_variance, reduce_axes)->output(0);
+
+    // for training mode, variance of FusedBatchNorm is computed with Bessel's correction
+    // batch_variance must be multiplied by n / (n - 1), where n is a number of samples
+    // to compute variance
+    auto x_shape = make_shared<ShapeOf>(x, element::i32);
+    auto gather_axis = make_shared<Constant>(element::i32, Shape{}, 0);
+    auto needed_dim_values = make_shared<Gather>(x_shape, reduce_axes, gather_axis);
+    auto n = make_shared<ReduceProd>(needed_dim_values, gather_axis, false)->output(0);
+    n = make_shared<Convert>(n, batch_variance.get_element_type())->output(0);
+    auto const_one = make_shared<Constant>(batch_variance.get_element_type(), Shape{}, 1);
+    auto bessel_correction = make_shared<Subtract>(n, const_one)->output(0);
+    bessel_correction = make_shared<Divide>(n, bessel_correction);
+
+    // adjust batch_variance by bessel correction
+    batch_variance = make_shared<Multiply>(batch_variance, bessel_correction);
 }
 
 void compute_weighted_batch_mean_and_variance(const Output<Node>& x,
@@ -105,8 +120,8 @@ void compute_weighted_batch_mean_and_variance(const Output<Node>& x,
 
 void compute_fused_batch_norm_inference(const NodeContext& node,
                                         Output<Node>& fused_batch_norm,
-                                        Output<Node>& weighted_batch_mean,
-                                        Output<Node>& weighted_batch_variance) {
+                                        Output<Node>& batch_mean,
+                                        Output<Node>& batch_variance) {
     // when it is inference mode, there are five inputs: x, scale, offset, mean, and variance
     // The formula for FusedBatchNorm is the following:
     // (x - mean) / sqrt(variance + eps) * scale + offset
@@ -119,13 +134,11 @@ void compute_fused_batch_norm_inference(const NodeContext& node,
 
     // retrieve attributes
     auto epsilon = node.get_attribute<float>("epsilon", 0.0001f);
-    auto exponential_avg_factor = node.get_attribute<float>("exponential_avg_factor", 1.0f);
     auto data_format = node.get_attribute<string>("data_format", "NHWC");
     bool is_nhwc = (data_format == "NHWC");
 
     // create auxiliary Constant nodes for some attributes: epsilon and exponential_avg_factor
     auto eps_const = make_shared<Constant>(x.get_element_type(), Shape{}, epsilon);
-    auto exp_avg_factor_const = make_shared<Constant>(scale.get_element_type(), Shape{}, exponential_avg_factor);
     auto half = make_shared<Constant>(x.get_element_type(), Shape{}, 0.5);
 
     // adjust normalizing coefficients: scale, offset, mean, and variance
@@ -149,19 +162,10 @@ void compute_fused_batch_norm_inference(const NodeContext& node,
     auto scaled_x = make_shared<Multiply>(normalized_x, adjusted_scale);
     fused_batch_norm = make_shared<Add>(scaled_x, adjusted_offset)->output(0);
 
-    // 4. compute other two outputs: batch_mean, batch_variance
-    Output<Node> batch_mean, batch_variance;
-    auto casted_x = make_shared<Convert>(x, scale.get_element_type());
-    compute_batch_mean_and_variance(x, x_rank, is_nhwc, batch_mean, batch_variance);
-    compute_weighted_batch_mean_and_variance(x,
-                                             mean,
-                                             variance,
-                                             exp_avg_factor_const,
-                                             x_rank,
-                                             batch_mean,
-                                             batch_variance,
-                                             weighted_batch_mean,
-                                             weighted_batch_variance);
+    // mean and variance go as outputs for batch_mean and batch_variance
+    // exponential_avg_factor has no affect on it
+    batch_mean = mean;
+    batch_variance = variance;
 }
 
 void compute_fused_batch_norm_training(const NodeContext& node,
@@ -198,6 +202,24 @@ void compute_fused_batch_norm_training(const NodeContext& node,
 
     // compute two other outputs: batch_mean and batch_variance
     compute_batch_mean_and_variance(x, x_rank, is_nhwc, batch_mean, batch_variance);
+    if (node.get_input_size() >= 5) {
+        Output<Node> weighted_batch_mean, weighted_batch_variance;
+        auto exponential_avg_factor = node.get_attribute<float>("exponential_avg_factor", 1.0f);
+        auto exp_avg_factor_const = make_shared<Constant>(scale.get_element_type(), Shape{}, exponential_avg_factor);
+        auto mean = node.get_input(3);
+        auto variance = node.get_input(4);
+        compute_weighted_batch_mean_and_variance(x,
+                                                 mean,
+                                                 variance,
+                                                 exp_avg_factor_const,
+                                                 x_rank,
+                                                 batch_mean,
+                                                 batch_variance,
+                                                 weighted_batch_mean,
+                                                 weighted_batch_variance);
+        batch_mean = weighted_batch_mean;
+        batch_variance = weighted_batch_variance;
+    }
 }
 }  // namespace
 
