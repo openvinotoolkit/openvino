@@ -4,35 +4,8 @@ trigger:
     - master
     - releases/*
   paths:
-    exclude: 
-    - docs/
-    - /**/docs/*
-    - /**/*.md
-    - README.md
-    - /**/layer_tests_summary/**
-
-pr:
-  branches:
-    include:
-    - master
-    - releases/*
-  paths:
-    exclude: 
-    - docs/
-    - /**/docs/*
-    - /**/*.md
-    - README.md
-    - /**/layer_tests_summary/**
-
-resources:
-  repositories:
-  - repository: testdata
-    type: github
-    endpoint: openvinotoolkit
-    name: openvinotoolkit/testdata
-
-variables:
-  - group: github
+    exclude:
+    - docs/*
 
 jobs:
 - job: LinCC
@@ -55,18 +28,6 @@ jobs:
     SETUPVARS: $(INSTALL_DIR)/setupvars.sh
 
   steps:
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: '3.10.7'
-      addToPath: false
-      architecture: 'x64'
-      githubToken: $(auth_token)
-    displayName: Setup Python 3.10
-    name: setupPython
-
-  - script: $(setupPython.pythonLocation)/bin/python3.10 --version
-    displayName: 'Check Python 3.10'
-
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
@@ -101,9 +62,6 @@ jobs:
   - script: |
       set -e
       $(REPO_DIR)/install_build_dependencies.sh
-      python3 --version
-      python3.10 --version
-      curl https://bootstrap.pypa.io/get-pip.py | python3
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
       # Speed up build
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
@@ -112,52 +70,6 @@ jobs:
     workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
-  - checkout: testdata
-    clean: true
-    lfs: true
-    path: testdata
-
-  - task: CMake@1
-    inputs:
-      cmakeArgs: >
-        -GNinja
-        -DCMAKE_VERBOSE_MAKEFILE=ON
-        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
-        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
-        -DENABLE_FASTER_BUILD=ON
-        -DENABLE_PROFILING_ITT=ON
-        -DSELECTIVE_BUILD=COLLECT
-        -DPYTHON_EXECUTABLE=$(setupPython.pythonLocation)/bin/python3.10
-        -DENABLE_CLDNN=OFF
-        -DENABLE_INTEL_GPU=OFF
-        -DENABLE_MULTI=OFF
-        -DENABLE_AUTO=OFF
-        -DENABLE_AUTO_BATCH=OFF
-        -DENABLE_HETERO=OFF
-        -DENABLE_TEMPLATE=OFF
-        -DENABLE_INTEL_MYRIAD=OFF
-        -DENABLE_INTEL_MYRIAD_COMMON=OFF
-        -DENABLE_TESTS=OFF
-        -DENABLE_OV_ONNX_FRONTEND=OFF
-        -DENABLE_OV_PADDLE_FRONTEND=OFF
-        -DENABLE_OV_TF_FRONTEND=OFF
-        $(REPO_DIR)
-      workingDirectory: $(BUILD_DIR)
-
-  - script: |
-      ninja
-      cmake --build . --target sea_itt_lib
-    workingDirectory: $(BUILD_DIR)
-    displayName: 'Build LinCC COLLECT'
-
-  - script: ls -alR $(REPO_DIR)/bin/
-    displayName: 'List bin files'
-
-  - script: |
-      python3 thirdparty/itt_collector/runtool/sea_runtool.py --bindir $(REPO_DIR)/bin/intel64/Release -o $(BUILD_DIR)/itt_stat ! $(REPO_DIR)/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 -m $(MODELS_PATH)/models/test_model/test_model_fp32.xml -d CPU
-    workingDirectory: $(REPO_DIR)
-    displayName: 'Code usage analysis'
-
   - task: CMake@1
     inputs:
       cmakeArgs: >
@@ -165,33 +77,21 @@ jobs:
         -DVERBOSE_BUILD=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_FASTER_BUILD=ON
-        -DENABLE_PROFILING_ITT=OFF
-        -DENABLE_CLDNN=OFF
-        -DENABLE_INTEL_GPU=OFF
-        -DENABLE_MULTI=OFF
-        -DENABLE_AUTO=OFF
-        -DENABLE_AUTO_BATCH=OFF
-        -DENABLE_HETERO=OFF
-        -DENABLE_TEMPLATE=OFF
-        -DENABLE_INTEL_MYRIAD=OFF
-        -DENABLE_INTEL_MYRIAD_COMMON=OFF
-        -DENABLE_TESTS=OFF
-        -DENABLE_OV_ONNX_FRONTEND=OFF
-        -DENABLE_OV_PADDLE_FRONTEND=OFF
-        -DENABLE_OV_TF_FRONTEND=OFF
-        -DSELECTIVE_BUILD=ON
-        -DSELECTIVE_BUILD_STAT=$(BUILD_DIR)/*.csv
+        -DENABLE_PROFILING_ITT=ON
+        -DSELECTIVE_BUILD=COLLECT
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 
-  - script: cmake --build .
+  - script: ninja
     workingDirectory: $(BUILD_DIR)
-    displayName: 'Build LinCC ON'
+    displayName: 'Build LinCC'
 
   - script: ls -alR $(REPO_DIR)/bin/
-    displayName: 'List bin files ON'
-  # TODO: ebable after the fix on CPU side
-  # - script: |
-  #     $(REPO_DIR)/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 -m $(MODELS_PATH)/models/test_model/test_model_fp32.xml -d CPU
-  #   workingDirectory: $(REPO_DIR)
-  #   displayName: 'Use OpenVINO after CC'
+    displayName: 'List bin files'
+
+  - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Install'
+
+  - script: ls -alR $(INSTALL_DIR)
+    displayName: 'List install files'

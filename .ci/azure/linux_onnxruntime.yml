@@ -4,30 +4,8 @@ trigger:
     - master
     - releases/*
   paths:
-    exclude: 
-    - docs/
-    - /**/docs/*
-    - /**/*.md
-    - README.md
-    - /**/layer_tests_summary/**
-    - src/tests/functional/plugin/conformance/**
-
-pr:
-  branches:
-    include:
-    - master
-    - releases/*
-  paths:
-    exclude: 
-    - docs/
-    - /**/docs/*
-    - /**/*.md
-    - README.md
-    - /**/layer_tests_summary/**
-    - src/tests/functional/plugin/conformance/**
-
-variables:
-  - group: github
+    exclude:
+    - docs/*
 
 jobs:
 - job: onnxruntime
@@ -50,22 +28,8 @@ jobs:
     BUILD_DIR: $(WORK_DIR)/build
     ONNXRUNTIME_UTILS: $(REPO_DIR)/.ci/azure/ci_utils/onnxruntime
     ONNXRUNTIME_BUILD_DIR: $(ONNXRUNTIME_REPO_DIR)/build
-    PY_VENV: $(WORK_DIR)/.venv
-    PYTHON_VERSION: 3.10.7
 
   steps:
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: '3.10.7'
-      addToPath: true
-      architecture: 'x64'
-      githubToken: $(auth_token)
-    displayName: Setup Python 3.10
-    name: setupPython
-
-  - script: $(setupPython.pythonLocation)\python.exe --version
-    displayName: 'Check Python 3.10'
-
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
@@ -108,8 +72,6 @@ jobs:
   - script: |
       set -e
       $(REPO_DIR)/install_build_dependencies.sh
-      $(setupPython.pythonLocation)\python.exe -m venv $(PY_VENV)
-      . $(PY_VENV)/bin/activate
       python3 -m pip install --upgrade pip
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
       # For running Python API tests
@@ -129,9 +91,8 @@ jobs:
       cmakeArgs: >
         -GNinja
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
-        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DENABLE_PYTHON=ON
-        -DPYTHON_EXECUTABLE=$(PY_VENV)/bin/python3.10
+        -DPYTHON_EXECUTABLE=/usr/bin/python3.8
         -DENABLE_INTEL_MYRIAD_COMMON=OFF
         -DENABLE_INTEL_GNA=OFF
         -DENABLE_CPPLINT=OFF
@@ -157,14 +118,12 @@ jobs:
     displayName: 'Install'
 
   - script: |
-      . $(PY_VENV)/bin/activate
       source $(INSTALL_DIR)/setupvars.sh
       CXXFLAGS="-Wno-error=deprecated-declarations" ./build.sh --config RelWithDebInfo --use_openvino CPU_FP32 --build_shared_lib --parallel --skip_tests --build_dir $(ONNXRUNTIME_BUILD_DIR)
     workingDirectory: $(ONNXRUNTIME_REPO_DIR)
     displayName: 'Build Lin ONNX Runtime'
 
   - script: |
-      . $(PY_VENV)/bin/activate
       source $(INSTALL_DIR)/setupvars.sh
       skip_tests=`tr -s '\n ' ':' < $(ONNXRUNTIME_UTILS)/skip_tests`
       ./onnxruntime_test_all --gtest_filter=-$skip_tests
@@ -172,35 +131,30 @@ jobs:
     displayName: 'Run onnxruntime_test_all'
 
   - script: |
-      . $(PY_VENV)/bin/activate
       source $(INSTALL_DIR)/setupvars.sh
       ./onnxruntime_shared_lib_test
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run onnxruntime_shared_lib_test'
 
   - script: |
-      . $(PY_VENV)/bin/activate
       source $(INSTALL_DIR)/setupvars.sh
       ./onnxruntime_global_thread_pools_test
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run onnxruntime_global_thread_pools_test'
 
   - script: |
-      . $(PY_VENV)/bin/activate
       source $(INSTALL_DIR)/setupvars.sh
       ./onnxruntime_api_tests_without_env
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run onnxruntime_api_tests_without_env'
 
   - script: |
-      . $(PY_VENV)/bin/activate
       source $(INSTALL_DIR)/setupvars.sh
       ./onnx_test_runner "$(ONNXRUNTIME_REPO_DIR)/cmake/external/onnx/onnx/backend/test/data/pytorch-converted"
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run pytorch-converted tests'
 
   - script: |
-      . $(PY_VENV)/bin/activate
       source $(INSTALL_DIR)/setupvars.sh
       ./onnx_test_runner "$(ONNXRUNTIME_REPO_DIR)/cmake/external/onnx/onnx/backend/test/data/pytorch-operator"
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
