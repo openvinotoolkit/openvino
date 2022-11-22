@@ -61,7 +61,9 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
         DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_dft_kernel_f32)
 
         jit_dft_kernel_f32(bool is_inverse, enum dft_type type) : jit_dft_kernel(is_inverse, type), jit_generator(jit_name()) {
-            int simd_size = vlen / sizeof(float);
+            constexpr int simd_size = vlen / type_size;
+            perm_low_values.reserve(simd_size);
+            perm_high_values.reserve(simd_size);
             for (int i = 0; i < simd_size / 2; i++) {
                 perm_low_values.push_back(i);
                 perm_low_values.push_back(i + simd_size);
@@ -82,8 +84,8 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
         void interleave_and_store(const Xbyak::Ymm& real, const Xbyak::Ymm& imag, const Xbyak::RegExp& reg_exp, const Xbyak::Ymm& tmp);
         void interleave_and_store(const Xbyak::Xmm& real, const Xbyak::Xmm& imag, const Xbyak::RegExp& reg_exp, const Xbyak::Xmm& tmp);
 
-        int type_size = sizeof(float);
-        int vlen = cpu_isa_traits<isa>::vlen;
+        static constexpr int type_size = sizeof(float);
+        static constexpr int vlen = cpu_isa_traits<isa>::vlen;
 
         Xbyak::Reg8 is_signal_size_even = al;
         Xbyak::Reg64 input_ptr = rbx;
