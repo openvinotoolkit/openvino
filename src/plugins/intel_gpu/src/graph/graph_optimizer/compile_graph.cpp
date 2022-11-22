@@ -42,6 +42,13 @@ void compile_graph::run(program& p) {
         if (node->is_type<reshape>() && node->is_dynamic() && !node->can_be_optimized())
             can_select_impl = false;
 
+        bool is_planar = node->get_output_layout().format == format::bfyx ||
+                         node->get_output_layout().format == format::bfzyx ||
+                         node->get_output_layout().format == format::bfwzyx;
+
+        if (node->is_dynamic() && !is_planar)
+            can_select_impl = false;
+
         if (can_select_impl) {
             tasks.push_back([node, &p, &exception] {
                 try {
