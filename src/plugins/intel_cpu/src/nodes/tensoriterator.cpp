@@ -215,41 +215,57 @@ public:
             to_desc = to_desc->cloneWithNewDims(commonDims);
         }
 
+        // TODO: the subgraph has static input and output nodes,
+        // but the TI has dynamic output shape.. like the case of Paddle FE TensorArray.
         m_dynamic = m_from->isDynamicNode() || m_to->isDynamicNode();
 
-        auto from_mem_ptr = m_from->getParentEdgeAt(inputNodePortIdx)->getMemoryPtr();
-
         if (to_desc->isCompatible(*from_desc)) {
-            auto memMngPtr = from_mem_ptr->getDnnlMemoryMngr();
-            auto& childEdges = m_to->getChildEdgesAtPort(outputNodePortIdx);
-
             // check if can share memory of "from" to "to"
             m_shareable = check_shareable();
             std::cout << __LINE__ << " backedge: " << m_from->getName() << " -> " << m_to->getName() << " shareable: " << m_shareable << std::endl;
-            if (m_shareable) {
-                for (size_t i = 0; i < childEdges.size(); ++i) {
-                    auto to_mem_ptr = childEdges[i]->getMemoryPtr();
-                    std::cout << __LINE__ << from_mem_ptr->GetPtr() << ", "
-                    << from_mem_ptr->GetData() << ", memman = " << from_mem_ptr->getDnnlMemoryMngr() << std::endl;
-                    std::cout << __LINE__ << to_mem_ptr->GetPtr() << ", "
-                    << to_mem_ptr->GetData() << ", memman = " << to_mem_ptr->getDnnlMemoryMngr() << std::endl;
-                    to_mem_ptr->Create(to_mem_ptr->getDesc(), memMngPtr); // FIXME: to_mem larger than from_mem, OR, from_mem is resued by memman??
-                    std::cout << __LINE__ << to_mem_ptr->GetPtr() << ", "
-                    << to_mem_ptr->GetData() << ", memman = " << to_mem_ptr->getDnnlMemoryMngr() << std::endl;
-                }
-            }
         }
         if (!m_dynamic && !m_shareable) {
+            auto from_mem_ptr = m_from->getParentEdgeAt(inputNodePortIdx)->getMemoryPtr();
             mem_holder_src = from_mem_ptr->GetPrimitive();
             mem_holder_dst = m_to->getChildEdgesAtPort(outputNodePortIdx)[0]->getMemory().GetPrimitive();
             reorder = {mem_holder_src, mem_holder_dst};
         }
     }
 
+    void execute(dnnl::stream strm, int iter = -1) override {
+        if (iter != 0) {
+            if (m_shareable && !m_reused) {
+                auto from_mem_ptr = m_from->getParentEdgeAt(inputNodePortIdx)->getMemoryPtr();
+                auto memMngPtr = from_mem_ptr->getDnnlMemoryMngr();
+                auto& childEdges = m_to->getChildEdgesAtPort(outputNodePortIdx);
+                for (size_t i = 0; i < childEdges.size(); ++i) { // TODO: should consider all edges in this cluster???
+                    auto to_mem_ptr = childEdges[i]->getMemoryPtr();
+                    // std::cout << __LINE__ << from_mem_ptr->GetPtr() << ", "
+                    // << from_mem_ptr->GetData() << ", memman = " << from_mem_ptr->getDnnlMemoryMngr() << std::endl;
+                    // std::cout << __LINE__ << to_mem_ptr->GetPtr() << ", "
+                    // << to_mem_ptr->GetData() << ", memman = " << to_mem_ptr->getDnnlMemoryMngr() << std::endl;
+                    to_mem_ptr->Create(to_mem_ptr->getDesc(), memMngPtr); // FIXME: to_mem larger than from_mem, OR, from_mem is resued by memman??
+                    // std::cout << __LINE__ << to_mem_ptr->GetPtr() << ", "
+                    // << to_mem_ptr->GetData() << ", memman = " << to_mem_ptr->getDnnlMemoryMngr() << std::endl;
+                }
+                m_reused = true;
+            }
+            if (m_dynamic) {
+                update_shapes();
+            }
+            if (reorder.get(true) != nullptr) {
+                reorder.execute(strm, mem_holder_src, mem_holder_dst);
+            }
+        }
+    }
+
+protected:
     void update_shapes() {
         const auto& mem_from = m_from->getParentEdgeAt(inputNodePortIdx)->getMemory();
         auto dims = mem_from.getStaticDims();
         if (last_dims != dims) {
+            // TODO: if dynamic, and shareable, do we still need redefineOutputMemory for m_to?
+            // It has already created with m_from's memoryMngr.
             m_to->redefineOutputMemory({dims}); // we exploit the fact that the target edges are connected to port 0
             auto& to_memptr = m_to->getChildEdgesAtPort(outputNodePortIdx)[0]->getMemoryPtr();
             std::cout << __LINE__
@@ -266,18 +282,6 @@ public:
         }
     }
 
-    void execute(dnnl::stream strm, int iter = -1) override {
-        if (iter != 0) {
-            if (m_dynamic) {
-                update_shapes();
-            }
-            if (reorder.get(true) != nullptr) {
-                reorder.execute(strm, mem_holder_src, mem_holder_dst);
-            }
-        }
-    }
-
-protected:
 #ifdef CPU_DEBUG_CAPS
 #define DEBUG_RETURN(ret_val)                                               \
         do {                                                                \
@@ -343,6 +347,7 @@ protected:
 private:
     bool m_dynamic = false;
     bool m_shareable = false;
+    bool m_reused = false;
     const Node* m_from;
     Node* m_to;
     const TensorIterator* m_tiOp;
