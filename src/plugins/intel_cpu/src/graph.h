@@ -268,6 +268,7 @@ private:
     DnnlScratchPadPtr rtScratchPad;
 
     void EnforceBF16();
+    void setMinSparseRate(float minSparseRate);
 };
 
 }   // namespace intel_cpu

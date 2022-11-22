@@ -26,6 +26,7 @@
 #include <nodes/reorder.h>
 #include "nodes/convert.h"
 #include "nodes/subgraph.h"
+#include "nodes/fullyconnected.h"
 
 #include <ie_algorithm.hpp>
 #include <blob_factory.hpp>
@@ -340,6 +341,9 @@ void Graph::Replicate(const CNNNetwork &network, const ExtensionManager::Ptr& ex
 
     if (config.enforceBF16)
         EnforceBF16();
+
+    if (config.fcSparseWeiDecompressionRate < 1.0f)
+        setMinSparseRate(config.fcSparseWeiDecompressionRate);
 
     auto hasSubgraphConsumers = [] (const NodePtr& node) -> bool {
         const auto & childEdges = node->getChildEdges();
@@ -1450,6 +1454,14 @@ void Graph::EnforceBF16() {
                 if (node->getOriginalOutputPrecisionAtPort(i) == Precision::FP32)
                     node->setOriginalOutputPrecisionAtPort(i, Precision::BF16);
             }
+        }
+    }
+}
+
+void Graph::setMinSparseRate(float minSparseRate) {
+    for (const auto &node : graphNodes) {
+        if (auto fcNodePtr = std::dynamic_pointer_cast<node::FullyConnected>(node)) {
+            fcNodePtr->setMinSparseRate(minSparseRate);
         }
     }
 }
