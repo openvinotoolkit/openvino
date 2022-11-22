@@ -469,10 +469,6 @@ KERNEL(gemm_mmad_int8)(
     }
 
 #if TILE_NUM == 2
-#if HAS_FUSED_OPS && FUSED_OPS_CAN_USE_PRELOAD
-    FUSED_OPS_PRELOAD;
-#endif
-
     for (uint i = 0; i < SUB_GROUP_SIZE; i++) {
         ACTIVATION_TYPE dequantized = TO_ACTIVATION_TYPE(tile_output01[i]);
         dequantized *= TO_ACTIVATION_TYPE(ALPHA);

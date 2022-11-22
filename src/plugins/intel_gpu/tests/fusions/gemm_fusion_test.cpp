@@ -30,6 +30,7 @@ struct gemm_test_params {
     format default_format;
     size_t expected_fused_primitives;
     size_t expected_not_fused_primitives;
+    std::string kernel_name;
 };
 
 class GemmFusingTest : public ::BaseFusingTest<gemm_test_params> {
@@ -38,6 +39,13 @@ public:
     void execute(gemm_test_params& p) {
         auto input0_prim = get_mem(get_input_layout(p, 0));
         auto input1_prim = get_mem(get_input_layout(p, 1));
+
+        if (!p.kernel_name.empty()) {
+            implementation_desc gemm_ref_impl = { format::bfyx, "gemm_ref" };
+            implementation_desc gemm_target_impl = { format::bfyx, p.kernel_name };
+            bo_fused.set_option(build_option::force_implementations({ {"gemm_prim", gemm_target_impl} }));
+            bo_not_fused.set_option(build_option::force_implementations({ {"gemm_prim", gemm_ref_impl} }));
+        }
 
         network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
         network network_fused(this->engine, this->topology_fused, bo_fused);
@@ -109,8 +117,10 @@ public:
 
 #define CASE_GEMM_ELTWISE_2IN_FP32_1 { { 1, 1, 4, 4 }, { 1, 1, 4, 4 } }, { 1, 1, 4, 4 }, tensor{ 1 }, tensor{ 0 }, data_types::f32, data_types::f32, data_types::f32, format::bfyx, data_types::f32, format::bfyx
 #define CASE_GEMM_ELTWISE_2IN_FP16_1 { { 1, 1, 32, 32 }, { 1, 1, 32, 32 } }, { 1, 1, 32, 32 }, tensor{ 1 }, tensor{ 0 }, data_types::f16, data_types::f16, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_GEMM_ELTWISE_2IN_FP16_2 { { 1, 1, 1024, 1024 }, { 1, 1, 1024, 1024 } }, { 1, 1, 1024, 1024 }, tensor{ 1 }, tensor{ 0 }, data_types::f16, data_types::f16, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 #define CASE_GEMM_ELTWISE_2IN_U8S8_1 { { 1, 1, 4, 4 }, { 1, 1, 4, 4 } }, { 1, 1, 4, 4 }, tensor{ 1 }, tensor{ 0 }, data_types::u8, data_types::i8, data_types::u8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_GEMM_ELTWISE_2IN_S8U8_1 { { 1, 1, 32, 32 }, { 1, 1, 32, 32 } }, { 1, 1, 32, 32 }, tensor{ 1 }, tensor{ 0 }, data_types::i8, data_types::u8, data_types::u8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GEMM_ELTWISE_2IN_U8S8_2 { { 1, 1, 1024, 1024 }, { 1, 1, 1024, 1024 } }, { 1, 1, 1024, 1024 }, tensor{ 1 }, tensor{ 0 }, data_types::u8, data_types::i8, data_types::u8, format::bfyx, data_types::f32, format::bfyx
 
 class gemm_3in_quantize_i8 : public GemmFusingTest {};
 TEST_P(gemm_3in_quantize_i8, basic) {
@@ -340,7 +350,7 @@ TEST_P(gemm_2in_act_scale_eltwise, basic) {
         reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
     );
     // Activation won't be fused because onednn doesn't support negative activation
-    if (engine.get_device_info().supports_immad)
+    if (engine.get_device_info().supports_immad && !p.kernel_name.empty())
         p.expected_fused_primitives += 2;
 
     tolerance = 1e-4f;
@@ -361,7 +371,7 @@ TEST_P(gemm_2in_act_scale_eltwise, broadcast_eltwise) {
         reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
     );
     // Activation won't be fused because onednn doesn't support negative activation
-    if (engine.get_device_info().supports_immad)
+    if (engine.get_device_info().supports_immad && !p.kernel_name.empty())
         p.expected_fused_primitives += 2;
 
     tolerance = 1e-4f;
@@ -373,4 +383,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_act_scale_eltwise, ::testing::Val
     gemm_test_params{ CASE_GEMM_ELTWISE_2IN_FP16_1, 3, 6 },
     gemm_test_params{ CASE_GEMM_ELTWISE_2IN_U8S8_1, 3, 6 },
     gemm_test_params{ CASE_GEMM_ELTWISE_2IN_S8U8_1, 3, 6 },
+    gemm_test_params{ CASE_GEMM_ELTWISE_2IN_U8S8_2, 3, 3 , "gemm_mmad_int8" },
+    // gemm_test_params{ CASE_GEMM_ELTWISE_2IN_U8S8_2, 3, 3 , "gemm_mmad_int8_slm" },   // tolerance issue
+    gemm_test_params{ CASE_GEMM_ELTWISE_2IN_FP16_2, 3, 3 , "gemm_tiled_opt" },
 }));
