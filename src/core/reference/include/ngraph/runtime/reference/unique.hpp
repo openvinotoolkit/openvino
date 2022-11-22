@@ -187,7 +187,7 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
             generate_descriptors<Index_t, Count_t>(data_elems_count, DescriptorType::SINGLE_VALUE);
 
         if (sorted) {
-            std::sort(begin(ret.all_tensor_elements), end(ret.all_tensor_elements), ascending_order);
+            std::stable_sort(begin(ret.all_tensor_elements), end(ret.all_tensor_elements), ascending_order);
         }
 
         ret.all_tensor_elements[0].rev_idx = 0;
@@ -219,7 +219,7 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
         ret.all_tensor_elements = generate_descriptors<Index_t, Count_t>(data_shape[*axis], DescriptorType::SLICE);
 
         if (sorted) {
-            std::sort(begin(ret.all_tensor_elements), end(ret.all_tensor_elements), slices_ascending_order);
+            std::stable_sort(begin(ret.all_tensor_elements), end(ret.all_tensor_elements), ascending_order);
         }
 
         ret.all_tensor_elements[0].rev_idx = 0;
