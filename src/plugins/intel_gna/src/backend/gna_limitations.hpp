@@ -123,6 +123,7 @@ struct RectLimitByChannelsAndPrecision {
 class AbstractValidator {
 protected:
     static void ThrowIfNotEmpty(const std::string& prefix, const std::string& error);
+
 public:
     static bool ValidationSuccesful(const bool throwOnError,
                                     const std::string& error,
