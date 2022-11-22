@@ -28,7 +28,7 @@ ElementTree = defuse_stdlib()[ET].ElementTree
 
 def read_rt_info_attr(elem):
     if len(elem) == 0:
-        if not hasattr(elem.attrib, 'value'):
+        if 'value' not in elem.attrib:
             return None
         value = elem.attrib['value']
         return value
