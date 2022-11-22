@@ -13,6 +13,23 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
+namespace {
+void generate_axes_range_except_c(const Output<Node>& x_rank, bool is_nhwc, Output<Node>& axes_no_c) {
+    auto const_one = make_shared<Constant>(element::i32, Shape{}, 1);
+    if (is_nhwc) {
+        auto const_zero = make_shared<Constant>(element::i32, Shape{}, 0);
+        auto rank_minus_one = make_shared<Subtract>(x_rank, const_one);
+        axes_no_c = make_shared<Range>(const_zero, rank_minus_one, const_one, element::i32)->output(0);
+    } else {
+        auto const_zero = make_shared<Constant>(element::i32, Shape{1}, 0);
+        auto const_two = make_shared<Constant>(element::i32, Shape{}, 2);
+        // in NCHW layout case
+        axes_no_c = make_shared<Range>(const_two, x_rank, const_one, element::i32)->output(0);
+        // add batch dimension as well
+        axes_no_c = make_shared<Concat>(OutputVector{const_zero, axes_no_c}, 0);
+    }
+}
+
 void adjust_coeff(const Output<Node>& x_rank,
                   element::Type x_type,
                   const Output<Node>& coeff,
@@ -39,15 +56,19 @@ void adjust_coeff(const Output<Node>& x_rank,
 
 void compute_batch_mean_and_variance(const Output<Node>& x,
                                      const Output<Node>& x_rank,
+                                     bool is_nhwc,
                                      Output<Node>& batch_mean,
                                      Output<Node>& batch_variance) {
+    // generate axes range for reduction operation
+    Output<Node> reduce_axes;
+    generate_axes_range_except_c(x_rank, is_nhwc, reduce_axes);
+
     // compute batch_mean
-    auto const_one = make_shared<Constant>(element::i32, Shape{}, 1);
-    auto reduce_axes = make_shared<Range>(const_one, x_rank, const_one, element::i32);
     batch_mean = make_shared<ReduceMean>(x, reduce_axes, false)->output(0);
 
     // compute batch_variance
-    batch_variance = make_shared<Subtract>(x, batch_mean)->output(0);
+    auto unsqueezed_batch_mean = make_shared<Unsqueeze>(batch_mean, reduce_axes);
+    batch_variance = make_shared<Subtract>(x, unsqueezed_batch_mean)->output(0);
     auto const_two = make_shared<Constant>(x.get_element_type(), Shape{}, 2);
     batch_variance = make_shared<Power>(batch_variance, const_two);
     batch_variance = make_shared<ReduceMean>(batch_variance, reduce_axes);
@@ -131,7 +152,7 @@ void compute_fused_batch_norm_inference(const NodeContext& node,
     // 4. compute other two outputs: batch_mean, batch_variance
     Output<Node> batch_mean, batch_variance;
     auto casted_x = make_shared<Convert>(x, scale.get_element_type());
-    compute_batch_mean_and_variance(x, x_rank, batch_mean, batch_variance);
+    compute_batch_mean_and_variance(x, x_rank, is_nhwc, batch_mean, batch_variance);
     compute_weighted_batch_mean_and_variance(x,
                                              mean,
                                              variance,
@@ -166,19 +187,7 @@ void compute_fused_batch_norm_training(const NodeContext& node,
 
     // generate axes for MVN operations
     Output<Node> mvn_axes;
-    auto const_one = make_shared<Constant>(element::i32, Shape{}, 1);
-    if (is_nhwc) {
-        auto const_zero = make_shared<Constant>(element::i32, Shape{}, 0);
-        auto rank_minus_one = make_shared<Subtract>(x_rank, const_one);
-        mvn_axes = make_shared<Range>(const_zero, rank_minus_one, const_one, element::i32)->output(0);
-    } else {
-        auto const_zero = make_shared<Constant>(element::i32, Shape{1}, 0);
-        auto const_two = make_shared<Constant>(element::i32, Shape{}, 2);
-        // in NCHW layout case
-        mvn_axes = make_shared<Range>(const_two, x_rank, const_one, element::i32)->output(0);
-        // add batch dimension as well
-        mvn_axes = make_shared<Concat>(OutputVector{const_zero, mvn_axes}, 0);
-    }
+    generate_axes_range_except_c(x_rank, is_nhwc, mvn_axes);
 
     // perform mean-variance normalization
     auto mvn = make_shared<MVN>(x, mvn_axes, true, epsilon, ov::op::MVNEpsMode::INSIDE_SQRT);
@@ -188,8 +197,9 @@ void compute_fused_batch_norm_training(const NodeContext& node,
     fused_batch_norm = make_shared<Add>(fused_batch_norm, adjusted_offset)->output(0);
 
     // compute two other outputs: batch_mean and batch_variance
-    compute_batch_mean_and_variance(x, x_rank, batch_mean, batch_variance);
+    compute_batch_mean_and_variance(x, x_rank, is_nhwc, batch_mean, batch_variance);
 }
+}  // namespace
 
 OutputVector translate_fused_batch_norm_op(const NodeContext& node) {
     default_op_checks(node, 3, {"FusedBatchNorm", "FusedBatchNormV2", "FusedBatchNormV3"});
