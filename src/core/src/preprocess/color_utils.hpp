@@ -75,7 +75,9 @@ public:
     }
 
 protected:
-    virtual PartialShape calculate_shape(size_t plane_num, const PartialShape& src_shape, const Layout& src_layout) const {
+    virtual PartialShape calculate_shape(size_t plane_num,
+                                         const PartialShape& src_shape,
+                                         const Layout& src_layout) const {
         return src_shape;
     }
 
@@ -99,7 +101,9 @@ public:
     explicit ColorFormatRGB(ColorFormat format) : ColorFormatNHWC(format) {}
 
 protected:
-    PartialShape calculate_shape(size_t plane_num, const PartialShape& src_shape, const Layout& src_layout) const override {
+    PartialShape calculate_shape(size_t plane_num,
+                                 const PartialShape& src_shape,
+                                 const Layout& src_layout) const override {
         PartialShape result = src_shape;
         if (src_shape.rank().is_static())
             result[ov::layout::channels_idx(src_layout)] = 3;
@@ -115,7 +119,9 @@ public:
     explicit ColorFormatInfoYUV420_Single(ColorFormat format) : ColorFormatNHWC(format) {}
 
 protected:
-    PartialShape calculate_shape(size_t plane_num, const PartialShape& src_shape, const Layout& src_layout) const override {
+    PartialShape calculate_shape(size_t plane_num,
+                                 const PartialShape& src_shape,
+                                 const Layout& src_layout) const override {
         PartialShape result = src_shape;
         if (src_shape.rank().is_static() && src_shape.rank().get_length() == 4) {
             result[3] = 1;
@@ -136,7 +142,9 @@ public:
     }
 
 protected:
-    PartialShape calculate_shape(size_t plane_num, const PartialShape& src_shape, const Layout& src_layout) const override {
+    PartialShape calculate_shape(size_t plane_num,
+                                 const PartialShape& src_shape,
+                                 const Layout& src_layout) const override {
         PartialShape result = src_shape;
         if (src_shape.rank().is_static() && src_shape.rank().get_length() == 4) {
             if (plane_num == 0) {
@@ -166,7 +174,9 @@ public:
     }
 
 protected:
-    PartialShape calculate_shape(size_t plane_num, const PartialShape& src_shape, const Layout& src_layout) const override {
+    PartialShape calculate_shape(size_t plane_num,
+                                 const PartialShape& src_shape,
+                                 const Layout& src_layout) const override {
         PartialShape result = src_shape;
         if (src_shape.rank().is_static() && src_shape.rank().get_length() == 4) {
             result[3] = 1;  //  Number of channels is always 1 for I420 planes
@@ -191,7 +201,9 @@ public:
     explicit ColorFormatInfo_RGBX_Base(ColorFormat format) : ColorFormatNHWC(format) {}
 
 protected:
-    PartialShape calculate_shape(size_t plane_num, const PartialShape& src_shape, const Layout& src_layout) const override {
+    PartialShape calculate_shape(size_t plane_num,
+                                 const PartialShape& src_shape,
+                                 const Layout& src_layout) const override {
         PartialShape result = src_shape;
         if (src_shape.rank().is_static() && src_shape.rank().get_length() == 4) {
             result[3] = 4;

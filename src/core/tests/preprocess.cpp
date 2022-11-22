@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
+#include "common_test_utils/test_assertions.hpp"
 #include "gmock/gmock-matchers.h"
+#include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/ops.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/util/common_util.hpp"
-#include "util/test_tools.hpp"
 #include "preprocess/color_utils.hpp"
-#include "common_test_utils/test_assertions.hpp"
+#include "util/test_tools.hpp"
 
 using namespace ov;
 using namespace ov::preprocess;
@@ -288,8 +288,7 @@ TEST_P(pre_post_process_to_gray, convert_color_asserts) {
                     p.input().tensor().set_layout("DHWC").set_color_format(COLOR_FORMAT);
                     p.input().preprocess().convert_color(ColorFormat::GRAY);
                     p.build();
-                    , ov::AssertFailure
-                    , ::testing::HasSubstr("Dimension name 'N' is not found in layout"));
+                    , ov::AssertFailure, ::testing::HasSubstr("Dimension name 'N' is not found in layout"));
 
     // No "C" dimension name
     OV_EXPECT_THROW(auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 1});
@@ -297,8 +296,7 @@ TEST_P(pre_post_process_to_gray, convert_color_asserts) {
                     p.input().tensor().set_layout("NHWD").set_color_format(COLOR_FORMAT);
                     p.input().preprocess().convert_color(ColorFormat::GRAY);
                     p.build();
-                    , ov::AssertFailure
-                    , ::testing::HasSubstr("C dimension index is not defined"));
+                    , ov::AssertFailure, ::testing::HasSubstr("C dimension index is not defined"));
 
     // // Rank < 4
     OV_EXPECT_THROW(auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 3});
@@ -306,8 +304,7 @@ TEST_P(pre_post_process_to_gray, convert_color_asserts) {
                     p.input().tensor().set_layout("NHC").set_color_format(COLOR_FORMAT);
                     p.input().preprocess().convert_color(ColorFormat::GRAY);
                     p.build();
-                    , ov::AssertFailure
-                    , ::testing::HasSubstr("Input shape size should be equal to 4, actual size: 3"));
+                    , ov::AssertFailure, ::testing::HasSubstr("Input shape size should be equal to 4, actual size: 3"));
 
     // // Rank > 4
     OV_EXPECT_THROW(auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 2, 3});
@@ -315,8 +312,7 @@ TEST_P(pre_post_process_to_gray, convert_color_asserts) {
                     p.input().tensor().set_layout("NDHWC").set_color_format(COLOR_FORMAT);
                     p.input().preprocess().convert_color(ColorFormat::GRAY);
                     p.build();
-                    , ov::AssertFailure
-                    , ::testing::HasSubstr("Input shape size should be equal to 4, actual size: 5"));
+                    , ov::AssertFailure, ::testing::HasSubstr("Input shape size should be equal to 4, actual size: 5"));
 
     // // "C" != 1
     OV_EXPECT_THROW(auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 5});
@@ -324,17 +320,20 @@ TEST_P(pre_post_process_to_gray, convert_color_asserts) {
                     p.input().tensor().set_layout("NHWC").set_color_format(COLOR_FORMAT);
                     p.input().preprocess().convert_color(ColorFormat::GRAY);
                     p.build();
-                    , ov::AssertFailure
-                    , ::testing::HasSubstr("Resulting shape '{?,2,2,1}' after preprocessing is not aligned with original parameter's shape: {?,2,2,5}"));
+                    ,
+                    ov::AssertFailure,
+                    ::testing::HasSubstr("Resulting shape '{?,2,2,1}' after preprocessing is not aligned with original "
+                                         "parameter's shape: {?,2,2,5}"));
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    pre_post_process, pre_post_process_to_gray,
-    ::testing::Values(ColorFormat::RGB, ColorFormat::BGR),
-    [](const ::testing::TestParamInfo<pre_post_process_to_gray::ParamType>& info) {
-      std::string name = color_format_name(info.param) + "_to_" + color_format_name(ColorFormat::GRAY);
-      return name;
-    });
+INSTANTIATE_TEST_SUITE_P(pre_post_process,
+                         pre_post_process_to_gray,
+                         ::testing::Values(ColorFormat::RGB, ColorFormat::BGR),
+                         [](const ::testing::TestParamInfo<pre_post_process_to_gray::ParamType>& info) {
+                             std::string name =
+                                 color_format_name(info.param) + "_to_" + color_format_name(ColorFormat::GRAY);
+                             return name;
+                         });
 
 TEST(pre_post_process, convert_color_nv12_rgb_single) {
     auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 3});
