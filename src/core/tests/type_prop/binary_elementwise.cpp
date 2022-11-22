@@ -303,7 +303,7 @@ TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_one_input_is_dynamic_rank_shape
 }
 
 TYPED_TEST_P(BinaryElementwiseCmpTest, allowed_mixed_input_types) {
-    // Done as multiple assertion test becaus gtest not allow combine type param and  data param combined fixture.
+    // Done as multiple assertion test because gtest not allow combine type param and data param combined fixture.
     ASSERT_EQ(this->make_op_with_types(element::boolean, element::boolean)->get_element_type(), element::boolean);
     ASSERT_EQ(this->make_op_with_types(element::boolean, element::dynamic)->get_element_type(), element::boolean);
     ASSERT_EQ(this->make_op_with_types(element::dynamic, element::i32)->get_element_type(), element::boolean);
@@ -325,8 +325,6 @@ TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_labels_from_one_input_only_no_b
 
     const auto a = make_shared<op::Parameter>(et, labeled_shape);
     const auto b = make_shared<op::Parameter>(et, PartialShape({2, 4, 5}));
-
-    std::cout << "Test " << this->make_op(a, b, op::AutoBroadcastType::NONE) << std::endl;
 
     EXPECT_EQ(get_shape_labels(this->make_op(a, b, op::AutoBroadcastType::NONE)->get_output_partial_shape(0)),
               exp_labels);
