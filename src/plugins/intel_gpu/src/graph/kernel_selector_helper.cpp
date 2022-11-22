@@ -421,6 +421,8 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::goizyx;
         case format::giozyx:
             return kernel_selector::weights_layout::giozyx;
+        case format::g_os_iyx_osv8:
+            return kernel_selector::weights_layout::g_os_iyx_osv8;
         case format::g_os_iyx_osv16:
             return kernel_selector::weights_layout::g_os_iyx_osv16;
         case format::g_os_iyx_osv32:
@@ -691,6 +693,8 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::goiyx;
         case kernel_selector::weights_layout::goizyx:
             return cldnn::format::goizyx;
+        case kernel_selector::weights_layout::g_os_iyx_osv8:
+            return cldnn::format::g_os_iyx_osv8;
         case kernel_selector::weights_layout::g_os_iyx_osv16:
             return cldnn::format::g_os_iyx_osv16;
         case kernel_selector::weights_layout::g_os_iyx_osv32:

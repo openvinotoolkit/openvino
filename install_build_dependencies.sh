@@ -120,8 +120,8 @@ elif [ -f /etc/redhat-release ]; then
             git \
             git-lfs \
             boost-devel \
-            python-pip \
-            python-devel \
+            python3-pip \
+            python3-devel \
             libtool \
             tbb-devel \
             pugixml-devel \
@@ -134,7 +134,6 @@ elif [ -f /etc/redhat-release ]; then
             file \
             zlib-devel \
             gflags-devel \
-            python3-pip \
             libva-devel
 elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
     # Raspbian
