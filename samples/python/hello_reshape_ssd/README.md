@@ -9,7 +9,7 @@ The following Python API is used in the application:
 | :--------------- | :---------------------------------------------------------------------------------------------------------------------------------------- | :---------------- |
 | Model Operations | [openvino.runtime.Model.reshape], [openvino.runtime.Model.input], [openvino.runtime.Output.get_any_name], [openvino.runtime.PartialShape] | Managing of model |
 
-Basic OpenVINO™ Runtime API is described in[Hello Classification Python* Sample](../hello_classification/README.md).
+Basic OpenVINO™ Runtime API is described in[Hello Classification Python Sample](../hello_classification/README.md).
 
 | Options                    | Values                                                                   |
 | :------------------------- | :----------------------------------------------------------------------- |
