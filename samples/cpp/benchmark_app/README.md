@@ -155,6 +155,18 @@ Options:
     -pc                         Optional. Report performance counters.
     -dump_config                Optional. Path to JSON file to dump IE parameters, which were set by application.
     -load_config                Optional. Path to JSON file to load custom IE parameters. Please note, command line parameters have higher priority than parameters from configuration file.
+                                Example 1: a simple JSON file for HW device with primary properties.
+                                          {
+                                             "CPU": {"NUM_STREAMS": "3", "PERF_COUNT": "NO"}
+                                          }
+                                Example 2: a simple JSON file for meta device(AUTO/MULTI) with HW device properties.
+                                          {
+                                             "AUTO": {
+                                                      "PERFORMANCE_HINT": "", "PERF_COUNT": "NO",
+                                                      "CPU": "NUM_STREAMS 3 INFERENCE_NUM_THREADS 5",
+                                                      "GPU": "NUM_STREAMS 5"
+                                             }
+                                          }
 
    Statistics dumping options:
     -report_type "<type>"     Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency. "average_counters" report extends "no_counters" report and additionally includes average PM counters values for each layer from the network. "detailed_counters" report extends "average_counters" report and additionally includes per-layer PM counters and latency for each executed infer request.
