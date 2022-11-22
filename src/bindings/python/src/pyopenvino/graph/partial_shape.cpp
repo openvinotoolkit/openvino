@@ -194,9 +194,12 @@ void regclass_graph_PartialShape(py::module m) {
         return ov::PartialShape(self);
     });
 
-    shape.def("__deepcopy__", [](const ov::PartialShape &self, py::dict) -> ov::PartialShape {
+    shape.def(
+        "__deepcopy__",
+        [](const ov::PartialShape& self, py::dict) -> ov::PartialShape {
             return ov::PartialShape(self);
-    }, "memo");
+        },
+        "memo");
 
     shape.def("to_string", &ov::PartialShape::to_string);
 }
