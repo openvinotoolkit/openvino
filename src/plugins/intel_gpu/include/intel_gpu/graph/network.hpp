@@ -185,9 +185,9 @@ public:
     void validate_primitives();
     void set_arguments();
     // Implementation specific calls
+    bool is_cpu_impl(const primitive_id& id) const;
     std::shared_ptr<primitive_inst> get_primitive(const primitive_id& id);
     std::shared_ptr<const primitive_inst> get_primitive(const primitive_id& id) const;
-    cldnn::impl_types get_impl_type(const primitive_id& id) const;
     std::string get_primitive_info(const primitive_id& id) const;
     std::string get_implementation_info(const primitive_id& id) const;
     const event::ptr& get_primitive_event(const primitive_id& id) const { return _events.at(id); }

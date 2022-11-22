@@ -724,13 +724,13 @@ std::string network::get_primitive_info(const primitive_id& id) const {
     return node.type()->to_string(node);
 }
 
-cldnn::impl_types network::get_impl_type(const primitive_id& id) const {
+bool network::is_cpu_impl(const primitive_id& id) const {
     auto prim_inst = find_primitive(id);
 
     OPENVINO_ASSERT(prim_inst, "[GPU] Can't get implementation type, since topology",
                                "doesn't contain primitive with requested id: ", id);
 
-    return prim_inst->get_node().get_preferred_impl_type();
+    return prim_inst->get_impl()->is_cpu();
 }
 
 std::string network::get_implementation_info(const primitive_id& id) const {

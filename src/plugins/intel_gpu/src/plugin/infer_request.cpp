@@ -856,12 +856,14 @@ void InferRequest::allocate_dev_mem_if_needed(InferenceEngine::BlobMap& device_m
         can_skip_allocation |= same_host_mem(impl_mem, src_ptr);
         // Or if blob has any type except usm_host - in that case explicit copy will be performed anyway
         // Or if blob has usm_host type and lockable memory is expected by impl
-        can_skip_allocation |= !need_lockable_mem ? impl_mem->get_allocation_type() != cldnn::allocation_type::usm_host
-                                                  : impl_mem->get_allocation_type() == cldnn::allocation_type::usm_host;
+        can_skip_allocation |= need_lockable_mem ? impl_mem->get_allocation_type() == cldnn::allocation_type::usm_host
+                                                 : impl_mem->get_allocation_type() != cldnn::allocation_type::usm_host;
         // In case of lockable memory we need to keep updated device's usm_host memory buffer with
         // user's blob to avoid incorrect behaviour if user will call set_blob() with
         // the following sequence (usm_host, system_host, usm_host, system_host...)
-        can_skip_allocation &= !need_lockable_mem ? true : users_blobs_matching[blob_name] == user_blob;
+        if (need_lockable_mem)
+            can_skip_allocation &= users_blobs_matching.find(blob_name) != users_blobs_matching.end()
+                                && users_blobs_matching[blob_name] == user_blob;
     }
 
     if (!can_skip_allocation) {
@@ -991,8 +993,7 @@ void InferRequest::prepare_output(const cldnn::primitive_id& outputName, Blob::P
 
     if (is_static && can_use_usm && !is_dev_input) {
         auto output_prim_id = outputsMap[outputName];
-        auto impl_type = m_graph->GetNetwork()->get_impl_type(output_prim_id);
-        auto is_cpu_impl = impl_type == cldnn::impl_types::cpu;
+        auto is_cpu_impl = m_graph->GetNetwork()->is_cpu_impl(output_prim_id);
         allocate_dev_mem_if_needed(_deviceOutputs, outputBlob, outputName, output_layout, is_cpu_impl);
     }
 
