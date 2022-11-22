@@ -92,7 +92,7 @@ void RemoveSingleInputNodeFromFunction(std::shared_ptr<ngraph::Node> node) {
  */
 Function CopySingleInputNodeFromFunction(NodePtr node) {
     const ngraph::Shape & input_shape = node->get_input_shape(0);
-    const ngraph::element::Type& input_elem_type = node->get_input_element_type(0);
+    const ngraph::element::Type& input_elem_type = ngraph::element::Type_t::undefined;
 
     auto input_params = std::make_shared<ngraph::opset9::Parameter>(input_elem_type, input_shape);
     auto input_nodes = node->input_values();
@@ -101,7 +101,7 @@ Function CopySingleInputNodeFromFunction(NodePtr node) {
     auto result = std::make_shared<ngraph::opset9::Result>(node_copy);
 
     return std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                                           ngraph::ParameterVector{input_params});
+                                              ngraph::ParameterVector{input_params});
 }
 
 } // namespace
@@ -126,8 +126,8 @@ GatherResultRemove::GatherResultRemove(SubgraphCPUMap * subgraph_cpu_map)
         NodePtr parent_node = gather_node->get_input_node_shared_ptr(0);
 
         if (m_subgraph_cpu_map) {
-            const std::string & parent_name = parent_node->get_friendly_name();
-            m_subgraph_cpu_map->emplace(parent_name, CopySingleInputNodeFromFunction(gather_node));
+            const std::string & gather_name = gather_node->get_friendly_name();
+            m_subgraph_cpu_map->emplace(gather_name, CopySingleInputNodeFromFunction(gather_node));
         }
         RemoveSingleInputNodeFromFunction(gather_node);
 

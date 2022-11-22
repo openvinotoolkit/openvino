@@ -1147,7 +1147,12 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
                 ov::TensorVector model_result(1);
 
                 const ngraph::Shape & model_input_shape = model->get_parameters()[0]->get_output_shape(0);
-                const ngraph::element::Type & model_input_type = model->get_parameters()[0]->get_element_type();
+                const auto model_input_type = InferenceEngine::details::convertPrecision(inputs_ptr_->at(input.first).tensor_precision);
+
+                for (auto param : model->get_parameters()) {
+                    param->set_element_type(model_input_type);
+                }
+                model->validate_nodes_and_infer_types();
 
                 void * input_ptr = inputs_ptr_->at(input.first).ptrs[index];
                 ov::Tensor input_tensor(model_input_type, model_input_shape, input_ptr);
@@ -1280,14 +1285,29 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
 
                 void * output_ptr = outputDesc.ptrs[request_idx];
                 const ngraph::Shape & model_input_shape = model->get_parameters()[0]->get_output_shape(0);
-                const ngraph::element::Type & model_input_type = model->get_parameters()[0]->get_element_type();
+                const auto model_input_type = InferenceEngine::details::convertPrecision(outputDesc.tensor_precision);
+
+                std::cout << "[EMUTEX DEBUG] model_input_type " << model_input_type << std::endl;
+
+                for (auto param : model->get_parameters()) {
+                    param->set_element_type(model_input_type);
+                }
+                model->validate_nodes_and_infer_types();
+
+                {
+                    ngraph::pass::Manager manager;
+                    manager.register_pass<ngraph::pass::InitNodeInfo>();
+                    manager.register_pass<ngraph::pass::VisualizeTree>("./output_model.png"); // DEBUG
+                    manager.run_passes(model);
+                }
+
                 ov::Tensor input_tensor(model_input_type, model_input_shape, output_ptr);
 
                 if (model->evaluate(model_result, ov::TensorVector{input_tensor})) {
                     const size_t model_result_size = model_result[0].get_byte_size();
                     ie_memcpy(output_ptr, model_result_size, model_result[0].data(), model_result_size);
                 } else {
-                    THROW_GNA_EXCEPTION << "Error evalutate ngraph::Function for output " << outputBlobIt.first;
+                    THROW_GNA_EXCEPTION << "Error evaluate ngraph::Function for output " << outputBlobIt.first;
                 }
             } else {
                 std::cout << "output " << outputBlobIt.first << " model NOT found " << std::endl;
