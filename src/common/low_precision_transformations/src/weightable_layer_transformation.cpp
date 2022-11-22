@@ -56,15 +56,6 @@ bool WeightableLayerTransformation::canConvolutionBeTransformed(const Transforma
 }
 
 bool WeightableLayerTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    // TODO: move this check to base class
-    for (const auto& input : layer->inputs()) {
-        const auto attr = getAttribute<PrecisionsAttribute>(input);
-        // check on empty precisions attribute which means that
-        // dequantization propagation shouldn't be called for this layer
-        if (!attr.empty() && attr.as<PrecisionsAttribute>().value().empty())
-            return false;
-    }
-
     if (!LayerTransformation::canBeTransformed(context, layer)) {
         return false;
     }
