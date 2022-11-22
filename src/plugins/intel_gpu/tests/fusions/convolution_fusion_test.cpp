@@ -9,12 +9,8 @@
 #include <intel_gpu/primitives/quantize.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/fully_connected.hpp>
-#include <intel_gpu/primitives/gemm.hpp>
-#include <intel_gpu/primitives/binary_convolution.hpp>
 #include <intel_gpu/primitives/data.hpp>
-#include <intel_gpu/primitives/resample.hpp>
 #include <intel_gpu/primitives/crop.hpp>
-#include <intel_gpu/primitives/mvn.hpp>
 #include <intel_gpu/primitives/permute.hpp>
 #include <intel_gpu/primitives/concatenation.hpp>
 
@@ -152,6 +148,11 @@ public:
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
+        // WA: turn off grouped convolution test for onednn because fusing behavior is different with cldnn.
+        if (engine.get_device_info().supports_immad && p.groups > 1) {
+            std::cout << "SKIP" << std::endl;
+            return;
+        }
         compare(network_not_fused, network_fused, p);
         auto find_prim = [](primitive_info& p) -> bool {
             // Add more ids when needed
@@ -289,6 +290,7 @@ public:
 #define CASE_CONV_FP32_12 { 1, 16, 4, 5, 4 }, { 1, 16, 2, 3, 2 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::g_os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
 #define CASE_CONV_FP32_13 { 1, 16, 18, 5, 4 }, { 1, 16, 16, 3, 2 }, { 1, 1, 3, 3, 3 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::g_os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
 #define CASE_CONV_FP32_14 { 1, 3, 4, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_FP32_15 { 1, 6, 4, 4 }, { 1, 16, 4, 4 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::bfyx, data_types::f32, format::bfyx
 
 
 #define CASE_CONV_FP16_1 { 1, 15, 4, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx, data_types::f16, format::bfyx
@@ -553,6 +555,64 @@ TEST_P(conv_fp32_double_bias, basic) {
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_double_bias, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_U8S8_1, 2, 4 },
     convolution_test_params{ CASE_CONV_S8S8_1, 2, 4 },
+}));
+
+class conv_fp32_wrong_bias : public ConvFusingTest {};
+TEST_P(conv_fp32_wrong_bias, basic) {
+    // Check case when eltwise add dependency has shape [1, 1, X, Y] and X*Y == CONV_OUT_FEATURES
+    auto p = GetParam();
+    ov::PartialShape eltw_data_shape = get_input_layout(p).get_partial_shape();
+    for (size_t i = 0; i < eltw_data_shape.size() - 2; i++) {
+        eltw_data_shape[i] = 1;
+    }
+
+    auto eltw_data_layout = layout{eltw_data_shape, p.default_type, format::bfyx};
+    ASSERT_EQ(p.out_shape.feature[0], eltw_data_layout.count());
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("non-bias", get_mem(eltw_data_layout)),
+        convolution("conv_prim", "input", { "weights" }, std::vector<primitive_id>{}, p.groups, p.stride, p.pad, p.dilation),
+        eltwise("add", { "conv_prim", "non-bias" }, eltwise_mode::sum),
+        reorder("reorder_bfyx", "add", p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_wrong_bias, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP32_15, 3, 3 },
+}));
+
+class conv_fp32_add_per_element_planar_const : public ConvFusingTest {};
+TEST_P(conv_fp32_add_per_element_planar_const, basic) {
+    auto p = GetParam();
+
+    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16" };
+    implementation_desc permute_impl = { format::b_fs_yx_fsv16, "" };
+    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl },
+                                                              { "permute", permute_impl } }));
+
+    auto out_layout = get_output_layout(p);
+    out_layout.format = format::bfyx;
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("data", get_mem(out_layout)),
+        convolution("conv_prim", "input", { "weights" }, std::vector<primitive_id>{}, p.groups, p.stride, p.pad, p.dilation),
+        eltwise("add", { "conv_prim", "data" }, eltwise_mode::sum),
+        permute("permute", "add", {3, 2, 1, 0}),
+        reorder("reorder_bfyx", "permute", p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_add_per_element_planar_const, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP32_3, 3, 4 },
 }));
 
 class conv_fp32_prelu_eltwise : public ConvFusingTest {};
@@ -3275,8 +3335,7 @@ TEST_P(conv_int8_eltwise_scale_onednn, u8_eltwise_prod_out_reuse) {
         convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation, p.out_shape, data_types::f32, false),
         eltwise("sum", { "conv_prim", "sum_data" }, eltwise_mode::sum, data_types::f32),
         eltwise("scale", { "sum", "scale_data" }, eltwise_mode::prod, data_types::f32),
-        crop("crop", "scale", get_output_layout(p).get_tensor(), { 0, 0, 0, 0 }),
-        reorder("reorder_bfyx", "crop", p.default_format, data_types::f32)
+        reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
     );
 
     tolerance = 1.f;
@@ -3300,7 +3359,7 @@ TEST_P(conv_int8_eltwise_scale_onednn, u8_eltwise_prod_out_reuse) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_eltwise_scale_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_15, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_15, 2, 4 },
 }));
 
 /* ----------------------------------------------------------------------------------------------------- */

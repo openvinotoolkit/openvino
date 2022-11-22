@@ -528,7 +528,11 @@ TEST(top_k_layer_tests, multiple_outputs) {
 
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    build_options bo;
+    bo.set_option(build_option::optimize_data(true));
+    bo.set_option(build_option::allow_new_shape_infer(true));
+
+    network network(engine, topology, bo);
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -662,7 +666,8 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_indices) {
     }
 }
 
-TEST(top_k_layer_tests, sort_probabilities_by_indices) {
+template <typename T>
+void test_top_k_layer_tests_sort_probabilities_by_indices(bool is_caching_test) {
     static const int32_t x_size = 10, y_size = 1, feature_num = 1, batch_num = 1;
     auto& engine = get_test_engine();
     const int top_k = 5;
@@ -679,15 +684,33 @@ TEST(top_k_layer_tests, sort_probabilities_by_indices) {
                              false,
                              padding(),
                              data_types::i32));
-    std::vector<float> input_vec = {0.9f, 0.1f, 0.2f, 0.8f, 0.5f, 0.6f, 0.3f, 0.4f, 0.7f, 0.95f};
+    std::vector<T> input_vec = {0.9f, 0.1f, 0.2f, 0.8f, 0.5f, 0.6f, 0.3f, 0.4f, 0.7f, 0.95f};
 
     std::vector<int> ref_vec = {9, 0, 3, 8, 5};
 
     set_values(input, input_vec);
 
-    network network(engine, topology);
-    network.set_input_data("input", input);
-    auto outputs = network.execute();
+    cldnn::network::ptr network;
+
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology);
+    }
+
+    network->set_input_data("input", input);
+    auto outputs = network->execute();
 
     EXPECT_EQ(outputs.size(), size_t(1));
     EXPECT_EQ(outputs.begin()->first, "arg_max");
@@ -701,6 +724,14 @@ TEST(top_k_layer_tests, sort_probabilities_by_indices) {
     for (int i = 0; i < out_size; i++) {
         EXPECT_EQ(out_buffer[i], ref_vec[i]);
     }
+}
+
+TEST(top_k_layer_tests, sort_probabilities_by_indices) {
+    test_top_k_layer_tests_sort_probabilities_by_indices<float>(false);
+}
+
+TEST(export_import_top_k_layer_tests, sort_probabilities_by_indices) {
+    test_top_k_layer_tests_sort_probabilities_by_indices<float>(true);
 }
 
 const std::vector<float> input_vec1 = {
@@ -797,7 +828,8 @@ const std::vector<float> input_vec1 = {
     0.000233, 0.000149, 0.000104, 0.000190, 0.000320, 0.000101, 0.000199, 0.000110, 0.000070, 0.000264, 0.000069};
 const int output_ref = 341;
 
-TEST(top_k_layer_tests, md_sync) {
+template <typename T>
+void test_top_k_layer_md_sync(bool is_caching_test) {
     static const int32_t x_size = 1, y_size = 1, feature_num = 1001, batch_num = 1;
     const int top_k = 1;
     layout inp_l = {data_types::f32, format::yxfb, {batch_num, feature_num, x_size, y_size}};
@@ -808,7 +840,7 @@ TEST(top_k_layer_tests, md_sync) {
     set_values(input1, input_vec1);
 
     auto shared_memory = engine.allocate_memory(mutableLayout);
-    const std::vector<int> topk_vec = {1};
+    const std::vector<T> topk_vec = {1};
     auto top_k_input = engine.allocate_memory(mutableLayout);
     set_values(top_k_input, topk_vec);
 
@@ -825,13 +857,39 @@ TEST(top_k_layer_tests, md_sync) {
                              true));
     topology.add(mutable_data("arg_max.1", {"arg_max.0"}, shared_memory));
 
-    network network(engine, topology);
-    network.set_input_data("input1", input1);
-    auto outputs = network.execute();
+    cldnn::network::ptr network;
+
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology);
+    }
+
+    network->set_input_data("input1", input1);
+    auto outputs = network->execute();
 
     EXPECT_EQ(outputs.size(), size_t(2));
     auto output = outputs.at("arg_max.1").get_memory();
-    mem_lock<int> output_ptr(output, get_test_stream());
+    mem_lock<T> output_ptr(output, get_test_stream());
 
     EXPECT_EQ(output_ptr[0], output_ref);
+}
+
+TEST(top_k_layer_tests, md_sync) {
+    test_top_k_layer_md_sync<int>(false);
+}
+
+TEST(export_import_top_k_layer_tests, md_sync) {
+    test_top_k_layer_md_sync<int>(true);
 }

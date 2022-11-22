@@ -40,6 +40,7 @@
 #include "deconvolution_inst.h"
 #include "detection_output_inst.h"
 #include "generate_proposals_inst.h"
+#include "experimental_detectron_generate_proposals_single_image_inst.hpp"
 #include "input_layout_inst.h"
 #include "shuffle_channels_inst.h"
 #include "arg_max_min_inst.h"
@@ -47,6 +48,7 @@
 #include "lstm_inst.h"
 #include "lstm_elt_inst.h"
 #include "lstm_gemm_inst.h"
+#include "multiclass_nms_inst.h"
 #include "mutable_data_inst.h"
 #include "pooling_inst.h"
 #include "border_inst.h"
@@ -583,7 +585,7 @@ void program::pre_optimize_graph(bool is_internal) {
     bool output_size_handling_enabled = analyze_output_size_handling_need();
     for (auto& node : processing_order) {
         if (!node->is_type<data>())
-            node->get_output_layout();
+            node->get_output_layouts();
     }
 
     if (options.get<build_option_type::optimize_data>()->enabled()) {
@@ -760,6 +762,7 @@ void program::cleanup() {
             }
         }
     }
+
     _kernels_cache->reset();
 }
 
@@ -988,8 +991,8 @@ void program::replace(program_node& old_node, program_node& new_node) {
             "Replacement node shouldn't be marked as an output since it's impossible to rename such node.");
 
     auto id = old_node.id();
-    new_node.output_layout = old_node.get_output_layout();
-    new_node.valid_output_layout = old_node.valid_output_layout;
+    new_node.output_layouts = old_node.get_output_layouts();
+    new_node.valid_output_layouts = old_node.valid_output_layouts;
 
     // copy old's dependencies
     while (!old_node.dependencies.empty()) {
@@ -1097,6 +1100,7 @@ bool program::extract(program_node& node) {
     }
     input.users.remove(&node);
     node.dependencies.clear();
+    node.dependencies_new.clear();
 
     if (!node.is_endpoint())
         replace_all_usages(node, input, false);
@@ -1507,18 +1511,22 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::adaptive_pooling::type_id() &&
             prim.type() != cldnn::bucketize::type_id() &&
             prim.type() != cldnn::roll::type_id() &&
+            prim.type() != cldnn::multiclass_nms::type_id() &&
             prim.type() != cldnn::prior_box::type_id() &&
+            prim.type() != cldnn::roi_pooling::type_id() &&
             prim.type() != cldnn::resample::type_id() &&
             prim.type() != cldnn::eye::type_id() &&
             prim.type() != cldnn::generate_proposals::type_id() &&
             prim.type() != cldnn::reverse::type_id() &&
             prim.type() != cldnn::reorg_yolo::type_id() &&
+            prim.type() != cldnn::gemm::type_id() &&
             prim.type() != cldnn::tile::type_id() &&
             prim.type() != cldnn::scatter_elements_update::type_id() &&
             prim.type() != cldnn::gather_tree::type_id() &&
             prim.type() != cldnn::experimental_detectron_detection_output::type_id() &&
             prim.type() != cldnn::experimental_detectron_topk_rois::type_id() &&
-            prim.type() != cldnn::convert_color::type_id()) {
+            prim.type() != cldnn::convert_color::type_id() &&
+            prim.type() != cldnn::experimental_detectron_generate_proposals_single_image::type_id()) {
             can_use_fsv16 = false;
         }
 
@@ -1557,10 +1565,12 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::roll::type_id() &&
             prim.type() != cldnn::resample::type_id() &&
             prim.type() != cldnn::prior_box::type_id() &&
+            prim.type() != cldnn::roi_pooling::type_id() &&
             prim.type() != cldnn::eye::type_id() &&
             prim.type() != cldnn::generate_proposals::type_id() &&
             prim.type() != cldnn::reverse::type_id() &&
             prim.type() != cldnn::reorg_yolo::type_id() &&
+            prim.type() != cldnn::gemm::type_id() &&
             prim.type() != cldnn::tile::type_id() &&
             prim.type() != cldnn::scatter_elements_update::type_id() &&
             prim.type() != cldnn::gather_tree::type_id() &&
@@ -1568,7 +1578,10 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::deconvolution::type_id() &&
             prim.type() != cldnn::arg_max_min::type_id() &&
             prim.type() != cldnn::experimental_detectron_topk_rois::type_id() &&
-            prim.type() != cldnn::normalize::type_id()) {
+            prim.type() != cldnn::multiclass_nms::type_id() &&
+            prim.type() != cldnn::normalize::type_id() &&
+            prim.type() != cldnn::deconvolution::type_id() &&
+            prim.type() != cldnn::experimental_detectron_generate_proposals_single_image::type_id()) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
         }
     }

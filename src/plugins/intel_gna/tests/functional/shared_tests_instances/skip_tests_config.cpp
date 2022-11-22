@@ -86,6 +86,19 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 71068
         R"(.*OVInferRequestCancellationTests.*)",
         // TODO: Issue: 71070
-        R"(.*OVInferenceChaining.*(StaticOutputToStaticInput).*)"
+        R"(.*OVInferenceChaining.*(StaticOutputToStaticInput).*)",
+        // TODO: Issue: 95609
+        R"(.*CompileModelCacheTestBase.*(ConvPoolRelu|TIwithLSTMcell1).*batch2.*)",
+        R"(.*CompileModelCacheTestBase.*(SplitConvConcat|KSOFunction).*)",
+        R"(.*CompileModelCacheTestBase.*(SingleConv|NestedSplitConvConcat).*)",
+        R"(.*CompileModelCacheTestBase.*(Bias|ReadConcatSplitAssign).*)",
+        R"(.*OVClassLoadNetworkTest.*LoadNetwork.*)",
+        // TODO: Issue: 95234
+        R"(.*smoke_CachingSupportCase_GNA.*)",
+        R"(.*CachingSupportCase.*LoadNet.*(Bias|Split|Concat|KSO|SingleConv).*)",
+        R"(.*CachingSupportCase.*LoadNet.*(ConvPoolRelu|TIwithLSTMcell1)_f32_batch2.*)",
+        // TODO: Issue: 95234
+        R"(.*CachingSupportCase_GNA.*)",
+        R"(.*IEClassLoadNetworkTest.*LoadNetwork(HETERO|MULTI|WithDeviceIDNoThrow|WithInvalidDeviceIDThrows).*)",
     };
 }

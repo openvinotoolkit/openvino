@@ -14,11 +14,7 @@
 #include <string>
 
 namespace cldnn {
-
-primitive_type_id reorder::type_id() {
-    static primitive_type_base<reorder> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(reorder)
 
 layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_params const& impl_param) {
     auto input_layout = impl_param.get_input_layout();
@@ -200,7 +196,8 @@ std::string reorder_inst::to_string(reorder_node const& node) {
 }
 
 reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
-    : parent(network, node, (!node.can_be_optimized() && node.get_output_layout().is_static()) ? true : false) {
+    : parent(network, node, (!node.can_be_optimized() && node.get_output_layout().is_static()) ? true : false)
+    , _req_reinterpr(node.requires_reinterpret()) {
     if (node.can_be_optimized())
         reuse_input();
 
@@ -238,7 +235,7 @@ reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
 }
 
 void reorder_inst::on_execute() {
-    if (node->can_be_optimized())
+    if (can_be_optimized())
         reuse_input();
 }
 
@@ -247,19 +244,30 @@ void reorder_inst::reuse_input() {
 }
 
 void reorder_inst::update_output_memory() {
-    if (!node->can_be_optimized())
+    if (!can_be_optimized())
         return;
 
     if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
 
-    build_deps();
+    if (_node != nullptr)
+        build_deps();
 
-    if (node->requires_reinterpret()) {
-        _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), node->get_output_layout());
+    if (requires_reinterpret()) {
+        _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), get_output_layout());
     } else {
         _outputs[0] = input_memory_ptr();
     }
+    _mem_allocated = false;
 }
 
+void reorder_inst::save(cldnn::BinaryOutputBuffer& ob) const {
+    parent::save(ob);
+    ob << _req_reinterpr;
+}
+
+void reorder_inst::load(cldnn::BinaryInputBuffer& ib) {
+    parent::load(ib);
+    ib >> _req_reinterpr;
+}
 }  // namespace cldnn

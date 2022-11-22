@@ -44,6 +44,7 @@ void add_required_reorders::add_reorder(program& p, program_node* node, program_
 }
 
 void add_required_reorders::run(program& p) {
+    bool optimize_data = p.get_options().get<build_option_type::optimize_data>()->enabled();
     auto usr_itr = p.get_processing_order().begin();
     while (usr_itr != p.get_processing_order().end()) {
         auto& usr = *usr_itr++;
@@ -51,6 +52,46 @@ void add_required_reorders::run(program& p) {
             continue;  // only nodes with dependencies
         if (usr->is_type<data>())
             continue;
+
+        if (optimize_data) {
+            auto fused_ops = usr->get_fused_primitives();
+            auto out_layout = usr->get_output_layout();
+            // If there is a fused reorder at the end, then we use input layout of reorder
+            // as target one for fused ops, as code generator in many kernels is expecting that, not final output layout
+            // However, the condition below may need some adjustment in the future, if codegen of some primitives behave differently
+            if (!fused_ops.empty() && fused_ops.back().is_type<reorder>()) {
+                out_layout = fused_ops.back().input_layout;
+            }
+            for (auto& fused_op : fused_ops) {
+                // Some kernels use blocked aligned subgroup reads for a vector of elements from dependency tensor
+                // In that case jitter checks that layout of input tensor from fused op is same as output layout or broadcast is possible
+                // The code below is intended to insert additional reorder node for const eltwise dependency to ensure jitter can process such fusion
+                if (!fused_op.is_type<eltwise>() && !(fused_op.is_type<activation>() && fused_op.total_num_deps == 2))
+                    continue;
+
+                auto dep_id = fused_op.dep_start_idx;
+                if (dep_id >= usr->get_dependencies().size())
+                    continue;
+
+                auto& dep = usr->get_dependency(dep_id);
+                if (!dep.is_type<data>())
+                    continue;
+
+                auto dep_layout = dep.get_output_layout();
+
+                bool valid_broadcast_case = out_layout.is_static() && dep_layout.is_static() &&
+                                            (static_cast<size_t>(out_layout.feature()) == dep_layout.count() || dep_layout.count() == 1);
+
+                bool requires_reorder = out_layout.format != dep_layout.format && !valid_broadcast_case;
+                if (requires_reorder) {
+                    auto new_reorder = std::make_shared<reorder>(dep.id() + "_reorder_" + usr->id(), dep.id(), out_layout.format, dep_layout.data_type);
+                    auto& new_reorder_node = p.get_or_create(new_reorder);
+                    p.add_intermediate(new_reorder_node, *usr, dep);
+                    new_reorder_node.recalc_output_layout(false);
+                }
+            }
+        }
+
         if (usr->type()->does_an_implementation_exist(*usr)) {
             if (usr->get_preferred_impl_type() != impl_types::onednn) {
                 continue;
@@ -185,6 +226,10 @@ void add_required_reorders::run(program& p) {
                     cldnn::format::yxfb,
                     cldnn::format::byxf,
                 };
+            }
+
+            if (original_layout.is_dynamic() && usr->type()->does_dynamic_implementation_exist(*usr)) {
+                correct_layout_selected = true;
             }
 
             if (usr->get_preferred_impl_type() == impl_types::onednn) {

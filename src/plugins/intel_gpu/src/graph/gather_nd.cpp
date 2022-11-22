@@ -10,10 +10,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id gather_nd::type_id() {
-    static primitive_type_base<gather_nd> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(gather_nd)
 
 layout gather_nd_inst::calc_output_layout(gather_nd_node const& node, kernel_impl_params const& impl_param) {
     auto op = impl_param.typed_desc<gather_nd>();

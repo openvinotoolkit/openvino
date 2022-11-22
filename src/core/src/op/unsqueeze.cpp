@@ -92,6 +92,8 @@ bool evaluate_unsqueeze(const Node* node,
         NGRAPH_TYPE_CASE(evaluate_unsqueeze, u64, arg0, out);
         NGRAPH_TYPE_CASE(evaluate_unsqueeze, f16, arg0, out);
         NGRAPH_TYPE_CASE(evaluate_unsqueeze, f32, arg0, out);
+        NGRAPH_TYPE_CASE(evaluate_unsqueeze, f64, arg0, out);
+        NGRAPH_TYPE_CASE(evaluate_unsqueeze, bf16, arg0, out);
     default:
         rc = false;
         break;
@@ -117,6 +119,8 @@ bool op::v0::Unsqueeze::has_evaluate() const {
     case ngraph::element::u64:
     case ngraph::element::f16:
     case ngraph::element::f32:
+    case ngraph::element::f64:
+    case ngraph::element::bf16:
         return true;
     default:
         break;

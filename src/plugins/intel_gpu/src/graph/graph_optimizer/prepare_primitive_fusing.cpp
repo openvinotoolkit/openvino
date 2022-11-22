@@ -257,6 +257,10 @@ void prepare_primitive_fusing::fuse_activations(program &p) {
                 node.has_fused_primitives())
                 return;
 
+            if (use_onednn_impls && node.get_primitive()->activation_function == cldnn::activation_func::hyperbolic_tan) {
+                return;
+            }
+
             // - limit to primitives which implementations support activation fusing
             if (input.get_users().size() != 1 ||
                 // TODO: new api needs to be created to read such caps
@@ -349,18 +353,24 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         if (node->get_output_layout().is_dynamic())
             continue;
 
-        size_t out_features = static_cast<size_t>(node->get_output_layout().feature());
+        cldnn::tensor::value_type out_features = node->get_output_layout().feature();
+        bool is_3d_fc = false;
 
         // Change out_features value to proper dimension for 3D FC case
-        if (is_3d_fully_connected(node->get_dependency(0)))
-            out_features = static_cast<size_t>(node->get_dependency(0).get_output_layout().spatial(1));
-        else if (is_3d_fully_connected(node->get_dependency(1)))
-            out_features = static_cast<size_t>(node->get_dependency(1).get_output_layout().spatial(1));
+        if (is_3d_fully_connected(node->get_dependency(0))) {
+            out_features = node->get_dependency(0).get_output_layout().spatial(1);
+            is_3d_fc = true;
+        } else if (is_3d_fully_connected(node->get_dependency(1))) {
+            out_features = node->get_dependency(1).get_output_layout().spatial(1);
+            is_3d_fc = true;
+        }
 
         int bias_idx = -1;
         for (size_t i = 0; i < eltw_node.get_dependencies().size(); i++) {
             auto& dep = eltw_node.get_dependency(i);
-            if (dep.is_constant() && dep.get_output_layout().count() == out_features) {
+            if (dep.is_constant() &&
+                (dep.get_output_layout().feature() == out_features || is_3d_fc) &&
+                dep.get_output_layout().count() == static_cast<size_t>(out_features)) {
                 bias_idx = static_cast<int>(i);
                 break;
             }
@@ -532,7 +542,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
     bool recalc_processing_order = false;
     std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>> fusing_history;
 
-    const uint8_t supports_immad = p.get_engine().get_device_info().supports_immad;
+    const auto supports_immad = p.get_engine().get_device_info().supports_immad;
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto node_itr = itr++;
@@ -741,6 +751,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fuse_activation_f = [&](activation_node& activation_node) {
+            if (supports_immad && activation_node.get_primitive()->activation_function == cldnn::activation_func::hyperbolic_tan) {
+                return;
+            }
+
             auto& input_data = activation_node.get_dependency(0);
             if (activation_node.get_dependencies().size() >= 3)
                 return;

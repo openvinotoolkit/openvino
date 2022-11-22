@@ -59,6 +59,32 @@ def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
     return mean_scale_val
 
 
+def update_layout_to_dict(input_nodes: list, layout: [list, dict]):
+    """
+    Internal function. Updates layout values from array to dictionary
+    :param: input_nodes Inputs of model
+    :param: layout Parsed 'layout' object from command line arguments
+    """
+    if isinstance(layout, dict):
+        return layout
+    if isinstance(layout, list):
+        if len(layout) != len(input_nodes):
+            raise Error('Numbers of inputs and mean/scale values do not match. ' + refer_to_faq_msg(61))
+        layout_dict = {}
+        for idx, node in enumerate(input_nodes):
+            names_list = list(node.get_tensor().get_names())
+            if not names_list:
+                raise Error("Empty tensor names list for node {}".format(node.name))
+            node_name = names_list[0]
+            layout_dict.update(
+                {
+                    node_name: layout[idx]
+                }
+            )
+        return layout_dict
+    raise Error("Unknown layout type. Expected dict, list. Got {}".format(type(layout)))
+
+
 def check_keys_valid(ov_function: Model, dict_to_validate: dict, search_outputs: bool):
     """
     Internal function: checks if keys from cmd line arguments correspond to ov_function's inputs/outputs
@@ -360,7 +386,7 @@ def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
 
     layout_values = {}
     if 'layout_values' in argv and argv.layout_values:
-        layout_values = argv.layout_values
+        layout_values = update_layout_to_dict(ov_function.inputs, argv.layout_values)
 
     if '' in layout_values:
         if len(ov_function.inputs) > 1:

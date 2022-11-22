@@ -57,10 +57,10 @@ macro(ov_cpack_settings)
            NOT item MATCHES "^tbb(_dev)?$" AND
            # the same for pugixml
            NOT item STREQUAL "pugixml" AND
-           # TF component is not released
-           NOT item STREQUAL "tensorflow" AND
            # we have copyright file for rpm package
            NOT item STREQUAL OV_CPACK_COMP_LICENSING AND
+           # compile_tool is not needed
+           NOT item STREQUAL OV_CPACK_COMP_CORE_TOOLS AND
            # not appropriate components
            NOT item STREQUAL OV_CPACK_COMP_DEPLOYMENT_MANAGER AND
            NOT item STREQUAL OV_CPACK_COMP_INSTALL_DEPENDENCIES AND
@@ -91,7 +91,8 @@ macro(ov_cpack_settings)
         # - 2022.1.0 is the last public release with rpm packages from Intel install team
         # - 2022.1.1, 2022.2 do not have rpm packages enabled, distributed only as archives
         # - 2022.3 is the first release where RPM updated packages are introduced
-        2022.1.0)
+        # 2022.1.0
+        )
 
     find_host_program(rpmlint_PROGRAM NAMES rpmlint DOC "Path to rpmlint")
     if(rpmlint_PROGRAM)
@@ -121,7 +122,7 @@ macro(ov_cpack_settings)
     set(CPACK_RPM_CORE_PACKAGE_NAME "libopenvino-${cpack_name_ver}")
     set(CPACK_RPM_CORE_POST_INSTALL_SCRIPT_FILE "${def_triggers}")
     set(CPACK_RPM_CORE_POST_UNINSTALL_SCRIPT_FILE "${def_triggers}")
-    set(${OV_CPACK_COMP_CORE}_copyright "${OV_CPACK_COMP_CORE}")
+    set(${OV_CPACK_COMP_CORE}_copyright "generic")
 
     #
     # Plugins
@@ -133,7 +134,7 @@ macro(ov_cpack_settings)
         set(CPACK_COMPONENT_HETERO_DEPENDS "${OV_CPACK_COMP_CORE}")
         set(CPACK_RPM_HETERO_PACKAGE_NAME "libopenvino-hetero-plugin-${cpack_name_ver}")
         _ov_add_plugin(hetero ON)
-        set(hetero_copyright "hetero")
+        set(hetero_copyright "generic")
     endif()
 
     # auto batch
@@ -168,7 +169,7 @@ macro(ov_cpack_settings)
     if(ENABLE_INTEL_CPU OR DEFINED openvino_arm_cpu_plugin_SOURCE_DIR)
         if(ENABLE_INTEL_CPU)
             set(CPACK_COMPONENT_CPU_DESCRIPTION "Intel® CPU")
-            set(cpu_copyright "intel_cpu")
+            set(cpu_copyright "generic")
         else()
             set(CPACK_COMPONENT_CPU_DESCRIPTION "ARM CPU")
             set(cpu_copyright "arm_cpu")
@@ -186,7 +187,7 @@ macro(ov_cpack_settings)
         # auto batch exhances GPU
         # set(CPACK_RPM_BATCH_PACKAGE_ENHANCES "${CPACK_RPM_GPU_PACKAGE_NAME} = (${cpack_full_ver})")
         _ov_add_plugin(gpu OFF)
-        set(gpu_copyright "gpu")
+        set(gpu_copyright "generic")
     endif()
 
     # intel-myriad
@@ -195,7 +196,8 @@ macro(ov_cpack_settings)
         set(CPACK_COMPONENT_MYRIAD_DEPENDS "${OV_CPACK_COMP_CORE}")
         set(CPACK_RPM_MYRIAD_PACKAGE_NAME "libopenvino-intel-vpu-plugin-${cpack_name_ver}")
         _ov_add_plugin(myriad OFF)
-        set(myriad_copyright "myriad")
+        # TODO: replace with myriad once copyright is ready
+        set(myriad_copyright "generic")
     endif()
 
     # intel-gna
@@ -204,7 +206,7 @@ macro(ov_cpack_settings)
         set(CPACK_COMPONENT_GNA_DEPENDS "${OV_CPACK_COMP_CORE}")
         set(CPACK_RPM_GNA_PACKAGE_NAME "libopenvino-intel-gna-plugin-${cpack_name_ver}")
         _ov_add_plugin(gna OFF)
-        set(gna_copyright "gna")
+        set(gna_copyright "generic")
     endif()
 
     #
@@ -218,7 +220,7 @@ macro(ov_cpack_settings)
         set(CPACK_RPM_IR_POST_INSTALL_SCRIPT_FILE "${def_triggers}")
         set(CPACK_RPM_IR_POST_UNINSTALL_SCRIPT_FILE "${def_triggers}")
         list(APPEND frontends ir)
-        set(ir_copyright "ir")
+        set(ir_copyright "generic")
     endif()
 
     if(ENABLE_OV_ONNX_FRONTEND)
@@ -228,17 +230,17 @@ macro(ov_cpack_settings)
         set(CPACK_RPM_ONNX_POST_INSTALL_SCRIPT_FILE "${def_triggers}")
         set(CPACK_RPM_ONNX_POST_UNINSTALL_SCRIPT_FILE "${def_triggers}")
         list(APPEND frontends onnx)
-        set(onnx_copyright "onnx")
+        set(onnx_copyright "generic")
     endif()
 
-    if(ENABLE_OV_TF_FRONTEND AND "tensorflow" IN_LIST CPACK_COMPONENTS_ALL)
+    if(ENABLE_OV_TF_FRONTEND)
         set(CPACK_COMPONENT_TENSORFLOW_DESCRIPTION "OpenVINO TensorFlow Frontend")
         set(CPACK_COMPONENT_TENSORFLOW_DEPENDS "${OV_CPACK_COMP_CORE}")
         set(CPACK_RPM_TENSORFLOW_PACKAGE_NAME "libopenvino-tensorflow-frontend-${cpack_name_ver}")
         set(CPACK_RPM_TENSORFLOW_POST_INSTALL_SCRIPT_FILE "${def_triggers}")
         set(CPACK_RPM_TENSORFLOW_POST_UNINSTALL_SCRIPT_FILE "${def_triggers}")
         list(APPEND frontends tensorflow)
-        set(tensorflow_copyright "tensorflow")
+        set(tensorflow_copyright "generic")
     endif()
 
     if(ENABLE_OV_PADDLE_FRONTEND)
@@ -248,7 +250,7 @@ macro(ov_cpack_settings)
         set(CPACK_RPM_PADDLE_POST_INSTALL_SCRIPT_FILE "${def_triggers}")
         set(CPACK_RPM_PADDLE_POST_UNINSTALL_SCRIPT_FILE "${def_triggers}")
         list(APPEND frontends paddle)
-        set(paddle_copyright "paddle")
+        set(paddle_copyright "generic")
     endif()
 
     #
@@ -258,8 +260,6 @@ macro(ov_cpack_settings)
     set(CPACK_COMPONENT_CORE_DEV_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit C / C++ Development files")
     set(CPACK_COMPONENT_CORE_DEV_DEPENDS "${OV_CPACK_COMP_CORE};${frontends}")
     set(CPACK_RPM_CORE_DEV_PACKAGE_NAME "libopenvino-devel-${cpack_name_ver}")
-    # TODO: update once compile_tool is excluded from the package
-    # set(CPACK_RPM_CORE_DEV_PACKAGE_ARCHITECTURE "noarch")
     ov_rpm_generate_conflicts("${OV_CPACK_COMP_CORE_DEV}" ${conflicting_versions})
 
     ov_rpm_add_rpmlint_suppression("${OV_CPACK_COMP_CORE_DEV}"
@@ -268,10 +268,8 @@ macro(ov_cpack_settings)
         "devel-file-in-non-devel-package /usr/${OV_CPACK_INCLUDEDIR}/ie"
         "devel-file-in-non-devel-package /usr/${OV_CPACK_INCLUDEDIR}/openvino"
         "devel-file-in-non-devel-package /usr/${OV_CPACK_RUNTIMEDIR}/libopenvino*"
-        "devel-file-in-non-devel-package /usr/${OV_CPACK_RUNTIMEDIR}/pkgconfig/openvino.pc"
-        # CVS-79409: create man page for compile_tool, remove together with compile_tool
-        "no-manual-page-for-binary compile_tool")
-    set(${OV_CPACK_COMP_CORE_DEV}_copyright "${OV_CPACK_COMP_CORE_DEV}")
+        "devel-file-in-non-devel-package /usr/${OV_CPACK_RUNTIMEDIR}/pkgconfig/openvino.pc")
+    set(${OV_CPACK_COMP_CORE_DEV}_copyright "generic")
 
     #
     # Python bindings
@@ -289,7 +287,7 @@ macro(ov_cpack_settings)
         set(CPACK_RPM_PYOPENVINO_${pyversion}_PACKAGE_REQUIRES "python3")
 
         set(CPACK_RPM_PYOPENVINO_${pyversion}_PACKAGE_NAME "libopenvino-python-${cpack_name_ver}")
-        set(${python_component}_copyright "python")
+        set(${python_component}_copyright "generic")
     endif()
 
     #
@@ -316,7 +314,7 @@ macro(ov_cpack_settings)
         "devel-file-in-non-devel-package /usr/${OV_CPACK_SAMPLESDIR}/c/*"
         # depends on gflags-devel
         "devel-dependency gflags-devel")
-    set(samples_copyright "samples")
+    set(samples_copyright "generic")
 
     # python_samples
     if(ENABLE_PYTHON)

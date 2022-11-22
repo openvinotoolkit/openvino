@@ -19,6 +19,8 @@ struct fully_connected_onednn : typed_primitive_onednn_impl<fully_connected, dnn
     using parent = typed_primitive_onednn_impl<fully_connected, dnnl::inner_product_forward::desc>;
     using parent::parent;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
 private:
     static std::vector<int64_t> reshape_to_2d(const ov::PartialShape& shape, int64_t feature) {
         auto staticShape = shape.to_shape();
@@ -115,7 +117,7 @@ protected:
 
         auto input_layout = impl_params.get_input_layout(0);
         auto weights_layout = impl_params.get_input_layout(1);
-        auto output_layout = impl_params.output_layout;
+        auto output_layout = impl_params.get_output_layout();
 
         auto input_pshape = input_layout.get_partial_shape();
         auto weights_pshape = weights_layout.get_partial_shape();
@@ -164,13 +166,36 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const fully_connected_node& arg, const kernel_impl_params& impl_params) {
+    void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
+
+        ob << make_data(&_desc->data, sizeof(dnnl_inner_product_desc_t));
+
+        std::vector<uint8_t> prim_cache;
+        prim_cache = _prim.get_cache_blob();
+        ob << prim_cache;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+
+        _desc = std::make_shared<dnnl::inner_product_forward::desc>();
+        ib >> make_data(&_desc->data, sizeof(dnnl_inner_product_desc_t));
+
+        std::vector<uint8_t> prim_cache;
+        ib >> prim_cache;
+
+        _pd = dnnl::primitive_desc(&_desc->data, _attrs.get(), ib.get_engine().get_onednn_engine(), nullptr);
+        _prim = dnnl::primitive(_pd, prim_cache);
+    }
+
+    static std::unique_ptr<primitive_impl> create(const fully_connected_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto desc = get_fully_connected_descriptor(impl_params);
         auto attr = arg.get_onednn_primitive_attributes();
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
 
-        return new fully_connected_onednn(engine, desc, attr, prim_desc, get_weights_reorder(impl_params, prim_desc));
+        return cldnn::make_unique<fully_connected_onednn>(engine, desc, attr, prim_desc, get_weights_reorder(impl_params, prim_desc));
     }
 };
 
@@ -185,7 +210,6 @@ attach_fully_connected_onednn::attach_fully_connected_onednn() {
     };
     std::vector<format::type> fmt = {
         format::bfyx,
-        format::bfzyx,
     };
     implementation_map<fully_connected>::add(impl_types::onednn, fully_connected_onednn::create, dt, fmt);
 }
@@ -193,3 +217,5 @@ attach_fully_connected_onednn::attach_fully_connected_onednn() {
 }  // namespace detail
 }  // namespace onednn
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::fully_connected_onednn)

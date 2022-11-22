@@ -490,32 +490,41 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                                                            const std::string& deviceFamily,
                                                            const std::map<std::string, std::string>& origConfig) const {
         std::map<std::string, Any> getMetricConfig;
-        auto compileConfig = origConfig;
+        std::map<std::string, std::string> compileConfig;
 
-        // 0. Remove TARGET_FALLBACK key, move it to getMetricConfig
-        auto targetFallbackIt = compileConfig.find("TARGET_FALLBACK");
-        if (targetFallbackIt == compileConfig.end()) {
-            targetFallbackIt = compileConfig.find(ov::device::priorities.name());
+        // 0. Move TARGET_FALLBACK key to getMetricConfig
+        auto targetFallbackIt = origConfig.find("TARGET_FALLBACK");
+        if (targetFallbackIt == origConfig.end()) {
+            targetFallbackIt = origConfig.find(ov::device::priorities.name());
         }
-        if (targetFallbackIt != compileConfig.end()) {
+        if (targetFallbackIt != origConfig.end()) {
             getMetricConfig[targetFallbackIt->first] = targetFallbackIt->second;
-            compileConfig.erase(targetFallbackIt);
         }
 
-        // 1. remove DEVICE_ID key
-        auto deviceIt = compileConfig.find(ov::device::id.name());
-        if (deviceIt != compileConfig.end()) {
+        // 1. Move DEVICE_ID key to getMetricConfig
+        auto deviceIt = origConfig.find(ov::device::id.name());
+        if (deviceIt != origConfig.end()) {
             getMetricConfig[deviceIt->first] = deviceIt->second;
-            compileConfig.erase(deviceIt);
         }
 
-        // 2. replace it with DEVICE_ARCHITECTURE value
+        // 2. Replace it with DEVICE_ARCHITECTURE value
         if (DeviceSupportsConfigKey(plugin, ov::device::architecture.name())) {
             compileConfig[ov::device::architecture.name()] =
                 plugin.get_property(ov::device::architecture, getMetricConfig);
         } else {
             // Take device name if device does not support DEVICE_ARCHITECTURE metric
             compileConfig[ov::device::architecture.name()] = deviceFamily;
+        }
+
+        // 3. Extract config keys which affect compile config
+        if (DeviceSupportsConfigKey(plugin, ov::caching_properties.name())) {
+            auto cachingProps = plugin.get_property(ov::caching_properties);
+            for (const auto& prop : cachingProps) {
+                // origConfig values have higher priority than plugin parameters
+                auto it = origConfig.find(prop);
+                compileConfig[prop] =
+                    it == origConfig.end() ? plugin.get_property(prop, {}).as<std::string>() : it->second;
+            }
         }
         return compileConfig;
     }
@@ -540,14 +549,9 @@ public:
     CoreImpl(bool _newAPI) : newAPI(_newAPI) {
         add_mutex("");  // Register global mutex
         executorManagerPtr = executorManager();
-        opsetNames.insert("opset1");
-        opsetNames.insert("opset2");
-        opsetNames.insert("opset3");
-        opsetNames.insert("opset4");
-        opsetNames.insert("opset5");
-        opsetNames.insert("opset6");
-        opsetNames.insert("opset7");
-        opsetNames.insert("opset8");
+        for (const auto& it : ov::get_available_opsets()) {
+            opsetNames.insert(it.first);
+        }
     }
 
     ~CoreImpl() override = default;
@@ -990,7 +994,24 @@ public:
                         "set_property is supported only for BATCH itself (without devices). "
                         "You can configure the devices with set_property before creating the BATCH on top.");
 
-        ExtractAndSetDeviceConfig(properties);
+        bool isMetaDevice = device_name.find("AUTO") != std::string::npos ||
+                            device_name.find("MULTI") != std::string::npos ||
+                            device_name.find("HETERO") != std::string::npos;
+        if (!isMetaDevice) {
+            // unsupport to set ov::device::properties to HW device through this function
+            auto devices = GetListOfDevicesInRegistry();
+            for (auto&& config : properties) {
+                auto parsed = parseDeviceNameIntoConfig(config.first);
+                auto is_secondary_config_for_hw_device =
+                    std::any_of(devices.begin(), devices.end(), [&](const std::string& device) {
+                        return device == parsed._deviceName;
+                    });
+                OPENVINO_ASSERT(
+                    !is_secondary_config_for_hw_device,
+                    "set_property only supported ov::device::propreties for Meta device (AUTO/MULTI/HETERO). "
+                    "You can configure the devices through the compile_model()/loadNetwork() API.");
+            }
+        }
         SetConfigForPlugins(properties, device_name);
     }
 
@@ -1140,7 +1161,7 @@ public:
                 desc.pluginCreateFunc(plugin_impl);
                 plugin = InferencePlugin{plugin_impl, {}};
             } else {
-                so = ov::util::load_shared_object(desc.libraryLocation.c_str());
+                so = ov::util::load_shared_object_safely(desc.libraryLocation.c_str());
                 std::shared_ptr<ie::IInferencePlugin> plugin_impl;
                 reinterpret_cast<InferenceEngine::CreatePluginEngineFunc*>(
                     ov::util::get_symbol(so, InferenceEngine::create_plugin_function))(plugin_impl);

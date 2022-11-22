@@ -4,8 +4,8 @@
 
 #include <shared_test_classes/base/ov_subgraph.hpp>
 #include "ngraph/ops.hpp"
-#include "ngraph_ops/augru_cell.hpp"
-#include "ngraph_ops/augru_sequence.hpp"
+#include "ov_ops/augru_cell.hpp"
+#include "ov_ops/augru_sequence.hpp"
 
 #include <common_test_utils/ov_tensor_utils.hpp>
 
@@ -781,8 +781,9 @@ InputsMap getInputMap() {
 #include "openvino/opsets/opset7_tbl.hpp"
 #include "openvino/opsets/opset8_tbl.hpp"
 #include "openvino/opsets/opset9_tbl.hpp"
+#include "openvino/opsets/opset10_tbl.hpp"
 
-#include "ngraph_ops/opset_private_tbl.hpp"
+#include "ov_ops/opset_private_tbl.hpp"
 #undef _OPENVINO_OP_REG
     };
     return inputsMap;

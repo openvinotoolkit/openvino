@@ -5,20 +5,21 @@
 #include <functional>
 #include <memory>
 #include <ngraph/log.hpp>
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/util.hpp>
 #include <numeric>
+#include <openvino/core/validation_util.hpp>
+#include <openvino/opsets/opset3.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <openvino/opsets/opset9.hpp>
+#include <openvino/pass/pattern/op/or.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 //`simplify_gather`, optimizes gather if Gather is gathering the
 // whole input tensor
@@ -298,8 +299,8 @@ pass::EliminatePad::EliminatePad() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pad = m.get_match_root();
 
-        auto pad_begin_const = ngraph::get_constant_from_source(pad->input_value(1));
-        auto pad_end_const = ngraph::get_constant_from_source(pad->input_value(2));
+        auto pad_begin_const = get_constant_from_source(pad->input_value(1));
+        auto pad_end_const = get_constant_from_source(pad->input_value(2));
 
         if (!pad_begin_const || !pad_end_const) {
             return false;
@@ -423,7 +424,7 @@ pass::EliminateSqueeze::EliminateSqueeze() {
         // eliminate redundant unsqueeze->squeeze
         if (auto unsqueeze = ov::as_type_ptr<opset3::Unsqueeze>(input)) {
             PartialShape data_shape;
-            if (op::is_parameter(input)) {
+            if (op::util::is_parameter(input)) {
                 data_shape = unsqueeze->input(0).get_partial_shape();
             } else {
                 data_shape = input->input(0).get_partial_shape();
@@ -461,7 +462,7 @@ pass::EliminateSqueeze::EliminateSqueeze() {
         // eliminate redundant squeeze->squeeze
         if (auto squeeze_i = ov::as_type_ptr<opset3::Squeeze>(input)) {
             PartialShape data_shape;
-            if (op::is_parameter(input)) {
+            if (op::util::is_parameter(input)) {
                 data_shape = squeeze_i->input(0).get_partial_shape();
             } else {
                 data_shape = input->input(0).get_partial_shape();
@@ -719,20 +720,22 @@ pass::EliminateEltwise::EliminateEltwise() {
 
 ngraph::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
     // shape-agnostic transformations
-    add_matcher<EliminatePad>();
-    add_matcher<EliminateConvert>();
-    add_matcher<EliminateConvertNonZero>();
-    add_matcher<EliminateConcat>();
-    add_matcher<EliminateSplit>();
-    add_matcher<EliminateTranspose>();
-    add_matcher<EliminateEltwise>();
-    add_matcher<ov::pass::EliminateSplitConcat>();
+    ADD_MATCHER_FOR_THIS(EliminatePad)
+    ADD_MATCHER_FOR_THIS(EliminateConvert)
+    ADD_MATCHER_FOR_THIS(EliminateConvertNonZero)
+    ADD_MATCHER_FOR_THIS(EliminateConcat)
+    ADD_MATCHER_FOR_THIS(EliminateSplit)
+    ADD_MATCHER_FOR_THIS(EliminateTranspose)
+    ADD_MATCHER_FOR_THIS(EliminateEltwise)
+    using namespace ov::pass;
+    ADD_MATCHER_FOR_THIS(EliminateSplitConcat)
+
     // shape-dependent transformations
     if (use_shape_for_elimination) {
-        add_matcher<EliminateReshape>();
-        add_matcher<EliminateSqueeze>();
-        add_matcher<EliminateUnsqueeze>();
-        add_matcher<EliminateBroadcast>();
-        add_matcher<EliminateGather>();
+        ADD_MATCHER_FOR_THIS(EliminateReshape)
+        ADD_MATCHER_FOR_THIS(EliminateSqueeze)
+        ADD_MATCHER_FOR_THIS(EliminateUnsqueeze)
+        ADD_MATCHER_FOR_THIS(EliminateBroadcast)
+        ADD_MATCHER_FOR_THIS(EliminateGather)
     }
 }
