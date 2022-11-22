@@ -60,3 +60,11 @@ TEST_F(SharedObjectOVTests, canCallExistedMethod) {
     std::shared_ptr<InferenceEngine::IInferencePlugin> ptr;
     EXPECT_NO_THROW(factory(ptr));
 }
+
+TEST_F(SharedObjectOVTests, loadSOSafelyThrowIfRelativePath) {
+    std::string libraryName = ov::util::FileTraits<char>::library_prefix() + std::string("mock_engine") + IE_BUILD_POSTFIX +
+     ov::util::FileTraits<char>::dot_symbol + ov::util::FileTraits<char>::library_ext();
+
+    EXPECT_NO_THROW(ov::util::load_shared_object(libraryName.c_str()));
+    EXPECT_THROW(ov::util::load_shared_object_safely(libraryName.c_str()), std::runtime_error);
+}
