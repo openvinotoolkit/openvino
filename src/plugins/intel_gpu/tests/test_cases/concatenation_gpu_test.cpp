@@ -462,9 +462,9 @@ struct concat_gpu : public ::testing::TestWithParam<TestParamType_concat>
 };
 
 using TestParamType_concat_axis3 = ::testing::tuple<size_t,   // 0 - Input Batch size
-        size_t,                            // 1 - Inputs Features Sizes
-        size_t,                                         // 2 - Input Y Size
-        std::vector<size_t>>;                                        // 3 - Input X Size
+        size_t,                                               // 1 - Inputs Features Sizes
+        size_t,                                               // 2 - Input Y Size
+        std::vector<size_t>>;                                 // 3 - Input X Size
 
 struct concat_axis3_gpu : public ::testing::TestWithParam<TestParamType_concat_axis3>
 {
@@ -714,7 +714,6 @@ public:
 using concat_gpu_4d_f16 = concat_gpu_4d<FLOAT16>;
 using concat_gpu_4d_i8 = concat_gpu_4d<int8_t>;
 using concat_gpu_4d_u8 = concat_gpu_4d<uint8_t>;
-using concat_gpu_4d_axis3_f16 = concat_gpu_4d_axis3<FLOAT16>;
 
 TEST_P(concat_gpu_4d_f16, fs_b_yx_fsv32) {
     ASSERT_NO_FATAL_FAILURE(test(format::fs_b_yx_fsv32));
@@ -724,21 +723,6 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                         concat_gpu_4d_f16,
                         concat_gpu_all_params,
                         concat_gpu::PrintToStringParamName);
-
-TEST_P(concat_gpu_4d_axis3_f16, fs_b_yx_fsv32) {
-    ASSERT_NO_FATAL_FAILURE(test(format::fs_b_yx_fsv32));
-}
-
-INSTANTIATE_TEST_SUITE_P(smoke,
-                        concat_gpu_4d_axis3_f16,
-                        ::testing::Values(
-                            TestParamType_concat_axis3(2, 8, 2, { 2, 2 }),
-                            TestParamType_concat_axis3(2, 32, 2, { 31, 64 }),
-                            TestParamType_concat_axis3(2, 16, 2, { 15, 15, 16 }),
-                            TestParamType_concat_axis3(2, 16, 2, { 16, 15, 16 }),
-                            TestParamType_concat_axis3(2, 16, 1, { 15, 2, 16, 64 })
-                        ),
-                        concat_axis3_gpu::PrintToStringParamName);
 
 TEST_P(concat_gpu_4d_i8, b_fs_yx_fsv32) {
     ASSERT_NO_FATAL_FAILURE(test(format::b_fs_yx_fsv32));
@@ -761,6 +745,30 @@ INSTANTIATE_TEST_SUITE_P(smoke_low_precision,
                         concat_gpu_4d_u8,
                         concat_gpu_all_params,
                         concat_gpu::PrintToStringParamName);
+
+using concat_gpu_4d_axis3_f16 = concat_gpu_4d_axis3<FLOAT16>;
+
+TEST_P(concat_gpu_4d_axis3_f16, fs_b_yx_fsv32) {
+    ASSERT_NO_FATAL_FAILURE(test(format::fs_b_yx_fsv32));
+}
+
+TEST_P(concat_gpu_4d_axis3_f16, b_fs_yx_fsv16) {
+    ASSERT_NO_FATAL_FAILURE(test(format::b_fs_yx_fsv16));
+}
+
+TEST_P(concat_gpu_4d_axis3_f16, bs_fs_yx_bsv16_fsv16) {
+    ASSERT_NO_FATAL_FAILURE(test(format::bs_fs_yx_bsv16_fsv16));
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                        concat_gpu_4d_axis3_f16,
+                        ::testing::Values(
+                            TestParamType_concat_axis3(2, 16, 2, { 2, 3 }),
+                            TestParamType_concat_axis3(2, 19, 2, { 2, 3, 2 }),
+                            TestParamType_concat_axis3(2, 32, 2, { 2, 3, 2, 1 }),
+                            TestParamType_concat_axis3(2, 35, 2, { 3, 2, 3, 2 })
+                        ),
+                        concat_axis3_gpu::PrintToStringParamName);
 
 template <typename Type, typename OutputT>
 struct concat_id_conv_gpu_4d : public concat_gpu {
