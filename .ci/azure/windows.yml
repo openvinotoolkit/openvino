@@ -264,7 +264,7 @@ jobs:
     displayName: 'OV Core UT'
     continueOnError: false
 
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_conditional_complilation_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ConditionalCompilation.xml
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_conditional_compilation_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ConditionalCompilation.xml
     displayName: 'Conditional Compilation Tests'
     continueOnError: false
 
@@ -282,6 +282,14 @@ jobs:
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-Tensorflow.xml
     displayName: 'TensorFlow Frontend Unit Tests'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_lp_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\LpTransformations.xml
+    displayName: 'Low Precision Transformations Tests'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\Transformations.xml
+    displayName: 'Transformations Tests'
     continueOnError: false
 
     # set PATH=$(IB_DIR);%PATH%

@@ -9,11 +9,7 @@
 #include <data_inst.h>
 
 namespace cldnn {
-
-primitive_type_id read_value::type_id() {
-    static primitive_type_base<read_value> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(read_value)
 
 read_value_inst::typed_primitive_inst(network& network, const read_value_node& node) :
     parent(network, node, false),
