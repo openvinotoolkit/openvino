@@ -24,8 +24,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(EltwiseLayerTest).*eltwiseOpType=Prod.*secondaryInputType=PARAMETER.*opType=SCALAR.*)",
         // TODO: Issue: 34348
         R"(.*IEClassGetAvailableDevices.*)",
-        // TODO: Issue 32923
-        R"(.*IEClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*)",
         // TODO: Issue 39358
         R"(.*unaligned.*MultipleConcatTest.*)",
         R"(.*ActivationConcatsEltwise.*CS=35.*)",
@@ -33,8 +31,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ConcatMultiInput.CompareWithRefConstOnly.*IS=\(1.8\).*)",
         R"(.*ConcatMultiInput.CompareWithRefConstOnly.*IS=\(1.16\).*)",
         R"(.*ConcatMultiInput.CompareWithRefConstOnly.*IS=\(1.32\).*)",
-        // TODO: Issue: 29577
-        R"(.*CoreThreadingTests.smoke_QueryNetwork.*)",
         //TODO: Issue: 46416
         R"(.*InferRequestVariableStateTest.inferreq_smoke_VariableState_2infers*.*)",
         // TODO: Issue 24839
@@ -69,12 +65,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
         R"(.*OVExecutableNetworkBaseTest.*CanGetInputsInfoAndCheck.*)",
         R"(.*OVExecutableNetworkBaseTest.*getOutputsFromSplitFunctionWithSeveralOutputs.*)",
-        R"(.*OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*GetMetricNoThrow.*)",
         R"(.*Behavior.*OVExecutableNetworkBaseTest.*get(Inputs|Outputs)FromFunctionWithSeveral(Inputs|Outputs).*)",
         // TODO: temporary disabled. Need to be enabled when PR 9282 is merged
         R"(.*OVExecGraphImportExportTest.*readFromV10IR.*)",
-        // TODO: Issue: 29577
-        R"(.*QueryNetwork.*)",
         // Issue connected with OV2.0
         R"(.*EltwiseLayerTest.*NetType=f16.*)",
         // TODO: Issue: 69639

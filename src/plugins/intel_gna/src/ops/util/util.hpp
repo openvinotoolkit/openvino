@@ -6,23 +6,26 @@
 #include <vector>
 #include <memory>
 
-#include <transformations/utils/utils.hpp>
-#include <ngraph/opsets/opset9.hpp>
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/opsets/opset7.hpp>
+#include "transformations/utils/utils.hpp"
+#include "ngraph/opsets/opset9.hpp"
+#include "ngraph/opsets/opset8.hpp"
+#include "ngraph/opsets/opset7.hpp"
 
-#include <legacy/ngraph_ops/crop_ie.hpp>
-#include <legacy/ngraph_ops/convolution_ie.hpp>
-#include <legacy/ngraph_ops/eltwise.hpp>
-#include <legacy/ngraph_ops/fully_connected.hpp>
-#include <legacy/ngraph_ops/scaleshift.hpp>
-#include <legacy/ngraph_ops/power.hpp>
-#include <legacy/ngraph_ops/relu_ie.hpp>
+#include "legacy/ngraph_ops/crop_ie.hpp"
+#include "legacy/ngraph_ops/convolution_ie.hpp"
+#include "legacy/ngraph_ops/eltwise.hpp"
+#include "legacy/ngraph_ops/fully_connected.hpp"
+#include "legacy/ngraph_ops/scaleshift.hpp"
+#include "legacy/ngraph_ops/power.hpp"
+#include "legacy/ngraph_ops/relu_ie.hpp"
 
+#include "gna_plugin_config.hpp"
 #include "backend/gna_limitations.hpp"
+#include "layers/gna_convolution_layer.hpp"
 #include "layers/gna_permute.hpp"
-#include <transformations/utils/utils.hpp>
-#include <transformations/rt_info/gna_transpose_fusable.hpp>
+#include "transformations/utils/transformation_helper.hpp"
+#include "transformations/utils/utils.hpp"
+#include "transformations/rt_info/gna_transpose_fusable.hpp"
 
 #include "ops/copy.hpp"
 #include "ops/identity.hpp"
@@ -31,6 +34,18 @@
 namespace ov {
 namespace intel_gna {
 namespace ngraph_util {
+
+using namespace GNAPluginNS::GNALimitations;
+
+static const std::set<ov::element::Type> supported_parameter_types = {
+        ov::element::u8,
+        ov::element::i16,
+        ov::element::f32 };
+
+static const std::set<ov::element::Type> supported_constant_types = {
+        ov::element::i8, ov::element::u8,
+        ov::element::i16, ov::element::u16,
+        ov::element::i32, ov::element::f32, ov::element::f64 };
 
 template <typename T>
 static bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& constant, std::vector<double>& values) {
@@ -84,16 +99,30 @@ static bool is_aligned_split(const std::shared_ptr<ngraph::Node> input_op, size_
     if (std::dynamic_pointer_cast<ngraph::opset8::Split>(input_op) || std::dynamic_pointer_cast<ngraph::opset8::VariadicSplit>(input_op)) {
         for (size_t index = 0; index < input_op_out_index; index++) {
             size_t outputSize = ngraph::shape_size(input_op->get_output_shape(index));
-            offset += outputSize * GNAPluginNS::GNALimitations::bytesPerSplitElement;
+            offset += outputSize * bytesPerSplitElement;
         }
     }
     return (offset == ALIGN64(offset));
 }
 
+static bool is_split_supported(const std::shared_ptr<ov::Node>& node, bool is_exception_allowed) {
+    if (!node) {
+        if (is_exception_allowed) {
+            THROW_GNA_EXCEPTION << "Split node is empty!\n";
+        }
+        return false;
+    }
+    bool is_aligned = true;
+    for (size_t i = 0; i < node->get_output_size(); i++) {
+        is_aligned &= is_aligned_split(node, i);
+    }
+    return is_aligned;
+}
+
 static bool is_crop_affined(std::shared_ptr<ngraph::Node> node) {
     auto crop = std::dynamic_pointer_cast<ngraph::op::CropIE>(node);
     if (crop != nullptr && !crop->offset.empty()) {
-        return GNAPluginNS::GNALimitations::isCropAffinedOffset(crop->offset.back());
+        return isCropAffinedOffset(crop->offset.back());
     }
     return false;
 }
@@ -173,20 +202,20 @@ static bool is_power_activation(const std::shared_ptr<ngraph::Node>& node) noexc
     return is_power_activation(node.get());
 }
 
-static bool is_eltwise_mul(const ngraph::Output<ngraph::Node>& node) {
-    auto eltwise = std::dynamic_pointer_cast<ngraph::op::Eltwise>(node.get_node_shared_ptr());
+static bool is_eltwise_mul(const std::shared_ptr<ngraph::Node>& node) {
+    auto eltwise = std::dynamic_pointer_cast<ngraph::op::Eltwise>(node);
     if (!eltwise) return false;
     return eltwise->eltwise_type == ELTWISE_TYPE::Prod;
 }
 
-static bool is_eltwise_add(const ngraph::Output<ngraph::Node>& node) {
-    auto eltwise = std::dynamic_pointer_cast<ngraph::op::Eltwise>(node.get_node_shared_ptr());
+static bool is_eltwise_add(const std::shared_ptr<ngraph::Node>& node) {
+    auto eltwise = std::dynamic_pointer_cast<ngraph::op::Eltwise>(node);
     if (!eltwise) return false;
     return eltwise->eltwise_type == ELTWISE_TYPE::Sum;
 }
 
-static bool is_pooling(const ngraph::Output<ngraph::Node>& node) {
-    return (std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node.get_node_shared_ptr()) != nullptr);
+static bool is_pooling(const std::shared_ptr<ngraph::Node>& node) {
+    return (std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node) != nullptr);
 }
 
 template <typename T>
@@ -195,7 +224,7 @@ static bool is_Tbit_fq(const std::shared_ptr<ngraph::Node>& node) {
     if (!fq_node)
         return false;
     auto levels = fq_node->get_levels();
-    return std::numeric_limits<T>::max() == levels;
+    return (std::numeric_limits<T>::max() == levels) || (std::numeric_limits<T>::max() == levels - 1);
 }
 
 static bool is_32bit_fq(const std::shared_ptr<ngraph::Node>& node) {
@@ -274,6 +303,11 @@ static bool has_32bit_output(const std::shared_ptr<ngraph::Node>& node) {
 inline bool has_32bit_input(const std::shared_ptr<ngraph::Node>& node) {
     return is_activation(node) || is_pooling(node);
 }
+
+bool is_op_supported(const std::shared_ptr<ov::Node>& node,
+                     const std::string& gnaCompileTarget,
+                     const GNAPluginNS::Config config,
+                     bool is_exception_allowed = false);
 } // namespace ngraph_util
 } // namespace intel_gna
 } // namespace ov

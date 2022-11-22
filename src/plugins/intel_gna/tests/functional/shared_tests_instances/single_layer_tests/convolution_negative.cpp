@@ -210,6 +210,6 @@ GNA_NEG_INSTANTIATE(InputW, Fine, InvalidInputW, "Unsupported input width")
 GNA_NEG_INSTANTIATE(InputC, Fine, InvalidInputC, "Unsupported number of input channels")
 GNA_NEG_INSTANTIATE(Padding, InvalidPadding, Fine, "Convolution's input padding is not supported")
 GNA_NEG_INSTANTIATE(Stride, InvalidStride, Fine, "Unsupported convolution stride shape")
-GNA_NEG_INSTANTIATE(Dilation, InvalidDilation, Fine, "dilation is not supported on GNA")
+GNA_NEG_INSTANTIATE(Dilation, InvalidDilation, Fine, "Unsupported dilation")
 
 }  // namespace

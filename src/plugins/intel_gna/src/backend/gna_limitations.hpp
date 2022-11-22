@@ -123,12 +123,12 @@ struct RectLimitByChannelsAndPrecision {
 class AbstractValidator {
 protected:
     static void ThrowIfNotEmpty(const std::string& prefix, const std::string& error);
+public:
     static bool ValidationSuccesful(const bool throwOnError,
                                     const std::string& error,
                                     const std::string& operation,
                                     const std::string& type);
 
-public:
     virtual ~AbstractValidator() = default;
     virtual bool ValidateCnn2D(const std::string& name, const uint32_t inHeight, const uint32_t inWidth,
         const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,

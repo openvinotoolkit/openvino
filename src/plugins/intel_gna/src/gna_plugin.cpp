@@ -102,6 +102,8 @@
 #include <gna2-model-api.h>
 #include <gna2-common-api.h>
 
+using namespace ov::intel_gna::ngraph_util;
+
 inline uint32_t ToByteSize(const Gna2DataType type) {
     switch (type) {
     case Gna2DataTypeInt8:
@@ -666,143 +668,167 @@ void GNAPlugin::AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
 }
 #endif
 
+static void TransformModel(std::shared_ptr<ngraph::Function> model,
+                           const std::string& effective_gna_compile_target_value,
+                           const GNAPluginNS::Config& config) {
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
+    // and we need to run the ConvertPrecision transformation to support old networks.
+    manager.register_pass<ngraph::pass::ConvertPrecision>(
+        precisions_array{{ngraph::element::f16, ngraph::element::f32}});
+    manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
+    manager.register_pass<ov::intel_gna::pass::DecomposeMVN>();
+    manager.register_pass<ngraph::pass::CommonOptimizations>();
+    manager.register_pass<ov::intel_gna::pass::RemoveInputConvert>();
+    manager.register_pass<ov::intel_gna::pass::RemoveOutputConvert>();
+    manager.register_pass<ngraph::pass::ConvertSequenceToTensorIterator>();
+    manager.register_pass<ngraph::pass::GRUCellDecomposition>();
+    manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
+    manager.register_pass<ov::intel_gna::pass::ConvertDWSCToScaleShifts>();
+    manager.register_pass<ov::intel_gna::pass::ConvertPaddedToValidConv>();
+    manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBiasAF>(effective_gna_compile_target_value, config.gnaPrecision);
+    manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBias>(effective_gna_compile_target_value, config.gnaPrecision);
+    manager.register_pass<ov::intel_gna::pass::Decompose2DConv>(effective_gna_compile_target_value, config.gnaPrecision);
+    // TODO enable this transformation for networks with convolutions
+    if (!ngraph::op::util::has_op_with_type<ngraph::opset7::Convolution>(model)) {
+        manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithFqToPointWiseConvolution>();
+        manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithBiasToPointWiseConvolution>();
+        manager.register_pass<ov::intel_gna::pass::ConvertMatmulToPointWiseConvolution>();
+    }
+    manager.register_pass<ov::intel_gna::pass::SplitConvolutionWithFq>();
+    manager.register_pass<ov::intel_gna::pass::SplitConvolutionWithBias>();
+    manager.register_pass<ov::intel_gna::pass::SplitConvolution>();
+    manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmulWithTranspose>();
+    manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmulWithFq>();
+    manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmulWithAdd>();
+    manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmul>();
+    manager.register_pass<ov::intel_gna::pass::SwapInputMatMulWithTrailingTranspose>();
+    manager.register_pass<ov::intel_gna::pass::SwapInputMatMulWithAct>();
+    manager.register_pass<ov::intel_gna::pass::SwapInputMatMulWithFq>();
+    manager.register_pass<ov::intel_gna::pass::SwapInputMatMulWithBias>();
+    manager.register_pass<ov::intel_gna::pass::SwapInputMatMul>();
+    manager.register_pass<ov::intel_gna::pass::HandleTransposesAroundMatMul>();
+    manager.register_pass<ov::intel_gna::pass::InsertTransposeAfterConvOrPool>();
+    manager.register_pass<ov::intel_gna::pass::Unfuse2dto4dReshapeAndTranspose>();
+    manager.register_pass<ov::intel_gna::pass::Unfuse4dto2dReshapeAndTranspose>();
+    manager.register_pass<ov::intel_gna::pass::RemoveExtraReshapes>();
+    manager.register_pass<ov::intel_gna::pass::ReorderActivationAndPooling>();
+    manager.register_pass<ov::intel_gna::pass::RemoveSingleInputConcat>();
+    manager.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
+    manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
+    manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+    manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+    manager.register_pass<ov::intel_gna::pass::MarkupFusableTranspose>();
+    manager.register_pass<ov::intel_gna::pass::RemoveExtraReshapes>();
+    /*
+        Put BroadcastAddMultiplyConst here after ConvertOpSet..() transformations since there are conficts with them.
+        ngraph::pass::ConvertOpSet1ToLegacy -> ngraph::pass::BiasFusions ->
+                                                ngraph::pass::ConvAddFusion, ngraph::pass::ConvMultiplyFusion
+        That transormations fuse bias into convolution and recognizes const node as [1, C, 1, 1].
+        TODO: move that transformation just beyond RemoveSingleInputConcat pass after removing ConvertOpSet1ToLegacy
+            transormations
+    */
+    manager.register_pass<ov::intel_gna::pass::BroadcastAddMultiplyConst>();
+    /*
+        SplitEltwise has dependency on BroadcastAddMultiplyConst for case when spliting of Constant
+        input is doing
+    */
+    manager.register_pass<ov::intel_gna::pass::SplitEltwise>();
+    /* The following transformations perform insertion of Identity layer in 3 steps:
+        1. Mark inputs with rt_info attribute where precision change from i32 to i16/i8 is happened
+        2. Insert Identity after operation which have consumers marked with precision change
+        3. Cleanup appropriate attribute from rt_info
+    */
+    manager.register_pass<ov::intel_gna::pass::MarkIdentityCandidates>(config.gnaFlags.input_low_precision);
+    manager.register_pass<ov::intel_gna::pass::InsertIdentity>();
+    manager.register_pass<ov::intel_gna::pass::IdentityCandidatesCleanup>();
+    // Breaks fusing of layers before result
+    manager.register_pass<ov::intel_gna::pass::BreakFusingOfOutputLayers>();
+    if (!config.gnaFlags.sw_fp32 && !config.gnaFlags.uniformPwlDesign) {
+        manager.register_pass<ov::intel_gna::pass::PWLApproximationWithFq>(config.gnaFlags.pwlMaxErrorPercent);
+        manager.register_pass<ov::intel_gna::pass::PWLApproximation>(config.gnaFlags.pwlMaxErrorPercent);
+    }
+    manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+    manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>();
+    manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
+    manager.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
+    manager.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>();
+    manager.register_pass<ngraph::pass::ConvertPrecision>(
+        precisions_array{{ngraph::element::i64, ngraph::element::i32},
+                         {ngraph::element::u64, ngraph::element::i32},
+                         {ngraph::element::u32, ngraph::element::i32}});
+    const auto& pass_config = manager.get_pass_config();
+
+    // Allowing FP16 Converts to be folded and FP16 constants to upgrade to FP32 data type
+    pass_config->disable<ov::pass::ConvertCompressedOnlyToLegacy>();
+    pass_config->disable<ov::pass::DisableDecompressionConvertConstantFolding>();
+
+    pass_config->disable<ngraph::pass::FakeQuantizeMulFusion>();
+    pass_config->disable<ngraph::pass::FakeQuantizeReshapeFusion>();
+    pass_config->disable<ngraph::pass::PullTransposeThroughFQUp>();
+    pass_config->disable<ngraph::pass::ReluFakeQuantizeFusion>();
+    // Consider to enable after per-channel quantization on FakeQuantize layer is supported in GNAPlugin, see issue
+    // 52034
+    pass_config->disable<ngraph::pass::AddFakeQuantizeFusion>();
+    // TransposeReduction can be enabled when Transpose-Conv-Transpose patterns will be handled in ngraph
+    // transformations
+    pass_config->disable<ngraph::pass::TransposeReduction>();
+    // Operations Max and Min aren't supported
+    pass_config->disable<ngraph::pass::ConcatReduceFusion>();
+    // pass_config->disable<ngraph::pass::SoftSignDecomposition>();
+    manager.run_passes(model);
+}
+
 void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "LoadNetwork");
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
 
     std::string effectiveGnaCompileTargetValue = effectiveGnaCompileTarget();
 
-    bool isNgraphPassesUsed = false;
+    bool is_ngraph_passes_used = false;
     bool fake_quantized = false;
 
     if (_network.getFunction()) {
         CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(_network);
-        const auto& graph = clonedNetwork.getFunction();
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        const auto& model = clonedNetwork.getFunction();
+        fake_quantized = ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(model);
 
-        fake_quantized = ngraph::op::util::has_op_with_type<ngraph::opset7::FakeQuantize>(graph);
-        // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
-        // and we need to run the ConvertPrecision transformation to support old networks.
-        manager.register_pass<ngraph::pass::ConvertPrecision>(
-            precisions_array{{ngraph::element::f16, ngraph::element::f32}});
-        manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
-        manager.register_pass<ov::intel_gna::pass::DecomposeMVN>();
-        manager.register_pass<ngraph::pass::CommonOptimizations>();
-        manager.register_pass<ov::intel_gna::pass::RemoveInputConvert>();
-        manager.register_pass<ov::intel_gna::pass::RemoveOutputConvert>();
-        manager.register_pass<ngraph::pass::ConvertSequenceToTensorIterator>();
-        manager.register_pass<ngraph::pass::GRUCellDecomposition>();
-        manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
-        manager.register_pass<ov::intel_gna::pass::ConvertDWSCToScaleShifts>();
-        manager.register_pass<ov::intel_gna::pass::ConvertPaddedToValidConv>();
-        manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBiasAF>(effectiveGnaCompileTargetValue, config.gnaPrecision);
-        manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBias>(effectiveGnaCompileTargetValue, config.gnaPrecision);
-        manager.register_pass<ov::intel_gna::pass::Decompose2DConv>(effectiveGnaCompileTargetValue, config.gnaPrecision);
-        // TODO enable this transformation for networks with convolutions
-        if (!ngraph::op::util::has_op_with_type<ngraph::opset7::Convolution>(graph)) {
-            manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithFqToPointWiseConvolution>();
-            manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithBiasToPointWiseConvolution>();
-            manager.register_pass<ov::intel_gna::pass::ConvertMatmulToPointWiseConvolution>();
+        TransformModel(model, effectiveGnaCompileTargetValue, config);
+        is_ngraph_passes_used = true;
+
+        std::stringstream error;
+        // Walk through the transformed model
+        for (auto& op : model->get_ops()) {
+            if (!is_op_supported(op, effectiveGnaCompileTargetValue, config, true)) {
+                error << "The plugin does not support layer " << op->get_friendly_name()
+                    << " (type " << op->get_type_name() << ") is not supported!" << std::endl;
+            }
         }
-        manager.register_pass<ov::intel_gna::pass::SplitConvolutionWithFq>();
-        manager.register_pass<ov::intel_gna::pass::SplitConvolutionWithBias>();
-        manager.register_pass<ov::intel_gna::pass::SplitConvolution>();
-        manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmulWithTranspose>();
-        manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmulWithFq>();
-        manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmulWithAdd>();
-        manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmul>();
-        manager.register_pass<ov::intel_gna::pass::SwapInputMatMulWithTrailingTranspose>();
-        manager.register_pass<ov::intel_gna::pass::SwapInputMatMulWithAct>();
-        manager.register_pass<ov::intel_gna::pass::SwapInputMatMulWithFq>();
-        manager.register_pass<ov::intel_gna::pass::SwapInputMatMulWithBias>();
-        manager.register_pass<ov::intel_gna::pass::SwapInputMatMul>();
-        manager.register_pass<ov::intel_gna::pass::HandleTransposesAroundMatMul>();
-        manager.register_pass<ov::intel_gna::pass::InsertTransposeAfterConvOrPool>();
-        manager.register_pass<ov::intel_gna::pass::Unfuse2dto4dReshapeAndTranspose>();
-        manager.register_pass<ov::intel_gna::pass::Unfuse4dto2dReshapeAndTranspose>();
-        manager.register_pass<ov::intel_gna::pass::RemoveExtraReshapes>();
-        manager.register_pass<ov::intel_gna::pass::ReorderActivationAndPooling>();
-        manager.register_pass<ov::intel_gna::pass::RemoveSingleInputConcat>();
-        manager.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
-        manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
-        manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
-        manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-        manager.register_pass<ov::intel_gna::pass::MarkupFusableTranspose>();
-        manager.register_pass<ov::intel_gna::pass::RemoveExtraReshapes>();
-        /*
-          Put BroadcastAddMultiplyConst here after ConvertOpSet..() transformations since there are conficts with them.
-          ngraph::pass::ConvertOpSet1ToLegacy -> ngraph::pass::BiasFusions ->
-                                                    ngraph::pass::ConvAddFusion, ngraph::pass::ConvMultiplyFusion
-          That transormations fuse bias into convolution and recognizes const node as [1, C, 1, 1].
-          TODO: move that transformation just beyond RemoveSingleInputConcat pass after removing ConvertOpSet1ToLegacy
-              transormations
-        */
-        manager.register_pass<ov::intel_gna::pass::BroadcastAddMultiplyConst>();
-        /*
-            SplitEltwise has dependency on BroadcastAddMultiplyConst for case when spliting of Constant
-            input is doing
-        */
-        manager.register_pass<ov::intel_gna::pass::SplitEltwise>();
-        /* The following transformations perform insertion of Identity layer in 3 steps:
-           1. Mark inputs with rt_info attribute where precision change from i32 to i16/i8 is happened
-           2. Insert Identity after operation which have consumers marked with precision change
-           3. Cleanup appropriate attribute from rt_info
-        */
-        manager.register_pass<ov::intel_gna::pass::MarkIdentityCandidates>(config.gnaFlags.input_low_precision);
-        manager.register_pass<ov::intel_gna::pass::InsertIdentity>();
-        manager.register_pass<ov::intel_gna::pass::IdentityCandidatesCleanup>();
-        // Breaks fusing of layers before result
-        manager.register_pass<ov::intel_gna::pass::BreakFusingOfOutputLayers>();
-        if (!config.gnaFlags.sw_fp32 && !config.gnaFlags.uniformPwlDesign) {
-            manager.register_pass<ov::intel_gna::pass::PWLApproximationWithFq>(config.gnaFlags.pwlMaxErrorPercent);
-            manager.register_pass<ov::intel_gna::pass::PWLApproximation>(config.gnaFlags.pwlMaxErrorPercent);
+        if (!error.str().empty()) {
+            THROW_GNA_EXCEPTION << error.str();
         }
-        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
-        manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>();
-        manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
-        manager.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
-        manager.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>();
-        const auto& pass_config = manager.get_pass_config();
 
-        // Allowing FP16 Converts to be folded and FP16 constants to upgrade to FP32 data type
-        pass_config->disable<ov::pass::ConvertCompressedOnlyToLegacy>();
-        pass_config->disable<ov::pass::DisableDecompressionConvertConstantFolding>();
-
-        pass_config->disable<ngraph::pass::FakeQuantizeMulFusion>();
-        pass_config->disable<ngraph::pass::FakeQuantizeReshapeFusion>();
-        pass_config->disable<ngraph::pass::PullTransposeThroughFQUp>();
-        pass_config->disable<ngraph::pass::ReluFakeQuantizeFusion>();
-        // Consider to enable after per-channel quantization on FakeQuantize layer is supported in GNAPlugin, see issue
-        // 52034
-        pass_config->disable<ngraph::pass::AddFakeQuantizeFusion>();
-        // TransposeReduction can be enabled when Transpose-Conv-Transpose patterns will be handled in ngraph
-        // transformations
-        pass_config->disable<ngraph::pass::TransposeReduction>();
-        // Operations Max and Min aren't supported
-        pass_config->disable<ngraph::pass::ConcatReduceFusion>();
-        // pass_config->disable<ngraph::pass::SoftSignDecomposition>();
-        manager.run_passes(graph);
-        convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
-        isNgraphPassesUsed = true;
+        convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(model, clonedNetwork);
     }
     IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::CNNNetwork network = convertedNetwork ? InferenceEngine::CNNNetwork{convertedNetwork} : _network;
     IE_SUPPRESS_DEPRECATED_END
 
-    NetPass::ConvertPrecision(network, Precision::I64, Precision::I32);
-    NetPass::ConvertPrecision(network, Precision::U64, Precision::I32);
-    NetPass::ConvertPrecision(network, Precision::U32, Precision::I32);
-
+    if (is_ngraph_passes_used) {
+        // Set input and output information from ngraph function
+        UpdateInputsAndOutputsInfoFromModel(_network.getFunction());
+    } else {
+        NetPass::ConvertPrecision(network, Precision::I64, Precision::I32);
+        NetPass::ConvertPrecision(network, Precision::U64, Precision::I32);
+        NetPass::ConvertPrecision(network, Precision::U32, Precision::I32);
+    }
     //  Check the network
     std::string error;
-    if (!GNAPluginNS::GNALimitations::AreLayersSupported(network, error)) {
+    // TODO remove for ngraph based model when ValidateConcatAxis will be moved to ngraph as well
+    if (!GNAPluginNS::GNALimitations::AreLayersSupported(network,
+                                                         error)) {
         THROW_GNA_EXCEPTION << error.c_str();
-    }
-
-    // Set input and output information from ngraph function
-    if (_network.getFunction()) {
-        UpdateInputsAndOutputsInfoFromModel(_network.getFunction());
     }
 
     // Set input and output information from orginal network
@@ -821,7 +847,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     auto run_passes = [&](const CNNNetwork& network, bool runBeforeCopy, bool lowPrecision) {
         auto passes = make_shared<PassManager>(PassManagerSettings{runBeforeCopy, lowPrecision}, network);
         passes->registerPass<RemoveConstPass>();
-        if (!isNgraphPassesUsed) {
+        if (!is_ngraph_passes_used) {
             passes->registerPass<UnrollTIPass>();
             passes->registerPass<RemoveConstPass>();
             passes->registerPass<UnrollLSTMCellPass>();
@@ -841,14 +867,14 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
 
         passes->registerPass<SubstitutePReluPass>();
 
-        if (!isNgraphPassesUsed) {
+        if (!is_ngraph_passes_used) {
             passes->registerPass<ReorderMaxPoolPass>();
             passes->registerPass<EltwiseSplitOverChannelsPass>();
         }
 
         passes->registerPass<InsertSplitAligningFilterPass>();
 
-        if (!isNgraphPassesUsed) {
+        if (!is_ngraph_passes_used) {
             passes->registerPass<InsertCopyLayerPass>();
         }
         passes->registerPass<FlattenTrivialConcatPass>();
@@ -1779,11 +1805,26 @@ std::vector<std::shared_ptr<const ov::Node>> GNAPlugin::GetOutputs() {
 }
 
 InferenceEngine::QueryNetworkResult GNAPlugin::QueryNetwork(const InferenceEngine::CNNNetwork& network,
-                                                            const std::map<std::string, std::string>& config) const {
+                                                            const std::map<std::string, std::string>& config_map) const {
     InferenceEngine::QueryNetworkResult res;
 
-    if (network.getFunction()) {
-        IE_THROW(NotImplemented) << " ngraph::Function is not supported natively";
+    GNAPluginNS::Config qn_config(config);
+    qn_config.UpdateFromMap(config_map);
+
+    auto effectiveGnaCompileTargetValue = effectiveGnaCompileTarget();
+    auto model = network.getFunction();
+    if (model) {
+        auto supported = GetSupportedNodes(model,
+        [&](std::shared_ptr<ov::Model>& model) {
+                TransformModel(model, effectiveGnaCompileTargetValue, qn_config);
+            },
+        [&](const std::shared_ptr<ngraph::Node>& op) {
+            return is_op_supported(op, effectiveGnaCompileTargetValue, qn_config);
+        });
+        for (auto&& op_name : supported) {
+            res.supportedLayersMap.emplace(op_name, GetName());
+        }
+        return res;
     }
 
     std::unordered_set<CNNLayer *> allLayers;

@@ -14,8 +14,11 @@
 #include "log/log.hpp"
 #include "gna_limitations.hpp"
 #include "gna/gna_config.hpp"
+#include "ops/util/util.hpp"
+#include "ie_ngraph_utils.hpp"
 
 using namespace ov::intel_gna;
+using namespace ov::intel_gna::ngraph_util;
 
 namespace GNAPluginNS {
 namespace GNALimitations {
@@ -481,13 +484,13 @@ bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMe
         // If there are no inputs start search from an output
         startLayer = getCreatorLayer(outputs.begin()->second).lock();
     } else {
-        auto network_input_precision = inputs.begin()->second->getPrecision();
+        auto network_input_precision = InferenceEngine::details::convertPrecision(inputs.begin()->second->getPrecision());
 
-        if (network_input_precision != InferenceEngine::Precision::FP32 &&
-            network_input_precision != InferenceEngine::Precision::I16 &&
-            network_input_precision != InferenceEngine::Precision::U8) {
+        if (std::find(supported_parameter_types.begin(),
+                      supported_parameter_types.end(),
+                      network_input_precision) == supported_parameter_types.end()) {
             errMessage = "The plugin does not support input precision with " +
-                         std::string(network_input_precision.name()) +
+                         network_input_precision.get_type_name() +
                          " format. Supported  input precisions FP32, I16, U8\n";
             return false;
         }

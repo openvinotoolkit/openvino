@@ -41,7 +41,7 @@ struct GraphData {
     //size_t pool_stride_height;
 };
 
-static bool VerifyAndGetConvData(std::shared_ptr<ngraph::opset7::Convolution> conv, ConvData& conv_data) {
+static bool VerifyAndUpdateConvData(std::shared_ptr<ngraph::opset7::Convolution> conv, ConvData& conv_data) {
     const auto& input = conv->input_value(0);
     const auto& filters = conv->input_value(1);
 
@@ -57,7 +57,7 @@ static bool VerifyAndGetConvData(std::shared_ptr<ngraph::opset7::Convolution> co
         return false;
     }
 
-    GetConvData(conv, conv_data);
+    UpdateConvData(conv, conv_data);
 
     IE_ASSERT(conv_data.output_channel_count == conv->get_output_shape(0)[1]);
 
@@ -498,7 +498,7 @@ static bool Convert(const std::string& gnaCompileTarget,
         last_op_for_replacement, bias_const, 1, 1, 1};
     ConvData conv_data;
 
-    if (!VerifyAndGetConvData(std::dynamic_pointer_cast<ngraph::opset7::Convolution>(conv), conv_data))
+    if (!VerifyAndUpdateConvData(std::dynamic_pointer_cast<ngraph::opset7::Convolution>(conv), conv_data))
         return false;
 
     if (max_pool && !VerifyMaxPool(graph_data, std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(max_pool)))

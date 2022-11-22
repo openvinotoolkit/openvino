@@ -19,7 +19,7 @@
 using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::pass::helper;
 
-static bool VerifyAndGetConvData(std::shared_ptr<ngraph::opset7::Convolution> conv, ConvData& conv_data) {
+static bool VerifyAndUpdateConvData(std::shared_ptr<ngraph::opset7::Convolution> conv, ConvData& conv_data) {
     const auto& input = conv->input_value(0);
 
     // We support only batch 1
@@ -27,7 +27,7 @@ static bool VerifyAndGetConvData(std::shared_ptr<ngraph::opset7::Convolution> co
         return false;
     }
 
-    GetConvData(conv, conv_data);
+    UpdateConvData(conv, conv_data);
 
     return conv_data.pads_begin_height || conv_data.pads_end_height || conv_data.pads_begin_width || conv_data.pads_end_width;
 }
@@ -157,7 +157,7 @@ static bool Convert(std::shared_ptr<ngraph::Node> leading_transpose,
 
     ConvData conv_data;
 
-    if (!VerifyAndGetConvData(std::dynamic_pointer_cast<ngraph::opset7::Convolution>(conv), conv_data))
+    if (!VerifyAndUpdateConvData(std::dynamic_pointer_cast<ngraph::opset7::Convolution>(conv), conv_data))
         return false;
 
     // We are looking for Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC)
