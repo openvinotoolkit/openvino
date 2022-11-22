@@ -173,11 +173,55 @@ tensor.get_size(), range, start_from, resolution); break;
     return tensor;
 }
 
+
+
+constexpr double eps = std::numeric_limits<double>::epsilon();
+
+struct Error {
+    double max = 0.;
+    double mean = 0.;
+    size_t max_coordinate = 0;
+    size_t count = 0;
+} abs_error, rel_error;
+
+inline double less (double a, double b) {
+    return (b - a) > (std::fmax(std::fabs(a), std::fabs(b)) * eps);
+};
+
+inline double less_or_equal(double a, double b) {
+    return (b - a) >= (std::fmax(std::fabs(a), std::fabs(b)) * eps);
+};
+
+inline void set_abs_threshold(double& abs_threshold) {
+    if (sizeof(ExpectedT) == 1 || sizeof(ActualT) == 1) {
+        abs_threshold = 1.;
+    } else {
+        std::vector<double> abs_values;
+        abs_values.reserve(shape_size(expected_shape));
+        for (size_t i = 0; i < shape_size(expected_shape); i++) {
+            abs_values.push_back(std::fabs(static_cast<double>(expected_data[i])));
+        }
+        std::sort(abs_values.begin(), abs_values.end());
+        double abs_median;
+        if (abs_values.size() % 2 == 0) {
+            abs_median = abs_values.size() > 2 ?
+                    (abs_values.at(abs_values.size()/2) + abs_values.at(abs_values.size()/2 + 1))/2 : (abs_values.front() + abs_values.back())/2;
+        } else {
+            abs_median = abs_values.at(abs_values.size()/2);
+        }
+        abs_threshold = abs_median == 0.f ? 1e-5 : 0.05 * abs_median;
+        if (std::is_integral<ExpectedT>::value) {
+            abs_threshold = std::ceil(abs_threshold);
+        }
+    }
+}
+
 template<typename ExpectedT, typename ActualT>
 void compare(const ov::Tensor& expected,
              const ov::Tensor& actual,
              const double abs_threshold_ = std::numeric_limits<double>::max(),
              const double rel_threshold_ = std::numeric_limits<double>::max()) {
+                
     auto expected_shape = expected.get_shape();
     auto actual_shape = actual.get_shape();
     if (expected_shape != actual_shape) {
@@ -195,45 +239,12 @@ void compare(const ov::Tensor& expected,
     double abs_threshold = abs_threshold_;
     double rel_threshold = rel_threshold_;
     if (abs_threshold == std::numeric_limits<double>::max() && rel_threshold == std::numeric_limits<double>::max()) {
-        if (sizeof(ExpectedT) == 1 || sizeof(ActualT) == 1) {
-            abs_threshold = 1.;
-        } else {
-            std::vector<double> abs_values;
-            abs_values.reserve(shape_size(expected_shape));
-            for (size_t i = 0; i < shape_size(expected_shape); i++) {
-                abs_values.push_back(std::fabs(static_cast<double>(expected_data[i])));
-            }
-            std::sort(abs_values.begin(), abs_values.end());
-            double abs_median;
-            if (abs_values.size() % 2 == 0) {
-                abs_median = abs_values.size() > 2 ?
-                        (abs_values.at(abs_values.size()/2) + abs_values.at(abs_values.size()/2 + 1))/2 : (abs_values.front() + abs_values.back())/2;
-            } else {
-                abs_median = abs_values.at(abs_values.size()/2);
-            }
-            abs_threshold = abs_median == 0.f ? 1e-5 : 0.05 * abs_median;
-            if (std::is_integral<ExpectedT>::value) {
-                abs_threshold = std::ceil(abs_threshold);
-            }
-        }
+
     }
     if (!std::isnan(abs_threshold) && !std::isnan(rel_threshold)) {
         std::cout << "abs_threshold: " << abs_threshold << " rel_threshold: " << rel_threshold << std::endl;
     }
-    struct Error {
-        double max = 0.;
-        double mean = 0.;
-        size_t max_coordinate = 0;
-        size_t count = 0;
-    } abs_error, rel_error;
-    auto less = [] (double a, double b) {
-        auto eps = std::numeric_limits<double>::epsilon();
-        return (b - a) > (std::fmax(std::fabs(a), std::fabs(b)) * eps);
-    };
-    auto less_or_equal = [] (double a, double b) {
-        auto eps = std::numeric_limits<double>::epsilon();
-        return (b - a) >= (std::fmax(std::fabs(a), std::fabs(b)) * eps);
-    };
+
     for (size_t i = 0; i < shape_size(expected_shape); i++) {
         double expected_value = expected_data[i];
         double actual_value = actual_data[i];

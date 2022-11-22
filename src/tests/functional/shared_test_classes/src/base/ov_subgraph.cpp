@@ -3,8 +3,11 @@
 //
 
 #include <signal.h>
+#include <setjmp.h>
+
 #include <fstream>
-#include "transformations/convert_precision.hpp"
+#include <thread>
+#include <chrono>
 
 #ifdef _WIN32
 #include <process.h>
@@ -12,6 +15,7 @@
 
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "transformations/convert_precision.hpp"
 
 #include "common_test_utils/graph_comparator.hpp"
 
@@ -19,14 +23,13 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/crash_handler.hpp"
-#include <common_test_utils/ov_tensor_utils.hpp>
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 #include "shared_test_classes/base/utils/compare_results.hpp"
 
-#include <setjmp.h>
 
 namespace ov {
 namespace test {
@@ -78,7 +81,6 @@ void SubgraphBaseTest::run() {
                     throw std::runtime_error("Incorrect target static shape: " +
                                              CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
                 }
-                infer();
                 validate();
             }
             status = ov::test::utils::PassRate::Statuses::PASSED;
@@ -156,6 +158,7 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
     auto compareMap = utils::getCompareMap();
     const auto& results = function->get_results();
     for (size_t j = 0; j < results.size(); j++) {
+        auto time1 = std::chrono::system_clock::now();
         const auto result = results[j];
         for (size_t i = 0; i < result->get_input_size(); ++i) {
             std::shared_ptr<ov::Node> inputNode = result->get_input_node_shared_ptr(i);
@@ -167,8 +170,15 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
             }
             auto it = compareMap.find(inputNode->get_type_info());
             ASSERT_NE(it, compareMap.end());
+            auto time_1 = std::chrono::system_clock::now();
             it->second(inputNode, i, expected[j], actual[j], abs_threshold, rel_threshold);
+            auto time_2 = std::chrono::system_clock::now();
+            std::chrono::duration<double> elapsed_seconds = time_2 - time_1;
+            std::cout << "TIME: " << elapsed_seconds.count() << std::endl;
         }
+        auto time2 = std::chrono::system_clock::now();
+        std::chrono::duration<double> elapsed_seconds = time2 - time1;
+        std::cout << "TIME: " << elapsed_seconds.count() << std::endl;
     }
 }
 
@@ -322,8 +332,31 @@ std::vector<ov::Tensor> SubgraphBaseTest::get_plugin_outputs() {
 }
 
 void SubgraphBaseTest::validate() {
-    auto expectedOutputs = calculate_refs();
-    const auto& actualOutputs = get_plugin_outputs();
+    std::vector<ov::Tensor> expectedOutputs, actualOutputs; // = get_plugin_outputs();
+    {
+        auto time1 = std::chrono::system_clock::now();
+
+        std::thread t_device([&]{infer(); actualOutputs = get_plugin_outputs(); });
+        std::thread t_ref([&]{expectedOutputs = calculate_refs(); });
+        t_device.join();
+        t_ref.join();
+
+        auto time2 = std::chrono::system_clock::now();
+        std::chrono::duration<double> elapsed_seconds = time2 - time1;
+        std::cout << elapsed_seconds.count() << std::endl;
+    }
+
+    {
+        auto time1 = std::chrono::system_clock::now();
+
+        infer();
+        actualOutputs = get_plugin_outputs();
+        expectedOutputs = calculate_refs();
+
+        auto time2 = std::chrono::system_clock::now();
+        std::chrono::duration<double> elapsed_seconds = time2 - time1;
+        std::cout << elapsed_seconds.count() << std::endl;
+    }
 
     if (expectedOutputs.empty()) {
         return;
