@@ -1,8 +1,8 @@
-# Automatic Speech Recognition Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_speech_sample_README}
+# Automatic Speech Recognition Python Sample {#openvino_inference_engine_ie_bridges_python_sample_speech_sample_README}
 
-This sample demonstrates how to do a Synchronous Inference of acoustic model based on Kaldi\* neural models and speech feature vectors.
+This sample demonstrates how to perform a Synchronous Inference of acoustic model based on Kaldi neural models and speech feature vectors.
 
-The sample works with Kaldi ARK or Numpy* uncompressed NPZ files, so it does not cover an end-to-end speech recognition scenario (speech to text), requiring additional preprocessing (feature extraction) to get a feature vector from a speech signal, as well as postprocessing (decoding) to produce text from scores.
+The sample works with Kaldi ARK or Numpy uncompressed NPZ files, so it does not cover an end-to-end speech recognition scenario (speech to text). It requires additional preprocessing (feature extraction) to get a feature vector from a speech signal, as well as postprocessing (decoding) to produce text from scores.
 
 Automatic Speech Recognition Python sample application demonstrates how to use the following Python API in applications:
 
@@ -15,34 +15,34 @@ Automatic Speech Recognition Python sample application demonstrates how to use t
 | InferRequest Operations | [openvino.runtime.InferRequest.query_state], [openvino.runtime.VariableState.reset]                                                                                                            | Gets and resets CompiledModel state control                           |
 | Profiling               | [openvino.runtime.InferRequest.profiling_info], [openvino.runtime.ProfilingInfo.real_time]                                                                                                     | Get infer request profiling info                                      |
 
-Basic OpenVINO™ Runtime API is covered by [Hello Classification Python* Sample](../hello_classification/README.md).
+Basic OpenVINO™ Runtime API is described in [Hello Classification Python Sample](../hello_classification/README.md).
 
 | Options                    | Values                                                                                                                                         |
 | :------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------- |
-| Validated Models           | Acoustic model based on Kaldi* neural models (see [Model Preparation](#model-preparation) section)                                           |
-| Model Format               | OpenVINO™ toolkit Intermediate Representation (.xml + .bin)                                                                                     |
+| Validated Models           | Acoustic model based on Kaldi neural models (see [Model Preparation](#model-preparation) section)                                           |
+| Model Format               | OpenVINO Intermediate Representation (.xml + .bin)                                                                                     |
 | Supported devices          | See [Execution Modes](#execution-modes) section below and [List Supported Devices](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 | Other language realization | [C++](../../../samples/cpp/speech_sample/README.md)                                                                                            |
 
 ## How It Works
 
-At startup, the sample application reads command-line parameters, loads a specified model and input data to the OpenVINO™ Runtime plugin, performs synchronous inference on all speech utterances stored in the input file, logging each step in a standard output stream.
+At startup, the sample application reads command-line parameters, loads a specified model and input data to the OpenVINO Runtime plugin, performs synchronous inference on all speech utterances stored in the input file, logging each step in a standard output stream.
 
-You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
+For more information, refer to the explicit description of
+**Integration Steps** in the [Integrate OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md).
 
 ## GNA-specific details
 
 ### Quantization
 
-If the GNA device is selected (for example, using the `-d` GNA flag), the GNA OpenVINO™ Runtime plugin quantizes the model and input feature vector sequence to integer representation before performing inference.
+If the GNA device is selected (for example, using the `-d` GNA flag), the GNA OpenVINO Runtime plugin quantizes the model and input feature vector sequence to integer representation before performing inference.
 
 Several neural model quantization modes:
 
-- *static* - The first utterance in the input file is scanned for dynamic range.  The scale factor (floating point scalar multiplier) required to scale the maximum input value of the first utterance to 16384 (15 bits) is used for all subsequent inputs. The neural model is quantized to accommodate the scaled input dynamic range.
+- *static* - The first utterance in the input file is scanned for dynamic range. The scale factor (floating point scalar multiplier) required to scale the maximum input value of the first utterance to 16384 (15 bits) is used for all subsequent inputs. The neural model is quantized to accommodate the scaled input dynamic range.
 - *user-defined* - The user may specify a scale factor via the `-sf` flag that will be used for static quantization.
 
-The `-qb` flag provides a hint to the GNA plugin regarding the preferred target weight resolution for all layers.  
+The `-qb` flag provides a hint to the GNA plugin regarding the preferred target weight resolution for all layers. 
 For example, when `-qb 8` is specified, the plugin will use 8-bit weights wherever possible in the
 model.
 
@@ -72,9 +72,9 @@ The GNA plugin also supports export of firmware-compatible embedded model images
 
 In addition to performing inference directly from a GNA model file, these options make it possible to:
 
-- Convert from IR format to GNA format model file (`-m`, `-wg`)
-- Convert from IR format to embedded format model file (`-m`, `-we`)
-- Convert from GNA format to embedded format model file (`-rg`, `-we`)
+- Convert from IR format to GNA format model file (`-m`, `-wg`).
+- Convert from IR format to embedded format model file (`-m`, `-we`).
+- Convert from GNA format to embedded format model file (`-rg`, `-we`).
 
 ## Running
 
@@ -165,7 +165,7 @@ The following pre-trained models are available:
 - rm_lstm4f
 - rm_cnn4a_smbr
 
-All of them can be downloaded from [https://storage.openvinotoolkit.org/models_contrib/speech/2021.2](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2).
+All of them can be downloaded from the [storage](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2).
 
 ## Speech Inference
 
@@ -328,12 +328,13 @@ The sample application logs each step in a standard output stream.
 [ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
 ```
 
-## See Also
+## Additional Resources
 
 - [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
 - [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+- [OpenVINO Toolkit Test Data Storage](https://storage.openvinotoolkit.org/data/test_data)
 
 <!-- [openvino.runtime.Core.import_model]:
 [openvino.runtime.CompiledModel.export_model]:
