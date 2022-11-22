@@ -23,8 +23,7 @@ OPENVINO_NAME = 'openvino'
 OMZ_REPO_URL = "https://github.com/openvinotoolkit/open_model_zoo.git"
 OMZ_REPO_BRANCH = "master"
 
-# GTEST_PARALLEL_URL = "https://github.com/intel-innersource/frameworks.ai.openvino.ci.infrastructure.git"
-GTEST_PARALLEL_URL = "git@github.com:intel-innersource/frameworks.ai.openvino.ci.infrastructure.git"
+GTEST_PARALLEL_URL = "https://github.com/intel-innersource/frameworks.ai.openvino.ci.infrastructure.git"
 GTEST_PARALLEL_BRANCH = "master"
 
 API_CONFORMANCE_BIN_NAME = "apiConformanceTests"
