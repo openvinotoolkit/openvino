@@ -48,10 +48,18 @@ protected:
      */
     Tensor(const std::shared_ptr<InferenceEngine::Blob>& impl, const std::vector<std::shared_ptr<void>>& so);
 
+    /**
+     * @brief Constructs Tensor from the initialized std::shared_ptr
+     * @param impl Initialized shared pointer
+     * @param so Plugin to use. This is required to ensure that Tensor can work properly even if plugin object is
+     * destroyed.
+     */
+    Tensor(const std::shared_ptr<ITensor>& impl, const std::vector<std::shared_ptr<void>>& so);
     friend class ov::Core;
     friend class ov::InferRequest;
     friend class ov::RemoteContext;
     friend class ov::VariableState;
+    friend class ov::RemoteTensor;
 
 public:
     /// @brief Default constructor

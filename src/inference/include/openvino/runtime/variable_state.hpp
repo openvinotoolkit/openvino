@@ -22,13 +22,14 @@ class IVariableStateInternal;
 namespace ov {
 
 class InferRequest;
+class IVariableState;
 
 /**
  * @brief VariableState class
  * @ingroup ov_runtime_cpp_api
  */
 class OPENVINO_RUNTIME_API VariableState {
-    std::shared_ptr<InferenceEngine::IVariableStateInternal> _impl;
+    std::shared_ptr<IVariableState> _impl;
     std::vector<std::shared_ptr<void>> _so;
 
     /**
@@ -39,6 +40,14 @@ class OPENVINO_RUNTIME_API VariableState {
      */
     VariableState(const std::shared_ptr<InferenceEngine::IVariableStateInternal>& impl,
                   const std::vector<std::shared_ptr<void>>& so);
+
+    /**
+     * @brief Constructs VariableState from the initialized std::shared_ptr.
+     * @param impl Initialized shared pointer.
+     * @param so Optional: plugin to use. This is required to ensure that VariableState can work properly even if a
+     * plugin object is destroyed.
+     */
+    VariableState(const std::shared_ptr<IVariableState>& impl, const std::shared_ptr<void>& so);
 
     friend class ov::InferRequest;
 
