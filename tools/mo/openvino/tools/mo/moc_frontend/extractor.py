@@ -188,7 +188,14 @@ def fe_input_user_data_repack(
     }
     """
     _input_shapes = []
-    if isinstance(input_user_shapes, list) or isinstance(input_user_shapes, dict):
+    if isinstance(input_user_shapes, list) and len(input_user_shapes) > 1 and isinstance(input_user_shapes[0], PartialShape):
+        for shape in input_user_shapes:
+            assert isinstance(shape, PartialShape), "Got incorrect format of input shapes."
+        model_inputs = input_model.get_inputs()
+        assert len(model_inputs) == len(input_user_shapes)
+        for idx, model_input in enumerate(model_inputs):
+            _input_shapes.append({"node": model_input, "shape": input_user_shapes[idx]})
+    elif isinstance(input_user_shapes, list) or isinstance(input_user_shapes, dict):
         for input_name in input_user_shapes:
             node = decode_name_with_port(
                 input_model, input_name, framework, IOType.Input
@@ -220,7 +227,7 @@ def fe_input_user_data_repack(
                         "input_name": input_name
                     }
                 )
-    elif isinstance(input_user_shapes, tuple):
+    elif isinstance(input_user_shapes, PartialShape):
         model_inputs = input_model.get_inputs()
         assert len(model_inputs) == 1
         _input_shapes.append({"node": model_inputs[0], "shape": input_user_shapes})

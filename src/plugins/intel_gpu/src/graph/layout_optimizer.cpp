@@ -97,8 +97,7 @@ static bool is_reduce_blocked_axes(reduce_node const& node) {
     auto num_spatial = format::spatial_num(node.get_output_layout().format);
     auto dims = node.get_output_layout().format.dimension();
 
-    if (prim->keep_dims == false &&
-        (count(reduce_axes.begin(), reduce_axes.end(), 1) > 0 ||
+    if ((count(reduce_axes.begin(), reduce_axes.end(), 1) > 0 ||
         (count(reduce_axes.begin(), reduce_axes.end(), 0) > 0 && input_layout.batch() > 1))) {
         for (size_t idx_spatial = dims - num_spatial ; idx_spatial < dims ; idx_spatial++) {
             if (count(reduce_axes.begin(), reduce_axes.end(), idx_spatial) == 0)
@@ -242,13 +241,36 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     if (next.is_type<reorder>())
         return true;
 
-    // Errata for onednn layout selection
-    if (next.is_type<convolution>() && next.get_dependencies().size() == 1 &&
+    // Check whether the reorder between prev and next is the first input of next.
+    auto is_input_reorder = [](program_node& prev, program_node& next) {
+        auto found_reorder = std::find_if(next.get_dependencies().begin(), next.get_dependencies().end(), [](cldnn::program_node* node){
+            return node->is_type<reorder>();
+        });
+        // if there is no reorder between prev and next, it returns true.
+        // This case is needed for can_fuse_reorder in reorder_inputs pass.
+        if (found_reorder == std::end(next.get_dependencies()) && next.get_dependency_index(prev) == 0)
+            return true;
+        auto& next_dep = next.get_dependency(0);
+        if (!next_dep.is_type<reorder>())
+            return false;
+        for (auto& prev_usr : prev.get_users()) {
+            if (!prev_usr->is_type<reorder>())
+                continue;
+            if (&next_dep == prev_usr && next.get_dependency_index(next_dep) == 0) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    // Errata for onednn layout selection. First conv can receive both bfyx and byxf directly.
+    if (next.is_type<convolution>() &&
         next.get_preferred_impl_type() == impl_types::onednn &&
         ((fmt_prev == format::byxf && fmt_next == format::byxf) ||
-         (fmt_prev == format::bfyx && fmt_next == format::byxf))) {
+         (fmt_prev == format::bfyx && fmt_next == format::byxf &&
+            (prev_dt == data_types::f16 && next.get_dependency(0).get_output_layout().feature() <= 8))) &&
+        is_input_reorder(prev, next))
         return true;
-    }
 
     // Do not remove reorder if it is necessary to fulfill required_input
     auto& reorder_node = next.get_dependency(0);
@@ -823,7 +845,7 @@ static bool is_node_for_onednn(reduce_node const& node, format preferred_format)
 
     // Onednn reduction does NOT support reordering of unreduced-axes.
     // Currently, an Onednn reduce layer which contains reduction of blocked axes(b-f) is expected to select planar format.
-    if (is_reduce_blocked_axes(node))
+    if (reduce_prim->keep_dims == false && is_reduce_blocked_axes(node))
         return false;
 
     return true;
@@ -1750,19 +1772,6 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             if (node.as<permute>().is_rotating_except_batch() && fmt == format::fs_b_yx_fsv32) {
                 expected = format::b_fs_yx_fsv32;
             }
-        }
-    } else if (node.is_type<reduce>()) {
-        auto& reduce_node = node.as<reduce>();
-        // if blocked axes are reduced, it will have huge memory overhead. A clDNN reduce reorders un-reduced axes to b-f and w-x axis for this.
-        // But oneDNN does not allow this. So planar format is used for this case.
-        if (is_reduce_blocked_axes(reduce_node) && use_onednn_impls) {
-            auto input_layout = reduce_node.input().get_output_layout();
-            if (input_layout.format.dimension() == 6)
-                expected = format::bfwzyx;
-            else if (input_layout.format.dimension() == 5)
-                expected = format::bfzyx;
-            else if (input_layout.format.dimension() == 4)
-                expected = format::bfyx;
         }
     }
 

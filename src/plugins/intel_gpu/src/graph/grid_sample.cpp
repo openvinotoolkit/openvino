@@ -9,11 +9,7 @@
 #include "primitive_type_base.h"
 
 namespace cldnn {
-
-primitive_type_id grid_sample::type_id() {
-    static primitive_type_base<grid_sample> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(grid_sample)
 
 layout grid_sample_inst::calc_output_layout(const grid_sample_node& node, const kernel_impl_params& impl_param) {
     const auto data_layout = impl_param.get_input_layout();

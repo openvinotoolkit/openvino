@@ -165,4 +165,4 @@ attach_gemm_impl::attach_gemm_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gemm_impl, cldnn::object_type::GEMM_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gemm_impl)
