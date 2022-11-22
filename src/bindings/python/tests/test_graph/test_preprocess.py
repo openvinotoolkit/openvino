@@ -199,7 +199,7 @@ def test_graph_preprocess_output_postprocess():
 
 
 def test_graph_preprocess_spatial_static_shape():
-    shape = [2, 2, 2]
+    shape = [3, 2, 2]
     parameter_a = ops.parameter(shape, dtype=np.int32, name="A")
     model = parameter_a
     function = Model(model, [parameter_a], "TestFunction")
@@ -210,7 +210,7 @@ def test_graph_preprocess_spatial_static_shape():
     ppp = PrePostProcessor(function)
     inp = ppp.input()
     inp.tensor().set_layout(layout).set_spatial_static_shape(2, 2).set_color_format(color_format)
-    inp.preprocess().convert_element_type(Type.f32).mean([1., 2.])
+    inp.preprocess().convert_element_type(Type.f32).mean([1., 2., 3.])
     inp.model().set_layout(layout)
     out = ppp.output()
     out.tensor().set_layout(layout).set_element_type(Type.f32)
@@ -363,9 +363,10 @@ def test_graph_preprocess_set_memory_type():
      (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.I420_THREE_PLANES, True),
      (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.NV12_SINGLE_PLANE, True),
      (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.NV12_TWO_PLANES, True),
-     (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.UNDEFINED, True)])
+     (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.UNDEFINED, True)
+     ])
 def test_graph_preprocess_steps(algorithm, color_format1, color_format2, is_failing):
-    shape = [1, 1, 3, 3]
+    shape = [1, 3, 3, 3]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
     function = Model(model, [parameter_a], "TestFunction")
