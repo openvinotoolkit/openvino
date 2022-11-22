@@ -296,7 +296,8 @@ class Conformance:
             logger.error(f"Directory {self._model_path} does not exist")
             exit(-1)
         xml_report, report_dir = self.run_conformance()
-        self.summarize(xml_report, report_dir)
+        if self._type == "OP":
+            self.summarize(xml_report, report_dir)
         
 if __name__ == "__main__":
     args = parse_arguments()
