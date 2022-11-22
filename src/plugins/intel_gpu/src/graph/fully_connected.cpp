@@ -14,10 +14,7 @@
 #include "matmul_shape_inference.hpp"
 
 namespace cldnn {
-primitive_type_id fully_connected::type_id() {
-    static primitive_type_base<fully_connected> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(fully_connected)
 
 namespace {
 bool is_batch_after_spatial(const std::string order) {
