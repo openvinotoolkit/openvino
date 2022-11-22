@@ -1038,7 +1038,7 @@ static UNUSED void printPerformanceCounts(std::vector<ov::ProfilingInfo> perform
             totalTime += it.real_time;
         }
     }
-    stream << std::setw(25) << std::left << "Total time: " + std::to_string(totalTime.count() / 1000.0) 
+    stream << std::setw(25) << std::left << "Total time: " + std::to_string(totalTime.count() / 1000.0)
            << " milliseconds" << std::endl;
     std::cout << std::endl;
     std::cout << "Full device name: " << deviceName << std::endl;
@@ -1094,9 +1094,11 @@ static UNUSED void printPerformanceCountsNoSort(std::vector<ov::ProfilingInfo> p
             }
             stream << std::setw(30) << std::left << "layerType: " + std::string(it.node_type) + " ";
             stream << std::setw(30) << std::left << "execType: " + std::string(it.exec_type) + " ";
-            stream << std::setw(25) << std::left << "realTime (ms): " + std::to_string(it.real_time.count() / 1000.0) + " ";
-            stream << std::setw(25) << std::left << "cpuTime (ms): " + std::to_string(it.cpu_time.count() / 1000.0) + " ";
-            
+            stream << std::setw(25) << std::left
+                   << "realTime (ms): " + std::to_string(it.real_time.count() / 1000.0) + " ";
+            stream << std::setw(25) << std::left
+                   << "cpuTime (ms): " + std::to_string(it.cpu_time.count() / 1000.0) + " ";
+
             double opt_proportion = it.real_time.count() * 100.0 / totalTime.count();
             std::stringstream opt_proportion_ss;
             opt_proportion_ss << std::fixed << std::setprecision(2) << opt_proportion;
@@ -1105,7 +1107,7 @@ static UNUSED void printPerformanceCountsNoSort(std::vector<ov::ProfilingInfo> p
                 opt_proportion_str = "N/A";
             }
             stream << std::setw(20) << std::left << "proportion: " + opt_proportion_str + "%";
-            
+
             stream << std::endl;
         }
     }
@@ -1165,9 +1167,11 @@ static UNUSED void printPerformanceCountsDescendSort(std::vector<ov::ProfilingIn
             }
             stream << std::setw(30) << std::left << "layerType: " + std::string(it.node_type) + " ";
             stream << std::setw(30) << std::left << "execType: " + std::string(it.exec_type) + " ";
-            stream << std::setw(25) << std::left << "realTime (ms): " + std::to_string(it.real_time.count() / 1000.0) + " ";
-            stream << std::setw(25) << std::left << "cpuTime (ms): " + std::to_string(it.cpu_time.count() / 1000.0) + " ";
-            
+            stream << std::setw(25) << std::left
+                   << "realTime (ms): " + std::to_string(it.real_time.count() / 1000.0) + " ";
+            stream << std::setw(25) << std::left
+                   << "cpuTime (ms): " + std::to_string(it.cpu_time.count() / 1000.0) + " ";
+
             double opt_proportion = it.real_time.count() * 100.0 / totalTime.count();
             std::stringstream opt_proportion_ss;
             opt_proportion_ss << std::fixed << std::setprecision(2) << opt_proportion;
@@ -1176,7 +1180,7 @@ static UNUSED void printPerformanceCountsDescendSort(std::vector<ov::ProfilingIn
                 opt_proportion_str = "N/A";
             }
             stream << std::setw(20) << std::left << "proportion: " + opt_proportion_str + "%";
-            
+
             stream << std::endl;
         }
     }
@@ -1223,9 +1227,11 @@ static UNUSED void printPerformanceCountsSimpleSort(std::vector<ov::ProfilingInf
                 stream << std::setw(15) << std::left << "EXECUTED ";
                 stream << std::setw(30) << std::left << "layerType: " + std::string(it.node_type) + " ";
                 stream << std::setw(30) << std::left << "execType: " + std::string(it.exec_type) + " ";
-                stream << std::setw(25) << std::left << "realTime (ms): " + std::to_string(it.real_time.count() / 1000.0) + " ";
-                stream << std::setw(25) << std::left << "cpuTime (ms): " + std::to_string(it.cpu_time.count() / 1000.0) + " ";
-                
+                stream << std::setw(25) << std::left
+                       << "realTime (ms): " + std::to_string(it.real_time.count() / 1000.0) + " ";
+                stream << std::setw(25) << std::left
+                       << "cpuTime (ms): " + std::to_string(it.cpu_time.count() / 1000.0) + " ";
+
                 double opt_proportion = it.real_time.count() * 100.0 / totalTime.count();
                 std::stringstream opt_proportion_ss;
                 opt_proportion_ss << std::fixed << std::setprecision(2) << opt_proportion;
@@ -1234,7 +1240,7 @@ static UNUSED void printPerformanceCountsSimpleSort(std::vector<ov::ProfilingInf
                     opt_proportion_str = "N/A";
                 }
                 stream << std::setw(20) << std::left << "proportion: " + opt_proportion_str + "%";
-                
+
                 stream << std::endl;
             }
         }
