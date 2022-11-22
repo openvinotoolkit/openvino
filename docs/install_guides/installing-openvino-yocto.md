@@ -52,7 +52,7 @@ git clone https://git.yoctoproject.org/git/poky
 
 ```sh
 cd poky
-git clone https://git.yoctoproject.org/git/meta-intel
+git clone https://git.yoctoproject.org/meta-intel/
 git clone https://git.openembedded.org/meta-openembedded
 git clone https://github.com/kraj/meta-clang.git
 ```
