@@ -3,8 +3,7 @@
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/data_types.cl"
-    
+
 #define GLOBAL_SIZE 128
 #define LOCAL_SIZE GLOBAL_SIZE
 
@@ -13,7 +12,7 @@
     #define INPUT0_FILL_VAL INPUT0_VAL_MIN
 #else
     #define COMPARE_SIGN >
-    #define INPUT0_FILL_VAL INPUT0_VAL_MAX    
+    #define INPUT0_FILL_VAL INPUT0_VAL_MAX
 #endif
 
 __attribute__((reqd_work_group_size(LOCAL_SIZE, 1, 1)))
@@ -49,10 +48,10 @@ KERNEL(arg_max_gpu_top_k)(const __global INPUT0_TYPE* input, __global OUTPUT_TYP
         }
         global_index += GLOBAL_SIZE;
 #ifdef INPUT0_LAYOUT_BFYX
-            while (global_index < size + batch_offset) 
+            while (global_index < size + batch_offset)
 #else
             while (global_index < size)
-#endif   
+#endif
         {
             iav_type element;
             element.value = input[global_index];
@@ -72,7 +71,7 @@ KERNEL(arg_max_gpu_top_k)(const __global INPUT0_TYPE* input, __global OUTPUT_TYP
             global_index += GLOBAL_SIZE * INPUT0_BATCH_NUM;
 #endif
         }
-        
+
 #ifdef INPUT0_LAYOUT_BFYX
         if (local_index < size)
             scratch[local_index] = accumulator;
@@ -84,14 +83,14 @@ KERNEL(arg_max_gpu_top_k)(const __global INPUT0_TYPE* input, __global OUTPUT_TYP
         else
             scratch[local_index].value = INPUT0_FILL_VAL;
 #endif
-        
+
 
         barrier(CLK_LOCAL_MEM_FENCE);
 
         __attribute__((opencl_unroll_hint))
-        for(uint offset = LOCAL_SIZE / 2; offset > 0; offset /= 2) 
+        for(uint offset = LOCAL_SIZE / 2; offset > 0; offset /= 2)
         {
-            if (local_index < offset) 
+            if (local_index < offset)
             {
                 iav_type other = scratch[local_index + offset];
                 iav_type mine = scratch[local_index];
@@ -103,16 +102,16 @@ KERNEL(arg_max_gpu_top_k)(const __global INPUT0_TYPE* input, __global OUTPUT_TYP
             }
             barrier(CLK_LOCAL_MEM_FENCE);
         }
-        
+
 #ifdef INPUT0_LAYOUT_BFYX
-        if (local_index == 0) 
+        if (local_index == 0)
         {
             output[current_batch * TOP_K + i] = scratch[0].index % size;
         }
         global_index = temp_index;
         results[i] = scratch[0].index % size;
 #else
-        if (local_index == 0) 
+        if (local_index == 0)
         {
             output[current_batch + i*INPUT0_BATCH_NUM] = scratch[0].index / INPUT0_BATCH_NUM;
         }

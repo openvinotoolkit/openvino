@@ -5,7 +5,6 @@
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/data_types.cl"
 
-#define MAX(a, b)     ((a) > (b) ? (a) : (b))
 #define NUM_ROIS      OUTPUT_BATCH_NUM
 #define NUM_CHANNELS  INPUT0_FEATURE_NUM
 #define POOLED_WIDTH  OUTPUT_SIZE_X
@@ -115,4 +114,3 @@ KERNEL(roi_align_ref)
 
     dst_data[OUTPUT_GET_INDEX(r, c, y, x)] = ACTIVATION((OUTPUT_TYPE)pooled_value, ACTIVATION_PARAMS);
 }
-

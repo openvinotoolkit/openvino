@@ -11,10 +11,6 @@
 #define COORD_T float
 #define ACCUM_T float
 
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
-#define MAX(a,b) ((a) > (b) ? (a) : (b))
-#define CLAMP(v,l,u) MAX((l),MIN((v),(u)))
-
 ACCUM_T FUNC(bilinear_interp)(
       const __global INPUT0_TYPE * data
     , const int src_batch_idx

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common.cl"
 
 inline void sub_group_block_write_uchar16(__global uchar* outPtr, uchar16 v) {
 #ifdef cl_intel_subgroups_char
@@ -275,31 +276,6 @@ inline uchar sub_group_block_read_uchar(const __local uchar* ptr) __attribute__(
     return ret;
 #endif
 }
-
-// Creates vector type.
-#define MAKE_VECTOR_TYPE_IMPL_1(elem_type)  elem_type
-#define MAKE_VECTOR_TYPE_IMPL_2(elem_type)  CAT(elem_type, 2)
-#define MAKE_VECTOR_TYPE_IMPL_3(elem_type)  CAT(elem_type, 3)
-#define MAKE_VECTOR_TYPE_IMPL_4(elem_type)  CAT(elem_type, 4)
-#define MAKE_VECTOR_TYPE_IMPL_8(elem_type)  CAT(elem_type, 8)
-#define MAKE_VECTOR_TYPE_IMPL_16(elem_type) CAT(elem_type, 16)
-#define MAKE_VECTOR_TYPE(elem_type, size)   CAT(MAKE_VECTOR_TYPE_IMPL_, size)(elem_type)
-
-#define AS_TYPE(type, val) CAT(as_, type)(val)
-
-// ====================================================================================================================
-// TYPE_SIZE(type) - evaluates to size of "type" in bytes
-// type [PP] - Must evaluate to non-vectorized type.
-// ====================================================================================================================
-#define TYPE_SIZE_uchar  1
-#define TYPE_SIZE_char   1
-#define TYPE_SIZE_ushort 2
-#define TYPE_SIZE_short  2
-#define TYPE_SIZE_half   2
-#define TYPE_SIZE_int    4
-#define TYPE_SIZE_uint   4
-#define TYPE_SIZE_float  4
-#define TYPE_SIZE(type) CAT(TYPE_SIZE_, type)
 
 // ====================================================================================================================
 // BLOCK_READN(type, vector_size, ptr, offset)

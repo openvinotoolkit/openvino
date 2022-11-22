@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/fetch_data.cl"
+#include "include/fetch_utils.cl"
 #include "include/batch_headers/data_types.cl"
 
 #if ANTIALIAS == 1
@@ -20,27 +20,6 @@
 #define TO_ACC_VEC_TYPE(x)              CAT(convert_, ACC_VEC_TYPE)(x)
 #define OUT_VEC_TYPE                    MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE)
 #define TO_OUT_VEC_TYPE(x)              CAT(convert_, OUT_VEC_TYPE)(x)
-
-
-#if defined(SAMPLE_TYPE_CAFFE_INTERP)
-inline uint FUNC(get_input_index)(uint b, uint f, uint y, uint x)
-{
-#if INPUT0_DIMS < 5
-    return INPUT0_GET_INDEX(b, f, y, x);
-#else
-#error [clDNN resample_ref.cl]: input format - not supported
-#endif
-}
-
-inline uint FUNC(get_output_index)(uint b, uint f, uint y, uint x)
-{
-#if OUTPUT_DIMS < 5
-    return OUTPUT_GET_INDEX(b, f, y, x);
-#else
-#error [clDNN resample_ref.cl]: output format - not supported
-#endif
-}
-#endif
 
 inline float FUNC(get_original_coordinate)(float num, float scale, int length_resized, int length_original)
 {
@@ -170,10 +149,10 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
 #endif
                                     {
 #if VEC_BLOCK_SIZE == 8
-                                        MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_BLOCK_SIZE) input_vec = vload8(0, &input[FUNC_CALL(get_input_index)(b, f+fp, y, x)]);
+                                        MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_BLOCK_SIZE) input_vec = vload8(0, &input[INPUT0_GET_INDEX(b, f+fp, y, x)]);
                                         sum = fma(convert_float8(input_vec), (float8)w, sum);
 #else
-                                        MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_BLOCK_SIZE) input_vec = vload16(0, &input[FUNC_CALL(get_input_index)(b, f+fp, y, x)]);
+                                        MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_BLOCK_SIZE) input_vec = vload16(0, &input[INPUT0_GET_INDEX(b, f+fp, y, x)]);
                                         sum = fma(convert_float16(input_vec), (float16)w, sum);
 #endif
                                     }
@@ -215,9 +194,9 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
         }
 
 #if VEC_BLOCK_SIZE == 8
-        vstore8(out, 0, &output[FUNC_CALL(get_output_index)(batch, feature+fp, oy, ox)]);
+        vstore8(out, 0, &output[OUTPUT_GET_INDEX(batch, feature+fp, oy, ox)]);
 #else
-        vstore16(out, 0, &output[FUNC_CALL(get_output_index)(batch, feature+fp, oy, ox)]);
+        vstore16(out, 0, &output[OUTPUT_GET_INDEX(batch, feature+fp, oy, ox)]);
 #endif
     } // fp
 }

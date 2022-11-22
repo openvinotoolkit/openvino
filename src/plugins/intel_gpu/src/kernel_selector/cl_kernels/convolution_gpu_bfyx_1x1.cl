@@ -2,13 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/sub_group.cl"
 
 #if FP16_UNIT_USED
-    #define ALIGNED_BLOCK_READ8(ptr, byte_offset) as_half8(intel_sub_group_block_read_us8((const __global ushort*)(ptr) + (byte_offset)))
-
     #define MULTIPLY_BLOCKS_16x8_8x16(_result, _blockA, _blockB) \
     { \
         const half16 acol0 = TRANSPOSE_BLOCK_16_FP16_HALF_TYPE( _blockA.s0 ); \
@@ -29,9 +26,6 @@
         _result = fma( _blockB.s7, acol7, _result ); \
     }
 #else
-    // Block read - currently block is 4 bytes aligned.
-    #define ALIGNED_BLOCK_READ8(ptr, byte_offset) as_float8(intel_sub_group_block_read8((const __global uint*)(ptr) + (byte_offset)))
-
     #define MULTIPLY_BLOCKS_16x8_8x16(_result, _blockA, _blockB) \
     { \
         const float16 acol0 = TRANSPOSE_BLOCK_16( _blockA.s0 ); \
@@ -53,6 +47,10 @@
     }
 #endif
 
+#ifndef ACCUMULATOR_TYPE
+#define ACCUMULATOR_TYPE INPUT0_TYPE
+#endif
+
 __attribute__((intel_reqd_sub_group_size(16)))
 KERNEL(convolution_bfyx_1x1)(
     __global INPUT0_TYPE* input,
@@ -70,7 +68,7 @@ KERNEL(convolution_bfyx_1x1)(
     const uint b = (uint)get_global_id(2);
     const uint group_f = (uint)get_group_id(1) * 16;
 
-    MAKE_VECTOR_TYPE(UNIT_TYPE, 16) blockC00 = UNIT_VAL_ZERO;
+    MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 16) blockC00 = INPUT0_VAL_ZERO;
 
 #if BIAS_TERM
     #if   BIAS_PER_OUTPUT
@@ -96,14 +94,14 @@ KERNEL(convolution_bfyx_1x1)(
 
     for (uint k = 0; k < (FILTER_IFM_NUM + 8 - 1) / 8; ++k)
     {
-        MAKE_VECTOR_TYPE(UNIT_TYPE, 8) blockA00;
-        MAKE_VECTOR_TYPE(UNIT_TYPE, 8) blockB00;
+        MAKE_VECTOR_TYPE(INPUT0_TYPE, 8) blockA00;
+        MAKE_VECTOR_TYPE(FILTER_TYPE, 8) blockB00;
 
         uint input_idx = input_offset + k * 8 * xy_block_num * 16;
         uint filter_idx = filter_offset + k * 8 * 16;
 
-        blockA00 = ALIGNED_BLOCK_READ8(input, input_idx);
-        blockB00 = ALIGNED_BLOCK_READ8(weights, filter_idx);
+        blockA00 = DT_INPUT_BLOCK_READ8(input, input_idx);
+        blockB00 = DT_FILTER_BLOCK_READ8(weights, filter_idx);
 
         MULTIPLY_BLOCKS_16x8_8x16(blockC00, blockB00, blockA00);
     }
