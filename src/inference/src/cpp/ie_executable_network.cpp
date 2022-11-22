@@ -214,6 +214,9 @@ void CompiledModel::set_property(const AnyMap& config) {
 
 Any CompiledModel::get_property(const std::string& name) const {
     OV_EXEC_NET_CALL_STATEMENT({
+        if (ov::from_cache == name) {
+            return _impl->isLoadedFromCache();
+        }
         if (ov::supported_properties == name) {
             try {
                 auto supported_properties = _impl->GetMetric(name).as<std::vector<PropertyName>>();
