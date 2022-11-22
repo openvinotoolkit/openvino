@@ -304,6 +304,16 @@ std::vector<UniqueParams> params_unique_int() {
                                                       make_axis(2),
                                                       true,
                                                       "3D with duplicates (2 & 3), output sorted"},
+                                         UniqueParams{Shape{2, 2, 3},
+                                                      // the second and the third slice over axis 2 are equal
+                                                      std::vector<Data_t>{-1, -1, -1, 3, 2, 2, 6, 7, 7, 4, 4, 4},
+                                                      std::vector<Data_t>{-1, -1, 2, 3, 7, 6, 4, 4},
+                                                      std::vector<Index_t>{1, 0},
+                                                      std::vector<Index_t>{1, 0, 0},
+                                                      std::vector<int64_t>{2, 1},
+                                                      make_axis(2),
+                                                      true,
+                                                      "3D with duplicates (2 & 3), first elements equal, output sorted"},
                                          UniqueParams{
                                                       Shape{1, 3, 16},
                                                       std::vector<Data_t>{15,  -20, -11, 10, -21, 8,  -15, -10, 7,  20, -19, -14, -13, -16, -7,  -2,

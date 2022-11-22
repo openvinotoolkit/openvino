@@ -123,12 +123,12 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
             elem_coord.insert(elem_coord.cbegin() + *axis, lhs.idx);
             const auto lhs_elem_idx = ngraph::coordinate_index(elem_coord, data_shape);
             const auto rhs_elem_idx = lhs_elem_idx + slices_offset;
-            if (*(data + lhs_elem_idx) < *(data + rhs_elem_idx)) {
-                return true;
+            if (*(data + rhs_elem_idx) > *(data + lhs_elem_idx)) {
+                return false;
             }
         }
 
-        return false;
+        return true;
     };
 
     const auto elements_are_equal = [&data](const TensorSlice<Index_t, Count_t>& lhs,
@@ -219,7 +219,7 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
         ret.all_tensor_elements = generate_descriptors<Index_t, Count_t>(data_shape[*axis], DescriptorType::SLICE);
 
         if (sorted) {
-            std::stable_sort(begin(ret.all_tensor_elements), end(ret.all_tensor_elements), ascending_order);
+            std::stable_sort(begin(ret.all_tensor_elements), end(ret.all_tensor_elements), slices_ascending_order);
         }
         ret.all_tensor_elements[0].rev_idx = 0;
         ret.unique_tensor_elements.push_back(ret.all_tensor_elements[0]);
