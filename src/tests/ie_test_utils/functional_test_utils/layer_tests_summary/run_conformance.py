@@ -46,15 +46,17 @@ SCRIPT_DIR_PATH, SCRIPT_NAME = os.path.split(os.path.abspath(__file__))
 
 def find_latest_dir(in_dir: Path, pattern_list = list()):
     get_latest_dir = lambda path: sorted(Path(path).iterdir(), key=os.path.getmtime)
-    dir_list = get_latest_dir(in_dir)
-    for dir in dir_list:
-        if dir.is_dir():
-            if len(pattern_list) == 0:
-                return dir
+    entities = get_latest_dir(in_dir)
+    entities.reverse()
+
+    for entity in entities:
+        if entity.is_dir():
+            if not pattern_list:
+                return entity
             else:
                 for pattern in pattern_list: 
-                    if pattern in str(os.fspath(PurePath(dir))):
-                        return dir
+                    if pattern in str(os.fspath(PurePath(entity))):
+                        return entity
     logger.error(f"{in_dir} does not contain applicable directories to patterns: {pattern_list}")
     exit(-1)
 
