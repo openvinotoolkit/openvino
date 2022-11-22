@@ -9,18 +9,8 @@
 
 namespace ov {
 
-bool Any::equal(std::type_index lhs, std::type_index rhs) {
-    auto result = lhs == rhs;
-#if (defined(__ANDROID__) || defined(__APPLE__)) && defined(__clang__)
-    if (!result) {
-        result = std::strcmp(lhs.name(), rhs.name()) == 0;
-    }
-#endif
-    return result;
-}
-
 bool Any::Base::is(const std::type_info& other) const {
-    return Any::equal(type_info(), other);
+    return util::equal(type_info(), other);
 }
 
 void Any::Base::type_check(const std::type_info& type_info_) const {
@@ -253,6 +243,16 @@ void Write<std::tuple<unsigned int, unsigned int>>::operator()(
 
 void Write<Any>::operator()(std::ostream& os, const Any& any) const {
     any.print(os);
+}
+
+bool equal(const std::type_index& lhs, const std::type_index& rhs) {
+    auto result = lhs == rhs;
+#if (defined(__ANDROID__) || defined(__APPLE__)) && defined(__clang__)
+    if (!result) {
+        result = std::strcmp(lhs.name(), rhs.name()) == 0;
+    }
+#endif
+    return result;
 }
 
 }  // namespace util

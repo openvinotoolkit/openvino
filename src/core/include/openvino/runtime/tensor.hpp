@@ -26,7 +26,9 @@ namespace ov {
 class Core;
 class InferRequest;
 class RemoteContext;
+class RemoteTensor;
 class VariableState;
+class ITensor;
 
 /**
  * @brief Tensor API holding host memory
@@ -35,8 +37,8 @@ class VariableState;
  */
 class OPENVINO_API Tensor {
 protected:
-    std::shared_ptr<InferenceEngine::Blob> _impl;  //!< Shared pointer to internal tensor representation
-    std::vector<std::shared_ptr<void>> _so;        //!< Reference to dynamically loaded library
+    std::shared_ptr<ITensor> _impl;          //!< Shared pointer to internal tensor representation
+    std::vector<std::shared_ptr<void>> _so;  //!< Reference to dynamically loaded library
 
     /**
      * @brief Constructs Tensor from the initialized std::shared_ptr
@@ -155,7 +157,7 @@ public:
      * if specified type's fundamental type does not match with tensor element type's fundamental type
      * @return A host pointer to tensor memory
      */
-    void* data(const element::Type type = {}) const;
+    void* data(const element::Type& type = {}) const;
 
     /**
      * @brief Provides an access to the underlaying host memory casted to type `T`
