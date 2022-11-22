@@ -9,7 +9,7 @@ from subprocess import Popen
 from shutil import copytree, rmtree
 from summarize import create_summary
 from merge_xmls import merge_xml
-from pathlib import Path, PurePath
+from pathlib import Path
 from sys import version, platform
 
 import xml.etree.ElementTree as ET
@@ -30,9 +30,6 @@ API_CONFORMANCE_BIN_NAME = "apiConformanceTests"
 OP_CONFORMANCE_BIN_NAME = "conformanceTests"
 SUBGRAPH_DUMPER_BIN_NAME = "subgraphsDumper"
 
-DEBUG_DIR = "Debug"
-RELEASE_DIR = "Release"
-
 IS_WIN = "windows" in platform
 
 OS_SCRIPT_EXT = ".bat" if IS_WIN else ""
@@ -42,35 +39,17 @@ NO_MODEL_CONSTANT = "NO_MODEL"
 
 ENV_SEPARATOR = ";" if IS_WIN else ":"
 
-SCRIPT_DIR_PATH, SCRIPT_NAME = os.path.split(os.path.abspath(__file__))
-
-def find_latest_dir(in_dir: Path, pattern_list = list()):
-    get_latest_dir = lambda path: sorted(Path(path).iterdir(), key=os.path.getmtime)
-    entities = get_latest_dir(in_dir)
-    entities.reverse()
-
-    for entity in entities:
-        if entity.is_dir():
-            if not pattern_list:
-                return entity
-            else:
-                for pattern in pattern_list: 
-                    if pattern in str(os.fspath(PurePath(entity))):
-                        return entity
-    logger.error(f"{in_dir} does not contain applicable directories to patterns: {pattern_list}")
-    exit(-1)
-
 def get_ov_path(ov_dir=None, is_bin=False):
     if ov_dir is None or not os.path.isdir(ov_dir):
         if 'INTEL_OPENVINO_DIR' in os.environ:
             ov_dir = os.environ['INTEL_OPENVINO_DIR']
         else:
-            
-            ov_dir = os.path.abspath(SCRIPT_DIR_PATH)[:os.path.abspath(SCRIPT_DIR_PATH).find(OPENVINO_NAME) + len(OPENVINO_NAME)]
+            ov_dir = os.path.abspath(os.getcwd())[:os.path.abspath(os.getcwd()).find(OPENVINO_NAME) + len(OPENVINO_NAME)]
     if is_bin:
-        ov_dir = os.path.join(ov_dir, find_latest_dir(ov_dir, ['bin']))
-        ov_dir = os.path.join(ov_dir, find_latest_dir(ov_dir))
-        ov_dir = os.path.join(ov_dir, find_latest_dir(ov_dir, [DEBUG_DIR, RELEASE_DIR]))
+        ov_dir = os.path.join(ov_dir, 'bin')
+        get_latest_dir = lambda path: sorted(Path(ov_dir).iterdir(), key=os.path.getmtime)[0]
+        ov_dir = os.path.join(get_latest_dir(ov_dir))
+        ov_dir = os.path.join(get_latest_dir(ov_dir))
     return ov_dir
 
 def get_default_working_dir():
@@ -209,14 +188,8 @@ class Conformance:
         self._model_path = conformance_ir_path
 
     def _prepare_filelist(self):
-        if os.path.isfile(self._model_path):
-            logger.info(f"{self._model_path} is exists! Skip the step to prepare fileslist")
-            return self._model_path
-        filelist_path = os.path.join(self._model_path, "conformance_ir_files.lst")
-        if os.path.isfile(filelist_path):
-            logger.info(f"{filelist_path} is exists! Skip the step to prepare fileslist")
-            return filelist_path
         xmls = Path(self._model_path).rglob("*.xml")
+        filelist_path = os.path.join(self._model_path, "conformance_ir.lst")
         with open(filelist_path, 'w') as file:
             for xml in xmls:
                 file.write(str(xml) + '\n')
@@ -246,7 +219,7 @@ class Conformance:
         if not os.path.isdir(logs_dir):
             os.mkdir(logs_dir)
         
-        cmd = f'python3 {gtest_parallel_path}  {conformance_path}{OS_BIN_FILE_EXT} -w {worker_num} -d "{logs_dir}" --gtest_filter=*ov_compiled_model* -- ' \
+        cmd = f'python3 {gtest_parallel_path}  {conformance_path}{OS_BIN_FILE_EXT} -w {worker_num} -d "{logs_dir}" -- ' \
             f'--device {self._device} --input_folders "{conformance_filelist_path}" --report_unique_name --output_folder "{parallel_report_dir}"'
         logger.info(f"Stating conformance: {cmd}")
         process = Popen(cmd, shell=True)
@@ -267,11 +240,11 @@ class Conformance:
     def summarize(self, xml_report_path:os.path, report_dir: os.path):
         summary_root = ET.parse(xml_report_path).getroot()
         create_summary(summary_root, report_dir, [], "", "", False, True)
-        copytree(os.path.join(SCRIPT_DIR_PATH, "template"), os.path.join(report_dir, "template"))
+        copytree("template/", os.path.join(report_dir, "template"))
         logger.info(f"Report was saved to {os.path.join(report_dir, 'report.html')}")
 
     def start_pipeline(self, dump_models: bool):
-        command = f'pip3 install -r {os.path.join(SCRIPT_DIR_PATH, "requirements.txt")}'
+        command = f'pip3 install -r requirements.txt'
         process = Popen(command, shell=True)
         out, err = process.communicate()
         if err is None:
@@ -292,14 +265,14 @@ class Conformance:
             if self._model_path == NO_MODEL_CONSTANT:
                 self.download_and_convert_models()
             self.dump_subgraph()
-        if not os.path.exists(self._model_path):
-            logger.error(f"Directory {self._model_path} does not exist")
-            exit(-1)
+        if not os.path.isdir(self._model_path):
+            raise Exception(f"Directory {self._model_path} does not exist")
         xml_report, report_dir = self.run_conformance()
-        if self._type == "OP":
-            self.summarize(xml_report, report_dir)
+        self.summarize(xml_report, report_dir)
         
 if __name__ == "__main__":
     args = parse_arguments()
     conformance = Conformance(args.device, args.models_path, args.ov_path, args.type, args.working_dir)
     conformance.start_pipeline(args.dump_conformance)
+
+ 
