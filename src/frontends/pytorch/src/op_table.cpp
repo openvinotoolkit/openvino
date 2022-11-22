@@ -30,6 +30,7 @@ OP_CONVERTER(translate_embedding);
 OP_CONVERTER(translate_flatten);
 OP_CONVERTER(translate_floordiv);
 OP_CONVERTER(translate_gelu);
+OP_CONVERTER(translate_group_norm);
 OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_if);
 OP_CONVERTER(translate_int);
@@ -85,6 +86,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::flatten", op::translate_flatten},
         {"aten::floordiv", op::translate_floordiv},
         {"aten::gelu", op::translate_gelu},
+        {"aten::group_norm", op::translate_group_norm},
         {"aten::gt", op::translate_1to1_match_2_inputs<opset8::Greater>},
         {"aten::hardsigmoid", op::translate_1to1_match_1_inputs<opset8::HSigmoid>},
         {"aten::hardswish", op::translate_1to1_match_1_inputs<opset8::HSwish>},
