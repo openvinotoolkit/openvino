@@ -1265,13 +1265,13 @@ std::shared_ptr<ov::Model> generateUnaryEltwise(const std::shared_ptr<ov::op::Op
     } else if (ov::is_type<ov::op::v0::Ceiling>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Ceiling>(param);
     } else if (ov::is_type<ov::op::v0::Clamp>(node)) {
-        eltwiseNode = std::make_shared<ov::op::v0::Clamp>(param);
+        eltwiseNode = std::make_shared<ov::op::v0::Clamp>(param, 0.0, 2.1);
     } else if (ov::is_type<ov::op::v0::Cos>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Cos>(param);
     } else if (ov::is_type<ov::op::v0::Cosh>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Cosh>(param);
     } else if (ov::is_type<ov::op::v0::Elu>(node)) {
-        eltwiseNode = std::make_shared<ov::op::v0::Elu>(param);
+        eltwiseNode = std::make_shared<ov::op::v0::Elu>(param, 0.5f);
     } else if (ov::is_type<ov::op::v0::Erf>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Erf>(param);
     } else if (ov::is_type<ov::op::v0::Exp>(node)) {
@@ -1283,7 +1283,7 @@ std::shared_ptr<ov::Model> generateUnaryEltwise(const std::shared_ptr<ov::op::Op
     } else if (ov::is_type<ov::op::v7::Gelu>(node)) {
         eltwiseNode = std::make_shared<ov::op::v7::Gelu>(param);
     } else if (ov::is_type<ov::op::v0::GRN>(node)) {
-        eltwiseNode = std::make_shared<ov::op::v0::GRN>(param);
+        eltwiseNode = std::make_shared<ov::op::v0::GRN>(param, 1e-6);
     } else if (ov::is_type<ov::op::v5::HSigmoid>(node)) {
         eltwiseNode = std::make_shared<ov::op::v5::HSigmoid>(param);
     } else if (ov::is_type<ov::op::v4::HSwish>(node)) {
@@ -1297,7 +1297,7 @@ std::shared_ptr<ov::Model> generateUnaryEltwise(const std::shared_ptr<ov::op::Op
     } else if (ov::is_type<ov::op::v0::Relu>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Relu>(param);
     } else if (ov::is_type<ov::op::v5::Round>(node)) {
-        eltwiseNode = std::make_shared<ov::op::v5::Round>(param);
+        eltwiseNode = std::make_shared<ov::op::v5::Round>(param, op::v5::Round::RoundMode::HALF_TO_EVEN);
     } else if (ov::is_type<ov::op::v0::Sigmoid>(node)) {
         eltwiseNode = std::make_shared<ov::op::v0::Sigmoid>(param);
     } else if (ov::is_type<ov::op::v0::Sign>(node)) {
