@@ -28,6 +28,8 @@ ElementTree = defuse_stdlib()[ET].ElementTree
 
 def read_rt_info_attr(elem):
     if len(elem) == 0:
+        if not hasattr(elem.attrib, 'value'):
+            return None
         value = elem.attrib['value']
         return value
     val_dict = {}
