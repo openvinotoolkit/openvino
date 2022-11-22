@@ -104,7 +104,7 @@ static void CreateClampOp(Program& p, const std::shared_ptr<ngraph::op::v0::Clam
         // and then conversion back to int32 returns -2147483648 due to overflow
         // So to avoid this issue we use largest representable value which doesn't cause overflow
         // TODO: Consider improving jitter to operate with int types directly
-        max = std::min<double>(2147483583.0, std::numeric_limits<int32_t>::max());
+        max = std::min<double>(2147483583.0, max);
     }
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::clamp, {static_cast<float>(min), static_cast<float>(max)});
 }
