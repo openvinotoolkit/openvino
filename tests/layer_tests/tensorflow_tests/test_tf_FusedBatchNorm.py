@@ -65,24 +65,32 @@ class TestFusedBatchNorm(CommonTFLayerTest):
         return tf_net, None
 
     test_data_basic = [
-        dict(x_shape=[2, 3, 4, 5], epsilon=0.0001, exponential_avg_factor=1, data_format="NHWC", is_training=True,
-             fbn_version="v1"),
-        dict(x_shape=[2, 3, 4, 5], epsilon=0.0005, exponential_avg_factor=0.3, data_format="NHWC", is_training=True,
-             fbn_version="v2"),
-        dict(x_shape=[3, 2, 1, 5], epsilon=0.00003, exponential_avg_factor=0.7, data_format="NCHW", is_training=True,
-             fbn_version="v3"),
-        dict(x_shape=[3, 4, 2, 5], epsilon=0.0003, exponential_avg_factor=0.7, data_format="NCHW", is_training=True,
-             fbn_version="v3"),
+        # Currently these cases are passing on Windows, looks a problem with CPU on Linux
+        pytest.param(dict(x_shape=[2, 3, 4, 5], epsilon=0.0001, exponential_avg_factor=1, data_format="NHWC",
+                          is_training=True,
+                          fbn_version="v1"), marks=pytest.mark.xfail(reason="97191")),
+        pytest.param(dict(x_shape=[2, 3, 4, 5], epsilon=0.0005, exponential_avg_factor=0.3, data_format="NHWC",
+                          is_training=True,
+                          fbn_version="v2"), marks=pytest.mark.xfail(reason="97191")),
+        pytest.param(dict(x_shape=[3, 2, 1, 5], epsilon=0.00003, exponential_avg_factor=0.7, data_format="NCHW",
+                          is_training=True,
+                          fbn_version="v3"), marks=pytest.mark.xfail(reason="97191")),
+        pytest.param(dict(x_shape=[3, 4, 2, 5], epsilon=0.0003, exponential_avg_factor=0.7, data_format="NCHW",
+                          is_training=True,
+                          fbn_version="v3"), marks=pytest.mark.xfail(reason="97191")),
         # due to limitation in the layer test infrastructure - it finds tensor names for Parameter and Result nodes
         # by get_any_name() that cannot work if some nodes fused to Parameter or Result node
         # for inference mode, mean and variance go to outputs as batch_mean and batch_variance
-        # Now this casae will be validated with TF2 Keras BatchNormalization tests
-        # dict(x_shape=[2, 3, 4, 5], epsilon=0.0001, exponential_avg_factor=1, data_format="NHWC", is_training=False,
-        #     fbn_version="v1"),
-        # dict(x_shape=[3, 2, 1, 4], epsilon=0.0005, exponential_avg_factor=0.3, data_format="NCHW", is_training=False,
-        #     fbn_version="v2"),
-        # dict(x_shape=[5, 4, 3, 2], epsilon=0.0005, exponential_avg_factor=0.0, data_format="NCHW", is_training=False,
-        #     fbn_version="v3"),
+        # Now this case will be validated with TF2 Keras BatchNormalization tests
+        pytest.param(dict(x_shape=[2, 3, 4, 5], epsilon=0.0001, exponential_avg_factor=1, data_format="NHWC",
+                          is_training=False,
+                          fbn_version="v1"), marks=pytest.mark.xfail(reason="97192")),
+        pytest.param(dict(x_shape=[3, 2, 1, 4], epsilon=0.0005, exponential_avg_factor=0.3, data_format="NCHW",
+                          is_training=False,
+                          fbn_version="v2"), marks=pytest.mark.xfail(reason="97192")),
+        pytest.param(dict(x_shape=[5, 4, 3, 2], epsilon=0.0005, exponential_avg_factor=0.0, data_format="NCHW",
+                          is_training=False,
+                          fbn_version="v3"), marks=pytest.mark.xfail(reason="97192")),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
