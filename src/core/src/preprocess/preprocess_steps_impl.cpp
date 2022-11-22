@@ -457,8 +457,8 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                 }
 
                 auto weights_data = context.color_format() == ColorFormat::RGB
-                                        ? std::vector<float>{0.299, 0.587, 0.114}
-                                        : std::vector<float>{0.114, 0.587, 0.299};
+                                        ? std::vector<float>{0.299f, 0.587f, 0.114f}
+                                        : std::vector<float>{0.114f, 0.587f, 0.299f};
                 auto weights_shape = ov::Shape(shape.size(), 1);
                 weights_shape[1] = 3;  // Set kernel layout to [1, 3, 1, ...]
                 auto weights_node = std::make_shared<ov::op::v0::Constant>(element::f32, weights_shape, weights_data);
