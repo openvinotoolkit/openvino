@@ -60,3 +60,7 @@ set_target_properties(${TARGET_NAME}_obj PROPERTIES INTERPROCEDURAL_OPTIMIZATION
 # developer package
 
 openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME})
+
+if(ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()
