@@ -809,7 +809,7 @@ void InsertIdentityLayerPass::run() {
             // check if prev layer have id layer already connected to output
             // if so reuse it instead of create new one
             bool reconnected = false;
-            for (auto prev_layer_output : prev->outData) {
+            for (auto& prev_layer_output : prev->outData) {
                 // prev ---------+--> identity --> layer XYZ
                 //               |
                 //               |  <= here we want to inject identity
@@ -953,7 +953,7 @@ void InsertCopyLayerPass::run() {
         }
 
         // Layer -> multiple concat/memory case
-        for (auto output : l->outData) {
+        for (auto& output : l->outData) {
             std::vector<std::pair<CNNLayerPtr, size_t>> MemoryLayers;
             std::vector<std::pair<CNNLayerPtr, size_t>> ConcatLayers;
             auto& inputTo = getInputTo(output);
@@ -1645,7 +1645,7 @@ void SubstituteScaleShiftBroadCastPass::run() {
 
 void BroadcastConstPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "BroadcastConstPass");
-    for (auto constLayer : *pLayers) {
+    for (auto& constLayer : *pLayers) {
         if (!LayerInfo(constLayer).isConst()) {
             continue;
         }
@@ -1671,9 +1671,9 @@ void BroadcastConstPass::run() {
             }
         }
 
-        auto constDims = constLayer->outData.front()->getTensorDesc().getDims();
+        auto& constDims = constLayer->outData.front()->getTensorDesc().getDims();
         auto constDimsSize = product(constDims.begin(), constDims.end());
-        auto eltwiseDims = nextLayer->outData.front()->getTensorDesc().getDims();
+        auto& eltwiseDims = nextLayer->outData.front()->getTensorDesc().getDims();
         auto eltwiseDimsSize = product(eltwiseDims.begin(), eltwiseDims.end());
         if (constDimsSize == eltwiseDimsSize || eltwiseDimsSize % constDimsSize) {
             continue;
@@ -1699,7 +1699,7 @@ void BroadcastConstPass::run() {
 void BreakFusingOfOutputLayersPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "BreakFusingOfOutputLayersPass");
     OutputsDataMap outputsMap = this->getPassManager()->getNetwork().getOutputsInfo();
-    for (auto layer : *pLayers) {
+    for (auto& layer : *pLayers) {
         /* Inserion of the second activation after pooling will break Conv - Pooling - Activation component
          * since scaleshift layers will be inserted between the pooling and activations
          */
@@ -1790,7 +1790,7 @@ void RemoveSingleInputConcatPass::run() {
 
                 auto out = concat->outData[0];
 
-                for (auto out_layer : getInputTo(out)) {
+                for (auto& out_layer : getInputTo(out)) {
                     for (int i = 0; i < out_layer.second->insData.size(); i++) {
                         if (out_layer.second->insData[i].lock() == out) {
                             out_layer.second->insData[i] = in;

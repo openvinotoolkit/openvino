@@ -104,7 +104,7 @@ bool InsertTransposeAfterConvOrPool::run_on_model(const std::shared_ptr<ngraph::
         transpose->set_friendly_name(node->get_friendly_name() + "/transpose_out");
         ngraph::copy_runtime_info(node, transpose);
 
-        for (auto input : consumers) {
+        for (auto& input : consumers) {
             input.replace_source_output(transpose);
         }
         is_graph_modfied = true;

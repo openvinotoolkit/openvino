@@ -447,7 +447,7 @@ void GNAPlugin::UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwor
         InputsDataMap network_inputs = network.getInputsInfo();
 
         size_t id = 0;
-        for (const auto input : network_inputs) {
+        for (const auto& input : network_inputs) {
             (*inputs_ptr_)[input.first].Update(input.second);
 
             // update scale factor from config
@@ -464,7 +464,7 @@ void GNAPlugin::UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwor
     // update outputs
     {
         OutputsDataMap outputs = network.getOutputsInfo();
-        for (const auto output : outputs) {
+        for (const auto& output : outputs) {
             outputs_[output.first].Update(output.second);
         }
     }
