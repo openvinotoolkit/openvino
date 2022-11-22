@@ -235,7 +235,7 @@ def get_binary_tensors(binary_paths, info, batch_sizes):
             if extension == "npy":
                 logger.info("Prepare numpy file " + binary_filename)
                 numpy_arr:np.ndarray = np.load(binary_filename)
-                if numpy_arr.shape() != shape:
+                if list(numpy_arr.shape) != shape:
                     raise Exception(
                         f"Numpy array shape mismatch. File {binary_filename} has shape: {numpy_arr.shape}, expected: {shape}")
                 if numpy_arr.dtype != dtype:
