@@ -9,12 +9,8 @@
 #include <intel_gpu/primitives/quantize.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/fully_connected.hpp>
-#include <intel_gpu/primitives/gemm.hpp>
-#include <intel_gpu/primitives/binary_convolution.hpp>
 #include <intel_gpu/primitives/data.hpp>
-#include <intel_gpu/primitives/resample.hpp>
 #include <intel_gpu/primitives/crop.hpp>
-#include <intel_gpu/primitives/mvn.hpp>
 #include <intel_gpu/primitives/permute.hpp>
 #include <intel_gpu/primitives/concatenation.hpp>
 
@@ -588,6 +584,35 @@ TEST_P(conv_fp32_wrong_bias, basic) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_wrong_bias, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_FP32_15, 3, 3 },
+}));
+
+class conv_fp32_add_per_element_planar_const : public ConvFusingTest {};
+TEST_P(conv_fp32_add_per_element_planar_const, basic) {
+    auto p = GetParam();
+
+    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16" };
+    implementation_desc permute_impl = { format::b_fs_yx_fsv16, "" };
+    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl },
+                                                              { "permute", permute_impl } }));
+
+    auto out_layout = get_output_layout(p);
+    out_layout.format = format::bfyx;
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("data", get_mem(out_layout)),
+        convolution("conv_prim", "input", { "weights" }, std::vector<primitive_id>{}, p.groups, p.stride, p.pad, p.dilation),
+        eltwise("add", { "conv_prim", "data" }, eltwise_mode::sum),
+        permute("permute", "add", {3, 2, 1, 0}),
+        reorder("reorder_bfyx", "permute", p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_add_per_element_planar_const, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP32_3, 3, 4 },
 }));
 
 class conv_fp32_prelu_eltwise : public ConvFusingTest {};
