@@ -10,11 +10,7 @@
 #include "primitive_type_base.h"
 
 namespace cldnn {
-
-primitive_type_id eye::type_id() {
-    static primitive_type_base<eye> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(eye)
 
 eye_inst::typed_primitive_inst(network& network, eye_node const& node) : parent(network, node) {}
 
