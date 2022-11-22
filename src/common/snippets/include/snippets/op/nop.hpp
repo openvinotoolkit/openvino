@@ -18,7 +18,6 @@ namespace op {
 class Nop : public ngraph::op::Op {
 public:
     OPENVINO_OP("Nop", "SnippetsOpset");
-    BWDCMP_RTTI_DECLARATION;
 
     Nop(const OutputVector& arguments, const OutputVector& results);
     Nop() = default;

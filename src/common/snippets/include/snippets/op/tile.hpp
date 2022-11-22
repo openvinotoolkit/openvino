@@ -19,7 +19,6 @@ namespace op {
 class Tile : public ngraph::op::Op {
 public:
     OPENVINO_OP("Tile", "SnippetsOpset");
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Construct an Tile
     /// \param region The vector of pairs: emitters and the corresponding registers

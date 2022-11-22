@@ -7,8 +7,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(ngraph::snippets::op::Nop);
-
 snippets::op::Nop::Nop(const OutputVector& arguments, const OutputVector& results) : Op([arguments, results]() -> OutputVector {
     OutputVector x;
     x.insert(x.end(), arguments.begin(), arguments.end());

@@ -11,8 +11,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(ngraph::snippets::op::Store);
-
 snippets::op::Store::Store(const Output<Node>& x, const size_t count) : Op({x}), m_count(count) {
     constructor_validate_and_infer_types();
 }

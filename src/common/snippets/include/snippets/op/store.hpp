@@ -20,7 +20,6 @@ namespace op {
 class Store : public ngraph::op::Op {
 public:
     OPENVINO_OP("Store", "SnippetsOpset");
-    BWDCMP_RTTI_DECLARATION;
 
     Store(const Output<Node>& x, const size_t count = 1lu);
     Store() = default;

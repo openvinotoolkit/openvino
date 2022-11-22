@@ -8,8 +8,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(ngraph::snippets::op::Tile);
-
 snippets::op::Tile::Tile(const std::vector<AllocatedEmitter>& region, size_t increment,
                          size_t num_inputs, size_t num_outputs,
                          const std::vector<size_t>& io_dims, const std::vector<size_t>& io_data_sizes) :
