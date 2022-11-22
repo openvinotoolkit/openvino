@@ -16,11 +16,11 @@ OutputVector translate_pad(NodeContext& context) {
     auto data = context.get_input(0);
     auto paddings = context.const_input<std::vector<int64_t>>(1);
     std::string mode = "constant";
-    double value = 0;
     auto shape = context.mark_node(std::make_shared<opset8::ShapeOf>(data, element::i32));
     auto rank = context.mark_node(std::make_shared<opset8::ShapeOf>(shape, element::i32));
     auto reduced_rank = context.mark_node(std::make_shared<opset8::Squeeze>(rank));
     auto zero = context.mark_node(opset8::Constant::create(element::i32, Shape{}, {0}));
+    auto zero_f = context.mark_node(opset8::Constant::create(element::f32, Shape{}, {0}));
     auto pad_size_half = paddings.size() / 2;
     std::vector<int64_t> pad_b(pad_size_half, 0);
     std::vector<int64_t> pad_e(pad_size_half, 0);
@@ -85,23 +85,23 @@ OutputVector translate_pad(NodeContext& context) {
         return {cur};
     }
     if (mode == "constant") {
-        pad_mode = ov::op::PadMode::CONSTANT;
         if (!context.input_is_none(3)) {
-            value = context.const_input<double>(3);
+            auto pad_value = context.get_input(3);
+            return {context.mark_node(
+                std::make_shared<opset8::Pad>(data, pads_begins, pads_ends, pad_value, ov::op::PadMode::CONSTANT))};
         }
-    } else if (mode == "reflect") {
-        pad_mode = ov::op::PadMode::REFLECT;
-    } else if (mode == "replicate") {
-        pad_mode = ov::op::PadMode::EDGE;
-    } else {
-        FRONT_END_OP_CONVERSION_CHECK(false, "aten::pad conversion doesn't support [" + mode + "] padding mode");
+        return {
+            context.mark_node(std::make_shared<opset8::Pad>(data, pads_begins, pads_ends, zero_f, ov::op::PadMode::CONSTANT))};
     }
-    return {context.mark_node(std::make_shared<opset8::Pad>(
-        data,
-        pads_begins,
-        pads_ends,
-        context.mark_node(std::make_shared<opset8::Constant>(element::f32, Shape({}), value)),
-        pad_mode))};
+    if (mode == "reflect") {
+        return {
+            context.mark_node(std::make_shared<opset8::Pad>(data, pads_begins, pads_ends, zero_f, ov::op::PadMode::REFLECT))};
+    }
+    if (mode == "replicate") {
+        return {context.mark_node(std::make_shared<opset8::Pad>(data, pads_begins, pads_ends, zero_f, ov::op::PadMode::EDGE))};
+    }
+
+    FRONT_END_OP_CONVERSION_CHECK(false, "aten::pad conversion doesn't support [" + mode + "] padding mode");
 }
 
 }  // namespace op
