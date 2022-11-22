@@ -21,7 +21,8 @@ OutputVector translate_group_norm(NodeContext& context) {
     auto shape = context.mark_node(
         std::make_shared<opset8::Constant>(element::i64, Shape({3}), std::vector<int64_t>{0, num_groups, -1}));
     auto reshaped_input = context.mark_node(std::make_shared<opset8::Reshape>(data, shape, true));
-    auto reduction_axes = context.mark_node(opset8::Constant::create(element::i64, Shape({1}), std::vector<int64_t>(1, 2)));
+    auto reduction_axes =
+        context.mark_node(opset8::Constant::create(element::i64, Shape({1}), std::vector<int64_t>(1, 2)));
     auto reshaped_norm = context.mark_node(
         std::make_shared<opset8::MVN>(reshaped_input, reduction_axes, true, eps, ov::op::MVNEpsMode::INSIDE_SQRT));
     auto norm = context.mark_node(std::make_shared<opset8::Reshape>(reshaped_norm, input_shape, true));
