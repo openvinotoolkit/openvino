@@ -41,7 +41,13 @@ public:
                         updated_input_pshape = ov::PartialShape::dynamic(input_rank);
                     }
                 } else {
-                    updated_input_pshape = input_pshape;
+                    if (input_pshape.is_static()) {
+                        OPENVINO_ASSERT(input_pshape.size() >= input_rank, "[GPU] Requested input rank in gemm primitive is greater than actual shape");
+                        std::vector<ov::Dimension> dims(input_pshape.begin(), input_pshape.begin() + input_rank);
+                        updated_input_pshape = ov::PartialShape(dims);
+                    } else {
+                        updated_input_pshape = input_pshape;
+                    }
                 }
 
                 if (updated_input_pshape.size() == 1) {
