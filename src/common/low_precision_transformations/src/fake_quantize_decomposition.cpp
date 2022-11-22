@@ -208,7 +208,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
         }
 
         //TODO: pass min levels as a parameter?
-        if (levels < 2ul) {
+        if (levels <= 2ul) {
             return std::make_tuple(nullptr, nullptr);
         }
 
