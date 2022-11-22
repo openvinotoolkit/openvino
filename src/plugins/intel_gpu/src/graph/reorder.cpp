@@ -29,7 +29,7 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
         ofmt = ifmt;
     }
 
-    if (ifmt.is_nv12()) {
+    if (ifmt.is_nv12() && !desc->has_surface_input()) {
         auto data_size = tensor{ input_layout.batch(), input_layout.feature() * 3,
                                  input_layout.spatial(0), input_layout.spatial(1) };
         if (ofmt != ifmt)
@@ -182,9 +182,13 @@ std::string reorder_inst::to_string(reorder_node const& node) {
 
     std::stringstream primitive_description;
 
+    auto input_mem_type = desc->input_mem_type ==
+        reorder::memory_type::buffer ? "buffer" : "surface";
+
     json_composite reorder_info;
     reorder_info.add("input id", input.id());
     reorder_info.add("mean", mean);
+    reorder_info.add("input mem type", input_mem_type);
     if (desc->subtract_per_feature.size() > 0) {
         reorder_info.add("subtract per feature", desc->subtract_per_feature);
     }

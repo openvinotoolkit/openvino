@@ -12,6 +12,7 @@
 #include <utility>
 
 #include "reshape_inst.h"
+#include "convert_color_inst.h"
 #include "one_hot_inst.h"
 #include "permute_inst.h"
 #include "depth_to_space_inst.h"
@@ -87,7 +88,7 @@ void remove_redundant_reorders::run(program& p) {
                 continue;
 
             // Avoid optimization of nv12 reorder
-            if (node.get_dependencies().size() != 1)
+            if (node.get_dependencies().size() != 1 || node.get_primitive()->has_surface_input())
                 continue;
 
             bool all_users_fuse = true;
@@ -150,7 +151,8 @@ void remove_redundant_reorders::run(program& p) {
             !r_dep_node.has_mean() &&
             r_dep_node.get_primitive()->subtract_per_feature.empty() &&
             !r_dep_node.is_output() &&
-            r_dep_node.get_fused_activations_funcs().empty();
+            r_dep_node.get_fused_activations_funcs().empty() &&
+            !r_dep_node.get_primitive()->has_surface_input();
 
         // for chains like
         // fp32 -> reorder -> u8 -> reorder -> fp32
@@ -165,7 +167,8 @@ void remove_redundant_reorders::run(program& p) {
             !r_dep_node.is_output() &&
             !r_node.has_mean() &&
             r_node.get_primitive()->subtract_per_feature.empty() &&
-            r_node.get_fused_activations_funcs().empty();
+            r_node.get_fused_activations_funcs().empty() &&
+            !r_node.get_primitive()->has_surface_input();
 
         if (remove_dep) {
             r_dep_node.can_be_optimized(true);
@@ -204,7 +207,8 @@ void remove_redundant_reorders::run(program& p) {
         if (r_node.has_mean() ||
             !r_node.get_primitive()->subtract_per_feature.empty() ||
             no_output_optimization ||
-            !r_node.get_fused_activations_funcs().empty())
+            !r_node.get_fused_activations_funcs().empty() ||
+            r_node.get_primitive()->has_surface_input())
             continue;
 
         auto o_layout = r_node.get_output_layout();
@@ -362,17 +366,24 @@ void remove_redundant_reorders::run(program& p) {
         if (!node_ptr->is_type<reorder>() || !node_ptr->is_in_data_flow() || node_ptr->get_users().size() != 1 || node_ptr->get_dependencies().size() != 1)
             continue;
 
+        auto& node = node_ptr->as<reorder>();
+        auto prim_desc = node.get_primitive();
+
         auto& usr = node_ptr->get_users().front();
         auto& dep = node_ptr->get_dependency(0);
-        if (!usr->is_type<quantize>() ||
-            (dep.get_output_layout().format != format::b_fs_yx_fsv16 &&
-             (lo.get_optimization_attributes().use_onednn_impls || dep.get_output_layout().format != format::fs_b_yx_fsv32) &&
-             dep.get_output_layout().format != format::bfyx))
+
+        auto quantize_opt = usr->is_type<quantize>() &&
+                            (dep.get_output_layout().format == format::b_fs_yx_fsv16 ||
+                             dep.get_output_layout().format == format::bfyx ||
+                             (dep.get_output_layout().format == format::fs_b_yx_fsv32 && !lo.get_optimization_attributes().use_onednn_impls));
+
+        auto convert_color_opt = usr->is_type<convert_color>() && prim_desc->has_surface_input();
+
+        if (!quantize_opt && !convert_color_opt)
             continue;
 
-        auto& node = node_ptr->as<reorder>();
         auto same_data_type = node.input().get_output_layout().data_type == node.get_output_layout().data_type;
-        if (!same_data_type)
+        if (!same_data_type && !convert_color_opt)
             continue;
 
         dep.merge_output_padding(node.get_output_layout().data_padding);
