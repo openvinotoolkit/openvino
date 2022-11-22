@@ -9,10 +9,7 @@
 #include "reverse_inst.h"
 
 namespace cldnn {
-primitive_type_id reverse::type_id() {
-    static primitive_type_base<reverse> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(reverse)
 
 layout reverse_inst::calc_output_layout(reverse_node const& node, kernel_impl_params const& impl_param) {
     return impl_param.get_input_layout();

@@ -56,4 +56,4 @@ attach_assign_impl::attach_assign_impl() {
 }  // namespace cpu
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::assign_impl, cldnn::object_type::ASSIGN_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::assign_impl)

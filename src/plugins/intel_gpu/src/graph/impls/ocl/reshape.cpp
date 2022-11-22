@@ -43,4 +43,4 @@ attach_reshape_impl::attach_reshape_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reshape_impl, cldnn::object_type::RESHAPE_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reshape_impl)

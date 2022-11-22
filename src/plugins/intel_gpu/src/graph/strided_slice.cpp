@@ -13,10 +13,7 @@
 #include "strided_slice_shape_inference.hpp"
 
 namespace cldnn {
-primitive_type_id strided_slice::type_id() {
-    static primitive_type_base<strided_slice> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(strided_slice)
 
 layout strided_slice_inst::calc_output_layout(strided_slice_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<strided_slice>();

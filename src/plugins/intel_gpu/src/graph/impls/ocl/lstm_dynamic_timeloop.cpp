@@ -100,4 +100,4 @@ attach_lstm_dynamic_timeloop_impl::attach_lstm_dynamic_timeloop_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::lstm_dynamic_timeloop_impl, cldnn::object_type::LSTM_DYNAMIC_TIMELOOP_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::lstm_dynamic_timeloop_impl)

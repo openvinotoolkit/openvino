@@ -77,5 +77,4 @@ attach_experimental_detectron_detection_output_impl::attach_experimental_detectr
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::experimental_detectron_detection_output_impl,
-                             cldnn::object_type::ACTIVATION_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::experimental_detectron_detection_output_impl)

@@ -103,4 +103,4 @@ attach_lstm_elt_impl::attach_lstm_elt_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::lstm_elt_impl, cldnn::object_type::LSTM_ELT_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::lstm_elt_impl)

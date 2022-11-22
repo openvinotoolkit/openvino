@@ -9,10 +9,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id generate_proposals::type_id() {
-    static primitive_type_base<generate_proposals> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(generate_proposals)
 
 layout generate_proposals_inst::calc_output_layout(const generate_proposals_node& node, kernel_impl_params const& impl_param) {
     const layout data_layout = impl_param.get_input_layout();

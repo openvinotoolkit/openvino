@@ -66,4 +66,4 @@ attach_one_hot_impl::attach_one_hot_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::one_hot_impl, cldnn::object_type::ONE_HOT_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::one_hot_impl)

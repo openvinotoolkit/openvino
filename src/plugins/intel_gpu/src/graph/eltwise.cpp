@@ -12,10 +12,7 @@
 #include <algorithm>
 
 namespace cldnn {
-primitive_type_id eltwise::type_id() {
-    static primitive_type_base<eltwise> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(eltwise)
 
 layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_params const& impl_param) {
     size_t primary_input_idx = 0;

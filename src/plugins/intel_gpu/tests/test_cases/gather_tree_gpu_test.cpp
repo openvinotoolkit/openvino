@@ -37,7 +37,8 @@ template<typename T>
 using ParamsWithLayout = std::tuple<
     Params<T>,
     format::type,   // source (plain) layout - bfyx
-    format::type    // target (blocked) layout
+    format::type,   // target (blocked) layout
+    bool            // is_caching_test
 >;
 
 const std::vector<format::type> layouts = {
@@ -153,10 +154,12 @@ struct PrintToStringParamName {
         Params<T> p;
         format::type plain_layout;
         format::type target_layout;
-        std::tie(p, plain_layout, target_layout) = param.param;
+        bool is_caching_test;
+        std::tie(p, plain_layout, target_layout, is_caching_test) = param.param;
         buf << " test case " << p.testcase_name
             << " plain layout " << plain_layout
-            << " target layout " << target_layout;
+            << " target layout " << target_layout
+            << " is_caching_test " << is_caching_test;
         return buf.str();
     }
 };
@@ -171,8 +174,9 @@ public:
         Params<T> params;
         format::type plain_layout;
         format::type target_layout;
+        bool is_caching_test;
 
-        std::tie(params, plain_layout, target_layout) = this->GetParam();
+        std::tie(params, plain_layout, target_layout, is_caching_test) = this->GetParam();
 
         auto &engine = get_test_engine();
         topology topology;
@@ -211,14 +215,31 @@ public:
         const primitive_id reorder_result_id = result_id + "_reordered";
         topology.add(reorder(reorder_result_id, result_id, plain_layout, data_type));
 
-        network network(engine, topology);
+        cldnn::network::ptr network;
 
-        network.set_input_data(step_id, step_input);
-        network.set_input_data(parent_id, parent_input);
-        network.set_input_data(max_seq_len_id, max_seq_len_input);
-        network.set_input_data(end_token_id, end_token_input);
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology);
+        }
 
-        auto result = network.execute();
+        network->set_input_data(step_id, step_input);
+        network->set_input_data(parent_id, parent_input);
+        network->set_input_data(max_seq_len_id, max_seq_len_input);
+        network->set_input_data(end_token_id, end_token_input);
+
+        auto result = network->execute();
 
         auto out_mem = result.at(reorder_result_id).get_memory();
         cldnn::mem_lock<T> out_ptr(out_mem, get_test_stream());
@@ -247,7 +268,8 @@ INSTANTIATE_TEST_SUITE_P(gather_tree,
                          ::testing::Combine(
                              ::testing::ValuesIn(generateParams<float>()),
                              ::testing::Values(format::bfyx),
-                             ::testing::ValuesIn(layouts)),
+                             ::testing::ValuesIn(layouts),
+                             ::testing::Values(false)),
                          PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(gather_tree,
@@ -255,5 +277,15 @@ INSTANTIATE_TEST_SUITE_P(gather_tree,
                          ::testing::Combine(
                              ::testing::ValuesIn(generateParams<int32_t>()),
                              ::testing::Values(format::bfyx),
-                             ::testing::ValuesIn(layouts)),
+                             ::testing::ValuesIn(layouts),
+                             ::testing::Values(false)),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(export_import,
+                         gather_tree_test_int32,
+                         ::testing::Combine(
+                             ::testing::Values(generateParams<int32_t>()[0]),
+                             ::testing::Values(format::bfyx),
+                             ::testing::Values(layouts[0]),
+                             ::testing::Values(true)),
                          PrintToStringParamName());

@@ -157,4 +157,4 @@ attach_crop_impl::attach_crop_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::crop_impl, cldnn::object_type::CROP_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::crop_impl)

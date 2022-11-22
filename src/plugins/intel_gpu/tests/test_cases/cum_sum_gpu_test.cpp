@@ -105,27 +105,27 @@ static std::vector<T1> vectorCast(const std::vector<T2>& vec) {
 #define CASE_CUM_SUM_AXIS_0 ::testing::Values(5), ::testing::Values(1), ::testing::Values(1), \
                             ::testing::Values(1), ::testing::Values(1), ::testing::Values(1), \
                             ::testing::Values(format::bfyx), ::testing::ValuesIn(axes[0]),    \
-                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants)
+                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants), ::testing::Values(false)
 #define CASE_CUM_SUM_AXIS_1 ::testing::Values(2), ::testing::Values(5), ::testing::Values(1), \
                             ::testing::Values(1), ::testing::Values(1), ::testing::Values(1), \
                             ::testing::Values(format::bfyx), ::testing::ValuesIn(axes[1]),    \
-                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants)
+                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants), ::testing::Values(false)
 #define CASE_CUM_SUM_AXIS_2 ::testing::Values(5), ::testing::Values(5), ::testing::Values(1), \
                             ::testing::Values(1), ::testing::Values(5), ::testing::Values(1), \
                             ::testing::Values(format::bfyx), ::testing::ValuesIn(axes[2]),    \
-                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants)
+                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants), ::testing::Values(false)
 #define CASE_CUM_SUM_AXIS_3 ::testing::Values(5), ::testing::Values(5), ::testing::Values(1), \
                             ::testing::Values(1), ::testing::Values(5), ::testing::Values(5), \
                             ::testing::Values(format::bfyx), ::testing::ValuesIn(axes[3]),    \
-                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants)
+                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants), ::testing::Values(false)
 #define CASE_CUM_SUM_AXIS_4 ::testing::Values(5), ::testing::Values(5), ::testing::Values(1), \
                             ::testing::Values(5), ::testing::Values(5), ::testing::Values(5), \
                             ::testing::Values(format::bfzyx), ::testing::ValuesIn(axes[4]),   \
-                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants)
+                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants), ::testing::Values(false)
 #define CASE_CUM_SUM_AXIS_5 ::testing::Values(5), ::testing::Values(5), ::testing::Values(5), \
                             ::testing::Values(5), ::testing::Values(5), ::testing::Values(5), \
                             ::testing::Values(format::bfwzyx), ::testing::ValuesIn(axes[5]),  \
-                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants)
+                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants), ::testing::Values(false)
 
 using cum_sum_test_params = std::tuple<int,            // batch
                                        int,            // feature
@@ -136,7 +136,8 @@ using cum_sum_test_params = std::tuple<int,            // batch
                                        cldnn::format,  // in_out format
                                        int,            // axis
                                        bool,           // exclusive
-                                       bool>;          // reverse
+                                       bool,           // reverse
+                                       bool>;          // is_caching_test
 
 template <typename cum_sum_params, typename input_type = float, typename output_type = float>
 class cum_sum_gpu : public ::testing::TestWithParam<cum_sum_params> {
@@ -170,6 +171,7 @@ public:
         auto axis = std::get<7>(p);
         auto exclusive = std::get<8>(p);
         auto reverse = std::get<9>(p);
+        bool is_caching_test = std::get<10>(p);
 
         auto input = engine.allocate_memory({ get_alloc_data_type(), in_out_format, shape });
         const int inputSize = b * f * w * z * y * x;
@@ -183,11 +185,28 @@ public:
         topology.add(input_layout("Input0", input->get_layout()));
         topology.add(cum_sum("cum_sum", "Input0", axis, exclusive, reverse));
 
-        network network(engine, topology);
+        cldnn::network::ptr network;
 
-        network.set_input_data("Input0", input);
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology);
+        }
 
-        auto outputs = network.execute();
+        network->set_input_data("Input0", input);
+
+        auto outputs = network->execute();
 
         EXPECT_EQ(outputs.size(), size_t(1));
         EXPECT_EQ(outputs.begin()->first, "cum_sum");
@@ -254,6 +273,13 @@ INSTANTIATE_TEST_SUITE_P(axis_5, cum_sum_gpu_fp16, ::testing::Combine(CASE_CUM_S
 INSTANTIATE_TEST_SUITE_P(axis_5, cum_sum_gpu_fp32, ::testing::Combine(CASE_CUM_SUM_AXIS_5));
 INSTANTIATE_TEST_SUITE_P(axis_5, cum_sum_gpu_int32, ::testing::Combine(CASE_CUM_SUM_AXIS_5));
 INSTANTIATE_TEST_SUITE_P(axis_5, cum_sum_gpu_int64, ::testing::Combine(CASE_CUM_SUM_AXIS_5));
+
+INSTANTIATE_TEST_SUITE_P(export_import, cum_sum_gpu_int64,
+    ::testing::Combine(::testing::Values(5), ::testing::Values(5), ::testing::Values(5),
+                       ::testing::Values(5), ::testing::Values(5), ::testing::Values(5),
+                       ::testing::Values(format::bfwzyx), ::testing::Values(axes[5][0]),
+                       ::testing::Values(variants[0]), ::testing::Values(variants[0]),
+                       ::testing::Values(true)));
 
 // FIXME: This test fails on some driver versions. Looks like UB in impl or driver issue
 TEST(cum_sum_gpu_f16, DISABLED_basic_1d) {

@@ -278,4 +278,4 @@ attach_eltwise_impl::attach_eltwise_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::eltwise_impl, cldnn::object_type::ELTWISE_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::eltwise_impl)

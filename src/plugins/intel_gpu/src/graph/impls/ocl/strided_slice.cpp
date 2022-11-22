@@ -165,4 +165,4 @@ attach_strided_slice_impl::attach_strided_slice_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::strided_slice_impl, cldnn::object_type::STRIDED_SLICE_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::strided_slice_impl)

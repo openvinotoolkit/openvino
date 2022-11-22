@@ -52,7 +52,8 @@ using border_test_param = std::tuple<ov::op::PadMode,      // pad mode
                                      format::type,         // format
                                      std::array<int, 4>,   // shape in
                                      std::array<int, 4>,   // coord diff lt
-                                     std::array<int, 4>>;  // coord diff rb
+                                     std::array<int, 4>,   // coord diff rb
+                                     bool>;                // is_caching_test
 
 template <class T, data_types T_dt>
 class border_test : public ::testing::TestWithParam<border_test_param<T>> {
@@ -61,9 +62,10 @@ public:
     T pad_value;
     format::type fmt;
     std::array<int, 4> sh_in, cd_lt, cd_rb, sh_out;
+    bool is_caching_test;
     void SetUp() override {
         ::testing::TestWithParam<border_test_param<T>>::SetUp();
-        std::tie(pad_mode, pad_value, fmt, sh_in, cd_lt, cd_rb) = this->GetParam();
+        std::tie(pad_mode, pad_value, fmt, sh_in, cd_lt, cd_rb, is_caching_test) = this->GetParam();
         sh_out = {sh_in[0] + cd_lt[0] + cd_rb[0],
                   sh_in[1] + cd_lt[1] + cd_rb[1],
                   sh_in[2] + cd_lt[2] + cd_rb[2],
@@ -83,9 +85,27 @@ public:
                                    pad_mode,
                                    pad_value),
                             reorder("output", "border", cldnn::format::bfyx, T_dt));
-        cldnn::network target_network(engine, target_topology);
-        target_network.set_input_data("input", input);
-        auto target_output = target_network.execute().at("output").get_memory();
+        std::shared_ptr<cldnn::network> target_network;
+
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, target_topology);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                target_network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            target_network = std::make_shared<cldnn::network>(engine, target_topology);
+        }
+
+        target_network->set_input_data("input", input);
+        auto target_output = target_network->execute().at("output").get_memory();
         cldnn::mem_lock<T> target_output_ptr(target_output, get_test_stream());
 
         topology base_topology;
@@ -114,7 +134,8 @@ INSTANTIATE_TEST_SUITE_P(border_test_i8,
                                           testing::Values(FORMATS),
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
-                                          testing::Values(std::array<int, 4>{1, 1, 1, 1})));
+                                          testing::Values(std::array<int, 4>{1, 1, 1, 1}),
+                                          testing::Values(false)));
 using border_test_u8 = border_test<char, data_types::u8>;
 TEST_P(border_test_u8, border_test_u8) {}
 INSTANTIATE_TEST_SUITE_P(border_test_u8,
@@ -124,7 +145,8 @@ INSTANTIATE_TEST_SUITE_P(border_test_u8,
                                           testing::Values(format::type::bs_fs_yx_bsv16_fsv16),
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
-                                          testing::Values(std::array<int, 4>{1, 1, 1, 1})));
+                                          testing::Values(std::array<int, 4>{1, 1, 1, 1}),
+                                          testing::Values(false)));
 using border_test_i32 = border_test<int, data_types::i32>;
 TEST_P(border_test_i32, border_test_i32) {}
 INSTANTIATE_TEST_SUITE_P(border_test_i32,
@@ -134,7 +156,8 @@ INSTANTIATE_TEST_SUITE_P(border_test_i32,
                                           testing::Values(format::type::b_fs_yx_fsv16),
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
-                                          testing::Values(std::array<int, 4>{1, 1, 1, 1})));
+                                          testing::Values(std::array<int, 4>{1, 1, 1, 1}),
+                                          testing::Values(false)));
 using border_test_f16 = border_test<FLOAT16, data_types::f16>;
 TEST_P(border_test_f16, border_test_f16) {}
 INSTANTIATE_TEST_SUITE_P(border_test_f16,
@@ -144,7 +167,17 @@ INSTANTIATE_TEST_SUITE_P(border_test_f16,
                                           testing::Values(format::type::bs_fs_yx_bsv32_fsv16),
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
-                                          testing::Values(std::array<int, 4>{1, 1, 1, 1})));
+                                          testing::Values(std::array<int, 4>{1, 1, 1, 1}),
+                                          testing::Values(false)));
+INSTANTIATE_TEST_SUITE_P(export_import,
+                         border_test_f16,
+                         testing::Combine(testing::Values(ov::op::PadMode::REFLECT),
+                                          testing::Values(FLOAT16(123)),
+                                          testing::Values(format::type::bs_fs_yx_bsv32_fsv16),
+                                          testing::Values(std::array<int, 4>{2, 3, 4, 5}),
+                                          testing::Values(std::array<int, 4>{1, 2, 3, 4}),
+                                          testing::Values(std::array<int, 4>{1, 1, 1, 1}),
+                                          testing::Values(true)));
 using border_test_f32 = border_test<float, data_types::f32>;
 TEST_P(border_test_f32, border_test_f32) {}
 INSTANTIATE_TEST_SUITE_P(border_test_f32,
@@ -154,7 +187,8 @@ INSTANTIATE_TEST_SUITE_P(border_test_f32,
                                           testing::Values(format::type::bs_fs_yx_bsv4_fsv2),
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
-                                          testing::Values(std::array<int, 4>{1, 1, 1, 1})));
+                                          testing::Values(std::array<int, 4>{1, 1, 1, 1}),
+                                          testing::Values(false)));
 
 INSTANTIATE_TEST_SUITE_P(bsv16fsv16_reorder,
                          border_test_i32,
@@ -163,7 +197,8 @@ INSTANTIATE_TEST_SUITE_P(bsv16fsv16_reorder,
                                           testing::Values(format::type::bs_fs_yx_bsv16_fsv16),
                                           testing::Values(std::array<int, 4>{2, 3, 4, 5}),
                                           testing::Values(std::array<int, 4>{1, 2, 3, 4}),
-                                          testing::Values(std::array<int, 4>{1, 1, 1, 1})));
+                                          testing::Values(std::array<int, 4>{1, 1, 1, 1}),
+                                          testing::Values(false)));
 
 TEST(border_gpu, bsv16fsv16_without_reorder) {
     using T = int;

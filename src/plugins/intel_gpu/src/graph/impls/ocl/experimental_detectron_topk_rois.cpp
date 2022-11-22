@@ -58,5 +58,4 @@ attach_experimental_detectron_topk_rois_impl::attach_experimental_detectron_topk
 } // namespace ocl
 } // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::experimental_detectron_topk_rois_impl,
-                             cldnn::object_type::EXPERIMENTAL_DETECTRON_TOPK_ROIS_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::experimental_detectron_topk_rois_impl)

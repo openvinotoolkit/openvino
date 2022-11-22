@@ -62,4 +62,4 @@ attach_ctc_greedy_decoder_impl::attach_ctc_greedy_decoder_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::ctc_greedy_decoder_impl, cldnn::object_type::CTC_GREEDY_DECODER_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::ctc_greedy_decoder_impl)

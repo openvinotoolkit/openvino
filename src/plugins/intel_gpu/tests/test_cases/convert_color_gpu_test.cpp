@@ -525,7 +525,8 @@ TEST(convert_color, i420_to_rgb_three_planes_buffer_fp32) {
     }
 }
 
-TEST(convert_color, i420_to_rgb_three_planes_surface_u8) {
+template <typename T>
+void test_convert_color_i420_to_rgb_three_planes_surface_u8(bool is_caching_test) {
     int width = 224;
     int height = 448;
 
@@ -592,15 +593,33 @@ TEST(convert_color, i420_to_rgb_three_planes_surface_u8) {
     topology.add(convert_color("convert_color", { "input", "input2", "input3" }, cldnn::convert_color::color_format::I420, cldnn::convert_color::color_format::RGB,
                                cldnn::convert_color::memory_type::image, output_layout));
 
-    network network(*engine, topology);
-    network.set_input_data("input", input_memory);
-    network.set_input_data("input2", input_memory2);
-    network.set_input_data("input3", input_memory3);
+    cldnn::network::ptr network;
 
-    auto outputs = network.execute();
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(*engine, topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, *engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), *engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(*engine, topology);
+    }
+
+    network->set_input_data("input", input_memory);
+    network->set_input_data("input2", input_memory2);
+    network->set_input_data("input3", input_memory3);
+
+    auto outputs = network->execute();
 
     std::vector<float> reference_results(width * height * 3);
-    createReferenceDataI420<uint8_t, float>(data.data(), data.data() + height * width, data.data() + width * (height + height / 4), reference_results.data(),
+    createReferenceDataI420<T, float>(data.data(), data.data() + height * width, data.data() + width * (height + height / 4), reference_results.data(),
                                             1, height, width, height * width, height * width / 2, true);
 
     auto output_prim = outputs.begin()->second.get_memory();
@@ -611,4 +630,12 @@ TEST(convert_color, i420_to_rgb_three_planes_surface_u8) {
     checkStatus(clReleaseMemObject(i420_image_plane_y), "clReleaseMemObject");
     checkStatus(clReleaseMemObject(i420_image_plane_u), "clReleaseMemObject");
     checkStatus(clReleaseMemObject(i420_image_plane_v), "clReleaseMemObject");
+}
+
+TEST(convert_color, i420_to_rgb_three_planes_surface_u8) {
+    test_convert_color_i420_to_rgb_three_planes_surface_u8<uint8_t>(false);
+}
+
+TEST(export_import_convert_color, i420_to_rgb_three_planes_surface_u8) {
+    test_convert_color_i420_to_rgb_three_planes_surface_u8<uint8_t>(true);
 }

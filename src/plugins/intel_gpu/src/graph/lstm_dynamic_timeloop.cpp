@@ -11,10 +11,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id lstm_dynamic_timeloop::type_id() {
-    static primitive_type_base<lstm_dynamic_timeloop> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(lstm_dynamic_timeloop)
 
 program_node& lstm_dynamic_timeloop_node::get_dependency_by_name(std::string val) const {
     return get_dependency(get_dependency_idx(val));

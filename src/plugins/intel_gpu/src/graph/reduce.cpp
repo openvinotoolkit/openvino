@@ -14,10 +14,7 @@
 #include "reduce_shape_inference.hpp"
 
 namespace cldnn {
-primitive_type_id reduce::type_id() {
-    static primitive_type_base<reduce> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(reduce)
 
 static std::vector<uint16_t> convert_axes(std::vector<int64_t> axes, size_t rank) {
     std::vector<uint16_t> converted_axes;

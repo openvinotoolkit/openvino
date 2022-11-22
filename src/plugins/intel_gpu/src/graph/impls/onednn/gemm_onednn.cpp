@@ -263,4 +263,4 @@ attach_gemm_onednn::attach_gemm_onednn() {
 }  // namespace onednn
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::gemm_onednn, cldnn::object_type::GEMM_ONEDNN)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::gemm_onednn)

@@ -9,10 +9,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id experimental_detectron_roi_feature_extractor::type_id() {
-    static primitive_type_base<experimental_detectron_roi_feature_extractor> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(experimental_detectron_roi_feature_extractor)
 
 size_t experimental_detectron_roi_feature_extractor_inst::inputs_memory_count() const {
     return parent::inputs_memory_count() - 1;

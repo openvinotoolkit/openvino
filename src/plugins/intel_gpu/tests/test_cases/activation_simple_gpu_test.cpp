@@ -1504,7 +1504,8 @@ using activation_random_test_params = std::tuple<data_types,
                                                  tensor,                        // input_size
                                                  activation_func,               // func_type
                                                  activation_additional_params,  // additional_params
-                                                 padding>;
+                                                 padding,
+                                                 bool>;
 
 struct activation_random_test : testing::TestWithParam<activation_random_test_params>
 {
@@ -1604,7 +1605,8 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
         activation_func func_type;
         activation_additional_params additional_params;
         padding padd;
-        std::tie(input_type, input_format, input_size, func_type, additional_params, padd) = params;
+        bool is_caching_test;
+        std::tie(input_type, input_format, input_size, func_type, additional_params, padd, is_caching_test) = params;
         auto in_layout = layout(input_type, format::bfyx, input_size);
 
         auto in_mem = engine.allocate_memory(in_layout);
@@ -1620,11 +1622,29 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
         auto build_opts = build_options();
         build_opts.set_option(build_option::outputs({"activation"}));
 
-        network net(engine, topo, build_opts);
-        net.set_input_data("in", in_mem);
+        std::shared_ptr<cldnn::network> net;
+
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topo, build_opts);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                net = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            net = std::make_shared<cldnn::network>(engine, topo, build_opts);
+        }
+
+        net->set_input_data("in", in_mem);
 
         // first execution of ref
-        auto result = net.execute();
+        auto result = net->execute();
         auto output = result.at("activation").get_memory();
 
         cldnn::topology topo_opt;
@@ -1675,11 +1695,11 @@ TEST_P(activation_random_test, random) {
 }
 
 const auto reluParams = testing::ValuesIn(std::vector<activation_random_test_params>{
-    {data_types::i8, format::b_fs_yx_fsv32, {1, 32, 5, 5}, activation_func::relu, {}, {}},
-    {data_types::i8, format::bs_fs_yx_bsv32_fsv32, {32, 32, 5, 5}, activation_func::relu, {}, {}},
-    {data_types::f16, format::bs_fs_yx_bsv32_fsv16, {32, 32, 5, 5}, activation_func::relu, {}, {}},
-    {data_types::i8, format::bs_fs_yx_bsv32_fsv32, {16, 16, 5, 5}, activation_func::relu, {}, {}},
-    {data_types::f16, format::bs_fs_yx_bsv32_fsv16, {16, 16, 5, 5}, activation_func::relu, {}, {}},
+    {data_types::i8, format::b_fs_yx_fsv32, {1, 32, 5, 5}, activation_func::relu, {}, {}, false},
+    {data_types::i8, format::bs_fs_yx_bsv32_fsv32, {32, 32, 5, 5}, activation_func::relu, {}, {}, false},
+    {data_types::f16, format::bs_fs_yx_bsv32_fsv16, {32, 32, 5, 5}, activation_func::relu, {}, {}, false},
+    {data_types::i8, format::bs_fs_yx_bsv32_fsv32, {16, 16, 5, 5}, activation_func::relu, {}, {}, false},
+    {data_types::f16, format::bs_fs_yx_bsv32_fsv16, {16, 16, 5, 5}, activation_func::relu, {}, {}, false},
 });
 
 INSTANTIATE_TEST_SUITE_P(relu_activation_blocked_tests, activation_random_test, reluParams);
@@ -1752,7 +1772,8 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(inputShapes[0]),
                        ::testing::ValuesIn(activationFunctions),
                        ::testing::Values(activation_additional_params{}),
-                       ::testing::Values(padding{})));
+                       ::testing::Values(padding{}),
+                       ::testing::Values(false)));
 INSTANTIATE_TEST_SUITE_P(
     fp_activation_blocked_tests1,
     activation_random_test,
@@ -1761,7 +1782,8 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(inputShapes[2]),
                        ::testing::ValuesIn(activationFunctions),
                        ::testing::Values(activation_additional_params{}),
-                       ::testing::Values(padding{})));
+                       ::testing::Values(padding{}),
+                       ::testing::Values(false)));
 INSTANTIATE_TEST_SUITE_P(
     fp_activation_blocked_tests2,
     activation_random_test,
@@ -1770,7 +1792,8 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(inputShapes[1]),
                        ::testing::ValuesIn(activationFunctions),
                        ::testing::Values(activation_additional_params{}),
-                       ::testing::Values(padding{})));
+                       ::testing::Values(padding{}),
+                       ::testing::Values(false)));
 INSTANTIATE_TEST_SUITE_P(
     fp_activation_blocked_tests3,
     activation_random_test,
@@ -1779,7 +1802,8 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(inputShapes),
                        ::testing::Values(activationFunctions.front()),
                        ::testing::Values(activation_additional_params{}),
-                       ::testing::Values(padding{})));
+                       ::testing::Values(padding{}),
+                       ::testing::Values(false)));
 INSTANTIATE_TEST_SUITE_P(
     fp_activation_blocked_tests4,
     activation_random_test,
@@ -1788,4 +1812,15 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(inputShapes),
                        ::testing::Values(activationFunctions.back()),
                        ::testing::Values(activation_additional_params{}),
-                       ::testing::Values(padding{})));
+                       ::testing::Values(padding{}),
+                       ::testing::Values(false)));
+INSTANTIATE_TEST_SUITE_P(
+    export_import,
+    activation_random_test,
+    ::testing::Combine(::testing::Values(dataTypes[0]),
+                       ::testing::Values(types[0]),
+                       ::testing::Values(inputShapes[0]),
+                       ::testing::Values(activationFunctions.back()),
+                       ::testing::Values(activation_additional_params{}),
+                       ::testing::Values(padding{}),
+                       ::testing::Values(true)));

@@ -152,4 +152,4 @@ attach_concatenation_onednn::attach_concatenation_onednn() {
 }  // namespace onednn
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::concatenation_onednn, cldnn::object_type::CONCATENATION_ONEDNN)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::concatenation_onednn)

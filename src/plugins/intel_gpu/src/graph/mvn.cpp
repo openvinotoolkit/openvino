@@ -8,10 +8,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id mvn::type_id() {
-    static primitive_type_base<mvn> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(mvn)
 
 layout mvn_inst::calc_output_layout(mvn_node const& node, kernel_impl_params const& impl_param) {
     auto input_node_layout = impl_param.get_non_padded_input_layout();

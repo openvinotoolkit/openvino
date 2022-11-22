@@ -168,4 +168,4 @@ attach_deconvolution_onednn::attach_deconvolution_onednn() {
 }  // namespace onednn
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::deconvolution_onednn, cldnn::object_type::DECONVOLUTION_ONEDNN)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::deconvolution_onednn)

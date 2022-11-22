@@ -12,10 +12,7 @@
 #include <vector>
 
 namespace cldnn {
-primitive_type_id cldnn::batch_to_space::type_id() {
-    static primitive_type_base<batch_to_space> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(batch_to_space)
 
 layout batch_to_space_inst::calc_output_layout(batch_to_space_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<batch_to_space>();

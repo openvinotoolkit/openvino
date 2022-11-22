@@ -86,6 +86,7 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
 // TODO: move this file to cpu folder and add a new traget to 'cldnn::engine_types'
 struct generic_layer_cpu : typed_primitive_impl<generic_layer> {
     const generic_layer_node& outer;
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<generic_layer_cpu>(*this);
@@ -136,4 +137,5 @@ attach_generic_layer_impl::attach_generic_layer_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::generic_layer_impl, cldnn::object_type::GENERIC_LAYER_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::generic_layer_impl)
+ASSIGN_TYPE_NAME(cldnn::ocl::generic_layer_cpu)

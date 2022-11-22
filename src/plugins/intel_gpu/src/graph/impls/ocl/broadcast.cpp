@@ -168,4 +168,4 @@ attach_broadcast_impl::attach_broadcast_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::broadcast_impl, cldnn::object_type::BROADCAST_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::broadcast_impl)

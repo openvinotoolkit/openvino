@@ -3,6 +3,11 @@
 //
 
 #include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/graph/serialization/map_serializer.hpp"
+#include "intel_gpu/graph/serialization/layout_serializer.hpp"
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
+#include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/runtime/profiling.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
@@ -11,11 +16,6 @@
 #include <cldnn/cldnn_config.hpp>
 #include "intel_gpu/plugin/infer_request.hpp"
 #include "intel_gpu/plugin/itt.hpp"
-#include "serialization/binary_buffer.hpp"
-#include "serialization/map_serializer.hpp"
-#include "serialization/layout_serializer.hpp"
-#include "serialization/string_serializer.hpp"
-#include "serialization/vector_serializer.hpp"
 
 #include <description_buffer.hpp>
 #include <threading/ie_executor_manager.hpp>
@@ -468,6 +468,11 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
     return std::make_shared<ngraph::Function>(results, params, "runtime_gpu_graph");
 }
 
+// Cache blob format:
+//     [ ov::intel_gpu::Program::inputLayouts ]
+//     [ ov::intel_gpu::Graph::primitiveIDs ]
+//     [ ov::intel_gpu::Graph::outputDims ]
+//     [ cldnn::network ]
 void Graph::Export(cldnn::BinaryOutputBuffer &ob) {
     ob << m_program->inputLayouts;
     ob << primitiveIDs;

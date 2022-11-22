@@ -1868,7 +1868,8 @@ TEST(gather_gpu_fp32, 322_axisF) {
     }
 }
 
-TEST(gather_gpu_u8, 322_axisF) {
+template <typename T>
+void test_gather_gpu_u8_322_axisF(bool is_caching_test) {
     //  Dictionary : 3x3x1x1
     //  Indexes : 2x2x1x1
     //  Axis : 1
@@ -1881,7 +1882,7 @@ TEST(gather_gpu_u8, 322_axisF) {
     auto input2 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{2, 2, 1, 1}}); // Indexes
     int64_t axis = 1;
 
-    set_values<uint8_t>(input1, {0, 1, 2, 10, 11, 12, 20, 21, 22});
+    set_values<T>(input1, {0, 1, 2, 10, 11, 12, 20, 21, 22});
 
     set_values(input2, {1, 0,
                         2, 1});
@@ -1892,21 +1893,46 @@ TEST(gather_gpu_u8, 322_axisF) {
     topology.add(
         gather("gather", "InputDictionary", "InputText", axis, ov::Shape{3, 2, 2, 1}));
 
-    network network(engine, topology);
+    cldnn::network::ptr network;
 
-    network.set_input_data("InputDictionary", input1);
-    network.set_input_data("InputText", input2);
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology);
+    }
 
-    auto outputs = network.execute();
+    network->set_input_data("InputDictionary", input1);
+    network->set_input_data("InputText", input2);
+
+    auto outputs = network->execute();
 
     auto output = outputs.at("gather").get_memory();
-    cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
-    std::vector<uint8_t> expected_results = {
+    std::vector<T> expected_results = {
         1, 0, 2, 1, 11, 10, 12, 11, 21, 20, 22, 21};
 
     ASSERT_EQ(expected_results.size(), output_ptr.size());
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], output_ptr[i]) << i;
     }
+}
+
+TEST(gather_gpu_u8, 322_axisF) {
+    test_gather_gpu_u8_322_axisF<uint8_t>(false);
+}
+
+TEST(gather_gpu_u8, export_import) {
+    test_gather_gpu_u8_322_axisF<uint8_t>(true);
 }

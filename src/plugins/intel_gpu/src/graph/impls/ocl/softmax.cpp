@@ -77,4 +77,4 @@ attach_softmax_impl::attach_softmax_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::softmax_impl, cldnn::object_type::SOFTMAX_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::softmax_impl)

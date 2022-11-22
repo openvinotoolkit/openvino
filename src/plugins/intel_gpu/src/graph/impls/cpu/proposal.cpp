@@ -461,4 +461,4 @@ attach_proposal_impl::attach_proposal_impl() {
 }  // namespace cpu
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::proposal_impl, cldnn::object_type::PROPOSAL_IMPL_CPU)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::proposal_impl)

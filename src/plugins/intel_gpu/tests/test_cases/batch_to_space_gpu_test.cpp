@@ -644,7 +644,8 @@ TEST(batch_to_space_fp32_gpu, i21621_bs1112_cb0201_ce0810_b_fs_yx_fsv16) {
     }
 }
 
-TEST(batch_to_space_fp32_gpu, i41021_bs1221_cb0201_ce0810_b_fs_yx_fsv16) {
+template <typename T>
+void test_batch_to_space_fp32_gpu_i41021_bs1221_cb0201_ce0810_b_fs_yx_fsv16(bool is_caching_test) {
     //  Input  :      4x10x2x1
     //  Block shape : 1x2x2x1
     //  Crops begin : 0x8x1x0
@@ -676,16 +677,33 @@ TEST(batch_to_space_fp32_gpu, i41021_bs1221_cb0201_ce0810_b_fs_yx_fsv16) {
                                                                tensor(format::bfyx, {1,8,3,1}, 1)));
     topology.add(reorder("bts_to_bfyx", "batch_to_space", format::bfyx, data_types::f32));
 
-    network network(engine, topology);
+    cldnn::network::ptr network;
 
-    network.set_input_data("Input", input);
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology);
+    }
 
-    auto outputs = network.execute();
+    network->set_input_data("Input", input);
+
+    auto outputs = network->execute();
 
     auto output = outputs.at("bts_to_bfyx").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
-    std::vector<float> expected_results = {
+    std::vector<T> expected_results = {
         28.0f, 9.0f,  29.0f, 68.0f, 49.0f, 69.0f,
         30.0f, 11.0f, 31.0f, 70.0f, 51.0f, 71.0f,
         32.0f, 13.0f, 33.0f, 72.0f, 53.0f, 73.0f,
@@ -697,4 +715,12 @@ TEST(batch_to_space_fp32_gpu, i41021_bs1221_cb0201_ce0810_b_fs_yx_fsv16) {
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], output_ptr[i]);
     }
+}
+
+TEST(batch_to_space_fp32_gpu, i41021_bs1221_cb0201_ce0810_b_fs_yx_fsv16) {
+    test_batch_to_space_fp32_gpu_i41021_bs1221_cb0201_ce0810_b_fs_yx_fsv16<float>(false);
+}
+
+TEST(export_import_batch_to_space_fp32_gpu, i41021_bs1221_cb0201_ce0810_b_fs_yx_fsv16) {
+    test_batch_to_space_fp32_gpu_i41021_bs1221_cb0201_ce0810_b_fs_yx_fsv16<float>(true);
 }

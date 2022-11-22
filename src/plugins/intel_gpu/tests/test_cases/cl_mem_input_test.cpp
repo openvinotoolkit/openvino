@@ -71,7 +71,8 @@ std::vector<float> createReferenceData(std::vector<unsigned char> data, int widt
 }
 }  // namespace
 
-TEST(cl_mem_check, check_2_inputs) {
+template <typename T>
+void start_cl_mem_check_2_inputs(bool is_caching_test) {
     device_query query(engine_types::ocl, runtime_types::ocl);
     auto devices = query.get_available_devices();
     auto iter = devices.find(std::to_string(device_query::device_id));
@@ -123,21 +124,47 @@ TEST(cl_mem_check, check_2_inputs) {
     topology.add(input2);
     topology.add(reorder("reorder", "input", "input2", output_layout));
 
-    network network(*engine, topology);
-    network.set_input_data("input", input_memory);
-    network.set_input_data("input2", input_memory2);
+    cldnn::network::ptr network;
 
-    auto outputs = network.execute();
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(*engine, topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, *engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), *engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(*engine, topology);
+    }
 
-    std::vector<float> reference_results = createReferenceData(data, width, height, output_format);
+    network->set_input_data("input", input_memory);
+    network->set_input_data("input2", input_memory2);
+
+    auto outputs = network->execute();
+
+    std::vector<T> reference_results = createReferenceData(data, width, height, output_format);
     auto output_prim = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output_prim, get_test_stream());
     int size = width * height * 3;
     for (auto i = 0; i < size; i++) {
         EXPECT_NEAR(reference_results[i], output_ptr[i], 1.001f);
     }
     checkStatus(clReleaseMemObject(nv12_image_plane_uv), "clReleaseMemObject");
     checkStatus(clReleaseMemObject(nv12_image_plane_y), "clReleaseMemObject");
+}
+
+TEST(cl_mem_check, check_2_inputs) {
+    start_cl_mem_check_2_inputs<float>(false);
+}
+
+TEST(export_import_cl_mem_check, check_2_inputs) {
+    start_cl_mem_check_2_inputs<float>(true);
 }
 
 TEST(cl_mem_check, check_input) {

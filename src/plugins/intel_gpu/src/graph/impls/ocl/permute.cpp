@@ -82,4 +82,4 @@ attach_permute_impl::attach_permute_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::permute_impl, cldnn::object_type::PERMUTE_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::permute_impl)

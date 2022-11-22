@@ -8,10 +8,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id reorg_yolo::type_id() {
-    static primitive_type_base<reorg_yolo> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(reorg_yolo)
 
 layout reorg_yolo_inst::calc_output_layout(reorg_yolo_node const& node, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&

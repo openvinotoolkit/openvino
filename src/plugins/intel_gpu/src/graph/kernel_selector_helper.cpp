@@ -8,9 +8,9 @@
 #include "kernel_selector_params.h"
 #include "to_string_utils.h"
 #include "program_node.h"
-#include "serialization/layout_serializer.hpp"
-#include "serialization/string_serializer.hpp"
-#include "serialization/vector_serializer.hpp"
+#include "intel_gpu/graph/serialization/layout_serializer.hpp"
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
+#include "intel_gpu/graph/serialization/vector_serializer.hpp"
 
 #include <string>
 #include <vector>

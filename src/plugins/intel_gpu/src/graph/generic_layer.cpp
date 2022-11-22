@@ -13,11 +13,7 @@
 #include <memory>
 
 namespace cldnn {
-
-primitive_type_id generic_layer::type_id() {
-    static primitive_type_base<generic_layer> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(generic_layer)
 
 generic_layer_node::typed_program_node(const std::shared_ptr<generic_layer> prim, program& prog)
     : parent(prim, prog) {

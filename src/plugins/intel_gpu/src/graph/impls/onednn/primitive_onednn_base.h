@@ -5,6 +5,7 @@
 #pragma once
 
 #include "primitive_inst.h"
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "to_string_utils.h"
@@ -17,7 +18,6 @@
 
 #include "reorder/reorder_weights_kernel_selector.h"
 #include "reorder/reorder_kernel_base.h"
-#include "serialization/binary_buffer.hpp"
 
 #include <vector>
 #include <list>
@@ -67,6 +67,10 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
 
     bool is_cpu() const override { return false; }
 
+    // Cache blob format:
+    //     [ dnnl::primitive_attr ]
+    //     [ dnnl::primitive_desc ]
+    //     [ dnnl::cache_blob ]
     void save(BinaryOutputBuffer& ob) const override {
         if (_attrs.get() == nullptr) {
             ob << false;

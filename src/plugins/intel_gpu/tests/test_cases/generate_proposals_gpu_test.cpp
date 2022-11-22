@@ -26,7 +26,7 @@ struct GenerateProposalsParams {
 };
 
 template <typename T>
-using GenerateProposalsParamsWithLayout = std::tuple<GenerateProposalsParams<T>, format::type>;
+using GenerateProposalsParamsWithLayout = std::tuple<GenerateProposalsParams<T>, format::type, bool>;
 
 constexpr size_t num_batches = 2;
 constexpr size_t image_height = 200;
@@ -282,7 +282,8 @@ public:
     void test() {
         GenerateProposalsParams<T> param;
         format::type data_layout;
-        std::tie(param, data_layout) = this->GetParam();
+        bool is_caching_test;
+        std::tie(param, data_layout, is_caching_test) = this->GetParam();
         const bool need_reorder = data_layout != format::bfyx;
 
         const auto data_type = type_to_data_type<T>::value;
@@ -355,14 +356,31 @@ public:
         const primitive_id reorder_result_id = generate_proposals_id + "Reordered";
         topology.add(reorder(reorder_result_id, generate_proposals_id, format::bfyx, data_type));
 
-        network network{engine, topology};
+        cldnn::network::ptr network;
 
-        network.set_input_data(input_im_info_id, input_im_info);
-        network.set_input_data(input_anchors_id, input_anchors);
-        network.set_input_data(input_deltas_id, input_deltas);
-        network.set_input_data(input_scores_id, input_scores);
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology);
+        }
 
-        const auto outputs = network.execute();
+        network->set_input_data(input_im_info_id, input_im_info);
+        network->set_input_data(input_anchors_id, input_anchors);
+        network->set_input_data(input_deltas_id, input_deltas);
+        network->set_input_data(input_scores_id, input_scores);
+
+        const auto outputs = network->execute();
 
         const auto rois = outputs.at(reorder_result_id).get_memory();
 
@@ -395,13 +413,16 @@ public:
         const auto& expected_roi_scores = param.expected_roi_scores;
         const auto& expected_rois_num = param.expected_rois_num;
 
-        for (size_t j = 0; j < expected_rois_num.size(); ++j) {
-            EXPECT_EQ(expected_rois_num[j], rois_num_ptr[j]) << "j=" << j;
+        if (!is_caching_test) {
+            for (size_t j = 0; j < expected_rois_num.size(); ++j) {
+                EXPECT_EQ(expected_rois_num[j], rois_num_ptr[j]) << "j=" << j;
+            }
         }
 
         for (auto i = 0; i < param.post_nms_count; ++i) {
-            EXPECT_NEAR(expected_roi_scores[i], roi_scores_ptr[i], getError<T>()) << "i=" << i;
-
+            if (!is_caching_test) {
+                EXPECT_NEAR(expected_roi_scores[i], roi_scores_ptr[i], getError<T>()) << "i=" << i;
+            }
             if (static_cast<float>(expected_roi_scores[i]) != 0.0f) {
                 for (size_t coord = 0; coord < 4; ++coord) {
                     const auto roi_idx = i * 4 + coord;
@@ -421,7 +442,8 @@ INSTANTIATE_TEST_SUITE_P(
         f32_i32,
         ::testing::Combine(
             ::testing::ValuesIn(getGenerateProposalsParams<float>()),
-            ::testing::ValuesIn(layouts)
+            ::testing::ValuesIn(layouts),
+            ::testing::Values(false)
             ));
 
 using f32_i64 = generate_proposals_test<float, int64_t>;
@@ -433,7 +455,8 @@ INSTANTIATE_TEST_SUITE_P(
         f32_i64,
         ::testing::Combine(
                 ::testing::ValuesIn(getGenerateProposalsParams<float>()),
-                ::testing::ValuesIn(layouts)
+                ::testing::ValuesIn(layouts),
+                ::testing::Values(false)
         ));
 
 using f16_i32 = generate_proposals_test<half_t, int32_t>;
@@ -445,7 +468,8 @@ INSTANTIATE_TEST_SUITE_P(
         f16_i32,
         ::testing::Combine(
                 ::testing::ValuesIn(getGenerateProposalsParams<half_t>()),
-                ::testing::ValuesIn(layouts)
+                ::testing::ValuesIn(layouts),
+                ::testing::Values(false)
         ));
 
 using f16_i64 = generate_proposals_test<half_t, int64_t>;
@@ -457,5 +481,15 @@ INSTANTIATE_TEST_SUITE_P(
         f16_i64,
         ::testing::Combine(
                 ::testing::ValuesIn(getGenerateProposalsParams<half_t>()),
-                ::testing::ValuesIn(layouts)
+                ::testing::ValuesIn(layouts),
+                ::testing::Values(false)
+        ));
+
+INSTANTIATE_TEST_SUITE_P(
+        export_import_generate_proposals_gpu_test,
+        f16_i64,
+        ::testing::Combine(
+                ::testing::Values(getGenerateProposalsParams<half_t>()[0]),
+                ::testing::Values(layouts[0]),
+                ::testing::Values(true)
         ));

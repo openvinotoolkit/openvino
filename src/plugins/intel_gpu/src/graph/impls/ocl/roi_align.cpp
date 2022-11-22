@@ -98,4 +98,4 @@ attach_roi_align_impl::attach_roi_align_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::roi_align_impl, cldnn::object_type::ROI_ALIGN_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::roi_align_impl)

@@ -69,4 +69,4 @@ attach_roll_impl::attach_roll_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::roll_impl, cldnn::object_type::ROLL_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::roll_impl)

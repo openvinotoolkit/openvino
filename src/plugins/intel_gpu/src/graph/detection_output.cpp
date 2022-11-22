@@ -4,16 +4,13 @@
 
 #include "detection_output_inst.h"
 #include "primitive_type_base.h"
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
-#include "serialization/string_serializer.hpp"
 
 namespace cldnn {
-primitive_type_id detection_output::type_id() {
-    static primitive_type_base<detection_output> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(detection_output)
 
 layout detection_output_inst::calc_output_layout(detection_output_node const& node, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
@@ -189,7 +186,7 @@ void detection_output_inst::save(cldnn::BinaryOutputBuffer& ob) const {
     ob << argument->input[0];
     ob << argument->input[1];
     ob << argument->input[2];
-    ob << cldnn::make_data(&argument->output_padding, sizeof(argument->output_padding));
+    ob << make_data(&argument->output_padding, sizeof(argument->output_padding));
     ob << argument->num_classes;
     ob << argument->keep_top_k;
     ob << argument->share_location;
@@ -197,7 +194,7 @@ void detection_output_inst::save(cldnn::BinaryOutputBuffer& ob) const {
     ob << argument->nms_threshold;
     ob << argument->top_k;
     ob << argument->eta;
-    ob << cldnn::make_data(&argument->code_type, sizeof(argument->code_type));
+    ob << make_data(&argument->code_type, sizeof(argument->code_type));
     ob << argument->variance_encoded_in_target;
     ob << argument->confidence_threshold;
     ob << argument->prior_info_size;
@@ -242,7 +239,7 @@ void detection_output_inst::load(cldnn::BinaryInputBuffer& ib) {
     ib >> input_location;
     ib >> input_confidence;
     ib >> input_prior_box;
-    ib >> cldnn::make_data(&output_padding, sizeof(output_padding));
+    ib >> make_data(&output_padding, sizeof(output_padding));
     ib >> num_classes;
     ib >> keep_top_k;
     ib >> share_location;
@@ -250,7 +247,7 @@ void detection_output_inst::load(cldnn::BinaryInputBuffer& ib) {
     ib >> nms_threshold;
     ib >> top_k;
     ib >> eta;
-    ib >> cldnn::make_data(&code_type, sizeof(code_type));
+    ib >> make_data(&code_type, sizeof(code_type));
     ib >> variance_encoded_in_target;
     ib >> confidence_threshold;
     ib >> prior_info_size;

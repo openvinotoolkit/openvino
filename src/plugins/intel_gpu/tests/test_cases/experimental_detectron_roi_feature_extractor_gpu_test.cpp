@@ -16,7 +16,8 @@
 using namespace cldnn;
 using namespace ::tests;
 
-TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, one_level) {
+template <typename T>
+void test_experimental_detectron_roi_feature_extractor_gpu_fp32_one_level(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     const int rois_num = 2;
@@ -29,7 +30,7 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, one_level) {
     auto level_1 = engine.allocate_memory({data_types::f32, format::bfyx, {1, 2, 3, 2}});
     auto second_output = engine.allocate_memory({ data_types::f32, format::bfyx, tensor(batch(rois_num), feature(rois_feature_dim))});
 
-    std::vector<float> rois {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f};
+    std::vector<T> rois {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f};
     set_values(roi_input, rois);
     set_values(level_1, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f});
 
@@ -52,36 +53,64 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, one_level) {
     topology.add(activation(activation_abs_id, feature_extractor_id,  activation_func::abs));
     topology.add(mutable_data(second_output_r_id, {feature_extractor_id}, second_output));
 
-    network network(engine, topology);
+    cldnn::network::ptr network;
 
-    network.set_input_data(input_rois_id, roi_input);
-    network.set_input_data(input_level_1_id, level_1);
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology);
+    }
 
-    auto outputs = network.execute();
+    network->set_input_data(input_rois_id, roi_input);
+    network->set_input_data(input_level_1_id, level_1);
 
-    std::vector<float> expected_first_output {1.416667f, 1.75f, 2.083333f, 2.416667f, 2.75f, 3.083333f, 3.166667f, 3.5f,  3.833333f,
+    auto outputs = network->execute();
+
+    std::vector<T> expected_first_output {1.416667f, 1.75f, 2.083333f, 2.416667f, 2.75f, 3.083333f, 3.166667f, 3.5f,  3.833333f,
                                               7.416667f, 7.75f, 8.083333f, 8.416667f, 8.75f, 9.083334f, 9.166666f, 9.5f,  9.833334f,
                                               4.166667f, 4.5f,  4.833333f, 4.166667f, 4.5f,  4.833333f, 2.083333f, 2.25f, 2.416667f,
                                               10.16667f, 10.5f, 10.83333f, 10.16667f, 10.5f, 10.83333f, 5.083333f, 5.25f, 5.416667f};
 
     auto first_network_output = outputs.at(activation_abs_id).get_memory();
-    cldnn::mem_lock<float> first_output_ptr(first_network_output, get_test_stream());
+    cldnn::mem_lock<T> first_output_ptr(first_network_output, get_test_stream());
 
     ASSERT_EQ(expected_first_output.size(), first_output_ptr.size());
     for (std::size_t i = 0; i < expected_first_output.size(); i++) {
         EXPECT_FLOAT_EQ(expected_first_output[i], first_output_ptr[i]);
     }
 
-    std::vector<float>& expected_second_output = rois;
+    if (is_caching_test)
+        return;
+
+    std::vector<T>& expected_second_output = rois;
 
     auto second_network_output = outputs.at(second_output_r_id).get_memory();
     EXPECT_TRUE(engine.is_the_same_buffer(*second_output, *second_network_output));
-    cldnn::mem_lock<float> second_output_ptr(second_network_output, get_test_stream());
+    cldnn::mem_lock<T> second_output_ptr(second_network_output, get_test_stream());
 
     ASSERT_EQ(expected_second_output.size(), second_output_ptr.size());
     for (std::size_t i = 0; i < expected_second_output.size(); i++) {
         EXPECT_FLOAT_EQ(expected_second_output[i], second_output_ptr[i]);
     }
+}
+
+TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, one_level) {
+    test_experimental_detectron_roi_feature_extractor_gpu_fp32_one_level<float>(false);
+}
+
+TEST(export_import_experimental_detectron_roi_feature_extractor_gpu_fp32, one_level) {
+    test_experimental_detectron_roi_feature_extractor_gpu_fp32_one_level<float>(true);
 }
 
 TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, two_levels) {

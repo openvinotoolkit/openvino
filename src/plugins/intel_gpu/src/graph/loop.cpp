@@ -14,10 +14,7 @@
 #include <algorithm>
 
 namespace cldnn {
-primitive_type_id loop::type_id() {
-    static primitive_type_base<loop> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(loop)
 
 static bool check_if_axis_is_set_properly(loop_node const & node) {
     const auto& input_primitive_maps = node.get_input_primitive_maps();

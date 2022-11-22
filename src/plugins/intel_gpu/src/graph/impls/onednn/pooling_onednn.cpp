@@ -129,4 +129,4 @@ attach_pooling_onednn::attach_pooling_onednn() {
 }  // namespace onednn
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::pooling_onednn, cldnn::object_type::POOLING_ONEDNN)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::pooling_onednn)
