@@ -376,47 +376,30 @@ std::unordered_set<std::string> GetSupportedNodes(
     for (auto&& name : unsupported) {
         supported.erase(name);
     }
-    // Walk over transformed model for special handing of Parameters/Constants/Results
-    for (auto&& op : ops) {
-        // Mark Parameter/Constants/Result as supported if they are connected
-        // to supported node
-        if (InferenceEngine::details::contains(supported, op->get_friendly_name())) {
-            for (auto&& input : op->input_values()) {
-                if (ov::op::util::is_constant(input.get_node()) || ov::op::util::is_parameter(input.get_node())) {
-                    auto names = get_names_set(input.get_node_shared_ptr());
-                    supported.insert(names.begin(), names.end());
-                }
-            }
-            for (auto&& outputs : op->outputs()) {
-                for (auto&& input : outputs.get_target_inputs()) {
-                    if (ov::op::util::is_output(input.get_node())) {
-                        supported.emplace(input.get_node()->get_friendly_name());
-                    }
-                }
+
+    auto has_all_consumers_unsupported = [&supported](const std::shared_ptr<ov::Node>& node) {
+        for (auto&& input : node->output(0).get_target_inputs()) {
+            if (details::contains(supported, input.get_node()->get_friendly_name())) {
+                return false;
             }
         }
-        // Mark Parameter/Constants/Result as supported if they are have no
+        return (node->output(0).get_target_inputs().size() != 0);
+    };
+
+    auto has_unsupported_source = [&supported](const std::shared_ptr<ov::Node>& node) {
+        return !details::contains(supported, node->input_values().begin()->get_node()->get_friendly_name());
+    };
+
+    // Walk over transformed model for special handing of Parameters/Constants/Results
+    for (auto&& op : ops) {
+        // Mark Constants and all fused names as unsupported if they are have no
         // supported consumers/sources
-        if (ov::op::util::is_constant(op) || ov::op::util::is_parameter(op)) {
-            bool all_consumers_unsupported = true;
-            for (auto&& input : op->output(0).get_target_inputs()) {
-                auto check_node = input.get_node()->shared_from_this();
-                for (auto& name : get_names_set(check_node)) {
-                    if (InferenceEngine::details::contains(supported, name)) {
-                        all_consumers_unsupported = false;
-                        break;
-                    }
-                }
-            }
-            if (all_consumers_unsupported) {
-                for (auto&& name : get_names_set(op)) {
+        if (ov::op::util::is_constant(op)) {
+            if (has_all_consumers_unsupported(op)) {
+                auto names = get_names_set(op);
+                for (auto& name : get_names_set(op)) {
                     supported.erase(name);
                 }
-            }
-        } else if (ov::op::util::is_output(op)) {
-            if (!InferenceEngine::details::contains(supported,
-                                                    op->input_values().begin()->get_node()->get_friendly_name())) {
-                supported.erase(op->get_friendly_name());
             }
         }
     }
@@ -424,9 +407,23 @@ std::unordered_set<std::string> GetSupportedNodes(
     // Finally get intersection of all supported operation names
     // and operation names from original model
     std::unordered_set<std::string> res;
-    for (auto& name : original_ops) {
-        if (InferenceEngine::details::contains(supported, name)) {
+    for (auto&& name : supported) {
+        if (details::contains(original_ops, name)) {
             res.insert(name);
+        }
+    }
+
+    // Remove parameters which has no supported consumers
+    for (auto& param : model->get_parameters()) {
+        if (has_all_consumers_unsupported(param)) {
+            res.erase(param->get_friendly_name());
+        }
+    }
+
+    // Remove results which has no supported source node
+    for (auto& result : model->get_results()) {
+        if (has_unsupported_source(result)) {
+            res.erase(result->get_friendly_name());
         }
     }
 

@@ -4,14 +4,15 @@
 #include <gtest/gtest.h>
 #include <iostream>
 
-#include <openvino/pass/manager.hpp>
-#include <openvino/opsets/opset9.hpp>
-#include <transformations/convert_precision.hpp>
-#include <transformations/common_optimizations/nop_elimination.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/rt_info/decompression.hpp>
+#include "openvino/pass/manager.hpp"
+#include "openvino/opsets/opset9.hpp"
+#include "transformations/convert_precision.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
+#include "transformations/op_conversions/log_softmax_decomposition.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
-#include <ngraph/pass/constant_folding.hpp>
+#include "ngraph/pass/constant_folding.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 
 std::ostream& operator<<(std::ostream& os, const std::unordered_set<std::string>& s) {
@@ -275,7 +276,7 @@ TEST_F(GetSupportedNodesTest, UnmarkedSupportedInputsOutputs) {
     [&](const std::shared_ptr<ngraph::Node>& op) {
         // Plugin don't mark input, constant and result as supported
         return (std::dynamic_pointer_cast<ov::opset9::Add>(op) != nullptr);
-    }, {"input", "constant", "const_reshape", "reshape", "add", "result"});
+    }, {"add"});
 }
 
 TEST_F(GetSupportedNodesTest, WrongFusedNamesInOriginalModel) {
@@ -306,4 +307,33 @@ TEST_F(GetSupportedNodesTest, WrongFusedNamesInOriginalModel) {
         return ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) || ov::op::util::is_output(op) ||
                (std::dynamic_pointer_cast<ov::opset9::MatMul>(op) != nullptr);
     }, {"input", "weights", "matmul"});
+}
+
+TEST_F(GetSupportedNodesTest, FusedNamesSupportedUnsupportedBoth) {
+    {
+        auto param = std::make_shared<ngraph::op::Parameter>(ov::element::f32, m_shape);
+        param->set_friendly_name("input");
+        auto dummy_param = std::make_shared<ngraph::op::Parameter>(ov::element::f32, m_shape);
+        dummy_param->set_friendly_name("dummy_param");
+        auto logsoftmax = std::make_shared<ov::opset9::LogSoftmax>(param, 1);
+        logsoftmax->set_friendly_name("logsoftmax");
+        auto result = std::make_shared<ngraph::op::Result>(logsoftmax);
+        result->set_friendly_name("result");
+        m_function = std::make_shared<ov::Model>(ngraph::ResultVector{result},
+                                                 ngraph::ParameterVector{param, dummy_param});
+    }
+    Run([&](std::shared_ptr<ov::Model>& model) {
+            ov::pass::Manager m;
+            m.register_pass<ngraph::pass::InitNodeInfo>();
+            m.register_pass<ngraph::pass::LogSoftmaxDecomposition>();
+            m.run_passes(model);
+        },
+    [&](const std::shared_ptr<ngraph::Node>& op) {
+        // Exp is not supported and all constants are missing
+        return ov::op::util::is_parameter(op) || ov::op::util::is_output(op) ||
+         (std::dynamic_pointer_cast<ov::opset9::ReduceMax>(op) != nullptr) ||
+         (std::dynamic_pointer_cast<ov::opset9::Subtract>(op) != nullptr) ||
+         (std::dynamic_pointer_cast<ov::opset9::ReduceSum>(op) != nullptr) ||
+         (std::dynamic_pointer_cast<ov::opset9::Log>(op) != nullptr);
+    }, {"dummy_param"}); // kepp dummy only since it has no unsupported consumers
 }
