@@ -1,8 +1,8 @@
 # Benchmark C++ Tool {#openvino_inference_engine_samples_benchmark_app_README}
 
-This page demonstrates how to use the Benchmark C++ Tool to estimate deep learning inference performance on supported devices.
+This article demonstrates how to use the Benchmark C++ Tool to estimate deep learning inference performance on supported devices.
 
-> **NOTE**: This page describes usage of the C++ implementation of the Benchmark Tool. For the Python implementation, refer to the [Benchmark Python Tool](../../../tools/benchmark_tool/README.md) page. The Python version is recommended for benchmarking models that will be used in Python applications, and the C++ version is recommended for benchmarking models that will be used in C++ applications. Both tools have a similar command interface and backend.
+> **NOTE**: This article describes usage of the C++ implementation of the Benchmark Tool. For the Python implementation, refer to the [Benchmark Python Tool](../../../tools/benchmark_tool/README.md) page. The Python version is recommended for benchmarking models that will be used in Python applications, and the C++ version is recommended for benchmarking models that will be used in C++ applications. Both tools have a similar command interface and backend.
 
 
 ## Basic Usage
@@ -328,7 +328,7 @@ The Benchmark Tool can also be used with dynamically shaped networks to measure 
    [ INFO ] Throughput:   107.61 FPS
    ```
 
-## See Also
+## Additional Resources
 * [Using OpenVINO Runtime Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 * [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Model Downloader](@ref omz_tools_downloader)
