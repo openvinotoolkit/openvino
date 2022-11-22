@@ -184,6 +184,7 @@ enum WeightsLayout {
     goizyx,
     giozyx,
     gyxio,
+    g_os_iyx_osv8,
     g_os_iyx_osv16,
     g_os_iyx_osv32,
     gs_oiyx_gsv16,

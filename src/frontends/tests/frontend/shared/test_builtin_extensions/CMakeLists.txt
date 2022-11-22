@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "test_builtin_extensions_1")
+set(TARGET_NAME "test_builtin_extensions")
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /ignore:4217")
@@ -13,7 +13,7 @@ endif()
 file(GLOB LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
-set(DEPENDENCIES openvino::runtime::dev offline_transformations)
+set(DEPENDENCIES openvino::runtime::dev openvino::frontend::common)
 
 if (ENABLE_OV_ONNX_FRONTEND)
     list(APPEND DEPENDENCIES openvino::frontend::onnx)
