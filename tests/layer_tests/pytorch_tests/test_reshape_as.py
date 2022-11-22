@@ -10,7 +10,7 @@ import torch
 @pytest.mark.parametrize('input_tesnors', ((np.ones((3, 6)), np.ones((2, 9))),
                                            (np.ones((2, 2, 3)), np.ones((6, 2))),
                                            (np.ones((6, 2)), np.ones((2, 2, 3)))))
-class TestSelect(PytorchLayerTest):
+class TestReshapeAs(PytorchLayerTest):
 
     def _prepare_input(self):
         return self.input_tesnors
@@ -27,6 +27,6 @@ class TestSelect(PytorchLayerTest):
         return aten_select(), ref_net, "aten::reshape_as"
 
     @pytest.mark.nightly
-    def test_pow(self, ie_device, precision, ir_version, input_tesnors):
+    def test_reshape_as(self, ie_device, precision, ir_version, input_tesnors):
         self.input_tesnors = input_tesnors
-        self._test(*self.create_model(), 'CPU', precision, ir_version)
+        self._test(*self.create_model(), ie_device, precision, ir_version)
