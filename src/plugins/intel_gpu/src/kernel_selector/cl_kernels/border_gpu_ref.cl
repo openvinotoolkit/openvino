@@ -3,7 +3,7 @@
 //
 
 #include "include/batch_headers/data_types.cl"
-#include "include/batch_headers/fetch_utils.cl"
+#include "include/fetch_utils.cl"
 
 KERNEL(border_gpu_ref)(
     const __global INPUT0_TYPE* input,
