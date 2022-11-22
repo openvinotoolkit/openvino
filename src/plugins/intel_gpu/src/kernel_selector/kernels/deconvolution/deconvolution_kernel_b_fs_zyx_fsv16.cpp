@@ -267,7 +267,16 @@ JitConstants DeconvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const deconvolu
             BoundaryCheck::ENABLED,
             IndexType::TENSOR_COORD,
             Tensor::DataChannelName::BATCH };
-        FusedOpsConfiguration conf_ci = { "_BLOCK_CI", idx_order_block_ci, "blockC00[i]", fused_dt, 1, LoadType::LT_ALIGNED_READ };
+
+        auto load_type = LoadType::LT_ALIGNED_READ;
+        for (auto& fused_op : params.fused_ops) {
+            if (!fused_op.output_tensor.SameDims(params.outputs[0]) &&
+                (fused_op.output_tensor.X().v > 1 || fused_op.output_tensor.Y().v > 1 || fused_op.output_tensor.Z().v > 1)) {
+                load_type = LoadType::LT_UNALIGNED;
+                idx_order_block_ci[1] = "(g * IC + gic * IC_BLOCK + local_id)";
+            }
+        }
+        FusedOpsConfiguration conf_ci = { "_BLOCK_CI", idx_order_block_ci, "blockC00[i]", fused_dt, 1, load_type };
 
         jit.Merge(MakeFusedOpsJitConstants(params, { conf_c00, conf_c01, conf_ci }));
     }
