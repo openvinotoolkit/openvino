@@ -25,8 +25,8 @@ OutputVector translate_group_norm(NodeContext& context) {
     auto reshaped_norm = context.mark_node(
         std::make_shared<opset8::MVN>(reshaped_input, reduction_axes, true, eps, ov::op::MVNEpsMode::INSIDE_SQRT));
     auto norm = context.mark_node(std::make_shared<opset8::Reshape>(reshaped_norm, input_shape, true));
-    auto input_rank = context.mark_node(std::make_shared<opset8::ShapeOf>(input_shape, element::i64));
-    auto input_rank = context.mark_node(std::make_shared<opset8::Squeeze>(input_rank));
+    auto input_rank2d = context.mark_node(std::make_shared<opset8::ShapeOf>(input_shape, element::i64));
+    auto input_rank = context.mark_node(std::make_shared<opset8::Squeeze>(input_rank2d));
     auto skip_last = context.mark_node(std::make_shared<opset8::Subtract>(input_rank, scalar_one));
     auto axes = context.mark_node(std::make_shared<opset8::Range>(scalar_one, skip_last, scalar_one, element::i64));
     if (!context.input_is_none(2)) {

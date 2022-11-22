@@ -6,9 +6,12 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestGroupNorm(PytorchLayerTest):
-    def _prepare_input(self):
+    def _prepare_input(self, ndim=4):
         import numpy as np
-        return (np.random.randn(20, 6, 10, 10).astype(np.float32),)
+        shape5d = [20, 6, 10, 10, 10]
+        print(ndim)
+        shape = shape5d[:ndim]
+        return (np.random.randn(*shape).astype(np.float32),)
 
     def create_model(self, n_groups, weights_shape=None, bias=False, eps=1e-05):
 
@@ -44,7 +47,12 @@ class TestGroupNorm(PytorchLayerTest):
                               {"n_groups": 2, 'weights_shape': (6,), 'bias': True, 'eps': 0.0},
                               {"n_groups": 2, 'weights_shape': (6,), 'bias': False, 'eps': 0.0001},
                              ])
+    @pytest.mark.parametrize("kwargs_to_prepare_input", [
+        {"ndim": 3},
+        {'ndim': 4},
+        {"ndim": 5}
+    ])
     @pytest.mark.nightly
-    def test_conv2d(self, params, ie_device, precision, ir_version):
+    def test_conv2d(self, params, ie_device, precision, ir_version, kwargs_to_prepare_input):
         self._test(*self.create_model(**params),
-                   ie_device, precision, ir_version)
+                   ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input)
