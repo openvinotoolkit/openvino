@@ -257,6 +257,10 @@ void prepare_primitive_fusing::fuse_activations(program &p) {
                 node.has_fused_primitives())
                 return;
 
+            if (use_onednn_impls && node.get_primitive()->activation_function == cldnn::activation_func::hyperbolic_tan) {
+                return;
+            }
+
             // - limit to primitives which implementations support activation fusing
             if (input.get_users().size() != 1 ||
                 // TODO: new api needs to be created to read such caps
@@ -538,7 +542,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
     bool recalc_processing_order = false;
     std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>> fusing_history;
 
-    const uint8_t supports_immad = p.get_engine().get_device_info().supports_immad;
+    const auto supports_immad = p.get_engine().get_device_info().supports_immad;
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto node_itr = itr++;
@@ -747,6 +751,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fuse_activation_f = [&](activation_node& activation_node) {
+            if (supports_immad && activation_node.get_primitive()->activation_function == cldnn::activation_func::hyperbolic_tan) {
+                return;
+            }
+
             auto& input_data = activation_node.get_dependency(0);
             if (activation_node.get_dependencies().size() >= 3)
                 return;
