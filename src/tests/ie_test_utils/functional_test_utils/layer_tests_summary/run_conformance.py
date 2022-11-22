@@ -246,7 +246,7 @@ class Conformance:
         if not os.path.isdir(logs_dir):
             os.mkdir(logs_dir)
         
-        cmd = f'python3 {gtest_parallel_path}  {conformance_path}{OS_BIN_FILE_EXT} -w {worker_num} -d "{logs_dir}" --gtest_filter=*ie_executable_network* -- ' \
+        cmd = f'python3 {gtest_parallel_path}  {conformance_path}{OS_BIN_FILE_EXT} -w {worker_num} -d "{logs_dir}" --gtest_filter=*ov_compiled_model* -- ' \
             f'--device {self._device} --input_folders "{conformance_filelist_path}" --report_unique_name --output_folder "{parallel_report_dir}"'
         logger.info(f"Stating conformance: {cmd}")
         process = Popen(cmd, shell=True)
