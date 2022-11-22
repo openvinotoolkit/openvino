@@ -111,6 +111,10 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     using namespace ov::pass;
     REGISTER_PASS(manager, RemoveConcatZeroDimInput)
     REGISTER_PASS(manager, Validate)
+    // todo: ticket 96960
+    // the order EliminateDuplicateTIInputs and RemoveMultiSubGraphOpDanglingParams is important
+    // it looks like we need to combine these transformations into one.
+    REGISTER_PASS(manager, EliminateDuplicateTIInputs);
     REGISTER_PASS(manager, RemoveMultiSubGraphOpDanglingParams)
     REGISTER_PASS(manager, FoldSubgraphEmptyInputs)
     REGISTER_PASS(manager, DisableRandomUniformConstantFolding)
@@ -174,7 +178,6 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     ADD_MATCHER(common_fusions, GeluFusion)
     ADD_MATCHER(common_fusions, LeakyReluFusion)
     ADD_MATCHER(common_fusions, RandomUniformFusion)
-    ADD_MATCHER(common_fusions, EliminateDuplicateTIInputs)
     ADD_MATCHER(common_fusions, GRUCellFusion)
     ADD_MATCHER(common_fusions, SequenceFusion)
     ADD_MATCHER(common_fusions, ConvertTensorIteratorToSequence)
