@@ -70,7 +70,7 @@ void jit_dft_kernel_f32<isa>::generate() {
     if (kernel_type_ == complex_to_complex) {
         reg_idx++;
         uni_vpxor(neg_mask, neg_mask, neg_mask);
-        mov(rax, 1L << 63);
+        mov(rax, 1ULL << 63);
         uni_vmovq(neg_mask, rax);
     }
 
