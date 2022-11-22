@@ -55,7 +55,7 @@ public:
     virtual std::shared_ptr<ITensor> get_state() const;
 
 protected:
-    ~IVariableState() = default;
+    ~IVariableState();
 
     std::string name;
     std::shared_ptr<ITensor> state;
