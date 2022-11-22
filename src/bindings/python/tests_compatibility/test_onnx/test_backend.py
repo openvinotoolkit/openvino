@@ -50,7 +50,6 @@ from tests_compatibility import (
     xfail_issue_82039,
     xfail_issue_90649,
     xfail_issue_91151,
-    xfail_issue_91152,
     xfail_issue_91490,
     skip_dynamic_model,
 )
@@ -495,11 +494,6 @@ tests_expected_to_fail = [
         xfail_issue_91151,
         "OnnxBackendNodeModelTest.test_castlike_BFLOAT16_to_FLOAT_cpu",
         "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_cpu",
-    ),
-    (
-        xfail_issue_91152,
-        "OnnxBackendNodeModelTest.test_quantizelinear_cpu",
-        "OnnxBackendNodeModelTest.test_dequantizelinear_cpu",
     ),
     (
         xfail_unsupported_by_legacy_api,
