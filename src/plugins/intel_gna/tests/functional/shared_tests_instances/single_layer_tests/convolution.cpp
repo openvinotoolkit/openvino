@@ -99,7 +99,7 @@ const std::vector<std::vector<size_t >> dilations2D = { {1, 1},
 };
 const std::vector<size_t> numOutCannels2D = { 8, 16, 32};
 
-const std::vector<size_t> numOutCannels2D_to_map = {4, 8, 12};
+const std::vector<size_t> num_out_channels_for_mapped_2d = {4, 8, 12};
 
 const std::vector<size_t> input2DNCHW = { 1, 8, 20, 16 };
 
@@ -135,7 +135,7 @@ const auto conv2DParams_Kernels2D_3x3 = ::testing::Combine(
     ::testing::ValuesIn(padBegins2D),
     ::testing::ValuesIn(padEnds2D),
     ::testing::ValuesIn(dilations2D),
-    ::testing::ValuesIn(numOutCannels2D_to_map),
+    ::testing::ValuesIn(num_out_channels_for_mapped_2d),
     ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 
@@ -145,7 +145,7 @@ const auto conv2DParams_Kernels2D_5x6 = ::testing::Combine(
     ::testing::ValuesIn(padBegins2D),
     ::testing::ValuesIn(padEnds2D),
     ::testing::ValuesIn(dilations2D),
-    ::testing::ValuesIn(numOutCannels2D_to_map),
+    ::testing::ValuesIn(num_out_channels_for_mapped_2d),
     ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 

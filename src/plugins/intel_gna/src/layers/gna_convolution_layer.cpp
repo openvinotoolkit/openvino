@@ -16,7 +16,6 @@
 
 namespace GNAPluginNS {
 namespace GNAConvolutionLayer {
-
 bool should_transpose_h_w(const uint32_t in_height,
                           const uint32_t kernel_height,
                           const uint32_t in_channels,
@@ -28,7 +27,7 @@ bool isMappableFrom2DTo1D(const uint32_t inHeight, const uint32_t inWidth, const
                           const uint32_t kernelHeight, const uint32_t kernelWidth,
                           const uint32_t strideHeight, const uint32_t strideWidth) {
     if (inHeight <= 1 || inWidth <= 1) {
-        // Mapping from 2D-> 1D is only needed if the input is non-trivial 2D
+        // Mapping not needed since input is already 1D
         return false;
     }
     return (inWidth == kernelWidth && strideWidth == 1) ||
