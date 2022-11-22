@@ -10,10 +10,8 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id condition::type_id() {
-    static primitive_type_base<condition> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(condition)
+
 /*
     Calc_output_layout method is called only when output layout is invalidated.
     It means, that it is called when:

@@ -52,21 +52,7 @@ namespace {
         }
         return METRIC_VALUE(FP32);
     }
-
-    std::vector<std::string> supported_configKeys = []() -> decltype(PerfHintsConfig::SupportedKeys()) {
-                    auto res = PerfHintsConfig::SupportedKeys();
-                    res.push_back(ov::device::priorities.name());
-                    res.push_back(ov::enable_profiling.name());
-                    res.push_back(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS);
-                    res.push_back(ov::hint::model_priority.name());
-                    res.push_back(ov::hint::allow_auto_batching.name());
-                    res.push_back(ov::log::level.name());
-                    res.push_back(ov::intel_auto::device_bind_buffer.name());
-                    res.push_back(ov::auto_batch_timeout.name());
-                    return res;
-                }();
 }  // namespace
-
 
 std::mutex MultiDeviceInferencePlugin::_mtx;
 std::map<unsigned int, std::list<std::string>> MultiDeviceInferencePlugin::_priorityMap;
@@ -281,41 +267,11 @@ MultiDeviceInferencePlugin::MultiDeviceInferencePlugin() {
 
 InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::string& name,
                                          const std::map<std::string, InferenceEngine::Parameter> & options) const {
-    auto RO_property = [](const std::string& propertyName) {
-        return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
-    };
-    auto RW_property = [](const std::string& propertyName) {
-        return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
-    };
     if (name == ov::supported_properties) {
-        std::vector<ov::PropertyName> roProperties {RO_property(ov::supported_properties.name()),
-                                                    RO_property(ov::device::full_name.name()),
-                                                    RO_property(ov::device::capabilities.name())
-        };
-        // the whole config is RW before network is loaded.
-        std::vector<ov::PropertyName> rwProperties {RW_property(ov::hint::model_priority.name()),
-                                                    RW_property(ov::log::level.name()),
-                                                    RW_property(ov::device::priorities.name()),
-                                                    RW_property(ov::enable_profiling.name()),
-                                                    RW_property(ov::hint::allow_auto_batching.name()),
-                                                    RW_property(ov::auto_batch_timeout.name()),
-                                                    RW_property(ov::hint::performance_mode.name()),
-                                                    RW_property(ov::hint::num_requests.name()),
-                                                    RW_property(ov::intel_auto::device_bind_buffer.name()),
-                                                    RW_property(ov::cache_dir.name())
-        };
-        std::vector<ov::PropertyName> supportedProperties;
-        supportedProperties.reserve(roProperties.size() + rwProperties.size());
-        supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
-        supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
-        return supportedProperties;
+        auto ret = _pluginConfig.supportedProperties(GetName());
+        return ret;
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        std::vector<std::string> metrics;
-        metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
-        metrics.push_back(METRIC_KEY(FULL_DEVICE_NAME));
-        metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-        metrics.push_back(METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, _pluginConfig.supportedMetrics(GetName()));
     } else if (name == ov::device::full_name) {
         std::string device_name = { GetName() };
         return decltype(ov::device::full_name)::value_type {device_name};
@@ -334,7 +290,7 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
         }
         IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, supported_configKeys);
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, _pluginConfig.supportedConfigKeys(GetName()));
     } else {
         IE_THROW() << "Unsupported metric key: " << name;
     }
@@ -371,11 +327,14 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     _LogTag = GetName();
     auto loadConfig = _pluginConfig;
     // updateFromMap will check config valid
-    loadConfig.UpdateFromMap(config, GetName());
+    loadConfig.UpdateFromMap(config, GetName(), true);
     auto fullConfig = loadConfig._keyConfigMap;
     // Remove the performance hint if no setting to this property from user.
-    if (!loadConfig._isSetPerHint)
+    if (!loadConfig._isSetPerHint) {
         fullConfig.erase(PluginConfigParams::KEY_PERFORMANCE_HINT);
+        // set performance hint to 'THROUGHPUT' model for AutoExecutable Network.
+        loadConfig._perfHintsConfig.SetConfig(PluginConfigParams::KEY_PERFORMANCE_HINT, PluginConfigParams::THROUGHPUT);
+    }
     if (!loadConfig._isSetCacheDir)
         fullConfig.erase(CONFIG_KEY(CACHE_DIR));
     // collect the settings that are applicable to the devices we are loading the network to
@@ -496,40 +455,100 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     std::mutex load_mutex;
     std::vector<Task> loads;
     std::once_flag readNetworkFlag;
+
+    auto loadInferEngTask = [&](DeviceInformation& p) {
+        auto tmpiter = fullConfig.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
+        if (tmpiter != fullConfig.end()) {
+            if (tmpiter->second == PluginConfigParams::NO) {
+                LOG_INFO_TAG("set %s=%s", tmpiter->first.c_str(), tmpiter->second.c_str());
+                multiSContext->_batchingDisabled = true;
+            }
+            p.config.insert({tmpiter->first, tmpiter->second});
+        }
+        insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), p.deviceName, p.config);
+        insertPropToConfig(CONFIG_KEY(CACHE_DIR), p.deviceName, p.config);
+        const auto& deviceName = p.deviceName;
+        const auto& deviceConfig = p.config;
+        SoExecutableNetworkInternal exec_net;
+        LOG_DEBUG_TAG("load network to device:%s", deviceName.c_str());
+        if (modelPath.empty()) {
+            exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
+        } else if (GetCore()->DeviceSupportsImportExport(deviceName)) {
+            exec_net = GetCore()->LoadNetwork(modelPath, deviceName, deviceConfig);
+        } else {
+            std::call_once(readNetworkFlag, [&]() {
+                network = GetCore()->ReadNetwork(modelPath, std::string());
+            });
+            exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
+        }
+
+        try {
+            std::string sStreamNums = "";
+            std::string sThreadNums = "";
+            if (deviceName.find("CPU") != std::string::npos) {
+                sStreamNums = exec_net->GetMetric(ov::num_streams.name()).as<std::string>();
+                sThreadNums = exec_net->GetMetric(ov::inference_num_threads.name()).as<std::string>();
+            } else if (deviceName.find("GPU") != std::string::npos) {
+                sStreamNums = exec_net->GetConfig(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS).as<std::string>();
+                sThreadNums = exec_net->GetConfig(GPUConfigParams::KEY_GPU_MAX_NUM_THREADS).as<std::string>();
+            }
+
+            // print CPU or GPU streams num and threads num
+            if (!sStreamNums.empty() && !sThreadNums.empty()) {
+                LOG_INFO_TAG("after load network, %s streamNums:%s, %s threadNums:%s",
+                             deviceName.c_str(),
+                             sStreamNums.c_str(),
+                             deviceName.c_str(),
+                             sThreadNums.c_str());
+            }
+        } catch (...) {
+            LOG_DEBUG_TAG("deviceName:%s cannot get streamNums and threadNums from exec_net", deviceName.c_str());
+        }
+        std::unique_lock<std::mutex> lock{load_mutex};
+        executableNetworkPerDevice.insert({deviceName, exec_net});
+        multiNetworkConfig.insert(deviceConfig.begin(), deviceConfig.end());
+    };
+
+    // Check if CPU is in device list
+    auto iterCPU = std::find_if(metaDevices.begin(), metaDevices.end(), [&](DeviceInformation& d) {
+        return d.deviceName.find("CPU") != std::string::npos;
+    });
+    // Load devices other than CPU first
     for (auto& p : metaDevices) {
+        if (iterCPU != metaDevices.end() && p.deviceName == iterCPU->deviceName) {
+            continue;
+        }
         loads.push_back([&]() {
-            auto tmpiter = fullConfig.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
-            if (tmpiter != fullConfig.end()) {
-                if (tmpiter->second == PluginConfigParams::NO)
-                    multiSContext->_batchingDisabled = true;
-                p.config.insert({tmpiter->first, tmpiter->second});
-            }
-            insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), p.deviceName, p.config);
-            insertPropToConfig(CONFIG_KEY(CACHE_DIR), p.deviceName, p.config);
-            const auto& deviceName = p.deviceName;
-            const auto& deviceConfig = p.config;
-            SoExecutableNetworkInternal exec_net;
-            if (modelPath.empty()) {
-                exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
-            } else if (GetCore()->DeviceSupportsImportExport(deviceName)) {
-                exec_net = GetCore()->LoadNetwork(modelPath, deviceName, deviceConfig);
-            } else {
-                std::call_once(readNetworkFlag, [&]() {
-                    network = GetCore()->ReadNetwork(modelPath, std::string());
-                });
-                exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
-            }
-            std::unique_lock<std::mutex> lock{load_mutex};
-            executableNetworkPerDevice.insert({deviceName, exec_net});
-            multiNetworkConfig.insert(deviceConfig.begin(), deviceConfig.end());
+            loadInferEngTask(p);
         });
     }
+
     auto executor = executorManager()->getIdleCPUStreamsExecutor(
-            IStreamsExecutor::Config{"MultiDeviceAsyncLoad",
-                                     static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
-                                     0 /*default threads per stream, workaround for ticket 62376*/,
-                                     IStreamsExecutor::ThreadBindingType::NONE});
-    executor->runAndWait(loads);
+        IStreamsExecutor::Config{"MultiDeviceAsyncLoad",
+                                 static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
+                                 0 /*default threads per stream, workaround for ticket 62376*/,
+                                 IStreamsExecutor::ThreadBindingType::NONE});
+    if (loads.size() > 0) {
+        // Wait for the device to load the network
+        executor->runAndWait(loads);
+        loads.clear();
+    }
+
+    // Finally load the CPU
+    if (iterCPU != metaDevices.end()) {
+        if (!executableNetworkPerDevice.empty() && iterCPU->config.find(ov::affinity.name()) == iterCPU->config.end()) {
+            LOG_DEBUG_TAG("set affinity to NUMA and disable hyper thread for CPU");
+            // If the other devices load successfully and no user set affinity then set NUMA to CPU
+            iterCPU->config.insert({ov::affinity.name(), ov::affinity(ov::Affinity::NUMA).second.as<std::string>()});
+            iterCPU->config.insert({CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD), CONFIG_VALUE(NO)});
+        }
+        loads.push_back([&]() {
+            loadInferEngTask(*iterCPU);
+        });
+        // Wait for CPU to load the network
+        executor->runAndWait(loads);
+    }
+
     if (executableNetworkPerDevice.empty())
         IE_THROW(NotFound) << "Failed to load network to any device "
                            <<  "that the " << GetName() << " device is initialized to work with";
@@ -588,7 +607,7 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
 
     auto queryconfig = _pluginConfig;
     // updateFromMap will check config valid
-    queryconfig.UpdateFromMap(config, GetName());
+    queryconfig.UpdateFromMap(config, GetName(), true);
     auto fullConfig = queryconfig._keyConfigMap;
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
     if (priorities->second.empty()) {

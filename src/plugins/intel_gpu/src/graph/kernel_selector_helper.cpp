@@ -8,9 +8,9 @@
 #include "kernel_selector_params.h"
 #include "to_string_utils.h"
 #include "program_node.h"
-#include "serialization/layout_serializer.hpp"
-#include "serialization/string_serializer.hpp"
-#include "serialization/vector_serializer.hpp"
+#include "intel_gpu/graph/serialization/layout_serializer.hpp"
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
+#include "intel_gpu/graph/serialization/vector_serializer.hpp"
 
 #include <string>
 #include <vector>
@@ -421,6 +421,8 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::goizyx;
         case format::giozyx:
             return kernel_selector::weights_layout::giozyx;
+        case format::g_os_iyx_osv8:
+            return kernel_selector::weights_layout::g_os_iyx_osv8;
         case format::g_os_iyx_osv16:
             return kernel_selector::weights_layout::g_os_iyx_osv16;
         case format::g_os_iyx_osv32:
@@ -439,6 +441,10 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::g_is_os_zyx_isv16_osv16;
         case format::g_is_os_yx_isv16_osv16:
             return kernel_selector::weights_layout::g_is_os_yx_isv16_osv16;
+        case cldnn::format::g_os_is_zyx_isa8_osv8_isv2:
+            return kernel_selector::weights_layout::g_os_is_zyx_isa8_osv8_isv2;
+        case cldnn::format::g_os_is_zyx_isa8_osv8_isv4:
+            return kernel_selector::weights_layout::g_os_is_zyx_isa8_osv8_isv4;
         case format::g_os_is_zyx_isv8_osv16_isv2:
             return kernel_selector::weights_layout::g_os_is_zyx_isv8_osv16_isv2;
         case format::g_os_is_yx_isv8_osv16_isv2:
@@ -465,6 +471,14 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::g_os_is_yx_osa2_isa8_osv16_isv2;
         case format::g_os_zyx_is_osv16_isv4:
             return kernel_selector::weights_layout::g_os_zyx_is_osv16_isv4;
+        case format::g_os_zy_is_x_osv8_isv2:
+            return kernel_selector::weights_layout::g_os_zy_is_x_osv8_isv2;
+        case format::g_os_zy_is_x_osv8_isv4:
+            return kernel_selector::weights_layout::g_os_zy_is_x_osv8_isv4;
+        case format::g_os_zyx_is_osv8_isv2:
+            return kernel_selector::weights_layout::g_os_zyx_is_osv8_isv2;
+        case format::g_os_zyx_is_osv8_isv4:
+            return kernel_selector::weights_layout::g_os_zyx_is_osv8_isv4;
         case format::g_os_zyx_is_osv16_isv16:
             return kernel_selector::weights_layout::g_os_zyx_is_osv16_isv16;
         case format::g_os_zyx_is_osv16_isv32:
@@ -581,6 +595,10 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::g_os_is_yx_osa4_isa8_osv8_isv4;
         case kernel_selector::weights_layout::g_os_is_zyx_osa4_isa8_osv8_isv4:
             return cldnn::format::g_os_is_zyx_osa4_isa8_osv8_isv4;
+        case kernel_selector::weights_layout::g_os_is_zyx_isa8_osv8_isv2:
+            return cldnn::format::g_os_is_zyx_isa8_osv8_isv2;
+        case kernel_selector::weights_layout::g_os_is_zyx_isa8_osv8_isv4:
+            return cldnn::format::g_os_is_zyx_isa8_osv8_isv4;
         case kernel_selector::weights_layout::g_os_is_zyx_osa4_isa8_osv8_isv2:
             return cldnn::format::g_os_is_zyx_osa4_isa8_osv8_isv2;
         case kernel_selector::weights_layout::g_os_is_yx_osv8_isv2:
@@ -675,6 +693,8 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::goiyx;
         case kernel_selector::weights_layout::goizyx:
             return cldnn::format::goizyx;
+        case kernel_selector::weights_layout::g_os_iyx_osv8:
+            return cldnn::format::g_os_iyx_osv8;
         case kernel_selector::weights_layout::g_os_iyx_osv16:
             return cldnn::format::g_os_iyx_osv16;
         case kernel_selector::weights_layout::g_os_iyx_osv32:
@@ -711,6 +731,14 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::g_os_is_zyx_osv16_isv16;
         case kernel_selector::weights_layout::g_os_zyx_is_osv16_isv4:
             return cldnn::format::g_os_zyx_is_osv16_isv4;
+        case kernel_selector::weights_layout::g_os_zy_is_x_osv8_isv2:
+            return cldnn::format::g_os_zy_is_x_osv8_isv2;
+        case kernel_selector::weights_layout::g_os_zy_is_x_osv8_isv4:
+            return cldnn::format::g_os_zy_is_x_osv8_isv4;
+        case kernel_selector::weights_layout::g_os_zyx_is_osv8_isv2:
+            return cldnn::format::g_os_zyx_is_osv8_isv2;
+        case kernel_selector::weights_layout::g_os_zyx_is_osv8_isv4:
+            return cldnn::format::g_os_zyx_is_osv8_isv4;
         case kernel_selector::weights_layout::g_os_zyx_is_osv16_isv16:
             return cldnn::format::g_os_zyx_is_osv16_isv16;
         case kernel_selector::weights_layout::g_os_zyx_is_osv16_isv32:
@@ -810,7 +838,17 @@ kernel_selector::tuning_mode to_tuning_mode(cldnn::tuning_mode mode) {
 
 kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split, const tensor view_offset) {
     const auto& pad = l.data_padding;
-    const auto& vals = l.get_tensor().sizes(l.format);
+    const auto& vals_original = l.get_partial_shape();
+
+    // legacy get_tensor().sizes() impl return dims in external order, so we need to transpose dims
+    ov::PartialShape vals_ordered;
+    auto axis_order = format::traits(l.format)._order;
+    for (size_t i = 0; i < axis_order.size(); i++) {
+        if (axis_order[i] >= vals_original.size())
+            vals_ordered.push_back(ov::Dimension(1));
+        else
+            vals_ordered.push_back(vals_original[axis_order[i]]);
+    }
     const auto& add_offsets = view_offset.sizes(l.format);
     const auto& lower_pad = pad.lower_size().sizes(l.format);
     const auto& upper_pad = pad.upper_size().sizes(l.format);
@@ -818,44 +856,22 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split
     kernel_selector::n_dims vec(kernel_selector::DataTensor::ChannelsCount(ks_layout));
 
     size_t pitch = 1;
-    auto new_vals = vals;
-
-    if (ks_layout == kernel_selector::Tensor::b_fs_yx_fsv32) {
-        new_vals[1] = align_to(vals[1], 32);
-    }
-    if (ks_layout == kernel_selector::Tensor::bs_fs_yx_bsv16_fsv16) {
-        new_vals[0] = align_to(vals[0], 16);
-        new_vals[1] = align_to(vals[1], 16);
-    }
-    if (ks_layout == kernel_selector::Tensor::bs_fs_zyx_bsv16_fsv16) {
-        new_vals[0] = align_to(vals[0], 16);
-        new_vals[1] = align_to(vals[1], 16);
-    }
-
     for (size_t i = 0; i < vec.size(); i++) {
         const size_t tensor_index = vec.size() - 1 - i;
-        const auto d = vals[tensor_index];
+        const auto d = tensor_index < vals_ordered.size() ? vals_ordered[tensor_index] : ov::Dimension(1);
         const auto lp = lower_pad[tensor_index] + add_offsets[tensor_index];
         const auto up = upper_pad[tensor_index];
         // tells us how many elements are reserved in memory for this tensor index
-        const auto reserved_in_mem_count = new_vals[tensor_index] - add_offsets[tensor_index];
+        const auto reserved_in_mem_count = d.is_dynamic() ? 0 : d.get_length() - add_offsets[tensor_index];
 
         auto& elm = vec[i];
-        elm.v = static_cast<size_t>(d - add_offsets[tensor_index]);
+        elm.v = d.is_dynamic() ? 0 : static_cast<size_t>(d.get_length() - add_offsets[tensor_index]);
         elm.pitch = pitch;
         elm.pad.before = lp;
         elm.pad.after = up;
+        elm.is_dynamic = d.is_dynamic();
 
         pitch *= (reserved_in_mem_count + lp + up);
-    }
-
-    if (ks_layout == kernel_selector::Tensor::bs_fs_yx_bsv16_fsv16) {
-        vec[2].pitch = (vec[0].v * vec[1].v) * 16;
-        vec[3].pitch = vec[2].pitch * vec[2].LogicalDimPadded();
-    }
-    if (ks_layout == kernel_selector::Tensor::bs_fs_zyx_bsv16_fsv16) {
-        vec[3].pitch = (vec[0].v * vec[1].v * vec[2].v) * 16;
-        vec[4].pitch = vec[3].pitch * vec[3].LogicalDimPadded();
     }
 
     const int feature_index =

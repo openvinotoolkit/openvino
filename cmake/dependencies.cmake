@@ -86,6 +86,18 @@ function(ov_download_tbb)
         set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
     endif()
 
+    if (NOT DEFINED ENV{TBBROOT} AND (DEFINED ENV{TBB_DIR} OR DEFINED TBB_DIR))
+        if (DEFINED ENV{TBB_DIR})
+            set(TEMP_ROOT $ENV{TBB_DIR})
+        elseif (DEFINED TBB_DIR)
+            set(TEMP_ROOT ${TBB_DIR})
+        endif()
+        while(NOT EXISTS "${TEMP_ROOT}/include")
+            get_filename_component(TEMP_ROOT ${TEMP_ROOT} PATH)
+        endwhile()
+        set(TBBROOT ${TEMP_ROOT})
+    endif()
+
     if(WIN32 AND X86_64)
         # TODO: add target_path to be platform specific as well, to avoid following if
         RESOLVE_DEPENDENCY(TBB
@@ -102,10 +114,11 @@ function(ov_download_tbb)
                 SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce")
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "tbb2020_20200415_lin_strip.tgz"
+                ARCHIVE_LIN "tbb2020_617e9a71_lin_strip.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
+                SHA256 "e7a38f68059fb36de8b59d40b283a849f26275e34a58d2acadfdb84d49e31b9b"
+                USE_NEW_LOCATION TRUE)
     elseif(YOCTO_AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "keembay/tbb2020_38404_kmb_lic.tgz"
@@ -114,10 +127,11 @@ function(ov_download_tbb)
                 SHA256 "321261ff2eda6d4568a473cb883262bce77a93dac599f7bd65d2918bdee4d75b")
     elseif(APPLE AND X86_64)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_MAC "tbb2020_20200404_mac.tgz"
+                ARCHIVE_MAC "tbb2020_617e9a71_mac.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "ad9cf52e657660058aa6c6844914bc0fc66241fec89a392d8b79a7ff69c3c7f6")
+                SHA256 "67a44b695bef3348416eaf5bf2baca2b1401576c0e09c394304eba1e0eee96cd"
+                USE_NEW_LOCATION TRUE)
     else()
         message(WARNING "Prebuilt TBB is not available on current platform")
     endif()

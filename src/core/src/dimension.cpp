@@ -8,6 +8,7 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
+#include <openvino/util/common_util.hpp>
 #include <sstream>
 
 #include "dimension_tracker.hpp"
@@ -40,6 +41,23 @@ size_t merge_labels(const size_t label_a, const size_t label_b, bool merge_unequ
         return ov::no_label;
 }
 
+int64_t stringToInt64(const std::string& valStr) {
+    int64_t ret{0};
+    std::istringstream ss(valStr);
+    if (!ss.eof()) {
+        ss >> ret;
+    }
+    return ret;
+}
+
+bool check_all_digits(const std::string& value) {
+    auto val = ov::util::trim(value);
+    for (const auto& c : val) {
+        if (!std::isdigit(c) || c == '-')
+            return false;
+    }
+    return true;
+}
 Dimension::value_type dimension_length(Interval::value_type vt) {
     return vt == Interval::s_max ? -1 : vt;
 }
@@ -66,6 +84,48 @@ Dimension::Dimension(value_type dimension)
 
 Dimension::Dimension(value_type min_dimension, value_type max_dimension)
     : m_dimension(min_dimension == -1 ? 0 : min_dimension, max_dimension == -1 ? Interval::s_max : max_dimension) {}
+
+Dimension::Dimension(const std::string& value) {
+    auto val = ov::util::trim(value);
+    if (val == "?" || val == "-1") {
+        m_dimension = {0, Interval::s_max};
+        return;
+    }
+    if (val.find("..") == std::string::npos) {
+        OPENVINO_ASSERT(check_all_digits(val), "Cannot parse dimension: \"" + val + "\"");
+        m_dimension = {stringToInt64(val)};
+        return;
+    }
+
+    std::string min_value_str = val.substr(0, val.find(".."));
+    min_value_str = ov::util::trim(min_value_str);
+
+    int64_t min_value;
+    if (min_value_str.empty())
+        min_value = 0;
+    else {
+        OPENVINO_ASSERT(check_all_digits(min_value_str), "Cannot parse min bound: \"" + min_value_str + "\"");
+        min_value = stringToInt64(min_value_str);
+    }
+
+    std::string max_value_str = val.substr(val.find("..") + 2);
+    max_value_str = ov::util::trim(max_value_str);
+
+    int64_t max_value;
+    if (max_value_str.empty())
+        max_value = Interval::s_max;
+    else {
+        OPENVINO_ASSERT(check_all_digits(max_value_str), "Cannot parse max bound: \"" + max_value_str + "\"");
+        max_value = stringToInt64(max_value_str);
+    }
+    m_dimension = Interval(min_value, max_value);
+}
+
+std::string Dimension::to_string() const {
+    std::stringstream dim_str_stream;
+    dim_str_stream << Dimension(m_dimension);
+    return dim_str_stream.str();
+}
 
 Dimension Dimension::operator+(const Dimension& dim) const {
     if (dim.m_dimension == 0)
