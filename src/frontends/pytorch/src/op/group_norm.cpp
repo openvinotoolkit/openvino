@@ -14,26 +14,21 @@ namespace op {
 OutputVector translate_group_norm(NodeContext& context) {
     auto data = context.get_input(0);
     auto num_groups = context.const_input<int64_t>(1);
+    // input 2 - weights and input 3 - bias are optional without default value, we handle them later
     auto eps = context.const_input<double>(4);
     auto input_shape = context.mark_node(std::make_shared<opset8::ShapeOf>(data, element::i64));
+    auto scalar_one = context.mark_node(opset8::Constant::create(element::i64, {}, {1}));
     auto shape = context.mark_node(
         std::make_shared<opset8::Constant>(element::i64, Shape({3}), std::vector<int64_t>{0, num_groups, -1}));
     auto reshaped_input = context.mark_node(std::make_shared<opset8::Reshape>(data, shape, true));
-    auto value_shape = context.mark_node(std::make_shared<opset8::ShapeOf>(reshaped_input, element::i64));
-    const auto reduction_axes = std::make_shared<opset8::Range>(
-        opset8::Constant::create(element::i64, {}, {2}),
-        std::make_shared<opset8::Squeeze>(std::make_shared<opset8::ShapeOf>(value_shape, element::i64)),
-        opset8::Constant::create(element::i64, {}, {1}),
-        element::i64);
+    auto reduction_axes = context.mark_node(opset8::Constant::create(element::i64, Shape({1}), std::vector<int64_t>(1, 2)));
     auto reshaped_norm = context.mark_node(
         std::make_shared<opset8::MVN>(reshaped_input, reduction_axes, true, eps, ov::op::MVNEpsMode::INSIDE_SQRT));
     auto norm = context.mark_node(std::make_shared<opset8::Reshape>(reshaped_norm, input_shape, true));
-    auto input_rank = std::make_shared<opset8::Squeeze>(std::make_shared<opset8::ShapeOf>(input_shape, element::i64));
-    auto skip_last = std::make_shared<opset8::Subtract>(input_rank, opset8::Constant::create(element::i64, {}, {1}));
-    auto axes = std::make_shared<opset8::Range>(opset8::Constant::create(element::i64, {}, {1}),
-                                                skip_last,
-                                                opset8::Constant::create(element::i64, {}, {1}),
-                                                element::i64);
+    auto input_rank = context.mark_node(std::make_shared<opset8::ShapeOf>(input_shape, element::i64));
+    auto input_rank = context.mark_node(std::make_shared<opset8::Squeeze>(input_rank));
+    auto skip_last = context.mark_node(std::make_shared<opset8::Subtract>(input_rank, scalar_one));
+    auto axes = context.mark_node(std::make_shared<opset8::Range>(scalar_one, skip_last, scalar_one, element::i64));
     if (!context.input_is_none(2)) {
         auto weights = context.get_input(2);
         weights = context.mark_node(std::make_shared<opset8::Unsqueeze>(weights, axes));
