@@ -328,8 +328,8 @@ TEST_P(OVExecutableNetworkBaseTest, canExport) {
     std::ofstream out(modelName, std::ios::out);
     EXPECT_NO_THROW(execNet.export_model(out));
     out.close();
-    EXPECT_TRUE(CommonTestUtils::fileExists(modelName + ".blob"));
-    CommonTestUtils::removeFile(modelName + ".blob");
+    EXPECT_TRUE(CommonTestUtils::fileExists(modelName));
+    CommonTestUtils::removeFile(modelName);
 }
 
 TEST_P(OVExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {

@@ -246,7 +246,7 @@ class Conformance:
         if not os.path.isdir(logs_dir):
             os.mkdir(logs_dir)
         
-        cmd = f'python3 {gtest_parallel_path}  {conformance_path}{OS_BIN_FILE_EXT} -w {worker_num} -d "{logs_dir}" -- ' \
+        cmd = f'python3 {gtest_parallel_path}  {conformance_path}{OS_BIN_FILE_EXT} -w {worker_num} -d "{logs_dir}" --gtest_filter=*ie_executable_network* -- ' \
             f'--device {self._device} --input_folders "{conformance_filelist_path}" --report_unique_name --output_folder "{parallel_report_dir}"'
         logger.info(f"Stating conformance: {cmd}")
         process = Popen(cmd, shell=True)
@@ -296,7 +296,8 @@ class Conformance:
             logger.error(f"Directory {self._model_path} does not exist")
             exit(-1)
         xml_report, report_dir = self.run_conformance()
-        self.summarize(xml_report, report_dir)
+        if self._type == "OP":
+            self.summarize(xml_report, report_dir)
         
 if __name__ == "__main__":
     args = parse_arguments()

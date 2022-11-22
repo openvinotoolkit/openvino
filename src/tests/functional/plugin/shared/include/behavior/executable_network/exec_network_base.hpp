@@ -284,8 +284,8 @@ TEST_P(ExecutableNetworkBaseTest, canExport) {
     std::string modelName = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + ts;
     auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     ASSERT_NO_THROW(execNet.Export(modelName));
-    ASSERT_TRUE(CommonTestUtils::fileExists(modelName + ".blob"));
-    CommonTestUtils::removeFile(modelName + ".blob");
+    ASSERT_TRUE(CommonTestUtils::fileExists(modelName));
+    CommonTestUtils::removeFile(modelName);
 }
 
 TEST_P(ExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
