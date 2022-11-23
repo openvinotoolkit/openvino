@@ -12,12 +12,6 @@ namespace ov {
 namespace intel_gna {
 namespace pass {
 
-class GatherIESubstitute : public ngraph::pass::MatcherPass {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    GatherIESubstitute();
-};
-
 class GatherRemove : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;

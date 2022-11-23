@@ -64,7 +64,6 @@ private:
 
 NGRAPH_RTTI_DEFINITION(GatherResultRemove, "GatherResultRemove", 0);
 NGRAPH_RTTI_DEFINITION(GatherParamsRemove, "GatherParamsRemove", 0);
-NGRAPH_RTTI_DEFINITION(GatherIESubstitute, "GatherIESubstitute", 0);
 NGRAPH_RTTI_DEFINITION(GatherRemove, "GatherRemove", 0);
 
 namespace {
@@ -137,34 +136,6 @@ GatherResultRemove::GatherResultRemove(SubgraphCPUMap * subgraph_cpu_map)
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(result, matcher_name);
-    this->register_matcher(m, callback);
-}
-
-GatherIESubstitute::GatherIESubstitute() {
-    MATCHER_SCOPE(GatherIESubstitute);
-
-    auto gather = ngraph::pattern::wrap_type<ngraph::op::GatherIE>();
-
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-        auto gather_node = ov::as_type_ptr<ngraph::op::GatherIE>(pattern_map.at(gather).get_node_shared_ptr());
-
-        auto node_parent = gather_node->get_input_node_shared_ptr(0);
-
-        const int64_t gather_axis = gather_node->get_axis();
-        auto gather_indexes_node = gather_node->get_input_node_shared_ptr(1);
-
-        auto gather_axis_node = ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape{}, {gather_axis});
-        auto new_gather_node = std::make_shared<ngraph::opset9::Gather>(node_parent,
-                                                                        gather_indexes_node,
-                                                                        gather_axis_node);
-        ov::replace_node(gather_node, new_gather_node);
-        SwapNames(gather_node, new_gather_node);
-
-        return true;
-    };
-
-    auto m = std::make_shared<ngraph::pattern::Matcher>(gather, matcher_name);
     this->register_matcher(m, callback);
 }
 
