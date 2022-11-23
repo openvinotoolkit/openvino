@@ -143,7 +143,6 @@ def parse_input_output_precision(arg_map: str):
 
 
 def print_inputs_and_outputs_info(model: Model):
-
     inputs = model.inputs
     logger.info("Model inputs:")
     for input in inputs:
@@ -154,7 +153,7 @@ def print_inputs_and_outputs_info(model: Model):
         if node_name=="": node_name = "***NO_NAME***"
 
         logger.info(f"    {in_name} (node: {node_name}) : {input.element_type.get_type_name()} / "
-                    f"{str(input.node.layout)} / {'{'}{','.join(str(x) for x in input.partial_shape)}{'}'}")
+                    f"{str(input.node.layout)} / {input.partial_shape}")
 
     outputs = model.outputs
     logger.info("Model outputs:")
@@ -166,7 +165,7 @@ def print_inputs_and_outputs_info(model: Model):
         if node_name=="": node_name = "***NO_NAME***"
 
         logger.info(f"    {out_name} (node: {node_name}) : {output.element_type.get_type_name()} / "
-                    f"{str(output.node.layout)} / {'{'}{','.join(str(x) for x in output.partial_shape)}{'}'}")
+                    f"{str(output.node.layout)} / {output.partial_shape}")
 
 
 def get_number_iterations(number_iterations: int, nireq: int, num_shapes: int, api_type: str):
