@@ -82,9 +82,7 @@ void shape_infer(const StridedSlice* op,
     auto number_axes = number_elements_in_1d(op, begin_shape);
     auto end_number_axes = number_elements_in_1d(op, end_shape);
     if (number_axes != -1 && end_number_axes != -1) {
-        NODE_VALIDATION_CHECK(op,
-                              number_axes == end_number_axes,
-                              "Lower bounds and Upper bounds need to have same number of values");
+        NODE_VALIDATION_CHECK(op, number_axes == end_number_axes, "Begin and end need to have same number of values.");
     } else if (end_number_axes != -1) {
         number_axes = end_number_axes;
     }
@@ -92,7 +90,7 @@ void shape_infer(const StridedSlice* op,
     if (number_axes != -1 && strides_number_axes != -1) {
         NODE_VALIDATION_CHECK(op,
                               number_axes == strides_number_axes,
-                              "Stride needs to have same number of values as Lower and Upper bounds");
+                              "Stride needs to have same number of values as begin and end.");
     } else if (strides_number_axes != -1) {
         number_axes = strides_number_axes;
     }
@@ -132,7 +130,7 @@ void shape_infer(const StridedSlice* op,
             // only one bit in ellipsis mask is allowed
             int num_new_axis_after_ellipses = 0;
             int num_input_axis_before_ellipses = 0;
-            for (size_t i = 0; i < axis; ++i) {
+            for (int64_t i = 0; i < axis; ++i) {
                 if (!new_axis_mask.count(i)) {
                     num_input_axis_before_ellipses++;
                 }
@@ -165,7 +163,7 @@ void shape_infer(const StridedSlice* op,
                 const int64_t ub0 = end[axis];
                 // set default value for stride or use given value
                 int64_t stride = 1;
-                if (strides.size() > axis) {
+                if (strides.size() > static_cast<size_t>(axis)) {
                     stride = strides[axis];
                 }
                 NODE_VALIDATION_CHECK(op, stride != 0, "Stride must be non-zero");
@@ -243,9 +241,9 @@ void shape_infer(const StridedSlice* op,
             } else {
                 if (input_shape[input_shape_idx].is_static()) {
                     auto dim_value = input_shape[input_shape_idx].get_length();
-                    dims.emplace_back(ov::Dimension(0, dim_value));
+                    dims.emplace_back(DimType(0, dim_value));
                 } else {
-                    dims.emplace_back(input_shape[input_shape_idx]);
+                    dims.emplace_back(DimType(-1));
                 }
 
                 input_shape_idx++;

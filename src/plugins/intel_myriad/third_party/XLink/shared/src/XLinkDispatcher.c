@@ -746,7 +746,11 @@ static void* eventSchedulerRun(void* ctx)
     }
 #ifndef __APPLE__
     char eventReaderThreadName[MVLOG_MAXIMUM_THREAD_NAME_SIZE];
-    snprintf(eventReaderThreadName, sizeof(eventReaderThreadName), "EventRead%.2dThr", schedulerId);
+    int ret = snprintf(eventReaderThreadName, sizeof(eventReaderThreadName), "EventRead%.2dThr", schedulerId);
+    if (ret < 0) {
+        perror("Cannot set event reader name");
+        return NULL;
+    }
     sc = pthread_setname_np(readerThreadId, eventReaderThreadName);
     if (sc != 0) {
         perror("Setting name for event reader thread failed");

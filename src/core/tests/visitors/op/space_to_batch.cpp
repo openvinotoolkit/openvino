@@ -22,7 +22,8 @@ TEST(attributes, space_to_batch_op) {
     auto pads_end = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 0});
     auto op = make_shared<SpaceToBatch>(data, block_shape, pads_begin, pads_end);
 
-    NodeBuilder builder(op);
+    NodeBuilder builder(op, {data, block_shape, pads_begin, pads_end});
+    EXPECT_NO_THROW(auto g_op = ov::as_type_ptr<SpaceToBatch>(builder.create()));
     const auto expected_attr_count = 0;
 
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

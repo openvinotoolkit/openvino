@@ -119,7 +119,7 @@ void StatisticsReport::dump_sort_performance_counters_request(CsvDumper& dumper,
     dumper.endLine();
 
     for (const auto& layer : perfCounts) {
-        if (status_names[(int)layer.status] == "EXECUTED") {
+        if (std::string(status_names[(int)layer.status]).compare("EXECUTED") == 0) {
             total += layer.real_time;
             total_cpu += layer.cpu_time;
         }
@@ -129,7 +129,7 @@ void StatisticsReport::dump_sort_performance_counters_request(CsvDumper& dumper,
     std::vector<ov::ProfilingInfo> profiling{std::begin(perfCounts), std::end(perfCounts)};
     std::sort(profiling.begin(), profiling.end(), sort_profiling_descend);
     for (const auto& layer : profiling) {
-        if (status_names[(int)layer.status] == "EXECUTED") {
+        if (std::string(status_names[(int)layer.status]).compare("EXECUTED") == 0) {
             dumper << layer.node_name;  // layer name
             dumper << ((int)layer.status < (sizeof(status_names) / sizeof(status_names[0]))
                            ? status_names[(int)layer.status]
@@ -345,15 +345,13 @@ void LatencyMetrics::write_to_stream(std::ostream& stream) const {
 
 void LatencyMetrics::write_to_slog() const {
     std::string percentileStr = (percentile_boundary == 50)
-                                    ? "\tMedian:     "
-                                    : "\t" + std::to_string(percentile_boundary) + " percentile:    ";
-    if (!data_shape.empty()) {
-        slog::info << "\tData shape: " << data_shape << slog::endl;
-    }
+                                    ? "   Median:     "
+                                    : "   " + std::to_string(percentile_boundary) + " percentile:     ";
+
     slog::info << percentileStr << double_to_string(median_or_percentile) << " ms" << slog::endl;
-    slog::info << "\tAverage:    " << double_to_string(avg) << " ms" << slog::endl;
-    slog::info << "\tMin:        " << double_to_string(min) << " ms" << slog::endl;
-    slog::info << "\tMax:        " << double_to_string(max) << " ms" << slog::endl;
+    slog::info << "   Average:    " << double_to_string(avg) << " ms" << slog::endl;
+    slog::info << "   Min:        " << double_to_string(min) << " ms" << slog::endl;
+    slog::info << "   Max:        " << double_to_string(max) << " ms" << slog::endl;
 }
 
 const nlohmann::json LatencyMetrics::to_json() const {

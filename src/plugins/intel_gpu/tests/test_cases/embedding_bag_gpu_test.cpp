@@ -72,7 +72,7 @@ TEST(embedding_bag_fp16_gpu, packed_sum_basic) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], float16_to_float32(output_ptr[i]))) << i;
+        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -125,7 +125,7 @@ TEST(embedding_bag_fp16_gpu, packed_sum_basic_without_weights) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], float16_to_float32(output_ptr[i]))) << i;
+        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -219,7 +219,7 @@ TEST(embedding_bag_fp16_gpu, packed_sum_dim2) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], float16_to_float32(output_ptr[i]), static_cast<float>(1e-2))) << i;
+        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]), static_cast<float>(1e-2))) << i;
     }
 }
 
@@ -360,7 +360,7 @@ TEST(embedding_bag_fp16_gpu, packed_sum_dim3) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], float16_to_float32(output_ptr[i]), static_cast<float>(1e-2))) << i;
+        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]), static_cast<float>(1e-2))) << i;
     }
 }
 
@@ -424,7 +424,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], float16_to_float32(output_ptr[i]))) << i;
+        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -489,7 +489,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic_first_empty) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], float16_to_float32(output_ptr[i]))) << i;
+        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -554,7 +554,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic_last_empty) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], float16_to_float32(output_ptr[i]))) << i;
+        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -612,7 +612,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_without_weights_and_def_index) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], float16_to_float32(output_ptr[i]))) << i;
+        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -758,7 +758,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_dim3) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], float16_to_float32(output_ptr[i]), static_cast<float>(1e-2))) << i;
+        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]), static_cast<float>(1e-2))) << i;
     }
 }
 
@@ -823,7 +823,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], float16_to_float32(output_ptr[i]))) << i;
+        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -888,7 +888,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_first_empty) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], float16_to_float32(output_ptr[i]))) << i;
+        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -953,7 +953,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_last_empty) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], float16_to_float32(output_ptr[i]))) << i;
+        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -1011,7 +1011,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_without_weights_and_def_index) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], float16_to_float32(output_ptr[i]))) << i;
+        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -1157,7 +1157,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_dim3) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], float16_to_float32(output_ptr[i]), static_cast<float>(1e-2))) << i;
+        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]), static_cast<float>(1e-2))) << i;
     }
 }
 
@@ -1363,7 +1363,8 @@ TEST(embedding_bag_fp32_gpu, packed_sum_dim3) {
     }
 }
 
-TEST(embedding_bag_fp32_gpu, extended5_6) {
+template <typename T>
+void test_embedding_bag_fp32_gpu_extended5_6(bool is_caching_test) {
     //  emb_table : 5x2
     //  indices : 3x2
     //  per_sample_weights : 3x2
@@ -1395,18 +1396,35 @@ TEST(embedding_bag_fp32_gpu, extended5_6) {
             embedding_bag("embedding_bag", {"Input0", "Input1", "Input2"}, type, output_shape)
     );
 
-    network network(engine, topology);
+    cldnn::network::ptr network;
 
-    network.set_input_data("Input0", emb_table);
-    network.set_input_data("Input1", indices);
-    network.set_input_data("Input2", segment_ids);
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology);
+    }
 
-    auto outputs = network.execute();
+    network->set_input_data("Input0", emb_table);
+    network->set_input_data("Input1", indices);
+    network->set_input_data("Input2", segment_ids);
+
+    auto outputs = network->execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
-    std::vector<float> expected_results = {
+    std::vector<T> expected_results = {
             0, 8, 15,  15, 9,  7,
             0, 0, 0, 0, 0,  0,
             18, 0, 0,  10, 14,  0,
@@ -1417,4 +1435,12 @@ TEST(embedding_bag_fp32_gpu, extended5_6) {
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_TRUE(are_equal(expected_results[i], output_ptr[i])) << i;
     }
+}
+
+TEST(embedding_bag_fp32_gpu, extended5_6) {
+    test_embedding_bag_fp32_gpu_extended5_6<float>(false);
+}
+
+TEST(export_import_embedding_bag_fp32_gpu, extended5_6) {
+    test_embedding_bag_fp32_gpu_extended5_6<float>(true);
 }

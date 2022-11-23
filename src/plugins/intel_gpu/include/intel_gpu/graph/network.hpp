@@ -6,11 +6,13 @@
 
 #include "intel_gpu/graph/topology.hpp"
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/compounds.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/stream.hpp"
+#include "intel_gpu/runtime/lru_cache.hpp"
 
 #include <map>
 #include <vector>
@@ -78,8 +80,11 @@ public:
 
     network(program::ptr program, stream::ptr stream, uint16_t stream_id);
 
+    network(cldnn::BinaryInputBuffer& ifs, stream::ptr stream, engine& engine, uint16_t stream_id = 0);
+
     ~network();
 
+    void save(cldnn::BinaryOutputBuffer& ob);
 
     static ptr build_network(engine& engine,
                              const topology& topology,
@@ -101,7 +106,7 @@ public:
                                 bool is_primary_stream = false);
     program::cptr get_program() const { return _program; }
     program::ptr get_program() { return _program; }
-    engine& get_engine() const { return _program->get_engine(); }
+    engine& get_engine() const { return _engine; }
 
     void reset_execution(bool wait = true);
     void set_input_data(const primitive_id& id, memory::ptr data);
@@ -122,6 +127,8 @@ public:
 
     memory::ptr get_output_memory(const primitive_id& output_id);
     layout get_node_output_layout(const primitive_id& output_id) const;
+    layout get_output_layout(const primitive_id& output_id) const;
+    std::vector<layout> get_input_layouts() const;
 
     /// @brief Returns the list of primitive ids before and after graph optimization.
     /// @details If primitive was not optimized, the old and actual id will be the same.
@@ -216,10 +223,20 @@ public:
     /// Returns memory state @p variable_id of stateful network
     VariableState& get_variable_memory(const std::string &variable_id);
 
+    /// Return kernels_cache
+    kernels_cache& get_kernels_cache() const { return *_kernels_cache; }
+
+    /// Return implentations_cache
+    ImplementationsCache& get_implementations_cache() const { return *_impls_cache; }
+
+    /// Return in_mem_kernels_cache
+    KernelsCache& get_in_mem_kernels_cache() const { return *_in_mem_kernels_cache; }
+
 private:
     using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;
     uint32_t net_id = 0;
     program::ptr _program;
+    engine& _engine;
     stream::ptr _stream;
     std::unique_ptr<memory_pool> _memory_pool;
     bool _internal;
@@ -248,5 +265,13 @@ private:
     void check_names();
     void add_default_output_chains();
     output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
+
+    std::unique_ptr<kernels_cache> _kernels_cache;
+    // Move from cldnn::program to cldnn::network for multi-threads issue.
+    std::unique_ptr<ImplementationsCache> _impls_cache;
+    std::unique_ptr<KernelsCache> _in_mem_kernels_cache;
+    // TODO: initial version use unlimited caches. Need to adjust it once dynamic flow works on wide set of models.
+    const size_t _impls_cache_capacity = 0;
+    const size_t _in_mem_kernels_cache_capacity = 0;
 };
 }  // namespace cldnn

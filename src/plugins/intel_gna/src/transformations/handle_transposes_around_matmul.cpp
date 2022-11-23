@@ -13,7 +13,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ie/ie_common.h>
 
-#include "gna_plugin_log.hpp"
 #include "backend/gna_limitations.hpp"
 
 using namespace ov::intel_gna::pass;
@@ -73,7 +72,7 @@ void InsertTranspose(std::shared_ptr<ngraph::Node> prev_node, const std::string&
 
     ngraph::copy_runtime_info(prev_node, new_ops);
 
-    for (auto input : consumers) {
+    for (auto& input : consumers) {
         input.replace_source_output(node);
     }
 }

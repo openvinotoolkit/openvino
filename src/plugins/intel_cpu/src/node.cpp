@@ -60,6 +60,8 @@
 #include "nodes/common/cpu_convert.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include <common/primitive_desc.hpp>
+#include <common/primitive_desc_iface.hpp>
 
 using namespace dnnl;
 using namespace openvino;
@@ -528,6 +530,13 @@ void Node::executeDynamic(dnnl::stream strm) {
             DEBUG_LOG(" prepareParams() on #", getExecIndex(), " ", getTypeStr(), " ", algToString(getAlgorithm()),
                       " ", getName(), " ", getOriginalLayers());
             prepareParams();
+#ifdef CPU_DEBUG_CAPS
+            if (prim) {
+                auto pd_c = (*prim).get_primitive_desc();
+                auto* pd = reinterpret_cast<const dnnl_primitive_desc*>(pd_c);
+                DEBUG_LOG("verbose##", getName(), "##", pd->info(), "\n");
+            }
+#endif
         }
         executeDynamicImpl(strm);
     }
@@ -741,7 +750,8 @@ void Node::prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs) {
     }
 
     if (internalBlobs.size() != intDescs.size()) {
-        IE_THROW() << "Can't prepare memory for internal blob, internal blobs and internal descs number do not match";
+        IE_THROW() << "Can't prepare memory for internal blob, internal blob and internal descs number do not match "
+                   << internalBlobs.size() << " vs " << intDescs.size();
     }
 
     internalBlobMemory.clear();
@@ -1091,29 +1101,9 @@ void Node::setDynamicBatchLim(int lim) {
 
 void Node::appendPostOpArgs(const dnnl::primitive_attr& attr,
                                   std::unordered_map<int, dnnl::memory>& primArgs,
-                                  const std::vector<MemoryPtr>& postOpsArgs) {
-    constexpr size_t maxPrimArgsCapacity = 32;
-    auto post_ops = attr.get_post_ops();
-    int idx = 0;
-    for (int i = 0; i < post_ops.len(); i++) {
-        if (one_of(post_ops.kind(i), dnnl::primitive::kind::binary, dnnl::primitive::kind::depthwise, dnnl::primitive::kind::quantization)) {
-            if (idx >= postOpsArgs.size()) {
-                IE_THROW() << "Cannot initialize primitive arguments: invalid post-ops data pointers count";
-            }
-            // oneDNN has implicit limitation on number of supported post ops arguments
-            if (i >= maxPrimArgsCapacity) {
-                IE_THROW() << "Cannot initialize primitive arguments: post-ops data pointers count exceed max capacity";
-            }
-
-            primArgs[DNNL_ARG_ATTR_MULTIPLE_POST_OP(i) | DNNL_ARG_SRC_1] = postOpsArgs[idx++]->GetPrimitive();
-        } else if (post_ops.kind(i) == dnnl::primitive::kind::convolution) {
-            if (idx + 1 >= postOpsArgs.size()) {
-                IE_THROW() << "Cannot initialize primitive arguments: invalid post-ops data pointers count";
-            }
-
-            primArgs[DNNL_ARG_ATTR_POST_OP_DW | DNNL_ARG_WEIGHTS] = postOpsArgs[idx++]->GetPrimitive();
-            primArgs[DNNL_ARG_ATTR_POST_OP_DW | DNNL_ARG_BIAS] = postOpsArgs[idx++]->GetPrimitive();
-        }
+                                  const std::unordered_map<int, MemoryPtr>& postOpsArgs) {
+    for (auto & entry : postOpsArgs) {
+        primArgs[entry.first] = entry.second->GetPrimitive();
     }
 }
 
@@ -1147,16 +1137,12 @@ InferenceEngine::Layout Node::getWeightsLayoutByDims(SizeVector dims, bool isGro
     }
 }
 
-void Node::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem, const int channelAxis) {
+void Node::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem, const int channelAxis) {
     IE_THROW() << "Fusing of " << NameFromType(this->getType()) << " operation is not implemented";
 }
 
 void Node::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis) {
     IE_THROW() << "Fusing of " << NameFromType(this->getType()) << " operation is not implemented";
-}
-
-void Node::appendBinPostOps(dnnl::post_ops& ops, const std::vector<size_t>& binaryShape, std::vector<MemoryPtr>& binaryPostOpsMem) {
-    IE_THROW() << "Binary fusing of " << NameFromType(this->getType()) << " operation is not implemented";
 }
 
 std::vector<InferenceEngine::Precision> Node::getInputPrecisions() const {
@@ -1583,6 +1569,46 @@ bool Node::canFuseSimpleOperation(const NodePtr& node) const {
 
 void Node::addFusedNode(const NodePtr &fusingNode) {
     fusedWith.push_back(fusingNode);
+}
+
+void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfigs,
+                                const std::vector<PortConfigurator>& outPortConfigs,
+                                impl_desc_type implType,
+                                bool dynBatchSupport) {
+    auto fill_port = [] (const PortConfigurator& portConfigurator, const Shape& shape,
+                         InferenceEngine::Precision prc, std::vector<PortConfig>& port) -> bool {
+        // In order to simplify particular node initialization logic we just don't add config in case target shape is not supported by blockedDescCreator.
+        // This should be suitable for major of scenarios since almost all nodes add `ncsp` blockedDescCreator which supports any shape rank.
+        if (shape.getRank() < portConfigurator.blockedDescCreator->getMinimalRank())
+            return false;
+
+        PortConfig portConfig;
+        portConfig.inPlace(portConfigurator.inPlace);
+        portConfig.constant(portConfigurator.constant);
+        portConfig.setMemDesc(portConfigurator.blockedDescCreator->createSharedDesc(prc, shape));
+
+        port.push_back(std::move(portConfig));
+
+        return true;
+    };
+
+    NodeConfig config;
+    for (size_t i = 0; i < inPortConfigs.size(); i++) {
+        auto shape = inPortConfigs[i].shape.getRank() == 0 ? getInputShapeAtPort(i) : inPortConfigs[i].shape;
+        auto prc = inPortConfigs[i].prc == InferenceEngine::Precision::UNSPECIFIED ? getOriginalInputPrecisionAtPort(i) : inPortConfigs[i].prc;
+        if (!fill_port(inPortConfigs[i], shape, prc, config.inConfs))
+            return;
+    }
+
+    for (size_t i = 0; i < outPortConfigs.size(); i++) {
+        auto dims = outPortConfigs[i].shape.getRank() == 0 ? getOutputShapeAtPort(i) : outPortConfigs[i].shape;
+        auto prc = outPortConfigs[i].prc == InferenceEngine::Precision::UNSPECIFIED ? getOriginalOutputPrecisionAtPort(i) : outPortConfigs[i].prc;
+        if (!fill_port(outPortConfigs[i], dims, prc, config.outConfs))
+            return;
+    }
+
+    config.dynBatchSupport = dynBatchSupport;
+    supportedPrimitiveDescriptors.push_back({config, implType});
 }
 
 }   // namespace intel_cpu

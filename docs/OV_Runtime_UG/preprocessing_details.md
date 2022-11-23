@@ -290,7 +290,7 @@ C++ references:
 
 Pre-processing API also allows adding `custom` preprocessing steps into an execution graph. The `custom` function accepts the current `input` node, applies the defined preprocessing operations, and returns a new node.
 
-> **Note:** Custom pre-processing function should only insert node(s) after the input. It is done during model compilation. This function will NOT be called during the execution phase. This may appear to be complicated and require knowledge of [OpenVINO™ operations](../ops/opset.md).
+> **NOTE** : Custom pre-processing function should only insert node(s) after the input. It is done during model compilation. This function will NOT be called during the execution phase. This may appear to be complicated and require knowledge of [OpenVINO™ operations](../ops/opset.md).
 
 If there is a need to insert additional operations to the execution graph right after the input, like some specific crops and/or resizes - Pre-processing API can be a good choice to implement this.
 

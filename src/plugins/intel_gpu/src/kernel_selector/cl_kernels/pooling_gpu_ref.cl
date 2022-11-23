@@ -5,7 +5,7 @@
 #include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
-#if MAX_POOLING || MAX_WITH_ARGMAX_POOLING
+#if MAX_POOLING
     #define INIT_VAL ACCUMULATOR_VAL_MIN
 #elif AVG_POOLING
     #define INIT_VAL ACCUMULATOR_VAL_ZERO
@@ -15,7 +15,7 @@
 
 inline ACCUMULATOR_TYPE FUNC(apply_pooling)(ACCUMULATOR_TYPE tmp, ACCUMULATOR_TYPE in)
 {
-#if MAX_POOLING || MAX_WITH_ARGMAX_POOLING
+#if MAX_POOLING
     return ACCUMULATOR_MAX_FUNC(tmp, in);
 #elif AVG_POOLING
     return tmp + in;
@@ -25,9 +25,6 @@ inline ACCUMULATOR_TYPE FUNC(apply_pooling)(ACCUMULATOR_TYPE tmp, ACCUMULATOR_TY
 KERNEL(pooling_gpu)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output
-#if MAX_WITH_ARGMAX_POOLING
-, __global float* arg_max
-#endif
 #ifdef SELECTED_INDICES_TYPE
 , __global SELECTED_INDICES_TYPE* indices
 #endif
@@ -98,10 +95,6 @@ KERNEL(pooling_gpu)(
     uint result_idx = 0;
 #endif
 
-#if MAX_WITH_ARGMAX_POOLING
-    uint arg_max_idx = 0;
-#endif
-
 #ifdef CHECK_BOUNDARY
     if (offset_x + POOL_SIZE_X < 0 || offset_x >= INPUT0_SIZE_X ||
         offset_y + POOL_SIZE_Y < 0 || offset_y >= INPUT0_SIZE_Y ||
@@ -163,19 +156,6 @@ KERNEL(pooling_gpu)(
                             const uint input_idx = batch_and_feature_offset + input_offset_y*INPUT0_Y_PITCH + input_offset_x*INPUT0_X_PITCH;
     #endif
 #endif
-
-#if MAX_WITH_ARGMAX_POOLING
-                            if(input[input_idx] > result)
-                            {
-#if  OUTPUT_DIMS < 5
-                                const uint input_idx_bfyx_no_padding = input_offset_x + INPUT0_SIZE_X * (input_offset_y + INPUT0_SIZE_Y * (f + INPUT0_FEATURE_NUM * b));
-#else
-                                const uint input_idx_bfyx_no_padding = input_offset_x + INPUT0_SIZE_X * (input_offset_y + INPUT0_SIZE_Y *
-                                                               (input_offset_z + INPUT0_SIZE_Z * (f + INPUT0_FEATURE_NUM * b)));
-#endif
-                                arg_max_idx = input_idx_bfyx_no_padding;
-                            }
-#endif
                             const ACCUMULATOR_TYPE casted_input = TO_ACCUMULATOR_TYPE(input[input_idx]);
                             #ifdef SELECTED_INDICES_TYPE
                                 if (casted_input > result)
@@ -220,14 +200,6 @@ KERNEL(pooling_gpu)(
     uint input_idx = INPUT0_GET_INDEX(b, f, offset_y, offset_x);
 #endif
 
-#if MAX_WITH_ARGMAX_POOLING
-    #if  OUTPUT_DIMS < 5
-        uint input_idx_bfyx_no_padding = offset_x + INPUT0_SIZE_X * (offset_y + INPUT0_SIZE_Y * (f + INPUT0_FEATURE_NUM * b));
-    #else
-        uint input_idx_bfyx_no_padding = offset_x + INPUT0_SIZE_X * (offset_y + INPUT0_SIZE_Y * (offset_z + INPUT0_SIZE_Z *(f + INPUT0_FEATURE_NUM * b)));
-    #endif
-#endif
-
 #if OUTPUT_DIMS == 5
     for(uint l = 0; l < POOL_SIZE_Z; l++)
     {
@@ -236,11 +208,6 @@ KERNEL(pooling_gpu)(
         {
             for(uint i = 0; i < POOL_SIZE_X; i++)
             {
-#if MAX_WITH_ARGMAX_POOLING
-            if(input[input_idx] > result)
-                arg_max_idx = input_idx_bfyx_no_padding;
-#endif
-
 #if OUTPUT_DIMS == 5
     #if !INPUT0_SIMPLE
                 uint input_idx = INPUT0_GET_INDEX(b, f, offset_z + l, offset_y + j, offset_x + i);
@@ -267,21 +234,11 @@ KERNEL(pooling_gpu)(
                 input_idx += INPUT0_X_PITCH;
     #endif
 #endif
-
-#if MAX_WITH_ARGMAX_POOLING
-                input_idx_bfyx_no_padding++;
-#endif
             }
             input_idx += (INPUT0_Y_PITCH - POOL_SIZE_X*INPUT0_X_PITCH);
-#if MAX_WITH_ARGMAX_POOLING
-            input_idx_bfyx_no_padding += (INPUT0_SIZE_X - POOL_SIZE_X);
-#endif
         }
 #if  OUTPUT_DIMS == 5  // 3D
         input_idx += (INPUT0_Z_PITCH - POOL_SIZE_Y*INPUT0_Y_PITCH);
-#if MAX_WITH_ARGMAX_POOLING
-        input_idx_bfyx_no_padding += (INPUT0_SIZE_Y - POOL_SIZE_Y);
-#endif
     }
 #endif
 
@@ -321,12 +278,6 @@ KERNEL(pooling_gpu)(
         result_idx %= INDICES_UPPER_BOUND;
     #endif
     indices[output_pos] = TO_SELECTED_INDICES_TYPE(result_idx);
-#endif
-
-#if MAX_WITH_ARGMAX_POOLING
-    //INPUT1 macro stands for Argmax
-    const uint arg_max_pos = GET_DATA_INDEX_5D(INPUT1, b, f, z, y, x);
-    arg_max[arg_max_pos] = convert_float(arg_max_idx);
 #endif
 }
 

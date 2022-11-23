@@ -13,10 +13,7 @@
 #include "one_hot_shape_inference.hpp"
 
 namespace cldnn {
-primitive_type_id one_hot::type_id() {
-    static primitive_type_base<one_hot> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(one_hot)
 
 static bool is_output_bfzyx(const layout& input, int32_t axis) {
     if (input.format == format::bfzyx)
@@ -104,8 +101,11 @@ std::string one_hot_inst::to_string(one_hot_node const& node) {
 one_hot_inst::typed_primitive_inst(network& network, one_hot_node const& node) : parent(network, node) {
     auto input_layout = node.input().get_output_layout();
 
+    if (input_layout.is_dynamic())
+        return;
+
     const auto& input_sizes = input_layout.get_tensor();
-    const auto& output_sizes = argument.shape;
+    const auto& output_sizes = argument->shape;
 
     std::vector<tensor::value_type> input_dims = {input_sizes.batch[0],
                                                   input_sizes.feature[0],

@@ -84,7 +84,9 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
                     CONFIGURE_FLAGS CFLAGS CXXFLAGS LDFLAGS CPPFLAGS KCFLAGS OECORE_DISTRO_VERSION
                     OECORE_SDK_VERSION ARCH CROSS_COMPILE OE_CMAKE_TOOLCHAIN_FILE OPENSSL_CONF
                     OE_CMAKE_FIND_LIBRARY_CUSTOM_LIB_SUFFIX PKG_CONFIG_SYSROOT_DIR PKG_CONFIG_PATH)
-            list(APPEND cmake_env --unset=${var})
+            if(DEFINED ENV{${var}})
+                list(APPEND cmake_env --unset=${var})
+            endif()
         endforeach()
 
         # filter out PATH from yocto locations
@@ -103,6 +105,11 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
             NO_DEFAULT_PATH)
     else()
         set(HOST_CMAKE_COMMAND "${CMAKE_COMMAND}")
+    endif()
+
+    # if env has CMAKE_TOOLCHAIN_FILE, we need to skip it
+    if(DEFINED ENV{CMAKE_TOOLCHAIN_FILE})
+        list(APPEND cmake_env --unset=CMAKE_TOOLCHAIN_FILE)
     endif()
 
     # compile flags
