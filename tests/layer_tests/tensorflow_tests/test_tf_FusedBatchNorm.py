@@ -34,27 +34,26 @@ class TestFusedBatchNorm(CommonTFLayerTest):
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            x = tf.compat.v1.placeholder(tf.float32, x_shape, 'x')
             c_dim = x_shape[-1]
             if data_format == "NCHW":
                 c_dim = x_shape[1]
+            x = tf.compat.v1.placeholder(tf.float32, x_shape, 'x')
+            mean = tf.compat.v1.placeholder(tf.float32, [c_dim], 'mean')
+            variance = tf.compat.v1.placeholder(tf.float32, [c_dim], 'variance')
             scale = tf.compat.v1.placeholder(tf.float32, [c_dim], 'scale')
             offset = tf.compat.v1.placeholder(tf.float32, [c_dim], 'offset')
             fbn_func = fbn_dict[fbn_version]
-            if is_training:
-                mean = tf.compat.v1.placeholder(tf.float32, [c_dim], 'mean')
-                variance = tf.compat.v1.placeholder(tf.float32, [c_dim], 'variance')
-                fused_batch_norm = fbn_func(x=x, scale=scale, offset=offset, epsilon=epsilon,
-                                            mean=mean, variance=variance,
-                                            exponential_avg_factor=exponential_avg_factor, data_format=data_format,
-                                            is_training=is_training, name="FusedBatchNorm")
-            else:
-                mean = tf.compat.v1.placeholder(tf.float32, [c_dim], 'mean')
-                variance = tf.compat.v1.placeholder(tf.float32, [c_dim], 'variance')
-                fused_batch_norm = fbn_func(x=x, scale=scale, offset=offset, epsilon=epsilon,
-                                            mean=mean, variance=variance,
-                                            exponential_avg_factor=exponential_avg_factor, data_format=data_format,
-                                            is_training=is_training, name="FusedBatchNorm")
+            if not is_training:
+                # due to limitation in the layer test infrastructure - it finds tensor names for Parameter and Result nodes
+                # by get_any_name() that cannot work if some nodes fused to Parameter or Result node have multiple tensor names
+                # This issue is tracked in 97192 ticket
+                # Now it is worked around by guarding Parameter Node with AddV2
+                mean = tf.raw_ops.AddV2(x=mean, y=tf.constant(2.0, dtype=tf.float32))
+                variance = tf.raw_ops.AddV2(x=variance, y=tf.constant(2.0, dtype=tf.float32))
+            fused_batch_norm = fbn_func(x=x, scale=scale, offset=offset, epsilon=epsilon,
+                                        mean=mean, variance=variance,
+                                        exponential_avg_factor=exponential_avg_factor, data_format=data_format,
+                                        is_training=is_training, name="FusedBatchNorm")
             tf.identity(fused_batch_norm[0], name='y')
             tf.identity(fused_batch_norm[1], name='batch_mean')
             tf.identity(fused_batch_norm[2], name='batch_variance')
@@ -75,22 +74,18 @@ class TestFusedBatchNorm(CommonTFLayerTest):
         pytest.param(dict(x_shape=[3, 2, 1, 5], epsilon=0.00003, exponential_avg_factor=0.7, data_format="NCHW",
                           is_training=True,
                           fbn_version="v3"), marks=pytest.mark.xfail(reason="97191")),
-        pytest.param(dict(x_shape=[3, 4, 2, 5], epsilon=0.0003, exponential_avg_factor=0.7, data_format="NCHW",
+        pytest.param(dict(x_shape=[3, 4, 2, 5], epsilon=0.0003, exponential_avg_factor=0.0, data_format="NCHW",
                           is_training=True,
                           fbn_version="v3"), marks=pytest.mark.xfail(reason="97191")),
-        # due to limitation in the layer test infrastructure - it finds tensor names for Parameter and Result nodes
-        # by get_any_name() that cannot work if some nodes fused to Parameter or Result node
-        # for inference mode, mean and variance go to outputs as batch_mean and batch_variance
-        # Now this case will be validated with TF2 Keras BatchNormalization tests
-        pytest.param(dict(x_shape=[2, 3, 4, 5], epsilon=0.0001, exponential_avg_factor=1, data_format="NHWC",
-                          is_training=False,
-                          fbn_version="v1"), marks=pytest.mark.xfail(reason="97192")),
-        pytest.param(dict(x_shape=[3, 2, 1, 4], epsilon=0.0005, exponential_avg_factor=0.3, data_format="NCHW",
-                          is_training=False,
-                          fbn_version="v2"), marks=pytest.mark.xfail(reason="97192")),
-        pytest.param(dict(x_shape=[5, 4, 3, 2], epsilon=0.0005, exponential_avg_factor=0.0, data_format="NCHW",
-                          is_training=False,
-                          fbn_version="v3"), marks=pytest.mark.xfail(reason="97192")),
+        dict(x_shape=[2, 3, 4, 5], epsilon=0.0001, exponential_avg_factor=1, data_format="NHWC",
+             is_training=False,
+             fbn_version="v1"),
+        dict(x_shape=[3, 2, 1, 4], epsilon=0.0005, exponential_avg_factor=0.3, data_format="NCHW",
+             is_training=False,
+             fbn_version="v2"),
+        dict(x_shape=[5, 4, 3, 2], epsilon=0.0005, exponential_avg_factor=0.0, data_format="NCHW",
+             is_training=False,
+             fbn_version="v3"),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
