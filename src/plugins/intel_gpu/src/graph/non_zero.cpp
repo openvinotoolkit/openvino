@@ -16,10 +16,7 @@ namespace cldnn {
 // -----------------------------------------------
 // count_nonzero
 // -----------------------------------------------
-primitive_type_id count_nonzero::type_id() {
-    static primitive_type_base<count_nonzero> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(count_nonzero)
 
 layout count_nonzero_inst::calc_output_layout(count_nonzero_node const& node, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
@@ -60,10 +57,7 @@ void count_nonzero_inst::on_execute() {
 // -----------------------------------------------
 // gather_nonzero
 // -----------------------------------------------
-primitive_type_id gather_nonzero::type_id() {
-    static primitive_type_base<gather_nonzero> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(gather_nonzero)
 
 layout gather_nonzero_inst::calc_output_layout(gather_nonzero_node const& node, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
