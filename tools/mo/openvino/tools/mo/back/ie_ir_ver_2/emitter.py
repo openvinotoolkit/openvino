@@ -29,7 +29,6 @@ except ImportError:
 elements_to_skip_during_serializing = ['inputs_list']
 
 
-
 def serialize_constants(graph: Graph, bin_file_name: str, data_type=np.float32):
     """
     Found all data constants that has output edges with 'bin' attribute.
