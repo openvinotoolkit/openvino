@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "ie_plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace ov {
