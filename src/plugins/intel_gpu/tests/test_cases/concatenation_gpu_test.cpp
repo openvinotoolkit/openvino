@@ -445,7 +445,6 @@ using TestParamType_concat = ::testing::tuple<size_t,   // 0 - Input Batch size
         size_t,                                         // 3 - Input X Size
         bool>;                                          // 4 - is_caching_test
 
-
 struct concat_gpu : public ::testing::TestWithParam<TestParamType_concat>
 {
     static std::string
@@ -461,6 +460,28 @@ struct concat_gpu : public ::testing::TestWithParam<TestParamType_concat>
                + "x" + in + "x" + std::to_string(testing::get<2>(param_info.param))
                + 'x' + std::to_string(testing::get<3>(param_info.param))
                + "is_caching_test" + std::to_string(testing::get<4>(param_info.param));
+    }
+};
+
+using TestParamType_concat_axis3 = ::testing::tuple<size_t,   // 0 - Input Batch size
+        size_t,                                               // 1 - Inputs Features Sizes
+        size_t,                                               // 2 - Input Y Size
+        std::vector<size_t>>;                                 // 3 - Input X Size
+
+struct concat_axis3_gpu : public ::testing::TestWithParam<TestParamType_concat_axis3>
+{
+    static std::string
+    PrintToStringParamName(testing::TestParamInfo<TestParamType_concat_axis3> param_info)
+    {
+        std::string in;
+        for (size_t i = 0; i < testing::get<3>(param_info.param).size() - 1; i++) {
+            in += std::to_string(testing::get<3>(param_info.param)[i]) + "_";
+        }
+        in += std::to_string(testing::get<3>(param_info.param)[testing::get<3>(param_info.param).size() - 1]);
+
+        return "in" + std::to_string(testing::get<0>(param_info.param))
+               + "x" + in + "x" + std::to_string(testing::get<1>(param_info.param))
+               + 'x' + std::to_string(testing::get<2>(param_info.param));
     }
 };
 
@@ -601,6 +622,97 @@ public:
     }
 };
 
+// Test case for axis=3 case in 4D
+template <typename Type>
+struct concat_gpu_4d_axis3 : public concat_axis3_gpu {
+public:
+
+    void test(format::type fmt) {
+        auto data_type = type_to_data_type<Type>::value;
+
+        auto& engine = get_test_engine();
+        const size_t batch_num = testing::get<0>(GetParam());
+        const size_t in_feature = testing::get<1>(GetParam());
+        const size_t input_y = testing::get<2>(GetParam());
+        const std::vector<size_t> input_x = testing::get<3>(GetParam());
+        size_t output_x = 0;
+        for (auto& x : input_x)
+            output_x += x;
+
+        topology topology;
+
+        std::vector<VVVVF<Type>> in_data;
+        std::vector<memory::ptr> in_memory;
+        std::vector<primitive_id> input_ids;
+        for (size_t i = 0; i < input_x.size(); i++) {
+            auto size = tensor(static_cast<int32_t>(batch_num),
+                               static_cast<int32_t>(in_feature),
+                               static_cast<int32_t>(input_x[i]),
+                               static_cast<int32_t>(input_y));
+            auto data = generate_random_4d<Type>(batch_num, in_feature, input_y, input_x[i], -1, 1);
+            auto in_lay = layout(data_type, fmt, size);
+            auto data_flat = std::vector<Type>(in_lay.get_linear_size(), 0);
+
+            for (size_t bi = 0; bi < batch_num; ++bi) {
+                for (size_t fi = 0; fi < in_feature; ++fi) {
+                    for (size_t yi = 0; yi < input_y; ++yi) {
+                        for (size_t xi = 0; xi < input_x[i]; ++xi) {
+                            auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                            auto in_offset = in_lay.get_linear_offset(coords);
+
+                            data_flat[in_offset] = data[bi][fi][yi][xi];
+                        }
+                    }
+                }
+            }
+
+            auto in_mem = engine.allocate_memory(in_lay);
+            set_values(in_mem, data_flat);
+            in_memory.push_back(in_mem);
+
+            topology.add(input_layout("input" + std::to_string(i), in_lay));
+            in_data.emplace_back(std::move(data));
+            input_ids.push_back("input" + std::to_string(i));
+        }
+
+        topology.add(concatenation("concat", input_ids, 3));
+
+        build_options options;
+        options.set_option(build_option::optimize_data(true));
+        network network(engine, topology, options);
+
+        for (size_t i = 0; i < input_x.size(); i++) {
+            network.set_input_data(input_ids[i], in_memory[i]);
+        }
+
+        network.execute();
+
+        auto out_mem = network.get_output("concat").get_memory();
+        cldnn::mem_lock<Type> out_ptr(out_mem, get_test_stream());
+
+        for (size_t bi = 0; bi < batch_num; bi++) {
+            for (size_t fi = 0; fi < in_feature; fi++) {
+                for (size_t yi = 0; yi < input_y; yi++) {
+                    size_t x_sum = 0;
+                    for (size_t in_i = 0; in_i < input_x.size(); in_i++) {
+                        for (size_t xi = 0; xi < input_x[in_i]; xi++) {
+                            auto output_coords = tensor(batch(bi), feature(fi), spatial((x_sum + xi), yi, 0, 0));
+                            auto output_offset = out_mem->get_layout().get_linear_offset(output_coords);
+
+                            auto ref_val = in_data[in_i][bi][fi][yi][xi];
+                            auto actual_val = out_ptr[output_offset];
+                            EXPECT_EQ(ref_val, actual_val)
+                                << " b=" << bi << ", f=" << fi << ", y=" << yi << ", x=" << x_sum + xi << "(input " << in_i << ")";
+                        }
+                        x_sum += input_x[in_i];
+                    }
+                }
+            }
+        }
+    }
+};
+
+
 using concat_gpu_4d_f16 = concat_gpu_4d<FLOAT16>;
 using concat_gpu_4d_i8 = concat_gpu_4d<int8_t>;
 using concat_gpu_4d_u8 = concat_gpu_4d<uint8_t>;
@@ -635,6 +747,30 @@ INSTANTIATE_TEST_SUITE_P(smoke_low_precision,
                         concat_gpu_4d_u8,
                         concat_gpu_all_params,
                         concat_gpu::PrintToStringParamName);
+
+using concat_gpu_4d_axis3_f16 = concat_gpu_4d_axis3<FLOAT16>;
+
+TEST_P(concat_gpu_4d_axis3_f16, fs_b_yx_fsv32) {
+    ASSERT_NO_FATAL_FAILURE(test(format::fs_b_yx_fsv32));
+}
+
+TEST_P(concat_gpu_4d_axis3_f16, b_fs_yx_fsv16) {
+    ASSERT_NO_FATAL_FAILURE(test(format::b_fs_yx_fsv16));
+}
+
+TEST_P(concat_gpu_4d_axis3_f16, bs_fs_yx_bsv16_fsv16) {
+    ASSERT_NO_FATAL_FAILURE(test(format::bs_fs_yx_bsv16_fsv16));
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                        concat_gpu_4d_axis3_f16,
+                        ::testing::Values(
+                            TestParamType_concat_axis3(2, 16, 2, { 2, 3 }),
+                            TestParamType_concat_axis3(2, 19, 2, { 2, 3, 2 }),
+                            TestParamType_concat_axis3(2, 32, 2, { 2, 3, 2, 1 }),
+                            TestParamType_concat_axis3(2, 35, 2, { 3, 2, 3, 2 })
+                        ),
+                        concat_axis3_gpu::PrintToStringParamName);
 
 template <typename Type, typename OutputT>
 struct concat_id_conv_gpu_4d : public concat_gpu {
