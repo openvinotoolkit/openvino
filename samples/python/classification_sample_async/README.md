@@ -64,7 +64,7 @@ Options:
 >
 > - Before running the sample with a trained model, make sure that the model is converted to the OpenVINO Intermediate Representation (OpenVINO IR) format (\*.xml + \*.bin) by using [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
-> - The sample accepts models in the the ONNX format (.onnx) that do not require preprocessing.
+> - The sample accepts models in the ONNX format (.onnx) that do not require preprocessing.
 
 ### Example
 
