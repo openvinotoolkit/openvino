@@ -354,6 +354,9 @@ void InputModel::InputModelImpl::createTempConsts() {
             const auto& tensor = var_desc.type().tensor_array().tensor();
             const auto& type = TYPE_MAP[tensor.data_type()];
 
+            std::cout << "WARNING: The PaddlePaddle model has \"TENSOR_ARRAY\" variables, which is supported "
+            << " under limited situations.\n";
+
             PartialShape tensor_ps(std::vector<Dimension>(tensor.dims().cbegin(), tensor.dims().cend()));
             tensor_ps.insert(tensor_ps.begin(), 1);  // unsqueeze
             // also update the place for following initialize the graph connection
