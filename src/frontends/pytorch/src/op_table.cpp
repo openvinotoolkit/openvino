@@ -43,6 +43,7 @@ OP_CONVERTER(translate_neg);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_relu6);
 OP_CONVERTER(translate_reshape);
+OP_CONVERTER(translate_reshape_as);
 OP_CONVERTER(translate_rsub);
 OP_CONVERTER(translate_select);
 OP_CONVERTER(translate_size);
@@ -116,6 +117,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::relu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset8::Relu>>},
         {"aten::relu6", op::translate_relu6},
         {"aten::reshape", op::translate_reshape},
+        {"aten::reshape_as", op::translate_reshape_as},
         {"aten::rsub", op::translate_rsub},
         {"aten::select", op::translate_select},
         {"aten::sigmoid", op::translate_1to1_match_1_inputs<opset8::Sigmoid>},
