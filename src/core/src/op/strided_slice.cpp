@@ -140,7 +140,7 @@ void op::v1::StridedSlice::validate_and_infer_types() {
     set_input_is_relevant_to_shape(3);
 
     const auto input_shapes = get_node_input_partial_shapes(*this);
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
+    auto output_shapes = std::vector<ov::PartialShape>(1, PartialShape::dynamic());
 
     shape_infer(this, input_shapes, output_shapes);
 
