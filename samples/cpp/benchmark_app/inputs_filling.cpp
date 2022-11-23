@@ -14,7 +14,6 @@
 #include <vector>
 
 #include "format_reader_ptr.h"
-#include "shared_tensor_allocator.hpp"
 #include "utils.hpp"
 
 template <typename T>
@@ -30,10 +29,8 @@ ov::Tensor create_tensor_from_image(const std::vector<std::string>& files,
                                     const benchmark_app::InputInfo& inputInfo,
                                     const std::string& inputName,
                                     std::string* filenames_used = nullptr) {
-    size_t tensor_size =
-        std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
-    auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
-    auto data = reinterpret_cast<T*>(allocator->get_buffer());
+    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape);
+    auto data = tensor.data<T>();
 
     /** Collect images data ptrs **/
     std::vector<std::shared_ptr<uint8_t>> vreader;
@@ -92,7 +89,6 @@ ov::Tensor create_tensor_from_image(const std::vector<std::string>& files,
         }
     }
 
-    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape, ov::Allocator(allocator));
     return tensor;
 }
 
@@ -103,8 +99,8 @@ ov::Tensor create_tensor_im_info(const std::pair<size_t, size_t>& image_size,
                                  const std::string& inputName) {
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
-    auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
-    auto data = reinterpret_cast<T*>(allocator->get_buffer());
+    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape);
+    auto data = tensor.data<T>();
 
     size_t infoBatchSize = 1;
     if (!inputInfo.layout.empty() && ov::layout::has_batch(inputInfo.layout)) {
@@ -127,7 +123,6 @@ ov::Tensor create_tensor_im_info(const std::pair<size_t, size_t>& image_size,
         }
     }
 
-    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape, ov::Allocator(allocator));
     return tensor;
 }
 
@@ -140,8 +135,8 @@ ov::Tensor create_tensor_from_binary(const std::vector<std::string>& files,
                                      std::string* filenames_used = nullptr) {
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
-    auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
-    char* data = allocator->get_buffer();
+    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape);
+    char* data = static_cast<char*>(tensor.data());
     size_t binaryBatchSize = 1;
     if (!inputInfo.layout.empty() && ov::layout::has_batch(inputInfo.layout)) {
         binaryBatchSize = batchSize;
@@ -182,7 +177,6 @@ ov::Tensor create_tensor_from_binary(const std::vector<std::string>& files,
         }
     }
 
-    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape, ov::Allocator(allocator));
     return tensor;
 }
 
@@ -192,8 +186,8 @@ ov::Tensor create_tensor_random(const benchmark_app::InputInfo& inputInfo,
                                 T rand_max = std::numeric_limits<uint8_t>::max()) {
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
-    auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
-    auto data = reinterpret_cast<T*>(allocator->get_buffer());
+    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape);
+    auto data = tensor.data<T>();
 
     std::mt19937 gen(0);
     uniformDistribution<T2> distribution(rand_min, rand_max);
@@ -201,7 +195,6 @@ ov::Tensor create_tensor_random(const benchmark_app::InputInfo& inputInfo,
         data[i] = static_cast<T>(distribution(gen));
     }
 
-    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape, ov::Allocator(allocator));
     return tensor;
 }
 
