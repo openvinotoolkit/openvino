@@ -271,6 +271,7 @@ def test_can_set_shape_other_dims():
     ov_tensor.shape = ref_shape_1
     assert list(ov_tensor.shape) == ref_shape_1
 
+
 @pytest.mark.parametrize("ov_type", [
     (ov.Type.u1),
     (ov.Type.u4),
