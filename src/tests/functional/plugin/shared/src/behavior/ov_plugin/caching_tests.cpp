@@ -209,7 +209,9 @@ void CompileModelCacheTestBase::run() {
         {
             core->set_property(ov::cache_dir(m_cacheFolderName));
             ASSERT_NO_THROW(compiledModel = core->compile_model(function, targetDevice, configuration));
-            ASSERT_EQ(i != 0, compiledModel.get_property(ov::from_cache));
+            if (targetDevice.find("AUTO") == std::string::npos)
+                // Apply check only for HW plugins
+                ASSERT_EQ(i != 0, compiledModel.get_property(ov::from_cache));
             generate_inputs(targetStaticShapes.front());
             ASSERT_NO_THROW(infer());
         }
