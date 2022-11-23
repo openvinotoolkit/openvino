@@ -1,6 +1,6 @@
 # Automatic Speech Recognition C++ Sample {#openvino_inference_engine_samples_speech_sample_README}
 
-This sample demonstrates how to execute an Asynchronous Inference of acoustic model based on Kaldi\* neural networks and speech feature vectors.  
+This sample demonstrates how to execute an Asynchronous Inference of acoustic model based on Kaldi neural networks and speech feature vectors.  
 
 The sample works with Kaldi ARK or Numpy* uncompressed NPZ files, so it does not cover an end-to-end speech recognition scenario (speech to text), requiring additional preprocessing (feature extraction) to get a feature vector from a speech signal, as well as postprocessing (decoding) to produce text from scores.
 
@@ -17,11 +17,11 @@ The following C++ API is used in the application:
 | Tensor Operations | `ov::Tensor::get_size`, `ov::Tensor::data`, `ov::InferRequest::get_tensor` | Get a tensor, its size and data |
 | Profiling | `ov::InferRequest::get_profiling_info` | Get infer request profiling info |
 
-Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
+Basic OpenVINO™ Runtime API is described in [Hello Classification C++ sample](../hello_classification/README.md).
 
 | Options | Values |
 | :--- | :--- |
-| Validated Models | Acoustic model based on Kaldi\* neural networks (see [Model Preparation](#model-preparation) section) |
+| Validated Models | Acoustic model based on Kaldi neural networks (see [Model Preparation](#model-preparation) section) |
 | Model Format | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin) |
 | Supported devices | See [Execution Modes](#execution-modes) section below and [List Supported Devices](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 
@@ -30,8 +30,8 @@ Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](..
 At startup, the sample application reads command-line parameters, loads a specified model and input data to the OpenVINO™ Runtime plugin, performs inference on all speech utterances stored in the input file(s), logging each step in a standard output stream.  
 If the `-r` option is given, error statistics are provided for each speech utterance as shown above.
 
-You can see the explicit description of
-each sample step at [Integration Steps](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) section of "Integrate OpenVINO™ Runtime with Your Application" guide.
+For more information, refer to the explicit description of
+**Integration Steps** in the [Integrate OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) guide.
 
 ### GNA-specific details
 
@@ -77,7 +77,7 @@ In addition to performing inference directly from a GNA model file, these combin
 
 ## Building
 
-To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/OV_Runtime_UG/Samples_Overview.md) section in OpenVINO™ Toolkit Samples guide.
+To build the sample, use the instructions available in the **Build the Sample Applications** section in [OpenVINO Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md).
 
 ## Running
 
@@ -138,7 +138,7 @@ The following pre-trained models are available:
 - rm_lstm4f
 - rm_cnn4a_smbr
 
-All of them can be downloaded from [https://storage.openvinotoolkit.org/models_contrib/speech/2021.2](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2).
+All of them can be downloaded from the [storage](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2).
 
 ### Speech Inference
 
@@ -230,9 +230,9 @@ Kaldi's nnet-forward command. Since the `speech_sample` does not yet use pipes, 
    cat out.txt | utils/int2sym.pl -f 2- words.txt | sed s:\<UNK\>::g | compute-wer --text --mode=present ark:test_filt.txt ark,p:-
    ```
 
-   All of mentioned files can be downloaded from [https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/wsj_dnn5b_smbr](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/wsj_dnn5b_smbr)
+   All of mentioned files can be downloaded from the [storage](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/wsj_dnn5b_smbr)
 
-## See Also
+## Additional Resources
 
 - [Integrate the OpenVINO™ Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md)
 - [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
