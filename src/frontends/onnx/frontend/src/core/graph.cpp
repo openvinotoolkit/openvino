@@ -384,10 +384,25 @@ OutputVector Graph::make_ng_nodes(const Node& onnx_node) {
         std::rethrow_exception(std::current_exception());
     }
 
+    size_t output_size = 0;
+    std::for_each(std::begin(ng_subgraph_outputs),
+                  std::end(ng_subgraph_outputs),
+                  [&output_size](const Output<ov::Node>& output) {
+                      output_size += output.get_node()->get_output_size();
+                  });
+    NGRAPH_CHECK(onnx_node.get_outputs_size() == output_size,
+                 "Expected output number of ",
+                 onnx_node.op_type(),
+                 " node is ",
+                 onnx_node.get_outputs_size(),
+                 " while the implementation provides ",
+                 output_size,
+                 " outputs");
+
     set_friendly_names(onnx_node, ng_subgraph_outputs);
 
     for (std::size_t i{0}; i < onnx_node.get_outputs_size(); ++i) {
-        auto ng_node_output = ng_subgraph_outputs.at(i);
+        auto ng_node_output = ng_subgraph_outputs[i];
         m_cache->emplace_node(onnx_node.output(static_cast<int>(i)), std::move(ng_node_output));
     }
 
