@@ -51,7 +51,6 @@ class CheckOutputMode(Mode):
                 cacheDump.close()
 
     def isBadVersion(self, commit, cfg):
-        commit = commit.decode('utf-8')
         commit = commit.replace('"', '')
         checkOut = ""
         commitLogger = getCommitLogger(cfg, commit)

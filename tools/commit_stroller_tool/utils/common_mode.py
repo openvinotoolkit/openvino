@@ -45,7 +45,7 @@ class Mode(ABC):
         def bypass(self, i1, i2, list, cfg, isBadVersion) -> int:
             # check cfg if necessary
             self.mode.commonLogger.info("Check interval {i1}..{i2}".format(i1=i1, i2=i2))
-            self.mode.commonLogger.info("Check commits {c1}..{c2}".format(c1=list[i1].decode('utf-8'), c2=list[i2].decode('utf-8')))
+            self.mode.commonLogger.info("Check commits {c1}..{c2}".format(c1=list[i1], c2=list[i2]))
             if (i1 + 1 >= i2):
                 return i1 if isBadVersion(list[i1], cfg) else i2
             mid = (int)((i1 + i2) / 2)
