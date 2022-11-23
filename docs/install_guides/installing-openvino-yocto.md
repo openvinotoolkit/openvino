@@ -4,56 +4,22 @@ This document provides instructions for creating a Yocto image with Intel® Dist
 
 ## System Requirements
 
-@sphinxdirective
-.. tab:: Supported Linux Distributions
+Follow the [Yocto Project official documentation](https://docs.yoctoproject.org/brief-yoctoprojectqs/index.html#compatible-linux-distribution) to set up and configure your host machine to be compatible with BitBake.
 
-   +--------------------------------+----------------------------------------+
-   | Operating System               | Version                                |
-   +================================+========================================+
-   | Ubuntu                         | 18.04 (LTS), 20.04 (LTS), 22.04 (LTS)  |
-   +--------------------------------+----------------------------------------+
-   | Fedora                         | 34, 35                                 |
-   +--------------------------------+----------------------------------------+
-   | AlmaLinux                      | 8.5                                    |
-   +--------------------------------+----------------------------------------+
-   | Debian GNU/Linux               | 10.x (Buster), 11.x (Bullseye)         |
-   +--------------------------------+----------------------------------------+
-   | OpenSUSE Leap                  | 15.3                                   |
-   +--------------------------------+----------------------------------------+
-
-.. tab::  Required Software
-
-   +---------------------------------------------+---------------------------+
-   | Software                                    | Version                   |
-   +=============================================+===========================+
-   | `GIT <https://git-scm.com/>`__              | 1.8.3.1 or greater        |
-   +---------------------------------------------+---------------------------+
-   | `tar <https://www.gnu.org/software/tar/>`__ | 1.28 or greater           |
-   +---------------------------------------------+---------------------------+
-   | `Python <https://www.python.org/>`__        | 3.6 or greater            |
-   +---------------------------------------------+---------------------------+
-   | `gcc <https://gcc.gnu.org/index.html>`__    | 7.5 or greater            |
-   +---------------------------------------------+---------------------------+
-
-@endsphinxdirective
-
-
-Use the [Yocto Project official documentation](https://docs.yoctoproject.org/brief-yoctoprojectqs/index.html#compatible-linux-distribution) to set up and configure your host machine to be compatible with BitBake.
-
-## Set Up Environment
+## Step 1: Set Up Environment
 
 ### 1. Clone the repository.
 
 ```sh
-git clone https://git.yoctoproject.org/git/poky
+git clone https://git.yoctoproject.org/git/poky --branch langdale
 ```
 
 ### 2. Navigate to the "poky" folder and clone the following repositories.
 
 ```sh
 cd poky
-git clone https://git.yoctoproject.org/meta-intel/
-git clone https://git.openembedded.org/meta-openembedded
+git clone https://git.yoctoproject.org/meta-intel --branch langdale
+git clone https://git.openembedded.org/meta-openembedded --branch langdale
 git clone https://github.com/kraj/meta-clang.git
 ```
 
@@ -89,6 +55,9 @@ MACHINE = "intel-skylake-64"
 # Enable clDNN GPU plugin when needed.
 # This requires meta-clang and meta-oe layers to be included in bblayers.conf
 # and is not enabled by default.
+# Compute-runtime does not currently support building with LLVM 15 (which is
+# the default in meta-clang master) so enabling GPU plugin may result in
+# build failures.
 PACKAGECONFIG:append:pn-openvino-inference-engine = " opencl"
 
 # Enable building OpenVINO Python API.
@@ -111,7 +80,7 @@ CORE_IMAGE_EXTRA_INSTALL:append = " openvino-inference-engine-vpu-firmware"
 CORE_IMAGE_EXTRA_INSTALL:append = " openvino-model-optimizer"
 ```
 
-### 7. Build a Yocto image with OpenVINO packages.
+## Step 2: Build a Yocto image with OpenVINO packages.
 
 To build your image with OpenVINO packages, run the following command:
 
@@ -121,7 +90,7 @@ bitbake core-image-minimal
 
 > **NOTE**: For validation/testing/reviewing purposes, you may consider using `nohup` command and ensuring that your vpn/ssh connection remains uninterrupted.
 
-## 8. Verify the Yocto Image with OpenVINO packages.
+## Step 3: Verify the Yocto Image with OpenVINO packages.
 
 Verify that OpenVINO packages were built successfully.
 Run the following command:
@@ -142,22 +111,10 @@ openvino-model-optimizer
 openvino-model-optimizer-dbg
 openvino-model-optimizer-dev
 ```
-## Troubleshooting
-
-When using the `bitbake-layers add-layer meta-intel` command, the following error might occur:
-```sh
-NOTE: Starting bitbake server...
-ERROR: The following required tools (as specified by HOSTTOOLS) appear to be unavailable in PATH, please install them in order to proceed: chrpath diffstat pzstd zstd
-```
-
-To resolve the issue, install the `chrpath diffstat zstd` tools:
-
-```sh
-sudo apt-get install chrpath diffstat zstd
-```
 
 ## Additional Resources
 
+- [Troubleshooting Guide](@ref yocto_install_issues)
 - [Yocto Project](https://docs.yoctoproject.org/) - official documentation webpage
 - [BitBake Tool](https://docs.yoctoproject.org/bitbake/)
 - [Poky](https://git.yoctoproject.org/poky)
