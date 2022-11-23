@@ -13,12 +13,12 @@ The other part of API conformance suite is QueryModel validation:
 * `ReadIR_queryModel` tests validates `query_model` API using simple single operation graph (Conformance IR) based on model parameters.
 * `OpImplCheck` tests are simple syntetic checks to `query_model` and set implementation status per an operation.
 
-A result of `apiConformanceTests` run is 2 xml files: `report_api.xml` and `report_opset.xml`. The first one shows OpenVINO API entities test statistic (like passed/failed/creashed/skipped/hanged test number, passrates and implementation status) per OPenVINO API entity. The second one demonstrates `query_model` results per operation.
+A result of `apiConformanceTests` run is 2 xml files: `report_api.xml` and `report_opset.xml`. The first one shows OpenVINO API entities test statistic (like passed/failed/creashed/skipped/hanged test number, passrates and implementation status) per OpenVINO API entity. The second one demonstrates `query_model` results per operation.
 
 
 
 ### `Opset Conformance`
-The suite validates OpenVINO an operation plugin implemenatation using simple signgle operation graphs (Conformance IR) taken from models. The plugin inference output is compared with reference.
+The suite validates OpenVINO an operation plugin implemenatation using simple single operation graphs (Conformance IR) taken from models. The plugin inference output is compared with reference.
 
  The suite contains:
 * `ReadIR_compareWithRefs` set allows to read IRs from folders recursive, infer it and compare plugin results with reference.
