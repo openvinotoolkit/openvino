@@ -36,7 +36,7 @@ class PytorchLayerTest:
         """
         import torch
         if 'kwargs_to_prepare_input' in kwargs and kwargs['kwargs_to_prepare_input']:
-            inputs = self._prepare_input(kwargs['kwargs_to_prepare_input'])
+            inputs = self._prepare_input(**kwargs['kwargs_to_prepare_input'])
         else:
             inputs = self._prepare_input()
         with torch.no_grad():
