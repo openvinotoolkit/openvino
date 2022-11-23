@@ -221,27 +221,27 @@ def test_partial_shape():
 
     shape = PartialShape("[?, 3, ..224, 28..224, 25..]")
     copied_shape = copy.copy(shape)
-    assert shape == copied_shape, 'Copied shape {} is not equal to original shape {}.'.format(copied_shape, shape)
+    assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
 
     shape = PartialShape("[...]")
     copied_shape = copy.copy(shape)
-    assert shape == copied_shape, 'Copied shape {} is not equal to original shape {}.'.format(copied_shape, shape)
+    assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
 
-    shape = PartialShape([Dimension(-1,100), 25, -1])
+    shape = PartialShape([Dimension(-1, 100), 25, -1])
     copied_shape = copy.copy(shape)
-    assert shape == copied_shape, 'Copied shape {} is not equal to original shape {}.'.format(copied_shape, shape)
+    assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
 
     shape = PartialShape("[?, 3, ..224, 28..224, 25..]")
     copied_shape = copy.deepcopy(shape)
-    assert shape == copied_shape, 'Copied shape {} is not equal to original shape {}.'.format(copied_shape, shape)
+    assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
 
     shape = PartialShape("[...]")
     copied_shape = copy.deepcopy(shape)
-    assert shape == copied_shape, 'Copied shape {} is not equal to original shape {}.'.format(copied_shape, shape)
+    assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
 
     shape = PartialShape([Dimension(-1, 100), 25, -1])
     copied_shape = copy.deepcopy(shape)
-    assert shape == copied_shape, 'Copied shape {} is not equal to original shape {}.'.format(copied_shape, shape)
+    assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
 
 
 def test_partial_shape_compatible():
