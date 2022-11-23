@@ -115,20 +115,24 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
 
     const auto slices_ascending_order = [&](const TensorSlice<Index_t, Count_t>& lhs,
                                             const TensorSlice<Index_t, Count_t>& rhs) {
-        const auto slices_offset = calc_slices_offset(lhs, rhs, data_shape_strides, *axis);
         const auto shape_to_iterate = slice_shape_to_iterate(data_shape, *axis);
 
         for (auto it = CoordinateIterator(shape_to_iterate); it != CoordinateIterator::end(); ++it) {
-            auto elem_coord = *it;
-            elem_coord.insert(elem_coord.cbegin() + *axis, lhs.idx);
-            const auto lhs_elem_idx = ngraph::coordinate_index(elem_coord, data_shape);
-            const auto rhs_elem_idx = lhs_elem_idx + slices_offset;
-            if (*(data + rhs_elem_idx) > *(data + lhs_elem_idx)) {
-                return false;
+            auto elem_coord_lhs = *it;
+            elem_coord_lhs.insert(elem_coord_lhs.cbegin() + *axis, lhs.idx);
+
+            auto elem_coord_rhs = *it;
+            elem_coord_rhs.insert(elem_coord_rhs.cbegin() + *axis, rhs.idx);
+
+            const auto lhs_elem_idx = ngraph::coordinate_index(elem_coord_lhs, data_shape);
+            const auto rhs_elem_idx = ngraph::coordinate_index(elem_coord_rhs, data_shape);
+
+            if (*(data + lhs_elem_idx) < *(data + rhs_elem_idx)) {
+                return true;
             }
         }
 
-        return true;
+        return false;
     };
 
     const auto elements_are_equal = [&data](const TensorSlice<Index_t, Count_t>& lhs,
@@ -228,9 +232,16 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
             auto& tensor_element = ret.all_tensor_elements[i];
             auto existing_unique = end(ret.unique_tensor_elements);
 
-            existing_unique = std::find_if(begin(ret.unique_tensor_elements),
-                                           end(ret.unique_tensor_elements),
-                                           already_unique_slice(tensor_element));
+            if (sorted) {
+                existing_unique = std::lower_bound(begin(ret.unique_tensor_elements),
+                                                   end(ret.unique_tensor_elements),
+                                                   tensor_element,
+                                                   slices_ascending_order);
+            } else {
+                existing_unique = std::find_if(begin(ret.unique_tensor_elements),
+                                               end(ret.unique_tensor_elements),
+                                               already_unique_slice(tensor_element));
+            }
 
             if (existing_unique != end(ret.unique_tensor_elements)) {
                 tensor_element.rev_idx = existing_unique->rev_idx;
