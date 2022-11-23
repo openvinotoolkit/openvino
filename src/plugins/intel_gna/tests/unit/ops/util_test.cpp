@@ -1,0 +1,156 @@
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <cstdint>
+#include <vector>
+#include <thread>
+#include <memory>
+
+#include <gtest/gtest.h>
+#include "ops/util/util.hpp"
+
+using namespace ov::intel_gna::ngraph_util;
+
+namespace test {
+
+using GnaOpsUtilTestParams = std::tuple<std::shared_ptr<ngraph::Node>, bool>;
+
+class GnaOpsUtilTest : public ::testing::TestWithParam<GnaOpsUtilTestParams> {
+public:
+    static std::string get_test_name(const testing::TestParamInfo<GnaOpsUtilTestParams>& obj) {
+        std::shared_ptr<ngraph::Node> node;  // node to be converted
+        bool result; // expected result
+        std::tie(node, result) = obj.param;
+
+        std::ostringstream test_name;
+        test_name << "Node=" << node->get_type_info().name << "_";
+        test_name << "Op=" << node->get_type_info().get_version() << "_";
+        test_name << "ExpectedReulst=" << result;
+
+        return test_name.str();
+    }
+};
+
+class GnaOpsUtilisPoolingTest : public GnaOpsUtilTest {
+public:
+    void validate() {
+        std::shared_ptr<ngraph::Node> node;  // node to be converted
+        bool result; // expected result
+        std::tie(node, result) = GetParam();
+        ASSERT_TRUE(result == is_pooling(node));
+    }
+};
+
+class GnaOpsUtilIsEltwiseMulTest : public GnaOpsUtilTest {
+public:
+    void validate() {
+        std::shared_ptr<ngraph::Node> node;  // node to be converted
+        bool result; // expected result
+        std::tie(node, result) = GetParam();
+        ASSERT_TRUE(result == is_eltwise_mul(node));
+    }
+};
+
+class GnaOpsUtilIsEltwiseAddTest : public GnaOpsUtilTest {
+public:
+    void validate() {
+        std::shared_ptr<ngraph::Node> node;  // node to be converted
+        bool result; // expected result
+        std::tie(node, result) = GetParam();
+        ASSERT_TRUE(result == is_eltwise_add(node));
+    }
+};
+
+TEST_P(GnaOpsUtilisPoolingTest, isPoolingTest) {
+    validate();
+}
+
+TEST_P(GnaOpsUtilIsEltwiseMulTest, isEltwiseMulTest) {
+    validate();
+}
+
+TEST_P(GnaOpsUtilIsEltwiseAddTest, isEltwiseAddTest) {
+    validate();
+}
+
+ov::NodeVector pooling_nodes_false = {
+    std::make_shared<ngraph::op::VariadicSplit>(),
+    std::make_shared<ngraph::op::Concat>(),
+    std::make_shared<ngraph::op::MatMul>(),
+    std::make_shared<ngraph::opset9::MaxPool>()
+};
+
+ov::NodeVector pooling_nodes_true = {
+    std::make_shared<ngraph::opset7::MaxPool>()
+};
+
+ov::NodeVector elwise_mul_nodes_false = {
+    std::make_shared<ngraph::op::VariadicSplit>(),
+    std::make_shared<ngraph::op::Eltwise>(ngraph::Output<ov::Node>(std::make_shared<ngraph::opset7::Constant>()),
+                                          ngraph::Output<ov::Node>(std::make_shared<ngraph::opset7::Constant>()),
+                                          ELTWISE_TYPE::Sum),
+};
+
+ov::NodeVector elwise_mul_nodes_true = {
+    std::make_shared<ngraph::op::Eltwise>(ngraph::Output<ov::Node>(std::make_shared<ngraph::opset7::Constant>()),
+                                          ngraph::Output<ov::Node>(std::make_shared<ngraph::opset7::Constant>()),
+                                          ELTWISE_TYPE::Prod)
+};
+
+ov::NodeVector elwise_add_nodes_false = {
+    std::make_shared<ngraph::op::VariadicSplit>(),
+    std::make_shared<ngraph::op::Eltwise>(ngraph::Output<ov::Node>(std::make_shared<ngraph::opset7::Constant>()),
+                                          ngraph::Output<ov::Node>(std::make_shared<ngraph::opset7::Constant>()),
+                                          ELTWISE_TYPE::Prod)
+};
+
+ov::NodeVector elwise_add_nodes_true = {
+        std::make_shared<ngraph::op::Eltwise>(ngraph::Output<ov::Node>(std::make_shared<ngraph::opset7::Constant>()),
+                                              ngraph::Output<ov::Node>(std::make_shared<ngraph::opset7::Constant>()),
+                                              ELTWISE_TYPE::Sum)
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ops_util_is_pooling,
+                         GnaOpsUtilisPoolingTest,
+                         ::testing::Combine(
+                            ::testing::ValuesIn(pooling_nodes_true),
+                            ::testing::Values(true)),
+                         GnaOpsUtilisPoolingTest::get_test_name);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ops_util_not_pooling,
+                         GnaOpsUtilisPoolingTest,
+                         ::testing::Combine(
+                            ::testing::ValuesIn(pooling_nodes_false),
+                            ::testing::Values(false)),
+                         GnaOpsUtilisPoolingTest::get_test_name);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ops_util_is_elwise_mul,
+                         GnaOpsUtilIsEltwiseMulTest,
+                         ::testing::Combine(
+                            ::testing::ValuesIn(elwise_mul_nodes_true),
+                            ::testing::Values(true)),
+                         GnaOpsUtilIsEltwiseMulTest::get_test_name);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ops_util_not_elwise_mul,
+                         GnaOpsUtilIsEltwiseMulTest,
+                         ::testing::Combine(
+                            ::testing::ValuesIn(elwise_mul_nodes_false),
+                            ::testing::Values(false)),
+                         GnaOpsUtilIsEltwiseMulTest::get_test_name);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ops_util_is_elwise_add,
+                         GnaOpsUtilIsEltwiseAddTest,
+                         ::testing::Combine(
+                            ::testing::ValuesIn(elwise_add_nodes_true),
+                            ::testing::Values(true)),
+                         GnaOpsUtilIsEltwiseAddTest::get_test_name);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ops_util_not_elwise_add,
+                         GnaOpsUtilIsEltwiseAddTest,
+                         ::testing::Combine(
+                            ::testing::ValuesIn(elwise_add_nodes_false),
+                            ::testing::Values(false)),
+                         GnaOpsUtilIsEltwiseAddTest::get_test_name);
+
+} //namespace test
