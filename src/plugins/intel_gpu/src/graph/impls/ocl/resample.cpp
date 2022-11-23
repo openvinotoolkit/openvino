@@ -142,7 +142,7 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
         auto params = get_default_params<kernel_selector::resample_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::resample_optional_params>(impl_param.get_program());
 
-        size_t dimsNum = impl_param.output_layout.get_rank();
+        size_t dimsNum = impl_param.get_output_layout().get_rank();
         params.resampleType = convert_to_sample_type(primitive->operation_type);
         params.nearestMode = convert_to_nearest_mode(primitive->round_mode);
         params.coordTransMode = convert_to_coord_transform_mode(primitive->coord_trans_mode);
@@ -208,4 +208,4 @@ attach_resample_impl::attach_resample_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::resample_impl, cldnn::object_type::RESAMPLE_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::resample_impl)

@@ -6,13 +6,13 @@
 
 #include "intel_gpu/graph/topology.hpp"
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/compounds.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/lru_cache.hpp"
-#include "serialization/binary_buffer.hpp"
 
 #include <map>
 #include <vector>
@@ -127,6 +127,8 @@ public:
 
     memory::ptr get_output_memory(const primitive_id& output_id);
     layout get_node_output_layout(const primitive_id& output_id) const;
+    layout get_output_layout(const primitive_id& output_id) const;
+    std::vector<layout> get_input_layouts() const;
 
     /// @brief Returns the list of primitive ids before and after graph optimization.
     /// @details If primitive was not optimized, the old and actual id will be the same.

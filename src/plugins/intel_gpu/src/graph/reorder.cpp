@@ -14,11 +14,7 @@
 #include <string>
 
 namespace cldnn {
-
-primitive_type_id reorder::type_id() {
-    static primitive_type_base<reorder> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(reorder)
 
 layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_params const& impl_param) {
     auto input_layout = impl_param.get_input_layout();
@@ -254,7 +250,8 @@ void reorder_inst::update_output_memory() {
     if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
 
-    build_deps();
+    if (_node != nullptr)
+        build_deps();
 
     if (requires_reinterpret()) {
         _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), get_output_layout());

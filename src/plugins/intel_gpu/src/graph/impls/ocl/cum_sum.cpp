@@ -65,7 +65,7 @@ public:
         auto params = get_default_params<kernel_selector::cum_sum_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::cum_sum_optional_params>(impl_param.get_program());
 
-        size_t rank = impl_param.output_layout.get_rank();
+        size_t rank = impl_param.get_output_layout().get_rank();
         params.axis = convert_axis(primitive->axis, rank);
         params.exclusive = primitive->exclusive;
         params.reverse = primitive->reverse;
@@ -96,4 +96,4 @@ attach_cum_sum_impl::attach_cum_sum_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::cum_sum_impl, cldnn::object_type::CUM_SUM_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::cum_sum_impl)

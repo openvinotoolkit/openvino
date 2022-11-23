@@ -60,7 +60,7 @@ public:
         for (size_t i = 0; i < params.inputs.size(); i++) {
             if (!params.inputs[i].SameDims(params.outputs[0])) {
                 std::vector<int32_t> input_size = impl_param.input_layouts[i].get_tensor().raw.vector();
-                std::vector<int32_t> output_size = impl_param.output_layout.get_tensor().raw.vector();
+                std::vector<int32_t> output_size = impl_param.get_output_layout().get_tensor().raw.vector();
                 bool broadcast = false;
                 for (size_t d = 0; d < output_size.size(); d++) {
                     if (output_size[d] != 1 && input_size[d] == 1)
@@ -278,4 +278,4 @@ attach_eltwise_impl::attach_eltwise_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::eltwise_impl, cldnn::object_type::ELTWISE_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::eltwise_impl)

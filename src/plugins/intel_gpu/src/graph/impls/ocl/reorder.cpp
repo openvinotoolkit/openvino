@@ -76,7 +76,7 @@ protected:
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<reorder>();
-        auto&& output_layout = impl_param.output_layout;
+        auto&& output_layout = impl_param.get_output_layout();
         auto params = get_default_params<kernel_selector::reorder_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::reorder_optional_params>(impl_param.get_program());
 
@@ -85,7 +85,7 @@ public:
         for (size_t i = 1; i < inputs_count; i++) {
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
-        if (impl_param.output_layout.data_padding) {
+        if (impl_param.get_output_layout().data_padding) {
             params.has_padded_output = true;
         }
 
@@ -150,4 +150,4 @@ attach_reorder_impl::attach_reorder_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reorder_impl, cldnn::object_type::REORDER_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reorder_impl)

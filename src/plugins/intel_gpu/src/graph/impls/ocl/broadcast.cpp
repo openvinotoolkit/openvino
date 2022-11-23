@@ -31,7 +31,7 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
         auto params = get_default_params<kernel_selector::broadcast_params>(impl_param, 1);
         auto optional_params = get_default_optional_params<kernel_selector::broadcast_optional_params>(impl_param.get_program());
 
-        const auto format = impl_param.output_layout.format;
+        const auto format = impl_param.get_output_layout().format;
         size_t max_axes_num = format.dimension();
 
         const auto& broadcast_axes = primitive->broadcast_axes;
@@ -168,4 +168,4 @@ attach_broadcast_impl::attach_broadcast_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::broadcast_impl, cldnn::object_type::BROADCAST_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::broadcast_impl)

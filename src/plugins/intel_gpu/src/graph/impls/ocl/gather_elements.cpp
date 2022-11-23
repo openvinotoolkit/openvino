@@ -63,7 +63,7 @@ struct gather_elements_impl : typed_primitive_impl_ocl<gather_elements> {
         auto params = get_default_params<kernel_selector::gather_elements_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::gather_elements_optional_params>(impl_param.get_program());
 
-        size_t rank = impl_param.output_layout.get_rank();
+        size_t rank = impl_param.get_output_layout().get_rank();
         params.axis = convert_axis(primitive->axis, rank);
 
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
@@ -93,4 +93,4 @@ attach_gather_elements_impl::attach_gather_elements_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_elements_impl, cldnn::object_type::GATHER_ELEMENTS_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_elements_impl)

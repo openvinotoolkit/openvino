@@ -32,6 +32,7 @@ cl::PFN_clCreateFromD3D11Buffer cl::BufferDX::pfn_clCreateFromD3D11Buffer = NULL
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <oneapi/dnnl/dnnl_ocl.hpp>
+#include "openvino/util/file_util.hpp"
 #endif
 
 namespace cldnn {
@@ -64,7 +65,38 @@ dnnl::engine& ocl_engine::get_onednn_engine() const {
         if (!casted)
             throw ov::Exception("[GPU] Invalid device type stored in ocl_engine");
 
-        _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get()));
+        auto config = this->configuration();
+        if (config.kernels_cache_path.empty()) {
+            _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get()));
+        } else {
+            // Use cached blob
+            auto path = config.kernels_cache_path;
+            if (path.back() != '/' && path.back() != '\\') {
+                path += "/";
+            }
+
+            auto blob_id = dnnl::ocl_interop::get_engine_cache_blob_id(casted->get_device().get());
+            if (blob_id.empty()) {
+                // Create engine without cache_blob
+                _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get()));
+                return *_onednn_engine;
+            }
+
+            std::string id_str(blob_id.begin(), blob_id.end());
+            size_t hash = std::hash<std::string>()(id_str);
+            path = path + std::to_string(hash) + ".onednn.cl_cache";
+
+            auto onednn_cache_blob = ov::util::load_binary(path);
+            if (onednn_cache_blob.empty()) {
+                _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get()));
+
+                onednn_cache_blob = dnnl::ocl_interop::get_engine_cache_blob(*_onednn_engine);
+                ov::util::save_binary(path, onednn_cache_blob);
+            } else {
+                _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get(),
+                                                                                onednn_cache_blob));
+            }
+        }
     }
 
     return *_onednn_engine;
@@ -87,6 +119,11 @@ const cl::Device& ocl_engine::get_cl_device() const {
 
 const cl::UsmHelper& ocl_engine::get_usm_helper() const {
     return *_usm_helper;
+}
+
+allocation_type ocl_engine::detect_usm_allocation_type(const void* memory) const {
+    return use_unified_shared_memory() ? ocl::gpu_usm::detect_allocation_type(this, memory)
+                                       : allocation_type::unknown;
 }
 
 memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type type, bool reset) {

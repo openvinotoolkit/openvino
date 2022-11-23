@@ -18,6 +18,7 @@
 
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/graph/serialization/map_serializer.hpp"
 #include "assign_inst.h"
 #include "read_value_inst.h"
 #include "reshape_inst.h"
@@ -32,7 +33,6 @@
 #include "program_helpers.h"
 #include "runtime/cldnn_itt.hpp"
 #include "kernels_cache.hpp"
-#include "serialization/map_serializer.hpp"
 
 #include <algorithm>
 #include <string>
@@ -69,7 +69,7 @@ void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<p
         return s.str();
     };
 
-    const std::string perf_raw_csv_header = "prim_id,prim_type,stage,in_shapes,out_shapes,impl,iters,time_usec\n";
+    const std::string perf_raw_csv_header = "prim_id,prim_type,stage,net_in_shapes,in_shapes,out_shapes,impl,iters,time_usec\n";
     std::ofstream of(dump_path);
     if (of.is_open()) {
         of << perf_raw_csv_header;
@@ -110,11 +110,13 @@ void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<p
                 auto& time = std::get<0>(entry);
                 auto& num_iters = std::get<1>(entry);
                 int64_t time_avg = time / num_iters;
+                std::string net_in_l_str = layouts_to_str(key.network_input_layouts);
                 std::string in_l_str = layouts_to_str(key.input_layouts);
                 std::string out_l_str = layouts_to_str(key.output_layouts);
                 of << prim_id << ","
                 << inst->desc()->type_string() << ","
                 << key.stage << (key.cache_hit ? " (cache_hit)" : "") << ","
+                << net_in_l_str << ","
                 << in_l_str << ","
                 << out_l_str << ","
                 << (key.stage == instrumentation::pipeline_stage::inference ? key.impl_name : "undef") << ","
@@ -267,6 +269,11 @@ void wait_for_the_turn() {}
 #endif
 }  // namespace
 
+static uint32_t get_unique_net_id() {
+    static std::atomic<uint32_t> id_gen{0};
+    return ++id_gen;
+}
+
 /*
 Network will always have net_id = 0 when it will be cldnn internal micronetwork (created i.e by propagate_constants
 opt pass).
@@ -279,9 +286,8 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     , _internal(is_internal)
     , _is_primary_stream(is_primary_stream)
     , _reset_arguments(true) {
-    static std::atomic<uint32_t> id_gen{0};
     if (!_internal) {
-        net_id = ++id_gen;
+        net_id = get_unique_net_id();
     }
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -325,31 +331,25 @@ network::network(program::ptr program, stream::ptr stream, uint16_t stream_id)
 
 network::network(cldnn::BinaryInputBuffer& ib, stream::ptr stream, engine& engine, uint16_t stream_id)
     : _program(nullptr)
-    , _engine(ib.get_engine())
+    , _engine(engine)
     , _stream(stream)
     , _memory_pool(new memory_pool(engine))
     , _internal(false)
     , _is_primary_stream(false)
     , _reset_arguments(true) {
-    net_id += 1;
+    net_id = get_unique_net_id();
 
-    uint32_t prog_id;
-    std::vector<std::string> batch_header_str;
-    ib >> prog_id;
-    ib >> batch_header_str;
-    kernels_cache kernels_cache(get_engine(), prog_id, batch_header_str);
+    kernels_cache kernels_cache(get_engine(), 0, {""});
     ib >> kernels_cache;
 
     int num_data_nodes;
     ib >> num_data_nodes;
 
-    _memory_pool->clear_pool_for_network(net_id);
-
     for (int i = 0; i < num_data_nodes; ++i) {
         std::string type;
         std::string _primitive_id;
         ib >> type >> _primitive_id;
-        std::shared_ptr<cldnn::primitive_inst> new_primitive_inst = cldnn::get_type_id(type)->create_instance(*this);
+        std::shared_ptr<cldnn::primitive_inst> new_primitive_inst = prim_map_storage::instance().get_type_id(type)->create_instance(*this);
         ib >> *new_primitive_inst;
         _primitives[_primitive_id] = new_primitive_inst;
     }
@@ -363,7 +363,7 @@ network::network(cldnn::BinaryInputBuffer& ib, stream::ptr stream, engine& engin
 
     for (auto& type : _exec_order_types) {
         ib >> type;
-        std::shared_ptr<cldnn::primitive_inst> new_primitive_inst = cldnn::get_type_id(type)->create_instance(*this);
+        std::shared_ptr<cldnn::primitive_inst> new_primitive_inst = prim_map_storage::instance().get_type_id(type)->create_instance(*this);
         _exec_order.emplace_back(new_primitive_inst);
     }
 
@@ -373,12 +373,18 @@ network::network(cldnn::BinaryInputBuffer& ib, stream::ptr stream, engine& engin
     for (const auto& p_inst : _exec_order) {
         ib >> *p_inst;
         _primitives[p_inst->id()] = p_inst;
+        p_inst->init_kernels(kernels_cache);
+    }
+
+    for (auto& item : _primitives) {
+        auto& p_inst = item.second;
         if (p_inst->is_input())
             _inputs.push_back(p_inst);
-        if (p_inst->is_output())
+        if (p_inst->is_output()) {
             _outputs.push_back(p_inst);
-
-        p_inst->init_kernels(kernels_cache);
+            if (p_inst->type() == cldnn::data::type_id())
+                _data_outputs.push_back(p_inst);
+        }
     }
 
     for (auto p_inst : _exec_order) {
@@ -426,8 +432,18 @@ network::~network() {
     }
 }
 
+// Cache blob format:
+//     [ cldnn::kernels_cache ]
+//     [ non executable primitive_inst ]
+//     [ executable primitive_inst ]
+//     [ memory reuse information ]
 void network::save(cldnn::BinaryOutputBuffer& ob) {
-    ob << _program->get_kernels_cache();
+    kernels_cache kernels_cache(get_engine(), 0, {""});
+    for (const auto& p_inst : _exec_order) {
+        if (p_inst->get_impl() != nullptr)
+            kernels_cache.add_kernels(p_inst->get_impl()->get_kernel_ids(), p_inst->get_impl()->get_kernels());
+    }
+    ob << kernels_cache;
 
     int num_data_nodes = 0;
     for (const auto& p_inst : _primitives) {
@@ -592,9 +608,9 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
         }
 
         //then users
-        const auto& users = p_inst->get_users();
-        for (const auto& usr : users) {
-            auto usr_prim = get_primitive(usr->id());
+        const auto& user_ids = mdata_ptr->get_user_ids();
+        for (const auto& id : user_ids) {
+            auto usr_prim = get_primitive(id);
             if (eng.is_the_same_buffer(mem_orig, usr_prim->output_memory())) {
                 chain.push_back(usr_prim);
             }
@@ -714,6 +730,10 @@ std::string network::get_implementation_info(const primitive_id& id) const {
 
 memory::ptr network::get_output_memory(const primitive_id& output_id) {
     return get_primitive(output_id)->output_memory_ptr();
+}
+
+layout network::get_output_layout(const primitive_id& output_id) const {
+    return get_primitive(output_id)->get_output_layout();
 }
 
 layout network::get_node_output_layout(const primitive_id& output_id) const {
@@ -905,7 +925,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                             debug_config->is_dumped_layer(layer_name)) {
                 for (size_t i = 0; i < get_primitive(inst->id())->dependencies().size(); i++) {
                     log_memory_to_file(get_primitive(inst->id())->dep_memory_ptr(i), get_stream(),
-                                    layer_name + "_src_" + std::to_string(i));
+                                       layer_name + "_src_" + std::to_string(i));
                 }
             }
         }
@@ -916,7 +936,10 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             get_stream().finish();
             const std::string layer_name = inst->id();
             GPU_DEBUG_IF(debug_config->is_dumped_layer(layer_name, inst->is_output())) {
-                log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(), get_stream(), layer_name + "_dst_0");
+                for (size_t i = 0; i < get_primitive(inst->id())->outputs_memory_count(); i++) {
+                    log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(i), get_stream(),
+                                       layer_name + "_dst_" + std::to_string(i));
+                }
             }
         }
     }
@@ -972,6 +995,13 @@ std::vector<primitive_id> network::get_input_ids() const {
     std::vector<primitive_id> ret;
     ret.reserve(_inputs.size());
     for (auto const& input : _inputs) ret.push_back(input->id());
+    return ret;
+}
+
+std::vector<layout> network::get_input_layouts() const {
+    std::vector<layout> ret;
+    ret.reserve(_inputs.size());
+    for (auto const& input : _inputs) ret.push_back(input->output_memory_ptr()->get_layout());
     return ret;
 }
 
@@ -1114,7 +1144,7 @@ void network::allocate_primitive_instance(program_node const& node) {
     }
 
     _primitives[node.id()] = inst;
-    if (node.is_input()) {
+    if (node.is_type<input_layout>()) {
         if (inst->output_memory_ptr())
             _in_out_shared_mem_types.push_back(inst->output_memory_ptr()->get_internal_params().mem_type);
         _inputs.push_back(inst);

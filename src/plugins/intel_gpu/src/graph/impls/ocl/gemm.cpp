@@ -102,8 +102,8 @@ public:
             return updated_output_layout;
         };
 
-        const auto input_layouts = get_gemm_input_layouts(impl_param.input_layouts, impl_param.output_layout);
-        const auto output_layout = get_gemm_output_layout(input_layouts, impl_param.output_layout);
+        const auto input_layouts = get_gemm_input_layouts(impl_param.input_layouts, impl_param.output_layouts[0]);
+        const auto output_layout = get_gemm_output_layout(input_layouts, impl_param.output_layouts[0]);
 
         auto params = get_default_params<kernel_selector::gemm_params>(impl_param, 1);
         auto optional_params = get_default_optional_params<kernel_selector::gemm_optional_params>(impl_param.get_program());
@@ -165,4 +165,4 @@ attach_gemm_impl::attach_gemm_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gemm_impl, cldnn::object_type::GEMM_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gemm_impl)

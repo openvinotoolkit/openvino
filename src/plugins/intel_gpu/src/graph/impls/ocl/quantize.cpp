@@ -81,7 +81,7 @@ public:
         for (size_t i = 1; i < arg.inputs_count(); i++) {
             quantize_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
         }
-        const auto& output_layout = impl_param.output_layout;
+        const auto& output_layout = impl_param.get_output_layout();
         quantize_params.outputs = { convert_data_tensor(output_layout) };
 
         auto& kernel_selector = kernel_selector::quantize_kernel_selector::Instance();
@@ -203,4 +203,4 @@ attach_quantize_impl::attach_quantize_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::quantize_impl, cldnn::object_type::QUANTIZE_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::quantize_impl)

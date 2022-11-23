@@ -117,7 +117,7 @@ protected:
 
         auto input_layout = impl_params.get_input_layout(0);
         auto weights_layout = impl_params.get_input_layout(1);
-        auto output_layout = impl_params.output_layout;
+        auto output_layout = impl_params.get_output_layout();
 
         auto input_pshape = input_layout.get_partial_shape();
         auto weights_pshape = weights_layout.get_partial_shape();
@@ -210,7 +210,6 @@ attach_fully_connected_onednn::attach_fully_connected_onednn() {
     };
     std::vector<format::type> fmt = {
         format::bfyx,
-        format::bfzyx,
     };
     implementation_map<fully_connected>::add(impl_types::onednn, fully_connected_onednn::create, dt, fmt);
 }
@@ -219,4 +218,4 @@ attach_fully_connected_onednn::attach_fully_connected_onednn() {
 }  // namespace onednn
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::fully_connected_onednn, cldnn::object_type::FULLY_CONNECTED_ONEDNN)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::fully_connected_onednn)

@@ -14,10 +14,7 @@
 #include "split_shape_inference.hpp"
 
 namespace cldnn {
-primitive_type_id crop::type_id() {
-    static primitive_type_base<crop> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(crop)
 
 layout crop_inst::calc_output_layout(crop_node const& node, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
@@ -264,7 +261,7 @@ void crop_inst::update_output_memory() {
     if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
 
-    _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), _impl_params->output_layout);
+    _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout());
     _mem_allocated = false;
 }
 

@@ -6,7 +6,7 @@
 
 #include "test_utils.h"
 #include "network_test.h"
-
+#include <intel_gpu/runtime/utils.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include <intel_gpu/primitives/quantize.hpp>
@@ -979,7 +979,8 @@ using fully_connected_test_params = std::tuple<
     size_t,        // output_f
     format::type,  // input format
     format::type,  // output format
-    std::string    // kernel
+    std::string,   // kernel
+    bool           // is_caching_test
 >;
 
 template <typename InputT, typename WeightsT, typename BiasT, typename OutputT>
@@ -989,8 +990,9 @@ struct fully_connected_random_test : ::testing::TestWithParam<fully_connected_te
         size_t batch, input_f, input_x, input_y, output_f;
         format::type input_format, output_format;
         std::string kernel;
+        bool is_caching_test;
 
-        std::tie(batch, dims, output_f, input_format, output_format, kernel) = GetParam();
+        std::tie(batch, dims, output_f, input_format, output_format, kernel, is_caching_test) = GetParam();
         std::tie(input_f, input_x, input_y) = dims;
 
         auto input_data = generate_smart_random_4d<InputT>(batch, input_f, input_y, input_x);
@@ -1004,7 +1006,7 @@ struct fully_connected_random_test : ::testing::TestWithParam<fully_connected_te
         auto bias = net.add_data<BiasT, 2>("bias", format::bfyx, std::move(bias_data));
         auto fc = net.add_fully_connected<OutputT>("fc_prim", input, weights, bias, implementation_desc{ output_format, kernel });
 
-        net.run(build_options(build_option::optimize_data(true)));
+        net.run(build_options(build_option::optimize_data(true)), is_caching_test);
     }
 };
 
@@ -1025,7 +1027,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(3, 32),
         ::testing::Values(format::bfyx, format::yxfb),
         ::testing::Values(format::any),
-        ::testing::Values(""))
+        ::testing::Values(""),
+        ::testing::Values(false))
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1038,7 +1041,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(3, 32),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::bfyx),
-        ::testing::Values(""))
+        ::testing::Values(""),
+        ::testing::Values(false))
 );
 
 TEST_P(fully_connected_random_test_f16, basic) {
@@ -1057,7 +1061,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(3, 32),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
-        ::testing::Values(""))
+        ::testing::Values(""),
+        ::testing::Values(false))
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1070,7 +1075,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(3, 32),
         ::testing::Values(format::yxfb),
         ::testing::Values(format::any),
-        ::testing::Values(""))
+        ::testing::Values(""),
+        ::testing::Values(false))
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1083,9 +1089,22 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(3, 32),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::bfyx),
-        ::testing::Values(""))
+        ::testing::Values(""),
+        ::testing::Values(false))
 );
 
+INSTANTIATE_TEST_SUITE_P(
+    export_import,
+    fully_connected_random_test_f16,
+    ::testing::Combine(
+        ::testing::Values(2),
+        ::testing::Values(shared_dims{32, 1, 1}),
+        ::testing::Values(32),
+        ::testing::Values(format::bfyx),
+        ::testing::Values(format::bfyx),
+        ::testing::Values(""),
+        ::testing::Values(true))
+);
 
 template <typename InputT, typename WeightsT, typename BiasT, typename OutputT>
 struct fully_connected_random_test_3d : ::testing::TestWithParam<fully_connected_test_params> {
@@ -1094,8 +1113,9 @@ struct fully_connected_random_test_3d : ::testing::TestWithParam<fully_connected
         size_t batch, input_f, input_x, input_y, output_y;
         format::type input_format, output_format;
         std::string kernel;
+        bool is_caching_test;
 
-        std::tie(batch, dims, output_y, input_format, output_format, kernel) = GetParam();
+        std::tie(batch, dims, output_y, input_format, output_format, kernel, is_caching_test) = GetParam();
         std::tie(input_f, input_x, input_y) = dims;
 
         auto input_data = generate_smart_random_4d<InputT>(batch, input_f, input_y, input_x);
@@ -1109,7 +1129,7 @@ struct fully_connected_random_test_3d : ::testing::TestWithParam<fully_connected
         auto bias = net.add_data<BiasT, 2>("bias", format::bfyx, std::move(bias_data));
         auto fc = net.add_fully_connected_3d<OutputT>("fc_prim", input, weights, bias, implementation_desc{ output_format, kernel }, 3);
 
-        net.run(build_options(build_option::optimize_data(true)));
+        net.run(build_options(build_option::optimize_data(true)), is_caching_test);
     }
 };
 
@@ -1134,7 +1154,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(1, 3, 16),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
-        ::testing::Values(""))
+        ::testing::Values(""),
+        ::testing::Values(false))
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1149,7 +1170,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(1, 32, 64),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
-        ::testing::Values(""))
+        ::testing::Values(""),
+        ::testing::Values(false))
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1164,7 +1186,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(17, 32),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
-        ::testing::Values(""))
+        ::testing::Values(""),
+        ::testing::Values(false))
 );
 
 TEST_P(fully_connected_random_test_f16_3d, basic) {
@@ -1183,7 +1206,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(1, 3, 16),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
-        ::testing::Values(""))
+        ::testing::Values(""),
+        ::testing::Values(false))
 );
 
 TEST_P(fully_connected_random_test_i8_3d, basic) {
@@ -1202,7 +1226,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(1, 3, 16),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
-        ::testing::Values(""))
+        ::testing::Values(""),
+        ::testing::Values(false))
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1217,7 +1242,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(1, 32, 64),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
-        ::testing::Values(""))
+        ::testing::Values(""),
+        ::testing::Values(false))
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1232,7 +1258,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(17, 32),
         ::testing::Values(format::bfyx),
         ::testing::Values(format::any),
-        ::testing::Values(""))
+        ::testing::Values(""),
+        ::testing::Values(false))
 );
 
 
@@ -1759,15 +1786,16 @@ TEST(fully_connected_gpu, dynamic) {
     ASSERT_EQ(outputs.size(), size_t(1));
     ASSERT_EQ(outputs.begin()->first, "fc");
 
-    auto output_prim = outputs.begin()->second.get_memory();
+    auto output_prim_mem = outputs.begin()->second.get_memory();
 
-    auto out_l = output_prim->get_layout();
+    auto out_l = network.get_output_layout(outputs.begin()->first);
+    ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, 16)); // fake_alignment
     ASSERT_EQ(out_l.batch(), input_b);
     ASSERT_EQ(out_l.feature(), weight_b);
     ASSERT_EQ(out_l.spatial(0), 1);
     ASSERT_EQ(out_l.spatial(1), 1);
 
-    cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+    cldnn::mem_lock<float> output_ptr (output_prim_mem, get_test_stream());
 
     ASSERT_EQ(1.5f, output_ptr[0]);
     ASSERT_EQ(0.75f, output_ptr[1]);
@@ -1810,15 +1838,16 @@ TEST(fully_connected_gpu, dynamic_multi_inference_same_shape) {
         ASSERT_EQ(outputs.size(), size_t(1));
         ASSERT_EQ(outputs.begin()->first, "fc");
 
-        auto output_prim = outputs.begin()->second.get_memory();
+        auto output_prim_mem = outputs.begin()->second.get_memory();
 
-        auto out_l = output_prim->get_layout();
+        auto out_l = network.get_output_layout(outputs.begin()->first);
+        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, 16)); // fake_alignment
         ASSERT_EQ(out_l.batch(), input_b);
         ASSERT_EQ(out_l.feature(), weight_b);
         ASSERT_EQ(out_l.spatial(0), 1);
         ASSERT_EQ(out_l.spatial(1), 1);
 
-        cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+        cldnn::mem_lock<float> output_ptr (output_prim_mem, get_test_stream());
 
         ASSERT_EQ(-1.5f, output_ptr[0]);
         ASSERT_EQ(-0.75f, output_ptr[1]);
@@ -1833,15 +1862,16 @@ TEST(fully_connected_gpu, dynamic_multi_inference_same_shape) {
         ASSERT_EQ(outputs.size(), size_t(1));
         ASSERT_EQ(outputs.begin()->first, "fc");
 
-        auto output_prim = outputs.begin()->second.get_memory();
+        auto output_prim_mem = outputs.begin()->second.get_memory();
 
-        auto out_l = output_prim->get_layout();
+        auto out_l = network.get_output_layout(outputs.begin()->first);
+        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, 16)); // fake_alignment
         ASSERT_EQ(out_l.batch(), input_b);
         ASSERT_EQ(out_l.feature(), weight_b);
         ASSERT_EQ(out_l.spatial(0), 1);
         ASSERT_EQ(out_l.spatial(1), 1);
 
-        cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+        cldnn::mem_lock<float> output_ptr (output_prim_mem, get_test_stream());
 
         ASSERT_EQ(1.5f, output_ptr[0]);
         ASSERT_EQ(0.75f, output_ptr[1]);
@@ -1888,15 +1918,16 @@ TEST(fully_connected_gpu, dynamic_multi_inference_different_shape) {
         ASSERT_EQ(outputs.size(), size_t(1));
         ASSERT_EQ(outputs.begin()->first, "fc");
 
-        auto output_prim = outputs.begin()->second.get_memory();
+        auto output_prim_mem = outputs.begin()->second.get_memory();
 
-        auto out_l = output_prim->get_layout();
+        auto out_l = network.get_output_layout(outputs.begin()->first);
+        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(2, 16)); // fake_alignment
         ASSERT_EQ(out_l.batch(), 2);
         ASSERT_EQ(out_l.feature(), weight_b);
         ASSERT_EQ(out_l.spatial(0), 1);
         ASSERT_EQ(out_l.spatial(1), 1);
 
-        cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+        cldnn::mem_lock<float> output_ptr (output_prim_mem, get_test_stream());
 
         ASSERT_EQ(-1.5f, output_ptr[0]);
         ASSERT_EQ(-0.75f, output_ptr[1]);
@@ -1916,15 +1947,16 @@ TEST(fully_connected_gpu, dynamic_multi_inference_different_shape) {
         ASSERT_EQ(outputs.size(), size_t(1));
         ASSERT_EQ(outputs.begin()->first, "fc");
 
-        auto output_prim = outputs.begin()->second.get_memory();
+        auto output_prim_mem = outputs.begin()->second.get_memory();
 
-        auto out_l = output_prim->get_layout();
+        auto out_l = network.get_output_layout(outputs.begin()->first);
+        ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(1, 16)); // fake_alignment
         ASSERT_EQ(out_l.batch(), 1);
         ASSERT_EQ(out_l.feature(), weight_b);
         ASSERT_EQ(out_l.spatial(0), 1);
         ASSERT_EQ(out_l.spatial(1), 1);
 
-        cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+        cldnn::mem_lock<float> output_ptr (output_prim_mem, get_test_stream());
 
         ASSERT_EQ(1.5f, output_ptr[0]);
         ASSERT_EQ(0.75f, output_ptr[1]);
@@ -1973,15 +2005,16 @@ TEST(fully_connected_gpu, dynamic_multi_inference_multiple_shapes) {
             ASSERT_EQ(outputs.size(), size_t(1));
             ASSERT_EQ(outputs.begin()->first, "fc");
 
-            auto output_prim = outputs.begin()->second.get_memory();
+            auto output_prim_mem = outputs.begin()->second.get_memory();
 
-            auto out_l = output_prim->get_layout();
-            ASSERT_EQ(out_l.batch(), 2);
+            auto out_l = network.get_output_layout(outputs.begin()->first);
+            ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(2, 16)); // fake_alignment
+            ASSERT_EQ(out_l.batch(), 2); // fake_alignment
             ASSERT_EQ(out_l.feature(), weight_b);
             ASSERT_EQ(out_l.spatial(0), 1);
             ASSERT_EQ(out_l.spatial(1), 1);
 
-            cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+            cldnn::mem_lock<float> output_ptr (output_prim_mem, get_test_stream());
 
             ASSERT_EQ(-1.5f, output_ptr[0]);
             ASSERT_EQ(-0.75f, output_ptr[1]);
@@ -2001,15 +2034,16 @@ TEST(fully_connected_gpu, dynamic_multi_inference_multiple_shapes) {
             ASSERT_EQ(outputs.size(), size_t(1));
             ASSERT_EQ(outputs.begin()->first, "fc");
 
-            auto output_prim = outputs.begin()->second.get_memory();
+            auto output_prim_mem = outputs.begin()->second.get_memory();
 
-            auto out_l = output_prim->get_layout();
-            ASSERT_EQ(out_l.batch(), 1);
+            auto out_l = network.get_output_layout(outputs.begin()->first);
+            ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(1, 16)); // fake_alignment
+            ASSERT_EQ(out_l.batch(), 1); // fake_alignment
             ASSERT_EQ(out_l.feature(), weight_b);
             ASSERT_EQ(out_l.spatial(0), 1);
             ASSERT_EQ(out_l.spatial(1), 1);
 
-            cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+            cldnn::mem_lock<float> output_ptr (output_prim_mem, get_test_stream());
 
             ASSERT_EQ(1.5f, output_ptr[0]);
             ASSERT_EQ(0.75f, output_ptr[1]);
