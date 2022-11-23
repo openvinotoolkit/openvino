@@ -72,7 +72,7 @@ void InsertTranspose(std::shared_ptr<ngraph::Node> prev_node, const std::string&
 
     ngraph::copy_runtime_info(prev_node, new_ops);
 
-    for (auto input : consumers) {
+    for (auto& input : consumers) {
         input.replace_source_output(node);
     }
 }
