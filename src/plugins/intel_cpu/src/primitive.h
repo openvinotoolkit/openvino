@@ -19,7 +19,7 @@ public:
     Primitive();
     operator bool() const;
     Primitive& operator=(const std::shared_ptr<dnnl::primitive>& primitive);
-    dnnl::primitive operator*();
+    dnnl::primitive operator*() const;
     void reset(dnnl::primitive* primitive);
 
 private:
