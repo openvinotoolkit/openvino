@@ -3,7 +3,6 @@
 //
 
 #include "default_opset.hpp"
-#include "openvino/opsets/opset6.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
 namespace ov {
@@ -18,10 +17,11 @@ NamedOutputs dequantize_linear(const NodeContext& node) {
 
     // assert shape of scale and zero_point
     const auto& scale_shape = scale.get_partial_shape();
+    const auto& scale_shape_length = scale.get_partial_shape().rank().get_length();
 
-    if (scale_shape.rank().get_length() == 1) {
+    if (scale_shape_length == 1) {
         PADDLE_OP_CHECK(node, scale.get_partial_shape() == zero_point.get_partial_shape(), "dequantize_linear shape of scale and zero_point doesn't match.");
-    } else if (scale_shape.rank().get_length() == 2) {
+    } else if (scale_shape_length == 2) {
         PADDLE_OP_CHECK(node, scale.get_partial_shape()[1] == zero_point.get_partial_shape()[0], "dequantize_linear shape of scale and zero_point doesn't match.");
     } else {
         PADDLE_OP_CHECK(node, false, "dims of scale should not be greater than 2.");
@@ -33,26 +33,28 @@ NamedOutputs dequantize_linear(const NodeContext& node) {
     const auto real_scale = std::make_shared<default_opset::Multiply>(scale, range_node);
 
     auto q_node = std::make_shared<default_opset::Convert>(x, element::f32);
-    // extract the ATTRIBUTES
-    //   / == 1-D not need to unsqueeze for broadcast
-    // X
-    //   \ >= 2-D need to unsqeeze for broadcast
+    // extract the ATTRIBUTES and explaination for quant_axis:
+    //             / [-1]      --- per-tensor, scale is always 1-D
+    // quant_axis  - [0 or 1]  --- per-channel, scale may be 1-D or 2-D, needing to reshape for input shape.
+    //             \ [others]  --- unsupported    
     auto quant_axis = node.get_attribute<int32_t>("quant_axis");
+    std::vector<int32_t> quant_axis_range{-1, 0, 1};
+    PADDLE_OP_CHECK(node, std::any_of(quant_axis_range.begin(), quant_axis_range.end(), [&quant_axis](int32_t value){ return quant_axis == value;}), "dequantize_linear quant_axis is NOT in the range of [-1, 0, 1].");
     if (quant_axis == -1) {
         const auto out_node = std::make_shared<default_opset::Multiply>(q_node, real_scale);
         return node.default_single_output_mapping({out_node}, {"Y"});
     } else {
-        const auto squeeze_real_scale = std::make_shared<default_opset::Squeeze>(real_scale);
-        std::vector<size_t> unsqueeze_pattern(x.get_partial_shape().rank().get_length());
-        std::iota(unsqueeze_pattern.begin(), unsqueeze_pattern.end(), 0);
-        unsqueeze_pattern.erase(unsqueeze_pattern.begin() + quant_axis);
-        const auto unsqueeze_node = std::make_shared<default_opset::Constant>(element::i32, Shape{unsqueeze_pattern.size()}, unsqueeze_pattern);
+        // But for per-channel scenario, the shape of scale is NOT stable. 
+        // Sometimes scale is 1-D and sometimes scale is 2-D. So, we must figure out a gereral way to deal with it.
+        // Let's prepare a pattern to reshape operation according to the scale shape.
+        std::vector<size_t> reshape_pattern(x.get_partial_shape().rank().get_length(), 1);
+        reshape_pattern.at(quant_axis) = scale_shape[scale_shape_length - 1].get_length();
+        auto reshape_node = std::make_shared<default_opset::Constant>(element::i32, Shape{reshape_pattern.size()}, reshape_pattern);
+        auto reshape_scale = std::make_shared<default_opset::Reshape>(real_scale, reshape_node, true);
 
-        const auto scale_ = std::make_shared<default_opset::Unsqueeze>(squeeze_real_scale, unsqueeze_node);
-
-        const auto out_node = std::make_shared<default_opset::Multiply>(q_node, scale_);
+        const auto out_node = std::make_shared<default_opset::Multiply>(q_node, reshape_scale);
         return node.default_single_output_mapping({out_node}, {"Y"});
-    }
+    } 
 }
 
 }  // namespace op

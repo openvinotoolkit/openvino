@@ -31,12 +31,8 @@ namespace op {
 NamedOutputs quantize_linear(const NodeContext& node) {
     // extract the INPUTS
     const auto x = node.get_input("X");
-    const auto scale = node.get_input("Scale"); // type: float or 1-D
+    const auto scale = node.get_input("Scale");
     const auto zero_point = node.get_input("ZeroPoint");
-    // const auto& scale_node = std::dynamic_pointer_cast<default_opset::Constant>(scale);
-    // std::vector<float> scales = scale_node->cast_vector<float>();
-    // std::cout << "scale value: " << scales[0] << "\n";
-    // const auto scale_numel = scale.get_shape().size() == 2 ? scale.get_shape()[1] : scale.get_shape()[0];
 
     // extract the ATTRIBUTES
     const auto bit_length = node.get_attribute<int32_t>("bit_length");
