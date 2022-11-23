@@ -1287,19 +1287,10 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
                 const ngraph::Shape & model_input_shape = model->get_parameters()[0]->get_output_shape(0);
                 const auto model_input_type = InferenceEngine::details::convertPrecision(outputDesc.tensor_precision);
 
-                std::cout << "[EMUTEX DEBUG] model_input_type " << model_input_type << std::endl;
-
                 for (auto param : model->get_parameters()) {
                     param->set_element_type(model_input_type);
                 }
                 model->validate_nodes_and_infer_types();
-
-                {
-                    ngraph::pass::Manager manager;
-                    manager.register_pass<ngraph::pass::InitNodeInfo>();
-                    manager.register_pass<ngraph::pass::VisualizeTree>("./output_model.png"); // DEBUG
-                    manager.run_passes(model);
-                }
 
                 ov::Tensor input_tensor(model_input_type, model_input_shape, output_ptr);
 

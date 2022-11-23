@@ -145,14 +145,13 @@ protected:
 
         auto input_params = ngraph::builder::makeParams(ngPrc, { input_shape });
 
-        auto tanh = std::make_shared<ngraph::opset9::Tanh>(input_params[0]);
-        auto tanh1 = std::make_shared<ngraph::opset9::Tanh>(tanh);
+        auto abs = std::make_shared<ngraph::opset9::Abs>(input_params[0]);
 
         const std::vector<size_t> indexes = MakeGatherIndexes(input_shape_product);
         auto gather_indexes_node = ngraph::opset9::Constant::create(ngraph::element::i64, ov::Shape{indexes.size()}, indexes);
         const size_t gather_axis = 1;
         auto gather_axis_node = ngraph::opset9::Constant::create(ngraph::element::i64, ngraph::Shape{}, {gather_axis});
-        auto gather_node = std::make_shared<ngraph::opset9::Gather>(tanh1,
+        auto gather_node = std::make_shared<ngraph::opset9::Gather>(abs,
                                                                 gather_indexes_node,
                                                                 gather_axis_node);
 
