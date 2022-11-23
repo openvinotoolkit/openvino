@@ -202,5 +202,5 @@ TEST(type_prop, unique_with_constant_input_no_axis) {
     const auto data = opset10::Constant::create(element::i32, Shape{5}, {5, 1, 4, 2, 5});
     const auto unique = make_shared<opset10::Unique>(data);
 
-    CHECK_OUTPUT_SHAPES(unique, {{Shape{{4}}, Shape{{4}}, Shape{{5}}, Shape{{4}}}});
+    CHECK_OUTPUT_SHAPES(unique, {{Shape{4}, Shape{4}, Shape{5}, Shape{4}}});
 }
