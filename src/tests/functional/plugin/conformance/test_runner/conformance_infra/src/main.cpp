@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <chrono>
 #include <signal.h>
 #ifdef _WIN32
 #include <process.h>
@@ -23,7 +22,6 @@
 using namespace ov::test::conformance;
 
 int main(int argc, char* argv[]) {
-    auto time1 = std::chrono::system_clock::now();
     // Workaround for Gtest + Gflag
     std::vector<char*> argv_gflags_vec;
     int argc_gflags = 0;
@@ -105,9 +103,5 @@ int main(int argc, char* argv[]) {
     signal(SIGTERM , exernalSignalHandler);
     signal(SIGSEGV, exernalSignalHandler);
     signal(SIGABRT, exernalSignalHandler);
-    auto a = RUN_ALL_TESTS();
-    auto time2 = std::chrono::system_clock::now();
-    std::chrono::duration<double> elapsed_seconds = time2 - time1;
-    std::cout << "TIME: " << elapsed_seconds.count() << std::endl;
-    return a;
+    return RUN_ALL_TESTS();
 }
