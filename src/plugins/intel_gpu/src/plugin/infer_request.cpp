@@ -450,11 +450,7 @@ void InferRequest::enqueue() {
                                      FormatFromTensorDesc(blobsDesc),
                                      tensor_from_dims(blobsDesc.getDims()));
 
-                auto mergedBlobs = std::make_shared<RemoteCLbuffer>(m_graph->GetContext(),
-                                                                    m_graph->GetNetwork()->get_stream(),
-                                                                    blobsDesc,
-                                                                    layout);
-                mergedBlobs->allocate();
+                auto mergedBlobs = create_remote_blob<RemoteCLbuffer>(blobsDesc, layout, RemoteBlobImpl::BlobType::BT_BUF_INTERNAL);
                 dst = mergedBlobs->buffer().as<uint8_t*>();
 
                 _inputs[name] = mergedBlobs;
@@ -602,18 +598,30 @@ Blob::Ptr InferRequest::create_host_blob(const TensorDesc& desc, bool is_dynamic
     return blob;
 }
 
-Blob::Ptr InferRequest::create_shared_device_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout, void* usm_host_mem) {
-    auto blob = std::make_shared<RemoteUSMbuffer>(m_graph->GetContext(),
+template <typename RemoteBlobType>
+InferenceEngine::Blob::Ptr InferRequest::create_remote_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout,
+                                                            const RemoteBlobImpl::BlobType mem_type, void* mem_ptr) {
+    auto blob = std::make_shared<RemoteBlobType>(m_graph->GetContext(),
                                                   m_graph->GetNetwork()->get_stream(),
                                                   desc,
                                                   layout,
-                                                  usm_host_mem,
+                                                  mem_ptr,
                                                   0,
                                                   0,
-                                                  RemoteBlobImpl::BlobType::BT_USM_SHARED);
-    if (!blob)
-        IE_THROW(NotAllocated) << "Failed to allocate shared host <-> device blob";
+                                                  mem_type);
+    OPENVINO_ASSERT(blob, "[GPU] Failed to allocate remote blob");
     blob->allocate();
+    return blob;
+}
+
+template InferenceEngine::Blob::Ptr InferRequest::create_remote_blob<RemoteCLbuffer>(const InferenceEngine::TensorDesc&, const cldnn::layout&,
+                                                                                     const RemoteBlobImpl::BlobType, void*);
+template InferenceEngine::Blob::Ptr InferRequest::create_remote_blob<RemoteUSMbuffer>(const InferenceEngine::TensorDesc&, const cldnn::layout&,
+                                                                                      const RemoteBlobImpl::BlobType, void*);
+
+Blob::Ptr InferRequest::create_shared_device_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout, void* usm_host_mem) {
+    auto blob = create_remote_blob<RemoteUSMbuffer>(desc, layout, RemoteBlobImpl::BlobType::BT_USM_SHARED, usm_host_mem);
+    OPENVINO_ASSERT(blob, "[GPU] Failed to allocate shared host <-> device blob");
     return blob;
 }
 
@@ -872,8 +880,8 @@ void InferRequest::allocate_dev_mem_if_needed(InferenceEngine::BlobMap& device_m
             // and then create shared device blob on top of this buffer
             device_mems[blob_name] = create_shared_device_blob(user_blob->getTensorDesc(), layout, user_blob->buffer().as<void*>());
         } else if (need_lockable_mem) {
-            auto host_blob = create_host_blob(user_blob->getTensorDesc(), layout.is_dynamic());
-            device_mems[blob_name] = create_shared_device_blob(user_blob->getTensorDesc(), layout, host_blob->buffer().as<void*>());
+            device_mems[blob_name] =
+                create_remote_blob<RemoteUSMbuffer>(user_blob->getTensorDesc(), layout, RemoteBlobImpl::BlobType::BT_USM_HOST_INTERNAL);
         } else {
             device_mems[blob_name] = create_device_blob(user_blob->getTensorDesc());
         }
@@ -1024,23 +1032,9 @@ InferenceEngine::Blob::Ptr InferRequest::create_device_blob(const InferenceEngin
     auto l = cldnn::layout(shape, dt, format);
 
     if (m_graph->GetEngine()->use_unified_shared_memory()) {
-        auto blobPtr = std::make_shared<RemoteUSMbuffer>(m_graph->GetContext(),
-                                                         m_graph->GetNetwork()->get_stream(),
-                                                         desc,
-                                                         l,
-                                                         nullptr,
-                                                         0,
-                                                         0,
-                                                         RemoteBlobImpl::BlobType::BT_USM_DEVICE_INTERNAL);
-        getBlobImpl(blobPtr.get())->allocate();
-        return blobPtr;
+        return create_remote_blob<RemoteUSMbuffer>(desc, l, RemoteBlobImpl::BlobType::BT_USM_DEVICE_INTERNAL);
     } else {
-        auto blobPtr = std::make_shared<RemoteCLbuffer>(m_graph->GetContext(),
-                                                        m_graph->GetNetwork()->get_stream(),
-                                                        desc,
-                                                        l);
-        getBlobImpl(blobPtr.get())->allocate();
-        return blobPtr;
+        return create_remote_blob<RemoteCLbuffer>(desc, l, RemoteBlobImpl::BlobType::BT_BUF_INTERNAL);
     }
 }
 

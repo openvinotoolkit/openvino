@@ -204,7 +204,7 @@ TEST(smoke_InferRequestDeviceMemoryAllocation, usmHostIsNotChanged) {
     auto output_tensor1 = FuncTestUtils::create_and_fill_tensor(compiled_model.output().get_element_type(), compiled_model.output().get_shape());
     auto output_tensor2 = infer_request2.get_output_tensor();
 
-    // Use tensor from infer request #2 as an input for infer request #1
+    // Use tensor from infer request #2 as an output for infer request #1
     infer_request1.set_output_tensor(output_tensor2);
     ASSERT_NO_THROW(infer_request1.infer());
 
@@ -245,10 +245,6 @@ TEST(smoke_InferRequestDeviceMemoryAllocation, canSetSystemHostTensor) {
 
     infer_request1.set_output_tensor(output_tensor2);
     ASSERT_NO_THROW(infer_request1.infer());
-
-    std::vector<float> ref_values;
-    ref_values.resize(output_tensor2.get_byte_size());
-    std::memcpy(ref_values.data(), output_tensor2.data(), output_tensor2.get_byte_size());
 
     FuncTestUtils::fill_tensor(input_tensor1, 10, 0, 1, 1);
     infer_request1.set_output_tensor(output_tensor1);
