@@ -308,6 +308,22 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
                                                                         kernel_selector::KernelBase::get_db().get_batch_header_str()));
         _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(_impls_cache_capacity));
         _in_mem_kernels_cache = std::unique_ptr<KernelsCache>(new KernelsCache(_in_mem_kernels_cache_capacity));
+        _compilation_queue = std::unique_ptr<compilation_queue_t>(new compilation_queue_t());
+        _compilation_executor = std::thread([this](){
+            auto& tasks = _compilation_queue;
+            auto kc = std::unique_ptr<kernels_cache>(new kernels_cache(_program->get_engine(), _program->get_id(),
+                                                         kernel_selector::KernelBase::get_db().get_batch_header_str()));
+            while (!_stop_compilation) {
+                compilation_task_t task;
+                bool success = tasks->try_pop(task);
+                if (success) {
+                    task(*kc);
+                } else {
+                    std::chrono::milliseconds ms{1};
+                    std::this_thread::sleep_for(ms);
+                }
+            }
+        });
     }
 }
 
@@ -425,6 +441,9 @@ network::network(cldnn::BinaryInputBuffer& ib, stream::ptr stream, engine& engin
 }
 
 network::~network() {
+    _stop_compilation = true;
+    if (_compilation_executor.joinable())
+        _compilation_executor.join();
     _memory_pool->clear_pool_for_network(net_id);
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {

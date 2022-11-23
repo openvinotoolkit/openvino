@@ -220,7 +220,8 @@ void primitive_inst::update_shape() {
         layout.data_padding = padding::max(_node->get_primitive()->output_padding, layout.data_padding);
         if (_impl_params->get_output_layout(idx) != layout) {
             GPU_DEBUG_IF(debug_config->verbose >= 4) {
-                GPU_DEBUG_COUT << id() << ": update shape: was: " << _impl_params->get_output_layout(idx) << "\nnow: " << layout << std::endl;
+                GPU_DEBUG_COUT << id() << ": update shape: was: " << _impl_params->get_output_layout(idx).to_short_string()
+                               << " now: " << layout.to_short_string() << std::endl;
             }
             set_shape_change();
         }
@@ -341,15 +342,48 @@ void primitive_inst::update_impl() {
     };
 
     if (!_node->is_type<data>() && !(_node->is_type<mutable_data>() && _node->get_dependencies().empty())) {
+        GPU_DEBUG_GET_INSTANCE(debug_config);
         // Update param if fake_alignment is available
         auto updated_params = _node->type()->get_fake_aligned_params(*_impl_params);
         auto layout_key = get_layout_key(updated_params);
         auto& cache = get_network().get_implementations_cache();
-        if (cache.has(layout_key)) {
-            _impl = cache.get(layout_key)->clone();
-            GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
-        } else {
+        bool has_cached_impl = false;
+        {
+            std::lock_guard<std::mutex> lock(get_network().get_in_mem_cache_mutex());
+            has_cached_impl = cache.has(layout_key);
+            if (has_cached_impl) {
+                _impl = cache.get(layout_key)->clone();
+                GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
+
+                GPU_DEBUG_IF(debug_config->verbose >= 4) {
+                    GPU_DEBUG_COUT << id() << ": get impl from cache " << _impl->get_kernel_name() << std::endl;
+                }
+            }
+        }
+        if (!has_cached_impl) {
             if (_dynamic_impl) {
+                auto& compilation_queue = get_network().get_compilation_queue();
+                compilation_queue.push([this, updated_params, layout_key](kernels_cache& kc) {
+                    auto& cache = get_network().get_implementations_cache();
+                    {
+                        std::lock_guard<std::mutex> lock(get_network().get_in_mem_cache_mutex());
+                        // Check existense in the cache one more time as several iterations of model execution could happens and multiple compilation
+                        // tasks created for same shapes
+                        if (cache.has(layout_key))
+                            return;
+                    }
+
+                    auto impl = _node->type()->choose_impl(*_node, updated_params);
+                    auto kernel_ids = kc.add_kernels_source(impl->get_kernels_source());
+                    impl->set_kernel_ids(kernel_ids);
+                    kc.compile();
+                    impl->init_kernels(kc);
+                    kc.reset();
+
+                    std::lock_guard<std::mutex> lock(get_network().get_in_mem_cache_mutex());
+                    cache.add(layout_key, impl->clone());
+                });
+
                 _impl = _dynamic_impl->clone();
                 _impl->update_dispatch_data(updated_params);
                 update_shape_info(updated_params);
@@ -360,17 +394,17 @@ void primitive_inst::update_impl() {
                 _impl->set_kernel_ids(kernel_ids);
                 kernels_cache.compile();
                 _impl->init_kernels(kernels_cache);
-                cache.add(layout_key, _impl->clone());
                 kernels_cache.reset();
+                std::lock_guard<std::mutex> lock(get_network().get_in_mem_cache_mutex());
+                cache.add(layout_key, _impl->clone());
+                GPU_DEBUG_IF(debug_config->verbose >= 4) {
+                    auto new_impl_str = _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
+                    GPU_DEBUG_COUT << id() << ": update impl from " << prev_impl_str << " to " << new_impl_str << std::endl;
+                }
             }
         }
 
         reset_shape_change();
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->verbose >= 4) {
-            auto new_impl_str = _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
-            GPU_DEBUG_COUT << id() << ": update impl from " << prev_impl_str << " to " << new_impl_str << std::endl;
-        }
     }
 }
 
@@ -707,13 +741,15 @@ event::ptr primitive_inst::update_weights() {
             auto& cache = get_network().get_in_mem_kernels_cache();
             if (cache.has(layout_key)) {
                 GPU_DEBUG_IF(debug_config->verbose >= 4) {
-                    GPU_DEBUG_COUT << id() << ": reorder weights (cached) from " << original_layout << "\nto " << expected_layout << std::endl;
+                    GPU_DEBUG_COUT << id() << ": reorder weights (cached) from " << original_layout.to_short_string()
+                                   << " to " << expected_layout.to_short_string() << std::endl;
                 }
                 GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
                 kernel = cache.get(layout_key);
             } else {
                 GPU_DEBUG_IF(debug_config->verbose >= 4) {
-                    GPU_DEBUG_COUT << id() << ": reorder weights from " << original_layout << "\nto " << expected_layout << std::endl;
+                    GPU_DEBUG_COUT << id() << ": reorder weights from " << original_layout.to_short_string()
+                                   << " to " << expected_layout.to_short_string() << std::endl;
                 }
                 auto& kernels_cache = get_network().get_kernels_cache();
                 auto kernel_id = kernels_cache.set_kernel_source(weights_params.clKernel->code.kernelString, false);

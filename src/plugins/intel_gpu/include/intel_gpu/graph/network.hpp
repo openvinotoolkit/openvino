@@ -14,6 +14,8 @@
 #include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/lru_cache.hpp"
 
+#include "threading/ie_thread_safe_containers.hpp"
+
 #include <map>
 #include <vector>
 #include <unordered_map>
@@ -54,6 +56,8 @@ class primitive_inst;
 struct network {
 public:
     using ptr = std::shared_ptr<network>;
+    using compilation_task_t = std::function<void(kernels_cache&)>;
+    using compilation_queue_t = InferenceEngine::ThreadSafeQueue<compilation_task_t>;
 
     struct VariableState {
         using Ptr = std::shared_ptr<VariableState>;
@@ -233,6 +237,10 @@ public:
     /// Return in_mem_kernels_cache
     KernelsCache& get_in_mem_kernels_cache() const { return *_in_mem_kernels_cache; }
 
+    /// Return queue that contains tasks for async compilation in dynamic flow
+    compilation_queue_t& get_compilation_queue() const { return *_compilation_queue; }
+    std::mutex& get_in_mem_cache_mutex() const { return _in_mem_cache_mutex; }
+
 private:
     using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;
     uint32_t net_id = 0;
@@ -256,6 +264,11 @@ private:
 
     std::unordered_map<primitive_id, event::ptr> _events;
     output_chains_map _output_chains;
+
+    std::unique_ptr<compilation_queue_t> _compilation_queue = nullptr;
+    std::thread _compilation_executor;
+    std::atomic_bool _stop_compilation{false};
+    mutable std::mutex _in_mem_cache_mutex;
 
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);
