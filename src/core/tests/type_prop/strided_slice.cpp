@@ -393,21 +393,24 @@ TEST(type_prop, strided_slice_dynamic_value_and_label_propagation) {
     EXPECT_THAT(get_shape_labels(output_shape), ElementsAre(10));
 }
 
-TEST(type_prop, strided_slice_default_shape_inference) {
-    auto slice = new op::v1::StridedSlice;
-    slice->set_begin_mask({0, 0, 0});
-    slice->set_end_mask({0, 0, 0});
+TEST(type_prop, strided_slice_use_default_ctor) {
+    const auto zero_mask = std::vector<int64_t>(3, 0);
+
+    auto data = std::make_shared<op::Parameter>(element::f32, PartialShape{10, 11, 12});
+    auto begin = op::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+    auto end = op::Constant::create(element::i64, Shape{4}, {1, 5, 20, 20});
+    auto stride = op::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1});
+
+    auto slice = std::make_shared<op::v1::StridedSlice>();
+    slice->set_begin_mask(zero_mask);
+    slice->set_end_mask(zero_mask);
     slice->set_new_axis_mask({1, 0, 0});
-    slice->set_shrink_axis_mask({0, 0, 0, 1});
-    slice->set_ellipsis_mask_mask({0, 0, 0});
-    std::vector<ov::PartialShape> in = {{10, 11, 12}, {4}, {4}, {4}}, out = {PartialShape()};
-    int64_t begin_data[] = {0, 0, 0, 0}, end_data[] = {1, 1, 5, 1}, stride_data[] = {1, 1, 1, 1};
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> const_data = {
-        {1, std::make_shared<ov::HostTensor>(element::i64, Shape{4}, begin_data)},
-        {2, std::make_shared<ov::HostTensor>(element::i64, Shape{4}, end_data)},
-        {3, std::make_shared<ov::HostTensor>(element::i64, Shape{4}, stride_data)}};
-    ov::op::v1::shape_infer(slice, in, out, const_data);
-    ASSERT_EQ(out[0], PartialShape({1, 1, 5}));
+    slice->set_shrink_axis_mask({0, 0, 1});
+    slice->set_ellipsis_mask_mask(zero_mask);
+    slice->set_arguments(ov::OutputVector{data, begin, end, stride});
+    slice->validate_and_infer_types();
+
+    ASSERT_EQ(slice->get_output_partial_shape(0), PartialShape({1, 5, 12}));
 }
 
 struct StridedSliceTestParams {
