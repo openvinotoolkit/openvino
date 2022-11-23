@@ -21,6 +21,7 @@
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/plugin/custom_layer.hpp"
+#include "intel_gpu/plugin/internal_properties.hpp"
 #include "intel_gpu/plugin/itt.hpp"
 #include "gpu/gpu_config.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
@@ -970,21 +971,35 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         std::vector<ov::PropertyName> cachingProperties;
         cachingProperties.push_back(ov::PropertyName(uarch_version.name(), PropertyMutability::RO));
         cachingProperties.push_back(ov::PropertyName(execution_units_count.name(), PropertyMutability::RO));
-        cachingProperties.push_back(ov::PropertyName("GPU_DRIVER_VERSION", PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(driver_version.name(), PropertyMutability::RO));
         return decltype(ov::caching_properties)::value_type(cachingProperties);
-    } else if (name == "GPU_DRIVER_VERSION") {
-        return device_info.driver_version;
+    } else if (name == ov::intel_gpu::driver_version) {
+        return decltype(ov::intel_gpu::driver_version)::value_type {device_info.driver_version};
     } else if (name == ov::device::architecture) {
-        std::stringstream s;
-        s << "GPU.";
-        if (device_info.gfx_ver.major == 0 && device_info.gfx_ver.minor == 0) {
-            s << device_info.dev_name;
+        // Ref: https://dgpu-docs.intel.com/devices/hardware-table.html
+        std::set<uint32_t> xehpg_set{0x56};
+        std::set<uint32_t>    xe_set{0x49, 0x46, 0x4C, 0x9A};
+        std::set<uint32_t> gen11_set{0x8A};
+        std::set<uint32_t>  gen9_set{0x3E, 0x9B, 0x87, 0x59, 0x31, 0x1A, 0x5A, 0x0A, 0x19};
+        std::set<uint32_t>  gen8_set{0x16, 0x22};
+
+        std::string arch_name;
+        uint32_t upper_device_id = device_info.device_id >> 8;
+        if (xehpg_set.count(upper_device_id) != 0) {
+            arch_name = "XeHPG";
+        } else if (xe_set.count(upper_device_id) != 0) {
+            arch_name = "Xe";
+        } else if (gen11_set.count(upper_device_id) != 0) {
+            arch_name = "Gen11";
+        } else if (gen9_set.count(upper_device_id) != 0) {
+            arch_name = "Gen9";
+        } else if (gen8_set.count(upper_device_id) != 0) {
+            arch_name = "Gen8";
         } else {
-            s << static_cast<int>(device_info.gfx_ver.major) << "."
-              << static_cast<int>(device_info.gfx_ver.minor) << "."
-              << static_cast<int>(device_info.gfx_ver.revision);
+            arch_name = device_info.dev_name;
         }
-        return decltype(ov::device::architecture)::value_type {s.str()};
+
+        return decltype(ov::device::architecture)::value_type {arch_name};
     } else {
         IE_THROW() << "Unsupported metric key " << name;
     }
