@@ -714,16 +714,18 @@ class DeprecatedStoreTrue(argparse.Action):
         super().__init__(nargs=nargs, **kw)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(option_string)
+        dep_msg = "The {} option is deprecated and will be removed in the next release. ".format(option_string)
         if 'fusing' in option_string:
-            dep_msg += 'Please use --finegrain_fusing cli option instead'
+            dep_msg += 'Please use --finegrain_fusing instead.'
         log.error(dep_msg, extra={'is_warning': True})
         setattr(namespace, self.dest, True)
 
 
 class DeprecatedOptionCommon(argparse.Action):
     def __call__(self, parser, args, values, option_string):
-       dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(option_string)
+       dep_msg = "The {} option is deprecated and will be removed in the next release. ".format(option_string)
+       if 'data_type' in option_string:
+           dep_msg += 'To compress weights to FP16, please use --compress_to_fp16.'
        log.error(dep_msg, extra={'is_warning': True})
        setattr(args, self.dest, values)
 
@@ -756,7 +758,7 @@ def canonicalize_and_check_paths(values: Union[str, List[str]], param_name,
         for idx, val in enumerate(list_of_values):
             list_of_values[idx] = val
 
-            error_msg = 'The value for command line parameter "{}" must be existing file/directory, ' \
+            error_msg = 'The value for command line parameter "{}" must be an existing file/directory, ' \
                         'but "{}" does not exist.'.format(param_name, val)
             if os.path.exists(val):
                 continue
@@ -819,8 +821,7 @@ class CanonicalizePathCheckExistenceIfNeededAction(CanonicalizePathCheckExistenc
 
 class DeprecatedCanonicalizePathCheckExistenceAction(CanonicalizePathCheckExistenceAction):
     def __call__(self, parser, namespace, values, option_string=None):
-        dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(
-            option_string)
+        dep_msg = "The {} option is deprecated and will be removed in the next release. ".format(option_string)
         if 'tensorflow_use_custom_operations_config' in option_string:
             dep_msg += 'Please use --transformations_config cli option instead'
         if 'mean_file' in option_string or 'mean_offset' in option_string:
