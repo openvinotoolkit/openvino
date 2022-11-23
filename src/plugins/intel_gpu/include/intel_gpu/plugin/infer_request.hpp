@@ -87,7 +87,8 @@ private:
     void copy_input_data(std::shared_ptr<cldnn::network> network, const cldnn::primitive_id& inputName,
                          const cldnn::layout& inputLayout, const InferenceEngine::Blob &inputBlob);
 
-    template <typename RemoteBlobType>
+    template<typename RemoteBlobType, typename = typename std::enable_if<std::is_same<RemoteBlobType, RemoteCLbuffer>::value ||
+                                                                         std::is_same<RemoteBlobType, RemoteUSMbuffer>::value>::type>
     InferenceEngine::Blob::Ptr create_remote_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout,
                                                   const RemoteBlobImpl::BlobType mem_type, void* mem_ptr = nullptr);
     InferenceEngine::Blob::Ptr create_shared_device_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout, void* usm_host_mem);

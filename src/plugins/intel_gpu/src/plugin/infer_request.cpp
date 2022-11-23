@@ -598,7 +598,7 @@ Blob::Ptr InferRequest::create_host_blob(const TensorDesc& desc, bool is_dynamic
     return blob;
 }
 
-template <typename RemoteBlobType>
+template<typename RemoteBlobType, typename>
 InferenceEngine::Blob::Ptr InferRequest::create_remote_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout,
                                                             const RemoteBlobImpl::BlobType mem_type, void* mem_ptr) {
     auto blob = std::make_shared<RemoteBlobType>(m_graph->GetContext(),
@@ -1000,8 +1000,7 @@ void InferRequest::prepare_output(const cldnn::primitive_id& outputName, Blob::P
     const bool is_dev_input = remote_ptr != nullptr;
 
     if (is_static && can_use_usm && !is_dev_input) {
-        auto output_prim_id = outputsMap[outputName];
-        auto is_cpu_impl = m_graph->GetNetwork()->is_cpu_impl(output_prim_id);
+        auto is_cpu_impl = m_graph->GetNetwork()->is_cpu_impl(output_id);
         allocate_dev_mem_if_needed(_deviceOutputs, outputBlob, outputName, output_layout, is_cpu_impl);
     }
 
