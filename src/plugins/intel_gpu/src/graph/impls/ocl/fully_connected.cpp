@@ -50,10 +50,11 @@ public:
 
         auto get_fc_input_layouts = [primitive](const std::vector<layout>& input_layouts) {
             auto reshape_to_2d = [](const ov::PartialShape& shape, const ov::Dimension& feature) {
-                if (shape.is_static() && feature.is_static()) {
-                    auto staticShape = shape.to_shape();
-                    size_t total = std::accumulate(staticShape.begin(), staticShape.end(), 1, std::multiplies<size_t>());
-                    return ov::PartialShape{ static_cast<int64_t>(total) / feature.get_length(), feature.get_length() };
+                if (shape.is_static()) {
+                    auto static_shape = shape.to_shape();
+                    size_t total = std::accumulate(static_shape.begin(), static_shape.end(), 1, std::multiplies<size_t>());
+                    auto dim = feature.is_static() ? feature.get_length() : static_cast<int64_t>(static_shape.back());
+                    return ov::PartialShape{ static_cast<int64_t>(total) / dim, dim };
                 } else {
                     return ov::PartialShape{ ov::Dimension::dynamic(), feature };
                 }
