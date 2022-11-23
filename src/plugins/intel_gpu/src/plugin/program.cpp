@@ -421,11 +421,11 @@ std::vector<cldnn::input_info> Program::GetInputInfo(const std::shared_ptr<ngrap
     for (size_t i = 0; i < op->get_input_size(); i++) {
         auto prevOp = op->get_input_node_ptr(i);
         std::string prevName = layer_type_name_ID(prevOp);
-        if (prevOp->get_output_size() > 1 &&
-            (!allow_new_shape_infer
-            // Note:: Currently Split/Variadic Split are divided to multiple crops
-            || ngraph::is_type<ngraph::op::v1::Split>(prevOp)
-            || ngraph::is_type<ngraph::op::v1::VariadicSplit>(prevOp))) {
+        bool is_legacy_multiple_outputs = !allow_new_shape_infer
+                                          // Note:: Currently Split/Variadic Split are divided to multiple crops
+                                          || ngraph::is_type<ngraph::op::v1::Split>(prevOp)
+                                          || ngraph::is_type<ngraph::op::v1::VariadicSplit>(prevOp);
+        if (prevOp->get_output_size() > 1 && is_legacy_multiple_outputs) {
             prevName += ".out" + std::to_string(op->get_input_source_output(i).get_index());
         }
 
@@ -433,9 +433,9 @@ std::vector<cldnn::input_info> Program::GetInputInfo(const std::shared_ptr<ngrap
             if (primitive_ids.find(prevName) == primitive_ids.end()) {
                 IE_THROW() << "Input " << prevName << " hasn't been found in primitive_ids map";
             }
-            inputInfo.push_back(cldnn::input_info(primitive_ids.at(prevName), allow_new_shape_infer ? op->get_input_source_output(i).get_index() : 0));
+            inputInfo.push_back(cldnn::input_info(primitive_ids.at(prevName), is_legacy_multiple_outputs ? 0: op->get_input_source_output(i).get_index()));
         } else {
-            inputInfo.push_back(cldnn::input_info(prevName, allow_new_shape_infer ? op->get_input_source_output(i).get_index() : 0));
+            inputInfo.push_back(cldnn::input_info(prevName, is_legacy_multiple_outputs ? 0 : op->get_input_source_output(i).get_index()));
         }
     }
     return inputInfo;

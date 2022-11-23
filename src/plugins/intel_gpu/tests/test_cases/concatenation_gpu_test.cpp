@@ -643,7 +643,7 @@ public:
 
         std::vector<VVVVF<Type>> in_data;
         std::vector<memory::ptr> in_memory;
-        std::vector<primitive_id> input_ids;
+        std::vector<input_info> input_ids;
         for (size_t i = 0; i < input_x.size(); i++) {
             auto size = tensor(static_cast<int32_t>(batch_num),
                                static_cast<int32_t>(in_feature),
@@ -672,7 +672,7 @@ public:
 
             topology.add(input_layout("input" + std::to_string(i), in_lay));
             in_data.emplace_back(std::move(data));
-            input_ids.push_back("input" + std::to_string(i));
+            input_ids.push_back(input_info("input" + std::to_string(i)));
         }
 
         topology.add(concatenation("concat", input_ids, 3));
@@ -682,7 +682,7 @@ public:
         network network(engine, topology, options);
 
         for (size_t i = 0; i < input_x.size(); i++) {
-            network.set_input_data(input_ids[i], in_memory[i]);
+            network.set_input_data(input_ids[i].pid, in_memory[i]);
         }
 
         network.execute();

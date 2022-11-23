@@ -334,10 +334,10 @@ TEST_P(can_fuse_reorder, surface_input_reorder) {
 
     auto input_layout_prim = input_layout("input", input_data->get_layout());
     auto weights_data_prim = data("weights", weights);
-    auto surface_input_reorder_prim = reorder(reorder_prim_id, "input", reorder_layout);
+    auto surface_input_reorder_prim = reorder(reorder_prim_id, input_info("input"), reorder_layout);
     surface_input_reorder_prim.input_mem_type = reorder::memory_type::surface;
-    auto conv_input_reorder_prim = reorder("reorder_conv", reorder_prim_id, req_format, req_data_type);
-    auto conv_prim = cldnn::convolution("conv", { "reorder_conv" }, { "weights" });
+    auto conv_input_reorder_prim = reorder("reorder_conv", input_info(reorder_prim_id), req_format, req_data_type);
+    auto conv_prim = cldnn::convolution("conv", { input_info("reorder_conv") }, { "weights" });
 
     topology.add(input_layout_prim, weights_data_prim, surface_input_reorder_prim, conv_input_reorder_prim, conv_prim);
 
@@ -387,13 +387,13 @@ TEST_P(can_fuse_reorder, surface_input_reorder_batched) {
     auto input_layout_prim1 = input_layout("input1", input_data->get_layout());
     auto input_layout_prim2 = input_layout("input2", input_data->get_layout());
     auto weights_data_prim = data("weights", weights);
-    auto surface_input_reorder_prim1 = reorder(reorder_prim_id1, "input1", reorder_layout);
+    auto surface_input_reorder_prim1 = reorder(reorder_prim_id1, input_info("input1"), reorder_layout);
     surface_input_reorder_prim1.input_mem_type = reorder::memory_type::surface;
-    auto surface_input_reorder_prim2 = reorder(reorder_prim_id2, "input2", reorder_layout);
+    auto surface_input_reorder_prim2 = reorder(reorder_prim_id2, input_info("input2"), reorder_layout);
     surface_input_reorder_prim2.input_mem_type = reorder::memory_type::surface;
-    auto concat = concatenation("concat",{reorder_prim_id1, reorder_prim_id2}, 0);
-    auto conv_input_reorder_prim = reorder("reorder_conv", "concat", req_format, req_data_type);
-    auto conv_prim = cldnn::convolution("conv", { "reorder_conv" }, { "weights" });
+    auto concat = concatenation("concat",{ input_info(reorder_prim_id1),input_info(reorder_prim_id2) }, 0);
+    auto conv_input_reorder_prim = reorder("reorder_conv", input_info("concat"), req_format, req_data_type);
+    auto conv_prim = cldnn::convolution("conv", { input_info("reorder_conv") }, { "weights" });
 
     topology.add(input_layout_prim1, input_layout_prim2, weights_data_prim,
                  surface_input_reorder_prim1, surface_input_reorder_prim2,

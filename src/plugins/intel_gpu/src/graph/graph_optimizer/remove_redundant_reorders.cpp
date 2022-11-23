@@ -439,10 +439,6 @@ void remove_redundant_reorders::run(program& p) {
         if (!same_data_type && !convert_color_opt)
             continue;
 
-        auto same_data_type = node.input().get_output_layout().data_type == node.get_output_layout().data_type;
-        if (!same_data_type && !convert_color_opt)
-            continue;
-
         dep.merge_output_padding(node.get_output_layout().data_padding);
 
         LOG_NODE_REMOVAL(node.id());

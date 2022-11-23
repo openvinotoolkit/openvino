@@ -165,7 +165,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         networkInputLayout.set_partial_shape({ 1, input_pshape[3], input_pshape[1], input_pshape[2] });
 
         std::string suffix = "";
-        std::vector<std::string> surfaces_inputs;
+        std::vector<cldnn::input_info> surfaces_inputs;
         for (size_t i = 0; i < batch; ++i) {
             if (batch > 1)
                 suffix = "_" + std::to_string(i);
@@ -178,11 +178,11 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
 
             auto preprocessPrimID = "reorder:" + inputName + Program::m_preProcessTag + suffix;
             auto reorder = cldnn::reorder(preprocessPrimID,
-                                          batched_name,
+                                          cldnn::input_info(batched_name),
                                           reorder_layout);
             reorder.input_mem_type = cldnn::reorder::memory_type::surface;
             p.add_primitive(*op, reorder);
-            surfaces_inputs.push_back(preprocessPrimID);
+            surfaces_inputs.push_back(cldnn::input_info(preprocessPrimID));
         }
 
         if (batch > 1 && !is_convert_color_input)

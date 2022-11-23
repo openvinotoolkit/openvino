@@ -183,9 +183,9 @@ void detection_output_inst::save(cldnn::BinaryOutputBuffer& ob) const {
 
     // argument (struct detection_output)
     ob << argument->id;
-    ob << make_data(&argument->input[0], sizeof(argument->input[0]));
-    ob << make_data(&argument->input[1], sizeof(argument->input[1]));
-    ob << make_data(&argument->input[2], sizeof(argument->input[2]));
+    ob << argument->input[0].pid;
+    ob << argument->input[1].pid;
+    ob << argument->input[2].pid;
     ob << make_data(&argument->output_paddings[0], sizeof(argument->output_paddings[0]));
     ob << argument->num_classes;
     ob << argument->keep_top_k;
@@ -211,9 +211,9 @@ void detection_output_inst::load(cldnn::BinaryInputBuffer& ib) {
     parent::load(ib);
 
     primitive_id id;
-    input_info input_location;
-    input_info input_confidence;
-    input_info input_prior_box;
+    primitive_id input_location;
+    primitive_id input_confidence;
+    primitive_id input_prior_box;
     uint32_t num_classes;
     uint32_t keep_top_k;
     bool share_location;
@@ -236,9 +236,9 @@ void detection_output_inst::load(cldnn::BinaryInputBuffer& ib) {
     padding output_padding;
 
     ib >> id;
-    ib >> make_data(&input_location, sizeof(input_location));
-    ib >> make_data(&input_confidence, sizeof(input_confidence));
-    ib >> make_data(&input_prior_box, sizeof(input_prior_box));
+    ib >> input_location;
+    ib >> input_confidence;
+    ib >> input_prior_box;
     ib >> make_data(&output_padding, sizeof(output_padding));
     ib >> num_classes;
     ib >> keep_top_k;
@@ -259,7 +259,8 @@ void detection_output_inst::load(cldnn::BinaryInputBuffer& ib) {
     ib >> clip_before_nms;
     ib >> clip_after_nms;
 
-    argument = std::make_shared<detection_output>(id, input_location, input_confidence, input_prior_box,
+    argument = std::make_shared<detection_output>(
+        id, input_info(input_location), input_info(input_confidence), input_info(input_prior_box),
         num_classes, keep_top_k, share_location, background_label_id, nms_threshold, top_k, eta, code_type,
         variance_encoded_in_target, confidence_threshold, prior_info_size, prior_coordinates_offset,
         prior_is_normalized, input_width, input_height, decrease_label_id, clip_before_nms, clip_after_nms,
