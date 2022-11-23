@@ -243,18 +243,20 @@ OutputVector translate_fused_batch_norm_op(const NodeContext& node) {
 
     // create fictious output for reserved outputs of FusedBatchNorm operation
     auto zero_const = make_shared<Constant>(scale.get_element_type(), Shape{}, 0);
+    auto zero_const2 = make_shared<Constant>(scale.get_element_type(), Shape{}, 0);
 
     // set node names and tensor names
     set_node_name(node.get_name(), fused_batch_norm.get_node_shared_ptr());
     set_node_name(node.get_name() + ":1", batch_mean.get_node_shared_ptr());
     set_node_name(node.get_name() + ":2", batch_variance.get_node_shared_ptr());
     set_node_name(node.get_name() + ":3", zero_const);
-    set_node_name(node.get_name() + ":4", zero_const);
+    set_node_name(node.get_name() + ":4", zero_const2);
 
-    OutputVector results = OutputVector{fused_batch_norm, batch_mean, batch_variance, zero_const, zero_const};
+    OutputVector results = OutputVector{fused_batch_norm, batch_mean, batch_variance, zero_const, zero_const2};
     if (is_v3) {
-        set_node_name(node.get_name() + ":5", zero_const);
-        results.push_back(zero_const);
+        auto zero_const3 = make_shared<Constant>(scale.get_element_type(), Shape{}, 0);
+        set_node_name(node.get_name() + ":5", zero_const3);
+        results.push_back(zero_const3);
     }
 
     return results;
