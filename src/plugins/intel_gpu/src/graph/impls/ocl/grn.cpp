@@ -54,4 +54,4 @@ attach_grn_impl::attach_grn_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::grn_impl, cldnn::object_type::GRN_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::grn_impl)

@@ -60,6 +60,8 @@
 #include "nodes/common/cpu_convert.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include <common/primitive_desc.hpp>
+#include <common/primitive_desc_iface.hpp>
 
 using namespace dnnl;
 using namespace openvino;
@@ -528,6 +530,13 @@ void Node::executeDynamic(dnnl::stream strm) {
             DEBUG_LOG(" prepareParams() on #", getExecIndex(), " ", getTypeStr(), " ", algToString(getAlgorithm()),
                       " ", getName(), " ", getOriginalLayers());
             prepareParams();
+#ifdef CPU_DEBUG_CAPS
+            if (prim) {
+                auto pd_c = (*prim).get_primitive_desc();
+                auto* pd = reinterpret_cast<const dnnl_primitive_desc*>(pd_c);
+                DEBUG_LOG("verbose##", getName(), "##", pd->info(), "\n");
+            }
+#endif
         }
         executeDynamicImpl(strm);
     }

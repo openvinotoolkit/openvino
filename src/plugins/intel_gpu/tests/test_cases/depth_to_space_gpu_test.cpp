@@ -368,8 +368,8 @@ TEST(depth_to_space_fp32_gpu, d1822_bs2_blocks_first) {
     }
 }
 
-
-TEST(depth_to_space_fp32_gpu, d1822_bs2_depth_first) {
+template <typename T>
+void test_depth_to_space_fp32_gpu_d1822_bs2_depth_first(bool is_caching_test) {
     //  Input  : 1x8x2x2
     //  Block size : 2
     //  Output : 1x2x4x4
@@ -397,16 +397,33 @@ TEST(depth_to_space_fp32_gpu, d1822_bs2_depth_first) {
         depth_to_space("depth_to_space", "Input0", block_size, depth_to_space_mode::depth_first)
     );
 
-    network network(engine, topology);
+    cldnn::network::ptr network;
 
-    network.set_input_data("Input0", input1);
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology);
+    }
 
-    auto outputs = network.execute();
+    network->set_input_data("Input0", input1);
+
+    auto outputs = network->execute();
 
     auto output = outputs.at("depth_to_space").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
-    std::vector<float> expected_results = {
+    std::vector<T> expected_results = {
         0.0f, 4.0f, 1.0f, 5.0f, 8.0f, 12.0f, 9.0f, 13.0f,
         2.0f, 6.0f, 3.0f, 7.0f, 10.0f, 14.0f, 11.0f, 15.0f,
         16.0f, 20.0f, 17.0f, 21.0f, 24.0f, 28.0f, 25.0f, 29.0f,
@@ -416,4 +433,12 @@ TEST(depth_to_space_fp32_gpu, d1822_bs2_depth_first) {
     for (size_t i = 0; i < expected_results.size(); ++i) {
         ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
+}
+
+TEST(depth_to_space_fp32_gpu, d1822_bs2_depth_first) {
+    test_depth_to_space_fp32_gpu_d1822_bs2_depth_first<float>(false);
+}
+
+TEST(export_import_depth_to_space_fp32_gpu, d1822_bs2_depth_first) {
+    test_depth_to_space_fp32_gpu_d1822_bs2_depth_first<float>(true);
 }
