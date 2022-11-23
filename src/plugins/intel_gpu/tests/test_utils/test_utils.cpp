@@ -328,11 +328,15 @@ cldnn::engine& get_onednn_test_engine() {
 }
 #endif
 
-cldnn::stream& get_test_stream() {
+cldnn::stream_ptr get_test_stream_ptr() {
     static std::shared_ptr<cldnn::stream> test_stream = nullptr;
     if (!test_stream)
         test_stream = get_test_engine().create_stream();
-    return *test_stream;
+    return test_stream;
+}
+
+cldnn::stream& get_test_stream() {
+    return *get_test_stream_ptr();
 }
 
 const std::string test_dump::name() const {

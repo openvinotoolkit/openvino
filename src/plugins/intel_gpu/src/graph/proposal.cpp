@@ -20,10 +20,7 @@ static void generate_anchors(unsigned base_size,
                              bool shift_anchors,
                              bool round_ratios);
 
-primitive_type_id proposal::type_id() {
-    static primitive_type_base<proposal> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(proposal)
 
 layout proposal_inst::calc_output_layout(proposal_node const& node, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
