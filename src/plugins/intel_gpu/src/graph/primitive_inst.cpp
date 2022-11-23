@@ -1059,14 +1059,17 @@ static primitive_id find_dep_by_mem(const cldnn::primitive_inst* p_inst, memory&
 }
 
 // Cache blob format:
-//     [ primitive_impl ]
 //     [ kernel_impl_params ]
+//     [ primitive_impl ]
 //     [ member variables of primitive_inst ]
 //     [ output memory information ]
 //     [ memory dependency information ]
 //     [ execution dependency information ]
 //     [ intermediate memory information ]
 void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
+    _impl_params->save(ob);
+    ob.setKernlImplParams(_impl_params.get());
+
     if (_impl != nullptr) {
         ob << true;
         kernel_arguments_data args = _impl->get_arguments(*this);
@@ -1077,9 +1080,6 @@ void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
     } else {
         ob << false;
     }
-
-    _impl_params->save(ob);
-    ob.setKernlImplParams(_impl_params.get());
 
     ob << _node_output_layout;
     ob << has_mutable_input();
@@ -1169,17 +1169,17 @@ int32_t primitive_inst::get_index_in_deps(memory::cptr arg) const {
 }
 
 void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
+    _impl_params.release();
+    _impl_params = make_unique<kernel_impl_params>();
+    _impl_params->load(ib);
+    ib.setKernlImplParams(_impl_params.get());
+
     bool has_impl;
     ib >> has_impl;
     if (has_impl) {
         _impl.release();
         ib >> _impl;
     }
-
-    _impl_params.release();
-    _impl_params = make_unique<kernel_impl_params>();
-    _impl_params->load(ib);
-    ib.setKernlImplParams(_impl_params.get());
 
     ib >> _node_output_layout;
     ib >> _has_mutable_input;
