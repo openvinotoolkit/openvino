@@ -21,6 +21,7 @@
 #include "gna_allocator.hpp"
 #include "log/log.hpp"
 #include "memory/gna_allocator.hpp"
+#include "memory/gna_mem_requests.hpp"
 
 #ifdef GNA_MEMORY_DUMP
 #include <iomanip>
