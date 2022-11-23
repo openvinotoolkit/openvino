@@ -429,7 +429,8 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
     RUN_ON_MODEL_SCOPE(SnippetsMarkSkipped);
     int channelAxis = DEFAULT_AXIS;
     for (auto &node : m->get_ordered_ops()) {
-        if (ngraph::op::is_constant(node) || ov::is_type<ov::op::v0::Result>(node))
+        if (ov::is_type<ngraph::opset1::Constant>(node) ||
+            ov::is_type<ov::op::v0::Result>(node))
             continue;
 
         if (ngraph::op::is_parameter(node)) {
