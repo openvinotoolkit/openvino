@@ -722,7 +722,6 @@ paddlepaddle>=2.1
 | leaky_relu |  |
 | less_than |  |
 | linear_interp_v2 |  |
-| lod_array_length |  |
 | log |  |
 | logical_and |  |
 | logical_not |  |
@@ -771,7 +770,6 @@ paddlepaddle>=2.1
 | swish |  |
 | sync_batch_norm |  |
 | tanh |  |
-| tensor_array_to_tensor |  |
 | tile |  |
 | top_k_v2 |  |
 | transpose2 |  |
@@ -780,5 +778,4 @@ paddlepaddle>=2.1
 | where |  |
 | where_index |  |
 | while |  |
-| write_to_array |  |
 | yolo_box |  |
