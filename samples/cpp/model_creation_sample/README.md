@@ -15,7 +15,7 @@ The following C++ API is used in the application:
 | Infer Request Operations | `ov::InferRequest::get_input_tensor` | Get a input tensor |
 | Model creation objects | `ov::opset8::Parameter`, `ov::Node::output`, `ov::opset8::Constant`, `ov::opset8::Convolution`, `ov::opset8::Add`, `ov::opset1::MaxPool`, `ov::opset8::Reshape`, `ov::opset8::MatMul`, `ov::opset8::Relu`, `ov::opset8::Softmax`, `ov::descriptor::Tensor::set_names`, `ov::opset8::Result`, `ov::Model`, `ov::ParameterVector::vector` | Used to construct an OpenVINO model |
 
-Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](../hello_classification/README.md).
+Basic OpenVINO™ Runtime API is described in [Hello Classification C++ sample](../hello_classification/README.md).
 
 | Options | Values |
 | :--- | :--- |
