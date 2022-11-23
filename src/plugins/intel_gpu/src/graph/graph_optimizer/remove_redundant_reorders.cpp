@@ -16,13 +16,16 @@
 #include "one_hot_inst.h"
 #include "permute_inst.h"
 #include "depth_to_space_inst.h"
+#include "concatenation_inst.h"
 #include "region_yolo_inst.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
 using namespace cldnn;
 
 #define LOG_NODE_REMOVAL(id) GPU_DEBUG_IF(debug_config->verbose >= 2) {                                                         \
-                GPU_DEBUG_COUT << "[remove_redundant_reorders:" << __LINE__ << "] " << "Remove node: " << (id) << std::endl; }
+            GPU_DEBUG_COUT << "[remove_redundant_reorders:" << __LINE__ << "] " << "Remove node: " << (id) << std::endl; }
+#define LOG_NODE_REPLACEMENT(id) GPU_DEBUG_IF(debug_config->verbose >= 2) {                                                     \
+            GPU_DEBUG_COUT << "[remove_redundant_reorders:" << __LINE__ << "] " << "Replace node: " << (id) << std::endl; }
 
 
 remove_redundant_reorders::remove_redundant_reorders(layout_optimizer& lo_ref, bool enable_reorder_fusing, bool update_implementations,
@@ -189,6 +192,56 @@ void remove_redundant_reorders::run(program& p) {
             r_dep_node.recalc_output_layout(false);
             update_implementation(r_dep_node);
         }
+    }
+
+    // Fuse reorder through concat in case of batched nv12 inputs to handle chains like:
+    // Reorder (nv12_uint8 -> bfyx_uint8) \|
+    // Reorder (nv12_uint8 -> bfyx_uint8)  -> Concat (uint8) -> Reorder (uint8 -> fp32)
+    // Reorder (nv12_uint8 -> bfyx_uint8) /|
+    itr = p.get_processing_order().begin();
+    while (itr != p.get_processing_order().end()) {
+        auto node = *itr++;
+        if (!node->is_type<reorder>())
+            continue;
+
+        auto& r_node = node->as<reorder>();
+        if (!r_node.get_primitive()->has_surface_input() ||
+            r_node.is_output() ||
+            r_node.has_mean() ||
+            r_node.get_users().size() > 1 ||
+            r_node.get_primitive()->subtract_per_feature.size() ||
+            r_node.get_fused_activations_funcs().size())
+            continue;
+
+        if (!r_node.get_users().front()->is_type<concatenation>())
+            continue;
+
+        auto& concat_node = r_node.get_users().front()->as<concatenation>();
+        if (concat_node.get_output_layout().batch() == 1)
+            continue;
+
+        if (!concat_node.get_users().front()->is_type<reorder>())
+            continue;
+
+        auto& r_node_next = concat_node.get_users().front()->as<reorder>();
+
+        if (r_node.get_output_layout().data_type == r_node_next.get_output_layout().data_type)
+            continue;
+
+        auto new_layout = r_node.get_output_layout();
+        new_layout.data_type = r_node_next.get_output_layout().data_type;
+
+        auto orig_reorder_prim = r_node.get_primitive();
+        auto new_reorder_prim = std::make_shared<reorder>(r_node.id() + "_fused",
+            orig_reorder_prim->input[0],
+            new_layout);
+        new_reorder_prim->input_mem_type = orig_reorder_prim->input_mem_type;
+
+        auto& new_reorder_node = p.get_or_create(new_reorder_prim);
+
+        LOG_NODE_REPLACEMENT(r_node.id());
+        p.replace(r_node, new_reorder_node);
+        new_reorder_node.recalc_output_layout();
     }
 
     // Optimize reorders not changing memory layout
