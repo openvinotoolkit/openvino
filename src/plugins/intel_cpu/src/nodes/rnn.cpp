@@ -387,8 +387,8 @@ void RNN::configurePortDataTypes() {
     if (haveCellState(cell_type))
         outDataTypes[coIdx] = inDataTypes[cIdx]; // required by oneDNN.
 
-    if (inDataTypes[xIdx] == memory::data_type::bf16)
-        outDataTypes[yIdx] = outDataTypes[hoIdx] = inDataTypes[hIdx] = inDataTypes[xIdx]; // required by oneDNN.
+    if (one_of(memory::data_type::bf16, inDataTypes[xIdx], inDataTypes[hIdx]))
+        inDataTypes[xIdx] = outDataTypes[yIdx] = outDataTypes[hoIdx] = inDataTypes[hIdx] = memory::data_type::bf16; // required by oneDNN.
 }
 
 void RNN::getSupportedDescriptors() {
@@ -673,8 +673,8 @@ template <Precision::ePrecision Prec>
 void RNN::fillBiases(const int *gate_map) {
     using dataType = typename PrecisionTrait<Prec>::value_type;
 
-    if (getOriginalInputPrecisionAtPort(bIdx) != Precision::FP32) {
-        THROW_ERROR << "doesn't support bias precision: " << getOriginalInputPrecisionAtPort(bIdx);
+    if (inDataTypes[bIdx] != memory::data_type::f32) {
+        THROW_ERROR << "doesn't support bias data type: " << DnnlExtensionUtils::DataTypeToIEPrecision(inDataTypes[bIdx]);
     }
 
     VectorDims dims_b = { L, D, Gb, SC };
@@ -759,18 +759,18 @@ void RNN::copyWeightsData() {
         }
     }
 
-    const auto& dataPrecision = getOriginalInputPrecisionAtPort(0);
-    if (dataPrecision == Precision::BF16) {
+    const auto& dataType = inDataTypes[xIdx];
+    if (dataType == memory::data_type::bf16) {
         fillWeights<uint16_t>(gate_map, wIdx, rIdx);
-    } else if (dataPrecision == Precision::FP32) {
+    } else if (dataType == memory::data_type::f32) {
         // WA To avoid different weights layer and iter formats in FP32 case
         if (T.minVal > 1 || N.maxVal < optimalBatchSize)
             wFormat = dnnl::memory::format_tag::ldigo;
         fillWeights<float>(gate_map, wIdx, rIdx);
-    } else if (dataPrecision == Precision::U8 || dataPrecision == Precision::I8) {
+    } else if (dataType == memory::data_type::u8 || dataType == memory::data_type::s8) {
         fillWeights<int8_t>(gate_map, wIdx, rIdx);
     } else {
-        THROW_ERROR << "has unsupported data type: " << dataPrecision;
+        THROW_ERROR << "has unsupported data type: " << DnnlExtensionUtils::DataTypeToIEPrecision(dataType);
     }
 
     fillBiases<Precision::FP32>(gate_map);
@@ -912,7 +912,7 @@ Node::AttrPtr RNN::initPrimitiveAttr() {
     auto attr = std::make_shared<dnnl::primitive_attr>(dnnl::primitive_attr());
     attr->set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
-    if (one_of(getOriginalInputPrecisionAtPort(0), Precision::U8, Precision::I8)) {
+    if (one_of(inDataTypes[xIdx], memory::data_type::u8, memory::data_type::s8)) {
         const int weightsScaleMask = 0;
 
         attr->set_rnn_weights_qparams(weightsScaleMask, weightsScales);
