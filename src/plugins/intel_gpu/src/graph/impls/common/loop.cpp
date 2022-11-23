@@ -14,6 +14,8 @@
 namespace cldnn {
 namespace common {
 struct loop_impl : typed_primitive_impl<loop> {
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<loop_impl>(*this);
     }
@@ -210,3 +212,5 @@ attach_loop_common::attach_loop_common() {
 
 }  // namespace common
 }  // namespace cldnn
+
+ASSIGN_TYPE_NAME(cldnn::common::loop_impl)

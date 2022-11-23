@@ -763,8 +763,7 @@ void program::cleanup() {
         }
     }
 
-    if (_engine.configuration().kernels_cache_path.empty())
-        _kernels_cache->reset();
+    _kernels_cache->reset();
 }
 
 void program::add_split_outputs() {

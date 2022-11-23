@@ -2406,7 +2406,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer,
                                     return !LayerInfo(l).isNonFunctional() && !LayerInfo(l).isSplit();
                                     }, concatInputIdx++);
 
-                                for (auto rInput : realConcatInputs) {
+                                for (auto& rInput : realConcatInputs) {
                                     if (LayerInfo(rInput.first).isInput()) {
                                         inputs[rInput.first->name].allocated_size += inputLayer.tensorSize + inputLayer.offset;
                                     }
