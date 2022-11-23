@@ -22,6 +22,17 @@ public:
     InsertMoveBroadcast();
 };
 
+/**
+ * @interface BroadcastToMoveBroadcast
+ * @brief Inserts explicit MoveBroadcast instruction if broadcasting by most varying dimension is needed instead of Broadcast.
+ *        Otherwise the pass removes Broadcast operation.
+ * @ingroup snippets
+ */
+class BroadcastToMoveBroadcast: public ngraph::pass::MatcherPass {
+public:
+    BroadcastToMoveBroadcast();
+};
+
 } // namespace pass
 } // namespace snippets
 } // namespace ngraph

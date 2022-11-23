@@ -12,6 +12,7 @@
 #include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/softmax_reshape_elimination.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::CommonOptimizations, "Snippets::CommonOptimizations", 0);
@@ -35,7 +36,7 @@ void ConvertConstantsToParameters(const std::shared_ptr<ngraph::snippets::op::Su
             continue;
 
         const auto child = constant->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
-        if (ov::is_type<ov::op::v1::Transpose>(child) || ov::is_type<ov::op::v1::Reshape>(child))
+        if (utils::constant_input_should_be_inside_body(child))
             continue;
 
         auto parameter = std::make_shared<opset1::Parameter>(constant->get_element_type(), constant->output(0).get_partial_shape());

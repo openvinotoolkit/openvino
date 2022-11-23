@@ -8,6 +8,7 @@
 #include "snippets/pass/insert_movebroadcast.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils.hpp"
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
@@ -117,4 +118,26 @@ ngraph::snippets::pass::InsertMoveBroadcast::InsertMoveBroadcast() {
                  n->get_autob().m_type == ngraph::op::AutoBroadcastType::NUMPY) || is_type<opset1::PRelu>(n); });
 
     register_matcher(std::make_shared<ngraph::pattern::Matcher>(any, matcher_name), callback);
+}
+
+ngraph::snippets::pass::BroadcastToMoveBroadcast::BroadcastToMoveBroadcast() {
+    MATCHER_SCOPE(BroadcastToMoveBroadcast);
+
+    register_matcher(std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<ngraph::opset1::Broadcast>(), matcher_name),
+            [this](ngraph::pattern::Matcher &m) {
+        OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::BroadcastToMoveBroadcast")
+        auto root = m.get_match_root();
+        auto broadcast = ov::as_type_ptr<ngraph::opset1::Broadcast>(root);
+        if (broadcast->get_broadcast_spec() != ngraph::op::AutoBroadcastType::NUMPY) {
+            return false;
+        }
+
+        auto broadcast_move = broadcast_node_last_dim(broadcast->input_value(0), broadcast->get_output_shape(0), broadcast->get_input_shape(0));
+        auto target_output = ov::is_type<ngraph::snippets::op::BroadcastMove>(broadcast_move) ? broadcast_move->output(0) :
+                                                                                                broadcast->input_value(0);
+        replace_output_update_name(broadcast->output(0), target_output);
+        ngraph::copy_runtime_info(root, broadcast_move);
+
+        return true;
+    });
 }

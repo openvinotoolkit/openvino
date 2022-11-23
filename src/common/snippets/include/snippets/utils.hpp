@@ -32,6 +32,15 @@ std::vector<size_t> get_node_output_layout(const Node* node);
 inline ov::Dimension get_inner_dim(const ov::PartialShape &shape) { return *(shape.rbegin()); }
 inline ov::Dimension get_outer_dim(const ov::PartialShape &shape) { return *(shape.rbegin() + 1); }
 
+// Non-scalar Constants are tokenized as Parameters inside Subgraph body but some operations with constant inputs
+// should have explicit Constants even if they're non-scalar (Reshape, Transpose, Broadcast)
+// This check returns True if Constant op which is input of this op should be inside Subgraph body
+inline auto constant_input_should_be_inside_body(const std::shared_ptr<ov::Node>& node) -> bool {
+    return ov::is_type<ov::op::v1::Transpose>(node) ||
+           ov::is_type<ov::op::v1::Broadcast>(node) ||
+           ov::is_type<ov::op::v1::Reshape>(node);
+}
+
 } // namespace utils
 } // namespace snippets
 } // namespace ngraph

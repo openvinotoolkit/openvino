@@ -78,6 +78,15 @@ protected:
     std::shared_ptr<ov::Model> initLowered() const override;
 };
 
+class BroadcastAddLoweredFunction : public BroadcastAddFunction {
+public:
+    explicit BroadcastAddLoweredFunction(const std::vector<PartialShape>& inputShapes, const PartialShape& targetShape) :
+            BroadcastAddFunction(inputShapes, targetShape) {}
+
+protected:
+    std::shared_ptr<ov::Model> initLowered() const override;
+};
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov
