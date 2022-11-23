@@ -106,8 +106,7 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
     const auto unsqueeze = pattern::wrap_type<opset9::Unsqueeze>({input, unsqueeze_axes}, pattern::consumers_count(1));
     const auto reduce_axes = pattern::wrap_type<opset9::Constant>();
     const auto reduce = pattern::wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
-        {unsqueeze, reduce_axes},
-        pattern::consumers_count(1));
+        {unsqueeze, reduce_axes});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
@@ -180,8 +179,7 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
         pattern::wrap_type<opset9::Reshape>({input, reshape_target_shape}, pattern::consumers_count(1));
     const auto reduce_axes = pattern::wrap_type<opset9::Constant>();
     const auto reduce = pattern::wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
-        {reshape, reduce_axes},
-        pattern::consumers_count(1));
+        {reshape, reduce_axes});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
