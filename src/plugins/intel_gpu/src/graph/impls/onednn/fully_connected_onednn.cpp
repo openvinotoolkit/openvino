@@ -218,4 +218,4 @@ attach_fully_connected_onednn::attach_fully_connected_onednn() {
 }  // namespace onednn
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::fully_connected_onednn, cldnn::object_type::FULLY_CONNECTED_ONEDNN)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::fully_connected_onednn)

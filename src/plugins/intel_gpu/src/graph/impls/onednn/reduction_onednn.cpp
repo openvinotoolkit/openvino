@@ -158,4 +158,4 @@ attach_reduction_onednn::attach_reduction_onednn() {
 }  // namespace onednn
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::reduction_onednn, cldnn::object_type::REDUCTION_ONEDNN)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::reduction_onednn)

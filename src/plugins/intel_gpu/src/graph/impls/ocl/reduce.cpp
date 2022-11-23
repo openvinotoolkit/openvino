@@ -137,4 +137,4 @@ attach_reduce_impl::attach_reduce_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reduce_impl, cldnn::object_type::REDUCE_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reduce_impl)
