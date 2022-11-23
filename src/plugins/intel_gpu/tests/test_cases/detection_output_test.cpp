@@ -716,7 +716,7 @@ public:
         check_results(output_prim, 7, "0 0 0 0 0 0 0");
     }
 
-    void test_forward_no_share_location_top_k_faster_rcnn_case() {
+    void test_forward_no_share_location_top_k_faster_rcnn_case(bool is_caching_test) {
         const bool share_location = false;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 4;
@@ -752,12 +752,30 @@ public:
         ));
 
         build_options opts;
-        network network(engine, topology, opts);
-        network.set_input_data("input_location", input_location);
-        network.set_input_data("input_confidence", input_confidence);
-        network.set_input_data("input_prior_box", input_prior_box);
+        cldnn::network::ptr network;
 
-        auto outputs = network.execute();
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology, opts);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology, opts);
+        }
+
+        network->set_input_data("input_location", input_location);
+        network->set_input_data("input_confidence", input_confidence);
+        network->set_input_data("input_prior_box", input_prior_box);
+
+        auto outputs = network->execute();
 
         EXPECT_EQ(outputs.size(), size_t(1));
         EXPECT_EQ(outputs.begin()->first, "detection_output");
@@ -838,5 +856,9 @@ TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k_input_pad
 }
 
 TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k_faster_rcnn_case) {
-    this->test_forward_no_share_location_top_k_faster_rcnn_case();
+    this->test_forward_no_share_location_top_k_faster_rcnn_case(false);
+}
+
+TYPED_TEST(detection_output_test, export_import) {
+    this->test_forward_no_share_location_top_k_faster_rcnn_case(true);
 }
