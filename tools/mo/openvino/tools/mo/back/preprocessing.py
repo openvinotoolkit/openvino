@@ -29,6 +29,7 @@ def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
         mean_scale_val = {}
         for idx, node in enumerate(input_nodes):
             names_list = list(node.get_tensor().get_names())
+            names_list.sort()
             if not names_list:
                 continue
             node_name = names_list[0]
@@ -44,6 +45,7 @@ def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
     if scale:
         for node in input_nodes:
             names_list = list(node.get_tensor().get_names())
+            names_list.sort()
             if not names_list:
                 continue
             node_name = names_list[0]
@@ -73,6 +75,7 @@ def update_layout_to_dict(input_nodes: list, layout: [list, dict]):
         layout_dict = {}
         for idx, node in enumerate(input_nodes):
             names_list = list(node.get_tensor().get_names())
+            names_list.sort()
             if not names_list:
                 raise Error("Empty tensor names list for node {}".format(node.name))
             node_name = names_list[0]
@@ -349,6 +352,22 @@ def guess_source_layouts_for_reverse_channels(ov_function: Model, layout_values)
     return suitable_params
 
 
+def update_tensor_names_to_first_in_sorted_list(values_dict: dict, ov_function: Model):
+    updated_dict = {}
+    used_nodes = {}
+    for name, value in values_dict.items():
+        for input in ov_function.inputs:
+            tensor_names = list(input.names)
+            tensor_names.sort()
+            if name not in tensor_names:
+                continue
+            if input in used_nodes:
+                raise Error("Tensor names {} and {} refer to the same node.".format(name, used_nodes[input]))
+            used_nodes.update({input: name})
+            updated_dict[tensor_names[0]] = value
+    return updated_dict
+
+
 def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
     """
     Applies pre-processing of model inputs by adding appropriate operations
@@ -378,6 +397,7 @@ def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
     else:
         mean_scale_values = {}
 
+    mean_scale_values = update_tensor_names_to_first_in_sorted_list(mean_scale_values, ov_function)
     mean_scale_values = update_mean_scale_to_dict(input_nodes=ov_function.inputs,
                                                   mean_scale_val=mean_scale_values,
                                                   scale=argv.scale)

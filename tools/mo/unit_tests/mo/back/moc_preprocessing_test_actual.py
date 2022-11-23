@@ -21,6 +21,16 @@ except Exception:
     raise
 
 
+def create_function3(shape1=[2, 2]):
+    input1 = ops.parameter(shape1, dtype=np.float32, name="input1")
+    input1.get_output_tensor(0).set_names({'a_input', 'b_input', 'c_input'})
+    relu1 = ops.relu(input1)
+    res1 = ops.result(relu1, "res")
+    res1.get_output_tensor(0).set_names({'res'})
+    function = Model(results=[res1], parameters=[input1], name="TestFunction")
+    return function
+
+
 def create_function2(shape1=[2, 2], shape2=[2, 2], dtype1=np.float32, dtype2=np.float32):
     input1 = ops.parameter(shape1, dtype=dtype1, name="input1")
     input1.get_output_tensor(0).set_names({'input1', 'input1a'})
@@ -656,3 +666,15 @@ class TestPreprocessingMOC(UnitTestWithMockedTelemetry):
         # Verify that layout (nchw) is appeared in input1
         self.assertEqual(function.get_parameters()[0].layout, Layout('nchw'))
 
+    def test_sorting_tensor_names(self):
+        argv = Namespace(mean_scale_values={'c_input': {'mean': np.array([2., 4., 8.]), 'scale': None}},
+                         layout_values={'c_input': {'source_layout': 'nchw'}},
+                         scale=127.5)
+        function = create_function3(shape1=[1, 3, 224, 224])
+        process_function(ov_function=function, argv=argv)
+        op_node = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node.get_type_name() == 'Subtract' or op_node.get_type_name() == 'Add')
+        self.check_mean_constant(op_node, expected=[2., 4., 8.], shape=[1, 3, 1, 1])
+
+        # Verify that layout (nchw) is appeared in input1
+        self.assertEqual(function.get_parameters()[0].layout, Layout('nchw'))
