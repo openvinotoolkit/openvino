@@ -4,17 +4,12 @@
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT ENABLE_SANITIZER)
-    # gold linker on ubuntu20.04 may fail to link binaries build with sanitizer
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold")
-endif()
+ov_try_use_gold_linker()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4244)
     ie_add_compiler_flags(/wd4267)
 endif()
-
 
 message(STATUS "ONNX frontend test enabled")
 
@@ -85,7 +80,7 @@ set(MULTI_TEST_SRC
     onnx_import_with_editor.in.cpp)
 set(SRC
     conversion.cpp
-    json_config_extension.cpp
+    library_extension.cpp
     load_from.cpp
     onnx_editor.cpp
     onnx_import_exceptions.cpp

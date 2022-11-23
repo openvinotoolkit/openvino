@@ -39,7 +39,7 @@ struct ctc_loss_test_inputs {
 };
 
 template <class TF, class TI>
-using ctc_loss_test_params = std::tuple<ctc_loss_test_inputs<TF, TI>, format::type>;
+using ctc_loss_test_params = std::tuple<ctc_loss_test_inputs<TF, TI>, format::type, bool>;
 
 template <class TF, class TI>
 struct ctc_loss_gpu_test : public testing::TestWithParam<ctc_loss_test_params<TF, TI>> {
@@ -47,7 +47,8 @@ public:
     void test() {
         format::type fmt;
         ctc_loss_test_inputs<TF, TI> p;
-        std::tie(p, fmt) = testing::TestWithParam<ctc_loss_test_params<TF, TI>>::GetParam();
+        bool is_caching_test;
+        std::tie(p, fmt, is_caching_test) = testing::TestWithParam<ctc_loss_test_params<TF, TI>>::GetParam();
 
         auto& engine = get_test_engine();
         const auto float_data_type = type_to_data_type<TF>::value;
@@ -103,11 +104,29 @@ public:
         topology.add(ctc_loss("ctc_loss", inputs_ids, p.preprocess_collapse_repeated, p.ctc_merge_repeated, p.unique));
         topology.add(reorder("reordered_ctc_loss", "ctc_loss", plane_format, float_data_type));
 
-        network network(engine, topology);
-        for (auto& input : inputs) {
-            network.set_input_data(std::get<0>(input), std::get<1>(input));
+        cldnn::network::ptr network;
+
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology);
         }
-        const auto outputs = network.execute();
+
+        for (auto& input : inputs) {
+            network->set_input_data(std::get<0>(input), std::get<1>(input));
+        }
+        const auto outputs = network->execute();
 
         EXPECT_EQ(outputs.size(), size_t(1));
         EXPECT_EQ(outputs.begin()->first, "reordered_ctc_loss");
@@ -124,7 +143,8 @@ public:
     static std::string PrintToStringParamName(const testing::TestParamInfo<ctc_loss_test_params<TF, TI>>& info) {
         format::type fmt;
         ctc_loss_test_inputs<TF, TI> p;
-        std::tie(p, fmt) = info.param;
+        bool is_caching_test;
+        std::tie(p, fmt, is_caching_test) = info.param;
 
         std::ostringstream result;
         result << "PreprocessCollapseRepeated=" << p.preprocess_collapse_repeated << "_";
@@ -136,6 +156,7 @@ public:
         result << "LabelLength=" << vec2str(p.label_length) << "_";
         result << "BlankIndex=" << p.blank_index << "_";
         result << "Format=" << fmt_to_str(fmt);
+        result << "is_caching_test=" << is_caching_test;
         return result.str();
     }
 };
@@ -233,10 +254,17 @@ const std::vector<format::type> layout_formats = {
     INSTANTIATE_TEST_SUITE_P(smoke_ctc_loss_##float_type##int_type,                                        \
                              ctc_loss_gpu_test_##float_type##int_type,                                     \
                              testing::Combine(testing::ValuesIn(getCTCLossParams<float_type, int_type>()), \
-                                              testing::ValuesIn(layout_formats)),                          \
+                                              testing::ValuesIn(layout_formats),                           \
+                                              testing::Values(false)),                                     \
                              ctc_loss_gpu_test_##float_type##int_type::PrintToStringParamName);
 
 INSTANTIATE_CTC_LOSS_TEST_SUITE(float, int64_t);
 INSTANTIATE_CTC_LOSS_TEST_SUITE(FLOAT16, int32_t);
+INSTANTIATE_TEST_SUITE_P(export_import,
+                         ctc_loss_gpu_test_FLOAT16int32_t,
+                         testing::Combine(testing::Values(getCTCLossParams<FLOAT16, int32_t>()[0]),
+                                         testing::Values(layout_formats[0]),
+                                         testing::Values(true)),
+                         ctc_loss_gpu_test_FLOAT16int32_t::PrintToStringParamName);
 
 }  // namespace
