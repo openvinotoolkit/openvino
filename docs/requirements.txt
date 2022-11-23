@@ -9,7 +9,7 @@ Cython==0.29.23
 docutils==0.16
 idna==2.10
 imagesize==1.2.0
-importlib-metadata==3.10.0
+importlib-metadata==4.4.0
 iniconfig==1.1.1
 ipython==8.5.0
 Jinja2==2.11.3
