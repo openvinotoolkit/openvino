@@ -322,8 +322,8 @@ TEST_P(pre_post_process_to_gray, convert_color_asserts) {
                     p.build();
                     ,
                     ov::AssertFailure,
-                    ::testing::HasSubstr("Resulting shape '{?,2,2,1}' after preprocessing is not aligned with original "
-                                         "parameter's shape: {?,2,2,5}"));
+                    ::testing::HasSubstr("Resulting shape '[?,2,2,1]' after preprocessing is not aligned with original "
+                                         "parameter's shape: [?,2,2,5]"));
 }
 
 INSTANTIATE_TEST_SUITE_P(pre_post_process,
