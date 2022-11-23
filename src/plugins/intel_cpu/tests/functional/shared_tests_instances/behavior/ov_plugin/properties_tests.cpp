@@ -77,7 +77,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiCompileModelBehaviorTests,
 const std::vector<ov::AnyMap> default_properties = {
         {ov::enable_profiling(false)},
         {ov::log::level("LOG_NONE")},
-        {ov::hint::model_priority(ov::hint::Priority::HIGH)},
+        {ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
         {ov::hint::allow_auto_batching(true)},
         {ov::auto_batch_timeout("1000")},
         {ov::intel_auto::device_bind_buffer(false)},
