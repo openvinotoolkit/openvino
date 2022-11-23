@@ -37,7 +37,7 @@ void shape_infer(const StridedSlice* op,
                           end_shape.rank(),
                           ").");
 
-    const auto& strides_shape = input_shapes.size() < 4 ? T{-1} : input_shapes[3];
+    const auto& strides_shape = input_shapes.size() < 4 ? T{DimType(-1)} : input_shapes[3];
     NODE_VALIDATION_CHECK(op,
                           strides_shape.rank().compatible(1),
                           "End input must be 1D (end rank: ",
