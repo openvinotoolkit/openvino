@@ -177,13 +177,16 @@ void setDeviceProperty(ov::Core& core,
     if (device_property.first.empty())
         return;
 
-    if (device_config.find(device) == device_config.end() ||
-        (!FLAGS_load_config.empty() && is_dev_set_property[device])) {
+    if (device_config.find(device) == device_config.end() ||  // device properties not existed
+        config.first.empty() &&                               // not setting default value to property
+            (!FLAGS_load_config.empty() &&
+             is_dev_set_property[device])) {  // device properties loaded from file and overwrite is not happened
         is_dev_set_property[device] = false;
         device_config.erase(device);
         device_config.insert(ov::device::properties(device, device_property));
     } else {
         auto& properties = device_config[device].as<ov::AnyMap>();
+        // property present in device properties has higher priority than property set with default value
         properties.emplace(device_property);
     }
 }
@@ -437,8 +440,8 @@ int main(int argc, char* argv[]) {
                             device_config[key] = ov::streams::AUTO;
                         } else if (device == "MULTI" || device == "AUTO") {
                             // Set nstreams to default value auto if no nstreams specified from cmd line.
-                            std::string key = std::string(getDeviceTypeFromName(device) + "_THROUGHPUT_STREAMS");
                             for (auto& hwdevice : hardware_devices) {
+                                std::string key = std::string(getDeviceTypeFromName(hwdevice) + "_THROUGHPUT_STREAMS");
                                 auto value = std::string(getDeviceTypeFromName(hwdevice) + "_THROUGHPUT_AUTO");
                                 setDeviceProperty(core,
                                                   hwdevice,

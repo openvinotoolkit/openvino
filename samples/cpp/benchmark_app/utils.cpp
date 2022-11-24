@@ -727,11 +727,36 @@ void dump_config(const std::string& filename, const std::map<std::string, ov::An
         throw std::runtime_error("Error: Can't open config file : " + filename);
     for (auto device_it = config.begin(); device_it != config.end(); ++device_it) {
         fs << plugin_to_opencv_format(device_it->first) << "{:";
+        bool contain_device_properties = false;
+        std::map<std::string, std::map<std::string, std::string>> device_properties;
         std::stringstream strm;
         for (auto param_it = device_it->second.begin(); param_it != device_it->second.end(); ++param_it) {
             param_it->second.print(strm);
-            fs << param_it->first << strm.str();
+            auto property_string = strm.str();
+            if (property_string.find(" ") != std::string::npos) {
+                // hw device properties
+                contain_device_properties = true;
+                std::stringstream propertym(property_string);
+                std::map<std::string, std::string> properties;
+                ov::util::Read<std::map<std::string, std::string>>{}(propertym, properties);
+                device_properties[param_it->first] = properties;
+            } else {
+                // primary property
+                fs << param_it->first << property_string;
+            }
             strm.str("");
+        }
+        if (contain_device_properties) {
+            contain_device_properties = false;
+            fs << "DEVICE_PROPERTIES" << "{:";
+            for (auto& item : device_properties) {
+                fs << item.first << "{:";
+                for (auto& property : item.second) {
+                    fs << property.first << property.second;
+                }
+                fs << "}";
+            }
+            fs << "}";
         }
         fs << "}";
     }
@@ -759,19 +784,25 @@ void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>&
         }
         for (auto iit = device.begin(); iit != device.end(); ++iit) {
             auto item = *iit;
-            if (item.string().find(" ") == std::string::npos) {
+            if (item.name() != "DEVICE_PROPERTIES") {
                 config[opencv_to_plugin_format(device.name())][item.name()] = item.string();
                 continue;
             }
-            std::stringstream strm(item.string());
-            std::map<std::string, std::string> properties;
-            std::map<std::string, ov::Any> devices_property;
-            ov::util::Read<std::map<std::string, std::string>>{}(strm, properties);
-            // convert to ov::AnyMap from std::map
-            for (auto& item : properties) {
-                devices_property[item.first] = item.second;
+            if (!item.isMap()) {
+                throw std::runtime_error("Error: 'DEVICE_PROPERTIES' should be a map ! ");
             }
-            config[opencv_to_plugin_format(device.name())][item.name()] = devices_property;
+            auto properties = item;
+            for (const auto &device_properties : properties) {
+                if (!device_properties.isMap()) {
+                    throw std::runtime_error("Error: properties for device '"+ device_properties.name() + "' should be a map ! ");
+                }
+                std::map<std::string, ov::Any> hw_device_properties;
+                // convert to ov::AnyMap from std::map
+                for (const auto& property: device_properties) {
+                    hw_device_properties[property.name()] = property.string();
+                }
+                config[opencv_to_plugin_format(device.name())][device_properties.name()] = hw_device_properties;
+            }
         }
     }
 }
