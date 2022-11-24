@@ -8,7 +8,7 @@
 #include "input_layout_inst.h"
 #include "impls/implementation_map.hpp"
 #include "register.hpp"
-#include "serialization/binary_buffer.hpp"
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include <vector>
 
 namespace cldnn {
@@ -77,4 +77,4 @@ attach_prior_box_common::attach_prior_box_common() {
 }  // namespace common
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::common::wait_for_events_impl, cldnn::object_type::WAIT_FOR_EVENTS_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::common::wait_for_events_impl)

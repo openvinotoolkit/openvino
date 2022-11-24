@@ -207,3 +207,10 @@ ov::pass::UnsupportedNodesStridesPropagation::UnsupportedNodesStridesPropagation
     auto m = std::make_shared<pattern::Matcher>(root, matcher_name);
     this->register_matcher(m, callback);
 }
+
+ov::pass::StridesOptimization::StridesOptimization() {
+    using namespace ov::pass;
+    ADD_MATCHER_FOR_THIS(ConvStridesPropagation);
+    ADD_MATCHER_FOR_THIS(SupportedNodesStridesPropagation);
+    ADD_MATCHER_FOR_THIS(UnsupportedNodesStridesPropagation);
+}

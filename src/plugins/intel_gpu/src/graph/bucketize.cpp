@@ -11,11 +11,7 @@
 #include "to_string_utils.h"
 
 namespace cldnn {
-
-primitive_type_id bucketize::type_id() {
-    static primitive_type_base<bucketize> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(bucketize)
 
 layout bucketize_inst::calc_output_layout(const bucketize_node& node, kernel_impl_params const& impl_param) {
     auto input_layout = impl_param.get_input_layout();

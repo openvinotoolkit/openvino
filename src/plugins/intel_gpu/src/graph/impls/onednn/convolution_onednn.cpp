@@ -266,4 +266,4 @@ attach_convolution_onednn::attach_convolution_onednn() {
 }  // namespace onednn
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::convolution_onednn, cldnn::object_type::CONVOLUTION_ONEDNN)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::convolution_onednn)
