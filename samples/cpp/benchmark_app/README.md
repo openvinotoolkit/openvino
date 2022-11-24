@@ -161,11 +161,20 @@ Options:
                                           }
                                 Example 2: a simple JSON file for meta device(AUTO/MULTI) with HW device properties.
                                           {
-                                             "AUTO": {
-                                                      "PERFORMANCE_HINT": "", "PERF_COUNT": "NO",
-                                                      "CPU": "NUM_STREAMS 3 INFERENCE_NUM_THREADS 5",
-                                                      "GPU": "NUM_STREAMS 5"
-                                             }
+                                          	"AUTO": {
+                                          		"PERFORMANCE_HINT": "",
+                                          		"PERF_COUNT": "NO",
+                                          		"DEVICE_PROPERTIES": {
+                                          			"CPU": {
+                                          				"INFERENCE_PRECISION_HINT": "f32",
+                                          				"NUM_STREAMS": "3"
+                                          			},
+                                          			"GPU": {
+                                          				"INFERENCE_PRECISION_HINT": "f32",
+                                          				"NUM_STREAMS": "5"
+                                          			}
+                                          		}
+                                          	}
                                           }
 
    Statistics dumping options:
