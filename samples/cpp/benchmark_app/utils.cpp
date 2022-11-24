@@ -690,33 +690,27 @@ void dump_config(const std::string& filename, const std::map<std::string, ov::An
         throw std::runtime_error("Error: Can't open config file : " + filename);
     for (auto device_it = config.begin(); device_it != config.end(); ++device_it) {
         fs << plugin_to_opencv_format(device_it->first) << "{:";
-        bool contain_device_properties = false;
-        std::map<std::string, std::map<std::string, std::string>> device_properties;
+        std::map<std::string, ov::AnyMap> device_properties;
         std::stringstream strm;
         for (auto param_it = device_it->second.begin(); param_it != device_it->second.end(); ++param_it) {
-            param_it->second.print(strm);
-            auto property_string = strm.str();
-            if (property_string.find(" ") != std::string::npos) {
+            if (param_it->second.is<ov::AnyMap>()) {
                 // hw device properties
-                contain_device_properties = true;
-                std::stringstream propertym(property_string);
-                std::map<std::string, std::string> properties;
-                ov::util::Read<std::map<std::string, std::string>>{}(propertym, properties);
-                device_properties[param_it->first] = properties;
+                device_properties[param_it->first] = param_it->second.as<ov::AnyMap>();
             } else {
                 // primary property
+                param_it->second.print(strm);
+                auto property_string = strm.str();
                 fs << param_it->first << property_string;
             }
             strm.str("");
         }
-        if (contain_device_properties) {
-            contain_device_properties = false;
+        if (!device_properties.empty()) {
             fs << "DEVICE_PROPERTIES"
                << "{:";
             for (auto& item : device_properties) {
                 fs << item.first << "{:";
                 for (auto& property : item.second) {
-                    fs << property.first << property.second;
+                    fs << property.first << property.second.as<std::string>();
                 }
                 fs << "}";
             }
@@ -776,29 +770,24 @@ void dump_config(const std::string& filename, const std::map<std::string, ov::An
     nlohmann::json jsonConfig;
     for (const auto& item : config) {
         std::string deviceName = item.first;
-        bool contain_device_properties = false;
-        std::map<std::string, std::map<std::string, std::string>> device_properties;
+        std::map<std::string, ov::AnyMap> device_properties;
         for (const auto& option : item.second) {
-            std::stringstream strm;
-            option.second.print(strm);
-            auto property_string = strm.str();
-            if (property_string.find(" ") != std::string::npos) {
+            if (option.second.is<ov::AnyMap>()) {
                 // hw device properties
-                contain_device_properties = true;
-                std::stringstream propertym(property_string);
-                std::map<std::string, std::string> properties;
-                ov::util::Read<std::map<std::string, std::string>>{}(propertym, properties);
-                device_properties[option.first] = properties;
+                device_properties[option.first] = option.second.as<ov::AnyMap>();
             } else {
                 // primary property
+                std::stringstream strm;
+                option.second.print(strm);
+                auto property_string = strm.str();
                 jsonConfig[deviceName][option.first] = property_string;
             }
-            if (contain_device_properties) {
-                contain_device_properties = false;
+            if (!device_properties.empty()) {
                 for (auto& item : device_properties) {
                     auto hw_device_name = item.first;
                     for (auto& property : item.second) {
-                        jsonConfig[deviceName]["DEVICE_PROPERTIES"][hw_device_name][property.first] = property.second;
+                        jsonConfig[deviceName]["DEVICE_PROPERTIES"][hw_device_name][property.first] =
+                            property.second.as<std::string>();
                     }
                 }
             }
