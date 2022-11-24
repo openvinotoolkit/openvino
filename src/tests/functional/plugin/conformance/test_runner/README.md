@@ -4,10 +4,11 @@
 Conformance suites certifies plugin functionality using a set of tests with plugin specificity independent parameters. There are 2 types of conformance validation.
 
 ### `API Conformance`
-The suite checks OpenVINO API the folowing entities a plugin implementation (Also there are test instantiations to validate hardware plugin functionality via software plugins (e.g. `MULTI`, `HETERO` and etc.) for the entities):
+The suite checks the following OpenVINO API entities in a plugin implementation:
 * plugin
 * compiled model (executable network)
 * infer request
+Also, there are test instantiations to validate hardware plugin functionality via software plugins (for example, MULTI, HETERO, etc.) for the entities.
 
 The other part of the API conformance suite is QueryModel validation:
 * `ReadIR_queryModel` tests validate the `query_model` API using a simple single operation graph (Conformance IR) based on model parameters.
@@ -116,7 +117,7 @@ There is a simple python runner to complete the whole conformance pipeline local
 4. Run conformance test executable files.
 5. Generate conformance reports.
 
-## Command line arguments
+## Command-line arguments
 The script has the following arguments:
 * `-h, --help`          show this help message and exit
 * `-m MODELS_PATH, --models_path MODELS_PATH`
