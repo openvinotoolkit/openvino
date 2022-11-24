@@ -138,7 +138,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ops_util_is_elwise_mul,
 INSTANTIATE_TEST_SUITE_P(smoke_ops_util_not_elwise_mul,
                          GnaOpsUtilIsEltwiseMulTest,
                          ::testing::Combine(
-                            ::testing::ValuesIn(elwise_mul_nodes_false),
+                            ::testing::ValuesIn(eltwise_mul_nodes_false),
                             ::testing::Values(false)),
                          GnaOpsUtilIsEltwiseMulTest::get_test_name);
 
