@@ -30,7 +30,7 @@ struct ocl_user_event : public ocl_base_event {
 
     void set_impl() override;
     bool get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) override;
-    cl::Event get() override { return _event; };
+    cl::Event& get() override { return _event; };
 
 protected:
     cldnn::instrumentation::timer<> _timer;
