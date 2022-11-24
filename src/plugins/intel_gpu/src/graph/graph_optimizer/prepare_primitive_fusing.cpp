@@ -215,7 +215,8 @@ void prepare_primitive_fusing::fuse_reorders(program &p) {
             // - do not fuse if current node has mean subtract
             if (input.get_users().size() != 1 || !input.is_type<reorder>() ||
                 input.get_output_layout() != node.get_output_layout() || node.has_mean() ||
-                !node.get_primitive()->subtract_per_feature.empty())
+                !node.get_primitive()->subtract_per_feature.empty() ||
+                node.get_primitive()->has_surface_input())
                 return;
 
             p.add_optimized_primitive_info(node.id());

@@ -14,8 +14,7 @@ void topology::add_primitive(std::shared_ptr<primitive> desc) {
     auto id = desc->id;
     auto itr = _primitives.find(id);
     if (itr != _primitives.end()) {
-        if (itr->second != desc)
-            throw std::runtime_error("different primitive with id '" + id + "' exists already");
+        OPENVINO_ASSERT(itr->second == desc, "[GPU] Different primitive with id '" + id + "' exists already");
 
         // adding the same primitive more than once is not an error
         return;
