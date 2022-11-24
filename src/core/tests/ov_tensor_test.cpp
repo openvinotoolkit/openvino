@@ -62,22 +62,57 @@ TEST_F(OVTensorTest, operators) {
     ASSERT_TRUE(!t);
 }
 
-class OVMockAllocator : public ov::AllocatorImpl {
+OPENVINO_SUPPRESS_DEPRECATED_START
+class OVMockAllocatorImpl : public ov::AllocatorImpl {
 public:
     MOCK_METHOD(void*, allocate, (size_t, size_t), ());
-    MOCK_METHOD(void, deallocate, (void*, size_t, size_t), ());                  // NOLINT(readability/casting)
-    MOCK_METHOD(bool, is_equal, (const ov::AllocatorImpl&), (const, noexcept));  // NOLINT(readability/casting)
+    MOCK_METHOD(void, deallocate, (void*, size_t, size_t), ());
+    MOCK_METHOD(bool, is_equal, (const ov::AllocatorImpl&), (const, noexcept));
 };
 
-TEST_F(OVTensorTest, canCreateTensorUsingMockAllocator) {
+TEST_F(OVTensorTest, canCreateTensorUsingMockAllocatorImpl) {
     ov::Shape shape = {1, 2, 3};
-    auto allocator = std::make_shared<OVMockAllocator>();
+    auto allocator = std::make_shared<OVMockAllocatorImpl>();
 
     EXPECT_CALL(*allocator, allocate(::testing::_, ::testing::_))
         .WillRepeatedly(testing::Return(reinterpret_cast<void*>(1)));
     EXPECT_CALL(*allocator, deallocate(::testing::_, ::testing::_, ::testing::_)).Times(1);
 
     { ov::Tensor t{ov::element::f32, shape, ov::Allocator{allocator}}; }
+}
+OPENVINO_SUPPRESS_DEPRECATED_END
+
+struct OVMockAllocator {
+    struct Impl {
+        MOCK_METHOD(void*, allocate, (size_t, size_t), ());
+        MOCK_METHOD(void, deallocate, (void*, size_t, size_t), ());
+        MOCK_METHOD(bool, is_equal, (const Impl&), (const, noexcept));
+    };
+    OVMockAllocator() : impl{std::make_shared<Impl>()} {}
+
+    void* allocate(size_t b, size_t a) {
+        return impl->allocate(b, a);
+    }
+
+    void deallocate(void* ptr, size_t b, size_t a) {
+        impl->deallocate(ptr, b, a);
+    }
+    bool is_equal(const OVMockAllocator& other) const {
+        return impl->is_equal(*other.impl);
+    }
+
+    std::shared_ptr<Impl> impl;
+};
+
+TEST_F(OVTensorTest, canCreateTensorUsingMockAllocator) {
+    ov::Shape shape = {1, 2, 3};
+    OVMockAllocator allocator;
+
+    EXPECT_CALL(*allocator.impl, allocate(::testing::_, ::testing::_))
+        .WillRepeatedly(testing::Return(reinterpret_cast<void*>(1)));
+    EXPECT_CALL(*allocator.impl, deallocate(::testing::_, ::testing::_, ::testing::_)).Times(1);
+
+    { ov::Tensor t{ov::element::f32, shape, allocator}; }
 }
 
 TEST_F(OVTensorTest, canAccessExternalData) {
@@ -125,7 +160,7 @@ TEST_F(OVTensorTest, cannotCreateTensorWithWrongStrides) {
         // strides values are element-wise >= ov::row_major_strides(shape) values
         EXPECT_THROW(ov::Tensor(el, shape, data, byteStrides({2, 1}, el)), ov::Exception);
         EXPECT_THROW(ov::Tensor(el, shape, data, byteStrides({3, 0}, el)), ov::Exception);
-        EXPECT_THROW(ov::Tensor(el, shape, data, byteStrides({3, 2}, el)), ov::Exception);
+        EXPECT_NO_THROW(ov::Tensor(el, shape, data, byteStrides({3, 2}, el)));
         EXPECT_NO_THROW(ov::Tensor(el, shape, data, byteStrides({6, 2}, el)));
     }
     {
