@@ -87,7 +87,7 @@ if [ "$os" == "auto" ] ; then
       os="rhel8"
     fi
     case $os in
-        rhel8|\
+        rhel8|rhel9.1|\
         raspbian9|debian9|ubuntu18.04|\
         raspbian10|debian10|ubuntu20.04|ubuntu20.10|ubuntu21.04|\
         raspbian11|debian11|ubuntu21.10|ubuntu22.04|\
@@ -176,14 +176,19 @@ elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "debian10" ] || [ "$os" == "raspbi
         pkgs_python=(${pkgs_python[@]} libpython3.10)
     fi
 
-elif [ "$os" == "rhel8" ] ; then
+elif [ "$os" == "rhel8" ] || [ "$os" == "rhel9.1" ] ; then
+
+    if [ "$os" == "rhel9.1" ] ; then
+        pkgs_python=(python39 python3-pip)
+    elif [ "$os" == "rhel8" ] ; then
+        pkgs_python=(python38 python38-pip)
+    fi
 
     pkgs_core=(libtbb2 libpugixml1v5)
     pkgs_opencv_req=(gtk3)
-    pkgs_python=(python38 python38-pip)
     pkgs_dev=(
-    gcc gcc-c++ make glibc libstdc++ libgcc cmake pkg-config zlib-devel.i686 curl sudo
-    https://vault.centos.org/centos/8/PowerTools/x86_64/os/Packages/gflags-2.1.2-6.el8.x86_64.rpm
+        gcc gcc-c++ make glibc libstdc++ libgcc cmake pkg-config zlib-devel curl sudo
+        https://vault.centos.org/centos/8/PowerTools/x86_64/os/Packages/gflags-2.1.2-6.el8.x86_64.rpm
     )
     pkgs_myriad=()
     pkgs_opencv_opt=(
@@ -224,7 +229,7 @@ elif [ "$os" == "rhel8" ] ; then
     extra_repos+=(https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm)
 
 else
-    echo "Internal script error: invalid OS after check (package selection)" >&2
+    echo "Internal script error: invalid OS (${os}) after check (package selection)" >&2
     exit 3
 fi
 
@@ -274,7 +279,7 @@ if [ "$os" == "debian9" ] || [ "$os" == "raspbian9" ] || [ "$os" == "ubuntu18.04
 
     apt-get update && apt-get install -y --no-install-recommends $iopt ${pkgs[@]}
 
-elif [ "$os" == "rhel8" ] ; then
+elif [ "$os" == "rhel8" ] || [ "$os" == "rhel9.1" ] ; then
 
     [ -z "$interactive" ] && iopt="--assumeyes"
     [ -n "$dry" ] && iopt="--downloadonly"
@@ -284,7 +289,7 @@ elif [ "$os" == "rhel8" ] ; then
     yum install $iopt ${pkgs[@]}
 
 else
-    echo "Internal script error: invalid OS after check (package installation)" >&2
+    echo "Internal script error: invalid OS (${os}) after check (package installation)" >&2
     exit 3
 fi
 
