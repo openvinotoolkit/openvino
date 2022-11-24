@@ -205,8 +205,7 @@ struct Error {
 template<typename ExpectedT>
 inline double calculate_median(const ExpectedT* expected_data, size_t expected_shape) {
     double abs_threshold;
-    std::vector<double> abs_values;
-    abs_values.reserve(expected_shape);
+    std::vector<double> abs_values(expected_shape);
     for (size_t i = 0; i < expected_shape; i++) {
         abs_values.push_back(std::fabs(static_cast<double>(expected_data[i])));
     }
