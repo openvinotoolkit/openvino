@@ -20,6 +20,7 @@ ParamsKey ReorderKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::INT64);
     k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableSurfaceInputSupport();
     k.EnableDifferentTypes();
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
@@ -32,6 +33,10 @@ ParamsKey ReorderKernelRef::GetSupportedKey() const {
 JitConstants ReorderKernelRef::GetJitConstants(const reorder_params& params) const {
     auto jit = ReorderKernelBase::GetJitConstants(params);
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.inputs[0]));
+
+    if (params.surface_input)
+        jit.AddConstant(MakeJitConstant("SURFACE_INPUT", true));
+
     return jit;
 }
 
