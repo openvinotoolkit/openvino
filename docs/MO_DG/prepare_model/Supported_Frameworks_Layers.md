@@ -671,12 +671,12 @@ paddlepaddle>=2.1
 | Operator Name in PaddlePaddle| Limitations|
 | :----------| :----------|
 | arg_max | The `int32` output data_type is not supported. |
+| adaptive_pool2d | The `NHWC` data_layout is not supported. |
 | assign |  |
 | assign_value |  |
 | batch_norm |  |
-| bicubic_interp_v2 |  |
+| bicubic_interp |  |
 | bilinear_interp | `NCW`, `NWC`, `NHWC`, `NCDHW`, `NDHWC` data_layout are not supported. |
-| bilinear_interp_v2 | `NCW`, `NWC`, `NHWC`, `NCDHW`, `NDHWC` data_layout are not supported. |
 | bmm |  |
 | box_coder |  |
 | cast |  |
@@ -688,7 +688,6 @@ paddlepaddle>=2.1
 | conv2d_transpose |  |
 | cumsum |  |
 | deformable_conv |  |
-| deformable_conv_v1 |  |
 | depthwise_conv2d | `NHWC` data_layout is not supported. |
 | depthwise_conv2d_transpose |  |
 | dropout |  |
@@ -703,7 +702,7 @@ paddlepaddle>=2.1
 | elementwise_sub |  |
 | equal |  |
 | exp |  |
-| expand_v2 |  |
+| expand |  |
 | fill_any_like |  |
 | fill_constant |  |
 | fill_constant_batch_size_like |  |
@@ -712,7 +711,7 @@ paddlepaddle>=2.1
 | gather |  |
 | gather_nd |  |
 | gelu |  |
-| generate_proposals_v2 |  |
+| generate_proposals |  |
 | greater_equal |  |
 | greater_than |  |
 | group_norm |  |
@@ -721,21 +720,19 @@ paddlepaddle>=2.1
 | layer_norm |  |
 | leaky_relu |  |
 | less_than |  |
-| linear_interp_v2 |  |
+| linear_interp |  |
 | log |  |
 | logical_and |  |
 | logical_not |  |
 | logical_or |  |
 | logical_xor |  |
-| lookup_table_v2 |  |
+| lookup_table |  |
 | matmul |  |
-| matmul_v2 |  |
 | matrix_nms | Only supports IE CPU plugin with *"number of selected boxes"* static shape(e.g.: `min(min(num_boxes, nms_top_k) * num_classes_output, keep_top_k)`). |
 | max_pool2d_with_index |  |
 | meshgrid |  |
-| multiclass_nms3 | Only supports IE CPU plugin with *"number of selected boxes"* static shape(e.g.: `min(min(num_boxes, nms_top_k) * num_classes_output, keep_top_k)`). |
+| multiclass_nms | Only supports IE CPU plugin with *"number of selected boxes"* static shape(e.g.: `min(min(num_boxes, nms_top_k) * num_classes_output, keep_top_k)`). |
 | nearest_interp | `NCW`, `NWC`, `NHWC`, `NCDHW`, `NDHWC` data_layout are not supported. |
-| nearest_interp_v2 | `NCW`, `NWC`, `NHWC`, `NCDHW`, `NDHWC` data_layout are not supported. |
 | not_equal |  |
 | p_norm |  |
 | pad3d | `Circular` mode is not supported. |
@@ -749,8 +746,7 @@ paddlepaddle>=2.1
 | reduce_prod |  |
 | reduce_sum |  |
 | relu |  |
-| relu6 |  |
-| reshape2 |  |
+| reshape |  |
 | reverse |  |
 | rnn | `SimpleRNN` and `GRU` modes are not supported. |
 | roi_align |  |
@@ -763,7 +759,7 @@ paddlepaddle>=2.1
 | softplus |  |
 | split |  |
 | sqrt |  |
-| squeeze2 |  |
+| squeeze |  |
 | stack |  |
 | strided_slice |  |
 | sum |  |
@@ -771,10 +767,10 @@ paddlepaddle>=2.1
 | sync_batch_norm |  |
 | tanh |  |
 | tile |  |
-| top_k_v2 |  |
-| transpose2 |  |
-| trilinear_interp_v2 |  |
-| unsqueeze2 |  |
+| top_k |  |
+| transpose |  |
+| trilinear_interp |  |
+| unsqueeze |  |
 | where |  |
 | where_index |  |
 | while |  |
