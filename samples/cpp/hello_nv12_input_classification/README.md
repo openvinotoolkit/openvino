@@ -81,7 +81,7 @@ hello_nv12_input_classification <path_to_model> <path_to_image> <image_size> <de
    omz_downloader --name alexnet
    ```
 
-3. If a model is not in the OpenVINO IR or ONNX format, it must be converted with Model Converter:
+3. If a model is not in the OpenVINO IR or ONNX format, it must be converted. You can do this using the model converter:
    ```
    omz_converter --name alexnet
    ```
