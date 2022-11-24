@@ -80,8 +80,13 @@ struct conv_eltw_test_params {
 
 class ConvFusingTest : public BaseFusingTest<convolution_test_params> {
 public:
-    void execute(convolution_test_params& p) {
-        auto input_prim = get_mem(get_input_layout(p));
+    void execute(convolution_test_params& p, int min=0, int max=0) {
+        cldnn::memory::ptr input_prim;
+        if (min == max) {
+            input_prim = get_mem(get_input_layout(p));
+        } else {
+            input_prim = get_mem(get_input_layout(p), min, max);
+        }
         network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
         network network_fused(this->engine, this->topology_fused, bo_fused);
         network_fused.set_input_data("input", input_prim);
@@ -1744,7 +1749,7 @@ TEST_P(conv_int8_scale_shift_swish, basic) {
 
     // high tolerance because many eltwise operations
     tolerance = default_tolerance(p.default_type) * 10;
-    execute(p);
+    execute(p, -20, 20);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_shift_swish, ::testing::ValuesIn(std::vector<convolution_test_params>{
