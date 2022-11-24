@@ -50,10 +50,6 @@ ov::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
     register_matcher(m, matcher_pass_callback);
 }
 
-namespace {
-
-}  // namespace
-
 ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
     MATCHER_SCOPE(TransposeSinkingConcatBackward);
 
