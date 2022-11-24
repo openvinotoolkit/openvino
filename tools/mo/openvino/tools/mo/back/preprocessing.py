@@ -353,9 +353,12 @@ def guess_source_layouts_for_reverse_channels(ov_function: Model, layout_values)
 
 
 def update_tensor_names_to_first_in_sorted_list(values_dict: dict, ov_function: Model):
+    if not isinstance(values_dict, dict):
+        return values_dict
     updated_dict = {}
     used_nodes = {}
     for name, value in values_dict.items():
+        input_found = False
         for input in ov_function.inputs:
             tensor_names = list(input.names)
             tensor_names.sort()
@@ -365,6 +368,11 @@ def update_tensor_names_to_first_in_sorted_list(values_dict: dict, ov_function: 
                 raise Error("Tensor names {} and {} refer to the same node.".format(name, used_nodes[input]))
             used_nodes.update({input: name})
             updated_dict[tensor_names[0]] = value
+            input_found = True
+            break
+        if not input_found:
+            raise Error('Input with name {} wasn\'t found! {}'.format(name, refer_to_faq_msg(82)))
+
     return updated_dict
 
 
