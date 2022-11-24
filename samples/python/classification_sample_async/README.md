@@ -83,7 +83,7 @@ Options:
    omz_converter --name alexnet
    ```
 
-4. Perform inference of the `banana.jpg` and the `car.bmp`, using the `alexnet` model on a `GPU`, for example:
+4. Perform inference on the `banana.jpg` and the `car.bmp` images, using the `alexnet` model on a `GPU` device, for example:
    ```
    python classification_sample_async.py -m alexnet.xml -i banana.jpg car.bmp -d GPU
    ```
