@@ -26,73 +26,39 @@ void jit_kernel_base::generate() {
     }
 }
 
-void jit_kernel_base::emu_vgatherdps(const Xbyak::Xmm& xmm_val,
-                                   const Xbyak::Reg64& reg_addr,
-                                   const Xbyak::Xmm& xmm_index,
-                                   const int& scale,
-                                   const int& disp,
-                                   const Xbyak::Reg& reg_mask,
-                                   const bool is_mask_seq/* = true*/) {
-    const size_t kDataTypeSize = sizeof(float);
-    Xbyak::Xmm xmm_mask{reg_mask.getIdx(), reg_mask.getKind(), static_cast<int>(reg_mask.getBit())};
-    std::vector<Xbyak::Xmm> not_available_xmm{xmm_index, xmm_val, xmm_mask};
+void jit_kernel_base::emu_vgatherdps(const Xbyak::Xmm& vDst,
+                                     const Xbyak::Reg64& rSrcPtr,
+                                     const Xbyak::Xmm& vSrcShift,
+                                     const Xbyak::Xmm& vReadMask,
+                                     const bool useMask,
+                                     const bool zeroFill) {
+    std::vector<Xbyak::Xmm> not_available_xmm{vSrcShift, vDst, vReadMask};
+
     if (is_valid_isa(x64::avx512_core)) {
-        const Xbyak::Zmm zmm_zero_val = registersPool->getInplaceFree<Xbyak::Zmm>(not_available_xmm);
-        push(zmm_zero_val);
-        uni_vxorps(zmm_zero_val, zmm_zero_val, zmm_zero_val);
         RegistersPool::Reg<Xbyak::Opmask> avx512_mask{registersPool, 1};
-        vpcmpud(avx512_mask, Xbyak::Zmm{reg_mask.getIdx()}, zmm_zero_val, VCMPPS_GT);
-        pop(zmm_zero_val);
-        vgatherdps(xmm_val | avx512_mask, ptr[reg_addr + xmm_index * scale + disp]);
-    } else if (is_valid_isa(x64::avx2)) {
-        assert(reg_mask.isYMM());
-        Xbyak::Ymm ymm_mask{reg_mask.getIdx()};
-        vgatherdps(xmm_val, ptr[reg_addr + xmm_index * scale + disp], ymm_mask);
+        if (useMask) {
+            const Xbyak::Zmm zmm_zero_val = registersPool->getInplaceFree<Xbyak::Zmm>(not_available_xmm);
+            push(zmm_zero_val);
+            uni_vxorps(zmm_zero_val, zmm_zero_val, zmm_zero_val);
+
+            vpcmpud(avx512_mask, Xbyak::Zmm{vReadMask.getIdx()}, zmm_zero_val, VCMPPS_GT);
+            pop(zmm_zero_val);
+        }
+
+        gatherdd(vDst, rSrcPtr, vSrcShift, avx512_mask, useMask, zeroFill);
+    } else if (vDst.isYMM()) {
+        Xbyak::Ymm yDst{vDst.getIdx()};
+        Xbyak::Ymm yIndex{vSrcShift.getIdx()};
+        Xbyak::Ymm yMask{vReadMask.getIdx()};
+
+        gatherdd(yDst, rSrcPtr, yIndex, yMask, useMask, zeroFill);
     } else {
-        const size_t kSimdWidth = x64::cpu_isa_traits<x64::sse41>::vlen / kDataTypeSize;
-        assert(reg_mask.isXMM());
-        assert(xmm_val.getKind() == xmm_index.getKind());
-        assert(xmm_index.getKind() == xmm_mask.getKind());
-
-        std::vector<Xbyak::Reg> not_available_reg{reg_addr};
-        const Xbyak::Reg64 idx = registersPool->getInplaceFree<Xbyak::Reg64>(not_available_reg);
-        const Xbyak::Reg64 mask = registersPool->getInplaceFree<Xbyak::Reg64>(not_available_reg);
-
-        push(idx);
-        push(mask);
-        xor_(idx, idx);
-        xor_(mask, mask);
-
-        Xbyak::Label gather_fast_end;
-        for (int i = 0; i < static_cast<int>(kSimdWidth); i++) {
-            Xbyak::Label gather_end;
-            uni_vpextrd(mask.cvt32(), xmm_mask, i);
-            cmp(mask.cvt32(), 0xFFFFFFFF);
-            if (is_mask_seq) {
-                jne(gather_fast_end, T_SHORT);
-            } else {
-                jne(gather_end, T_SHORT);
-            }
-            uni_vpextrd(idx.cvt32(), xmm_index, i);
-            Xbyak::Address addr = ptr[reg_addr + idx * scale + disp];
-            uni_vpinsrd(xmm_val, xmm_val, addr, i);
-            if (!is_mask_seq) {
-                L(gather_end);
-            }
-        }
-        if (is_mask_seq) {
-            L(gather_fast_end);
-        }
-
-        pop(mask);
-        pop(idx);
+        gatherdd(vDst, rSrcPtr, vSrcShift, vReadMask, useMask, zeroFill);
     }
 }
 
 void jit_kernel_base::emu_vscatterdps(const Xbyak::Reg64& reg_addr,
                                     const Xbyak::Xmm& xmm_index,
-                                    const int scale,
-                                    const int disp,
                                     const Xbyak::Xmm& xmm_val,
                                     const Xbyak::Reg& reg_mask,
                                     const bool is_mask_seq /* = true*/) {
@@ -106,7 +72,7 @@ void jit_kernel_base::emu_vscatterdps(const Xbyak::Reg64& reg_addr,
         RegistersPool::Reg<Xbyak::Opmask> avx512_mask{registersPool, 1};
         vpcmpud(avx512_mask, Xbyak::Zmm{reg_mask.getIdx()}, zmm_zero_val, VCMPPS_GT);
         pop(zmm_zero_val);
-        vscatterdps(ptr[reg_addr + xmm_index * scale + disp], xmm_val | avx512_mask);
+        vscatterdps(ptr[reg_addr + xmm_index], xmm_val | avx512_mask);
     } else {
         assert(reg_mask.isXMM() || reg_mask.isYMM());
         const size_t kXmmSimdWidth = x64::cpu_isa_traits<x64::sse41>::vlen / kDataTypeSize;
@@ -146,7 +112,7 @@ void jit_kernel_base::emu_vscatterdps(const Xbyak::Reg64& reg_addr,
                     jne(scatter_end, T_NEAR);
                 }
                 uni_vpextrd(idx.cvt32(), xmm_index, i);
-                Xbyak::Address addr = ptr[reg_addr + idx * scale];
+                Xbyak::Address addr = ptr[reg_addr + idx];
                 uni_vpextrd(val.cvt32(), xmm_val, i);
                 mov(addr, val.cvt32());
                 if (!is_mask_seq) {
@@ -178,12 +144,15 @@ void jit_kernel_base::emu_vscatterdps(const Xbyak::Reg64& reg_addr,
     }
 }
 
-void jit_kernel_base::gatherdd(const Xbyak::Xmm&    vDst,
-                             const Xbyak::Reg64&  rSrcPtr,
-                             const Xbyak::Xmm&    vSrcShift,
-                             const Xbyak::Opmask& kReadMask,
-                             const bool useMask,
-                             const bool zeroFill) {
+void jit_kernel_base::gatherdd(const Xbyak::Xmm& vDst,
+                               const Xbyak::Reg64& rSrcPtr,
+                               const Xbyak::Xmm& vSrcShift,
+                               const Xbyak::Opmask& kReadMask,
+                               const bool useMask,
+                               const bool zeroFill) {
+    if (!is_valid_isa(x64::avx512_core)) {
+        IE_THROW() << "The vpgatherdd instruction with Opmask must be used when AVX-512 is available";
+    }
     if (kReadMask.getIdx() == 0) {
         IE_THROW() << "The vpgatherdd instruction cannot use the register k0 as mask.";
     }
@@ -242,11 +211,13 @@ void jit_kernel_base::gatherdd(const Xbyak::Ymm&   vDst,
     if (vDst.getIdx() == vSrcShift.getIdx() || vDst.getIdx() == vReadMask.getIdx() || vSrcShift.getIdx() == vReadMask.getIdx()) {
         IE_THROW() << "Any pair of the index, mask, or destination registers cannot be the same.";
     }
+
+    if (zeroFill)
+        uni_vpxor(vDst, vDst, vDst);
+
     if (is_valid_isa(x64::avx2)) {
         if (!useMask)
             uni_vpcmpeqd(vReadMask, vReadMask, vReadMask);
-        if (zeroFill)
-            uni_vpxor(vDst, vDst, vDst);
 
         vpgatherdd(vDst, ptr[rSrcPtr + vSrcShift], vReadMask);
     } else {
@@ -254,7 +225,7 @@ void jit_kernel_base::gatherdd(const Xbyak::Ymm&   vDst,
                    xmmSrcShft  = Xbyak::Xmm(vSrcShift.getIdx()),
                    xmmReadMask = Xbyak::Xmm(vReadMask.getIdx());
         for (uint8_t i = 0; i < 2; i++) {
-            gatherdd(xmmDst, rSrcPtr, xmmSrcShft, xmmReadMask, useMask, zeroFill);
+            gatherdd(xmmDst, rSrcPtr, xmmSrcShft, xmmReadMask, useMask, false);
 
             vperm2f128(vDst, vDst, vDst, 0x1);
             vperm2f128(vSrcShift, vSrcShift, vSrcShift, 0x1);
