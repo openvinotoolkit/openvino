@@ -395,19 +395,23 @@ bool program_node::is_dynamic() {
     }
 
     for (auto& input : get_dependencies()) {
-        if (input->get_output_layout(true).is_dynamic())
+        if (input->is_dynamic_output_layout())
             return true;
     }
 
-    return get_output_layout(true).is_dynamic();
+    for (size_t i = 0; i < output_layouts.size(); ++i) {
+        if (output_layouts[i].is_dynamic())
+            return true;
+    }
+    return false;
 }
 
 bool program_node::is_dynamic_output_layout(size_t idx) const {
-    return output_layouts[idx].is_dynamic();
+    return (output_layouts[idx].is_dynamic()) ||  (output_layouts[idx].get_partial_shape().size() == 0);
 }
 
 bool program_node::is_dynamic_output_layout(size_t idx) {
-    return output_layouts[idx].is_dynamic();
+    return (output_layouts[idx].is_dynamic()) ||  (output_layouts[idx].get_partial_shape().size() == 0);
 }
 
 bool program_node::has_padded_dependency() {
