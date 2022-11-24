@@ -308,8 +308,8 @@ if(ENABLE_INTEL_GNA)
             GNA_LIB_DIR
             libGNA_INCLUDE_DIRS
             libGNA_LIBRARIES_BASE_PATH)
-        set(GNA_VERSION "03.00.00.1815.1")
-        set(GNA_HASH "682eb01e5a148ea03b90ee12b7fd67afb1479f35ccf2966f83b208e50e91633c")
+        set(GNA_VERSION "03.00.00.1910")
+        set(GNA_HASH "894ddbc0ae3459f04513b853b0cabc32890dd4ea37228a022b6a32101bdbb7f8")
 
         set(FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/include)
         if(WIN32)
@@ -319,7 +319,7 @@ if(ENABLE_INTEL_GNA)
         endif()
 
         RESOLVE_DEPENDENCY(GNA_EXT_DIR
-                ARCHIVE_UNIFIED "gna/GNA_${GNA_VERSION}.zip"
+                ARCHIVE_UNIFIED "gna/gna_${GNA_VERSION}.zip"
                 TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"
                 VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
                 FILES_TO_EXTRACT FILES_TO_EXTRACT_LIST
