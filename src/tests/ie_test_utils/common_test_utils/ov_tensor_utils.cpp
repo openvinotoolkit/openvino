@@ -246,7 +246,7 @@ void compare(const ov::Tensor& expected,
     double abs_threshold = abs_threshold_;
     double rel_threshold = rel_threshold_;
     size_t shape_size_cnt = shape_size(expected_shape);
-    if (abs_threshold == std::numeric_limits<double>::max()) {
+    if (abs_threshold == std::numeric_limits<double>::max() && rel_threshold == std::numeric_limits<double>::max()) {
         if (sizeof(ExpectedT) == 1 || sizeof(ActualT) == 1) {
             abs_threshold = 1.;
         } else {
