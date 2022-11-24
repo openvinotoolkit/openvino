@@ -166,14 +166,15 @@ void op::v10::Unique::validate_and_infer_types() {
                 get_input_element_type(1) == element::i32 || get_input_element_type(1) == element::i64,
                 "The allowed element types of the 'axis' input tensor of the Unique operator are i32 and i64.");
 
-            NODE_VALIDATION_CHECK(
-                this,
-                get_input_partial_shape(1) == Shape{} || get_input_partial_shape(1) == Shape{1},
-                "The 'axis' input tensor of the Unique operator must be a scalar or 1D tensor with 1 element.");
-
             NODE_VALIDATION_CHECK(this,
                                   ov::op::util::is_constant(input_value(1).get_node()),
                                   "The 'axis' input of the Unique operator must be connected to a Constant.");
+
+            NODE_VALIDATION_CHECK(
+                this,
+                get_input_partial_shape(1) == PartialShape{} || get_input_partial_shape(1) == PartialShape{1},
+                "The 'axis' input tensor of the Unique operator must be a scalar or 1D tensor with 1 element.");
+
             const int64_t axis =
                 extract_axis(std::dynamic_pointer_cast<op::v0::Constant>(input_value(1).get_node_shared_ptr()));
 
