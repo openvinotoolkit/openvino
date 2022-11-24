@@ -206,6 +206,6 @@ class TransposeTensorIteratorLSTM(MiddleReplacementPattern):
 
         unsqueeze_dim = Const(unsqueeze.graph, {'value': [ti.output_port_map[data_output_port]['axis']],
                                                 'need_shape_inference': True,
-                                            'override_output_shape': True}).create_node()
+                                                'override_output_shape': True}).create_node()
         unsqueeze.in_port(1).get_connection().set_source(unsqueeze_dim.out_port(0))
         unsqueeze.infer(unsqueeze)
