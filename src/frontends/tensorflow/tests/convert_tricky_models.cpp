@@ -25,7 +25,7 @@ TEST(FrontEndConvertModelTest, test_undefined_input_shape) {
     ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
     ASSERT_NE(inputModel, nullptr);
     shared_ptr<ngraph::Function> function;
-    ASSERT_NO_THROW(function = frontEnd->convert(inputModel), OpConversionFailure);
+    ASSERT_NO_THROW(function = frontEnd->convert(inputModel));
     ASSERT_NE(function, nullptr);
 
     for (auto& node : function->get_ordered_ops()) {
