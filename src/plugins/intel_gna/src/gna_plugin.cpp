@@ -43,6 +43,7 @@
 #include "gna2_model_export_helper.hpp"
 #include "gna2_model_helper.hpp"
 #include "orientation_helper.hpp"
+#include "scale_factor_helper.hpp"
 #include "request/model_wrapper_factory.hpp"
 #include "request/worker_pool_impl.hpp"
 #include "request/worker_factory.hpp"
@@ -1628,27 +1629,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
     SetNetworkInputs();
     SetNetworkOutputs();
 
-    // If scale factors are defined in configuration we still need to use them instead of imported values,
-    // for example to change the scale factors for the old models.
-    if (!config.inputScaleFactorsPerInput.empty()) {
-        IE_ASSERT(config.inputScaleFactorsPerInput.size() <= inputs_ptr_->size());
-        for (auto&& sf : config.inputScaleFactorsPerInput) {
-            if (sf.second != GNAPluginNS::kScaleFactorDefault) {
-                log::debug() << "[Import Network] Using input scale factor defined in configuration for input " << sf.first
-                         << std::endl;
-                (*inputs_ptr_)[sf.first].scale_factor = sf.second;
-            }
-        }
-    } else if (!config.inputScaleFactors.empty()) {
-        IE_ASSERT(config.inputScaleFactors.size() <= inputs_ptr_->size());
-        for (size_t id = 0; id < config.inputScaleFactors.size(); ++id) {
-            if (id < inputs_ptr_->size() && config.inputScaleFactors[id] != GNAPluginNS::kScaleFactorDefault) {
-                log::debug() << "[Import Network] Using input scale factor defined in configuration for input " << id
-                         << std::endl;
-                inputs_ptr_->Get().at(id).scale_factor = config.inputScaleFactors[id];
-            }
-        }
-    }
+    ov::intela_gna::helpers::ApplyInputScaleFactors(config, header, *inputs_ptr_);
 
     auto getOrientation = [](Gna2Operation& gnaOperation) {
         return gnaOperation.Type == Gna2OperationTypeConvolution ? kDnnNonInterleavedOrientation
