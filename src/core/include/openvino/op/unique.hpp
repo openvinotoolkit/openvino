@@ -22,7 +22,8 @@ public:
     ///
     /// \param data     Input data tensor
     /// \param sorted   Controls the order of the returned unique values (sorts ascendingly when true)
-    /// \param index_element_type    The data type set for outputs containing indices
+    /// \param index_element_type    The data type for outputs containing indices
+    /// \param count_element_type    The data type for output containing repetition count
     Unique(const Output<Node>& data,
            const bool sorted = true,
            const element::Type& index_element_type = element::i64,
@@ -33,7 +34,8 @@ public:
     /// \param data     Input data tensor
     /// \param axis     An input tensor containing the axis value
     /// \param sorted   Controls the order of the returned unique values (sorts ascendingly when true)
-    /// \param index_element_type    The data type set for outputs containing indices
+    /// \param index_element_type    The data type for outputs containing indices
+    /// \param count_element_type    The data type for output containing repetition count
     Unique(const Output<Node>& data,
            const Output<Node>& axis,
            const bool sorted = true,
