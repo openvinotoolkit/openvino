@@ -250,7 +250,8 @@ def create_summary(summary_root: ET.Element, output_folder: os.path, expected_de
 
     device_list = sorted(device_list)
 
-    file_loader = FileSystemLoader('template')
+    script_dir, script_name = os.path.split(os.path.abspath(__file__))
+    file_loader = FileSystemLoader(os.path.join(script_dir, 'template'))
     env = Environment(loader=file_loader)
     template = env.get_template('report_template.html')
 

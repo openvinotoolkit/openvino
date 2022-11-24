@@ -359,7 +359,7 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
 std::string get_test_info_stream_header(benchmark_app::InputInfo& inputInfo) {
     std::stringstream strOut;
     strOut << "(" << inputInfo.layout.to_string() << ", " << inputInfo.type.get_type_name() << ", "
-           << get_shape_string(inputInfo.dataShape) << ", ";
+           << inputInfo.dataShape << ", ";
     if (inputInfo.partialShape.is_dynamic()) {
         strOut << std::string("dyn:") << inputInfo.partialShape << "):\t";
     } else {
