@@ -245,23 +245,27 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             std::shared_ptr<ie::ICacheManager> _cacheManager;
         };
 
-        // Core default global properties, which will not set to any plugins.
-        const ov::AnyMap default_global_properties = {ov::force_tbb_terminate(false)};
-
-        // Core default plugins properties, which will set to specified or all plugins.
-        const ov::AnyMap default_plugins_properties = {ov::cache_dir(""),
-                                                       ov::hint::allow_auto_batching(true),
-                                                       ov::auto_batch_timeout(1000)};
-
         void set_core_config(ov::AnyMap& config) {
             for (auto it = config.begin(); it != config.end();) {
-                auto item = default_plugins_properties.find(it->first);
-                auto item2 = default_global_properties.find(it->first);
-                if (item == default_plugins_properties.end() && item2 == default_global_properties.end()) {
-                    it++;
-                    continue;
+                {
+                    // Update global or plugin property if find it in input config
+                    // else ignore it and continue next one
+                    std::lock_guard<std::mutex> lock(_core_property_mutex);
+                    auto item = _core_plugins_properties.find(it->first);
+                    if (item != _core_plugins_properties.end()) {
+                        _core_plugins_properties[it->first] = it->second;
+                    } else {
+                        item = _core_global_properties.find(it->first);
+                        if (item != _core_global_properties.end()) {
+                            _core_global_properties[it->first] = it->second;
+                        } else {
+                            it++;
+                            continue;
+                        }
+                    }
                 }
 
+                // Some special processing if needed, which is case by case
                 if (it->first == ov::cache_dir.name()) {
                     std::lock_guard<std::mutex> lock(_cacheConfigMutex);
                     fillConfig(_cacheConfig, it->second.as<std::string>());
@@ -273,38 +277,36 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
                     executorManager()->setTbbFlag(flag);
                 }
 
-                {
-                    // Update or insert config
-                    std::lock_guard<std::mutex> lock(_commonConfigMutex);
-                    _commonConfig[it->first] = it->second;
-                }
                 it = config.erase(it);
             }
         }
 
+        // Apply core_plugins_properties into the input config for actual plugins instance.
         void update_config(const std::string& device_name, ov::AnyMap& config) const {
-            for (auto& it : _commonConfig) {
-                // Exclude non default_plugins_properties
-                auto item = default_plugins_properties.find(it.first);
-                if (item == default_plugins_properties.end())
+            std::lock_guard<std::mutex> lock(_core_property_mutex);
+            for (auto& it : _core_plugins_properties) {
+                // ov::cache_dir has been updated, ignore it.
+                if (it.first == ov::cache_dir.name())
                     continue;
 
-                // If config has contained this property, it will not be overwritten.
-                auto temp = config.find(it.first);
-                if (temp != config.end())
+                // If the property has been contained in input config, it will not be overwritten.
+                auto item = config.find(it.first);
+                if (item != config.end())
                     continue;
 
-                // Only insert property if it is set in core before.
+                // properties cached in core_plugins_properties always set to actual plufins instance,
+                // but some of them only can be applied for specified plugins, such as:
+                //     ov::auto_batch_timeout   -  only for AUTO and BATCH plugins
+                //     ov::hint::allow_auto_batching  - only for AUTO plugins
                 if (it.first == ov::auto_batch_timeout.name()) {
-                    if (device_name.find("BATCH") != std::string::npos) {
+                    if (device_name.find("BATCH") != std::string::npos ||
+                        device_name.find("AUTO") != std::string::npos) {
                         config[it.first] = it.second;
                     }
                 } else if (it.first == ov::hint::allow_auto_batching.name()) {
                     if (device_name.find("AUTO") != std::string::npos) {
                         config[it.first] = it.second;
                     }
-                } else if (it.first == ov::cache_dir.name()) {
-                    // Do nothing
                 } else {
                     config[it.first] = it.second;
                 }
@@ -312,24 +314,15 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         }
 
         ov::Any get_core_config(const std::string& name) const {
-            {
-                std::lock_guard<std::mutex> lock(_commonConfigMutex);
-                auto it = _commonConfig.find(name);
-                if (it != _commonConfig.end()) {
-                    return it->second;
-                }
-            }
-
-            // Return default value if global propery is not set before.
-            auto item = default_global_properties.find(name);
-            if (item != default_global_properties.end()) {
+            std::lock_guard<std::mutex> lock(_core_property_mutex);
+            auto item = _core_global_properties.find(name);
+            if (item != _core_global_properties.end()) {
                 return item->second;
             }
 
-            // Return default value, if plugins properties is not set.
-            auto it = default_plugins_properties.find(name);
-            if (it != default_plugins_properties.end()) {
-                return it->second;
+            item = _core_plugins_properties.find(name);
+            if (item != _core_plugins_properties.end()) {
+                return item->second;
             }
 
             // Other property will report exception.
@@ -392,8 +385,18 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         mutable std::mutex _cacheConfigMutex;
         CacheConfig _cacheConfig;
         std::map<std::string, CacheConfig> _cacheConfigPerDevice;
-        mutable std::mutex _commonConfigMutex;
-        ov::AnyMap _commonConfig;
+
+        mutable std::mutex _core_property_mutex;
+        // Core global properties, which will not set to any plugins.
+        // It will be updated if core.set_property() without device name.
+        ov::AnyMap _core_global_properties = {ov::force_tbb_terminate(false)};
+
+        // Core plugins properties, which will set to specified or all plugins.
+        // Except ov::cache_dir, other all properties will ALWAYS be set to plugins.
+        // It will be updated if core.set_property() without device name.
+        ov::AnyMap _core_plugins_properties = {ov::cache_dir(""),
+                                               ov::hint::allow_auto_batching(true),
+                                               ov::auto_batch_timeout(1000)};
     };
 
     struct CacheContent {

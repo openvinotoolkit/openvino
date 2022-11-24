@@ -786,7 +786,6 @@ IE_DEFINE_PLUGIN_CREATE_FUNCTION(AutoBatchInferencePlugin, version)
 
 AutoBatchInferencePlugin::AutoBatchInferencePlugin() {
     _pluginName = "BATCH";
-    _config[CONFIG_KEY(AUTO_BATCH_TIMEOUT)] = "1000";  // default value, in ms
 }
 
 InferenceEngine::Parameter AutoBatchInferencePlugin::GetMetric(
