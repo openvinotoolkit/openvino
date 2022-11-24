@@ -6,11 +6,14 @@
 #include <vector>
 #include <thread>
 #include <memory>
-
 #include <gtest/gtest.h>
+
+#include "openvino/opsets/opset9.hpp"
+
 #include "ops/util/util.hpp"
 
 using namespace ov::intel_gna::ngraph_util;
+using namespace ov::opset9;
 
 namespace test {
 
@@ -75,9 +78,9 @@ TEST_P(GnaOpsUtilIsEltwiseAddTest, isEltwiseAddTest) {
 }
 
 ov::NodeVector pooling_nodes_false = {
-    std::make_shared<ngraph::op::VariadicSplit>(),
-    std::make_shared<ngraph::op::Concat>(),
-    std::make_shared<ngraph::op::MatMul>(),
+    std::make_shared<VariadicSplit>(),
+    std::make_shared<Concat>(),
+    std::make_shared<MatMul>(),
     std::make_shared<ngraph::opset9::MaxPool>()
 };
 
@@ -86,28 +89,28 @@ ov::NodeVector pooling_nodes_true = {
 };
 
 ov::NodeVector elwise_mul_nodes_false = {
-    std::make_shared<ngraph::op::VariadicSplit>(),
-    std::make_shared<ngraph::op::Eltwise>(ov::Output<ov::Node>(std::make_shared<ngraph::opset9::Constant>()),
-                                          ov::Output<ov::Node>(std::make_shared<ngraph::opset9::Constant>()),
+    std::make_shared<VariadicSplit>(),
+    std::make_shared<ngraph::op::Eltwise>(std::make_shared<Constant>(),
+                                          std::make_shared<Constant>(),
                                           ELTWISE_TYPE::Sum),
 };
 
 ov::NodeVector elwise_mul_nodes_true = {
-    std::make_shared<ngraph::op::Eltwise>(ov::Output<ov::Node>(std::make_shared<ngraph::opset9::Constant>()),
-                                          ov::Output<ov::Node>(std::make_shared<ngraph::opset9::Constant>()),
+    std::make_shared<ngraph::op::Eltwise>(std::make_shared<Constant>(),
+                                          std::make_shared<Constant>(),
                                           ELTWISE_TYPE::Prod)
 };
 
 ov::NodeVector elwise_add_nodes_false = {
-    std::make_shared<ngraph::op::VariadicSplit>(),
-    std::make_shared<ngraph::op::Eltwise>(ov::Output<ov::Node>(std::make_shared<ngraph::opset9::Constant>()),
-                                          ov::Output<ov::Node>(std::make_shared<ngraph::opset9::Constant>()),
+    std::make_shared<VariadicSplit>(),
+    std::make_shared<ngraph::op::Eltwise>(std::make_shared<Constant>(),
+                                          std::make_shared<Constant>(),
                                           ELTWISE_TYPE::Prod)
 };
 
 ov::NodeVector elwise_add_nodes_true = {
-        std::make_shared<ngraph::op::Eltwise>(ov::Output<ov::Node>(std::make_shared<ngraph::opset9::Constant>()),
-                                              ov::Output<ov::Node>(std::make_shared<ngraph::opset9::Constant>()),
+        std::make_shared<ngraph::op::Eltwise>(std::make_shared<Constant>(),
+                                              std::make_shared<Constant>(),
                                               ELTWISE_TYPE::Sum)
 };
 
