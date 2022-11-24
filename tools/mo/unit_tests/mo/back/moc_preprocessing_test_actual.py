@@ -682,3 +682,20 @@ class TestPreprocessingMOC(UnitTestWithMockedTelemetry):
 
         # Verify that layout (nchw) is appeared in input1
         self.assertEqual(function.get_parameters()[0].layout, Layout('nchw'))
+
+    def test_sorting_tensor_names_friendly_name_case(self):
+        argv = Namespace(mean_scale_values={'input1': {'mean': np.array([2., 4., 8.]), 'scale': None}},
+                         layout_values={'input1': {'source_layout': 'nchw'}},
+                         scale=127.5)
+        function = create_function3(shape1=[1, 3, 224, 224])
+        process_function(ov_function=function, argv=argv)
+        op_node = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node.get_type_name() == 'Subtract' or op_node.get_type_name() == 'Add')
+        self.check_mean_constant(op_node, expected=[2., 4., 8.], shape=[1, 3, 1, 1])
+
+        op_node = list(op_node.output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node.get_type_name() == 'Divide' or op_node.get_type_name() == 'Multiply')
+        self.check_scale_constant(op_node, expected=127.5, shape=[1])
+
+        # Verify that layout (nchw) is appeared in input1
+        self.assertEqual(function.get_parameters()[0].layout, Layout('nchw'))

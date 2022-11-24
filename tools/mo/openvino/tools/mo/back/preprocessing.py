@@ -362,7 +362,7 @@ def update_tensor_names_to_first_in_sorted_list(values_dict: dict, ov_function: 
         for input in ov_function.inputs:
             tensor_names = list(input.names)
             tensor_names.sort()
-            if name not in tensor_names:
+            if not(name in tensor_names or name == input.node.get_friendly_name()):
                 continue
             if input in used_nodes:
                 raise Error("Tensor names {} and {} refer to the same node.".format(name, used_nodes[input]))
@@ -371,7 +371,7 @@ def update_tensor_names_to_first_in_sorted_list(values_dict: dict, ov_function: 
             input_found = True
             break
         if not input_found:
-            raise Error('Input with name {} wasn\'t found! {}'.format(name, refer_to_faq_msg(82)))
+            raise Error('Input with name {} wasn\'t found! {}'.format(name, refer_to_faq_msg(83)))
 
     return updated_dict
 
