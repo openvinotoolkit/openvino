@@ -53,7 +53,7 @@ Before running the sample, you need to specify a model and image:
    python <path_to_omz_tools>/downloader.py --name alexnet
    ```
 
-2. If a model is not in the OpenVINO IR or ONNX format, it must be converted with Model Converter:
+2. If a model is not in the OpenVINO IR or ONNX format. You can do this using the model converter script:
    ```
    python <path_to_omz_tools>/converter.py --name alexnet
    ```
