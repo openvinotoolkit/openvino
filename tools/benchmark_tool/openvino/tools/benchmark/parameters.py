@@ -66,15 +66,8 @@ def parse_args():
                       help='Optional. ' +
                            'Batch size value. ' +
                            'If not specified, the batch size value is determined from Intermediate Representation')
-    args.add_argument('-stream_output', type=str2bool, required=False, default=False, nargs='?', const=True,
-                      help='Optional. '
-                           'Print progress as a plain text. '
-                           'When specified, an interactive progress bar is replaced with a multi-line output.')
     args.add_argument('-t', '--time', type=int, required=False, default=None,
                       help='Optional. Time in seconds to execute topology.')
-    args.add_argument('-progress', type=str2bool, required=False, default=False, nargs='?', const=True,
-                      help='Optional. '
-                           'Show progress bar (can affect performance measurement). Default values is \'False\'.')
     args.add_argument('-shape', type=str, required=False, default='',
                       help='Optional. '
                            'Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.'
