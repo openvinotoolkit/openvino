@@ -116,8 +116,6 @@ std::string CPUTestsBase::impls2str(const std::vector<std::string> &priority) {
 
 void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, const std::string& nodeType) const {
     if (nodeType.empty()) return;
-
-    ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
     auto function = execGraphInfo.getFunction();
     CheckPluginRelatedResultsImpl(function, nodeType);
@@ -125,8 +123,6 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
 
 void CPUTestsBase::CheckPluginRelatedResults(const ov::CompiledModel &execNet, const std::string& nodeType) const {
     if (nodeType.empty()) return;
-
-    ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
     auto function = execNet.get_runtime_model();
     CheckPluginRelatedResultsImpl(function, nodeType);
 }
@@ -213,9 +209,10 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
                 ASSERT_EQ(outFmts[i], cpu_str2fmt(actualOutputMemoryFormats[i].c_str()));
             }
 
-            auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
-
-            ASSERT_TRUE(primTypeCheck(primType)) << "primType is unexpected: " << primType << " Expected: " << selectedType;
+            if (!selectedType.empty()) {
+                auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
+                ASSERT_TRUE(primTypeCheck(primType)) << "primType is unexpected: " << primType << " Expected: " << selectedType;
+            }
         }
     }
 }
