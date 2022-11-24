@@ -60,13 +60,16 @@ def main():
         ireqs.start_async(encoded_warm_up)
     ireqs.wait_all()
     # Benchmark
+    sum_seq_len = 0
     start = perf_counter()
     for sentence in sst2_sentences:
         encoded = dict(tokenizer(sentence, return_tensors='np'))
+        sum_seq_len += next(iter(encoded.values())).size  # get sequence length to compute average length
         ireqs.start_async(encoded)
     ireqs.wait_all()
     end = perf_counter()
-    log.info(f'Duration:       {end - start:.2f} seconds')
+    log.info(f'Average sequence length: {sum_seq_len / len(sst2_sentences):.2f}')
+    log.info(f'Average processing time: {(end - start) / len(sst2_sentences) * 1e3:.2f} ms')
 
 
 if __name__ == '__main__':
