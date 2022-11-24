@@ -23,7 +23,7 @@ The following C++ API is used in the application:
 
 ## How It Works
 
-At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to the OpenVINO Runtime plugin and performs synchronous inference. Then processes output data and write it to a standard output stream.
+At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to the OpenVINO Runtime plugin and performs synchronous inference. Then processes output data and writes it to a standard output stream.
 
 For more information, refer to the explicit description of
 each sample **Integration Steps** in the [Integrate OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md).

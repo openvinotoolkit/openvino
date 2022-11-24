@@ -23,8 +23,8 @@ Basic OpenVINO™ Runtime API is described in [Hello Classification C++ sample](
 
 ## How It Works
 
-Upon the start-up the sample application reads command-line parameters, loads specified network and image to the Inference
-Engine plugin. Then, the sample creates an synchronous inference request object. When inference is done, the application creates output image and output data to the standard output stream.
+Upon the start-up the sample application reads command-line parameters, loads the specified network and image to the Inference
+Engine plugin. Then, the sample creates a synchronous inference request object. When inference is done, the application creates an output image and output data to the standard output stream.
 
 For more information, refer to the explicit description of
 **Integration Steps** in the [Integrate OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md).
