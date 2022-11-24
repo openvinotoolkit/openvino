@@ -730,7 +730,7 @@ bool network::is_cpu_impl(const primitive_id& id) const {
     OPENVINO_ASSERT(prim_inst, "[GPU] Can't get implementation type, since topology",
                                "doesn't contain primitive with requested id: ", id);
 
-    return prim_inst->get_impl()->is_cpu();
+    return prim_inst->get_impl() ? prim_inst->get_impl()->is_cpu() : true;
 }
 
 std::string network::get_implementation_info(const primitive_id& id) const {
