@@ -124,7 +124,7 @@ The script has the following arguments:
 * `-d DEVICE, --device DEVICE`
                         Specify the target device. The default value is CPU
 * `-ov OV_PATH, --ov_path OV_PATH`
-                        OV binary files path. The default way is try to find installed OV by `INTEL_OPENVINO_DIR` in environmet variables or to find the absolute path of OV repo (by using script path)
+                        OV binary files path. The default way is trying to find an installed OV by `INTEL_OPENVINO_DIR` in the environment variables or to find the absolute path of the OV repo by using the script path
 * `-w WORKING_DIR, --working_dir WORKING_DIR`
                         OV binary files path. The default way is trying to find an installed OV by `INTEL_OPENVINO_DIR` in the environment variables or to find the absolute path of the OV repo by using the script path
 * `-t TYPE, --type TYPE`
