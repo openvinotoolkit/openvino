@@ -23,7 +23,7 @@ Basic OpenVINO™ Runtime API is described in [Hello Classification C++ sample](
 ## How It Works
 
 At startup, the sample application reads command-line parameters, loads the specified model and an
-image in the `NV12` color format to an OpenVINO Runtime plugin. Then, the sample creates a synchronous inference request object. When inference is done, the application outputs data to the standard output stream. You can place labels in the `.labels` file near the model to get a prettier output.
+image in the `NV12` color format to an OpenVINO Runtime plugin. Then, the sample creates a synchronous inference request object. When inference is done, the application outputs data to the standard output stream. You can place labels in the `.labels` file near the model to make an output look cleaner.
 
 For more information, refer to the explicit description of
 each sample **Integration Steps** in the [Integrate OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md) guide.
