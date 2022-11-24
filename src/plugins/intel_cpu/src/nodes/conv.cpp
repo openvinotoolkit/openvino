@@ -24,6 +24,8 @@
 #include "utils/cpu_utils.hpp"
 #include <common/primitive_hashing_utils.hpp>
 #include <cpu/cpu_primitive.hpp>
+#include <common/primitive_desc.hpp>
+#include <common/primitive_desc_iface.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -1445,9 +1447,14 @@ void Convolution::prepareParams() {
 
         Node::appendPostOpArgs(*pAttrLocal, primArgs, convPostOpsArgs[preferLegacyPostOps]);
 
-        auto pd = (*(execPtr->getExecPrim())).get_primitive_desc();
+        auto pd = execPtr->getPrimitiveDesc();
         auto scratchpadMem = getScratchPadMem(pd);
         primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
+#ifdef CPU_DEBUG_CAPS
+        if (result.second == CacheEntryBase::LookUpStatus::Miss) {
+            DEBUG_LOG("verbose##", getName(), "##", pd->info(), "\n");
+        }
+#endif
     } else {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
