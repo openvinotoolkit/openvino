@@ -286,13 +286,13 @@ endif()
 # nlohmann json
 #
 
-add_subdirectory(json)
+if(ENABLE_SAMPLES)
+    add_subdirectory(json)
 
-openvino_developer_export_targets(COMPONENT openvino_common
-                                  TARGETS nlohmann_json nlohmann_json_schema_validator)
-
-ov_install_static_lib(nlohmann_json ${OV_CPACK_COMP_CORE})
-ov_install_static_lib(nlohmann_json_schema_validator ${OV_CPACK_COMP_CORE})
+    # this is required only because of VPUX plugin reused this
+    openvino_developer_export_targets(COMPONENT openvino_common
+                                      TARGETS nlohmann_json)
+endif()
 
 #
 # Install

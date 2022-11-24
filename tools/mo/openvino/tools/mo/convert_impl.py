@@ -18,8 +18,7 @@ except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
 
 from openvino.tools.mo.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
-from openvino.tools.mo.moc_frontend.check_config import legacy_transformations_config_used, \
-    new_extensions_used, new_transformations_config_used
+from openvino.tools.mo.moc_frontend.check_config import legacy_transformations_config_used, new_extensions_used
 from openvino.tools.mo.moc_frontend.pipeline import moc_pipeline
 from openvino.tools.mo.moc_frontend.serialize import moc_emit_ir
 from openvino.tools.mo.graph.graph import Graph
@@ -47,7 +46,7 @@ from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
 
 # pylint: disable=no-name-in-module,import-error
-from openvino.frontend import FrontEndManager, ProgressReporterExtension, TelemetryExtension, JsonConfigExtension
+from openvino.frontend import FrontEndManager, ProgressReporterExtension, TelemetryExtension
 from openvino.runtime import PartialShape, Dimension
 from openvino.runtime import get_version as get_rt_version
 
@@ -170,8 +169,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
     if is_legacy_frontend:
         if new_extensions_used(argv):
             raise Error('New kind of extensions used on legacy path')
-        if new_transformations_config_used(argv):
-            raise Error('New kind of transformations configuration used on legacy path')
 
     if is_tf and not argv.input_model and not argv.saved_model_dir and not argv.input_meta_graph:
         raise Error('Path to input model or saved model dir is required: use --input_model, --saved_model_dir or '
@@ -392,8 +389,6 @@ def prepare_ir(argv: argparse.Namespace):
                 raise Error('Legacy extensions are not supported for the new frontend')
             if legacy_extensions_used(argv):
                 raise Error('Legacy transformations configuration is not supported for the new frontend')
-            if new_transformations_config_used(argv):
-                moc_front_end.add_extension(JsonConfigExtension(argv.transformations_config))
             if new_extensions_used(argv):
                 for extension in argv.extensions:
                     moc_front_end.add_extension(extension)
