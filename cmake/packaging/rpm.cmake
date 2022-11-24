@@ -305,7 +305,7 @@ macro(ov_cpack_settings)
     # SUGGESTS may be unsupported, it's part of RPM 4.12.0 (Sep 16th 2014) only
     # see https://rpm.org/timeline.html
     set(CPACK_RPM_SAMPLES_PACKAGE_SUGGESTS "${samples_build_deps_suggest}, ${all_plugins_suggest}")
-    set(CPACK_RPM_SAMPLES_PACKAGE_REQUIRES "gflags-devel, nlohmann-json3-dev, zlib-devel")
+    set(CPACK_RPM_SAMPLES_PACKAGE_REQUIRES "gflags-devel, json-devel, zlib-devel")
     set(CPACK_RPM_SAMPLES_PACKAGE_ARCHITECTURE "noarch")
 
     ov_rpm_add_rpmlint_suppression("${OV_CPACK_COMP_CPP_SAMPLES}"
