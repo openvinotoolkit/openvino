@@ -33,7 +33,7 @@ handling the inference request is executed again.
 
 After that, the application starts inference for the first infer request and waits until the 10th inference request execution is completed. The asynchronous mode might increase the throughput of the pictures
 
-When inference is done, the application outputs data to the standard output stream. Labels may placed in `.labels` file near the model to get pretty output.
+When inference is done, the application outputs data to the standard output stream. Labels may be placed in the `.labels` file near the model to get a prettier output.
 
 For more information, refer to the explicit description of
 each sample **Integration Steps** in the [Integrate OpenVINO Runtime with Your Application](../../../docs/OV_Runtime_UG/integrate_with_your_application.md).

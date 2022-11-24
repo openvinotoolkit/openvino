@@ -136,7 +136,7 @@ The following pre-trained models are available:
 - rm_lstm4f
 - rm_cnn4a_smbr
 
-All of them can be downloaded from the [storage](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2).
+All of them can be downloaded from [storage](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2).
 
 ### Speech Inference
 
@@ -228,7 +228,7 @@ Kaldi's nnet-forward command. Since the `speech_sample` does not yet use pipes, 
    cat out.txt | utils/int2sym.pl -f 2- words.txt | sed s:\<UNK\>::g | compute-wer --text --mode=present ark:test_filt.txt ark,p:-
    ```
 
-   All of mentioned files can be downloaded from the [storage](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/wsj_dnn5b_smbr)
+   All of mentioned files can be downloaded from [storage](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/wsj_dnn5b_smbr)
 
 ## Additional Resources
 
