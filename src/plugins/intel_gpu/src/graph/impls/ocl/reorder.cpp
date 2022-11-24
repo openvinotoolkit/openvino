@@ -150,4 +150,4 @@ attach_reorder_impl::attach_reorder_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reorder_impl, cldnn::object_type::REORDER_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reorder_impl)

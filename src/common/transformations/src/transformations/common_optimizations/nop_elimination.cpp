@@ -720,20 +720,22 @@ pass::EliminateEltwise::EliminateEltwise() {
 
 ngraph::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
     // shape-agnostic transformations
-    add_matcher<EliminatePad>();
-    add_matcher<EliminateConvert>();
-    add_matcher<EliminateConvertNonZero>();
-    add_matcher<EliminateConcat>();
-    add_matcher<EliminateSplit>();
-    add_matcher<EliminateTranspose>();
-    add_matcher<EliminateEltwise>();
-    add_matcher<ov::pass::EliminateSplitConcat>();
+    ADD_MATCHER_FOR_THIS(EliminatePad)
+    ADD_MATCHER_FOR_THIS(EliminateConvert)
+    ADD_MATCHER_FOR_THIS(EliminateConvertNonZero)
+    ADD_MATCHER_FOR_THIS(EliminateConcat)
+    ADD_MATCHER_FOR_THIS(EliminateSplit)
+    ADD_MATCHER_FOR_THIS(EliminateTranspose)
+    ADD_MATCHER_FOR_THIS(EliminateEltwise)
+    using namespace ov::pass;
+    ADD_MATCHER_FOR_THIS(EliminateSplitConcat)
+
     // shape-dependent transformations
     if (use_shape_for_elimination) {
-        add_matcher<EliminateReshape>();
-        add_matcher<EliminateSqueeze>();
-        add_matcher<EliminateUnsqueeze>();
-        add_matcher<EliminateBroadcast>();
-        add_matcher<EliminateGather>();
+        ADD_MATCHER_FOR_THIS(EliminateReshape)
+        ADD_MATCHER_FOR_THIS(EliminateSqueeze)
+        ADD_MATCHER_FOR_THIS(EliminateUnsqueeze)
+        ADD_MATCHER_FOR_THIS(EliminateBroadcast)
+        ADD_MATCHER_FOR_THIS(EliminateGather)
     }
 }

@@ -28,40 +28,9 @@
 #include "remote_tensors_filling.hpp"
 #include "statistics_report.hpp"
 #include "utils.hpp"
-
-#if defined(_WIN32) || defined(WIN32)
-# include <windows.h>
-#endif
 // clang-format on
 
 static const size_t progressBarDefaultTotalCount = 1000;
-
-std::string get_console_command(int argc, char* argv[]) {
-    std::stringstream args_command;
-
-#if defined(_WIN32) || defined(WIN32)
-    std::string relative_path(argv[0]);
-    std::vector<char> buffer;
-
-    uint32_t len = 1;
-    do {
-        buffer.resize(len);
-        len = GetFullPathNameA(relative_path.data(), len, buffer.data(), nullptr);
-    } while (len > buffer.size());
-
-    std::string full_path(buffer.begin(), buffer.end());
-    args_command << full_path;
-#else
-    args_command << realpath(argv[0], nullptr);
-#endif
-    args_command << " ";
-
-    for (int i = 1; i < argc; i++) {
-        args_command << argv[i] << " ";
-    }
-
-    return args_command.str();
-}
 
 bool parse_and_check_command_line(int argc, char* argv[]) {
     // ---------------------------Parsing and validating input
@@ -224,18 +193,11 @@ int main(int argc, char* argv[]) {
 
         // ----------------- 1. Parsing and validating input arguments
         // -------------------------------------------------
-
-        // Must be executed before parse_and_check_command_line()
-        // gflags::ParseCommandLineNonHelpFlags() modifies the argv array
-        auto command_from_args = get_console_command(argc, argv);
-
         next_step();
 
         if (!parse_and_check_command_line(argc, argv)) {
             return 0;
         }
-
-        slog::info << "Input command: " << command_from_args << slog::endl;
 
         bool isNetworkCompiled = fileExt(FLAGS_m) == "blob";
         if (isNetworkCompiled) {
@@ -1217,7 +1179,7 @@ int main(int argc, char* argv[]) {
 
                 std::string data_shapes_string = "";
                 for (auto& item : app_inputs_info[i]) {
-                    data_shapes_string += item.first + get_shape_string(item.second.dataShape) + ",";
+                    data_shapes_string += item.first + item.second.dataShape.to_string() + ",";
                 }
                 data_shapes_string =
                     data_shapes_string == "" ? "" : data_shapes_string.substr(0, data_shapes_string.size() - 1);
@@ -1327,7 +1289,7 @@ int main(int argc, char* argv[]) {
                         auto shape = item.second.dataShape;
                         std::copy(shape.begin(), shape.end() - 1, std::ostream_iterator<size_t>(input_shape, ","));
                         input_shape << shape.back();
-                        slog::info << " " << item.first << ": " << get_shape_string(item.second.dataShape);
+                        slog::info << " " << item.first << " : " << item.second.dataShape;
                     }
                     slog::info << slog::endl;
 

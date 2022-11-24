@@ -135,8 +135,8 @@ TEST_P(ConvLowPrecisionTest, CompareWithRefs) {
 };
 
 TEST_P(ConvLowPrecisionTestLib35, CompareWithRefs) {
-    if (gnaVersionCheck.gnaLibVersionLessThan(3.5)) {
-        GTEST_SKIP() << "Disabled test due to GNA library version is less than " << 3.5 << std::endl;
+    if (gnaVersionCheck.gnaLibVersionLessThan("3.5")) {
+        GTEST_SKIP() << gnaVersionCheck.getLastCmpResultMsg() << std::endl;
         return;
     }
     Run();
