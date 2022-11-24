@@ -35,7 +35,7 @@ RemoteBlobImpl::RemoteBlobImpl(ClContext::Ptr context,
     , lockedHolder(nullptr)
     , _handle(nullptr)
     , _allocator(nullptr) {
-    auto _impl = getContextImpl(m_context.lock());
+    auto _impl = getContextImpl(m_context);
     auto eng = _impl->GetEngine();
 
     // Verify shared buffer/usm memory and ensure that requested byte size is not greater than allocated one
@@ -129,7 +129,7 @@ void RemoteBlobImpl::allocate() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "RemoteBlobImpl::Allocate");
     assert(m_memObject == nullptr);
 
-    auto _impl = getContextImpl(m_context.lock());
+    auto _impl = getContextImpl(m_context);
     _impl->acquire_lock();
     std::shared_ptr<cldnn::engine> eng = _impl->GetEngine();
 
@@ -187,11 +187,11 @@ const std::shared_ptr<IAllocator>& RemoteBlobImpl::getAllocator() const noexcept
 };
 
 std::string RemoteBlobImpl::getDeviceName() const noexcept {
-    return getContextImpl(m_context.lock())->getDeviceName();
+    return getContextImpl(m_context)->getDeviceName();
 };
 
 std::shared_ptr<InferenceEngine::RemoteContext> RemoteBlobImpl::getContext() const noexcept {
-    return m_context.lock();
+    return m_context;
 }
 
 void RemoteBlobImpl::reinterpret(cldnn::layout new_layout) {

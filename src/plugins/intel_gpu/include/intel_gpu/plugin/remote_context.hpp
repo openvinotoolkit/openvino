@@ -81,7 +81,7 @@ public:
 
 protected:
     static RemoteAllocator m_allocator;
-    std::weak_ptr<InferenceEngine::gpu::ClContext> m_context;
+    std::shared_ptr<InferenceEngine::gpu::ClContext> m_context;
     cldnn::stream& m_stream;
 
     // constructor stuff
@@ -353,8 +353,8 @@ class TypedExecutionContext : public TpublicContextAPI {
 #else
     using surf_key = _Key<cldnn::shared_surface, uint32_t>;
 #endif
-    std::map<surf_key, InferenceEngine::RemoteBlob::Ptr> shared_surf_reg;
-    std::map<cldnn::shared_handle, InferenceEngine::RemoteBlob::Ptr> shared_obj_reg;
+    std::map<surf_key, std::weak_ptr<InferenceEngine::RemoteBlob>> shared_surf_reg;
+    std::map<cldnn::shared_handle, std::weak_ptr<InferenceEngine::RemoteBlob>> shared_obj_reg;
 
     InferenceEngine::RemoteBlob::Ptr reuse_surf(const InferenceEngine::TensorDesc& tensorDesc, const InferenceEngine::ParamMap& params) {
         using namespace InferenceEngine;
@@ -374,7 +374,7 @@ class TypedExecutionContext : public TpublicContextAPI {
         // try to locate previously shared surface
         auto itr = shared_surf_reg.find(skey);
         if (itr != shared_surf_reg.end()) {
-            ret = itr->second;
+            ret = itr->second.lock();
         } else {
             // unlickily, not found - create new and insert into registry
             cldnn::layout layout(DataTypeFromPrecision(tensorDesc.getPrecision()),
@@ -409,7 +409,7 @@ class TypedExecutionContext : public TpublicContextAPI {
         // try to locate previously shared object
         auto itr = shared_obj_reg.find(mem);
         if (itr != shared_obj_reg.end()) {
-            ret = itr->second;
+            ret = itr->second.lock();
         } else {
             // unlickily, not found - create new and insert into registry
             cldnn::layout layout(DataTypeFromPrecision(tensorDesc.getPrecision()),
