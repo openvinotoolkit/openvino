@@ -158,7 +158,7 @@ TEST_F(TypePropEinsumTest, dynamic_shape_dot_product) {
     EXPECT_EQ(o->get_element_type(), et);
     EXPECT_EQ(o->get_output_size(), exp_einsum_outputs_count);
     EXPECT_EQ(o->get_output_partial_shape(0), PartialShape({{3, 7}, 3}));
-    EXPECT_THAT(get_shape_labels(o->get_output_partial_shape(0)), ElementsAre(ov::no_label, 21));
+    EXPECT_THAT(get_shape_labels(o->get_output_partial_shape(0)), ElementsAre(10, 21));
 }
 
 TEST_F(TypePropEinsumTest, dynamic_shape_diag_extraction) {
