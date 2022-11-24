@@ -42,6 +42,11 @@ void compile_graph::run(program& p) {
         if (node->is_type<reshape>() && node->is_dynamic() && !node->can_be_optimized())
             can_select_impl = false;
 
+        // TODO: need to come up with better handling of unsupported shape agnostic cases
+        // e.g. process exceptions from choose_impl() and ignore those for dynamic parameters
+        if (node->is_type<fully_connected>() && node->is_dynamic() && node->get_output_layout().get_partial_shape().size() > 3)
+            can_select_impl = false;
+
         bool is_planar = node->get_output_layout().format == format::bfyx ||
                          node->get_output_layout().format == format::bfzyx ||
                          node->get_output_layout().format == format::bfwzyx;
