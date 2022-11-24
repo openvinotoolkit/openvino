@@ -29,7 +29,7 @@ public:
         std::ostringstream test_name;
         test_name << "Node=" << node->get_type_info().name << "_";
         test_name << "Op=" << node->get_type_info().get_version() << "_";
-        test_name << "ExpectedReulst=" << result;
+        test_name << "ExpectedResult=" << result;
 
         return test_name.str();
     }
