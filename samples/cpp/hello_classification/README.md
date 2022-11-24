@@ -64,7 +64,7 @@ hello_classification <path_to_model> <path_to_image> <device_name>
    omz_downloader --name googlenet-v1
    ```
 
-3. If a model is not in the OpenVINO IR or ONNX format, it must be converted with Model Converter:
+3. If a model is not in the OpenVINO IR or ONNX format, it must be converted. You can do this using the model converter:
    ```
    omz_converter --name googlenet-v1
    ```
