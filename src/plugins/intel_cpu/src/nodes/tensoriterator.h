@@ -131,6 +131,7 @@ private:
     /* Dynamic support */
     void reshapeSubgraphInput();
     void reshapeAndFillOutput(dnnl::stream strm);
+    bool checkForInputAndBodyShapesInequality() const;
     int getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) const;
 
     ExtensionManager::Ptr ext_mng;
