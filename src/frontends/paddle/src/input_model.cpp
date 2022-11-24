@@ -156,12 +156,6 @@ void InputModel::InputModelImpl::loadPlaces() {
 
 namespace {
 bool read_tensor(std::istream& is, char* data, size_t len) {
-    std::vector<char> header(16);
-    is.read(&header[0], 16);
-    uint32_t dims_len = 0;
-    is.read(reinterpret_cast<char*>(&dims_len), 4);
-    std::vector<char> dims_struct(dims_len);
-    is.read(&dims_struct[0], dims_len);
     is.read(data, len);
     if (is.gcount() != len)
         return false;

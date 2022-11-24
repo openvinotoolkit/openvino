@@ -45,7 +45,7 @@ NamedOutputs dequantize_linear(const NodeContext& node) {
         return node.default_single_output_mapping({out_node}, {"Y"});
     } else {
         // But for per-channel scenario, the shape of scale is NOT stable. 
-        // Sometimes scale is 1-D and sometimes scale is 2-D. So, we must figure out a gereral way to deal with it.
+        // Sometimes scale is 1-D and sometimes scale is 2-D. But the last dim(e.g. s[len-1]) really makes sense.
         // Let's prepare a pattern to reshape operation according to the scale shape.
         std::vector<size_t> reshape_pattern(x.get_partial_shape().rank().get_length(), 1);
         reshape_pattern.at(quant_axis) = scale_shape[scale_shape_length - 1].get_length();

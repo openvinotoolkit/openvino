@@ -74,7 +74,10 @@ ov::frontend::paddle::pass::TransformFakeQuantize::TransformFakeQuantize() {
         const auto& output_node = opsMap.at(output_label).get_node_shared_ptr();
         // get the input
         const auto& div_node = opsMap.at(div_label).get_node_shared_ptr();
-        const auto& input_item = div_node->get_input_node_shared_ptr(0);
+        if (!div_node->get_input_node_shared_ptr(0)) {
+            return false;
+        }
+        const auto& input_item = div_node->get_input_source_output(0);
         // get the scale
         const auto& scale_node = opsMap.at(q_real_scale_label).get_node_shared_ptr();
         const auto& scale_item = scale_node->get_input_node_shared_ptr(0);
