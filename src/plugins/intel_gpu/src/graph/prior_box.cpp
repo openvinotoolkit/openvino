@@ -14,10 +14,7 @@
 #include <algorithm>
 
 namespace cldnn {
-primitive_type_id prior_box::type_id() {
-    static primitive_type_base<prior_box> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(prior_box)
 
 namespace {
 template <typename dtype>

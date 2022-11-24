@@ -208,4 +208,4 @@ attach_resample_impl::attach_resample_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::resample_impl, cldnn::object_type::RESAMPLE_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::resample_impl)

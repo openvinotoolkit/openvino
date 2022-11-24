@@ -956,7 +956,8 @@ TEST(depth_concatenate_i32_gpu, optimize_data05) {
     }
 }
 
-TEST(depth_concatenate_f32_gpu, basic_bfwzyx_along_w) {
+template <typename T>
+void test_depth_concatenate_f32_gpu_basic_bfwzyx_along_w(bool is_caching_test) {
     auto& engine = get_test_engine();
     const int b = 2;
     const int f = 3;
@@ -973,9 +974,9 @@ TEST(depth_concatenate_f32_gpu, basic_bfwzyx_along_w) {
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(concatenation("concat", {"input1", "input1"}, 2));
 
-    auto input_data = generate_random_1d<float>(input1->count(), -1, 1);
+    auto input_data = generate_random_1d<T>(input1->count(), -1, 1);
 
-    auto expected_output = std::vector<float>(input1->count() * 2);
+    auto expected_output = std::vector<T>(input1->count() * 2);
 
     for (int bi = 0; bi < b; bi++)
         for (int fi = 0; fi < f; fi++)
@@ -993,17 +994,43 @@ TEST(depth_concatenate_f32_gpu, basic_bfwzyx_along_w) {
 
     build_options build_opt;
     build_opt.set_option(build_option::optimize_data(true));
-    network network(engine, topology, build_opt);
-    network.set_input_data("input1", input1);
+    cldnn::network::ptr network;
 
-    auto outputs = network.execute();
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology, build_opt);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology, build_opt);
+    }
 
-    cldnn::mem_lock<float> output_concat(outputs.at("concat").get_memory(), get_test_stream());
+    network->set_input_data("input1", input1);
+
+    auto outputs = network->execute();
+
+    cldnn::mem_lock<T> output_concat(outputs.at("concat").get_memory(), get_test_stream());
 
     ASSERT_EQ(output_concat.size(), expected_output.size());
     for (size_t i = 0; i < output_concat.size(); i++) {
         EXPECT_EQ(output_concat[i], expected_output[i]);
     }
+}
+
+TEST(depth_concatenate_f32_gpu, basic_bfwzyx_along_w) {
+    test_depth_concatenate_f32_gpu_basic_bfwzyx_along_w<float>(false);
+}
+
+TEST(export_import_depth_concatenate_f32_gpu, basic_bfwzyx_along_w) {
+    test_depth_concatenate_f32_gpu_basic_bfwzyx_along_w<float>(true);
 }
 
 //////////////////////////////////////////////////////////////////////////////

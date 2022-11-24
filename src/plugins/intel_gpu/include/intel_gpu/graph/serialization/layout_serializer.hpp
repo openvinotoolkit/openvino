@@ -13,6 +13,33 @@
 
 namespace cldnn {
 template <typename BufferType>
+class Serializer<BufferType, ov::PartialShape, typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
+public:
+    static void save(BufferType& buffer, const ov::PartialShape& partial_shape) {
+        std::vector<ov::Dimension> dimensions(partial_shape);
+        buffer << dimensions.size();
+        for (const auto& dimension : dimensions) {
+            buffer << dimension.get_interval().get_min_val();
+            buffer << dimension.get_interval().get_max_val();
+        }
+    }
+};
+
+template <typename BufferType>
+class Serializer<BufferType, ov::PartialShape, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
+public:
+    static void load(BufferType& buffer, ov::PartialShape& partial_shape) {
+        size_t num_dimensions;
+        buffer >> num_dimensions;
+        for (size_t i = 0; i < num_dimensions; i++) {
+            ov::Interval::value_type min_val, max_val;
+            buffer >> min_val >> max_val;
+            partial_shape.push_back(ov::Dimension(min_val, max_val));
+        }
+    }
+};
+
+template <typename BufferType>
 class Serializer<BufferType, cldnn::layout, typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void save(BufferType& buffer, const cldnn::layout& _layout) {
@@ -21,15 +48,7 @@ public:
         buffer << _layout.data_padding.filling_value();
         buffer << _layout.data_padding.lower_size().sizes();
         buffer << _layout.data_padding.upper_size().sizes();
-
-        std::vector<cldnn::tensor::value_type> _sizes = _layout.get_tensor().sizes(_layout.format);
-        // Temp WA for bs_x_bsv16
-        if (_layout.format == cldnn::format::bs_x_bsv16) {
-            std::vector<cldnn::tensor::value_type> _tmp_sizes = _layout.get_tensor().sizes();
-            _sizes[0] = _tmp_sizes[0];
-            _sizes[1] = _tmp_sizes[1];
-        }
-        buffer << _sizes;
+        buffer << _layout.get_partial_shape();
     }
 };
 
@@ -50,15 +69,9 @@ public:
             _layout.data_padding = cldnn::padding(_lower_size, _upper_size, _filling_value);
         }
 
-        std::vector<cldnn::tensor::value_type> _sizes;
-        buffer >> _sizes;
-
-        // Temp WA for bs_x_bsv16
-        if (_layout.format == cldnn::format::bs_x_bsv16) {
-            _layout.set_tensor(tensor(_sizes));
-        } else {
-            _layout.set_tensor(tensor(_layout.format, _sizes));
-        }
+        ov::PartialShape partial_shape;
+        buffer >> partial_shape;
+        _layout.set_partial_shape(partial_shape);
     }
 };
 
