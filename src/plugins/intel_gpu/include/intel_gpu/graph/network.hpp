@@ -24,15 +24,6 @@
 
 namespace cldnn {
 
-using CompilationTask = std::function<void(kernels_cache&)>;
-template<typename TaskType>
-class CompilationContext {
-public:
-    virtual void push_task(TaskType&& task) = 0;
-    virtual void cancel() noexcept = 0;
-    virtual ~CompilationContext() = default;
-};
-
 /// @brief Represents network output returned by @ref network::get_output().
 struct network_output {
     /// @brief Returns @ref event associated with the output.
@@ -59,6 +50,7 @@ private:
 };
 
 class primitive_inst;
+class ICompilationContext;
 
 struct network {
 public:
@@ -242,8 +234,8 @@ public:
     /// Return in_mem_kernels_cache
     KernelsCache& get_in_mem_kernels_cache() const { return *_in_mem_kernels_cache; }
 
-    CompilationContext<CompilationTask>& get_compilation_context() const { return *_compilation_context; }
-    std::mutex& get_in_mem_cache_mutex() const { return _in_mem_cache_mutex; }
+    ICompilationContext& get_compilation_context() const { return *_compilation_context; }
+    std::mutex& get_impl_cache_mutex() const { return _in_mem_cache_mutex; }
 
 private:
     using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;
@@ -270,7 +262,7 @@ private:
     output_chains_map _output_chains;
 
     mutable std::mutex _in_mem_cache_mutex;
-    std::unique_ptr<CompilationContext<CompilationTask>> _compilation_context;
+    std::unique_ptr<ICompilationContext> _compilation_context;
 
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);

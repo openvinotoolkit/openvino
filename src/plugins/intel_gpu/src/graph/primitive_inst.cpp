@@ -16,15 +16,16 @@
 #include "shape_of_inst.h"
 #include "strided_slice_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
+#include "compilation_context.hpp"
 
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/memory.hpp"
-
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+
 #include "json_object.h"
 #include <string>
 #include <stack>
@@ -349,7 +350,7 @@ void primitive_inst::update_impl() {
         auto& cache = get_network().get_implementations_cache();
         bool has_cached_impl = false;
         {
-            std::lock_guard<std::mutex> lock(get_network().get_in_mem_cache_mutex());
+            std::lock_guard<std::mutex> lock(get_network().get_impl_cache_mutex());
             has_cached_impl = cache.has(layout_key);
             if (has_cached_impl) {
                 _impl = cache.get(layout_key)->clone();
@@ -366,7 +367,7 @@ void primitive_inst::update_impl() {
                 compilation_context.push_task([this, updated_params, layout_key](kernels_cache& kc) {
                     auto& cache = get_network().get_implementations_cache();
                     {
-                        std::lock_guard<std::mutex> lock(get_network().get_in_mem_cache_mutex());
+                        std::lock_guard<std::mutex> lock(get_network().get_impl_cache_mutex());
                         // Check existense in the cache one more time as several iterations of model execution could happens and multiple compilation
                         // tasks created for same shapes
                         if (cache.has(layout_key))
@@ -380,7 +381,7 @@ void primitive_inst::update_impl() {
                     impl->init_kernels(kc);
                     kc.reset();
 
-                    std::lock_guard<std::mutex> lock(get_network().get_in_mem_cache_mutex());
+                    std::lock_guard<std::mutex> lock(get_network().get_impl_cache_mutex());
                     cache.add(layout_key, impl->clone());
                 });
 
@@ -395,7 +396,7 @@ void primitive_inst::update_impl() {
                 kernels_cache.compile();
                 _impl->init_kernels(kernels_cache);
                 kernels_cache.reset();
-                std::lock_guard<std::mutex> lock(get_network().get_in_mem_cache_mutex());
+                std::lock_guard<std::mutex> lock(get_network().get_impl_cache_mutex());
                 cache.add(layout_key, _impl->clone());
                 GPU_DEBUG_IF(debug_config->verbose >= 4) {
                     auto new_impl_str = _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
