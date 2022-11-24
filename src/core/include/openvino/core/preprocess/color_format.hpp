@@ -18,6 +18,7 @@ enum class ColorFormat {
     I420_THREE_PLANES,
     RGB,
     BGR,
+    GRAY,
     /// \brief Image in RGBX interleaved format (4 channels)
     RGBX,
     /// \brief Image in BGRX interleaved format (4 channels)

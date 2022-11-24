@@ -375,6 +375,27 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                 case ColorFormat::BGR:
                     convert = std::make_shared<op::v8::NV12toBGR>(nodes[0], nodes[1]);
                     break;
+                case ColorFormat::GRAY: {
+                    // Extract Y, UV must be connected with main graph (is implemented via If body_else),
+                    // otherwise hanging nodes affects accuracy on GPU
+                    auto input = nodes[0];
+                    auto input_then = std::make_shared<op::v0::Parameter>(nodes[0].get_element_type(), nodes[0].get_partial_shape());
+                    auto input_else = std::make_shared<op::v0::Parameter>(nodes[1].get_element_type(), nodes[1].get_partial_shape());
+                    auto then_op_result = std::make_shared<op::v0::Result>(input_then);
+                    auto else_op_result = std::make_shared<op::v0::Result>(input_else);
+                    auto body_then_function = std::make_shared<ov::Model>(ov::NodeVector{then_op_result}, ov::ParameterVector{input_then});
+                    auto body_else_function = std::make_shared<ov::Model>(ov::NodeVector{else_op_result}, ov::ParameterVector{input_else});
+                    auto cond = std::make_shared<op::v0::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+                    auto if_op =
+                        std::make_shared<ov::opset8::If>(cond);
+                    if_op->set_then_body(body_then_function);
+                    if_op->set_else_body(body_else_function);
+                    if_op->set_input(nodes[0], input_then, nullptr);
+                    if_op->set_input(nodes[1], nullptr, input_else);
+                    if_op->set_output(then_op_result, else_op_result);
+                    convert = if_op;
+                    break;
+                }
                 default:
                     OPENVINO_ASSERT(false,
                                     "Unsupported conversion from NV12 to '",

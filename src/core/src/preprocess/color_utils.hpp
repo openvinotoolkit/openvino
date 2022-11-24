@@ -43,6 +43,9 @@ inline std::string color_format_name(ColorFormat format) {
     case ColorFormat::BGRX:
         name = "BGRX";
         break;
+    case ColorFormat::GRAY:
+        name = "GRAY";
+        break;
     default:
         name = "Unknown";
         break;

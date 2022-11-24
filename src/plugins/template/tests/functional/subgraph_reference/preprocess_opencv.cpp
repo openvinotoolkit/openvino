@@ -154,6 +154,51 @@ TEST_F(PreprocessOpenCVReferenceTest_YUV, convert_nv12_colored) {
     Exec();
 }
 
+TEST_F(PreprocessOpenCVReferenceTest, convert_nv12_gray) {
+    size_t height = 64; // 64/2 = 32 values for R
+    size_t width = 64;  // 64/2 = 32 values for G
+    int b_step = 5;
+    int b_dim = 255 / b_step + 1;
+    auto full_height = height * b_dim;
+
+    // Test various possible r/g/b values within dimensions
+    auto input_y_shape = Shape{1, full_height, width, 1};
+    auto input_uv_shape = Shape{1, full_height / 2, width / 2, 2};
+
+    auto ov20_input_yuv  = LayerTestsDefinitions::NV12TestUtils::color_test_image(height, width, b_step);
+    auto ov20_input_y = std::vector<uint8_t>(ov20_input_yuv.begin(), ov20_input_yuv.begin() + shape_size(input_y_shape));
+    auto ov20_input_uv = std::vector<uint8_t>(ov20_input_yuv.begin() + shape_size(input_y_shape), ov20_input_yuv.end());
+
+    auto func_shape = input_y_shape;
+    function = create_simple_function(element::u8, func_shape);
+
+    inputData.clear();
+
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_color_format(ColorFormat::NV12_TWO_PLANES);
+    p.input().preprocess().convert_color(ColorFormat::GRAY);
+    function = p.build();
+
+    const auto &param = function->get_parameters()[0];
+    
+    inputData.emplace_back(param->get_element_type(), input_y_shape, ov20_input_y.data());
+    inputData.emplace_back(param->get_element_type(), input_uv_shape, ov20_input_uv.data());
+
+    // Calculate reference expected values from OpenCV
+    cv::Mat picYV12 = cv::Mat(static_cast<int>(full_height) * 3 / 2,
+                              static_cast<int>(width),
+                              CV_8UC1,
+                              ov20_input_yuv.data());
+    cv::Mat picGray;
+    // Note: cv::cvtColorTwoPlane doesn't support YUV2GRAY conversion, and
+    // cv::cvtColorTwoPlane(YUV2RGB) + cv::cvtColor(RGB2GRAY) lead to huge
+    // difference in U8, so compare OV TWO_PLANES vs CV SINGLE_PLANE
+    cv::cvtColor(picYV12, picGray, CV_YUV2GRAY_NV12);
+    refOutData.emplace_back(param->get_element_type(), func_shape, picGray.data);
+    // Exec now
+    Exec();
+}
+
 TEST_F(PreprocessOpenCVReferenceTest, resize_u8_simple_linear) {
     auto input_shape = Shape{1, 1, 2, 2};
     auto func_shape = Shape{1, 1, 1, 1};

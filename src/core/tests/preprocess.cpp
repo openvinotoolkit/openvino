@@ -378,6 +378,25 @@ TEST(pre_post_process, convert_color_i420_rgb_3_planes) {
     EXPECT_EQ(f->input(2).get_partial_shape(), (PartialShape{5, 10, 10, 1}));
 }
 
+TEST(pre_post_process, convert_color_nv12_gray_2_planes) {
+    auto f = create_simple_function(element::f32, Shape{5, 2, 2, 1});
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_color_format(ColorFormat::NV12_TWO_PLANES, {"TestY", "TestUV"});
+    p.input().preprocess().convert_color(ColorFormat::GRAY);
+    f = p.build();
+
+    EXPECT_EQ(f->get_parameters().size(), 2);
+    EXPECT_EQ(f->get_parameters()[0]->get_friendly_name(), "input1/TestY");
+    EXPECT_EQ(*f->get_parameters()[0]->output(0).get_tensor().get_names().begin(), "tensor_input1/TestY");
+    EXPECT_EQ(f->get_parameters()[0]->get_element_type(), element::f32);
+    EXPECT_EQ(f->get_parameters()[0]->get_partial_shape(), (PartialShape{5, 2, 2, 1}));
+
+    EXPECT_EQ(f->get_parameters()[1]->get_friendly_name(), "input1/TestUV");
+    EXPECT_EQ(*f->get_parameters()[1]->output(0).get_tensor().get_names().begin(), "tensor_input1/TestUV");
+    EXPECT_EQ(f->get_parameters()[1]->get_element_type(), element::f32);
+    EXPECT_EQ(f->get_parameters()[1]->get_partial_shape(), (PartialShape{5, 1, 1, 2}));
+}
+
 TEST(pre_post_process, convert_color_same_type) {
     auto f = create_simple_function(element::u8, Shape{1, 2, 2, 3});
     auto p = PrePostProcessor(f);
