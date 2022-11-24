@@ -6,6 +6,7 @@
 
 #include <onednn/dnnl.h>
 #include "cpu_types.h"
+#include "cpu_shape.h"
 
 #include <ie_layouts.h>
 #include <ie_blob.h>

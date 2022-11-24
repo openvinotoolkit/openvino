@@ -64,7 +64,7 @@ protected:
         }
 
         if (inType == ElementType::bf16) {
-            rel_threshold = 1e-2f;
+            rel_threshold = 2e-2f;
         }
         selectedType = makeSelectedTypeStr(selectedType, inType);
         init_input_shapes({config.inputShape});
