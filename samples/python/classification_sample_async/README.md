@@ -78,7 +78,7 @@ Options:
    omz_downloader --name alexnet
    ```
 
-3. If a model is not in the OpenVINO IR or ONNX format, it must be converted with Model Converter:
+3. If a model is not in the OpenVINO IR or ONNX format, it must be converted. You can do this using the model converter:
    ```
    omz_converter --name alexnet
    ```
