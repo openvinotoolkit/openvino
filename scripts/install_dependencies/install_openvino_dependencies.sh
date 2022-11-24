@@ -162,15 +162,15 @@ elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "debian10" ] || [ "$os" == "raspbi
     if [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] ; then
         pkgs_core=(${pkgs_core[@]} libtbb2)
         pkgs_python=(${pkgs_python[@]} libpython3.7)
-    if [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu20.10" ] || [ "$os" == "ubuntu21.04" ] ; then
+    elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu20.10" ] || [ "$os" == "ubuntu21.04" ] ; then
         pkgs_core=(${pkgs_core[@]} libtbb2)
         pkgs_python=(${pkgs_python[@]} libpython3.8)
         pkgs_opencv_opt=(${pkgs_opencv_opt[@]} libavresample4)
-    elif [ "$os" == "ubuntu21.10" ] || \
+    elif [ "$os" == "ubuntu21.10" ] ||
          [ "$os" == "debian11" ] || [ "$os" == "raspbian11" ] ; then
         pkgs_core=(${pkgs_core[@]} libtbb2)
         pkgs_python=(${pkgs_python[@]} libpython3.9)
-    elif [ "$os" == "ubuntu22.04" ] || [ "$os" == "ubuntu22.10" ] || \
+    elif [ "$os" == "ubuntu22.04" ] || [ "$os" == "ubuntu22.10" ] ||
          [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ] ; then
         pkgs_core=(${pkgs_core[@]} libtbb12)
         pkgs_python=(${pkgs_python[@]} libpython3.10)
@@ -263,9 +263,9 @@ fi
 
 iopt=
 
-if [ "$os" == "debian9" ] || [ "$os" == "raspbian9" ] || [ "$os" == "ubuntu18.04" ] ||  \
-   [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] || [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu20.10" ] || [ "$os" == "ubuntu21.04" ] || \
-   [ "$os" == "debian11" ] || [ "$os" == "raspbian11" ] || [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubuntu22.04" ] || \
+if [ "$os" == "debian9" ] || [ "$os" == "raspbian9" ] || [ "$os" == "ubuntu18.04" ] ||
+   [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] || [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu20.10" ] || [ "$os" == "ubuntu21.04" ] ||
+   [ "$os" == "debian11" ] || [ "$os" == "raspbian11" ] || [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubuntu22.04" ] ||
    [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ] || [ "$os" == "ubuntu22.10" ] ; then
 
     [ -z "$interactive" ] && iopt="-y"
