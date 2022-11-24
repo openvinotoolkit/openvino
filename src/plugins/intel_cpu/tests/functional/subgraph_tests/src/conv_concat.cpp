@@ -148,7 +148,8 @@ namespace Kernel_1x1 {
 const std::vector<CPUSpecificParams> CPUParams2DConv = {
     conv_sse42_2D_1x1,
     conv_avx2_2D_1x1,
-    conv_avx512_2D_1x1
+    conv_avx512_2D_1x1,
+    conv_avx512_2D_1x1_nspc_brgconv
 };
 
 commonConvParams convParams2D1x1 = commonConvParams{{1, 1}, {1, 1}, {0, 0}, {0, 0}, dilation2D, numOutChannels, paddingType, 1};
@@ -291,7 +292,8 @@ const std::vector<CPUSpecificParams> CPUParams2D = {
     conv_gemm_2D,
     conv_sse42_2D,
     conv_avx2_2D,
-    conv_avx512_2D
+    conv_avx512_2D,
+    conv_avx512_2D_nspc_brgconv
 };
 
 const auto params2D = ::testing::Combine(

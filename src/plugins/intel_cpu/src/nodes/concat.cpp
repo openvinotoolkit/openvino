@@ -314,8 +314,69 @@ void Concat::selectOptimalPrimitiveDescriptor() {
         }
     }
 
+    // we only add brg nhwc support, not change the main nhwc assumption.
+    auto tryBrgNHWCInplace = [&](int spdIdx) {
+        if (canBeInPlace && convertTo == LayoutType::nspc) {
+            bool allBrg = true;
+            for (size_t i = 0; i < getParentEdges().size(); i++) {
+                auto parentEdge = getParentEdgeAt(i);
+                auto parent = parentEdge->getParent();
+
+                auto parent_pdesc = parent->getSelectedPrimitiveDescriptor();
+                if (parent_pdesc == nullptr)
+                    continue;
+
+                const auto& parent_config = parent_pdesc->getConfig();
+                if ((parent_pdesc->getImplementationType() & brgconv_avx512) != brgconv_avx512) {
+                    allBrg = false;
+                    break;
+                }
+            }
+            if (allBrg) {
+                auto& spd = supportedPrimitiveDescriptors[spdIdx];
+                const auto& refConfig = spd.getConfig();
+                auto config = spd.getConfig();
+
+                auto denseOutDesc = refConfig.outConfs[0].getMemDesc()->as<CpuBlockedMemoryDesc>();
+                const auto& order = denseOutDesc->getOrder();
+                const auto& blkDims = denseOutDesc->getBlockDims();
+                auto numOfDim = blkDims.size();
+
+                SizeVector offsets(numOfDim, 0lu);
+                SizeVector strides(numOfDim, Shape::UNDEFINED_DIM);
+                size_t offset = Shape::UNDEFINED_DIM;
+                BlockedMemoryDesc::CmpMask mask = BLOCKED_DESC_EMPTY_MASK;  // any offset
+
+                config.outConfs[0].setMemDesc(
+                    std::dynamic_pointer_cast<CpuBlockedMemoryDesc>(refConfig.outConfs[0].getMemDesc()),
+                    mask);
+
+                for (size_t i = 0; i < getParentEdges().size(); i++) {
+                    const auto& srcBlkDims =
+                        refConfig.inConfs[i].getMemDesc()->as<CpuBlockedMemoryDesc>()->getBlockDims();
+                    const auto& shape = refConfig.inConfs[i].getMemDesc()->getShape();
+
+                    config.inConfs[i].inPlace(0);
+                    config.inConfs[i].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(inputPrecision,
+                                                                                        shape,
+                                                                                        srcBlkDims,
+                                                                                        order,
+                                                                                        offset,
+                                                                                        offsets,
+                                                                                        strides),
+                                                                                        mask);
+                }
+                supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+                spdIdx = supportedPrimitiveDescriptors.size() - 1;
+            }
+        }
+
+        return spdIdx;
+    };
+
     if (canSelectPrimitive.size() == 1) {
-        selectPrimitiveDescriptorByIndex(static_cast<int>(canSelectPrimitive[0]));
+        auto newIdx = tryBrgNHWCInplace(static_cast<int>(canSelectPrimitive[0]));
+        selectPrimitiveDescriptorByIndex(newIdx);
         return;
     }
 
@@ -335,7 +396,8 @@ void Concat::selectOptimalPrimitiveDescriptor() {
         }
     }
 
-    selectPrimitiveDescriptorByIndex(0);
+    auto newIdx = tryBrgNHWCInplace(0);
+    selectPrimitiveDescriptorByIndex(newIdx);
 }
 
 bool Concat::created() const {
@@ -503,8 +565,7 @@ void Concat::initOptimalPrimitiveDescriptor() {
                 // This is more general and works for any "direct" Layout (such as nchw or nhwc), but it doesn't work for blocked
                 size_t realAxis = inverseOrder(firstInpBlockingDesc->getOrder(), axis);
                 for (size_t j = realAxis; j < inpBlockingDesc->getBlockDims().size(); j++) {
-                    size_t jj = firstInpBlockingDesc->getOrder()[j];
-                    axisSize *= inpBlockingDesc->getBlockDims()[jj];
+                    axisSize *= inpBlockingDesc->getBlockDims()[j];
                 }
             } else {
                 // This works for nchw and nchw8c/nchw16c
