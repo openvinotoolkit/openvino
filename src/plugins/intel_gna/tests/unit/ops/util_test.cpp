@@ -101,7 +101,7 @@ ov::NodeVector elwise_mul_nodes_true = {
                                           ELTWISE_TYPE::Prod)
 };
 
-ov::NodeVector elwise_add_nodes_false = {
+ov::NodeVector eltwise_add_nodes_false = {
     std::make_shared<VariadicSplit>(),
     std::make_shared<ngraph::op::Eltwise>(std::make_shared<Constant>(),
                                           std::make_shared<Constant>(),
