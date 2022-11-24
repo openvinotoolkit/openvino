@@ -30,6 +30,7 @@ class Mode(ABC):
     def isBadVersion(commit, cfg):
         raise NotImplementedError("isBadVersion() is not implemented")
     def run(self, i1, i2, list, cfg) -> int:
+        cfg["serviceConfig"] = {} # prepare service data
         return self.traversal.bypass(i1, i2, list, cfg, self.isBadVersion)
 
     
@@ -44,8 +45,13 @@ class Mode(ABC):
             super().__init__(mode)
         def bypass(self, i1, i2, list, cfg, isBadVersion) -> int:
             # check cfg if necessary
+            noCleanInterval = cfg["commonConfig"]["noCleanInterval"]
+            cfg["serviceConfig"]["trySkipClean"] = (True 
+                if i2 - i1 < noCleanInterval
+                else False)
             self.mode.commonLogger.info("Check interval {i1}..{i2}".format(i1=i1, i2=i2))
             self.mode.commonLogger.info("Check commits {c1}..{c2}".format(c1=list[i1], c2=list[i2]))
+            #
             if (i1 + 1 >= i2):
                 return i1 if isBadVersion(list[i1], cfg) else i2
             mid = (int)((i1 + i2) / 2)

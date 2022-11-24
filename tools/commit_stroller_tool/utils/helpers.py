@@ -21,18 +21,21 @@ def checkArgAndGetCommitList(commitArg, cfgData):
             raise ValueError("{arg} commit set is empty".format(arg=commitArg))
         else:
             return outList
-def handleCommit(commit, cfgData):
+def runCommandList(commit, cfgData, trySkipClean):
     commitLogger = getCommitLogger(cfgData, commit)
     commandList = cfgData["commonConfig"]["commandList"]
     gitPath = cfgData["commonConfig"]["gitPath"]
     buildPath = cfgData["commonConfig"]["buildPath"]
     defRepo = gitPath
     for cmd in commandList:
+        if trySkipClean and "tag" in cmd.keys() and cmd["tag"] == "clean":
+            continue
         strCommand = cmd["cmd"].format(commit = commit)
         formattedCmd = strCommand.split()
         cwd = defRepo
         if "path" in cmd.keys():
             cwd = cmd["path"].format(buildPath = buildPath, gitPath = gitPath)
+        commitLogger.info("Run command: {command}".format(command=formattedCmd))
         proc = subprocess.Popen(formattedCmd,
             cwd = cwd,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -42,7 +45,19 @@ def handleCommit(commit, cfgData):
         if "catchMsg" in cmd.keys():
             isErrFound = re.search(cmd["catchMsg"], checkOut.decode('utf-8'))
             if (isErrFound):
-                raise CmdError(checkOut)
+                if trySkipClean:
+                    commitLogger.info("Build error: clean is necessary")
+                    raise NoCleanFailedError()
+                else:
+                    raise CmdError(checkOut)
+
+def handleCommit(commit, cfgData):
+    trySkipClean = cfgData["serviceConfig"]["trySkipClean"]
+    try:
+        runCommandList(commit, cfgData, trySkipClean=trySkipClean)
+    except(NoCleanFailedError):
+        runCommandList(commit, cfgData, trySkipClean=False)
+
 def setupLogger(name, logFile, level=log.INFO):
     open(logFile, "w").close() # clear old log
     handler = log.FileHandler(logFile)
@@ -53,9 +68,13 @@ def setupLogger(name, logFile, level=log.INFO):
     logger.addHandler(handler)
     return logger
 def getCommitLogger(cfg, commit):
+    logName = 'commitLogger_{c}'.format(c=commit)
+    if log.getLogger(logName).hasHandlers():
+        return log.getLogger(logName)
+
     logPath=cfg["commonConfig"]["logPath"]
     commitLogger = setupLogger(
-        'commitLogger_{c}'.format(c=commit),
+        logName,
         '{logPath}/commit_{c}.log'.format(c=commit, logPath=logPath))
     return commitLogger
 class CfgError(Exception):
@@ -63,6 +82,8 @@ class CfgError(Exception):
 class CashError(Exception):
     pass
 class CmdError(Exception):
+    pass
+class NoCleanFailedError(Exception):
     pass
 def checkAndGetClassnameByConfig(cfg, mapName, specialCfg):
     keyName = cfg["specialConfig"][specialCfg]

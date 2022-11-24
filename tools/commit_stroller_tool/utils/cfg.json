@@ -7,10 +7,12 @@
             "firstBadVersion" : "FirstBadVersion"
         },
         "commandList" : [
+            {"cmd" : "git clean -fxd", "path" : "{gitPath}", "tag" : "clean"},
+            {"cmd" : "mkdir build", "path" : "{gitPath}", "tag" : "clean"},
             {"cmd" : "git checkout {commit}", "catchMsg" : "error", "path" : "{gitPath}"},
             {"cmd" : "git submodule init", "path" : "{gitPath}"},
             {"cmd" : "git submodule update --recursive", "path" : "{buildPath}"},
-            {"cmd" : "cmake --build ../ --parallel 4", "catchMsg" : "CMake Error", "path" : "{buildPath}"},
+            {"cmd" : "cmake ../", "catchMsg" : "Error", "path" : "{buildPath}"},
             {"cmd" : "make --jobs=4", "path" : "{buildPath}"}
         ],
         "gitPath" : "samples/sample3",
@@ -20,12 +22,16 @@
         "appCmd" : "./sample3 --some_arg",
         "appPath" : "samples/sample3/build",
         "clearLog" : true,
-        "checkBorders" : false
+        "checkBorders" : false,
+        "noCleanInterval" : 5
+    },
+    "serviceConfig" : {
+        "comment" : "For inner purpose. Data will be overwritten during script running."
     },
     "specialConfig" : {
         "commitList" : {
-            "getCommitListCmd" : "git log -6 --pretty=format:\"%h\"",
-            "_getCommitListCmd" : "git log 573fbff..818dd27 --boundary --pretty=\"%h\""
+            "_getCommitListCmd" : "git log -6 --pretty=format:\"%h\"",
+            "getCommitListCmd" : "git log 573fbff..818dd27 --boundary --pretty=\"%h\""
         },
         "mode" : "checkOutput",
         "traversal" : "firstBadVersion",
