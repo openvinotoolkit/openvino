@@ -128,7 +128,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ops_util_not_pooling,
                             ::testing::Values(false)),
                          GnaOpsUtilIsPoolingTest::get_test_name);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ops_util_is_elwise_mul,
+INSTANTIATE_TEST_SUITE_P(smoke_ops_util_is_eltwise_mul,
                          GnaOpsUtilIsEltwiseMulTest,
                          ::testing::Combine(
                             ::testing::ValuesIn(eltwise_mul_nodes_true),
