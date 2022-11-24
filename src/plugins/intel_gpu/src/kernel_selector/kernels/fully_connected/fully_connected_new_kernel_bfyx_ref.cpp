@@ -94,6 +94,8 @@ JitConstants FullyConnectedNew_bfyx_Ref::GetJitConstants(const fully_connected_p
 
     Datatype accumulator_dt = GetAccumulatorType(params);
     jit.Merge(MakeTypeJitConstants(accumulator_dt, "ACCUMULATOR"));
+    Datatype activation_dt = GetActivationType(params);
+    jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
 
     const auto rank = params.output_shape.rank().get_length();
     jit.AddConstant(MakeJitConstant("RANK", rank));

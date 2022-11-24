@@ -2555,3 +2555,58 @@ TEST(fully_connected_gpu, new_shape_inference_6d) {
         ASSERT_EQ(expected[i], output_ptr[i]) << i;
     }
 }
+
+TEST(fully_connected_gpu, new_shape_inference_bias_2d) {
+    auto& engine = get_test_engine();
+
+    const int32_t input_f = 3, input_b = 2, weight_b = 4;
+
+    cldnn::layout input_data_layout{ ov::PartialShape{ input_b, input_f }, data_types::f32,format::bfyx };
+    auto input_data = engine.allocate_memory(input_data_layout);
+    cldnn::layout weights_layout{ ov::PartialShape{ input_f, weight_b }, data_types::f32,format::bfyx };
+    auto weights_data = engine.allocate_memory(weights_layout);
+    cldnn::layout bias_layout{ ov::PartialShape{ 1, weight_b }, data_types::f32,format::bfyx };
+    auto bias_data = engine.allocate_memory(bias_layout);
+
+    set_values(input_data, { -0.5f, 1.0f, 2.0f,
+                             1.5f, 0.5f, 0.0f  });
+    set_values(weights_data, { 1.5f, -1.0f, 0.5f, -0.5f,
+                               1.0f, 0.0f, -0.5f, 1.0f,
+                               0.5f, 0.5f, -2.0f, 1.5f });
+    set_values(bias_data, { 1.0f, 2.0f, 3.0f, 4.0f });
+
+    cldnn::topology topology{
+        input_layout("input", input_data_layout),
+        data("weights", weights_data),
+        data("bias", bias_data),
+        fully_connected("fc", "input", "weights", "bias", padding(), 2, true)
+    };
+
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
+    network network(engine, topology, options);
+    network.set_input_data("input", input_data);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc");
+
+    auto output_prim = outputs.begin()->second.get_memory();
+
+    auto out_l = output_prim->get_layout();
+    ASSERT_EQ(out_l.batch(), input_b);
+    ASSERT_EQ(out_l.feature(), weight_b);
+    ASSERT_EQ(out_l.spatial(0), 1);
+    ASSERT_EQ(out_l.spatial(1), 1);
+
+    cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+    const std::vector<float> expected = {2.25f, 3.5f, -1.75f, 8.25f,
+                                         3.75f, 0.5f, 3.5f, 3.75f};
+
+    ASSERT_EQ(expected.size(), output_ptr.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        EXPECT_EQ(expected[i], output_ptr[i]) << i;
+    }
+
+}

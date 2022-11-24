@@ -141,4 +141,27 @@ KERNEL(fc)(
 #else
 #error Invalid rank
 #endif
+
+#if BIAS_TERM
+    #if RANK == 2
+        const uint bias_index = GET_DATA_INDEX(BIAS, 0, out_x, 0, 0);
+    #elif RANK == 3
+        const uint bias_index = GET_DATA_INDEX(BIAS, out_batch, out_y, 0, 0);
+    #elif RANK == 4
+        const uint bias_index = GET_DATA_INDEX(BIAS, out_batch1, out_batch2, out_y, 0);
+    #elif RANK == 5
+        const uint bias_index = GET_DATA_INDEX(BIAS, out_batch1, out_batch2, out_batch3, out_y);
+    #elif RANK == 6
+        const uint bias_index = GET_DATA_INDEX(BIAS, out_batch1, out_batch2, out_batch3, out_batch4, out_y, out_x, 0, 0);
+    #else
+    #error Invalid rank
+    #endif
+
+    ACTIVATION_TYPE dequantized = TO_ACTIVATION_TYPE(dotProd) + biases[bias_index];
+
+#else
+    ACTIVATION_TYPE dequantized = TO_ACTIVATION_TYPE(dotProd);
+#endif
+    output[output_idx] = TO_OUTPUT_TYPE(dequantized);
+
 }
