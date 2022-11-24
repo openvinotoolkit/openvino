@@ -26,7 +26,7 @@ KERNEL(fc)(
 
     for (uint in_x = 0; in_x < INPUT_COL_NUMBER; ++in_x) {
         uint input_idx = INPUT0_GET_INDEX(out_y, in_x, 0, 0);
-        uint weights_idx = WEIGHT_COL_NUMBER * in_x + out_x;
+        uint weights_idx = GET_FILTER_INDEX(FILTER, 0, in_x, out_x, 0, 0);
         dotProd += input[input_idx] * weights[weights_idx];
     }
 
@@ -46,7 +46,7 @@ KERNEL(fc)(
 
     for (uint in_x = 0; in_x < INPUT_COL_NUMBER; ++in_x) {
         uint input_idx = INPUT0_GET_INDEX(out_batch, out_y, in_x, 0);
-        uint weights_idx = (out_batch * WEIGHT_BATCH_SIZE) + WEIGHT_COL_NUMBER * in_x + out_x;
+        uint weights_idx = GET_FILTER_INDEX(FILTER, 0, out_batch, in_x, out_x, 0);
         dotProd += input[input_idx] * weights[weights_idx];
     }
 
@@ -68,7 +68,7 @@ KERNEL(fc)(
 
     for (uint in_x = 0; in_x < INPUT_COL_NUMBER; ++in_x) {
         uint input_idx = INPUT0_GET_INDEX(out_batch1, out_batch2, out_y, in_x);
-        uint weights_idx = (out_batch1 * WEIGHT_BATCH1_SIZE) + (out_batch2 * WEIGHT_BATCH2_SIZE) + WEIGHT_COL_NUMBER * in_x + out_x;
+        uint weights_idx = GET_FILTER_INDEX(FILTER, 0,  out_batch1, out_batch2, in_x, out_x);
         dotProd += input[input_idx] * weights[weights_idx];
     }
 
@@ -94,10 +94,7 @@ KERNEL(fc)(
 
     for (uint in_x = 0; in_x < INPUT_COL_NUMBER; ++in_x) {
         uint input_idx = INPUT0_GET_INDEX(out_batch1, out_batch2, out_batch3, out_y, in_x);
-        uint weights_idx = (out_batch1 * WEIGHT_BATCH1_SIZE) +
-                           (out_batch2 * WEIGHT_BATCH2_SIZE) +
-                           (out_batch3 * WEIGHT_BATCH3_SIZE) +
-                           WEIGHT_COL_NUMBER * in_x + out_x;
+        uint weights_idx = GET_FILTER_INDEX_5D(FILTER, 0, out_batch1, out_batch2, out_batch3, in_x, out_x);
         dotProd += input[input_idx] * weights[weights_idx];
     }
 
@@ -127,11 +124,7 @@ KERNEL(fc)(
 
     for (uint in_x = 0; in_x < INPUT_COL_NUMBER; ++in_x) {
         uint input_idx = INPUT0_GET_INDEX(out_batch1, out_batch2, out_batch3, out_batch4, out_y, in_x);
-        uint weights_idx = (out_batch1 * WEIGHT_BATCH1_SIZE) +
-                           (out_batch2 * WEIGHT_BATCH2_SIZE) +
-                           (out_batch3 * WEIGHT_BATCH3_SIZE) +
-                           (out_batch4 * WEIGHT_BATCH4_SIZE) +
-                           WEIGHT_COL_NUMBER * in_x + out_x;
+        uint weights_idx = GET_FILTER_INDEX_5D(FILTER, out_batch1, out_batch2, out_batch3, out_batch4, in_x, out_x);
         dotProd += input[input_idx] * weights[weights_idx];
     }
 
