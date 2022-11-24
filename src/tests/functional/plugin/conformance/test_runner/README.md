@@ -127,9 +127,9 @@ The script has the following arguments:
 * `-ov OV_PATH, --ov_path OV_PATH`
                         OV binary files path. The default way is trying to find an installed OV by `INTEL_OPENVINO_DIR` in the environment variables or to find the absolute path of the OV repo by using the script path
 * `-w WORKING_DIR, --working_dir WORKING_DIR`
-                        OV binary files path. The default way is trying to find an installed OV by `INTEL_OPENVINO_DIR` in the environment variables or to find the absolute path of the OV repo by using the script path
-* `-t TYPE, --type TYPE`
                         Specify a working directory to save all artifacts, such as reports, models, conformance_irs, etc.
+* `-t TYPE, --type TYPE`
+                        Specify conformance type: `OP` or `API`. The default value is `OP`
 * `-s DUMP_CONFORMANCE, --dump_conformance DUMP_CONFORMANCE`
                         Set '1' if you want to create Conformance IRs from custom/downloaded models. In other cases, set `0`. The default value is '1'
 
