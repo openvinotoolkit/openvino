@@ -115,18 +115,18 @@ ov::NodeVector eltwise_add_nodes_true = {
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ops_util_is_pooling,
-                         GnaOpsUtilisPoolingTest,
+                         GnaOpsUtilIsPoolingTest,
                          ::testing::Combine(
                             ::testing::ValuesIn(pooling_nodes_true),
                             ::testing::Values(true)),
-                         GnaOpsUtilisPoolingTest::get_test_name);
+                         GnaOpsUtilIsPoolingTest::get_test_name);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ops_util_not_pooling,
-                         GnaOpsUtilisPoolingTest,
+                         GnaOpsUtilIsPoolingTest,
                          ::testing::Combine(
                             ::testing::ValuesIn(pooling_nodes_false),
                             ::testing::Values(false)),
-                         GnaOpsUtilisPoolingTest::get_test_name);
+                         GnaOpsUtilIsPoolingTest::get_test_name);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ops_util_is_elwise_mul,
                          GnaOpsUtilIsEltwiseMulTest,
