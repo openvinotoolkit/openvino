@@ -1,7 +1,7 @@
 # Conformance test runner
 
 ## Description
-Conformance suites certifies plugin functionality using a set of tests with plugin specificity independent parameters. There are 2 types of conformance validation.
+Conformance suites certify plugin functionality using a set of tests with plugin specificity independent parameters. There are two types of conformance validation.
 
 ### `API Conformance`
 The suite checks the following OpenVINO API entities in a plugin implementation:
@@ -22,7 +22,7 @@ A result of the `apiConformanceTests` run is two xml files: `report_api.xml` and
 The suite validates an OpenVINO operation plugin implementation, using simple single operation graphs (Conformance IR) taken from models. The plugin inference output is compared with the reference.
 
  The suite contains:
-* `ReadIR_compareWithRefs` set allows reading IRs from folders recursively, infer them and compare plugin results with the reference.
+* `ReadIR_compareWithRefs` set allows reading IRs from folders recursively, inferring them, and comparing plugin results with the reference.
 * `OpImplCheckTest` set checks an operation plugin implementation status, using a simple synthetic single operation graph (`Implemented`/`Not implemented`). The suite checks only `compile_model` without  comparison with the reference.
 
 A result of the `conformanceTests` run is the `report_opset.xml` file. It shows tests statistic, like pass rate, passed, crashed, skipped, failed tests, and plugin implementation per operation for devices.
