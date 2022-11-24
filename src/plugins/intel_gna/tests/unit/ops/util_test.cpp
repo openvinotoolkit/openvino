@@ -88,7 +88,7 @@ ov::NodeVector pooling_nodes_true = {
     std::make_shared<ngraph::opset7::MaxPool>()
 };
 
-ov::NodeVector elwise_mul_nodes_false = {
+ov::NodeVector eltwise_mul_nodes_false = {
     std::make_shared<VariadicSplit>(),
     std::make_shared<ngraph::op::Eltwise>(std::make_shared<Constant>(),
                                           std::make_shared<Constant>(),
