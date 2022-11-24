@@ -647,8 +647,7 @@ void InferRequest::copy_output_data(cldnn::memory::ptr src, Blob::Ptr dst) {
 
         OPENVINO_ASSERT(intermediate_output_blob, "[GPU] Intermediate blob for outputs precessing is not allocated");
 
-        auto event = src->copy_to(stream, intermediate_output_blob->buffer());
-        event->wait();
+        src->copy_to(stream, intermediate_output_blob->buffer());
 
         switch (dst->getTensorDesc().getPrecision()) {
         #define CASE(PRC, SRC_DT, DST_DT) \
@@ -670,8 +669,7 @@ void InferRequest::copy_output_data(cldnn::memory::ptr src, Blob::Ptr dst) {
         }
     } else {
         auto dst_ptr = dst->buffer().as<void*>();
-        auto event = src->copy_to(stream, dst_ptr);
-        event->wait();
+        src->copy_to(stream, dst_ptr);
     }
 }
 
@@ -959,7 +957,7 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
                     auto src_lock = inputBlob->cbuffer();
                     auto src_ptr = src_lock.as<uint8_t*>();
                     if (!same_host_mem(inputMem, src_ptr)) {
-                        auto ev = inputMem->copy_from(stream, src_ptr);
+                        auto ev = inputMem->copy_from(stream, src_ptr, false);
                         dependencies.push_back(ev);
                     }
                 }
