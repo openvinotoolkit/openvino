@@ -103,7 +103,7 @@ extra_repos=()
 
 if [ "$os" == "raspbian9" ] || [ "$os" == "debian9" ] ; then
 
-    # proper versions of cmake and python should be installed separately
+    # proper versions of cmake and python should be installed separately, because the defaults are:
     # - python version is 3.5
     # - cmake version is 3.7.2
     # which are not supported by OpenVINO
