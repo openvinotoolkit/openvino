@@ -19,9 +19,8 @@ public:
 
     void write(void const * data, std::streamsize size) {
         auto const written_size = stream.rdbuf()->sputn(reinterpret_cast<const char*>(data), size);
-        if (written_size != size) {
-            throw std::runtime_error("Failed to write " + std::to_string(size) + " bytes to stream! Wrote " + std::to_string(written_size));
-        }
+        OPENVINO_ASSERT(written_size == size,
+            "[GPU] Failed to write " + std::to_string(size) + " bytes to stream! Wrote " + std::to_string(written_size));
     }
 
     void setKernlImplParams(void* impl_params) { _impl_params = impl_params; }
@@ -38,9 +37,8 @@ public:
 
     void read(void* const data, std::streamsize size) {
         auto const read_size = stream.rdbuf()->sgetn(reinterpret_cast<char*>(data), size);
-        if (read_size != size) {
-            throw std::runtime_error("Failed to read " + std::to_string(size) + " bytes from stream! Read " + std::to_string(read_size));
-        }
+        OPENVINO_ASSERT(read_size == size,
+            "[GPU] Failed to read " + std::to_string(size) + " bytes from stream! Read " + std::to_string(read_size));
     }
 
     void setKernlImplParams(void* impl_params) { _impl_params = impl_params; }
@@ -85,9 +83,14 @@ public:
 
 }  // namespace cldnn
 
-#define BIND_BINARY_BUFFER_WITH_TYPE(cls_name, obj_type) \
+#define ASSIGN_TYPE_NAME(cls_name) \
             namespace cldnn {                            \
-            const object_type cls_name::type = obj_type; \
+            const std::string cls_name::type = #cls_name; \
+            }
+
+#define BIND_BINARY_BUFFER_WITH_TYPE(cls_name) \
+            namespace cldnn {                            \
+            const std::string cls_name::type = #cls_name; \
             BIND_TO_BUFFER(BinaryOutputBuffer, cls_name) \
             BIND_TO_BUFFER(BinaryInputBuffer, cls_name)  \
             }

@@ -1167,7 +1167,7 @@ public:
                 desc.pluginCreateFunc(plugin_impl);
                 plugin = InferencePlugin{plugin_impl, {}};
             } else {
-                so = ov::util::load_shared_object(desc.libraryLocation.c_str());
+                so = ov::util::load_shared_object_safely(desc.libraryLocation.c_str());
                 std::shared_ptr<ie::IInferencePlugin> plugin_impl;
                 reinterpret_cast<InferenceEngine::CreatePluginEngineFunc*>(
                     ov::util::get_symbol(so, InferenceEngine::create_plugin_function))(plugin_impl);

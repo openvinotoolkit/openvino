@@ -206,4 +206,4 @@ attach_pooling_impl::attach_pooling_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::pooling_impl, cldnn::object_type::POOLING_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::pooling_impl)
