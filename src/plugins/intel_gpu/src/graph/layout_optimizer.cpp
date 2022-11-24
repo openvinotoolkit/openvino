@@ -248,9 +248,8 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         });
         // if there is no reorder between prev and next, it returns true.
         // This case is needed for can_fuse_reorder in reorder_inputs pass.
-        if (found_reorder == std::end(next.get_dependencies())) {
+        if (found_reorder == std::end(next.get_dependencies()) && next.get_dependency_index(prev) == 0)
             return true;
-        }
         auto& next_dep = next.get_dependency(0);
         if (!next_dep.is_type<reorder>())
             return false;

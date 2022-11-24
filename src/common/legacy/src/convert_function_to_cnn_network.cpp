@@ -2076,10 +2076,12 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
     auto params = graph->get_parameters();
     for ( const auto &param : params ) {
         const std::string input_name = param->get_friendly_name();
-        auto &thisInputData = *thisInputDataMap[input_name];
-        resultInputDataMap[input_name]->setPrecision(thisInputData.getPrecision());
-        resultInputDataMap[input_name]->setLayout(thisInputData.getLayout());
-        resultInputDataMap[input_name]->getPreProcess() = thisInputData.getPreProcess();
+        auto thisInputDataItr = thisInputDataMap.find(input_name);
+        IE_ASSERT(thisInputDataItr != thisInputDataMap.end())
+            << "Internal issue with model handling. Improper input name: " << input_name;
+        resultInputDataMap[input_name]->setPrecision(thisInputDataItr->second->getPrecision());
+        resultInputDataMap[input_name]->setLayout(thisInputDataItr->second->getLayout());
+        resultInputDataMap[input_name]->getPreProcess() = thisInputDataItr->second->getPreProcess();
     }
 }
 
