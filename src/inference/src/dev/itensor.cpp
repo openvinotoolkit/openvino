@@ -404,6 +404,11 @@ public:
         OPENVINO_ASSERT(false, "Unexpected exception");
     }
 
+    void setShape(const ie::SizeVector& dims) override {
+        tensor->set_shape(dims);
+        ie::TBlob<T>::setShape(dims);
+    }
+
     ITensor::Ptr tensor;
 };
 
