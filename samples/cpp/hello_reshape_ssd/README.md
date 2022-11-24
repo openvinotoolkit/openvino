@@ -69,7 +69,7 @@ To run the sample, you need to specify a model and image:
    omz_downloader --name person-detection-retail-0013
    ```
 
-3. The `person-detection-retail-0013` model does not need to be converted, since it is already in an appropriate format, so you can skip this step. If you want to use another model that is not in the OpenVINO IR or ONNX format, it must be converted with Model Converter:
+3. The `person-detection-retail-0013` model does not need to be converted, since it is already in an appropriate format, so you can skip this step. If you want to use another model that is not in the OpenVINO IR or ONNX format, you can convert it using the model converter script:
    ```
    omz_converter --name <model_name>
    ```
