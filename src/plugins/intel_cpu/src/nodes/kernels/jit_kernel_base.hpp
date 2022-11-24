@@ -24,18 +24,15 @@ public:
     void generate() override;
     virtual void generate_impl() = 0;
 
-    void emu_vgatherdps(const Xbyak::Xmm& xmm_val,
-                        const Xbyak::Reg64& reg_addr,
-                        const Xbyak::Xmm& xmm_index,
-                        const int& scale,
-                        const int& disp,
-                        const Xbyak::Reg& reg_mask,
-                        const bool is_mask_seq = true);
+    void emu_vgatherdps(const Xbyak::Xmm&   vDst,
+                        const Xbyak::Reg64& rSrcPtr,
+                        const Xbyak::Xmm&   vSrcShift,
+                        const Xbyak::Xmm&   vReadMask,
+                        const bool useMask  = true,
+                        const bool zeroFill = false);
 
     void emu_vscatterdps(const Xbyak::Reg64& reg_addr,
                          const Xbyak::Xmm& xmm_index,
-                         const int scale,
-                         const int disp,
                          const Xbyak::Xmm& xmm_val,
                          const Xbyak::Reg& reg_mask,
                          const bool is_mask_seq = true);
