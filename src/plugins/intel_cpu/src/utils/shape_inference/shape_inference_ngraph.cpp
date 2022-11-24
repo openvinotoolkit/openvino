@@ -41,10 +41,11 @@ std::vector<VectorDims> NgraphShapeInfer::infer(
     // call shape inference API
     std::vector<StaticShape> output_shapes = m_shape_infer->infer(input_static_shapes, input_values);
 
-    std::vector<VectorDims> result(output_shapes.size());
-    std::transform(output_shapes.begin(), output_shapes.end(), result.begin(), [](const StaticShape& s) {
-        return s.to_shape();
-    });
+    std::vector<VectorDims> result;
+    result.reserve(output_shapes.size());
+    for (const auto& shape : output_shapes) {
+        result.emplace_back(shape.to_shape());
+    }
 
     return result;
 }
