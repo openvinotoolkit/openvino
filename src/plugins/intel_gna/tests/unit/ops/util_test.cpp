@@ -35,7 +35,7 @@ public:
     }
 };
 
-class GnaOpsUtilisPoolingTest : public GnaOpsUtilTest {
+class GnaOpsUtilIsPoolingTest : public GnaOpsUtilTest {
 public:
     void validate() {
         std::shared_ptr<ov::Node> node;  // node to be converted
