@@ -65,7 +65,7 @@ public:
     }
 };
 
-TEST_P(GnaOpsUtilisPoolingTest, isPoolingTest) {
+TEST_P(GnaOpsUtilIsPoolingTest, isPoolingTest) {
     validate();
 }
 
