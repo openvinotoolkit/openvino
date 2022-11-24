@@ -362,8 +362,8 @@ void primitive_inst::update_impl() {
         }
         if (!has_cached_impl) {
             if (_dynamic_impl) {
-                auto& compilation_queue = get_network().get_compilation_queue();
-                compilation_queue.push([this, updated_params, layout_key](kernels_cache& kc) {
+                auto& compilation_context = get_network().get_compilation_context();
+                compilation_context.push_task([this, updated_params, layout_key](kernels_cache& kc) {
                     auto& cache = get_network().get_implementations_cache();
                     {
                         std::lock_guard<std::mutex> lock(get_network().get_in_mem_cache_mutex());

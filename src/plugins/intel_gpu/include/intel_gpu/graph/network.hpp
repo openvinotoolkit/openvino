@@ -14,8 +14,6 @@
 #include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/lru_cache.hpp"
 
-#include "threading/ie_thread_safe_containers.hpp"
-
 #include <map>
 #include <vector>
 #include <unordered_map>
@@ -25,6 +23,15 @@
 #include <set>
 
 namespace cldnn {
+
+using CompilationTask = std::function<void(kernels_cache&)>;
+template<typename TaskType>
+class CompilationContext {
+public:
+    virtual void push_task(TaskType&& task) = 0;
+    virtual void cancel() noexcept = 0;
+    virtual ~CompilationContext() = default;
+};
 
 /// @brief Represents network output returned by @ref network::get_output().
 struct network_output {
@@ -56,8 +63,6 @@ class primitive_inst;
 struct network {
 public:
     using ptr = std::shared_ptr<network>;
-    using compilation_task_t = std::function<void(kernels_cache&)>;
-    using compilation_queue_t = InferenceEngine::ThreadSafeQueue<compilation_task_t>;
 
     struct VariableState {
         using Ptr = std::shared_ptr<VariableState>;
@@ -237,8 +242,7 @@ public:
     /// Return in_mem_kernels_cache
     KernelsCache& get_in_mem_kernels_cache() const { return *_in_mem_kernels_cache; }
 
-    /// Return queue that contains tasks for async compilation in dynamic flow
-    compilation_queue_t& get_compilation_queue() const { return *_compilation_queue; }
+    CompilationContext<CompilationTask>& get_compilation_context() const { return *_compilation_context; }
     std::mutex& get_in_mem_cache_mutex() const { return _in_mem_cache_mutex; }
 
 private:
@@ -265,10 +269,8 @@ private:
     std::unordered_map<primitive_id, event::ptr> _events;
     output_chains_map _output_chains;
 
-    std::unique_ptr<compilation_queue_t> _compilation_queue = nullptr;
-    std::thread _compilation_executor;
-    std::atomic_bool _stop_compilation{false};
     mutable std::mutex _in_mem_cache_mutex;
+    std::unique_ptr<CompilationContext<CompilationTask>> _compilation_context;
 
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);

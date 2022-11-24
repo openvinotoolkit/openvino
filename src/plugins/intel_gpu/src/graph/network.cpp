@@ -45,6 +45,8 @@
 #include <functional>
 #include <fstream>
 
+#include "threading/ie_thread_safe_containers.hpp"
+
 #ifdef GPU_DEBUG_CONFIG
 #include <iomanip>
 #include <fstream>
@@ -54,6 +56,46 @@
 #endif
 
 namespace cldnn {
+
+template<typename TaskType>
+class CompilationContextImplT : public CompilationContext<TaskType> {
+public:
+    using compilation_queue_t = InferenceEngine::ThreadSafeQueue<CompilationTask>;
+
+    CompilationContextImplT(cldnn::engine& engine, size_t program_id) {
+        _kernels_cache = cldnn::make_unique<kernels_cache>(engine, program_id, kernel_selector::KernelBase::get_db().get_batch_header_str());
+        _worker = std::thread([this](){
+            while (!_stop_compilation) {
+                CompilationTask task;
+                bool success = _queue.try_pop(task);
+                if (success) {
+                    task(*_kernels_cache);
+                } else {
+                    std::chrono::milliseconds ms{1};
+                    std::this_thread::sleep_for(ms);
+                }
+            }
+        });
+    }
+    void push_task(TaskType&& task) override {
+        _queue.push(task);
+    }
+
+    void cancel() noexcept override {
+        _stop_compilation = true;
+        if (_worker.joinable())
+            _worker.join();
+    }
+
+    ~CompilationContextImplT() noexcept { cancel(); }
+private:
+    std::unique_ptr<kernels_cache> _kernels_cache;
+    compilation_queue_t _queue;
+    std::thread _worker;
+    std::atomic_bool _stop_compilation{false};
+};
+
+using CompilationContextImpl = CompilationContextImplT<CompilationTask>;
 
 namespace {
 
@@ -308,22 +350,7 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
                                                                         kernel_selector::KernelBase::get_db().get_batch_header_str()));
         _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(_impls_cache_capacity));
         _in_mem_kernels_cache = std::unique_ptr<KernelsCache>(new KernelsCache(_in_mem_kernels_cache_capacity));
-        _compilation_queue = std::unique_ptr<compilation_queue_t>(new compilation_queue_t());
-        _compilation_executor = std::thread([this](){
-            auto& tasks = _compilation_queue;
-            auto kc = std::unique_ptr<kernels_cache>(new kernels_cache(_program->get_engine(), _program->get_id(),
-                                                         kernel_selector::KernelBase::get_db().get_batch_header_str()));
-            while (!_stop_compilation) {
-                compilation_task_t task;
-                bool success = tasks->try_pop(task);
-                if (success) {
-                    task(*kc);
-                } else {
-                    std::chrono::milliseconds ms{1};
-                    std::this_thread::sleep_for(ms);
-                }
-            }
-        });
+        _compilation_context = cldnn::make_unique<CompilationContextImpl>(program->get_engine(), program->get_id());
     }
 }
 
@@ -441,9 +468,8 @@ network::network(cldnn::BinaryInputBuffer& ib, stream::ptr stream, engine& engin
 }
 
 network::~network() {
-    _stop_compilation = true;
-    if (_compilation_executor.joinable())
-        _compilation_executor.join();
+    if (_compilation_context)
+        _compilation_context->cancel();
     _memory_pool->clear_pool_for_network(net_id);
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
