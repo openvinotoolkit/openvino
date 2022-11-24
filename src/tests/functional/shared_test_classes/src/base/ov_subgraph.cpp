@@ -315,6 +315,7 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
 }
 
 std::vector<ov::Tensor> SubgraphBaseTest::get_plugin_outputs() {
+    infer();
     auto outputs = std::vector<ov::Tensor>{};
     for (const auto& output : function->outputs()) {
         outputs.push_back(inferRequest.get_tensor(output));
@@ -325,8 +326,8 @@ std::vector<ov::Tensor> SubgraphBaseTest::get_plugin_outputs() {
 void SubgraphBaseTest::validate() {
     std::vector<ov::Tensor> expectedOutputs, actualOutputs;
 
-    std::thread t_device([&]{infer(); actualOutputs = get_plugin_outputs(); });
-    std::thread t_ref([&]{expectedOutputs = calculate_refs(); });
+    std::thread t_device([&]{ actualOutputs = get_plugin_outputs(); });
+    std::thread t_ref([&]{ expectedOutputs = calculate_refs(); });
     t_device.join();
     t_ref.join();
 
