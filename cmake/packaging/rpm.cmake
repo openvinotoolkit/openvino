@@ -20,16 +20,16 @@ function(_ov_add_plugin comp is_pseudo)
 
     if(is_pseudo)
         if(pseudo_plugins_recommends)
-            set(pseudo_plugins_recommends "${pseudo_plugins_recommends}, ${package_name} (= ${cpack_full_ver})")
+            set(pseudo_plugins_recommends "${pseudo_plugins_recommends}, ${package_name} = ${cpack_full_ver}")
         else()
-            set(pseudo_plugins_recommends "${package_name} (= ${cpack_full_ver})")
+            set(pseudo_plugins_recommends "${package_name} = ${cpack_full_ver}")
         endif()
     endif()
 
     if(all_plugins_suggest)
-        set(all_plugins_suggest "${all_plugins_suggest}, ${package_name} (= ${cpack_full_ver})")
+        set(all_plugins_suggest "${all_plugins_suggest}, ${package_name} = ${cpack_full_ver}")
     else()
-        set(all_plugins_suggest "${package_name} (= ${cpack_full_ver})")
+        set(all_plugins_suggest "${package_name} = ${cpack_full_ver}")
     endif()
 
     list(APPEND installed_plugins ${comp})
@@ -296,7 +296,7 @@ macro(ov_cpack_settings)
 
     # TODO: provide different packages in two lines below
     set(samples_build_deps "cmake3, gcc-c++, gcc, glibc-devel, make")
-    set(samples_build_deps_suggest "opencv-devel (>= 3.0)")
+    set(samples_build_deps_suggest "opencv-devel >= 3.0")
 
     # c_samples / cpp_samples
     set(CPACK_COMPONENT_SAMPLES_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit C / C++ Samples")
@@ -305,7 +305,7 @@ macro(ov_cpack_settings)
     # SUGGESTS may be unsupported, it's part of RPM 4.12.0 (Sep 16th 2014) only
     # see https://rpm.org/timeline.html
     set(CPACK_RPM_SAMPLES_PACKAGE_SUGGESTS "${samples_build_deps_suggest}, ${all_plugins_suggest}")
-    set(CPACK_RPM_SAMPLES_PACKAGE_REQUIRES "gflags-devel, zlib-devel")
+    set(CPACK_RPM_SAMPLES_PACKAGE_REQUIRES "gflags-devel, nlohmann-json3-dev, zlib-devel")
     set(CPACK_RPM_SAMPLES_PACKAGE_ARCHITECTURE "noarch")
 
     ov_rpm_add_rpmlint_suppression("${OV_CPACK_COMP_CPP_SAMPLES}"

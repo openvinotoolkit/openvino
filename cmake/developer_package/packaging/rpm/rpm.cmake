@@ -22,6 +22,7 @@ macro(ov_rpm_cpack_set_dirs)
     set(OV_CPACK_NGRAPH_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/ngraph${OpenVINO_VERSION})
     set(OV_CPACK_OPENVINO_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/openvino${OpenVINO_VERSION})
     set(OV_CPACK_DOCDIR ${CMAKE_INSTALL_DATADIR}/doc/openvino-${OpenVINO_VERSION})
+    # set(OV_CPACK_PYTHONDIR lib/python3/dist-packages)
 
     ov_get_pyversion(pyversion)
     if(pyversion)
