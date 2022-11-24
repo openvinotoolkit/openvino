@@ -9,5 +9,5 @@
 namespace ov {
 
 /** @brief Class to distinguish legacy extension. */
-class LegacyOpExtension : public BaseOpExtension {};
+class OPENVINO_API LegacyOpExtension : public BaseOpExtension {};
 }  // namespace ov
