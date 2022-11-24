@@ -40,29 +40,6 @@ ngraph::snippets::pass::TransposeDecomposition::TransposeDecomposition() {
         if (supported_cases.count(order_value) == 0)
             throw ngraph::ngraph_error("TransposeDecomposition: unsupported order");
 
-
-        // NCHW -> NHWC Conceptual scheme:
-        /*
-        float* src_ptr;
-        float* dst_ptr;
-        size_t data_size = sizeof(float);
-        for (size_t n = 0; n < N; n++) {
-            for (size_t h = 0; h < H; h++) {
-                for (size_t w = 0; w < W; w++) {
-                    for (size_t c = 0; c < C; c++) {
-                        // src_ptr[n*H*W*C + h*W + c*H*W + w]
-                        *dst_ptr = *src_ptr;
-                        dst_ptr += data_size; // it's easy with dst, since scheduling is dst-dense => simply increment by data size
-                        src_ptr += H*W * data_size; // access to src is HW strided
-                    }
-                    src_ptr += (1 - H*W*C) * data_size; // step up along the W dimension
-                }
-                // src_inner_ptr is already incremented by W at this point, HW is dense => do nothing
-            }
-            // src_inner_ptr is already incremented by H*W at this point => increment by (C-1)*H*W
-            src_inner_ptr += (C-1)*H*W;
-        }
-         */
         auto data_input = pattern_to_output.at(match_data);
         const auto& data_node = pattern_to_output.at(match_data).get_node_shared_ptr();
         // todo: we can decompose any transpose, but if it's not after parameter then it's not MHA-like pattern
@@ -71,11 +48,11 @@ ngraph::snippets::pass::TransposeDecomposition::TransposeDecomposition() {
         if (!ov::is_type<opset1::Parameter>(data_node))
             throw ngraph_error("TransposeDecomposition: it's valid to decompose Transpose only after Parameter, not after " +
                                 std::string(data_node->get_type_name()));
-        auto &param_rt = data_input.get_node_shared_ptr()->get_rt_info();
+        auto &param_rt = data_input.get_tensor_ptr()->get_rt_info();
         // Note: store and usage inside emitters as size_t is more convenient, so static_cast here
         std::vector<size_t> access_pattern;
         std::copy(order_value.begin(), order_value.end(), std::back_inserter(access_pattern));
-        param_rt["NonDefaultAccessPattern"] = access_pattern;
+        param_rt["Layout"] = access_pattern;
 
         // The line below is Ok, since we ensured that transpose is static above
         auto data_shape = data_input.get_shape();
@@ -93,10 +70,6 @@ ngraph::snippets::pass::TransposeDecomposition::TransposeDecomposition() {
         //  fix this in future and develop a more consistent shape propagation approach.
         auto load = std::make_shared<snippets::op::LoadReshape>(loop_C_begin->output(0), 1, access_pattern);
         auto store = std::make_shared<snippets::op::Store>(load->output(0), 1);
-        // todo: extend Loop functionality: provide method to override default pointer increments:
-        //  default: pointer_increment = WA_increment * data_size
-        //  extended: pointer_increment >= WA_increment * data_size for strided data access
-        // work around with finalization offset for now, but this is an additional addition!
         const std::vector<int64_t> ptr_increments_C {size_H * size_W, 1};
         const std::vector<int64_t> finalization_offsets_C {1 - size_H * size_W * size_C, 0};
         auto loop_C_end = std::make_shared<op::LoopEnd>(OutputVector{store->output(0), loop_C_begin->output(1)},
@@ -110,9 +83,6 @@ ngraph::snippets::pass::TransposeDecomposition::TransposeDecomposition() {
             input.replace_source_output(loop_W_end->output(0));
         }
 
-//        result->set_friendly_name(m.get_match_root()->get_friendly_name());
-//        ngraph::copy_runtime_info(fake_quantize_node, decomp_ops);
-//        ngraph::replace_node(m.get_match_root(), result);
         return true;
     };
 

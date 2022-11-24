@@ -111,10 +111,10 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
             IE_THROW() << "KernelEmitter can't calc offsets for dynamic shapes";
         return pshape.get_shape();
     };
-    const auto get_access_pattern = [](const std::shared_ptr<ov::Node>& node, std::vector<size_t>& shape) {
+    const auto get_access_pattern = [](const Output<ov::Node>& out, std::vector<size_t>& shape) {
         std::vector<size_t> access_pattern{};
-        auto &rt = node->get_rt_info();
-        const auto rinfo = rt.find("NonDefaultAccessPattern");
+        auto &rt = out.get_tensor_ptr()->get_rt_info();
+        const auto rinfo = rt.find("Layout");
         // default access pattern
         if (rinfo != rt.end()) {
             access_pattern = rinfo->second.as<std::vector<size_t>>();
@@ -149,10 +149,9 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
         io_shapes = new_shapes;
     }
     for (int i = 0; i < io_nodes.size(); i++) {
-        const auto& op = io_nodes[i];
-
-        data_access_pattern.push_back(get_access_pattern(op, io_shapes[i]));
-        io_data_size.push_back(op->get_output_element_type(0).size());
+        const auto& out = io_nodes[i]->output(0);
+        data_access_pattern.push_back(get_access_pattern(out, io_shapes[i]));
+        io_data_size.push_back(out.get_element_type().size());
     }
     // Initialize pools of gp and vec registers
     gp_regs_pool.resize(16);
