@@ -94,9 +94,15 @@ ov::pass::ConvertBroadcast3::ConvertBroadcast3() {
                                                  Shape({aligned_target_shape.size()}),
                                                  aligned_target_shape));
                 } else {
-                    input = std::make_shared<opset1::Multiply>(
-                        input,
-                        opset1::Constant::create(input_element_type, target_shape, {1}));
+                    if (input_element_type == element::boolean) {
+                        input = std::make_shared<opset1::LogicalAnd>(
+                            input,
+                            opset1::Constant::create(input_element_type, target_shape, {1}));
+                    } else {
+                        input = std::make_shared<opset1::Multiply>(
+                            input,
+                            opset1::Constant::create(input_element_type, target_shape, {1}));
+                    }
                 }
             } else {
                 auto constant_one = opset1::Constant::create(input_element_type, {1}, {1});
