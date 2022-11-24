@@ -95,7 +95,7 @@ ov::NodeVector eltwise_mul_nodes_false = {
                                           ELTWISE_TYPE::Sum),
 };
 
-ov::NodeVector elwise_mul_nodes_true = {
+ov::NodeVector eltwise_mul_nodes_true = {
     std::make_shared<ngraph::op::Eltwise>(std::make_shared<Constant>(),
                                           std::make_shared<Constant>(),
                                           ELTWISE_TYPE::Prod)
