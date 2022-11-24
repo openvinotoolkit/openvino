@@ -115,20 +115,24 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
 
     const auto slices_ascending_order = [&](const TensorSlice<Index_t, Count_t>& lhs,
                                             const TensorSlice<Index_t, Count_t>& rhs) {
-        const auto slices_offset = calc_slices_offset(lhs, rhs, data_shape_strides, *axis);
         const auto shape_to_iterate = slice_shape_to_iterate(data_shape, *axis);
 
         for (auto it = CoordinateIterator(shape_to_iterate); it != CoordinateIterator::end(); ++it) {
-            auto elem_coord = *it;
-            elem_coord.insert(elem_coord.cbegin() + *axis, lhs.idx);
-            const auto lhs_elem_idx = ngraph::coordinate_index(elem_coord, data_shape);
-            const auto rhs_elem_idx = lhs_elem_idx + slices_offset;
-            if (*(data + rhs_elem_idx) > *(data + lhs_elem_idx)) {
-                return false;
+            auto elem_coord_lhs = *it;
+            elem_coord_lhs.insert(elem_coord_lhs.cbegin() + *axis, lhs.idx);
+
+            auto elem_coord_rhs = *it;
+            elem_coord_rhs.insert(elem_coord_rhs.cbegin() + *axis, rhs.idx);
+
+            const auto lhs_elem_idx = ngraph::coordinate_index(elem_coord_lhs, data_shape);
+            const auto rhs_elem_idx = ngraph::coordinate_index(elem_coord_rhs, data_shape);
+
+            if (*(data + lhs_elem_idx) < *(data + rhs_elem_idx)) {
+                return true;
             }
         }
 
-        return true;
+        return false;
     };
 
     const auto elements_are_equal = [&data](const TensorSlice<Index_t, Count_t>& lhs,
@@ -187,7 +191,7 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
             generate_descriptors<Index_t, Count_t>(data_elems_count, DescriptorType::SINGLE_VALUE);
 
         if (sorted) {
-            std::sort(begin(ret.all_tensor_elements), end(ret.all_tensor_elements), ascending_order);
+            std::stable_sort(begin(ret.all_tensor_elements), end(ret.all_tensor_elements), ascending_order);
         }
 
         ret.all_tensor_elements[0].rev_idx = 0;
@@ -219,15 +223,15 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
         ret.all_tensor_elements = generate_descriptors<Index_t, Count_t>(data_shape[*axis], DescriptorType::SLICE);
 
         if (sorted) {
-            std::sort(begin(ret.all_tensor_elements), end(ret.all_tensor_elements), slices_ascending_order);
+            std::stable_sort(begin(ret.all_tensor_elements), end(ret.all_tensor_elements), slices_ascending_order);
         }
-
         ret.all_tensor_elements[0].rev_idx = 0;
         ret.unique_tensor_elements.push_back(ret.all_tensor_elements[0]);
 
         for (size_t i = 1; i < data_shape[*axis]; ++i) {
             auto& tensor_element = ret.all_tensor_elements[i];
             auto existing_unique = end(ret.unique_tensor_elements);
+
             if (sorted) {
                 existing_unique = std::lower_bound(begin(ret.unique_tensor_elements),
                                                    end(ret.unique_tensor_elements),
