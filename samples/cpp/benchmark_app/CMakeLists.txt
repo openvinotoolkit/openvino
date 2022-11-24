@@ -31,13 +31,15 @@ if(NOT TARGET nlohmann_json::nlohmann_json)
         endif()
     endif()
 
-    if(NOT nlohmann_json_FOUND AND EXISTS "${Samples_SOURCE_DIR}/thirdparty/nlohmann_json")
-        # suppress shadowing names warning
-        set(JSON_SystemInclude ON CACHE BOOL "" FORCE)
-        add_subdirectory("${Samples_SOURCE_DIR}/thirdparty/nlohmann_json"
-                         "${Samples_BINARY_DIR}/thirdparty/nlohmann_json" EXCLUDE_FROM_ALL)
-    else()
-        message(FATAL_ERROR "Failed to find / build nlohmann_json library")
+    if(NOT nlohmann_json_FOUND)
+        if(EXISTS "${Samples_SOURCE_DIR}/thirdparty/nlohmann_json")
+            # suppress shadowing names warning
+            set(JSON_SystemInclude ON CACHE BOOL "" FORCE)
+            add_subdirectory("${Samples_SOURCE_DIR}/thirdparty/nlohmann_json"
+                            "${Samples_BINARY_DIR}/thirdparty/nlohmann_json" EXCLUDE_FROM_ALL)
+        else()
+            message(FATAL_ERROR "Failed to find / build nlohmann_json library")
+        endif()
     endif()
 endif()
 
