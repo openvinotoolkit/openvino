@@ -54,6 +54,7 @@
 #include "transformations/common_optimizations/reduce_merge.hpp"
 #include "transformations/common_optimizations/relu_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/remove_filtering_boxes_by_size.hpp"
+#include "transformations/common_optimizations/select_with_one_value_condition.hpp"
 #include "transformations/common_optimizations/skip_gather_before_transpose_and_reshape.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
 #include "transformations/common_optimizations/softplus_fusion.hpp"
@@ -172,6 +173,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngraph::F
 
     // CF is required after all decompositions
     REGISTER_PASS(manager, ConstantFolding)
+    manager.register_pass<ov::pass::SelectWithOneValueCondition>();
 
     // LinOpSequenceFusion must be executed after all decompositions
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
