@@ -138,8 +138,7 @@ ov::hint::PerformanceMode get_performance_hint(const std::string& device, const 
                 ov_perf_hint = ov::hint::PerformanceMode::UNDEFINED;
             }
         } else {
-            ov_perf_hint =
-                FLAGS_api == "async" ? ov::hint::PerformanceMode::THROUGHPUT : ov::hint::PerformanceMode::LATENCY;
+            ov_perf_hint = ov::hint::PerformanceMode::LATENCY;
 
             slog::warn << "Performance hint was not explicitly specified in command line. "
                           "Device("
