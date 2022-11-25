@@ -7,6 +7,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "log/debug.hpp"
+
 namespace GNAPluginNS {
 namespace memory {
 
