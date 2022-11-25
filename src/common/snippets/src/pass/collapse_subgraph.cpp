@@ -332,6 +332,7 @@ TokenizeSnippets::TokenizeSnippets() {
                       << " outputs" << std::endl;
             return true;
         }
+        std::string subgraph_name = node->get_friendly_name();
         std::string fusedNames{};
         size_t num_result_children = 0;
         std::pair<int64_t, int64_t> currentTopoBounds {-1, LONG_MAX};
@@ -347,7 +348,12 @@ TokenizeSnippets::TokenizeSnippets() {
 
                     fusedNames += getFusedNames(subgraph);
 
-                    num_result_children += has_result_child(subgraph);
+                    if (has_result_child(subgraph)) {
+                        // we set input subgraph name to the current subgraph
+                        // in order to save node friendly name before result
+                        subgraph_name = subgraph->get_friendly_name();
+                        num_result_children += 1;
+                    }
                     auto f = clones[input_node];
                     const auto& input_body_parameters = f->get_parameters();
                     // Todo:
@@ -546,7 +552,7 @@ TokenizeSnippets::TokenizeSnippets() {
         for (size_t i = 0; i < body->get_parameters().size(); i++) {
             body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
-        auto subgraph = op::build_subgraph(node, external_inputs, body);
+        auto subgraph = op::build_subgraph(node, external_inputs, body, subgraph_name);
         const auto & act_body = subgraph->body();
         for (size_t i = 0; i < act_body.get_parameters().size(); i++) {
             act_body.get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
