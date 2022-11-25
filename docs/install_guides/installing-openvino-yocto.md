@@ -88,7 +88,7 @@ To build your image with OpenVINO packages, run the following command:
 bitbake core-image-minimal
 ```
 
-> **NOTE**: For validation/testing/reviewing purposes, you may consider using `nohup` command and ensuring that your vpn/ssh connection remains uninterrupted.
+> **NOTE**: For validation/testing/reviewing purposes, you may consider using the `nohup` command and ensure that your vpn/ssh connection remains uninterrupted.
 
 ## Step 3: Verify the Yocto Image with OpenVINO packages.
 
