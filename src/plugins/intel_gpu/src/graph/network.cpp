@@ -693,7 +693,7 @@ void cldnn::network::check_names() {
     }
 }
 
-std::shared_ptr<primitive_inst> cldnn::network::find_primitive(const primitive_id& id) {
+std::shared_ptr<primitive_inst> cldnn::network::find_primitive(const primitive_id& id) const {
     std::shared_ptr<primitive_inst> ret;
 
     if (_primitives.find(id) != _primitives.end())
@@ -702,7 +702,7 @@ std::shared_ptr<primitive_inst> cldnn::network::find_primitive(const primitive_i
     return find_in_internal_networks(id);
 }
 
-std::shared_ptr<primitive_inst> cldnn::network::find_in_internal_networks(const primitive_id& id) {
+std::shared_ptr<primitive_inst> cldnn::network::find_in_internal_networks(const primitive_id& id) const {
     std::shared_ptr<primitive_inst> ret;
 
     for (auto const& prim : _primitives) {
@@ -722,6 +722,15 @@ std::shared_ptr<primitive_inst> cldnn::network::find_in_internal_networks(const 
 std::string network::get_primitive_info(const primitive_id& id) const {
     const auto& node = _program->get_node(id);
     return node.type()->to_string(node);
+}
+
+bool network::is_cpu_impl(const primitive_id& id) const {
+    auto prim_inst = find_primitive(id);
+
+    OPENVINO_ASSERT(prim_inst, "[GPU] Can't get implementation type, since topology",
+                               "doesn't contain primitive with requested id: ", id);
+
+    return prim_inst->get_impl() ? prim_inst->get_impl()->is_cpu() : true;
 }
 
 std::string network::get_implementation_info(const primitive_id& id) const {
