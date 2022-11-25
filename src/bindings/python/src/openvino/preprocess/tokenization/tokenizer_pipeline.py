@@ -82,7 +82,7 @@ class RegExpSplitStep(PreTokenizatinStep):
     def bert_splitter(cls) -> "RegExpSplitStep":
         """Generates a step with a standard BERT regex.
 
-        The source is:
+        The source:
         https://github.com/tensorflow/text/blob/4a098cd852c0b7ebee621e2d211c7f202dd679c2/tensorflow_text/python/ops/bert_tokenizer.py#L39
         """
         return cls(
@@ -141,16 +141,26 @@ class WordPieceTokenizationStep(TokenizationModelStep):
         params_string = ", ".join(f"{key}={val!r}" for key, val in self._params.items() if key != "vocab")
         return f"{self.__class__.__name__}({params_string})"
 
+    @classmethod
+    def from_hf_json(cls, tokenizer_json: Dict[str, Any]) -> "WordPieceTokenizationStep":
+        return cls(
+            unk_token=tokenizer_json["model"]["unk_token"],
+            subword_prefix=tokenizer_json["model"]["continuing_subword_prefix"],
+            vocab=[token for token, index in sorted(tokenizer_json["model"]["vocab"].items(), key=lambda x: x[1])],
+        )
+
 
 class PostTokenizationStep(BasePipelineStep):
     pass
 
 
 class AddTokenStep(PostTokenizationStep):
-    def __init__(self, token: str, insert_first: bool = False) -> None:
+    def __init__(self, token: str, token_type_id: Optional[int] = None) -> None:
         super().__init__()
         self.token = token
-        self.insert_first = insert_first
+
+        self.token_type_id = token_type_id
+
         self.token_idx: Optional[int] = None
         self.set_token_idx()
 
@@ -162,6 +172,12 @@ class AddTokenStep(PostTokenizationStep):
             self.token_idx = pipeline.vocab.index(self.token)
         except ValueError:
             raise UserInputError(f"Special token {self.token} is not in vocab")
+
+
+class SequenceStep(PostTokenizationStep):
+    def __init__(self, token_type_id: Optional[int] = None):
+        super().__init__()
+        self.token_type_id = token_type_id
 
 
 class AddPaddingStep(PostTokenizationStep):
@@ -176,6 +192,20 @@ class TruncationStep(PostTokenizationStep):
         super().__init__()
         self.max_length = max_length
         self.truncate_right = truncate_right
+
+    @classmethod
+    def from_hf_json(cls, tokenizer_json: Dict[str, Any], num_of_added_tokens: int = 0) -> "TruncationStep":
+        return cls(
+            max_length=tokenizer_json["truncation"]["max_length"] - num_of_added_tokens,
+            truncate_right=tokenizer_json["truncation"]["direction"] == "Right",
+        )
+
+    @classmethod
+    def from_hf_object(cls, tokenizer: Any, num_of_added_tokens: int = 0) -> "TruncationStep":
+        return cls(
+            max_length=tokenizer.model_max_length - num_of_added_tokens,
+            truncate_right=tokenizer.truncation_side == "right",
+        )
 
 
 class TokenizerPipeline:
@@ -193,3 +223,6 @@ class TokenizerPipeline:
     def __str__(self) -> str:
         steps = "\n\t".join(str(step) for step in self.steps)
         return f"TokenizerPipeline(\n\t{steps}\n)"
+
+    def __getitem__(self, item: int) -> BasePipelineStep:
+        return self.steps[item]

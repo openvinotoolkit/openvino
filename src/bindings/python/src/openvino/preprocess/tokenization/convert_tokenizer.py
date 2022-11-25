@@ -3,34 +3,21 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import sys
-from typing import Any
+from typing import Any, Optional
 
 from openvino.runtime.exceptions import OVTypeError
 from .tokenizer_pipeline import TokenizerPipeline
 from .parsers import TransformersTokenizerPipelineParser
 
 
-def convert_tokenizer(tokenizer_object: Any) -> TokenizerPipeline:
-    """Converts a tokenizer object to an OpenVINO tokenizer.
-
-    Supported frameworks:
-    - Transformers
-
-    Example:
-    >>> from openvino.preprocess import convert_tokenizer
-    >>> from transformers import AutoTokenizer
-    >>> hf_tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-    >>> ov_tokenizer = convert_tokenizer(hf_tokenizer)
-
-    :param tokenizer_object: tokenizer object from supported framework
-    :type tokenizer_object: Any
-    :return: Tokenizer pipeline config [todo: OpenVINO tokenizer object]
-    :rtype: TokenizerPipeline
-    """
+def convert_tokenizer(tokenizer_object: Any, number_of_inputs: Optional[int] = None) -> TokenizerPipeline:
     if "transformers" in sys.modules:
         from transformers import PreTrainedTokenizerBase
 
         if isinstance(tokenizer_object, PreTrainedTokenizerBase):
-            return TransformersTokenizerPipelineParser(tokenizer_object).parse()
+            if number_of_inputs is not None:
+                return TransformersTokenizerPipelineParser(tokenizer_object).parse(number_of_inputs=number_of_inputs)
+            else:
+                return TransformersTokenizerPipelineParser(tokenizer_object).parse()
 
     raise OVTypeError(f"Tokenizer type is not supported: {type(tokenizer_object)}")

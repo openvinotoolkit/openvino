@@ -5,7 +5,7 @@
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any
+from typing import Any, Optional, List, Union
 
 from openvino.runtime.exceptions import OVTypeError
 from .tokenizer_pipeline import (
@@ -17,20 +17,24 @@ from .tokenizer_pipeline import (
     WhitespaceSplitStep,
     WordPieceTokenizationStep,
     AddTokenStep,
+    SequenceStep,
     TruncationStep,
 )
 
 
 class TransformersTokenizerPipelineParser:
-    def __init__(self, tokenizer_object: Any) -> None:
+    def __init__(self, tokenizer_object: Any, number_of_inputs: int = 1) -> None:
+        assert tokenizer_object.is_fast
         self.original_tokenizer = tokenizer_object
         with TemporaryDirectory() as tmpdir:
             tokenizer_object.save_pretrained(tmpdir)
             with open(Path(tmpdir) / "tokenizer.json") as tj:
                 self.tokenizer_json = json.load(tj)
         self.pipeline = TokenizerPipeline()
+        self.number_of_inputs = number_of_inputs
 
-    def parse(self) -> TokenizerPipeline:
+    def parse(self, number_of_inputs: Optional[int] = None) -> TokenizerPipeline:
+        self.number_of_inputs = self.number_of_inputs if number_of_inputs is None else number_of_inputs
         for add_step in self.parsing_pipeline:
             getattr(self, add_step.__name__)()
 
@@ -60,46 +64,43 @@ class TransformersTokenizerPipelineParser:
 
     def tokenization_model(self) -> None:
         if self.tokenizer_json["model"]["type"] == "WordPiece":
-            vocab = [token for token, index in sorted(self.tokenizer_json["model"]["vocab"].items(), key=lambda x: x[1])]
-            self.pipeline.add_step(
-                WordPieceTokenizationStep(
-                    unk_token=self.tokenizer_json["model"]["unk_token"],
-                    subword_prefix=self.tokenizer_json["model"]["continuing_subword_prefix"],
-                    vocab=vocab,
-                ),
-            )
-            self.pipeline.vocab = vocab
+            step = WordPieceTokenizationStep.from_hf_json(self.tokenizer_json)
+            self.pipeline.add_step(step)
+            self.pipeline.vocab = step.vocab
         else:
             raise OVTypeError(f'Tokenizer type :{self.tokenizer_json["model"]["type"]} is not supported')
 
     def post_tokenization(self) -> None:
         num_of_added_tokens = 0
-        add_tokens_steps = []
-        if "single" in self.tokenizer_json["post_processor"]:
-            insert_first = True
-            for template_dict in self.tokenizer_json["post_processor"]["single"]:
-                if "SpecialToken" in template_dict:
-                    num_of_added_tokens += 1
-                    add_tokens_steps.append(
-                        AddTokenStep(
-                            token=template_dict["SpecialToken"]["id"],
-                            insert_first=insert_first,
-                        ),
-                    )
-                else:
-                    # current template dict is for sequence
-                    insert_first = False
-        if self.original_tokenizer.model_max_length is not None:
-            self.pipeline.add_step(
-                TruncationStep(
-                    max_length=self.original_tokenizer.model_max_length - num_of_added_tokens,
-                    truncate_right=self.original_tokenizer.truncation_side == "right",
-                ),
-            )
+        #  List contains two different types: AddTokenStep and SequenceStep
+        #  Any other type declaration (or no type declaration) causes mypy error
+        tokenizer_template_steps: List = []
 
-        for step in add_tokens_steps:
+        if self.number_of_inputs == 1:
+            post_processor = self.tokenizer_json["post_processor"]["single"]
+        else:
+            post_processor = self.tokenizer_json["post_processor"]["pair"]
+
+        for template_dict in post_processor:
+            if "SpecialToken" in template_dict:
+                num_of_added_tokens += 1
+                step = AddTokenStep(
+                    token=template_dict["SpecialToken"]["id"],
+                    token_type_id=template_dict["SpecialToken"]["type_id"],
+                )
+                step.set_pipeline(self.pipeline)
+                step.set_token_idx()
+                tokenizer_template_steps.append(step)
+            else:
+                tokenizer_template_steps.append(SequenceStep(token_type_id=template_dict["Sequence"]["type_id"]))
+
+        if self.tokenizer_json["truncation"] is not None:
+            self.pipeline.add_step(TruncationStep.from_hf_json(self.tokenizer_json, num_of_added_tokens))
+        elif self.original_tokenizer.model_max_length is not None:
+            self.pipeline.add_step(TruncationStep.from_hf_object(self.original_tokenizer, num_of_added_tokens))
+
+        for step in tokenizer_template_steps:
             self.pipeline.add_step(step)
-            step.set_token_idx()
 
     parsing_pipeline = [
         nfd_normalization,
