@@ -807,6 +807,37 @@ TEST(TransformationTests, ConvertPrecision_skip_precision_sensitive) {
     ASSERT_TRUE(interpolate->input_value(2).get_element_type() == element::Type_t::f32);
 }
 
+TEST(TransformationTests, ConvertPrecision_without_callback) {
+    // without callback all nodes should be converted to f16 regardless even they are marked
+    std::shared_ptr<ov::Model> model(nullptr);
+    std::shared_ptr<opset8::Interpolate> interpolate(nullptr);
+    {
+        auto input = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 720, 1280});
+        auto sizes = opset8::Constant::create(element::i64, Shape{4}, {1, 3, 288, 512});
+        auto scales = opset8::Constant::create(element::f32, Shape{4}, {1.0f, 1.0f, 0.4f, 0.4f});
+        opset8::Interpolate::InterpolateAttrs attrs;
+
+        attrs.mode = opset8::Interpolate::InterpolateMode::LINEAR_ONNX;
+        attrs.shape_calculation_mode = opset8::Interpolate::ShapeCalcMode::SCALES;
+        attrs.nearest_mode = opset8::Interpolate::NearestMode::FLOOR;
+        attrs.pads_begin = std::vector<size_t>{0};
+        attrs.pads_end = std::vector<size_t>{0};
+        attrs.antialias = false;
+        attrs.coordinate_transformation_mode = opset8::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL;
+        attrs.cube_coeff = -0.75f;
+
+        interpolate = std::make_shared<opset8::Interpolate>(input, sizes, scales, attrs);
+        model = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        pass::Manager manager;
+
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>();
+        manager.register_pass<pass::ConvertPrecision>(precisions_array {{ element::f32, element::f16 }});
+        manager.run_passes(model);
+    }
+
+    ASSERT_FALSE(has_type<element::Type_t::f32>(model));
+    ASSERT_TRUE(interpolate->input_value(2).get_element_type() == element::Type_t::f16);
+}
 
 template <typename From, typename To>
 void constant_convert_test(element::Type type_from, element::Type type_to, const std::vector<From>& value, const std::vector<To>& expected) {
