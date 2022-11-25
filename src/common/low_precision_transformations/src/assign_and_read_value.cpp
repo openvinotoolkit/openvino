@@ -100,7 +100,7 @@ bool AssignAndReadValueTransformation::transform(TransformationContext& context,
         return true;
     }
 
-    FakeQuantizeTransformation::fuseElementwise(context, this, fakeQuantize);
+    FakeQuantizeTransformation::fuseElementwise(context, this, fakeQuantize, updatePrecisions);
 
     return true;
 }
