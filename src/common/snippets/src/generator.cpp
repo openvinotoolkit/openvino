@@ -141,10 +141,10 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ov:
                 tail_loop = ngraph::clone_nodes(vector_loop,  vector_to_tail_node_map);
                 std::transform(tail_loop.begin(), tail_loop.end(), tail_loop.begin(),
                                [tail_size](const std::shared_ptr<Node>& n){
-                                   if (const auto load = ov::as_type_ptr<ngraph::snippets::op::Load>(n))
-                                       load->set_count(tail_size);
-                                   else if (const auto store = ov::as_type_ptr<ngraph::snippets::op::Store>(n))
-                                       store->set_count(tail_size);
+                                   const auto& memory_access = std::dynamic_pointer_cast<ngraph::snippets::op::MemoryAccess>(n);
+                                   if (memory_access && memory_access->get_count() != 1) {
+                                       memory_access->set_count(tail_size);
+                                   }
                                    return n;
                                });
                 tail_loop_end = ov::as_type_ptr<op::LoopEnd>(*tail_loop.rbegin());
