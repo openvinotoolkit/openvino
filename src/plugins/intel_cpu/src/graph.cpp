@@ -414,7 +414,13 @@ void Graph::InitGraph() {
         const auto& node = graphNodes[i];
         if (node->isDynamicNode()) {
             haveDynNodes = true;
-            if (node->outputShapeDataDependency()) {
+            if (node->outputShapeDataDependency() ||
+                // WA: for convolution plus summ(broadcast). Due to the fact that a convolution with sum use the same meory for second sum term and the output
+                // tensors (inPlace) resizing the output tensor, may lead to reallocation of this second term memory and possible data lost. The reallocation
+                // may happen when the second term shape is broadcasted to the output tensor shape. To avoid the data loss, we have a special processing for
+                // such cases inside the convolution node, but it works properly only when dynamic shapes inference, preparation and execution a called 
+                // for this node sequentially.
+                (node->getType() == Type::Convolution && node->isInPlace())) { 
                 syncNodesInds.insert({node.get(), i});
             }
         }
