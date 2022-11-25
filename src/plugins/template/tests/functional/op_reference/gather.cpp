@@ -912,6 +912,54 @@ std::vector<GatherParamsV7> generateParamsV8() {
             reference_tests::Tensor(ET, {3}, std::vector<T>{
                 1, 4, 5}),
             "gather_v8_1d_negative_indices"),
+        // zeros are not present in the original data but appear because of the out of bound values
+        GatherParamsV7(
+                reference_tests::Tensor(ET, {5}, std::vector<T>{
+                        1, 2, 3, 4, 5}),
+                reference_tests::Tensor(ET_I, {3}, std::vector<T_I>{
+                        0, 20, 4}),
+                reference_tests::Tensor(ET_A, {}, std::vector<T_A>{0}),
+                0,
+                reference_tests::Tensor(ET, {3}, std::vector<T>{
+                        1, 0, 5}),
+                "gather_v8_out_of_bound_indices_1"),
+        GatherParamsV7(
+                reference_tests::Tensor(ET, {2, 1, 5, 4}, std::vector<T>{
+                        1,  2,  3,  4,
+                        5,  6,  7,  8,
+                        9,  10, 11, 12,
+                        13, 14, 15, 16,
+                        17, 18, 19, 20,
+
+                        21, 22, 23, 24,
+                        25, 26, 27, 28,
+                        29, 30, 31, 32,
+                        33, 34, 35, 36,
+                        37, 38, 39, 40}),
+                reference_tests::Tensor(ET_I, {2, 3}, std::vector<T_I>{
+                        1, 2, 200,
+                        4, 200, 2}),
+                reference_tests::Tensor(ET_A, {}, std::vector<T_A>{2}),
+                1,
+                reference_tests::Tensor(ET, {2, 1, 3, 4}, std::vector<T>{
+                        5,  6,  7,  8,
+                        9,  10, 11, 12,
+                        0, 0, 0, 0,
+
+                        37, 38, 39, 40,
+                        0, 0, 0, 0,
+                        29, 30, 31, 32}),
+                "gather_v8_4d_data_axis_2_batch_dims_1_out_of_bound_indices_2"),
+        GatherParamsV7(
+                reference_tests::Tensor(ET, {5}, std::vector<T>{
+                        1, 2, 3, 4, 5}),
+                reference_tests::Tensor(ET_I, {3}, std::vector<T_I>{
+                        0, -200, 4}),
+                reference_tests::Tensor(ET_A, {}, std::vector<T_A>{0}),
+                0,
+                reference_tests::Tensor(ET, {3}, std::vector<T>{
+                        1, 0, 5}),
+                "gather_v8_out_of_bound_negative_index"),
     };
     return params;
 }
