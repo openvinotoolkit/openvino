@@ -80,7 +80,7 @@ CORE_IMAGE_EXTRA_INSTALL:append = " openvino-inference-engine-vpu-firmware"
 CORE_IMAGE_EXTRA_INSTALL:append = " openvino-model-optimizer"
 ```
 
-## Step 2: Build a Yocto image with OpenVINO packages.
+## Step 2: Build a Yocto Image with OpenVINO Packages
 
 To build your image with OpenVINO packages, run the following command:
 
