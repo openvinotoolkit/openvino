@@ -75,7 +75,6 @@ def update_layout_to_dict(input_nodes: list, layout: [list, dict]):
         layout_dict = {}
         for idx, node in enumerate(input_nodes):
             names_list = list(node.get_tensor().get_names())
-            names_list.sort()
             if not names_list:
                 raise Error("Empty tensor names list for node {}".format(node.name))
             node_name = names_list[0]
@@ -405,6 +404,11 @@ def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
     else:
         mean_scale_values = {}
 
+    # mean_scale_values stores mean/scale values from command line with names which were set by user.
+    # For models with single input scale or mean may be unnamed, so name is set by first tensor name from
+    # names list. This may lead to different naming of preprocessing params for a single node and lead to error.
+    # To make naming for mean/scale values unified, names provided by user are renamed here
+    # by the first tensor name from sorted names list.
     mean_scale_values = update_tensor_names_to_first_in_sorted_list(mean_scale_values, ov_function)
     mean_scale_values = update_mean_scale_to_dict(input_nodes=ov_function.inputs,
                                                   mean_scale_val=mean_scale_values,
