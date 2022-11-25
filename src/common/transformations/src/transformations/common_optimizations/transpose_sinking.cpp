@@ -302,7 +302,7 @@ ov::pass::TransposeFuse::TransposeFuse() {
         if (is_ordered) {
             return ngraph::replace_output_update_name(transpose2->output(0), input);
         } else {
-            auto new_order = opset7::Constant::create(element::i64, {order2.size()}, order2);
+            auto new_order = opset7::Constant::create(transpose_oder_type, {order2.size()}, order2);
             auto new_transpose = register_new_node<opset7::Transpose>(input, new_order);
 
             new_transpose->set_friendly_name(m.get_match_root()->get_friendly_name());
