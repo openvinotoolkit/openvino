@@ -1,4 +1,74 @@
-<?xml version="1.0"?>
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <fstream>
+
+#include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
+#include "gtest/gtest.h"
+#include "ie_core.hpp"
+#include "ie_blob.h"
+#include "common_test_utils/data_utils.hpp"
+#include "pugixml.hpp"
+
+class SerializationTensorIteratorTest : public ::testing::Test {
+protected:
+    std::string test_name =
+        ::testing::UnitTest::GetInstance()->current_test_info()->name();
+    std::string m_out_xml_path = test_name + ".xml";
+    std::string m_out_bin_path = test_name + ".bin";
+
+    std::string tmpXmlFileName = "TestModel.xml";
+    std::string tmpBinFileName = "TestModel.bin";
+
+    void TearDown() override {
+        std::remove(m_out_xml_path.c_str());
+        std::remove(m_out_bin_path.c_str());
+        std::remove(tmpXmlFileName.c_str());
+        std::remove(tmpBinFileName.c_str());
+    }
+
+    void createTemporalModelFile(std::string xmlFileContent,
+                                 std::vector<unsigned char> binFileContent = std::vector<unsigned char>()) {
+        ASSERT_TRUE(xmlFileContent.size() > 0);
+
+        {
+            std::ofstream xmlFile;
+            xmlFile.open(tmpXmlFileName);
+            xmlFile << xmlFileContent;
+            xmlFile.close();
+        }
+
+        if (binFileContent.size() > 0) {
+            std::ofstream binFile;
+            binFile.open(tmpBinFileName, std::ios::binary);
+            binFile.write((const char*)binFileContent.data(), binFileContent.size());
+            binFile.close();
+        }
+    }
+
+    void serialize_and_compare(const std::string& model_path, InferenceEngine::Blob::Ptr weights) {
+        std::stringstream buffer;
+        InferenceEngine::Core ie;
+
+        std::ifstream model(model_path);
+        ASSERT_TRUE(model);
+        buffer << model.rdbuf();
+
+        auto expected = ie.ReadNetwork(buffer.str(), weights);
+        expected.serialize(m_out_xml_path, m_out_bin_path);
+        auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
+
+        bool success;
+        std::string message;
+        std::tie(success, message) = compare_functions(result.getFunction(), expected.getFunction(), true, false, false, true, true);
+        ASSERT_TRUE(success) << message;
+    }
+};
+
+TEST_F(SerializationTensorIteratorTest, TiResnet) {
+        std::string xmlModel = R"V0G0N(
 <net name="Resnet" version="10">
     <layers>
         <layer id="0" name="data1" type="Parameter" version="opset1">
@@ -303,3 +373,32 @@
         <edge from-layer="3" from-port="5" to-layer="6" to-port="0"/>
     </edges>
 </net>
+)V0G0N";
+
+
+    std::vector<unsigned char> buffer(8396840, 0);
+    int64_t* int64Buffer = reinterpret_cast<int64_t*>(buffer.data());
+    int64Buffer[0] = 1;
+    int64Buffer[1] = 512;
+    int64Buffer[1049602] = 1;
+    int64Buffer[1049603] = 1;
+    int64Buffer[1049604] = 512;
+
+    createTemporalModelFile(xmlModel, buffer);
+
+    size_t weights_size = 8396840;
+
+    auto weights = InferenceEngine::make_shared_blob<uint8_t>(
+            InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {weights_size}, InferenceEngine::Layout::C));
+    weights->allocate();
+    CommonTestUtils::fill_data(weights->buffer().as<float *>(), weights->size() / sizeof(float));
+
+    auto *data = weights->buffer().as<int64_t *>();
+    data[0] = 1;
+    data[1] = 512;
+    data[1049602] = 1;
+    data[1049603] = 1;
+    data[1049604] = 512;
+
+    serialize_and_compare(tmpXmlFileName, weights);
+}
