@@ -185,6 +185,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*(i32|i8).*)",
         // 94989. BF16 Reference produces different results.
         R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*gridPrc=bf16.*)",
+        // failed due to accuracy mismatch
         R"(.*dynamic.*RNNSequenceCPUTest.*seqMode=PURE_SEQ_activations=.*relu.*_clip=0_direction=forward_netPrec=f32__inFmts=ncw.ntc_outFmts=ncw.*ncw_primitive=ref_any.*)",
     };
 
