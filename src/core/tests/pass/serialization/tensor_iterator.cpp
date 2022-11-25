@@ -10,7 +10,6 @@
 #include "gtest/gtest.h"
 #include "ie_blob.h"
 #include "ie_core.hpp"
-#include "pugixml.hpp"
 
 class SerializationTensorIteratorTest : public ::testing::Test {
 protected:
