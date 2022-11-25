@@ -6,6 +6,10 @@
 #pragma OPENCL EXTENSION cl_khr_fp16 : enable
 #endif
 
+#if !defined(cl_intel_subgroups) && defined(cl_khr_subgroups)
+#pragma OPENCL EXTENSION cl_khr_subgroups : enable
+#endif
+
 #define __CAT(x, y) x##y
 #define CAT(x, y) __CAT(x, y)
 
@@ -49,3 +53,9 @@
 #define TYPE_SIZE_uint   4
 #define TYPE_SIZE_float  4
 #define TYPE_SIZE(type) CAT(TYPE_SIZE_, type)
+
+#ifdef cl_intel_required_subgroup_size
+#define REQD_SUB_GROUP_SIZE(sg_size) __attribute__((intel_reqd_sub_group_size(sg_size)))
+#else
+#define REQD_SUB_GROUP_SIZE(sg_size)
+#endif

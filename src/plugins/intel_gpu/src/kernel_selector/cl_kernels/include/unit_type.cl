@@ -3,7 +3,6 @@
 //
 
 #include "common.cl"
-#include "data_types.cl"
 
 #ifndef UNIT_TYPE
 #error Unit type not defined.
