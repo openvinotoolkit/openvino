@@ -115,8 +115,19 @@ void InputModel::InputModelTFImpl::loadPlaces() {
         m_op_places.push_back(op_place);
         m_op_places_map[op_name] = op_place;
         if (op_type == "Placeholder") {
-            auto pshape = node_decoder->get_attribute("shape").as<ov::PartialShape>();
-            auto type = node_decoder->get_attribute("dtype").as<ov::element::Type>();
+            auto pshape = ov::PartialShape::dynamic();
+            auto shape_any = node_decoder->get_attribute("shape");
+            if (shape_any.is<ov::PartialShape>()) {
+                // sometimes shape attribute can be absent in the graph
+                // so we need to check if Any object is initialized first
+                pshape = shape_any.as<ov::PartialShape>();
+            }
+            auto dtype_any = node_decoder->get_attribute("dtype");
+            auto placeholder_name = node_decoder->get_op_name();
+            FRONT_END_GENERAL_CHECK(
+                dtype_any.is<ov::element::Type>(),
+                "Incorrect input model: Placeholder node " + placeholder_name + " has unspecified type.");
+            auto type = dtype_any.as<ov::element::Type>();
             std::vector<std::string> names = {op_name};
             auto tensor_place = std::make_shared<TensorPlace>(m_input_model, pshape, type, names);
             m_tensor_places[op_name] = tensor_place;
