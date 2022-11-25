@@ -4,18 +4,17 @@
 
 #include <fstream>
 
+#include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
-#include "ie_core.hpp"
 #include "ie_blob.h"
-#include "common_test_utils/data_utils.hpp"
+#include "ie_core.hpp"
 #include "pugixml.hpp"
 
 class SerializationTensorIteratorTest : public ::testing::Test {
 protected:
-    std::string test_name =
-        ::testing::UnitTest::GetInstance()->current_test_info()->name();
+    std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
     std::string m_out_xml_path = test_name + ".xml";
     std::string m_out_bin_path = test_name + ".bin";
 
@@ -62,13 +61,14 @@ protected:
 
         bool success;
         std::string message;
-        std::tie(success, message) = compare_functions(result.getFunction(), expected.getFunction(), true, false, false, true, true);
+        std::tie(success, message) =
+            compare_functions(result.getFunction(), expected.getFunction(), true, false, false, true, true);
         ASSERT_TRUE(success) << message;
     }
 };
 
 TEST_F(SerializationTensorIteratorTest, TiResnet) {
-        std::string xmlModel = R"V0G0N(
+    std::string xmlModel = R"V0G0N(
 <net name="Resnet" version="10">
     <layers>
         <layer id="0" name="data1" type="Parameter" version="opset1">
@@ -375,7 +375,6 @@ TEST_F(SerializationTensorIteratorTest, TiResnet) {
 </net>
 )V0G0N";
 
-
     std::vector<unsigned char> buffer(8396840, 0);
     int64_t* int64Buffer = reinterpret_cast<int64_t*>(buffer.data());
     int64Buffer[0] = 1;
@@ -389,11 +388,11 @@ TEST_F(SerializationTensorIteratorTest, TiResnet) {
     size_t weights_size = 8396840;
 
     auto weights = InferenceEngine::make_shared_blob<uint8_t>(
-            InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {weights_size}, InferenceEngine::Layout::C));
+        InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {weights_size}, InferenceEngine::Layout::C));
     weights->allocate();
-    CommonTestUtils::fill_data(weights->buffer().as<float *>(), weights->size() / sizeof(float));
+    CommonTestUtils::fill_data(weights->buffer().as<float*>(), weights->size() / sizeof(float));
 
-    auto *data = weights->buffer().as<int64_t *>();
+    auto* data = weights->buffer().as<int64_t*>();
     data[0] = 1;
     data[1] = 512;
     data[1049602] = 1;

@@ -3,8 +3,8 @@
 //
 
 #include <gtest/gtest.h>
-
 #include <ie_iextension.h>
+
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "openvino/runtime/core.hpp"
@@ -99,17 +99,18 @@ TEST_F(CustomOpsSerializationTest, CustomOpNoExtensions) {
     ov::Core core;
     auto extension = std::make_shared<FrameworkNodeExtension>();
     core.add_extension(extension);
-    auto expected = core.read_model(model , ov::Tensor());
+    auto expected = core.read_model(model, ov::Tensor());
     ov::pass::Manager manager;
-    manager.register_pass<ov::pass::Serialize>(
-        m_out_xml_path, m_out_bin_path, extension->getOpSets(), ov::pass::Serialize::Version::IR_V10);
+    manager.register_pass<ov::pass::Serialize>(m_out_xml_path,
+                                               m_out_bin_path,
+                                               extension->getOpSets(),
+                                               ov::pass::Serialize::Version::IR_V10);
     manager.run_passes(expected);
     auto result = core.read_model(m_out_xml_path, m_out_bin_path);
 
     bool success;
     std::string message;
-    std::tie(success, message) =
-        compare_functions(result, expected, true, false, false, true, true);
+    std::tie(success, message) = compare_functions(result, expected, true, false, false, true, true);
 
     ASSERT_TRUE(success) << message;
 }

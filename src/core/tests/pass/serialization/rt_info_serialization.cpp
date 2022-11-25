@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common_test_utils/file_utils.hpp>
 #include <gtest/gtest.h>
 
+#include <common_test_utils/file_utils.hpp>
+
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "transformations/serialize.hpp"
+#include "openvino/frontend/manager.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "transformations/rt_info/attributes.hpp"
-#include "openvino/frontend/manager.hpp"
-
+#include "transformations/serialize.hpp"
 
 class RTInfoSerializationTest : public CommonTestUtils::TestsCommon {
 protected:
@@ -22,8 +22,7 @@ protected:
         CommonTestUtils::removeIRFiles(m_out_xml_path, m_out_bin_path);
     }
 
-    std::shared_ptr<ov::Model> getWithIRFrontend(const std::string& model_path,
-                                                        const std::string& weights_path) {
+    std::shared_ptr<ov::Model> getWithIRFrontend(const std::string& model_path, const std::string& weights_path) {
         ov::frontend::FrontEnd::Ptr FE;
         ov::frontend::InputModel::Ptr inputModel;
 
@@ -44,7 +43,7 @@ private:
 };
 
 TEST_F(RTInfoSerializationTest, all_attributes_latest) {
-    auto init_info = [](ov::RTMap & info) {
+    auto init_info = [](ov::RTMap& info) {
         info[ov::FusedNames::get_type_info_static()] = ov::FusedNames("add");
         info[ov::PrimitivesPriority::get_type_info_static()] = ov::PrimitivesPriority("priority");
         info[ov::OldApiMapOrder::get_type_info_static()] = ov::OldApiMapOrder(std::vector<uint64_t>{0, 2, 3, 1});
@@ -73,23 +72,23 @@ TEST_F(RTInfoSerializationTest, all_attributes_latest) {
     auto f = getWithIRFrontend(m_out_xml_path, m_out_bin_path);
     ASSERT_NE(nullptr, f);
 
-    auto check_info = [](const ov::RTMap & info) {
-        const std::string & key = ov::FusedNames::get_type_info_static();
+    auto check_info = [](const ov::RTMap& info) {
+        const std::string& key = ov::FusedNames::get_type_info_static();
         ASSERT_TRUE(info.count(key));
         auto fused_names_attr = info.at(key).as<ov::FusedNames>();
         ASSERT_EQ(fused_names_attr.getNames(), "add");
 
-        const std::string & pkey = ov::PrimitivesPriority::get_type_info_static();
+        const std::string& pkey = ov::PrimitivesPriority::get_type_info_static();
         ASSERT_TRUE(info.count(pkey));
         auto primitives_priority_attr = info.at(pkey).as<ov::PrimitivesPriority>().value;
         ASSERT_EQ(primitives_priority_attr, "priority");
 
-        const std::string & old_api_map_key_order = ov::OldApiMapOrder::get_type_info_static();
+        const std::string& old_api_map_key_order = ov::OldApiMapOrder::get_type_info_static();
         ASSERT_TRUE(info.count(old_api_map_key_order));
         auto old_api_map_attr_val = info.at(old_api_map_key_order).as<ov::OldApiMapOrder>().value;
         ASSERT_EQ(old_api_map_attr_val, std::vector<uint64_t>({0, 2, 3, 1}));
 
-        const std::string & old_api_map_key = ov::OldApiMapElementType::get_type_info_static();
+        const std::string& old_api_map_key = ov::OldApiMapElementType::get_type_info_static();
         ASSERT_TRUE(info.count(old_api_map_key));
         auto old_api_map_type_val = info.at(old_api_map_key).as<ov::OldApiMapElementType>().value;
         ASSERT_EQ(old_api_map_type_val, ov::element::Type_t::f32);
@@ -109,7 +108,7 @@ TEST_F(RTInfoSerializationTest, all_attributes_latest) {
 }
 
 TEST_F(RTInfoSerializationTest, all_attributes_v10) {
-    auto init_info = [](ov::RTMap & info) {
+    auto init_info = [](ov::RTMap& info) {
         info[ov::FusedNames::get_type_info_static()] = ov::FusedNames("add");
         info["PrimitivesPriority"] = ov::PrimitivesPriority("priority");
     };
@@ -133,8 +132,8 @@ TEST_F(RTInfoSerializationTest, all_attributes_v10) {
     auto f = getWithIRFrontend(m_out_xml_path, m_out_bin_path);
     ASSERT_NE(nullptr, f);
 
-    auto check_info = [](const ov::RTMap & info) {
-        const std::string & key = ov::FusedNames::get_type_info_static();
+    auto check_info = [](const ov::RTMap& info) {
+        const std::string& key = ov::FusedNames::get_type_info_static();
         ASSERT_FALSE(info.count(key));
     };
 
