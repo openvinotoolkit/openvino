@@ -143,7 +143,7 @@ void concat_input_order::run(program& p) {
         std::vector<tensor::value_type> feature_sizes;
         feature_sizes.reserve(inputs_count);
         for (size_t input_idx = 0; input_idx < inputs_count; ++input_idx) {
-            auto& dep = *concat_node.get_dependency(input_idx).first;
+            auto& dep = concat_node.get_dependency(input_idx);
             auto dep_layout = dep.get_output_layout();
             single_format &= dep_layout.format == out_format;
             feature_sizes.push_back(dep_layout.feature());
@@ -193,7 +193,7 @@ void concat_input_order::run(program& p) {
         std::vector<std::pair<program_node*, int32_t>> new_dependencies = {};
         new_dependencies.reserve(inputs_count);
         for (auto& ord : new_order) {
-            new_dependencies.push_back({concat_node.get_dependency(ord).first, concat_node.get_dependency(ord).second});
+            new_dependencies.push_back({concat_node.get_dependency_with_port(ord).first, concat_node.get_dependency_with_port(ord).second});
         }
         // Update in place with const cast instead of replacing
         auto& dependencies = concat_node.get_dependencies();

@@ -18,24 +18,24 @@ public:
     using parent::parent;
 
     program_node& input() const {
-        return *get_dependency(0).first;
+        return get_dependency(0);
     }
 
     program_node& deltas() const {
-        return *get_dependency(1).first;
+        return get_dependency(1);
     }
     program_node& scores() const {
-        return *get_dependency(2).first;
+        return get_dependency(2);
     }
     program_node& image_size_info() const {
-        return *get_dependency(3).first;
+        return get_dependency(3);
     }
 
     program_node& output_classes_node() const {
-        return *get_dependency(4).first;
+        return get_dependency(4);
     }
     program_node& output_scores_node() const {
-        return *get_dependency(5).first;
+        return get_dependency(5);
     }
 };
 

@@ -105,7 +105,7 @@ struct resample : public primitive_base<resample> {
              InterpolateOp::CoordinateTransformMode ctm = InterpolateOp::CoordinateTransformMode::HALF_PIXEL,
              InterpolateOp::NearestMode nm = InterpolateOp::NearestMode::ROUND_PREFER_FLOOR,
              const padding& output_padding = padding())
-        : primitive_base(id, {input, sizes_id, scales_id}, output_padding),
+        : primitive_base(id, {input, sizes_id, scales_id}, {output_padding}),
           output_size(tensor()),
           num_filter(0),
           sizes({}),

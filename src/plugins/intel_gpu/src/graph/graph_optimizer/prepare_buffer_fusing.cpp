@@ -75,7 +75,7 @@ bool concat_noop_optimization::match(concatenation_node& node) {
 }
 
 bool concat_noop_optimization::optimize(concatenation_node& node) {
-    auto& dep = *node.get_dependency(0).first;
+    auto& dep = node.get_dependency(0);
     auto outputPadding = node.get_output_layout().data_padding;
     dep.merge_output_padding(outputPadding);
     prog.extract_and_remove(node);
@@ -104,7 +104,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
             }
 
             // Optimized-out input node is no longer onednn impl.
-            if (!input->can_be_optimized())
+            if (!input.first->can_be_optimized())
                 is_onednn_impl = true;
         }
     }
@@ -176,7 +176,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
 
     auto lower_padd_in_axis = node.get_output_layout().data_padding.lower_size().sizes(def_fmt)[concat_axis];
     lower_padd_in_axis = std::max(lower_padd_in_axis,
-                                  node.get_dependency(0).first->get_output_layout().data_padding.lower_size().sizes(def_fmt)[concat_axis]);
+                                  node.get_dependency(0).get_output_layout().data_padding.lower_size().sizes(def_fmt)[concat_axis]);
 
     // check if concatenation in place can be applied for inputs set
     idx = 0;
@@ -370,7 +370,7 @@ void prepare_buffer_fusing::run(program& p) {
             }
 
             if (node.get_dependencies().size() == 1 && node.get_users().size() > 0) {
-                if (p.is_loop_body() && node.get_dependency(0).first->is_type<lstm_elt>()) {
+                if (p.is_loop_body() && node.get_dependency(0).is_type<lstm_elt>()) {
                     return;
                 }
                 // optimization is available for cropping across depth(features) only
@@ -379,7 +379,7 @@ void prepare_buffer_fusing::run(program& p) {
                 const auto& crop_layout = node.get_output_layout();
                 auto format = crop_layout.format;
                 auto crop_prim = node.get_primitive();
-                auto input_layout = node.get_dependency(0).first->get_output_layout();
+                auto input_layout = node.get_dependency(0).get_output_layout();
                 const auto& crop_size = crop_layout.get_tensor();
                 const auto& out_padd = crop_layout.data_padding;
                 const auto opt_lower_pad = crop_prim->offsets.feature[0];

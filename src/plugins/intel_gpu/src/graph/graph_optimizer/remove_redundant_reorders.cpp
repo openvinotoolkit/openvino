@@ -143,7 +143,7 @@ void remove_redundant_reorders::run(program& p) {
             continue;
 
         auto& r_node = node->as<reorder>();
-        auto& dep_node = *r_node.get_dependency(0).first;
+        auto& dep_node = r_node.get_dependency(0);
 
         if (!dep_node.is_type<reorder>())
             continue;
@@ -254,8 +254,8 @@ void remove_redundant_reorders::run(program& p) {
         auto& r_node = node->as<reorder>();
 
         bool no_output_optimization = remove_output_reorders ?
-            r_node.is_output() && (r_node.get_dependency(0).first->is_output() || r_node.get_dependency(0).first->is_type<input_layout>() ||
-                r_node.get_dependency(0).first->can_be_optimized() || r_node.get_dependency(0).first->get_users().size() != 1) : r_node.is_output();
+            r_node.is_output() && (r_node.get_dependency(0).is_output() || r_node.get_dependency(0).is_type<input_layout>() ||
+                r_node.get_dependency(0).can_be_optimized() || r_node.get_dependency(0).get_users().size() != 1) : r_node.is_output();
 
         if (r_node.has_mean() ||
             !r_node.get_primitive()->subtract_per_feature.empty() ||
@@ -265,7 +265,7 @@ void remove_redundant_reorders::run(program& p) {
             continue;
 
         auto o_layout = r_node.get_output_layout();
-        auto i_layout = r_node.get_dependency(0).first->get_output_layout();
+        auto i_layout = r_node.get_dependency(0).get_output_layout();
 
         // Optimize reorder b_fs_yx_fsv16 -> bfyx when spatials are equal to 1. In this case we can reinterpret buffer,
         // but pads need to be handled correctly.
@@ -308,7 +308,7 @@ void remove_redundant_reorders::run(program& p) {
             if (r_node.is_output()) {
                 // if removed reorder is output, we need to add it's dependency id to the optimized primitives list,
                 // because it's name will be changed after extract_and_remove call
-                p.add_optimized_primitive_info(r_node.get_dependency(0).first->get_primitive()->id, {r_node.get_primitive()->id});
+                p.add_optimized_primitive_info(r_node.get_dependency(0).get_primitive()->id, {r_node.get_primitive()->id});
             } else {
                 p.add_optimized_primitive_info(r_node.get_primitive()->id);
             }
@@ -331,7 +331,7 @@ void remove_redundant_reorders::run(program& p) {
         if (node->get_dependencies().size() != 1)
             continue;
 
-        auto& dep = *node->get_dependency(0).first;
+        auto& dep = node->get_dependency(0);
 
         for (auto& user : dep.get_users()) {
             if (user->is_type<reorder>() &&
@@ -423,7 +423,7 @@ void remove_redundant_reorders::run(program& p) {
         auto prim_desc = node.get_primitive();
 
         auto& usr = node_ptr->get_users().front();
-        auto& dep = *node_ptr->get_dependency(0).first;
+        auto& dep = node_ptr->get_dependency(0);
 
         auto quantize_opt = usr->is_type<quantize>() &&
                             (dep.get_output_layout().format == format::b_fs_yx_fsv16 ||
@@ -454,7 +454,7 @@ void remove_redundant_reorders::run(program& p) {
             return false;
 
         auto& usr = node->get_users().front();
-        auto& dep = *node->get_dependency(0).first;
+        auto& dep = node->get_dependency(0);
         auto  dep_layout = dep.get_output_layout();
 
         if (!(usr->is_type<convolution>()) ||
@@ -502,7 +502,7 @@ void remove_redundant_reorders::run(program& p) {
         if (input.get_users().size() != 1)
             return false;
 
-        auto& input_dep = *input.get_dependency(0).first;
+        auto& input_dep = input.get_dependency(0);
         if (input_dep.get_output_layout().format != format::b_fs_yx_fsv16 ||
             input_dep.get_output_layout().data_type == data_types::u8 ||
             input_dep.get_output_layout().data_type == data_types::i8)
@@ -527,7 +527,7 @@ void remove_redundant_reorders::run(program& p) {
 
             // Add fused_primitive_desc of reorder to convolution which propagate original output layout to jitter
             fused_primitive_desc local_desc(node->get_primitive());
-            local_desc.input_layout = input.get_dependency(0).first->get_output_layout();  // original convolution's output layout
+            local_desc.input_layout = input.get_dependency(0).get_output_layout();  // original convolution's output layout
             node->set_input_layout(local_desc.input_layout);
             local_desc.f_param = node->get_fuse_params();
             local_desc.dep_start_idx = input.get_fused_primitives().size();
@@ -590,7 +590,7 @@ void remove_redundant_reorders::run(program& p) {
             continue;
 
         auto& reshape_node = node->as<reshape>();
-        auto& dep_node = *reshape_node.get_dependency(0).first;
+        auto& dep_node = reshape_node.get_dependency(0);
 
         if (!dep_node.is_type<reshape>())
             continue;
@@ -600,7 +600,7 @@ void remove_redundant_reorders::run(program& p) {
         bool remove_dep = reshape_input_node.get_users().size() == 1 && !reshape_input_node.is_output() &&
                           reshape_input_node.get_fused_activations_funcs().empty() && reshape_input_node.get_fused_primitives().empty();
         bool remove_current = remove_dep && !reshape_input_node.get_dependencies().empty() &&
-                              reshape_input_node.get_dependency(0).first->get_output_layout() == reshape_node.get_output_layout() &&
+                              reshape_input_node.get_dependency(0).get_output_layout() == reshape_node.get_output_layout() &&
                               reshape_node.get_fused_activations_funcs().empty() && reshape_node.get_fused_primitives().empty();
 
         if (remove_dep) {
@@ -620,7 +620,7 @@ void remove_redundant_reorders::run(program& p) {
 
     for (auto n : p.get_processing_order()) {
         if (n->is_in_data_flow() && n->is_type<reorder>()) {
-            auto preferred_impl = lo.get_preferred_impl_type(*n, n->get_dependency(0).first->get_output_layout().format);
+            auto preferred_impl = lo.get_preferred_impl_type(*n, n->get_dependency(0).get_output_layout().format);
             n->set_preferred_impl_type(preferred_impl);
         }
 

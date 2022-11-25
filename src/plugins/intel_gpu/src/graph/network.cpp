@@ -493,7 +493,7 @@ void network::save(cldnn::BinaryOutputBuffer& ob) {
                     if (fusing_type != add_fusing_type::sum || eltw_dep != 0)
                         continue;
                     eltw_dep = fused_op.dep_start_idx;
-                    auto& eltw_in = *node->get_dependency(eltw_dep).first;
+                    auto& eltw_in = node->get_dependency(eltw_dep);
                     if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node->id()) != _primitives.end()) {
                         reuse_map[node->id()] = eltw_in.id();
                     }
@@ -793,7 +793,7 @@ void network::allocate_primitives() {
                     if (fusing_type != add_fusing_type::sum || eltw_dep != 0)
                         continue;
                     eltw_dep = fused_op.dep_start_idx;
-                    auto& eltw_in = *node->get_dependency(eltw_dep).first;
+                    auto& eltw_in = node->get_dependency(eltw_dep);
                     if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node->id()) != _primitives.end()) {
                         auto& eltw_inst = _primitives.at(eltw_in.id());
                         auto& prim_inst = _primitives.at(node->id());

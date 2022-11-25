@@ -126,7 +126,8 @@ public:
     impl_types get_preferred_impl_type() const { return impl_type; }
 
     std::vector<std::pair<program_node*, int32_t>> const& get_dependencies() const { return dependencies; }
-    std::pair<program_node*, int32_t> get_dependency(size_t idx) const { return dependencies.at(idx); }
+    program_node& get_dependency(size_t idx) const { return *dependencies.at(idx).first; }
+    std::pair<program_node*, int32_t> get_dependency_with_port(size_t idx) const { return dependencies.at(idx); }
 
     std::vector<layout> const get_input_layouts() const {
         std::vector<layout> layouts;
@@ -508,7 +509,7 @@ template <class PType>
 struct typed_program_node : public typed_program_node_base<PType> {
     using typed_program_node_base<PType>::typed_program_node_base;
 
-    program_node& input(size_t index = 0) const { return *program_node::get_dependency(index).first; }
+    program_node& input(size_t index = 0) const { return program_node::get_dependency(index); }
 };
 
 }  // namespace cldnn

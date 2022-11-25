@@ -38,20 +38,20 @@ public:
     void set_groups(uint32_t node_groups) { groups = node_groups; }
     uint32_t get_groups() const { return groups; }
 
-    program_node& input() const { return *get_dependency(0).first; }
+    program_node& input() const { return get_dependency(0); }
 
     program_node& weights(size_t idx = 0) const {
         if (static_cast<int32_t>(idx) >= this->get_split())
             throw std::range_error("weights offset too big");
 
-        return *get_dependency(1 + idx).first;
+        return get_dependency(1 + idx);
     }
 
     program_node& bias(size_t idx = 0) const {
         if (static_cast<int32_t>(idx) >= this->get_split())
             throw std::range_error("bias offset too big");
 
-        return *get_dependency(1 + this->get_split() + idx).first;
+        return get_dependency(1 + this->get_split() + idx);
     }
 
     bool bias_term() const { return get_primitive()->bias.size() > 0; }
@@ -141,9 +141,9 @@ public:
     void set_deformable_groups(uint32_t node_deformable_groups) { deformable_groups = node_deformable_groups; }
     uint32_t get_deformable_groups() const { return deformable_groups; }
 
-    program_node& input() const { return *get_dependency(0).first; }
-    program_node& trans() const { return *get_dependency(1).first; }
-    program_node& mask() const { return *get_dependency(2).first; }
+    program_node& input() const { return get_dependency(0); }
+    program_node& trans() const { return get_dependency(1); }
+    program_node& mask() const { return get_dependency(2); }
 
 private:
     int32_t split;

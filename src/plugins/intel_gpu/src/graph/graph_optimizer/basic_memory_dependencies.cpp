@@ -48,7 +48,7 @@ void basic_memory_dependencies::run(program& p) {
                         continue;
 
                     eltw_dep = fused_op.dep_start_idx;
-                    auto& eltw_node = *node->get_dependency(eltw_dep).first;
+                    auto& eltw_node = node->get_dependency(eltw_dep);
                     eltw_node.can_share_buffer(false);
                     node->can_share_buffer(false);
                     for (auto& user : node->get_users()) {

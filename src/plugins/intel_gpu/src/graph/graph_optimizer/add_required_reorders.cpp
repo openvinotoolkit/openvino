@@ -77,7 +77,7 @@ void add_required_reorders::run(program& p) {
                 if (dep_id >= usr->get_dependencies().size())
                     continue;
 
-                auto& dep = *usr->get_dependency(dep_id).first;
+                auto& dep = usr->get_dependency(dep_id);
                 if (!dep.is_type<data>())
                     continue;
 
@@ -102,7 +102,7 @@ void add_required_reorders::run(program& p) {
             } else {
                 // oneDNN doesn't support padded memory, so add reorder directly if needed
                 for (size_t i = 0; i < usr->get_dependencies().size(); i++) {
-                    auto& input = *usr->get_dependency(i).first;
+                    auto& input = usr->get_dependency(i);
                     if (!input.is_in_data_flow() || input.is_constant())
                         continue;
 

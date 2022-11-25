@@ -214,7 +214,7 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
             // primitive_id lstm_gemm_input_id = node->get_dependency(input_idx).get_primitive()->id;
             // the line below requires an attention: get_org_primitive_id() might not be an actual id of a node
             // (see rename method) ToDO: ensure that get_org_primitive_id() is suitable here
-            primitive_id lstm_gemm_input_id = node.get_dependency(input_idx).first->get_org_primitive_id();
+            primitive_id lstm_gemm_input_id = node.get_dependency(input_idx).get_org_primitive_id();
 
             auto lstm_gemm_node = std::make_shared<lstm_gemm>(lstm_gemm_id,
                                                               lstm_gemm_input_id,
@@ -239,7 +239,7 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
             p.add_connection(n1, n2);
             // adding dependecy to lstm_gemm node
             // input
-            p.add_connection(*node.get_dependency(input_idx).first, n1);
+            p.add_connection(node.get_dependency(input_idx), n1);
             // adding weights and initial values to lstm_gemm
             p.add_connection(p.get_node(weights_id), n1);
             p.add_connection(p.get_node(recurrent_id), n1);

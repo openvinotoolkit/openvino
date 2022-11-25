@@ -50,7 +50,7 @@ void eltwise_shrinking::run(program& p) {
                     }
 
                     // Check that eltwise is not an input of operation fused to convolution
-                    if (user->get_dependency(0).first->id() != eltw->id) {
+                    if (user->get_dependency(0).id() != eltw->id) {
                         can_shrink = false;
                         break;
                     }
@@ -87,11 +87,11 @@ void eltwise_shrinking::run(program& p) {
                         auto dep_stride_x = stride_x;
                         auto dep_stride_y = stride_y;
                         // don't shrink if input is broadcasted
-                        if (node->get_dependency(dep).first->get_output_layout().spatial(0) == 1) {
+                        if (node->get_dependency(dep).get_output_layout().spatial(0) == 1) {
                             dep_stride_x = 1;
                         }
 
-                        if (node->get_dependency(dep).first->get_output_layout().spatial(1) == 1) {
+                        if (node->get_dependency(dep).get_output_layout().spatial(1) == 1) {
                             dep_stride_y = 1;
                         }
 

@@ -38,7 +38,7 @@ void pre_replace_deconv::run(program& p) {
             auto filter_layout = weights_node.get_output_layout().convert_to_weights_layout(deconv_prim->grouped_weights_shape);
             auto weights_nodes_id = deconv_prim->weights;
             auto biases_nodes_id = deconv_prim->bias;
-            auto& input_node = *deconv_node.get_dependency(0).first;
+            auto& input_node = deconv_node.get_dependency(0);
             const primitive_id deconv_node_id = deconv_node.id();
             const primitive_id& input_node_id = input_node.id();
 

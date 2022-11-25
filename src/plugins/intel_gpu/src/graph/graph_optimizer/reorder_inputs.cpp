@@ -752,7 +752,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             auto detection_output_prim = detection_output_node.get_primitive();
 
             for (size_t i = 0; i < detection_output_node.get_dependencies().size(); i++) {
-                auto& input = *detection_output_node.get_dependency(i).first;
+                auto& input = detection_output_node.get_dependency(i);
                 auto new_input = rf.get_reorder(input.id(),
                                                 input.get_output_layout(),
                                                 layout{ data_types::f32, format::bfyx, input.get_output_layout().get_tensor() });
@@ -867,7 +867,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                 [&](const program_node& p_node, const fused_primitive_desc& desc) {
                     auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(p_node, desc);
                     if (fusing_type == add_fusing_type::binary_per_tensor) {
-                        auto& dep_node = *p_node.get_dependency(desc.dep_start_idx).first;
+                        auto& dep_node = p_node.get_dependency(desc.dep_start_idx);
                         auto d_layout = dep_node.get_output_layout();
                         auto d_format = d_layout.format;
                         auto expected_format = format::any;
@@ -891,7 +891,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                             if (new_input.first) {
                                 p.add_intermediate(new_input.first, conv_node, desc.dep_start_idx, !new_input.second);
                             }
-                            conv_node.get_dependency(desc.dep_start_idx).first->set_output_layout(new_layout, false);
+                            conv_node.get_dependency(desc.dep_start_idx).set_output_layout(new_layout, false);
                         }
                     }
                 });
@@ -970,13 +970,13 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                     !activation_desc->additional_params_input.empty()) {
                     const auto expected_dt = data_types::f32;
                     const auto dep_idx = fused_desc.dep_start_idx;
-                    const auto orig_layout = node->get_dependency(dep_idx).first->get_output_layout();
+                    const auto orig_layout = node->get_dependency(dep_idx).get_output_layout();
                     if (orig_layout.data_type == expected_dt)
                         continue;
 
                     auto new_layout = orig_layout;
                     new_layout.data_type = expected_dt;
-                    auto new_input = rf.get_reorder(node->get_dependency(dep_idx).first->id(), orig_layout, new_layout);
+                    auto new_input = rf.get_reorder(node->get_dependency(dep_idx).id(), orig_layout, new_layout);
                     if (new_input.first)
                         p.add_intermediate(new_input.first, *node, dep_idx, !new_input.second);
                 }

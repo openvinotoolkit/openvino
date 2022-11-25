@@ -17,14 +17,14 @@ struct typed_program_node<generate_proposals>
 public:
     using parent::parent;
 
-    program_node& input() const { return *get_dependency(0).first; }
+    program_node& input() const { return get_dependency(0); }
 
-    program_node& anchors() const { return *get_dependency(1).first; }
-    program_node& deltas() const { return *get_dependency(2).first; }
-    program_node& scores() const { return *get_dependency(3).first; }
+    program_node& anchors() const { return get_dependency(1); }
+    program_node& deltas() const { return get_dependency(2); }
+    program_node& scores() const { return get_dependency(3); }
 
-    program_node& output_rois_scores_node() const { return *get_dependency(4).first; }
-    program_node& output_rois_nums_node() const { return *get_dependency(5).first; }
+    program_node& output_rois_scores_node() const { return get_dependency(4); }
+    program_node& output_rois_nums_node() const { return get_dependency(5); }
 };
 
 using generate_proposals_node = typed_program_node<generate_proposals>;

@@ -28,7 +28,7 @@ struct typed_program_node<gather_elements> : public typed_program_node_base<gath
 public:
     using parent::parent;
 
-    program_node& input(size_t index = 0) const { return *get_dependency(index).first; }
+    program_node& input(size_t index = 0) const { return get_dependency(index); }
     std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 };
 

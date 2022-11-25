@@ -23,10 +23,10 @@ std::string slice_inst::to_string(slice_node const& node) {
     auto node_info = node.desc_to_json();
     json_composite slice_info;
     slice_info.add("input id", node.input().id());
-    slice_info.add("begin_param id", node.get_dependency(1).first->id());
-    slice_info.add("end_param id", node.get_dependency(2).first->id());
-    slice_info.add("step_param id", node.get_dependency(3).first->id());
-    slice_info.add("axis_param id", node.get_dependency(4).first->id());
+    slice_info.add("begin_param id", node.get_dependency(1).id());
+    slice_info.add("end_param id", node.get_dependency(2).id());
+    slice_info.add("step_param id", node.get_dependency(3).id());
+    slice_info.add("axis_param id", node.get_dependency(4).id());
     node_info->add("slice info", slice_info);
     std::stringstream primitive_description;
     node_info->dump(primitive_description);

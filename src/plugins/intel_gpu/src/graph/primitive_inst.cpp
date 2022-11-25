@@ -178,7 +178,7 @@ void primitive_inst::update_shape() {
     bool strided_slice_wa = false;
     if (_node->is_type<strided_slice>()) {
         for (size_t i = 1; i < _node->get_dependencies().size(); i++) {
-            if (!_node->get_dependency(i).first->is_type<data>())
+            if (!_node->get_dependency(i).is_type<data>())
                 strided_slice_wa = true;
         }
     }
@@ -194,7 +194,7 @@ void primitive_inst::update_shape() {
         if (memory_deps.count(i) > 0 || i >= _node->get_dependencies().size()) {
             continue;
         }
-        auto& dep = *_node->get_dependency(i).first;
+        auto& dep = _node->get_dependency(i);
         auto dep_id = dep.id();
         // Events may be not created for in-order queue, so take them for OOO queue only
         if (_network.has_event(dep.id()) && queue_type == queue_types::out_of_order) {
@@ -325,7 +325,7 @@ void primitive_inst::update_impl() {
         mem_lock<int32_t> lock(_shape_info_memory, _network.get_stream());
         size_t offset = 0;
         for (size_t i = 0; i < _node->get_dependencies().size(); i++) {
-            if (_node->get_dependency(i).first->get_output_layout().is_dynamic()) {
+            if (_node->get_dependency(i).get_output_layout().is_dynamic()) {
                 auto input_shape = extend_to_6d(params.get_input_layout(i).get_partial_shape());
                 for (size_t j = 0; j < input_shape.size(); j++)
                     lock[offset++] = static_cast<int32_t>(input_shape[j]);
@@ -920,7 +920,7 @@ std::string primitive_inst::generic_to_string(program_node const& node, const ch
     std::stringstream ss_inputs;
 
     for (size_t i = 0; i < node.get_dependencies().size(); ++i) {
-        auto& in = *node.get_dependency(i).first;
+        auto& in = node.get_dependency(i);
         ss_inputs << in.id();
         ss_inputs << ", count: " << in.get_output_layout().count();
         i != (node.get_dependencies().size() - 1) ? ss_inputs << ", " : ss_inputs << "";
@@ -987,7 +987,7 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                                      return pid == in.pid;
                                  }) == dep_ids.end()) {
                     size_t dep_id = fd.dep_start_idx;
-                    in = _node->get_dependency(dep_id).first->id();
+                    in = _node->get_dependency(dep_id).id();
                 }
             }
             t.add_primitive(prim);
@@ -1001,7 +1001,7 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                              [&](const primitive_id& pid) {
                                  return pid == in.pid;
                              }) == dep_ids.end()) {
-                in = _node->get_dependency(i).first->id();
+                in = _node->get_dependency(i).id();
             }
         }
         build_options bo;

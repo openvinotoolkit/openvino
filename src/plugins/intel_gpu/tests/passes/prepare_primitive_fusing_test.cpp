@@ -54,10 +54,10 @@ TEST(prepare_primitive_fusing, dont_fuse_incompatible_eltwise) {
     topology topology;
     topology.add(input_layout("input", in_layout));
     topology.add(data("const", const_mem));
-    topology.add(eltwise("eltw_pre", {"input", "const"}, eltwise_mode::sum));
-    topology.add(reduce("reduce", "eltw_pre", reduce_mode::max, {2}, true));
-    topology.add(eltwise("eltw", {"input", "reduce"}, eltwise_mode::sum));
-    topology.add(reorder("reorder", "eltw", format::bfyx, data_types::f32));
+    topology.add(eltwise("eltw_pre", { input_info("input"), input_info("const") }, eltwise_mode::sum));
+    topology.add(reduce("reduce", input_info("eltw_pre"), reduce_mode::max, {2}, true));
+    topology.add(eltwise("eltw", { input_info("input"), input_info("reduce") }, eltwise_mode::sum));
+    topology.add(reorder("reorder", input_info("eltw"), format::bfyx, data_types::f32));
 
     build_options build_opts;
     build_opts.set_option(build_option::allow_new_shape_infer(true));

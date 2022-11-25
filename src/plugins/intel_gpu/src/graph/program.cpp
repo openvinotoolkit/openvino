@@ -691,7 +691,7 @@ void program::mark_if_data_flow(program_node& node) {
         if (node.is_type<detection_output>() || node.is_type<proposal>())
             inputs_count = 2;  // ignore third input as it is related to prior boxes (i.e. concat of prior-boxes)
         for (size_t idx = 0; idx < inputs_count; idx++) {
-            if (node.get_dependency(idx).first->is_in_data_flow()) {
+            if (node.get_dependency(idx).is_in_data_flow()) {
                 node.data_flow = true;
                 return;
             }
@@ -854,7 +854,7 @@ void program::add_intermediate(program_node& node,
         throw std::invalid_argument(
             "Node which is about to be added in between two other nodes should not have any existing dependencies");
 
-    auto& prev = *next.get_dependency(prev_idx).first;
+    auto& prev = next.get_dependency(prev_idx);
     // firstly add connection, later replace dependency, so 'prev' won't become dangling and therefore removed
     if (connect_int_node_with_old_dep) {
         add_connection(prev, node);
@@ -898,7 +898,7 @@ void program::add_intermediate(program_node& node,
     bool node_found = false;
     size_t idx = 0;
     for (size_t i = 0; i < next.get_dependencies().size(); i++) {
-        auto& input = *next.get_dependency(i).first;
+        auto& input = next.get_dependency(i);
         if (input.id() == prev.id()) {
             idx = i;
             node_found = true;
@@ -1062,7 +1062,7 @@ bool program::extract(program_node& node) {
         return false;
 
     if (node.is_output() && !is_debug_build()) {
-        auto& prev = *node.get_dependency(0).first;
+        auto& prev = node.get_dependency(0);
         auto node_id = node.id();
 
         node.set_output(false);
@@ -1075,7 +1075,7 @@ bool program::extract(program_node& node) {
         outputs.push_back(&prev);
     }
 
-    auto& input = *node.get_dependency(0).first;
+    auto& input = node.get_dependency(0);
 
     // update primitive_map of loop primitive,
     // if extracted node is input of loop
@@ -1131,7 +1131,7 @@ void program::fuse_nodes(program_node &fused_node,
     local_desc.f_param = get_node_ptr(peer_node.id())->get_fuse_params();
     local_desc.dep_start_idx = fused_node.get_dependencies().size();
     local_desc.total_num_deps = peer_node.get_dependencies().size();
-    local_desc.input_layout = peer_node.get_dependency(0).first->get_output_layout();
+    local_desc.input_layout = peer_node.get_dependency(0).get_output_layout();
     local_desc.output_layout = peer_layout;
     local_desc.activation = activation_func::none;
     if (!peer_node.get_fused_activations_funcs().empty()) {
@@ -1156,7 +1156,7 @@ void program::fuse_nodes(program_node &fused_node,
     // Add new dependencies to the fused_node
     size_t deps_idx = 0;
     for (size_t i = 0; i < peer_node.get_dependencies().size(); i++) {
-        auto& dep = *peer_node.get_dependency(i).first;
+        auto& dep = peer_node.get_dependency(i);
         if (dep.id() == fused_node.id()) {
             deps_idx++;
             continue;
@@ -1210,7 +1210,7 @@ void program::fuse_nodes(program_node &fused_node,
 
     // Remove all edges connected with peer node
     while (peer_node.get_dependencies().size() > 0) {
-        auto& dep = *peer_node.get_dependency(peer_node.get_dependencies().size() - 1).first;
+        auto& dep = peer_node.get_dependency(peer_node.get_dependencies().size() - 1);
         remove_connection(dep, peer_node);
     }
     replace_all_usages(peer_node, fused_node);
@@ -1429,7 +1429,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
             if (!conv.is_dynamic()) {
                 // In dynamic shape, conv is fixed as a predefined format b_fs_yx_fsv16
-                auto input_size = node->get_dependency(0).first->get_output_layout().get_tensor();
+                auto input_size = node->get_dependency(0).get_output_layout().get_tensor();
                 auto ifm = static_cast<uint32_t>(input_size.feature[0]);
                 if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16)
                     total_dw_conv_layers++;
@@ -1692,7 +1692,7 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
         if (node->is_type<data>() && node->get_users().size() == 1 && node->have_user_with_type<generic_layer>())  {
             continue;
         }
-        if (node->is_type<data>() || (node->is_type<generic_layer>() && node->get_dependency(0).first->is_type<data>())) {
+        if (node->is_type<data>() || (node->is_type<generic_layer>() && node->get_dependency(0).is_type<data>())) {
             const_sum += out_size;
         } else if (node->have_user_with_type<concatenation>() && node->get_users().size() == 1 && node->get_users().front()->can_be_optimized()) {
             continue;

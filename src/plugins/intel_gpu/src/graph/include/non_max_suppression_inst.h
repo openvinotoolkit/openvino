@@ -21,26 +21,26 @@ public:
         : parent(prim, prog)
     {}
 
-    program_node& input() const { return *get_dependency(0).first; }
+    program_node& input() const { return get_dependency(0); }
 
     program_node& input_boxes() const {
-        return *get_dependency(0).first;
+        return get_dependency(0);
     }
 
     program_node& input_scores() const {
-        return *get_dependency(1).first;
+        return get_dependency(1);
     }
 
     bool has_num_select_per_class() const { return !get_primitive()->num_select_per_class.empty(); }
     program_node& num_select_per_class_node() const {
-        return *get_dependency(2).first;
+        return get_dependency(2);
     }
 
     bool has_iou_threshold() const { return !get_primitive()->iou_threshold.empty(); }
     program_node& iou_threshold_node() const {
         size_t offset = 2;
         offset += has_num_select_per_class();
-        return *get_dependency(offset).first;
+        return get_dependency(offset);
     }
 
     bool has_score_threshold() const { return !get_primitive()->score_threshold.empty(); }
@@ -48,7 +48,7 @@ public:
         size_t offset = 2;
         offset += has_num_select_per_class();
         offset += has_iou_threshold();
-        return *get_dependency(offset).first;
+        return get_dependency(offset);
     }
 
     bool has_soft_nms_sigma() const { return !get_primitive()->soft_nms_sigma.empty(); }
@@ -57,7 +57,7 @@ public:
         offset += has_num_select_per_class();
         offset += has_iou_threshold();
         offset += has_score_threshold();
-        return *get_dependency(offset).first;
+        return get_dependency(offset);
     }
 
     bool has_second_output() const { return !get_primitive()->second_output.empty(); }
@@ -67,7 +67,7 @@ public:
         offset += has_iou_threshold();
         offset += has_score_threshold();
         offset += has_soft_nms_sigma();
-        return *get_dependency(offset).first;
+        return get_dependency(offset);
     }
 
     bool has_third_output() const { return !get_primitive()->third_output.empty(); }
@@ -78,7 +78,7 @@ public:
         offset += has_score_threshold();
         offset += has_soft_nms_sigma();
         offset += has_second_output();
-        return *get_dependency(offset).first;
+        return get_dependency(offset);
     }
     bool use_multiple_outputs() const { return get_primitive()->output_size() == 3; }
 };
