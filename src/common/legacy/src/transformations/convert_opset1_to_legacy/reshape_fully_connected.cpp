@@ -27,7 +27,9 @@ ngraph::pass::ReshapeFullyConnected::ReshapeFullyConnected() {
         }
 
         auto input_shape = fc->input_value(0).get_shape();
-        auto output_shape = fc->get_shape();
+        auto output_shape = fc->get_shape();        
+        auto reshape_dim = fc->input_value(1).get_shape();
+
 
         if (input_shape.size() == 2) {
             return false;
@@ -35,7 +37,7 @@ ngraph::pass::ReshapeFullyConnected::ReshapeFullyConnected() {
 
         NodeVector new_ops;
 
-        std::vector<int64_t> reshape_shape{-1, static_cast<int64_t>(input_shape.back())};
+        std::vector<int64_t> reshape_shape{-1, static_cast<int64_t>(reshape_dim.back())};
         auto reshape = std::make_shared<opset1::Reshape>(fc->input_value(0),
                                                          opset1::Constant::create(element::i64, Shape{2}, reshape_shape), true);
         new_ops.push_back(reshape);
