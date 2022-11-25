@@ -64,14 +64,14 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
     // parsing the string and splitting to tokens
     std::vector<std::string> devicesWithRequests = _pluginConfig.ParsePrioritiesDevices(priorities);
 
-    auto setTputAsDefault = [&](const std::string& targetDevice,
+    auto setDefaultHint = [&](const std::string& targetDevice,
                                 std::map<std::string, std::string>& deviceConfig,
                                 const std::map<std::string, std::string>& mergedConfig) {
         auto isSetPerHint = mergedConfig.find(PluginConfigParams::KEY_PERFORMANCE_HINT) != mergedConfig.end();
         if (GetName() == "AUTO" && !isSetPerHint && mergedConfig.find(targetDevice) == mergedConfig.end()) {
-            // setting tput as the default performance mode if no hints setting for AUTO plugin and no properties
+            // setting latency as the default performance mode if no hints setting for AUTO plugin and no properties
             // specified for target device.
-            deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] = PluginConfigParams::THROUGHPUT;
+            deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] = PluginConfigParams::LATENCY;
             return;
         }
 
@@ -100,7 +100,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             tconfig[PluginConfigParams::KEY_DEVICE_ID] = deviceIDLocal;
         }
         auto deviceConfig = GetCore()->GetSupportedConfig(deviceName, tconfig);
-        setTputAsDefault(deviceName, deviceConfig, tconfig);
+        setDefaultHint(deviceName, deviceConfig, tconfig);
         return deviceConfig;
     };
 
@@ -329,18 +329,22 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     // updateFromMap will check config valid
     loadConfig.UpdateFromMap(config, GetName(), true);
     auto fullConfig = loadConfig._keyConfigMap;
+    bool workModeAuto = GetName() == "AUTO";
     // Remove the performance hint if no setting to this property from user.
     if (!loadConfig._isSetPerHint) {
         fullConfig.erase(PluginConfigParams::KEY_PERFORMANCE_HINT);
-        // set performance hint to 'THROUGHPUT' model for AutoExecutable Network.
         loadConfig._perfHintsConfig.SetConfig(PluginConfigParams::KEY_PERFORMANCE_HINT, PluginConfigParams::THROUGHPUT);
+        if (workModeAuto) {
+            // set performance hint to 'THROUGHPUT' model for AutoExecutable Network.
+            loadConfig._perfHintsConfig.SetConfig(PluginConfigParams::KEY_PERFORMANCE_HINT,
+                                                  PluginConfigParams::LATENCY);
+        }
     }
     if (!loadConfig._isSetCacheDir)
         fullConfig.erase(CONFIG_KEY(CACHE_DIR));
     // collect the settings that are applicable to the devices we are loading the network to
     std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;
     std::vector<DeviceInformation> metaDevices;
-    bool workModeAuto = GetName() == "AUTO";
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
     // If the user sets the property, insert the property into the deviceConfig
     auto insertPropToConfig = [&](std::string property,
