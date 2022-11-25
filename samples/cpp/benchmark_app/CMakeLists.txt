@@ -31,11 +31,15 @@ if(NOT TARGET nlohmann_json::nlohmann_json)
         endif()
     endif()
 
-    if(NOT nlohmann_json_FOUND AND EXISTS "${Samples_SOURCE_DIR}/thirdparty/nlohmann_json")
-        # suppress shadowing names warning
-        set(JSON_SystemInclude ON CACHE BOOL "" FORCE)
-        add_subdirectory("${Samples_SOURCE_DIR}/thirdparty/nlohmann_json"
-                         "${Samples_BINARY_DIR}/thirdparty/nlohmann_json" EXCLUDE_FROM_ALL)
+    if(NOT nlohmann_json_FOUND)
+        if(EXISTS "${Samples_SOURCE_DIR}/thirdparty/nlohmann_json")
+            # suppress shadowing names warning
+            set(JSON_SystemInclude ON CACHE BOOL "" FORCE)
+            add_subdirectory("${Samples_SOURCE_DIR}/thirdparty/nlohmann_json"
+                            "${Samples_BINARY_DIR}/thirdparty/nlohmann_json" EXCLUDE_FROM_ALL)
+        else()
+            message(FATAL_ERROR "Failed to find / build nlohmann_json library")
+        endif()
     endif()
 endif()
 
@@ -58,6 +62,23 @@ if(SAMPLES_ENABLE_OPENCL)
 
     find_path(OpenCL_HPP_INCLUDE_DIR
         NAMES
+        CL/opencl.hpp OpenCL/opencl.hpp
+        HINTS
+        ${opencl_root_hints}
+        ENV "PROGRAMFILES(X86)"
+        ENV AMDAPPSDKROOT
+        ENV INTELOCLSDKROOT
+        ENV NVSDKCOMPUTE_ROOT
+        ENV CUDA_PATH
+        ENV ATISTREAMSDKROOT
+        ENV OCL_ROOT
+        PATH_SUFFIXES
+        include
+        OpenCL/common/inc
+        "AMD APP/include")
+
+    find_path(CL2_HPP_INCLUDE_DIR
+        NAMES
         CL/cl2.hpp OpenCL/cl2.hpp
         HINTS
         ${opencl_root_hints}
@@ -77,9 +98,15 @@ if(SAMPLES_ENABLE_OPENCL)
         # Use OpenCL CPP headers from sources if present
         set(OpenCL_HEADERS ${OPENCL_HEADERS_DIR})
         set(OpenCL_LIB "OpenCL")
-    elseif(OpenCL_HPP_INCLUDE_DIR)
+    elseif(OpenCL_HPP_INCLUDE_DIR OR CL2_HPP_INCLUDE_DIR)
         # Append OpenCL CPP headers to C headers and use both
-        set(OpenCL_HEADERS ${OpenCL_INCLUDE_DIR} ${OpenCL_HPP_INCLUDE_DIR})
+        set(OpenCL_HEADERS ${OpenCL_INCLUDE_DIR})
+        if (OpenCL_HPP_INCLUDE_DIR)
+            list(APPEND ${OpenCL_HEADERS} ${OpenCL_HPP_INCLUDE_DIR})
+        endif()
+        if (CL2_HPP_INCLUDE_DIR)
+            list(APPEND ${OpenCL_HEADERS} ${CL2_HPP_INCLUDE_DIR})
+        endif()
         set(OpenCL_LIB "OpenCL::OpenCL")
     else()
         MESSAGE(WARNING "OpenCL CPP header is not found, ${TARGET_NAME} will be built without OpenCL support. Download it from: https://github.com/KhronosGroup/OpenCL-CLHPP and set -Dopencl_root_hints=[PATH]/OpenCL-CLHPP/include to cmake.")
@@ -89,6 +116,10 @@ if(SAMPLES_ENABLE_OPENCL)
         target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCL_LIB})
         target_include_directories(${TARGET_NAME} PRIVATE ${OpenCL_HEADERS})
         target_compile_definitions(${TARGET_NAME} PRIVATE HAVE_GPU_DEVICE_MEM_SUPPORT)
+        if (OpenCL_HPP_INCLUDE_DIR OR OPENCL_HEADERS_DIR)
+            # the macro below is defined when opencl.hpp is found to suppress deprecation message from cl2.hpp
+            target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_USE_OPENCL_HPP)
+        endif()
     endif()
 endif()
 
