@@ -145,3 +145,15 @@ TEST_F(TransformationTestsF, ReduceMeanReshapeFusionSkipIfNonConstReshapeTargetS
     model =  std::make_shared<Model>(NodeVector{reshape}, ParameterVector{input, target_shape});
     manager.register_pass<pass::ReduceReshapeFusion>();
 }
+
+TEST_F(TransformationTestsF, ReduceMeanReshapeFusionSkipIfReduceHasMultipleConsumers) {
+    const auto input = std::make_shared<Parameter>(element::f32, PartialShape{2, 2, 5, 5});
+    const auto reduce_axes = Constant::create(element::i64, Shape{3}, {0, 1, 2});
+    const auto reduce_mean = std::make_shared<ReduceMean>(input, reduce_axes, false);  // output dim is [5]
+    const auto prelu = std::make_shared<PRelu>(reduce_mean, Constant::create(element::f32, Shape{5}, {2, 3, 8, 1, 0}));
+    const auto target_shape = Constant::create(element::i64, Shape{4}, {1, 1, 1, 5});
+    const auto reshape = std::make_shared<Reshape>(reduce_mean, target_shape, false);
+
+    model =  std::make_shared<Model>(NodeVector{reshape, prelu}, ParameterVector{input});
+    manager.register_pass<pass::ReduceReshapeFusion>();
+}
