@@ -103,7 +103,7 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
 
     const auto input = pattern::any_input(pattern::has_static_rank());
     const auto unsqueeze_axes = pattern::wrap_type<opset9::Constant>();
-    const auto unsqueeze = pattern::wrap_type<opset9::Unsqueeze>({input, unsqueeze_axes}, pattern::has_static_rank());
+    const auto unsqueeze = pattern::wrap_type<opset9::Unsqueeze>({input, unsqueeze_axes}, pattern::consumers_count(1));
     const auto reduce_axes = pattern::wrap_type<opset9::Constant>();
     const auto reduce = pattern::wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
         {unsqueeze, reduce_axes});
@@ -120,6 +120,10 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
             std::dynamic_pointer_cast<opset9::Constant>(pattern_map.at(reduce_axes).get_node_shared_ptr());
 
         if (!unsqueeze_axes_input || !reduce_axes_input || !reduce_node) {
+            return false;
+        }
+
+        if (unsqueeze_node->get_output_partial_shape(0).rank().is_dynamic()) {
             return false;
         }
 
@@ -172,7 +176,7 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
     const auto input = pattern::any_input(pattern::has_static_shape());
     const auto reshape_target_shape = pattern::wrap_type<opset9::Constant>();
     const auto reshape =
-        pattern::wrap_type<opset9::Reshape>({input, reshape_target_shape}, pattern::has_static_shape());
+        pattern::wrap_type<opset9::Reshape>({input, reshape_target_shape}, pattern::consumers_count(1));
     const auto reduce_axes = pattern::wrap_type<opset9::Constant>();
     const auto reduce = pattern::wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
         {reshape, reduce_axes});
@@ -186,6 +190,9 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
             return false;
         }
         const auto reshape_node = pattern_map.at(reshape).get_node_shared_ptr();
+        if (reshape_node->get_output_partial_shape(0).is_dynamic()) {
+            return false;
+        }
         const auto unsqueeze_axes =
             try_get_unsqueeze_axes_from_reshape(reshape_node->get_shape(), input_node->get_shape());
         if (unsqueeze_axes.empty()) {
