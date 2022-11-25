@@ -823,6 +823,7 @@ void Graph::AllocateWithReuse() {
             for (const auto& item : syncNodesInds) {
                 vecIntervals.push_back(item.first->execIndex);
             }
+            std::sort(vecIntervals.begin(), vecIntervals.end());
             for (auto& box : undefinedBoxes) {
                 if (-1 == box.finish) {
                     continue;
