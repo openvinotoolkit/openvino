@@ -173,7 +173,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVClassLoadNetworkTest.*QueryNetwork(MULTIWithHETERO|HETEROWithMULTI)NoThrow_V10.*)",
         R"(.*OVClassNetworkTestP.*QueryNetworkMultiThrows.*)",
         R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*(TIwithLSTMcell1|MatMulBias|2InputSubtract)_(i|u).*)",
-        R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*ReadConcatSplitAssign.*)",
+        R"(.*CachingSupportCase.*ReadConcatSplitAssign.*)",
         R"(.*IEClassQueryNetworkTest.*QueryNetwork.*)",
         R"(.*IEClassLoadNetworkTest.*(Load|Query)Network.*)",
         // Issue: 95239
@@ -185,6 +185,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*(i32|i8).*)",
         // 94989. BF16 Reference produces different results.
         R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*gridPrc=bf16.*)",
+        R"(.*dynamic.*RNNSequenceCPUTest.*seqMode=PURE_SEQ_activations=.*relu.*_clip=0_direction=forward_netPrec=f32__inFmts=ncw.ntc_outFmts=ncw.*ncw_primitive=ref_any.*)",
     };
 
 #define FIX_62820 0
