@@ -185,6 +185,7 @@ public:
     void validate_primitives();
     void set_arguments();
     // Implementation specific calls
+    bool is_cpu_impl(const primitive_id& id) const;
     std::shared_ptr<primitive_inst> get_primitive(const primitive_id& id);
     std::shared_ptr<const primitive_inst> get_primitive(const primitive_id& id) const;
     std::string get_primitive_info(const primitive_id& id) const;
@@ -260,8 +261,8 @@ private:
     void allocate_primitive_instance(program_node const& node);
     void transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node);
     void add_to_exec_order(const primitive_id& id);
-    std::shared_ptr<primitive_inst> find_in_internal_networks(const primitive_id& id);
-    std::shared_ptr<primitive_inst> find_primitive(const primitive_id& id);
+    std::shared_ptr<primitive_inst> find_in_internal_networks(const primitive_id& id) const;
+    std::shared_ptr<primitive_inst> find_primitive(const primitive_id& id) const;
     void check_names();
     void add_default_output_chains();
     output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
