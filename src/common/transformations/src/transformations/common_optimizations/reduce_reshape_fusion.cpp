@@ -17,10 +17,14 @@
 ov::pass::ReduceReshapeFusion::ReduceReshapeFusion() {
     MATCHER_SCOPE(ReduceReshapeFusion);
 
+    const auto reduce_predicate = [](const Output<Node>& output) -> bool {
+        return pattern::has_static_shape()(output) && pattern::consumers_count(1)(output);
+    };
+
     const auto reduce_axes = pattern::wrap_type<opset9::Constant>();
     const auto reduce = pattern::wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
         {pattern::any_input(), reduce_axes},
-        pattern::has_static_shape());
+        reduce_predicate);
     const auto reshape =
         pattern::wrap_type<opset9::Reshape>({reduce, pattern::any_input()}, pattern::has_static_shape());
 
