@@ -90,7 +90,7 @@ bitbake core-image-minimal
 
 > **NOTE**: For validation/testing/reviewing purposes, you may consider using the `nohup` command and ensure that your vpn/ssh connection remains uninterrupted.
 
-## Step 3: Verify the Yocto Image with OpenVINO packages.
+## Step 3: Verify the Yocto Image
 
 Verify that OpenVINO packages were built successfully.
 Run the following command:
