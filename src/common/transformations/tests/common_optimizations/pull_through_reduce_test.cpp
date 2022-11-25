@@ -172,6 +172,18 @@ TEST_F(TransformationTestsF, PullUnsqueezeThroughReduceSkipIfNotConstAxes) {
     manager.register_pass<pass::PullUnsqueezeThroughReduce>();
 }
 
+TEST_F(TransformationTestsF, PullUnsqueezeThroughReduceMeanSkipIfMoreThanOneUnsqueezeConsumer) {
+    const auto input = std::make_shared<Parameter>(element::f32, PartialShape{5, 10, 15});
+    const auto unsqueeze_axes = Constant::create(element::i64, Shape{1}, {0});
+    const auto unsqueeze = std::make_shared<Unsqueeze>(input, unsqueeze_axes);
+    const auto reduce_axes = Constant::create(element::i64, Shape{}, {1});
+    const auto reduce_mean = std::make_shared<ReduceMean>(unsqueeze, reduce_axes);
+    const auto add = std::make_shared<Add>(unsqueeze, Constant::create(element::f32, Shape{}, {1}));
+
+    model =  std::make_shared<Model>(NodeVector{reduce_mean, add}, ParameterVector{input});
+    manager.register_pass<pass::PullUnsqueezeThroughReduce>();
+}
+
 struct PullReshapeParams {
     element::Type in_type;
     PartialShape in_shape;
@@ -296,5 +308,17 @@ TEST_F(TransformationTestsF, PullReshapeThroughReduceMeanSkipIfDynamicReshapeOut
     const auto reduce_mean = std::make_shared<ReduceMean>(reshape, reduce_axes);
 
     model =  std::make_shared<Model>(NodeVector{reduce_mean}, ParameterVector{input, target_shape});
+    manager.register_pass<pass::PullReshapeThroughReduce>();
+}
+
+TEST_F(TransformationTestsF, PullReshapeThroughReduceMeanSkipIfMoreThanOneReshapeConsumer) {
+    const auto input = std::make_shared<Parameter>(element::f32, PartialShape{5, 10, 15});
+    const auto target_shape = Constant::create(element::i64, Shape{4}, {1, 5, 10, 15});
+    const auto reshape = std::make_shared<Reshape>(input, target_shape, false);
+    const auto reduce_axes = Constant::create(element::i64, Shape{}, {2});
+    const auto reduce_mean = std::make_shared<ReduceMean>(reshape, reduce_axes);
+    const auto add = std::make_shared<Add>(reshape, Constant::create(element::f32, Shape{}, {1}));
+
+    model = std::make_shared<Model>(NodeVector{reduce_mean, add}, ParameterVector{input});
     manager.register_pass<pass::PullReshapeThroughReduce>();
 }
