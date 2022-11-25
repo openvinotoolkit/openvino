@@ -233,7 +233,7 @@ macro(ov_rpm_add_latest_component comp)
     set(upper_case "${ucomp}_LATEST")
 
     set(CPACK_COMPONENT_${upper_case}_DESCRIPTION "${CPACK_COMPONENT_${ucomp}_DESCRIPTION}")
-    set(CPACK_RPM_${upper_case}_PACKAGE_REQUIRES "${CPACK_RPM_${ucomp}_PACKAGE_NAME}")
+    set(CPACK_RPM_${upper_case}_PACKAGE_REQUIRES "${CPACK_RPM_${ucomp}_PACKAGE_NAME} = ${cpack_full_ver}")
     set(CPACK_RPM_${upper_case}_PACKAGE_ARCHITECTURE "noarch")
     set(${comp_name}_copyright "generic")
 
