@@ -702,7 +702,7 @@ class TestPreprocessingMOC(UnitTestWithMockedTelemetry):
 
     def test_sorting_tensor_names_unnamed_layout(self):
         argv = Namespace(mean_scale_values={'input1': {'mean': np.array([2., 4., 8.]), 'scale': None}},
-                         layout_values=[{'source_layout': 'nchw'}],
+                         layout_values={'': {'source_layout': 'nchw'}},
                          scale=127.5)
         function = create_function3(shape1=[1, 3, 224, 224])
         process_function(ov_function=function, argv=argv)
