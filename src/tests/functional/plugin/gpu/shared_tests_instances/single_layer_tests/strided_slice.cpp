@@ -64,6 +64,8 @@ std::vector<StridedSliceSpecificParams> ss_only_test_cases_fp32 = {
                                 { 0, 1 }, { 0, 1 },  { 0, 0 },  { 0, 0 },  { 0, 0 } },
         StridedSliceSpecificParams{ { 5, 5, 5, 5 }, { -1, 0, -1, 0 }, { -50, 0, -60, 0 }, { -1, 1, -1, 1 },
                                 { 0, 0, 0, 0 }, { 0, 1, 0, 1 },  { 0, 0, 0, 0 },  { 0, 0, 0, 0 },  { 0, 0, 0, 0 } },
+        StridedSliceSpecificParams{ { 128, 1, 1024 }, { -1, 0, 0 }, { 0, 0, 0 }, { 1, 1, 1 },
+                            { 0, 1, 1 }, { 0, 1, 1 },  { 0, 0, 0 },  { 1, 0, 0 },  { 0, 0, 0 } },
 };
 
 std::vector<StridedSliceSpecificParams> ss_only_test_cases_i64 = {
