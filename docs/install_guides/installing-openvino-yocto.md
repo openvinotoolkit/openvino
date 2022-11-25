@@ -8,13 +8,13 @@ Follow the [Yocto Project official documentation](https://docs.yoctoproject.org/
 
 ## Step 1: Set Up Environment
 
-### 1. Clone the repository.
+1. Clone the repository.
 
 ```sh
 git clone https://git.yoctoproject.org/git/poky --branch langdale
 ```
 
-### 2. Navigate to the "poky" folder and clone the following repositories.
+2. Navigate to the "poky" folder and clone the following repositories.
 
 ```sh
 cd poky
@@ -23,13 +23,13 @@ git clone https://git.openembedded.org/meta-openembedded --branch langdale
 git clone https://github.com/kraj/meta-clang.git
 ```
 
-### 3. Set up the OpenEmbedded build environment.
+3. Set up the OpenEmbedded build environment.
 
 ```sh
 source oe-init-build-env
 ```
 
-### 4. Add BitBake layers.
+4. Add BitBake layers.
 
 ```sh
 bitbake-layers add-layer ../meta-intel
@@ -38,13 +38,13 @@ bitbake-layers add-layer ../meta-openembedded/meta-python
 bitbake-layers add-layer ../meta-clang
 ```
 
-### 5. Verify if layers were added (optional step).
+5. Verify if layers were added (optional step).
 
 ```sh
 bitbake-layers show-layers
 ```
 
-### 6. Set up BitBake configurations.
+6. Set up BitBake configurations.
 
 Include extra configuration in the `conf/local.conf` file in your build directory as required.
 

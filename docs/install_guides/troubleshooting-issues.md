@@ -219,3 +219,5 @@ To resolve the issue, install the `chrpath diffstat zstd` tools:
 
 ```sh
 sudo apt-get install chrpath diffstat zstd
+```
+
