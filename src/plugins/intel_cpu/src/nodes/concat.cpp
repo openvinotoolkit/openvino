@@ -326,8 +326,8 @@ void Concat::selectOptimalPrimitiveDescriptor() {
                 if (parent_pdesc == nullptr)
                     continue;
 
-                const auto& parent_config = parent_pdesc->getConfig();
-                if ((parent_pdesc->getImplementationType() & brgconv_avx512) != brgconv_avx512) {
+                if ((parent_pdesc->getImplementationType() & brgconv_avx512) != brgconv_avx512 &&
+                    parent->getType() != Type::Concatenation) {
                     allBrg = false;
                     break;
                 }
