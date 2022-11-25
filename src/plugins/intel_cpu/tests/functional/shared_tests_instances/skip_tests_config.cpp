@@ -38,7 +38,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 43417 sporadic issue, looks like an issue in test, reproducible only on Windows platform
         R"(.*decomposition1_batch=5_hidden_size=10_input_size=30_.*tanh.relu.*_clip=0_linear_before_reset=1.*_targetDevice=CPU_.*)",
         // Skip platforms that do not support BF16 (i.e. sse, avx, avx2)
-        R"(.*(BF|bf)16.*(jit_avx(?!5)|jit_sse|ref).*)",
+        R"(.*(BF|bf)16.*(jit_avx(?!5)|jit_sse).*)",
         // TODO: Incorrect blob sizes for node BinaryConvolution_X
         R"(.*BinaryConvolutionLayerTest.*)",
         // TODO: 53618. BF16 gemm ncsp convolution crash
@@ -153,6 +153,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*LoopLayerCPUTest.*trip_count=0.*)",
         R"(.*LoopForDiffShapesLayerCPUTest.*exec_cond=0.*)",
         R"(.*LoopForDiffShapesLayerCPUTest.*trip_count=0.*)",
+        R"(.*LoopForConcatLayerCPUTest.*exec_cond=0.*)",
+        R"(.*LoopForConcatLayerCPUTest.*trip_count=0.*)",
         // [ INFO ] Can't compile network without cache for ..  with precision ..
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*KSOFunction.*)",
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*NonMaxSuppression.*)",
@@ -185,8 +187,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*(i32|i8).*)",
         // 94989. BF16 Reference produces different results.
         R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*gridPrc=bf16.*)",
-        // failed due to accuracy mismatch
-        R"(.*dynamic.*RNNSequenceCPUTest.*seqMode=PURE_SEQ_activations=.*relu.*_clip=0_direction=forward_netPrec=f32__inFmts=ncw.ntc_outFmts=ncw.*ncw_primitive=ref_any.*)",
+        // // Issue: 95915
+        R"(smoke_dynamic/AUGRUCellCPUTest.CompareWithRefs/IS=\(\[\?\.1\]_\[\?\.1\]_\[\?\.1\]_\)_TS=\{\(1\.1\)_\(1\.1\)_\(1\.1\)\}_\{\(3\.1\)_\(3\.1\)_\(3\.1\)\}_\{\(5\.1\)_\(5\.1\)_\(5\.1\)\}_decompose=0_activations=\(sigmoid\.tanh\)_clip=0_linear=0_netPrec=f32__inFmts=nc\.nc_outFmts=nc_primitive=ref_any_PluginConf_ENFORCE_BF16=YES)", // NOLINT
+        R"(smoke_dynamic/GRUCellCPUTest.CompareWithRefs/IS=\(\[\?.1\]_\[\?\.1\]_\)_TS=\{\(1\.1\)_\(1\.1\)\}_\{\(3\.1\)_\(3\.1\)\}_\{\(5\.1\)_\(5\.1\)\}_decompose=0_activations=\(sigmoid\.tanh\)_clip=0_linear=0_netPrec=f32__inFmts=nc\.nc_outFmts=nc_primitive=ref_any_PluginConf_ENFORCE_BF16=YES)", // NOLINT
+        R"(nightly_dynamic_bf16/RNNSequenceCPUTest.*activations=\(relu\).*)",
     };
 
 #define FIX_62820 0

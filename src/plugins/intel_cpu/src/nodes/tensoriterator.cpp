@@ -482,6 +482,17 @@ bool TensorIterator::needPrepareParams() const {
             return true;
     }
 
+    // If sliced input shapes of node and body input shapes aren't equal, we should reshape body
+    if (checkForInputAndBodyShapesInequality()) {
+        return true;
+    }
+
+    // In cases, when sliced input shapes of node and body input shapes are equal,
+    // original input shapes of node may be not equal to previous input shapes and count of iterations will be another
+    // For example, TensorIterator with single sliced input by axis 1:
+    //    Input shape of node: [10, 8, 10]  ->  Sliced input shape: [10, 1, 10]  ->  Body input shape:  [10, 1, 10]  -> 8 iterations
+    //    Input shape of node: [10, 4, 10]  ->  Sliced input shape: [10, 1, 10]  ->  Body input shape:  [10, 1, 10]  -> 4 iterations
+    // Thus, sliced input shapes and body input shapes are equal but iteration counts are different. So we should update trip count
     return Node::needPrepareParams();
 }
 
@@ -667,16 +678,22 @@ void TensorIterator::prepareTripCount() {
 
 /* *==============* *==============* *==============* *==============* *==============* */
 
+inline SizeVector sliced_input_dims(const MemoryPtr& mem, const int axis, const int stride) {
+    auto dims = mem->getStaticDims();
+    if (axis != -1)
+        dims[axis] = abs(stride);
+    return dims;
+}
+
 void TensorIterator::reshapeSubgraphInput() {
     for (auto map_rule : inputPortMap) {
-        auto &from_mem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
+        auto new_dims = sliced_input_dims(getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr(), map_rule.axis, map_rule.stride);
         auto &to_mems = input_mems[map_rule.to];
-        auto new_dims = from_mem->getStaticDims();
-        if (map_rule.axis != -1)
-            new_dims[map_rule.axis] = abs(map_rule.stride);
-
-        const auto desc = std::make_shared<CpuBlockedMemoryDesc>(to_mems.front()->getDesc().getPrecision(), Shape(new_dims));
-        redefineToMemories(to_mems, desc);
+        const auto& body_inshape = to_mems.front()->GetShape();
+        if (body_inshape.isDynamic() || body_inshape.getDims() != new_dims) {
+            const auto desc = std::make_shared<CpuBlockedMemoryDesc>(to_mems.front()->getDesc().getPrecision(), Shape(new_dims));
+            redefineToMemories(to_mems, desc);
+        }
     }
 }
 
@@ -706,6 +723,19 @@ void TensorIterator::reshapeAndFillOutput(dnnl::stream strm) {
     for (auto buffer : buffers) {
         buffer->transfer(this);
     }
+}
+
+bool TensorIterator::checkForInputAndBodyShapesInequality() const {
+    for (auto map_rule : inputPortMap) {
+        auto original_dims = sliced_input_dims(getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr(), map_rule.axis, map_rule.stride);
+        auto &to_mems = input_mems[map_rule.to];
+        const auto& body_inshape = to_mems.front()->GetShape();
+        if (body_inshape.isDynamic() || body_inshape.getDims() != original_dims) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 int TensorIterator::getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) const {
