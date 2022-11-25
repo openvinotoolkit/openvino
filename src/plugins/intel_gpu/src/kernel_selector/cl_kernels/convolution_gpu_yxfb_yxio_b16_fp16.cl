@@ -94,7 +94,7 @@ KERNEL(convolution_gpu_yxfb_yxio_b16)(
                     for (uint h = 0; h < FILTER_IFM_NUM; h++)
                     {
 #if defined(USE_BLOCK_READ_2)
-                        half4 _input = as_half4(intel_sub_group_block_read2((const __global uint*)(input + input_idx)));
+                        half4 _input = as_half4(_sub_group_block_read2((const __global uint*)(input + input_idx)));
                         uint filter_val_pair = *(const __global uint*)(filter + filter_idx);
                         half16 filter_transp = TRANSPOSE_BLOCK_16_FP16(filter_val_pair);
                         _data[0] = fma(_input.s0, filter_transp, _data[0]);
@@ -103,7 +103,7 @@ KERNEL(convolution_gpu_yxfb_yxio_b16)(
                         _data[3] = fma(_input.s3, filter_transp, _data[3]);
                         input_idx += INPUT0_FEATURE_PITCH;
 #elif defined(USE_BLOCK_READ_1)
-                        half2 _input = as_half2(intel_sub_group_block_read((const __global uint*)(input + input_idx)));
+                        half2 _input = as_half2(_sub_group_block_read((const __global uint*)(input + input_idx)));
                         uint filter_val_pair = *(const __global uint*)(filter + filter_idx);
                         half16 filter_transp = TRANSPOSE_BLOCK_16_FP16(filter_val_pair);
                         _data[0] = fma(_input.s0, filter_transp, _data[0]);

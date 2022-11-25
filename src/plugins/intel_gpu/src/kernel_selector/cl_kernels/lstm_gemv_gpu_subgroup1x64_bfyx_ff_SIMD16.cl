@@ -18,11 +18,11 @@
 #define SUM_ACROSS_SUB_GROUP(val) \
  \
 { \
-    val += intel_sub_group_shuffle(val, x+1); \
-    val += intel_sub_group_shuffle(val, x+2); \
-    val += intel_sub_group_shuffle(val, x+4); \
-    val += (SIMD > 8) ? intel_sub_group_shuffle(val, x+8) : 0; \
-    val += (SIMD > 16) ? intel_sub_group_shuffle(val, x+16) : 0; \
+    val += _sub_group_shuffle(val, x+1); \
+    val += _sub_group_shuffle(val, x+2); \
+    val += _sub_group_shuffle(val, x+4); \
+    val += (SIMD > 8) ? _sub_group_shuffle(val, x+8) : 0; \
+    val += (SIMD > 16) ? _sub_group_shuffle(val, x+16) : 0; \
 }
 
 // input     = [    batch,  sequence,               1,      input_size ]

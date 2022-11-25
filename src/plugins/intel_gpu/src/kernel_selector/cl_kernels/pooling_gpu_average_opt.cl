@@ -35,8 +35,8 @@ KERNEL(pooling_gpu_average_opt)(
     const __global INPUT0_TYPE* base_addr = input + offset + (start_y * INPUT0_SIZE_X + start_x) - 1;
 
     float input_buffer[3];
-    input_buffer[0] = as_float(intel_sub_group_block_read((const __global uint*)(base_addr - INPUT0_SIZE_X)));
-    input_buffer[1] = as_float(intel_sub_group_block_read((const __global uint*)(base_addr)));
+    input_buffer[0] = as_float(_sub_group_block_read((const __global uint*)(base_addr - INPUT0_SIZE_X)));
+    input_buffer[1] = as_float(_sub_group_block_read((const __global uint*)(base_addr)));
 
     int first = 0;
     int second = 1;
@@ -47,7 +47,7 @@ KERNEL(pooling_gpu_average_opt)(
     {
         base_addr += INPUT0_SIZE_X;
 
-        input_buffer[third] = as_float(intel_sub_group_block_read((const __global uint*)(base_addr)));
+        input_buffer[third] = as_float(_sub_group_block_read((const __global uint*)(base_addr)));
 
 #if INPUT0_SIZE_Y == 1
         sum = input_buffer[second];
@@ -66,8 +66,8 @@ KERNEL(pooling_gpu_average_opt)(
         }
 #endif
 
-        sum_1 = intel_sub_group_shuffle_down(sum, 0.f, 1);
-        sum_2 = intel_sub_group_shuffle_down(sum, 0.f, 2);
+        sum_1 = _sub_group_shuffle_down(sum, 0.f, 1);
+        sum_2 = _sub_group_shuffle_down(sum, 0.f, 2);
 
 #if INPUT0_SIZE_X == 1
         res = sum_1 * ONE_OVER_POOL_SIZE;

@@ -96,11 +96,11 @@ inline ACCUMULATOR_TYPE FUNC(sub_group_reduce)(ACCUMULATOR_TYPE acc) {
             acc = sub_group_reduce_min(acc);
         #elif REDUCE_PROD_MODE
             ACCUMULATOR_TYPE next = ACCUMULATOR_VAL_ONE;
-            acc *= intel_sub_group_shuffle_down(acc, next, 8);
-            acc *= intel_sub_group_shuffle_down(acc, next, 4);
-            acc *= intel_sub_group_shuffle_down(acc, next, 2);
-            acc *= intel_sub_group_shuffle_down(acc, next, 1);
-            acc  = intel_sub_group_shuffle(acc, 0);
+            acc *= _sub_group_shuffle_down(acc, next, 8);
+            acc *= _sub_group_shuffle_down(acc, next, 4);
+            acc *= _sub_group_shuffle_down(acc, next, 2);
+            acc *= _sub_group_shuffle_down(acc, next, 1);
+            acc  = _sub_group_shuffle(acc, 0);
         #elif REDUCE_AND_MODE
             acc = sub_group_all(acc);
         #elif REDUCE_OR_MODE

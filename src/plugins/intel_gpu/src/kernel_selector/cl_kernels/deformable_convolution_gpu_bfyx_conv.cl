@@ -8,7 +8,7 @@
 
 #define FEATURE_SLICE_SIZE 16
 
-#define GET_WEI(filter, id) AS_TYPE(UNIT_TYPE, intel_sub_group_shuffle(AS_TYPE(UNIT_BLOCK_RW_TYPE, filter), id))
+#define GET_WEI(filter, id) AS_TYPE(UNIT_TYPE, _sub_group_shuffle(AS_TYPE(UNIT_BLOCK_RW_TYPE, filter), id))
 
 __attribute__((intel_reqd_sub_group_size(16)))
 KERNEL(deformable_convolution_gpu_bfyx_conv)(

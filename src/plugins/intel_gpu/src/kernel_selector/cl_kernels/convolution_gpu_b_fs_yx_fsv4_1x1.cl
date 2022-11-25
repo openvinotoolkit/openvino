@@ -131,7 +131,7 @@ KERNEL(convolution)(
         weights_offset += WEIGHTS_IS_PITCH / FSV * LWG_DEPTH;
 
         unroll_for (uint out_fi = 0; out_fi < FEATURES_PER_WI; ++out_fi) {
-            int wei_i = intel_sub_group_shuffle(wei_sg[out_fi / SIMD], out_fi % SIMD);
+            int wei_i = _sub_group_shuffle(wei_sg[out_fi / SIMD], out_fi % SIMD);
             FILTER_TYPE4 wei_val = AS_FILTER_TYPE4(wei_i);
 
             dotProd[out_fi] = IMAD(dotProd[out_fi], in_val, wei_val);

@@ -8,11 +8,11 @@
 
 #if X_BLOCK_SIZE > 1
 #   define GET_SRC(data, id)    AS_TYPE(MAKE_VECTOR_TYPE(UNIT_TYPE, X_BLOCK_SIZE),                             \
-                                    intel_sub_group_shuffle(                                                   \
+                                    _sub_group_shuffle(                                                   \
                                     AS_TYPE(MAKE_VECTOR_TYPE(UNIT_BLOCK_RW_TYPE, X_BLOCK_SIZE), data),         \
                                     id))
 #else
-#   define GET_SRC(data, id)    AS_TYPE(UNIT_TYPE, intel_sub_group_shuffle(AS_TYPE(UNIT_BLOCK_RW_TYPE, data), id))
+#   define GET_SRC(data, id)    AS_TYPE(UNIT_TYPE, _sub_group_shuffle(AS_TYPE(UNIT_BLOCK_RW_TYPE, data), id))
 #endif
 
 #define FEATURE_SLICE_SIZE 16

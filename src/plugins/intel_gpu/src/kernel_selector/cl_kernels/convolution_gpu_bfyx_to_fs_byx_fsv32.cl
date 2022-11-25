@@ -162,7 +162,7 @@ KERNEL(convolution_gpu_bfyx_to_fs_byx_fsv32)(
                             // With simd along x dimension:
                             // (out_x * STRIDE_SIZE_X + f_x * DILATION_SIZE_X) / SUB_GROUP_SIZE - element number in simd-lane;
                             // (out_x * STRIDE_SIZE_X + f_x * DILATION_SIZE_X) % SUB_GROUP_SIZE - simd-lane with that element.
-                            UNIT_TYPE in_val = intel_sub_group_shuffle(
+                            UNIT_TYPE in_val = _sub_group_shuffle(
                                 in[(out_y * STRIDE_SIZE_Y + f_y * DILATION_SIZE_Y) * INPUT_BLOCK_WIDTH_EL_CNT +
                                    (out_x * STRIDE_SIZE_X + f_x * DILATION_SIZE_X) / SUB_GROUP_SIZE],
                                 (out_x * STRIDE_SIZE_X + f_x * DILATION_SIZE_X) % SUB_GROUP_SIZE);

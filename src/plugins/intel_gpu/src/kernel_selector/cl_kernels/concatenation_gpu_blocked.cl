@@ -78,10 +78,10 @@ KERNEL (concatenation_gpu_blocked)(
     #endif
         __attribute__((opencl_unroll_hint))
         for (uint tx = 0; tx < TILE_XY; ++tx) {
-            ((INPUT0_TYPE*)&src_al0)[tx] = intel_sub_group_shuffle_down(((INPUT0_TYPE*)&src0)[tx], ((INPUT0_TYPE*)&src1)[tx], (IC_BLOCK - MISALIGNMENT));
+            ((INPUT0_TYPE*)&src_al0)[tx] = _sub_group_shuffle_down(((INPUT0_TYPE*)&src0)[tx], ((INPUT0_TYPE*)&src1)[tx], (IC_BLOCK - MISALIGNMENT));
     #if TILE_F == 4
-            ((INPUT0_TYPE*)&src_al1)[tx] = intel_sub_group_shuffle_down(((INPUT0_TYPE*)&src1)[tx], ((INPUT0_TYPE*)&src2)[tx], (IC_BLOCK - MISALIGNMENT));
-            ((INPUT0_TYPE*)&src_al2)[tx] = intel_sub_group_shuffle_down(((INPUT0_TYPE*)&src2)[tx], ((INPUT0_TYPE*)&src3)[tx], (IC_BLOCK - MISALIGNMENT));
+            ((INPUT0_TYPE*)&src_al1)[tx] = _sub_group_shuffle_down(((INPUT0_TYPE*)&src1)[tx], ((INPUT0_TYPE*)&src2)[tx], (IC_BLOCK - MISALIGNMENT));
+            ((INPUT0_TYPE*)&src_al2)[tx] = _sub_group_shuffle_down(((INPUT0_TYPE*)&src2)[tx], ((INPUT0_TYPE*)&src3)[tx], (IC_BLOCK - MISALIGNMENT));
     #endif
         }
         OUTPUT_VEC_TYPE res_al0 = TO_OUTPUT_VEC_TYPE(ACTIVATION(src_al0, ACTIVATION_PARAMS));

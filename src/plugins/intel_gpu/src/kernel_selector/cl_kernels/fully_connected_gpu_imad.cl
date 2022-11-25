@@ -72,23 +72,23 @@ KERNEL(fully_connected_gpu_imad)(
         for (uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
     #if !HAS_OFM_LEFTOVERS
         #if SIMD_SIZE > 8
-            weights_data[of_idx].lo = as_int8(intel_sub_group_block_read8((const __global uint*)(weights + idx_w[of_idx])));
+            weights_data[of_idx].lo = as_int8(_sub_group_block_read8((const __global uint*)(weights + idx_w[of_idx])));
             idx_w[of_idx] += BYTES_PER_READ8;
-            weights_data[of_idx].hi = as_int8(intel_sub_group_block_read8((const __global uint*)(weights + idx_w[of_idx])));
+            weights_data[of_idx].hi = as_int8(_sub_group_block_read8((const __global uint*)(weights + idx_w[of_idx])));
             idx_w[of_idx] += BYTES_PER_READ8;
         #else
-            weights_data[of_idx] = as_int8(intel_sub_group_block_read8((const __global uint*)(weights + idx_w[of_idx])));
+            weights_data[of_idx] = as_int8(_sub_group_block_read8((const __global uint*)(weights + idx_w[of_idx])));
             idx_w[of_idx] += BYTES_PER_READ8;
         #endif
     #else // !HAS_OFM_LEFTOVERS
             if (!last_feature_block) {
             #if SIMD_SIZE > 8
-                weights_data[of_idx].lo = as_int8(intel_sub_group_block_read8((const __global uint*)(weights + idx_w[of_idx])));
+                weights_data[of_idx].lo = as_int8(_sub_group_block_read8((const __global uint*)(weights + idx_w[of_idx])));
                 idx_w[of_idx] += BYTES_PER_READ8;
-                weights_data[of_idx].hi = as_int8(intel_sub_group_block_read8((const __global uint*)(weights + idx_w[of_idx])));
+                weights_data[of_idx].hi = as_int8(_sub_group_block_read8((const __global uint*)(weights + idx_w[of_idx])));
                 idx_w[of_idx] += BYTES_PER_READ8;
             #else
-                weights_data[of_idx] = as_int8(intel_sub_group_block_read8((const __global uint*)(weights + idx_w[of_idx])));
+                weights_data[of_idx] = as_int8(_sub_group_block_read8((const __global uint*)(weights + idx_w[of_idx])));
                 idx_w[of_idx] += BYTES_PER_READ8;
             #endif
             } else {
@@ -115,7 +115,7 @@ KERNEL(fully_connected_gpu_imad)(
         #endif
 
         #if !HAS_IFM_LEFTOVERS
-            int input_data = as_int(intel_sub_group_block_read((const __global uint*)(current_input + idx_i)));
+            int input_data = as_int(_sub_group_block_read((const __global uint*)(current_input + idx_i)));
         #else
             MAKE_VECTOR_TYPE(INPUT0_TYPE, PACK_SIZE) temp_input = { current_input[idx_i + sglid * PACK_SIZE],
                                                                     current_input[idx_i + sglid * PACK_SIZE + 1],
@@ -131,7 +131,7 @@ KERNEL(fully_connected_gpu_imad)(
                 for (uint if_idx = 0; if_idx < SIMD_SIZE; if_idx++) {
                     // One IMAD macro produces upto 16 * 4 dot products (8 / 16 is SIMD and 4 is dp4a instruction)
                     dotProd[ob_idx][of_idx] = IMAD(dotProd[ob_idx][of_idx],
-                                                   AS_INPUT0_TYPE_4(intel_sub_group_shuffle(input_data, if_idx)),
+                                                   AS_INPUT0_TYPE_4(_sub_group_shuffle(input_data, if_idx)),
                                                    as_char4(weights_data[of_idx][if_idx]));
                 }
             }
@@ -221,7 +221,7 @@ KERNEL(fully_connected_gpu_imad)(
             for (uint if_idx = 0; if_idx < SIMD_SIZE; if_idx++) {
                 // One IMAD macro produces upto 16 * 4 dot products (8 / 16 is SIMD and 4 is dp4a instruction)
                 dotProd[ob_idx][of_idx] = IMAD(dotProd[ob_idx][of_idx],
-                                               AS_INPUT0_TYPE_4(intel_sub_group_shuffle(input_data, if_idx)),
+                                               AS_INPUT0_TYPE_4(_sub_group_shuffle(input_data, if_idx)),
                                                as_char4(weights_data[of_idx][if_idx]));
             }
         }

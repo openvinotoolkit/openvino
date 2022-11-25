@@ -12,8 +12,8 @@
 #define ACTIVATION_TYPE_VEC     CAT(ACTIVATION_TYPE, SUB_GROUP_SIZE)
 #define PACKED_INPUT0_TYPE_VEC  CAT(PACKED_INPUT0_TYPE, SUB_GROUP_SIZE)
 #define PACKED_INPUT1_TYPE_VEC  CAT(PACKED_INPUT1_TYPE, SUB_GROUP_SIZE)
-#define BLOCK_READ(ptr)         intel_sub_group_block_read((const __global uint*)(ptr))
-#define BLOCK_SHUFFLE           intel_sub_group_shuffle
+#define BLOCK_READ(ptr)         _sub_group_block_read((const __global uint*)(ptr))
+#define BLOCK_SHUFFLE           _sub_group_shuffle
 
 #if SUB_GROUP_SIZE == 8
 #define MMAD                    MMAD_8x8

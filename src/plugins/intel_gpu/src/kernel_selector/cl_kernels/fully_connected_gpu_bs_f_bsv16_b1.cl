@@ -93,7 +93,7 @@
 
 // Extracts one scalar element of UNIT_TYPE from sub-group chunk;
 //     chunk - name of chunk variable, idx - 0-based index of element.
-#define SG_UNIT_SELECT(chunk, idx) CHUNK_UNIT_SELECT(intel_sub_group_shuffle(chunk, (idx) / UNITS_PER_CHUNK), (idx) % UNITS_PER_CHUNK)
+#define SG_UNIT_SELECT(chunk, idx) CHUNK_UNIT_SELECT(_sub_group_shuffle(chunk, (idx) / UNITS_PER_CHUNK), (idx) % UNITS_PER_CHUNK)
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Reads / Writes:
@@ -118,10 +118,10 @@
                                                                         (array)[(idx) + 6] = chunk_vec.s6, (array)[(idx) + 7] = chunk_vec.s7))
 
 // Currently block read is 4 bytes aligned.
-#define ALIGNED_BLOCK_READ1(ptr, byte_offset) intel_sub_group_block_read((const __global CHUNK_TYPE*)((const __global char*)(ptr) + (byte_offset)))
-#define ALIGNED_BLOCK_READ2(ptr, byte_offset) intel_sub_group_block_read2((const __global CHUNK_TYPE*)((const __global char*)(ptr) + (byte_offset)))
-#define ALIGNED_BLOCK_READ4(ptr, byte_offset) intel_sub_group_block_read4((const __global CHUNK_TYPE*)((const __global char*)(ptr) + (byte_offset)))
-#define ALIGNED_BLOCK_READ8(ptr, byte_offset) intel_sub_group_block_read8((const __global CHUNK_TYPE*)((const __global char*)(ptr) + (byte_offset)))
+#define ALIGNED_BLOCK_READ1(ptr, byte_offset) _sub_group_block_read((const __global CHUNK_TYPE*)((const __global char*)(ptr) + (byte_offset)))
+#define ALIGNED_BLOCK_READ2(ptr, byte_offset) _sub_group_block_read2((const __global CHUNK_TYPE*)((const __global char*)(ptr) + (byte_offset)))
+#define ALIGNED_BLOCK_READ4(ptr, byte_offset) _sub_group_block_read4((const __global CHUNK_TYPE*)((const __global char*)(ptr) + (byte_offset)))
+#define ALIGNED_BLOCK_READ8(ptr, byte_offset) _sub_group_block_read8((const __global CHUNK_TYPE*)((const __global char*)(ptr) + (byte_offset)))
 
 // Currently read is 4 bytes aligned.
 #define ALIGNED_READ1(ptr, byte_offset) (*(const __global CHUNK_TYPE*)((const __global char*)(ptr) + (byte_offset)))
@@ -130,10 +130,10 @@
 #define ALIGNED_READ8(ptr, byte_offset) vload8(0, (const __global CHUNK_TYPE*)((const __global char*)(ptr) + (byte_offset)))
 
 // Currently block write is 16 bytes aligned.
-#define ALIGNED_BLOCK_WRITE1(ptr, byte_offset, val) intel_sub_group_block_write((__global CHUNK_TYPE*)((__global char*)(ptr) + (byte_offset)), (val))
-#define ALIGNED_BLOCK_WRITE2(ptr, byte_offset, val) intel_sub_group_block_write2((__global CHUNK_TYPE*)((__global char*)(ptr) + (byte_offset)), (val))
-#define ALIGNED_BLOCK_WRITE4(ptr, byte_offset, val) intel_sub_group_block_write4((__global CHUNK_TYPE*)((__global char*)(ptr) + (byte_offset)), (val))
-#define ALIGNED_BLOCK_WRITE8(ptr, byte_offset, val) intel_sub_group_block_write8((__global CHUNK_TYPE*)((__global char*)(ptr) + (byte_offset)), (val))
+#define ALIGNED_BLOCK_WRITE1(ptr, byte_offset, val) _sub_group_block_write((__global CHUNK_TYPE*)((__global char*)(ptr) + (byte_offset)), (val))
+#define ALIGNED_BLOCK_WRITE2(ptr, byte_offset, val) _sub_group_block_write2((__global CHUNK_TYPE*)((__global char*)(ptr) + (byte_offset)), (val))
+#define ALIGNED_BLOCK_WRITE4(ptr, byte_offset, val) _sub_group_block_write4((__global CHUNK_TYPE*)((__global char*)(ptr) + (byte_offset)), (val))
+#define ALIGNED_BLOCK_WRITE8(ptr, byte_offset, val) _sub_group_block_write8((__global CHUNK_TYPE*)((__global char*)(ptr) + (byte_offset)), (val))
 
 // Currently block write is 4 bytes aligned.
 #define ALIGNED_WRITE1(ptr, byte_offset, val) ((void)(*(__global CHUNK_TYPE*)((__global char*)(ptr) + (byte_offset)) = (val)))
@@ -458,7 +458,7 @@ KERNEL (fully_connected_gpu_bx_bs_x_bsv16_b1)(
          sg_reduce_offset < SUB_GROUP_SIZE;
          sg_reduce_offset += SUB_GROUP_SIZE * RESPONSES_PER_SG_EXEC / UNITS_PER_SG_READ)
     {
-        reduced_acc = AS_CHUNK(AS_UNITS(reduced_acc) + AS_UNITS(intel_sub_group_shuffle_down(acc, zero, sg_reduce_offset)));
+        reduced_acc = AS_CHUNK(AS_UNITS(reduced_acc) + AS_UNITS(_sub_group_shuffle_down(acc, zero, sg_reduce_offset)));
     }
 
 

@@ -142,7 +142,7 @@ KERNEL(convolution_gpu_bfyx_to_bs_fs_yx_bsv16_fsv16)(
 
                 __attribute__((opencl_unroll_hint(INPUT_FEATURE_NUM)))
                 for (int ic = 0; ic < INPUT_FEATURE_NUM; ic++) {
-                    UNIT_TYPE src = intel_sub_group_shuffle(line_cache[ic * INPUT_BLOCK_SIZE + buf_offset], buf_group);
+                    UNIT_TYPE src = _sub_group_shuffle(line_cache[ic * INPUT_BLOCK_SIZE + buf_offset], buf_group);
                     dst[i] = mad(w[ic], src, dst[i]);
                 }
             }

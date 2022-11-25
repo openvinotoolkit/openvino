@@ -33,7 +33,7 @@ KERNEL (concatenation_gpu_depth_bfyx_no_padding)(__global INPUT0_TYPE* input, __
     const uint output_offset = OUTPUT_OFFSET + element_group_offset + output_batch_offset + output_offset_in_concat_axis*OUTPUT_PITCHES[CONCAT_AXIS_INDEX];
 
     //Check if current group in batch starts from 16-byte aligned pos. If not then move block read to 16-byte aligned position.
-    //Requirement for intel_sub_group_block_write8.
+    //Requirement for _sub_group_block_write8.
     uint align_offset = 0;
     const uint group_start_pos = output_offset;
     if(group_start_pos % WORK_GROUP_SIZE != 0)

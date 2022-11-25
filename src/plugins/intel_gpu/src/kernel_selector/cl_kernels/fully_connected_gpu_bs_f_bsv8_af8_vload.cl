@@ -8,7 +8,7 @@
 
 #if FP16_UNIT_USED
     // Block read - currently block is 4 bytes aligned.
-    #define ALIGNED_BLOCK_READ8(ptr, byte_offset) as_half8(intel_sub_group_block_read_us8((const __global ushort*)(ptr) + (byte_offset)))
+    #define ALIGNED_BLOCK_READ8(ptr, byte_offset) as_half8(_sub_group_block_read_us8((const __global ushort*)(ptr) + (byte_offset)))
 
     #define MULTIPLY_BLOCKS_8x8(_result, _blockA, _blockB)  \
     {   \
@@ -31,7 +31,7 @@
     }
 #else
     // Block read - currently block is 4 bytes aligned.
-    #define ALIGNED_BLOCK_READ8(ptr, byte_offset) as_float8(intel_sub_group_block_read8((const __global uint*)(ptr) + (byte_offset)))
+    #define ALIGNED_BLOCK_READ8(ptr, byte_offset) as_float8(_sub_group_block_read8((const __global uint*)(ptr) + (byte_offset)))
 
     #define MULTIPLY_BLOCKS_8x8(_result, _blockA, _blockB)  \
     {   \

@@ -183,10 +183,10 @@ for (; y < tile_y_end; ++y) {
             INPUT_TYPE4 in_trans2;
             INPUT_TYPE4 in_trans3;
 #if TILED
-            in_trans0 = AS_INPUT_TYPE4(intel_sub_group_shuffle(as_uint(in[fy.s0]), (fx.s0 * DILATION_SIZE_X + tile_x * STRIDE_SIZE_X) % SIMD));
-            in_trans1 = AS_INPUT_TYPE4(intel_sub_group_shuffle(as_uint(in[fy.s1]), (fx.s1 * DILATION_SIZE_X + tile_x * STRIDE_SIZE_X) % SIMD));
-            in_trans2 = AS_INPUT_TYPE4(intel_sub_group_shuffle(as_uint(in[fy.s2]), (fx.s2 * DILATION_SIZE_X + tile_x * STRIDE_SIZE_X) % SIMD));
-            in_trans3 = AS_INPUT_TYPE4(intel_sub_group_shuffle(as_uint(in[fy.s3]), (fx.s3 * DILATION_SIZE_X + tile_x * STRIDE_SIZE_X) % SIMD));
+            in_trans0 = AS_INPUT_TYPE4(_sub_group_shuffle(as_uint(in[fy.s0]), (fx.s0 * DILATION_SIZE_X + tile_x * STRIDE_SIZE_X) % SIMD));
+            in_trans1 = AS_INPUT_TYPE4(_sub_group_shuffle(as_uint(in[fy.s1]), (fx.s1 * DILATION_SIZE_X + tile_x * STRIDE_SIZE_X) % SIMD));
+            in_trans2 = AS_INPUT_TYPE4(_sub_group_shuffle(as_uint(in[fy.s2]), (fx.s2 * DILATION_SIZE_X + tile_x * STRIDE_SIZE_X) % SIMD));
+            in_trans3 = AS_INPUT_TYPE4(_sub_group_shuffle(as_uint(in[fy.s3]), (fx.s3 * DILATION_SIZE_X + tile_x * STRIDE_SIZE_X) % SIMD));
 #elif PRELOAD_INPUT
             uint4 input_x_offset = (fx * DILATION_SIZE_X + oxi * STRIDE_SIZE_X);
             uint4 input_y_offset = fy * INPUT_LINE_SIZE;
@@ -248,12 +248,12 @@ for (; y < tile_y_end; ++y) {
             INPUT_TYPE4 in_trans2;
             INPUT_TYPE4 in_trans3;
 #if TILED
-            in_trans0 = AS_INPUT_TYPE4(intel_sub_group_shuffle(as_uint(in[fy.s0]), (fx.s0 * DILATION_SIZE_X + tile_x * STRIDE_SIZE_X) % SIMD));
+            in_trans0 = AS_INPUT_TYPE4(_sub_group_shuffle(as_uint(in[fy.s0]), (fx.s0 * DILATION_SIZE_X + tile_x * STRIDE_SIZE_X) % SIMD));
 #   if FILTER_BLOCKED % 4 > 1
-            in_trans1 = AS_INPUT_TYPE4(intel_sub_group_shuffle(as_uint(in[fy.s1]), (fx.s1 * DILATION_SIZE_X + tile_x * STRIDE_SIZE_X) % SIMD));
+            in_trans1 = AS_INPUT_TYPE4(_sub_group_shuffle(as_uint(in[fy.s1]), (fx.s1 * DILATION_SIZE_X + tile_x * STRIDE_SIZE_X) % SIMD));
 #   endif
 #   if FILTER_BLOCKED % 4 > 2
-            in_trans2 = AS_INPUT_TYPE4(intel_sub_group_shuffle(as_uint(in[fy.s2]), (fx.s2 * DILATION_SIZE_X + tile_x * STRIDE_SIZE_X) % SIMD));
+            in_trans2 = AS_INPUT_TYPE4(_sub_group_shuffle(as_uint(in[fy.s2]), (fx.s2 * DILATION_SIZE_X + tile_x * STRIDE_SIZE_X) % SIMD));
 #   endif
 #elif PRELOAD_INPUT
             uint4 input_x_offset = (fx * DILATION_SIZE_X + oxi * STRIDE_SIZE_X);
@@ -324,7 +324,7 @@ for (; y < tile_y_end; ++y) {
         for (uint oxi = 0; oxi < OUTPUT_BLOCK_X; ++oxi) {
 
 #   if TILED
-            in0 = AS_INPUT_TYPE4(intel_sub_group_shuffle(as_uint(in[fy]), (fx * DILATION_SIZE_X + tile_x * STRIDE_SIZE_X) % SIMD));
+            in0 = AS_INPUT_TYPE4(_sub_group_shuffle(as_uint(in[fy]), (fx * DILATION_SIZE_X + tile_x * STRIDE_SIZE_X) % SIMD));
 #   elif PRELOAD_INPUT
             uint input_x_offset = (fx * DILATION_SIZE_X + oxi * STRIDE_SIZE_X);
             uint input_y_offset = fy * INPUT_LINE_SIZE;

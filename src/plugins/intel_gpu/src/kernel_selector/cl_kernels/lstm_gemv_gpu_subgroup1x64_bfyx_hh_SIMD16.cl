@@ -17,10 +17,10 @@
 #define SUM_ACROSS_SUB_GROUP(val) \
  \
 { \
-    val += intel_sub_group_shuffle(val, x+1); \
-    val += intel_sub_group_shuffle(val, x+2); \
-    val += intel_sub_group_shuffle(val, x+4); \
-    val += intel_sub_group_shuffle(val, x+8); \
+    val += _sub_group_shuffle(val, x+1); \
+    val += _sub_group_shuffle(val, x+2); \
+    val += _sub_group_shuffle(val, x+4); \
+    val += _sub_group_shuffle(val, x+8); \
 }
 
 // input     = [    batch,  sequence,               1,      input_size ]

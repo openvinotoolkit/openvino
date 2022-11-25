@@ -21,21 +21,21 @@
 #define TO_OUTPUT_TYPE8   CAT(convert_, OUTPUT_TYPE8)
 
 #if INPUT0_TYPE_SIZE == 2
-#   define INPUT_BLOCK_READ(ptr, offset)    AS_INPUT_TYPE(intel_sub_group_block_read_us((__global ushort*)(ptr) + (offset)))
-#   define INPUT_BLOCK_READ8(ptr, offset)   AS_INPUT_TYPE8(intel_sub_group_block_read_us8((__global ushort*)(ptr) + (offset)))
+#   define INPUT_BLOCK_READ(ptr, offset)    AS_INPUT_TYPE(_sub_group_block_read_us((__global ushort*)(ptr) + (offset)))
+#   define INPUT_BLOCK_READ8(ptr, offset)   AS_INPUT_TYPE8(_sub_group_block_read_us8((__global ushort*)(ptr) + (offset)))
 #elif INPUT0_TYPE_SIZE == 4
-#   define INPUT_BLOCK_READ(ptr, offset)    AS_INPUT_TYPE(intel_sub_group_block_read((__global uint*)(ptr) + (offset)))
-#   define INPUT_BLOCK_READ8(ptr, offset)   AS_INPUT_TYPE8(intel_sub_group_block_read8((__global uint*)(ptr) + (offset)))
+#   define INPUT_BLOCK_READ(ptr, offset)    AS_INPUT_TYPE(_sub_group_block_read((__global uint*)(ptr) + (offset)))
+#   define INPUT_BLOCK_READ8(ptr, offset)   AS_INPUT_TYPE8(_sub_group_block_read8((__global uint*)(ptr) + (offset)))
 #else
 #   error convolution_gpu_bfyx_f16_depthwise.cl - unsupported input type.
 #endif
 
 #if FILTER_TYPE_SIZE == 2
-#   define FILTER_BLOCK_READ(ptr, offset) AS_FILTER_TYPE(intel_sub_group_block_read_us((__global ushort*)(ptr) + (offset)))
-#   define FILTER_BLOCK_READ2(ptr, offset) AS_FILTER_TYPE2(intel_sub_group_block_read_us2((__global ushort*)(ptr) + (offset)))
+#   define FILTER_BLOCK_READ(ptr, offset) AS_FILTER_TYPE(_sub_group_block_read_us((__global ushort*)(ptr) + (offset)))
+#   define FILTER_BLOCK_READ2(ptr, offset) AS_FILTER_TYPE2(_sub_group_block_read_us2((__global ushort*)(ptr) + (offset)))
 #elif FILTER_TYPE_SIZE == 4
-#   define FILTER_BLOCK_READ(ptr, offset) AS_FILTER_TYPE(intel_sub_group_block_read((__global uint*)(ptr) + (offset)))
-#   define FILTER_BLOCK_READ2(ptr, offset) AS_FILTER_TYPE2(intel_sub_group_block_read2((__global uint*)(ptr) + (offset)))
+#   define FILTER_BLOCK_READ(ptr, offset) AS_FILTER_TYPE(_sub_group_block_read((__global uint*)(ptr) + (offset)))
+#   define FILTER_BLOCK_READ2(ptr, offset) AS_FILTER_TYPE2(_sub_group_block_read2((__global uint*)(ptr) + (offset)))
 #else
 #   error convolution_gpu_bfyx_f16_depthwise.cl - unsupported filter type.
 #endif
@@ -44,11 +44,11 @@
 #   define OUTPUT_BLOCK_WRITE(ptr, offset, val)    BLOCK_WRITE_UC_1((__global uchar*)(ptr) + (offset), as_uchar(val))
 #   define OUTPUT_BLOCK_WRITE8(ptr, offset, val)   BLOCK_WRITE_UC_8((__global uchar*)(ptr) + (offset), as_uchar8(val))
 #elif OUTPUT_TYPE_SIZE == 2
-#   define OUTPUT_BLOCK_WRITE(ptr, offset, val)    intel_sub_group_block_write_us((__global ushort*)(ptr) + (offset), as_ushort(val))
-#   define OUTPUT_BLOCK_WRITE8(ptr, offset, val)   intel_sub_group_block_write_us8((__global ushort*)(ptr) + (offset), as_ushort8(val))
+#   define OUTPUT_BLOCK_WRITE(ptr, offset, val)    _sub_group_block_write_us((__global ushort*)(ptr) + (offset), as_ushort(val))
+#   define OUTPUT_BLOCK_WRITE8(ptr, offset, val)   _sub_group_block_write_us8((__global ushort*)(ptr) + (offset), as_ushort8(val))
 #elif OUTPUT_TYPE_SIZE == 4
-#   define OUTPUT_BLOCK_WRITE(ptr, offset, val)    intel_sub_group_block_write((__global uint*)(ptr) + (offset), as_uint(val))
-#   define OUTPUT_BLOCK_WRITE8(ptr, offset, val)   intel_sub_group_block_write8((__global uint*)(ptr) + (offset), as_uint8(val))
+#   define OUTPUT_BLOCK_WRITE(ptr, offset, val)    _sub_group_block_write((__global uint*)(ptr) + (offset), as_uint(val))
+#   define OUTPUT_BLOCK_WRITE8(ptr, offset, val)   _sub_group_block_write8((__global uint*)(ptr) + (offset), as_uint8(val))
 #else
 #   error convolution_gpu_bfyx_f16_depthwise.cl - unsupported output type.
 #endif

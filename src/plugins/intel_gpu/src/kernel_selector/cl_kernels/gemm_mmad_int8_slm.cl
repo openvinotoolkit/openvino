@@ -10,7 +10,7 @@
 #define ACTIVATION_TYPE_VEC     CAT(ACTIVATION_TYPE, SUB_GROUP_SIZE)
 #define PACKED_INPUT0_TYPE_VEC  CAT(PACKED_INPUT0_TYPE, SUB_GROUP_SIZE)
 #define PACKED_INPUT1_TYPE_VEC  CAT(PACKED_INPUT1_TYPE, SUB_GROUP_SIZE)
-#define BLOCK_READ(ptr)         intel_sub_group_block_read((const __global uint*)(ptr))
+#define BLOCK_READ(ptr)         _sub_group_block_read((const __global uint*)(ptr))
 
 inline uint FUNC(get_input0_batch_offset)(uint b, uint f, uint w, uint z) {
 #if INPUT0_SIMPLE

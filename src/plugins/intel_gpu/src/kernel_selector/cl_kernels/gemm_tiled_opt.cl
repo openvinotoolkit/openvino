@@ -6,9 +6,9 @@
 #include "include/batch_headers/data_types.cl"
 
 #if INPUT0_TYPE_SIZE == 4
-#define BLOCK_SHUFFLE               intel_sub_group_shuffle
+#define BLOCK_SHUFFLE               _sub_group_shuffle
 #else // INPUT0_TYPE_SIZE == 4
-#define BLOCK_SHUFFLE(data, sg_lid) as_half16(intel_sub_group_shuffle(as_short16(data), sg_lid))
+#define BLOCK_SHUFFLE(data, sg_lid) as_half16(_sub_group_shuffle(as_short16(data), sg_lid))
 #endif // INPUT0_TYPE_SIZE == 4
 
 #if TILE_K > SIMD_WIDTH

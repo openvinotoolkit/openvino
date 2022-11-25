@@ -7,10 +7,10 @@
 
 #define OC_BLOCK_SIZE 32
 
-#define GET_WEI(data, id) intel_sub_group_shuffle(data, id)
-#define ALIGNED_BLOCK_READ(ptr, byte_offset) as_uint(intel_sub_group_block_read((const __global uint*)(ptr) + (byte_offset)))
-#define ALIGNED_BLOCK_WRITE(ptr, byte_offset, val) intel_sub_group_block_write((__global uint*)(ptr) + (byte_offset), as_uint(val))
-#define ALIGNED_BLOCK_READ2(ptr, byte_offset) as_uint2(intel_sub_group_block_read2((const __global uint*)(ptr) + (byte_offset)))
+#define GET_WEI(data, id) _sub_group_shuffle(data, id)
+#define ALIGNED_BLOCK_READ(ptr, byte_offset) as_uint(_sub_group_block_read((const __global uint*)(ptr) + (byte_offset)))
+#define ALIGNED_BLOCK_WRITE(ptr, byte_offset, val) _sub_group_block_write((__global uint*)(ptr) + (byte_offset), as_uint(val))
+#define ALIGNED_BLOCK_READ2(ptr, byte_offset) as_uint2(_sub_group_block_read2((const __global uint*)(ptr) + (byte_offset)))
 
 __attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
 __attribute__((reqd_work_group_size(SUB_GROUP_SIZE, 1, 1)))

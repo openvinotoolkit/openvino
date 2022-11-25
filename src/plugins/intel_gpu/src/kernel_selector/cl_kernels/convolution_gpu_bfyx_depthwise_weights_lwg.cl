@@ -6,11 +6,11 @@
 #include "include/batch_headers/fetch_data.cl"
 
 #if FP16_UNIT_USED
-    #define ALIGNED_BLOCK_READ(ptr, byte_offset) as_half(intel_sub_group_block_read_us8((const __global ushort*)(ptr) + (byte_offset)))
-    #define ALIGNED_BLOCK_WRITE(ptr, byte_offset, val) intel_sub_group_block_write_us((__global ushort*)(ptr) + (byte_offset), as_ushort8(val))
+    #define ALIGNED_BLOCK_READ(ptr, byte_offset) as_half(_sub_group_block_read_us8((const __global ushort*)(ptr) + (byte_offset)))
+    #define ALIGNED_BLOCK_WRITE(ptr, byte_offset, val) _sub_group_block_write_us((__global ushort*)(ptr) + (byte_offset), as_ushort8(val))
 #else
-    #define ALIGNED_BLOCK_READ(ptr, byte_offset) as_float(intel_sub_group_block_read((const __global uint*)(ptr) + (byte_offset)))
-    #define ALIGNED_BLOCK_WRITE(ptr, byte_offset, val) intel_sub_group_block_write((__global uint*)(ptr) + (byte_offset), as_uint8(val))
+    #define ALIGNED_BLOCK_READ(ptr, byte_offset) as_float(_sub_group_block_read((const __global uint*)(ptr) + (byte_offset)))
+    #define ALIGNED_BLOCK_WRITE(ptr, byte_offset, val) _sub_group_block_write((__global uint*)(ptr) + (byte_offset), as_uint8(val))
 #endif
 
 __attribute__((intel_reqd_sub_group_size(16)))
@@ -78,9 +78,9 @@ KERNEL(convolution_depthwise_weights_lwg)(
 #if FILTER_SIZE_X * FILTER_SIZE_Y > 16 && FILTER_SIZE_X * FILTER_SIZE_Y <= 25
                     const uint id = (j*FILTER_Y_PITCH + i*FILTER_X_PITCH) / 16;
                     const uint idx = (j*FILTER_Y_PITCH + i*FILTER_X_PITCH) % 16;
-                    UNIT_TYPE w1 = intel_sub_group_shuffle(w[id], idx);
+                    UNIT_TYPE w1 = _sub_group_shuffle(w[id], idx);
 #else
-                    UNIT_TYPE w1 = intel_sub_group_shuffle(w, j*FILTER_Y_PITCH + i*FILTER_X_PITCH);
+                    UNIT_TYPE w1 = _sub_group_shuffle(w, j*FILTER_Y_PITCH + i*FILTER_X_PITCH);
 #endif
                     dotProd = mad(input[input_offset + (uint)input_offset_x*INPUT0_X_PITCH + (uint)input_offset_y*INPUT0_Y_PITCH],
                                   w1, dotProd);

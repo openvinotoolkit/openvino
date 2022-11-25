@@ -417,7 +417,7 @@ KERNEL(convolution)(
         FILTER_TYPE4 wei[F_PER_WI];
         __attribute__((opencl_unroll_hint))
         for (uint fw = 0; fw < F_PER_WI; ++fw) {
-            wei[fw] = AS_FILTER_TYPE4(intel_sub_group_block_read((const __global uint*)(weights + weights_offset) + fw * SIMD));
+            wei[fw] = AS_FILTER_TYPE4(_sub_group_block_read((const __global uint*)(weights + weights_offset) + fw * SIMD));
         }
 
     #if CHECK_BOUNDARY && !CHECK_BOUNDARY_IN_SLM
@@ -492,7 +492,7 @@ KERNEL(convolution)(
     FILTER_TYPE4 wei[F_PER_WI];
     __attribute__((opencl_unroll_hint))
     for (uint fw = 0; fw < F_PER_WI; ++fw) {
-        wei[fw] = AS_FILTER_TYPE4(intel_sub_group_block_read((const __global uint*)(weights + weights_offset) + fw * SIMD));
+        wei[fw] = AS_FILTER_TYPE4(_sub_group_block_read((const __global uint*)(weights + weights_offset) + fw * SIMD));
     }
 
     __attribute__((opencl_unroll_hint))

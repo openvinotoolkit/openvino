@@ -134,7 +134,7 @@ KERNEL(convolution_bfyx_to_bfyx_f16)(
                 INPUT0_TYPE src[INPUT0_FEATURE_NUM];
                 __attribute__((opencl_unroll_hint(INPUT0_FEATURE_NUM)))
                 for (int ic = 0; ic < INPUT0_FEATURE_NUM; ic++) {
-                    src[ic] = intel_sub_group_shuffle(line_cache[ic * INPUT_BLOCK_SIZE + buf_offset], buf_group);
+                    src[ic] = _sub_group_shuffle(line_cache[ic * INPUT_BLOCK_SIZE + buf_offset], buf_group);
                     dst[i] = mad(wei[ic], src[ic], dst[i]);
                 }
             }

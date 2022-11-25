@@ -91,14 +91,14 @@ KERNEL(lstm_dynamic_input_bfyx_opt)(
         UNIT_TYPE8 BLOCK_W7 = UNIT_BLOCK_READ8(weights, calcuation_offset); INC_OFFSET(calcuation_offset, WEIGHTS_SIZE_Y);
 
         UNIT_TYPE input_value = input[input_offset];
-        MAD_1X8(dot_prod, intel_sub_group_shuffle(input_value, 0), BLOCK_W0);
-        MAD_1X8(dot_prod, intel_sub_group_shuffle(input_value, 1), BLOCK_W1);
-        MAD_1X8(dot_prod, intel_sub_group_shuffle(input_value, 2), BLOCK_W2);
-        MAD_1X8(dot_prod, intel_sub_group_shuffle(input_value, 3), BLOCK_W3);
-        MAD_1X8(dot_prod, intel_sub_group_shuffle(input_value, 4), BLOCK_W4);
-        MAD_1X8(dot_prod, intel_sub_group_shuffle(input_value, 5), BLOCK_W5);
-        MAD_1X8(dot_prod, intel_sub_group_shuffle(input_value, 6), BLOCK_W6);
-        MAD_1X8(dot_prod, intel_sub_group_shuffle(input_value, 7), BLOCK_W7);
+        MAD_1X8(dot_prod, _sub_group_shuffle(input_value, 0), BLOCK_W0);
+        MAD_1X8(dot_prod, _sub_group_shuffle(input_value, 1), BLOCK_W1);
+        MAD_1X8(dot_prod, _sub_group_shuffle(input_value, 2), BLOCK_W2);
+        MAD_1X8(dot_prod, _sub_group_shuffle(input_value, 3), BLOCK_W3);
+        MAD_1X8(dot_prod, _sub_group_shuffle(input_value, 4), BLOCK_W4);
+        MAD_1X8(dot_prod, _sub_group_shuffle(input_value, 5), BLOCK_W5);
+        MAD_1X8(dot_prod, _sub_group_shuffle(input_value, 6), BLOCK_W6);
+        MAD_1X8(dot_prod, _sub_group_shuffle(input_value, 7), BLOCK_W7);
 
         input_offset += SIMD_SIZE;
     }

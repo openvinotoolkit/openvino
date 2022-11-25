@@ -12,8 +12,8 @@
 #define INPUT_PACKED_TYPE_VEC   CAT(INPUT_PACKED_TYPE, SUB_GROUP_SIZE)
 #define FILTER_PACKED_TYPE_VEC  CAT(FILTER_PACKED_TYPE, SUB_GROUP_SIZE)
 
-#define BLOCK_READ(ptr)         intel_sub_group_block_read((const __global uint*)(ptr))
-#define BLOCK_READ_8(ptr)       intel_sub_group_block_read8((const __global uint*)(ptr))
+#define BLOCK_READ(ptr)         _sub_group_block_read((const __global uint*)(ptr))
+#define BLOCK_READ_8(ptr)       _sub_group_block_read8((const __global uint*)(ptr))
 
 #define MMAD                    CAT(MMAD_, SUB_GROUP_SIZE)
 

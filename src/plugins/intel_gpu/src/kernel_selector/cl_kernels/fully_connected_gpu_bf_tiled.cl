@@ -119,7 +119,7 @@ KERNEL(fc)(
 
         __attribute__((opencl_unroll_hint))
         for (uint bi = 0; bi < TILE_B; ++bi) {
-            acc[bi] = intel_sub_group_shuffle(tmp_input, bi) * tmp_wei;
+            acc[bi] = _sub_group_shuffle(tmp_input, bi) * tmp_wei;
         }
 
         weights_offset += TILE_OFM * SIMD;
@@ -155,7 +155,7 @@ KERNEL(fc)(
                     __attribute__((opencl_unroll_hint))
                     for (uint bi = 0; bi < TILE_B; ++bi) {
                         const uint total_k = ki * TILE_K + kii;
-                        INPUT0_TYPE in_val = intel_sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
+                        INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
                         ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((FILTER_TYPE*)(&wei))[kii * TILE_OFM + fi];
                     }
                 }
@@ -189,7 +189,7 @@ KERNEL(fc)(
                     for (uint bi = 0; bi < TILE_B; ++bi) {
                         const uint total_k = ki * TILE_K + kii;
                         if (total_k < LEFTOVER_IFM) {
-                            INPUT0_TYPE in_val = intel_sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
+                            INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
                             ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((FILTER_TYPE*)(&wei))[kii * TILE_OFM + fi];
                         }
                     }

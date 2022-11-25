@@ -108,8 +108,8 @@ KERNEL(arg_max_min_opt)(const __global UNIT_TYPE* input, __global uint* output)
     __attribute__((opencl_unroll_hint(1)))
     for (uint ii = 0; ii < INB_ARRAY_SIZE * SG_SIZE; ++ii)
     {
-        UNIT_TYPE in_val = intel_sub_group_shuffle(input_blocks[ii / SG_SIZE], ii % SG_SIZE);
-        uint in_index = intel_sub_group_shuffle(input_blocks[ii / SG_SIZE], ii % SG_SIZE);
+        UNIT_TYPE in_val = _sub_group_shuffle(input_blocks[ii / SG_SIZE], ii % SG_SIZE);
+        uint in_index = _sub_group_shuffle(input_blocks[ii / SG_SIZE], ii % SG_SIZE);
         __attribute__((opencl_unroll_hint))
         for (uint ai = 0; ai < minmax_acc_array_size; ++ai)
         {
@@ -119,13 +119,13 @@ KERNEL(arg_max_min_opt)(const __global UNIT_TYPE* input, __global uint* output)
                 __attribute__((opencl_unroll_hint))
                 for (uint aj = minmax_acc_array_size; aj > ai + 1; --aj)
                 {
-                    acc[aj - 1] = intel_sub_group_shuffle_up(acc[aj - 2], acc[aj - 1], 1);
-                    result[aj - 1] = intel_sub_group_shuffle_up(result[aj - 2], acc[aj - 1], 1);
+                    acc[aj - 1] = _sub_group_shuffle_up(acc[aj - 2], acc[aj - 1], 1);
+                    result[aj - 1] = _sub_group_shuffle_up(result[aj - 2], acc[aj - 1], 1);
                 }
                 UNIT_TYPE in_val_acc_mask = select(in_val, acc[ai], insert_flag);
                 uint in_index_mask = select(in_index, result[ai], insert_flag);
-                acc[ai] = select(acc[ai], intel_sub_group_shuffle_up(in_val, in_val_acc_mask, 1), insert_flag);
-                result[ai] = select(result[ai], intel_sub_group_shuffle_up(in_index, in_index_mask, 1), insert_flag);
+                acc[ai] = select(acc[ai], _sub_group_shuffle_up(in_val, in_val_acc_mask, 1), insert_flag);
+                result[ai] = select(result[ai], _sub_group_shuffle_up(in_index, in_index_mask, 1), insert_flag);
                 break;
             }
         }

@@ -261,7 +261,7 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
                 __attribute__((opencl_unroll_hint))
                 for (uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
 #endif
-                        INPUT0_TYPE_4 inputs = AS_INPUT0_TYPE_4(intel_sub_group_shuffle(input_val[os / SIMD][ive], os % SIMD));
+                        INPUT0_TYPE_4 inputs = AS_INPUT0_TYPE_4(_sub_group_shuffle(input_val[os / SIMD][ive], os % SIMD));
 
                         dotProd[ofb][os] = IMAD(dotProd[ofb][os],
                                                 inputs,
@@ -459,8 +459,8 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
     if (can_use_full_block_write) {
         uint output_idx = OUTPUT_GET_INDEX(out_b,
                                            out_fg,
-                                           intel_sub_group_shuffle(out_y_shuffle[0], 0),
-                                           intel_sub_group_shuffle(out_x_shuffle[0], 0));
+                                           _sub_group_shuffle(out_y_shuffle[0], 0),
+                                           _sub_group_shuffle(out_x_shuffle[0], 0));
         __attribute__((opencl_unroll_hint))
         for (uint ofb = 0; ofb < FINAL_OUT_BLOCK_FEATURES; ++ofb) {
             bool good_of_block = (CEIL_DIV(OUTPUT_FEATURE_NUM, SIMD) % FINAL_OUT_BLOCK_FEATURES == 0)
@@ -525,7 +525,7 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
                     if (!good_os)
                         break;
 
-                    uint output_idx = intel_sub_group_shuffle(output_idx_shuffle[os / SIMD], os % SIMD);
+                    uint output_idx = _sub_group_shuffle(output_idx_shuffle[os / SIMD], os % SIMD);
                     bool good_of = (OUTPUT_FEATURE_NUM % SIMD == 0) || (out_f + ofb * SIMD < OUTPUT_FEATURE_NUM);
 
                     if (!good_of)

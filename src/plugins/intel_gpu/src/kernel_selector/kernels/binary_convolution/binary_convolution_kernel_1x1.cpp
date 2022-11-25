@@ -117,14 +117,14 @@ JitConstants BinaryConvolutionKernel1x1::GetFusedPrimitivesJitConstants(const bi
         auto fused_dep_codegen = FusedOpsCodeGenerator(fused_dep);
         auto get_aligned_load2 = [&](std::string ptr, std::string byte_offset) -> std::string {
             if (fused_dep.tensors[0].GetDType() == Datatype::F32)
-                return "(intel_sub_group_block_read2((const __global uint*)(" + ptr + ") + (" + byte_offset + ")))";
+                return "(_sub_group_block_read2((const __global uint*)(" + ptr + ") + (" + byte_offset + ")))";
             else
-                return "(intel_sub_group_block_read_us2((const __global ushort*)(" + ptr + ") + (" + byte_offset +
+                return "(_sub_group_block_read_us2((const __global ushort*)(" + ptr + ") + (" + byte_offset +
                        ")))";
         };
 
         auto get_shuffle = [&](std::string var, std::string lid) -> std::string {
-            return "(intel_sub_group_shuffle(" + var + ", " + lid + "))";
+            return "(_sub_group_shuffle(" + var + ", " + lid + "))";
         };
 
         std::string data_type = fused_dep_codegen.GetInputTypeName(0, 1);

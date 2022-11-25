@@ -107,7 +107,7 @@ KERNEL(convolution_gpu_fs_byx_fsv32_1x1)(
                 {
                     unroll_for (uint out_f = 0; out_f < FSV_PER_THREAD; ++out_f)
                     {
-                        UNIT_TYPE in_val = intel_sub_group_shuffle(input_read[in_f / SUB_GROUP_SIZE], in_f % SUB_GROUP_SIZE);
+                        UNIT_TYPE in_val = _sub_group_shuffle(input_read[in_f / SUB_GROUP_SIZE], in_f % SUB_GROUP_SIZE);
 
                         const uint out_idx = out_y * OUTPUT_BLOCK_WIDTH * FSV_PER_THREAD + out_x * FSV_PER_THREAD + out_f;
                         out[out_idx] = mad(w[in_f * FSV_PER_THREAD + out_f], in_val, out[out_idx]);

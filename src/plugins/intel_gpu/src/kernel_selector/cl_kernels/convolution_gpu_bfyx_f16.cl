@@ -20,23 +20,23 @@
 #define AS_FILTER_TYPE8   CAT(as_, FILTER_TYPE8)
 
 #if INPUT0_TYPE_SIZE == 2
-#   define INPUT_BLOCK_READ(ptr, offset)    AS_INPUT_TYPE(intel_sub_group_block_read_us((__global ushort*)(ptr) + (offset)))
-#   define INPUT_BLOCK_READ2(ptr, offset)   AS_INPUT_TYPE2(intel_sub_group_block_read_us2((__global ushort*)(ptr) + (offset)))
-#   define INPUT_BLOCK_READ4(ptr, offset)   AS_INPUT_TYPE4(intel_sub_group_block_read_us4((__global ushort*)(ptr) + (offset)))
-#   define INPUT_BLOCK_READ8(ptr, offset)   AS_INPUT_TYPE8(intel_sub_group_block_read_us8((__global ushort*)(ptr) + (offset)))
+#   define INPUT_BLOCK_READ(ptr, offset)    AS_INPUT_TYPE(_sub_group_block_read_us((__global ushort*)(ptr) + (offset)))
+#   define INPUT_BLOCK_READ2(ptr, offset)   AS_INPUT_TYPE2(_sub_group_block_read_us2((__global ushort*)(ptr) + (offset)))
+#   define INPUT_BLOCK_READ4(ptr, offset)   AS_INPUT_TYPE4(_sub_group_block_read_us4((__global ushort*)(ptr) + (offset)))
+#   define INPUT_BLOCK_READ8(ptr, offset)   AS_INPUT_TYPE8(_sub_group_block_read_us8((__global ushort*)(ptr) + (offset)))
 #elif INPUT0_TYPE_SIZE == 4
-#   define INPUT_BLOCK_READ(ptr, offset)    AS_INPUT_TYPE(intel_sub_group_block_read((__global uint*)(ptr) + (offset)))
-#   define INPUT_BLOCK_READ2(ptr, offset)   AS_INPUT_TYPE2(intel_sub_group_block_read2((__global uint*)(ptr) + (offset)))
-#   define INPUT_BLOCK_READ4(ptr, offset)   AS_INPUT_TYPE4(intel_sub_group_block_read4((__global uint*)(ptr) + (offset)))
-#   define INPUT_BLOCK_READ8(ptr, offset)   AS_INPUT_TYPE8(intel_sub_group_block_read8((__global uint*)(ptr) + (offset)))
+#   define INPUT_BLOCK_READ(ptr, offset)    AS_INPUT_TYPE(_sub_group_block_read((__global uint*)(ptr) + (offset)))
+#   define INPUT_BLOCK_READ2(ptr, offset)   AS_INPUT_TYPE2(_sub_group_block_read2((__global uint*)(ptr) + (offset)))
+#   define INPUT_BLOCK_READ4(ptr, offset)   AS_INPUT_TYPE4(_sub_group_block_read4((__global uint*)(ptr) + (offset)))
+#   define INPUT_BLOCK_READ8(ptr, offset)   AS_INPUT_TYPE8(_sub_group_block_read8((__global uint*)(ptr) + (offset)))
 #else
 #   error convolution_gpu_bfyx_f16.cl: unsupported input type
 #endif
 
 #if FILTER_TYPE_SIZE == 2
-#   define FILTER_BLOCK_READ8(ptr, offset) AS_FILTER_TYPE8(intel_sub_group_block_read_us8((__global ushort*)(ptr) + (offset)))
+#   define FILTER_BLOCK_READ8(ptr, offset) AS_FILTER_TYPE8(_sub_group_block_read_us8((__global ushort*)(ptr) + (offset)))
 #elif FILTER_TYPE_SIZE == 4
-#   define FILTER_BLOCK_READ8(ptr, offset) AS_FILTER_TYPE8(intel_sub_group_block_read8((__global uint*)(ptr) + (offset)))
+#   define FILTER_BLOCK_READ8(ptr, offset) AS_FILTER_TYPE8(_sub_group_block_read8((__global uint*)(ptr) + (offset)))
 #else
 #   error convolution_gpu_bfyx_f16.cl: unsupported filter type
 #endif
@@ -52,15 +52,15 @@
 #       define OUTPUT_BLOCK_WRITE4(ptr, offset, val)   BLOCK_WRITE_UC_4((__global uchar*)(ptr) + (offset), as_uchar4(val))
 #       define OUTPUT_BLOCK_WRITE8(ptr, offset, val)   BLOCK_WRITE_UC_8((__global uchar*)(ptr) + (offset), as_uchar8(val))
 #   elif OUTPUT_TYPE_SIZE == 2
-#       define OUTPUT_BLOCK_WRITE(ptr, offset, val)    intel_sub_group_block_write_us((__global ushort*)(ptr) + (offset), as_ushort(val))
-#       define OUTPUT_BLOCK_WRITE2(ptr, offset, val)   intel_sub_group_block_write_us2((__global ushort*)(ptr) + (offset), as_ushort2(val))
-#       define OUTPUT_BLOCK_WRITE4(ptr, offset, val)   intel_sub_group_block_write_us4((__global ushort*)(ptr) + (offset), as_ushort4(val))
-#       define OUTPUT_BLOCK_WRITE8(ptr, offset, val)   intel_sub_group_block_write_us8((__global ushort*)(ptr) + (offset), as_ushort8(val))
+#       define OUTPUT_BLOCK_WRITE(ptr, offset, val)    _sub_group_block_write_us((__global ushort*)(ptr) + (offset), as_ushort(val))
+#       define OUTPUT_BLOCK_WRITE2(ptr, offset, val)   _sub_group_block_write_us2((__global ushort*)(ptr) + (offset), as_ushort2(val))
+#       define OUTPUT_BLOCK_WRITE4(ptr, offset, val)   _sub_group_block_write_us4((__global ushort*)(ptr) + (offset), as_ushort4(val))
+#       define OUTPUT_BLOCK_WRITE8(ptr, offset, val)   _sub_group_block_write_us8((__global ushort*)(ptr) + (offset), as_ushort8(val))
 #   elif OUTPUT_TYPE_SIZE == 4
-#       define OUTPUT_BLOCK_WRITE(ptr, offset, val)    intel_sub_group_block_write((__global uint*)(ptr) + (offset), as_uint(val))
-#       define OUTPUT_BLOCK_WRITE2(ptr, offset, val)   intel_sub_group_block_write2((__global uint*)(ptr) + (offset), as_uint2(val))
-#       define OUTPUT_BLOCK_WRITE4(ptr, offset, val)   intel_sub_group_block_write4((__global uint*)(ptr) + (offset), as_uint4(val))
-#       define OUTPUT_BLOCK_WRITE8(ptr, offset, val)   intel_sub_group_block_write8((__global uint*)(ptr) + (offset), as_uint8(val))
+#       define OUTPUT_BLOCK_WRITE(ptr, offset, val)    _sub_group_block_write((__global uint*)(ptr) + (offset), as_uint(val))
+#       define OUTPUT_BLOCK_WRITE2(ptr, offset, val)   _sub_group_block_write2((__global uint*)(ptr) + (offset), as_uint2(val))
+#       define OUTPUT_BLOCK_WRITE4(ptr, offset, val)   _sub_group_block_write4((__global uint*)(ptr) + (offset), as_uint4(val))
+#       define OUTPUT_BLOCK_WRITE8(ptr, offset, val)   _sub_group_block_write8((__global uint*)(ptr) + (offset), as_uint8(val))
 #   else
 #       error convolution_gpu_bfyx_f16.cl: unsupported output type
 #   endif
@@ -69,9 +69,9 @@
 #if INPUT0_TYPE_SIZE == 2
 #   define AS_INPUT_SRC         CAT(as_, MAKE_VECTOR_TYPE(INPUT_TYPE, OUTPUT_X_BLOCK_SIZE))
 #   define AS_US_SRC            CAT(as_, MAKE_VECTOR_TYPE(ushort, OUTPUT_X_BLOCK_SIZE))
-#   define GET_SRC(data, id)    AS_INPUT_SRC(intel_sub_group_shuffle(AS_US_SRC(data), id))
+#   define GET_SRC(data, id)    AS_INPUT_SRC(_sub_group_shuffle(AS_US_SRC(data), id))
 #else
-#   define GET_SRC(data, id)    intel_sub_group_shuffle(data, id)
+#   define GET_SRC(data, id)    _sub_group_shuffle(data, id)
 #endif
 
 #define FEATURE_SLICE_SIZE 16

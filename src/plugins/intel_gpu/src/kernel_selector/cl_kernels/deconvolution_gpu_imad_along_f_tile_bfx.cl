@@ -168,7 +168,7 @@ KERNEL(deconvolution_gpu_imad_ref)(
                             for (uint tx = 0; tx < TILE_X; ++tx) {
                                 __attribute__((opencl_unroll_hint))
                                 for (uint imad_it = 0; imad_it < TILE_IFM / 4; ++imad_it) {
-                                    uint in_val = intel_sub_group_shuffle(in[ob][imad_it], tx);
+                                    uint in_val = _sub_group_shuffle(in[ob][imad_it], tx);
                                     acc[ob][of][tx] = IMAD(acc[ob][of][tx], AS_INPUT_TYPE4(in_val), AS_FILTER_TYPE4(wei[of][imad_it]));
                                 }
                             }

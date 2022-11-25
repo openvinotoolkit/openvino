@@ -78,7 +78,7 @@ KERNEL(convolution_bfyx_1x1)(
     #endif
     for(uint i = 0; i < 16; i++)
     {
-        blockC00[i] = intel_sub_group_shuffle(biases[bias_index], i);
+        blockC00[i] = _sub_group_shuffle(biases[bias_index], i);
     }
 #endif
 

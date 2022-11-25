@@ -11,13 +11,13 @@
 #if UNIT_TYPE_SIZE == 2
 // 2 byte data type case (ex. half)
 #define UNIT_BLOCK_RW_TYPE ushort
-#define UNIT_BLOCK_READ_FUNC intel_sub_group_block_read_us
-#define UNIT_BLOCK_WRITE_FUNC intel_sub_group_block_write_us
+#define UNIT_BLOCK_READ_FUNC _sub_group_block_read_us
+#define UNIT_BLOCK_WRITE_FUNC _sub_group_block_write_us
 #elif UNIT_TYPE_SIZE == 4
 // 4 byte data type case (ex. float)
 #define UNIT_BLOCK_RW_TYPE uint
-#define UNIT_BLOCK_READ_FUNC intel_sub_group_block_read
-#define UNIT_BLOCK_WRITE_FUNC intel_sub_group_block_write
+#define UNIT_BLOCK_READ_FUNC _sub_group_block_read
+#define UNIT_BLOCK_WRITE_FUNC _sub_group_block_write
 #else
 #error Unsupported unit type for block read/write.
 #endif

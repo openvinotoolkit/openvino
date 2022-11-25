@@ -126,7 +126,7 @@ KERNEL(convolution_gpu_fs_byx_fsv32)(
                     {
                         unroll_for (uint out_f = 0; out_f < FSV_PER_THREAD; ++out_f)
                         {
-                            INPUT0_TYPE in_val = intel_sub_group_shuffle(
+                            INPUT0_TYPE in_val = _sub_group_shuffle(
                                 in[(out_x * STRIDE_SIZE_X + f_x * DILATION_SIZE_X) * FSV_PER_THREAD + ifii / SUB_GROUP_SIZE],
                                 ifii % SUB_GROUP_SIZE);
 

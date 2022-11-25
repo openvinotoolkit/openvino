@@ -68,7 +68,7 @@ KERNEL (reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx)(
 
 #if (TILE_SIZE == DEFAULT_TILE_SIZE)
     // read
-    INPUTVTYPE read_data = AS_INPUTVTYPE(intel_sub_group_block_read8((const __global uint*)(input) + input_idx_tile));
+    INPUTVTYPE read_data = AS_INPUTVTYPE(_sub_group_block_read8((const __global uint*)(input) + input_idx_tile));
 
     // write
     const uint output_idx = OUTPUT_GET_TILED_INDEX(OUTPUT_TILED_ORDER);
@@ -95,7 +95,7 @@ KERNEL (reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx)(
 
     // read
     const uint input_idx_final = input_idx_tile + sgid_remainder * (DEFAULT_STRIDE * DEFAULT_TILE_SIZE);
-    INPUTVTYPE read_data = AS_INPUTVTYPE(intel_sub_group_block_read8((const __global uint*)(input) + input_idx_final));
+    INPUTVTYPE read_data = AS_INPUTVTYPE(_sub_group_block_read8((const __global uint*)(input) + input_idx_final));
     INPUTVTYPE_HALF read_half1 = {read_data[0], read_data[2], read_data[4], read_data[6]};
     INPUTVTYPE_HALF read_half2 = {read_data[1], read_data[3], read_data[5], read_data[7]};
 

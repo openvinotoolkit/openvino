@@ -157,17 +157,17 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
 
 #if DT_F32
 #define TRANSPOSE_8(_block, _col) \
-    (intel_sub_group_shuffle(_block, _col))
+    (_sub_group_shuffle(_block, _col))
 #else
 #define TRANSPOSE_8(_block, _col) \
-    (intel_sub_group_shuffle(_block[0], _col), \
-    intel_sub_group_shuffle(_block[1], _col), \
-    intel_sub_group_shuffle(_block[2], _col), \
-    intel_sub_group_shuffle(_block[3], _col), \
-    intel_sub_group_shuffle(_block[4], _col), \
-    intel_sub_group_shuffle(_block[5], _col), \
-    intel_sub_group_shuffle(_block[6], _col), \
-    intel_sub_group_shuffle(_block[7], _col))
+    (_sub_group_shuffle(_block[0], _col), \
+    _sub_group_shuffle(_block[1], _col), \
+    _sub_group_shuffle(_block[2], _col), \
+    _sub_group_shuffle(_block[3], _col), \
+    _sub_group_shuffle(_block[4], _col), \
+    _sub_group_shuffle(_block[5], _col), \
+    _sub_group_shuffle(_block[6], _col), \
+    _sub_group_shuffle(_block[7], _col))
 #endif
 
 #define FMA8(a, b, c) fma((FMA_ARG_TYPE8)(a), (FMA_ARG_TYPE8)b, (FMA_ARG_TYPE8)c)
@@ -338,7 +338,7 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
                 do {
 
 #define TRANSPOSE_1(_block, _col) \
-    (intel_sub_group_shuffle(_block, _col))
+    (_sub_group_shuffle(_block, _col))
 
 #define FMA1(a, b, c) fma((FMA_ARG_TYPE)(a), (FMA_ARG_TYPE)b, (FMA_ARG_TYPE)c)
 

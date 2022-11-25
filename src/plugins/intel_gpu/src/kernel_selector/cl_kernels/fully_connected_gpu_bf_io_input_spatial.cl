@@ -47,8 +47,8 @@ KERNEL (fully_connected_gpu_bf_io_input_spatial)(
         uint it_w_addr = _inG == UNIT_VAL_ZERO ? weight_idx_base : s_w_idx;
         for (uint j = 0; j < 16; j++)
         {
-            UNIT_TYPE _in = intel_sub_group_shuffle(_inG, j);
-            uint wi_w_addr = intel_sub_group_shuffle(it_w_addr, j);
+            UNIT_TYPE _in = _sub_group_shuffle(_inG, j);
+            uint wi_w_addr = _sub_group_shuffle(it_w_addr, j);
             wi_w_addr += MULTIPLY_OFFSET(UNIT_TYPE, get_sub_group_local_id());
             UNIT_TYPE _w = *OFFSET_GLOBAL_PTR(UNIT_TYPE, weight, wi_w_addr);
             result += _in * _w;

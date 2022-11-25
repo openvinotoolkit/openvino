@@ -65,7 +65,7 @@ KERNEL(convolution_gpu_yxfb_yxio_b8)(
 #endif
                     for (uint h = 0; h < FILTER_IFM_NUM / 8; h++)
                     {
-                        float8 _input = as_float8(intel_sub_group_block_read8((const __global uint*)input + input_idx));
+                        float8 _input = as_float8(_sub_group_block_read8((const __global uint*)input + input_idx));
 
                         DOT_PRODUCT_8(_data0, _input.s0, filter[filter_idx]) filter_idx += FILTER_OFM_NUM;
 #if OFM_PER_WORK_ITEM == 16
@@ -128,8 +128,8 @@ KERNEL(convolution_gpu_yxfb_yxio_b8)(
 #endif
 
     const uint _out_id = OUTPUT_OFFSET + out_id;
-    intel_sub_group_block_write8((__global uint*)output + _out_id, as_uint8(_data0));
+    _sub_group_block_write8((__global uint*)output + _out_id, as_uint8(_data0));
 #if OFM_PER_WORK_ITEM == 16
-    intel_sub_group_block_write8((__global uint*)output + _out_id + 8 * INPUT0_FEATURE_PITCH, as_uint8(_data1));
+    _sub_group_block_write8((__global uint*)output + _out_id + 8 * INPUT0_FEATURE_PITCH, as_uint8(_data1));
 #endif
 }

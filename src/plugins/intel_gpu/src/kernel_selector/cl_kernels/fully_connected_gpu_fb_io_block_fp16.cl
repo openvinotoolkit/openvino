@@ -88,18 +88,18 @@
 
 // Extracts one scalar element of UNIT_TYPE from sub-group chunk;
 //     chunk - name of chunk variable, idx - 0-based index of element.
-#define SG_UNIT_SELECT(chunk, idx) CHUNK_UNIT_SELECT(intel_sub_group_shuffle(chunk, (idx) / UNITS_PER_CHUNK), (idx) % UNITS_PER_CHUNK)
+#define SG_UNIT_SELECT(chunk, idx) CHUNK_UNIT_SELECT(_sub_group_shuffle(chunk, (idx) / UNITS_PER_CHUNK), (idx) % UNITS_PER_CHUNK)
 
 // ---------------------------------------------------------------------------------------------------------------------
 
 // Currently block read is 4 bytes aligned.
-#define ALIGNED_BLOCK_READ(ptr, byte_offset) intel_sub_group_block_read((const __global CHUNK_TYPE*)((const __global char*)(ptr) + (byte_offset)))
+#define ALIGNED_BLOCK_READ(ptr, byte_offset) _sub_group_block_read((const __global CHUNK_TYPE*)((const __global char*)(ptr) + (byte_offset)))
 
 // Currently read is 4 bytes aligned.
 #define ALIGNED_READ(ptr, byte_offset) (*(const __global CHUNK_TYPE*)((const __global char*)(ptr) + (byte_offset)))
 
 // Currently block write is 16 bytes aligned.
-#define ALIGNED_BLOCK_WRITE(ptr, byte_offset, val) intel_sub_group_block_write((__global CHUNK_TYPE*)((__global char*)(ptr) + (byte_offset)), (val))
+#define ALIGNED_BLOCK_WRITE(ptr, byte_offset, val) _sub_group_block_write((__global CHUNK_TYPE*)((__global char*)(ptr) + (byte_offset)), (val))
 
 // Currently block write is 4 bytes aligned.
 #define ALIGNED_WRITE(ptr, byte_offset, val) ((void)(*(__global CHUNK_TYPE*)((__global char*)(ptr) + (byte_offset)) = (val)))
@@ -127,10 +127,10 @@
 
 
 #if FP16_UNIT_USED
-    #define ALIGNED_FILTER_BLOCK_READ(ptr, byte_offset) as_half2(intel_sub_group_block_read((const __global uint*)((const __global char*)(ptr) + (byte_offset))))
+    #define ALIGNED_FILTER_BLOCK_READ(ptr, byte_offset) as_half2(_sub_group_block_read((const __global uint*)((const __global char*)(ptr) + (byte_offset))))
     #define FILTER_TYPE half2
 #else
-    #define ALIGNED_FILTER_BLOCK_READ(ptr, byte_offset) as_float(intel_sub_group_block_read((const __global uint*)((const __global char*)(ptr) + (byte_offset))))
+    #define ALIGNED_FILTER_BLOCK_READ(ptr, byte_offset) as_float(_sub_group_block_read((const __global uint*)((const __global char*)(ptr) + (byte_offset))))
     #define FILTER_TYPE float
 #endif
 */

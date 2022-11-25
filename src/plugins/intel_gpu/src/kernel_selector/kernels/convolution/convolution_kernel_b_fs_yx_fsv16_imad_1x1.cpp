@@ -81,8 +81,8 @@ JitConstants Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetJitConstants(const co
         auto input_dt = GetActivationType(params);
         std::vector<std::string> idx_order = { "out_b",
                                                "(out_f + ofb * SIMD)",
-                                               "intel_sub_group_shuffle(out_y_shuffle[os / SIMD], os % SIMD)",
-                                               "intel_sub_group_shuffle(out_x_shuffle[os / SIMD], os % SIMD)" };
+                                               "_sub_group_shuffle(out_y_shuffle[os / SIMD], os % SIMD)",
+                                               "_sub_group_shuffle(out_x_shuffle[os / SIMD], os % SIMD)" };
         FusedOpsConfiguration conf_scalar = {"_SCALAR",
                                              idx_order,
                                              "dequantized[ofb][os]",

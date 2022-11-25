@@ -68,10 +68,10 @@ uint split_idx)
 
                 __attribute__((opencl_unroll_hint(16)))
                 for (uint j = 0; j < 16; j++) {
-                    dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s0), as_char4(intel_sub_group_shuffle(weights_val.s0, j))));
-                    dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s1), as_char4(intel_sub_group_shuffle(weights_val.s1, j))));
-                    dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s2), as_char4(intel_sub_group_shuffle(weights_val.s2, j))));
-                    dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s3), as_char4(intel_sub_group_shuffle(weights_val.s3, j))));
+                    dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s0), as_char4(_sub_group_shuffle(weights_val.s0, j))));
+                    dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s1), as_char4(_sub_group_shuffle(weights_val.s1, j))));
+                    dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s2), as_char4(_sub_group_shuffle(weights_val.s2, j))));
+                    dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s3), as_char4(_sub_group_shuffle(weights_val.s3, j))));
                 }
                 filter_idx += weights_x_pitch;
                 input_idx += input_x_pitch;
@@ -93,7 +93,7 @@ uint split_idx)
     for (uint i = 0; i < 16; i++) {
         ACTIVATION_TYPE dequantized = (ACTIVATION_TYPE)0;
 #if BIAS_TERM
-        dequantized = (ACTIVATION_TYPE)dotProd[i] + intel_sub_group_shuffle(bias, i);
+        dequantized = (ACTIVATION_TYPE)dotProd[i] + _sub_group_shuffle(bias, i);
 #else
         dequantized = (ACTIVATION_TYPE)dotProd[i];
 #endif

@@ -234,7 +234,7 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
                  #endif
             #else
                 #ifdef BLOCK_LOAD_INPUTS
-                    in[reg] = AS_PACKED_TYPE(intel_sub_group_block_read((const __global uint*) &conv_input[in_addr]));
+                    in[reg] = AS_PACKED_TYPE(_sub_group_block_read((const __global uint*) &conv_input[in_addr]));
                     #ifdef SHOULD_USE_DATA_ZP
                         if (input_on_padding)
                             in[reg] = data_zp_val;
@@ -252,8 +252,8 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
         }
 
         #ifdef BLOCK_LOAD_WEIGHTS
-            *((int8*)&w[0]) = as_int8(intel_sub_group_block_read8((const __global uint*) &weights[weight_addr]));
-            w[8] = as_int(intel_sub_group_block_read((const __global uint*) &weights[weight_addr + (SIMD_SIZE<<3)]));
+            *((int8*)&w[0]) = as_int8(_sub_group_block_read8((const __global uint*) &weights[weight_addr]));
+            w[8] = as_int(_sub_group_block_read((const __global uint*) &weights[weight_addr + (SIMD_SIZE<<3)]));
             weight_addr += SIMD_SIZE*NUM_FILTERS;
         #else
             for(int pf = 0; pf < NUM_FILTERS; pf++) {

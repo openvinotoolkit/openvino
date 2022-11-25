@@ -58,7 +58,7 @@ __kernel void convolution_f16_8x8x16(
         // (0, 1) (8, 1) (16, 1) (24, 1) ... =>    (0, 2) (8, 2) (16, 2) (24, 2) ...
         // (0, 2) (8, 2) (16, 2) (24, 2) ...       ...
         // ...
-        
+
         // in case the data is not aligned to sizeof(T)*KERNEL_WIDTH we need to use vload or set the data in a loop
         half4 blockA = vload4(0, src0 + src0_offset );
         src0_offset += INPUT_FEATURE_PITCH;
@@ -71,12 +71,12 @@ __kernel void convolution_f16_8x8x16(
         unsigned interleaved_y = 0;
         LOOP(KERNEL_SLICE_DIV2, interleaved_y,
         {
-            p2BlockB[interleaved_y] = intel_sub_group_block_read_us2( (const __global ushort*)src1_read );
+            p2BlockB[interleaved_y] = _sub_group_block_read_us2( (const __global ushort*)src1_read );
             src1_read += ALIGNED_OFM * 2;
         } )
         if ( kernel_slice_is_odd )
         {
-            pBlockB[KERNEL_WIDTH * KERNEL_HEIGHT - 1] = intel_sub_group_block_read_us( (const __global ushort*)src1_read );
+            pBlockB[KERNEL_WIDTH * KERNEL_HEIGHT - 1] = _sub_group_block_read_us( (const __global ushort*)src1_read );
             src1_read += ALIGNED_OFM * 2;
         }
 

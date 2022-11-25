@@ -334,7 +334,7 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                                 const uint shuffle_wi = x_block_idx % SIMD;
                                                 const uint shuffle_idx = x_block_idx / SIMD;
 
-                                                INPUT0_TYPE_4 inputs = AS_INPUT0_TYPE_4(intel_sub_group_shuffle(input_val[z_block_idx][y_block_idx][shuffle_idx][ive],
+                                                INPUT0_TYPE_4 inputs = AS_INPUT0_TYPE_4(_sub_group_shuffle(input_val[z_block_idx][y_block_idx][shuffle_idx][ive],
                                                     shuffle_wi));
 
                                                 dotProd[ofb][od][oh][ow] = TO_ACCUMULATOR_TYPE(

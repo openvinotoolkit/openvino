@@ -25,14 +25,14 @@
     #define TO_ACCUMULATOR_TYPE_VEC(x) convert_int8(x)
     #define ACTIVATION_TYPE_VEC float8
     #define TO_ACTIVATION_TYPE_VEC(x) convert_float8(x)
-    #define BLOCK_WRITE(ptr, val) intel_sub_group_block_write_us8((__global ushort*)(ptr), as_ushort8(val));
+    #define BLOCK_WRITE(ptr, val) _sub_group_block_write_us8((__global ushort*)(ptr), as_ushort8(val));
 #elif OUTPUT_X_BLOCK_SIZE == 4
     #define PACKED_TYPE_VEC MAKE_VECTOR_TYPE(PACKED_IN_TYPE, 4)
     #define ACCUMULATOR_TYPE_VEC int4
     #define TO_ACCUMULATOR_TYPE_VEC(x) convert_int4(x)
     #define ACTIVATION_TYPE_VEC float4
     #define TO_ACTIVATION_TYPE_VEC(x) convert_float4(x)
-    #define BLOCK_WRITE(ptr, val) intel_sub_group_block_write_us4((__global ushort*)(ptr), as_ushort4(val));
+    #define BLOCK_WRITE(ptr, val) _sub_group_block_write_us4((__global ushort*)(ptr), as_ushort4(val));
 #else
 #error "convolution_gpu_mmad_bfyx_to_b_fs_yx_fsv4: Unsupported block size"
 #endif
@@ -127,8 +127,8 @@ KERNEL(convolution_mmad_bfyx_b_fs_yx_fsv32)(
                              + kh * OSV * 4 * FILTER_SIZE_X
                              + kw * OSV * 4;
 
-            int weights_data0 = as_int(intel_sub_group_block_read((const __global uint*)(weights + f_off)));
-            int weights_data1 = as_int(intel_sub_group_block_read((const __global uint*)(weights + f_off + 16*4)));
+            int weights_data0 = as_int(_sub_group_block_read((const __global uint*)(weights + f_off)));
+            int weights_data1 = as_int(_sub_group_block_read((const __global uint*)(weights + f_off + 16*4)));
 
             PACKED_TYPE_VEC src;
 

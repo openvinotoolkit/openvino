@@ -97,7 +97,7 @@ KERNEL(fully_connected_gpu_fs_byx_fsv32)(
 
                 unroll_for (uint obi = 0; obi < OUTPUT_BLOCK_SIZE_B; ++obi)
                 {
-                    UNIT_TYPE in_val = intel_sub_group_shuffle(in[obi][ofi / SUB_GROUP_SIZE],
+                    UNIT_TYPE in_val = _sub_group_shuffle(in[obi][ofi / SUB_GROUP_SIZE],
                                                                ofi % SUB_GROUP_SIZE);
                     out[obi] = mad(w, in_val, out[obi]);
                 }

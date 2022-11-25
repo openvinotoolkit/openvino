@@ -28,7 +28,7 @@
     #define ACTIVATION_TYPE_VEC float8
     #define TO_ACTIVATION_TYPE_VEC(x) convert_float8(x)
 #if OUTPUT_LAYOUT_B_FS_YX_FSV32
-    #define BLOCK_WRITE(ptr, val) intel_sub_group_block_write_us8((__global ushort*)(ptr), as_ushort8(val));
+    #define BLOCK_WRITE(ptr, val) _sub_group_block_write_us8((__global ushort*)(ptr), as_ushort8(val));
 #else // OUTPUT_LAYOUT_B_FS_YX_FSV32
     #define BLOCK_WRITE(ptr, val) BLOCK_WRITE_UC_8((__global uchar*)(ptr), as_uchar8(val))
 #endif // OUTPUT_LAYOUT_B_FS_YX_FSV32
@@ -39,7 +39,7 @@
     #define ACTIVATION_TYPE_VEC float4
     #define TO_ACTIVATION_TYPE_VEC(x) convert_float4(x)
 #if OUTPUT_LAYOUT_B_FS_YX_FSV32
-    #define BLOCK_WRITE(ptr, val) intel_sub_group_block_write_us4((__global ushort*)(ptr), as_ushort4(val));
+    #define BLOCK_WRITE(ptr, val) _sub_group_block_write_us4((__global ushort*)(ptr), as_ushort4(val));
 #else // OUTPUT_LAYOUT_B_FS_YX_FSV32
     #define BLOCK_WRITE(ptr, val) BLOCK_WRITE_UC_4((__global uchar*)(ptr), as_uchar4(val))
 #endif // OUTPUT_LAYOUT_B_FS_YX_FSV32
@@ -262,9 +262,9 @@ KERNEL(convolution_mmad_bfyx_to_b_fs_yx_fsv32)(
                                 + kh * OSV * ISV * FILTER_SIZE_X
                                 + kw * OSV * ISV;
 
-                int weights_data0 = as_int(intel_sub_group_block_read((const __global uint*)(weights + f_off)));
+                int weights_data0 = as_int(_sub_group_block_read((const __global uint*)(weights + f_off)));
 #if OUTPUT_FEATURE_NUM > 16
-                int weights_data1 = as_int(intel_sub_group_block_read((const __global uint*)(weights + f_off + SUB_GROUP_SIZE*ISV)));
+                int weights_data1 = as_int(_sub_group_block_read((const __global uint*)(weights + f_off + SUB_GROUP_SIZE*ISV)));
 #endif
                 PACKED_TYPE_VEC src;
 

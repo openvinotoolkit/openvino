@@ -93,7 +93,7 @@ KERNEL(convolution_gpu_yxfb_yxio_b16)(
                     for (uint h = 0; h < FILTER_IFM_NUM; h++)
                     {
 #ifdef USE_BLOCK_READ_2
-                        float2 _input = as_float2(intel_sub_group_block_read2((const __global uint*)input + input_idx));
+                        float2 _input = as_float2(_sub_group_block_read2((const __global uint*)input + input_idx));
                         float8 filter_transp = TRANSPOSE_BLOCK_8(filter[filter_idx]);
                         _data[0] = fma(_input.s0, filter_transp, _data[0]);
                         _data[1] = fma(_input.s1, filter_transp, _data[1]);

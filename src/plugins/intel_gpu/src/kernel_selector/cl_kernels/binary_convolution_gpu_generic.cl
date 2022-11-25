@@ -7,8 +7,8 @@
 
 #define OC_BLOCK_SIZE 32
 
-#define ALIGNED_BLOCK_READ(ptr, byte_offset) as_uint(intel_sub_group_block_read((const __global uint*)(ptr) + (byte_offset)))
-#define ALIGNED_BLOCK_READ2(ptr, byte_offset) as_uint2(intel_sub_group_block_read2((const __global uint*)(ptr) + (byte_offset)))
+#define ALIGNED_BLOCK_READ(ptr, byte_offset) as_uint(_sub_group_block_read((const __global uint*)(ptr) + (byte_offset)))
+#define ALIGNED_BLOCK_READ2(ptr, byte_offset) as_uint2(_sub_group_block_read2((const __global uint*)(ptr) + (byte_offset)))
 
 #if BINARY_PACKED_OUTPUT
     #define BUFFER_TYPE UNIT_TYPE
@@ -107,7 +107,7 @@ KERNEL(binary_convolution_generic)(const __global INPUT0_TYPE* input,
                 __attribute__((opencl_unroll_hint(SUB_GROUP_SIZE)))
                 for (int i = 0; i < SUB_GROUP_SIZE; i++)
                 {
-                    INPUT0_TYPE src = intel_sub_group_shuffle(line_cache[(kw + i*STRIDE_SIZE_X) / SUB_GROUP_SIZE],
+                    INPUT0_TYPE src = _sub_group_shuffle(line_cache[(kw + i*STRIDE_SIZE_X) / SUB_GROUP_SIZE],
                                                                          (kw + i*STRIDE_SIZE_X) % SUB_GROUP_SIZE);
 #if EXCLUDE_PAD
                     int compute = ((input_x + kw + i*STRIDE_SIZE_X >= 0) &&
@@ -149,7 +149,7 @@ KERNEL(binary_convolution_generic)(const __global INPUT0_TYPE* input,
     for (int i = 0; i < SUB_GROUP_SIZE*2; i++)
     {
 #if EXCLUDE_PAD
-        CONV_RESULT_TYPE res = TO_CONV_RESULT_TYPE(INPUT0_FEATURE_NUM*intel_sub_group_shuffle(real_ks, i%SUB_GROUP_SIZE) - 2*dst_buf[i]);
+        CONV_RESULT_TYPE res = TO_CONV_RESULT_TYPE(INPUT0_FEATURE_NUM*_sub_group_shuffle(real_ks, i%SUB_GROUP_SIZE) - 2*dst_buf[i]);
 #else
         CONV_RESULT_TYPE res = TO_CONV_RESULT_TYPE(INPUT0_FEATURE_NUM*FILTER_SIZE_Y*FILTER_SIZE_X - 2*dst_buf[i]);
 #endif

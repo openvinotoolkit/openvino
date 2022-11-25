@@ -18,23 +18,23 @@ KERNEL(convolution_gpu_yxfb_yxio_b1_block_multiple_x)(
 {
 #if USE_VECTOR == 8
     #define VECTOR_FLOAT float8
-    #define BLOCK_READ(IN) as_float8(intel_sub_group_block_read8((const __global uint*)IN))
-    #define BLOCK_WRITE(OUT, DATA) intel_sub_group_block_write8((__global uint*)OUT, as_uint8(DATA));
+    #define BLOCK_READ(IN) as_float8(_sub_group_block_read8((const __global uint*)IN))
+    #define BLOCK_WRITE(OUT, DATA) _sub_group_block_write8((__global uint*)OUT, as_uint8(DATA));
 #endif
 #if USE_VECTOR == 4
     #define VECTOR_FLOAT float4
-    #define BLOCK_READ(IN) as_float4(intel_sub_group_block_read4((const __global uint*)IN))
-    #define BLOCK_WRITE(OUT, DATA) intel_sub_group_block_write4((__global uint*)OUT, as_uint4(DATA));
+    #define BLOCK_READ(IN) as_float4(_sub_group_block_read4((const __global uint*)IN))
+    #define BLOCK_WRITE(OUT, DATA) _sub_group_block_write4((__global uint*)OUT, as_uint4(DATA));
 #endif
 #if USE_VECTOR == 2
     #define VECTOR_FLOAT float2
-    #define BLOCK_READ(IN) as_float2(intel_sub_group_block_read2((const __global uint*)IN))
-    #define BLOCK_WRITE(OUT, DATA) intel_sub_group_block_write2((__global uint*)OUT, as_uint2(DATA));
+    #define BLOCK_READ(IN) as_float2(_sub_group_block_read2((const __global uint*)IN))
+    #define BLOCK_WRITE(OUT, DATA) _sub_group_block_write2((__global uint*)OUT, as_uint2(DATA));
 #endif
 #if USE_VECTOR == 1
     #define VECTOR_FLOAT float
-    #define BLOCK_READ(IN) as_float(intel_sub_group_block_read((const __global uint*)IN))
-    #define BLOCK_WRITE(OUT, DATA) intel_sub_group_block_write((__global uint*)OUT, as_uint(DATA));
+    #define BLOCK_READ(IN) as_float(_sub_group_block_read((const __global uint*)IN))
+    #define BLOCK_WRITE(OUT, DATA) _sub_group_block_write((__global uint*)OUT, as_uint(DATA));
 #endif
 
     const uint batch_num = INPUT0_BATCH_NUM;
@@ -99,7 +99,7 @@ KERNEL(convolution_gpu_yxfb_yxio_b1_block_multiple_x)(
                     float _in[X_PER_WORK_ITEM];
                     for(uint a = 0; a < X_PER_WORK_ITEM; a++)
                     {
-                        _in[a] = as_float(intel_sub_group_block_read((const __global uint*)input + (input_idx + a * INPUT0_FEATURE_NUM * STRIDE_SIZE_X)));
+                        _in[a] = as_float(_sub_group_block_read((const __global uint*)input + (input_idx + a * INPUT0_FEATURE_NUM * STRIDE_SIZE_X)));
                     }
                     float8 _input[X_PER_WORK_ITEM];
                     for(uint a = 0; a < X_PER_WORK_ITEM; a++)

@@ -109,9 +109,9 @@ KERNEL(pooling_gpu_blocked)(
     ACCUMULATOR_VAR_TYPE scale;
 #if X_BLOCK_SIZE > 1
     for (int i = 0; i < X_BLOCK_SIZE; i++)
-        scale[i] = intel_sub_group_shuffle(count, i);
+        scale[i] = _sub_group_shuffle(count, i);
 #else
-    scale = intel_sub_group_shuffle(count, 0);
+    scale = _sub_group_shuffle(count, 0);
 #endif
 
 #endif
