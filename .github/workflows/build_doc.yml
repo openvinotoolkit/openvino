@@ -47,7 +47,7 @@ jobs:
           key: doc-python-requirements
 
       - name: Install apt-get tools
-        uses: awalsh128/cache-apt-pkgs-action@latest
+        uses: awalsh128/cache-apt-pkgs-action@v1.1.3
         # install doc dependencies
         with:
           packages: graphviz texlive liblua5.2-0
