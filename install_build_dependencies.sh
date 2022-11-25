@@ -20,7 +20,7 @@ yes_or_no() {
 }
 
 # install dependencies
-if [ -f /etc/lsb-release ]; then
+if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
     # Ubuntu
     host_cpu=$(uname -m)
     if [ "$host_cpu" = "x86_64" ]; then
@@ -43,7 +43,6 @@ if [ -f /etc/lsb-release ]; then
             libssl-dev \
             ca-certificates \
             git \
-            git-lfs \
             "${x86_64_specific_packages[@]}" \
             libgtk2.0-dev \
             unzip \
@@ -75,8 +74,12 @@ if [ -f /etc/lsb-release ]; then
             libusb-1.0-0-dev \
             `# cl_compiler` \
             libtinfo5
+    # git-lfs is not available on debian9
+    if apt-cache search --names-only '^git-lfs'| grep -q git-lfs; then
+        sudo -E apt-get install -y git-lfs
+    fi
     # hddl
-    if apt-cache search --names-only '^libjson-c3'| grep -q libjson-c3; then
+    if apt-cache search --names-only '^libboost-filesystem1.65.1' | grep -q libboost-filesystem1.65.1 ; then
         # ubuntu 18.04
         sudo -E apt-get install -y \
             libjson-c3 \
@@ -162,5 +165,5 @@ if [ ! "$(printf '%s\n' "$required_cmake_ver" "$current_cmake_ver" | sort -V | h
     wget "https://github.com/Kitware/CMake/releases/download/v${installed_cmake_ver}/cmake-${installed_cmake_ver}.tar.gz"
     tar xf cmake-${installed_cmake_ver}.tar.gz
     (cd cmake-${installed_cmake_ver} && ./bootstrap --parallel="$(nproc --all)" && make --jobs="$(nproc --all)" && sudo make install)
-    rm -rf cmake-${installed_cmake_ver} cmake-${installed_cmake_ver}.tar.gz
+    rm -rf "cmake-${installed_cmake_ver}" "cmake-${installed_cmake_ver}.tar.gz"
 fi
