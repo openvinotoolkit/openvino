@@ -26,6 +26,7 @@ inline auto is_in_op(const std::shared_ptr<ov::Node>& n) -> bool {
 inline auto op_supports_only_exec_type(const std::shared_ptr<ov::Node>& n) -> bool {
     return !is_in_op(n) &&
            !ov::is_type<ov::op::v0::Result>(n) &&
+           !ov::is_type<ov::op::v1::Transpose>(n) &&
            !ov::is_type<ov::op::v0::Convert>(n);
 }
 
