@@ -23,7 +23,7 @@ public:
     }
 };
 
-class PassTroughShapeInferFactory final : public ShapeInferFactory {
+class PassThroughShapeInferFactory final : public ShapeInferFactory {
 public:
     ShapeInferPtr makeShapeInfer() const override {
         return std::make_shared<ShapeInferPassThrough>();

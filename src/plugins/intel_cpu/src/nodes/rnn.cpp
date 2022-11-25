@@ -275,25 +275,34 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
     return true;
 }
 
+bool RNN::isCell(const std::shared_ptr<const ngraph::Node>& op) {
+    return one_of(op->get_type_info(),
+            ov::op::v0::RNNCell::get_type_info_static(),
+            ov::op::v3::GRUCell::get_type_info_static(),
+            ov::op::internal::AUGRUCell::get_type_info_static(),
+            ov::op::v0::LSTMCell::get_type_info_static(),
+            ov::op::v4::LSTMCell::get_type_info_static());
+}
+
+bool RNN::testNativeOrder(const std::shared_ptr<const ngraph::Node>& op) {
+    if (isCell(op)) {
+        return true;
+    }
+    const auto& rtInfo = op->get_rt_info();
+    if (rtInfo.count("seqAxis")) {
+        return rtInfo.at("seqAxis").as<int64_t>() == 0;
+    }
+    return false;
+}
+
 namespace {
 class RnnShapeInfer : public NgraphShapeInfer {
 public:
     RnnShapeInfer(std::shared_ptr<ov::Node> op) :
         NgraphShapeInfer(make_shape_inference(op), EMPTY_PORT_MASK) {
-            is_sequence = one_of(op->get_type_info(),
-                ov::op::v5::GRUSequence::get_type_info_static(),
-                ov::op::v0::LSTMSequence::get_type_info_static(),
-                ov::op::v5::LSTMSequence::get_type_info_static(),
-                ov::op::v5::RNNSequence::get_type_info_static(),
-                ov::op::internal::AUGRUSequence::get_type_info_static());
+            is_sequence = !(RNN::isCell(op));
 
-            if (is_sequence) {
-                native_order = false;
-                const auto& rtInfo = op->get_rt_info();
-                if (rtInfo.count("seqAxis")) {
-                    native_order = rtInfo.at("seqAxis").as<int64_t>() == 0;
-                }
-            }
+            native_order = RNN::testNativeOrder(op);
         }
 
     std::vector<VectorDims> infer(
@@ -335,12 +344,7 @@ RNN::RNN(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSh
             ov::op::internal::AUGRUCell::get_type_info_static(),
             ov::op::internal::AUGRUSequence::get_type_info_static());
 
-    is_cell = one_of(op->get_type_info(),
-            ov::op::v0::RNNCell::get_type_info_static(),
-            ov::op::v3::GRUCell::get_type_info_static(),
-            ov::op::internal::AUGRUCell::get_type_info_static(),
-            ov::op::v0::LSTMCell::get_type_info_static(),
-            ov::op::v4::LSTMCell::get_type_info_static());
+    is_cell = isCell(op);
 
     if (one_of(op->get_type_info(),
                ov::op::v0::RNNCell::get_type_info_static(),
@@ -399,10 +403,7 @@ RNN::RNN(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSh
     } else {
         direction = ieDirection2dnnl(op);
 
-        nativeOrder = false;
-        if (rtInfo.count("seqAxis")) {
-            nativeOrder = rtInfo.at("seqAxis").as<int64_t>() == 0;
-        }
+        nativeOrder = testNativeOrder(op);
 
         initSequence();
     }

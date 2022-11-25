@@ -27,7 +27,7 @@ bool Range::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, 
 }
 
 Range::Range(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache, DefaultShapeInferFactory(op, PortMask(RANGE_START, RANGE_LIMIT, RANGE_DELTA))) {
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, PortMask(RANGE_START, RANGE_LIMIT, RANGE_DELTA))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

@@ -1480,46 +1480,6 @@ bool Node::needShapeInfer() const {
     return inputShapesModified();
 }
 
-std::vector<VectorDims> Node::shapeInfer() const {
-    return shapeInferGeneric();
-}
-
-// std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<StaticShape>& input_shapes,
-//                                                 uint32_t input_value_port_mask) const {
-//     // collect input values
-//     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> input_values;
-//     if (input_value_port_mask) {
-//         const auto & iranks = shapeInference->get_input_ranks();
-//         for (size_t port = 0; port < iranks.size(); port++) {
-//             if (input_value_port_mask & (1 << port)) {
-//                 const auto& memPtr = getParentEdgesAtPort(port)[0]->getMemory();
-
-//                 ov::Shape shape(memPtr.getStaticDims());
-
-//                 // use scalar shape {} instead of {1} if required by shapeInference
-//                 if (iranks[port] == 0) {
-//                     shape = ov::Shape();
-//                 }
-
-//                 input_values[port] = std::make_shared<ngraph::runtime::HostTensor>(
-//                     InferenceEngine::details::convertPrecision(memPtr.getDesc().getPrecision()),
-//                     shape,
-//                     memPtr.GetPtr());
-//             }
-//         }
-//     }
-
-//     // call shape inference API
-//     std::vector<StaticShape> output_shapes = shapeInference->infer(input_shapes, input_values);
-
-//     std::vector<VectorDims> result(output_shapes.size());
-//     std::transform(output_shapes.begin(), output_shapes.end(), result.begin(), [](const StaticShape& s) {
-//         return s.to_shape();
-//     });
-
-//     return result;
-// }
-
 std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<Shape>& shapes) const {
     std::vector<std::reference_wrapper<const VectorDims>> input_shapes;
     auto input_value_port_mask = shapeInference->get_port_mask();
@@ -1542,7 +1502,7 @@ std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<Shape>& shapes
     // return shapeInferGeneric(input_shapes, input_value_port_mask);
 }
 
-std::vector<VectorDims> Node::shapeInferGeneric() const {
+std::vector<VectorDims> Node::shapeInfer() const {
     std::vector<std::reference_wrapper<const VectorDims>> input_shapes;
     auto input_value_port_mask = shapeInference->get_port_mask();
 

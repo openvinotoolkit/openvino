@@ -50,9 +50,9 @@ public:
     virtual ShapeInferPtr makeShapeInfer() const = 0;
 };
 
-class DefaultShapeInferFactory final : public ShapeInferFactory {
+class NgraphShapeInferFactory final : public ShapeInferFactory {
 public:
-    DefaultShapeInferFactory(std::shared_ptr<ov::Node> op, IShapeInfer::port_mask_t port_mask) : m_op(op), m_port_mask(port_mask) {}
+    NgraphShapeInferFactory(std::shared_ptr<ov::Node> op, IShapeInfer::port_mask_t port_mask) : m_op(op), m_port_mask(port_mask) {}
     ShapeInferPtr makeShapeInfer() const override;
 private:
     std::shared_ptr<ov::Node> m_op;

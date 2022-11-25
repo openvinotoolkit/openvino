@@ -33,8 +33,6 @@
 #include "nodes/node_config.h"
 #include "cache/multi_cache.h"
 
-// #include <utils/shape_inference/static_shape.hpp>
-// #include <utils/shape_inference/shape_inference.hpp>
 #include <utils/shape_inference/shape_inference_cpu.hpp>
 #include "utils/debug_capabilities.h"
 
@@ -704,7 +702,6 @@ protected:
     bool inputShapesModified() const;
     virtual bool needShapeInfer() const;
     std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims) const;
-    std::vector<VectorDims> shapeInferGeneric() const;
     virtual std::vector<VectorDims> shapeInfer() const;
     // TODO [DS] : make pure after all nodes will be support dynamic shapes
     virtual void executeDynamicImpl(dnnl::stream strm) {
@@ -782,9 +779,6 @@ private:
 
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
     ConstantType checkConstant(LOOK look, std::vector<NodePtr>& checkNodes);
-
-    // std::vector<VectorDims> shapeInferGeneric(const std::vector<StaticShape>& input_shapes,
-    //                                           uint32_t input_value_port_mask) const;
 
 #ifdef CPU_DEBUG_CAPS
     friend class Verbose;

@@ -35,7 +35,7 @@ bool GridSample::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
 }
 
 GridSample::GridSample(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache, DefaultShapeInferFactory(op, PortMask(1))) {
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, PortMask(1))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

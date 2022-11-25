@@ -107,7 +107,7 @@ bool Lrn::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
 }
 
 Lrn::Lrn(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache, PassTroughShapeInferFactory()) {
+        Node(op, eng, cache, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "LRN node with name '" + getName() + "'";

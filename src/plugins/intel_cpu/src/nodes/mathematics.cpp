@@ -40,7 +40,7 @@ bool Math::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, s
 }
 
 Math::Math(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache, PassTroughShapeInferFactory()), alpha(0.f), beta(0.f), gamma(0.f) {
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache, PassThroughShapeInferFactory()), alpha(0.f), beta(0.f), gamma(0.f) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
