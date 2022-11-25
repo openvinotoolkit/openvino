@@ -12,6 +12,7 @@
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset6.hpp"
 
 using namespace std;
 
@@ -52,6 +53,7 @@ const auto friendly_name_from = [](const ov::Node& node, const size_t output_cou
 
 bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(ConstantFolding);
+
     bool rewritten = pre_calculated_values_folding(model);
 
     for (const auto& node : model->get_ordered_ops()) {
@@ -73,12 +75,14 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                 auto node_output = node->output(i);
                 auto replacement = replacements.at(i);
                 if (replacement.get_node_shared_ptr() && (node_output != replacement)) {
-                    // Propagate runtime info attributes from input values
-                    copy_runtime_info_from_input_values(node, replacement);
-
                     replacement.get_node()->set_friendly_name(friendly_name_from(*node, replacements.size(), i));
 
                     node_output.replace(replacement);
+                    // Copy runtime info from source nodes
+                    // when it was not propogated during pre-calculation
+                    copy_runtime_info_from_input_values(node);
+                    // Propagate runtime info attributes to replacement
+                    copy_runtime_info(node, replacement.get_node_shared_ptr());
 
                     rewritten = true;
                 }
@@ -97,13 +101,16 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
     return rewritten;
 }
 
-void ov::pass::ConstantFolding::copy_runtime_info_from_input_values(const std::shared_ptr<Node>& node,
-                                                                    const Output<Node>& replacement) {
+void ov::pass::ConstantFolding::copy_runtime_info_from_input_values(const std::shared_ptr<Node>& node) {
+    if (is_type<ov::opset1::ShapeOf>(node) || is_type<ov::opset3::ShapeOf>(node)) {
+        // Don't propogate names of ShapeOf source node since it is not fused itself
+        return;
+    }
     ov::NodeVector from = {node};
     for (auto& input : node->input_values()) {
         from.push_back(input.get_node_shared_ptr());
     }
-    copy_runtime_info(from, replacement.get_node_shared_ptr());
+    copy_runtime_info(from, node);
 }
 
 bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_ptr<ov::Model>& model) {
@@ -122,9 +129,15 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
             // propagation because we can't detect borders of shape_of sub-graphs, so we propagate can_be_folded
             // attribute through all nodes including nodes on data path. So to limit the spread of attribute to other
             // shape-of sub-graphs we do not propagate it through ShapeOf nodes.
-            can_be_folded = true;
+            can_be_folded = input_values.begin()->get_partial_shape().is_static();
+        } else if (op::util::is_parameter(node) || op::util::is_output(node) || op::util::is_sink(node) ||
+                   is_type<ov::opset3::ReadValue>(node) || is_type<ov::opset6::ReadValue>(node)) {
+            can_be_folded = false;
         } else {
             can_be_folded = std::all_of(input_values.cbegin(), input_values.cend(), is_output_foldable);
+            if (input_values.size() && can_be_folded) {
+                copy_runtime_info_from_input_values(node);
+            }
         }
         node->get_rt_info()["can_be_folded"] = can_be_folded;
     }
@@ -149,13 +162,12 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
                 auto input_node = output.get_node_shared_ptr();
                 auto replacement = std::make_shared<ov::op::v0::Constant>(output.get_tensor().get_lower_value());
                 if (replacement && !ov::is_type<ov::op::v0::Constant>(input_node)) {
-                    // Propagate runtime info attributes from input values
-                    copy_runtime_info_from_input_values(input_node, replacement);
-
                     replacement->set_friendly_name(
                         friendly_name_from(*input_node, input_node->get_output_size(), output.get_index()));
 
                     output.replace(replacement);
+                    // Propagate runtime info attributes to replacement
+                    copy_runtime_info(input_node, replacement);
 
                     rewritten = true;
                 }

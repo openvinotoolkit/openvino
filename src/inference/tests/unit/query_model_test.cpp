@@ -4,15 +4,18 @@
 #include <gtest/gtest.h>
 #include <iostream>
 
+#include <openvino/core/rt_info.hpp>
 #include "openvino/pass/manager.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "transformations/convert_precision.hpp"
+#include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/op_conversions/log_softmax_decomposition.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "ngraph/pass/constant_folding.hpp"
+#include "ngraph/ops.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 
 std::ostream& operator<<(std::ostream& os, const std::unordered_set<std::string>& s) {
@@ -158,7 +161,7 @@ TEST_F(GetSupportedNodesTest, SupportedConstantInsertAdditionalOp) {
                     auto add = std::make_shared<ov::opset9::Add>(op, add_const);
                     add->set_friendly_name(op->get_friendly_name());
                     op->set_friendly_name(op->get_friendly_name() + "/previous");
-                    copy_runtime_info(op, add);
+                    ov::copy_runtime_info(op, add);
                     for (auto& consumer : consumers) {
                         consumer.replace_source_output(add);
                     }
@@ -336,4 +339,44 @@ TEST_F(GetSupportedNodesTest, FusedNamesSupportedUnsupportedBoth) {
          (std::dynamic_pointer_cast<ov::opset9::ReduceSum>(op) != nullptr) ||
          (std::dynamic_pointer_cast<ov::opset9::Log>(op) != nullptr);
     }, {"dummy_param"}); // kepp dummy only since it has no unsupported consumers
+}
+
+TEST_F(GetSupportedNodesTest, ShapeOfNonConstantNode) {
+    {
+        auto param = std::make_shared<ngraph::op::Parameter>(ov::element::f32, m_shape);
+        param->set_friendly_name("input");
+        auto slope_compressed = ov::opset9::Constant::create(ngraph::element::f16, ngraph::Shape{}, { -2.f });
+        slope_compressed->set_friendly_name("slope_compressed");
+        auto convert_slope = std::make_shared<ov::opset9::Convert>(slope_compressed, ov::element::f32);
+        convert_slope->set_friendly_name("slope");
+        ov::mark_as_decompression(convert_slope);
+        auto prelu = std::make_shared<ov::opset9::PRelu>(param, convert_slope);
+        prelu->set_friendly_name("prelu");
+        auto shapeOf = std::make_shared<ov::opset9::ShapeOf>(prelu);
+        shapeOf->set_friendly_name("shapeof");
+        auto convert_fp32 = std::make_shared<ov::opset9::Convert>(shapeOf, ov::element::f32);
+        convert_fp32->set_friendly_name("convert_fp32");
+        auto scale = ov::opset9::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 2.0f });
+        scale->set_friendly_name("scale");
+        auto mul_scale = std::make_shared<ov::opset9::Multiply>(convert_fp32, scale);
+        mul_scale->set_friendly_name("mul_scale");
+        auto convert_i64 = std::make_shared<ov::opset9::Convert>(mul_scale, ov::element::i64);
+        convert_i64->set_friendly_name("convert_i64");
+        auto interpolate = std::make_shared<ov::opset9::Interpolate>(prelu, convert_i64, scale, ov::opset9::Interpolate::InterpolateAttrs());
+        interpolate->set_friendly_name("interpolate");
+        auto interpolate_result = std::make_shared<ngraph::op::Result>(interpolate);
+        interpolate_result->set_friendly_name("interpolate_result");
+        m_function = std::make_shared<ov::Model>(ngraph::ResultVector{interpolate_result},
+                                                 ngraph::ParameterVector{param});
+    }
+    Run([&](std::shared_ptr<ov::Model>& model) {
+            ov::pass::Manager m;
+            m.register_pass<ngraph::pass::InitNodeInfo>();
+            m.register_pass<ngraph::pass::CommonOptimizations>();
+            m.run_passes(model);
+        },
+    [&](const std::shared_ptr<ngraph::Node>& op) {
+        return ov::op::util::is_parameter(op) || ov::op::util::is_constant(op) || ov::op::util::is_output(op) ||
+         (std::dynamic_pointer_cast<ov::opset9::PRelu>(op) != nullptr);
+    }, {"input", "slope_compressed", "slope", "prelu"}); // kepp dummy only since it has no unsupported consumers
 }

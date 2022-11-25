@@ -662,7 +662,7 @@ TEST(constant_folding, shape_of_v0) {
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
-    check_names(new_const, {"param", "test"});
+    check_names(new_const, {"test"});
     ASSERT_EQ(new_const->get_output_element_type(0), element::i64);
     auto values_out = new_const->get_vector<int64_t>();
 
@@ -685,7 +685,7 @@ TEST(constant_folding, shape_of_v3) {
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
-    check_names(new_const, {"param", "test"});
+    check_names(new_const, {"test"});
     ASSERT_EQ(new_const->get_output_element_type(0), element::i64);
     auto values_out = new_const->get_vector<int64_t>();
 
@@ -708,7 +708,7 @@ TEST(constant_folding, shape_of_i32_v3) {
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
-    check_names(new_const, {"param", "test"});
+    check_names(new_const, {"test"});
     ASSERT_EQ(new_const->get_output_element_type(0), element::i32);
     auto values_out = new_const->get_vector<int32_t>();
 
