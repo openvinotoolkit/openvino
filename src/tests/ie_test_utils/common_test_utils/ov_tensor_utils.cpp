@@ -202,14 +202,9 @@ struct Error {
     }
 };
 
-template<typename ExpectedT>
-inline double calculate_median(const ExpectedT* expected_data, size_t expected_shape) {
-    double abs_threshold;
-    std::vector<double> abs_values(expected_shape);
-    for (size_t i = 0; i < expected_shape; i++) {
-        abs_values.push_back(std::fabs(static_cast<double>(expected_data[i])));
-    }
-    double abs_median;
+inline double calculate_median(std::vector<double>& abs_values) {
+    double abs_median = 0.;
+    auto expected_shape = abs_values.size();
     if (expected_shape % 2) {
         std::nth_element(abs_values.begin(), abs_values.begin() + expected_shape / 2, abs_values.end());
         abs_median =  abs_values[expected_shape / 2];
@@ -218,11 +213,7 @@ inline double calculate_median(const ExpectedT* expected_data, size_t expected_s
         std::nth_element(abs_values.begin(), abs_values.begin() + (expected_shape - 1) / 2, abs_values.end());
         abs_median = (abs_values[(expected_shape - 1) / 2]  + abs_values[expected_shape / 2]) / 2.0;
     }
-    abs_threshold = abs_median == 0.f ? 1e-5 : 0.05 * abs_median;
-    if (std::is_integral<ExpectedT>::value) {
-        abs_threshold = std::ceil(abs_threshold);
-    }
-    return abs_threshold;
+    return abs_median;
 }
 
 template<typename ExpectedT, typename ActualT>
@@ -250,7 +241,15 @@ void compare(const ov::Tensor& expected,
         if (sizeof(ExpectedT) == 1 || sizeof(ActualT) == 1) {
             abs_threshold = 1.;
         } else {
-            abs_threshold = calculate_median(expected_data, shape_size_cnt);
+            std::vector<double> abs_values(shape_size_cnt);
+            for (size_t i = 0; i < shape_size_cnt; i++) {
+                abs_values[i] = std::fabs(static_cast<double>(expected_data[i]));
+            }
+            auto abs_median = calculate_median(abs_values);
+            abs_threshold = abs_median * 0.05 < 1e-5 ? 1e-5 : 0.05 * abs_median;
+            if (std::is_integral<ExpectedT>::value) {
+                abs_threshold = std::ceil(abs_threshold);
+            }
         }
     }
     if (!std::isnan(abs_threshold)) {

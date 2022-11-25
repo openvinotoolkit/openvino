@@ -326,10 +326,15 @@ std::vector<ov::Tensor> SubgraphBaseTest::get_plugin_outputs() {
 void SubgraphBaseTest::validate() {
     std::vector<ov::Tensor> expectedOutputs, actualOutputs;
 
+#ifndef NDEBUG
+    actualOutputs = get_plugin_outputs();
+    expectedOutputs = calculate_refs();
+#else
     std::thread t_device([&]{ actualOutputs = get_plugin_outputs(); });
     std::thread t_ref([&]{ expectedOutputs = calculate_refs(); });
     t_device.join();
     t_ref.join();
+#endif
 
     if (expectedOutputs.empty()) {
         return;
