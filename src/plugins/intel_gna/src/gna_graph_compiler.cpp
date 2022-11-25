@@ -347,7 +347,10 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         GNAConvolutionLayer::isMappableFrom2DTo1D(in_height, in_width, in_channels,
                                                   convolution._kernel_y, convolution._kernel_x,
                                                   convolution._stride_y, convolution._stride_x)) {
-        transpose_h_w = (in_height == convolution._kernel_y);
+        transpose_h_w = GNAConvolutionLayer::should_transpose_h_w(in_height,
+                                                                  convolution._kernel_y,
+                                                                  in_channels,
+                                                                  convolution._stride_y);
         in_width *= in_height;
         in_height = 1;
         out_width *= out_height;
