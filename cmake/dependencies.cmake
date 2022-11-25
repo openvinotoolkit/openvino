@@ -86,8 +86,8 @@ function(ov_download_tbb)
         set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
     endif()
 
-    if (NOT DEFINED ENV{TBBROOT} AND (DEFINED ENV{TBB_DIR} OR DEFINED TBB_DIR))
-        if (DEFINED ENV{TBB_DIR})
+    if(NOT DEFINED ENV{TBBROOT} AND (DEFINED ENV{TBB_DIR} OR DEFINED TBB_DIR))
+        if(DEFINED ENV{TBB_DIR})
             set(TEMP_ROOT $ENV{TBB_DIR})
         elseif (DEFINED TBB_DIR)
             set(TEMP_ROOT ${TBB_DIR})
@@ -260,7 +260,8 @@ if(ENABLE_OPENCV)
                      CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9") AND X86_64)
                 set(OPENCV_SUFFIX "centos7")
                 set(OPENCV_HASH "5fa76985c84fe7c64531682ef0b272510c51ac0d0565622514edf1c88b33404a")
-            elseif(LINUX_OS_NAME MATCHES "CentOS 8" AND X86_64)
+            elseif((LINUX_OS_NAME MATCHES "CentOS 8" OR
+                    LINUX_OS_NAME MATCHES "CentOS 9") AND X86_64)
                 set(OPENCV_SUFFIX "centos8")
                 set(OPENCV_HASH "db087dfd412eedb8161636ec083ada85ff278109948d1d62a06b0f52e1f04202")
             elseif(LINUX_OS_NAME STREQUAL "Ubuntu 16.04" AND X86_64)
@@ -270,8 +271,11 @@ if(ENABLE_OPENCV)
                 set(OPENCV_SUFFIX "ubuntu18")
                 set(OPENCV_HASH "db087dfd412eedb8161636ec083ada85ff278109948d1d62a06b0f52e1f04202")
             elseif((LINUX_OS_NAME STREQUAL "Ubuntu 20.04" OR
+                    LINUX_OS_NAME STREQUAL "Ubuntu 20.10" OR
+                    LINUX_OS_NAME STREQUAL "Ubuntu 21.04" OR
                     LINUX_OS_NAME STREQUAL "Ubuntu 21.10" OR
                     LINUX_OS_NAME STREQUAL "Ubuntu 22.04" OR
+                    LINUX_OS_NAME STREQUAL "Ubuntu 22.10" OR
                     LINUX_OS_NAME STREQUAL "LinuxMint 20.1") AND X86_64)
                 set(OPENCV_SUFFIX "ubuntu20")
                 set(OPENCV_HASH "2fe7bbc40e1186eb8d099822038cae2821abf617ac7a16fadf98f377c723e268")
