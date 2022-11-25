@@ -335,7 +335,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         fullConfig.erase(PluginConfigParams::KEY_PERFORMANCE_HINT);
         loadConfig._perfHintsConfig.SetConfig(PluginConfigParams::KEY_PERFORMANCE_HINT, PluginConfigParams::THROUGHPUT);
         if (workModeAuto) {
-            // set performance hint to 'THROUGHPUT' model for AutoExecutable Network.
+            // set performance hint to 'LATENCY' model for AutoExecutable Network.
             loadConfig._perfHintsConfig.SetConfig(PluginConfigParams::KEY_PERFORMANCE_HINT,
                                                   PluginConfigParams::LATENCY);
         }
