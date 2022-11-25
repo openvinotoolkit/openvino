@@ -22,6 +22,7 @@ macro(ov_rpm_cpack_set_dirs)
     set(OV_CPACK_NGRAPH_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/ngraph${OpenVINO_VERSION})
     set(OV_CPACK_OPENVINO_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/openvino${OpenVINO_VERSION})
     set(OV_CPACK_DOCDIR ${CMAKE_INSTALL_DATADIR}/doc/openvino-${OpenVINO_VERSION})
+    # set(OV_CPACK_PYTHONDIR lib/python3/dist-packages)
 
     ov_get_pyversion(pyversion)
     if(pyversion)
@@ -29,7 +30,7 @@ macro(ov_rpm_cpack_set_dirs)
     endif()
 
     # non-native stuff
-    set(OV_CPACK_SHAREDIR ${CMAKE_INSTALL_DATADIR}/openvino-${OpenVINO_VERSION}) # internal
+    set(OV_CPACK_SHAREDIR ${CMAKE_INSTALL_DATADIR}/openvino) # internal
     set(OV_CPACK_SAMPLESDIR ${OV_CPACK_SHAREDIR}/samples)
     set(OV_CPACK_DEVREQDIR ${OV_CPACK_SHAREDIR})
     unset(OV_CPACK_SHAREDIR)
@@ -104,6 +105,18 @@ macro(ov_rpm_specific_settings)
     # set(CPACK_RPM_PACKAGE_RELEASE "1")
     # enable this if someday we change the version scheme
     # set(CPACK_RPM_PACKAGE_EPOCH "2")
+
+    # temporary WA for rpm package architecture for cross-compilation
+    # proper solution: to force cmake auto-detect this
+    if(CMAKE_CROSSCOMPILING)
+        if(AARCH64)
+            set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE arm64)
+        elseif(ARM)
+            set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE armhf)
+        elseif(x86)
+            set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE i386)
+        endif()
+    endif()
 endmacro()
 
 ov_rpm_specific_settings()
@@ -161,10 +174,16 @@ function(ov_rpm_add_rpmlint_suppression comp)
 
     if(DEFINED CPACK_RPM_${ucomp}_PACKAGE_ARCHITECTURE)
         set(arch "${CPACK_RPM_${ucomp}_PACKAGE_ARCHITECTURE}")
+    elseif(DEFINED CPACK_RPM_PACKAGE_ARCHITECTURE)
+        set(arch "${CPACK_RPM_PACKAGE_ARCHITECTURE}")
     elseif(X86_64)
         set(arch "x86_64")
     elseif(X86)
         set(arch "i686")
+    elseif(AARCH64)
+        set(arch "aarch64")
+    elseif(ARM)
+        set(arch "armhf")
     else()
         message(FATAL_ERROR "RPM: Unsupported architecture ${CMAKE_SYSTEM_PROCESSOR}")
     endif()
