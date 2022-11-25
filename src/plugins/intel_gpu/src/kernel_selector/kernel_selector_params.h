@@ -169,6 +169,7 @@ public:
                     struct reorder_t {
                         uint32_t winograd : 1;
                         uint32_t rotate : 1;
+                        uint32_t surface_input : 1;
                     } reorder;
                     struct eltwise_t {
                         uint32_t stride : 1;
@@ -292,6 +293,7 @@ public:
 
     void EnableWinogradReorder() { key.restrict.val.dedicated.reorder.winograd = 1; }
     void EnableRotateReorder() { key.restrict.val.dedicated.reorder.rotate = 1; }
+    void EnableSurfaceInputSupport() { key.restrict.val.dedicated.reorder.surface_input = 1; }
     void EnableSoftmaxDim(SoftmaxDim d);
     void EnableConcatAxis(ConcatAxis a);
     void EnableReampleType(ResampleType a);
