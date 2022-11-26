@@ -81,8 +81,6 @@ macro(ov_rpm_specific_settings)
     set(CPACK_RPM_COMPONENT_INSTALL ON)
     # automatically find dependencies for binaries
     set(CPACK_RPM_PACKAGE_AUTOREQPROV ON)
-    # enable dependencies between components
-    set(CPACK_RPM_ENABLE_COMPONENT_DEPENDS ON)
     # homepage
     set(CPACK_RPM_PACKAGE_URL "https://docs.openvino.ai/")
     # ASL 2.0 # Apache Software License 2.0
@@ -102,7 +100,7 @@ macro(ov_rpm_specific_settings)
     # naming convention for rpm package files
     set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")
     # need to update this version once we rebuild the same package with additional fixes
-    # set(CPACK_RPM_PACKAGE_RELEASE "1")
+    set(CPACK_RPM_PACKAGE_RELEASE "1")
     # enable this if someday we change the version scheme
     # set(CPACK_RPM_PACKAGE_EPOCH "2")
 
@@ -123,7 +121,7 @@ ov_rpm_specific_settings()
 
 # needed to add triggers for packages with libraries
 set(def_triggers "${OpenVINO_BINARY_DIR}/_CPack_Packages/triggers")
-set(triggers_content "activate-noawait ldconfig\n\n")
+set(triggers_content "/sbin/ldconfig\n")
 file(WRITE "${def_triggers}" "${triggers_content}")
 
 #
@@ -235,7 +233,7 @@ macro(ov_rpm_add_latest_component comp)
     set(upper_case "${ucomp}_LATEST")
 
     set(CPACK_COMPONENT_${upper_case}_DESCRIPTION "${CPACK_COMPONENT_${ucomp}_DESCRIPTION}")
-    set(CPACK_COMPONENT_${upper_case}_DEPENDS "${comp}")
+    set(CPACK_RPM_${upper_case}_PACKAGE_REQUIRES "${CPACK_RPM_${ucomp}_PACKAGE_NAME} = ${cpack_full_ver}")
     set(CPACK_RPM_${upper_case}_PACKAGE_ARCHITECTURE "noarch")
     set(${comp_name}_copyright "generic")
 
