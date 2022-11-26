@@ -77,6 +77,8 @@ if(ENABLE_SYSTEM_PUGIXML)
         else()
             message(FATAL_ERROR "Failed to detect pugixml library target name")
         endif()
+        # to property generate OpenVINO Developer packages files
+        set(PugiXML_FOUND ${PugiXML_FOUND} CACHE BOOL "" FORCE)
     elseif(PkgConfig_FOUND AND NOT ANDROID)
         # U18 case when cmake interface is not available
         pkg_search_module(pugixml QUIET
