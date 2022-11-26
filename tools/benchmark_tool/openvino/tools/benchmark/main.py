@@ -10,11 +10,9 @@ from openvino.runtime import Dimension
 from openvino.tools.benchmark.benchmark import Benchmark
 from openvino.tools.benchmark.parameters import parse_args
 from openvino.tools.benchmark.utils.constants import MULTI_DEVICE_NAME, \
-    HETERO_DEVICE_NAME, CPU_DEVICE_NAME, GPU_DEVICE_NAME, MYRIAD_DEVICE_NAME, \
-    GNA_DEVICE_NAME, BLOB_EXTENSION
+    CPU_DEVICE_NAME, GPU_DEVICE_NAME, MYRIAD_DEVICE_NAME, BLOB_EXTENSION
 from openvino.tools.benchmark.utils.inputs_filling import get_input_data
 from openvino.tools.benchmark.utils.logging import logger
-from openvino.tools.benchmark.utils.progress_bar import ProgressBar
 from openvino.tools.benchmark.utils.utils import next_step, get_number_iterations, pre_post_processing, \
     process_help_inference_string, print_perf_counters, print_perf_counters_sort, dump_exec_graph, get_duration_in_milliseconds, \
     get_command_line_arguments, parse_value_per_device, parse_devices, get_inputs_info, \
@@ -36,10 +34,10 @@ def parse_and_check_command_line():
         raise Exception("-nstreams, -nthreads and -pin options are fine tune options. To use them you " \
                         "should explicitely set -hint option to none. This is not OpenVINO limitation " \
                         "(those options can be used in OpenVINO together), but a benchmark_app UI rule.")
-    
+
     if args.report_type == "average_counters" and "MULTI" in args.target_device:
         raise Exception("only detailed_counters report type is supported for MULTI device")
-    
+
     _, ext = os.path.splitext(args.path_to_model)
     is_network_compiled = True if ext == BLOB_EXTENSION else False
     is_precisiton_set = not (args.input_precision == "" and args.output_precision == "" and args.input_output_precision == "")
@@ -48,21 +46,16 @@ def parse_and_check_command_line():
         raise Exception("Cannot set precision for a compiled model. " \
                         "Please re-compile your model with required precision " \
                         "using compile_tool")
-    
+
     return args, is_network_compiled
 
 def main():
     statistics = None
     try:
         # ------------------------------ 1. Parsing and validating input arguments ------------------------------
-        args_string = f"{os.path.realpath(sys.argv[0])} "
-        for i in range(1,len(sys.argv)):
-            args_string += f"{sys.argv[i]} "
-
         next_step()
         logger.info("Parsing input parameters")
         args, is_network_compiled = parse_and_check_command_line()
-        logger.info(f"Input command: {args_string}")
 
         command_line_arguments = get_command_line_arguments(sys.argv)
         if args.report_type:
@@ -469,13 +462,6 @@ def main():
             logger.info("Benchmarking in inference only mode (inputs filling are not included in measurement loop).")
         else:
             logger.info("Benchmarking in full mode (inputs filling are included in measurement loop).")
-
-        progress_bar_total_count = 10000
-        if benchmark.niter and not benchmark.duration_seconds:
-            progress_bar_total_count = benchmark.niter
-
-        progress_bar = ProgressBar(progress_bar_total_count, args.stream_output, args.progress) if args.progress else None
-
         duration_ms = f"{benchmark.first_infer(requests):.2f}"
         logger.info(f"First inference took {duration_ms} ms")
         if statistics:
@@ -488,7 +474,7 @@ def main():
         if static_mode or len(benchmark.latency_groups) == 1:
             pcseq = False
 
-        fps, median_latency_ms, avg_latency_ms, min_latency_ms, max_latency_ms, total_duration_sec, iteration = benchmark.main_loop(requests, data_queue, batch_size, args.latency_percentile, progress_bar, pcseq)
+        fps, median_latency_ms, avg_latency_ms, min_latency_ms, max_latency_ms, total_duration_sec, iteration = benchmark.main_loop(requests, data_queue, batch_size, args.latency_percentile, pcseq)
 
         # ------------------------------------ 11. Dumping statistics report -------------------------------------------
         next_step()
@@ -509,7 +495,7 @@ def main():
                 total_sorted_list = print_perf_counters_sort(perfs_count_list,sort_flag=args.perf_counts_sort)
                 if statistics:
                     statistics.dump_performance_counters_sorted(total_sorted_list)
-            
+
             elif args.perf_counts:
                 print_perf_counters(perfs_count_list)
 

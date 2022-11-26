@@ -215,7 +215,8 @@ void prepare_primitive_fusing::fuse_reorders(program &p) {
             // - do not fuse if current node has mean subtract
             if (input.get_users().size() != 1 || !input.is_type<reorder>() ||
                 input.get_output_layout() != node.get_output_layout() || node.has_mean() ||
-                !node.get_primitive()->subtract_per_feature.empty())
+                !node.get_primitive()->subtract_per_feature.empty() ||
+                node.get_primitive()->has_surface_input())
                 return;
 
             p.add_optimized_primitive_info(node.id());
@@ -256,6 +257,10 @@ void prepare_primitive_fusing::fuse_activations(program &p) {
                 node.get_dependencies().size() != 1 || input.can_be_optimized() || node.is_constant() ||
                 node.has_fused_primitives())
                 return;
+
+            if (use_onednn_impls && node.get_primitive()->activation_function == cldnn::activation_func::hyperbolic_tan) {
+                return;
+            }
 
             // - limit to primitives which implementations support activation fusing
             if (input.get_users().size() != 1 ||
@@ -538,7 +543,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
     bool recalc_processing_order = false;
     std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>> fusing_history;
 
-    const uint8_t supports_immad = p.get_engine().get_device_info().supports_immad;
+    const auto supports_immad = p.get_engine().get_device_info().supports_immad;
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto node_itr = itr++;
@@ -747,6 +752,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fuse_activation_f = [&](activation_node& activation_node) {
+            if (supports_immad && activation_node.get_primitive()->activation_function == cldnn::activation_func::hyperbolic_tan) {
+                return;
+            }
+
             auto& input_data = activation_node.get_dependency(0);
             if (activation_node.get_dependencies().size() >= 3)
                 return;

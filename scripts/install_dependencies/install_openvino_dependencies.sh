@@ -87,7 +87,11 @@ if [ "$os" == "auto" ] ; then
       os="rhel8"
     fi
     case $os in
-        rhel8|ubuntu18.04|ubuntu20.04|ubuntu21.10|ubuntu22.04) [ -z "$print" ] && echo "Detected OS: ${os}" ;;
+        rhel8|rhel9.1|\
+        raspbian9|debian9|ubuntu18.04|\
+        raspbian10|debian10|ubuntu20.04|ubuntu20.10|ubuntu21.04|\
+        raspbian11|debian11|ubuntu21.10|ubuntu22.04|\
+        raspbian12|debian12|ubuntu22.10) [ -z "$print" ] && echo "Detected OS: ${os}" ;;
         *) echo "Unsupported OS: ${os:-detection failed}" >&2 ; exit 1 ;;
     esac
 fi
@@ -97,12 +101,25 @@ fi
 
 extra_repos=()
 
-if [ "$os" == "ubuntu18.04" ] ; then
+if [ "$os" == "raspbian9" ] || [ "$os" == "debian9" ] ; then
+
+    # proper versions of cmake and python should be installed separately, because the defaults are:
+    # - python version is 3.5
+    # - cmake version is 3.7.2
+    # which are not supported by OpenVINO
+
+    pkgs_core=()
+    pkgs_python=()
+    pkgs_dev=(pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json-dev make curl sudo)
+    pkgs_myriad=(libusb-1.0-0)
+    pkgs_cl_compiler=()
+
+elif [ "$os" == "ubuntu18.04" ] ; then
 
     pkgs_core=(libtbb2 libpugixml1v5)
     pkgs_opencv_req=(libgtk-3-0 libgl1)
     pkgs_python=(python3 libpython3.6 python3-venv python3-pip)
-    pkgs_dev=(cmake pkg-config libgflags-dev zlib1g-dev nlohmann-json-dev g++ gcc libc6-dev make curl sudo)
+    pkgs_dev=(cmake pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json-dev make curl sudo)
     pkgs_myriad=(libusb-1.0-0)
     pkgs_cl_compiler=(libtinfo5)
     pkgs_opencv_opt=(
@@ -119,9 +136,11 @@ if [ "$os" == "ubuntu18.04" ] ; then
         libswscale4
     )
 
-elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubuntu22.04" ] ; then
+elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] ||
+     [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubuntu22.04" ] || [ "$os" == "debian11" ] || [ "$os" == "raspbian11" ] ||
+     [ "$os" == "ubuntu22.10" ] || [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ]; then
 
-    pkgs_core=(libtbb2 libpugixml1v5)
+    pkgs_core=(libpugixml1v5)
     pkgs_opencv_req=(libgtk-3-0 libgl1)
     pkgs_python=(python3 python3-venv python3-pip)
     pkgs_dev=(cmake pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json3-dev make curl sudo)
@@ -140,23 +159,36 @@ elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubu
         libswscale5
     )
 
-    if [ "$os" == "ubuntu20.04" ] ; then
+    if [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] ; then
+        pkgs_core=(${pkgs_core[@]} libtbb2)
+        pkgs_python=(${pkgs_python[@]} libpython3.7)
+    elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu20.10" ] || [ "$os" == "ubuntu21.04" ] ; then
+        pkgs_core=(${pkgs_core[@]} libtbb2)
         pkgs_python=(${pkgs_python[@]} libpython3.8)
         pkgs_opencv_opt=(${pkgs_opencv_opt[@]} libavresample4)
-    elif [ "$os" == "ubuntu21.10" ] ; then
+    elif [ "$os" == "ubuntu21.10" ] ||
+         [ "$os" == "debian11" ] || [ "$os" == "raspbian11" ] ; then
+        pkgs_core=(${pkgs_core[@]} libtbb2)
         pkgs_python=(${pkgs_python[@]} libpython3.9)
-    elif [ "$os" == "ubuntu22.04" ] ; then
+    elif [ "$os" == "ubuntu22.04" ] || [ "$os" == "ubuntu22.10" ] ||
+         [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ] ; then
+        pkgs_core=(${pkgs_core[@]} libtbb12)
         pkgs_python=(${pkgs_python[@]} libpython3.10)
     fi
 
-elif [ "$os" == "rhel8" ] ; then
+elif [ "$os" == "rhel8" ] || [ "$os" == "rhel9.1" ] ; then
+
+    if [ "$os" == "rhel9.1" ] ; then
+        pkgs_python=(python39 python3-pip)
+    elif [ "$os" == "rhel8" ] ; then
+        pkgs_python=(python38 python38-pip)
+    fi
 
     pkgs_core=(tbb.x86_64 pugixml.x86_64)
     pkgs_opencv_req=(gtk3)
-    pkgs_python=(python38 python38-pip)
     pkgs_dev=(
-    gcc gcc-c++ make glibc libstdc++ libgcc cmake pkg-config zlib-devel.i686 curl sudo
-    https://vault.centos.org/centos/8/PowerTools/x86_64/os/Packages/gflags-2.1.2-6.el8.x86_64.rpm
+        gcc gcc-c++ make glibc libstdc++ libgcc cmake pkg-config zlib-devel curl sudo
+        https://vault.centos.org/centos/8/PowerTools/x86_64/os/Packages/gflags-2.1.2-6.el8.x86_64.rpm
     )
     pkgs_myriad=()
     pkgs_opencv_opt=(
@@ -197,7 +229,7 @@ elif [ "$os" == "rhel8" ] ; then
     extra_repos+=(https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm)
 
 else
-    echo "Internal script error: invalid OS after check (package selection)" >&2
+    echo "Internal script error: invalid OS (${os}) after check (package selection)" >&2
     exit 3
 fi
 
@@ -236,8 +268,10 @@ fi
 
 iopt=
 
-if [ "$os" == "ubuntu18.04" ] || [ "$os" == "ubuntu20.04" ] || \
-   [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubuntu22.04" ] ; then
+if [ "$os" == "debian9" ] || [ "$os" == "raspbian9" ] || [ "$os" == "ubuntu18.04" ] ||
+   [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] || [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu20.10" ] || [ "$os" == "ubuntu21.04" ] ||
+   [ "$os" == "debian11" ] || [ "$os" == "raspbian11" ] || [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubuntu22.04" ] ||
+   [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ] || [ "$os" == "ubuntu22.10" ] ; then
 
     [ -z "$interactive" ] && iopt="-y"
     [ -n "$dry" ] && iopt="--dry-run"
@@ -245,7 +279,7 @@ if [ "$os" == "ubuntu18.04" ] || [ "$os" == "ubuntu20.04" ] || \
 
     apt-get update && apt-get install -y --no-install-recommends $iopt ${pkgs[@]}
 
-elif [ "$os" == "rhel8" ] ; then
+elif [ "$os" == "rhel8" ] || [ "$os" == "rhel9.1" ] ; then
 
     [ -z "$interactive" ] && iopt="--assumeyes"
     [ -n "$dry" ] && iopt="--downloadonly"
@@ -255,9 +289,8 @@ elif [ "$os" == "rhel8" ] ; then
     yum install $iopt ${pkgs[@]}
 
 else
-    echo "Internal script error: invalid OS after check (package installation)" >&2
+    echo "Internal script error: invalid OS (${os}) after check (package installation)" >&2
     exit 3
 fi
 
 exit 0
-

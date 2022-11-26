@@ -15,7 +15,7 @@ using namespace std;
 namespace {
 // Run some topology too see if command queue does work correctly
 // Coppied from arg_max_gpu.base test.
-void exexute_network(cldnn::engine& engine) {
+void exexute_network(cldnn::engine& engine, bool is_caching_test=false) {
     //  Input  : 2x4x2x2
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     const int top_k = 2;
@@ -38,10 +38,27 @@ void exexute_network(cldnn::engine& engine) {
     };
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    cldnn::network::ptr network;
 
-    network.set_input_data("input", input);
-    auto outputs = network.execute();
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology);
+    }
+
+    network->set_input_data("input", input);
+    auto outputs = network->execute();
 
     EXPECT_EQ(outputs.size(), size_t(1));
     EXPECT_EQ(outputs.begin()->first, "arg_max");
@@ -92,4 +109,16 @@ TEST(command_queue_test, test_priority_and_throttle_hints) {
             throttle_mode_types::low);
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, configuration);
     exexute_network(*engine);
+}
+
+TEST(export_import_command_queue_test, test_priority_and_throttle_hints) {
+    engine_configuration configuration =
+        engine_configuration(
+            false,          // profiling
+            queue_types::out_of_order,
+            "",             // sources_dumps_dir
+            priority_mode_types::high,
+            throttle_mode_types::low);
+    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, configuration);
+    exexute_network(*engine, true);
 }

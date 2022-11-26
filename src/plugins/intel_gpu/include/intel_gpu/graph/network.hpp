@@ -6,13 +6,13 @@
 
 #include "intel_gpu/graph/topology.hpp"
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/compounds.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/lru_cache.hpp"
-#include "serialization/binary_buffer.hpp"
 
 #include <map>
 #include <vector>
@@ -127,6 +127,7 @@ public:
 
     memory::ptr get_output_memory(const primitive_id& output_id);
     layout get_node_output_layout(const primitive_id& output_id) const;
+    layout get_output_layout(const primitive_id& output_id) const;
     std::vector<layout> get_input_layouts() const;
 
     /// @brief Returns the list of primitive ids before and after graph optimization.
@@ -184,6 +185,7 @@ public:
     void validate_primitives();
     void set_arguments();
     // Implementation specific calls
+    bool is_cpu_impl(const primitive_id& id) const;
     std::shared_ptr<primitive_inst> get_primitive(const primitive_id& id);
     std::shared_ptr<const primitive_inst> get_primitive(const primitive_id& id) const;
     std::string get_primitive_info(const primitive_id& id) const;
@@ -259,8 +261,8 @@ private:
     void allocate_primitive_instance(program_node const& node);
     void transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node);
     void add_to_exec_order(const primitive_id& id);
-    std::shared_ptr<primitive_inst> find_in_internal_networks(const primitive_id& id);
-    std::shared_ptr<primitive_inst> find_primitive(const primitive_id& id);
+    std::shared_ptr<primitive_inst> find_in_internal_networks(const primitive_id& id) const;
+    std::shared_ptr<primitive_inst> find_primitive(const primitive_id& id) const;
     void check_names();
     void add_default_output_chains();
     output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
