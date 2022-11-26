@@ -99,10 +99,10 @@ if(ENABLE_SYSTEM_PUGIXML)
 
     # debian 9 case: no cmake, no pkg-config files
     if(NOT TARGET ${pugixml_target})
-        find_library(libpugixml_location NAMES pugixml DOC "Path to pugixml library")
-        if(libpugixml_location)
+        find_library(PUGIXML_LIBRARY NAMES pugixml DOC "Path to pugixml library")
+        if(PUGIXML_LIBRARY)
             add_library(pugixml INTERFACE IMPORTED GLOBAL)
-            set_target_properties(pugixml PROPERTIES INTERFACE_LINK_LIBRARIES "${libpugixml_location}")
+            set_target_properties(pugixml PROPERTIES INTERFACE_LINK_LIBRARIES "${PUGIXML_LIBRARY}")
             set(pugixml_target pugixml)
             set(PugiXML_FOUND ON)
         endif()
