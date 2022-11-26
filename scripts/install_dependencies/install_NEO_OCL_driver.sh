@@ -275,11 +275,7 @@ _get_packages_ubuntu()
         apt-get install -y \
         intel-opencl-icd=22.35.24055+i815~u20.04 \
         intel-level-zero-gpu=1.3.24055+i815~u20.04 \
-        level-zero=1.8.5+i815~u20.04 \
-	intel-media-va-driver-non-free libmfx1 libmfxgen1 libvpl2 \
-        libegl-mesa0 libegl1-mesa libegl1-mesa-dev libgbm1 libgl1-mesa-dev libgl1-mesa-dri \
-        libglapi-mesa libgles2-mesa-dev libglx-mesa0 libigdgmm11 libxatracker2 mesa-va-drivers \
-        mesa-vdpau-drivers mesa-vulkan-drivers va-driver-all
+        level-zero=1.8.5+i815~u20.04
     ;;
         *)
         echo "ERROR: Unrecognized driver ${INSTALL_DRIVER_VERSION}."
