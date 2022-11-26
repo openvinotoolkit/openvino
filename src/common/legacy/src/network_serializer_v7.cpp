@@ -364,11 +364,11 @@ std::size_t FillXmlDoc(const InferenceEngine::CNNNetwork& network, pugi::xml_doc
                                                    << inputTo.first << "during serialization of IR";
                             }
                             pugi::xml_node edge = edges.append_child("edge");
-                            edge.append_attribute("from-layer").set_value(itFrom->second);
-                            edge.append_attribute("from-port").set_value(oport + node->insData.size());
+                            edge.append_attribute("from-layer").set_value(static_cast<uint64_t>(itFrom->second));
+                            edge.append_attribute("from-port").set_value(static_cast<uint64_t>(oport + node->insData.size()));
 
-                            edge.append_attribute("to-layer").set_value(itTo->second);
-                            edge.append_attribute("to-port").set_value(iport);
+                            edge.append_attribute("to-layer").set_value(static_cast<uint64_t>(itTo->second));
+                            edge.append_attribute("to-port").set_value(static_cast<uint64_t>(iport));
                         }
                     }
                 }
