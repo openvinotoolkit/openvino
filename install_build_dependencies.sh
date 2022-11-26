@@ -111,6 +111,7 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
     fi
 elif [ -f /etc/redhat-release ]; then
     # RHEL 8 / CentOS 7
+    yum update
     yum install -y centos-release-scl epel-release
     yum install -y \
         wget \
@@ -120,6 +121,7 @@ elif [ -f /etc/redhat-release ]; then
         xz \
         p7zip \
         ccache \
+        openssl-devel \
         rpm-build \
         rpmlint \
         ShellCheck \
