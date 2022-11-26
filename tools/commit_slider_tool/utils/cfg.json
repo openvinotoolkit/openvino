@@ -18,7 +18,7 @@
         ],
         "gitPath" : "samples/sample3",
         "buildPath" : "samples/sample3/build",
-        "cachePath" : "stroller_cache/",
+        "cachePath" : "slider_cache/",
         "logPath" : "log",
         "appCmd" : "./sample3 --some_arg",
         "appPath" : "samples/sample3/build",
