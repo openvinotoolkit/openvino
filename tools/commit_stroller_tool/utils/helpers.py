@@ -1,6 +1,8 @@
+import importlib
 import subprocess
 import re
 import logging as log
+
 def checkArgAndGetCommitList(commitArg, cfgData):
     if (not len(commitArg.split('..')) == 2):
         # todo: python bug with re.search("^[a-zA-Z0-9]+\.\.[a-zA-Z0-9]+$", commitArg)
@@ -21,14 +23,25 @@ def checkArgAndGetCommitList(commitArg, cfgData):
             raise ValueError("{arg} commit set is empty".format(arg=commitArg))
         else:
             return outList
-def runCommandList(commit, cfgData, trySkipClean):
+def runCommandList(commit, cfgData):
+    skipCleanInterval = cfgData["trySkipClean"]
     commitLogger = getCommitLogger(cfgData, commit)
     commandList = cfgData["commonConfig"]["commandList"]
     gitPath = cfgData["commonConfig"]["gitPath"]
     buildPath = cfgData["commonConfig"]["buildPath"]
     defRepo = gitPath
     for cmd in commandList:
-        if trySkipClean and "tag" in cmd.keys() and cmd["tag"] == "clean":
+        # todo: tag handling
+        if skipCleanInterval and "tag" in cmd.keys() and cmd["tag"] == "clean":
+            continue
+        if "tag" in cmd.keys() and cmd["tag"] == "preprocess":
+            if not ("preprocess" in cfgData["specialConfig"].keys() and 
+                "name" in cfgData["specialConfig"]["preprocess"].keys()):
+                raise CfgError("No preprocess provided")
+            prePrName = cfgData["specialConfig"]["preprocess"]["name"]
+            mod =  importlib.import_module("utils.preprocess.{pp}".format(pp=prePrName))
+            preProcess = getattr(mod, 'test_preprocess')
+            preProcess(cfgData)
             continue
         strCommand = cmd["cmd"].format(commit = commit)
         formattedCmd = strCommand.split()
@@ -45,19 +58,22 @@ def runCommandList(commit, cfgData, trySkipClean):
         if "catchMsg" in cmd.keys():
             isErrFound = re.search(cmd["catchMsg"], checkOut.decode('utf-8'))
             if (isErrFound):
-                if trySkipClean:
+                if skipCleanInterval:
                     commitLogger.info("Build error: clean is necessary")
                     raise NoCleanFailedError()
                 else:
                     raise CmdError(checkOut)
 
 def handleCommit(commit, cfgData):
-    trySkipClean = cfgData["serviceConfig"]["trySkipClean"]
+    skipCleanInterval = cfgData["serviceConfig"]["skipCleanInterval"]
+    cfgData["trySkipClean"] = skipCleanInterval
     try:
-        runCommandList(commit, cfgData, trySkipClean=trySkipClean)
+        runCommandList(commit, cfgData)
     except(NoCleanFailedError):
-        runCommandList(commit, cfgData, trySkipClean=False)
-
+        cfgData["trySkipClean"] = False
+        runCommandList(commit, cfgData)
+def handleTag():
+    pass
 def setupLogger(name, logFile, level=log.INFO):
     open(logFile, "w").close() # clear old log
     handler = log.FileHandler(logFile)

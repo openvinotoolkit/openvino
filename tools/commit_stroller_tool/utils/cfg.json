@@ -12,6 +12,7 @@
             {"cmd" : "git checkout {commit}", "catchMsg" : "error", "path" : "{gitPath}"},
             {"cmd" : "git submodule init", "path" : "{gitPath}"},
             {"cmd" : "git submodule update --recursive", "path" : "{buildPath}"},
+            {"tag" : "preprocess"},
             {"cmd" : "cmake ../", "catchMsg" : "Error", "path" : "{buildPath}"},
             {"cmd" : "make --jobs=4", "path" : "{buildPath}"}
         ],
@@ -23,7 +24,7 @@
         "appPath" : "samples/sample3/build",
         "clearLog" : true,
         "checkBorders" : false,
-        "noCleanInterval" : 5
+        "noCleanInterval" : 4
     },
     "serviceConfig" : {
         "comment" : "For inner purpose. Data will be overwritten during script running."
@@ -35,6 +36,12 @@
         },
         "mode" : "checkOutput",
         "traversal" : "firstBadVersion",
-        "stopPattern" : "(.)*failed(.)*"
+        "stopPattern" : "(.)*failed(.)*",
+        "preprocess" : {
+            "name" : "test_preprocess",
+            "file" : "samples/sample3/main.cpp",
+            "pattern" : "(.*std::cout << \\\")(.*)",
+            "replacement" : "\\1[PREPROCESSED]\\2"
+        }
     }
 }

@@ -46,9 +46,7 @@ class Mode(ABC):
         def bypass(self, i1, i2, list, cfg, isBadVersion) -> int:
             # check cfg if necessary
             noCleanInterval = cfg["commonConfig"]["noCleanInterval"]
-            cfg["serviceConfig"]["trySkipClean"] = (True 
-                if i2 - i1 < noCleanInterval
-                else False)
+            cfg["serviceConfig"]["skipCleanInterval"] = (i2 - i1 < noCleanInterval)
             self.mode.commonLogger.info("Check interval {i1}..{i2}".format(i1=i1, i2=i2))
             self.mode.commonLogger.info("Check commits {c1}..{c2}".format(c1=list[i1], c2=list[i2]))
             #
