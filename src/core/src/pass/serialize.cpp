@@ -275,8 +275,8 @@ class XmlSerializer : public ngraph::AttributeVisitor {
 
         for (const auto& input_description : input_descriptions) {
             pugi::xml_node input = port_map.append_child("input");
-            input.append_attribute("external_port_id").set_value(
-                static_cast<unsigned long long>(input_description->m_input_index));
+            input.append_attribute("external_port_id")
+                .set_value(static_cast<unsigned long long>(input_description->m_input_index));
             input.append_attribute("internal_layer_id")
                 .set_value(parameter_mapping[input_description->m_body_parameter_index].c_str());
 
@@ -315,8 +315,8 @@ class XmlSerializer : public ngraph::AttributeVisitor {
 
         for (const auto& output_description : output_descriptions) {
             pugi::xml_node output = port_map.append_child("output");
-            output.append_attribute("external_port_id").set_value(
-                static_cast<unsigned long long>(input_count + output_description->m_output_index));
+            output.append_attribute("external_port_id")
+                .set_value(static_cast<unsigned long long>(input_count + output_description->m_output_index));
             output.append_attribute("internal_layer_id")
                 .set_value(result_mapping[output_description->m_body_value_index].c_str());
 
