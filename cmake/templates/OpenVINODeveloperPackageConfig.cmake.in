@@ -101,7 +101,7 @@ if(ENABLE_SYSTEM_PUGIXML)
     endif()
 
     # debian 9 case: no cmake, no pkg-config files
-    if(NOT TARGET ${pugixml_target})
+    if(NOT TARGET openvino::pugixml)
         find_library(PUGIXML_LIBRARY NAMES pugixml DOC "Path to pugixml library")
         if(PUGIXML_LIBRARY)
             add_library(openvino::pugixml INTERFACE IMPORTED GLOBAL)
