@@ -106,6 +106,11 @@ if(BUILD_SHARED_LIBS)
             $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
 
     target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
+    if(ENABLE_GAPI_PREPROCESSING)
+        target_include_directories(${TARGET_NAME}_obj
+            PRIVATE
+                $<TARGET_PROPERTY:openvino_gapi_preproc_s,INTERFACE_INCLUDE_DIRECTORIES>)
+    endif()
 
     set_ie_threading_interface_for(${TARGET_NAME}_obj)
 
