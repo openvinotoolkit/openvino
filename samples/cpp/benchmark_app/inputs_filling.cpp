@@ -14,9 +14,9 @@
 #include <vector>
 
 #include "format_reader_ptr.h"
+#include "samples/slog.hpp"
 #include "shared_tensor_allocator.hpp"
 #include "utils.hpp"
-#include "samples/slog.hpp"
 
 template <typename T>
 using uniformDistribution = typename std::conditional<
@@ -165,7 +165,7 @@ ov::Tensor create_tensor_from_binary(const std::vector<std::string>& files,
             slog::info << "Prepare numpy file " << files[inputIndex] << slog::endl;
             verifyNumpyFile<T>(binaryFile, files[inputIndex], inputInfo.dataShape, inputSize);
         } else if (extension == "bin") {
-            slog::info("Prepare binary file " + files[inputIndex]);
+            slog::info << "Prepare binary file " << files[inputIndex] << slog::endl;
             verifyBinaryFile(binaryFile, files[inputIndex], inputSize);
         } else {
             throw ov::Exception("Unsupported binary file type: " + extension);

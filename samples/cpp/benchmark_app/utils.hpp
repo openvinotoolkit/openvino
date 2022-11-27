@@ -16,8 +16,21 @@
 #include <type_traits>
 #include <vector>
 
+#ifdef __WINDOWS__
+#    include <windows.h>
+#endif
+
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
+
+#ifdef __WINDOWS__
+inline void DisableMinimizeButton(HWND hwnd) {
+    SetWindowLong(hwnd, GWL_STYLE, GetWindowLong(hwnd, GWL_STYLE) & ~WS_MINIMIZEBOX);
+}
+inline void EnableMinimizeButton(HWND hwnd) {
+    SetWindowLong(hwnd, GWL_STYLE, GetWindowLong(hwnd, GWL_STYLE) | WS_MINIMIZEBOX);
+}
+#endif
 
 inline uint64_t get_duration_in_milliseconds(uint32_t duration) {
     return duration * 1000LL;
@@ -158,9 +171,9 @@ void convert_io_names_in_map(
 void verifyBinaryFile(std::ifstream& binaryFile, const std::string& fileName, const unsigned long inputSize);
 template <typename T>
 void verifyNumpyFile(std::ifstream& binaryFile,
-                      const std::string& fileName,
-                      const ov::Shape& inputShape,
-                      const unsigned long inputSize) {
+                     const std::string& fileName,
+                     const ov::Shape& inputShape,
+                     const unsigned long inputSize) {
     auto fullFileSize = static_cast<std::size_t>(binaryFile.tellg());
     binaryFile.seekg(0, std::ios_base::beg);
     OPENVINO_ASSERT(binaryFile.good(), "Can not read ", fileName);
@@ -188,11 +201,7 @@ void verifyNumpyFile(std::ifstream& binaryFile,
     from = header.find_last_of(' ', idx + fortranKey.size()) + 1;
     to = header.find(',', from);
     auto fortranValue = header.substr(from, to - from);
-    OPENVINO_ASSERT(fortranValue == "False",
-                    "File ",
-                    fileName,
-                    " was saved in Fortran order, which is not supported");
-
+    OPENVINO_ASSERT(fortranValue == "False", "File ", fileName, " was saved in Fortran order, which is not supported");
 
     // Verify array shape matches the input's
     const std::string shapeKey = "'shape':";
@@ -221,15 +230,15 @@ void verifyNumpyFile(std::ifstream& binaryFile,
         return str.str();
     };
 
-    OPENVINO_ASSERT(numpyShape.size() == inputShape.size() &&
-                        std::equal(numpyShape.begin(), numpyShape.end(), inputShape.begin()),
-                    "Numpy array shape mismatch. File ",
-                    fileName,
-                    " has shape: (",
-                    vectorToStr(numpyShape),
-                    "), expected: (",
-                    vectorToStr(inputShape),
-                    ")");
+    OPENVINO_ASSERT(
+        numpyShape.size() == inputShape.size() && std::equal(numpyShape.begin(), numpyShape.end(), inputShape.begin()),
+        "Numpy array shape mismatch. File ",
+        fileName,
+        " has shape: (",
+        vectorToStr(numpyShape),
+        "), expected: (",
+        vectorToStr(inputShape),
+        ")");
 
     // Verify array data type matches input's
     std::string dataTypeKey = "'descr':";
@@ -257,19 +266,13 @@ void verifyNumpyFile(std::ifstream& binaryFile,
                         fileName);
     } else if (dataTypeStr.find("<i4") != std::string::npos) {
         auto test = std::is_same<T, int32_t>::value;
-        OPENVINO_ASSERT(test,
-                        "Numpy array is of 32-bit int format, which does not match input type. File ",
-                        fileName);
+        OPENVINO_ASSERT(test, "Numpy array is of 32-bit int format, which does not match input type. File ", fileName);
     } else if (dataTypeStr.find("<i8") != std::string::npos) {
         auto test = std::is_same<T, int64_t>::value;
-        OPENVINO_ASSERT(test,
-                        "Numpy array is of 64-bit int format, which does not match input type. File ",
-                        fileName);
+        OPENVINO_ASSERT(test, "Numpy array is of 64-bit int format, which does not match input type. File ", fileName);
     } else if (dataTypeStr.find("|u1") != std::string::npos) {
         auto test = std::is_same<T, uint8_t>::value;
-        OPENVINO_ASSERT(test,
-                        "Numpy array is of 8-bit uint format, which does not match input type. File ",
-                        fileName);
+        OPENVINO_ASSERT(test, "Numpy array is of 8-bit uint format, which does not match input type. File ", fileName);
     } else {
         throw ov::Exception("Following numpy format is not supported: " + dataTypeStr + ", file: " + fileName);
     }
