@@ -130,11 +130,6 @@ static const char infer_threads_pinning_message[] =
     "the hybrid CPUs) \n"
     "\t\t\t\tthreads->(NUMA)nodes(\"NUMA\") or \n"
     "\t\t\t\tcompletely disable(\"NO\") CPU inference threads pinning";
-// @brief message for stream_output option
-static const char stream_output_message[] =
-    "Optional. Print progress as a plain text. When specified, an interactive progress bar is "
-    "replaced with a "
-    "multiline output.";
 
 // @brief message for report_type option
 static const char report_type_message[] =
@@ -155,11 +150,6 @@ static const char json_stats_message[] = "Optional. Enables JSON-based statistic
 // @brief message for exec_graph_path option
 static const char exec_graph_path_message[] =
     "Optional. Path to a file where to store executable graph information serialized.";
-
-// @brief message for progress bar option
-static const char progress_message[] =
-    "Optional. Show progress bar (can affect performance measurement). Default values is "
-    "\"false\".";
 
 // @brief message for performance counters option
 static const char pc_message[] = "Optional. Report performance counters.";
@@ -307,9 +297,6 @@ DEFINE_uint32(b, 0, batch_size_message);
 // @brief Enable plugin messages
 DEFINE_string(pin, "", infer_threads_pinning_message);
 
-/// @brief Enables multiline text output instead of progress bar
-DEFINE_bool(stream_output, false, stream_output_message);
-
 /// @brief Enables statistics report collecting
 DEFINE_string(report_type, "", report_type_message);
 
@@ -321,9 +308,6 @@ DEFINE_bool(json_stats, false, json_stats_message);
 
 /// @brief Path to a file where to store executable graph information serialized
 DEFINE_string(exec_graph_path, "", exec_graph_path_message);
-
-/// @brief Define flag for showing progress bar <br>
-DEFINE_bool(progress, false, progress_message);
 
 /// @brief Define flag for showing performance counters <br>
 DEFINE_bool(pc, false, pc_message);
@@ -404,9 +388,7 @@ static void show_usage() {
     std::cout << "    -niter \"<integer>\"        " << iterations_count_message << std::endl;
     std::cout << "    -nireq \"<integer>\"        " << infer_requests_count_message << std::endl;
     std::cout << "    -b \"<integer>\"            " << batch_size_message << std::endl;
-    std::cout << "    -stream_output            " << stream_output_message << std::endl;
     std::cout << "    -t                        " << execution_time_message << std::endl;
-    std::cout << "    -progress                 " << progress_message << std::endl;
     std::cout << "    -shape                    " << shape_message << std::endl;
     std::cout << "    -data_shape               " << data_shape_message << std::endl;
     std::cout << "    -layout                   " << layout_message << std::endl;
