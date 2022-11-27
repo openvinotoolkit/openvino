@@ -12,8 +12,24 @@
 #include <string>
 #include <vector>
 
+#ifdef __WINDOWS__
+#include <windows.h>
+inline void DisableMinimizeButton(){
+    HWND hwnd = GetForegroundWindow();
+    SetWindowLong(hwnd, GWL_STYLE,
+    GetWindowLong(hwnd, GWL_STYLE) & ~WS_MINIMIZEBOX);
+}
+inline void EnableMinimizeButton()
+{
+    HWND hwnd = GetForegroundWindow();
+    SetWindowLong(hwnd, GWL_STYLE,
+    GetWindowLong(hwnd, GWL_STYLE) | WS_MINIMIZEBOX);
+}
+#endif
+
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
+
 
 inline uint64_t get_duration_in_milliseconds(uint32_t duration) {
     return duration * 1000LL;
