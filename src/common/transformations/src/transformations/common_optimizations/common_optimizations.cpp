@@ -173,7 +173,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngraph::F
 
     // CF is required after all decompositions
     REGISTER_PASS(manager, ConstantFolding)
-    manager.register_pass<ov::pass::SelectWithOneValueCondition>();
+    REGISTER_PASS(manager, SelectWithOneValueCondition)
 
     // LinOpSequenceFusion must be executed after all decompositions
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();

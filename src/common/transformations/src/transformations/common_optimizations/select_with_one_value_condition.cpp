@@ -47,6 +47,7 @@ ov::pass::SelectWithOneValueCondition::SelectWithOneValueCondition() {
         }
 
         // check if all elements in the condition to be true or false
+        // only in this case, one certain branch can be selected
         auto cond_value = condition_const->get_vector<bool>();
         if (cond_value.size() == 0) {
             return false;
@@ -61,12 +62,36 @@ ov::pass::SelectWithOneValueCondition::SelectWithOneValueCondition() {
             return false;
         }
 
+        // based on the condition value, mark the selected branch and skipped branch index
         auto cond_elem = cond_value[0];
+        auto branch_index = cond_elem ? 1 : 2;
+        auto other_branch_index = (branch_index == 1) ? 2 : 1;
 
-        if (cond_elem) {
-            select->output(0).replace(select->input_value(1));
-        } else {
-            select->output(0).replace(select->input_value(2));
+        // based on the resulted shape and the shape of the skipped branch, perform further steps
+        auto select_shape = select->get_output_partial_shape(0);
+        auto branch_output = select->input_value(branch_index);
+        auto branch_output_shape = branch_output.get_partial_shape();
+        auto other_branch_output_shape = select->input_value(other_branch_index).get_partial_shape();
+
+        if ((select_shape.is_static() || other_branch_output_shape.is_static()) &&
+            branch_output_shape.same_scheme(select_shape)) {
+            // Broadcast is not needed if the select shape is exactly the same as the selected branch
+            select->output(0).replace(branch_output);
+            branch_output.get_node_shared_ptr()->set_friendly_name(select->get_friendly_name());
+        } else if (select_shape.is_static()) {
+            // if the shape of the selected branch is not the same, it needs the broadcasting
+            NodeRegistry copy_to;
+            auto select_rank = select_shape.size();
+            vector<int32_t> select_shape_values(select_rank);
+            for (size_t i = 0; i < select_rank; ++i) {
+                select_shape_values[i] = static_cast<int32_t>(select_shape[i].get_length());
+            }
+
+            auto target_shape = copy_to.make<Constant>(element::i32, Shape{select_rank}, select_shape_values);
+            auto broadcast = copy_to.make<Broadcast>(branch_output, target_shape);
+            select->output(0).replace(broadcast->output(0));
+            broadcast->set_friendly_name(select->get_friendly_name());
+            copy_runtime_info(select, copy_to.get());
         }
 
         return true;
