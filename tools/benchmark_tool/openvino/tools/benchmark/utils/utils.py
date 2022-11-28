@@ -7,7 +7,8 @@ from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type,
 from openvino.preprocess import PrePostProcessor
 
 from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
-    CPU_DEVICE_NAME, GPU_DEVICE_NAME
+    CPU_DEVICE_NAME, GPU_DEVICE_NAME, AUTO_DEVICE_NAME,\
+    MULTI_DEVICE_NAME
 from .logging import logger
 
 import json
@@ -723,10 +724,47 @@ def show_available_devices():
 
 
 def dump_config(filename, config):
+    properties = {}
+    for device in config:
+        properties[device] = {}
+        supported_properties = Core().get_property(device, 'SUPPORTED_PROPERTIES')
+        # check if ov::device::properties exists in the config
+        if device not in [AUTO_DEVICE_NAME, MULTI_DEVICE_NAME]:
+            properties[device] = config[device]
+            continue
+        for property_name in config[device]:
+            property_value = config[device][property_name]
+            if property_name in supported_properties:
+                properties[device][property_name] = property_value
+            else:
+                if 'DEVICE_PROPERTIES' not in properties[device]:
+                    properties[device]['DEVICE_PROPERTIES'] = {}
+                if property_name not in properties[device]['DEVICE_PROPERTIES']:
+                    properties[device]['DEVICE_PROPERTIES'][property_name] = {}
+                array = property_value.split(' ')
+                properties_dict = {array[i]: array[i + 1] for i in range(0, len(array), 2)}
+                for key in properties_dict:
+                    properties[device]['DEVICE_PROPERTIES'][property_name][key] = properties_dict[key]
+
     with open(filename, 'w') as f:
-        json.dump(config, f, indent=4)
+        json.dump(properties, f, indent=4)
 
 
 def load_config(filename, config):
+    original_config = {}
     with open(filename) as f:
-        config.update(json.load(f))
+        original_config.update(json.load(f))
+    for device in original_config:
+        config[device] = {}
+        for property_name in original_config[device]:
+            property_value = original_config[device][property_name]
+            if property_name != 'DEVICE_PROPERTIES':
+                config[device][property_name] = property_value
+                continue
+            for hw_device in property_value:
+                hw_device_config = property_value[hw_device]
+                array = ""
+                for key in hw_device_config:
+                    value = hw_device_config[key]
+                    array += key + ' ' + value + ' '
+                config[device][hw_device] = array.strip()
