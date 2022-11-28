@@ -26,11 +26,11 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
         auto getitem = cast_fw_node(m.get_match_root(), "aten::__getitem__");
         if (!getitem)
             return false;
-        auto getitem_index_ptr = getitem->input(1).get_source_output().get_node_shared_ptr();
+        auto getitem_index_ptr = getitem->input_value(1).get_node_shared_ptr();
         auto getitem_index_const = std::dynamic_pointer_cast<opset8::Constant>(getitem_index_ptr);
         auto index_val = getitem_index_const->cast_vector<int64_t>();
 
-        auto input_node = getitem->input(0).get_source_output().get_node_shared_ptr();
+        auto input_node = getitem->input_value(0).get_node_shared_ptr();
         if (auto torch_split = cast_fw_node(input_node, "aten::split")) {
             if ((torch_split->get_input_source_output(1).get_shape()) == Shape{}) {
                 // Based on slice_size and output index select size.

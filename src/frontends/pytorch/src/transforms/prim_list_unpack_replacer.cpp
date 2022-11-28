@@ -30,7 +30,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
         if (auto torch_split = cast_fw_node(input_node, "aten::split")) {
             if (torch_split->get_input_source_output(1).get_shape() == Shape{}) {
                 // Create split_lenghts tensor from split_size int,
-                // allow for last chunk to be smaller if data cannot equally divisible.
+                // allow for last chunk to be smaller if data is not equally divisible.
                 auto split_size = torch_split->get_input_source_output(1);
                 // Using number of ListUnpack outputs.
                 auto num_out_m_1 = opset8::Constant::create(split_size.get_element_type(),
