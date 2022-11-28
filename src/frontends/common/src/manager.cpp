@@ -18,6 +18,8 @@ using namespace ov::frontend;
 class FrontEndManager::Impl {
     std::mutex m_loading_mutex;
     std::vector<PluginInfo> m_plugins;
+    // List of predefined plugins file names (without prefix and suffix)
+    const std::vector<std::string> m_plugins_files_names = {"ir", "onnx", "tensorflow", "paddle"};
 
     /// \brief map of shared object per frontend <frontend_name, frontend_so_ptr>
     static std::unordered_map<std::string, std::shared_ptr<void>> m_shared_objects_map;
@@ -30,7 +32,7 @@ public:
     }
 
     ~Impl() = default;
-
+   
     FrontEnd::Ptr make_frontend(const ov::frontend::PluginInfo& plugin) {
         auto fe_obj = std::make_shared<FrontEnd>();
         fe_obj->m_shared_object = std::make_shared<FrontEndSharedData>(plugin.get_so_pointer());
@@ -61,13 +63,6 @@ public:
                 if (plugin_it->load()) {
                     return make_frontend(*plugin_it);
                 }
-            }
-        }
-        // Load plugins until we found the right one
-        for (auto& plugin : m_plugins) {
-            OPENVINO_ASSERT(plugin.load(), "Cannot load frontend ", plugin.get_name_from_file());
-            if (plugin.get_creator().m_name == framework) {
-                return make_frontend(plugin);
             }
         }
         FRONT_END_INITIALIZATION_CHECK(false, "FrontEnd for Framework ", framework, " is not found");
@@ -202,12 +197,7 @@ private:
     }
 
     void search_all_plugins() {
-        auto search_from_dir = [&](const std::string& dir) {
-            if (!dir.empty()) {
-                find_plugins(dir, m_plugins);
-            }
-        };
-        search_from_dir(get_frontend_library_path());
+        find_plugins(get_frontend_library_path(), m_plugins_files_names, m_plugins);
     }
 };
 
