@@ -475,7 +475,7 @@ int main(int argc, char* argv[]) {
                             for (auto it : devices_property) {
                                 if (device_config.find(it.first) == device_config.end() ||
                                     (is_load_config && is_dev_set_property[it.first])) {
-                                    // Create ov::device::properties with ov::num_stream and
+                                    // Create ov::device::properties with ov::inference_precision and
                                     // 1. Insert this ov::device::properties into device config if this
                                     // ov::device::properties isn't existed. Otherwise,
                                     // 2. Replace the existed ov::device::properties within device config.
