@@ -10,8 +10,8 @@ from openvino.runtime import Dimension
 from openvino.tools.benchmark.benchmark import Benchmark
 from openvino.tools.benchmark.parameters import parse_args
 from openvino.tools.benchmark.utils.constants import MULTI_DEVICE_NAME, \
-    HETERO_DEVICE_NAME, CPU_DEVICE_NAME, GPU_DEVICE_NAME, MYRIAD_DEVICE_NAME, \
-    GNA_DEVICE_NAME, BLOB_EXTENSION, AUTO_DEVICE_NAME
+    CPU_DEVICE_NAME, GPU_DEVICE_NAME, MYRIAD_DEVICE_NAME, \
+    BLOB_EXTENSION, AUTO_DEVICE_NAME
 from openvino.tools.benchmark.utils.inputs_filling import get_input_data
 from openvino.tools.benchmark.utils.logging import logger
 from openvino.tools.benchmark.utils.utils import next_step, get_number_iterations, pre_post_processing, \
