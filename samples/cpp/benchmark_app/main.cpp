@@ -1113,7 +1113,7 @@ int main(int argc, char* argv[]) {
                                          return ov::layout::has_batch(info.second.layout);
                                      })) {
                         slog::warn
-                            << "No batch dimension was found, asssuming batch to be 1. Beware: this might affect "
+                            << "No batch dimension was found, assuming batch to be 1. Beware: this might affect "
                                "FPS calculation."
                             << slog::endl;
                     }
