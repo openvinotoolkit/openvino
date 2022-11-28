@@ -65,7 +65,6 @@ OP_CONVERTER(translate_view);
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
         {"aten::_convolution", op::translate_convolution},
-        {"aten::convolution", op::translate_convolution},
         {"aten::abs", op::translate_1to1_match_1_inputs<opset8::Abs>},
         {"aten::adaptive_avg_pool2d", op::translate_1to1_match_2_inputs<opset8::AdaptiveAvgPool>},
         {"aten::adaptive_max_pool2d", op::translate_adaptive_max_pool2d},
@@ -79,6 +78,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::contiguous", op::skip_node},  // In openvino how tensors are stored in memory is internal plugin detail,
                                               // we assume all tensors are contiguous
         {"aten::conv2d", op::translate_conv2d},
+        {"aten::convolution", op::translate_convolution},
         {"aten::dim", op::translate_dim},
         {"aten::div", op::translate_div},
         {"aten::div_", op::inplace_op<op::translate_div>},
