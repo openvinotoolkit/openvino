@@ -998,6 +998,36 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                         can_fuse_parents[1] = false;
                     }
                 }
+            } else {
+                // In case of dynamic shapes we check that parent & peer shapes are compatible to allow merge
+                // This is required to avoid an issue when shape is partially defined and incorrectly propagated to further nodes
+                // which may ruin shape inference
+                // E.g. parent1 [?,?,768], parent2 [?,?,1]
+                // expected eltw out shape: [?,?,768]
+                // but w/o this check we can fuse eltwise to parent2 and return [?,?,1] as output shape which is unexpected
+                auto parent1_pshape = parent1->get_output_layout().get_partial_shape();
+                auto parent2_pshape = parent2->get_output_layout().get_partial_shape();
+                auto out_pshape = node.get_output_layout().get_partial_shape();
+
+                auto are_compatible = [](const ov::PartialShape& out_shape, const ov::PartialShape& in_shape) -> bool {
+                    if (out_shape.rank().get_length() != in_shape.rank().get_length())
+                        return false;
+                    bool compatible = true;
+                    for (size_t i = 0; i < out_shape.size(); i++) {
+                        auto& od = out_shape[i];
+                        auto& id = in_shape[i];
+
+                        if (od.is_static() && id.is_static()) {
+                            compatible &= od.get_length() == id.get_length();
+                        } else if (id.is_static()) {
+                            compatible &= id.get_length() != 1;
+                        }
+                    }
+                    return compatible;
+                };
+
+                can_fuse_parents[0] = can_fuse_parents[0] && are_compatible(out_pshape, parent1_pshape);
+                can_fuse_parents[1] = can_fuse_parents[1] && are_compatible(out_pshape, parent2_pshape);
             }
 
             // We should have at least one node to fuse
