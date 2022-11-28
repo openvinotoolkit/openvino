@@ -200,6 +200,7 @@ jobs:
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
       call "$(MSVS_VARS_PATH)" && ninja
+    workingDirectory: $(BUILD_DIR)
     displayName: 'Build Win - Ninja'
 
   - script: dir $(REPO_DIR)\bin\ /s
