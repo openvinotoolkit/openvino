@@ -102,7 +102,10 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
                 else
                     continue;
             }
-            is_onednn_impl = true;
+
+            // Optimized-out input node is no longer onednn impl.
+            if (!input->can_be_optimized())
+                is_onednn_impl = true;
         }
     }
 
