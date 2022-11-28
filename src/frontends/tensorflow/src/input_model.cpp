@@ -12,6 +12,7 @@
 #include "openvino/frontend/tensorflow/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/opsets/opset7.hpp"
+#include "openvino/util/log.hpp"
 #include "place.hpp"
 #include "utils.hpp"
 
@@ -122,6 +123,8 @@ void InputModel::InputModelTFImpl::loadPlaces() {
                 // sometimes shape attribute can be absent in the graph
                 // so we need to check if Any object is initialized first
                 pshape = shape_any.as<ov::PartialShape>();
+            } else {
+                OPENVINO_DEBUG << "TensorFlow Frontend: Placeholder " << op_name << " does not have 'shape' attribute";
             }
             auto dtype_any = node_decoder->get_attribute("dtype");
             auto placeholder_name = node_decoder->get_op_name();
