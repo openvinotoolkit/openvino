@@ -407,24 +407,19 @@ struct EngineInfo {
     DeviceFeaturesKey get_supported_device_features_key() const {
         DeviceFeaturesKey k;
 
-        if (supports_khr_subgroups || supports_intel_subgroups)
-            k.enable_subgroups();
-
         if (supports_intel_subgroups) {
-            k.enable_blocked_read_write();
             k.enable_subgroup_reduce();
-            k.enable_subgroup_shuffle();
         }
 
-        if (supports_intel_subgroups_short)
-            k.enable_blocked_read_write_short();
-
-        // For char type we have block read wrappers for the cases when extension is unavaliable, so it requires subgroups support only
-        if (supports_intel_subgroups_char || supports_khr_subgroups || supports_intel_subgroups)
-            k.enable_blocked_read_write_char();
-
-        if (supports_intel_required_subgroup_size)
+        if (supports_khr_subgroups || supports_intel_subgroups) {
+            k.enable_subgroups();
+            // emulation
             k.enable_reqd_subgroup_size();
+            k.enable_blocked_read_write();
+            k.enable_subgroup_shuffle();
+            k.enable_blocked_read_write_short();
+            k.enable_blocked_read_write_char();
+        }
 
         return k;
     }
