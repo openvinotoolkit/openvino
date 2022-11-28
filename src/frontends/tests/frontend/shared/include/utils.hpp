@@ -54,7 +54,7 @@ inline void setupTestEnv() {
     // we cannot use ov::util since implementation from that library statically
     // compiled into tests itelf, so we have to the tests instead of OpenVINO library
     std::string fePath = InferenceEngine::getIELibraryPath();
-    set_test_env("OV_FRONTEND_PATH", fePath.c_str());
+    // set_test_env("OV_FRONTEND_PATH", fePath.c_str());
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 

@@ -41,12 +41,12 @@ static int set_test_env(const char* name, const char* value) {
 struct SetTestEnvrionment {
     SetTestEnvrionment(const char* value = nullptr) {
         NGRAPH_SUPPRESS_DEPRECATED_START
-        set_test_env("OV_FRONTEND_PATH", value ? value : CommonTestUtils::getExecutableDirectory().c_str());
+        // set_test_env("OV_FRONTEND_PATH", value ? value : CommonTestUtils::getExecutableDirectory().c_str());
         NGRAPH_SUPPRESS_DEPRECATED_END
     }
 
     ~SetTestEnvrionment() {
-        set_test_env("OV_FRONTEND_PATH", "");
+        // set_test_env("OV_FRONTEND_PATH", "");
     }
 };
 
