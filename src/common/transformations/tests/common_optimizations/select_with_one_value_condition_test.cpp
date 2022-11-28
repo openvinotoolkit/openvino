@@ -31,7 +31,7 @@ shared_ptr<Model> gen_model(const SelectWithOneValueConditionParams& params) {
     auto x = make_shared<Parameter>(f32, params.x_shape);
     auto y = make_shared<Parameter>(f32, params.y_shape);
     auto add = make_shared<Add>(x, y);
-    auto subtract = make_shared<Subtract>(x, y);
+    auto subtract = make_shared<Relu>(y);
     auto condition = make_shared<Constant>(boolean, params.cond_shape, params.cond_values);
     auto select = make_shared<Select>(condition, add, subtract);
     auto res_model = make_shared<Model>(OutputVector{select}, ParameterVector{x, y});
@@ -43,12 +43,12 @@ shared_ptr<Model> gen_reference(const SelectWithOneValueConditionParams& params)
     auto x = make_shared<Parameter>(f32, params.x_shape);
     auto y = make_shared<Parameter>(f32, params.y_shape);
     Output<Node> output;
-    if (params.which_branch == SELECT_BRANCH::NONE || params.select_shape.is_dynamic()) {
+    if (params.which_branch == SELECT_BRANCH::NONE) {
         return gen_model(params);
     } else if (params.which_branch == SELECT_BRANCH::THEN_BRANCH) {
         output = make_shared<Add>(x, y)->output(0);
     } else {
-        output = make_shared<Subtract>(x, y)->output(0);
+        output = make_shared<Relu>(y)->output(0);
     }
 
     if (!output.get_partial_shape().same_scheme(params.select_shape)) {
@@ -111,14 +111,14 @@ static const std::vector<SelectWithOneValueConditionParams> params = {
                                       vector<bool>{false, true, false, false},
                                       PartialShape{2, 2},
                                       SELECT_BRANCH::NONE},
-    // The selected branch has exactly the same shape as the Select node output
+    // The branch is not possible to select due to dynamic output shape for Select
     SelectWithOneValueConditionParams{PartialShape{Dimension::dynamic(), 2},
                                       PartialShape{2},
                                       Shape{2},
                                       vector<bool>{true, true},
                                       PartialShape{Dimension::dynamic(), 2},
-                                      SELECT_BRANCH::THEN_BRANCH},
-    // The branch is not possible to select because there is no target shape for broadcasting
+                                      SELECT_BRANCH::NONE},
+    // The branch is not possible to select due to dynamic output shape for Select
     SelectWithOneValueConditionParams{PartialShape{2},
                                       PartialShape{Dimension::dynamic(), 2},
                                       Shape{2},

@@ -62,16 +62,13 @@ ov::pass::SelectWithOneValueCondition::SelectWithOneValueCondition() {
 
         // based on the condition value, mark the selected branch and skipped branch index
         auto branch_index = cond_elem ? 1 : 2;
-        auto other_branch_index = (branch_index == 1) ? 2 : 1;
 
         // based on the resulted shape and the shape of the skipped branch, perform further steps
         auto select_shape = select->get_output_partial_shape(0);
         auto branch_output = select->input_value(branch_index);
         auto branch_output_shape = branch_output.get_partial_shape();
-        auto other_branch_output_shape = select->input_value(other_branch_index).get_partial_shape();
 
-        if ((select_shape.is_static() || other_branch_output_shape.is_static()) &&
-            branch_output_shape.same_scheme(select_shape)) {
+        if (select_shape.is_static() && branch_output_shape.same_scheme(select_shape)) {
             // Broadcast is not needed if the select shape is exactly the same as the selected branch
             select->output(0).replace(branch_output);
             replace_output_update_name(select->output(0), branch_output);
