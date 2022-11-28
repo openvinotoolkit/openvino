@@ -214,7 +214,7 @@ ov_preprocess_preprocess_steps_resize(
 
 /**
  * @brief Add scale preprocess operation. Divide each element of input by specified value.
- * @ingroup prepostprocess
+ * @ingroup ov_prepostprocess_c_api
  * @param preprocess_input_process_steps A pointer to ov_preprocess_preprocess_steps_t.
  * @param value Scaling value
  * @return Status code of the operation: OK(0) for success.
@@ -224,7 +224,7 @@ ov_preprocess_preprocess_steps_scale(ov_preprocess_preprocess_steps_t* preproces
 
 /**
  * @brief Add mean preprocess operation. Subtract specified value from each element of input.
- * @ingroup prepostprocess
+ * @ingroup ov_prepostprocess_c_api
  * @param preprocess_input_process_steps A pointer to ov_preprocess_preprocess_steps_t.
  * @param value Value to subtract from each element.
  * @return Status code of the operation: OK(0) for success.
@@ -234,7 +234,7 @@ ov_preprocess_preprocess_steps_mean(ov_preprocess_preprocess_steps_t* preprocess
 
 /**
  * @brief Crop input tensor between begin and end coordinates.
- * @ingroup prepostprocess
+ * @ingroup ov_prepostprocess_c_api
  * @param preprocess_input_process_steps A pointer to ov_preprocess_preprocess_steps_t.
  * @param begin Pointer to begin indexes for input tensor cropping.
  * Negative values represent counting elements from the end of input tensor
@@ -251,7 +251,7 @@ ov_preprocess_preprocess_steps_crop(ov_preprocess_preprocess_steps_t* preprocess
 
 /**
  * @brief Add 'convert layout' operation to specified layout.
- * @ingroup prepostprocess
+ * @ingroup ov_prepostprocess_c_api
  * @param preprocess_input_process_steps A pointer to ov_preprocess_preprocess_steps_t.
  * @param layout A point to ov_layout_t
  * @return Status code of the operation: OK(0) for success.
@@ -261,7 +261,7 @@ ov_preprocess_preprocess_steps_convert_layout(ov_preprocess_preprocess_steps_t* 
 
 /**
  * @brief Reverse channels operation.
- * @ingroup prepostprocess
+ * @ingroup ov_prepostprocess_c_api
  * @param preprocess_input_process_steps A pointer to ov_preprocess_preprocess_steps_t.
  * @return Status code of the operation: OK(0) for success.
  */

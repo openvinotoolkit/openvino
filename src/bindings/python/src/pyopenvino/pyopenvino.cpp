@@ -235,7 +235,6 @@ PYBIND11_MODULE(_pyopenvino, m) {
     // frontend extensions
     regclass_frontend_TelemetryExtension(m);
     regclass_frontend_DecoderTransformationExtension(m);
-    regclass_frontend_JsonConfigExtension(m);
     regclass_frontend_ConversionExtensionBase(m);
     regclass_frontend_ConversionExtension(m);
     regclass_frontend_ProgressReporterExtension(m);

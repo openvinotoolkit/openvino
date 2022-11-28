@@ -501,7 +501,8 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
     }
 }
 
-TEST(custom_gpu_primitive_u8, add_basic_in2x2x2x2) {
+template <typename T>
+void test_custom_gpu_primitive_u8_add_basic_in2x2x2x2(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ data_types::u8, format::yxfb,{ 2, 2, 2, 2 } });
@@ -532,41 +533,66 @@ TEST(custom_gpu_primitive_u8, add_basic_in2x2x2x2) {
         output_layout,
         gws));
 
-    set_values<unsigned char>(input, {
+    set_values<T>(input, {
           1,   0,   5,    1,
         200, 100, 160,  150,
         130,   0, 175,   12,
           4, 100,   8,  180
     });
 
-    set_values<unsigned char>(input2, {
+    set_values<T>(input2, {
          0,  2,  0,  2,
         55, 75, 20,  4,
         15, 17, 80, 10,
          2, 60,  0, 20
     });
 
-    network network(engine, topology);
+    cldnn::network::ptr network;
 
-    network.set_input_data("input", input);
-    network.set_input_data("input2", input2);
-    auto outputs = network.execute();
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology);
+    }
+
+    network->set_input_data("input", input);
+    network->set_input_data("input2", input2);
+    auto outputs = network->execute();
 
     EXPECT_EQ(outputs.size(), size_t(1));
     EXPECT_EQ(outputs.begin()->first, "user_kernel");
 
     auto output = outputs.at("user_kernel").get_memory();
 
-    unsigned char answers[16] = {
+    T answers[16] = {
           1,   2,   5,   3,
         255, 175, 180, 154,
         145,  17, 255,  22,
           6, 160,   8, 200
     };
 
-    cldnn::mem_lock<unsigned char> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++) {
         EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
+}
+
+TEST(custom_gpu_primitive_u8, add_basic_in2x2x2x2) {
+    test_custom_gpu_primitive_u8_add_basic_in2x2x2x2<unsigned char>(false);
+}
+
+TEST(export_import_custom_gpu_primitive_u8, add_basic_in2x2x2x2) {
+    test_custom_gpu_primitive_u8_add_basic_in2x2x2x2<unsigned char>(true);
 }
