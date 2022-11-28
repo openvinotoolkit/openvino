@@ -107,7 +107,6 @@ ov::util::FilePath getPluginPath(const std::string& pluginName, bool needAddSuff
 
 #ifndef _WIN32
     try {
-        // dlopen works with absolute paths; otherwise searches from LD_LIBRARY_PATH
         pluginPath = ov::util::to_file_path(ov::util::get_absolute_file_path(pluginName));
     } catch (const std::runtime_error&) {
         // failed to resolve absolute path; not critical
@@ -137,7 +136,7 @@ ov::util::FilePath getPluginPath(const std::string& pluginName, bool needAddSuff
     if (FileUtils::fileExist(absFilePath))
         return absFilePath;
 
-    // 3. in LD_LIBRARY_PATH on Linux / PATH on Windows
+    // Failed to find plugin in expected places, so save as is in order to load later
     return pluginPath;
 }
 
