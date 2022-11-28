@@ -66,19 +66,21 @@ std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::getOriginal(
 
         const std::shared_ptr<Node> lastDequantization = makeDequantization(parent, dequantization);
 
-        std::shared_ptr<Node> lastNode;
+        auto fqOnDataCopy = fqOnData;
+        fqOnDataCopy.outputHighValues = {255.f};
+        fqOnDataCopy.outputPrecision = fqOnData.outputPrecision == element::undefined ? ngraph::element::u8 : fqOnData.outputPrecision;
 
-        if (fqOnData.outputLowValues == std::vector<float>{0.f} &&
-                fqOnData.outputHighValues == std::vector<float>{2.55f}) {
-            auto fqOnDataCopy = fqOnData;
-            fqOnDataCopy.outputHighValues = {255.f};
-            fqOnDataCopy.outputPrecision = ngraph::element::u8;
-            lastNode = makeFakeQuantizeTypeRelaxed(lastDequantization, precisionFqOnData, fqOnDataCopy);
-            lastNode = makeDequantization(lastNode, { {element::f32}, {}, {{0.01f}, precisionFqOnData} });
-
-        } else {
-            throw std::runtime_error("Unknown parameter on output intervals!");
-        }
+        std::shared_ptr<Node> lastNode = makeFakeQuantizeTypeRelaxed(lastDequantization, precisionFqOnData, fqOnDataCopy);
+        lastNode = makeDequantization(
+            lastNode,
+            {
+                lastNode->output(0).get_element_type() != element::f32 ?
+                    DequantizationOperations::Convert{element::f32} :
+                    DequantizationOperations::Convert{},
+                {},
+                {{0.01f},
+                precisionFqOnData}
+            });
         lastNode->set_friendly_name("output");
 
         ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(lastNode) };

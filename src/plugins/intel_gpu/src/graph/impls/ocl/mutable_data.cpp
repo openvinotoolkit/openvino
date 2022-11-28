@@ -35,4 +35,4 @@ attach_mutable_data_impl::attach_mutable_data_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::mutable_data_impl, cldnn::object_type::MUTABLE_DATA_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::mutable_data_impl)
