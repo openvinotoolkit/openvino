@@ -50,6 +50,7 @@ private:
 };
 
 class primitive_inst;
+class ICompilationContext;
 
 struct network {
 public:
@@ -233,6 +234,9 @@ public:
     /// Return in_mem_kernels_cache
     KernelsCache& get_in_mem_kernels_cache() const { return *_in_mem_kernels_cache; }
 
+    ICompilationContext& get_compilation_context() const { return *_compilation_context; }
+    std::mutex& get_impl_cache_mutex() const { return _in_mem_cache_mutex; }
+
 private:
     using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;
     uint32_t net_id = 0;
@@ -256,6 +260,9 @@ private:
 
     std::unordered_map<primitive_id, event::ptr> _events;
     output_chains_map _output_chains;
+
+    mutable std::mutex _in_mem_cache_mutex;
+    std::unique_ptr<ICompilationContext> _compilation_context;
 
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);
