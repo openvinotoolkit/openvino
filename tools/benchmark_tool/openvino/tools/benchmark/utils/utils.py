@@ -260,9 +260,7 @@ def parse_devices(device_string):
     result.append(target_device)
     if device_string.find(":") != -1:
         hw_devices_str = device_string.partition(":")[-1]
-        hw_devices_list = [d for d in hw_devices_str.split(',')]
-        for item in hw_devices_list:
-            result.append(item)
+        result.extend(hw_devices_str.split(','))
     return result
 
 def parse_value_per_device(devices, values_string, value_type):
