@@ -64,9 +64,9 @@ OutputVector translate_pad(NodeContext& context) {
             }
             if (pad_l < 0 || pad_r < 0) {
                 auto start = context.mark_node(
-                    context.mark_node(opset8::Constant::create(element::i64, Shape{1}, {-pad_l > 0 ? -pad_l : 0})));
+                    context.mark_node(opset8::Constant::create(element::i64, Shape{1}, {pad_l < 0 ? -pad_l : 0})));
                 auto end = context.mark_node(
-                    context.mark_node(opset8::Constant::create(element::i64, Shape{1}, {-pad_r > 0 ? pad_r : 0})));
+                    context.mark_node(opset8::Constant::create(element::i64, Shape{1}, {pad_r < 0 ? pad_r : 0})));
                 auto middle = context.mark_node(std::make_shared<opset8::Slice>(cur, start, end, step, axes));
                 tensors.push_back(middle);
             } else {
