@@ -6,7 +6,7 @@
 
 #include <string>
 
-#include "test_constants.hpp"
+#include "common_test_utils/test_constants.hpp"
 
 namespace ov {
 namespace test {
