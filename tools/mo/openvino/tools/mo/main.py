@@ -11,15 +11,14 @@ try:
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
 
-from openvino.tools.mo.convert import convert
+from openvino.tools.mo.convert import convert_model
 from openvino.tools.mo.pipeline.common import get_ir_version
-from openvino.tools.mo.utils.cli_parser import get_model_name_from_args, get_meta_info
+from openvino.tools.mo.utils.cli_parser import get_model_name_from_args
 from openvino.tools.mo.utils.logger import init_logger
 from openvino.tools.mo.utils.error import Error, FrameworkError
 import traceback
 from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message, get_ov_api20_message
 from openvino.tools.mo.utils.model_analysis import AnalysisResults
-from openvino.tools.mo.back.ie_ir_ver_2.emitter import append_ir_info
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager
@@ -41,7 +40,7 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
 
     ngraph_function = None
     try:
-        ngraph_function = convert(**argv)
+        ngraph_function = convert_model(**argv)
         ov_update_message = get_ov_update_message()
         ov_api20_message = get_ov_api20_message()
         if ov_update_message is not None:
@@ -80,9 +79,6 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
     model_path = model_path_no_ext + '.xml'
 
     serialize(ngraph_function, model_path.encode('utf-8'), model_path.replace('.xml', '.bin').encode('utf-8'))
-
-    # add meta information to IR
-    append_ir_info(file=model_path_no_ext, meta_info=get_meta_info(argv))
 
     # generate .mapping file
     path_to_mapping = model_path_no_ext + ".mapping"

@@ -62,7 +62,7 @@ class LayerInfo {
     // The name of the funciton may be somehwat misleading
     // Explanation: when in low precision mode the listed layers have 8-bit outputs
     // and when in 16-bit input mode, they have 16-bit outputs
-    bool has8BOr16BOutput() const noexcept {
+    bool has8BOr16BOutput() const {
         IS_VALID();
         static InferenceEngine::details::caseless_set<std::string> layersWith8BOr16BOutputs = {"memory", "input", "split", "slice", "concat", "copy", "const"};
         return layersWith8BOr16BOutputs.find(layer->type) != layersWith8BOr16BOutputs.end() ||
@@ -70,7 +70,7 @@ class LayerInfo {
                (isCrop() && !isCropAffined()) ||
                isPermute();
     }
-    bool has32BOutput() const noexcept {
+    bool has32BOutput() const {
         IS_VALID();
         std::vector<std::function<bool()>> has32BOutputsProbes = {
             [this]() { return isFullyConnected(); },
@@ -338,10 +338,21 @@ class LayerInfo {
     bool isMemory() const noexcept {
         return isOfType("memory");
     }
+    // @brief verify that it is Assign layer (Copy -> Memory)
+    bool isCopyToMemory() const {
+        if (isCopy()) {
+            for (auto&& out : getInputTo(layer->outData.front())) {
+                if (LayerInfo(out.second).isMemory()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
     bool isCrop() const noexcept {
         return isOfType("crop");
     }
-    bool isCropAffined() const noexcept {
+    bool isCropAffined() const {
         auto cropLayer = dynamic_cast<InferenceEngine::CropLayer *> (layer);
         if (cropLayer != nullptr && !cropLayer->offset.empty()) {
             const auto crop_params = GetCropParams(cropLayer);
@@ -355,7 +366,7 @@ class LayerInfo {
     bool isCopyDelayed() const noexcept {
         return isOfType(DelayedCopyLayerName);
     }
-    bool isWeightableIdentity() const noexcept {
+    bool isWeightableIdentity() const {
         return isConcatAlignFilter() || isSyntheticScaleShift() || isCropAffined();
     }
     bool isFusableWithConv() const noexcept {

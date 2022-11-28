@@ -15,17 +15,21 @@
 #include "unsqueeze_shape_inference.hpp"
 
 namespace cldnn {
-
-primitive_type_id reshape::type_id() {
-    static primitive_type_base<reshape> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(reshape)
 
 layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
            "Output data type forcing is not supported for reshape_node!");
     auto input_layout = impl_param.get_non_padded_input_layout();
     auto desc = impl_param.typed_desc<reshape>();
+    if (desc->output_shape.count() == 0) {
+        if (desc->output_partial_shape.size() != 0) {
+            return layout{desc->output_partial_shape, input_layout.data_type, input_layout.format};
+        } else {
+            OPENVINO_ASSERT("[GPU] Output shape is not provided");
+        }
+    }
+
     auto sizes = desc->output_shape.sizes();
     auto input_sizes = input_layout.get_tensor().sizes();
     size_t need_recalc = 0;
@@ -202,8 +206,7 @@ void reshape_inst::update_output_memory() {
 
     build_deps();  // reshape need deps
     OPENVINO_ASSERT(input_memory_ptr() != nullptr, "[GPU] Failed to reuse input in ", id(), " primitive: input memory was not allocated");
-    _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->output_layout)};
-    _mem_allocated = false;
+    _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout())};
 }
 
 }  // namespace cldnn

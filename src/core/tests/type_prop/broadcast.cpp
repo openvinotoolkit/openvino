@@ -113,7 +113,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_fail_rank) {
         auto bc = make_shared<TypeParam>(param, target_shape, axes_mapping);
         FAIL() << "Broadcast: target shape mismatch with input rank not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Broadcast axes_mapping shape {3} doesn't match rank of input tensor 2");
+        EXPECT_HAS_SUBSTRING(error.what(), "Broadcast axes_mapping shape [3] doesn't match rank of input tensor 2");
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
@@ -335,7 +335,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_const_target_shape_static_rank_i
         FAIL() << "Broadcast: Broadcast axes_mapping shape doesn't match rank of input tensor";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Broadcast axes_mapping shape {4} doesn't match rank of input tensor 3"));
+                             std::string("Broadcast axes_mapping shape [4] doesn't match rank of input tensor 3"));
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }

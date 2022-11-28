@@ -365,12 +365,23 @@ void run(non_max_suppression_inst& instance) {
                           soft_nms_sigma,
                           prim->sort_result_descending);
 
+    // Legacy APIs using mutable inputs for multiple outputs
     if (instance.has_third_output()) {
         store_third_output(stream, instance.third_output_mem(), result);
     }
 
     if (instance.has_second_output()) {
         store_second_output(stream, instance.second_output_mem(), result);
+        store_first_output(stream, instance.output_memory_ptr(), result);
+        return;
+    }
+
+    // New API for mutiple outputs support
+    if (instance.outputs_memory_count() == 3)
+        store_third_output(stream, instance.output_memory_ptr(2), result);
+
+    if (instance.outputs_memory_count() >= 2) {
+        store_second_output(stream, instance.output_memory_ptr(1), result);
         store_first_output(stream, instance.output_memory_ptr(), result);
         return;
     }
@@ -424,4 +435,4 @@ attach_non_max_suppression_impl::attach_non_max_suppression_impl() {
 }  // namespace cpu
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::non_max_suppression_impl, cldnn::object_type::NON_MAX_SUPPRESSION_IMPL_CPU)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::non_max_suppression_impl)

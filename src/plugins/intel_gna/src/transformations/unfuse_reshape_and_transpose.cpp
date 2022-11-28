@@ -52,7 +52,7 @@ Unfuse2dto4dReshapeAndTranspose::Unfuse2dto4dReshapeAndTranspose() {
         transpose->set_friendly_name(reshape_node->get_friendly_name());
 
         ngraph::copy_runtime_info(reshape, {reshape_nhwc, transpose});
-        for (auto consumer : consumers) {
+        for (auto& consumer : consumers) {
             consumer.replace_source_output(transpose);
         }
 
@@ -172,7 +172,7 @@ Unfuse4dto2dReshapeAndTranspose::Unfuse4dto2dReshapeAndTranspose() {
         reshape_nw->set_friendly_name(reshape_node->get_friendly_name());
 
         ngraph::copy_runtime_info(reshape_node, {transpose, reshape_nw});
-        for (auto consumer : consumers) {
+        for (auto& consumer : consumers) {
             consumer.replace_source_output(reshape_nw);
         }
 

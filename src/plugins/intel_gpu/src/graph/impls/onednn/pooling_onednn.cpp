@@ -30,7 +30,7 @@ protected:
         auto prim = impl_params.typed_desc<pooling>();
 
         auto input_layout = impl_params.get_input_layout(0);
-        auto output_layout = impl_params.output_layout;
+        auto output_layout = impl_params.get_output_layout();
 
         dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
         dnnl::memory::dims kernel(prim->size.begin(), prim->size.end());
@@ -77,7 +77,10 @@ public:
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
 
-        _desc = std::make_shared<dnnl::pooling_forward::desc>();
+        const char dummy_mem[sizeof(dnnl::pooling_forward::desc)] = {};
+        const dnnl::pooling_forward::desc *dummy_opdesc
+            = reinterpret_cast<const dnnl::pooling_forward::desc *>(&dummy_mem[0]);
+        _desc = std::make_shared<dnnl::pooling_forward::desc>(std::move(*dummy_opdesc));
         ib >> make_data(&_desc->data, sizeof(dnnl_pooling_desc_t));
 
         std::vector<uint8_t> prim_cache;
@@ -129,4 +132,4 @@ attach_pooling_onednn::attach_pooling_onednn() {
 }  // namespace onednn
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::pooling_onednn, cldnn::object_type::POOLING_ONEDNN)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::pooling_onednn)

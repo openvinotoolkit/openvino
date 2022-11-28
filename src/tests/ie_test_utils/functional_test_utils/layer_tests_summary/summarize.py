@@ -250,7 +250,8 @@ def create_summary(summary_root: ET.Element, output_folder: os.path, expected_de
 
     device_list = sorted(device_list)
 
-    file_loader = FileSystemLoader('template')
+    script_dir, script_name = os.path.split(os.path.abspath(__file__))
+    file_loader = FileSystemLoader(os.path.join(script_dir, 'template'))
     env = Environment(loader=file_loader)
     template = env.get_template('report_template.html')
 
@@ -271,3 +272,4 @@ if __name__ == "__main__":
     args = parse_arguments()
     summary_root = merge_xmls(args.xml)
     create_summary(summary_root, args.out,  [] if args.expected_devices is None else args.expected_devices, args.report_tag, args.report_version, args.conformance_mode, args.csv, args.output_filename)
+    

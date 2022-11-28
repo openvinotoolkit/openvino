@@ -31,7 +31,7 @@ struct select_impl : typed_primitive_impl_ocl<select> {
         auto optional_params = get_default_optional_params<kernel_selector::select_optional_params>(impl_param.get_program());
 
         std::vector<layout> layouts = impl_param.input_layouts;
-        auto o_layout = impl_param.output_layout;
+        auto o_layout = impl_param.get_output_layout();
 
         auto broadcastable = [&](layout a, layout b) {
             auto dims_a = a.get_dims();
@@ -87,4 +87,4 @@ attach_select_impl::attach_select_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::select_impl, cldnn::object_type::SELECT_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::select_impl)

@@ -31,6 +31,12 @@ enum class reorder_mean_mode {
 struct reorder : public primitive_base<reorder> {
     CLDNN_DECLARE_PRIMITIVE(reorder)
 
+    /// @brief reorder memory types
+    enum class memory_type {
+        buffer,
+        surface
+    };
+
     /// @brief Constructs reorder primitive with directly provided mean subtract values.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -74,8 +80,9 @@ struct reorder : public primitive_base<reorder> {
             data_types output_data_type,
             const std::vector<float>& values_to_subtract = {},
             const reorder_mean_mode mode = reorder_mean_mode::subtract,
-            const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding, optional_data_type{output_data_type}),
+            const padding& output_padding = padding(),
+            const std::vector<input_info>& inputs = {})
+        : primitive_base(id, {input}, output_padding, optional_data_type{output_data_type}, inputs),
           output_format(output_format),
           mean(""),
           subtract_per_feature(values_to_subtract),
@@ -142,12 +149,25 @@ struct reorder : public primitive_base<reorder> {
     std::vector<float> subtract_per_feature;
     /// @brief Mode of mean execution
     reorder_mean_mode mean_mode;
+    /// @brief Input memory type
+    memory_type input_mem_type = memory_type::buffer;
+
+    inline bool has_surface_input() const {
+        return input.size() == 1 &&
+               input_mem_type == memory_type::surface;
+    }
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         if (mean.empty())
             return {};
         return {mean};
+    }
+
+    std::vector<std::pair<std::reference_wrapper<const primitive_id>, int>> get_dependencies_new() const override {
+        if (mean.empty())
+            return {};
+        return {{mean, 0}};
     }
 };
 

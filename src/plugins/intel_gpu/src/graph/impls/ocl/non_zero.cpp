@@ -108,5 +108,5 @@ attach_gather_nonzero_impl::attach_gather_nonzero_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::count_nonzero_impl, cldnn::object_type::COUNT_NONZERO_IMPL)
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_nonzero_impl, cldnn::object_type::GATHER_NONZERO_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::count_nonzero_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_nonzero_impl)

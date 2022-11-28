@@ -13,8 +13,8 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <common/primitive_hashing_utils.hpp>
 
-#include "ngraph_ops/augru_cell.hpp"
-#include "ngraph_ops/augru_sequence.hpp"
+#include "ov_ops/augru_cell.hpp"
+#include "ov_ops/augru_sequence.hpp"
 
 #include <ngraph/node.hpp>
 
@@ -357,8 +357,8 @@ RNN::RNN(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSh
         initSequence();
     }
 
-    inDataTypes.reserve(getOriginalInputsNumber());
-    outDataTypes.reserve(getOriginalOutputsNumber());
+    inDataTypes.resize(getOriginalInputsNumber());
+    outDataTypes.resize(getOriginalOutputsNumber());
 }
 
 bool RNN::created() const {
@@ -373,17 +373,22 @@ void RNN::configurePortDataTypes() {
     if (!is_cell)
         inDataTypes[sIdx] = memory::data_type::s32;
     inDataTypes[wIdx] = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(wIdx));
-    inDataTypes[rIdx] = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(wIdx));
+    inDataTypes[rIdx] = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(rIdx));
 
-    inDataTypes[bIdx] = memory::data_type::f32;
+    inDataTypes[bIdx] = memory::data_type::f32; // @todo bf16 is also allowed, should be tried out
     if (haveAttention(cell_type))
         inDataTypes[aIdx] = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(aIdx));
 
     if (!is_cell)
         outDataTypes[yIdx] = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(0));
+
     outDataTypes[hoIdx] = inDataTypes[hIdx]; // required by oneDNN. Output hidden state is a input hidden state for the next iteration
+
     if (haveCellState(cell_type))
         outDataTypes[coIdx] = inDataTypes[cIdx]; // required by oneDNN.
+
+    if (one_of(memory::data_type::bf16, inDataTypes[xIdx], inDataTypes[hIdx]))
+        inDataTypes[xIdx] = outDataTypes[yIdx] = outDataTypes[hoIdx] = inDataTypes[hIdx] = memory::data_type::bf16; // required by oneDNN.
 }
 
 void RNN::getSupportedDescriptors() {
@@ -668,8 +673,8 @@ template <Precision::ePrecision Prec>
 void RNN::fillBiases(const int *gate_map) {
     using dataType = typename PrecisionTrait<Prec>::value_type;
 
-    if (getOriginalInputPrecisionAtPort(bIdx) != Precision::FP32) {
-        THROW_ERROR << "doesn't support bias precision: " << getOriginalInputPrecisionAtPort(bIdx);
+    if (inDataTypes[bIdx] != memory::data_type::f32) {
+        THROW_ERROR << "doesn't support bias data type: " << DnnlExtensionUtils::DataTypeToIEPrecision(inDataTypes[bIdx]);
     }
 
     VectorDims dims_b = { L, D, Gb, SC };
@@ -754,18 +759,18 @@ void RNN::copyWeightsData() {
         }
     }
 
-    const auto& dataPrecision = getOriginalInputPrecisionAtPort(0);
-    if (dataPrecision == Precision::BF16) {
+    const auto& dataType = inDataTypes[xIdx];
+    if (dataType == memory::data_type::bf16) {
         fillWeights<uint16_t>(gate_map, wIdx, rIdx);
-    } else if (dataPrecision == Precision::FP32) {
+    } else if (dataType == memory::data_type::f32) {
         // WA To avoid different weights layer and iter formats in FP32 case
         if (T.minVal > 1 || N.maxVal < optimalBatchSize)
             wFormat = dnnl::memory::format_tag::ldigo;
         fillWeights<float>(gate_map, wIdx, rIdx);
-    } else if (dataPrecision == Precision::U8 || dataPrecision == Precision::I8) {
+    } else if (dataType == memory::data_type::u8 || dataType == memory::data_type::s8) {
         fillWeights<int8_t>(gate_map, wIdx, rIdx);
     } else {
-        THROW_ERROR << "has unsupported data type: " << dataPrecision;
+        THROW_ERROR << "has unsupported data type: " << DnnlExtensionUtils::DataTypeToIEPrecision(dataType);
     }
 
     fillBiases<Precision::FP32>(gate_map);
@@ -907,7 +912,7 @@ Node::AttrPtr RNN::initPrimitiveAttr() {
     auto attr = std::make_shared<dnnl::primitive_attr>(dnnl::primitive_attr());
     attr->set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
-    if (one_of(getOriginalInputPrecisionAtPort(0), Precision::U8, Precision::I8)) {
+    if (one_of(inDataTypes[xIdx], memory::data_type::u8, memory::data_type::s8)) {
         const int weightsScaleMask = 0;
 
         attr->set_rnn_weights_qparams(weightsScaleMask, weightsScales);
@@ -944,7 +949,7 @@ void RNN::prepareParams() {
 
     bool wFormatWasChanged = false;
     // WA To avoid different weights layer and iter formats in FP32 case.
-    if (one_of(inDataTypes[xIdx], memory::data_type::f32, memory::data_type::bf16) &&
+    if (one_of(inDataTypes[xIdx], memory::data_type::f32) &&
         (SL != 1 || B < optimalBatchSize)) {
         if (wFormat != dnnl::memory::format_tag::ldigo) {
             wFormat = dnnl::memory::format_tag::ldigo;
