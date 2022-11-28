@@ -5,7 +5,7 @@ import re
 from enum import Enum
 
 import numpy as np
-from openvino._pyopenvino import Place
+from openvino._pyopenvino import Place, PartialShape
 
 from openvino.frontend import InputModel  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.mo.front.extractor import raise_no_node, raise_node_name_collision
@@ -186,6 +186,7 @@ def fe_input_user_data_repack(
     }
     """
     _input_shapes = []
+    _input_names = []
     if isinstance(input_user_shapes, list) and len(input_user_shapes) > 1 and isinstance(input_user_shapes[0], PartialShape):
         for shape in input_user_shapes:
             assert isinstance(shape, PartialShape), "Got incorrect format of input shapes."
@@ -225,7 +226,7 @@ def fe_input_user_data_repack(
                         "input_name": input_name
                     }
                 )
-            input_names.append(input_name)
+            _input_names.append(input_name)
     elif isinstance(input_user_shapes, tuple):
         model_inputs = input_model.get_inputs()
         assert len(model_inputs) == 1
@@ -236,7 +237,7 @@ def fe_input_user_data_repack(
     if freeze_placeholder:
         # in case freezing via freeze_placeholder_with_value option, _input_shapes can miss some frozen places
         for input_name in freeze_placeholder:
-            if input_name in input_names:
+            if input_name in _input_names:
                 continue
             node = decode_name_with_port(
                 input_model, input_name, framework, IOType.Input

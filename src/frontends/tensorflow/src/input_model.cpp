@@ -12,7 +12,6 @@
 #include "openvino/frontend/tensorflow/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/opsets/opset7.hpp"
-#include "openvino/util/log.hpp"
 #include "place.hpp"
 #include "utils.hpp"
 
@@ -66,6 +65,7 @@ public:
     void setPartialShape(ov::frontend::Place::Ptr place, const ov::PartialShape&);
     ov::PartialShape getPartialShape(ov::frontend::Place::Ptr place) const;
     void setElementType(ov::frontend::Place::Ptr place, const ov::element::Type&);
+    ov::element::Type getElementType(ov::frontend::Place::Ptr place) const;
     void setTensorValue(ov::frontend::Place::Ptr place, const void* value);
 
     std::vector<std::shared_ptr<OpPlace>> get_op_places() const;
@@ -122,8 +122,6 @@ void InputModel::InputModelTFImpl::loadPlaces() {
                 // sometimes shape attribute can be absent in the graph
                 // so we need to check if Any object is initialized first
                 pshape = shape_any.as<ov::PartialShape>();
-            } else {
-                OPENVINO_DEBUG << "TensorFlow Frontend: Placeholder " << op_name << " does not have 'shape' attribute";
             }
             auto dtype_any = node_decoder->get_attribute("dtype");
             auto placeholder_name = node_decoder->get_op_name();
@@ -373,6 +371,10 @@ void InputModel::InputModelTFImpl::setElementType(ov::frontend::Place::Ptr place
     castToTensorPlace(place)->set_element_type(type);
 }
 
+ov::element::Type InputModel::InputModelTFImpl::getElementType(ov::frontend::Place::Ptr place) const {
+    return castToTensorPlace(place)->get_element_type();
+}
+
 void InputModel::InputModelTFImpl::setTensorValue(ov::frontend::Place::Ptr place, const void* value) {
     m_graph_changed = true;
     auto tensor_place = castToTensorPlace(place);
@@ -434,6 +436,10 @@ ov::PartialShape InputModel::get_partial_shape(const ov::frontend::Place::Ptr& p
 
 void InputModel::set_element_type(const ov::frontend::Place::Ptr& place, const ov::element::Type& type) {
     _impl->setElementType(place, type);
+}
+
+ov::element::Type InputModel::get_element_type(const ov::frontend::Place::Ptr& place) const {
+    return _impl->getElementType(place);
 }
 
 void InputModel::set_tensor_value(const ov::frontend::Place::Ptr& place, const void* value) {
