@@ -33,7 +33,7 @@ using namespace ov::frontend;
 
 namespace {
 
-void load_static_plugins(std::vector<PluginInfo>& res) {
+void load_static_plugins(const std::vector<std::string>& plugins_names, std::vector<PluginInfo>& res) {
     for (const auto& frontend : getStaticFrontendsRegistry()) {
         FrontEndPluginInfo factory;
         {
@@ -51,7 +51,8 @@ void load_static_plugins(std::vector<PluginInfo>& res) {
         if (it != predefined_frontends.end()) {
             plugin_info.m_file_name = it->second;
         }
-        res.emplace_back(std::move(plugin_info));
+        if (std::find(plugins_names.begin(), plugins_names.end(), plugin_info.m_file_name) != plugins_names.end())
+            res.emplace_back(std::move(plugin_info));
     }
 }
 
@@ -83,9 +84,11 @@ static std::vector<std::string> list_files(const std::string& path) {
     return res;
 }
 
-void ov::frontend::find_plugins(const std::string& dir_name, std::vector<PluginInfo>& res) {
+void ov::frontend::find_plugins(const std::string& dir_name,
+                                const std::vector<std::string>& plugins_files_names,
+                                std::vector<PluginInfo>& res) {
 #ifdef OPENVINO_STATIC_LIBRARY
-    load_static_plugins(res);
+    load_static_plugins(plugins_files_names, res);
 #endif  // OPENVINO_STATIC_LIBRARY
     for (const auto& file_path : list_files(dir_name)) {
         PluginInfo plugin_info;
@@ -95,7 +98,13 @@ void ov::frontend::find_plugins(const std::string& dir_name, std::vector<PluginI
         if (std::find_if(res.begin(), res.end(), [&plugin_info](const PluginInfo& pd) {
                 return plugin_info.get_name_from_file() == pd.get_name_from_file();
             }) == res.end()) {
-            res.emplace_back(std::move(plugin_info));
+            // if frontend is not in the known list, ignore found
+            if (std::find_if(plugins_files_names.begin(),
+                             plugins_files_names.end(),
+                             [&plugin_info](const std::string& plugin_name) {
+                                 return plugin_info.get_name_from_file() == plugin_name;
+                             }) != plugins_files_names.end())
+                res.emplace_back(std::move(plugin_info));
         } else {
             OPENVINO_DEBUG << "Static frontend for '" << plugin_info.m_file_name << "' is already loaded\n";
         }

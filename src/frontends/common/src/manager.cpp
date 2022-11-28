@@ -18,6 +18,15 @@ using namespace ov::frontend;
 class FrontEndManager::Impl {
     std::mutex m_loading_mutex;
     std::vector<PluginInfo> m_plugins;
+    // List of predefined plugins file names (without prefix and suffix)
+    const std::vector<std::string> m_plugins_file_names = {"ir",
+                                                           "onnx",
+                                                           "tensorflow",
+                                                           "paddle",
+                                                           /*test frontends*/
+                                                           "mock_py",
+                                                           "mock1",
+                                                           "mock_mo"};
 
     /// \brief map of shared object per frontend <frontend_name, frontend_so_ptr>
     static std::unordered_map<std::string, std::shared_ptr<void>> m_shared_objects_map;
@@ -204,7 +213,7 @@ private:
     void search_all_plugins() {
         auto search_from_dir = [&](const std::string& dir) {
             if (!dir.empty()) {
-                find_plugins(dir, m_plugins);
+                find_plugins(dir, m_plugins_file_names, m_plugins);
             }
         };
         std::string env_path = ov::util::getenv_string("OV_FRONTEND_PATH");

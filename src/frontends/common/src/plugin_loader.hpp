@@ -74,7 +74,9 @@ public:
 
 // Searches for available plugins in a specified directory
 // Appends found plugins to existing list
-void find_plugins(const std::string& dir_name, std::vector<PluginInfo>& res);
+void find_plugins(const std::string& dir_name,
+                  const std::vector<std::string>& plugins_files_names,
+                  std::vector<PluginInfo>& res);
 
 }  // namespace frontend
 }  // namespace ov
