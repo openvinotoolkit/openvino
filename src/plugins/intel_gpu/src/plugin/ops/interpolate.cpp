@@ -95,24 +95,10 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
                                                              attrs.shape_calculation_mode,
                                                              attrs.coordinate_transformation_mode,
                                                              attrs.nearest_mode);
-        } else if (scales_constant) {
+        } else {
             resamplePrim = std::make_shared<cldnn::resample>(layerName,
                                                              inputPrimitives[0],
                                                              inputPrimitives[SIZES_INDEX],
-                                                             scales,
-                                                             axes,
-                                                             attrs.pads_begin,
-                                                             attrs.pads_end,
-                                                             attrs.antialias,
-                                                             attrs.cube_coeff,
-                                                             interpolateMode,
-                                                             attrs.shape_calculation_mode,
-                                                             attrs.coordinate_transformation_mode,
-                                                             attrs.nearest_mode);
-        } else if (sizes_constant) {
-            resamplePrim = std::make_shared<cldnn::resample>(layerName,
-                                                             inputPrimitives[0],
-                                                             sizes,
                                                              inputPrimitives[SCALES_INDEX],
                                                              axes,
                                                              attrs.pads_begin,
@@ -123,9 +109,6 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
                                                              attrs.shape_calculation_mode,
                                                              attrs.coordinate_transformation_mode,
                                                              attrs.nearest_mode);
-        } else {
-            OPENVINO_ASSERT(false, "Scales and Sizes as parameters are not supported at the same time in ",
-                                    op->get_friendly_name(), " (", op->get_type_name(), ")");
         }
     } else {
         auto outShape = op->get_output_shape(0);

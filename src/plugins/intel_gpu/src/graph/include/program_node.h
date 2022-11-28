@@ -222,6 +222,9 @@ public:
     bool is_dynamic() const;
     bool is_dynamic();
 
+    bool is_dynamic_output_layout(size_t idx = 0) const;
+    bool is_dynamic_output_layout(size_t idx = 0);
+
     bool is_padded() { return static_cast<bool>(get_output_layout().data_padding); }
     bool is_padded() const { return static_cast<bool>(get_output_layout().data_padding); }
 
